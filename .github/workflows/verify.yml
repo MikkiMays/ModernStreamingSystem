@@ -1,0 +1,97 @@
+name: Verify streaming system
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '25.0.2+10'
+          cache: maven
+      - name: Require Docker for PostgreSQL tests
+        run: docker info > /dev/null
+      - run: bash mvnw -B -pl server fmt:check verify
+      - name: Require PostgreSQL tests to run
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          suite = ET.parse('server/target/surefire-reports/TEST-dev.mikki.stream.PostgresIntegrationTest.xml').getroot()
+          assert int(suite.attrib['tests']) >= 15
+          assert int(suite.attrib['skipped']) == 0
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: core-test-results
+          path: server/target/surefire-reports
+          retention-days: 7
+  browser:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '25.0.2+10'
+          cache: maven
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run format:check
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - run: .\mvnw.cmd -B -pl server -am package -DskipTests
+      - run: .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild
+      - name: Check generated API contracts
+        working-directory: web
+        run: |
+          npm run generate:api
+          git diff --exit-code -- src/api/generated.ts ../contracts/openapi.json
+      - run: npm run test:e2e
+        working-directory: web
+        env:
+          PLAYWRIGHT_CHANNEL: msedge
+      - run: .\scripts\stop-local.ps1
+        if: always()
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: browser-test-results
+          include-hidden-files: true
+          path: |
+            web/playwright-report
+            web/test-results
+            .local/*.png
+          retention-days: 7
+  deployment-config:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.11.1'
+      - run: node scripts/configure.mjs --app=app.example.test --rtc=rtc.example.test --turn=turn.example.test --ip=192.0.2.1
+      - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs
+      - run: docker compose config --quiet
+      - run: docker compose build
+      - name: Validate gateway and L4 modules without obtaining certificates
+        run: |
+          docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker compose run --rm --no-deps edge validate --config /etc/edge.json

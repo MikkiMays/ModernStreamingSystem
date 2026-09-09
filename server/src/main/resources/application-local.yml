@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:./.local/streaming;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ''
+  data.redis.repositories.enabled: false
+management.health.redis.enabled: false
+stream:
+  livekit-url: ws://localhost:7883
+  redis-enabled: false
+  livekit-key: devkey
+  livekit-secret: local-development-only-secret-32bytes
+  session-secret: local-development-session-secret-32bytes
+  internal-secret: local-development-internal-secret-32bytes

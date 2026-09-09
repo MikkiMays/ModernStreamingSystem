@@ -1,0 +1,10 @@
+FROM node:24.11.1-alpine3.22@sha256:2867d550cf9d8bb50059a0fff528741f11a84d985c732e60e19e8e75c7239c43 AS build
+WORKDIR /workspace
+COPY web/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+FROM caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+COPY --from=build /workspace/dist /srv
+COPY infra/Caddyfile /etc/caddy/Caddyfile

@@ -1,0 +1,15 @@
+FROM maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c AS build
+WORKDIR /workspace
+COPY pom.xml ./
+COPY server/pom.xml server/pom.xml
+RUN mvn -B -q -pl server -am dependency:go-offline
+COPY server/src server/src
+RUN mvn -B -q -pl server -am package -DskipTests
+
+FROM eclipse-temurin:25.0.2_10-jre-alpine@sha256:5fcc27581b238efbfda93da3a103f59e0b5691fe522a7ac03fe8057b0819c888
+RUN addgroup -g 10001 stream && adduser -D -u 10001 -G stream stream
+WORKDIR /app
+COPY --from=build /workspace/server/target/streaming-server-0.1.0-SNAPSHOT.jar /app/server.jar
+USER 10001:10001
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError"
+ENTRYPOINT ["java","-jar","/app/server.jar"]

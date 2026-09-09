@@ -1,0 +1,1439 @@
+{
+  "components": {
+    "schemas": {
+      "Ack": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "sequence": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "commandId",
+          "ok",
+          "sequence",
+          "value"
+        ],
+        "type": "object"
+      },
+      "Admission": {
+        "properties": {
+          "credential": {
+            "type": "string"
+          },
+          "inviteUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "participantId": {
+            "type": "string"
+          },
+          "recoverySeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/Snapshot"
+          }
+        },
+        "required": [
+          "credential",
+          "inviteUrl",
+          "participantId",
+          "recoverySeconds",
+          "roomId",
+          "snapshot"
+        ],
+        "type": "object"
+      },
+      "Attachment": {
+        "properties": {
+          "cancelledAt": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "completedAt": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uploadId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cancelledAt",
+          "completedAt",
+          "createdAt",
+          "expiresAt",
+          "id",
+          "name",
+          "ownerId",
+          "roomId",
+          "sha256",
+          "size",
+          "uploadId"
+        ],
+        "type": "object"
+      },
+      "Capabilities": {
+        "properties": {
+          "admissionOpen": {
+            "type": "boolean"
+          },
+          "fileMaxBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "frameRates": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "maxParticipants": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "maxScreens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "recoverySeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "region": {
+            "type": "string"
+          },
+          "resolutions": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "roomMaxBytes": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "admissionOpen",
+          "fileMaxBytes",
+          "frameRates",
+          "maxParticipants",
+          "maxScreens",
+          "recoverySeconds",
+          "region",
+          "resolutions",
+          "roomMaxBytes"
+        ],
+        "type": "object"
+      },
+      "Command": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "generation": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "targetId": {
+            "maxLength": 36,
+            "minLength": 0,
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "leave",
+              "close",
+              "invite.create",
+              "invite.revoke",
+              "participant.remove",
+              "participant.approve",
+              "message.send",
+              "media.lost",
+              "media.restored"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "type"
+        ],
+        "type": "object"
+      },
+      "Create": {
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "name",
+          "title"
+        ],
+        "type": "object"
+      },
+      "Event": {
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/EventPayload"
+          },
+          "sequence": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "room.changed",
+              "message.created",
+              "files.changed"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "eventId",
+          "occurredAt",
+          "payload",
+          "sequence",
+          "type",
+          "version"
+        ],
+        "type": "object"
+      },
+      "EventPayload": {
+        "properties": {
+          "message": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "Favorite": {
+        "properties": {
+          "canJoin": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "roomId": {
+            "type": "string"
+          },
+          "savedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "canJoin",
+          "closed",
+          "code",
+          "roomId",
+          "savedAt",
+          "title"
+        ],
+        "type": "object"
+      },
+      "Join": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invite": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "invite",
+          "name"
+        ],
+        "type": "object"
+      },
+      "JoinCode": {
+        "properties": {
+          "code": {
+            "pattern": "[0-9]{9}",
+            "type": "string"
+          },
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "commandId",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MediaToken": {
+        "properties": {
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expiresAt",
+          "token",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Message": {
+        "properties": {
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "participantId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "expiresAt",
+          "id",
+          "name",
+          "participantId",
+          "text"
+        ],
+        "type": "object"
+      },
+      "Participant": {
+        "properties": {
+          "generation": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "recoveryDeadline": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "screen": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "WAITING",
+              "JOINING",
+              "CONNECTED",
+              "RECOVERING",
+              "LEFT",
+              "EXPIRED",
+              "REMOVED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "generation",
+          "id",
+          "name",
+          "owner",
+          "recoveryDeadline",
+          "screen",
+          "status"
+        ],
+        "type": "object"
+      },
+      "Rejoin": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Replay": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          },
+          "reset": {
+            "type": "boolean"
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Snapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "events",
+          "reset",
+          "snapshot"
+        ],
+        "type": "object"
+      },
+      "Reserve": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 0,
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "commandId",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Resume": {
+        "properties": {
+          "after": {
+            "format": "int64",
+            "minimum": -1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Save": {
+        "properties": {
+          "roomCredential": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "roomCredential"
+        ],
+        "type": "object"
+      },
+      "Screen": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "commandId"
+        ],
+        "type": "object"
+      },
+      "Snapshot": {
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "closedAt": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            },
+            "type": "array"
+          },
+          "sequence": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "serverTime": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalRequired",
+          "closedAt",
+          "code",
+          "createdAt",
+          "id",
+          "messages",
+          "participants",
+          "sequence",
+          "serverTime",
+          "title"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ModernStreamingSystem API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/attachments/{id}": {
+      "delete": {
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/attachments/{id}/content": {
+      "get": {
+        "operationId": "download",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites": {
+      "get": {
+        "operationId": "list",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Favorite"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/{id}": {
+      "delete": {
+        "operationId": "remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-controller"
+        ]
+      },
+      "put": {
+        "operationId": "save",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Save"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/{id}/join": {
+      "post": {
+        "operationId": "join_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rejoin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms": {
+      "post": {
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Create"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}": {
+      "get": {
+        "operationId": "snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/attachments": {
+      "get": {
+        "operationId": "files",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Attachment"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      },
+      "post": {
+        "operationId": "reserve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reserve"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/commands": {
+      "post": {
+        "operationId": "command",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/events": {
+      "get": {
+        "operationId": "replay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": -1,
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Replay"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/join": {
+      "post": {
+        "operationId": "join",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Join"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/media/screen": {
+      "post": {
+        "operationId": "screen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Screen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/media/token": {
+      "post": {
+        "operationId": "token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaToken"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/rejoin": {
+      "post": {
+        "operationId": "rejoin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rejoin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/resume": {
+      "post": {
+        "operationId": "resume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Resume"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Replay"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/join-by-code": {
+      "post": {
+        "operationId": "joinCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Same origin",
+      "url": "/"
+    }
+  ]
+}

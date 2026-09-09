@@ -1,0 +1,374 @@
+import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from 'react';
+import {
+  Activity,
+  ArrowLeft,
+  ChevronDown,
+  Headphones,
+  Link,
+  MessageSquare,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PhoneOff,
+  Settings2,
+  ShieldCheck,
+  Users,
+  Video,
+  VideoOff,
+  Wifi,
+  X,
+  Star,
+  Radio,
+} from 'lucide-react';
+import { Menu } from '@base-ui/react/menu';
+import type { Meeting } from '../core/meeting';
+import { IconButton, Logo, useStore } from './primitives';
+import { Stage, AudioLayer } from './Stage';
+import { Sidebar, type Panel } from './Sidebar';
+import { Invite } from './Invite';
+import { Settings } from './Settings';
+import { ThemeButton, formatCode, type Theme } from './Home';
+import { favoriteApi } from '../core/favorites';
+import { useFavorites } from './useFavorites';
+
+const Diagnostics = lazy(() => import('./Diagnostics'));
+export function MeetingView({
+  meeting,
+  onHome,
+  theme,
+  setTheme,
+}: {
+  meeting: Meeting;
+  onHome: () => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+}) {
+  const snapshot = useStore(meeting.snapshot);
+  const media = useStore(meeting.media.state);
+  const tracks = useStore(meeting.media.tracks);
+  const control = useStore(meeting.control.state);
+  const ended = useStore(meeting.ended);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [invite, setInvite] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [diagnostics, setDiagnostics] = useState(false);
+  const preferences = useStore(meeting.media.preferences);
+  const favorites = useFavorites();
+  const isFavorite = !!favorites.data?.some((f) => f.roomId === meeting.admission.roomId);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const profile = preferences.screen;
+  const [width, setWidth] = useState(360);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const audioNeedsGesture = useCallback(() => setAudioBlocked(true), []);
+  useEffect(() => {
+    meeting.start();
+    return () => meeting.dispose();
+  }, [meeting]);
+  const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
+  const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
+  const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
+  return (
+    <div className="meeting-page" style={{ '--panel-width': `${width}px` } as CSSProperties}>
+      <header className="meeting-header">
+        <div className="meeting-title">
+          <Logo />
+          <span className="header-divider" />
+          <div>
+            <h1>{snapshot.title}</h1>
+            <span className="room-subtitle">
+              <ShieldCheck size={12} />{' '}
+              <button className="room-code" aria-label="Код встречи" onClick={() => setInvite(true)}>
+                {snapshot.code ? formatCode(snapshot.code) : 'Пригласить'}
+              </button>
+            </span>
+          </div>
+        </div>
+        <div className="meeting-header-actions">
+          <span className={`connection-badge ${media.status === 'connected' ? 'is-live' : ''}`}>
+            <span className="status-dot" />
+            {ended
+              ? 'Завершено'
+              : media.status === 'connected'
+                ? 'В эфире'
+                : self?.status === 'WAITING'
+                  ? 'Ожидание входа'
+                  : 'Подключаемся'}
+          </span>
+          <ThemeButton theme={theme} setTheme={setTheme} />
+          <IconButton
+            label={isFavorite ? 'Убрать комнату из избранного' : 'Сохранить комнату в избранное'}
+            aria-pressed={isFavorite}
+            className={isFavorite ? 'favorite-active' : ''}
+            disabled={savingFavorite || !self || self.status === 'WAITING'}
+            onClick={async () => {
+              setSavingFavorite(true);
+              try {
+                if (isFavorite) await favoriteApi.remove(meeting.admission.roomId);
+                else await favoriteApi.save(meeting.admission);
+                await favorites.refetch();
+              } catch (e) {
+                meeting.media.report(e);
+              } finally {
+                setSavingFavorite(false);
+              }
+            }}
+          >
+            <Star size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+          </IconButton>
+          <IconButton label="Пригласить участников" onClick={() => setInvite(true)}>
+            <Link size={19} />
+          </IconButton>
+        </div>
+      </header>
+      <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
+        <main className="stage-wrap" aria-label="Сцена встречи">
+          {!ended && self?.owner && snapshot.participants.some((p) => p.status === 'WAITING') && (
+            <button className="admission-banner" onClick={() => setPanel('people')}>
+              <Users size={18} /> Запросы на подключение:{' '}
+              {snapshot.participants.filter((p) => p.status === 'WAITING').length} · Открыть
+            </button>
+          )}
+          {!ended && media.status === 'recovering' && (
+            <div className="recovery-banner" role="status">
+              <Wifi size={20} />
+              <div>
+                <strong>Возвращаемся в разговор</strong>
+                <span>Проверьте сеть. Повторяем подключение автоматически.</span>
+              </div>
+              <b>{media.remaining} с</b>
+            </div>
+          )}
+          {!ended && control === 'recovering' && media.status === 'connected' && (
+            <div className="control-banner" role="status">
+              Восстанавливаем чат и управление. Аудио и видео продолжают работать.
+            </div>
+          )}
+          {!ended && media.liveStatus && control !== 'recovering' && media.status === 'connected' && (
+            <div className="control-banner" role="status">
+              {media.liveStatus}
+            </div>
+          )}
+          {ended ? (
+            <div className="ended-stage">
+              <span className="ended-icon">
+                <PhoneOff size={28} />
+              </span>
+              <h2>{ended}</h2>
+              <p>
+                Спасибо за разговор.
+                <br />
+                Сообщения и файлы доступны до окончания срока хранения.
+              </p>
+              <button className="button primary" onClick={onHome}>
+                <ArrowLeft size={18} /> На главную
+              </button>
+              <button className="button stage-ghost" onClick={() => setPanel('chat')}>
+                Открыть историю
+              </button>
+            </div>
+          ) : self?.status === 'WAITING' ? (
+            <div className="ended-stage">
+              <span className="waiting-orbit">
+                <Users size={32} />
+              </span>
+              <h2>Организатор скоро впустит вас</h2>
+              <p>
+                Можно спокойно устроиться.
+                <br />
+                Звук и камера пока не передаются.
+              </p>
+            </div>
+          ) : (
+            <>
+              <Stage
+                participants={snapshot.participants}
+                tracks={tracks}
+                selfId={meeting.admission.participantId}
+              />
+              {snapshot.participants.length === 1 && !media.screen && (
+                <button className="invite-hint" onClick={() => setInvite(true)}>
+                  <Users size={18} />
+                  <span>Самое время пригласить своих</span>
+                  <Link size={16} />
+                </button>
+              )}
+            </>
+          )}
+          {audioBlocked && (
+            <button
+              className="audio-unlock button primary"
+              onClick={() => void meeting.media.room.startAudio().then(() => setAudioBlocked(false))}
+            >
+              <Headphones size={18} /> Включить звук встречи
+            </button>
+          )}
+          {media.error && !ended && (
+            <div className="media-error" role="alert">
+              <span>{media.error}</span>
+              <IconButton label="Скрыть уведомление" onClick={() => meeting.media.clearError()}>
+                <X size={18} />
+              </IconButton>
+            </div>
+          )}
+        </main>
+        {panel && (
+          <>
+            <div
+              className="panel-resizer"
+              role="separator"
+              tabIndex={0}
+              aria-label="Ширина боковой панели"
+              aria-orientation="vertical"
+              aria-valuemin={320}
+              aria-valuemax={480}
+              aria-valuenow={width}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  setPanelWidth(width + 16);
+                }
+                if (e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  setPanelWidth(width - 16);
+                }
+              }}
+              onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+              onPointerMove={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  setPanelWidth(window.innerWidth - e.clientX - 16);
+              }}
+            />
+            <Sidebar
+              meeting={meeting}
+              panel={panel}
+              setPanel={setPanel}
+              onClose={() => setPanel(null)}
+              onInvite={() => setInvite(true)}
+            />
+          </>
+        )}
+      </div>
+      <footer className="call-footer">
+        <div className="call-footer-info">
+          <Wifi size={16} />
+          <span>
+            {media.status === 'connected'
+              ? 'Связь установлена'
+              : ended
+                ? 'До новой встречи'
+                : 'Устанавливаем связь'}
+          </span>
+          <button onClick={() => setDiagnostics(true)} className="quality-tag">
+            {media.screen ? `${profile.resolution}p · ${profile.fps}` : 'HD'}
+          </button>
+        </div>
+        <div className="call-dock" aria-label="Управление встречей">
+          <IconButton
+            label={media.microphone ? 'Выключить микрофон' : 'Включить микрофон'}
+            className={media.microphone ? 'dock-on' : 'dock-off'}
+            disabled={!!ended || media.status !== 'connected'}
+            aria-pressed={media.microphone}
+            onClick={() => void meeting.media.toggle('microphone')}
+          >
+            {media.microphone ? <Mic size={22} /> : <MicOff size={22} />}
+          </IconButton>
+          <IconButton
+            label={media.camera ? 'Выключить камеру' : 'Включить камеру'}
+            className={media.camera ? 'dock-on' : 'dock-off'}
+            disabled={!!ended || media.status !== 'connected'}
+            aria-pressed={media.camera}
+            onClick={() => void meeting.media.toggle('camera')}
+          >
+            {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
+          </IconButton>
+          <span className="dock-divider" />
+          <button
+            className={`share-button ${media.screen ? 'is-sharing' : ''}`}
+            disabled={!!ended || media.status !== 'connected'}
+            onClick={() => meeting.media.share(profile)}
+            aria-pressed={media.screen}
+          >
+            <MonitorUp size={21} />
+            <span>{media.screen ? 'Остановить' : 'Показать экран'}</span>
+          </button>
+          <Menu.Root>
+            <Menu.Trigger
+              render={
+                <IconButton label="Настройки и действия" className="dock-more">
+                  <ChevronDown size={20} />
+                </IconButton>
+              }
+            />
+            <Menu.Portal>
+              <Menu.Positioner side="top" sideOffset={12}>
+                <Menu.Popup className="action-menu">
+                  <Menu.Item onClick={() => setSettings(true)}>
+                    <Settings2 size={18} /> Устройства и качество
+                  </Menu.Item>
+                  <Menu.Item onClick={() => setDiagnostics(true)}>
+                    <Activity size={18} /> Диагностика
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={media.status !== 'connected'}
+                    onClick={() => void meeting.media.returnToLive()}
+                  >
+                    <Radio size={18} /> Вернуться в прямой эфир
+                  </Menu.Item>
+                  {self?.owner && (
+                    <Menu.Item
+                      className="danger-text"
+                      onClick={() => void meeting.command('close').catch((e) => meeting.media.report(e))}
+                    >
+                      <PhoneOff size={18} /> Завершить для всех
+                    </Menu.Item>
+                  )}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+          <IconButton
+            label="Выйти из встречи"
+            className="hangup"
+            disabled={!!ended}
+            onClick={() => {
+              void meeting.leave();
+              onHome();
+            }}
+          >
+            <PhoneOff size={22} />
+          </IconButton>
+        </div>
+        <div className="panel-controls">
+          <IconButton
+            label="Участники"
+            aria-pressed={panel === 'people'}
+            className={panel === 'people' ? 'selected' : ''}
+            onClick={() => togglePanel('people')}
+          >
+            <Users size={21} />
+            <span className="count-badge">{snapshot.participants.length}</span>
+          </IconButton>
+          <IconButton
+            label="Чат"
+            aria-pressed={panel === 'chat'}
+            className={panel === 'chat' ? 'selected' : ''}
+            onClick={() => togglePanel('chat')}
+          >
+            <MessageSquare size={21} />
+          </IconButton>
+          <IconButton label="Настройки качества" onClick={() => setSettings(true)}>
+            <Settings2 size={21} />
+          </IconButton>
+        </div>
+      </footer>
+      <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} />
+      <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
+      <Settings meeting={meeting} open={settings} onOpenChange={setSettings} />
+      {diagnostics && (
+        <Suspense fallback={null}>
+          <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />
+        </Suspense>
+      )}
+    </div>
+  );
+}

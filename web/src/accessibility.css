@@ -1,0 +1,136 @@
+:root {
+  --muted: #626c7d;
+  --blue: #2d59df;
+}
+:root[data-theme='dark'] {
+  --muted: #aab3c5;
+  --blue: #8aa4ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --muted: #aab3c5;
+    --blue: #8aa4ff;
+  }
+}
+.create-description {
+  color: #fff;
+}
+input,
+select,
+textarea,
+.input-icon input,
+.device-fields select,
+.settings-form select,
+.message-composer textarea,
+.people-panel > input {
+  font-size: 16px;
+}
+.message > p,
+.join-card p,
+.prejoin-form > .muted,
+.ended-stage p {
+  font-size: 16px;
+}
+.panel-tabs > button,
+.share-button,
+.participant-info strong,
+.file-row strong,
+.upload-area strong,
+.action-menu [role='menuitem'],
+.settings-form label,
+.mode-selector strong {
+  font-size: 14px;
+}
+.form-footnote,
+.retention-note,
+.preview-caption,
+.file-footnote,
+.participant-info small,
+.file-row small,
+.create-description,
+.home-footer,
+.section-title > span,
+.message-meta,
+.message-meta time,
+.person-caption,
+.connection-badge {
+  font-size: 12px;
+}
+.screen-tools .icon-button,
+.participant-row > .icon-button,
+.call-dock .icon-button,
+.modal-heading > .icon-button {
+  min-width: 48px;
+  width: 48px;
+  height: 48px;
+}
+.screen-tools {
+  flex-wrap: wrap;
+}
+.mode-selector label {
+  min-width: 0;
+}
+.mode-selector strong {
+  font-size: 12px;
+}
+.mode-selector input {
+  width: 16px;
+  min-height: 16px;
+}
+.loading-room {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  color: var(--muted);
+}
+.connection-badge.is-live {
+  color: #237653;
+}
+@media (max-width: 767px) {
+  .call-dock {
+    gap: 2px;
+  }
+  .call-dock .hangup {
+    min-width: 50px;
+  }
+  .share-button {
+    padding: 0 10px;
+  }
+  .call-dock .dock-divider {
+    display: none;
+  }
+  .connection-badge {
+    font-size: 10px;
+  }
+  .meeting-title h1 {
+    max-width: 38vw;
+  }
+  .panel-open .person-caption {
+    font-size: 10px;
+  }
+  .retention-note {
+    font-size: 11px;
+  }
+  .device-fields {
+    grid-template-columns: 1fr;
+  }
+  .settings-row select {
+    padding-inline: 8px;
+    font-size: 14px;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .connection-badge.is-live {
+    color: #8fd8b4;
+  }
+}
+:root[data-theme='dark'] .connection-badge.is-live {
+  color: #8fd8b4;
+}
+/* Small quality labels still need the full text contrast ratio. */
+.quality-tag {
+  color: var(--text);
+  font-size: 12px;
+  min-height: 32px;
+  min-width: 32px;
+}

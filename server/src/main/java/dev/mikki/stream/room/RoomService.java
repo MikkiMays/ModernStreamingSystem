@@ -1,0 +1,640 @@
+package dev.mikki.stream.room;
+
+import static dev.mikki.stream.room.Contracts.*;
+import static dev.mikki.stream.room.RoomState.Status.*;
+
+import dev.mikki.stream.access.Secrets;
+import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.shared.Json;
+import dev.mikki.stream.shared.Problem;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.util.*;
+import java.util.function.Supplier;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class RoomService {
+  private final RoomRepository rooms;
+  private final StreamProperties config;
+  private final Secrets secrets;
+  private final Clock clock;
+  private final SecureRandom codeRandom = new SecureRandom();
+
+  public RoomService(RoomRepository rooms, StreamProperties config, Secrets secrets, Clock clock) {
+    this.rooms = rooms;
+    this.config = config;
+    this.secrets = secrets;
+    this.clock = clock;
+  }
+
+  public long now() {
+    return clock.millis();
+  }
+
+  public RoomState read(String roomId) {
+    return rooms.get(roomId, false);
+  }
+
+  public RoomState lock(String roomId) {
+    return rooms.get(roomId, true);
+  }
+
+  @Transactional
+  public Admission create(Create request) {
+    rooms.lockGlobal();
+    return receipt(
+        "create",
+        request.commandId(),
+        request,
+        Admission.class,
+        () -> {
+          if (!config.admissionOpen())
+            throw new Problem(503, "DRAINING", "Сервер временно не принимает новые комнаты");
+          if (rooms.all().stream()
+                  .filter(
+                      r ->
+                          r.closedAt == null
+                              && r.members.values().stream()
+                                  .anyMatch(RoomState.Member::occupiesSeat))
+                  .count()
+              >= config.maxRooms())
+            throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
+          var room = new RoomState();
+          room.id = UUID.randomUUID().toString();
+          room.code = newCode();
+          room.title = request.title().strip();
+          room.createdAt = now();
+          room.approvalRequired = request.approvalRequired();
+          var member = newMember(room, request.name(), true, request.commandId());
+          var url = invite(room);
+          rooms.insert(room, now());
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return admission(room, member, request.commandId(), url);
+        });
+  }
+
+  private String newCode() {
+    String code;
+    do {
+      code = String.format(Locale.ROOT, "%09d", codeRandom.nextInt(1_000_000_000));
+    } while (rooms.codeExists(code));
+    return code;
+  }
+
+  @org.springframework.context.event.EventListener(
+      org.springframework.boot.context.event.ApplicationReadyEvent.class)
+  @Transactional
+  public void assignLegacyCodes() {
+    rooms.lockGlobal();
+    for (var old : rooms.all())
+      if (old.code == null) {
+        var room = lock(old.id);
+        room.code = newCode();
+        rooms.save(room, now());
+      }
+  }
+
+  @Transactional
+  public Admission joinCode(JoinCode request) {
+    rooms.lockGlobal();
+    var room = lock(rooms.roomForCode(request.code()));
+    return receipt(
+        "code:" + room.id,
+        request.commandId(),
+        request,
+        Admission.class,
+        () -> {
+          requireOpen(room);
+          checkSeat(room);
+          var member = newMember(room, request.name(), false, request.commandId());
+          member.status = WAITING;
+          member.approved = false;
+          member.codeRequest = true;
+          member.recoveryDeadline = null;
+          room.emptySince = null;
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return admission(room, member, request.commandId(), null);
+        });
+  }
+
+  @Transactional
+  public Admission rejoin(String roomId, String credential, Rejoin request) {
+    rooms.lockGlobal();
+    var room = lock(roomId);
+    var previous = authenticate(room, credential, true);
+    return returnMember(room, previous, request, false);
+  }
+
+  @Transactional
+  public Admission joinSaved(String roomId, String memberId, Rejoin request) {
+    rooms.lockGlobal();
+    var room = lock(roomId);
+    var member = room.members.get(memberId);
+    if (member == null || member.status == REMOVED) throw Problem.forbidden();
+    return returnMember(room, member, request, true);
+  }
+
+  private Admission returnMember(
+      RoomState room, RoomState.Member previous, Rejoin request, boolean saved) {
+    return receipt(
+        "rejoin:" + room.id + ":" + previous.id,
+        request.commandId(),
+        request,
+        Admission.class,
+        () -> {
+          if (saved && room.closedAt != null) {
+            freezeHistory(room, room.closedAt);
+            room.closedAt = null;
+            room.mediaDrained = false;
+          }
+          requireOpen(room);
+          if (previous.replacedBy != null)
+            throw Problem.conflict("SESSION_REPLACED", "Этот вход уже заменён новой сессией");
+          // A fresh media identity fences late leave RPCs and old client callbacks.
+          // The room, conversation and host rights survive an explicit return.
+          var status = previous.status;
+          previous.status = LEFT;
+          checkSeat(room);
+          var member = newMember(room, request.name(), previous.owner, request.commandId());
+          member.codeRequest = previous.codeRequest;
+          member.approved =
+              previous.owner
+                  || previous.approved
+                  || (!previous.codeRequest && !room.approvalRequired && status != WAITING);
+          member.status = member.approved ? JOINING : WAITING;
+          member.recoveryDeadline =
+              member.approved ? now() + config.recoverySeconds() * 1000L : null;
+          previous.owner = false;
+          previous.replacedBy = member.id;
+          previous.generation++;
+          previous.screen = false;
+          previous.recoveryDeadline = null;
+          rooms
+              .jdbc()
+              .sql("UPDATE favorites SET member_id=? WHERE room_id=? AND member_id=?")
+              .params(member.id, room.id, previous.id)
+              .update();
+          room.emptySince = null;
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return admission(room, member, request.commandId(), null);
+        });
+  }
+
+  private void checkSeat(RoomState room) {
+    if (!config.admissionOpen())
+      throw new Problem(503, "DRAINING", "Сервер завершает действующие встречи");
+    if (room.members.values().stream().noneMatch(RoomState.Member::occupiesSeat)
+        && rooms.all().stream()
+                .filter(
+                    r ->
+                        !r.id.equals(room.id)
+                            && r.closedAt == null
+                            && r.members.values().stream().anyMatch(RoomState.Member::occupiesSeat))
+                .count()
+            >= config.maxRooms())
+      throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
+    if (room.members.values().stream().filter(RoomState.Member::occupiesSeat).count()
+        >= config.maxParticipants())
+      throw Problem.conflict("ROOM_FULL", "В комнате уже десять участников");
+    if (room.members.size() >= 500) {
+      var retained =
+          new HashSet<>(
+              rooms
+                  .jdbc()
+                  .sql("SELECT member_id FROM favorites WHERE room_id=?")
+                  .param(room.id)
+                  .query(String.class)
+                  .list());
+      room.members
+          .values()
+          .removeIf(
+              m ->
+                  !m.occupiesSeat()
+                      && !retained.contains(m.id)
+                      && now() - m.joinedAt > config.retentionSeconds() * 1000L);
+    }
+    if (room.members.size() >= 500)
+      throw new Problem(429, "SESSION_LIMIT", "Достигнут лимит входов за время встречи");
+  }
+
+  @Transactional
+  public Admission join(String roomId, Join request) {
+    rooms.lockGlobal();
+    var room = lock(roomId);
+    return receipt(
+        "join:" + roomId,
+        request.commandId(),
+        request,
+        Admission.class,
+        () -> {
+          requireOpen(room);
+          if (!config.admissionOpen())
+            throw new Problem(503, "DRAINING", "Сервер завершает действующие встречи");
+          var valid =
+              room.invites.values().stream()
+                  .anyMatch(
+                      i ->
+                          !i.revoked()
+                              && i.expiresAt() > now()
+                              && Secrets.equal(i.secretHash(), Secrets.hash(request.invite())));
+          if (!valid) throw new Problem(403, "INVITE_INVALID", "Приглашение истекло или отозвано");
+          checkSeat(room);
+          var member = newMember(room, request.name(), false, request.commandId());
+          room.emptySince = null;
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return admission(room, member, request.commandId(), null);
+        });
+  }
+
+  private RoomState.Member newMember(RoomState room, String name, boolean owner, UUID commandId) {
+    var m = new RoomState.Member();
+    m.id = UUID.randomUUID().toString();
+    m.name = name.strip();
+    m.owner = owner;
+    m.joinedAt = now();
+    m.status = (!owner && room.approvalRequired) ? WAITING : JOINING;
+    m.approved = m.status == JOINING;
+    m.recoveryDeadline = m.status == JOINING ? now() + config.recoverySeconds() * 1000L : null;
+    m.secretHash =
+        Secrets.hash(secrets.derive("session:" + room.id + ":" + m.id + ":" + commandId));
+    room.members.put(m.id, m);
+    return m;
+  }
+
+  private Admission admission(
+      RoomState room, RoomState.Member member, UUID commandId, String inviteUrl) {
+    // Admission receipts must not duplicate older chat text beyond its own TTL.
+    // The authenticated event channel sends the current message history immediately.
+    var current = snapshotFor(room, member);
+    var initial =
+        new Snapshot(
+            current.id(),
+            current.title(),
+            current.code(),
+            current.createdAt(),
+            current.closedAt(),
+            current.sequence(),
+            current.approvalRequired(),
+            current.participants(),
+            List.of(),
+            current.serverTime());
+    return new Admission(
+        room.id,
+        member.id,
+        member.id + "." + secrets.derive("session:" + room.id + ":" + member.id + ":" + commandId),
+        inviteUrl,
+        config.recoverySeconds(),
+        initial);
+  }
+
+  private String invite(RoomState room) {
+    if (room.invites.size() >= 100)
+      room.invites.values().removeIf(i -> i.revoked() || i.expiresAt() <= now());
+    if (room.invites.size() >= 100)
+      throw new Problem(429, "INVITE_LIMIT", "Слишком много приглашений");
+    var id = UUID.randomUUID().toString();
+    var token = secrets.derive("invite:" + room.id + ":" + id);
+    room.invites.put(
+        id,
+        new RoomState.Invite(
+            id, Secrets.hash(token), now(), now() + config.retentionSeconds() * 1000L, false));
+    return config.publicUrl() + "/join/" + room.id + "#invite=" + token;
+  }
+
+  public RoomState.Member authenticate(RoomState room, String credential) {
+    return authenticate(room, credential, false);
+  }
+
+  private RoomState.Member authenticate(RoomState room, String credential, boolean allowReplaced) {
+    if (credential == null) throw Problem.forbidden();
+    var parts = credential.replaceFirst("^Bearer ", "").split("\\.", 2);
+    var member = parts.length == 2 ? room.members.get(parts[0]) : null;
+    if (member == null
+        || !Secrets.equal(member.secretHash, Secrets.hash(parts[1]))
+        || (!allowReplaced && member.replacedBy != null)
+        || member.status == REMOVED) throw Problem.forbidden();
+    if (room.closedAt != null && now() >= room.closedAt + config.closedRetentionSeconds() * 1000L)
+      throw new Problem(410, "HISTORY_EXPIRED", "История встречи удалена");
+    return member;
+  }
+
+  public void requireActive(RoomState room, RoomState.Member member) {
+    requireOpen(room);
+    if (!member.mediaAllowed()
+        || (member.recoveryDeadline != null && now() >= member.recoveryDeadline))
+      throw new Problem(410, "SESSION_ENDED", "Сессия завершена. Войдите в комнату снова");
+  }
+
+  public void requireOpen(RoomState room) {
+    if (room.closedAt != null) throw new Problem(410, "ROOM_CLOSED", "Встреча завершена");
+  }
+
+  public long expiry(long createdAt, RoomState room) {
+    return Math.min(
+        createdAt + config.retentionSeconds() * 1000L,
+        room.closedAt == null
+            ? Long.MAX_VALUE
+            : room.closedAt + config.closedRetentionSeconds() * 1000L);
+  }
+
+  public Snapshot snapshot(RoomState room) {
+    var participants =
+        room.members.values().stream()
+            .filter(m -> m.occupiesSeat())
+            .map(
+                m ->
+                    new Participant(
+                        m.id,
+                        m.name,
+                        m.owner,
+                        m.status,
+                        m.generation,
+                        m.recoveryDeadline,
+                        m.screen))
+            .toList();
+    var messages =
+        rooms
+            .jdbc()
+            .sql("SELECT * FROM messages WHERE room_id=? AND created_at>? ORDER BY created_at,id")
+            .params(room.id, now() - config.retentionSeconds() * 1000L)
+            .query(
+                (rs, n) ->
+                    new RoomState.Message(
+                        rs.getString("id"),
+                        rs.getString("participant_id"),
+                        rs.getString("display_name"),
+                        rs.getString("content"),
+                        rs.getLong("created_at"),
+                        Math.min(
+                            expiry(rs.getLong("created_at"), room),
+                            rs.getObject("expires_at") == null
+                                ? Long.MAX_VALUE
+                                : rs.getLong("expires_at"))))
+            .list()
+            .stream()
+            .filter(m -> m.expiresAt() > now())
+            .toList();
+    return new Snapshot(
+        room.id,
+        room.title,
+        room.code,
+        room.createdAt,
+        room.closedAt,
+        room.sequence,
+        room.approvalRequired,
+        participants,
+        messages,
+        now());
+  }
+
+  public Snapshot snapshot(String roomId, String credential) {
+    var room = read(roomId);
+    return snapshotFor(room, authenticate(room, credential));
+  }
+
+  public boolean historyAllowed(RoomState room, RoomState.Member member) {
+    return member.owner
+        || member.approved
+        || (!member.codeRequest && !room.approvalRequired && member.status != WAITING);
+  }
+
+  private Snapshot snapshotFor(RoomState room, RoomState.Member member) {
+    var current = snapshot(room);
+    if (historyAllowed(room, member)) return current;
+    return new Snapshot(
+        current.id(),
+        current.title(),
+        current.code(),
+        current.createdAt(),
+        current.closedAt(),
+        current.sequence(),
+        current.approvalRequired(),
+        current.participants().stream().filter(p -> p.id().equals(member.id)).toList(),
+        List.of(),
+        current.serverTime());
+  }
+
+  @Transactional
+  public Ack command(String roomId, String credential, Command command) {
+    var room = lock(roomId);
+    var member = authenticate(room, credential);
+    return receipt(
+        "command:" + roomId + ":" + member.id,
+        command.commandId(),
+        command,
+        Ack.class,
+        () -> {
+          String value = null;
+          switch (command.type()) {
+            case "leave" -> {
+              member.status = LEFT;
+              member.generation++;
+              member.screen = false;
+              member.recoveryDeadline = null;
+            }
+            case "close" -> {
+              owner(member);
+              close(room);
+            }
+            case "invite.create" -> {
+              owner(member);
+              requireOpen(room);
+              value = invite(room);
+            }
+            case "invite.revoke" -> {
+              owner(member);
+              requireOpen(room);
+              room.invites.replaceAll(
+                  (id, i) ->
+                      new RoomState.Invite(
+                          i.id(), i.secretHash(), i.createdAt(), i.expiresAt(), true));
+            }
+            case "participant.remove", "participant.approve" -> {
+              owner(member);
+              requireOpen(room);
+              var target = room.members.get(command.targetId());
+              if (target == null || target.owner) throw Problem.forbidden();
+              if (command.type().equals("participant.remove")) {
+                target.status = REMOVED;
+                target.screen = false;
+                target.generation++;
+                target.recoveryDeadline = null;
+              } else if (target.status == WAITING) {
+                target.approved = true;
+                target.status = JOINING;
+                target.recoveryDeadline = now() + config.recoverySeconds() * 1000L;
+              }
+            }
+            case "message.send" -> {
+              requireActive(room, member);
+              if (command.text() == null || command.text().isBlank())
+                throw new Problem(400, "EMPTY_MESSAGE", "Введите сообщение");
+              if (rooms
+                      .jdbc()
+                      .sql("SELECT COUNT(*) FROM messages WHERE room_id=?")
+                      .param(room.id)
+                      .query(Long.class)
+                      .single()
+                  >= 1000)
+                throw new Problem(429, "MESSAGE_LIMIT", "Достигнут лимит сообщений комнаты");
+              var msg =
+                  new RoomState.Message(
+                      UUID.randomUUID().toString(),
+                      member.id,
+                      member.name,
+                      command.text().strip(),
+                      now(),
+                      expiry(now(), room));
+              rooms
+                  .jdbc()
+                  .sql(
+                      "INSERT INTO messages(id,room_id,participant_id,display_name,content,created_at) VALUES(?,?,?,?,?,?)")
+                  .params(msg.id(), room.id, member.id, member.name, msg.text(), msg.createdAt())
+                  .update();
+              emit(room, "message.created", new EventPayload(msg));
+            }
+            case "media.lost" -> {
+              requireActive(room, member);
+              if (member.generation == command.generation() && member.status == CONNECTED) {
+                member.status = RECOVERING;
+                member.clientReportedLoss = true;
+                member.recoveryDeadline = now() + config.recoverySeconds() * 1000L;
+              }
+            }
+            case "media.restored" -> {
+              requireActive(room, member);
+              if (member.generation == command.generation()
+                  && (member.status == RECOVERING || member.status == JOINING)) {
+                member.status = CONNECTED;
+                member.clientReportedLoss = false;
+                member.recoveryDeadline = null;
+                member.generation++;
+                room.everConnected = true;
+              }
+            }
+            default -> throw new Problem(400, "UNKNOWN_COMMAND", "Неизвестная команда");
+          }
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return new Ack(command.commandId(), true, room.sequence, value);
+        });
+  }
+
+  private void owner(RoomState.Member member) {
+    if (!member.owner || !member.occupiesSeat()) throw Problem.forbidden();
+  }
+
+  public void close(RoomState room) {
+    if (room.closedAt != null) return;
+    room.closedAt = now();
+    freezeHistory(room, room.closedAt);
+    room.members
+        .values()
+        .forEach(
+            m -> {
+              if (m.occupiesSeat()) m.status = LEFT;
+              m.generation++;
+              m.screen = false;
+              m.recoveryDeadline = null;
+            });
+  }
+
+  private void freezeHistory(RoomState room, long endedAt) {
+    for (String table : List.of("messages", "attachments"))
+      rooms
+          .jdbc()
+          .sql(
+              "UPDATE "
+                  + table
+                  + " SET expires_at=LEAST(COALESCE(expires_at,created_at+?),?) WHERE room_id=? AND created_at<=?")
+          .params(
+              config.retentionSeconds() * 1000L,
+              endedAt + config.closedRetentionSeconds() * 1000L,
+              room.id,
+              endedAt)
+          .update();
+  }
+
+  public void emit(RoomState room, String type, EventPayload payload) {
+    var event = new Event(1, UUID.randomUUID().toString(), ++room.sequence, type, payload, now());
+    rooms
+        .jdbc()
+        .sql("INSERT INTO room_events(room_id,sequence,body,expires_at) VALUES(?,?,?,?)")
+        .params(room.id, event.sequence(), Json.write(event), now() + 3600000L)
+        .update();
+    rooms
+        .jdbc()
+        .sql("DELETE FROM room_events WHERE room_id=? AND sequence<=?")
+        .params(room.id, room.sequence - config.eventHistoryLimit())
+        .update();
+  }
+
+  public Replay replay(String roomId, String credential, long after) {
+    var room = read(roomId);
+    var member = authenticate(room, credential);
+    if (!historyAllowed(room, member))
+      return new Replay(true, snapshotFor(room, member), List.of());
+    var events =
+        rooms
+            .jdbc()
+            .sql(
+                "SELECT body FROM room_events WHERE room_id=? AND sequence>? AND expires_at>? ORDER BY sequence")
+            .params(roomId, after, now())
+            .query(String.class)
+            .list()
+            .stream()
+            .map(e -> Json.read(e, Event.class))
+            .toList();
+    if (after < 0
+        || after > room.sequence
+        || (!events.isEmpty() && events.getFirst().sequence() != after + 1)
+        || (events.isEmpty() && after < room.sequence))
+      return new Replay(true, snapshot(room), List.of());
+    return new Replay(false, null, events);
+  }
+
+  public <T> T receipt(
+      String scope, UUID commandId, Object request, Class<T> type, Supplier<T> action) {
+    var fingerprint = Secrets.hash(Json.write(request));
+    var prior =
+        rooms
+            .jdbc()
+            .sql(
+                "SELECT fingerprint,response FROM command_receipts WHERE scope=? AND command_id=? AND expires_at>?")
+            .params(scope, commandId.toString(), now())
+            .query((rs, n) -> new String[] {rs.getString(1), rs.getString(2)})
+            .optional();
+    if (prior.isPresent()) {
+      if (!prior.get()[0].equals(fingerprint))
+        throw Problem.conflict("COMMAND_REUSED", "Идентификатор команды уже использован");
+      return Json.read(prior.get()[1], type);
+    }
+    var response = action.get();
+    String roomId =
+        response instanceof Admission admission
+            ? admission.roomId()
+            : Arrays.stream(scope.split(":"))
+                .filter(s -> s.matches("[0-9a-f-]{36}"))
+                .findFirst()
+                .orElse(null);
+    rooms
+        .jdbc()
+        .sql(
+            "INSERT INTO command_receipts(scope,command_id,fingerprint,response,expires_at,room_id) VALUES(?,?,?,?,?,?)")
+        .params(
+            scope,
+            commandId.toString(),
+            fingerprint,
+            Json.write(response),
+            now() + config.retentionSeconds() * 1000L,
+            roomId)
+        .update();
+    return response;
+  }
+}

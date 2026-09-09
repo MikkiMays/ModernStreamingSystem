@@ -1,0 +1,45 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+http://:7883 {
+	bind 127.0.0.1
+	@rtc path /rtc /rtc/*
+	handle @rtc {
+		header >Access-Control-Allow-Origin http://localhost:5173
+		forward_auth 127.0.0.1:8080 {
+			uri /internal/signaling-auth
+			header_up X-Internal-Secret local-development-internal-secret-32bytes
+			header_up X-Media-Token {query.access_token}
+			header_up -X-Forwarded-Uri
+		}
+		reverse_proxy 127.0.0.1:7880
+	}
+	respond 404
+}
+http://:1081 {
+	bind 127.0.0.1
+	handle /uploads/* {
+		forward_auth 127.0.0.1:8080 {
+			uri /internal/upload-auth
+			header_up X-Internal-Secret local-development-internal-secret-32bytes
+			header_up X-Original-Uri {uri}
+			header_up X-Original-Method {method}
+		}
+		reverse_proxy 127.0.0.1:1080 {
+			header_up -X-HTTP-Method-Override
+		}
+	}
+	respond 404
+}
+http://:8090 {
+	bind 127.0.0.1
+	@hooks path /internal/tus /internal/livekit
+	handle @hooks {
+		reverse_proxy 127.0.0.1:8080 {
+			header_up X-Internal-Secret local-development-internal-secret-32bytes
+		}
+	}
+	respond 404
+}

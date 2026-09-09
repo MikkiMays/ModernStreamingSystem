@@ -1,0 +1,101 @@
+package dev.mikki.stream.config;
+
+import java.util.*;
+import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springframework.context.annotation.*;
+
+@Configuration
+public class OpenApiConfig {
+  @Bean
+  OpenApiCustomizer explicitResponseContracts() {
+    return api -> {
+      api.getInfo().setTitle("ModernStreamingSystem API");
+      api.getInfo().setVersion("1.0.0");
+      var schemas = api.getComponents().getSchemas();
+      schemas
+          .get("Command")
+          .getProperties()
+          .put(
+              "type",
+              new io.swagger.v3.oas.models.media.StringSchema()
+                  ._enum(
+                      List.of(
+                          "leave",
+                          "close",
+                          "invite.create",
+                          "invite.revoke",
+                          "participant.remove",
+                          "participant.approve",
+                          "message.send",
+                          "media.lost",
+                          "media.restored")));
+      schemas
+          .get("Event")
+          .getProperties()
+          .put(
+              "type",
+              new io.swagger.v3.oas.models.media.StringSchema()
+                  ._enum(List.of("room.changed", "message.created", "files.changed")));
+      for (String name :
+          List.of(
+              "Admission",
+              "Participant",
+              "Snapshot",
+              "Message",
+              "Ack",
+              "MediaToken",
+              "Attachment",
+              "Favorite",
+              "Event",
+              "EventPayload",
+              "Replay",
+              "Capabilities")) {
+        var schema = schemas.get(name);
+        if (schema != null && schema.getProperties() != null)
+          schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
+      }
+      Map<String, List<String>> nullable =
+          Map.of(
+              "Admission",
+              List.of("inviteUrl"),
+              "Participant",
+              List.of("recoveryDeadline"),
+              "Snapshot",
+              List.of("closedAt"),
+              "Ack",
+              List.of("value"),
+              "Attachment",
+              List.of("uploadId", "completedAt", "sha256", "cancelledAt"),
+              "EventPayload",
+              List.of("message"),
+              "Replay",
+              List.of("snapshot"));
+      nullable.forEach(
+          (name, fields) -> {
+            var schema = schemas.get(name);
+            if (schema != null)
+              for (var field : fields) {
+                var property =
+                    (io.swagger.v3.oas.models.media.Schema<?>) schema.getProperties().get(field);
+                if (property != null) {
+                  if (property.get$ref() != null) {
+                    var nullableRef = new io.swagger.v3.oas.models.media.ComposedSchema();
+                    nullableRef.setOneOf(
+                        List.of(
+                            new io.swagger.v3.oas.models.media.Schema<>().$ref(property.get$ref()),
+                            new io.swagger.v3.oas.models.media.Schema<>().types(Set.of("null"))));
+                    schema.getProperties().put(field, nullableRef);
+                    continue;
+                  }
+                  var types = new HashSet<String>();
+                  if (property.getTypes() != null) types.addAll(property.getTypes());
+                  if (property.getType() != null) types.add(property.getType());
+                  types.add("null");
+                  property.setTypes(types);
+                  property.setNullable(true);
+                }
+              }
+          });
+    };
+  }
+}

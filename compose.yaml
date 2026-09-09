@@ -1,0 +1,96 @@
+name: modern-streaming
+services:
+  edge:
+    image: livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e
+    network_mode: host
+    command: run --config /etc/edge.json
+    restart: unless-stopped
+    volumes:
+      - ./infra/generated/edge.json:/etc/edge.json:ro
+      - certificates:/data
+    depends_on: [gateway]
+  gateway:
+    build: { context: ., dockerfile: infra/Dockerfile.web }
+    network_mode: host
+    env_file: .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/config, /data, /tmp]
+    depends_on: [core, tusd]
+  core:
+    build: { context: ., dockerfile: infra/Dockerfile.server }
+    network_mode: host
+    env_file: .env
+    environment:
+      SERVER_ADDRESS: 127.0.0.1
+      SPRINGDOC_API_DOCS_ENABLED: 'false'
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    mem_limit: 2g
+  postgres:
+    image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
+    network_mode: host
+    env_file: .env
+    environment:
+      POSTGRES_DB: streaming
+      POSTGRES_USER: streaming
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Run scripts/configure.mjs}
+    command: postgres -c listen_addresses=127.0.0.1 -c log_statement=none -c log_min_error_statement=panic -c log_parameter_max_length_on_error=0
+    volumes: [database:/var/lib/postgresql]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U streaming -d streaming']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:8.6.6-alpine@sha256:75934ddb37bfaebe3b4082ba673cac39f66495244134f33dd0a502ce03cdcd36
+    network_mode: host
+    env_file: .env
+    command: redis-server /etc/redis.conf
+    volumes: [./infra/generated/redis.conf:/etc/redis.conf:ro]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  livekit:
+    image: livekit/livekit-server:v1.13.6@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
+    network_mode: host
+    command: --config /etc/livekit.json
+    volumes: [./infra/generated/livekit.json:/etc/livekit.json:ro]
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+    stop_grace_period: 2m
+  volume-init:
+    image: alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+    command: [sh, -c, 'chown 10001:10001 /data/uploads && chmod 700 /data/uploads']
+    volumes: [uploads:/data/uploads]
+    restart: 'no'
+  tusd:
+    image: tusproject/tusd:v2.10.0@sha256:9610f0f8edf4cceeb26f1b3ac9fa4bb4803d61a878e222c1573cda63c9e23374
+    network_mode: host
+    user: '10001:10001'
+    command: >-
+      -host 127.0.0.1 -port 1080 -base-path /uploads/
+      -upload-dir /data/uploads -max-size 104857600 -behind-proxy
+      -disable-download -disable-concatenation
+      -hooks-http http://127.0.0.1:8090/internal/tus
+      -hooks-http-forward-headers Authorization
+      -hooks-enabled-events pre-create,post-finish -hooks-http-retry 5
+      -verbose=false -show-startup-logs=false
+    volumes: [uploads:/data/uploads]
+    restart: unless-stopped
+    depends_on:
+      volume-init: { condition: service_completed_successfully }
+volumes:
+  database:
+  uploads:
+  certificates:

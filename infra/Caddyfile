@@ -1,0 +1,84 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+	servers 127.0.0.1:8091 {
+		listener_wrappers {
+			proxy_protocol {
+				timeout 2s
+				allow 127.0.0.1/32
+				fallback_policy reject
+			}
+		}
+	}
+}
+
+(headers) {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	}
+}
+
+http://:8091 {
+	bind 127.0.0.1
+	@app host {$APP_HOST}
+	handle @app {
+		import headers
+		@api path /api/v1/*
+		handle @api {
+			reverse_proxy 127.0.0.1:8080 {
+				header_up X-Internal-Secret {$INTERNAL_SECRET}
+				header_up X-Real-IP {remote_host}
+			}
+		}
+		handle /uploads/* {
+			forward_auth 127.0.0.1:8080 {
+				uri /internal/upload-auth
+				header_up X-Internal-Secret {$INTERNAL_SECRET}
+				header_up X-Original-Uri {uri}
+				header_up X-Original-Method {method}
+			}
+			reverse_proxy 127.0.0.1:1080 {
+				header_up X-Forwarded-Proto https
+				header_up -X-HTTP-Method-Override
+			}
+		}
+		handle {
+			root * /srv
+			try_files {path} /index.html
+			encode zstd gzip
+			file_server
+		}
+	}
+	@rtc host {$RTC_HOST}
+	handle @rtc {
+		@signaling path /rtc /rtc/*
+		handle @signaling {
+			header >Access-Control-Allow-Origin {$PUBLIC_URL}
+			forward_auth 127.0.0.1:8080 {
+				uri /internal/signaling-auth
+				header_up X-Internal-Secret {$INTERNAL_SECRET}
+				header_up X-Media-Token {query.access_token}
+				header_up -X-Forwarded-Uri
+			}
+			reverse_proxy 127.0.0.1:7880
+		}
+		respond 404
+	}
+	respond 404
+}
+
+http://:8090 {
+	bind 127.0.0.1
+	@hooks path /internal/tus /internal/livekit
+	handle @hooks {
+		reverse_proxy 127.0.0.1:8080 {
+			header_up X-Internal-Secret {$INTERNAL_SECRET}
+		}
+	}
+	respond 404
+}

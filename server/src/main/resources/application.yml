@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: modern-streaming-system
+  threads.virtual.enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/streaming}
+    username: ${DATABASE_USER:streaming}
+    password: ${DATABASE_PASSWORD}
+    hikari.maximum-pool-size: 12
+  data.redis:
+    host: ${REDIS_HOST:localhost}
+    password: ${REDIS_PASSWORD:}
+    timeout: 500ms
+  jackson.deserialization.fail-on-null-for-primitives: false
+server:
+  port: 8080
+  error.include-message: never
+  forward-headers-strategy: none
+  tomcat.max-http-form-post-size: 16KB
+management:
+  endpoints.web.exposure.include: health,prometheus
+  endpoint.health.show-details: never
+springdoc:
+  api-docs.path: /api/openapi
+stream:
+  public-url: ${PUBLIC_URL:http://localhost:5173}
+  livekit-url: ${LIVEKIT_URL:ws://localhost:7880}
+  livekit-internal-url: ${LIVEKIT_INTERNAL_URL:http://localhost:7880}
+  tusd-internal-url: ${TUSD_INTERNAL_URL:http://127.0.0.1:1080}
+  livekit-key: ${LIVEKIT_API_KEY}
+  livekit-secret: ${LIVEKIT_API_SECRET}
+  session-secret: ${SESSION_SECRET}
+  internal-secret: ${INTERNAL_SECRET}
+  files-root: ${FILES_ROOT:./.local/uploads}
+  redis-enabled: true
+  max-participants: 10
+  max-screens: 2
+  max-rooms: 5
+  recovery-seconds: 20
+  empty-room-seconds: 60
+  unused-room-seconds: 300
+  retention-seconds: 86400
+  closed-retention-seconds: 3600
+  upload-timeout-seconds: 3600
+  file-max-bytes: 104857600
+  room-max-bytes: 1073741824
+  total-max-bytes: 10737418240
+  event-history-limit: 1000
+  admission-open: ${ADMISSION_OPEN:true}

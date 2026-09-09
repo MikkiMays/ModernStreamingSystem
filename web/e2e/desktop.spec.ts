@@ -1,0 +1,97 @@
+import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+// Exercise the shared React UI in desktop mode. Native SplitView is verified separately.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const listeners = new Set<(event: MessageEvent) => void>();
+    window.chrome = {
+      ...window.chrome,
+      webview: {
+        postMessage: () => undefined,
+        addEventListener: (_, listener) => void listeners.add(listener),
+        removeEventListener: (_, listener) => void listeners.delete(listener),
+      },
+    };
+  });
+  await page.route('**/api/v1/favorites', (route) =>
+    route.fulfill({
+      json: Array.from({ length: 5 }, (_, i) => ({
+        roomId: `00000000-0000-4000-8000-00000000000${i}`,
+        title: [
+          'Вечерний созвон',
+          'Рабочая комната',
+          'Дизайн и разработка',
+          'Друзья',
+          'Длинное название любимой комнаты',
+        ][i],
+        code: `33344455${i}`,
+        savedAt: Date.now(),
+        closed: false,
+        canJoin: true,
+      })),
+    }),
+  );
+});
+
+test('desktop home stays centered and usable without page scroll with all five favorites', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.getByText('5 / 5')).toBeVisible();
+  for (const size of [
+    { width: 1120, height: 740 },
+    { width: 760, height: 620 },
+    { width: 420, height: 560 },
+    { width: 360, height: 430 },
+    { width: 480, height: 320 },
+  ]) {
+    await page.setViewportSize(size);
+    const bounds = await page.locator('.desktop-connect').boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height + 1);
+    expect(Math.abs(bounds!.x + bounds!.width / 2 - size.width / 2)).toBeLessThan(2);
+    expect(Math.abs(bounds!.y + bounds!.height / 2 - size.height / 2)).toBeLessThan(2);
+    expect(
+      await page.evaluate(() => ({
+        vertical: document.documentElement.scrollHeight > innerHeight,
+        horizontal: document.documentElement.scrollWidth > innerWidth,
+      })),
+    ).toEqual({ vertical: false, horizontal: false });
+    await expect(page.getByRole('button', { name: 'Новая встреча', exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(page.getByRole('button', { name: 'Присоединиться', exact: true })).toBeInViewport({
+      ratio: 1,
+    });
+  }
+  await page.getByRole('button', { name: 'Открыть избранное' }).click();
+  await expect(page.getByRole('dialog').locator('.desktop-favorite')).toHaveCount(5);
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await page.setViewportSize({ width: 1120, height: 740 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    expect(
+      (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze())
+        .violations,
+    ).toEqual([]);
+    await page.screenshot({ path: `../.local/desktop-home-${theme}.png` });
+  }
+});
+
+test('desktop code entry and create actions open the shared prejoin with devices off', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Код встречи или ссылка').fill('333444555');
+  await expect(page.getByLabel('Код встречи или ссылка')).toHaveValue('333-444-555');
+  await page.getByRole('button', { name: 'Присоединиться', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Запросить подключение' })).toBeVisible();
+  await expect(page.getByLabel('Название встречи')).toHaveCount(0);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Новая встреча', exact: true }).click();
+  await expect(page.getByLabel('Название встречи')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Настройки предпросмотра' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
+});
