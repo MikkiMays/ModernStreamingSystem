@@ -71,7 +71,9 @@ export function ParticipantMenu({
                 </Menu.Item>
               </>
             )}
-            {active && <Menu.Item onClick={() => meeting.pinCamera(person.id)}>Закрепить камеру</Menu.Item>}
+            {active && !person.service && (
+              <Menu.Item onClick={() => meeting.pinCamera(person.id)}>Закрепить камеру</Menu.Item>
+            )}
             {person.screen && person.screenId && person.screenStarted && (
               <Menu.Item onClick={() => meeting.openStream(person.id)}>Смотреть стрим</Menu.Item>
             )}

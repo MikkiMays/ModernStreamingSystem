@@ -505,6 +505,64 @@ class TelegramTests(Fixture):
         self.assertTrue(self.store.get(ROOM)["enabled"])
         self.assertEqual(len(self.sent), 1)
 
+    async def configure_audio(self):
+        self.bind()
+        wav = self.root / "forwarded.wav"
+        audio(wav)
+        await self.bot.client.aclose()
+        self.bot.client = httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, content=wav.read_bytes())))
+        async def api(method, data=None):
+            if method == "getFile":
+                return {"file_path": "music/test.wav"}
+            return await self.telegram_api(method, data)
+        self.bot.api.side_effect = api
+        return {"file_id": "forwarded", "title": "Forwarded track", "file_size": wav.stat().st_size}
+
+    async def test_caption_and_external_reply_both_enqueue_audio(self):
+        media = await self.configure_audio()
+        caption = self.message("", 101)
+        caption["message"].update(caption="/play@cord_meet_bot", audio=media,
+            reply_to_message={"text": "unrelated text"})
+        await self.bot.handle(caption)
+        quote = self.message("/play@cord_meet_bot", 102)
+        quote["message"]["external_reply"] = {"audio": media}
+        await self.bot.handle(quote)
+        self.assertEqual(len(self.store.get(ROOM)["queue"]), 2)
+        self.assertTrue(all(t["source"] == "telegram" for t in self.store.get(ROOM)["queue"]))
+
+    async def test_forward_then_separate_play_is_scoped_and_used_once(self):
+        media = await self.configure_audio()
+        self.integrations_allowed = True
+        forwarded = self.message("", 201)
+        forwarded["message"].update(audio=media, forward_origin={"type": "channel"})
+        await self.bot.handle(forwarded)
+        self.assertEqual(self.store.get(ROOM)["queue"], [])
+        await self.bot.handle(self.message("/play", 202, user=2))
+        self.assertEqual(self.store.get(ROOM)["queue"], [])
+        self.bind(thread=8)
+        await self.bot.handle(self.message("/play", 203, thread=8))
+        self.assertEqual(self.store.get(ROOM)["queue"], [])
+        await self.bot.handle(self.message("/play", 204))
+        await self.bot.handle(forwarded)
+        await self.bot.handle(self.message("/play", 205))
+        self.assertEqual(len(self.store.get(ROOM)["queue"]), 1)
+        self.assertFalse(self.store.get(ROOM)["paused"])
+
+    async def test_stale_forward_does_not_play_and_empty_queue_is_explained(self):
+        media = await self.configure_audio()
+        forwarded = self.message("", 301)
+        forwarded["message"]["audio"] = media
+        await self.bot.handle(forwarded)
+        key = self.bot.recent_audio_key(forwarded["message"])
+        recent = self.store.receipt("tg-recent-audio", key)
+        recent["at"] = now() - 300001
+        self.store.remember("tg-recent-audio", key, recent)
+        await self.bot.handle(self.message("/play", 302))
+        self.assertIn("Очередь пуста", self.sent[-1]["text"])
+        self.assertNotIn("Продолжаем", self.sent[-1]["text"])
+        self.assertFalse(self.store.get(ROOM)["enabled"])
+
     async def test_controls_help_and_foreign_bot_filter(self):
         self.bind()
         for title in ("One", "Two", "Three"):

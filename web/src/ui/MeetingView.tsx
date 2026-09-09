@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   Activity,
   ArrowLeft,
   ChevronDown,
+  ChevronUp,
   Headphones,
   Link,
   MessageSquare,
@@ -54,16 +55,19 @@ export function MeetingView({
   const pinned = useStore(meeting.pinnedCamera);
   const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const lastActivity = useRef(Date.now());
+  const collapseToggle = useRef<HTMLButtonElement>(null);
   const wakeControls = () => {
-    setControlsVisible(true);
-    setLastActivity(Date.now());
+    lastActivity.current = Date.now();
+    if (!controlsCollapsed) setControlsVisible(true);
   };
   useEffect(() => {
     const changed = () => {
       setFullscreen(!!document.fullscreenElement);
       setControlsVisible(true);
-      setLastActivity(Date.now());
+      setControlsCollapsed(false);
+      lastActivity.current = Date.now();
     };
     document.addEventListener('fullscreenchange', changed);
     return () => {
@@ -72,13 +76,17 @@ export function MeetingView({
     };
   }, []);
   useEffect(() => {
-    if (!fullscreen) return;
+    if (!fullscreen || controlsCollapsed) return;
     const timer = setInterval(() => {
-      const held = document.querySelector('[role="menu"], [role="dialog"], .call-footer :focus-visible');
-      setControlsVisible(!!held || Date.now() - lastActivity < 3000);
+      const held = [
+        ...document.querySelectorAll<HTMLElement>(
+          '[role="menu"], [role="dialog"], .call-footer :focus-visible',
+        ),
+      ].some((element) => element.checkVisibility() && !element.closest('[aria-hidden="true"]'));
+      setControlsVisible(held || Date.now() - lastActivity.current < 3000);
     }, 200);
     return () => clearInterval(timer);
-  }, [fullscreen, lastActivity]);
+  }, [fullscreen, controlsCollapsed]);
   const media = useStore(meeting.media.state);
   const tracks = useStore(meeting.media.tracks);
   const control = useStore(meeting.control.state);
@@ -250,7 +258,7 @@ export function MeetingView({
             </div>
           ) : (
             <>
-              <Stage meeting={meeting} />
+              <Stage meeting={meeting} onOpenServices={() => setPanel('services')} />
               {(viewing || pinned) && (
                 <button className="return-conversation" onClick={() => meeting.returnToConversation()}>
                   <ArrowLeft size={16} /> Вернуться в разговор
@@ -281,7 +289,26 @@ export function MeetingView({
               </IconButton>
             </div>
           )}
-          <footer className="call-footer">
+          {fullscreen && (
+            <button
+              ref={collapseToggle}
+              className="controls-toggle"
+              aria-label={controlsVisible ? 'Свернуть управление' : 'Развернуть управление'}
+              aria-expanded={controlsVisible}
+              aria-controls="meeting-controls"
+              onClick={() => {
+                const collapse = controlsVisible;
+                setControlsCollapsed(collapse);
+                setControlsVisible(!collapse);
+                lastActivity.current = Date.now();
+                collapseToggle.current?.focus({ preventScroll: true });
+              }}
+            >
+              {controlsVisible ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              {!controlsVisible && <span>Управление</span>}
+            </button>
+          )}
+          <footer id="meeting-controls" className="call-footer">
             <div className="call-footer-info">
               <Wifi size={16} />
               <span>
@@ -391,7 +418,7 @@ export function MeetingView({
                 onClick={() => togglePanel('people')}
               >
                 <Users size={21} />
-                <span className="count-badge">{snapshot.participants.length}</span>
+                <span className="count-badge">{snapshot.participants.filter((p) => !p.service).length}</span>
               </IconButton>
               <IconButton
                 label="Чат"

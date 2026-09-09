@@ -43,7 +43,6 @@ export function Sidebar({
   const ended = useStore(meeting.ended);
   const uploading = useStore(meeting.uploader.state);
   const tracks = useStore(meeting.media.tracks);
-  const volumes = useStore(meeting.media.volumes);
   const [now, setNow] = useState(Date.now);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
@@ -80,6 +79,7 @@ export function Sidebar({
   useEffect(() => {
     if (nearBottom.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [snapshot.messages, files.data, panel]);
+  const people = snapshot.participants.filter((p) => !p.service);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const writable = !ended && self && self.status !== 'WAITING';
   const uploadBusy = ['uploading', 'paused'].includes(uploading.status);
@@ -117,7 +117,9 @@ export function Sidebar({
   return (
     <aside className="side-panel" aria-label="Панель встречи">
       <div className="panel-heading">
-        <h2>{panel === 'people' ? 'Участники' : panel === 'services' ? 'Интеграции' : 'Чат и файлы'}</h2>
+        <h2>
+          {panel === 'people' ? 'Участники' : panel === 'services' ? 'Боты и интеграции' : 'Чат и файлы'}
+        </h2>
         <IconButton label="Закрыть панель" onClick={onClose}>
           <X size={20} />
         </IconButton>
@@ -125,7 +127,7 @@ export function Sidebar({
       <Tabs.Root value={panel} onValueChange={(v) => setPanel(v as Panel)} className="panel-tabs-root">
         <Tabs.List className="panel-tabs" aria-label="Разделы встречи">
           <Tabs.Tab value="people">
-            Люди <span>{snapshot.participants.length}</span>
+            Люди <span>{people.length}</span>
           </Tabs.Tab>
           <Tabs.Tab value="chat">Чат и файлы</Tabs.Tab>
           <Tabs.Tab value="services">Интеграции</Tabs.Tab>
@@ -141,9 +143,9 @@ export function Sidebar({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="panel-eyebrow">В ЭТОЙ ВСТРЕЧЕ · {snapshot.participants.length}</div>
+          <div className="panel-eyebrow">В ЭТОЙ ВСТРЕЧЕ · {people.length}</div>
           <div className="participant-list">
-            {snapshot.participants
+            {people
               .filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
               .map((p) => (
                 <ParticipantMenu className="participant-row" key={p.id} meeting={meeting} person={p}>
@@ -164,20 +166,6 @@ export function Sidebar({
                               ? 'Организатор'
                               : 'Участник'}
                     </small>
-                    {p.id !== self?.id && p.status !== 'WAITING' && (
-                      <label className="participant-volume">
-                        <span>Громкость у вас · {Math.round((volumes[p.id] ?? 1) * 100)}%</span>
-                        <input
-                          type="range"
-                          min="0"
-                          max="200"
-                          step="5"
-                          aria-label={`Громкость: ${p.name}`}
-                          value={(volumes[p.id] ?? 1) * 100}
-                          onChange={(e) => meeting.media.setVolume(p.id, Number(e.target.value) / 100)}
-                        />
-                      </label>
-                    )}
                   </div>
                   {self?.owner && !p.owner ? (
                     <>

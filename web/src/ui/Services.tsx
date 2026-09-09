@@ -16,7 +16,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
-import { MusicApi, servicesApi, type MusicAction, type MusicState } from '../core/services';
+import { MusicApi, servicesApi, musicSourceName, type MusicAction, type MusicState } from '../core/services';
 import { IconButton, useStore } from './primitives';
 import { YandexIntegration } from './YandexIntegration';
 
@@ -193,6 +193,9 @@ export function Services({ meeting }: { meeting: Meeting }) {
                   <span>
                     {current?.artist || (current ? `Добавил: ${current.addedBy}` : 'Из файла или Telegram')}
                   </span>
+                  {current && (
+                    <span className="music-source">Источник · {musicSourceName(current.source)}</span>
+                  )}
                 </div>
                 {current && (
                   <div className="music-progress">
@@ -332,7 +335,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
                       <div className="queue-track">
                         <strong>{track.title}</strong>
                         <small>
-                          {track.artist || track.addedBy} · {duration(track.duration)}
+                          {track.artist || track.addedBy} · {musicSourceName(track.source)} ·{' '}
+                          {duration(track.duration)}
                         </small>
                       </div>
                       {i > 1 && (

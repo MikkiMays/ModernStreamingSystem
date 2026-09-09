@@ -490,3 +490,141 @@
 .meeting-page:has(.ping-badge) .return-conversation {
   top: 34px;
 }
+
+/* Service participants keep their audio connection in a separate compact roster. */
+.conversation-stage.with-integrations {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: stretch;
+}
+.integration-roster {
+  color: var(--text);
+  align-self: start;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.integration-roster h2 {
+  font-size: 12px;
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+.integration-participant {
+  position: relative;
+}
+.integration-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 4px;
+  text-align: left;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+}
+.integration-entry:hover {
+  background: var(--surface-2);
+}
+.integration-symbol {
+  flex-shrink: 0;
+  color: var(--blue);
+}
+.integration-summary {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.integration-summary small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.integration-track {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.music-source {
+  color: var(--blue);
+  font-size: 11px;
+}
+.integration-participant > .participant-more {
+  width: 28px;
+  height: 26px;
+  margin-left: auto;
+  display: flex;
+}
+.meeting-fullscreen .call-footer {
+  bottom: 42px;
+  box-shadow: 0 8px 28px #0004;
+}
+.controls-toggle {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 48px;
+  min-height: 28px;
+  padding: 3px 12px;
+  border: 1px solid #ffffff30;
+  border-radius: 20px;
+  color: #edf1fa;
+  background: #16191fe8;
+  font-size: 11px;
+}
+.controls-toggle:hover {
+  background: #343c4d;
+}
+@media (max-width: 900px) {
+  .conversation-stage.with-integrations {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .integration-roster {
+    align-self: stretch;
+    padding: 8px 12px;
+    margin-bottom: 84px;
+  }
+  .integration-roster h2 {
+    margin-bottom: 3px;
+  }
+  .integration-entry {
+    padding: 4px;
+    align-items: center;
+  }
+  .integration-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 10px;
+  }
+  .integration-track {
+    grid-column: 1 / -1;
+  }
+  .integration-participant > .participant-more {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+  .integration-participant .integration-entry {
+    padding-right: 30px;
+  }
+  .meeting-fullscreen .integration-roster {
+    margin-bottom: 110px;
+  }
+  .meeting-fullscreen.controls-hidden .integration-roster {
+    margin-bottom: 40px;
+  }
+  .meeting-fullscreen .stage-wrap > .call-footer {
+    bottom: 42px;
+  }
+}

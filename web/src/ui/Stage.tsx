@@ -3,6 +3,7 @@ import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
+import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
 
@@ -85,7 +86,7 @@ export function AudioLayer({
     </div>
   );
 }
-export function Stage({ meeting }: { meeting: Meeting }) {
+export function Stage({ meeting, onOpenServices }: { meeting: Meeting; onOpenServices: () => void }) {
   const participants = useStore(meeting.snapshot).participants;
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
@@ -177,9 +178,11 @@ export function Stage({ meeting }: { meeting: Meeting }) {
       </div>
     );
   }
-  const people = participants.filter((p) => p.status !== 'WAITING' && (!pinned || p.id === pinned));
+  const people = participants.filter(
+    (p) => !p.service && p.status !== 'WAITING' && (!pinned || p.id === pinned),
+  );
   return (
-    <div className={`stage conversation-stage ${pinned ? 'camera-stage' : ''}`}>
+    <div className={`stage conversation-stage ${pinned ? 'camera-stage' : 'with-integrations'}`}>
       <div className="people-grid" data-count={people.length}>
         {people.map((person) => {
           const camera = tracks.find(
@@ -214,6 +217,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           );
         })}
       </div>
+      {!pinned && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
     </div>
   );
 }

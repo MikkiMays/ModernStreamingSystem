@@ -56,7 +56,7 @@ HELP = """Cord — встречи и общая музыка.
 
 Для простого @тега в подписи к аудио добавьте бота администратором или отключите Group Privacy в BotFather. Без этого используйте адресованную команду в ответ на файл.
 
-Привязка отдельная для каждого чата и темы. Громкость для себя регулируется в Cord, в списке участников. Telegram позволяет боту скачать файл до 20 МБ; в Cord можно загрузить до 50 МБ."""
+Привязка отдельная для каждого чата и темы. Громкость для себя регулируется в Cord через ПКМ на участнике; плеер находится в блоке «Боты и интеграции». Telegram позволяет боту скачать файл до 20 МБ; в Cord можно загрузить до 50 МБ."""
 
 
 class Telegram:
@@ -312,9 +312,21 @@ class Telegram:
             ],
         )
 
+    @staticmethod
+    def audio_from(message: dict):
+        # A quote from another chat uses external_reply, rather than reply_to_message.
+        for source in (message, message.get("reply_to_message") or {}, message.get("external_reply") or {}):
+            for kind in ("audio", "voice", "document"):
+                if source.get(kind, {}).get("file_id"):
+                    return source[kind]
+        return None
+
+    def recent_audio_key(self, message: dict):
+        actor = message.get("from", {}).get("id") or message.get("sender_chat", {}).get("id")
+        return self.scope(message) + ":" + str(actor)
+
     async def add_audio(self, message: dict, binding: dict, update_id: int):
-        source = message.get("reply_to_message") or message
-        audio = source.get("audio") or source.get("voice") or source.get("document")
+        audio = self.audio_from(message)
         if not audio or not audio.get("file_id"):
             raise HTTPException(
                 400,
@@ -378,6 +390,8 @@ class Telegram:
             }
             await self.music.enqueue(room_id, track)
             self.store.remember("tg-audio", key, {"id": key})
+            if message.get("_cord_recent_key"):
+                self.store.remember("tg-recent-audio", message["_cord_recent_key"], {"used": True})
             await self.reply(message, "Добавлено в очередь: " + title)
         except BaseException:
             if not any(t["id"] == key for t in self.store.get(room_id)["queue"]):
@@ -417,7 +431,22 @@ class Telegram:
         ):
             command = "play"
         else:
+            # A forwarded file and the following /play are separate Telegram updates.
+            # Keep metadata only, scoped to the sender and the current chat/topic/room.
+            audio = self.audio_from(message)
+            binding = self.store.binding(self.scope(message))
+            if audio and binding:
+                self.store.remember("tg-recent-audio", self.recent_audio_key(message),
+                    {"audio": audio, "at": now(), "roomId": binding["roomId"]})
+                self.store.remember("telegram-update", str(update_id), {"done": True})
             return
+        if command == "play" and not arg and not self.audio_from(message) and not message.get("reply_to_message") and not message.get("external_reply"):
+            key = self.recent_audio_key(message)
+            recent = self.store.receipt("tg-recent-audio", key)
+            binding = self.store.binding(self.scope(message))
+            if recent and not recent.get("used") and now() - recent["at"] < 300000 and binding and binding["roomId"] == recent["roomId"]:
+                message["audio"] = recent["audio"]
+                message["_cord_recent_key"] = key
         try:
             if command == "start" and arg.startswith("host_"):
                 await self.host_link(message, arg[5:])
@@ -491,7 +520,8 @@ class Telegram:
                     command == "play"
                     and arg
                     and not message.get("reply_to_message")
-                    and not any(k in message for k in ("audio", "voice", "document"))
+                    and not message.get("external_reply")
+                    and not self.audio_from(message)
                 ):
                     if not self.yandex:
                         raise HTTPException(
@@ -563,7 +593,8 @@ class Telegram:
                     )
                 elif command == "play" and (
                     message.get("reply_to_message")
-                    or any(k in message for k in ("audio", "voice", "document"))
+                    or message.get("external_reply")
+                    or self.audio_from(message)
                 ):
                     await self.ensure_room(message)
                     await self.add_audio(message, binding, update_id)
@@ -594,6 +625,8 @@ class Telegram:
                     "remove",
                     "next",
                 }:
+                    if command in ("play", "resume") and not self.store.get(room_id)["queue"]:
+                        raise HTTPException(400, f"Очередь пуста: трек не получен. Ответьте на сообщение с аудиофайлом /play@{self.username} или добавьте эту команду в подпись к файлу. Отдельная команда не передаёт боту предыдущее сообщение, если Telegram его скрыл.")
                     if (
                         command in ("play", "resume")
                         and not self.store.get(room_id)["enabled"]
@@ -637,7 +670,7 @@ class Telegram:
                         {
                             "pause": "Музыка на паузе",
                             "resume": "Продолжаем музыку",
-                            "play": "Продолжаем музыку",
+                            "play": "Продолжаем музыку из очереди. Чтобы включить пересланный трек, ответьте на него /play@" + self.username,
                             "skip": "Переключаем трек",
                             "stop": "Воспроизведение остановлено",
                             "clear": "Следующие треки удалены",

@@ -9,6 +9,9 @@ export interface MusicTrack {
   addedBy: string;
   source: 'upload' | 'telegram' | 'yandex';
 }
+export function musicSourceName(source: MusicTrack['source']) {
+  return { upload: 'Аудиофайл', telegram: 'Telegram', yandex: 'Яндекс Музыка' }[source];
+}
 export interface MusicState {
   roomId: string;
   enabled: boolean;
