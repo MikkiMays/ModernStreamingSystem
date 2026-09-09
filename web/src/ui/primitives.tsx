@@ -24,7 +24,9 @@ export function Modal({
   title,
   description,
   children,
+  wide = false,
 }: {
+  wide?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -35,7 +37,7 @@ export function Modal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="modal-backdrop" />
-        <Dialog.Popup className="modal">
+        <Dialog.Popup className={`modal ${wide ? 'modal-wide' : ''}`}>
           <div className="modal-heading">
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close

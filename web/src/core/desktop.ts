@@ -1,9 +1,20 @@
+import { Store } from './store';
+export const desktopHotkeyStatus = new Store<string | null>(null);
 export interface DesktopCommand {
   version: 1;
-  type: 'navigate' | 'network.changed' | 'close-request' | 'theme.changed';
+  type:
+    | 'navigate'
+    | 'network.changed'
+    | 'close-request'
+    | 'theme.changed'
+    | 'microphone.toggle'
+    | 'hotkey.status'
+    | 'profile.changed';
   page?: 'home' | 'create' | 'favorite';
   roomId?: string;
   theme?: 'light' | 'dark' | 'system';
+  name?: string;
+  detail?: string;
 }
 interface WebViewBridge {
   postMessage: (message: unknown) => void;
@@ -24,9 +35,19 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
     const message = data as Partial<DesktopCommand>;
     if (
       message.version !== 1 ||
-      !['navigate', 'network.changed', 'close-request', 'theme.changed'].includes(message.type ?? '')
+      ![
+        'navigate',
+        'network.changed',
+        'close-request',
+        'theme.changed',
+        'microphone.toggle',
+        'hotkey.status',
+        'profile.changed',
+      ].includes(message.type ?? '')
     )
       return;
+    if (message.type === 'hotkey.status' && typeof message.detail === 'string')
+      desktopHotkeyStatus.set(message.detail);
     listener(message as DesktopCommand);
   };
   const bridge = window.chrome?.webview;

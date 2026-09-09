@@ -11,7 +11,7 @@ import {
   PinOff,
   PanelsTopLeft,
 } from 'lucide-react';
-import { Track } from 'livekit-client';
+import { Track, RemoteAudioTrack } from 'livekit-client';
 import type { MediaTile } from '../media/session';
 import type { Participant } from '../api/types';
 import { Avatar, IconButton } from './primitives';
@@ -38,7 +38,7 @@ function VideoTrack({ tile, screen = false }: { tile: MediaTile; screen?: boolea
     />
   );
 }
-function AudioTrack({ tile, onBlocked }: { tile: MediaTile; onBlocked: () => void }) {
+function AudioTrack({ tile, onBlocked, volume }: { tile: MediaTile; onBlocked: () => void; volume: number }) {
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const audio = ref.current;
@@ -49,15 +49,33 @@ function AudioTrack({ tile, onBlocked }: { tile: MediaTile; onBlocked: () => voi
       tile.track.detach(audio);
     };
   }, [tile.track, onBlocked]);
+  useEffect(() => {
+    if (tile.track instanceof RemoteAudioTrack) tile.track.setVolume(volume);
+  }, [tile.track, volume]);
   return <audio ref={ref} autoPlay />;
 }
-export function AudioLayer({ tracks, onBlocked }: { tracks: MediaTile[]; onBlocked: () => void }) {
+export function AudioLayer({
+  tracks,
+  onBlocked,
+  volumes,
+  deafened,
+}: {
+  tracks: MediaTile[];
+  onBlocked: () => void;
+  volumes: Record<string, number>;
+  deafened: boolean;
+}) {
   return (
     <div className="audio-layer">
       {tracks
         .filter((t) => !t.local && t.track.kind === Track.Kind.Audio)
         .map((t) => (
-          <AudioTrack key={t.id} tile={t} onBlocked={onBlocked} />
+          <AudioTrack
+            key={t.id}
+            tile={t}
+            onBlocked={onBlocked}
+            volume={deafened ? 0 : (volumes[t.participantId] ?? 1)}
+          />
         ))}
     </div>
   );

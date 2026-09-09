@@ -19,7 +19,7 @@
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
 		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
 }
 
@@ -28,6 +28,10 @@ http://:{$GATEWAY_PORT:8091} {
 	@app host {$APP_HOST}
 	handle @app {
 		import headers
+		@services path /api/v1/services/*
+		handle @services {
+			reverse_proxy 127.0.0.1:18100
+		}
 		@api path /api/v1/*
 		handle @api {
 			reverse_proxy 127.0.0.1:8080 {

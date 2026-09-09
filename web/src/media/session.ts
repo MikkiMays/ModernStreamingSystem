@@ -6,6 +6,7 @@ import {
   type RemoteTrack,
   type RemoteTrackPublication,
   LocalVideoTrack,
+  LocalAudioTrack,
   ConnectionQuality,
   DisconnectReason,
   type Participant,
@@ -23,7 +24,13 @@ import {
   cameraOptions,
   type ScreenProfile,
 } from './profiles';
-import { readPreferences, savePreferences } from '../core/preferences';
+import {
+  readPreferences,
+  savePreferences,
+  type AudioPreferences,
+  type Preferences,
+} from '../core/preferences';
+import { audioCapture, CordAudioProcessor, needsAudioProcessor } from './audio';
 import { browserCapture, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
@@ -69,6 +76,9 @@ export class MediaSession {
     liveStatus: null,
   });
   readonly tracks = new Store<MediaTile[]>([]);
+  readonly volumes = new Store<Record<string, number>>({});
+  readonly deafened = new Store(false);
+  private audioChange: Promise<void> = Promise.resolve();
   readonly recovery: RecoveryWindow;
   readonly room: Room;
   private disposed = false;
@@ -111,15 +121,14 @@ export class MediaSession {
     this.room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      webAudioMix: true,
       stopLocalTrackOnUnpublish: false,
       videoCaptureDefaults: {
         ...cameraCapture(this.cameraProfile),
         deviceId: this.preferences.get().devices.camera || undefined,
       },
       audioCaptureDefaults: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        ...audioCapture(this.preferences.get().audio),
         deviceId: this.preferences.get().devices.microphone || undefined,
       },
       audioOutput: { deviceId: this.preferences.get().devices.speaker || undefined },
@@ -441,7 +450,13 @@ export class MediaSession {
             cameraCapture(this.cameraProfile),
             cameraOptions(this.cameraProfile),
           );
-        else await this.room.localParticipant.setMicrophoneEnabled(true);
+        else {
+          await this.room.localParticipant.setMicrophoneEnabled(
+            true,
+            audioCapture(this.preferences.get().audio, this.preferences.get().devices.microphone),
+          );
+          await this.applyAudioProcessor();
+        }
       }
       for (const track of this.screenTracks) {
         if (this.disposed || cycle !== this.connectionCycle) return;
@@ -470,13 +485,13 @@ export class MediaSession {
       const reusedCamera =
         kind === 'camera' && !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
       deviceId ||= this.preferences.get().devices[kind] || undefined;
-      if (kind === 'microphone')
-        await this.room.localParticipant.setMicrophoneEnabled(!this.state.get().microphone, {
-          deviceId,
-          echoCancellation: true,
-          noiseSuppression: true,
-        });
-      else
+      if (kind === 'microphone') {
+        await this.room.localParticipant.setMicrophoneEnabled(
+          !this.state.get().microphone,
+          audioCapture(this.preferences.get().audio, deviceId),
+        );
+        if (this.room.localParticipant.isMicrophoneEnabled) await this.applyAudioProcessor();
+      } else
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
           { deviceId, ...cameraCapture(this.cameraProfile) },
@@ -495,6 +510,35 @@ export class MediaSession {
     } finally {
       this.deviceBusy.delete(kind);
     }
+  }
+  saveSettings(patch: Partial<Preferences>) {
+    this.preferences.set(savePreferences(patch));
+  }
+  setVolume(participantId: string, volume: number) {
+    if (!Number.isFinite(volume)) return;
+    this.volumes.update((values) => ({ ...values, [participantId]: Math.max(0, Math.min(2, volume)) }));
+  }
+  async setAudioSettings(audio: AudioPreferences) {
+    this.audioChange = this.audioChange.then(async () => {
+      if (this.disposed) return;
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+      try {
+        if (track instanceof LocalAudioTrack) {
+          await track.applyConstraints(audioCapture(audio));
+          await this.applyAudioProcessor(audio);
+        }
+        this.preferences.set(savePreferences({ audio }));
+      } catch (error) {
+        this.report(error);
+      }
+    });
+    return this.audioChange;
+  }
+  private async applyAudioProcessor(audio = this.preferences.get().audio) {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+    if (!(track instanceof LocalAudioTrack)) return;
+    if (needsAudioProcessor(audio)) await track.setProcessor(new CordAudioProcessor(audio));
+    else if (track.getProcessor()) await track.stopProcessor();
   }
   async switchDevice(kind: MediaDeviceKind, id: string) {
     try {

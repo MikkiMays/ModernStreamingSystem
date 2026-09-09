@@ -6,6 +6,7 @@ import {
   Headphones,
   Link,
   MessageSquare,
+  Music2,
   Mic,
   MicOff,
   MonitorUp,
@@ -18,7 +19,6 @@ import {
   Wifi,
   X,
   Star,
-  Radio,
 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
 import type { Meeting } from '../core/meeting';
@@ -30,6 +30,8 @@ import { Settings } from './Settings';
 import { ThemeButton, formatCode, type Theme } from './Home';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
+import { isTyping, matchesHotkey } from '../core/hotkeys';
+import { notifyDesktop, onDesktopCommand } from '../core/desktop';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -54,6 +56,8 @@ export function MeetingView({
   const [diagnostics, setDiagnostics] = useState(false);
   const preferences = useStore(meeting.media.preferences);
   const favorites = useFavorites();
+  const volumes = useStore(meeting.media.volumes);
+  const deafened = useStore(meeting.media.deafened);
   const isFavorite = !!favorites.data?.some((f) => f.roomId === meeting.admission.roomId);
   const [savingFavorite, setSavingFavorite] = useState(false);
   const profile = preferences.screen;
@@ -64,6 +68,29 @@ export function MeetingView({
     meeting.start();
     return () => meeting.dispose();
   }, [meeting]);
+  useEffect(() => {
+    const toggle = () => {
+      if (!meeting.ended.get() && meeting.media.state.get().status === 'connected')
+        void meeting.media.toggle('microphone');
+    };
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.repeat || isTyping(event.target) || document.querySelector('[role="dialog"]')) return;
+      if (matchesHotkey(event, preferences.micHotkey)) {
+        event.preventDefault();
+        toggle();
+      }
+    };
+    notifyDesktop('hotkey.configure', { hotkey: ended ? null : preferences.micHotkey });
+    window.addEventListener('keydown', keyboard);
+    const unsubscribe = onDesktopCommand((command) => {
+      if (command.type === 'microphone.toggle') toggle();
+    });
+    return () => {
+      window.removeEventListener('keydown', keyboard);
+      unsubscribe();
+      notifyDesktop('hotkey.configure', { hotkey: null });
+    };
+  }, [meeting, preferences.micHotkey, ended]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
@@ -302,17 +329,17 @@ export function MeetingView({
             <Menu.Portal>
               <Menu.Positioner side="top" sideOffset={12}>
                 <Menu.Popup className="action-menu">
+                  <Menu.Item onClick={() => setPanel('services')}>
+                    <Music2 size={18} /> Интеграции
+                  </Menu.Item>
                   <Menu.Item onClick={() => setSettings(true)}>
-                    <Settings2 size={18} /> Устройства и качество
+                    <Settings2 size={18} /> Настройки
                   </Menu.Item>
                   <Menu.Item onClick={() => setDiagnostics(true)}>
                     <Activity size={18} /> Диагностика
                   </Menu.Item>
-                  <Menu.Item
-                    disabled={media.status !== 'connected'}
-                    onClick={() => void meeting.media.returnToLive()}
-                  >
-                    <Radio size={18} /> Вернуться в прямой эфир
+                  <Menu.Item onClick={() => meeting.media.deafened.set(!deafened)}>
+                    <Headphones size={18} /> {deafened ? 'Включить звук встречи' : 'Выключить звук у себя'}
                   </Menu.Item>
                   {self?.owner && (
                     <Menu.Item
@@ -356,12 +383,9 @@ export function MeetingView({
           >
             <MessageSquare size={21} />
           </IconButton>
-          <IconButton label="Настройки качества" onClick={() => setSettings(true)}>
-            <Settings2 size={21} />
-          </IconButton>
         </div>
       </footer>
-      <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} />
+      <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
       <Settings meeting={meeting} open={settings} onOpenChange={setSettings} />
       {diagnostics && (

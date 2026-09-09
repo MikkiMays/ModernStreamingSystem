@@ -5,11 +5,11 @@ import {
   Plus,
   Video,
   Star,
-  X,
   Sun,
   Moon,
   Monitor,
   ShieldCheck,
+  Settings2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +18,8 @@ import { IconButton, Logo } from './primitives';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { DesktopHome } from './DesktopHome';
+import { Settings } from './Settings';
+import { FavoriteSettings } from './FavoriteSettings';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
 export { formatCode, parseInvite, type Destination } from '../core/invitation';
 export type Theme = 'system' | 'light' | 'dark';
@@ -45,9 +47,25 @@ interface HomeProps {
   setTheme: (theme: Theme) => void;
 }
 export function Home(props: HomeProps) {
-  return window.chrome?.webview ? <DesktopHome {...props} /> : <BrowserHome {...props} />;
+  const [settings, setSettings] = useState(false);
+  return (
+    <>
+      {window.chrome?.webview ? (
+        <DesktopHome {...props} onSettings={() => setSettings(true)} />
+      ) : (
+        <BrowserHome {...props} onSettings={() => setSettings(true)} />
+      )}
+      <Settings open={settings} onOpenChange={setSettings} />
+    </>
+  );
 }
-function BrowserHome({ onCreate, onJoin, theme, setTheme }: HomeProps) {
+function BrowserHome({
+  onCreate,
+  onJoin,
+  theme,
+  setTheme,
+  onSettings,
+}: HomeProps & { onSettings: () => void }) {
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
@@ -60,6 +78,9 @@ function BrowserHome({ onCreate, onJoin, theme, setTheme }: HomeProps) {
         <div className="header-end">
           <span className="header-note">Пространство для общения</span>
           <ThemeButton theme={theme} setTheme={setTheme} />
+          <IconButton label="Настройки" onClick={onSettings}>
+            <Settings2 size={20} />
+          </IconButton>
         </div>
       </header>
       <main className="home-main">
@@ -163,10 +184,10 @@ function BrowserHome({ onCreate, onJoin, theme, setTheme }: HomeProps) {
                     </span>
                     <ArrowRight size={18} />
                   </button>
-                  <IconButton
-                    label={`Убрать «${room.title}» из избранного`}
-                    disabled={removing === room.roomId}
-                    onClick={async () => {
+                  <FavoriteSettings
+                    room={room}
+                    removing={removing === room.roomId}
+                    remove={async () => {
                       setRemoving(room.roomId);
                       try {
                         await favoriteApi.remove(room.roomId);
@@ -177,9 +198,7 @@ function BrowserHome({ onCreate, onJoin, theme, setTheme }: HomeProps) {
                         setRemoving(null);
                       }
                     }}
-                  >
-                    <X size={18} />
-                  </IconButton>
+                  />
                 </div>
               ))}
             </div>

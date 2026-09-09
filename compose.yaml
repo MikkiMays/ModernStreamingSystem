@@ -41,6 +41,30 @@ services:
       timeout: 3s
       start_period: 30s
       retries: 12
+  services:
+    build: { context: ., dockerfile: services/Dockerfile }
+    network_mode: host
+    env_file:
+      - path: .env
+      - path: .local/telegram.env
+        required: false
+    restart: unless-stopped
+    read_only: true
+    init: true
+    tmpfs: [/tmp]
+    volumes: [services-data:/data]
+    mem_limit: 1g
+    pids_limit: 256
+    stop_grace_period: 20s
+    depends_on:
+      core: { condition: service_healthy }
+      volume-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18100/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 5
   postgres:
     image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
     network_mode: host
@@ -83,8 +107,8 @@ services:
     stop_grace_period: 2m
   volume-init:
     image: alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
-    command: [sh, -c, 'chown 10001:10001 /data/uploads && chmod 700 /data/uploads']
-    volumes: [uploads:/data/uploads]
+    command: [sh, -c, 'chown 10001:10001 /data/uploads /data/services && chmod 700 /data/uploads /data/services']
+    volumes: [uploads:/data/uploads, services-data:/data/services]
     restart: 'no'
   tusd:
     image: tusproject/tusd:v2.10.0@sha256:9610f0f8edf4cceeb26f1b3ac9fa4bb4803d61a878e222c1573cda63c9e23374
@@ -106,3 +130,4 @@ volumes:
   database:
   uploads:
   certificates:
+  services-data:

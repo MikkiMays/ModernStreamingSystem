@@ -15,3 +15,18 @@ it('persists independent camera and screen profiles and discards invalid cached 
   expect(readPreferences().camera.fps).toBe(30);
   expect(readPreferences().devices).toEqual({});
 });
+
+it('migrates the display name and validates stored audio and hotkeys', () => {
+  localStorage.setItem('cord:name', 'Saved name');
+  expect(readPreferences().name).toBe('Saved name');
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ audio: { gain: -5, suppression: 'invalid' }, micHotkey: { code: 'Escape' } }),
+  );
+  expect(readPreferences().audio).toMatchObject({ gain: 0, suppression: 'browser', echoCancellation: true });
+  expect(readPreferences().micHotkey?.code).toBe('KeyM');
+  savePreferences({ name: 'New name', micHotkey: null });
+  expect(readPreferences().name).toBe('New name');
+  expect(localStorage.getItem('cord:name')).toBe('New name');
+  expect(readPreferences().micHotkey).toBeNull();
+});

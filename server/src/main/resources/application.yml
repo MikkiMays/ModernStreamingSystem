@@ -37,6 +37,7 @@ stream:
   max-screens: 2
   max-rooms: 5
   recovery-seconds: 20
+  join-seconds: 120
   empty-room-seconds: 60
   unused-room-seconds: 300
   retention-seconds: 86400

@@ -1,6 +1,7 @@
 import type { Track } from 'livekit-client';
 
 export interface Sample {
+  kind: 'audio' | 'video';
   direction: string;
   width: number;
   height: number;
@@ -44,7 +45,10 @@ export class StatsSampler {
     const active = new Set<string>();
     const result: Sample[] = [];
     report.forEach((stat) => {
-      if (!['inbound-rtp', 'outbound-rtp'].includes(stat.type) || (stat.kind ?? stat.mediaType) !== 'video')
+      if (
+        !['inbound-rtp', 'outbound-rtp'].includes(stat.type) ||
+        !['audio', 'video'].includes(stat.kind ?? stat.mediaType)
+      )
         return;
       active.add(stat.id);
       const receiving = stat.type === 'inbound-rtp';
@@ -93,6 +97,7 @@ export class StatsSampler {
       const lost = prior ? Math.max(0, current.lost - prior.lost) : 0;
       const packets = prior ? Math.max(0, current.received - prior.received) : 0;
       result.push({
+        kind: stat.kind ?? stat.mediaType,
         direction: receiving ? 'Получение' : 'Передача',
         width: Number(stat.frameWidth ?? 0),
         height: Number(stat.frameHeight ?? 0),

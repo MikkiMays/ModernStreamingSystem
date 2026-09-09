@@ -75,6 +75,51 @@ class RoomServiceTest {
   }
 
   @Test
+  void onlyHostCanChangeIntegrationPermissionAndItSurvivesReturn() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Комната", "Организатор", false, false));
+    assertThat(host.snapshot().integrationsAllowed()).isFalse();
+    var guest = guest(host);
+    assertThatThrownBy(() -> rooms.integrationSettings(host.roomId(), guest.credential(), true))
+        .isInstanceOf(Problem.class);
+    assertThat(
+            rooms.integrationSettings(host.roomId(), host.credential(), true).integrationsAllowed())
+        .isTrue();
+    command(host, "leave", null, 0);
+    var returned =
+        rooms.rejoin(
+            host.roomId(), host.credential(), new Rejoin(UUID.randomUUID(), "Организатор"));
+    assertThat(returned.snapshot().integrationsAllowed()).isTrue();
+  }
+
+  @Test
+  void musicServiceIsIdempotentConsumesOneSeatAndHasNoHostRights() {
+    var host = host();
+    var id = UUID.randomUUID();
+    var music = rooms.addMusicService(host.roomId(), id);
+    assertThat(rooms.addMusicService(host.roomId(), id)).isEqualTo(music);
+    var participant =
+        rooms.snapshot(host.roomId(), host.credential()).participants().stream()
+            .filter(p -> p.id().equals(music.participantId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(participant.service()).isEqualTo("music");
+    assertThat(participant.owner()).isFalse();
+    assertThatThrownBy(() -> command(music, "close", null, 0)).isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> rooms.addMusicService(host.roomId(), UUID.randomUUID()))
+        .isInstanceOf(Problem.class)
+        .extracting("code")
+        .isEqualTo("SERVICE_EXISTS");
+    for (int i = 0; i < 8; i++) guest(host);
+    assertThatThrownBy(() -> guest(host))
+        .isInstanceOf(Problem.class)
+        .extracting("code")
+        .isEqualTo("ROOM_FULL");
+    command(music, "leave", null, 0);
+    var replacement = rooms.addMusicService(host.roomId(), UUID.randomUUID());
+    assertThat(replacement.participantId()).isNotEqualTo(music.participantId());
+  }
+
+  @Test
   void admissionIsIdempotentAndDoesNotDuplicateSeats() {
     var request = new Create(UUID.randomUUID(), "Встреча", "Имя", false);
     var first = rooms.create(request);
@@ -219,6 +264,27 @@ class RoomServiceTest {
     command(host, "participant.approve", guest.participantId(), 0);
     assertThat(rooms.read(host.roomId()).members.get(guest.participantId()).status)
         .isEqualTo(RoomState.Status.JOINING);
+  }
+
+  @Test
+  void approvedGuestGetsInitialJoinWindowWithoutExtendingEstablishedRecovery() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Допуск", "Хост", true));
+    connected(host);
+    var guest = guest(host);
+    now.addAndGet(45000);
+    command(host, "participant.approve", guest.participantId(), 0);
+    long approvedAt = now.get();
+    now.addAndGet(25000);
+    lifecycle.sweepRoom(host.roomId());
+    var joining = rooms.read(host.roomId()).members.get(guest.participantId());
+    assertThat(joining.status).isEqualTo(RoomState.Status.JOINING);
+    assertThat(joining.recoveryDeadline).isEqualTo(approvedAt + config.joinSeconds() * 1000L);
+    media.token(host.roomId(), guest.credential());
+    command(guest, "media.restored", null, joining.generation);
+    var active = rooms.read(host.roomId()).members.get(guest.participantId());
+    command(guest, "media.lost", null, active.generation);
+    assertThat(rooms.read(host.roomId()).members.get(guest.participantId()).recoveryDeadline)
+        .isEqualTo(now.get() + config.recoverySeconds() * 1000L);
   }
 
   @Test

@@ -59,7 +59,7 @@ public class OpenApiConfig {
               "Admission",
               List.of("inviteUrl"),
               "Participant",
-              List.of("recoveryDeadline"),
+              List.of("recoveryDeadline", "service"),
               "Snapshot",
               List.of("closedAt"),
               "Ack",

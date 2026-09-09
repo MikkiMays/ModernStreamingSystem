@@ -101,13 +101,15 @@ jobs:
       - run: python3 scripts/cohost_cutover_test.py
       - run: docker compose config --quiet
       - run: docker compose build
+      - name: Verify integrations, bot commands and audio queue
+        run: docker compose run --rm --no-deps --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests -v
       - name: Validate gateway and L4 modules without obtaining certificates
         run: |
           docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker compose run --rm --no-deps edge validate --config /etc/edge.json
       - name: Verify production containers boot with private configuration files
         run: |
-          docker compose up -d postgres redis volume-init livekit tusd core gateway
+          docker compose up -d postgres redis volume-init livekit tusd core services gateway
           node scripts/smoke.mjs
       - name: Stop the verification stack
         if: always()

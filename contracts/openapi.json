@@ -29,6 +29,18 @@
         ],
         "type": "object"
       },
+      "Add": {
+        "properties": {
+          "commandId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId"
+        ],
+        "type": "object"
+      },
       "Admission": {
         "properties": {
           "credential": {
@@ -238,6 +250,9 @@
             "format": "uuid",
             "type": "string"
           },
+          "integrationsAllowed": {
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 40,
             "minLength": 0,
@@ -343,6 +358,30 @@
           "savedAt",
           "title"
         ],
+        "type": "object"
+      },
+      "Info": {
+        "properties": {
+          "closedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "integrationsAllowed": {
+            "type": "boolean"
+          },
+          "ownerPresent": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "Join": {
@@ -470,6 +509,12 @@
           "screen": {
             "type": "boolean"
           },
+          "service": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "enum": [
               "WAITING",
@@ -490,6 +535,7 @@
           "owner",
           "recoveryDeadline",
           "screen",
+          "service",
           "status"
         ],
         "type": "object"
@@ -602,6 +648,14 @@
         ],
         "type": "object"
       },
+      "Settings": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "Snapshot": {
         "properties": {
           "approvalRequired": {
@@ -623,6 +677,9 @@
           },
           "id": {
             "type": "string"
+          },
+          "integrationsAllowed": {
+            "type": "boolean"
           },
           "messages": {
             "items": {
@@ -654,6 +711,7 @@
           "code",
           "createdAt",
           "id",
+          "integrationsAllowed",
           "messages",
           "participants",
           "sequence",
@@ -1396,6 +1454,55 @@
         },
         "tags": [
           "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{roomId}/integrations": {
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "integration-settings-controller"
         ]
       }
     },

@@ -9,6 +9,7 @@ import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
 import { notifyDesktop, onDesktopCommand } from './core/desktop';
 import { favoriteApi } from './core/favorites';
+import { savePreferences } from './core/preferences';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -78,6 +79,24 @@ function Workspace() {
           : null,
     });
     return onDesktopCommand((command) => {
+      if (command.type === 'profile.changed' && typeof command.name === 'string') {
+        if (meeting) meeting.media.saveSettings({ name: command.name });
+        else savePreferences({ name: command.name });
+        notifyDesktop('state', {
+          page,
+          name: command.name,
+          theme,
+          room:
+            page === 'room' && meeting
+              ? {
+                  roomId: meeting.admission.roomId,
+                  title: meeting.admission.snapshot.title,
+                  code: meeting.admission.snapshot.code,
+                }
+              : null,
+        });
+        return;
+      }
       if (command.type === 'theme.changed') {
         if (command.theme && ['light', 'dark', 'system'].includes(command.theme)) setTheme(command.theme);
         return;

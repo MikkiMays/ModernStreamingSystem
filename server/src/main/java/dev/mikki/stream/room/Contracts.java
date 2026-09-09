@@ -11,7 +11,12 @@ public final class Contracts {
       @NotNull UUID commandId,
       @NotBlank @Size(max = 80) String title,
       @NotBlank @Size(max = 40) String name,
-      boolean approvalRequired) {}
+      boolean approvalRequired,
+      Boolean integrationsAllowed) {
+    public Create(UUID commandId, String title, String name, boolean approvalRequired) {
+      this(commandId, title, name, approvalRequired, null);
+    }
+  }
 
   public record Join(
       @NotNull UUID commandId,
@@ -44,7 +49,8 @@ public final class Contracts {
       RoomState.Status status,
       long generation,
       Long recoveryDeadline,
-      boolean screen) {}
+      boolean screen,
+      String service) {}
 
   public record Snapshot(
       String id,
@@ -54,6 +60,7 @@ public final class Contracts {
       Long closedAt,
       long sequence,
       boolean approvalRequired,
+      boolean integrationsAllowed,
       List<Participant> participants,
       List<RoomState.Message> messages,
       long serverTime) {}
