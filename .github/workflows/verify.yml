@@ -57,18 +57,26 @@ jobs:
       - run: npm run build
         working-directory: web
       - run: .\mvnw.cmd -B -pl server -am package -DskipTests
-      - run: .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild -SkipWeb
-      - name: Check generated API contracts
-        working-directory: web
-        run: |
-          npm run generate:api
-          git diff --exit-code -- src/api/generated.ts ../contracts/openapi.json
-      - run: npm run test:e2e
-        working-directory: web
+      - name: Verify contracts and browser scenarios with a managed local stack
         env:
           PLAYWRIGHT_CHANNEL: msedge
-      - run: .\scripts\stop-local.ps1
-        if: always()
+        run: |
+          try {
+            .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild -SkipWeb
+            Push-Location web
+            try {
+              npm run generate:api
+              if ($LASTEXITCODE -ne 0) { throw 'API generation failed' }
+              git diff --exit-code -- src/api/generated.ts ../contracts/openapi.json
+              if ($LASTEXITCODE -ne 0) { throw 'Generated API contracts differ from the committed files' }
+              npm run test:e2e
+              if ($LASTEXITCODE -ne 0) { throw 'Browser scenarios failed' }
+            } finally {
+              Pop-Location
+            }
+          } finally {
+            .\scripts\stop-local.ps1
+          }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -78,6 +86,7 @@ jobs:
             web/playwright-report
             web/test-results
             .local/*.png
+            .local/logs
           retention-days: 7
   deployment-config:
     runs-on: ubuntu-24.04
