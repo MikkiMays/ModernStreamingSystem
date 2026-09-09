@@ -99,6 +99,7 @@ jobs:
       - run: node scripts/configure.mjs --app=app.example.test --rtc=rtc.example.test --turn=turn.example.test --ip=192.0.2.1
       - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs
       - run: python3 scripts/cohost_cutover_test.py
+      - run: python3 scripts/publish_windows_release_test.py
       - run: docker compose config --quiet
       - run: docker compose build
       - name: Verify integrations, bot commands and audio queue

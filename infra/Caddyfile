@@ -28,6 +28,11 @@ http://:{$GATEWAY_PORT:8091} {
 	@app host {$APP_HOST}
 	handle @app {
 		import headers
+		handle_path /downloads/windows/* {
+			root * /releases
+			header Cache-Control "no-cache"
+			file_server
+		}
 		@services path /api/v1/services/*
 		handle @services {
 			reverse_proxy 127.0.0.1:18100
