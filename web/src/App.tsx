@@ -9,6 +9,9 @@ import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
 import { notifyDesktop, onDesktopCommand } from './core/desktop';
 import { favoriteApi } from './core/favorites';
+import { Ping } from './ui/Ping';
+import { FavoriteSettings } from './ui/FavoriteSettings';
+import type { Favorite } from './core/favorites';
 import { savePreferences } from './core/preferences';
 
 const queryClient = new QueryClient({
@@ -31,6 +34,7 @@ function Workspace() {
   );
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [error, setError] = useState('');
+  const [favoriteSettings, setFavoriteSettings] = useState<Favorite | null>(null);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -67,6 +71,7 @@ function Workspace() {
     document.documentElement.dataset.desktop = String(!!window.chrome?.webview);
     notifyDesktop('state', {
       page,
+      inCall: page === 'room' && !!meeting && !meeting.ended.get(),
       name: localStorage.getItem('cord:name') ?? '',
       theme,
       room:
@@ -79,11 +84,33 @@ function Workspace() {
           : null,
     });
     return onDesktopCommand((command) => {
+      if (command.type === 'preferences.changed') {
+        const patch = {
+          ...(typeof command.showPing === 'boolean' ? { showPing: command.showPing } : {}),
+          ...(typeof command.notificationSounds === 'boolean'
+            ? { notificationSounds: command.notificationSounds }
+            : {}),
+        };
+        if (meeting) meeting.media.saveSettings(patch);
+        else savePreferences(patch);
+        return;
+      }
+      if (command.type === 'favorite.settings') {
+        void favoriteApi
+          .list()
+          .then((favorites) => {
+            const favorite = favorites.find((f) => f.roomId === command.roomId);
+            if (favorite) setFavoriteSettings(favorite);
+          })
+          .catch((e) => setError((e as Error).message));
+        return;
+      }
       if (command.type === 'profile.changed' && typeof command.name === 'string') {
         if (meeting) meeting.media.saveSettings({ name: command.name });
         else savePreferences({ name: command.name });
         notifyDesktop('state', {
           page,
+          inCall: page === 'room' && !!meeting && !meeting.ended.get(),
           name: command.name,
           theme,
           room:
@@ -157,6 +184,20 @@ function Workspace() {
   }, []);
   return (
     <>
+      {page !== 'room' && <Ping />}
+      {favoriteSettings && (
+        <FavoriteSettings
+          key={favoriteSettings.roomId}
+          room={favoriteSettings}
+          initiallyOpen
+          removing={false}
+          remove={async () => {
+            await favoriteApi.remove(favoriteSettings.roomId);
+            await queryClient.invalidateQueries({ queryKey: ['favorites'] });
+          }}
+          onClose={() => setFavoriteSettings(null)}
+        />
+      )}
       {page === 'home' && (
         <Home
           theme={theme}

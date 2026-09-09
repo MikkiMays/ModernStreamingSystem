@@ -19,6 +19,7 @@ import type { Meeting } from '../core/meeting';
 import { Avatar, IconButton, useStore } from './primitives';
 import { Track } from 'livekit-client';
 import { Services } from './Services';
+import { ParticipantMenu } from './ParticipantMenu';
 
 export type Panel = 'people' | 'chat' | 'services';
 function formatBytes(value: number) {
@@ -145,7 +146,7 @@ export function Sidebar({
             {snapshot.participants
               .filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
               .map((p) => (
-                <div className="participant-row" key={p.id}>
+                <ParticipantMenu className="participant-row" key={p.id} meeting={meeting} person={p}>
                   <Avatar name={p.name} />
                   <div className="participant-info">
                     <strong>
@@ -200,7 +201,7 @@ export function Sidebar({
                       (t) => t.participantId === p.id && t.source === Track.Source.Microphone && !t.muted,
                     ) && <MicOff className="muted" size={16} />
                   )}
-                </div>
+                </ParticipantMenu>
               ))}
           </div>
         </Tabs.Panel>

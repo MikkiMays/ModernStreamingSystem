@@ -64,6 +64,8 @@ public class MediaReconciler {
               || !member.mediaAllowed()
               || screens > 1
               || (screens > 0 && !member.screen)) gateway.remove(room.id, identity);
+          else if (screens == 1 && !member.screenStarted)
+            media.screenObserved(room.id, identity, p.getSid());
         }
       } catch (dev.mikki.stream.shared.Problem ignored) {
         // An unavailable SFU is not evidence that every participant has left.

@@ -4,90 +4,200 @@
   "title": "Room WebSocket packets v1",
   "description": "First client packet is auth; all timestamps are epoch milliseconds. Replay sequence belongs to the logical room, not a socket.",
   "oneOf": [
-    { "$ref": "#/$defs/auth" },
-    { "$ref": "#/$defs/ping" },
-    { "$ref": "#/$defs/command" },
-    { "$ref": "#/$defs/authenticated" },
-    { "$ref": "#/$defs/pong" },
-    { "$ref": "#/$defs/snapshot" },
-    { "$ref": "#/$defs/event" },
-    { "$ref": "#/$defs/ack" },
-    { "$ref": "#/$defs/error" }
+    {
+      "$ref": "#/$defs/auth"
+    },
+    {
+      "$ref": "#/$defs/ping"
+    },
+    {
+      "$ref": "#/$defs/command"
+    },
+    {
+      "$ref": "#/$defs/authenticated"
+    },
+    {
+      "$ref": "#/$defs/pong"
+    },
+    {
+      "$ref": "#/$defs/snapshot"
+    },
+    {
+      "$ref": "#/$defs/event"
+    },
+    {
+      "$ref": "#/$defs/ack"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
   ],
   "$defs": {
     "auth": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "roomId", "credential", "after"],
+      "required": [
+        "type",
+        "roomId",
+        "credential",
+        "after"
+      ],
       "properties": {
-        "type": { "const": "auth" },
-        "roomId": { "type": "string", "format": "uuid" },
-        "credential": { "type": "string", "maxLength": 256 },
-        "after": { "type": "integer", "minimum": -1 }
+        "type": {
+          "const": "auth"
+        },
+        "roomId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "credential": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "after": {
+          "type": "integer",
+          "minimum": -1
+        }
       }
     },
     "ping": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
-      "properties": { "type": { "const": "ping" } }
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "ping"
+        },
+        "requestId": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
     },
     "command": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "command"],
+      "required": [
+        "type",
+        "command"
+      ],
       "properties": {
-        "type": { "const": "command" },
-        "command": { "$ref": "openapi.json#/components/schemas/Command" }
+        "type": {
+          "const": "command"
+        },
+        "command": {
+          "$ref": "openapi.json#/components/schemas/Command"
+        }
       }
     },
     "authenticated": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "participantId"],
+      "required": [
+        "type",
+        "participantId"
+      ],
       "properties": {
-        "type": { "const": "authenticated" },
-        "participantId": { "type": "string", "format": "uuid" }
+        "type": {
+          "const": "authenticated"
+        },
+        "participantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "liveAfter": {
+          "type": "integer"
+        }
       }
     },
     "pong": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "serverTime"],
-      "properties": { "type": { "const": "pong" }, "serverTime": { "type": "integer" } }
+      "required": [
+        "type",
+        "serverTime"
+      ],
+      "properties": {
+        "type": {
+          "const": "pong"
+        },
+        "serverTime": {
+          "type": "integer"
+        },
+        "requestId": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
     },
     "snapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "snapshot"],
+      "required": [
+        "type",
+        "snapshot"
+      ],
       "properties": {
-        "type": { "const": "snapshot" },
-        "snapshot": { "$ref": "openapi.json#/components/schemas/Snapshot" }
+        "type": {
+          "const": "snapshot"
+        },
+        "snapshot": {
+          "$ref": "openapi.json#/components/schemas/Snapshot"
+        }
       }
     },
     "event": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "event"],
+      "required": [
+        "type",
+        "event"
+      ],
       "properties": {
-        "type": { "const": "event" },
-        "event": { "$ref": "openapi.json#/components/schemas/Event" }
+        "type": {
+          "const": "event"
+        },
+        "event": {
+          "$ref": "openapi.json#/components/schemas/Event"
+        }
       }
     },
     "ack": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "ack"],
-      "properties": { "type": { "const": "ack" }, "ack": { "$ref": "openapi.json#/components/schemas/Ack" } }
+      "required": [
+        "type",
+        "ack"
+      ],
+      "properties": {
+        "type": {
+          "const": "ack"
+        },
+        "ack": {
+          "$ref": "openapi.json#/components/schemas/Ack"
+        }
+      }
     },
     "error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "code", "message"],
+      "required": [
+        "type",
+        "code",
+        "message"
+      ],
       "properties": {
-        "type": { "const": "error" },
-        "code": { "type": "string" },
-        "message": { "type": "string" }
+        "type": {
+          "const": "error"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
       }
     }
   }

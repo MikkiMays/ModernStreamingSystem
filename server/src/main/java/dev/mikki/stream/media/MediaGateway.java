@@ -67,6 +67,15 @@ public class MediaGateway {
     return execute(client.listParticipants(roomId));
   }
 
+  public void muteMicrophone(String roomId, String participantId) {
+    for (var participant : participants(roomId)) {
+      if (!participant.getIdentity().equals(participantId)) continue;
+      for (var track : participant.getTracksList())
+        if (track.getSource() == LivekitModels.TrackSource.MICROPHONE)
+          execute(client.mutePublishedTrack(roomId, participantId, track.getSid(), true));
+    }
+  }
+
   public void remove(String roomId, String participantId) {
     execute(client.removeParticipant(roomId, participantId));
   }

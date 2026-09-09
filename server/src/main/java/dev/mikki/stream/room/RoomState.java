@@ -43,6 +43,10 @@ public class RoomState {
     public Long recoveryDeadline;
     public boolean clientReportedLoss;
     public boolean screen;
+    public String screenId;
+    public boolean screenStarted;
+    public boolean firstViewer;
+    public String viewingScreenId;
     public long joinedAt;
     public String mediaSid;
     public long observedAt;

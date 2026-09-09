@@ -78,11 +78,16 @@ public class RoomSocket extends TextWebSocketHandler {
           c.participantId = member.id;
           c.sequence = body.path("after").asLong(-1);
           limits.check("ws:" + member.id, 60);
-          send(c, Map.of("type", "authenticated", "participantId", member.id));
+          send(
+              c,
+              Map.of(
+                  "type", "authenticated", "participantId", member.id, "liveAfter", room.sequence));
           flush(c);
         } else if (type.equals("ping")) {
           limits.check("ws-ping:" + c.participantId, 60);
-          send(c, Map.of("type", "pong", "serverTime", rooms.now()));
+          var requestId = body.path("requestId").asText("");
+          if (requestId.length() > 64) throw new Problem(400, "INVALID_PING", "Некорректный PING");
+          send(c, Map.of("type", "pong", "serverTime", rooms.now(), "requestId", requestId));
         } else if (type.equals("command")) {
           limits.check("command:" + Secrets.hash(c.credential.replaceFirst("^Bearer ", "")), 120);
           var command = Json.read(body.path("command").toString(), Contracts.Command.class);

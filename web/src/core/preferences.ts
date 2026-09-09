@@ -1,3 +1,4 @@
+import { notifyDesktop } from './desktop';
 import type { ScreenProfile } from '../media/profiles';
 import type { DeviceChoice } from '../media/session';
 import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
@@ -16,6 +17,8 @@ export const defaultAudio: AudioPreferences = {
 };
 
 export interface Preferences {
+  showPing: boolean;
+  notificationSounds: boolean;
   screen: ScreenProfile;
   camera: ScreenProfile;
   devices: DeviceChoice;
@@ -46,6 +49,8 @@ export function readPreferences(): Preferences {
   for (const kind of ['camera', 'microphone', 'speaker'] as const)
     if (typeof data.devices?.[kind] === 'string') devices[kind] = data.devices[kind];
   return {
+    showPing: data.showPing === true,
+    notificationSounds: data.notificationSounds !== false,
     screen: profile(data.screen, defaultScreen),
     camera: profile(data.camera, defaultCamera),
     devices,
@@ -77,6 +82,11 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
   } catch {
     /* Still apply for this call. */
   }
+  window.dispatchEvent(new Event('cord:preferences'));
+  notifyDesktop('preferences.changed', {
+    showPing: next.showPing,
+    notificationSounds: next.notificationSounds,
+  });
   return next;
 }
 export function automaticProfile(kind: 'screen' | 'camera'): ScreenProfile {

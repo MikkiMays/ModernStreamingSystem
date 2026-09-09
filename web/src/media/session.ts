@@ -78,6 +78,32 @@ export class MediaSession {
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
   readonly deafened = new Store(false);
+  private previousVolumes = new Map<string, number>();
+  private watchedParticipant: string | null = null;
+  watchScreen(participantId: string | null) {
+    this.watchedParticipant = participantId;
+    this.syncSubscriptions();
+  }
+  private shouldSubscribe(identity: string, source: Track.Source) {
+    return (
+      ![Track.Source.ScreenShare, Track.Source.ScreenShareAudio].includes(source) ||
+      identity === this.watchedParticipant
+    );
+  }
+  private syncSubscriptions = () => {
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.trackPublications.values()) {
+        const wanted = this.shouldSubscribe(participant.identity, publication.source);
+        if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
+      }
+  };
+  toggleParticipantMute(id: string) {
+    const volume = this.volumes.get()[id] ?? 1;
+    if (volume > 0) {
+      this.previousVolumes.set(id, volume);
+      this.setVolume(id, 0);
+    } else this.setVolume(id, this.previousVolumes.get(id) ?? 1);
+  }
   private audioChange: Promise<void> = Promise.resolve();
   readonly recovery: RecoveryWindow;
   readonly room: Room;
@@ -162,6 +188,8 @@ export class MediaSession {
         if (participant.isLocal) this.patch({ quality });
       });
     this.room
+      .on(RoomEvent.TrackPublished, this.syncSubscriptions)
+      .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
@@ -170,7 +198,11 @@ export class MediaSession {
       .on(RoomEvent.LocalTrackUnpublished, this.refreshTracks)
       .on(RoomEvent.ParticipantConnected, this.refreshTracks)
       .on(RoomEvent.ParticipantDisconnected, this.refreshTracks)
-      .on(RoomEvent.TrackMuted, this.refreshTracks)
+      .on(RoomEvent.TrackMuted, (publication, participant) => {
+        if (participant.isLocal && publication.source === Track.Source.Microphone)
+          this.wanted.microphone = false;
+        this.refreshTracks();
+      })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
@@ -254,7 +286,8 @@ export class MediaSession {
         for (const publication of publications) {
           if (
             this.room.remoteParticipants.get(identity)?.trackPublications.get(publication.trackSid) ===
-            publication
+              publication &&
+            this.shouldSubscribe(identity, publication.source)
           )
             publication.setSubscribed(true);
         }
@@ -299,7 +332,7 @@ export class MediaSession {
       const { url, token } = await this.api.token();
       if (this.disposed || generation !== this.generation) return;
       await this.room.connect(url, token, {
-        autoSubscribe: true,
+        autoSubscribe: false,
         peerConnectionTimeout: 10000,
         websocketTimeout: 5000,
       });
@@ -363,6 +396,7 @@ export class MediaSession {
       this.onEnd('Время восстановления истекло');
       return;
     }
+    this.syncSubscriptions();
     this.recovery.recovered();
     clearInterval(this.deadlineTimer);
     this.deadlineTimer = undefined;
@@ -541,6 +575,14 @@ export class MediaSession {
     else if (track.getProcessor()) await track.stopProcessor();
   }
   async switchDevice(kind: MediaDeviceKind, id: string) {
+    const activeCamera = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    const previous =
+      this.preferences.get().devices[
+        kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker'
+      ] ||
+      (kind === 'videoinput' && activeCamera instanceof LocalVideoTrack
+        ? activeCamera.mediaStreamTrack.getSettings().deviceId
+        : undefined);
     try {
       await this.room.switchActiveDevice(kind, id);
       const devices = {
@@ -549,7 +591,47 @@ export class MediaSession {
       };
       this.preferences.set(savePreferences({ devices }));
     } catch (error) {
+      if (kind === 'videoinput' && previous)
+        await this.room.switchActiveDevice(kind, previous).catch(() => {});
       this.report(error);
+    }
+  }
+  async flipCamera() {
+    if (this.deviceBusy.has('camera') || this.disposed) return;
+    this.deviceBusy.add('camera');
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    const previous =
+      this.preferences.get().devices.camera ||
+      (track instanceof LocalVideoTrack ? track.mediaStreamTrack.getSettings().deviceId : undefined);
+    try {
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+        (d) => d.kind === 'videoinput',
+      );
+      if (!this.state.get().camera) {
+        const index = devices.findIndex((d) => d.deviceId === previous);
+        const next = devices[(index + 1) % devices.length];
+        if (next) await this.switchDevice('videoinput', next.deviceId);
+        return;
+      }
+      if (!(track instanceof LocalVideoTrack)) return;
+      const currentFacing = track.mediaStreamTrack.getSettings().facingMode;
+      const next = devices[(devices.findIndex((d) => d.deviceId === previous) + 1) % devices.length];
+      await track.restartTrack({
+        ...cameraCapture(this.cameraProfile),
+        deviceId: currentFacing ? undefined : next?.deviceId,
+        facingMode: currentFacing ? (currentFacing === 'environment' ? 'user' : 'environment') : undefined,
+      });
+      const id = track.mediaStreamTrack.getSettings().deviceId;
+      if (id) this.saveSettings({ devices: { ...this.preferences.get().devices, camera: id } });
+      this.refreshTracks();
+    } catch (error) {
+      if (track instanceof LocalVideoTrack)
+        await track
+          .restartTrack({ ...cameraCapture(this.cameraProfile), deviceId: previous })
+          .catch(() => {});
+      this.report(error);
+    } finally {
+      this.deviceBusy.delete('camera');
     }
   }
   /** Must be called directly from the click handler, before any await. */
@@ -593,7 +675,7 @@ export class MediaSession {
       this.codec = await chooseCodec(profile);
       this.profile = profile;
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
-      await this.api.screen(true);
+      const reservation = await this.api.screen(true);
       reserved = true;
       await waitForPublishPermissions(
         this.room,
@@ -619,6 +701,12 @@ export class MediaSession {
           return;
         }
       }
+      if (reservation.value)
+        await this.api.command({
+          type: 'screen.started',
+          commandId: crypto.randomUUID(),
+          targetId: reservation.value,
+        });
       video.removeEventListener('ended', captureEnded);
       video.addEventListener(
         'ended',

@@ -52,6 +52,23 @@ test('two real browser contexts exchange camera, audio and messages through Live
       )
       .toBeGreaterThan(0);
     await expect.poll(() => guest.locator('audio').count()).toBeGreaterThan(0);
+    await guest.locator('.person-tile').filter({ hasText: 'Майс' }).click({ button: 'right' });
+    const volume = guest.getByRole('slider', { name: 'Громкость: Майс' });
+    await volume.fill('150');
+    await guest.getByRole('menuitem', { name: 'Отключить звук у меня', exact: true }).click();
+    await expect(host.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();
+    await guest.locator('.person-tile').filter({ hasText: 'Майс' }).click({ button: 'right' });
+    await expect(volume).toHaveValue('0');
+    await guest.getByRole('menuitem', { name: 'Восстановить громкость', exact: true }).click();
+    await guest.locator('.person-tile').filter({ hasText: 'Майс' }).click({ button: 'right' });
+    await expect(volume).toHaveValue('150');
+    await guest.keyboard.press('Escape');
+    await guest.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
+    await host.locator('.person-tile').filter({ hasText: 'Алекс' }).click({ button: 'right' });
+    await host.getByRole('menuitem', { name: 'Выключить микрофон для всех', exact: true }).click();
+    await expect(guest.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
+    await guest.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
+    await expect(guest.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();
     await host.getByRole('button', { name: 'Чат', exact: true }).click();
     await guest.getByRole('button', { name: 'Чат', exact: true }).click();
     await host.getByRole('textbox', { name: 'Сообщение', exact: true }).fill('Привет! Связь работает.');
@@ -70,6 +87,9 @@ test('two real browser contexts exchange camera, audio and messages through Live
     });
     await host.screenshot({ path: '../.local/room-desktop.png' });
     await guest.setViewportSize({ width: 390, height: 844 });
+    await guest.getByRole('textbox', { name: 'Сообщение', exact: true }).fill('Ответ с узкого экрана');
+    await guest.getByRole('button', { name: 'Отправить сообщение' }).click();
+    await expect(host.getByText('Ответ с узкого экрана', { exact: true })).toBeVisible();
     await guest.screenshot({ path: '../.local/room-mobile.png' });
     expect(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await host.getByRole('button', { name: 'Настройки и действия' }).click();

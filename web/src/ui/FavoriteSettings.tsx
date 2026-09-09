@@ -7,21 +7,32 @@ export function FavoriteSettings({
   room,
   removing,
   remove,
+  initiallyOpen = false,
+  onClose,
 }: {
+  initiallyOpen?: boolean;
+  onClose?: () => void;
   room: Favorite;
   removing: boolean;
   remove: () => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [automatic, setAutomatic] = useState(() => autoJoinEnabled(room.roomId));
   return (
     <>
-      <IconButton label={`Настроить вход в «${room.title}»`} onClick={() => setOpen(true)}>
-        <MoreHorizontal size={19} />
-      </IconButton>
+      {!initiallyOpen && (
+        <IconButton label={`Настроить вход в «${room.title}»`} onClick={() => setOpen(true)}>
+          <MoreHorizontal size={19} />
+        </IconButton>
+      )}
       <Modal
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) onClose?.();
+        }}
         title={room.title}
         description="Настройки входа на этом устройстве."
       >
@@ -43,15 +54,29 @@ export function FavoriteSettings({
         </p>
         <button
           className="button secondary full"
-          disabled={removing}
+          disabled={removing || busy}
           onClick={async () => {
-            await remove();
-            setOpen(false);
+            setBusy(true);
+            setError('');
+            try {
+              await remove();
+              setOpen(false);
+              onClose?.();
+            } catch (error) {
+              setError((error as Error).message);
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           <Trash2 size={17} />
           Убрать из избранного
         </button>
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
       </Modal>
     </>
   );

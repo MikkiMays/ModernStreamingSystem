@@ -28,14 +28,25 @@ public class OpenApiConfig {
                           "participant.approve",
                           "message.send",
                           "media.lost",
-                          "media.restored")));
+                          "media.restored",
+                          "screen.started",
+                          "view.open",
+                          "view.close",
+                          "view.playing",
+                          "microphone.mute")));
       schemas
           .get("Event")
           .getProperties()
           .put(
               "type",
               new io.swagger.v3.oas.models.media.StringSchema()
-                  ._enum(List.of("room.changed", "message.created", "files.changed")));
+                  ._enum(
+                      List.of(
+                          "room.changed",
+                          "message.created",
+                          "files.changed",
+                          "screen.started",
+                          "screen.first_viewer")));
       for (String name :
           List.of(
               "Admission",
@@ -54,12 +65,18 @@ public class OpenApiConfig {
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
       }
+      // Additive fields are optional so old clients and persisted snapshots remain valid.
+      schemas
+          .get("Participant")
+          .getRequired()
+          .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
+      schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
       Map<String, List<String>> nullable =
           Map.of(
               "Admission",
               List.of("inviteUrl"),
               "Participant",
-              List.of("recoveryDeadline", "service"),
+              List.of("recoveryDeadline", "service", "screenId", "viewingScreenId"),
               "Snapshot",
               List.of("closedAt"),
               "Ack",
@@ -67,7 +84,7 @@ public class OpenApiConfig {
               "Attachment",
               List.of("uploadId", "completedAt", "sha256", "cancelledAt"),
               "EventPayload",
-              List.of("message"),
+              List.of("message", "screenId", "participantId"),
               "Replay",
               List.of("snapshot"));
       nullable.forEach(

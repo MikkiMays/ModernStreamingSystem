@@ -151,3 +151,36 @@ describe('media lifecycle', () => {
     media.dispose();
   });
 });
+
+describe('selective screen subscriptions', () => {
+  it('keeps microphones and cameras connected while selecting only one screen and its audio', () => {
+    const { media, room } = fixture();
+    const publication = (source: Track.Source) => ({
+      source,
+      isDesired: false,
+      setSubscribed: vi.fn(function (this: { isDesired: boolean }, value: boolean) {
+        this.isDesired = value;
+      }),
+    });
+    const a = [
+      publication(Track.Source.Microphone),
+      publication(Track.Source.Camera),
+      publication(Track.Source.ScreenShare),
+      publication(Track.Source.ScreenShareAudio),
+    ];
+    const b = [publication(Track.Source.ScreenShare), publication(Track.Source.ScreenShareAudio)];
+    room.remoteParticipants.set('a', { identity: 'a', trackPublications: new Map(a.map((p, i) => [i, p])) });
+    room.remoteParticipants.set('b', { identity: 'b', trackPublications: new Map(b.map((p, i) => [i, p])) });
+    media.watchScreen(null);
+    expect(a.map((p) => p.isDesired)).toEqual([true, true, false, false]);
+    media.watchScreen('a');
+    expect(a.map((p) => p.isDesired)).toEqual([true, true, true, true]);
+    expect(b.map((p) => p.isDesired)).toEqual([false, false]);
+    media.watchScreen('b');
+    expect(a.map((p) => p.isDesired)).toEqual([true, true, false, false]);
+    expect(b.map((p) => p.isDesired)).toEqual([true, true]);
+    media.watchScreen(null);
+    expect(b.map((p) => p.isDesired)).toEqual([false, false]);
+    media.dispose();
+  });
+});

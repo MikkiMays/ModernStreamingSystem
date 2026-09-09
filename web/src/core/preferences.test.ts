@@ -30,3 +30,9 @@ it('migrates the display name and validates stored audio and hotkeys', () => {
   expect(localStorage.getItem('cord:name')).toBe('New name');
   expect(readPreferences().micHotkey).toBeNull();
 });
+
+it('defaults to silent PING display and enabled notifications, then saves both independently', () => {
+  expect(readPreferences()).toMatchObject({ showPing: false, notificationSounds: true });
+  savePreferences({ showPing: true, notificationSounds: false });
+  expect(readPreferences()).toMatchObject({ showPing: true, notificationSounds: false });
+});

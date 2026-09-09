@@ -75,6 +75,83 @@ class RoomServiceTest {
   }
 
   @Test
+  void olderPublishersAreDiscoveredOnceWithoutReplayingStartOnReconnect() {
+    var host = host();
+    connected(host);
+    var screen = media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true).value();
+    media.screenObserved(host.roomId(), host.participantId(), "obsolete-sid");
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).screenStarted).isFalse();
+    media.screenObserved(host.roomId(), host.participantId(), "PA_first");
+    var after = rooms.read(host.roomId()).sequence;
+    media.screenObserved(host.roomId(), host.participantId(), "PA_first");
+    command(host, "screen.started", screen, 0);
+    assertThat(
+            jdbc.sql(
+                    "SELECT COUNT(*) FROM room_events WHERE room_id=? AND sequence>? AND body LIKE '%screen.started%'")
+                .params(host.roomId(), after)
+                .query(Long.class)
+                .single())
+        .isZero();
+  }
+
+  @Test
+  void streamViewsAreValidatedIdempotentAndCleanedUp() throws Exception {
+    var host = host();
+    var a = guest(host);
+    var b = guest(host);
+    var screen = media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true).value();
+    assertThat(screen).isNotBlank();
+    assertThatThrownBy(() -> command(a, "view.open", screen, 0)).isInstanceOf(Problem.class);
+    command(host, "screen.started", screen, 0);
+    var after = rooms.read(host.roomId()).sequence;
+    command(host, "screen.started", screen, 0);
+    command(host, "view.open", screen, 0);
+    command(host, "view.playing", screen, 0);
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).firstViewer).isFalse();
+    command(a, "view.open", screen, 0);
+    command(b, "view.open", screen, 0);
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var one = pool.submit(() -> command(a, "view.playing", screen, 0));
+      var two = pool.submit(() -> command(b, "view.playing", screen, 0));
+      one.get();
+      two.get();
+    }
+    command(a, "view.playing", screen, 0);
+    var count =
+        jdbc.sql(
+                "SELECT COUNT(*) FROM room_events WHERE room_id=? AND sequence>? AND body LIKE '%screen.first_viewer%'")
+            .params(host.roomId(), after)
+            .query(Long.class)
+            .single();
+    assertThat(count).isEqualTo(1);
+    command(a, "view.close", UUID.randomUUID().toString(), 0);
+    assertThat(rooms.read(host.roomId()).members.get(a.participantId()).viewingScreenId)
+        .isEqualTo(screen);
+    media.screen(host.roomId(), host.credential(), UUID.randomUUID(), false);
+    assertThat(rooms.read(host.roomId()).members.values())
+        .allSatisfy(m -> assertThat(m.viewingScreenId).isNull());
+    assertThatThrownBy(() -> command(a, "view.playing", screen, 0)).isInstanceOf(Problem.class);
+    var next = media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true).value();
+    assertThat(next).isNotEqualTo(screen);
+    command(host, "leave", null, 0);
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).screenId).isNull();
+  }
+
+  @Test
+  void onlyHostMutesMicrophoneAndRetryDoesNotMuteAgain() {
+    var host = host();
+    var guest = guest(host);
+    var command = new Command(UUID.randomUUID(), "microphone.mute", null, guest.participantId(), 0);
+    Runnable rpc = mock(Runnable.class);
+    assertThatThrownBy(() -> rooms.muteMicrophone(host.roomId(), guest.credential(), command, rpc))
+        .isInstanceOf(Problem.class);
+    verifyNoInteractions(rpc);
+    rooms.muteMicrophone(host.roomId(), host.credential(), command, rpc);
+    rooms.muteMicrophone(host.roomId(), host.credential(), command, rpc);
+    verify(rpc, times(1)).run();
+  }
+
+  @Test
   void onlyHostCanChangeIntegrationPermissionAndItSurvivesReturn() {
     var host = rooms.create(new Create(UUID.randomUUID(), "Комната", "Организатор", false, false));
     assertThat(host.snapshot().integrationsAllowed()).isFalse();

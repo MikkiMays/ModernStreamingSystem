@@ -5,6 +5,10 @@ import AxeBuilder from '@axe-core/playwright';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     const listeners = new Set<(event: MessageEvent) => void>();
+    window.addEventListener('test:host', (event) => {
+      for (const listener of listeners)
+        listener(new MessageEvent('message', { data: (event as CustomEvent).detail }));
+    });
     window.chrome = {
       ...window.chrome,
       webview: {
@@ -27,8 +31,8 @@ test.beforeEach(async ({ page }) => {
         ][i],
         code: `33344455${i}`,
         savedAt: Date.now(),
-        closed: false,
-        canJoin: true,
+        closed: i === 4,
+        canJoin: i !== 4,
       })),
     }),
   );
@@ -94,4 +98,39 @@ test('desktop code entry and create actions open the shared prejoin with devices
   await expect(page.getByRole('button', { name: 'Настройки предпросмотра' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
+});
+
+test('native favorite settings open unavailable rooms without joining and synchronize PING', async ({
+  page,
+}) => {
+  const joins: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/join')) joins.push(request.url());
+  });
+  await page.goto('/');
+  await expect(page.getByText('5 / 5')).toBeVisible();
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent('test:host', {
+        detail: { version: 1, type: 'favorite.settings', roomId: '00000000-0000-4000-8000-000000000004' },
+      }),
+    ),
+  );
+  await expect(page.getByRole('dialog')).toHaveText(/Длинное название любимой комнаты/);
+  await page.getByRole('switch', { name: 'Автоподключение' }).check();
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.locator('.desktop-home')).toBeVisible();
+  expect(joins).toEqual([]);
+  await expect(page.locator('.ping-badge')).toHaveCount(0);
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent('test:host', {
+        detail: { version: 1, type: 'preferences.changed', showPing: true, notificationSounds: false },
+      }),
+    ),
+  );
+  await expect(page.locator('.ping-badge')).toHaveText(/PING · \d+ мс/);
+  await expect(page.locator('.ping-badge')).toHaveAttribute('title', /Время ответа сервера/);
+  await page.route('**/api/v1/ping', (route) => route.abort());
+  await expect(page.locator('.ping-badge')).toHaveText('PING · Нет связи', { timeout: 6000 });
 });

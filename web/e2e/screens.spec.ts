@@ -32,7 +32,18 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
         paint();
         const timer = setInterval(paint, 1000 / fps);
         const stream = canvas.captureStream(fps);
-        stream.getVideoTracks()[0]!.addEventListener('ended', () => clearInterval(timer));
+        const audio = new AudioContext();
+        const tone = audio.createOscillator();
+        const output = audio.createMediaStreamDestination();
+        tone.connect(output);
+        tone.start();
+        await audio.resume();
+        stream.addTrack(output.stream.getAudioTracks()[0]!);
+        stream.getVideoTracks()[0]!.addEventListener('ended', () => {
+          clearInterval(timer);
+          tone.stop();
+          void audio.close();
+        });
         return stream;
       };
     }, source);
@@ -56,86 +67,84 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить камеру', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
-    await expect(guest!.locator('video.screen-video')).toHaveCount(1, { timeout: 12000 });
-    await expect
-      .poll(() => guest!.locator('video.screen-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
-      .toBeGreaterThan(0);
-    await expect(guest!.getByLabel('Лицо ведущего: Экран 1')).toBeVisible();
-    await guest!.getByRole('button', { name: 'Показывать лицо рядом с экраном' }).click();
-    await expect(guest!.locator('.screen-tile')).toHaveAttribute('data-face-layout', 'side');
+    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1);
+    await expect(guest!.locator('video.screen-video')).toHaveCount(0);
+    await expect(guest!.locator('.person-tile video')).toHaveCount(1);
+    await expect(guest!.locator('audio')).toHaveCount(1);
     const localCaptureId = await host!
       .locator('.person-tile video')
       .evaluate((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]!.id);
+    const micId = await guest!
+      .locator('audio')
+      .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id);
+    await guest!.getByRole('button', { name: /Смотреть стрим/ }).click();
+    await expect(guest!.locator('.person-tile')).toHaveCount(0);
+    await expect
+      .poll(() => guest!.locator('video.screen-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
+      .toBeGreaterThan(0);
+    await expect(guest!.locator('audio')).toHaveCount(2);
+    await guest!.getByRole('button', { name: 'Вернуться в разговор' }).click();
+    await expect(guest!.locator('video.screen-video')).toHaveCount(0);
+    await expect(guest!.locator('audio')).toHaveCount(1);
+    expect(
+      await guest!
+        .locator('audio')
+        .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id),
+    ).toBe(micId);
     await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await test.step('both screen streams deliver moving video to the third participant', async () => {
-      const screens = third!.locator('video.screen-video');
-      // Leave startup headroom for the optional 1440p60 source on shared Windows runners.
-      // A retained trace showed stream two arriving at 12.8s, after the old 12s deadline.
-      await expect(screens).toHaveCount(2, { timeout: 30000 });
+    await expect(third!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(2);
+    await expect(third!.locator('video.screen-video')).toHaveCount(0);
+    for (const name of ['Экран 1', 'Экран 2']) {
+      await third!
+        .locator('.person-tile')
+        .filter({ hasText: name })
+        .getByRole('button', { name: /Смотреть стрим/ })
+        .click();
+      await expect(third!.locator('video.screen-video')).toHaveCount(1);
+      await expect(third!.locator('.person-tile')).toHaveCount(0);
       await expect
         .poll(
           () =>
-            screens.evaluateAll((videos) =>
-              videos.every((element) => {
-                const video = element as HTMLVideoElement;
-                return video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 0;
-              }),
-            ),
+            third!
+              .locator('video.screen-video')
+              .evaluate((v: HTMLVideoElement) => v.getVideoPlaybackQuality().totalVideoFrames),
           { timeout: 15000 },
         )
-        .toBe(true);
-      const initialFrames = await screens.evaluateAll((videos) =>
-        videos.map((video) => (video as HTMLVideoElement).getVideoPlaybackQuality().totalVideoFrames),
-      );
-      await expect
-        .poll(
-          () =>
-            screens.evaluateAll(
-              (videos, initial) =>
-                videos.length === 2 &&
-                videos.every(
-                  (video, index) =>
-                    (video as HTMLVideoElement).getVideoPlaybackQuality().totalVideoFrames > initial[index]!,
-                ),
-              initialFrames,
-            ),
-          { timeout: 15000 },
-        )
-        .toBe(true);
-    });
-    await guest!.getByRole('button', { name: 'Закрепить экран: Экран 1', exact: true }).click();
-    await guest!
-      .locator('.person-tile')
-      .getByRole('button', { name: 'Закрепить участника: Экран 1', exact: true })
-      .click();
-    await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(1);
-    await expect(host!.locator('.person-tile[data-pinned="true"]')).toHaveCount(0);
-    await expect(guest!.locator('.screen-tile:visible')).toHaveCount(1);
+        .toBeGreaterThan(3);
+      await third!.getByRole('button', { name: 'Вернуться в разговор' }).click();
+    }
+    await guest!.locator('.person-tile').filter({ hasText: 'Экран 1' }).click({ button: 'right' });
+    await guest!.getByRole('menuitem', { name: 'Закрепить камеру', exact: true }).click();
+    await expect(guest!.locator('.person-tile')).toHaveCount(1);
+    expect(await guest!.locator('.camera-video').evaluate((v) => getComputedStyle(v).transform)).toBe('none');
+    expect(await host!.locator('.camera-video').evaluate((v) => getComputedStyle(v).transform)).toBe(
+      'matrix(-1, 0, 0, 1, 0, 0)',
+    );
     expect(
       await host!
         .locator('.person-tile video')
         .evaluate((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]!.id),
     ).toBe(localCaptureId);
-    await guest!.screenshot({ path: '../.local/pinned-screen-and-face.png' });
-    await guest!.getByRole('button', { name: 'Настройки и действия' }).click();
-    await guest!.getByRole('menuitem', { name: 'Диагностика', exact: true }).click();
-    await guest!.getByRole('button', { name: 'Обновить аудио и видео', exact: true }).click();
-    await guest!.getByRole('button', { name: 'Закрыть', exact: true }).click();
-    await expect
-      .poll(() =>
-        guest!
-          .locator('.screen-tile[data-focused="true"] video.screen-video')
-          .evaluate((v: HTMLVideoElement) => v.videoWidth),
-      )
-      .toBeGreaterThan(0);
-    await expect(guest!.getByText('В эфире', { exact: true })).toBeVisible();
-    await expect(guest!.locator('audio')).toHaveCount(1);
+    await guest!.getByRole('button', { name: 'Вернуться в разговор' }).click();
     await third!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await expect(third!.getByRole('alert')).toContainText('Уже транслируются два экрана');
-    await host!.screenshot({ path: '../.local/screens-desktop.png' });
+    await third!.getByRole('button', { name: 'Скрыть уведомление' }).click();
+    await third!
+      .locator('.person-tile')
+      .filter({ hasText: 'Экран 1' })
+      .getByRole('button', { name: /Смотреть стрим/ })
+      .click();
     await host!.getByRole('button', { name: 'Остановить', exact: true }).click();
-    await expect(third!.locator('video.screen-video')).toHaveCount(1);
+    await expect(third!.locator('video.screen-video')).toHaveCount(0);
+    await expect(third!.locator('.person-tile')).toHaveCount(3);
     await expect(host!.getByText('В эфире', { exact: true })).toBeVisible();
+    await third!.getByRole('button', { name: 'Полноэкранный режим', exact: true }).click();
+    await expect(third!.locator('.meeting-page')).toHaveClass(/meeting-fullscreen/);
+    await third!.mouse.move(800, 180);
+    await expect(third!.locator('.call-footer')).toBeHidden({ timeout: 5000 });
+    await third!.mouse.move(800, 190);
+    await expect(third!.locator('.call-footer')).toBeVisible();
+    await third!.getByRole('button', { name: 'Выйти из полноэкранного режима' }).click();
     await host!.getByRole('button', { name: 'Настройки и действия' }).click();
     await host!.getByRole('menuitem', { name: 'Завершить для всех' }).click();
   } finally {

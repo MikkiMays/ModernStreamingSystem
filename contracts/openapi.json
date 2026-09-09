@@ -230,7 +230,12 @@
               "participant.approve",
               "message.send",
               "media.lost",
-              "media.restored"
+              "media.restored",
+              "screen.started",
+              "view.open",
+              "view.close",
+              "view.playing",
+              "microphone.mute"
             ],
             "type": "string"
           }
@@ -291,7 +296,9 @@
             "enum": [
               "room.changed",
               "message.created",
-              "files.changed"
+              "files.changed",
+              "screen.started",
+              "screen.first_viewer"
             ],
             "type": "string"
           },
@@ -320,6 +327,18 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "participantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "screenId": {
+            "type": [
+              "string",
+              "null"
             ]
           }
         },
@@ -509,6 +528,15 @@
           "screen": {
             "type": "boolean"
           },
+          "screenId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "screenStarted": {
+            "type": "boolean"
+          },
           "service": {
             "type": [
               "string",
@@ -526,6 +554,12 @@
               "REMOVED"
             ],
             "type": "string"
+          },
+          "viewingScreenId": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -971,6 +1005,30 @@
         },
         "tags": [
           "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/ping": {
+      "get": {
+        "operationId": "ping",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
         ]
       }
     },

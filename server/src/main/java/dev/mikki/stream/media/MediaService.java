@@ -51,10 +51,13 @@ public class MediaService {
               throw Problem.conflict("SCREEN_LIMIT", "Уже транслируются два экрана");
             gateway.permissions(id, member.id, enabled);
             member.screen = enabled;
+            member.screenId = enabled ? UUID.randomUUID().toString() : null;
+            member.screenStarted = false;
+            member.firstViewer = false;
             rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
             repository.save(room, rooms.now());
           }
-          return new Contracts.Ack(commandId, true, room.sequence, null);
+          return new Contracts.Ack(commandId, true, room.sequence, member.screenId);
         });
   }
 
@@ -104,6 +107,23 @@ public class MediaService {
     } else return;
     member.observedAt = occurredAt;
     rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
+    repository.save(room, rooms.now());
+  }
+
+  /** Reconcile publications from clients that predate the explicit screen.started command. */
+  @Transactional
+  public void screenObserved(String roomId, String participantId, String sid) {
+    var room = rooms.lock(roomId);
+    var member = room.members.get(participantId);
+    if (room.closedAt != null
+        || member == null
+        || !member.mediaAllowed()
+        || !member.screen
+        || member.screenStarted
+        || !java.util.Objects.equals(sid, member.mediaSid)) return;
+    if (member.screenId == null) member.screenId = UUID.randomUUID().toString();
+    member.screenStarted = true;
+    rooms.emit(room, "screen.started", Contracts.EventPayload.screen(member.screenId, member.id));
     repository.save(room, rooms.now());
   }
 

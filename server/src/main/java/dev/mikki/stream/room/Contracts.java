@@ -36,7 +36,7 @@ public final class Contracts {
           @Size(max = 30)
           @Pattern(
               regexp =
-                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored")
+                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute")
           String type,
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
@@ -50,7 +50,10 @@ public final class Contracts {
       long generation,
       Long recoveryDeadline,
       boolean screen,
-      String service) {}
+      String service,
+      String screenId,
+      boolean screenStarted,
+      String viewingScreenId) {}
 
   public record Snapshot(
       String id,
@@ -78,7 +81,15 @@ public final class Contracts {
   public record Ack(UUID commandId, boolean ok, long sequence, String value) {}
 
   @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
-  public record EventPayload(RoomState.Message message) {
+  public record EventPayload(RoomState.Message message, String screenId, String participantId) {
+    public EventPayload(RoomState.Message message) {
+      this(message, null, null);
+    }
+
+    public static EventPayload screen(String screenId, String participantId) {
+      return new EventPayload(null, screenId, participantId);
+    }
+
     public static EventPayload changed() {
       return new EventPayload(null);
     }

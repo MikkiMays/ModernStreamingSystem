@@ -54,6 +54,11 @@ public class ApiController {
     this.limits = limits;
   }
 
+  @GetMapping("/ping")
+  public Map<String, Long> ping() {
+    return Map.of("serverTime", System.currentTimeMillis());
+  }
+
   @GetMapping("/capabilities")
   public Capabilities capabilities() {
     return new Capabilities(

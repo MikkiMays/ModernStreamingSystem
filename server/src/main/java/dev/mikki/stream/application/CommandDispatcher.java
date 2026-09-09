@@ -17,6 +17,9 @@ public class CommandDispatcher {
   }
 
   public Contracts.Ack execute(String roomId, String credential, Contracts.Command command) {
+    if (command.type().equals("microphone.mute"))
+      return rooms.muteMicrophone(
+          roomId, credential, command, () -> media.muteMicrophone(roomId, command.targetId()));
     var ack = rooms.command(roomId, credential, command);
     try {
       switch (command.type()) {

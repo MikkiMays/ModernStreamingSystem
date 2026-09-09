@@ -6,10 +6,17 @@ import { ControlChannel } from './control';
 import { Store } from './store';
 import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
+import { NotificationSounds } from './sounds';
 
 export class Meeting {
   readonly api: RoomApi;
   readonly snapshot: Store<Snapshot>;
+  readonly viewing = new Store<{ screenId: string; participantId: string } | null>(null);
+  readonly pinnedCamera = new Store<string | null>(null);
+  private viewChange: Promise<unknown> = Promise.resolve();
+  private viewRevision = 0;
+  private played = new Set<string>();
+  private sounds = new NotificationSounds();
   readonly ended = new Store<string | null>(null);
   readonly invite: Store<string | null>;
   readonly fileRevision = new Store(0);
@@ -41,6 +48,7 @@ export class Meeting {
   start() {
     if (this.started || this.disposed) return;
     this.started = true;
+    this.sounds.start();
     this.control.start();
     this.accept(this.snapshot.get());
     // Admission must also work when an intermediary stalls the events socket.
@@ -73,6 +81,13 @@ export class Meeting {
     if (this.disposed) return;
     if (snapshot.sequence < this.snapshot.get().sequence) return;
     this.snapshot.set(snapshot);
+    const viewing = this.viewing.get();
+    if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen)) {
+      this.viewRevision++;
+      this.viewing.set(null);
+      this.media.watchScreen(null);
+    }
+    if (!snapshot.participants.some((p) => p.id === this.pinnedCamera.get())) this.pinnedCamera.set(null);
     if (snapshot.closedAt) {
       this.end('Встреча завершена');
       return;
@@ -107,7 +122,11 @@ export class Meeting {
     if (leave && !this.disposed)
       void this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
   }
-  private event = (event: RoomEvent) => {
+  private event = (event: RoomEvent, live: boolean) => {
+    if (live && this.media.preferences.get().notificationSounds && !this.ended.get()) {
+      if (event.type === 'screen.started') this.sounds.play('start', event.eventId);
+      if (event.type === 'screen.first_viewer') this.sounds.play('viewer', event.eventId);
+    }
     if (event.type === 'files.changed') this.fileRevision.update((n) => n + 1);
     void this.refresh();
   };
@@ -139,6 +158,54 @@ export class Meeting {
       rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     return ack;
   }
+  openStream(participantId: string) {
+    const person = this.snapshot.get().participants.find((p) => p.id === participantId);
+    if (!person?.screen || !person.screenId) return;
+    const screenId = person.screenId;
+    const revision = ++this.viewRevision;
+    this.viewing.set({ screenId, participantId });
+    this.pinnedCamera.set(null);
+    this.media.watchScreen(participantId);
+    this.viewChange = this.viewChange
+      .catch(() => {})
+      .then(async () => {
+        if (revision !== this.viewRevision || this.disposed) return;
+        await this.command('view.open', undefined, screenId);
+      })
+      .catch((error) => {
+        if (revision === this.viewRevision) {
+          this.returnToConversation();
+          this.media.report(error);
+        }
+      });
+  }
+  returnToConversation() {
+    const old = this.viewing.get();
+    this.viewRevision++;
+    this.viewing.set(null);
+    this.pinnedCamera.set(null);
+    this.media.watchScreen(null);
+    if (old)
+      this.viewChange = this.viewChange
+        .catch(() => {})
+        .then(() => (this.disposed ? undefined : this.command('view.close', undefined, old.screenId)))
+        .catch(() => {});
+  }
+  screenPlaying(screenId: string) {
+    if (this.played.has(screenId) || this.viewing.get()?.screenId !== screenId) return;
+    this.played.add(screenId);
+    this.viewChange = this.viewChange
+      .catch(() => {})
+      .then(async () => {
+        if (this.disposed || this.viewing.get()?.screenId !== screenId) return;
+        await this.command('view.playing', undefined, screenId);
+      })
+      .catch(() => this.played.delete(screenId));
+  }
+  pinCamera(participantId: string) {
+    this.returnToConversation();
+    this.pinnedCamera.set(participantId);
+  }
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     this.end('Вы вышли из встречи');
@@ -148,6 +215,7 @@ export class Meeting {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
     if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
+    this.sounds.dispose();
     this.media.dispose();
     this.ended.set(reason);
     clearInterval(this.syncTimer);
@@ -159,6 +227,7 @@ export class Meeting {
     window.removeEventListener('online', this.refreshOnReturn);
     document.removeEventListener('visibilitychange', this.refreshOnReturn);
     this.control.dispose();
+    this.sounds.dispose();
     this.media.dispose();
     this.subscriptions.forEach((fn) => fn());
     void this.uploader.pause();

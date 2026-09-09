@@ -126,7 +126,10 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
           return;
         }
         videoTrack.current = track;
-        if (video.current) track.attach(video.current);
+        if (video.current) {
+          track.attach(video.current);
+          video.current.style.transform = 'scaleX(-1)';
+        }
         setCamera(true);
       }
     } catch (e) {

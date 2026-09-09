@@ -5,12 +5,16 @@ import { Store } from './store';
 type Packet =
   | { type: 'snapshot'; snapshot: Snapshot }
   | { type: 'event'; event: RoomEvent }
-  | { type: 'authenticated' | 'pong' }
+  | { type: 'authenticated'; liveAfter?: number }
+  | { type: 'pong'; requestId?: string }
   | { type: 'ack'; ack: Ack }
   | { type: 'error'; message: string; code: string };
 
 export class ControlChannel {
   readonly state = new Store<'connecting' | 'connected' | 'recovering' | 'closed'>('connecting');
+  readonly ping = new Store<number | null>(null);
+  private pingRequest?: { id: string; at: number };
+  private liveAfter = Infinity;
   private socket?: WebSocket;
   private timer?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
@@ -23,7 +27,7 @@ export class ControlChannel {
   constructor(
     private api: RoomApi,
     private onSnapshot: (snapshot: Snapshot) => void,
-    private onEvent: (event: RoomEvent) => void,
+    private onEvent: (event: RoomEvent, live: boolean) => void,
     private onRevoked: () => void,
   ) {}
   start() {
@@ -63,17 +67,23 @@ export class ControlChannel {
         const packet = JSON.parse(String(message.data)) as Packet;
         switch (packet.type) {
           case 'authenticated':
+            this.liveAfter = packet.liveAfter ?? Infinity;
             clearTimeout(this.handshake);
             this.attempt = 0;
             this.state.set('connected');
             clearInterval(this.heartbeat);
             this.heartbeat = setInterval(() => {
               if (Date.now() - this.lastPong > 15000) socket.close();
-              else if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }));
-            }, 5000);
+              else if (!document.hidden || Date.now() - this.lastPong > 5000) this.measurePing();
+            }, 2000);
+            this.measurePing();
             break;
           case 'pong':
             this.lastPong = Date.now();
+            if (this.pingRequest && this.pingRequest.id === packet.requestId) {
+              this.ping.set(Math.round(performance.now() - this.pingRequest.at));
+            }
+            this.pingRequest = undefined;
             break;
           case 'snapshot':
             this.sequence = packet.snapshot.sequence;
@@ -92,7 +102,7 @@ export class ControlChannel {
               break;
             }
             this.sequence = packet.event.sequence;
-            this.onEvent(packet.event);
+            this.onEvent(packet.event, packet.event.sequence > this.liveAfter);
             break;
           case 'ack':
             this.pending.get(packet.ack.commandId)?.(packet.ack);
@@ -113,11 +123,22 @@ export class ControlChannel {
       if (this.disposed || this.socket !== socket) return;
       clearInterval(this.heartbeat);
       clearTimeout(this.handshake);
+      this.ping.set(null);
+      this.pingRequest = undefined;
       this.state.set('recovering');
       this.timer = setTimeout(this.connect, Math.min(3000, [0, 500, 1000, 2000][this.attempt++] ?? 3000));
     };
     socket.onerror = () => socket.close();
   };
+  private measurePing() {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    if (this.pingRequest) {
+      if (performance.now() - this.pingRequest.at > 5000) this.ping.set(null);
+      return;
+    }
+    this.pingRequest = { id: crypto.randomUUID(), at: performance.now() };
+    this.socket.send(JSON.stringify({ type: 'ping', requestId: this.pingRequest.id }));
+  }
   async command(command: Command): Promise<Ack> {
     if (this.socket?.readyState !== WebSocket.OPEN || this.state.get() !== 'connected')
       return this.api.command(command);

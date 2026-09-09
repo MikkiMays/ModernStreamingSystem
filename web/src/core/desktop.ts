@@ -3,6 +3,8 @@ export const desktopHotkeyStatus = new Store<string | null>(null);
 export interface DesktopCommand {
   version: 1;
   type:
+    | 'favorite.settings'
+    | 'preferences.changed'
     | 'navigate'
     | 'network.changed'
     | 'close-request'
@@ -10,6 +12,8 @@ export interface DesktopCommand {
     | 'microphone.toggle'
     | 'hotkey.status'
     | 'profile.changed';
+  showPing?: boolean;
+  notificationSounds?: boolean;
   page?: 'home' | 'create' | 'favorite';
   roomId?: string;
   theme?: 'light' | 'dark' | 'system';
@@ -36,6 +40,8 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
     if (
       message.version !== 1 ||
       ![
+        'favorite.settings',
+        'preferences.changed',
         'navigate',
         'network.changed',
         'close-request',

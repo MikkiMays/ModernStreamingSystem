@@ -12,5 +12,5 @@ export type Capabilities = components['schemas']['Capabilities'];
 export type Replay = components['schemas']['Replay'];
 export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'> & {
   version: 1;
-  type: 'room.changed' | 'message.created' | 'files.changed';
+  type: 'room.changed' | 'message.created' | 'files.changed' | 'screen.started' | 'screen.first_viewer';
 };

@@ -19,11 +19,15 @@ import {
   Wifi,
   X,
   Star,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
 import type { Meeting } from '../core/meeting';
 import { IconButton, Logo, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
+import { Ping } from './Ping';
+import { CameraMenu } from './CameraMenu';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
 import { Settings } from './Settings';
@@ -46,10 +50,42 @@ export function MeetingView({
   setTheme: (theme: Theme) => void;
 }) {
   const snapshot = useStore(meeting.snapshot);
+  const viewing = useStore(meeting.viewing);
+  const pinned = useStore(meeting.pinnedCamera);
+  const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const wakeControls = () => {
+    setControlsVisible(true);
+    setLastActivity(Date.now());
+  };
+  useEffect(() => {
+    const changed = () => {
+      setFullscreen(!!document.fullscreenElement);
+      setControlsVisible(true);
+      setLastActivity(Date.now());
+    };
+    document.addEventListener('fullscreenchange', changed);
+    return () => {
+      document.removeEventListener('fullscreenchange', changed);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const timer = setInterval(() => {
+      const held = document.querySelector('[role="menu"], [role="dialog"], .call-footer :focus-visible');
+      setControlsVisible(!!held || Date.now() - lastActivity < 3000);
+    }, 200);
+    return () => clearInterval(timer);
+  }, [fullscreen, lastActivity]);
   const media = useStore(meeting.media.state);
   const tracks = useStore(meeting.media.tracks);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
+  useEffect(() => {
+    notifyDesktop('call-state', { inCall: !ended });
+  }, [ended]);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -95,7 +131,14 @@ export function MeetingView({
   const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
   return (
-    <div className="meeting-page" style={{ '--panel-width': `${width}px` } as CSSProperties}>
+    <div
+      className={`meeting-page ${fullscreen ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
+      onPointerMove={wakeControls}
+      onPointerDown={wakeControls}
+      onFocusCapture={wakeControls}
+      style={{ '--panel-width': `${width}px` } as CSSProperties}
+    >
+      <Ping meeting={meeting} />
       <header className="meeting-header">
         <div className="meeting-title">
           <Logo />
@@ -207,11 +250,12 @@ export function MeetingView({
             </div>
           ) : (
             <>
-              <Stage
-                participants={snapshot.participants}
-                tracks={tracks}
-                selfId={meeting.admission.participantId}
-              />
+              <Stage meeting={meeting} />
+              {(viewing || pinned) && (
+                <button className="return-conversation" onClick={() => meeting.returnToConversation()}>
+                  <ArrowLeft size={16} /> Вернуться в разговор
+                </button>
+              )}
               {snapshot.participants.length === 1 && !media.screen && (
                 <button className="invite-hint" onClick={() => setInvite(true)}>
                   <Users size={18} />
@@ -237,6 +281,128 @@ export function MeetingView({
               </IconButton>
             </div>
           )}
+          <footer className="call-footer">
+            <div className="call-footer-info">
+              <Wifi size={16} />
+              <span>
+                {media.status === 'connected'
+                  ? 'Связь установлена'
+                  : ended
+                    ? 'До новой встречи'
+                    : 'Устанавливаем связь'}
+              </span>
+              <button onClick={() => setDiagnostics(true)} className="quality-tag">
+                {media.screen ? `${profile.resolution}p · ${profile.fps}` : 'HD'}
+              </button>
+            </div>
+            <div className="call-dock" aria-label="Управление встречей">
+              <IconButton
+                label={media.microphone ? 'Выключить микрофон' : 'Включить микрофон'}
+                className={media.microphone ? 'dock-on' : 'dock-off'}
+                disabled={!!ended || media.status !== 'connected'}
+                aria-pressed={media.microphone}
+                onClick={() => void meeting.media.toggle('microphone')}
+              >
+                {media.microphone ? <Mic size={22} /> : <MicOff size={22} />}
+              </IconButton>
+              <IconButton
+                label={media.camera ? 'Выключить камеру' : 'Включить камеру'}
+                className={media.camera ? 'dock-on' : 'dock-off'}
+                disabled={!!ended || media.status !== 'connected'}
+                aria-pressed={media.camera}
+                onClick={() => void meeting.media.toggle('camera')}
+              >
+                {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
+              </IconButton>
+              <CameraMenu meeting={meeting} />
+              <span className="dock-divider" />
+              <button
+                className={`share-button ${media.screen ? 'is-sharing' : ''}`}
+                disabled={!!ended || media.status !== 'connected'}
+                onClick={() => meeting.media.share(profile)}
+                aria-pressed={media.screen}
+              >
+                <MonitorUp size={21} />
+                <span>{media.screen ? 'Остановить' : 'Показать экран'}</span>
+              </button>
+              <Menu.Root>
+                <Menu.Trigger
+                  render={
+                    <IconButton label="Настройки и действия" className="dock-more">
+                      <ChevronDown size={20} />
+                    </IconButton>
+                  }
+                />
+                <Menu.Portal>
+                  <Menu.Positioner side="top" sideOffset={12}>
+                    <Menu.Popup className="action-menu">
+                      <Menu.Item onClick={() => setPanel('services')}>
+                        <Music2 size={18} /> Интеграции
+                      </Menu.Item>
+                      <Menu.Item onClick={() => setSettings(true)}>
+                        <Settings2 size={18} /> Настройки
+                      </Menu.Item>
+                      <Menu.Item onClick={() => setDiagnostics(true)}>
+                        <Activity size={18} /> Диагностика
+                      </Menu.Item>
+                      <Menu.Item onClick={() => meeting.media.deafened.set(!deafened)}>
+                        <Headphones size={18} />{' '}
+                        {deafened ? 'Включить звук встречи' : 'Выключить звук у себя'}
+                      </Menu.Item>
+                      {self?.owner && (
+                        <Menu.Item
+                          className="danger-text"
+                          onClick={() => void meeting.command('close').catch((e) => meeting.media.report(e))}
+                        >
+                          <PhoneOff size={18} /> Завершить для всех
+                        </Menu.Item>
+                      )}
+                    </Menu.Popup>
+                  </Menu.Positioner>
+                </Menu.Portal>
+              </Menu.Root>
+              <IconButton
+                label={fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+                onClick={() => {
+                  if (document.fullscreenElement) void document.exitFullscreen();
+                  else
+                    void document.documentElement.requestFullscreen().catch((e) => meeting.media.report(e));
+                }}
+              >
+                {fullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+              </IconButton>
+              <IconButton
+                label="Выйти из встречи"
+                className="hangup"
+                disabled={!!ended}
+                onClick={() => {
+                  void meeting.leave();
+                  onHome();
+                }}
+              >
+                <PhoneOff size={22} />
+              </IconButton>
+            </div>
+            <div className="panel-controls">
+              <IconButton
+                label="Участники"
+                aria-pressed={panel === 'people'}
+                className={panel === 'people' ? 'selected' : ''}
+                onClick={() => togglePanel('people')}
+              >
+                <Users size={21} />
+                <span className="count-badge">{snapshot.participants.length}</span>
+              </IconButton>
+              <IconButton
+                label="Чат"
+                aria-pressed={panel === 'chat'}
+                className={panel === 'chat' ? 'selected' : ''}
+                onClick={() => togglePanel('chat')}
+              >
+                <MessageSquare size={21} />
+              </IconButton>
+            </div>
+          </footer>
         </main>
         {panel && (
           <>
@@ -275,116 +441,7 @@ export function MeetingView({
           </>
         )}
       </div>
-      <footer className="call-footer">
-        <div className="call-footer-info">
-          <Wifi size={16} />
-          <span>
-            {media.status === 'connected'
-              ? 'Связь установлена'
-              : ended
-                ? 'До новой встречи'
-                : 'Устанавливаем связь'}
-          </span>
-          <button onClick={() => setDiagnostics(true)} className="quality-tag">
-            {media.screen ? `${profile.resolution}p · ${profile.fps}` : 'HD'}
-          </button>
-        </div>
-        <div className="call-dock" aria-label="Управление встречей">
-          <IconButton
-            label={media.microphone ? 'Выключить микрофон' : 'Включить микрофон'}
-            className={media.microphone ? 'dock-on' : 'dock-off'}
-            disabled={!!ended || media.status !== 'connected'}
-            aria-pressed={media.microphone}
-            onClick={() => void meeting.media.toggle('microphone')}
-          >
-            {media.microphone ? <Mic size={22} /> : <MicOff size={22} />}
-          </IconButton>
-          <IconButton
-            label={media.camera ? 'Выключить камеру' : 'Включить камеру'}
-            className={media.camera ? 'dock-on' : 'dock-off'}
-            disabled={!!ended || media.status !== 'connected'}
-            aria-pressed={media.camera}
-            onClick={() => void meeting.media.toggle('camera')}
-          >
-            {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
-          </IconButton>
-          <span className="dock-divider" />
-          <button
-            className={`share-button ${media.screen ? 'is-sharing' : ''}`}
-            disabled={!!ended || media.status !== 'connected'}
-            onClick={() => meeting.media.share(profile)}
-            aria-pressed={media.screen}
-          >
-            <MonitorUp size={21} />
-            <span>{media.screen ? 'Остановить' : 'Показать экран'}</span>
-          </button>
-          <Menu.Root>
-            <Menu.Trigger
-              render={
-                <IconButton label="Настройки и действия" className="dock-more">
-                  <ChevronDown size={20} />
-                </IconButton>
-              }
-            />
-            <Menu.Portal>
-              <Menu.Positioner side="top" sideOffset={12}>
-                <Menu.Popup className="action-menu">
-                  <Menu.Item onClick={() => setPanel('services')}>
-                    <Music2 size={18} /> Интеграции
-                  </Menu.Item>
-                  <Menu.Item onClick={() => setSettings(true)}>
-                    <Settings2 size={18} /> Настройки
-                  </Menu.Item>
-                  <Menu.Item onClick={() => setDiagnostics(true)}>
-                    <Activity size={18} /> Диагностика
-                  </Menu.Item>
-                  <Menu.Item onClick={() => meeting.media.deafened.set(!deafened)}>
-                    <Headphones size={18} /> {deafened ? 'Включить звук встречи' : 'Выключить звук у себя'}
-                  </Menu.Item>
-                  {self?.owner && (
-                    <Menu.Item
-                      className="danger-text"
-                      onClick={() => void meeting.command('close').catch((e) => meeting.media.report(e))}
-                    >
-                      <PhoneOff size={18} /> Завершить для всех
-                    </Menu.Item>
-                  )}
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
-          <IconButton
-            label="Выйти из встречи"
-            className="hangup"
-            disabled={!!ended}
-            onClick={() => {
-              void meeting.leave();
-              onHome();
-            }}
-          >
-            <PhoneOff size={22} />
-          </IconButton>
-        </div>
-        <div className="panel-controls">
-          <IconButton
-            label="Участники"
-            aria-pressed={panel === 'people'}
-            className={panel === 'people' ? 'selected' : ''}
-            onClick={() => togglePanel('people')}
-          >
-            <Users size={21} />
-            <span className="count-badge">{snapshot.participants.length}</span>
-          </IconButton>
-          <IconButton
-            label="Чат"
-            aria-pressed={panel === 'chat'}
-            className={panel === 'chat' ? 'selected' : ''}
-            onClick={() => togglePanel('chat')}
-          >
-            <MessageSquare size={21} />
-          </IconButton>
-        </div>
-      </footer>
+
       <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
       <Settings meeting={meeting} open={settings} onOpenChange={setSettings} />

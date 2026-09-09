@@ -407,7 +407,10 @@ public class RoomService {
                         m.generation,
                         m.recoveryDeadline,
                         m.screen,
-                        m.service))
+                        m.service,
+                        m.screenId,
+                        m.screenStarted,
+                        m.viewingScreenId))
             .toList();
     var messages =
         rooms
@@ -524,6 +527,47 @@ public class RoomService {
                 target.recoveryDeadline = now() + config.joinSeconds() * 1000L;
               }
             }
+            case "screen.started" -> {
+              requireActive(room, member);
+              if (!member.screen || !Objects.equals(member.screenId, command.targetId()))
+                throw Problem.conflict("SCREEN_ENDED", "Демонстрация завершена");
+              if (!member.screenStarted) {
+                member.screenStarted = true;
+                emit(room, "screen.started", EventPayload.screen(member.screenId, member.id));
+              }
+            }
+            case "view.open", "view.playing" -> {
+              requireActive(room, member);
+              var presenter =
+                  room.members.values().stream()
+                      .filter(
+                          m ->
+                              m.mediaAllowed()
+                                  && m.screen
+                                  && m.screenStarted
+                                  && m.screenId != null
+                                  && m.screenId.equals(command.targetId()))
+                      .findFirst()
+                      .orElseThrow(
+                          () -> Problem.conflict("SCREEN_ENDED", "Демонстрация завершена"));
+              if (command.type().equals("view.open")) member.viewingScreenId = presenter.screenId;
+              else {
+                if (!Objects.equals(member.viewingScreenId, presenter.screenId))
+                  throw Problem.conflict("VIEW_CLOSED", "Просмотр закрыт");
+                if (!member.id.equals(presenter.id) && !presenter.firstViewer) {
+                  presenter.firstViewer = true;
+                  emit(
+                      room,
+                      "screen.first_viewer",
+                      EventPayload.screen(presenter.screenId, presenter.id));
+                }
+              }
+            }
+            case "view.close" -> {
+              requireActive(room, member);
+              if (Objects.equals(member.viewingScreenId, command.targetId()))
+                member.viewingScreenId = null;
+            }
             case "message.send" -> {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
@@ -579,6 +623,26 @@ public class RoomService {
         });
   }
 
+  /** The room lock and receipt also serialize concurrent host requests and retries. */
+  @Transactional
+  public Ack muteMicrophone(String roomId, String credential, Command command, Runnable mute) {
+    var room = lock(roomId);
+    var member = authenticate(room, credential);
+    owner(member);
+    requireActive(room, member);
+    var target = room.members.get(command.targetId());
+    if (target == null || !target.mediaAllowed()) throw Problem.forbidden();
+    return receipt(
+        "command:" + roomId + ":" + member.id,
+        command.commandId(),
+        command,
+        Ack.class,
+        () -> {
+          mute.run();
+          return new Ack(command.commandId(), true, room.sequence, null);
+        });
+  }
+
   private void owner(RoomState.Member member) {
     if (!member.owner || !member.occupiesSeat()) throw Problem.forbidden();
   }
@@ -615,6 +679,23 @@ public class RoomService {
   }
 
   public void emit(RoomState room, String type, EventPayload payload) {
+    // Keep persisted view state valid after leave, timeout, removal or screen stop.
+    for (var member : room.members.values()) {
+      if (!member.screen || !member.mediaAllowed()) {
+        member.screenId = null;
+        member.screenStarted = false;
+        member.firstViewer = false;
+      }
+      if (!member.mediaAllowed()
+          || room.members.values().stream()
+              .noneMatch(
+                  p ->
+                      p.screen
+                          && p.mediaAllowed()
+                          && p.screenId != null
+                          && p.screenId.equals(member.viewingScreenId)))
+        member.viewingScreenId = null;
+    }
     var event = new Event(1, UUID.randomUUID().toString(), ++room.sequence, type, payload, now());
     rooms
         .jdbc()

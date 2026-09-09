@@ -95,6 +95,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ping"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms": {
         parameters: {
             query?: never;
@@ -354,7 +370,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute";
         };
         Create: {
             approvalRequired?: boolean;
@@ -372,12 +388,14 @@ export interface components {
             /** Format: int64 */
             sequence: number;
             /** @enum {string} */
-            type: "room.changed" | "message.created" | "files.changed";
+            type: "room.changed" | "message.created" | "files.changed" | "screen.started" | "screen.first_viewer";
             /** Format: int32 */
             version: number;
         };
         EventPayload: {
             message: components["schemas"]["Message"] | null;
+            participantId?: string | null;
+            screenId?: string | null;
         };
         Favorite: {
             canJoin: boolean;
@@ -434,9 +452,12 @@ export interface components {
             /** Format: int64 */
             recoveryDeadline: null | number;
             screen: boolean;
+            screenId?: string | null;
+            screenStarted?: boolean;
             service: string | null;
             /** @enum {string} */
             status: "WAITING" | "JOINING" | "CONNECTED" | "RECOVERING" | "LEFT" | "EXPIRED" | "REMOVED";
+            viewingScreenId?: string | null;
         };
         Rejoin: {
             /** Format: uuid */
@@ -656,6 +677,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    ping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: number;
+                    };
                 };
             };
         };
