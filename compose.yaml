@@ -16,7 +16,9 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs: [/config, /data, /tmp]
-    depends_on: [core, tusd]
+    depends_on:
+      core: { condition: service_healthy }
+      tusd: { condition: service_started }
   core:
     build: { context: ., dockerfile: infra/Dockerfile.server }
     network_mode: host
@@ -31,7 +33,14 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      volume-init: { condition: service_completed_successfully }
     mem_limit: 2g
+    healthcheck:
+      test: [CMD, wget, -q, --spider, 'http://127.0.0.1:8080/actuator/health']
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 12
   postgres:
     image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
     network_mode: host
@@ -52,7 +61,10 @@ services:
     image: redis:8.6.6-alpine@sha256:75934ddb37bfaebe3b4082ba673cac39f66495244134f33dd0a502ce03cdcd36
     network_mode: host
     env_file: .env
-    command: redis-server /etc/redis.conf
+    # The host configuration stays root-only. Give Redis its own private runtime copy
+    # before the standard image entrypoint drops privileges to the redis user.
+    command: [sh, -c, 'cp /etc/redis.conf /tmp/redis.conf && chown redis:redis /tmp/redis.conf && exec docker-entrypoint.sh redis-server /tmp/redis.conf']
+    tmpfs: [/tmp]
     volumes: [./infra/generated/redis.conf:/etc/redis.conf:ro]
     restart: unless-stopped
     healthcheck:
@@ -82,7 +94,7 @@ services:
       -host 127.0.0.1 -port 1080 -base-path /uploads/
       -upload-dir /data/uploads -max-size 104857600 -behind-proxy
       -disable-download -disable-concatenation
-      -hooks-http http://127.0.0.1:8090/internal/tus
+      -hooks-http http://127.0.0.1:${HOOKS_PORT:-8090}/internal/tus
       -hooks-http-forward-headers Authorization
       -hooks-enabled-events pre-create,post-finish -hooks-http-retry 5
       -verbose=false -show-startup-logs=false

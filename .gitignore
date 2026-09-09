@@ -5,6 +5,8 @@ target/
 .env.*
 !.env.example
 .local/
+.playwright-cli/
+output/
 infra/generated/
 playwright-report/
 test-results/
@@ -12,3 +14,4 @@ test-results/
 *.log
 .idea/
 .DS_Store
+__pycache__/

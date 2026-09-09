@@ -98,9 +98,17 @@ jobs:
           node-version: '24.11.1'
       - run: node scripts/configure.mjs --app=app.example.test --rtc=rtc.example.test --turn=turn.example.test --ip=192.0.2.1
       - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs
+      - run: python3 scripts/cohost_cutover_test.py
       - run: docker compose config --quiet
       - run: docker compose build
       - name: Validate gateway and L4 modules without obtaining certificates
         run: |
           docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker compose run --rm --no-deps edge validate --config /etc/edge.json
+      - name: Verify production containers boot with private configuration files
+        run: |
+          docker compose up -d postgres redis volume-init livekit tusd core gateway
+          node scripts/smoke.mjs
+      - name: Stop the verification stack
+        if: always()
+        run: docker compose down

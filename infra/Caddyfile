@@ -2,7 +2,7 @@
 	admin off
 	auto_https off
 	persist_config off
-	servers 127.0.0.1:8091 {
+	servers 127.0.0.1:{$GATEWAY_PORT:8091} {
 		listener_wrappers {
 			proxy_protocol {
 				timeout 2s
@@ -23,7 +23,7 @@
 	}
 }
 
-http://:8091 {
+http://:{$GATEWAY_PORT:8091} {
 	bind 127.0.0.1
 	@app host {$APP_HOST}
 	handle @app {
@@ -72,7 +72,7 @@ http://:8091 {
 	respond 404
 }
 
-http://:8090 {
+http://:{$HOOKS_PORT:8090} {
 	bind 127.0.0.1
 	@hooks path /internal/tus /internal/livekit
 	handle @hooks {

@@ -38,6 +38,11 @@ test("cohost rejects ambiguous SNI, unsafe hosts and internal service port colli
     { "legacy-hosts": "jarvis.example.test", "legacy-tls-port": "8091" },
     { "legacy-hosts": "jarvis.example.test", "legacy-tls-port": "8443;sh" },
     { "legacy-tls-port": "8443" },
+    { "gateway-port": "8080" },
+    { "hooks-port": "8091" },
+    { "gateway-port": "80" },
+    { "hooks-port": "18090;sh" },
+    { "legacy-hosts": "jarvis.example.test", "legacy-tls-port": "18091", "gateway-port": "18091" },
   ])
     assert.throws(
       () => createEdge({ ...hosts, ...options }),

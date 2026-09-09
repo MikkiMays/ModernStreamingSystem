@@ -6,7 +6,22 @@ const validHost = (value) =>
     .split(".")
     .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
 
+export function servicePorts(args) {
+  const ports = {};
+  for (const [name, fallback] of [["gateway-port", 8091], ["hooks-port", 8090]]) {
+    const value = String(args[name] ?? fallback);
+    if (!/^\d+$/.test(value) || Number(value) < 1024 || Number(value) > 65535)
+      throw new Error(`--${name} must be an unprivileged TCP port`);
+    ports[name] = Number(value);
+  }
+  const used = [1080, 5432, 6379, 7880, 7881, 8080, 5349, ...Object.values(ports)];
+  if (new Set(used).size !== used.length)
+    throw new Error("Gateway/hooks ports conflict with a streaming service");
+  return ports;
+}
+
 export function validateEdgeHosts(args) {
+  const ports = servicePorts(args);
   const hosts = ["app", "rtc", "turn"].map((field) => {
     if (!validHost(args[field]))
       throw new Error(`Specify --${field}=host.example.com`);
@@ -23,7 +38,7 @@ export function validateEdgeHosts(args) {
   if (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535)
     throw new Error("--legacy-tls-port must be an unprivileged TCP port");
   if (
-    [1080, 5432, 6379, 7880, 7881, 8080, 8090, 8091, 5349].includes(
+    [1080, 5432, 6379, 7880, 7881, 8080, 5349, ...Object.values(ports)].includes(
       Number(port),
     )
   )
@@ -35,6 +50,7 @@ export function validateEdgeHosts(args) {
 
 export function createEdge(args) {
   const { hosts, legacy, port } = validateEdgeHosts(args);
+  const ports = servicePorts(args);
   const route = (host, target, http = false) => ({
     match: [{ tls: { sni: [host] } }],
     handle: [
@@ -51,8 +67,8 @@ export function createEdge(args) {
   });
   const routes = [
     route(args.turn, 5349),
-    route(args.app, 8091, true),
-    route(args.rtc, 8091, true),
+    route(args.app, ports["gateway-port"], true),
+    route(args.rtc, ports["gateway-port"], true),
   ];
   if (legacy.length) {
     // Preserve the existing server's TLS, authentication and HTTP routing end to end.

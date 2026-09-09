@@ -2,12 +2,13 @@ import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isIP } from "node:net";
-import { createEdge, validateEdgeHosts } from "./edge-config.mjs";
+import { createEdge, validateEdgeHosts, servicePorts } from "./edge-config.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")),
 );
 validateEdgeHosts(args);
+const ports = servicePorts(args);
 if (!isIP(args.ip ?? "")) throw new Error("Specify --ip=PUBLIC_VPS_IP");
 try {
   await readFile(".env");
@@ -27,6 +28,8 @@ const values = {
   RTC_HOST: args.rtc,
   TURN_HOST: args.turn,
   PUBLIC_IP: args.ip,
+  GATEWAY_PORT: ports["gateway-port"],
+  HOOKS_PORT: ports["hooks-port"],
   PUBLIC_URL: `https://${args.app}`,
   LIVEKIT_URL: `wss://${args.rtc}`,
   LIVEKIT_INTERNAL_URL: "http://127.0.0.1:7880",
@@ -70,7 +73,7 @@ const livekit = {
     external_tls: true,
     per_user_relay_allocation_limit: 12,
   },
-  webhook: { api_key: key, urls: ["http://127.0.0.1:8090/internal/livekit"] },
+  webhook: { api_key: key, urls: [`http://127.0.0.1:${ports["hooks-port"]}/internal/livekit`] },
   logging: { level: "warn" },
 };
 await writeFile(
