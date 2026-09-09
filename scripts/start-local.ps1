@@ -1,4 +1,4 @@
-param([string]$JavaHome = 'C:\Java\jdk-25', [switch]$SkipBuild)
+param([string]$JavaHome = 'C:\Java\jdk-25', [switch]$SkipBuild, [switch]$SkipWeb)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $workspace
@@ -40,8 +40,10 @@ Start-LocalService 'gateway' $caddy @('run','--config',(Join-Path $workspace 'in
 Start-LocalService 'livekit' $livekit @('--config',(Join-Path $workspace 'infra/livekit.local.yaml')) $workspace 7880
 Start-LocalService 'tusd' $tusd @('-host','127.0.0.1','-port','1080','-base-path','/uploads/','-upload-dir',(Join-Path $workspace 'server/.local/uploads'),'-max-size','104857600','-behind-proxy','-disable-download','-disable-concatenation','-hooks-http','http://127.0.0.1:8090/internal/tus','-hooks-http-forward-headers','Authorization','-hooks-enabled-events','pre-create,post-finish','-verbose=false','-show-startup-logs=false') $workspace 1080
 Start-LocalService 'core' $java @('-jar',(Join-Path $workspace 'server/target/streaming-server-0.1.0-SNAPSHOT.jar'),'--spring.profiles.active=local') (Join-Path $workspace 'server') 8080
-$node = (Get-Command node.exe).Source
-Start-LocalService 'web' $node @((Join-Path $workspace 'web/node_modules/vite/bin/vite.js'),'--host','127.0.0.1') (Join-Path $workspace 'web') 5173
+if (-not $SkipWeb) {
+    $node = (Get-Command node.exe).Source
+    Start-LocalService 'web' $node @((Join-Path $workspace 'web/node_modules/vite/bin/vite.js'),'--host','127.0.0.1','--strictPort') (Join-Path $workspace 'web') 5173
+}
 $manifest = Join-Path $workspace '.local/processes.json'
 $previous = if (Test-Path -LiteralPath $manifest) { @(Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json) } else { @() }
 @($previous + $started) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifest -Encoding utf8
@@ -52,4 +54,16 @@ do {
     catch { Start-Sleep -Milliseconds 250 }
 } while (-not $ready -and [DateTime]::UtcNow -lt $startupDeadline)
 if (-not $ready) { throw 'Core did not become healthy. Inspect .local/logs/core.err.log and core.out.log.' }
-Write-Host 'Open http://localhost:5173. Local development uses H2 and loopback media; production uses PostgreSQL, Redis and TURN.'
+if (-not $SkipWeb) {
+    $webDeadline = [DateTime]::UtcNow.AddSeconds(45)
+    $webReady = $false
+    do {
+        try { $webReady = (Invoke-WebRequest -Uri 'http://127.0.0.1:5173/' -TimeoutSec 2).StatusCode -eq 200 }
+        catch { $webReady = $false }
+        if (-not $webReady) { Start-Sleep -Milliseconds 250 }
+    } while (-not $webReady -and [DateTime]::UtcNow -lt $webDeadline)
+    if (-not $webReady) { throw 'Web did not become ready. Inspect .local/logs/web.err.log and web.out.log.' }
+    Write-Host 'Open http://localhost:5173. Local development uses H2 and loopback media; production uses PostgreSQL, Redis and TURN.'
+} else {
+    Write-Host 'Local backend is ready. The test runner will manage the web server.'
+}

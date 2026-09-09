@@ -4,6 +4,13 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 45000,
+  webServer: {
+    command: 'npm run dev -- --strictPort',
+    url: 'http://127.0.0.1:5173/',
+    reuseExistingServer: !process.env.CI,
+    timeout: 60000,
+    stdout: 'pipe',
+  },
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'retain-on-failure',

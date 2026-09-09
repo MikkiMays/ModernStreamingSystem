@@ -57,7 +57,7 @@ jobs:
       - run: npm run build
         working-directory: web
       - run: .\mvnw.cmd -B -pl server -am package -DskipTests
-      - run: .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild
+      - run: .\scripts\start-local.ps1 -JavaHome $env:JAVA_HOME -SkipBuild -SkipWeb
       - name: Check generated API contracts
         working-directory: web
         run: |
