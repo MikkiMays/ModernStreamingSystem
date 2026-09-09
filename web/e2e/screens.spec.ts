@@ -5,31 +5,37 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
   const contexts = await Promise.all(
     [0, 1, 2].map(() => browser.newContext({ viewport: { width: 1366, height: 900 } })),
   );
+  // Functional SFU coverage must also run without a GPU on shared CI workers.
+  // Keep the larger synthetic source opt-in; neither mode measures capture-to-display latency.
+  const source =
+    process.env.SCREEN_TEST_HIGH_RESOLUTION === '1'
+      ? { width: 2560, height: 1440, fps: 60 }
+      : { width: 1280, height: 720, fps: 30 };
   for (const context of contexts)
-    await context.addInitScript(() => {
+    await context.addInitScript(({ width, height, fps }) => {
       // New contexts first execute this script on an insecure about:blank page.
       if (!navigator.mediaDevices) return;
       navigator.mediaDevices.getDisplayMedia = async () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 2560;
-        canvas.height = 1440;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         let frame = 0;
         const paint = () => {
           ctx.fillStyle = '#153f73';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = '#fff';
-          ctx.font = '72px sans-serif';
-          ctx.fillText(`TEST SCREEN · ${frame++}`, 120, 240);
-          ctx.fillRect((frame * 12) % 2400, 500, 100, 100);
+          ctx.font = `${height / 20}px sans-serif`;
+          ctx.fillText(`TEST SCREEN · ${frame++}`, width / 20, height / 6);
+          ctx.fillRect((frame * 12) % (width - 100), height / 3, 100, 100);
         };
         paint();
-        const timer = setInterval(paint, 1000 / 60);
-        const stream = canvas.captureStream(60);
+        const timer = setInterval(paint, 1000 / fps);
+        const stream = canvas.captureStream(fps);
         stream.getVideoTracks()[0]!.addEventListener('ended', () => clearInterval(timer));
         return stream;
       };
-    });
+    }, source);
   const pages = await Promise.all(contexts.map((c) => c.newPage()));
   const [host, guest, third] = pages;
   try {
@@ -63,7 +69,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await test.step('both screen streams deliver moving video to the third participant', async () => {
       const screens = third!.locator('video.screen-video');
-      // Three browsers encode/decode 1440p canvas sources on the shared Windows runner.
+      // Leave startup headroom for the optional 1440p60 source on shared Windows runners.
       // A retained trace showed stream two arriving at 12.8s, after the old 12s deadline.
       await expect(screens).toHaveCount(2, { timeout: 30000 });
       await expect
