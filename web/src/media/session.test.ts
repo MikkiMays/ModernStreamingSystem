@@ -1,8 +1,9 @@
 import type { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomEvent, DisconnectReason, type RoomOptions } from 'livekit-client';
+import { RoomEvent, DisconnectReason, Track, type RoomOptions } from 'livekit-client';
 import { MediaSession } from './session';
 import type { RoomApi } from '../api/client';
+import type { CaptureAdapter } from './capture';
 
 vi.mock('livekit-client', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('livekit-client')>();
@@ -28,15 +29,16 @@ vi.mock('livekit-client', async (importOriginal) => {
   return { ...sdk, Room: FakeRoom };
 });
 
-function fixture() {
+function fixture(capture?: CaptureAdapter) {
   const api = {
     admission: { participantId: 'self' },
     snapshot: vi.fn(async () => ({ participants: [{ id: 'self', generation: 1 }] })),
     command: vi.fn(async () => ({})),
     token: vi.fn(async () => ({ url: 'ws://localhost', token: 'test' })),
+    screen: vi.fn(async () => ({})),
   } as unknown as RoomApi;
   const ended = vi.fn();
-  const media = new MediaSession(api, ended);
+  const media = new MediaSession(api, ended, capture);
   return {
     api,
     media,
@@ -47,7 +49,64 @@ function fixture() {
     },
   };
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+function screenFixture() {
+  vi.stubGlobal('RTCRtpSender', { getCapabilities: () => ({ codecs: [] }) });
+  const video = Object.assign(new EventTarget(), {
+    kind: 'video',
+    readyState: 'live',
+    getSettings: () => ({ width: 1920, height: 1080 }),
+    applyConstraints: vi.fn(async () => {}),
+    stop: vi.fn(),
+  });
+  const stream = { getVideoTracks: () => [video], getTracks: () => [video] } as unknown as MediaStream;
+  const result = fixture({ supported: () => true, capture: async () => stream });
+  const permissions = {
+    canPublish: true,
+    canPublishSources: [Track.sourceToProto(Track.Source.Camera)],
+  };
+  const publishTrack = vi.fn(async () => ({
+    track: {
+      source: Track.Source.ScreenShare,
+      kind: Track.Kind.Video,
+      mediaStreamTrack: video,
+      stop: video.stop,
+    },
+  }));
+  Object.assign(result.media.room.localParticipant, { permissions, publishTrack });
+  return { ...result, video, permissions, publishTrack };
+}
+
+describe('screen publication handoff', () => {
+  it('does not publish before the SDK receives the granted permission', async () => {
+    const { media, api, room, permissions, publishTrack } = screenFixture();
+    try {
+      media.share(media.requestedProfile);
+      await vi.waitFor(() => expect(api.screen).toHaveBeenCalledWith(true));
+      expect(publishTrack).not.toHaveBeenCalled();
+      permissions.canPublishSources.push(Track.sourceToProto(Track.Source.ScreenShare));
+      room.emit(RoomEvent.ParticipantPermissionsChanged);
+      await vi.waitFor(() => expect(publishTrack).toHaveBeenCalledOnce());
+      expect(api.screen).not.toHaveBeenCalledWith(false);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('releases the reservation and capture if the participant leaves while waiting', async () => {
+    const { media, api, video, publishTrack } = screenFixture();
+    media.share(media.requestedProfile);
+    await vi.waitFor(() => expect(api.screen).toHaveBeenCalledWith(true));
+    media.dispose();
+    await vi.waitFor(() => expect(api.screen).toHaveBeenCalledWith(false));
+    expect(video.stop).toHaveBeenCalled();
+    expect(publishTrack).not.toHaveBeenCalled();
+  });
+});
 
 describe('media lifecycle', () => {
   it('enforces the original deadline even when the SDK asks for a retry before emitting Reconnecting', async () => {
