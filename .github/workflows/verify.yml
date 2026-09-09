@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
-          java-version: '25.0.2+10'
+          java-version: '25.0.2+10.0.LTS'
           cache: maven
       - name: Require Docker for PostgreSQL tests
         run: docker info > /dev/null
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
         with:
           distribution: temurin
-          java-version: '25.0.2+10'
+          java-version: '25.0.2+10.0.LTS'
           cache: maven
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
