@@ -28,6 +28,7 @@ import { browserCapture, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { preferRealtimePlayout } from './playout';
+import { waitForPublishPermissions } from './publish-permissions';
 
 export interface MediaTile {
   id: string;
@@ -84,6 +85,7 @@ export class MediaSession {
   private cameraProfilePending = false;
   private codec: VideoCodec = 'vp8';
   private screenBusy = false;
+  private screenPublishAbort?: AbortController;
   private deviceBusy = new Set<string>();
   private wanted = { microphone: false, camera: false };
   private connectionCycle = 0;
@@ -526,11 +528,15 @@ export class MediaSession {
   private async publishScreen(capture: Promise<MediaStream>, profile: ScreenProfile) {
     let stream: MediaStream | undefined;
     let reserved = false;
+    const operation = new AbortController();
+    this.screenPublishAbort = operation;
+    const captureEnded = () => operation.abort();
     try {
       stream = await capture;
-      if (this.disposed) return;
+      if (this.disposed || operation.signal.aborted) return;
       const video = stream.getVideoTracks()[0];
       if (!video) throw new Error('Не удалось получить экран');
+      video.addEventListener('ended', captureEnded, { once: true });
       const settings = video.getSettings();
       this.captureSize = { width: settings.width ?? 1920, height: settings.height ?? 1080 };
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
@@ -542,9 +548,19 @@ export class MediaSession {
       video.contentHint = profile.mode === 'text' ? 'detail' : 'motion';
       this.codec = await chooseCodec(profile);
       this.profile = profile;
+      if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       await this.api.screen(true);
       reserved = true;
-      if (this.disposed) return;
+      await waitForPublishPermissions(
+        this.room,
+        stream
+          .getTracks()
+          .map((track) =>
+            track.kind === 'video' ? Track.Source.ScreenShare : Track.Source.ScreenShareAudio,
+          ),
+        operation.signal,
+      );
+      if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       for (const track of stream.getTracks()) {
         const publication = await this.room.localParticipant.publishTrack(track, {
           ...screenOptions(profile, this.codec),
@@ -554,7 +570,12 @@ export class MediaSession {
             : {}),
         });
         if (publication.track) this.screenTracks.push(publication.track);
+        if (this.disposed || operation.signal.aborted) {
+          await this.stopScreen();
+          return;
+        }
       }
+      video.removeEventListener('ended', captureEnded);
       video.addEventListener(
         'ended',
         () => {
@@ -566,16 +587,20 @@ export class MediaSession {
       this.monitorEncoder();
       stream = undefined;
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'NotAllowedError')) this.report(error);
+      if (!(error instanceof DOMException && ['NotAllowedError', 'AbortError'].includes(error.name)))
+        this.report(error);
       await this.stopScreen();
     } finally {
+      if (this.screenPublishAbort === operation) this.screenPublishAbort = undefined;
       if (stream) {
+        stream.getVideoTracks()[0]?.removeEventListener('ended', captureEnded);
         stream.getTracks().forEach((t) => t.stop());
         if (reserved) await this.api.screen(false).catch(() => {});
       }
     }
   }
   async stopScreen() {
+    this.screenPublishAbort?.abort();
     this.screenGeneration++;
     clearInterval(this.qualityTimer);
     const tracks = this.screenTracks;
@@ -694,6 +719,7 @@ export class MediaSession {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.screenPublishAbort?.abort();
     this.liveAbort.abort();
     this.generation++;
     this.screenGeneration++;
