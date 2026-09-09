@@ -41,9 +41,24 @@ for (let attempt = 0; attempt < 40; attempt++) {
   await delay(1500);
 }
 assert(healthy, "Core, PostgreSQL and Redis must be healthy");
-const capabilities = await get("/api/v1/capabilities", env.APP_HOST);
+// A started container may not yet accept connections. Wait for the actual HTTP
+// boundary, including the independently started integration worker.
+async function ready(path) {
+  let last;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    try {
+      last = await get(path, env.APP_HOST);
+      if (last.status === 200) return last;
+    } catch (error) { last = error; }
+    await delay(250);
+  }
+  assert.fail(`${path} did not become ready: ${last?.status ?? last?.message}`);
+}
+const capabilities = await ready("/api/v1/capabilities");
 assert.equal(capabilities.status, 200);
 assert.equal(JSON.parse(capabilities.body).maxParticipants, 10);
+const services = await ready("/api/v1/services/catalog");
+assert(JSON.parse(services.body).services.some(service => service.id === "music"));
 const home = await get("/", env.APP_HOST);
 assert.equal(home.status, 200);
 assert.match(home.body, /<title>Cord/);
@@ -52,4 +67,4 @@ assert([401, 403].includes(signaling.status), "Unauthenticated SFU access must b
 const upload = await get("/uploads/11111111-1111-1111-1111-111111111111", env.APP_HOST, true,
   { Authorization: "Bearer invalid" });
 assert([401, 403].includes(upload.status), "Direct tus downloads must be denied");
-console.log("PASS: database/Redis health, production web/API through PROXY protocol, signaling access and direct-download gates");
+console.log("PASS: database/Redis health, production web/API and integrations through PROXY protocol, signaling access and direct-download gates");
