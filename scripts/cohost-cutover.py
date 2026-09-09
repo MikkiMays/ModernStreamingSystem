@@ -95,6 +95,19 @@ def verify_public(hosts):
     verify_legacy()
 
 
+def wait_for_check(check, timeout=30):
+    # Docker reports "started" before Caddy has loaded certificates and TLS listeners.
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            check()
+            return
+        except (RuntimeError, OSError, subprocess.SubprocessError):
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(1)
+
+
 def apply_cutover(compose, original, hosts, backup):
     # Keep the backup and failed edge logs for inspection; never remove application data.
     backup.mkdir(parents=True, mode=0o700)
@@ -107,24 +120,16 @@ def apply_cutover(compose, original, hosts, backup):
     try:
         run('docker', 'compose', 'config', '--quiet', cwd=LEGACY)
         run('docker', 'compose', 'up', '-d', '--no-deps', 'caddy', cwd=LEGACY)
-        verify_legacy(8443)
+        wait_for_check(lambda: verify_legacy(8443))
         run('docker', 'compose', 'up', '-d', '--no-deps', 'edge')
-        deadline = time.monotonic() + 150
-        while True:
-            try:
-                verify_public(hosts)
-                break
-            except (RuntimeError, OSError, subprocess.SubprocessError):
-                if time.monotonic() >= deadline:
-                    raise
-                time.sleep(3)
+        wait_for_check(lambda: verify_public(hosts), timeout=150)
     except BaseException:
         run('docker', 'compose', 'stop', 'edge')
         if compose.read_text() != changed:
             raise RuntimeError(f'Concurrent legacy edit: restore manually from {backup}')
         save_atomic(compose, original)
         run('docker', 'compose', 'up', '-d', '--no-deps', 'caddy', cwd=LEGACY)
-        verify_legacy()
+        wait_for_check(verify_legacy)
         print(f'Cutover failed; original legacy TLS publication restored. Backup: {backup}', flush=True)
         raise
     print(f'PASS: new public TLS/API and legacy routes. Backup: {backup}', flush=True)

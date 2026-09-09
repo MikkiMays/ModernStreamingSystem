@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +12,24 @@ spec.loader.exec_module(cutover)
 
 
 class CutoverTests(unittest.TestCase):
+    def test_tls_startup_failure_is_retried_before_success(self):
+        with patch.object(cutover.time, 'sleep') as sleep:
+            with patch.object(cutover, 'verify_legacy', side_effect=[
+                subprocess.CalledProcessError(35, ['curl']), None,
+            ]) as check:
+                cutover.wait_for_check(check)
+        self.assertEqual(check.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_persistent_tls_failure_is_propagated_at_deadline(self):
+        failure = subprocess.CalledProcessError(35, ['curl'])
+        with patch.object(cutover.time, 'sleep') as sleep:
+            with patch.object(cutover, 'verify_legacy', side_effect=failure) as check:
+                with self.assertRaises(subprocess.CalledProcessError) as result:
+                    cutover.wait_for_check(check, timeout=0)
+        self.assertIs(result.exception, failure)
+        sleep.assert_not_called()
+
     def test_failed_edge_restores_exact_legacy_compose_and_probes_legacy(self):
         with tempfile.TemporaryDirectory() as directory:
             compose = Path(directory) / 'compose.yaml'

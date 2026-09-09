@@ -1,0 +1,39 @@
+name: Verify deployed meet service
+on:
+  push:
+    branches: [deploy/meet-nikg-tech]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-deployed-meet
+  cancel-in-progress: true
+jobs:
+  public-browser:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: Exercise public HTTPS and media from an external Windows runner
+        env:
+          PLAYWRIGHT_BASE_URL: https://meet.nikg.tech
+          PLAYWRIGHT_CHANNEL: msedge
+        run: npm run test:e2e
+        working-directory: web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: public-browser-results
+          include-hidden-files: true
+          path: |
+            web/playwright-report
+            web/test-results
+            .local/*.png
+          retention-days: 7
