@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test('two synthetic screen sources traverse the real SFU; a third is rejected', async ({ browser }) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   const contexts = await Promise.all(
     [0, 1, 2].map(() => browser.newContext({ viewport: { width: 1366, height: 900 } })),
   );
   for (const context of contexts)
     await context.addInitScript(() => {
+      // New contexts first execute this script on an insecure about:blank page.
+      if (!navigator.mediaDevices) return;
       navigator.mediaDevices.getDisplayMedia = async () => {
         const canvas = document.createElement('canvas');
         canvas.width = 2560;
@@ -59,7 +61,42 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
       .locator('.person-tile video')
       .evaluate((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]!.id);
     await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
-    await expect(third!.locator('video.screen-video')).toHaveCount(2, { timeout: 12000 });
+    await test.step('both screen streams deliver moving video to the third participant', async () => {
+      const screens = third!.locator('video.screen-video');
+      // Three browsers encode/decode 1440p canvas sources on the shared Windows runner.
+      // A retained trace showed stream two arriving at 12.8s, after the old 12s deadline.
+      await expect(screens).toHaveCount(2, { timeout: 30000 });
+      await expect
+        .poll(
+          () =>
+            screens.evaluateAll((videos) =>
+              videos.every((element) => {
+                const video = element as HTMLVideoElement;
+                return video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 0;
+              }),
+            ),
+          { timeout: 15000 },
+        )
+        .toBe(true);
+      const initialFrames = await screens.evaluateAll((videos) =>
+        videos.map((video) => (video as HTMLVideoElement).getVideoPlaybackQuality().totalVideoFrames),
+      );
+      await expect
+        .poll(
+          () =>
+            screens.evaluateAll(
+              (videos, initial) =>
+                videos.length === 2 &&
+                videos.every(
+                  (video, index) =>
+                    (video as HTMLVideoElement).getVideoPlaybackQuality().totalVideoFrames > initial[index]!,
+                ),
+              initialFrames,
+            ),
+          { timeout: 15000 },
+        )
+        .toBe(true);
+    });
     await guest!.getByRole('button', { name: 'Закрепить экран: Экран 1', exact: true }).click();
     await guest!
       .locator('.person-tile')
