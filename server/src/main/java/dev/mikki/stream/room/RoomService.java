@@ -67,6 +67,7 @@ public class RoomService {
           room.title = request.title().strip();
           room.createdAt = now();
           room.approvalRequired = request.approvalRequired();
+          room.integrationsAllowed = !Boolean.FALSE.equals(request.integrationsAllowed());
           var member = newMember(room, request.name(), true, request.commandId());
           var url = invite(room);
           rooms.insert(room, now());
@@ -166,8 +167,7 @@ public class RoomService {
                   || previous.approved
                   || (!previous.codeRequest && !room.approvalRequired && status != WAITING);
           member.status = member.approved ? JOINING : WAITING;
-          member.recoveryDeadline =
-              member.approved ? now() + config.recoverySeconds() * 1000L : null;
+          member.recoveryDeadline = member.approved ? now() + config.joinSeconds() * 1000L : null;
           previous.owner = false;
           previous.replacedBy = member.id;
           previous.generation++;
@@ -252,6 +252,55 @@ public class RoomService {
         });
   }
 
+  @Transactional
+  public String serviceInvite(String roomId) {
+    var room = lock(roomId);
+    requireOpen(room);
+    var url = invite(room);
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
+    return url;
+  }
+
+  @Transactional
+  public Snapshot integrationSettings(String roomId, String credential, boolean enabled) {
+    var room = lock(roomId);
+    var member = authenticate(room, credential);
+    owner(member);
+    requireOpen(room);
+    room.integrationsAllowed = enabled;
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
+    return snapshotFor(room, member);
+  }
+
+  /** Worker-only entry point; user authorization is checked before calling this internal API. */
+  @Transactional
+  public Admission addMusicService(String roomId, UUID commandId) {
+    rooms.lockGlobal();
+    var room = lock(roomId);
+    requireOpen(room);
+    return receipt(
+        "service:" + roomId,
+        commandId,
+        "music",
+        Admission.class,
+        () -> {
+          if (room.members.values().stream()
+              .anyMatch(m -> "music".equals(m.service) && m.occupiesSeat()))
+            throw Problem.conflict("SERVICE_EXISTS", "Музыкальный сервис уже подключён");
+          checkSeat(room);
+          var member = newMember(room, "Музыка", false, commandId);
+          member.service = "music";
+          member.approved = true;
+          member.status = JOINING;
+          member.recoveryDeadline = now() + config.joinSeconds() * 1000L;
+          emit(room, "room.changed", EventPayload.changed());
+          rooms.save(room, now());
+          return admission(room, member, commandId, null);
+        });
+  }
+
   private RoomState.Member newMember(RoomState room, String name, boolean owner, UUID commandId) {
     var m = new RoomState.Member();
     m.id = UUID.randomUUID().toString();
@@ -260,7 +309,7 @@ public class RoomService {
     m.joinedAt = now();
     m.status = (!owner && room.approvalRequired) ? WAITING : JOINING;
     m.approved = m.status == JOINING;
-    m.recoveryDeadline = m.status == JOINING ? now() + config.recoverySeconds() * 1000L : null;
+    m.recoveryDeadline = m.status == JOINING ? now() + config.joinSeconds() * 1000L : null;
     m.secretHash =
         Secrets.hash(secrets.derive("session:" + room.id + ":" + m.id + ":" + commandId));
     room.members.put(m.id, m);
@@ -281,6 +330,7 @@ public class RoomService {
             current.closedAt(),
             current.sequence(),
             current.approvalRequired(),
+            current.integrationsAllowed(),
             current.participants(),
             List.of(),
             current.serverTime());
@@ -356,7 +406,8 @@ public class RoomService {
                         m.status,
                         m.generation,
                         m.recoveryDeadline,
-                        m.screen))
+                        m.screen,
+                        m.service))
             .toList();
     var messages =
         rooms
@@ -388,6 +439,7 @@ public class RoomService {
         room.closedAt,
         room.sequence,
         room.approvalRequired,
+        room.integrationsAllowed,
         participants,
         messages,
         now());
@@ -415,6 +467,7 @@ public class RoomService {
         current.closedAt(),
         current.sequence(),
         current.approvalRequired(),
+        current.integrationsAllowed(),
         current.participants().stream().filter(p -> p.id().equals(member.id)).toList(),
         List.of(),
         current.serverTime());
@@ -468,7 +521,7 @@ public class RoomService {
               } else if (target.status == WAITING) {
                 target.approved = true;
                 target.status = JOINING;
-                target.recoveryDeadline = now() + config.recoverySeconds() * 1000L;
+                target.recoveryDeadline = now() + config.joinSeconds() * 1000L;
               }
             }
             case "message.send" -> {

@@ -14,6 +14,7 @@ export class ControlChannel {
   private socket?: WebSocket;
   private timer?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
+  private handshake?: ReturnType<typeof setTimeout>;
   private disposed = false;
   private attempt = 0;
   private lastPong = Date.now();
@@ -41,6 +42,10 @@ export class ControlChannel {
       `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/v1/events`,
     );
     this.socket = socket;
+    clearTimeout(this.handshake);
+    this.handshake = setTimeout(() => {
+      if (this.socket === socket && !this.disposed) socket.close();
+    }, 5000);
     socket.onopen = () => {
       socket.send(
         JSON.stringify({
@@ -58,6 +63,7 @@ export class ControlChannel {
         const packet = JSON.parse(String(message.data)) as Packet;
         switch (packet.type) {
           case 'authenticated':
+            clearTimeout(this.handshake);
             this.attempt = 0;
             this.state.set('connected');
             clearInterval(this.heartbeat);
@@ -104,8 +110,9 @@ export class ControlChannel {
       }
     };
     socket.onclose = () => {
-      clearInterval(this.heartbeat);
       if (this.disposed || this.socket !== socket) return;
+      clearInterval(this.heartbeat);
+      clearTimeout(this.handshake);
       this.state.set('recovering');
       this.timer = setTimeout(this.connect, Math.min(3000, [0, 500, 1000, 2000][this.attempt++] ?? 3000));
     };
@@ -131,6 +138,7 @@ export class ControlChannel {
     this.disposed = true;
     clearTimeout(this.timer);
     clearInterval(this.heartbeat);
+    clearTimeout(this.handshake);
     window.removeEventListener('online', this.network);
     this.socket?.close();
     this.state.set('closed');

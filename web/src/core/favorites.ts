@@ -36,6 +36,7 @@ export const favoriteApi = {
   },
   async remove(roomId: string) {
     await request(`/favorites/${roomId}`, { method: 'DELETE' }, favoriteProfile());
+    setAutoJoin(roomId, false);
     notifyDesktop('favorites.changed');
   },
   join: (roomId: string, name: string, commandId: string) =>
@@ -45,3 +46,24 @@ export const favoriteApi = {
       favoriteProfile(),
     ),
 };
+
+export function autoJoinEnabled(roomId: string): boolean {
+  try {
+    const rooms: unknown = JSON.parse(localStorage.getItem('cord:autojoin:v1') ?? '[]');
+    return Array.isArray(rooms) && rooms.includes(roomId);
+  } catch {
+    return false;
+  }
+}
+export function setAutoJoin(roomId: string, enabled: boolean) {
+  let rooms: string[] = [];
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem('cord:autojoin:v1') ?? '[]');
+    if (Array.isArray(saved))
+      rooms = saved.filter((id): id is string => typeof id === 'string' && id !== roomId);
+  } catch {
+    /* Use a fresh list when preferences are corrupt. */
+  }
+  if (enabled) rooms.push(roomId);
+  localStorage.setItem('cord:autojoin:v1', JSON.stringify(rooms));
+}

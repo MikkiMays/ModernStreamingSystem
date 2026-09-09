@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, AudioLines, ChevronDown, Hash, Plus, Star, X } from 'lucide-react';
+import { ArrowRight, AudioLines, ChevronDown, Hash, Plus, Star, Settings2 } from 'lucide-react';
 import { publicApi } from '../api/client';
 import { favoriteApi, type Favorite } from '../core/favorites';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
 import { IconButton, Modal } from './primitives';
 import { useFavorites } from './useFavorites';
+import { FavoriteSettings } from './FavoriteSettings';
 
 export function DesktopHome({
   onCreate,
   onJoin,
+  onSettings,
 }: {
+  onSettings: () => void;
   onCreate: () => void;
   onJoin: (destination: Destination) => void;
 }) {
@@ -54,19 +57,16 @@ export function DesktopHome({
               <small>{formatCode(room.code)}</small>
             </span>
           </button>
-          <IconButton
-            label={`Убрать «${room.title}» из избранного`}
-            disabled={removing === room.roomId}
-            onClick={() => void remove(room)}
-          >
-            <X size={15} />
-          </IconButton>
+          <FavoriteSettings room={room} removing={removing === room.roomId} remove={() => remove(room)} />
         </div>
       ))}
     </div>
   );
   return (
     <main className="desktop-home">
+      <IconButton label="Настройки звука и профиля" className="desktop-home-settings" onClick={onSettings}>
+        <Settings2 size={20} />
+      </IconButton>
       <section className="desktop-connect" aria-labelledby="desktop-home-title">
         <header className="desktop-welcome">
           <span className="desktop-wave" aria-hidden="true">

@@ -1,6 +1,6 @@
 import { ConnectionQuality } from 'livekit-client';
 import type { Admission, Command, RoomEvent, Snapshot } from '../api/types';
-import { RoomApi } from '../api/client';
+import { ApiError, RoomApi } from '../api/client';
 import { MediaSession, type DeviceChoice } from '../media/session';
 import { ControlChannel } from './control';
 import { Store } from './store';
@@ -21,6 +21,7 @@ export class Meeting {
   private started = false;
   private disposed = false;
   private initialDevicesApplied = false;
+  private syncTimer?: ReturnType<typeof setInterval>;
   private subscriptions: (() => void)[] = [];
   constructor(
     readonly admission: Admission,
@@ -30,12 +31,9 @@ export class Meeting {
     this.snapshot = new Store(admission.snapshot);
     this.invite = new Store(admission.inviteUrl);
     this.media = new MediaSession(this.api, (reason) => {
-      this.end(reason);
-      void this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
+      void this.resolveEnd(reason, true);
     });
-    this.control = new ControlChannel(this.api, this.accept, this.event, () =>
-      this.end('Доступ к встрече завершён'),
-    );
+    this.control = new ControlChannel(this.api, this.accept, this.event, this.resolveRevocation);
     this.uploader = new Uploader(this.api, () => this.fileRevision.update((n) => n + 1));
     if (sessionStorage.getItem(`cord:ended:${admission.roomId}`) === admission.participantId)
       this.ended.set('Эта сессия завершена. Для нового входа используйте приглашение.');
@@ -45,6 +43,13 @@ export class Meeting {
     this.started = true;
     this.control.start();
     this.accept(this.snapshot.get());
+    // Admission must also work when an intermediary stalls the events socket.
+    this.syncTimer = setInterval(() => {
+      if (this.media.state.get().status !== 'connected' || this.control.state.get() !== 'connected')
+        void this.refresh();
+    }, 2000);
+    window.addEventListener('online', this.refreshOnReturn);
+    document.addEventListener('visibilitychange', this.refreshOnReturn);
     this.subscriptions.push(
       this.media.state.subscribe(() => {
         const state = this.media.state.get();
@@ -61,6 +66,9 @@ export class Meeting {
       }),
     );
   }
+  private refreshOnReturn = () => {
+    if (!document.hidden) void this.refresh();
+  };
   private accept = (snapshot: Snapshot) => {
     if (this.disposed) return;
     if (snapshot.sequence < this.snapshot.get().sequence) return;
@@ -75,13 +83,36 @@ export class Meeting {
       this.end('Вы вышли из встречи');
       return;
     }
-    if (self.status !== 'WAITING' && this.media.state.get().status === 'idle') void this.media.start();
+    if (
+      ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) &&
+      this.media.state.get().status === 'idle'
+    )
+      void this.media.start();
   };
+  private resolveRevocation = () => {
+    void this.resolveEnd('Доступ к встрече завершён');
+  };
+  private async resolveEnd(reason: string, leave = false) {
+    if (this.disposed || this.ended.get()) return;
+    // The SFU disconnect can arrive before the control channel's final room event.
+    // Read the authoritative room once even though media has already stopped.
+    try {
+      const snapshot = await this.api.snapshot();
+      if (this.disposed) return;
+      if (snapshot.sequence >= this.snapshot.get().sequence) this.snapshot.set(snapshot);
+    } catch {
+      /* A revoked credential cannot read history; keep the supplied reason. */
+    }
+    this.end(reason);
+    if (leave && !this.disposed)
+      void this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
+  }
   private event = (event: RoomEvent) => {
     if (event.type === 'files.changed') this.fileRevision.update((n) => n + 1);
     void this.refresh();
   };
   async refresh() {
+    if (this.disposed || this.ended.get()) return;
     if (this.refreshing) {
       this.refreshAgain = true;
       return;
@@ -89,8 +120,8 @@ export class Meeting {
     this.refreshing = true;
     try {
       this.accept(await this.api.snapshot());
-    } catch {
-      /* The control channel will request replay after reconnect. */
+    } catch (error) {
+      if (error instanceof ApiError && [403, 404, 410].includes(error.status)) this.end(error.message);
     } finally {
       this.refreshing = false;
       if (this.refreshAgain) {
@@ -114,14 +145,19 @@ export class Meeting {
     await this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
   }
   private end(reason: string) {
-    if (this.disposed) return;
+    if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
+    if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
     this.media.dispose();
     this.ended.set(reason);
+    clearInterval(this.syncTimer);
     void this.uploader.pause();
   }
   dispose() {
     this.disposed = true;
+    clearInterval(this.syncTimer);
+    window.removeEventListener('online', this.refreshOnReturn);
+    document.removeEventListener('visibilitychange', this.refreshOnReturn);
     this.control.dispose();
     this.media.dispose();
     this.subscriptions.forEach((fn) => fn());

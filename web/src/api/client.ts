@@ -36,8 +36,13 @@ const post = (data?: unknown): RequestInit => ({
 });
 export const publicApi = {
   capabilities: () => request<Capabilities>('/capabilities'),
-  create: (data: { commandId: string; title: string; name: string; approvalRequired: boolean }) =>
-    request<Admission>('/rooms', post(data)),
+  create: (data: {
+    commandId: string;
+    title: string;
+    name: string;
+    approvalRequired: boolean;
+    integrationsAllowed?: boolean;
+  }) => request<Admission>('/rooms', post(data)),
   join: (roomId: string, data: { commandId: string; invite: string; name: string }) =>
     request<Admission>(`/rooms/${roomId}/join`, post(data)),
   joinCode: (data: { commandId: string; code: string; name: string }) =>

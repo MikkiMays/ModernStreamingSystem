@@ -255,6 +255,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{roomId}/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/join-by-code": {
         parameters: {
             query?: never;
@@ -282,6 +298,10 @@ export interface components {
             /** Format: int64 */
             sequence: number;
             value: string | null;
+        };
+        Add: {
+            /** Format: uuid */
+            commandId: string;
         };
         Admission: {
             credential: string;
@@ -340,6 +360,7 @@ export interface components {
             approvalRequired?: boolean;
             /** Format: uuid */
             commandId: string;
+            integrationsAllowed?: boolean;
             name: string;
             title: string;
         };
@@ -366,6 +387,15 @@ export interface components {
             /** Format: int64 */
             savedAt: number;
             title: string;
+        };
+        Info: {
+            /** Format: int64 */
+            closedAt?: number;
+            code?: string;
+            id?: string;
+            integrationsAllowed?: boolean;
+            ownerPresent?: boolean;
+            title?: string;
         };
         Join: {
             /** Format: uuid */
@@ -404,6 +434,7 @@ export interface components {
             /** Format: int64 */
             recoveryDeadline: null | number;
             screen: boolean;
+            service: string | null;
             /** @enum {string} */
             status: "WAITING" | "JOINING" | "CONNECTED" | "RECOVERING" | "LEFT" | "EXPIRED" | "REMOVED";
         };
@@ -436,6 +467,9 @@ export interface components {
             commandId: string;
             enabled?: boolean;
         };
+        Settings: {
+            enabled?: boolean;
+        };
         Snapshot: {
             approvalRequired: boolean;
             /** Format: int64 */
@@ -444,6 +478,7 @@ export interface components {
             /** Format: int64 */
             createdAt: number;
             id: string;
+            integrationsAllowed: boolean;
             messages: components["schemas"]["Message"][];
             participants: components["schemas"]["Participant"][];
             /** Format: int64 */
@@ -909,6 +944,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Replay"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Snapshot"];
                 };
             };
         };

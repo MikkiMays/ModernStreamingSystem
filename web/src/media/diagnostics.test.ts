@@ -85,3 +85,14 @@ describe('diagnostics of the selected media route', () => {
     });
   });
 });
+
+it('also reports loss, jitter buffer and route for an audio-only call', async () => {
+  let n = 0;
+  const track = makeTrack(() => [...route, { ...inbound(n), kind: 'audio', framesDecoded: undefined }]);
+  const sampler = new StatsSampler();
+  await sampler.sample(track);
+  n++;
+  const [sample] = await sampler.sample(track);
+  expect(sample).toMatchObject({ kind: 'audio', rttMs: 60, loss: 2, transport: 'TURN · TLS' });
+  expect(sample!.bufferMs).toBeCloseTo(40);
+});

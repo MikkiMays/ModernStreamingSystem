@@ -18,8 +18,9 @@ import {
 import type { Meeting } from '../core/meeting';
 import { Avatar, IconButton, useStore } from './primitives';
 import { Track } from 'livekit-client';
+import { Services } from './Services';
 
-export type Panel = 'people' | 'chat';
+export type Panel = 'people' | 'chat' | 'services';
 function formatBytes(value: number) {
   return value >= 1048576 ? (value / 1048576).toFixed(1) + ' МиБ' : Math.ceil(value / 1024) + ' КиБ';
 }
@@ -41,6 +42,7 @@ export function Sidebar({
   const ended = useStore(meeting.ended);
   const uploading = useStore(meeting.uploader.state);
   const tracks = useStore(meeting.media.tracks);
+  const volumes = useStore(meeting.media.volumes);
   const [now, setNow] = useState(Date.now);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
@@ -114,7 +116,7 @@ export function Sidebar({
   return (
     <aside className="side-panel" aria-label="Панель встречи">
       <div className="panel-heading">
-        <h2>{panel === 'people' ? 'Участники' : 'Чат и файлы'}</h2>
+        <h2>{panel === 'people' ? 'Участники' : panel === 'services' ? 'Интеграции' : 'Чат и файлы'}</h2>
         <IconButton label="Закрыть панель" onClick={onClose}>
           <X size={20} />
         </IconButton>
@@ -125,6 +127,7 @@ export function Sidebar({
             Люди <span>{snapshot.participants.length}</span>
           </Tabs.Tab>
           <Tabs.Tab value="chat">Чат и файлы</Tabs.Tab>
+          <Tabs.Tab value="services">Интеграции</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="people" className="panel-body people-panel">
           <button className="button secondary full" onClick={onInvite}>
@@ -152,12 +155,28 @@ export function Sidebar({
                     <small>
                       {p.status === 'WAITING'
                         ? 'Ожидает подтверждения'
-                        : p.status === 'RECOVERING'
-                          ? 'Восстанавливает связь'
-                          : p.owner
-                            ? 'Организатор'
-                            : 'Участник'}
+                        : p.status === 'JOINING'
+                          ? 'Подключается'
+                          : p.status === 'RECOVERING'
+                            ? 'Восстанавливает связь'
+                            : p.owner
+                              ? 'Организатор'
+                              : 'Участник'}
                     </small>
+                    {p.id !== self?.id && p.status !== 'WAITING' && (
+                      <label className="participant-volume">
+                        <span>Громкость у вас · {Math.round((volumes[p.id] ?? 1) * 100)}%</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          step="5"
+                          aria-label={`Громкость: ${p.name}`}
+                          value={(volumes[p.id] ?? 1) * 100}
+                          onChange={(e) => meeting.media.setVolume(p.id, Number(e.target.value) / 100)}
+                        />
+                      </label>
+                    )}
                   </div>
                   {self?.owner && !p.owner ? (
                     <>
@@ -394,6 +413,9 @@ export function Sidebar({
               </IconButton>
             </div>
           </form>
+        </Tabs.Panel>
+        <Tabs.Panel value="services" className="panel-body service-body">
+          <Services meeting={meeting} />
         </Tabs.Panel>
       </Tabs.Root>
       {error && (

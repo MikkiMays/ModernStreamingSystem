@@ -1,7 +1,18 @@
-import { useEffect, useState } from 'react';
-import { Camera, MonitorUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Camera, MonitorUp, Mic, Keyboard, User } from 'lucide-react';
+import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
-import { automaticProfile } from '../core/preferences';
+import {
+  automaticProfile,
+  readPreferences,
+  savePreferences,
+  type AudioPreferences,
+  type Preferences,
+} from '../core/preferences';
+import { Store } from '../core/store';
+import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../core/hotkeys';
+import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
+import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
 import { Modal, useStore } from './primitives';
 
@@ -92,19 +103,151 @@ export function QualityFields({
     </section>
   );
 }
+export function AudioFields({
+  audio,
+  change,
+}: {
+  audio: AudioPreferences;
+  change: (value: AudioPreferences) => void;
+}) {
+  const constraints = navigator.mediaDevices?.getSupportedConstraints() as
+    (MediaTrackSupportedConstraints & { voiceIsolation?: boolean }) | undefined;
+  return (
+    <section className="audio-settings" aria-label="Обработка микрофона">
+      <h3>
+        <Mic size={19} /> Голос и микрофон
+      </h3>
+      <label>
+        Подавление шума
+        <select
+          value={audio.suppression}
+          onChange={(e) =>
+            change({ ...audio, suppression: e.target.value as AudioPreferences['suppression'] })
+          }
+        >
+          <option value="browser">Стандартное</option>
+          <option value="rnnoise" disabled={!('AudioWorkletNode' in window)}>
+            RNNoise · усиленное, на устройстве
+          </option>
+          <option value="voice" disabled={!constraints?.voiceIsolation}>
+            Изоляция голоса · системная
+          </option>
+          <option value="off">Выключено · исходный звук</option>
+        </select>
+      </label>
+      <p className="form-footnote">
+        Стандартное подходит для обычного разговора. RNNoise помогает убрать вентилятор и клавиатуру, но
+        использует больше ресурсов. Для передачи музыки выберите исходный звук.
+      </p>
+      <label className="check-setting">
+        <input
+          type="checkbox"
+          checked={audio.echoCancellation}
+          onChange={(e) => change({ ...audio, echoCancellation: e.target.checked })}
+        />
+        <span>
+          Подавление эха<small>Помогает при разговоре через динамики.</small>
+        </span>
+      </label>
+      <label className="check-setting">
+        <input
+          type="checkbox"
+          checked={audio.autoGainControl}
+          onChange={(e) => change({ ...audio, autoGainControl: e.target.checked })}
+        />
+        <span>
+          Автоматический уровень микрофона<small>Выравнивает тихий и громкий голос.</small>
+        </span>
+      </label>
+      <label className="gain-setting">
+        Уровень передачи · {Math.round(audio.gain * 100)}%
+        <input
+          type="range"
+          min="0"
+          max="200"
+          step="5"
+          value={audio.gain * 100}
+          onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
+        />
+      </label>
+    </section>
+  );
+}
+function HotkeyField({ value, change }: { value: Hotkey | null; change: (key: Hotkey | null) => void }) {
+  const [recording, setRecording] = useState(false);
+  const nativeStatus = useStore(desktopHotkeyStatus);
+  useEffect(() => {
+    if (recording) notifyDesktop('hotkey.configure', { hotkey: null });
+    return () => {
+      if (recording) notifyDesktop('hotkey.configure', { hotkey: value });
+    };
+  }, [recording, value]);
+  return (
+    <section className="hotkey-settings">
+      <h3>Включить / выключить микрофон</h3>
+      <button
+        className="hotkey-recorder button secondary"
+        data-hotkey-recorder
+        aria-label="Назначить сочетание микрофона"
+        onClick={() => setRecording(true)}
+        onBlur={() => setRecording(false)}
+        onKeyDown={(e) => {
+          if (!recording) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.code === 'Escape') {
+            setRecording(false);
+            return;
+          }
+          const next = hotkeyFromEvent(e.nativeEvent);
+          if (next) {
+            change(next);
+            setRecording(false);
+          }
+        }}
+      >
+        {recording ? 'Нажмите сочетание… Esc — отмена' : hotkeyLabel(value)}
+      </button>
+      <div className="check-actions">
+        <button className="button ghost" onClick={() => change({ ...defaultMicHotkey })}>
+          По умолчанию
+        </button>
+        <button className="button ghost" onClick={() => change(null)}>
+          Отключить сочетание
+        </button>
+      </div>
+      {window.chrome?.webview && nativeStatus && (
+        <p role="status" className="form-footnote">
+          {nativeStatus}
+        </p>
+      )}
+      <p className="form-footnote">
+        В браузере сочетание работает в открытой вкладке встречи и не мешает вводу текста. В приложении
+        Windows сочетания с Ctrl или Alt могут работать и поверх других программ.
+      </p>
+    </section>
+  );
+}
 export function Settings({
   meeting,
   open,
   onOpenChange,
 }: {
-  meeting: Meeting;
+  meeting?: Meeting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const preferences = useStore(meeting.media.preferences);
+  const saved = useMemo(() => new Store(readPreferences()), []);
+  const preferences = useStore(meeting?.media.preferences ?? saved);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [tab, setTab] = useState('audio');
+  const change = (patch: Partial<Preferences>) => {
+    if (meeting) meeting.media.saveSettings(patch);
+    else saved.set(savePreferences(patch));
+  };
   useEffect(() => {
     if (!open) return;
+    if (!meeting) saved.set(readPreferences());
     let active = true;
     const refresh = () =>
       void navigator.mediaDevices
@@ -119,54 +262,106 @@ export function Settings({
       active = false;
       navigator.mediaDevices?.removeEventListener('devicechange', refresh);
     };
-  }, [open]);
+  }, [open, meeting, saved]);
+  const device = (kind: MediaDeviceKind) => {
+    const key = kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker';
+    return (
+      <label key={kind}>
+        {kind === 'audioinput' ? 'Микрофон' : kind === 'videoinput' ? 'Камера' : 'Вывод звука'}
+        <select
+          value={preferences.devices[key] ?? ''}
+          disabled={kind === 'audiooutput' && !('setSinkId' in HTMLMediaElement.prototype)}
+          onChange={(e) => {
+            if (meeting) void meeting.media.switchDevice(kind, e.target.value);
+            else change({ devices: { ...preferences.devices, [key]: e.target.value } });
+          }}
+        >
+          <option value="">По умолчанию</option>
+          {devices
+            .filter((d) => d.kind === kind && d.deviceId)
+            .map((d, i) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || `Устройство ${i + 1}`}
+              </option>
+            ))}
+        </select>
+      </label>
+    );
+  };
   return (
     <Modal
+      wide
       open={open}
       onOpenChange={onOpenChange}
       title="Настроить под себя"
-      description="Настройки сохраняются на этом устройстве и применяются к следующим встречам."
+      description="Настройки сохраняются на этом устройстве."
     >
-      <div className="settings-form">
-        <QualityFields
-          kind="camera"
-          profile={preferences.camera}
-          change={(p) => void meeting.media.setCameraProfile(p)}
-        />
-        <QualityFields
-          kind="screen"
-          profile={preferences.screen}
-          change={(p) => void meeting.media.setProfile(p)}
-        />
-        <h3>Устройства</h3>
-        {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => (
-          <label key={kind}>
-            {kind === 'audioinput' ? 'Микрофон' : kind === 'videoinput' ? 'Камера' : 'Вывод звука'}
-            <select
-              value={
-                preferences.devices[
-                  kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker'
-                ] ?? ''
-              }
-              disabled={kind === 'audiooutput' && !('setSinkId' in HTMLMediaElement.prototype)}
-              onChange={(e) => void meeting.media.switchDevice(kind, e.target.value)}
-            >
-              <option value="">По умолчанию</option>
-              {devices
-                .filter((d) => d.kind === kind && d.deviceId)
-                .map((d, i) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || 'Устройство ' + (i + 1)}
-                  </option>
-                ))}
-            </select>
+      <Tabs.Root value={tab} onValueChange={(value) => setTab(String(value))} className="settings-tabs">
+        <Tabs.List className="settings-navigation" aria-label="Разделы настроек">
+          <Tabs.Tab value="audio">
+            <Mic size={17} /> Звук
+          </Tabs.Tab>
+          <Tabs.Tab value="video">
+            <Camera size={17} /> Видео
+          </Tabs.Tab>
+          <Tabs.Tab value="profile">
+            <User size={17} /> Профиль
+          </Tabs.Tab>
+          <Tabs.Tab value="hotkeys">
+            <Keyboard size={17} /> Клавиши
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="audio" className="settings-form">
+          {device('audioinput')}
+          {device('audiooutput')}
+          <AudioFields
+            audio={preferences.audio}
+            change={(audio) => {
+              if (meeting) void meeting.media.setAudioSettings(audio);
+              else change({ audio });
+            }}
+          />
+          {open && <DeviceCheck preferences={preferences} />}
+        </Tabs.Panel>
+        <Tabs.Panel value="video" className="settings-form">
+          {device('videoinput')}
+          <QualityFields
+            kind="camera"
+            profile={preferences.camera}
+            change={(camera) => {
+              if (meeting) void meeting.media.setCameraProfile(camera);
+              else change({ camera });
+            }}
+          />
+          <QualityFields
+            kind="screen"
+            profile={preferences.screen}
+            change={(screen) => {
+              if (meeting) void meeting.media.setProfile(screen);
+              else change({ screen });
+            }}
+          />
+          {open && <DeviceCheck preferences={preferences} />}
+        </Tabs.Panel>
+        <Tabs.Panel value="profile" className="settings-form">
+          <label>
+            Имя по умолчанию
+            <input
+              maxLength={40}
+              value={preferences.name}
+              autoComplete="nickname"
+              placeholder="Как к вам обращаться?"
+              onChange={(e) => change({ name: e.target.value })}
+            />
           </label>
-        ))}
-        <p className="form-footnote">
-          1440p и 60 fps доступны в пределах возможностей камеры, браузера и сети. Фактические параметры — в
-          диагностике.
-        </p>
-      </div>
+          <p className="form-footnote">
+            Это имя будет подставляться при следующем входе во встречу. Его можно изменить перед подключением.
+          </p>
+        </Tabs.Panel>
+        <Tabs.Panel value="hotkeys" className="settings-form">
+          <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />
+        </Tabs.Panel>
+      </Tabs.Root>
     </Modal>
   );
 }

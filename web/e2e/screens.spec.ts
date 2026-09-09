@@ -118,7 +118,9 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     ).toBe(localCaptureId);
     await guest!.screenshot({ path: '../.local/pinned-screen-and-face.png' });
     await guest!.getByRole('button', { name: 'Настройки и действия' }).click();
-    await guest!.getByRole('menuitem', { name: 'Вернуться в прямой эфир' }).click();
+    await guest!.getByRole('menuitem', { name: 'Диагностика', exact: true }).click();
+    await guest!.getByRole('button', { name: 'Обновить аудио и видео', exact: true }).click();
+    await guest!.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect
       .poll(() =>
         guest!

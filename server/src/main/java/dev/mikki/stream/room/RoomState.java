@@ -13,6 +13,7 @@ public class RoomState {
   public boolean everConnected;
   public boolean mediaDrained;
   public boolean approvalRequired;
+  public boolean integrationsAllowed = true;
   public long sequence;
   public Map<String, Member> members = new LinkedHashMap<>();
   public Map<String, Invite> invites = new LinkedHashMap<>();
@@ -33,6 +34,7 @@ public class RoomState {
     public String name;
     public String secretHash;
     public boolean owner;
+    public String service;
     public boolean approved;
     public boolean codeRequest;
     public String replacedBy;

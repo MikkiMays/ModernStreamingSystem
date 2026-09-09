@@ -22,6 +22,7 @@ public record StreamProperties(
     @Min(1) @Max(2) int maxScreens,
     @Min(1) int maxRooms,
     @Min(5) @Max(60) int recoverySeconds,
+    @Min(20) @Max(300) int joinSeconds,
     @Min(20) int emptyRoomSeconds,
     @Min(60) int unusedRoomSeconds,
     @Min(60) @Max(86400) int retentionSeconds,

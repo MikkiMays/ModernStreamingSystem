@@ -1,10 +1,27 @@
 import type { ScreenProfile } from '../media/profiles';
 import type { DeviceChoice } from '../media/session';
+import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
+
+export interface AudioPreferences {
+  suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
+  echoCancellation: boolean;
+  autoGainControl: boolean;
+  gain: number;
+}
+export const defaultAudio: AudioPreferences = {
+  suppression: 'browser',
+  echoCancellation: true,
+  autoGainControl: true,
+  gain: 1,
+};
 
 export interface Preferences {
   screen: ScreenProfile;
   camera: ScreenProfile;
   devices: DeviceChoice;
+  audio: AudioPreferences;
+  name: string;
+  micHotkey: Hotkey | null;
 }
 const key = 'cord:preferences:v1';
 const defaultScreen: ScreenProfile = { resolution: 1080, fps: 30, mode: 'text', automatic: true };
@@ -32,12 +49,31 @@ export function readPreferences(): Preferences {
     screen: profile(data.screen, defaultScreen),
     camera: profile(data.camera, defaultCamera),
     devices,
+    audio: {
+      suppression: ['off', 'browser', 'rnnoise', 'voice'].includes(data.audio?.suppression ?? '')
+        ? data.audio!.suppression
+        : 'browser',
+      echoCancellation:
+        typeof data.audio?.echoCancellation === 'boolean' ? data.audio.echoCancellation : true,
+      autoGainControl: typeof data.audio?.autoGainControl === 'boolean' ? data.audio.autoGainControl : true,
+      gain:
+        typeof data.audio?.gain === 'number' && Number.isFinite(data.audio.gain)
+          ? Math.max(0, Math.min(2, data.audio.gain))
+          : 1,
+    },
+    name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
+      0,
+      40,
+    ),
+    micHotkey:
+      data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {
   const next = { ...readPreferences(), ...patch };
   try {
     localStorage.setItem(key, JSON.stringify(next));
+    if (patch.name !== undefined) localStorage.setItem('cord:name', patch.name.trim().slice(0, 40));
   } catch {
     /* Still apply for this call. */
   }

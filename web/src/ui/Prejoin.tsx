@@ -16,9 +16,10 @@ import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
 import { Avatar, IconButton, Logo, Modal } from './primitives';
 import { readPreferences, savePreferences } from '../core/preferences';
-import { requestDevicePermissions, type DevicePermissions } from '../core/permissions';
-import { favoriteApi } from '../core/favorites';
-import { QualityFields } from './Settings';
+import { autoJoinEnabled, favoriteApi } from '../core/favorites';
+import { servicesApi } from '../core/services';
+import { AudioFields, QualityFields } from './Settings';
+import { audioCapture } from '../media/audio';
 
 export function Prejoin({
   destination,
@@ -33,10 +34,14 @@ export function Prejoin({
   const [title, setTitle] = useState('Наша встреча');
   const [settings, setSettings] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
+  const [integrationsAllowed, setIntegrationsAllowed] = useState(true);
+  const [autoJoining, setAutoJoining] = useState(
+    () => destination?.kind === 'favorite' && autoJoinEnabled(destination.favorite.roomId),
+  );
+  const automaticStarted = useRef(false);
   const [preferences, setPreferences] = useState(readPreferences);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [choices, setChoices] = useState<DeviceChoice>(() => readPreferences().devices);
-  const [permissions, setPermissions] = useState<DevicePermissions | null>(null);
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
   const [error, setError] = useState('');
@@ -56,12 +61,6 @@ export function Prejoin({
     mounted.current = true;
     void import('../media/session');
     refreshDevices();
-    void requestDevicePermissions().then((result) => {
-      if (mounted.current) {
-        setPermissions(result);
-        refreshDevices();
-      }
-    });
     const media = stream.current;
     navigator.mediaDevices?.addEventListener('devicechange', refreshDevices);
     return () => {
@@ -70,6 +69,57 @@ export function Prejoin({
       navigator.mediaDevices?.removeEventListener('devicechange', refreshDevices);
     };
   }, []);
+  useEffect(() => {
+    if (destination?.kind !== 'telegram') return;
+    let active = true;
+    void servicesApi
+      .previewClaim(destination.token)
+      .then((value) => {
+        if (active) {
+          setTitle(value.title);
+          setName((current) => current || value.name);
+        }
+      })
+      .catch((e) => {
+        if (active) setError((e as Error).message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [destination]);
+  useEffect(() => {
+    if (!autoJoining || automaticStarted.current || destination?.kind !== 'favorite') return;
+    automaticStarted.current = true;
+    const displayName = name.trim() || 'Участник';
+    void favoriteApi
+      .join(destination.favorite.roomId, displayName, commandId.current)
+      .then((admission) => {
+        if (!mounted.current) {
+          void new RoomApi(admission)
+            .command({ commandId: crypto.randomUUID(), type: 'leave' })
+            .catch(() => {});
+          return;
+        }
+        savePreferences({ name: displayName });
+        onJoin(admission, { ...choices, micOn: true, cameraOn: false });
+      })
+      .catch((e) => {
+        if (mounted.current) {
+          setError((e as Error).message);
+          setAutoJoining(false);
+        }
+      });
+  }, [autoJoining, destination, name, choices, onJoin]);
+  if (autoJoining)
+    return (
+      <main className="loading-room">
+        <LoaderCircle className="spin" size={30} />
+        <p role="status">Подключаемся к комнате…</p>
+        <button className="button secondary" onClick={onBack}>
+          Отмена
+        </button>
+      </main>
+    );
   const toggle = async (kind: 'audio' | 'video') => {
     if (deviceBusy) return;
     setDeviceBusy(true);
@@ -96,9 +146,7 @@ export function Prejoin({
               }
             : {
                 audio: {
-                  deviceId: choices.microphone || undefined,
-                  echoCancellation: true,
-                  noiseSuppression: true,
+                  ...audioCapture(preferences.audio, choices.microphone),
                 },
               },
         );
@@ -188,28 +236,31 @@ export function Prejoin({
             setError('');
             try {
               const admission =
-                destination?.kind === 'favorite'
-                  ? await favoriteApi.join(destination.favorite.roomId, name.trim(), commandId.current)
-                  : destination?.kind === 'recent'
-                    ? await new RoomApi(destination.admission).rejoin(name.trim(), commandId.current)
-                    : destination?.kind === 'code'
-                      ? await publicApi.joinCode({
-                          commandId: commandId.current,
-                          code: destination.code,
-                          name: name.trim(),
-                        })
-                      : destination?.kind === 'invite'
-                        ? await publicApi.join(destination.roomId, {
+                destination?.kind === 'telegram'
+                  ? await servicesApi.redeemClaim(destination.token, name.trim(), commandId.current)
+                  : destination?.kind === 'favorite'
+                    ? await favoriteApi.join(destination.favorite.roomId, name.trim(), commandId.current)
+                    : destination?.kind === 'recent'
+                      ? await new RoomApi(destination.admission).rejoin(name.trim(), commandId.current)
+                      : destination?.kind === 'code'
+                        ? await publicApi.joinCode({
                             commandId: commandId.current,
-                            invite: destination.invite,
+                            code: destination.code,
                             name: name.trim(),
                           })
-                        : await publicApi.create({
-                            commandId: commandId.current,
-                            title: title.trim(),
-                            name: name.trim(),
-                            approvalRequired,
-                          });
+                        : destination?.kind === 'invite'
+                          ? await publicApi.join(destination.roomId, {
+                              commandId: commandId.current,
+                              invite: destination.invite,
+                              name: name.trim(),
+                            })
+                          : await publicApi.create({
+                              commandId: commandId.current,
+                              title: title.trim(),
+                              name: name.trim(),
+                              approvalRequired,
+                              integrationsAllowed,
+                            });
               if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
               localStorage.setItem('cord:name', name.trim());
               savePreferences({ devices: choices });
@@ -268,11 +319,8 @@ export function Prejoin({
             </>
           )}
           <p className="permission-note" role="status">
-            {!permissions
-              ? 'Проверяем разрешения камеры и микрофона…'
-              : permissions.camera === 'granted' && permissions.microphone === 'granted'
-                ? 'Доступ разрешён. Камера и микрофон выключены — включите их, когда будете готовы.'
-                : 'Можно войти без устройств. Доступ к камере и микрофону меняется в настройках браузера.'}
+            Камеру и микрофон можно включить здесь или во встрече. Разрешение потребуется при первом
+            включении.
           </p>
           {error && (
             <p className="form-error" role="alert">
@@ -335,6 +383,10 @@ export function Prejoin({
           {(camera || mic) && (
             <small className="muted">Выключите предпросмотр устройства, чтобы сменить его.</small>
           )}
+          <AudioFields
+            audio={preferences.audio}
+            change={(audio) => setPreferences(savePreferences({ audio }))}
+          />
           <QualityFields
             kind="camera"
             profile={preferences.camera}
@@ -345,6 +397,19 @@ export function Prejoin({
             profile={preferences.screen}
             change={(p) => setPreferences(savePreferences({ screen: p }))}
           />
+          {!destination && (
+            <label className="check-setting">
+              <input
+                type="checkbox"
+                checked={integrationsAllowed}
+                onChange={(e) => {
+                  setIntegrationsAllowed(e.target.checked);
+                  commandId.current = crypto.randomUUID();
+                }}
+              />
+              Разрешить интеграции всем участникам
+            </label>
+          )}
           {!destination && (
             <label className="check-setting">
               <input
