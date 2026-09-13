@@ -1,6 +1,22 @@
 name: modern-streaming
+
+# Потолок на журналы контейнеров.
+#
+# ЗАЧЕМ. 13.09.2026 сервер встал: диск занят на 100 % из 126 ГБ. Из них 70 ГБ — журнал
+# ОДНОГО контейнера этого проекта (`services`), который крутился в ошибке «Too many open
+# files» и писал 65 тысяч строк в секунду. За двадцать часов он съел диск целиком — вместе
+# с соседней системой на той же машине.
+#
+# Ограничений не было ни у одной из служб, поэтому журналу и нечего было остановить.
+# Двадцать мегабайт на пять файлов — сто мегабайт на службу.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
 services:
   edge:
+    logging: *default-logging
     image: livekit/caddyl4:v2.11.3@sha256:9dd090159a6042a907dbff0ce9dda27a21d2a559dc7b03b60a8e6b1b60b8348e
     network_mode: host
     command: run --config /etc/edge.json
@@ -10,6 +26,7 @@ services:
       - certificates:/data
     depends_on: [gateway]
   gateway:
+    logging: *default-logging
     build: { context: ., dockerfile: infra/Dockerfile.web }
     network_mode: host
     env_file: .env
@@ -21,6 +38,7 @@ services:
       core: { condition: service_healthy }
       tusd: { condition: service_started }
   core:
+    logging: *default-logging
     build: { context: ., dockerfile: infra/Dockerfile.server }
     network_mode: host
     env_file: .env
@@ -43,6 +61,7 @@ services:
       start_period: 30s
       retries: 12
   services:
+    logging: *default-logging
     build: { context: ., dockerfile: services/Dockerfile }
     network_mode: host
     env_file:
@@ -67,6 +86,7 @@ services:
       start_period: 20s
       retries: 5
   postgres:
+    logging: *default-logging
     image: postgres:18.3-alpine@sha256:54451ecb8ab38c24c3ec123f2fd501303a3a1856a5c66e98cecf2460d5e1e9d7
     network_mode: host
     env_file: .env
@@ -83,6 +103,7 @@ services:
       timeout: 3s
       retries: 20
   redis:
+    logging: *default-logging
     image: redis:8.6.6-alpine@sha256:75934ddb37bfaebe3b4082ba673cac39f66495244134f33dd0a502ce03cdcd36
     network_mode: host
     env_file: .env
@@ -98,6 +119,7 @@ services:
       timeout: 3s
       retries: 20
   livekit:
+    logging: *default-logging
     image: livekit/livekit-server:v1.13.6@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
     network_mode: host
     command: --config /etc/livekit.json
@@ -107,11 +129,13 @@ services:
       redis: { condition: service_healthy }
     stop_grace_period: 2m
   volume-init:
+    logging: *default-logging
     image: alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
     command: [sh, -c, 'chown 10001:10001 /data/uploads /data/services && chmod 700 /data/uploads /data/services']
     volumes: [uploads:/data/uploads, services-data:/data/services]
     restart: 'no'
   tusd:
+    logging: *default-logging
     image: tusproject/tusd:v2.10.0@sha256:9610f0f8edf4cceeb26f1b3ac9fa4bb4803d61a878e222c1573cda63c9e23374
     network_mode: host
     user: '10001:10001'
