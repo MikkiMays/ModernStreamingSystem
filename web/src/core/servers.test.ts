@@ -1,13 +1,5 @@
 import { beforeEach, expect, it } from 'vitest';
-import {
-  currentServerUrl,
-  findServer,
-  normalizeServerUrl,
-  readServers,
-  removeServer,
-  saveServer,
-  serverLabel,
-} from './servers';
+import { currentServerUrl, normalizeServerUrl, rememberServer, serverLabel, thisServer } from './servers';
 
 beforeEach(() => localStorage.clear());
 
@@ -28,51 +20,46 @@ it('accepts the addresses a server can actually be reached at and rejects the re
     expect(() => normalizeServerUrl(wrong), wrong).toThrow();
 });
 
-it('always offers the server that served this page, even with nothing saved', () => {
-  expect(readServers()).toEqual([{ url: currentServerUrl(), name: '', password: '', autoConnect: true }]);
-});
-
-it('keeps one entry per origin and updates it in place', () => {
-  saveServer({ url: 'https://one.example.com', name: 'Первый', password: 'a', autoConnect: true });
-  saveServer({ url: 'https://two.example.com', name: '', password: '', autoConnect: false });
-  expect(readServers().map((s) => s.url)).toEqual([
-    'https://two.example.com/',
-    'https://one.example.com/',
-    currentServerUrl(),
-  ]);
-  saveServer({ url: 'https://one.example.com/', name: 'Он же', password: 'b', autoConnect: false });
-  expect(readServers().map((s) => s.url)).toEqual([
-    'https://two.example.com/',
-    'https://one.example.com/',
-    currentServerUrl(),
-  ]);
-  expect(findServer('https://one.example.com/')).toMatchObject({
-    name: 'Он же',
-    password: 'b',
-    autoConnect: false,
+it('starts from sane answers when nothing has been remembered', () => {
+  expect(thisServer()).toEqual({
+    url: currentServerUrl(),
+    name: '',
+    password: '',
+    autoConnect: true,
   });
-  removeServer('https://one.example.com/');
-  expect(findServer('https://one.example.com/')).toBeUndefined();
 });
 
-it('drops entries a previous version or a corrupt cache left behind', () => {
+it('remembers the password and the automatic connection for this server', () => {
+  rememberServer({ password: 'тайна' });
+  expect(thisServer().password).toBe('тайна');
+  expect(thisServer().autoConnect, 'unrelated fields survive a partial change').toBe(true);
+  rememberServer({ autoConnect: false });
+  expect(thisServer()).toMatchObject({ password: 'тайна', autoConnect: false });
+});
+
+/**
+ * Earlier versions kept a list here, with bookmarks to servers this page can never reach. The
+ * entry for this origin is still ours; the rest was never usable and is simply not read.
+ */
+it('reads its own entry out of a list left by an earlier version', () => {
   localStorage.setItem(
     'cord:servers:v1',
     JSON.stringify([
-      { url: 'https://kept.example.com', name: 42, password: null },
-      { url: 'not a server' },
-      { name: 'no address at all' },
-      { url: 'https://kept.example.com/', name: 'дубль' },
+      { url: 'https://elsewhere.example.com/', name: 'Чужой', password: 'x', autoConnect: false },
+      { url: currentServerUrl(), name: 'Наш', password: 'тайна', autoConnect: false },
     ]),
   );
-  const servers = readServers();
-  expect(servers.map((s) => s.url)).toEqual([currentServerUrl(), 'https://kept.example.com/']);
-  expect(servers[1]).toMatchObject({ name: '', password: '', autoConnect: true });
-  localStorage.setItem('cord:servers:v1', '{ broken');
-  expect(readServers()).toHaveLength(1);
+  expect(thisServer()).toMatchObject({ name: 'Наш', password: 'тайна', autoConnect: false });
+  rememberServer({ password: '' });
+  expect(JSON.parse(localStorage.getItem('cord:servers:v1')!).url).toBe(currentServerUrl());
 });
 
-it('names a server the way the user did, or by its host', () => {
+it('ignores a cache it cannot read', () => {
+  localStorage.setItem('cord:servers:v1', '{ broken');
+  expect(thisServer().autoConnect).toBe(true);
+});
+
+it('names a server the way it was named here, or by its host', () => {
   expect(serverLabel({ url: 'https://meet.example.com/', name: '  Наш  ' })).toBe('Наш');
   expect(serverLabel({ url: 'https://meet.example.com:8443/', name: '   ' })).toBe('meet.example.com:8443');
 });

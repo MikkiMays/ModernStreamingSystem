@@ -1,3 +1,5 @@
+import { readPreferences } from './preferences';
+
 /**
  * Original short, synthesized cues; no network or third-party recordings.
  *
@@ -6,7 +8,16 @@
  * a repeated tap that sounds like neither. Direction carries the meaning: rising is arrival,
  * falling is departure.
  */
-export type Cue = 'self-join' | 'self-leave' | 'join' | 'leave' | 'knock' | 'screen' | 'viewer';
+export type Cue =
+  | 'self-join'
+  | 'self-leave'
+  | 'join'
+  | 'leave'
+  | 'knock'
+  | 'screen'
+  | 'viewer'
+  | 'connected'
+  | 'disconnected';
 
 interface Note {
   hz: number;
@@ -16,6 +27,7 @@ interface Note {
   gain: number;
   type?: OscillatorType;
 }
+const G4 = 392;
 const C5 = 523.25;
 const E5 = 659.25;
 const G5 = 783.99;
@@ -41,6 +53,10 @@ const CUES: Record<Cue, Note[]> = {
   // Someone is waiting to be let in. A knock asks for an answer, so it is the one cue that
   // repeats its own pitch, and it is a triangle wave to stand apart from the rest.
   knock: [note(A5, 0, 0.07, 0.065, 'triangle'), note(A5, 0.12, 0.07, 0.065, 'triangle')],
+  // The server, not the room: the same shape as arriving and leaving, an octave lower and
+  // slower. Bigger scope reads as a bigger sound without being a different language.
+  connected: [note(G4, 0, 0.2, 0.06), note(C5, 0.1, 0.26, 0.06)],
+  disconnected: [note(C5, 0, 0.2, 0.06), note(G4, 0.1, 0.28, 0.06)],
   screen: [note(C5, 0), note(G5, 0.075)],
   viewer: [note(E5, 0), note(A5, 0.075), note(C6, 0.15)],
 };
@@ -93,6 +109,17 @@ export class NotificationSounds {
   dispose() {
     this.seen.clear();
   }
+}
+
+/**
+ * Cues that belong to the application rather than to a room: connecting to a server happens
+ * outside any meeting, so it cannot go through a `Meeting`'s own set.
+ */
+const application = new NotificationSounds();
+export function signal(cue: Cue) {
+  if (readPreferences().notificationSounds === false) return;
+  ensureNotificationAudio();
+  application.play(cue);
 }
 
 let listening = false;

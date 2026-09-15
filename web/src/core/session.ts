@@ -1,8 +1,9 @@
 import { ApiError, publicApi, request, useSession, SESSION_KEY } from '../api/client';
 import type { Capabilities } from '../api/types';
 import { Store } from './store';
-import { currentServerUrl, findServer, saveServer } from './servers';
+import { rememberServer, thisServer } from './servers';
 import { notifyDesktop } from './desktop';
+import { signal } from './sounds';
 
 /**
  * The handshake with the server itself, before any room exists.
@@ -49,6 +50,7 @@ function read(): ServerSession | null {
 }
 
 function store(value: ServerSession | null) {
+  const was = session.get();
   try {
     if (value) sessionStorage.setItem(KEY, JSON.stringify(value));
     else sessionStorage.removeItem(KEY);
@@ -57,7 +59,26 @@ function store(value: ServerSession | null) {
   }
   useSession(value?.token);
   session.set(value);
+  // Only the transitions are worth hearing. Renewing a token that lapsed mid-visit keeps the
+  // same connection and must stay silent, which falls out of comparing before with after.
+  if (!was && value) signal('connected');
+  if (was && !value) signal('disconnected');
 }
+
+/**
+ * The Windows client connects before the page exists, so the page would otherwise start on a
+ * server it never heard itself reach. The host leaves a one-shot mark next to the session.
+ */
+export function greetHostConnection() {
+  try {
+    if (sessionStorage.getItem(FRESH_KEY) === null) return;
+    sessionStorage.removeItem(FRESH_KEY);
+    if (session.get()) signal('connected');
+  } catch {
+    /* Without storage there is nothing to greet. */
+  }
+}
+const FRESH_KEY = 'cord:session:fresh';
 
 export function sessionToken(): string | undefined {
   return session.get()?.token;
@@ -122,17 +143,17 @@ let renewal: Promise<boolean> | null = null;
  */
 export function renew(): Promise<boolean> {
   renewal ??= (async () => {
-    const saved = findServer(currentServerUrl());
+    const saved = thisServer();
     try {
       if (window.chrome?.webview) return await askTheHost();
       const info = await serverInfo();
-      if (info.passwordRequired && !saved?.password) {
+      if (info.passwordRequired && !saved.password) {
         // Nothing to offer: stop claiming to be connected so the connect screen can ask. A
         // meeting already open is not interrupted — it simply never shows that screen.
         store(null);
         return false;
       }
-      await connect(info.passwordRequired ? saved!.password : '');
+      await connect(info.passwordRequired ? saved.password : '');
       return true;
     } catch {
       return false;
@@ -148,13 +169,7 @@ export function renew(): Promise<boolean> {
 
 /** Remembers a working password so the next launch can connect without asking. */
 export function rememberConnection(password: string, autoConnect: boolean) {
-  const current = findServer(currentServerUrl());
-  saveServer({
-    url: currentServerUrl(),
-    name: current?.name ?? '',
-    password,
-    autoConnect,
-  });
+  rememberServer({ password, autoConnect });
 }
 
 /**

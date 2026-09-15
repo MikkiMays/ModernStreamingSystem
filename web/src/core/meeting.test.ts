@@ -27,7 +27,7 @@ vi.mock('./control', async () => {
       constructor(
         _api: unknown,
         public onSnapshot: (snapshot: Snapshot) => void,
-        _event: unknown,
+        public onEvent: (event: unknown, live: boolean) => void,
         public onRevoked: () => void,
       ) {}
       start() {}
@@ -216,6 +216,34 @@ it('stays quiet when this device asked for no notification sounds', async () => 
   await vi.advanceTimersByTimeAsync(2000);
   await meeting.leave();
   expect(cues).toEqual([]);
+});
+
+/**
+ * A screen start is news for the room; the first person arriving to watch is news for the one
+ * sharing. Telling everybody about a stranger joining a stream they are not running would be
+ * noise about somebody else's business.
+ */
+it('tells only the person sharing that somebody came to watch', async () => {
+  meeting.start();
+  const control = meeting.control as unknown as { onEvent: (event: unknown, live: boolean) => void };
+  const viewer = (participantId: string, eventId: string) => ({
+    version: 1,
+    type: 'screen.first_viewer',
+    eventId,
+    sequence: 9,
+    occurredAt: 0,
+    payload: { message: null, screenId: 's', participantId },
+  });
+  control.onEvent(viewer('other', 'theirs'), true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(cues).not.toContain('viewer');
+  control.onEvent(viewer('guest', 'mine'), true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(cues).toContain('viewer');
+  // A screen starting is for everybody in the room, whoever started it.
+  control.onEvent({ ...viewer('other', 'start'), type: 'screen.started' }, true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(cues).toContain('screen');
 });
 
 it('resolves a room deletion when the SFU disconnect arrives before its control event', async () => {

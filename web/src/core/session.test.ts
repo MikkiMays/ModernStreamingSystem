@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { request } from '../api/client';
-import { connect, disconnect, renew, session } from './session';
-import { currentServerUrl, saveServer } from './servers';
+import { adopt, connect, disconnect, renew, session } from './session';
+import { rememberServer } from './servers';
+
+const { cues } = vi.hoisted(() => ({ cues: [] as string[] }));
+vi.mock('./sounds', () => ({
+  signal: (cue: string) => cues.push(cue),
+  ensureNotificationAudio() {},
+}));
 
 const answer = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -22,6 +28,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   disconnect();
+  cues.length = 0;
   vi.stubGlobal('fetch', vi.fn());
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -50,7 +57,7 @@ it('treats a lapsed token as not connected', () => {
  * request that tripped over it, not by sending the person back to the connect screen.
  */
 it('shakes hands again and repeats the request when the session has lapsed', async () => {
-  saveServer({ url: currentServerUrl(), name: '', password: 'пароль', autoConnect: true });
+  rememberServer({ password: 'пароль' });
   vi.mocked(fetch)
     .mockResolvedValueOnce(answer({ code: 'SERVER_PASSWORD_REQUIRED' }, 401))
     .mockResolvedValueOnce(answer({ passwordRequired: true }))
@@ -71,6 +78,22 @@ it('gives up quietly when this device has no password to offer', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(answer({ passwordRequired: true }));
   await expect(renew()).resolves.toBe(false);
   expect(session.get()).toBeNull();
+});
+
+/**
+ * Only the transitions are worth hearing. A token renewed mid-visit is the same connection,
+ * and announcing it would tell somebody that something happened when nothing did.
+ */
+it('sounds connecting and disconnecting, and stays quiet for a renewal', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(answer(issued('token-a')));
+  await connect('пароль');
+  expect(cues).toEqual(['connected']);
+  adopt({ ...issued('token-b'), name: 'Тестовый Cord' });
+  expect(cues, 'a renewal is not a new connection').toEqual(['connected']);
+  disconnect();
+  expect(cues).toEqual(['connected', 'disconnected']);
+  disconnect();
+  expect(cues, 'already disconnected is not a disconnection').toEqual(['connected', 'disconnected']);
 });
 
 it('reconnects to an open server without asking for anything', async () => {

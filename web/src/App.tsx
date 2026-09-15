@@ -15,7 +15,7 @@ import type { Favorite } from './core/favorites';
 import { savePreferences } from './core/preferences';
 import { Connect } from './ui/Connect';
 import { Download } from './ui/Download';
-import { adopt, session } from './core/session';
+import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
 
 const queryClient = new QueryClient({
@@ -39,7 +39,9 @@ function Workspace() {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [error, setError] = useState('');
   const [favoriteSettings, setFavoriteSettings] = useState<Favorite | null>(null);
+  const [section, setSection] = useState<string | undefined>(undefined);
   const connection = useStore(session);
+  useEffect(greetHostConnection, []);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -131,6 +133,10 @@ function Workspace() {
                 }
               : null,
         });
+        return;
+      }
+      if (command.type === 'settings.open') {
+        setSection(typeof command.tab === 'string' ? command.tab : 'profile');
         return;
       }
       if (command.type === 'session.token') {
@@ -243,6 +249,8 @@ function Workspace() {
         <Home
           theme={theme}
           setTheme={setTheme}
+          section={section}
+          onSectionClosed={() => setSection(undefined)}
           onCreate={() => {
             setDestination(null);
             setPage('prejoin');

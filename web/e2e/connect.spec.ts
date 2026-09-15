@@ -6,19 +6,17 @@ import AxeBuilder from '@axe-core/playwright';
  * only thing until the handshake succeeds. Automatic connection is turned off here so the
  * screen stays put long enough to be exercised; with it on, an open server goes straight
  * through, which is what a normal visit looks like.
+ *
+ * There is one server on it, because in a browser there can be only one: the core refuses a
+ * foreign Origin. The list of servers belongs to the Windows client.
  */
-test('the server is chosen and checked before any meeting is shown', async ({ browser }) => {
+test('the server answers before any meeting is shown', async ({ browser }) => {
   const context = await browser.newContext();
-  // Seed once, not on every navigation: the list is shared by every tab of this origin, and
-  // rewriting it on each page load would undo what the test is about to do to it.
   await context.addInitScript(() => {
-    if (!localStorage.getItem('cord:servers:v1'))
-      localStorage.setItem(
-        'cord:servers:v1',
-        JSON.stringify([
-          { url: location.origin + '/', name: 'Мой сервер', password: '', autoConnect: false },
-        ]),
-      );
+    localStorage.setItem(
+      'cord:servers:v1',
+      JSON.stringify({ url: location.origin + '/', name: 'Мой сервер', password: '', autoConnect: false }),
+    );
   });
   const page = await context.newPage();
   try {
@@ -29,22 +27,6 @@ test('the server is chosen and checked before any meeting is shown', async ({ br
       (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
     ).toEqual([]);
 
-    // Checking is a separate, optional step: it answers the question and leaves you where
-    // you were, rather than quietly connecting as a side effect.
-    await page.getByRole('button', { name: 'Добавить сервер' }).click();
-    await page.getByLabel('Адрес сервера').fill(new URL(page.url()).origin);
-    await page.getByRole('button', { name: 'Проверить подключение' }).click();
-    await expect(page.getByText('Подключено!')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Новая встреча/ })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-
-    // A server can be written down without being reachable now.
-    await page.getByRole('button', { name: 'Добавить сервер' }).click();
-    await page.getByLabel('Название сервера').fill('Запасной');
-    await page.getByLabel('Адрес сервера').fill('https://spare.example.com');
-    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Настроить «Запасной»' })).toBeVisible();
-
     await page.getByRole('button', { name: 'Подключиться' }).click();
     await expect(page.getByRole('button', { name: /Новая встреча/ })).toBeVisible();
 
@@ -54,12 +36,11 @@ test('the server is chosen and checked before any meeting is shown', async ({ br
     await expect(second.getByRole('heading', { name: 'Мой сервер' })).toBeVisible();
     await second.close();
 
-    // Switching servers puts the connect screen back without touching the saved list.
+    // Disconnecting puts the connect screen back.
     await page.getByRole('button', { name: 'Настройки', exact: true }).click();
     await page.getByRole('tab', { name: 'Подключение', exact: true }).click();
-    await page.getByRole('button', { name: 'Сменить сервер' }).click();
+    await page.getByRole('button', { name: 'Отключиться' }).click();
     await expect(page.getByRole('heading', { name: 'Мой сервер' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Настроить «Запасной»' })).toBeVisible();
   } finally {
     await context.close();
   }

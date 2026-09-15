@@ -1,28 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, LoaderCircle, Plus, Server, Settings } from 'lucide-react';
+import { ArrowRight, Check, LoaderCircle, Server, TriangleAlert } from 'lucide-react';
 import type { Capabilities } from '../api/types';
-import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
-import {
-  currentServerUrl,
-  findServer,
-  readServers,
-  saveServer,
-  serverLabel,
-  type SavedServer,
-} from '../core/servers';
+import { DownloadLink, Logo, ThemeButton, type Theme } from './primitives';
+import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { describeFailure, openConnection, serverInfo, type Attempt } from '../core/session';
 import { ensureNotificationAudio } from '../core/sounds';
 import { notifyDesktop } from '../core/desktop';
-import { ConnectionStatus, ServerDialog } from './ServerDialog';
 
 /**
- * The first screen, and on a closed server the only one until it succeeds. Nothing about
- * meetings is shown before the server has answered: favourites belong to a server, and the
- * client has no business displaying one server's rooms while connected to another.
+ * The first screen, and until the handshake succeeds the only one. Nothing about meetings is
+ * shown before the server has answered: favourites belong to a server, and a client has no
+ * business displaying one server's rooms while connected to another.
  *
- * In a browser this is the server that served the page — a browser cannot address any other,
- * so the other entries here are bookmarks and choosing one goes there. In the Windows client
- * the native shell owns the list and can reach all of them.
+ * There is exactly one server here, because in a browser there can be only one: the core
+ * refuses a foreign `Origin`, so this page can talk to the server that served it and to
+ * nothing else. A list of others would be bookmarks pretending to be connections — unable to
+ * be checked or connected to, and switching would mean leaving the application. That list
+ * belongs to the Windows client, which has none of those limits; from inside it this screen
+ * can ask the shell to open it.
  */
 export function Connect({
   theme,
@@ -34,14 +29,13 @@ export function Connect({
   onConnected: () => void;
 }) {
   const desktop = !!window.chrome?.webview;
-  const [servers, setServers] = useState<SavedServer[]>(readServers);
   const here = currentServerUrl();
-  const [password, setPassword] = useState(() => findServer(here)?.password ?? '');
-  const [autoConnect, setAutoConnect] = useState(() => findServer(here)?.autoConnect !== false);
+  const saved = thisServer();
+  const [password, setPassword] = useState(saved.password);
+  const [autoConnect, setAutoConnect] = useState(saved.autoConnect);
   const [info, setInfo] = useState<Capabilities | null>(null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dialog, setDialog] = useState<{ intent: 'connect' | 'save'; server?: SavedServer } | null>(null);
   const started = useRef(false);
 
   const connect = async (secret = password) => {
@@ -51,7 +45,7 @@ export function Connect({
     setAttempt(result);
     setBusy(false);
     if (result.ok) {
-      saveServer({ url: here, name: findServer(here)?.name ?? '', password: secret, autoConnect });
+      rememberServer({ password: secret, autoConnect });
       onConnected();
     }
     return result.ok;
@@ -63,13 +57,14 @@ export function Connect({
       .then((capabilities) => {
         if (!active) return;
         setInfo(capabilities);
-        // Connecting to an open server asks nothing, so waiting for a click would be a step
-        // with no question in it. A closed one waits unless this device kept the password.
-        const saved = findServer(here);
-        const ready = !capabilities.passwordRequired || !!saved?.password;
-        if (saved?.autoConnect !== false && ready && !started.current) {
+        // Connecting to an open server asks nothing, so waiting for a click on a screen with
+        // no question on it would be a step for its own sake. A closed one waits unless this
+        // device kept the password.
+        const remembered = thisServer();
+        const ready = !capabilities.passwordRequired || !!remembered.password;
+        if (remembered.autoConnect && ready && !started.current) {
           started.current = true;
-          void connect(saved?.password ?? '');
+          void connect(remembered.password);
         }
       })
       .catch((error) => {
@@ -78,14 +73,11 @@ export function Connect({
     return () => {
       active = false;
     };
-    // Deliberately empty: the handshake belongs to this mount. Listing the password or the
-    // saved entry here would re-run it on every keystroke.
+    // Deliberately empty: the handshake belongs to this mount. Listing the password here would
+    // re-run it on every keystroke.
   }, []);
 
-  // What you called this server wins over what it calls itself: a list of five servers all
-  // named "Cord" is why the label exists.
-  const saved = findServer(here);
-  const name = saved?.name.trim() || info?.name || serverLabel({ url: here, name: '' });
+  const name = saved.name.trim() || info?.name || serverLabel({ url: here, name: '' });
   const waiting = !info && !attempt;
   return (
     <div className="connect-page">
@@ -98,52 +90,6 @@ export function Connect({
         </div>
       </header>
       <main className="connect-main">
-        {!desktop && (
-          <section className="connect-list" aria-label="Сохранённые серверы">
-            <div className="connect-list-heading">
-              <span>СЕРВЕРЫ</span>
-              <IconButton
-                label="Добавить сервер"
-                className="connect-add"
-                onClick={() => setDialog({ intent: 'save' })}
-              >
-                <Plus size={19} />
-              </IconButton>
-            </div>
-            <ul>
-              {servers.map((server) => (
-                <li key={server.url} className={server.url === here ? 'current' : ''}>
-                  <button
-                    className="connect-server"
-                    onClick={() => {
-                      if (server.url === here) return;
-                      saveServer(server);
-                      location.assign(server.url);
-                    }}
-                  >
-                    <span className="connect-server-icon">
-                      <Server size={17} />
-                    </span>
-                    <span>
-                      <strong>{serverLabel(server)}</strong>
-                      <small>{server.url === here ? 'Открыт сейчас' : new URL(server.url).host}</small>
-                    </span>
-                  </button>
-                  <IconButton
-                    label={`Настроить «${serverLabel(server)}»`}
-                    onClick={() => setDialog({ intent: 'save', server })}
-                  >
-                    <Settings size={17} />
-                  </IconButton>
-                </li>
-              ))}
-            </ul>
-            <p className="form-footnote">
-              Браузер может открыть только тот сервер, который его обслуживает. Выбор другого из списка
-              откроет его страницу; список хранится отдельно у каждого сервера.
-            </p>
-          </section>
-        )}
         <section className="connect-card" aria-labelledby="connect-title">
           <span className="connect-badge" aria-hidden="true">
             <Server size={26} />
@@ -151,6 +97,7 @@ export function Connect({
           <h1 id="connect-title">{waiting ? 'Ищем сервер…' : name}</h1>
           <p className="muted">{new URL(here).host}</p>
           <form
+            className="connect-form"
             onSubmit={(event) => {
               event.preventDefault();
               void connect();
@@ -176,12 +123,7 @@ export function Connect({
                 checked={autoConnect}
                 onChange={(event) => {
                   setAutoConnect(event.target.checked);
-                  saveServer({
-                    url: here,
-                    name: findServer(here)?.name ?? '',
-                    password: findServer(here)?.password ?? '',
-                    autoConnect: event.target.checked,
-                  });
+                  rememberServer({ autoConnect: event.target.checked });
                 }}
               />
               <span>Подключаться автоматически при запуске</span>
@@ -198,28 +140,35 @@ export function Connect({
               )}
             </button>
           </form>
-          <div className="connect-status-row">
+          <div className="server-status-row">
             <ConnectionStatus attempt={busy ? null : attempt} />
-            {desktop ? (
+            {desktop && (
               <button className="text-button" onClick={() => notifyDesktop('servers.open')}>
-                Другой сервер…
-              </button>
-            ) : (
-              <button className="text-button" onClick={() => setDialog({ intent: 'connect' })}>
                 Другой сервер…
               </button>
             )}
           </div>
         </section>
       </main>
-      <ServerDialog
-        open={!!dialog}
-        intent={dialog?.intent ?? 'save'}
-        server={dialog?.server}
-        onOpenChange={(open) => !open && setDialog(null)}
-        onSaved={setServers}
-        onConnected={onConnected}
-      />
     </div>
+  );
+}
+
+/** Small, green when it worked; red with the reason folded away when it did not. */
+export function ConnectionStatus({ attempt }: { attempt: Attempt | null }) {
+  if (!attempt) return <span className="connection-status" />;
+  if (attempt.ok)
+    return (
+      <span className="connection-status connected" role="status">
+        <Check size={14} /> Подключено!
+      </span>
+    );
+  return (
+    <details className="connection-status failed">
+      <summary role="status">
+        <TriangleAlert size={14} /> Не подключено
+      </summary>
+      <small>{attempt.detail}</small>
+    </details>
   );
 }
