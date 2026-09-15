@@ -14,9 +14,9 @@ const bitrates = {
   1080: { 15: 3, 30: 6, 60: 10 },
   1440: { 15: 5, 30: 10, 60: 16 },
 };
-/** What the current level asks of the link, in bits per second. */
-export function targetBitrate(profile: ScreenProfile) {
-  return bitrates[profile.resolution][profile.fps] * 1000000;
+/** What a level asks of the link, in bits per second. */
+export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps'>) {
+  return bitrates[level.resolution][level.fps] * 1000000;
 }
 /**
  * A chosen level is published as a single layer. Simulcast exists so a receiver can be handed

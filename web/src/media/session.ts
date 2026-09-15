@@ -22,7 +22,7 @@ import {
   screenOptions,
   cameraCapture,
   cameraOptions,
-  targetBitrate,
+
   type ScreenProfile,
 } from './profiles';
 import { AutoQuality } from './auto-quality';
@@ -888,7 +888,7 @@ export class MediaSession {
           }
           // A chosen level is the user's instruction, not a suggestion: only automatic moves.
           if (!this.profile.automatic) return;
-          const next = auto.observe(limitation, available, targetBitrate(this.profile));
+          const next = auto.observe(limitation, available);
           if (next) void this.setProfile({ ...this.profile, ...next });
         })
         .catch(() => {})

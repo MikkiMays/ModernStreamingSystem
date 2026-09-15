@@ -1,71 +1,100 @@
 import { describe, expect, it } from 'vitest';
-import { AutoQuality, ladder, startingRung } from './auto-quality';
+import { AutoQuality, ladder, levelFor, startingRung } from './auto-quality';
 
-const target = 6_000_000;
-const plenty = target * 3;
+const mbps = (value: number) => value * 1_000_000;
+// Ladder targets: 720p15 1.5, 720p30 3, 1080p30 6, 1080p60 10 Mbit/s, each needing 25% spare.
+const plenty = mbps(40);
+
+describe('choosing a level for the measured bandwidth', () => {
+  it('picks the best level that fits with headroom', () => {
+    expect(levelFor(mbps(2))).toBe(0);
+    expect(levelFor(mbps(4))).toBe(1);
+    expect(levelFor(mbps(8))).toBe(2);
+    expect(levelFor(mbps(15))).toBe(3);
+  });
+
+  it('refuses a level whose target only just fits, since there is no room to breathe', () => {
+    expect(levelFor(mbps(10))).toBe(2);
+    expect(levelFor(mbps(12.5))).toBe(3);
+  });
+
+  it('falls back to the lowest level when the link cannot carry even that', () => {
+    expect(levelFor(mbps(0.2))).toBe(0);
+  });
+
+  it('never proposes beyond the top of the ladder', () => {
+    expect(levelFor(mbps(500))).toBe(ladder.length - 1);
+    expect(ladder[ladder.length - 1]).toEqual({ resolution: 1080, fps: 60 });
+  });
+});
 
 describe('automatic quality', () => {
-  it('holds the level while nothing is limiting it and headroom is unknown', () => {
+  it('jumps straight to the best level instead of climbing one at a time', () => {
+    const quality = new AutoQuality(0);
+    expect(quality.observe('none', plenty)).toBeNull();
+    // Second agreeing estimate: one move from the bottom to the top, not four.
+    expect(quality.observe('none', plenty)).toEqual({ resolution: 1080, fps: 60 });
+  });
+
+  it('settles on 1080p60 and stays there while the link holds', () => {
     const quality = new AutoQuality();
-    for (let i = 0; i < 10; i++) expect(quality.observe('none', null, target)).toBeNull();
+    quality.observe('none', plenty);
+    expect(quality.observe('none', plenty)).toEqual({ resolution: 1080, fps: 60 });
+    for (let i = 0; i < 10; i++) expect(quality.observe('none', plenty)).toBeNull();
+  });
+
+  it('holds the level when the browser withholds a bandwidth estimate', () => {
+    const quality = new AutoQuality();
+    for (let i = 0; i < 10; i++) expect(quality.observe('none', null)).toBeNull();
     expect(quality.current).toEqual(ladder[startingRung]);
   });
 
-  it('needs sustained pressure before dropping, so one bad sample is ignored', () => {
+  it('needs two agreeing estimates before moving up', () => {
+    const quality = new AutoQuality(0);
+    expect(quality.observe('none', plenty)).toBeNull();
+    expect(quality.observe('none', mbps(1))).toBeNull();
+    expect(quality.current).toEqual(ladder[0]);
+  });
+
+  it('needs sustained pressure before dropping', () => {
     const quality = new AutoQuality();
-    expect(quality.observe('bandwidth', null, target)).toBeNull();
-    expect(quality.current).toEqual(ladder[startingRung]);
-    expect(quality.observe('bandwidth', null, target)).toEqual(ladder[startingRung - 1]);
+    expect(quality.observe('bandwidth', null)).toBeNull();
+    expect(quality.observe('bandwidth', null)).toEqual(ladder[startingRung - 1]);
+  });
+
+  it('drops straight to what the measurement supports', () => {
+    const quality = new AutoQuality(3);
+    quality.observe('bandwidth', mbps(2));
+    expect(quality.observe('bandwidth', mbps(2))).toEqual(ladder[0]);
+  });
+
+  it('still goes down when a limited link reports optimistic bandwidth', () => {
+    const quality = new AutoQuality(2);
+    quality.observe('bandwidth', plenty);
+    expect(quality.observe('bandwidth', plenty)).toEqual(ladder[1]);
   });
 
   it('forgets earlier pressure once the link recovers', () => {
     const quality = new AutoQuality();
-    expect(quality.observe('bandwidth', null, target)).toBeNull();
-    expect(quality.observe('none', null, target)).toBeNull();
-    expect(quality.observe('bandwidth', null, target)).toBeNull();
+    expect(quality.observe('bandwidth', null)).toBeNull();
+    expect(quality.observe('none', null)).toBeNull();
+    expect(quality.observe('bandwidth', null)).toBeNull();
     expect(quality.current).toEqual(ladder[startingRung]);
-  });
-
-  it('climbs only after sustained headroom above the current target', () => {
-    const quality = new AutoQuality();
-    for (let i = 0; i < 4; i++) expect(quality.observe('none', plenty, target)).toBeNull();
-    expect(quality.observe('none', plenty, target)).toEqual(ladder[startingRung + 1]);
-  });
-
-  it('does not climb on bandwidth that merely matches the current target', () => {
-    const quality = new AutoQuality();
-    for (let i = 0; i < 12; i++) expect(quality.observe('none', target, target)).toBeNull();
-    expect(quality.current).toEqual(ladder[startingRung]);
-  });
-
-  it('stops at the ends of the ladder', () => {
-    const top = new AutoQuality(ladder.length - 1);
-    for (let i = 0; i < 12; i++) expect(top.observe('none', plenty, target)).toBeNull();
-    expect(top.current).toEqual(ladder[ladder.length - 1]);
-
-    const bottom = new AutoQuality(0);
-    for (let i = 0; i < 12; i++) expect(bottom.observe('bandwidth', null, target)).toBeNull();
-    expect(bottom.current).toEqual(ladder[0]);
   });
 
   it('treats an overloaded encoder the same as a saturated link', () => {
     const quality = new AutoQuality();
-    quality.observe('cpu', plenty, target);
-    expect(quality.observe('cpu', plenty, target)).toEqual(ladder[startingRung - 1]);
+    quality.observe('cpu', plenty);
+    expect(quality.observe('cpu', plenty)).toEqual(ladder[startingRung - 1]);
   });
 
-  it('walks the whole ladder down and back up', () => {
-    const quality = new AutoQuality(ladder.length - 1);
-    for (let step = ladder.length - 1; step > 0; step--) {
-      quality.observe('bandwidth', null, target);
-      expect(quality.observe('bandwidth', null, target)).toEqual(ladder[step - 1]);
-    }
-    expect(quality.current).toEqual(ladder[0]);
-    for (let step = 0; step < ladder.length - 1; step++) {
-      for (let i = 0; i < 4; i++) quality.observe('none', plenty, target);
-      expect(quality.observe('none', plenty, target)).toEqual(ladder[step + 1]);
-    }
-    expect(quality.current).toEqual(ladder[ladder.length - 1]);
+  it('stops at the ends of the ladder', () => {
+    const top = new AutoQuality(ladder.length - 1);
+    for (let i = 0; i < 12; i++) expect(top.observe('none', plenty)).toBeNull();
+
+    const bottom = new AutoQuality(0);
+    for (let i = 0; i < 12; i++) expect(bottom.observe('bandwidth', mbps(0.1))).toBeNull();
+    expect(bottom.current).toEqual(ladder[0]);
   });
 
   it('clamps a nonsense starting point', () => {
