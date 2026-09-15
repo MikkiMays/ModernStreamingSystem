@@ -168,6 +168,12 @@
             "format": "int32",
             "type": "integer"
           },
+          "name": {
+            "type": "string"
+          },
+          "passwordRequired": {
+            "type": "boolean"
+          },
           "recoverySeconds": {
             "format": "int32",
             "type": "integer"
@@ -193,6 +199,8 @@
           "frameRates",
           "maxParticipants",
           "maxScreens",
+          "name",
+          "passwordRequired",
           "recoverySeconds",
           "region",
           "resolutions",
@@ -245,6 +253,16 @@
           "commandId",
           "type"
         ],
+        "type": "object"
+      },
+      "Connect": {
+        "properties": {
+          "password": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "Create": {
@@ -685,6 +703,24 @@
         "required": [
           "commandId"
         ],
+        "type": "object"
+      },
+      "Session": {
+        "properties": {
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passwordRequired": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "Settings": {
@@ -1596,6 +1632,35 @@
         },
         "tags": [
           "api-controller"
+        ]
+      }
+    },
+    "/api/v1/session": {
+      "post": {
+        "operationId": "connect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Connect"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "session-controller"
         ]
       }
     }

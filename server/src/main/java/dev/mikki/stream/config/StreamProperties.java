@@ -17,6 +17,10 @@ public record StreamProperties(
     @NotBlank @Size(min = 32) String sessionSecret,
     @NotBlank @Size(min = 32) String internalSecret,
     @NotNull Path filesRoot,
+    // Blank leaves the server open, which is what every installation did before the gate
+    // existed. A value here is asked for once per visit, before any room is reachable.
+    @Size(max = 200) String accessPassword,
+    @Size(max = 60) String serverName,
     boolean redisEnabled,
     @Min(1) @Max(10) int maxParticipants,
     @Min(1) @Max(2) int maxScreens,

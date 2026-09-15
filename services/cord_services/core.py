@@ -20,7 +20,16 @@ class Core:
         credential: str | None = None,
         headers=None,
     ):
-        combined = {"X-Internal-Secret": self.secret, **(headers or {})}
+        # Two headers, one secret, two different statements. X-Internal-Secret means
+        # "this request arrived through our own gateway" — the gateway stamps it on
+        # everything it forwards, including a browser's. X-Service-Secret means "the
+        # caller is one of our services", which is what lets the bots past a server
+        # access password: they never see the connect screen and have no one to ask.
+        combined = {
+            "X-Internal-Secret": self.secret,
+            "X-Service-Secret": self.secret,
+            **(headers or {}),
+        }
         if credential:
             combined["Authorization"] = (
                 credential
