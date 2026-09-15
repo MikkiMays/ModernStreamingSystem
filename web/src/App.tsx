@@ -12,7 +12,7 @@ import { favoriteApi } from './core/favorites';
 import { Ping } from './ui/Ping';
 import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
-import { savePreferences } from './core/preferences';
+import { readPreferences, savePreferences } from './core/preferences';
 import { Connect } from './ui/Connect';
 import { Download } from './ui/Download';
 import { adopt, greetHostConnection, session } from './core/session';
@@ -47,6 +47,15 @@ function Workspace() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('cord:theme', theme);
   }, [theme]);
+  // The picture belongs to the page — it is saved per server, beside the name — so the shell
+  // can only show what the page tells it. Without this the profile block in the sidebar kept
+  // its placeholder no matter what was chosen here.
+  const [avatar, setAvatar] = useState(() => readPreferences().avatar);
+  useEffect(() => {
+    const refresh = () => setAvatar(readPreferences().avatar);
+    window.addEventListener('cord:preferences', refresh);
+    return () => window.removeEventListener('cord:preferences', refresh);
+  }, []);
   const enter = async (
     admission: Admission,
     choices: DeviceChoice & { micOn: boolean; cameraOn: boolean },
@@ -67,6 +76,9 @@ function Workspace() {
     queryClient.clear();
     setMeeting(null);
     setPage('home');
+    // A settings section asked for during the meeting has been dealt with there. Carrying it
+    // out of the room made leaving open the settings instead of the home page.
+    setSection(undefined);
     history.replaceState(null, '', '/');
   };
   const openDestination = (next: Destination) => {
@@ -85,6 +97,7 @@ function Workspace() {
       inCall: page === 'room' && !!meeting && !meeting.ended.get(),
       name: localStorage.getItem('cord:name') ?? '',
       theme,
+      avatar,
       room:
         page === 'room' && meeting
           ? {
@@ -124,6 +137,7 @@ function Workspace() {
           inCall: page === 'room' && !!meeting && !meeting.ended.get(),
           name: command.name,
           theme,
+          avatar,
           room:
             page === 'room' && meeting
               ? {
@@ -185,7 +199,7 @@ function Workspace() {
       };
       void navigate().catch((e) => setError((e as Error).message));
     });
-  }, [page, meeting, theme]);
+  }, [page, meeting, theme, avatar]);
   const recent = async (id: string, restoring = false) => {
     try {
       const admission = getRecent(id);
@@ -273,6 +287,8 @@ function Workspace() {
             onHome={home}
             theme={theme}
             setTheme={setTheme}
+            section={section}
+            onSectionClosed={() => setSection(undefined)}
           />
         </Suspense>
       )}{' '}
