@@ -547,6 +547,41 @@ class TelegramTests(Fixture):
         self.assertTrue(self.bot.ready)
         self.assertEqual(self.store.state("bot_username"), "cord_meet_bot")
 
+    async def test_bot_answers_even_when_telegram_refuses_to_rename_it(self):
+        """ЗАЧЕМ. Из-за этого бот однажды замолчал на полдня — и ничего не ломалось.
+
+        Telegram ограничивает смену имени часами. Оформление применялось при каждом
+        запуске процесса и в одной попытке с `getMe`, поэтому несколько перезапусков
+        сервиса подряд — обычное дело при выкатке — оставляли бота в вечном повторе
+        настройки: до получения обновлений он не доходил ни разу.
+        """
+        await self.bot.configure()
+        applied = [c.args[0] for c in self.bot.api.call_args_list]
+        self.assertIn("setMyName", applied)
+
+        # Второй запуск: оформление уже такое, какое нужно, и повторять его незачем.
+        self.bot.api.reset_mock()
+        self.bot.ready = False
+        await self.bot.configure()
+        self.assertNotIn("setMyName", [c.args[0] for c in self.bot.api.call_args_list])
+        self.assertTrue(self.bot.ready)
+
+        # А если Telegram всё же отказал — бот всё равно работает, а отметка не ставится.
+        self.store.set_state("bot_profile", "")
+        refused = {"setMyName"}
+
+        async def api(method, payload=None):
+            if method in refused:
+                raise HTTPException(429, "Too Many Requests")
+            return await self.telegram_api(method, payload)
+
+        self.bot.api = AsyncMock(side_effect=api)
+        self.bot.ready = False
+        await self.bot.configure()
+        self.assertTrue(self.bot.ready)
+        self.assertEqual(self.store.state("bot_status"), "polling")
+        self.assertEqual(self.store.state("bot_profile"), "")
+
     async def test_binding_requires_chat_admin_and_is_scoped_to_topic(self):
         token = "b" * 24
         self.store.put_claim(
