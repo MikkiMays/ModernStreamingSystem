@@ -16,6 +16,7 @@ import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
 import { Avatar, Modal, useStore } from './primitives';
 import { readAvatar } from '../core/avatar';
+import { useMicLevel } from './useMicLevel';
 
 /**
  * A picture is only offered where there is a comfortable way to pick one. On a phone the file
@@ -153,10 +154,13 @@ export function QualityFields({
 export function AudioFields({
   audio,
   change,
+  meeting,
 }: {
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
+  meeting?: Meeting | null;
 }) {
+  const level = useMicLevel(meeting);
   const constraints = navigator.mediaDevices?.getSupportedConstraints() as
     (MediaTrackSupportedConstraints & { voiceIsolation?: boolean }) | undefined;
   return (
@@ -206,17 +210,27 @@ export function AudioFields({
           Автоматический уровень микрофона<small>Выравнивает тихий и громкий голос.</small>
         </span>
       </label>
-      <label className="gain-setting">
-        Уровень передачи · {Math.round(audio.gain * 100)}%
+      {/* Under automatic level the browser owns the gain, so offering a slider that changes
+          nothing would be a lie. It stays visible to show what the setting took over. */}
+      <label className="gain-setting" data-disabled={audio.autoGainControl}>
+        Уровень передачи · {audio.autoGainControl ? 'автоматический' : `${Math.round(audio.gain * 100)}%`}
         <input
           type="range"
           min="0"
           max="200"
           step="5"
+          disabled={audio.autoGainControl}
           value={audio.gain * 100}
           onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
         />
       </label>
+      {meeting && (
+        <label className="gain-setting mic-live-level">
+          Сейчас вас слышно так
+          <meter min="0" max="100" low={15} high={90} optimum={60} value={level} aria-label="Текущий уровень микрофона" />
+          <small>Говорите — полоса должна двигаться. Изменения применяются к встрече сразу.</small>
+        </label>
+      )}
     </section>
   );
 }
@@ -367,6 +381,7 @@ export function Settings({
           {device('audiooutput')}
           <AudioFields
             audio={preferences.audio}
+            meeting={meeting}
             change={(audio) => {
               if (meeting) void meeting.media.setAudioSettings(audio);
               else change({ audio });

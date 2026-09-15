@@ -1635,6 +1635,29 @@ progress {
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 28px 90px #0003;
+  /* The track is reserved even when nothing scrolls, so opening a taller section does not
+     shift the content sideways by the width of a scrollbar appearing. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.modal::-webkit-scrollbar {
+  width: 10px;
+}
+.modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  /* Drawn inside its own padding so the bar floats within the rounded corners
+     instead of running hard against the edge of the dialog. */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.modal::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
 }
 .modal-heading {
   display: flex;
@@ -2332,6 +2355,24 @@ progress {
 }
 .modal-wide {
   width: min(780px, calc(100vw - 32px));
+}
+/* A disabled slider still has to read as a control that exists, not as broken furniture. */
+.gain-setting[data-disabled='true'] {
+  color: var(--muted);
+}
+.gain-setting[data-disabled='true'] input {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mic-live-level meter {
+  width: 100%;
+  height: 10px;
+}
+.mic-live-level small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
 }
 .settings-navigation {
   display: flex;

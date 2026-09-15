@@ -341,6 +341,7 @@ export function Prejoin({
         </form>
       </main>
       <Modal
+        wide
         open={settings}
         onOpenChange={setSettings}
         title="Перед разговором"

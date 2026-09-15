@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  HeadphoneOff,
   Headphones,
   Link,
   MessageSquare,
@@ -329,6 +330,16 @@ export function MeetingView({
               </button>
             </div>
             <div className="call-dock" aria-label="Управление встречей">
+              {/* Sits beside the microphone because it is the other half of the same decision:
+                  whether you are heard, and whether you hear. */}
+              <IconButton
+                label={deafened ? 'Включить звук встречи' : 'Выключить звук встречи'}
+                className={deafened ? 'dock-off' : 'dock-on'}
+                aria-pressed={deafened}
+                onClick={() => meeting.media.deafened.set(!deafened)}
+              >
+                {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
+              </IconButton>
               <IconButton
                 label={media.microphone ? 'Выключить микрофон' : 'Включить микрофон'}
                 className={media.microphone ? 'dock-on' : 'dock-off'}
@@ -377,10 +388,6 @@ export function MeetingView({
                       </Menu.Item>
                       <Menu.Item onClick={() => setDiagnostics(true)}>
                         <Activity size={18} /> Диагностика
-                      </Menu.Item>
-                      <Menu.Item onClick={() => meeting.media.deafened.set(!deafened)}>
-                        <Headphones size={18} />{' '}
-                        {deafened ? 'Включить звук встречи' : 'Выключить звук у себя'}
                       </Menu.Item>
                       {self?.owner && (
                         <Menu.Item
