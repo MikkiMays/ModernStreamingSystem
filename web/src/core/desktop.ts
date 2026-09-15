@@ -12,6 +12,7 @@ export interface DesktopCommand {
     | 'microphone.toggle'
     | 'hotkey.status'
     | 'session.token'
+    | 'settings.open'
     | 'profile.changed';
   showPing?: boolean;
   notificationSounds?: boolean;
@@ -24,6 +25,8 @@ export interface DesktopCommand {
   token?: string;
   expiresAt?: number;
   serverName?: string;
+  /** Which settings section to open, when the host asks for one. */
+  tab?: string;
 }
 interface WebViewBridge {
   postMessage: (message: unknown) => void;
@@ -54,6 +57,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         'microphone.toggle',
         'hotkey.status',
         'session.token',
+        'settings.open',
         'profile.changed',
       ].includes(message.type ?? '')
     )

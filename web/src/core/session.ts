@@ -3,6 +3,7 @@ import type { Capabilities } from '../api/types';
 import { Store } from './store';
 import { currentServerUrl, findServer, saveServer } from './servers';
 import { notifyDesktop } from './desktop';
+import { signal } from './sounds';
 
 /**
  * The handshake with the server itself, before any room exists.
@@ -49,6 +50,7 @@ function read(): ServerSession | null {
 }
 
 function store(value: ServerSession | null) {
+  const was = session.get();
   try {
     if (value) sessionStorage.setItem(KEY, JSON.stringify(value));
     else sessionStorage.removeItem(KEY);
@@ -57,7 +59,26 @@ function store(value: ServerSession | null) {
   }
   useSession(value?.token);
   session.set(value);
+  // Only the transitions are worth hearing. Renewing a token that lapsed mid-visit keeps the
+  // same connection and must stay silent, which falls out of comparing before with after.
+  if (!was && value) signal('connected');
+  if (was && !value) signal('disconnected');
 }
+
+/**
+ * The Windows client connects before the page exists, so the page would otherwise start on a
+ * server it never heard itself reach. The host leaves a one-shot mark next to the session.
+ */
+export function greetHostConnection() {
+  try {
+    if (sessionStorage.getItem(FRESH_KEY) === null) return;
+    sessionStorage.removeItem(FRESH_KEY);
+    if (session.get()) signal('connected');
+  } catch {
+    /* Without storage there is nothing to greet. */
+  }
+}
+const FRESH_KEY = 'cord:session:fresh';
 
 export function sessionToken(): string | undefined {
   return session.get()?.token;

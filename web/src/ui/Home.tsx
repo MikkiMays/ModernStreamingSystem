@@ -1,5 +1,5 @@
 import { ArrowDownLeft, ArrowRight, Link, Plus, Video, Star, ShieldCheck, Settings2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../api/client';
 import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
@@ -18,9 +18,17 @@ interface HomeProps {
   onJoin: (destination: Destination) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /** A settings section the host asked to open, and the way to say it has been closed. */
+  section?: string;
+  onSectionClosed?: () => void;
 }
 export function Home(props: HomeProps) {
   const [settings, setSettings] = useState(false);
+  // The host can ask for a section by name — the profile block in its sidebar opens the page's
+  // own profile settings, because that is where the picture lives.
+  useEffect(() => {
+    if (props.section) setSettings(true);
+  }, [props.section]);
   return (
     <>
       {window.chrome?.webview ? (
@@ -28,7 +36,14 @@ export function Home(props: HomeProps) {
       ) : (
         <BrowserHome {...props} onSettings={() => setSettings(true)} />
       )}
-      <Settings open={settings} onOpenChange={setSettings} />
+      <Settings
+        open={settings}
+        section={props.section}
+        onOpenChange={(open) => {
+          setSettings(open);
+          if (!open) props.onSectionClosed?.();
+        }}
+      />
     </>
   );
 }

@@ -169,7 +169,14 @@ export class Meeting {
   private event = (event: RoomEvent, live: boolean) => {
     if (live && !this.ended.get()) {
       if (event.type === 'screen.started') this.cue('screen', event.eventId);
-      if (event.type === 'screen.first_viewer') this.cue('viewer', event.eventId);
+      // The room hears a screen start; only the person sharing hears that somebody came to
+      // watch it. Everyone else getting that cue would be telling them about a stranger
+      // arriving at a stream they are not running.
+      if (
+        event.type === 'screen.first_viewer' &&
+        event.payload.participantId === this.admission.participantId
+      )
+        this.cue('viewer', event.eventId);
     }
     if (event.type === 'files.changed') this.fileRevision.update((n) => n + 1);
     void this.refresh();

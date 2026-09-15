@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Plug, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Check, Trash2, TriangleAlert } from 'lucide-react';
 import { Modal } from './primitives';
 import {
   currentServerUrl,
@@ -8,32 +8,31 @@ import {
   saveServer,
   type SavedServer,
 } from '../core/servers';
-import { checkConnection, openConnection, type Attempt } from '../core/session';
+import { openConnection, type Attempt } from '../core/session';
+import { checkHealth } from '../core/health';
 import { ensureNotificationAudio } from '../core/sounds';
 import { notifyDesktop } from '../core/desktop';
 
 /**
- * Adding a server and connecting to one are the same form filled in from two places, so they
- * are the same dialog. What differs is the button: from the connect screen it says
- * «Подключиться» and actually opens the server; from the settings it says «Добавить» and only
- * writes the entry down. Checking is always optional — an address can be saved for later
- * without the server being up right now.
+ * Adding a server and connecting to one are the same act, so they are one button. There is no
+ * separate check: connecting *is* the check, and a dialog that closed on a check would have
+ * said "fine" about something it had not done.
+ *
+ * The dialog closes on a connection and on nothing else. A refusal keeps the reason on screen
+ * where it can be acted on — and offers to write the address down anyway, because a server
+ * still being set up is worth saving before it answers.
  */
-export type ServerDialogIntent = 'connect' | 'save';
-
 const blank = (): SavedServer => ({ url: '', name: '', password: '', autoConnect: true });
 
 export function ServerDialog({
   open,
   onOpenChange,
-  intent,
   server,
   onConnected,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  intent: ServerDialogIntent;
   /** The entry being edited, or nothing when a new server is being added. */
   server?: SavedServer;
   onConnected?: () => void;
@@ -52,58 +51,63 @@ export function ServerDialog({
     }
   }, [open, server]);
 
-  const here = (() => {
+  const normalized = (() => {
     try {
-      return normalizeServerUrl(draft.url) === currentServerUrl();
+      return normalizeServerUrl(draft.url);
     } catch {
-      return false;
+      return null;
     }
   })();
+  const here = normalized === currentServerUrl();
   const desktop = !!window.chrome?.webview;
   const own = server?.url === currentServerUrl();
 
   const store = () => {
-    const saved = saveServer({ ...draft, url: normalizeServerUrl(draft.url) });
-    onSaved?.(saved);
-    return saved;
-  };
-  const shake = async (keep: boolean) => {
-    setBusy(true);
-    setError('');
-    try {
-      ensureNotificationAudio();
-      const result = await (keep ? openConnection(draft.password) : checkConnection(draft.password));
-      setAttempt(result);
-      return result.ok;
-    } finally {
-      setBusy(false);
-    }
+    const list = saveServer({ ...draft, url: normalizeServerUrl(draft.url) });
+    onSaved?.(list);
+    // Not a forced refresh: this address was probed a moment ago, and asking again would put
+    // the light back to grey right after it said something.
+    void checkHealth(normalizeServerUrl(draft.url));
+    return list;
   };
   const submit = async () => {
+    setError('');
+    if (!normalized) {
+      try {
+        normalizeServerUrl(draft.url);
+      } catch (problem) {
+        setError((problem as Error).message);
+      }
+      return;
+    }
+    setBusy(true);
+    ensureNotificationAudio();
     try {
-      setError('');
-      normalizeServerUrl(draft.url);
-    } catch (problem) {
-      setError((problem as Error).message);
-      return;
-    }
-    if (intent === 'save') {
+      // Only the server that served this page will answer it, so reaching another one means
+      // going there. Never blindly: landing on a browser error page would lose Cord as well
+      // as the address, so the address has to answer something first.
+      if (!here) {
+        if ((await checkHealth(normalized)) !== 'alive') {
+          setAttempt({
+            ok: false,
+            detail: 'По этому адресу ничего не ответило. Проверьте адрес, сертификат и соединение.',
+          });
+          return;
+        }
+        store();
+        if (desktop) notifyDesktop('servers.open');
+        else location.assign(normalized);
+        onOpenChange(false);
+        return;
+      }
+      const result = await openConnection(draft.password);
+      setAttempt(result);
+      if (!result.ok) return;
       store();
-      onOpenChange(false);
-      return;
-    }
-    store();
-    // Only the server that served this page will answer this browser: the core refuses a
-    // foreign Origin. Reaching another one means going there, or — inside the application —
-    // letting the native shell do it, because it has no such limit.
-    if (!here) {
-      if (desktop) notifyDesktop('servers.open');
-      else location.assign(normalizeServerUrl(draft.url));
-      return;
-    }
-    if (await shake(true)) {
       onConnected?.();
       onOpenChange(false);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -111,7 +115,7 @@ export function ServerDialog({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={intent === 'connect' ? 'Подключение к серверу' : editing ? 'Сервер' : 'Новый сервер'}
+      title={editing ? 'Сервер' : 'Новый сервер'}
       description="Адрес и пароль хранятся на этом устройстве."
       closeLabel="Закрыть окно"
     >
@@ -140,7 +144,7 @@ export function ServerDialog({
             autoComplete="off"
             spellCheck={false}
             placeholder="https://meet.example.com"
-            onChange={(event) => setDraft({ ...draft, url: event.target.value, password: draft.password })}
+            onChange={(event) => setDraft({ ...draft, url: event.target.value })}
           />
         </label>
         <label>
@@ -172,7 +176,15 @@ export function ServerDialog({
         )}
         <div className="server-form-actions">
           <button className="button primary" type="submit" disabled={busy}>
-            {busy ? 'Проверяем…' : intent === 'connect' ? 'Подключиться' : editing ? 'Сохранить' : 'Добавить'}
+            {busy ? (
+              <>
+                <LoaderDots /> Подключаемся…
+              </>
+            ) : (
+              <>
+                Подключиться <ArrowRight size={17} />
+              </>
+            )}
           </button>
           <button className="button ghost" type="button" onClick={() => onOpenChange(false)}>
             Закрыть
@@ -191,24 +203,27 @@ export function ServerDialog({
           )}
         </div>
         <div className="server-status-row">
-          <ConnectionStatus attempt={attempt} />
-          <button
-            className="text-button server-check"
-            type="button"
-            disabled={busy || !here}
-            title={
-              here
-                ? 'Соединиться и сразу отпустить'
-                : 'Проверить можно только тот сервер, который открыт сейчас'
-            }
-            onClick={() => void shake(false)}
-          >
-            <Plug size={14} /> Проверить подключение
-          </button>
+          <ConnectionStatus attempt={busy ? null : attempt} />
+          {attempt && !attempt.ok && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                store();
+                onOpenChange(false);
+              }}
+            >
+              Всё равно сохранить
+            </button>
+          )}
         </div>
       </form>
     </Modal>
   );
+}
+
+function LoaderDots() {
+  return <span className="loader-dots" aria-hidden="true" />;
 }
 
 /** Small, green when it worked; red with the reason folded away when it did not. */

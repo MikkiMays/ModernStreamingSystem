@@ -425,7 +425,6 @@ function ConnectionFields({
           </p>
           <ServerDialog
             open={!!dialog}
-            intent="save"
             server={dialog?.server}
             onOpenChange={(open) => !open && setDialog(null)}
             onSaved={setServers}
@@ -495,15 +494,21 @@ export function Settings({
   meeting,
   open,
   onOpenChange,
+  section,
 }: {
   meeting?: Meeting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which section to land on. The host asks for one when it opens these from the sidebar. */
+  section?: string;
 }) {
   const saved = useMemo(() => new Store(readPreferences()), []);
   const preferences = useStore(meeting?.media.preferences ?? saved);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [tab, setTab] = useState('audio');
+  const [tab, setTab] = useState(section ?? 'audio');
+  useEffect(() => {
+    if (open && section) setTab(section);
+  }, [open, section]);
   const change = (patch: Partial<Preferences>) => {
     if (meeting) meeting.media.saveSettings(patch);
     else saved.set(savePreferences(patch));
