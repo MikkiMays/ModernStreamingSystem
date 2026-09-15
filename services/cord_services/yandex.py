@@ -276,9 +276,18 @@ class Yandex:
             if not track.duration_ms or track.duration_ms > 3600000:
                 raise HTTPException(400, "Максимальная длительность трека — 60 минут")
             infos = await self.request(client.tracks_download_info(track_id))
+            # Одного трека Яндекс предлагает несколько вариантов, и берётся лучший доступный,
+            # а не первый попавшийся: сначала без потерь, затем по битрейту, при равном —
+            # aac выше mp3. Раньше фильтр отбрасывал всё, кроме mp3, поэтому аккаунт с более
+            # качественным вариантом всё равно слушал mp3.
+            rank = {"flac": 3, "aac": 2, "mp3": 1}
             full = sorted(
-                [i for i in infos if not i.preview and i.codec == "mp3"],
-                key=lambda i: i.bitrate_in_kbps,
+                [i for i in infos if not i.preview and i.codec in rank],
+                key=lambda i: (
+                    rank[i.codec] == 3,
+                    i.bitrate_in_kbps or 0,
+                    rank[i.codec],
+                ),
                 reverse=True,
             )
             if not full:

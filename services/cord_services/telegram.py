@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import re
 import secrets
 import uuid
@@ -99,56 +101,81 @@ class Telegram:
         return body["result"]
 
     async def configure(self):
+        """Готовит бота к работе: кто он и можно ли получать обновления.
+
+        Оформление — имя, описание, список команд, права по умолчанию — сюда не входит:
+        его применяет `describe`, и его отказ ничего не останавливает.
+        """
         me = await self.api("getMe")
         self.username = me["username"]
         self.me_id = me["id"]
         self.store.set_state("bot_username", self.username)
-        commands = [
-            {"command": command, "description": description}
-            for command, description in COMMANDS
-        ]
-        await self.api("setMyCommands", {"commands": commands})
-        await self.api("setMyCommands", {"commands": commands, "language_code": "ru"})
-        await self.api("setMyName", {"name": "Cord · встречи и музыка"})
-        await self.api(
-            "setMyDescription",
-            {
-                "description": "Создавайте встречи Cord прямо в Telegram, связывайте комнаты с чатами и темами, отправляйте музыку в общую очередь. /help — подключение и все команды."
-            },
-        )
-        await self.api(
-            "setMyShortDescription",
-            {
-                "short_description": "Встречи Cord и общая музыкальная очередь. Добавьте в чат и отправьте /meet."
-            },
-        )
-        await self.api("setChatMenuButton", {"menu_button": {"type": "commands"}})
-        await self.api(
-            "setMyDefaultAdministratorRights",
-            {
-                "for_channels": False,
-                "rights": {
-                    "is_anonymous": False,
-                    "can_manage_chat": True,
-                    "can_delete_messages": False,
-                    "can_manage_video_chats": False,
-                    "can_restrict_members": False,
-                    "can_promote_members": False,
-                    "can_change_info": False,
-                    "can_invite_users": False,
-                    "can_post_stories": False,
-                    "can_edit_stories": False,
-                    "can_delete_stories": False,
-                },
-            },
-        )
         info = await self.api("getWebhookInfo")
         if info.get("url"):
             raise HTTPException(
                 409, "У бота уже настроен webhook; сначала отключите его"
             )
+        await self.describe()
         self.ready = True
         self.store.set_state("bot_status", "polling")
+
+    async def describe(self):
+        """Имя, описание, команды и права по умолчанию — вежливость, а не условие работы.
+
+        ЗАЧЕМ ОТДЕЛЬНО. Telegram ограничивает смену имени жёстко: после нескольких
+        обращений подряд `setMyName` отвечает 429 с ожиданием в часы. Раньше это делалось
+        при каждом запуске процесса и внутри той же попытки, что и `getMe`, поэтому
+        несколько перезапусков сервиса подряд — обычное дело при выкатке — оставляли бота
+        молчащим на полдня: он бесконечно повторял настройку и ни разу не доходил до
+        получения обновлений. Оформление применяется, только когда оно изменилось, а его
+        отказ не мешает боту отвечать: без отметки следующая попытка повторит его сама.
+        """
+        commands = [
+            {"command": command, "description": description}
+            for command, description in COMMANDS
+        ]
+        name = "Cord · встречи и музыка"
+        description = (
+            "Создавайте встречи Cord прямо в Telegram, связывайте комнаты с чатами и "
+            "темами, отправляйте музыку в общую очередь. /help — подключение и все команды."
+        )
+        short = "Встречи Cord и общая музыкальная очередь. Добавьте в чат и отправьте /meet."
+        rights = {
+            "for_channels": False,
+            "rights": {
+                "is_anonymous": False,
+                "can_manage_chat": True,
+                "can_delete_messages": False,
+                "can_manage_video_chats": False,
+                "can_restrict_members": False,
+                "can_promote_members": False,
+                "can_change_info": False,
+                "can_invite_users": False,
+                "can_post_stories": False,
+                "can_edit_stories": False,
+                "can_delete_stories": False,
+            },
+        }
+        requests = [
+            ("setMyCommands", {"commands": commands}),
+            ("setMyCommands", {"commands": commands, "language_code": "ru"}),
+            ("setMyName", {"name": name}),
+            ("setMyDescription", {"description": description}),
+            ("setMyShortDescription", {"short_description": short}),
+            ("setChatMenuButton", {"menu_button": {"type": "commands"}}),
+            ("setMyDefaultAdministratorRights", rights),
+        ]
+        stamp = hashlib.sha256(
+            json.dumps(requests, ensure_ascii=False, sort_keys=True).encode()
+        ).hexdigest()
+        if self.store.state("bot_profile") == stamp:
+            return
+        try:
+            for method, payload in requests:
+                await self.api(method, payload)
+        except HTTPException:
+            return
+        self.store.set_state("bot_profile", stamp)
 
     @staticmethod
     def scope(message: dict) -> str:

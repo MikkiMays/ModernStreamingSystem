@@ -60,6 +60,16 @@ class Store:
     def get(self, room_id: str) -> dict:
         return copy.deepcopy(self.cache.get(room_id, initial(room_id)))
 
+    def revision(self, room_id: str) -> int:
+        """Сколько раз состояние менялось — без копии всей очереди.
+
+        Цикл воспроизведения спрашивает об этом много раз в секунду, чтобы пауза и
+        перемотка были слышны сразу, а не через долю секунды. Копировать ради этого
+        сотню треков было бы дорого.
+        """
+        value = self.cache.get(room_id)
+        return value["revision"] if value else 0
+
     def save(self, value: dict, *, changed: bool = True):
         if changed:
             value["revision"] += 1

@@ -5,7 +5,6 @@ import unittest
 import uuid
 import wave
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -13,7 +12,7 @@ from fastapi import HTTPException
 
 from cord_services.app import create_app
 from cord_services.core import Core
-from cord_services.media import probe
+from cord_services.media import probe, stop_process
 from cord_services.music import Music
 from cord_services.store import Store, now
 from cord_services.telegram import COMMANDS, Telegram
@@ -379,7 +378,53 @@ class QueueTests(Fixture):
         audio(path)
         self.assertAlmostEqual((await probe(path))["duration"], 1, places=2)
 
-    async def test_skip_and_seek_keep_feeding_the_published_audio_source(self):
+    async def test_stopping_a_process_nobody_is_reading_does_not_hang(self):
+        """ЗАЧЕМ. Это ровно та поломка, из-за которой музыка замолкала навсегда.
+
+        ffmpeg отдаёт данные быстрее, чем комната играет, поэтому к паузе, перемотке или
+        переключению труба всегда полна: процесс стоит в записи, а её транспорт — на паузе,
+        потому что читать перестали. asyncio завершает `wait()` только после того, как все
+        трубы отсоединились, и прежняя остановка ждала этого вечно — даже убив процесс.
+        Цикл воспроизведения оставался в `finally`, и на экране всё выглядело живым: статус
+        «играет», очередь на месте, ошибок нет. Только звука больше не было никогда.
+
+        Сейчас звук отдаёт отдельный процесс, но `stop_process` по-прежнему останавливает
+        ffprobe в разборе файла, и обещание у него то же: она возвращает управление.
+        """
+        path = self.root / "long"
+        audio(path, 5)
+        process = await asyncio.create_subprocess_exec(
+            "ffmpeg",
+            "-nostdin",
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-f",
+            "s16le",
+            "pipe:1",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            limit=16384,
+        )
+        try:
+            for _ in range(5):
+                await asyncio.wait_for(process.stdout.readexactly(3840), 5)
+            await asyncio.sleep(0.3)
+            await asyncio.wait_for(stop_process(process), 10)
+            self.assertIsNotNone(process.returncode)
+        finally:
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
+
+    async def test_pause_skip_and_seek_reach_the_publisher(self):
+        """Очередь живёт здесь, звук — в отдельном процессе; связывает их эпоха.
+
+        Раньше в этом месте проверялось, что источник LiveKit продолжает принимать кадры.
+        Теперь кадров нет: воспроизведением занимается издатель, и проверять нужно ровно
+        то, что до него доходит — какой трек, с какой позиции и когда замолчать.
+        """
         first, second = track(self.store, "One"), track(self.store, "Two")
         await self.music.enqueue(ROOM, first)
         await self.music.enqueue(ROOM, second)
@@ -393,78 +438,31 @@ class QueueTests(Fixture):
             },
         )
         self.store.save(state)
+        commands = []
+        events = asyncio.Queue()
 
-        decoder_calls = []
+        class FakePublisher:
+            connected = True
 
-        class FakeProcess:
-            def __init__(self, sample):
-                self.sample = sample
-                self.stdout = self
-                self.returncode = None
+            @classmethod
+            async def start(cls, url, token, name="Музыка"):
+                commands.append(("connect", url, token))
+                return cls()
 
-            async def readexactly(self, size):
-                await asyncio.sleep(0.001)
-                return self.sample.to_bytes(2, "little", signed=True) * (size // 2)
+            async def play(self, path, position, epoch):
+                commands.append(("play", Path(path).name, round(position, 3), epoch))
 
-        class FakeSource:
-            instance = None
+            async def pause(self):
+                commands.append(("pause",))
 
-            def __init__(self, *_args, **_kwargs):
-                self.frames = []
-                self.broken = False
-                self.clear_count = 0
-                FakeSource.instance = self
+            async def event(self, timeout):
+                try:
+                    return await asyncio.wait_for(events.get(), timeout)
+                except TimeoutError:
+                    return None
 
-            async def capture_frame(self, frame):
-                if self.broken:
-                    await asyncio.Event().wait()
-                self.frames.append(int.from_bytes(frame.data[:2], "little", signed=True))
-
-            async def wait_for_playout(self):
-                return None
-
-            def clear_queue(self):
-                self.clear_count += 1
-                self.broken = True
-
-            async def aclose(self):
-                return None
-
-        class FakeRoom:
-            def __init__(self):
-                self.local_participant = SimpleNamespace(
-                    publish_track=AsyncMock(return_value=None)
-                )
-
-            async def connect(self, *_args, **_kwargs):
-                return None
-
-            def isconnected(self):
-                return True
-
-            async def disconnect(self):
-                return None
-
-        class FakeOptions:
-            def __init__(self, **_kwargs):
-                self.audio_encoding = SimpleNamespace(max_bitrate=0)
-
-        fake_rtc = SimpleNamespace(
-            Room=FakeRoom,
-            RoomOptions=lambda **kwargs: kwargs,
-            AudioSource=FakeSource,
-            AudioFrame=lambda data, *_args: SimpleNamespace(data=data),
-            LocalAudioTrack=SimpleNamespace(create_audio_track=lambda *_args: object()),
-            TrackPublishOptions=FakeOptions,
-            TrackSource=SimpleNamespace(SOURCE_MICROPHONE="microphone"),
-        )
-
-        async def fake_decoder(path, position):
-            decoder_calls.append((path.name, position))
-            return FakeProcess(100 if path.name == first["file"] else 200)
-
-        async def fake_stop(process):
-            process.returncode = 0
+            async def close(self):
+                commands.append(("close",))
 
         async def core_request(method, path, data=None, credential=None, headers=None):
             if path.endswith("/media/token"):
@@ -473,31 +471,34 @@ class QueueTests(Fixture):
 
         self.core.request = AsyncMock(side_effect=core_request)
         self.core.command = AsyncMock(return_value={})
-        player = Music(self.store, self.core, "ws://rtc.test")
+        player = Music(self.store, self.core, "http://rtc.test")
 
-        async def received(sample, count=1):
-            for _ in range(100):
-                if (
-                    FakeSource.instance
-                    and FakeSource.instance.frames.count(sample) >= count
-                ):
+        async def sent(kind, count=1):
+            for _ in range(200):
+                if len([c for c in commands if c[0] == kind]) >= count:
                     return
                 await asyncio.sleep(0.01)
-            self.fail(f"Playback did not produce sample {sample}")
+            self.fail(f"Издателю так и не отправили {kind}: {commands}")
 
-        with (
-            patch("cord_services.music.rtc", fake_rtc),
-            patch("cord_services.music.decoder", side_effect=fake_decoder),
-            patch("cord_services.music.stop_process", side_effect=fake_stop),
-        ):
+        with patch("cord_services.music.Publisher", FakePublisher):
             task = asyncio.create_task(player.run(ROOM))
             try:
-                await received(100)
+                await sent("play")
+                self.assertEqual(commands[0][1], "ws://rtc.test")
+                epoch = self.store.get(ROOM)["epoch"]
+                self.assertEqual(commands[1], ("play", first["file"], 0.0, epoch))
+                # Позиция приходит от издателя и переживает перезапуск сервиса.
+                await events.put({"event": "position", "epoch": epoch, "value": 0.4})
+                await asyncio.sleep(0.05)
+                self.assertAlmostEqual(self.store.get(ROOM)["position"], 0.4, places=3)
+
                 await player.command(
                     ROOM, {"commandId": str(uuid.uuid4()), "action": "skip"}
                 )
-                await received(200)
-                before_seek = FakeSource.instance.frames.count(200)
+                await sent("play", 2)
+                epoch = self.store.get(ROOM)["epoch"]
+                self.assertEqual(commands[-1], ("play", second["file"], 0.0, epoch))
+
                 await player.command(
                     ROOM,
                     {
@@ -506,14 +507,32 @@ class QueueTests(Fixture):
                         "position": 0.5,
                     },
                 )
-                await received(200, before_seek + 1)
-                self.assertIn((second["file"], 0.5), decoder_calls)
-                self.assertEqual(FakeSource.instance.clear_count, 0)
+                await sent("play", 3)
+                epoch = self.store.get(ROOM)["epoch"]
+                self.assertEqual(commands[-1], ("play", second["file"], 0.5, epoch))
+
+                await player.command(
+                    ROOM, {"commandId": str(uuid.uuid4()), "action": "pause"}
+                )
+                await sent("pause")
+                self.assertEqual(self.store.get(ROOM)["status"], "paused")
+
+                await player.command(
+                    ROOM, {"commandId": str(uuid.uuid4()), "action": "play"}
+                )
+                await sent("play", 4)
+                epoch = self.store.get(ROOM)["epoch"]
+                # Трек кончился сам: очередь двигается, эпоха меняется, файл убирается.
+                await events.put({"event": "finished", "epoch": epoch, "value": 1.0})
+                for _ in range(200):
+                    if not self.store.get(ROOM)["queue"]:
+                        break
+                    await asyncio.sleep(0.01)
+                self.assertEqual(self.store.get(ROOM)["queue"], [])
             finally:
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
-
-        self.assertEqual(FakeSource.instance.clear_count, 1)
+        self.assertIn(("close",), commands)
 
 
 class TelegramTests(Fixture):
@@ -527,6 +546,41 @@ class TelegramTests(Fixture):
         self.assertEqual({c["command"] for c in commands}, {c for c, _ in COMMANDS})
         self.assertTrue(self.bot.ready)
         self.assertEqual(self.store.state("bot_username"), "cord_meet_bot")
+
+    async def test_bot_answers_even_when_telegram_refuses_to_rename_it(self):
+        """ЗАЧЕМ. Из-за этого бот однажды замолчал на полдня — и ничего не ломалось.
+
+        Telegram ограничивает смену имени часами. Оформление применялось при каждом
+        запуске процесса и в одной попытке с `getMe`, поэтому несколько перезапусков
+        сервиса подряд — обычное дело при выкатке — оставляли бота в вечном повторе
+        настройки: до получения обновлений он не доходил ни разу.
+        """
+        await self.bot.configure()
+        applied = [c.args[0] for c in self.bot.api.call_args_list]
+        self.assertIn("setMyName", applied)
+
+        # Второй запуск: оформление уже такое, какое нужно, и повторять его незачем.
+        self.bot.api.reset_mock()
+        self.bot.ready = False
+        await self.bot.configure()
+        self.assertNotIn("setMyName", [c.args[0] for c in self.bot.api.call_args_list])
+        self.assertTrue(self.bot.ready)
+
+        # А если Telegram всё же отказал — бот всё равно работает, а отметка не ставится.
+        self.store.set_state("bot_profile", "")
+        refused = {"setMyName"}
+
+        async def api(method, payload=None):
+            if method in refused:
+                raise HTTPException(429, "Too Many Requests")
+            return await self.telegram_api(method, payload)
+
+        self.bot.api = AsyncMock(side_effect=api)
+        self.bot.ready = False
+        await self.bot.configure()
+        self.assertTrue(self.bot.ready)
+        self.assertEqual(self.store.state("bot_status"), "polling")
+        self.assertEqual(self.store.state("bot_profile"), "")
 
     async def test_binding_requires_chat_admin_and_is_scoped_to_topic(self):
         token = "b" * 24
@@ -648,26 +702,40 @@ class TelegramTests(Fixture):
         wav = self.root / "forwarded.wav"
         audio(wav)
         await self.bot.client.aclose()
-        self.bot.client = httpx.AsyncClient(transport=httpx.MockTransport(
-            lambda _: httpx.Response(200, content=wav.read_bytes())))
+        self.bot.client = httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda _: httpx.Response(200, content=wav.read_bytes())
+            )
+        )
+
         async def api(method, data=None):
             if method == "getFile":
                 return {"file_path": "music/test.wav"}
             return await self.telegram_api(method, data)
+
         self.bot.api.side_effect = api
-        return {"file_id": "forwarded", "title": "Forwarded track", "file_size": wav.stat().st_size}
+        return {
+            "file_id": "forwarded",
+            "title": "Forwarded track",
+            "file_size": wav.stat().st_size,
+        }
 
     async def test_caption_and_external_reply_both_enqueue_audio(self):
         media = await self.configure_audio()
         caption = self.message("", 101)
-        caption["message"].update(caption="/play@cord_meet_bot", audio=media,
-            reply_to_message={"text": "unrelated text"})
+        caption["message"].update(
+            caption="/play@cord_meet_bot",
+            audio=media,
+            reply_to_message={"text": "unrelated text"},
+        )
         await self.bot.handle(caption)
         quote = self.message("/play@cord_meet_bot", 102)
         quote["message"]["external_reply"] = {"audio": media}
         await self.bot.handle(quote)
         self.assertEqual(len(self.store.get(ROOM)["queue"]), 2)
-        self.assertTrue(all(t["source"] == "telegram" for t in self.store.get(ROOM)["queue"]))
+        self.assertTrue(
+            all(t["source"] == "telegram" for t in self.store.get(ROOM)["queue"])
+        )
 
     async def test_forward_then_separate_play_is_scoped_and_used_once(self):
         media = await self.configure_audio()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import math
 from pathlib import Path
@@ -28,16 +29,26 @@ MAX_TOTAL = 2 * 1024 * 1024 * 1024
 
 
 async def stop_process(process: asyncio.subprocess.Process):
+    """Ends a decoder and waits for it to be gone — without waiting forever.
+
+    ЗАЧЕМ. Signalling the process is not enough. asyncio completes `wait()` only after
+    every pipe transport has disconnected, and the stdout transport is paused whenever
+    its reader is full — which here it always is, because ffmpeg decodes far faster than
+    a room plays. After a pause, a seek or a skip nobody reads that pipe again, so the
+    paused transport never sees the end of the stream, `wait()` never returns, and the
+    playback loop stops for good: the room went silent on the first pause and stayed
+    silent. Draining the pipe is what closes it.
+    """
     if process.returncode is None:
-        try:
+        with contextlib.suppress(ProcessLookupError):
             process.terminate()
-        except ProcessLookupError:
-            pass
-        try:
-            await asyncio.wait_for(process.wait(), 2)
-        except TimeoutError:
+    try:
+        await asyncio.wait_for(process.communicate(), 2)
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
             process.kill()
-            await process.wait()
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(process.communicate(), 2)
 
 
 async def probe(path: Path) -> dict:
@@ -84,34 +95,3 @@ async def probe(path: Path) -> dict:
         ) from None
     finally:
         await stop_process(process)
-
-
-async def decoder(path: Path, position: float):
-    seek = max(0.0, min(3600.0, position))
-    return await asyncio.create_subprocess_exec(
-        "ffmpeg",
-        "-nostdin",
-        "-v",
-        "error",
-        "-threads",
-        "1",
-        "-protocol_whitelist",
-        "file,pipe",
-        "-i",
-        str(path),
-        "-ss",
-        str(seek),
-        "-vn",
-        "-map",
-        "0:a:0",
-        "-ac",
-        "2",
-        "-ar",
-        "48000",
-        "-f",
-        "s16le",
-        "pipe:1",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
-        limit=16384,
-    )

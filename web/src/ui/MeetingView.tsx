@@ -45,11 +45,20 @@ export function MeetingView({
   onHome,
   theme,
   setTheme,
+  section,
+  onSectionClosed,
 }: {
   meeting: Meeting;
   onHome: () => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /**
+   * A settings section the host asked for. The profile block in the application's sidebar
+   * opens these settings during a meeting too: they are the same settings, and a press that
+   * did nothing while the conversation was open only looked like a broken button.
+   */
+  section?: string;
+  onSectionClosed?: () => void;
 }) {
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
@@ -99,6 +108,9 @@ export function MeetingView({
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
+  useEffect(() => {
+    if (section) setSettings(true);
+  }, [section]);
   const preferences = useStore(meeting.media.preferences);
   const favorites = useFavorites();
   const volumes = useStore(meeting.media.volumes);
@@ -492,7 +504,17 @@ export function MeetingView({
 
       <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
-      <Settings meeting={meeting} open={settings} onOpenChange={setSettings} />
+      <Settings
+        meeting={meeting}
+        open={settings}
+        section={section}
+        theme={theme}
+        setTheme={setTheme}
+        onOpenChange={(open) => {
+          setSettings(open);
+          if (!open) onSectionClosed?.();
+        }}
+      />
       {diagnostics && (
         <Suspense fallback={null}>
           <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />

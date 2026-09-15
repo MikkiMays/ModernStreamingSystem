@@ -39,6 +39,8 @@ export function Home(props: HomeProps) {
       <Settings
         open={settings}
         section={props.section}
+        theme={props.theme}
+        setTheme={props.setTheme}
         onOpenChange={(open) => {
           setSettings(open);
           if (!open) props.onSectionClosed?.();

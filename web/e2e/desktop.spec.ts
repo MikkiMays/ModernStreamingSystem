@@ -134,3 +134,45 @@ test('native favorite settings open unavailable rooms without joining and synchr
   await page.route('**/api/v1/ping', (route) => route.abort());
   await expect(page.locator('.ping-badge')).toHaveText('PING · Нет связи', { timeout: 6000 });
 });
+
+/**
+ * Профиль в боковой панели приложения открывает настройки — и во время разговора тоже.
+ *
+ * Раньше нажатие во встрече не делало ничего видимого: страница запоминала раздел, но
+ * показать его умела только главная. Поэтому настройки открывались позже — после выхода
+ * из встречи, вместо главной, как будто приложение вернулось не туда.
+ */
+test('the profile block opens settings during a meeting, and leaving goes home', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Новая встреча', exact: true }).click();
+  await page.getByLabel('Название встречи').fill('Проверка настроек');
+  await page.getByLabel('Ваше имя').fill('Организатор');
+  await page.getByRole('button', { name: 'Начать встречу', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Выйти из встречи' })).toBeVisible();
+
+  const open = () =>
+    page.evaluate(() =>
+      window.dispatchEvent(
+        new CustomEvent('test:host', { detail: { version: 1, type: 'settings.open', tab: 'profile' } }),
+      ),
+    );
+  await open();
+  const settings = page.getByRole('dialog').filter({ hasText: 'Настроить под себя' });
+  await expect(settings).toBeVisible();
+  await expect(settings.getByLabel('Имя по умолчанию')).toBeVisible();
+  await expect(settings.getByLabel('Тема')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+
+  // Уйти на главную из встречи с открытыми настройками: главная и есть главная. Раздел,
+  // запрошенный во встрече, там уже ничего не открывает.
+  await open();
+  await expect(settings).toBeVisible();
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent('test:host', { detail: { version: 1, type: 'navigate', page: 'home' } }),
+    ),
+  );
+  await expect(page.locator('.desktop-home')).toBeVisible();
+  await expect(page.getByRole('dialog').filter({ hasText: 'Настроить под себя' })).toHaveCount(0);
+});

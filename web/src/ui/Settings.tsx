@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, MonitorUp, Mic, Keyboard, User, Bell, Play, Plug, Server } from 'lucide-react';
+import { Camera, MonitorUp, Mic, Keyboard, User, Bell, Play, Plug, Server, Palette } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
 import {
@@ -14,7 +14,7 @@ import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
 import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
-import { Avatar, Modal, useStore } from './primitives';
+import { Avatar, Modal, useStore, type Theme } from './primitives';
 import { readAvatar } from '../core/avatar';
 import { useMicLevel } from './useMicLevel';
 import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
@@ -327,7 +327,12 @@ function ConnectionFields({
         <input
           type="checkbox"
           checked={saved.autoConnect}
-          onChange={(e) => setSaved(rememberServer({ autoConnect: e.target.checked }))}
+          onChange={(e) => {
+            setSaved(rememberServer({ autoConnect: e.target.checked }));
+            // In the application the address list is native, so this switch is only true if
+            // the shell hears about it — otherwise it would be a checkbox that does nothing.
+            notifyDesktop('server.autoconnect', { autoConnect: e.target.checked });
+          }}
         />
         <span>
           Подключаться автоматически при запуске
@@ -420,17 +425,48 @@ function HotkeyField({ value, change }: { value: Hotkey | null; change: (key: Ho
     </section>
   );
 }
+/**
+ * Light, dark or whatever the system says.
+ *
+ * The application used to keep this in a dialog of its own, beside a copy of the name and the
+ * sound switch — a second, smaller settings screen that knew less than this one. Appearance is
+ * the last thing that lived only there, so it lives here now, and the shell follows the page.
+ */
+function AppearanceFields({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
+  return (
+    <section className="audio-settings" aria-label="Оформление">
+      <h3>
+        <Palette size={19} /> Оформление
+      </h3>
+      <label>
+        Тема
+        <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+          <option value="system">Как в системе</option>
+          <option value="light">Светлая</option>
+          <option value="dark">Тёмная</option>
+        </select>
+      </label>
+      <p className="form-footnote">
+        Выбор сохраняется на этом устройстве и применяется сразу — и к окну приложения тоже.
+      </p>
+    </section>
+  );
+}
 export function Settings({
   meeting,
   open,
   onOpenChange,
   section,
+  theme,
+  setTheme,
 }: {
   meeting?: Meeting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Which section to land on. The host asks for one when it opens these from the sidebar. */
   section?: string;
+  theme?: Theme;
+  setTheme?: (theme: Theme) => void;
 }) {
   const saved = useMemo(() => new Store(readPreferences()), []);
   const preferences = useStore(meeting?.media.preferences ?? saved);
@@ -590,6 +626,7 @@ export function Settings({
           <p className="form-footnote">
             Токен хранится на этом устройстве и подставляется, когда вы добавляете Яндекс Музыку во встречу.
           </p>
+          {theme && setTheme && <AppearanceFields theme={theme} setTheme={setTheme} />}
         </Tabs.Panel>
         <Tabs.Panel value="connection" className="settings-form">
           <ConnectionFields
