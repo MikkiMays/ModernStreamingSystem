@@ -59,8 +59,9 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const [seek, setSeek] = useState<number | null>(null);
   const [musicSource, setMusicSource] = useState<MusicSource>('yandex');
   const [progressNow, setProgressNow] = useState(Date.now);
-  const progressAnchor = useRef<{ state: MusicState | undefined; at: number }>({
-    state: undefined,
+  const progressAnchor = useRef<{ position: number; trackId: string | undefined; at: number }>({
+    position: 0,
+    trackId: undefined,
     at: Date.now(),
   });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -83,16 +84,19 @@ export function Services({ meeting }: { meeting: Meeting }) {
   };
   useEffect(() => () => uploadAbort.current?.abort(), []);
   const yandexToken = preferences.yandexMusicToken.trim();
-  const update = (state: MusicState) => {
+  // The bot holds a seat in the room, so only joining and leaving change the snapshot.
+  // Refreshing it after every play or skip fetched the whole meeting a second time and
+  // repainted the panel, which read as the panel reloading on every button.
+  const update = (state: MusicState, rosterChanged = false) => {
     client.setQueryData(key, state);
-    void meeting.refresh();
+    if (rosterChanged) void meeting.refresh();
   };
-  const run = async (job: () => Promise<MusicState>) => {
+  const run = async (job: () => Promise<MusicState>, rosterChanged = false) => {
     if (busy || !canUse) return false;
     setBusy(true);
     setError('');
     try {
-      update(await job());
+      update(await job(), rosterChanged);
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -124,7 +128,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
     setError('');
     try {
       await connectYandexToken();
-      update(await api.enable());
+      update(await api.enable(), true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -152,20 +156,24 @@ export function Services({ meeting }: { meeting: Meeting }) {
   };
   const state = music.data;
   const current = state?.queue[0];
-  if (progressAnchor.current.state !== state) progressAnchor.current = { state, at: Date.now() };
+  const playing = !!current && state?.status === 'playing' && !state.paused;
+  const reported = state?.position ?? 0;
+  // Polling hands back a new object every two seconds even when nothing moved. Anchoring on
+  // the reported position instead of object identity keeps the tick from restarting, and
+  // makes this re-anchor idempotent when React renders twice.
+  if (progressAnchor.current.position !== reported || progressAnchor.current.trackId !== current?.id)
+    progressAnchor.current = { position: reported, trackId: current?.id, at: Date.now() };
   useEffect(() => {
     setProgressNow(Date.now());
-    if (!current || !state || state.paused || state.status !== 'playing') return;
+    if (!playing) return;
     const timer = setInterval(() => setProgressNow(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [current, state]);
+  }, [playing, current?.id]);
   const playbackPosition = state
     ? Math.min(
-        current?.duration ?? state.position,
-        state.position +
-          (!state.paused && state.status === 'playing'
-            ? Math.max(0, progressNow - progressAnchor.current.at) / 1000
-            : 0),
+        current?.duration ?? reported,
+        progressAnchor.current.position +
+          (playing ? Math.max(0, progressNow - progressAnchor.current.at) / 1000 : 0),
       )
     : 0;
   const username = catalog.data?.telegram.username;
@@ -193,10 +201,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
             />
             Разрешить интеграции всем участникам
           </label>
-          <p className="form-footnote">
-            Участники смогут подключать сервисы, искать музыку и управлять очередью. Привязку Telegram к
-            комнате меняете только вы.
-          </p>
+          <p className="form-footnote">Привязку Telegram меняете только вы.</p>
         </section>
       )}
       {active && !canUse && (
@@ -238,10 +243,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
           <>
             {!state.enabled && (
               <>
-                <p className="muted">
-                  Добавьте музыкальный сервис, чтобы все слышали треки вместе. Он занимает одно место во
-                  встрече.
-                </p>
+                <p className="muted">Общая музыка для всех. Занимает одно место во встрече.</p>
                 <label>
                   Источник музыки по умолчанию
                   <select value={musicSource} onChange={(e) => setMusicSource(e.target.value as MusicSource)}>
@@ -252,7 +254,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
                     ))}
                   </select>
                 </label>
-                <p className="form-footnote">По умолчанию используется Яндекс Музыка.</p>
                 {canUse ? (
                   <button
                     className="button primary full"
@@ -452,7 +453,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
               <button
                 className="button ghost full"
                 disabled={!canUse || busy}
-                onClick={() => void run(api.disable)}
+                onClick={() => void run(api.disable, true)}
               >
                 <Unplug size={17} />
                 Убрать сервис из встречи

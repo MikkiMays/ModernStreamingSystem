@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
     --ssh-port) SSH_PORT="${2:-}"; shift 2 ;;
     --skip-firewall) SKIP_FIREWALL=1; shift ;;
     --skip-docker-install) SKIP_DOCKER=1; shift ;;
-    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac
 done
@@ -82,6 +82,19 @@ fi
 [[ -z "$PUBLIC_IP" ]] && PUBLIC_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')"
 [[ -n "$PUBLIC_IP" ]] || die "Could not determine the public IP. Pass it explicitly: --ip 203.0.113.10"
 note "Public IP: $PUBLIC_IP"
+
+# The SFU advertises this address for media. Behind NAT the detected address belongs to the
+# router, not to this machine, and clients on the same LAN would try to reach media at an
+# address that never answers. The certificate would name it too.
+if ! ip -4 addr show 2>/dev/null | grep -qw "$PUBLIC_IP"; then
+  note "NOTE: $PUBLIC_IP is not assigned to any interface here, so this machine is behind NAT."
+  if [[ "$MODE" == ip ]]; then
+    note "For a home or office network, re-run with the address this machine has on that"
+    note "network instead, for example: sudo ./setup.sh --ip-only --ip 192.168.1.50"
+  else
+    note "Forward TCP 443, UDP 3478 and UDP 7882 from the router to this machine."
+  fi
+fi
 
 if [[ "$MODE" != ip ]]; then
   CHECK_NAME="${DOMAIN:-$APP}"

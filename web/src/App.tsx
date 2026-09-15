@@ -49,7 +49,11 @@ function Workspace() {
     const { Meeting } = await import('./core/meeting');
     setMeeting(new Meeting(admission, choices));
     setPage('room');
-    history.replaceState(null, '', `/room/${admission.roomId}`);
+    // Pushing gives Back a meaning inside the app: one step out of the meeting. Opening
+    // /room/<id> directly is already that entry, so re-pushing it would make Back a no-op.
+    const path = `/room/${admission.roomId}`;
+    if (location.pathname === path) history.replaceState(null, '', path);
+    else history.pushState(null, '', path);
   };
   const home = () => {
     meeting?.dispose();
@@ -182,6 +186,24 @@ function Workspace() {
     const match = /^\/room\/([0-9a-f-]{36})$/.exec(location.pathname);
     if (match?.[1]) void recent(match[1], true);
   }, []);
+  // The address bar is part of the state here. Previously it was rewritten but never read
+  // back, so Back moved the URL while the view stayed put and the two disagreed. Leaving on
+  // Back matches what the exit button in the meeting already does.
+  useEffect(() => {
+    const reconcile = () => {
+      const roomId = /^\/room\/([0-9a-f-]{36})$/.exec(location.pathname)?.[1];
+      if (roomId) {
+        if (page !== 'room' || meeting?.admission.roomId !== roomId) void recent(roomId, true);
+        return;
+      }
+      if (page === 'room') {
+        if (meeting) void meeting.leave();
+        home();
+      }
+    };
+    window.addEventListener('popstate', reconcile);
+    return () => window.removeEventListener('popstate', reconcile);
+  });
   return (
     <>
       {page !== 'room' && <Ping />}

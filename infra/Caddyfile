@@ -77,6 +77,15 @@ http://:{$GATEWAY_PORT:8091} {
 		}
 		handle {
 			root * /srv
+			# Every file under /assets carries a content hash in its name, so a given URL never
+			# changes meaning and may be cached indefinitely. index.html must not be: it is the
+			# only file naming the current hashes, and a stale copy keeps requesting asset URLs
+			# that stopped existing at the last deploy. With no Cache-Control at all the browser
+			# guesses from Last-Modified and caches exactly the wrong one of the two.
+			@hashed path /assets/*
+			header @hashed Cache-Control "public, max-age=31536000, immutable"
+			@unhashed not path /assets/*
+			header @unhashed Cache-Control "no-cache"
 			try_files {path} /index.html
 			encode zstd gzip
 			file_server

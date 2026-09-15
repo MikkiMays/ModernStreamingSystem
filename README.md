@@ -130,3 +130,8 @@ sudo ./setup.sh --ip-only
 Подробности: [архитектура и восстановление](docs/architecture.md), [дизайн и состояния](docs/frontend.md), [проверки и измерения](docs/verification.md).
 
 Отдельный нативный захват Windows, Jarvis, запись и управление чужим компьютером — следующие возможности. Windows-приложение уже использует захват WebView2 через общий `CaptureAdapter`; отдельная реализация Windows.Graphics.Capture пока не добавлена.
+
+## Автор
+
+Cord создаёт и развивает **[@nikgers](https://t.me/nikgers)** — пишите в Telegram по вопросам,
+предложениям и сотрудничеству.

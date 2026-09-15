@@ -59,7 +59,10 @@ function YandexAccount({
   const api = useMemo(() => new YandexApi(meeting.admission), [meeting]);
   const client = useQueryClient();
   const key = useMemo(() => ['yandex', meeting.admission.roomId], [meeting.admission.roomId]);
-  const account = useQuery({ queryKey: key, queryFn: api.status, retry: false, refetchInterval: 3000 });
+  // The account changes only when somebody connects or disconnects it, and this component
+  // writes the result of its own actions straight into the cache. A three-second poll was
+  // a request per participant per three seconds for a value that almost never moves.
+  const account = useQuery({ queryKey: key, queryFn: api.status, retry: false, refetchInterval: 30000 });
   const [auth, setAuth] = useState<YandexAuthorization | null>(null);
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
