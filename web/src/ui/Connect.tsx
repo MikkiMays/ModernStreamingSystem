@@ -78,8 +78,8 @@ export function Connect({
     return () => {
       active = false;
     };
-    // The handshake belongs to this mount; re-running it on every keystroke would be wrong.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Deliberately empty: the handshake belongs to this mount. Listing the password or the
+    // saved entry here would re-run it on every keystroke.
   }, []);
 
   // What you called this server wins over what it calls itself: a list of five servers all
