@@ -2846,3 +2846,368 @@ progress {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* ── Подключение к серверу ─────────────────────────────────────────────────────
+   Экран до главной: слева сохранённые серверы со своим плюсом и шестерёнками,
+   справа карточка того сервера, который обслуживает эту страницу. На узком
+   экране список уходит под карточку — сначала то, к чему подключаемся. */
+.connect-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+/* The header is a stretched flex child; `margin: auto` alone would shrink it to its content
+   and leave the logo and the theme button sitting next to each other in the middle. */
+.connect-page > .app-header {
+  width: 100%;
+}
+.connect-main {
+  flex: 1;
+  width: 100%;
+  padding: 0 24px 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 440px);
+  justify-content: center;
+  align-content: center;
+  align-items: start;
+  gap: 28px;
+}
+.connect-list {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px 16px;
+}
+.connect-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+/* Единственная синяя кнопка в списке: добавить сервер. Цвет фиксированный, как у главной
+   кнопки действия: белое на светлом синем в тёмной теме не даёт нужного контраста. */
+.connect-add {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  color: #fff;
+  background: #3564f3;
+}
+.connect-add:hover:not(:disabled) {
+  background: #2854dd;
+}
+.connect-list ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.connect-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.connect-list li .icon-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  color: var(--muted);
+}
+.connect-server {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  text-align: left;
+}
+.connect-server:hover {
+  background: var(--surface-2);
+}
+.connect-list li.current .connect-server {
+  background: var(--blue-soft);
+}
+.connect-server span {
+  min-width: 0;
+  display: grid;
+}
+.connect-server strong {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connect-server small {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connect-server-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.connect-list .form-footnote {
+  text-align: left;
+  margin: 14px 10px 0;
+}
+.connect-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 34px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.connect-badge {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.connect-card h1 {
+  font-size: 30px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.connect-card > .muted {
+  margin: -8px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.connect-card form {
+  display: grid;
+  gap: 16px;
+  margin-top: 10px;
+}
+.connect-card label:not(.check-setting) {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.connect-card input[type='password'] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+}
+.connect-status-row,
+.server-status-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* Итог проверки: короткий, слева снизу, подробность ошибки раскрывается стрелкой. */
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.connection-status.connected {
+  color: #1c8b52;
+}
+:root[data-theme='dark'] .connection-status.connected {
+  color: #4ec98a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .connection-status.connected {
+    color: #4ec98a;
+  }
+}
+.connection-status.failed {
+  display: block;
+  color: #cd3c50;
+  max-width: 100%;
+}
+/* `display: flex` removes the native disclosure triangle, and the reason has to look like
+   something you can open. One drawn arrow, turned when it is. */
+.connection-status.failed summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+.connection-status.failed summary::-webkit-details-marker {
+  display: none;
+}
+.connection-status.failed summary::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-top-color: currentColor;
+  margin-top: 4px;
+  transition: transform 150ms;
+}
+.connection-status.failed[open] summary::after {
+  transform: rotate(-180deg);
+  margin: -4px 0 0;
+}
+.connection-status.failed small {
+  display: block;
+  padding: 6px 0 0 18px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.server-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.server-form label:not(.check-setting) {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.server-form input:not([type='checkbox']) {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+.server-form .check-setting small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.server-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.server-form-actions .button {
+  flex: 1;
+  min-width: 128px;
+}
+.server-forget {
+  color: #cd3c50;
+}
+.server-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.server-check:disabled {
+  color: var(--muted);
+}
+@media (width < 820px) {
+  .connect-main {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    padding-top: 8px;
+  }
+  /* Where we are going matters more than the list of places we could go. */
+  .connect-card {
+    order: 1;
+  }
+  .connect-list {
+    order: 2;
+  }
+  .connect-card {
+    padding: 24px;
+  }
+  .app-header {
+    padding: 0 24px;
+  }
+}
+
+/* Настройки: звуки и подключение. */
+.sound-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sound-samples .button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+}
+.connection-current {
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.connection-current small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.settings-add-server {
+  margin-left: auto;
+}
+.settings-server-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.settings-server-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+.settings-server-list li:hover {
+  background: var(--surface-2);
+}
+.settings-server-list li > span {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.settings-server-list small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-server-list .icon-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  color: var(--muted);
+}

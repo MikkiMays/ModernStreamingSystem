@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, MonitorUp, Mic, Keyboard, User } from 'lucide-react';
+import {
+  Camera,
+  MonitorUp,
+  Mic,
+  Keyboard,
+  User,
+  Bell,
+  Play,
+  Plug,
+  Plus,
+  Server,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
 import {
@@ -14,9 +26,20 @@ import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
 import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
-import { Avatar, Modal, useStore } from './primitives';
+import { Avatar, IconButton, Modal, useStore } from './primitives';
 import { readAvatar } from '../core/avatar';
 import { useMicLevel } from './useMicLevel';
+import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
+import {
+  currentServerUrl,
+  findServer,
+  readServers,
+  saveServer,
+  serverLabel,
+  type SavedServer,
+} from '../core/servers';
+import { disconnect, session } from '../core/session';
+import { ServerDialog } from './ServerDialog';
 
 /**
  * A picture is only offered where there is a comfortable way to pick one. On a phone the file
@@ -227,13 +250,192 @@ export function AudioFields({
       {meeting && (
         <label className="gain-setting mic-live-level">
           Сейчас вас слышно так
-          <meter min="0" max="100" low={15} high={90} optimum={60} value={level} aria-label="Текущий уровень микрофона" />
+          <meter
+            min="0"
+            max="100"
+            low={15}
+            high={90}
+            optimum={60}
+            value={level}
+            aria-label="Текущий уровень микрофона"
+          />
           <small>Говорите — полоса должна двигаться. Изменения применяются к встрече сразу.</small>
         </label>
       )}
     </section>
   );
 }
+/**
+ * Notification sounds belong next to the other sound settings, not on the profile page where
+ * they used to sit between a picture and a music token. What each cue means is written down
+ * here because the cues are deliberately short: hearing one is faster than reading, but only
+ * once you know what it was.
+ */
+export function SoundFields({ enabled, change }: { enabled: boolean; change: (enabled: boolean) => void }) {
+  const demo = useMemo(() => new NotificationSounds(), []);
+  return (
+    <section className="audio-settings" aria-label="Звуки уведомлений">
+      <h3>
+        <Bell size={19} /> Звуки уведомлений
+      </h3>
+      <label className="check-setting">
+        <input type="checkbox" checked={enabled} onChange={(e) => change(e.target.checked)} />
+        <span>
+          Сообщать звуком о том, что происходит во встрече
+          <small>Вход и выход каждого участника, запрос на вход, ваш собственный вход и выход.</small>
+        </span>
+      </label>
+      <div className="sound-samples">
+        {(
+          [
+            ['self-join', 'Ваш вход'],
+            ['join', 'Кто-то вошёл'],
+            ['leave', 'Кто-то вышел'],
+            ['knock', 'Просятся войти'],
+            ['screen', 'Начался показ экрана'],
+          ] as const
+        ).map(([cue, title]) => (
+          <button
+            key={cue}
+            type="button"
+            className="button ghost"
+            disabled={!enabled}
+            onClick={() => {
+              ensureNotificationAudio();
+              demo.play(cue);
+            }}
+          >
+            <Play size={14} /> {title}
+          </button>
+        ))}
+      </div>
+      <p className="form-footnote">
+        Звук выхода звучит и при закрытии приложения: сначала выход из встречи, потом окно.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Which server this client is talking to — a different question from who you are on it, which
+ * is why it is no longer mixed into the profile page. Changing it ends the visit: favourites,
+ * name and devices belong to a server and do not travel.
+ */
+function ConnectionFields({
+  showPing,
+  change,
+  inCall,
+}: {
+  showPing: boolean;
+  change: (showPing: boolean) => void;
+  inCall: boolean;
+}) {
+  const desktop = !!window.chrome?.webview;
+  const current = useStore(session);
+  const here = currentServerUrl();
+  const [servers, setServers] = useState<SavedServer[]>(readServers);
+  const [dialog, setDialog] = useState<{ server?: SavedServer } | null>(null);
+  const saved = findServer(here);
+  return (
+    <>
+      <section className="audio-settings" aria-label="Сервер">
+        <h3>
+          <Server size={19} /> Сервер
+        </h3>
+        <div className="connection-current">
+          <strong>{current?.name || serverLabel({ url: here, name: saved?.name ?? '' })}</strong>
+          <small>{new URL(here).host}</small>
+        </div>
+        <label className="check-setting">
+          <input
+            type="checkbox"
+            checked={saved?.autoConnect !== false}
+            onChange={(e) => {
+              saveServer({
+                url: here,
+                name: saved?.name ?? '',
+                password: saved?.password ?? '',
+                autoConnect: e.target.checked,
+              });
+              setServers(readServers());
+            }}
+          />
+          <span>
+            Подключаться автоматически при запуске
+            <small>Иначе Cord будет ждать нажатия «Подключиться» на экране подключения.</small>
+          </span>
+        </label>
+        <div className="check-actions">
+          <button
+            className="button secondary"
+            disabled={inCall}
+            title={inCall ? 'Сначала выйдите из встречи' : 'Вернуться к выбору сервера'}
+            onClick={() => (desktop ? notifyDesktop('servers.open') : disconnect())}
+          >
+            <Plug size={16} /> Сменить сервер
+          </button>
+          {!!saved?.password && (
+            <button
+              className="button ghost"
+              onClick={() => {
+                saveServer({ ...saved, password: '' });
+                setServers(readServers());
+              }}
+            >
+              Забыть пароль
+            </button>
+          )}
+        </div>
+        <label className="check-setting">
+          <input type="checkbox" checked={showPing} onChange={(e) => change(e.target.checked)} />
+          <span>
+            Показывать задержку / PING
+            <small>Время ответа сервера на главной и управляющего канала во встрече.</small>
+          </span>
+        </label>
+      </section>
+      {!desktop && (
+        <section className="audio-settings" aria-label="Сохранённые серверы">
+          <h3>
+            Сохранённые серверы
+            <IconButton
+              label="Добавить сервер"
+              className="connect-add settings-add-server"
+              onClick={() => setDialog({})}
+            >
+              <Plus size={18} />
+            </IconButton>
+          </h3>
+          <ul className="settings-server-list">
+            {servers.map((server) => (
+              <li key={server.url}>
+                <span>
+                  <strong>{serverLabel(server)}</strong>
+                  <small>{server.url === here ? 'Открыт сейчас' : new URL(server.url).host}</small>
+                </span>
+                <IconButton label={`Изменить «${serverLabel(server)}»`} onClick={() => setDialog({ server })}>
+                  <SlidersHorizontal size={17} />
+                </IconButton>
+              </li>
+            ))}
+          </ul>
+          <p className="form-footnote">
+            Список хранится в этом браузере и отдельно у каждого сервера. Переход на другой сервер открывает
+            его страницу.
+          </p>
+          <ServerDialog
+            open={!!dialog}
+            intent="save"
+            server={dialog?.server}
+            onOpenChange={(open) => !open && setDialog(null)}
+            onSaved={setServers}
+          />
+        </section>
+      )}
+    </>
+  );
+}
+
 function HotkeyField({ value, change }: { value: Hotkey | null; change: (key: Hotkey | null) => void }) {
   const [recording, setRecording] = useState(false);
   const nativeStatus = useStore(desktopHotkeyStatus);
@@ -372,6 +574,9 @@ export function Settings({
           <Tabs.Tab value="profile">
             <User size={17} /> Профиль
           </Tabs.Tab>
+          <Tabs.Tab value="connection">
+            <Server size={17} /> Подключение
+          </Tabs.Tab>
           <Tabs.Tab value="hotkeys">
             <Keyboard size={17} /> Клавиши
           </Tabs.Tab>
@@ -386,6 +591,10 @@ export function Settings({
               if (meeting) void meeting.media.setAudioSettings(audio);
               else change({ audio });
             }}
+          />
+          <SoundFields
+            enabled={preferences.notificationSounds}
+            change={(notificationSounds) => change({ notificationSounds })}
           />
           {open && <DeviceCheck preferences={preferences} />}
         </Tabs.Panel>
@@ -432,22 +641,6 @@ export function Settings({
             />
             <span>Показывать активных ботов справа от встречи</span>
           </label>
-          <label className="check-setting">
-            <input
-              type="checkbox"
-              checked={preferences.notificationSounds}
-              onChange={(e) => change({ notificationSounds: e.target.checked })}
-            />
-            <span>Звуки уведомлений</span>
-          </label>
-          <label className="check-setting">
-            <input
-              type="checkbox"
-              checked={preferences.showPing}
-              onChange={(e) => change({ showPing: e.target.checked })}
-            />
-            <span>Показывать задержку / PING</span>
-          </label>
           <label>
             Токен Яндекс Музыки
             <input
@@ -462,6 +655,13 @@ export function Settings({
           <p className="form-footnote">
             Токен хранится на этом устройстве и подставляется, когда вы добавляете Яндекс Музыку во встречу.
           </p>
+        </Tabs.Panel>
+        <Tabs.Panel value="connection" className="settings-form">
+          <ConnectionFields
+            showPing={preferences.showPing}
+            change={(showPing) => change({ showPing })}
+            inCall={!!meeting && !meeting.ended.get()}
+          />
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />

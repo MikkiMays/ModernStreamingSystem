@@ -22,7 +22,6 @@ import {
   screenOptions,
   cameraCapture,
   cameraOptions,
-
   type ScreenProfile,
 } from './profiles';
 import { AutoQuality } from './auto-quality';
@@ -645,8 +644,7 @@ export class MediaSession {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return null;
     const media = track.mediaStreamTrack;
-    const zoom = (media.getCapabilities?.() as { zoom?: { min: number; max: number; step?: number } })
-      ?.zoom;
+    const zoom = (media.getCapabilities?.() as { zoom?: { min: number; max: number; step?: number } })?.zoom;
     if (!zoom || !(zoom.max > zoom.min)) return null;
     const current = (media.getSettings() as { zoom?: number }).zoom;
     return {

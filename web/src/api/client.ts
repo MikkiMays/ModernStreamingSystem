@@ -9,16 +9,53 @@ export class ApiError extends Error {
     super(message);
   }
 }
+/**
+ * Where the server session is kept. `sessionStorage` on purpose: the connection lasts as long
+ * as the application is open, and a closed tab is a disconnection.
+ */
+export const SESSION_KEY = 'cord:session:v1';
+let bearer = storedToken();
+function storedToken(): string | undefined {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null') as {
+      token?: string;
+      expiresAt?: number;
+    } | null;
+    if (saved?.token && (saved.expiresAt ?? 0) > Date.now() / 1000) return saved.token;
+  } catch {
+    /* Not connected. */
+  }
+  return undefined;
+}
+/** Called by `core/session.ts` whenever the held token changes. */
+export function useSession(token?: string) {
+  bearer = token;
+}
+
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
-    ...init,
-    signal: init.signal ?? AbortSignal.timeout(8000),
-    headers: {
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
-      ...init.headers,
-    },
-  });
+  const send = () =>
+    fetch(`/api/v1${path}`, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(8000),
+      headers: {
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
+        ...(bearer ? { 'X-Cord-Session': bearer } : {}),
+        ...init.headers,
+      },
+    });
+  let response = await send();
+  // A lapsed server session is not the caller's problem: shake hands again with the password
+  // this device already holds and repeat the request once. Only a server whose password we do
+  // not have reaches the interface as an error, and even then a meeting in progress stays up.
+  if (response.status === 401 && path !== '/session') {
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => ({}))) as { code?: string };
+    if (body.code === 'SERVER_PASSWORD_REQUIRED' && (await (await import('../core/session')).renew()))
+      response = await send();
+  }
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: string };
     throw new ApiError(
@@ -84,7 +121,10 @@ export class RoomApi {
   cancel = (id: string) => request<void>(`/attachments/${id}`, { method: 'DELETE' }, this.credential);
   async download(file: Attachment) {
     const response = await fetch(`/api/v1/attachments/${file.id}/content`, {
-      headers: { Authorization: `Bearer ${this.credential}` },
+      headers: {
+        Authorization: `Bearer ${this.credential}`,
+        ...(bearer ? { 'X-Cord-Session': bearer } : {}),
+      },
     });
     if (!response.ok) throw new Error('Файл недоступен или срок хранения истёк');
     const url = URL.createObjectURL(await response.blob());
