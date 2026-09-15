@@ -108,6 +108,7 @@ export function MeetingView({
   const [width, setWidth] = useState(360);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const audioNeedsGesture = useCallback(() => setAudioBlocked(true), []);
+  const showIntegrationPanel = preferences.showIntegrationPanel !== false;
   useEffect(() => {
     meeting.start();
     return () => meeting.dispose();
@@ -137,6 +138,7 @@ export function MeetingView({
   }, [meeting, preferences.micHotkey, ended]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
+  const openServicesPanel = () => setPanel((current) => (current === 'services' ? null : 'services'));
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
   return (
     <div
@@ -258,7 +260,11 @@ export function MeetingView({
             </div>
           ) : (
             <>
-              <Stage meeting={meeting} onOpenServices={() => setPanel('services')} />
+              <Stage
+                meeting={meeting}
+                onOpenServices={openServicesPanel}
+                showServices={showIntegrationPanel}
+              />
               {(viewing || pinned) && (
                 <button className="return-conversation" onClick={() => meeting.returnToConversation()}>
                   <ArrowLeft size={16} /> Вернуться в разговор
@@ -363,7 +369,7 @@ export function MeetingView({
                 <Menu.Portal>
                   <Menu.Positioner side="top" sideOffset={12}>
                     <Menu.Popup className="action-menu">
-                      <Menu.Item onClick={() => setPanel('services')}>
+                      <Menu.Item onClick={() => openServicesPanel()}>
                         <Music2 size={18} /> Интеграции
                       </Menu.Item>
                       <Menu.Item onClick={() => setSettings(true)}>
@@ -427,6 +433,14 @@ export function MeetingView({
                 onClick={() => togglePanel('chat')}
               >
                 <MessageSquare size={21} />
+              </IconButton>
+              <IconButton
+                label="Интеграции"
+                aria-pressed={panel === 'services'}
+                className={panel === 'services' ? 'selected' : ''}
+                onClick={() => togglePanel('services')}
+              >
+                <Music2 size={21} />
               </IconButton>
             </div>
           </footer>

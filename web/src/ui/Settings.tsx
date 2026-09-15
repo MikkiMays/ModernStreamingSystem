@@ -357,6 +357,28 @@ export function Settings({
           <p className="form-footnote">
             Это имя будет подставляться при следующем входе во встречу. Его можно изменить перед подключением.
           </p>
+          <label className="check-setting">
+            <input
+              type="checkbox"
+              checked={preferences.showIntegrationPanel}
+              onChange={(e) => change({ showIntegrationPanel: e.target.checked })}
+            />
+            <span>Показывать активных ботов справа от встречи</span>
+          </label>
+          <label>
+            Токен Яндекс Музыки
+            <input
+              type="password"
+              autoComplete="off"
+              maxLength={1000}
+              value={preferences.yandexMusicToken}
+              onChange={(e) => change({ yandexMusicToken: e.target.value })}
+              placeholder="Сохранить токен для автоподключения"
+            />
+          </label>
+          <p className="form-footnote">
+            Токен хранится на этом устройстве и подставляется, когда вы добавляете Яндекс Музыку во встречу.
+          </p>
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />

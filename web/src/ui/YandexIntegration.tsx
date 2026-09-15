@@ -9,9 +9,13 @@ import { IconButton } from './primitives';
 export function YandexIntegration({
   meeting,
   update,
+  storedToken,
+  onStoredTokenChange,
 }: {
   meeting: Meeting;
   update: (state: MusicState) => void;
+  storedToken: string;
+  onStoredTokenChange: (token: string) => void;
 }) {
   return (
     <section className="service-card yandex-card">
@@ -32,14 +36,29 @@ export function YandexIntegration({
           </p>
         </details>
       </div>
-      <YandexAccount meeting={meeting} update={update} />
+      <YandexAccount
+        meeting={meeting}
+        update={update}
+        storedToken={storedToken}
+        onStoredTokenChange={onStoredTokenChange}
+      />
     </section>
   );
 }
-function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: MusicState) => void }) {
+function YandexAccount({
+  meeting,
+  update,
+  storedToken,
+  onStoredTokenChange,
+}: {
+  meeting: Meeting;
+  update: (state: MusicState) => void;
+  storedToken: string;
+  onStoredTokenChange: (token: string) => void;
+}) {
   const api = useMemo(() => new YandexApi(meeting.admission), [meeting]);
   const client = useQueryClient();
-  const key = ['yandex', meeting.admission.roomId];
+  const key = useMemo(() => ['yandex', meeting.admission.roomId], [meeting.admission.roomId]);
   const account = useQuery({ queryKey: key, queryFn: api.status, retry: false, refetchInterval: 3000 });
   const [auth, setAuth] = useState<YandexAuthorization | null>(null);
   const [qr, setQr] = useState('');
@@ -48,8 +67,11 @@ function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: 
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<YandexTrack[] | null>(null);
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(storedToken);
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    setToken(storedToken);
+  }, [storedToken]);
   useEffect(() => {
     if (!auth || auth.status !== 'pending') return;
     let disposed = false;
@@ -60,7 +82,7 @@ function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: 
         if (disposed) return;
         if (value.status === 'connected') {
           setAuth(null);
-          await account.refetch();
+          client.setQueryData(key, { connected: value.connected, name: value.name });
           setNotice('Аккаунт подключён');
           return;
         }
@@ -89,11 +111,22 @@ function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: 
       disposed = true;
       clearTimeout(timer);
     };
-  }, [api, auth]);
+  }, [api, auth, client, key]);
   const connect = async () => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
+      const saved = storedToken.trim();
+      if (saved) {
+        try {
+          client.setQueryData(key, await api.connectToken(saved));
+          setNotice('Подключено сохранённым токеном');
+          return;
+        } catch {
+          setError('Сохранённый токен больше не подходит. Войдите в Яндекс или введите новый токен.');
+        }
+      }
       setAuth(await api.start());
     } catch (e) {
       setError((e as Error).message);
@@ -238,8 +271,8 @@ function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: 
           ) : (
             <>
               <button className="button primary full" disabled={busy} onClick={() => void connect()}>
-                {busy ? <LoaderCircle className="spin" size={18} /> : <ExternalLink size={18} />}Подключить
-                Яндекс Музыку
+                {busy ? <LoaderCircle className="spin" size={18} /> : <ExternalLink size={18} />}
+                {storedToken.trim() ? 'Подключить сохранённый токен' : 'Подключить Яндекс Музыку'}
               </button>
               <p className="form-footnote">
                 Пароль вводится на странице Яндекса. Для полных треков нужен аккаунт с доступом к ним.
@@ -250,11 +283,14 @@ function YandexAccount({ meeting, update }: { meeting: Meeting; update: (state: 
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
+                    const value = token.trim();
+                    if (!value) return;
                     setBusy(true);
                     setError('');
                     try {
-                      client.setQueryData(key, await api.connectToken(token.trim()));
+                      client.setQueryData(key, await api.connectToken(value));
                       setToken('');
+                      onStoredTokenChange(value);
                     } catch (e) {
                       setError((e as Error).message);
                     } finally {

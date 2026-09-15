@@ -16,7 +16,15 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
-import { MusicApi, servicesApi, musicSourceName, type MusicAction, type MusicState } from '../core/services';
+import {
+  YandexApi,
+  MusicApi,
+  servicesApi,
+  musicSourceName,
+  type MusicAction,
+  type MusicSource,
+  type MusicState,
+} from '../core/services';
 import { IconButton, useStore } from './primitives';
 import { YandexIntegration } from './YandexIntegration';
 
@@ -26,8 +34,10 @@ function duration(value: number) {
 }
 export function Services({ meeting }: { meeting: Meeting }) {
   const api = useMemo(() => new MusicApi(meeting.admission), [meeting]);
+  const yandexApi = useMemo(() => new YandexApi(meeting.admission), [meeting]);
   const snapshot = useStore(meeting.snapshot);
   const volumes = useStore(meeting.media.volumes);
+  const preferences = useStore(meeting.media.preferences);
   const ended = useStore(meeting.ended);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const active = !!self && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) && !ended;
@@ -47,27 +57,80 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const [link, setLink] = useState<{ command: string; expiresAt: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [seek, setSeek] = useState<number | null>(null);
+  const [musicSource, setMusicSource] = useState<MusicSource>('yandex');
+  const [progressNow, setProgressNow] = useState(Date.now);
+  const progressAnchor = useRef<{ state: MusicState | undefined; at: number }>({
+    state: undefined,
+    at: Date.now(),
+  });
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadAbort = useRef<AbortController | null>(null);
+  const availableSources = useMemo<MusicSource[]>(
+    () =>
+      (catalog.data?.sources ?? ['upload', 'telegram', 'yandex']).filter((value) =>
+        ['upload', 'telegram', 'yandex'].includes(value),
+      ) as MusicSource[],
+    [catalog.data?.sources],
+  );
+  const defaultSource = availableSources.includes('yandex') ? 'yandex' : (availableSources[0] ?? 'upload');
+  useEffect(() => {
+    if (!musicSource || !availableSources.includes(musicSource)) setMusicSource(defaultSource);
+  }, [defaultSource, musicSource, availableSources]);
+  const sourceLabel: Record<MusicSource, string> = {
+    upload: 'Аудиофайл',
+    telegram: 'Telegram',
+    yandex: 'Яндекс Музыка',
+  };
   useEffect(() => () => uploadAbort.current?.abort(), []);
+  const yandexToken = preferences.yandexMusicToken.trim();
   const update = (state: MusicState) => {
     client.setQueryData(key, state);
     void meeting.refresh();
   };
   const run = async (job: () => Promise<MusicState>) => {
-    if (busy || !canUse) return;
+    if (busy || !canUse) return false;
     setBusy(true);
     setError('');
     try {
       update(await job());
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
   };
   const command = (action: MusicAction, extra?: Parameters<MusicApi['command']>[1]) =>
     void run(() => api.command(action, extra));
+  const commitSeek = async (position: number) => {
+    if (await run(() => api.command('seek', { position }))) setSeek(null);
+  };
+  const connectYandexToken = async () => {
+    if (musicSource !== 'yandex' || !yandexToken) return true;
+    try {
+      await yandexApi.connectToken(yandexToken);
+      return true;
+    } catch {
+      setError(
+        'Не удалось подключить сохранённый токен Яндекс Музыки. Откройте интеграцию для ручной авторизации.',
+      );
+      return false;
+    }
+  };
+  const enableMusic = async () => {
+    if (!canUse || busy || state?.enabled) return;
+    setBusy(true);
+    setError('');
+    try {
+      await connectYandexToken();
+      update(await api.enable());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const upload = async (files: File[]) => {
     if (!canUse || uploading || !files.length) return;
     setError('');
@@ -89,6 +152,22 @@ export function Services({ meeting }: { meeting: Meeting }) {
   };
   const state = music.data;
   const current = state?.queue[0];
+  if (progressAnchor.current.state !== state) progressAnchor.current = { state, at: Date.now() };
+  useEffect(() => {
+    setProgressNow(Date.now());
+    if (!current || !state || state.paused || state.status !== 'playing') return;
+    const timer = setInterval(() => setProgressNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [current, state]);
+  const playbackPosition = state
+    ? Math.min(
+        current?.duration ?? state.position,
+        state.position +
+          (!state.paused && state.status === 'playing'
+            ? Math.max(0, progressNow - progressAnchor.current.at) / 1000
+            : 0),
+      )
+    : 0;
   const username = catalog.data?.telegram.username;
   return (
     <div className="services-panel">
@@ -163,11 +242,22 @@ export function Services({ meeting }: { meeting: Meeting }) {
                   Добавьте музыкальный сервис, чтобы все слышали треки вместе. Он занимает одно место во
                   встрече.
                 </p>
+                <label>
+                  Источник музыки по умолчанию
+                  <select value={musicSource} onChange={(e) => setMusicSource(e.target.value as MusicSource)}>
+                    {availableSources.map((value) => (
+                      <option key={value} value={value}>
+                        {sourceLabel[value]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="form-footnote">По умолчанию используется Яндекс Музыка.</p>
                 {canUse ? (
                   <button
                     className="button primary full"
                     disabled={!canUse || busy}
-                    onClick={() => void run(api.enable)}
+                    onClick={() => void enableMusic()}
                   >
                     <Music2 size={18} />
                     Добавить во встречу
@@ -206,21 +296,19 @@ export function Services({ meeting }: { meeting: Meeting }) {
                       step="1"
                       disabled={!canUse || busy}
                       aria-label="Позиция трека"
-                      value={seek ?? Math.min(state.position, current.duration)}
+                      value={seek ?? playbackPosition}
                       onChange={(e) => setSeek(Number(e.target.value))}
                       onPointerUp={(e) => {
-                        command('seek', { position: Number(e.currentTarget.value) });
-                        setSeek(null);
+                        void commitSeek(Number(e.currentTarget.value));
                       }}
                       onKeyUp={(e) => {
                         if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
-                          command('seek', { position: Number(e.currentTarget.value) });
-                          setSeek(null);
+                          void commitSeek(Number(e.currentTarget.value));
                         }
                       }}
                     />
                     <div>
-                      <span>{duration(seek ?? state.position)}</span>
+                      <span>{duration(seek ?? playbackPosition)}</span>
                       <span>{duration(current.duration)}</span>
                     </div>
                   </div>
@@ -373,7 +461,14 @@ export function Services({ meeting }: { meeting: Meeting }) {
           </>
         )}
       </section>
-      {canUse && <YandexIntegration meeting={meeting} update={update} />}
+      {canUse && (
+        <YandexIntegration
+          meeting={meeting}
+          update={update}
+          storedToken={preferences.yandexMusicToken}
+          onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
+        />
+      )}
       <section className="service-card telegram-card">
         <div className="service-heading">
           <span className="service-icon telegram">

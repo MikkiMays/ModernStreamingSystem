@@ -21,10 +21,17 @@ it('migrates the display name and validates stored audio and hotkeys', () => {
   expect(readPreferences().name).toBe('Saved name');
   localStorage.setItem(
     'cord:preferences:v1',
-    JSON.stringify({ audio: { gain: -5, suppression: 'invalid' }, micHotkey: { code: 'Escape' } }),
+    JSON.stringify({
+      audio: { gain: -5, suppression: 'invalid' },
+      micHotkey: { code: 'Escape' },
+      showIntegrationPanel: 'no',
+      yandexMusicToken: 123,
+    }),
   );
   expect(readPreferences().audio).toMatchObject({ gain: 0, suppression: 'browser', echoCancellation: true });
   expect(readPreferences().micHotkey?.code).toBe('KeyM');
+  expect(readPreferences().showIntegrationPanel).toBe(true);
+  expect(readPreferences().yandexMusicToken).toBe('');
   savePreferences({ name: 'New name', micHotkey: null });
   expect(readPreferences().name).toBe('New name');
   expect(localStorage.getItem('cord:name')).toBe('New name');
@@ -32,7 +39,24 @@ it('migrates the display name and validates stored audio and hotkeys', () => {
 });
 
 it('defaults to silent PING display and enabled notifications, then saves both independently', () => {
-  expect(readPreferences()).toMatchObject({ showPing: false, notificationSounds: true });
+  expect(readPreferences()).toMatchObject({
+    showPing: false,
+    notificationSounds: true,
+    showIntegrationPanel: true,
+    yandexMusicToken: '',
+  });
   savePreferences({ showPing: true, notificationSounds: false });
   expect(readPreferences()).toMatchObject({ showPing: true, notificationSounds: false });
+  expect(readPreferences()).toMatchObject({
+    showIntegrationPanel: true,
+    yandexMusicToken: '',
+  });
+});
+
+it('stores the integration roster choice and Yandex token for this browser profile', () => {
+  savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });
+  expect(readPreferences()).toMatchObject({
+    showIntegrationPanel: false,
+    yandexMusicToken: 'saved-yandex-token',
+  });
 });

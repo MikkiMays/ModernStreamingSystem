@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gc
+import logging
 import random
 import uuid
 from collections import defaultdict
@@ -12,6 +14,8 @@ from livekit import rtc
 from .core import Core
 from .media import MAX_ROOM, MAX_TOTAL, decoder, stop_process
 from .store import Store, now
+
+logger = logging.getLogger(__name__)
 
 
 class Music:
@@ -121,9 +125,6 @@ class Music:
             state = self.store.get(room_id)
             previous_files = [track["file"] for track in state["queue"]]
             action = command["action"]
-            source = self.sources.get(room_id)
-            if source and action in ("pause", "stop"):
-                state["position"] = max(0, state["position"] - source.queued_duration)
             if action == "pause":
                 state["paused"] = True
             elif action == "play":
@@ -222,7 +223,7 @@ class Music:
             options = rtc.TrackPublishOptions(
                 source=rtc.TrackSource.SOURCE_MICROPHONE, dtx=False, red=True
             )
-            options.audio_encoding.max_bitrate = 128000
+            options.audio_encoding.max_bitrate = 256000
             await room.local_participant.publish_track(track, options)
             state = self.store.get(room_id)
             state.update(status="idle", error=None)
@@ -254,8 +255,18 @@ class Music:
                     )
                     continue
                 process = await decoder(path, state["position"])
-                state["status"] = "playing"
-                self.store.save(state)
+                latest = self.store.get(room_id)
+                if (
+                    not latest["enabled"]
+                    or latest["epoch"] != epoch
+                    or not latest["queue"]
+                    or latest["queue"][0]["id"] != current["id"]
+                ):
+                    await stop_process(process)
+                    process = None
+                    continue
+                latest["status"] = "playing"
+                self.store.save(latest)
                 completed = False
                 decoder_failed = False
                 try:
@@ -287,7 +298,10 @@ class Music:
                                 )
                                 state = self.store.get(room_id)
                                 if state["epoch"] == epoch:
-                                    state["position"] += len(data) / 192000
+                                    state["position"] = min(
+                                        current["duration"],
+                                        state["position"] + len(data) / 192000,
+                                    )
                                     # State is durable; avoid a synchronous disk write for every 20ms frame.
                                     self.store.save(state, changed=False)
                         if completed:
@@ -301,7 +315,9 @@ class Music:
                 finally:
                     await stop_process(process)
                     process = None
-                    source.clear_queue()
+                    # livekit-python 1.1.x can leave this native source unable to
+                    # accept more frames after clear_queue(). Let its bounded 100 ms
+                    # buffer drain so skip and seek can reuse the published track.
                 state = self.store.get(room_id)
                 if (
                     completed
@@ -320,6 +336,7 @@ class Music:
         except asyncio.CancelledError:
             raise
         except Exception:
+            logger.exception("Music playback failed")
             state = self.store.get(room_id)
             state.update(
                 status="error",
@@ -337,6 +354,13 @@ class Music:
             self.sources.pop(room_id, None)
             with contextlib.suppress(Exception):
                 await room.disconnect()
+            # rtc.Room exposes no explicit close: the native ICE sockets are released
+            # only when the FFI handle is dropped. The room and its event handlers form
+            # reference cycles, so refcounting alone leaves them alive and the sockets
+            # leak for the lifetime of the process. Drop our references and collect now.
+            room = None
+            source = None
+            gc.collect()
             state = self.store.get(room_id)
             if state["admission"]:
                 with contextlib.suppress(HTTPException):

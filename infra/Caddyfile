@@ -23,11 +23,30 @@
 	}
 }
 
+# Signaling is selected by path, not by name, so it can be served on the application
+# host as well. In simple and ip mode RTC_HOST equals APP_HOST and the @rtc site below
+# is never reached; the app block has to carry /rtc itself or signaling would fall
+# through to the SPA handler and return index.html to the SFU client.
+(signaling) {
+	@signaling path /rtc /rtc/*
+	handle @signaling {
+		header >Access-Control-Allow-Origin {$PUBLIC_URL}
+		forward_auth 127.0.0.1:8080 {
+			uri /internal/signaling-auth
+			header_up X-Internal-Secret {$INTERNAL_SECRET}
+			header_up X-Media-Token {query.access_token}
+			header_up -X-Forwarded-Uri
+		}
+		reverse_proxy 127.0.0.1:7880
+	}
+}
+
 http://:{$GATEWAY_PORT:8091} {
 	bind 127.0.0.1
 	@app host {$APP_HOST}
 	handle @app {
 		import headers
+		import signaling
 		handle_path /downloads/windows/* {
 			root * /releases
 			header Cache-Control "no-cache"
@@ -65,17 +84,7 @@ http://:{$GATEWAY_PORT:8091} {
 	}
 	@rtc host {$RTC_HOST}
 	handle @rtc {
-		@signaling path /rtc /rtc/*
-		handle @signaling {
-			header >Access-Control-Allow-Origin {$PUBLIC_URL}
-			forward_auth 127.0.0.1:8080 {
-				uri /internal/signaling-auth
-				header_up X-Internal-Secret {$INTERNAL_SECRET}
-				header_up X-Media-Token {query.access_token}
-				header_up -X-Forwarded-Uri
-			}
-			reverse_proxy 127.0.0.1:7880
-		}
+		import signaling
 		respond 404
 	}
 	respond 404

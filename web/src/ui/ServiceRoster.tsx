@@ -17,7 +17,9 @@ export function ServiceRoster({ meeting, onOpen }: { meeting: Meeting; onOpen: (
     enabled: !ended && !!member && member.status !== 'WAITING',
     refetchInterval: ended ? false : 2000,
   });
-  const bot = snapshot.participants.find((p) => p.service === 'music');
+  const bot = snapshot.participants.find(
+    (p) => p.service === 'music' && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(p.status),
+  );
   const state = music.data;
   const current = state?.enabled ? state.queue[0] : undefined;
   const status =

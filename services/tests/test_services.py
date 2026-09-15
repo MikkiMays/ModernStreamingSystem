@@ -5,6 +5,7 @@ import unittest
 import uuid
 import wave
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -13,6 +14,7 @@ from fastapi import HTTPException
 from cord_services.app import create_app
 from cord_services.core import Core
 from cord_services.media import probe
+from cord_services.music import Music
 from cord_services.store import Store, now
 from cord_services.telegram import COMMANDS, Telegram
 
@@ -376,6 +378,142 @@ class QueueTests(Fixture):
             await probe(path)
         audio(path)
         self.assertAlmostEqual((await probe(path))["duration"], 1, places=2)
+
+    async def test_skip_and_seek_keep_feeding_the_published_audio_source(self):
+        first, second = track(self.store, "One"), track(self.store, "Two")
+        await self.music.enqueue(ROOM, first)
+        await self.music.enqueue(ROOM, second)
+        state = self.store.get(ROOM)
+        state.update(
+            enabled=True,
+            admission={
+                "roomId": ROOM,
+                "participantId": BOT,
+                "credential": "bot.secret",
+            },
+        )
+        self.store.save(state)
+
+        decoder_calls = []
+
+        class FakeProcess:
+            def __init__(self, sample):
+                self.sample = sample
+                self.stdout = self
+                self.returncode = None
+
+            async def readexactly(self, size):
+                await asyncio.sleep(0.001)
+                return self.sample.to_bytes(2, "little", signed=True) * (size // 2)
+
+        class FakeSource:
+            instance = None
+
+            def __init__(self, *_args, **_kwargs):
+                self.frames = []
+                self.broken = False
+                self.clear_count = 0
+                FakeSource.instance = self
+
+            async def capture_frame(self, frame):
+                if self.broken:
+                    await asyncio.Event().wait()
+                self.frames.append(int.from_bytes(frame.data[:2], "little", signed=True))
+
+            async def wait_for_playout(self):
+                return None
+
+            def clear_queue(self):
+                self.clear_count += 1
+                self.broken = True
+
+            async def aclose(self):
+                return None
+
+        class FakeRoom:
+            def __init__(self):
+                self.local_participant = SimpleNamespace(
+                    publish_track=AsyncMock(return_value=None)
+                )
+
+            async def connect(self, *_args, **_kwargs):
+                return None
+
+            def isconnected(self):
+                return True
+
+            async def disconnect(self):
+                return None
+
+        class FakeOptions:
+            def __init__(self, **_kwargs):
+                self.audio_encoding = SimpleNamespace(max_bitrate=0)
+
+        fake_rtc = SimpleNamespace(
+            Room=FakeRoom,
+            RoomOptions=lambda **kwargs: kwargs,
+            AudioSource=FakeSource,
+            AudioFrame=lambda data, *_args: SimpleNamespace(data=data),
+            LocalAudioTrack=SimpleNamespace(create_audio_track=lambda *_args: object()),
+            TrackPublishOptions=FakeOptions,
+            TrackSource=SimpleNamespace(SOURCE_MICROPHONE="microphone"),
+        )
+
+        async def fake_decoder(path, position):
+            decoder_calls.append((path.name, position))
+            return FakeProcess(100 if path.name == first["file"] else 200)
+
+        async def fake_stop(process):
+            process.returncode = 0
+
+        async def core_request(method, path, data=None, credential=None, headers=None):
+            if path.endswith("/media/token"):
+                return {"token": "test"}
+            raise AssertionError(path)
+
+        self.core.request = AsyncMock(side_effect=core_request)
+        self.core.command = AsyncMock(return_value={})
+        player = Music(self.store, self.core, "ws://rtc.test")
+
+        async def received(sample, count=1):
+            for _ in range(100):
+                if (
+                    FakeSource.instance
+                    and FakeSource.instance.frames.count(sample) >= count
+                ):
+                    return
+                await asyncio.sleep(0.01)
+            self.fail(f"Playback did not produce sample {sample}")
+
+        with (
+            patch("cord_services.music.rtc", fake_rtc),
+            patch("cord_services.music.decoder", side_effect=fake_decoder),
+            patch("cord_services.music.stop_process", side_effect=fake_stop),
+        ):
+            task = asyncio.create_task(player.run(ROOM))
+            try:
+                await received(100)
+                await player.command(
+                    ROOM, {"commandId": str(uuid.uuid4()), "action": "skip"}
+                )
+                await received(200)
+                before_seek = FakeSource.instance.frames.count(200)
+                await player.command(
+                    ROOM,
+                    {
+                        "commandId": str(uuid.uuid4()),
+                        "action": "seek",
+                        "position": 0.5,
+                    },
+                )
+                await received(200, before_seek + 1)
+                self.assertIn((second["file"], 0.5), decoder_calls)
+                self.assertEqual(FakeSource.instance.clear_count, 0)
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+        self.assertEqual(FakeSource.instance.clear_count, 1)
 
 
 class TelegramTests(Fixture):

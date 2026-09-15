@@ -87,6 +87,7 @@ async def probe(path: Path) -> dict:
 
 
 async def decoder(path: Path, position: float):
+    seek = max(0.0, min(3600.0, position))
     return await asyncio.create_subprocess_exec(
         "ffmpeg",
         "-nostdin",
@@ -96,10 +97,10 @@ async def decoder(path: Path, position: float):
         "1",
         "-protocol_whitelist",
         "file,pipe",
-        "-ss",
-        str(max(0, position)),
         "-i",
         str(path),
+        "-ss",
+        str(seek),
         "-vn",
         "-map",
         "0:a:0",

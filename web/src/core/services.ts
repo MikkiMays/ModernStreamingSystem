@@ -9,6 +9,7 @@ export interface MusicTrack {
   addedBy: string;
   source: 'upload' | 'telegram' | 'yandex';
 }
+export type MusicSource = 'upload' | 'telegram' | 'yandex';
 export function musicSourceName(source: MusicTrack['source']) {
   return { upload: 'Аудиофайл', telegram: 'Telegram', yandex: 'Яндекс Музыка' }[source];
 }
@@ -101,6 +102,8 @@ export interface YandexAuthorization {
   expiresAt: number;
   interval: number;
   status: 'pending' | 'connected';
+  connected?: boolean;
+  name?: string | null;
 }
 export interface YandexTrack {
   id: string;

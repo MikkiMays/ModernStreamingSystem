@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340" width="860" height="340" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect width="860" height="340" rx="12" fill="#ffffff"/>
+  <text x="28" y="40" font-size="19" font-weight="700" fill="#111827">Что вписать в панели вашего DNS-провайдера</text>
+  <text x="28" y="64" font-size="13.5" fill="#6b7280">Пример для домена example.com и сервера 203.0.113.10</text>
+
+  <!-- table header -->
+  <rect x="28" y="88" width="804" height="38" rx="8" fill="#f3f4f6" stroke="#d1d5db"/>
+  <text x="52" y="112" font-size="12.5" font-weight="700" fill="#374151">Тип</text>
+  <text x="140" y="112" font-size="12.5" font-weight="700" fill="#374151">Имя / Host</text>
+  <text x="380" y="112" font-size="12.5" font-weight="700" fill="#374151">Значение / Points to</text>
+  <text x="640" y="112" font-size="12.5" font-weight="700" fill="#374151">Proxy / TTL</text>
+
+  <!-- row -->
+  <rect x="28" y="126" width="804" height="46" fill="#ffffff" stroke="#e5e7eb"/>
+  <rect x="36" y="136" width="44" height="26" rx="5" fill="#dbeafe"/>
+  <text x="58" y="154" font-size="12.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">A</text>
+  <text x="140" y="154" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#111827">meet</text>
+  <text x="380" y="154" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#111827">203.0.113.10</text>
+  <text x="640" y="154" font-size="12.5" fill="#b45309">DNS only · Auto</text>
+
+  <text x="28" y="200" font-size="12.5" fill="#374151">Имя <tspan font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#111827">meet</tspan> внутри зоны example.com даёт адрес <tspan font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#111827">meet.example.com</tspan>.</text>
+  <text x="28" y="222" font-size="12.5" fill="#374151">Некоторые панели просят полное имя — тогда впишите <tspan font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#111827">meet.example.com</tspan> целиком.</text>
+
+  <!-- warning -->
+  <rect x="28" y="244" width="804" height="76" rx="10" fill="#fffbeb" stroke="#fcd34d"/>
+  <text x="48" y="270" font-size="13" font-weight="700" fill="#78350f">Оранжевое облако Cloudflare должно быть выключено</text>
+  <text x="48" y="292" font-size="12.5" fill="#92400e">Проксирование пропускает только HTTP. Медиа идёт по UDP и через прокси не пройдёт —</text>
+  <text x="48" y="311" font-size="12.5" fill="#92400e">звонок либо не соединится, либо свалится в TURN с лишней задержкой. Нужен режим «DNS only».</text>
+</svg>

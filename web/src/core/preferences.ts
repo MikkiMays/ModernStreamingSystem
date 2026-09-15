@@ -19,6 +19,8 @@ export const defaultAudio: AudioPreferences = {
 export interface Preferences {
   showPing: boolean;
   notificationSounds: boolean;
+  showIntegrationPanel: boolean;
+  yandexMusicToken: string;
   screen: ScreenProfile;
   camera: ScreenProfile;
   devices: DeviceChoice;
@@ -51,6 +53,8 @@ export function readPreferences(): Preferences {
   return {
     showPing: data.showPing === true,
     notificationSounds: data.notificationSounds !== false,
+    showIntegrationPanel: data.showIntegrationPanel !== false,
+    yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: profile(data.screen, defaultScreen),
     camera: profile(data.camera, defaultCamera),
     devices,

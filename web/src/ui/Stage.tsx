@@ -86,7 +86,15 @@ export function AudioLayer({
     </div>
   );
 }
-export function Stage({ meeting, onOpenServices }: { meeting: Meeting; onOpenServices: () => void }) {
+export function Stage({
+  meeting,
+  onOpenServices,
+  showServices,
+}: {
+  meeting: Meeting;
+  onOpenServices: () => void;
+  showServices: boolean;
+}) {
   const participants = useStore(meeting.snapshot).participants;
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
@@ -181,8 +189,15 @@ export function Stage({ meeting, onOpenServices }: { meeting: Meeting; onOpenSer
   const people = participants.filter(
     (p) => !p.service && p.status !== 'WAITING' && (!pinned || p.id === pinned),
   );
+  const showRoster =
+    showServices &&
+    !pinned &&
+    participants.some(
+      (participant) =>
+        participant.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(participant.status),
+    );
   return (
-    <div className={`stage conversation-stage ${pinned ? 'camera-stage' : 'with-integrations'}`}>
+    <div className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}>
       <div className="people-grid" data-count={people.length}>
         {people.map((person) => {
           const camera = tracks.find(
@@ -217,7 +232,7 @@ export function Stage({ meeting, onOpenServices }: { meeting: Meeting; onOpenSer
           );
         })}
       </div>
-      {!pinned && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
+      {showRoster && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
     </div>
   );
 }
