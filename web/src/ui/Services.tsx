@@ -51,12 +51,23 @@ export function Services({ meeting }: { meeting: Meeting }) {
     enabled: active,
     refetchInterval: active ? 2000 : false,
   });
+  // `busy` covers only what genuinely takes seconds and changes the room: adding the service,
+  // removing it, changing who may use it. The transport buttons are not that, and disabling
+  // them for the length of a round trip is what made the panel look like it was reloading.
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [link, setLink] = useState<{ command: string; expiresAt: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [seek, setSeek] = useState<number | null>(null);
+  /**
+   * What a press means, shown before the server has said it back.
+   *
+   * Every state carries a revision, so the overlay needs no timers and no reconciliation:
+   * it is based on the revision it was built from and disappears the moment anything newer
+   * arrives — the reply to this very command, or the next poll.
+   */
+  const [optimistic, setOptimistic] = useState<{ base: number; patch: Partial<MusicState> } | null>(null);
   const [musicSource, setMusicSource] = useState<MusicSource>('yandex');
   const [progressNow, setProgressNow] = useState(Date.now);
   const progressAnchor = useRef<{ position: number; trackId: string | undefined; at: number }>({
@@ -92,23 +103,38 @@ export function Services({ meeting }: { meeting: Meeting }) {
     if (rosterChanged) void meeting.refresh();
   };
   const run = async (job: () => Promise<MusicState>, rosterChanged = false) => {
-    if (busy || !canUse) return false;
-    setBusy(true);
+    if (!canUse) return false;
     setError('');
     try {
       update(await job(), rosterChanged);
       return true;
     } catch (e) {
+      // The server did not agree, so what is on screen is not true. Показываем, как есть.
+      setOptimistic(null);
       setError((e as Error).message);
       return false;
-    } finally {
-      setBusy(false);
     }
   };
-  const command = (action: MusicAction, extra?: Parameters<MusicApi['command']>[1]) =>
+  /** Shows the result of a press before the server has confirmed it. */
+  const foresee = (patch: Partial<MusicState> | ((state: MusicState) => Partial<MusicState>)) => {
+    if (!state) return;
+    setOptimistic({
+      base: state.revision,
+      patch: typeof patch === 'function' ? patch(state) : patch,
+    });
+  };
+  const command = (
+    action: MusicAction,
+    extra?: Parameters<MusicApi['command']>[1],
+    patch?: Partial<MusicState> | ((state: MusicState) => Partial<MusicState>),
+  ) => {
+    if (patch) foresee(patch);
     void run(() => api.command(action, extra));
-  const commitSeek = async (position: number) => {
-    if (await run(() => api.command('seek', { position }))) setSeek(null);
+  };
+  const commitSeek = (position: number) => {
+    foresee({ position });
+    setSeek(null);
+    void run(() => api.command('seek', { position }));
   };
   const connectYandexToken = async () => {
     if (musicSource !== 'yandex' || !yandexToken) return true;
@@ -122,19 +148,21 @@ export function Services({ meeting }: { meeting: Meeting }) {
       return false;
     }
   };
-  const enableMusic = async () => {
-    if (!canUse || busy || state?.enabled) return;
+  /** Joining and leaving the room take seconds and change who is in it; those do wait. */
+  const heavy = async (job: () => Promise<MusicState>) => {
+    if (busy || !canUse) return;
     setBusy(true);
-    setError('');
     try {
-      await connectYandexToken();
-      update(await api.enable(), true);
-    } catch (e) {
-      setError((e as Error).message);
+      await run(job, true);
     } finally {
       setBusy(false);
     }
   };
+  const enableMusic = () =>
+    void heavy(async () => {
+      await connectYandexToken();
+      return api.enable();
+    });
   const upload = async (files: File[]) => {
     if (!canUse || uploading || !files.length) return;
     setError('');
@@ -154,7 +182,14 @@ export function Services({ meeting }: { meeting: Meeting }) {
       uploadAbort.current = null;
     }
   };
-  const state = music.data;
+  const served = music.data;
+  const state =
+    served && optimistic && served.revision <= optimistic.base
+      ? ({ ...served, ...optimistic.patch } as MusicState)
+      : served;
+  useEffect(() => {
+    if (optimistic && served && served.revision > optimistic.base) setOptimistic(null);
+  }, [served, optimistic]);
   const current = state?.queue[0];
   const playing = !!current && state?.status === 'playing' && !state.paused;
   const reported = state?.position ?? 0;
@@ -255,11 +290,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
                   </select>
                 </label>
                 {canUse ? (
-                  <button
-                    className="button primary full"
-                    disabled={!canUse || busy}
-                    onClick={() => void enableMusic()}
-                  >
+                  <button className="button primary full" disabled={!canUse || busy} onClick={enableMusic}>
                     <Music2 size={18} />
                     Добавить во встречу
                   </button>
@@ -295,16 +326,14 @@ export function Services({ meeting }: { meeting: Meeting }) {
                       min="0"
                       max={Math.max(1, current.duration)}
                       step="1"
-                      disabled={!canUse || busy}
+                      disabled={!canUse}
                       aria-label="Позиция трека"
                       value={seek ?? playbackPosition}
                       onChange={(e) => setSeek(Number(e.target.value))}
-                      onPointerUp={(e) => {
-                        void commitSeek(Number(e.currentTarget.value));
-                      }}
+                      onPointerUp={(e) => commitSeek(Number(e.currentTarget.value))}
                       onKeyUp={(e) => {
                         if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
-                          void commitSeek(Number(e.currentTarget.value));
+                          commitSeek(Number(e.currentTarget.value));
                         }
                       }}
                     />
@@ -317,21 +346,33 @@ export function Services({ meeting }: { meeting: Meeting }) {
                 <div className="music-controls">
                   <IconButton
                     label={state.paused ? 'Продолжить музыку' : 'Пауза музыки'}
-                    disabled={!canUse || busy || !current}
-                    onClick={() => command(state.paused ? 'play' : 'pause')}
+                    disabled={!canUse || !current}
+                    onClick={() =>
+                      command(state.paused ? 'play' : 'pause', undefined, {
+                        paused: !state.paused,
+                        status: state.paused ? 'playing' : 'paused',
+                      })
+                    }
                   >
                     {state.paused ? <Play size={22} /> : <Pause size={22} />}
                   </IconButton>
                   <IconButton
                     label="Следующий трек"
-                    disabled={!canUse || busy || !current}
-                    onClick={() => command('skip')}
+                    disabled={!canUse || !current}
+                    onClick={() =>
+                      command('skip', undefined, (now) => ({
+                        queue: now.repeat
+                          ? [...now.queue.slice(1), ...now.queue.slice(0, 1)]
+                          : now.queue.slice(1),
+                        position: 0,
+                      }))
+                    }
                   >
                     <SkipForward size={22} />
                   </IconButton>
                   <IconButton
                     label="Перемешать очередь"
-                    disabled={!canUse || busy || state.queue.length < 3}
+                    disabled={!canUse || state.queue.length < 3}
                     onClick={() => command('shuffle')}
                   >
                     <Shuffle size={19} />
@@ -340,8 +381,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
                     label="Повторять очередь"
                     aria-pressed={state.repeat}
                     className={state.repeat ? 'selected' : ''}
-                    disabled={!canUse || busy}
-                    onClick={() => command('repeat', { enabled: !state.repeat })}
+                    disabled={!canUse}
+                    onClick={() => command('repeat', { enabled: !state.repeat }, { repeat: !state.repeat })}
                   >
                     <Repeat2 size={19} />
                   </IconButton>
@@ -411,8 +452,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
                   <h4>Сейчас и далее · {state.queue.length}</h4>
                   <IconButton
                     label="Очистить следующие треки"
-                    disabled={!canUse || busy || state.queue.length < 2}
-                    onClick={() => command('clear')}
+                    disabled={!canUse || state.queue.length < 2}
+                    onClick={() => command('clear', undefined, (now) => ({ queue: now.queue.slice(0, 1) }))}
                   >
                     <Trash2 size={16} />
                   </IconButton>
@@ -431,16 +472,26 @@ export function Services({ meeting }: { meeting: Meeting }) {
                       {i > 1 && (
                         <IconButton
                           label={`Следующим: ${track.title}`}
-                          disabled={!canUse || busy}
-                          onClick={() => command('next', { trackId: track.id })}
+                          disabled={!canUse}
+                          onClick={() =>
+                            command('next', { trackId: track.id }, (now) => {
+                              const rest = now.queue.filter((t) => t.id !== track.id);
+                              return { queue: [...rest.slice(0, 1), track, ...rest.slice(1)] };
+                            })
+                          }
                         >
                           <ListPlus size={16} />
                         </IconButton>
                       )}
                       <IconButton
                         label={`Убрать трек: ${track.title}`}
-                        disabled={!canUse || busy}
-                        onClick={() => command('remove', { trackId: track.id })}
+                        disabled={!canUse}
+                        onClick={() =>
+                          command('remove', { trackId: track.id }, (now) => ({
+                            queue: now.queue.filter((t) => t.id !== track.id),
+                            position: now.queue[0]?.id === track.id ? 0 : now.position,
+                          }))
+                        }
                       >
                         <Trash2 size={15} />
                       </IconButton>
@@ -453,7 +504,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
               <button
                 className="button ghost full"
                 disabled={!canUse || busy}
-                onClick={() => void run(api.disable, true)}
+                onClick={() => void heavy(api.disable)}
               >
                 <Unplug size={17} />
                 Убрать сервис из встречи
