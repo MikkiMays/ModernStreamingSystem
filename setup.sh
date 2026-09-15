@@ -189,7 +189,13 @@ cat <<BANNER
    Server address:  $ORIGIN
 
    Open that address in a browser, or paste it into Cord
-   for Windows under  Settings → Servers → Add server.
+   for Windows: the connect screen, blue + , then Connect.
+
+   The server is open: anyone with the address can create and
+   join meetings. To ask for a password instead, put one in
+   ACCESS_PASSWORD in .env and restart the core:
+
+     docker compose up -d --no-deps --force-recreate core
   ────────────────────────────────────────────────────────────
 
 BANNER
