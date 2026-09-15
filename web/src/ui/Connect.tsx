@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, LoaderCircle, Plus, Server, Settings } from 'lucide-react';
 import type { Capabilities } from '../api/types';
-import { IconButton, Logo, ThemeButton, type Theme } from './primitives';
+import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
 import {
   currentServerUrl,
   findServer,
@@ -93,6 +93,7 @@ export function Connect({
         <Logo />
         <div className="header-end">
           <span className="header-note">Подключение к серверу</span>
+          <DownloadLink />
           <ThemeButton theme={theme} setTheme={setTheme} />
         </div>
       </header>

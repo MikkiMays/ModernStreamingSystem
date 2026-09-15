@@ -3211,3 +3211,186 @@ progress {
   height: 40px;
   color: var(--muted);
 }
+
+/* ── Значок приложения и страница скачивания ───────────────────────────────────
+   Пропорции значка взяты из `Cord.ico`: три полосы под пятнадцатью градусами на
+   синей плитке. Рисуется, а не грузится, — чёткий в любом размере и без запроса. */
+.app-icon {
+  width: var(--icon);
+  height: var(--icon);
+  min-width: var(--icon);
+  border-radius: calc(var(--icon) * 0.19);
+  background: #3564f3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--icon) * 0.086);
+}
+.app-icon i {
+  display: block;
+  width: calc(var(--icon) * 0.086);
+  height: calc(var(--icon) * 0.258);
+  border-radius: calc(var(--icon) * 0.05);
+  background: #fff;
+  transform: rotate(-15deg);
+}
+.app-icon i:nth-child(2) {
+  height: calc(var(--icon) * 0.477);
+}
+.app-icon i:nth-child(3) {
+  height: calc(var(--icon) * 0.352);
+}
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 13px 7px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.download-link:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.download-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.download-page > .app-header {
+  width: 100%;
+}
+.header-home {
+  color: inherit;
+}
+.download-main {
+  flex: 1;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+  display: grid;
+  gap: 22px;
+  align-content: center;
+}
+.download-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 36px;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.download-card h1 {
+  margin: 4px 0 0;
+  font-size: 32px;
+}
+.download-card > .muted {
+  margin: 0;
+  font-size: 14px;
+}
+.download-primary {
+  max-width: 360px;
+  margin-top: 6px;
+  font-size: 15px;
+  min-height: 54px;
+}
+.download-note {
+  margin: 0;
+  max-width: 460px;
+}
+.download-digest {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-size: 11px;
+  color: var(--muted);
+}
+.download-digest code {
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--text);
+}
+.download-digest .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+}
+.download-portable {
+  font-size: 13px;
+}
+.download-warning {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 26px 30px;
+  display: grid;
+  gap: 12px;
+}
+.download-warning h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 18px;
+}
+.download-warning p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.download-warning ol {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+/* `display: grid` on the list would turn its items into grid items and take the numbers
+   away — and the numbers are the instruction. */
+.download-warning li + li {
+  margin-top: 6px;
+}
+.download-warning .download-note {
+  text-align: left;
+  max-width: none;
+}
+.download-warning code {
+  font-size: 12px;
+  color: var(--text);
+}
+@media (width < 700px) {
+  .download-main {
+    padding: 0 16px 48px;
+    align-content: start;
+  }
+  .download-card {
+    padding: 26px 20px;
+  }
+  .download-card h1 {
+    font-size: 25px;
+  }
+  .download-warning {
+    padding: 20px;
+  }
+  .download-link span {
+    display: none;
+  }
+  .download-link {
+    padding: 7px;
+  }
+}

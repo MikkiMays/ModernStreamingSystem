@@ -14,6 +14,7 @@ import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
 import { savePreferences } from './core/preferences';
 import { Connect } from './ui/Connect';
+import { Download } from './ui/Download';
 import { adopt, session } from './core/session';
 import { useStore } from './ui/primitives';
 
@@ -278,7 +279,22 @@ function Workspace() {
     </>
   );
 }
+/**
+ * Getting the client is not part of using one. `/download` therefore stands outside the
+ * application entirely: no server session, no room, no query cache — somebody who was handed
+ * the address should be able to fetch Cord before they have a password or an invitation.
+ */
+function Downloads() {
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('cord:theme', theme);
+  }, [theme]);
+  return <Download theme={theme} setTheme={setTheme} />;
+}
+
 export default function App() {
+  if (location.pathname === '/download') return <Downloads />;
   return (
     <QueryClientProvider client={queryClient}>
       <Workspace />
