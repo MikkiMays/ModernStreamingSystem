@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import gc
 import logging
 import random
 import uuid
 from collections import defaultdict
 
 from fastapi import HTTPException
-from livekit import rtc
 
 from .core import Core
-from .media import MAX_ROOM, MAX_TOTAL, decoder, stop_process
+from .media import MAX_ROOM, MAX_TOTAL
+from .publisher import Publisher
 from .store import Store, now
 
 logger = logging.getLogger(__name__)
@@ -25,7 +24,6 @@ class Music:
         self.rtc_url = rtc_url.replace("http://", "ws://").replace("https://", "wss://")
         self.locks = defaultdict(asyncio.Lock)
         self.tasks: dict[str, asyncio.Task] = {}
-        self.sources: dict[str, rtc.AudioSource] = {}
         self.stopping = False
 
     def start(self, room_id: str):
@@ -177,10 +175,14 @@ class Music:
             return self.store.public(room_id)
 
     async def run(self, room_id: str):
-        room = rtc.Room()
-        source = rtc.AudioSource(48000, 2, queue_size_ms=100)
-        self.sources[room_id] = source
-        process = None
+        """Держит музыку в комнате: издатель, очередь и позиция.
+
+        Очередь, эпохи и сроки живут здесь, звук — в отдельном процессе. Эпоха это то, что
+        связывает одно с другим: любая команда, меняющая воспроизведение, увеличивает её, и
+        события старой эпохи уже не имеют силы. Поэтому пауза, перемотка и переключение
+        действуют сразу и не спорят с тем, что было отправлено до них.
+        """
+        publisher = None
         watcher = None
         try:
             state = self.store.get(room_id)
@@ -213,126 +215,86 @@ class Music:
                     f"/api/v1/rooms/{room_id}/media/token",
                     credential=admission["credential"],
                 )
-            await asyncio.wait_for(
-                room.connect(
-                    self.rtc_url, token["token"], rtc.RoomOptions(auto_subscribe=False)
-                ),
-                15,
+            publisher = await asyncio.wait_for(
+                Publisher.start(self.rtc_url, token["token"]), 30
             )
-            track = rtc.LocalAudioTrack.create_audio_track("Музыка", source)
-            options = rtc.TrackPublishOptions(
-                source=rtc.TrackSource.SOURCE_MICROPHONE, dtx=False, red=True
-            )
-            options.audio_encoding.max_bitrate = 256000
-            await room.local_participant.publish_track(track, options)
             state = self.store.get(room_id)
             state.update(status="idle", error=None)
             self.store.save(state)
-            watcher = asyncio.create_task(self.watch(room_id, admission, room))
-            disconnected_at = None
-            while self.store.get(room_id)["enabled"]:
+            watcher = asyncio.create_task(self.watch(room_id, admission, publisher))
+            playing: tuple[str, int] | None = None
+            while True:
                 state = self.store.get(room_id)
-                if not room.isconnected():
-                    disconnected_at = disconnected_at or now()
-                    if now() - disconnected_at > 20000:
-                        raise ConnectionError("Media connection lost")
-                    await asyncio.sleep(0.2)
-                    continue
-                disconnected_at = None
-                if state["paused"] or not state["queue"]:
-                    status = "paused" if state["paused"] and state["queue"] else "idle"
+                if not state["enabled"]:
+                    break
+                queue = state["queue"]
+                wanted = (
+                    None
+                    if state["paused"] or not queue
+                    else (queue[0]["id"], state["epoch"])
+                )
+                if wanted != playing:
+                    if wanted is None:
+                        await publisher.pause()
+                        playing = None
+                    else:
+                        current = queue[0]
+                        path = self.store.files / current["file"]
+                        if not path.is_file():
+                            await self.failed_track(
+                                room_id, current["id"], "Файл трека больше недоступен"
+                            )
+                            continue
+                        await publisher.play(
+                            str(path), state["position"], state["epoch"]
+                        )
+                        playing = wanted
+                    status = "playing" if wanted else ("paused" if queue else "idle")
+                    state = self.store.get(room_id)
                     if state["status"] != status:
                         state["status"] = status
                         self.store.save(state)
-                    await asyncio.sleep(0.2)
+                # Пауза и перемотка должны быть слышны сразу, поэтому ждём коротко и часто.
+                # Чтобы это ничего не стоило, за изменениями следит номер ревизии, а полное
+                # состояние — с очередью на сотню треков — читается только когда он сдвинулся.
+                seen = self.store.revision(room_id)
+                event = None
+                while not event and self.store.revision(room_id) == seen:
+                    event = await publisher.event(0.05)
+                if not event:
                     continue
-                current = state["queue"][0]
-                epoch = state["epoch"]
-                path = self.store.files / current["file"]
-                if not path.is_file():
-                    await self.failed_track(
-                        room_id, current["id"], "Файл трека больше недоступен"
+                kind = event.get("event")
+                if kind == "closed":
+                    raise ConnectionError(
+                        event.get("message") or "Связь с комнатой потеряна"
                     )
-                    continue
-                process = await decoder(path, state["position"])
+                epoch = event.get("epoch")
+                position = event.get("value")
                 latest = self.store.get(room_id)
-                if (
-                    not latest["enabled"]
-                    or latest["epoch"] != epoch
-                    or not latest["queue"]
-                    or latest["queue"][0]["id"] != current["id"]
-                ):
-                    await stop_process(process)
-                    process = None
+                if latest["epoch"] != epoch or not latest["queue"]:
                     continue
-                latest["status"] = "playing"
-                self.store.save(latest)
-                completed = False
-                decoder_failed = False
-                try:
-                    while True:
-                        state = self.store.get(room_id)
-                        if (
-                            not state["enabled"]
-                            or state["epoch"] != epoch
-                            or not state["queue"]
-                            or state["queue"][0]["id"] != current["id"]
-                        ):
-                            break
-                        # A finite decoder read keeps commands responsive if a damaged file stalls.
-                        try:
-                            data = await asyncio.wait_for(
-                                process.stdout.readexactly(3840), 5
-                            )
-                        except asyncio.IncompleteReadError as end:
-                            data = end.partial
-                            completed = True
-                        if data:
-                            data = data[: len(data) // 4 * 4]
-                            if data:
-                                await asyncio.wait_for(
-                                    source.capture_frame(
-                                        rtc.AudioFrame(data, 48000, 2, len(data) // 4)
-                                    ),
-                                    5,
-                                )
-                                state = self.store.get(room_id)
-                                if state["epoch"] == epoch:
-                                    state["position"] = min(
-                                        current["duration"],
-                                        state["position"] + len(data) / 192000,
-                                    )
-                                    # State is durable; avoid a synchronous disk write for every 20ms frame.
-                                    self.store.save(state, changed=False)
-                        if completed:
-                            await source.wait_for_playout()
-                            await asyncio.wait_for(process.wait(), 2)
-                            decoder_failed = process.returncode != 0
-                            break
-                except TimeoutError:
-                    completed = True
-                    decoder_failed = True
-                finally:
-                    await stop_process(process)
-                    process = None
-                    # livekit-python 1.1.x can leave this native source unable to
-                    # accept more frames after clear_queue(). Let its bounded 100 ms
-                    # buffer drain so skip and seek can reuse the published track.
-                state = self.store.get(room_id)
-                if (
-                    completed
-                    and state["epoch"] == epoch
-                    and state["queue"]
-                    and state["queue"][0]["id"] == current["id"]
-                ):
-                    if decoder_failed:
-                        state["error"] = "Не удалось декодировать трек"
-                    state["queue"].pop(0)
-                    if state["repeat"] and not decoder_failed:
-                        state["queue"].append(current)
-                    state.update(position=0.0, epoch=state["epoch"] + 1)
-                    self.store.save(state)
-                    self.store.prune_files([current["file"]])
+                if kind == "position" and isinstance(position, (int, float)):
+                    latest["position"] = min(
+                        latest["queue"][0]["duration"], max(0.0, float(position))
+                    )
+                    # Позиция переживает перезапуск, но писать её на диск двадцать раз в
+                    # секунду незачем: хранилище обновляется, файл — раз в секунду.
+                    self.store.save(latest, changed=False)
+                elif kind == "finished":
+                    finished = latest["queue"].pop(0)
+                    if latest["repeat"]:
+                        latest["queue"].append(finished)
+                    latest.update(position=0.0, epoch=latest["epoch"] + 1)
+                    self.store.save(latest)
+                    self.store.prune_files([finished["file"]])
+                    playing = None
+                elif kind == "failed":
+                    await self.failed_track(
+                        room_id,
+                        latest["queue"][0]["id"],
+                        "Не удалось воспроизвести трек",
+                    )
+                    playing = None
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -347,20 +309,8 @@ class Music:
             if watcher:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
-            if process:
-                await stop_process(process)
-            source.clear_queue()
-            await source.aclose()
-            self.sources.pop(room_id, None)
-            with contextlib.suppress(Exception):
-                await room.disconnect()
-            # rtc.Room exposes no explicit close: the native ICE sockets are released
-            # only when the FFI handle is dropped. The room and its event handlers form
-            # reference cycles, so refcounting alone leaves them alive and the sockets
-            # leak for the lifetime of the process. Drop our references and collect now.
-            room = None
-            source = None
-            gc.collect()
+            if publisher:
+                await publisher.close()
             state = self.store.get(room_id)
             if state["admission"]:
                 with contextlib.suppress(HTTPException):
@@ -372,7 +322,7 @@ class Music:
                 state["status"] = "disabled"
             self.store.save(state)
 
-    async def watch(self, room_id: str, admission: dict, room: rtc.Room):
+    async def watch(self, room_id: str, admission: dict, publisher: Publisher):
         while True:
             await asyncio.sleep(5)
             try:
@@ -401,7 +351,10 @@ class Music:
                     and not p.get("service")
                     and p["status"] != "WAITING"
                 ]
-                if member["status"] in ("JOINING", "RECOVERING") and room.isconnected():
+                if (
+                    member["status"] in ("JOINING", "RECOVERING")
+                    and publisher.connected
+                ):
                     await self.core.request(
                         "POST",
                         f"/api/v1/rooms/{room_id}/commands",

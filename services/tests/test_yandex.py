@@ -186,19 +186,26 @@ class YandexTests(Fixture):
                 lambda _: httpx.Response(200, content=wav.read_bytes())
             )
         )
-        self.fake.tracks_download_info.return_value = [
-            SimpleNamespace(
+
+        def option(codec, bitrate, url):
+            return SimpleNamespace(
                 preview=False,
-                codec="mp3",
-                bitrate_in_kbps=320,
+                codec=codec,
+                bitrate_in_kbps=bitrate,
                 download_info_url="https://music.yandex.ru/download-info/123",
-                get_direct_link_async=AsyncMock(
-                    return_value="https://cdn.yandex.net/test.mp3"
-                ),
+                get_direct_link_async=AsyncMock(return_value=url),
             )
+
+        best = option("aac", 320, "https://cdn.yandex.net/test.aac")
+        self.fake.tracks_download_info.return_value = [
+            option("mp3", 192, "https://cdn.yandex.net/low.mp3"),
+            best,
+            option("mp3", 320, "https://cdn.yandex.net/test.mp3"),
         ]
         command = str(uuid.uuid4())
         await self.yandex.enqueue(ROOM, scope, "123", command, "Tester")
+        # Одного трека Яндекс предлагает несколько вариантов, и комната слушает лучший из них.
+        best.get_direct_link_async.assert_awaited()
         await self.yandex.enqueue(ROOM, scope, "123", command, "Tester")
         self.assertEqual(len(self.store.get(ROOM)["queue"]), 1)
         self.assertEqual(self.store.get(ROOM)["queue"][0]["source"], "yandex")
