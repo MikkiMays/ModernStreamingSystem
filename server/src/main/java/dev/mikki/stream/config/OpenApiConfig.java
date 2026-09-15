@@ -33,7 +33,8 @@ public class OpenApiConfig {
                           "view.open",
                           "view.close",
                           "view.playing",
-                          "microphone.mute")));
+                          "microphone.mute",
+                          "profile.avatar")));
       schemas
           .get("Event")
           .getProperties()

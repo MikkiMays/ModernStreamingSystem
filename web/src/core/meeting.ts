@@ -7,6 +7,7 @@ import { Store } from './store';
 import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
 import { NotificationSounds } from './sounds';
+import { readPreferences } from './preferences';
 
 export class Meeting {
   readonly api: RoomApi;
@@ -51,6 +52,10 @@ export class Meeting {
     this.sounds.start();
     this.control.start();
     this.accept(this.snapshot.get());
+    // The picture belongs to this device, so each room has to be told about it once. A room
+    // that rejects it is not worth interrupting the join for.
+    const avatar = readPreferences().avatar;
+    if (avatar) void this.command('profile.avatar', avatar).catch(() => {});
     // Admission must also work when an intermediary stalls the events socket.
     this.syncTimer = setInterval(() => {
       if (this.media.state.get().status !== 'connected' || this.control.state.get() !== 'connected')

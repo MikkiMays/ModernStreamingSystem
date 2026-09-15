@@ -235,7 +235,8 @@
               "view.open",
               "view.close",
               "view.playing",
-              "microphone.mute"
+              "microphone.mute",
+              "profile.avatar"
             ],
             "type": "string"
           }
@@ -505,6 +506,9 @@
       },
       "Participant": {
         "properties": {
+          "avatar": {
+            "type": "string"
+          },
           "generation": {
             "format": "int64",
             "type": "integer"
@@ -563,6 +567,7 @@
           }
         },
         "required": [
+          "avatar",
           "generation",
           "id",
           "name",

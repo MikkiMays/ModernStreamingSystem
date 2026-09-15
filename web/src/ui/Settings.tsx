@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, MonitorUp, Mic, Keyboard, User } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
@@ -14,7 +14,73 @@ import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
 import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
-import { Modal, useStore } from './primitives';
+import { Avatar, Modal, useStore } from './primitives';
+import { readAvatar } from '../core/avatar';
+
+/**
+ * A picture is only offered where there is a comfortable way to pick one. On a phone the file
+ * chooser opens a camera roll for something shown at 40 pixels, which is not worth the step.
+ */
+function AvatarPicker({
+  preferences,
+  change,
+}: {
+  preferences: Preferences;
+  change: (patch: Partial<Preferences>) => void;
+}) {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const file = useRef<HTMLInputElement>(null);
+  const desktop =
+    typeof matchMedia !== 'function' || matchMedia('(pointer: fine)').matches || !!window.chrome?.webview;
+  if (!desktop) return null;
+  return (
+    <div>
+      <span className="avatar-picker-label">Картинка профиля</span>
+      <div className="avatar-picker">
+        <Avatar name={preferences.name || 'Вы'} src={preferences.avatar || null} />
+        <div className="avatar-picker-actions">
+          <input
+            ref={file}
+            type="file"
+            accept="image/*"
+            hidden
+            aria-label="Выбрать картинку профиля"
+            onChange={async (e) => {
+              const chosen = e.target.files?.[0];
+              e.target.value = '';
+              if (!chosen) return;
+              setBusy(true);
+              setError('');
+              try {
+                change({ avatar: await readAvatar(chosen) });
+              } catch (problem) {
+                setError((problem as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+          <button className="button secondary" disabled={busy} onClick={() => file.current?.click()}>
+            {busy ? 'Обрабатываем…' : preferences.avatar ? 'Заменить' : 'Выбрать картинку'}
+          </button>
+          {preferences.avatar && (
+            <button className="button ghost" onClick={() => change({ avatar: '' })}>
+              Убрать
+            </button>
+          )}
+        </div>
+      </div>
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : (
+        <p className="form-footnote">Её увидят участники встречи. Картинка уменьшается до 64×64.</p>
+      )}
+    </div>
+  );
+}
 
 export function QualityFields({
   kind,
@@ -225,6 +291,10 @@ export function Settings({
   const change = (patch: Partial<Preferences>) => {
     if (meeting) meeting.media.saveSettings(patch);
     else saved.set(savePreferences(patch));
+    // The room learns the picture when joining, so a change made during a meeting has to be
+    // sent as well or it would only appear the next time.
+    if (meeting && patch.avatar !== undefined)
+      void meeting.command('profile.avatar', patch.avatar).catch(() => {});
   };
   useEffect(() => {
     if (!open) return;
@@ -338,6 +408,7 @@ export function Settings({
           <p className="form-footnote">
             Это имя будет подставляться при следующем входе во встречу. Его можно изменить перед подключением.
           </p>
+          <AvatarPicker preferences={preferences} change={change} />
           <label className="check-setting">
             <input
               type="checkbox"

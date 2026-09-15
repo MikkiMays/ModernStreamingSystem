@@ -26,6 +26,8 @@ export interface Preferences {
   devices: DeviceChoice;
   audio: AudioPreferences;
   name: string;
+  /** A small square data URI shown to the room, or an empty string. */
+  avatar: string;
   micHotkey: Hotkey | null;
 }
 const key = 'cord:preferences:v1';
@@ -74,6 +76,12 @@ export function readPreferences(): Preferences {
       0,
       40,
     ),
+    // The server checks this again before showing it to anyone; this only keeps a corrupt
+    // entry from being sent in the first place.
+    avatar:
+      typeof data.avatar === 'string' && data.avatar.startsWith('data:image/') && data.avatar.length <= 3500
+        ? data.avatar
+        : '',
     micHotkey:
       data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
   };

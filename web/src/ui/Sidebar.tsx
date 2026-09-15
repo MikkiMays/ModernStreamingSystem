@@ -149,7 +149,7 @@ export function Sidebar({
               .filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
               .map((p) => (
                 <ParticipantMenu className="participant-row" key={p.id} meeting={meeting} person={p}>
-                  <Avatar name={p.name} />
+                  <Avatar name={p.name} src={p.avatar} />
                   <div className="participant-info">
                     <strong>
                       {p.name}

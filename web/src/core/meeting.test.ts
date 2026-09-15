@@ -59,6 +59,7 @@ beforeEach(() => {
       {
         id: 'guest',
         name: 'Guest',
+        avatar: '',
         status: 'WAITING',
         owner: false,
         generation: 0,

@@ -370,7 +370,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar";
         };
         Create: {
             approvalRequired?: boolean;
@@ -444,6 +444,7 @@ export interface components {
             text: string;
         };
         Participant: {
+            avatar: string;
             /** Format: int64 */
             generation: number;
             id: string;

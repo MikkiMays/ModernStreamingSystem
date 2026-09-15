@@ -192,7 +192,7 @@ export function Prejoin({
             />
             {!camera && (
               <div className="preview-avatar">
-                <Avatar name={name || 'Вы'} large />
+                <Avatar name={name || 'Вы'} src={preferences.avatar || null} large />
                 <p>Камера выключена</p>
               </div>
             )}

@@ -137,6 +137,41 @@ class RoomServiceTest {
     assertThat(rooms.read(host.roomId()).members.get(host.participantId()).screenId).isNull();
   }
 
+  private Ack avatar(Admission admission, String value) {
+    return rooms.command(
+        admission.roomId(),
+        admission.credential(),
+        new Command(UUID.randomUUID(), "profile.avatar", value, null, 0));
+  }
+
+  @Test
+  void avatarIsShownToTheRoomOnlyWhenItIsAnImageThisServerAccepted() {
+    var host = host();
+    var png =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    avatar(host, png);
+    assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
+        .anySatisfy(p -> assertThat(p.avatar()).isEqualTo(png));
+
+    // Anything that is not a base64 image data URI never reaches another participant.
+    for (var rejected :
+        List.of(
+            "https://example.com/face.png",
+            "data:text/html;base64,PHNjcmlwdD4=",
+            "data:image/png;base64,not-base64!!",
+            "data:image/svg+xml;base64,PHN2Zy8+",
+            "data:image/png;base64," + "A".repeat(4000)))
+      assertThatThrownBy(() -> avatar(host, rejected)).isInstanceOf(Problem.class);
+
+    // The picture that was already accepted survives every rejected attempt.
+    assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
+        .anySatisfy(p -> assertThat(p.avatar()).isEqualTo(png));
+
+    avatar(host, "");
+    assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
+        .allSatisfy(p -> assertThat(p.avatar()).isNull());
+  }
+
   @Test
   void onlyHostMutesMicrophoneAndRetryDoesNotMuteAgain() {
     var host = host();

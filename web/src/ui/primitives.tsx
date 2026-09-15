@@ -55,11 +55,22 @@ export function Modal({
     </Dialog.Root>
   );
 }
-export function Avatar({ name, large = false }: { name: string; large?: boolean }) {
+export function Avatar({
+  name,
+  large = false,
+  src = null,
+}: {
+  name: string;
+  large?: boolean;
+  src?: string | null;
+}) {
   const color = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 5;
+  // Only a data URI is rendered. A picture arrives from another participant through the room,
+  // so it must never be able to name an address this browser would go and fetch.
+  const picture = src && src.startsWith('data:image/') ? src : null;
   return (
     <span className={`avatar avatar-${color} ${large ? 'avatar-large' : ''}`} aria-hidden="true">
-      {name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'}
+      {picture ? <img className="avatar-image" src={picture} alt="" /> : name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'}
     </span>
   );
 }

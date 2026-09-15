@@ -36,7 +36,7 @@ public final class Contracts {
           @Size(max = 30)
           @Pattern(
               regexp =
-                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute")
+                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar")
           String type,
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
@@ -45,6 +45,7 @@ public final class Contracts {
   public record Participant(
       String id,
       String name,
+      String avatar,
       boolean owner,
       RoomState.Status status,
       long generation,

@@ -212,7 +212,7 @@ export function Stage({
                 <VideoTrack tile={camera} />
               ) : (
                 <div className="person-placeholder">
-                  <Avatar name={person.name} large />
+                  <Avatar name={person.name} src={person.avatar} large />
                 </div>
               )}
               <div className="person-caption">

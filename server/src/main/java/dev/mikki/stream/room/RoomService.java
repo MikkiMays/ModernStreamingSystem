@@ -402,6 +402,7 @@ public class RoomService {
                     new Participant(
                         m.id,
                         m.name,
+                        m.avatar,
                         m.owner,
                         m.status,
                         m.generation,
@@ -493,6 +494,10 @@ public class RoomService {
               member.generation++;
               member.screen = false;
               member.recoveryDeadline = null;
+            }
+            case "profile.avatar" -> {
+              member.avatar = avatar(command.text());
+              emit(room, "room.changed", EventPayload.changed());
             }
             case "close" -> {
               owner(member);
@@ -645,6 +650,30 @@ public class RoomService {
 
   private void owner(RoomState.Member member) {
     if (!member.owner || !member.occupiesSeat()) throw Problem.forbidden();
+  }
+
+  /**
+   * An avatar is shown to everyone in the room, so what arrives is checked rather than trusted.
+   * Only a base64 data URI of a known image type is accepted, the payload must actually decode,
+   * and the size is bounded well below the command's own limit so a picture can never become a
+   * way to push bulk data through the snapshot. An empty value clears the picture.
+   */
+  private static String avatar(String value) {
+    if (value == null || value.isBlank()) return null;
+    var text = value.strip();
+    var comma = text.indexOf(',');
+    if (comma < 0 || text.length() > 3500) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+    var header = text.substring(0, comma);
+    if (!header.equals("data:image/webp;base64")
+        && !header.equals("data:image/png;base64")
+        && !header.equals("data:image/jpeg;base64")) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+    try {
+      var bytes = java.util.Base64.getDecoder().decode(text.substring(comma + 1));
+      if (bytes.length == 0 || bytes.length > 2400) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+    } catch (IllegalArgumentException e) {
+      throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+    }
+    return text;
   }
 
   public void close(RoomState room) {
