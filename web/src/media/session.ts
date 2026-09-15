@@ -22,8 +22,10 @@ import {
   screenOptions,
   cameraCapture,
   cameraOptions,
+  targetBitrate,
   type ScreenProfile,
 } from './profiles';
+import { AutoQuality } from './auto-quality';
 import {
   readPreferences,
   savePreferences,
@@ -709,7 +711,9 @@ export class MediaSession {
         height: { max: size.height },
         frameRate: { max: profile.fps },
       });
-      video.contentHint = profile.mode === 'text' ? 'detail' : 'motion';
+      // The hint follows the same rule as the degradation preference: a chosen level holds its
+      // frame rate, so the encoder is told to favour motion; automatic favours legibility.
+      video.contentHint = profile.automatic ? 'detail' : 'motion';
       this.codec = await chooseCodec(profile);
       this.profile = profile;
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
@@ -834,7 +838,7 @@ export class MediaSession {
         height: { max: size.height },
         frameRate: { max: profile.fps },
       });
-      track.mediaStreamTrack.contentHint = profile.mode === 'text' ? 'detail' : 'motion';
+      track.mediaStreamTrack.contentHint = profile.automatic ? 'detail' : 'motion';
       if (this.disposed || generation !== this.screenGeneration) return;
       await this.room.localParticipant.unpublishTrack(track, false);
       if (this.disposed || generation !== this.screenGeneration) return;
@@ -857,6 +861,7 @@ export class MediaSession {
   private monitorEncoder() {
     clearInterval(this.qualityTimer);
     const health = new EncoderHealth();
+    const auto = new AutoQuality();
     const generation = this.screenGeneration;
     let sampling = false;
     this.qualityTimer = setInterval(() => {
@@ -866,19 +871,25 @@ export class MediaSession {
       void track
         .getRTCStatsReport()
         .then((report) => {
-          let cpu = false;
+          let limitation = 'none';
+          let available: number | null = null;
           report?.forEach((stat) => {
-            if (stat.type === 'outbound-rtp' && stat.qualityLimitationReason === 'cpu') cpu = true;
+            if (stat.type === 'outbound-rtp' && typeof stat.qualityLimitationReason === 'string')
+              if (stat.qualityLimitationReason !== 'none') limitation = stat.qualityLimitationReason;
+            if (stat.type === 'candidate-pair' && typeof stat.availableOutgoingBitrate === 'number')
+              available = stat.availableOutgoingBitrate;
           });
-          if (
-            !this.disposed &&
-            generation === this.screenGeneration &&
-            health.observe(cpu ? 'cpu' : 'none', this.codec === 'av1' || this.codec === 'vp9')
-          ) {
+          if (this.disposed || generation !== this.screenGeneration) return;
+          if (health.observe(limitation, this.codec === 'av1' || this.codec === 'vp9')) {
             this.codec = 'vp8';
             void this.setProfile(this.profile);
             this.report(new Error('Кодировщик перегружен. Переключаем экран на совместимый кодек.'));
+            return;
           }
+          // A chosen level is the user's instruction, not a suggestion: only automatic moves.
+          if (!this.profile.automatic) return;
+          const next = auto.observe(limitation, available, targetBitrate(this.profile));
+          if (next) void this.setProfile({ ...this.profile, ...next });
         })
         .catch(() => {})
         .finally(() => {

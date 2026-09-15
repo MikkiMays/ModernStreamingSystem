@@ -4,7 +4,7 @@ beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
   expect(readPreferences().camera.automatic).toBe(true);
   savePreferences({
-    screen: { resolution: 1440, fps: 60, automatic: false, automaticFps: false, mode: 'motion' },
+    screen: { resolution: 1440, fps: 60, automatic: false, automaticFps: false },
   });
   expect(readPreferences().screen.fps).toBe(60);
   expect(readPreferences().camera.resolution).toBe(720);

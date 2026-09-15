@@ -1432,9 +1432,6 @@ h2 {
   gap: 9px;
   margin-bottom: 14px;
 }
-.quality-section .mode-selector {
-  margin-top: 14px;
-}
 .room-code {
   color: inherit;
   background: none;
@@ -1675,46 +1672,6 @@ progress {
 }
 .settings-form select {
   font-size: 13px;
-}
-.mode-selector {
-  border: 0;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.mode-selector legend {
-  font-size: 13px;
-  margin-bottom: 10px;
-  font-weight: 550;
-}
-.mode-selector label {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 10px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.mode-selector label[data-active='true'] {
-  background: var(--blue-soft);
-  border-color: var(--blue);
-}
-.mode-selector input {
-  width: 14px;
-  height: 14px;
-  margin: 0 7px 0 0;
-}
-.mode-selector strong {
-  font-weight: 550;
-}
-.mode-selector span {
-  display: block;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--muted);
-  margin-top: 7px;
-  margin-left: 21px;
 }
 .action-menu {
   z-index: 40;
@@ -2241,9 +2198,6 @@ progress {
   .modal-heading > .icon-button {
     width: 40px;
     min-width: 40px;
-  }
-  .mode-selector strong {
-    font-size: 10px;
   }
   .settings-form label {
     font-size: 12px;

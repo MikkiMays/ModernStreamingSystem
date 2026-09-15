@@ -69,36 +69,17 @@ export function QualityFields({
               })
             }
           >
-            <option value="auto">Авто · до 30 fps</option>
+            <option value="auto">Авто</option>
             <option value="15">15 fps</option>
             <option value="30">30 fps</option>
             <option value="60">60 fps · плавнее</option>
           </select>
         </label>
       </div>
-      {kind === 'screen' && (
-        <fieldset className="mode-selector">
-          <legend>Что показываете?</legend>
-          {(['text', 'motion'] as const).map((mode) => (
-            <label key={mode} data-active={profile.mode === mode}>
-              <input
-                type="radio"
-                name="screen-mode"
-                checked={profile.mode === mode}
-                onChange={() => change({ ...profile, mode })}
-              />
-              <strong>{mode === 'text' ? 'Текст и работа' : 'Видео и движение'}</strong>
-              <span>{mode === 'text' ? 'Чёткие детали' : 'Плавная картинка'}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
       <p className="form-footnote">
-        {!profile.automatic
-          ? `Запрошено ${profile.resolution}p. Фактическое качество зависит от источника и сети.`
-          : kind === 'screen'
-            ? 'Авто ограничивает экран до 1080p; сеть может снижать качество.'
-            : 'Авто начинает с 720p и адаптируется к сети.'}
+        {profile.automatic
+          ? 'Авто держит лучшее качество, которое выдерживает связь, и поднимает его, когда появляется запас.'
+          : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
       </p>
     </section>
   );

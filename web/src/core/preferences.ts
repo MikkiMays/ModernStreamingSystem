@@ -29,13 +29,13 @@ export interface Preferences {
   micHotkey: Hotkey | null;
 }
 const key = 'cord:preferences:v1';
-const defaultScreen: ScreenProfile = { resolution: 1080, fps: 30, mode: 'text', automatic: true };
-const defaultCamera: ScreenProfile = { resolution: 720, fps: 30, mode: 'motion', automatic: true };
+const defaultScreen: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
+const defaultCamera: ScreenProfile = { resolution: 720, fps: 30, automatic: true };
+// Settings saved before the content mode was removed still carry it; the extra key is ignored.
 function profile(value: Partial<ScreenProfile> | undefined, fallback: ScreenProfile): ScreenProfile {
   return {
     resolution: [720, 1080, 1440].includes(value?.resolution ?? 0) ? value!.resolution! : fallback.resolution,
     fps: [15, 30, 60].includes(value?.fps ?? 0) ? value!.fps! : fallback.fps,
-    mode: value?.mode === 'text' || value?.mode === 'motion' ? value.mode : fallback.mode,
     automatic: typeof value?.automatic === 'boolean' ? value.automatic : true,
     automaticFps: typeof value?.automaticFps === 'boolean' ? value.automaticFps : (value?.fps ?? 30) === 30,
   };
