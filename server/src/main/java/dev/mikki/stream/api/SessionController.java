@@ -29,11 +29,18 @@ public class SessionController {
     this.address = address;
   }
 
+  /**
+   * Sixty a minute per address on a server with a password: far too slow to guess one, and roomy
+   * enough for an office where thirty people share a single address and all open Cord after a lunch
+   * break. An open server has nothing to guess, so it counts nothing — the handshake there costs
+   * one HMAC, the same as the `/capabilities` call beside it.
+   */
+  private static final int ATTEMPTS_PER_MINUTE = 60;
+
   @PostMapping
   public Session connect(
       @Valid @RequestBody(required = false) Connect request, HttpServletRequest http) {
-    // Guessing a password has to stay expensive even though the response itself is cheap.
-    limits.check("session:" + address.of(http), 20);
+    if (access.required()) limits.check("session:" + address.of(http), ATTEMPTS_PER_MINUTE);
     var issued = access.connect(request == null ? null : request.password());
     return new Session(issued.token(), issued.expiresAt(), access.name(), access.required());
   }

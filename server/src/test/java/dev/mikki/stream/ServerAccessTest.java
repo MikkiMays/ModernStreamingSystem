@@ -1,11 +1,16 @@
 package dev.mikki.stream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.*;
 
+import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
+import dev.mikki.stream.api.ClientAddress;
 import dev.mikki.stream.api.RequestGuard;
+import dev.mikki.stream.api.SessionController;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
 import org.junit.jupiter.api.Test;
@@ -65,6 +70,27 @@ class ServerAccessTest {
     for (var nonsense : new String[] {"", ".", "abc", "abc.def", "12345", "12345."})
       assertThat(access.valid(nonsense)).isFalse();
     assertThat(access.valid(null)).isFalse();
+  }
+
+  /**
+   * A shared office address opening Cord after lunch must not look like an attack, and a server
+   * with nothing to guess must not count guesses at all.
+   */
+  @Test
+  void onlyAServerWithAPasswordCountsHandshakes() {
+    var limits = mock(RateLimits.class);
+    var request = new MockHttpServletRequest("POST", "/api/v1/session");
+    var open = settings("");
+    new SessionController(
+            new ServerAccess(new Secrets(open), open), limits, new ClientAddress(open))
+        .connect(new SessionController.Connect(null), request);
+    verifyNoInteractions(limits);
+
+    var closed = settings("тайна");
+    new SessionController(
+            new ServerAccess(new Secrets(closed), closed), limits, new ClientAddress(closed))
+        .connect(new SessionController.Connect("тайна"), request);
+    verify(limits).check(startsWith("session:"), eq(60));
   }
 
   @Test
