@@ -634,6 +634,44 @@ export class MediaSession {
       this.deviceBusy.delete('camera');
     }
   }
+  /**
+   * Camera zoom, where the platform exposes it. It is an optional constraint: Android Chrome
+   * implements it, iOS Safari does not, and a desktop webcam usually has no zoom at all. The
+   * caller gets null in those cases and should not offer the gesture.
+   */
+  cameraZoom(): { min: number; max: number; step: number; value: number } | null {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (!(track instanceof LocalVideoTrack)) return null;
+    const media = track.mediaStreamTrack;
+    const zoom = (media.getCapabilities?.() as { zoom?: { min: number; max: number; step?: number } })
+      ?.zoom;
+    if (!zoom || !(zoom.max > zoom.min)) return null;
+    const current = (media.getSettings() as { zoom?: number }).zoom;
+    return {
+      min: zoom.min,
+      max: zoom.max,
+      step: zoom.step && zoom.step > 0 ? zoom.step : (zoom.max - zoom.min) / 100,
+      value: typeof current === 'number' ? current : zoom.min,
+    };
+  }
+
+  async applyCameraZoom(value: number) {
+    const range = this.cameraZoom();
+    if (!range) return;
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (!(track instanceof LocalVideoTrack)) return;
+    const clamped = Math.min(range.max, Math.max(range.min, value));
+    try {
+      // Zoom is an "advanced" constraint: browsers that do not know it ignore this silently
+      // rather than failing the whole call, which is why it is applied on its own.
+      await track.mediaStreamTrack.applyConstraints({
+        advanced: [{ zoom: clamped } as MediaTrackConstraintSet],
+      });
+    } catch {
+      /* A camera may refuse a zoom it advertised; keep the call alive regardless. */
+    }
+  }
+
   /** Must be called directly from the click handler, before any await. */
   share(profile: ScreenProfile): void {
     if (this.screenBusy || this.disposed) return;

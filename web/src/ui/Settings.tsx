@@ -365,6 +365,22 @@ export function Settings({
             />
             <span>Показывать активных ботов справа от встречи</span>
           </label>
+          <label className="check-setting">
+            <input
+              type="checkbox"
+              checked={preferences.notificationSounds}
+              onChange={(e) => change({ notificationSounds: e.target.checked })}
+            />
+            <span>Звуки уведомлений</span>
+          </label>
+          <label className="check-setting">
+            <input
+              type="checkbox"
+              checked={preferences.showPing}
+              onChange={(e) => change({ showPing: e.target.checked })}
+            />
+            <span>Показывать задержку / PING</span>
+          </label>
           <label>
             Токен Яндекс Музыки
             <input
@@ -384,22 +400,6 @@ export function Settings({
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />
         </Tabs.Panel>
       </Tabs.Root>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={preferences.notificationSounds}
-          onChange={(e) => change({ notificationSounds: e.target.checked })}
-        />{' '}
-        Звуки уведомлений
-      </label>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={preferences.showPing}
-          onChange={(e) => change({ showPing: e.target.checked })}
-        />{' '}
-        Показывать задержку / PING
-      </label>
     </Modal>
   );
 }

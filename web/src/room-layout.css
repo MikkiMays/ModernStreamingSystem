@@ -46,10 +46,6 @@
   align-items: center;
   gap: 12px;
 }
-.check-setting input {
-  width: 20px;
-  min-height: 20px;
-}
 .prejoin-form h1 {
   overflow-wrap: anywhere;
 }

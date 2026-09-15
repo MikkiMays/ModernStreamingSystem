@@ -1,9 +1,36 @@
 import { Menu } from '@base-ui/react/menu';
-import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, SwitchCamera } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { Meeting } from '../core/meeting';
+import { IconButton } from './primitives';
+
+/** Touch devices have a front and a back camera and no use for a list of device names. */
+function useCoarsePointer() {
+  const [coarse, setCoarse] = useState(
+    () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+  );
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const query = matchMedia('(pointer: coarse)');
+    const change = () => setCoarse(query.matches);
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, []);
+  return coarse;
+}
+
 export function CameraMenu({ meeting }: { meeting: Meeting }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const coarse = useCoarsePointer();
+
+  // A phone gets the gesture everyone already knows instead of a menu of opaque labels.
+  if (coarse)
+    return (
+      <IconButton label="Перевернуть камеру" onClick={() => void meeting.media.flipCamera()}>
+        <SwitchCamera size={21} />
+      </IconButton>
+    );
+
   return (
     <Menu.Root
       onOpenChange={(open) => {
@@ -20,9 +47,7 @@ export function CameraMenu({ meeting }: { meeting: Meeting }) {
       <Menu.Portal>
         <Menu.Positioner side="top" sideOffset={12}>
           <Menu.Popup className="action-menu">
-            <Menu.Item onClick={() => void meeting.media.flipCamera()}>
-              Переключить фронтальную / заднюю
-            </Menu.Item>
+            <Menu.Item onClick={() => void meeting.media.flipCamera()}>Следующая камера</Menu.Item>
             {devices
               .filter((d) => d.kind === 'videoinput')
               .map((device, index) => (

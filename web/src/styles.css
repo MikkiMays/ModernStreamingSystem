@@ -98,7 +98,10 @@ textarea:focus-visible,
 button {
   border: 0;
 }
-input,
+/* Checkboxes and radios are fixed-size controls, not fields. They were included here and
+   inherited width:100% and min-height:48px, so every one of them had to be rescued by a
+   per-class override — and the one class that lacked it rendered a 730x48 checkbox. */
+input:not([type='checkbox'], [type='radio']),
 select,
 textarea {
   color: var(--text);
@@ -108,6 +111,15 @@ textarea {
   padding: 12px 14px;
   width: 100%;
   min-height: 48px;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
 }
 input::placeholder,
 textarea::placeholder {
@@ -584,11 +596,6 @@ h2 {
   gap: 10px;
   font-weight: 450;
 }
-.checkbox-label input {
-  width: 18px;
-  min-height: 18px;
-  accent-color: var(--blue);
-}
 .prejoin-form > .button {
   margin: 18px 0 12px;
 }
@@ -799,10 +806,13 @@ h2 {
   padding: 5px 8px;
   border-radius: 6px;
 }
+/* Keep the sender's framing. A phone publishes a portrait frame, and cover cropped it to
+   the landscape tile, which threw away most of the picture and looked like the video had
+   been stretched across the screen. contain letterboxes it against the tile background. */
 .camera-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   position: absolute;
   inset: 0;
 }
@@ -1692,9 +1702,8 @@ progress {
 }
 .mode-selector input {
   width: 14px;
-  min-height: 14px;
+  height: 14px;
   margin: 0 7px 0 0;
-  accent-color: var(--blue);
 }
 .mode-selector strong {
   font-weight: 550;
