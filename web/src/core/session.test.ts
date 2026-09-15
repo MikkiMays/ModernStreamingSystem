@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { request } from '../api/client';
 import { adopt, connect, disconnect, renew, session } from './session';
-import { currentServerUrl, saveServer } from './servers';
+import { rememberServer } from './servers';
 
 const { cues } = vi.hoisted(() => ({ cues: [] as string[] }));
 vi.mock('./sounds', () => ({
@@ -57,7 +57,7 @@ it('treats a lapsed token as not connected', () => {
  * request that tripped over it, not by sending the person back to the connect screen.
  */
 it('shakes hands again and repeats the request when the session has lapsed', async () => {
-  saveServer({ url: currentServerUrl(), name: '', password: 'пароль', autoConnect: true });
+  rememberServer({ password: 'пароль' });
   vi.mocked(fetch)
     .mockResolvedValueOnce(answer({ code: 'SERVER_PASSWORD_REQUIRED' }, 401))
     .mockResolvedValueOnce(answer({ passwordRequired: true }))

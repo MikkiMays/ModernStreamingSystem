@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Camera,
-  MonitorUp,
-  Mic,
-  Keyboard,
-  User,
-  Bell,
-  Play,
-  Plug,
-  Plus,
-  Server,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { Camera, MonitorUp, Mic, Keyboard, User, Bell, Play, Plug, Server } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
 import {
@@ -26,20 +14,12 @@ import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
 import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
-import { Avatar, IconButton, Modal, useStore } from './primitives';
+import { Avatar, Modal, useStore } from './primitives';
 import { readAvatar } from '../core/avatar';
 import { useMicLevel } from './useMicLevel';
 import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
-import {
-  currentServerUrl,
-  findServer,
-  readServers,
-  saveServer,
-  serverLabel,
-  type SavedServer,
-} from '../core/servers';
+import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { disconnect, session } from '../core/session';
-import { ServerDialog } from './ServerDialog';
 
 /**
  * A picture is only offered where there is a comfortable way to pick one. On a phone the file
@@ -333,105 +313,55 @@ function ConnectionFields({
   const desktop = !!window.chrome?.webview;
   const current = useStore(session);
   const here = currentServerUrl();
-  const [servers, setServers] = useState<SavedServer[]>(readServers);
-  const [dialog, setDialog] = useState<{ server?: SavedServer } | null>(null);
-  const saved = findServer(here);
+  const [saved, setSaved] = useState(thisServer);
   return (
-    <>
-      <section className="audio-settings" aria-label="Сервер">
-        <h3>
-          <Server size={19} /> Сервер
-        </h3>
-        <div className="connection-current">
-          <strong>{current?.name || serverLabel({ url: here, name: saved?.name ?? '' })}</strong>
-          <small>{new URL(here).host}</small>
-        </div>
-        <label className="check-setting">
-          <input
-            type="checkbox"
-            checked={saved?.autoConnect !== false}
-            onChange={(e) => {
-              saveServer({
-                url: here,
-                name: saved?.name ?? '',
-                password: saved?.password ?? '',
-                autoConnect: e.target.checked,
-              });
-              setServers(readServers());
-            }}
-          />
-          <span>
-            Подключаться автоматически при запуске
-            <small>Иначе Cord будет ждать нажатия «Подключиться» на экране подключения.</small>
-          </span>
-        </label>
-        <div className="check-actions">
-          <button
-            className="button secondary"
-            disabled={inCall}
-            title={inCall ? 'Сначала выйдите из встречи' : 'Вернуться к выбору сервера'}
-            onClick={() => (desktop ? notifyDesktop('servers.open') : disconnect())}
-          >
-            <Plug size={16} /> Сменить сервер
+    <section className="audio-settings" aria-label="Сервер">
+      <h3>
+        <Server size={19} /> Сервер
+      </h3>
+      <div className="connection-current">
+        <strong>{current?.name || serverLabel(saved)}</strong>
+        <small>{new URL(here).host}</small>
+      </div>
+      <label className="check-setting">
+        <input
+          type="checkbox"
+          checked={saved.autoConnect}
+          onChange={(e) => setSaved(rememberServer({ autoConnect: e.target.checked }))}
+        />
+        <span>
+          Подключаться автоматически при запуске
+          <small>Иначе Cord будет ждать нажатия «Подключиться» на экране подключения.</small>
+        </span>
+      </label>
+      <div className="check-actions">
+        <button
+          className="button secondary"
+          disabled={inCall}
+          title={inCall ? 'Сначала выйдите из встречи' : undefined}
+          onClick={() => (desktop ? notifyDesktop('servers.open') : disconnect())}
+        >
+          <Plug size={16} /> {desktop ? 'Сменить сервер' : 'Отключиться'}
+        </button>
+        {!!saved.password && (
+          <button className="button ghost" onClick={() => setSaved(rememberServer({ password: '' }))}>
+            Забыть пароль
           </button>
-          {!!saved?.password && (
-            <button
-              className="button ghost"
-              onClick={() => {
-                saveServer({ ...saved, password: '' });
-                setServers(readServers());
-              }}
-            >
-              Забыть пароль
-            </button>
-          )}
-        </div>
-        <label className="check-setting">
-          <input type="checkbox" checked={showPing} onChange={(e) => change(e.target.checked)} />
-          <span>
-            Показывать задержку / PING
-            <small>Время ответа сервера на главной и управляющего канала во встрече.</small>
-          </span>
-        </label>
-      </section>
-      {!desktop && (
-        <section className="audio-settings" aria-label="Сохранённые серверы">
-          <h3>
-            Сохранённые серверы
-            <IconButton
-              label="Добавить сервер"
-              className="connect-add settings-add-server"
-              onClick={() => setDialog({})}
-            >
-              <Plus size={18} />
-            </IconButton>
-          </h3>
-          <ul className="settings-server-list">
-            {servers.map((server) => (
-              <li key={server.url}>
-                <span>
-                  <strong>{serverLabel(server)}</strong>
-                  <small>{server.url === here ? 'Открыт сейчас' : new URL(server.url).host}</small>
-                </span>
-                <IconButton label={`Изменить «${serverLabel(server)}»`} onClick={() => setDialog({ server })}>
-                  <SlidersHorizontal size={17} />
-                </IconButton>
-              </li>
-            ))}
-          </ul>
-          <p className="form-footnote">
-            Список хранится в этом браузере и отдельно у каждого сервера. Переход на другой сервер открывает
-            его страницу.
-          </p>
-          <ServerDialog
-            open={!!dialog}
-            server={dialog?.server}
-            onOpenChange={(open) => !open && setDialog(null)}
-            onSaved={setServers}
-          />
-        </section>
-      )}
-    </>
+        )}
+      </div>
+      <p className="form-footnote connection-note">
+        {desktop
+          ? 'Список серверов — в приложении: оно может обратиться к любому адресу. Имя, избранное и устройства сохраняются отдельно для каждого сервера.'
+          : 'В браузере сервер один — тот, который отдал эту страницу: обращаться к другому адресу отсюда нельзя. Несколько серверов держит приложение для Windows.'}
+      </p>
+      <label className="check-setting">
+        <input type="checkbox" checked={showPing} onChange={(e) => change(e.target.checked)} />
+        <span>
+          Показывать задержку / PING
+          <small>Время ответа сервера на главной и управляющего канала во встрече.</small>
+        </span>
+      </label>
+    </section>
   );
 }
 

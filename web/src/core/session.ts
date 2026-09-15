@@ -1,7 +1,7 @@
 import { ApiError, publicApi, request, useSession, SESSION_KEY } from '../api/client';
 import type { Capabilities } from '../api/types';
 import { Store } from './store';
-import { currentServerUrl, findServer, saveServer } from './servers';
+import { rememberServer, thisServer } from './servers';
 import { notifyDesktop } from './desktop';
 import { signal } from './sounds';
 
@@ -143,17 +143,17 @@ let renewal: Promise<boolean> | null = null;
  */
 export function renew(): Promise<boolean> {
   renewal ??= (async () => {
-    const saved = findServer(currentServerUrl());
+    const saved = thisServer();
     try {
       if (window.chrome?.webview) return await askTheHost();
       const info = await serverInfo();
-      if (info.passwordRequired && !saved?.password) {
+      if (info.passwordRequired && !saved.password) {
         // Nothing to offer: stop claiming to be connected so the connect screen can ask. A
         // meeting already open is not interrupted — it simply never shows that screen.
         store(null);
         return false;
       }
-      await connect(info.passwordRequired ? saved!.password : '');
+      await connect(info.passwordRequired ? saved.password : '');
       return true;
     } catch {
       return false;
@@ -169,13 +169,7 @@ export function renew(): Promise<boolean> {
 
 /** Remembers a working password so the next launch can connect without asking. */
 export function rememberConnection(password: string, autoConnect: boolean) {
-  const current = findServer(currentServerUrl());
-  saveServer({
-    url: currentServerUrl(),
-    name: current?.name ?? '',
-    password,
-    autoConnect,
-  });
+  rememberServer({ password, autoConnect });
 }
 
 /**
