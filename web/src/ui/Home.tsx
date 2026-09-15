@@ -2,7 +2,7 @@ import { ArrowDownLeft, ArrowRight, Link, Plus, Video, Star, ShieldCheck, Settin
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../api/client';
-import { IconButton, Logo, ThemeButton, type Theme } from './primitives';
+import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { DesktopHome } from './DesktopHome';
@@ -50,6 +50,7 @@ function BrowserHome({
         <Logo />
         <div className="header-end">
           <span className="header-note">Пространство для общения</span>
+          <DownloadLink />
           <ThemeButton theme={theme} setTheme={setTheme} />
           <IconButton label="Настройки" onClick={onSettings}>
             <Settings2 size={20} />

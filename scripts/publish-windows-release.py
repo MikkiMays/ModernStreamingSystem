@@ -59,4 +59,28 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
     manifest.write_text(json.dumps(release, ensure_ascii=False, indent=2) + "\n")
     os.chmod(manifest, 0o644)
     os.replace(manifest, latest)
+    # What the download page needs, and nothing else. `latest.json` is the whole GitHub release
+    # record — the updater reads it because it verifies the upstream URLs — but a page that only
+    # has to draw one button should not be handed the repository's bookkeeping.
+    page = {
+        "version": version,
+        "tag": tag,
+        # Informational only: a release without this field is still a release, and failing
+        # the whole publication over a display timestamp would be a poor trade.
+        "publishedAt": release.get("published_at") or "",
+        "files": [
+            {
+                "name": name,
+                "kind": "installer" if name.endswith(".exe") else "portable",
+                "size": assets[name]["size"],
+                "sha256": assets[name]["digest"][7:],
+            }
+            for name in sorted(names)
+            if not name.endswith(".sha256")
+        ],
+    }
+    catalogue = Path(folder) / "download.json"
+    catalogue.write_text(json.dumps(page, ensure_ascii=False, indent=2) + "\n")
+    os.chmod(catalogue, 0o644)
+    os.replace(catalogue, args.destination / "download.json")
 print(f"Published {tag}: {len(names)} verified assets; prior releases preserved")
