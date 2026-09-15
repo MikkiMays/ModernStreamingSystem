@@ -65,7 +65,9 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
     page = {
         "version": version,
         "tag": tag,
-        "publishedAt": release["published_at"],
+        # Informational only: a release without this field is still a release, and failing
+        # the whole publication over a display timestamp would be a poor trade.
+        "publishedAt": release.get("published_at") or "",
         "files": [
             {
                 "name": name,
