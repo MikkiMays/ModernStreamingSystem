@@ -28,9 +28,8 @@ export function useMicLevel(meeting?: Meeting | null): number {
     };
 
     const timer = setInterval(() => {
-      const published = meeting.media.room.localParticipant.getTrackPublication(
-        Track.Source.Microphone,
-      )?.track?.mediaStreamTrack;
+      const published = meeting.media.room.localParticipant.getTrackPublication(Track.Source.Microphone)
+        ?.track?.mediaStreamTrack;
       if (!published || published.readyState !== 'live') {
         if (attached) release();
         setLevel(0);

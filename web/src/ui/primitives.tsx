@@ -1,7 +1,26 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { X } from 'lucide-react';
+import { Monitor, Moon, Sun, X } from 'lucide-react';
 import { useSyncExternalStore, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import type { Store } from '../core/store';
+
+export type Theme = 'system' | 'light' | 'dark';
+export function ThemeButton({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
+  const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
+  return (
+    <IconButton
+      label={`Тема: ${theme === 'system' ? 'системная' : theme === 'light' ? 'светлая' : 'тёмная'}. Переключить`}
+      onClick={() => setTheme(next)}
+    >
+      {theme === 'system' ? (
+        <Monitor size={20} />
+      ) : theme === 'light' ? (
+        <Sun size={20} />
+      ) : (
+        <Moon size={20} />
+      )}
+    </IconButton>
+  );
+}
 
 export function useStore<T>(store: Store<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.get);
@@ -25,6 +44,9 @@ export function Modal({
   description,
   children,
   wide = false,
+  // A dialog that has its own «Закрыть» button must not also have a corner cross called the
+  // same thing: two controls, one name, and nothing to tell them apart by ear.
+  closeLabel = 'Закрыть',
 }: {
   wide?: boolean;
   open: boolean;
@@ -32,6 +54,7 @@ export function Modal({
   title: string;
   description?: string;
   children: ReactNode;
+  closeLabel?: string;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -42,7 +65,7 @@ export function Modal({
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close
               render={
-                <IconButton label="Закрыть">
+                <IconButton label={closeLabel}>
                   <X size={20} />
                 </IconButton>
               }
@@ -70,7 +93,11 @@ export function Avatar({
   const picture = src && src.startsWith('data:image/') ? src : null;
   return (
     <span className={`avatar avatar-${color} ${large ? 'avatar-large' : ''}`} aria-hidden="true">
-      {picture ? <img className="avatar-image" src={picture} alt="" /> : name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'}
+      {picture ? (
+        <img className="avatar-image" src={picture} alt="" />
+      ) : (
+        name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'
+      )}
     </span>
   );
 }

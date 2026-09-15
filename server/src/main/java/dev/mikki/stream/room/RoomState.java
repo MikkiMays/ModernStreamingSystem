@@ -32,8 +32,10 @@ public class RoomState {
   public static class Member {
     public String id;
     public String name;
+
     /** A small square image as a data URI, or null. Lives and dies with the room. */
     public String avatar;
+
     public String secretHash;
     public boolean owner;
     public String service;

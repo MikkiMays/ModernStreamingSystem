@@ -2,6 +2,7 @@ package dev.mikki.stream.api;
 
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
+import dev.mikki.stream.access.ServerAccess;
 import dev.mikki.stream.application.CommandDispatcher;
 import dev.mikki.stream.attachment.AttachmentService;
 import dev.mikki.stream.config.StreamProperties;
@@ -28,7 +29,11 @@ public class ApiController {
       List<Integer> resolutions,
       List<Integer> frameRates,
       boolean admissionOpen,
-      String region) {}
+      String region,
+      // What the connect screen needs before it may ask for anything: how this server calls
+      // itself, and whether it will want a password.
+      String name,
+      boolean passwordRequired) {}
 
   public record Screen(@NotNull UUID commandId, boolean enabled) {}
 
@@ -38,6 +43,8 @@ public class ApiController {
   private final AttachmentService files;
   private final StreamProperties config;
   private final RateLimits limits;
+  private final ServerAccess access;
+  private final ClientAddress address;
 
   public ApiController(
       RoomService rooms,
@@ -45,13 +52,17 @@ public class ApiController {
       CommandDispatcher commands,
       AttachmentService files,
       StreamProperties config,
-      RateLimits limits) {
+      RateLimits limits,
+      ServerAccess access,
+      ClientAddress address) {
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
     this.files = files;
     this.config = config;
     this.limits = limits;
+    this.access = access;
+    this.address = address;
   }
 
   @GetMapping("/ping")
@@ -70,20 +81,22 @@ public class ApiController {
         List.of(720, 1080, 1440),
         List.of(15, 30, 60),
         config.admissionOpen(),
-        "Europe");
+        "Europe",
+        access.name(),
+        access.required());
   }
 
   @PostMapping("/rooms")
   public Contracts.Admission create(
       @Valid @RequestBody Contracts.Create request, HttpServletRequest http) {
-    limits.check("admission:" + clientIp(http), 30);
+    limits.check("admission:" + address.of(http), 30);
     return rooms.create(request);
   }
 
   @PostMapping("/rooms/{id}/join")
   public Contracts.Admission join(
       @PathVariable UUID id, @Valid @RequestBody Contracts.Join request, HttpServletRequest http) {
-    limits.check("admission:" + clientIp(http), 30);
+    limits.check("admission:" + address.of(http), 30);
     return rooms.join(id.toString(), request);
   }
 
@@ -96,7 +109,7 @@ public class ApiController {
   @PostMapping("/rooms/join-by-code")
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {
-    limits.check("code-admission:" + clientIp(http), 10);
+    limits.check("code-admission:" + address.of(http), 10);
     return rooms.joinCode(request);
   }
 
@@ -106,7 +119,7 @@ public class ApiController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody Contracts.Rejoin request,
       HttpServletRequest http) {
-    limits.check("admission:" + clientIp(http), 30);
+    limits.check("admission:" + address.of(http), 30);
     return rooms.rejoin(id.toString(), credential, request);
   }
 
@@ -189,13 +202,5 @@ public class ApiController {
         .header("X-Content-Type-Options", "nosniff")
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(new FileSystemResource(files.path(id.toString())));
-  }
-
-  private String clientIp(HttpServletRequest request) {
-    String forwarded = request.getHeader("X-Real-IP");
-    return forwarded != null
-            && Secrets.equal(request.getHeader("X-Internal-Secret"), config.internalSecret())
-        ? forwarded
-        : request.getRemoteAddr();
   }
 }

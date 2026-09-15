@@ -1,13 +1,15 @@
 import { ConnectionQuality } from 'livekit-client';
-import type { Admission, Command, RoomEvent, Snapshot } from '../api/types';
+import type { Admission, Command, Participant, RoomEvent, Snapshot } from '../api/types';
 import { ApiError, RoomApi } from '../api/client';
 import { MediaSession, type DeviceChoice } from '../media/session';
 import { ControlChannel } from './control';
 import { Store } from './store';
 import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
-import { NotificationSounds } from './sounds';
+import { NotificationSounds, type Cue } from './sounds';
 import { readPreferences } from './preferences';
+
+const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
 
 export class Meeting {
   readonly api: RoomApi;
@@ -18,6 +20,8 @@ export class Meeting {
   private viewRevision = 0;
   private played = new Set<string>();
   private sounds = new NotificationSounds();
+  /** Who was in the room the last time we looked, so arrivals and departures can be heard. */
+  private roster = new Map<string, Participant['status']>();
   readonly ended = new Store<string | null>(null);
   readonly invite: Store<string | null>;
   readonly fileRevision = new Store(0);
@@ -51,6 +55,10 @@ export class Meeting {
     this.started = true;
     this.sounds.start();
     this.control.start();
+    // Everyone already here is not an arrival. The roster starts as what the room looks like
+    // at this moment, and the only cue for opening it is the one about you.
+    this.roster = new Map(this.snapshot.get().participants.map((p) => [p.id, p.status]));
+    this.cue('self-join');
     this.accept(this.snapshot.get());
     // The picture belongs to this device, so each room has to be told about it once. A room
     // that rejects it is not worth interrupting the join for.
@@ -82,9 +90,40 @@ export class Meeting {
   private refreshOnReturn = () => {
     if (!document.hidden) void this.refresh();
   };
+  /** A cue is played only if the room is still ours and this device asked to hear them. */
+  private cue(kind: Cue, eventId?: string) {
+    if (this.disposed || !this.media.preferences.get().notificationSounds) return;
+    this.sounds.play(kind, eventId);
+  }
+  /**
+   * Turns two snapshots into the three things worth hearing: someone arrived, someone left,
+   * someone is asking to be let in. The room has no event for any of them — `room.changed`
+   * only says the room is different — so the difference has to be read here.
+   *
+   * Your own arrival and departure are announced where they happen, not from this list, so
+   * that leaving is heard once even when the snapshot confirming it never comes.
+   */
+  private listen(snapshot: Snapshot) {
+    const previous = this.roster;
+    this.roster = new Map(snapshot.participants.map((p) => [p.id, p.status]));
+    // A room that has just closed empties in one step. That is one ending, not ten departures.
+    if (!this.started || this.ended.get() || snapshot.closedAt) return;
+    const present = (status?: Participant['status']) => !!status && PRESENT.includes(status);
+    for (const person of snapshot.participants) {
+      if (person.id === this.admission.participantId) continue;
+      const before = previous.get(person.id);
+      if (person.status === 'WAITING' && before !== 'WAITING') this.cue('knock');
+      else if (present(person.status) && !present(before)) this.cue('join');
+    }
+    for (const [id, status] of previous) {
+      if (id === this.admission.participantId || !present(status)) continue;
+      if (!present(this.roster.get(id))) this.cue('leave');
+    }
+  }
   private accept = (snapshot: Snapshot) => {
     if (this.disposed) return;
     if (snapshot.sequence < this.snapshot.get().sequence) return;
+    this.listen(snapshot);
     this.snapshot.set(snapshot);
     const viewing = this.viewing.get();
     if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen)) {
@@ -128,9 +167,9 @@ export class Meeting {
       void this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
   }
   private event = (event: RoomEvent, live: boolean) => {
-    if (live && this.media.preferences.get().notificationSounds && !this.ended.get()) {
-      if (event.type === 'screen.started') this.sounds.play('start', event.eventId);
-      if (event.type === 'screen.first_viewer') this.sounds.play('viewer', event.eventId);
+    if (live && !this.ended.get()) {
+      if (event.type === 'screen.started') this.cue('screen', event.eventId);
+      if (event.type === 'screen.first_viewer') this.cue('viewer', event.eventId);
     }
     if (event.type === 'files.changed') this.fileRevision.update((n) => n + 1);
     void this.refresh();
@@ -215,11 +254,15 @@ export class Meeting {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     this.end('Вы вышли из встречи');
     await this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
+    // Closing the application with a meeting open should sound like leaving first and closing
+    // second. The host waits for this call to return before it takes the window down.
+    await this.sounds.settled();
   }
   private end(reason: string) {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
     if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
+    this.cue('self-leave');
     this.sounds.dispose();
     this.media.dispose();
     this.ended.set(reason);

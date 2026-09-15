@@ -303,6 +303,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -355,6 +371,8 @@ export interface components {
             maxParticipants: number;
             /** Format: int32 */
             maxScreens: number;
+            name: string;
+            passwordRequired: boolean;
             /** Format: int32 */
             recoverySeconds: number;
             region: string;
@@ -371,6 +389,9 @@ export interface components {
             text?: string;
             /** @enum {string} */
             type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar";
+        };
+        Connect: {
+            password?: string;
         };
         Create: {
             approvalRequired?: boolean;
@@ -488,6 +509,13 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             enabled?: boolean;
+        };
+        Session: {
+            /** Format: int64 */
+            expiresAt?: number;
+            name?: string;
+            passwordRequired?: boolean;
+            token?: string;
         };
         Settings: {
             enabled?: boolean;
@@ -1040,6 +1068,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Admission"];
+                };
+            };
+        };
+    };
+    connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Connect"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Session"];
                 };
             };
         };

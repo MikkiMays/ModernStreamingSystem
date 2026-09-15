@@ -1,20 +1,8 @@
-import {
-  ArrowDownLeft,
-  ArrowRight,
-  Link,
-  Plus,
-  Video,
-  Star,
-  Sun,
-  Moon,
-  Monitor,
-  ShieldCheck,
-  Settings2,
-} from 'lucide-react';
+import { ArrowDownLeft, ArrowRight, Link, Plus, Video, Star, ShieldCheck, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../api/client';
-import { IconButton, Logo } from './primitives';
+import { IconButton, Logo, ThemeButton, type Theme } from './primitives';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { DesktopHome } from './DesktopHome';
@@ -22,24 +10,9 @@ import { Settings } from './Settings';
 import { FavoriteSettings } from './FavoriteSettings';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
 export { formatCode, parseInvite, type Destination } from '../core/invitation';
-export type Theme = 'system' | 'light' | 'dark';
-export function ThemeButton({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
-  const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-  return (
-    <IconButton
-      label={`Тема: ${theme === 'system' ? 'системная' : theme === 'light' ? 'светлая' : 'тёмная'}. Переключить`}
-      onClick={() => setTheme(next)}
-    >
-      {theme === 'system' ? (
-        <Monitor size={20} />
-      ) : theme === 'light' ? (
-        <Sun size={20} />
-      ) : (
-        <Moon size={20} />
-      )}
-    </IconButton>
-  );
-}
+// The theme control lives with the other primitives so the connect screen can use it without
+// pulling in the whole home page.
+export { ThemeButton, type Theme } from './primitives';
 interface HomeProps {
   onCreate: () => void;
   onJoin: (destination: Destination) => void;

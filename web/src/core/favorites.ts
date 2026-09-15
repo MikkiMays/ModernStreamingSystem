@@ -47,6 +47,39 @@ export const favoriteApi = {
     ),
 };
 
+/**
+ * The last list this server gave us, kept so the home has something to show while it asks
+ * again. Storage is per origin, so this is already per server: one server's rooms can never
+ * appear under another. The profile is recorded with it because a new profile means a
+ * different set of favourites, and showing the old one would be showing someone else's.
+ */
+const FAVORITES_KEY = 'cord:favorites:v1';
+export function cachedFavorites(): Favorite[] | undefined {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? 'null') as {
+      profile?: string;
+      rooms?: unknown;
+    } | null;
+    if (saved?.profile !== favoriteProfile() || !Array.isArray(saved.rooms)) return undefined;
+    const rooms = saved.rooms.filter(
+      (room): room is Favorite =>
+        !!room &&
+        typeof (room as Favorite).roomId === 'string' &&
+        typeof (room as Favorite).title === 'string',
+    );
+    return rooms.length ? rooms : undefined;
+  } catch {
+    return undefined;
+  }
+}
+export function cacheFavorites(rooms: Favorite[]) {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify({ profile: favoriteProfile(), rooms }));
+  } catch {
+    /* The list is still correct in memory for this visit. */
+  }
+}
+
 export function autoJoinEnabled(roomId: string): boolean {
   try {
     const rooms: unknown = JSON.parse(localStorage.getItem('cord:autojoin:v1') ?? '[]');

@@ -13,6 +13,9 @@ import { Ping } from './ui/Ping';
 import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
 import { savePreferences } from './core/preferences';
+import { Connect } from './ui/Connect';
+import { adopt, session } from './core/session';
+import { useStore } from './ui/primitives';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -35,6 +38,7 @@ function Workspace() {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [error, setError] = useState('');
   const [favoriteSettings, setFavoriteSettings] = useState<Favorite | null>(null);
+  const connection = useStore(session);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -128,6 +132,16 @@ function Workspace() {
         });
         return;
       }
+      if (command.type === 'session.token') {
+        if (typeof command.token === 'string' && typeof command.expiresAt === 'number')
+          adopt({
+            token: command.token,
+            expiresAt: command.expiresAt,
+            name: command.serverName ?? '',
+            passwordRequired: true,
+          });
+        return;
+      }
       if (command.type === 'theme.changed') {
         if (command.theme && ['light', 'dark', 'system'].includes(command.theme)) setTheme(command.theme);
         return;
@@ -204,6 +218,10 @@ function Workspace() {
     window.addEventListener('popstate', reconcile);
     return () => window.removeEventListener('popstate', reconcile);
   });
+  // Nothing about meetings before the server has answered. A meeting already open is the one
+  // exception: a session that lapses mid-conversation must never take the conversation away.
+  if (!connection && page !== 'room')
+    return <Connect theme={theme} setTheme={setTheme} onConnected={() => setError('')} />;
   return (
     <>
       {page !== 'room' && <Ping />}

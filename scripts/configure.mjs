@@ -76,6 +76,11 @@ const values = {
   REDIS_PASSWORD: redis,
   FILES_ROOT: "/data/uploads",
   ADMISSION_OPEN: "true",
+  // Empty means an open server: anyone with the address may create and join rooms, which is
+  // what every installation did before the door existed. Put a word here and Cord asks for it
+  // once per visit, before it shows anything about meetings.
+  ACCESS_PASSWORD: "",
+  SERVER_NAME: app,
 };
 await writeFile(
   ".env",

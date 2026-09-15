@@ -3,9 +3,11 @@ import { Meeting } from './meeting';
 import type { Admission, Snapshot } from '../api/types';
 vi.mock('../media/session', async () => {
   const { Store } = await import('./store');
+  const { readPreferences } = await import('./preferences');
   return {
     MediaSession: class {
       state = new Store({ status: 'idle' });
+      preferences = new Store(readPreferences());
       constructor(
         _api: unknown,
         public onEnd: (reason: string) => void,
@@ -33,12 +35,39 @@ vi.mock('./control', async () => {
     },
   };
 });
+const { cues } = vi.hoisted(() => ({ cues: [] as string[] }));
+vi.mock('./sounds', () => ({
+  NotificationSounds: class {
+    start() {}
+    play(cue: string) {
+      cues.push(cue);
+    }
+    settled() {
+      return Promise.resolve();
+    }
+    dispose() {}
+  },
+  unlockNotificationAudio() {},
+  ensureNotificationAudio() {},
+}));
 vi.mock('./uploader', () => ({
   Uploader: class {
     async congestion() {}
     async pause() {}
   },
 }));
+type Person = Snapshot['participants'][number];
+const person = (id: string, status: Person['status']): Person => ({
+  id,
+  name: id,
+  avatar: '',
+  status,
+  owner: false,
+  generation: 0,
+  recoveryDeadline: null,
+  screen: false,
+  service: null,
+});
 let meeting: Meeting;
 let snapshot: Snapshot;
 const fetchMock = vi.fn();
@@ -46,6 +75,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('fetch', fetchMock);
   sessionStorage.clear();
+  cues.length = 0;
   snapshot = {
     id: 'room',
     title: 'Admission',
@@ -55,19 +85,7 @@ beforeEach(() => {
     closedAt: null,
     approvalRequired: true,
     integrationsAllowed: true,
-    participants: [
-      {
-        id: 'guest',
-        name: 'Guest',
-        avatar: '',
-        status: 'WAITING',
-        owner: false,
-        generation: 0,
-        recoveryDeadline: null,
-        screen: false,
-        service: null,
-      },
-    ],
+    participants: [person('guest', 'WAITING')],
     messages: [],
     serverTime: 0,
   };
@@ -149,6 +167,55 @@ it('keeps the authoritative room-closed reason when revocation races with the fi
   control.onSnapshot(snapshot);
   control.onRevoked();
   expect(meeting.ended.get()).toBe('Встреча завершена');
+});
+
+it('sounds your own entrance, then a knock, an arrival and a departure, then your exit', async () => {
+  meeting.start();
+  expect(cues).toEqual(['self-join']);
+
+  snapshot = { ...snapshot, sequence: 2, participants: [person('guest', 'JOINING')] };
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(cues, 'your own arrival is announced once, not again by the roster').toEqual(['self-join']);
+
+  snapshot = {
+    ...snapshot,
+    sequence: 3,
+    participants: [person('guest', 'JOINING'), person('other', 'WAITING')],
+  };
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(cues.at(-1)).toBe('knock');
+
+  snapshot = {
+    ...snapshot,
+    sequence: 4,
+    participants: [person('guest', 'JOINING'), person('other', 'CONNECTED')],
+  };
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(cues.at(-1)).toBe('join');
+
+  snapshot = {
+    ...snapshot,
+    sequence: 5,
+    participants: [person('guest', 'JOINING'), person('other', 'LEFT')],
+  };
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(cues.at(-1)).toBe('leave');
+
+  await meeting.leave();
+  expect(cues).toEqual(['self-join', 'knock', 'join', 'leave', 'self-leave']);
+});
+
+it('stays quiet when this device asked for no notification sounds', async () => {
+  meeting.media.preferences.set({ ...meeting.media.preferences.get(), notificationSounds: false });
+  meeting.start();
+  snapshot = {
+    ...snapshot,
+    sequence: 2,
+    participants: [person('guest', 'JOINING'), person('other', 'JOINING')],
+  };
+  await vi.advanceTimersByTimeAsync(2000);
+  await meeting.leave();
+  expect(cues).toEqual([]);
 });
 
 it('resolves a room deletion when the SFU disconnect arrives before its control event', async () => {

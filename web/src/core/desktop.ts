@@ -11,6 +11,7 @@ export interface DesktopCommand {
     | 'theme.changed'
     | 'microphone.toggle'
     | 'hotkey.status'
+    | 'session.token'
     | 'profile.changed';
   showPing?: boolean;
   notificationSounds?: boolean;
@@ -19,6 +20,10 @@ export interface DesktopCommand {
   theme?: 'light' | 'dark' | 'system';
   name?: string;
   detail?: string;
+  /** A server session the host obtained for us; the page never sees the password. */
+  token?: string;
+  expiresAt?: number;
+  serverName?: string;
 }
 interface WebViewBridge {
   postMessage: (message: unknown) => void;
@@ -48,6 +53,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         'theme.changed',
         'microphone.toggle',
         'hotkey.status',
+        'session.token',
         'profile.changed',
       ].includes(message.type ?? '')
     )

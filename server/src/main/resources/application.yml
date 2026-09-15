@@ -32,6 +32,8 @@ stream:
   session-secret: ${SESSION_SECRET}
   internal-secret: ${INTERNAL_SECRET}
   files-root: ${FILES_ROOT:./.local/uploads}
+  access-password: ${ACCESS_PASSWORD:}
+  server-name: ${SERVER_NAME:Cord}
   redis-enabled: true
   max-participants: 10
   max-screens: 2

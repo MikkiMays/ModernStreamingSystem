@@ -654,22 +654,25 @@ public class RoomService {
 
   /**
    * An avatar is shown to everyone in the room, so what arrives is checked rather than trusted.
-   * Only a base64 data URI of a known image type is accepted, the payload must actually decode,
-   * and the size is bounded well below the command's own limit so a picture can never become a
-   * way to push bulk data through the snapshot. An empty value clears the picture.
+   * Only a base64 data URI of a known image type is accepted, the payload must actually decode, and
+   * the size is bounded well below the command's own limit so a picture can never become a way to
+   * push bulk data through the snapshot. An empty value clears the picture.
    */
   private static String avatar(String value) {
     if (value == null || value.isBlank()) return null;
     var text = value.strip();
     var comma = text.indexOf(',');
-    if (comma < 0 || text.length() > 3500) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+    if (comma < 0 || text.length() > 3500)
+      throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     var header = text.substring(0, comma);
     if (!header.equals("data:image/webp;base64")
         && !header.equals("data:image/png;base64")
-        && !header.equals("data:image/jpeg;base64")) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+        && !header.equals("data:image/jpeg;base64"))
+      throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     try {
       var bytes = java.util.Base64.getDecoder().decode(text.substring(comma + 1));
-      if (bytes.length == 0 || bytes.length > 2400) throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
+      if (bytes.length == 0 || bytes.length > 2400)
+        throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     } catch (IllegalArgumentException e) {
       throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     }
