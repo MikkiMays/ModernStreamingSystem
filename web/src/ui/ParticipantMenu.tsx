@@ -33,10 +33,15 @@ export function ParticipantMenu({
         <>
           <label className="participant-volume">
             Громкость у вас · {Math.round(volume * 100)}%
+            {/*
+              Музыкальный бот — участник комнаты по устройству, но не по смыслу: его дорожка
+              приходит сведённой и на своём уровне. Потолок для него такой же, как у ползунка
+              под плеером, иначе 200 % можно было бы выставить в обход него.
+            */}
             <input
               type="range"
               min={0}
-              max={200}
+              max={person.service ? 100 : 200}
               step={5}
               value={volume * 100}
               aria-label={`Громкость: ${person.name}`}

@@ -390,10 +390,16 @@ export function Services({ meeting }: { meeting: Meeting }) {
                 {state.participantId && (
                   <label className="gain-setting music-volume">
                     Громкость музыки у вас · {Math.round((volumes[state.participantId] ?? 1) * 100)}%
+                    {/*
+                      Музыке усиление не положено. Тихий собеседник — это случайность его
+                      микрофона, и её честно исправлять усилением; трек же приходит сведённым
+                      и на своём уровне, и всё сверх 100 % — это не «громче», а клиппинг.
+                      Потолок в 200 % остаётся у участников.
+                    */}
                     <input
                       type="range"
                       min="0"
-                      max="200"
+                      max="100"
                       step="5"
                       value={(volumes[state.participantId] ?? 1) * 100}
                       onChange={(e) =>
