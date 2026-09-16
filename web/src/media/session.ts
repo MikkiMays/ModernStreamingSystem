@@ -9,6 +9,7 @@ import {
   LocalAudioTrack,
   ConnectionQuality,
   DisconnectReason,
+  VideoQuality,
   type Participant,
   type LocalTrack,
   type VideoCodec,
@@ -18,6 +19,8 @@ import { Store } from '../core/store';
 import { RecoveryWindow } from '../core/recovery';
 import {
   chooseCodec,
+  chooseCameraCodec,
+  cameraHint,
   fitSource,
   screenOptions,
   cameraCapture,
@@ -26,7 +29,7 @@ import {
   companionCameraOptions,
   type ScreenProfile,
 } from './profiles';
-import { UpstreamBudget, type CameraRole } from './upstream';
+import { UpstreamBudget, type CameraRole, type UpstreamChange } from './upstream';
 import {
   readPreferences,
   savePreferences,
@@ -66,6 +69,23 @@ export interface DeviceChoice {
   camera?: string;
   speaker?: string;
 }
+/**
+ * Что уходит в сеть на самом деле.
+ *
+ * Профиль — это просьба, а не факт. Камера, которая не умеет 2560×1440, молча отдаёт
+ * 1920×1080; кодировщик, которому тесно, молча роняет частоту. Пока эти числа нигде не
+ * показывались, «заявлено 60, идёт 40» невозможно было ни увидеть, ни опровергнуть.
+ */
+export interface OutboundVideo {
+  source: 'camera' | 'screen';
+  width: number;
+  height: number;
+  fps: number;
+  /** Мегабиты в секунду по разнице счётчиков за интервал. */
+  mbps: number;
+  /** `qualityLimitationReason`: почему кодировщик отдаёт меньше, чем его просили. */
+  limitation: string;
+}
 
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
 export class MediaSession {
@@ -83,6 +103,8 @@ export class MediaSession {
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
   readonly deafened = new Store(false);
+  /** Что мы отдаём прямо сейчас, по измерению, а не по настройке. */
+  readonly outbound = new Store<OutboundVideo | null>(null);
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   private previousVolumes = new Map<string, number>();
@@ -103,6 +125,28 @@ export class MediaSession {
         const wanted = this.shouldSubscribe(participant.identity, publication.source);
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
+  };
+  /** Каждая подписанная видеодорожка. */
+  private *remoteVideo() {
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.videoTrackPublications.values())
+        if (publication.isSubscribed) yield publication;
+  }
+  /**
+   * Попросить у сервера верхний слой.
+   *
+   * Только когда адаптация выключена: при включённой это ничего не даёт — размеры плитки
+   * всё равно окажутся меньше и победят, — и выглядело бы как настройка, которая не работает.
+   */
+  private pinQuality = () => {
+    if (this.adaptive) return;
+    for (const publication of this.remoteVideo()) publication.setVideoQuality(VideoQuality.HIGH);
+  };
+  private followVisibility = () => {
+    if (this.adaptive || this.disposed) return;
+    const visible = !document.hidden;
+    for (const publication of this.remoteVideo())
+      if (publication.isEnabled !== visible) publication.setEnabled(visible);
   };
   toggleParticipantMute(id: string) {
     const volume = this.volumes.get()[id] ?? 1;
@@ -134,6 +178,22 @@ export class MediaSession {
   private cameraRole: CameraRole = 'full';
   private budget = new UpstreamBudget();
   private codec: VideoCodec = 'vp8';
+  /**
+   * Кодек камеры. Здесь годами стоял жёсткий VP8, который почти нигде не кодируется железом —
+   * отсюда и «заявлено 60 fps, идёт 40». Выбирается один раз на сессию: смена кодека требует
+   * переговоров, и делать это по ходу разговора ради одного и того же ответа незачем.
+   */
+  private cameraCodec: VideoCodec = 'vp8';
+  private cameraCodecChosen?: Promise<VideoCodec>;
+  /**
+   * Подстраивается ли приём под размер плитки.
+   *
+   * Выключен, когда человек выбрал уровень руками. Проверено в SDK: пока adaptiveStream
+   * включён, размеры плитки побеждают `setVideoQuality`, если они меньше, — то есть попросить
+   * максимум и одновременно оставить адаптацию нельзя. Выбранный уровень — указание, и оно
+   * относится к обеим сторонам: незачем отдавать 1440p, чтобы принять 360p.
+   */
+  private readonly adaptive: boolean;
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   private deviceBusy = new Set<string>();
@@ -144,6 +204,9 @@ export class MediaSession {
   private refreshQueued = false;
   private fullRetry = 0;
   private qualityTimer?: ReturnType<typeof setInterval>;
+  private upstreamSampling = false;
+  private upstreamCounters?: { at: number; bytes: number };
+  private encoderHealth = new EncoderHealth();
   private screenGeneration = 0;
   private liveTimer?: ReturnType<typeof setInterval>;
   private liveNoticeTimer?: ReturnType<typeof setTimeout>;
@@ -167,8 +230,12 @@ export class MediaSession {
     private capture: CaptureAdapter = browserCapture,
   ) {
     this.recovery = new RecoveryWindow((api.admission.recoverySeconds || 20) * 1000);
+    this.adaptive = this.cameraProfile.automatic && this.profile.automatic;
     this.room = new Room({
-      adaptiveStream: true,
+      // `pixelDensity: 'screen'` — потому что плитка в 740 CSS-пикселей на экране с масштабом
+      // 150 % занимает 1110 настоящих, а запрос по умолчанию считает первое. На любом
+      // масштабированном мониторе это систематически на слой ниже, всегда и у всех.
+      adaptiveStream: this.adaptive ? { pixelDensity: 'screen' } : false,
       dynacast: true,
       webAudioMix: true,
       stopLocalTrackOnUnpublish: false,
@@ -214,6 +281,7 @@ export class MediaSession {
       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
+      .on(RoomEvent.TrackSubscribed, this.pinQuality)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
         if (publication) this.playout.forget(publication.trackSid);
@@ -231,6 +299,9 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
+    // Свёрнутая вкладка не должна тянуть чужое видео. Обычно это делает adaptiveStream, но он
+    // выключен, когда человек попросил максимум, — значит, за паузой следим сами.
+    if (!this.adaptive) document.addEventListener('visibilitychange', this.followVisibility);
     this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
@@ -354,12 +425,46 @@ export class MediaSession {
   playoutTargets() {
     return this.playout.targets();
   }
+  /**
+   * Какой кодек камере по силам на этой машине.
+   *
+   * Спрашивается один раз и переиспользуется: `mediaCapabilities.encodingInfo` — это опрос
+   * платформы, а не устройства, и от кадра к кадру ответ не меняется. Отказ ответа означает
+   * прежний VP8, то есть худшее, что могло случиться, и есть нынешнее поведение.
+   */
+  private ensureCameraCodec() {
+    this.cameraCodecChosen ??= chooseCameraCodec(this.cameraProfile)
+      .then((codec) => {
+        this.cameraCodec = codec;
+        return codec;
+      })
+      .catch(() => this.cameraCodec);
+    return this.cameraCodecChosen;
+  }
+  /** Что камера умеет на самом деле — чтобы не просить у неё невозможного молча. */
+  private cameraCapabilities() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    return track instanceof LocalVideoTrack
+      ? track.mediaStreamTrack.getCapabilities?.()
+      : this.deviceTracks.get(Track.Source.Camera)?.mediaStreamTrack.getCapabilities?.();
+  }
   /** Чем захватывать камеру и как её публиковать при нынешнем составе отдачи. */
   private cameraCaptureNow() {
-    return this.cameraRole === 'companion' ? companionCameraCapture() : cameraCapture(this.cameraProfile);
+    return this.cameraRole === 'companion'
+      ? companionCameraCapture()
+      : cameraCapture(this.cameraProfile, this.cameraCapabilities());
   }
   private cameraOptionsNow() {
-    return this.cameraRole === 'companion' ? companionCameraOptions() : cameraOptions(this.cameraProfile);
+    return this.cameraRole === 'companion'
+      ? companionCameraOptions(this.cameraCodec)
+      : cameraOptions(this.cameraProfile, this.cameraCodec);
+  }
+  /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
+  private applyCameraHint() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (track instanceof LocalVideoTrack)
+      track.mediaStreamTrack.contentHint =
+        this.cameraRole === 'companion' ? 'motion' : cameraHint(this.cameraProfile);
   }
   /** Что мы сейчас отдаём — для решения, кому уступать. */
   private upstreamInputs(limitation = 'none', available: number | null = null) {
@@ -369,6 +474,11 @@ export class MediaSession {
       limitation,
       available,
       screenAutomatic: this.profile.automatic,
+      cameraAutomatic: this.cameraProfile.automatic,
+      // Потолок — то, что человек выбрал. В автоматическом режиме выбора нет, и лестница
+      // свободна до самого верха: именно этого и не хватало, когда «Авто» означало 720p.
+      screenCeiling: this.profile.automatic ? undefined : this.profile,
+      cameraCeiling: this.cameraProfile.automatic ? undefined : this.cameraProfile,
     };
   }
   /**
@@ -380,13 +490,17 @@ export class MediaSession {
    */
   private syncUpstream() {
     try {
-      const change = this.budget.observe(this.upstreamInputs());
-      if (change.camera) void this.applyCameraRole(change.camera);
+      this.applyUpstream(this.budget.observe(this.upstreamInputs()));
     } catch (error) {
       // Бюджет — это экономия, а не право говорить. Его отказ не должен отменять показ
       // экрана, к которому он прицеплен: лишние мегабиты лучше сорванной демонстрации.
       this.report(error);
     }
+  }
+  private applyUpstream(change: UpstreamChange) {
+    if (change.camera) void this.applyCameraRole(change.camera);
+    if (change.screen) void this.setProfile({ ...this.profile, ...change.screen });
+    if (change.cameraLevel) void this.setCameraProfile({ ...this.cameraProfile, ...change.cameraLevel });
   }
   /**
    * Переопубликовать камеру другим кадром.
@@ -417,6 +531,7 @@ export class MediaSession {
           ...this.cameraOptionsNow(),
           source: Track.Source.Camera,
         });
+        this.applyCameraHint();
         if (this.disposed) track.stop();
         this.refreshTracks();
       } catch (error) {
@@ -584,6 +699,8 @@ export class MediaSession {
     );
     void this.restoreTracks(cycle);
     this.patch({ status: 'connected', remaining: this.recovery.durationMs / 1000, error: null });
+    this.startUpstreamMonitor();
+    this.pinQuality();
     this.refreshTracks();
   };
   private refreshTracks = () => {
@@ -648,6 +765,7 @@ export class MediaSession {
         if (this.disposed || cycle !== this.connectionCycle) return;
         if (!wanted || this.room.localParticipant.getTrackPublication(source)?.track) continue;
         const track = this.deviceTracks.get(source);
+        if (source === Track.Source.Camera) await this.ensureCameraCodec();
         if (track && track.mediaStreamTrack.readyState === 'live')
           await this.room.localParticipant.publishTrack(track, {
             ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
@@ -703,12 +821,17 @@ export class MediaSession {
           microphoneOptions(),
         );
         if (this.room.localParticipant.isMicrophoneEnabled) await this.applyAudioProcessor();
-      } else
+      } else {
+        // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
+        // картинке, а ответ платформы от момента вопроса не зависит.
+        if (!this.state.get().camera) await this.ensureCameraCodec();
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
           { deviceId, ...this.cameraCaptureNow() },
           this.cameraOptionsNow(),
         );
+        this.applyCameraHint();
+      }
       this.wanted[kind] =
         kind === 'microphone'
           ? this.room.localParticipant.isMicrophoneEnabled
@@ -942,7 +1065,7 @@ export class MediaSession {
       // Камера уступает место здесь же, а не после первой жалобы кодировщика: жалоба
       // означала бы, что экран уже успел испортиться.
       this.syncUpstream();
-      this.monitorEncoder();
+      this.upstreamCounters = undefined;
       stream = undefined;
     } catch (error) {
       if (!(error instanceof DOMException && ['NotAllowedError', 'AbortError'].includes(error.name)))
@@ -960,7 +1083,9 @@ export class MediaSession {
   async stopScreen() {
     this.screenPublishAbort?.abort();
     this.screenGeneration++;
-    clearInterval(this.qualityTimer);
+    // Счётчики байтов принадлежали экрану; следующий интервал должен считаться заново,
+    // иначе первый замер камеры вычтет из своих байтов чужие.
+    this.upstreamCounters = undefined;
     const tracks = this.screenTracks;
     this.screenTracks = [];
     for (const track of tracks) {
@@ -1004,6 +1129,7 @@ export class MediaSession {
           ...this.cameraOptionsNow(),
           source: Track.Source.Camera,
         });
+        this.applyCameraHint();
         this.cameraProfilePending = false;
         if (this.disposed) track.stop();
         this.refreshTracks();
@@ -1046,44 +1172,102 @@ export class MediaSession {
   get requestedProfile() {
     return this.profile;
   }
-  private monitorEncoder() {
+  /**
+   * Наблюдение за отдачей — всё время, пока идёт разговор.
+   *
+   * Раньше этот опрос заводился внутри публикации экрана и вместе с ней умирал. Значит,
+   * обычный звонок с одной камерой не спрашивал кодировщик ни разу: «Авто» для камеры не
+   * поднималось и не опускалось, оно просто равнялось одному числу из настроек по умолчанию.
+   * Отсюда и жалоба, что вручную выставленное качество лучше автоматического.
+   */
+  private startUpstreamMonitor() {
     clearInterval(this.qualityTimer);
-    const health = new EncoderHealth();
-    const generation = this.screenGeneration;
-    let sampling = false;
-    this.qualityTimer = setInterval(() => {
-      const track = this.screenTracks.find((t) => t instanceof LocalVideoTrack);
-      if (!track || sampling || this.disposed) return;
-      sampling = true;
-      void track
-        .getRTCStatsReport()
-        .then((report) => {
-          let limitation = 'none';
-          let available: number | null = null;
-          report?.forEach((stat) => {
-            if (stat.type === 'outbound-rtp' && typeof stat.qualityLimitationReason === 'string')
-              if (stat.qualityLimitationReason !== 'none') limitation = stat.qualityLimitationReason;
-            if (stat.type === 'candidate-pair' && typeof stat.availableOutgoingBitrate === 'number')
-              available = stat.availableOutgoingBitrate;
-          });
-          if (this.disposed || generation !== this.screenGeneration) return;
-          if (health.observe(limitation, this.codec === 'av1' || this.codec === 'vp9')) {
-            this.codec = 'vp8';
-            void this.setProfile(this.profile);
-            this.report(new Error('Кодировщик перегружен. Переключаем экран на совместимый кодек.'));
-            return;
-          }
-          // Кодировщику тесно — уступают по очереди, и первой уступает камера. Выбранный
-          // вручную уровень экрана при этом не двигается: это указание, а не совет.
-          const change = this.budget.observe(this.upstreamInputs(limitation, available));
-          if (change.camera) void this.applyCameraRole(change.camera);
-          if (change.screen) void this.setProfile({ ...this.profile, ...change.screen });
-        })
-        .catch(() => {})
-        .finally(() => {
-          sampling = false;
+    this.encoderHealth = new EncoderHealth();
+    this.upstreamCounters = undefined;
+    this.qualityTimer = setInterval(() => void this.sampleUpstream(), 3000);
+  }
+  /** Дорожка, по которой судим об отдаче: показываемый экран важнее камеры. */
+  private leadingVideo(): { track: LocalVideoTrack; source: 'camera' | 'screen' } | null {
+    const screen = this.screenTracks.find((t) => t instanceof LocalVideoTrack);
+    if (screen instanceof LocalVideoTrack) return { track: screen, source: 'screen' };
+    const camera = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    return camera instanceof LocalVideoTrack ? { track: camera, source: 'camera' } : null;
+  }
+  private async sampleUpstream() {
+    if (this.disposed || this.upstreamSampling || this.state.get().status !== 'connected') return;
+    const leading = this.leadingVideo();
+    if (!leading) {
+      this.upstreamCounters = undefined;
+      if (this.outbound.get()) this.outbound.set(null);
+      return;
+    }
+    this.upstreamSampling = true;
+    const cycle = this.connectionCycle;
+    try {
+      const report = await leading.track.getRTCStatsReport();
+      if (this.disposed || cycle !== this.connectionCycle) return;
+      let limitation = 'none';
+      let available: number | null = null;
+      let width = 0;
+      let height = 0;
+      let fps = 0;
+      let bytes = 0;
+      let at = 0;
+      report?.forEach((stat) => {
+        if (stat.type === 'candidate-pair' && typeof stat.availableOutgoingBitrate === 'number')
+          available = stat.availableOutgoingBitrate;
+        if (stat.type !== 'outbound-rtp' || (stat.kind ?? stat.mediaType) !== 'video') return;
+        if (typeof stat.qualityLimitationReason === 'string' && stat.qualityLimitationReason !== 'none')
+          limitation = stat.qualityLimitationReason;
+        bytes += Number(stat.bytesSent ?? 0);
+        at = Math.max(at, Number(stat.timestamp ?? 0));
+        // Слоёв может быть несколько; «что мы отдаём» — это самый крупный из них.
+        const frame = Number(stat.frameWidth ?? 0);
+        if (frame >= width) {
+          width = frame;
+          height = Number(stat.frameHeight ?? 0);
+          fps = Number(stat.framesPerSecond ?? 0);
+        }
+      });
+      const previous = this.upstreamCounters;
+      const seconds = previous && at > previous.at ? (at - previous.at) / 1000 : 0;
+      this.upstreamCounters = { at, bytes };
+      if (width)
+        this.outbound.set({
+          source: leading.source,
+          width,
+          height,
+          fps: Math.round(fps),
+          mbps: seconds > 0 ? Math.max(0, ((bytes - previous!.bytes) * 8) / seconds / 1000000) : 0,
+          limitation,
         });
-    }, 3000);
+      // Новые кодеки красивее, но стоят дороже. Три жалобы подряд на процессор означают, что
+      // этот обмен не удался, и совместимый кодек лучше испорченной картинки.
+      const advanced =
+        leading.source === 'screen'
+          ? this.codec === 'av1' || this.codec === 'vp9'
+          : this.cameraCodec === 'av1' || this.cameraCodec === 'vp9';
+      if (this.encoderHealth.observe(limitation, advanced)) {
+        if (leading.source === 'screen') {
+          this.codec = 'vp8';
+          void this.setProfile(this.profile);
+          this.report(new Error('Кодировщик перегружен. Переключаем экран на совместимый кодек.'));
+        } else {
+          this.cameraCodec = 'vp8';
+          this.cameraCodecChosen = Promise.resolve('vp8' as VideoCodec);
+          void this.setCameraProfile(this.cameraProfile);
+          this.report(new Error('Кодировщик перегружен. Переключаем камеру на совместимый кодек.'));
+        }
+        return;
+      }
+      // Кодировщику тесно — уступают по очереди, и первой уступает камера. Выбранный
+      // вручную уровень при этом не двигается: это указание, а не совет.
+      this.applyUpstream(this.budget.observe(this.upstreamInputs(limitation, available)));
+    } catch {
+      // Статистика — не право говорить: её отсутствие ничего не должно остановить.
+    } finally {
+      this.upstreamSampling = false;
+    }
   }
   dispose() {
     if (this.disposed) return;
@@ -1102,6 +1286,7 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
+    document.removeEventListener('visibilitychange', this.followVisibility);
     this.screenTracks.forEach((t) => t.stop());
     this.deviceTracks.forEach((t) => t.stop());
     this.deviceTracks.clear();

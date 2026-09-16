@@ -3,11 +3,10 @@ import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
   expect(readPreferences().camera.automatic).toBe(true);
-  savePreferences({
-    screen: { resolution: 1440, fps: 60, automatic: false, automaticFps: false },
-  });
+  savePreferences({ screen: { resolution: 1440, fps: 60, automatic: false } });
   expect(readPreferences().screen.fps).toBe(60);
-  expect(readPreferences().camera.resolution).toBe(720);
+  // «Авто» — стартовая ступень лестницы, а не самый скромный уровень, какой бывает.
+  expect(readPreferences().camera.resolution).toBe(1080);
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ camera: { resolution: 9999, fps: -1 }, devices: { microphone: 42 } }),

@@ -22,11 +22,16 @@
  * жалобы — значит сначала испортить экран. Экран же трогается только после того, как
  * уступила камера, и не раньше, чем эта уступка успела отразиться в оценке канала.
  *
+ * А КОГДА ПОКАЗА НЕТ, у камеры своя лестница. Раньше её не было вовсе: `monitorEncoder`
+ * заводился внутри публикации экрана, и обычный разговор не опрашивал статистику отдачи
+ * ни разу. «Авто» для камеры означало ровно одно фиксированное значение из настроек по
+ * умолчанию — отсюда и «на Авто качество хуже, чем когда выставляешь руками».
+ *
  * Здесь нет ни LiveKit, ни браузера: на вход — что опубликовано и что говорит кодировщик,
  * на выход — что поменять. Всё решение проверяется без сети.
  */
 
-import { AutoQuality, type Rung } from './auto-quality';
+import { AutoQuality, ceilingFor, startingRung, type Rung } from './auto-quality';
 
 /** Каким кадром идёт камера. */
 export type CameraRole =
@@ -46,6 +51,11 @@ export interface UpstreamInputs {
   available: number | null;
   /** Двигать ли уровень демонстрации: выбранный вручную уровень — указание, а не совет. */
   screenAutomatic: boolean;
+  /** То же для камеры. */
+  cameraAutomatic: boolean;
+  /** Выше какой ступени лестнице не подниматься. */
+  screenCeiling?: Rung;
+  cameraCeiling?: Rung;
 }
 
 export interface UpstreamChange {
@@ -53,6 +63,8 @@ export interface UpstreamChange {
   camera?: CameraRole;
   /** Новый уровень демонстрации, если его надо сменить. */
   screen?: Rung;
+  /** Новый уровень камеры, если его надо сменить. */
+  cameraLevel?: Rung;
 }
 
 /**
@@ -65,11 +77,45 @@ export interface UpstreamChange {
  */
 const GRACE_TICKS = 2;
 
+/**
+ * Лестница, которую не надо пересоздавать, пока потолок не изменился.
+ *
+ * Потолок приходит снаружи на каждом опросе, потому что человек может сменить уровень
+ * посреди разговора. Пересоздание при каждом совпадающем значении стёрло бы накопленные
+ * счётчики «две жалобы подряд» и лестница перестала бы двигаться вообще.
+ */
+class Ladder {
+  private ceiling?: number;
+  private quality: AutoQuality;
+  constructor(limit?: Rung) {
+    this.ceiling = limit && ceilingFor(limit);
+    this.quality = this.build();
+  }
+  private build() {
+    return this.ceiling === undefined
+      ? new AutoQuality(startingRung)
+      : new AutoQuality(Math.min(startingRung, this.ceiling), this.ceiling);
+  }
+  /** Потолок сменился — человек выбрал другой уровень, и прежняя лестница о нём не знает. */
+  retarget(limit?: Rung) {
+    const next = limit && ceilingFor(limit);
+    if (next === this.ceiling) return;
+    this.ceiling = next;
+    this.quality = this.build();
+  }
+  observe(limitation: string, available: number | null) {
+    return this.quality.observe(limitation, available);
+  }
+  get current() {
+    return this.quality.current;
+  }
+}
+
 export class UpstreamBudget {
   private role: CameraRole = 'full';
   private grace = 0;
-
-  constructor(private auto = new AutoQuality()) {}
+  private auto = new Ladder();
+  private cameraLadder = new Ladder();
 
   /** Какой кадр камеры сейчас считается правильным. */
   get cameraRole() {
@@ -81,6 +127,11 @@ export class UpstreamBudget {
     return this.auto.current;
   }
 
+  /** Уровень камеры, на котором остановилась автоматика. */
+  get cameraRung() {
+    return this.cameraLadder.current;
+  }
+
   /**
    * Один опрос статистики отдачи.
    *
@@ -88,6 +139,8 @@ export class UpstreamBudget {
    */
   observe(input: UpstreamInputs): UpstreamChange {
     const change: UpstreamChange = {};
+    this.auto.retarget(input.screenCeiling);
+    this.cameraLadder.retarget(input.cameraCeiling);
 
     // Роль камеры определяется составом того, что мы отдаём, а не жалобами кодировщика:
     // рядом с демонстрацией камера маленькая всегда, а не только когда уже стало плохо.
@@ -100,7 +153,17 @@ export class UpstreamBudget {
       if (demoted) this.grace = GRACE_TICKS;
     }
 
-    if (!input.sharing || !input.screenAutomatic) return change;
+    if (!input.sharing) {
+      // Показа нет — камера и есть то, что видно, и лестница принадлежит ей. Ужатая камера
+      // здесь невозможна: роль выше уже вернулась к 'full'.
+      if (input.camera && input.cameraAutomatic) {
+        const next = this.cameraLadder.observe(input.limitation, input.available);
+        if (next) change.cameraLevel = next;
+      }
+      return change;
+    }
+
+    if (!input.screenAutomatic) return change;
     if (this.grace > 0) {
       this.grace--;
       // Жалоба во время паузы не выбрасывается, а просто не считается против экрана:
@@ -114,7 +177,8 @@ export class UpstreamBudget {
 
   /** Демонстрация закончилась: лестница экрана начинается заново в следующий раз. */
   reset() {
-    this.auto = new AutoQuality();
+    this.auto = new Ladder();
+    this.cameraLadder = new Ladder();
     this.grace = 0;
   }
 }

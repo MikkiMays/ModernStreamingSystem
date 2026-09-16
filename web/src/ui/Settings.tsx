@@ -124,14 +124,11 @@ export function QualityFields({
             aria-label={label + ': качество'}
             value={profile.automatic ? 'auto' : profile.resolution}
             onChange={(e) =>
-              change({
-                ...profile,
-                resolution:
-                  e.target.value === 'auto'
-                    ? automaticProfile(kind).resolution
-                    : (Number(e.target.value) as Resolution),
-                automatic: e.target.value === 'auto',
-              })
+              change(
+                e.target.value === 'auto'
+                  ? automaticProfile(kind)
+                  : { ...profile, resolution: Number(e.target.value) as Resolution, automatic: false },
+              )
             }
           >
             <option value="auto">Авто</option>
@@ -142,18 +139,16 @@ export function QualityFields({
         </label>
         <label>
           Плавность
+          {/* Частота принадлежит уровню, а не живёт отдельно: «разрешение автоматическое,
+              частота выбрана» обещало бы то, чего автоматика не умеет — она двигает и то,
+              и другое одной ступенью. Поэтому в Авто список показывает Авто и не спорит. */}
           <select
             aria-label={label + ': частота кадров'}
-            value={profile.automaticFps !== false ? 'auto' : profile.fps}
-            onChange={(e) =>
-              change({
-                ...profile,
-                fps: e.target.value === 'auto' ? 30 : (Number(e.target.value) as FrameRate),
-                automaticFps: e.target.value === 'auto',
-              })
-            }
+            disabled={profile.automatic}
+            value={profile.automatic ? 'auto' : profile.fps}
+            onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
           >
-            <option value="auto">Авто</option>
+            {profile.automatic && <option value="auto">Авто</option>}
             <option value="15">15 fps</option>
             <option value="30">30 fps</option>
             <option value="60">60 fps · плавнее</option>
@@ -162,8 +157,8 @@ export function QualityFields({
       </div>
       <p className="form-footnote">
         {profile.automatic
-          ? 'Авто держит лучшее качество, которое выдерживает связь, и поднимает его, когда появляется запас.'
-          : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
+          ? 'Авто выбирает и кадр, и частоту по тому, что выдерживает связь, — вплоть до 1440p · 60 fps, — и поднимает уровень, как только появляется запас.'
+          : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Выбранный уровень действует и на приём: то, что вы смотрите, не ужимается под размер плитки. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
       </p>
       {kind === 'camera' && (
         <p className="form-footnote">
