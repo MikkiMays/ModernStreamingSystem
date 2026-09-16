@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { cameraOptions, fitSource, screenOptions } from './profiles';
+import {
+  cameraOptions,
+  companionCameraCapture,
+  companionCameraOptions,
+  fitSource,
+  screenOptions,
+} from './profiles';
 
 describe('screen profiles', () => {
   it('preserves portrait, ultrawide and conventional source geometry', () => {
@@ -26,5 +32,13 @@ describe('screen profiles', () => {
   it('applies the same rule to the camera', () => {
     expect(cameraOptions({ resolution: 1080, fps: 60, automatic: false }).simulcast).toBe(false);
     expect(cameraOptions({ resolution: 1080, fps: 60, automatic: true }).simulcast).toBe(true);
+  });
+  it('камера рядом с показом идёт одним слоем и заметно дешевле самой скромной обычной', () => {
+    const companion = companionCameraOptions();
+    const smallest = cameraOptions({ resolution: 720, fps: 15, automatic: true });
+    expect(companion.simulcast).toBe(false);
+    expect(companion.videoSimulcastLayers).toBeUndefined();
+    expect(companion.videoEncoding!.maxBitrate).toBeLessThan(smallest.videoEncoding!.maxBitrate!);
+    expect(companionCameraCapture().resolution.height).toBe(360);
   });
 });

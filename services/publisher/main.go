@@ -35,6 +35,10 @@ const (
 	// Опус в пакете один и тот же, а вот тишина в комнате слышна сразу: отчёт о позиции
 	// раз в полсекунды — достаточно редко для журнала и достаточно часто для полосы.
 	report = 25
+	// Насколько можно отстать от собственного расписания, прежде чем признать отставание
+	// и перестать его догонять. Десять кадров — меньше, чем слышно как пауза, и заметно
+	// больше, чем обычная неточность сна в загруженной системе.
+	slack = 10 * frame
 )
 
 type command struct {
@@ -70,9 +74,23 @@ func say(value event) {
 	_ = output.writer.Flush()
 }
 
+// Битрейт можно понизить, не пересобирая образ: на узком или неровном канале меньший
+// пакет реже застревает. По умолчанию комната получает то же, что и раньше.
+func setting(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
+}
+
 // decode turns one track into the room's format: soxr to 48 kHz with dither, then Opus at a
 // constrained 256 kbit/s so every 20 ms frame stays inside one packet. Seeking is asked for
 // before the input, so ffmpeg jumps instead of decoding everything ahead of the mark.
+//
+// `-packet_loss` — это не запрос FEC, а указание кодеку, что кадр может не доехать. Opus
+// в ответ меньше опирается на предыдущий кадр, и потеря одного пакета портит один пакет,
+// а не тянет за собой хвост. На 256 кбит/с за это платится битрейтом, которого там с
+// запасом, а слышно — разницу между щелчком и провалом на полсекунды.
 func decode(path string, position float64) *exec.Cmd {
 	return exec.Command("ffmpeg",
 		"-nostdin", "-v", "error", "-threads", "1",
@@ -82,7 +100,8 @@ func decode(path string, position float64) *exec.Cmd {
 		"-vn", "-sn", "-dn", "-map", "0:a:0",
 		"-af", "aresample=resampler=soxr:precision=28:dither_method=triangular_hp",
 		"-ac", "2", "-ar", "48000",
-		"-c:a", "libopus", "-b:a", "256k", "-vbr", "constrained",
+		"-c:a", "libopus", "-b:a", setting("CORD_MUSIC_BITRATE", "256k"), "-vbr", "constrained",
+		"-packet_loss", setting("CORD_MUSIC_PACKET_LOSS", "5"),
 		"-compression_level", "10", "-application", "audio", "-frame_duration", "20",
 		"-f", "ogg", "-page_duration", "20000", "pipe:1",
 	)
@@ -131,7 +150,14 @@ func (p *player) play(path string, position float64, epoch int64) {
 		defer p.finished.Done()
 		defer pipe.Close()
 		stream := newOggStream(pipe)
-		started := time.Now()
+		// Отсчёт начинается с первого готового кадра, а не с запуска ffmpeg.
+		//
+		// ЗАЧЕМ. Между командой и первым кадром проходит время: запуск процесса, перемотка,
+		// декодирование, кодирование. Если считать от команды, к появлению первой страницы
+		// её кадры уже «опоздали», и цикл отдаёт их залпом — начало каждого трека уходило в
+		// комнату пачкой. Приёмник кладёт пачку в буфер целиком, а потом догоняет, выбрасывая
+		// куски: **начало трека звучало ускоренно**. С пустого отсчёта такого долга нет.
+		var started time.Time
 		written := 0
 		for {
 			packets, err := stream.next()
@@ -158,7 +184,18 @@ func (p *player) play(path string, position float64, epoch int64) {
 				}
 				// Deadlines rather than a ticker: a ticker drops the ticks it missed, and
 				// an hour of playback would drift away from the position being reported.
+				if written == 0 {
+					started = time.Now()
+				}
 				deadline := started.Add(time.Duration(written) * frame)
+				// Отстали заметно — значит, машина или декодер на время замерли. Отдавать
+				// накопленное залпом нельзя: у приёмника это снова обернётся раздутым буфером
+				// и погоней за ним. Сдвигаем отсчёт и играем дальше ровно — потерянные доли
+				// секунды всё равно не вернуть, а ровный темп дороже.
+				if behind := time.Since(deadline); behind > slack {
+					started = started.Add(behind)
+					deadline = deadline.Add(behind)
+				}
 				if wait := time.Until(deadline); wait > 0 {
 					select {
 					case <-stop:

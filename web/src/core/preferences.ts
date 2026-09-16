@@ -1,7 +1,10 @@
 import { notifyDesktop } from './desktop';
 import type { ScreenProfile } from '../media/profiles';
 import type { DeviceChoice } from '../media/session';
+import type { NetworkMode } from '../media/playout';
 import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
+
+export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
@@ -25,6 +28,11 @@ export interface Preferences {
   camera: ScreenProfile;
   devices: DeviceChoice;
   audio: AudioPreferences;
+  /**
+   * Чем жертвовать, когда канал не даёт и непрерывности, и отзывчивости сразу.
+   * Влияет только на запас буфера приёма; ни переподключения, ни смены кодеков.
+   */
+  network: NetworkMode;
   name: string;
   /** A small square data URI shown to the room, or an empty string. */
   avatar: string;
@@ -72,6 +80,7 @@ export function readPreferences(): Preferences {
           ? Math.max(0, Math.min(2, data.audio.gain))
           : 1,
     },
+    network: networkModes.includes(data.network as NetworkMode) ? data.network! : 'auto',
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,

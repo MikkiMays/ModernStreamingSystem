@@ -22,20 +22,24 @@ import {
   screenOptions,
   cameraCapture,
   cameraOptions,
+  companionCameraCapture,
+  companionCameraOptions,
   type ScreenProfile,
 } from './profiles';
-import { AutoQuality } from './auto-quality';
+import { UpstreamBudget, type CameraRole } from './upstream';
 import {
   readPreferences,
   savePreferences,
   type AudioPreferences,
   type Preferences,
 } from '../core/preferences';
-import { audioCapture, CordAudioProcessor, needsAudioProcessor } from './audio';
+import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { browserCapture, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
-import { preferRealtimePlayout } from './playout';
+import { linkChanged, unknownLink, type LinkState } from './link-quality';
+import type { PlayoutClass } from './playout';
+import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { waitForPublishPermissions } from './publish-permissions';
 
 export interface MediaTile {
@@ -79,6 +83,8 @@ export class MediaSession {
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
   readonly deafened = new Store(false);
+  /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
+  readonly link = new Store<LinkState>(unknownLink);
   private previousVolumes = new Map<string, number>();
   private watchedParticipant: string | null = null;
   watchScreen(participantId: string | null) {
@@ -120,6 +126,13 @@ export class MediaSession {
   private cameraProfile = this.preferences.get().camera;
   private cameraChange: Promise<void> = Promise.resolve();
   private cameraProfilePending = false;
+  /**
+   * Каким кадром сейчас идёт камера. Рядом с демонстрацией экрана — маленьким: причина и
+   * счёт мегабитам в `upstream.ts`. Это не настройка человека, а следствие того, что
+   * включено, поэтому и живёт рядом с медиа, а не в предпочтениях.
+   */
+  private cameraRole: CameraRole = 'full';
+  private budget = new UpstreamBudget();
   private codec: VideoCodec = 'vp8';
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
@@ -139,6 +152,15 @@ export class MediaSession {
   private lastLiveReset = new Map<string, number>();
   private resetting = new Set<string>();
   private liveAbort = new AbortController();
+  private playout = new PlayoutController();
+  private playoutTimer?: ReturnType<typeof setInterval>;
+  private playoutSampling = false;
+  /**
+   * Кто в этой комнате не человек. Музыкальный бот публикует дорожку как обычный микрофон —
+   * иначе комната не услышала бы стерео, — поэтому отличить его по источнику нельзя, и
+   * состав служебных участников приходит снаружи, из снимка комнаты.
+   */
+  private serviceParticipants = new Set<string>();
   constructor(
     private api: RoomApi,
     private onEnd: (reason: string) => void,
@@ -193,6 +215,9 @@ export class MediaSession {
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
+      .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
+        if (publication) this.playout.forget(publication.trackSid);
+      })
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnpublished, this.refreshTracks)
       .on(RoomEvent.LocalTrackPublished, this.refreshTracks)
@@ -206,11 +231,82 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
+    this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
+    // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
+    // свёрнутое окно с музыкой чаще всего и слушают.
+    this.playoutTimer = setInterval(() => void this.tunePlayout(), 2000);
   }
-  private configurePlayout = (track: RemoteTrack) => {
-    // Use the same preference for audio and video. This is not a forced zero-sized buffer.
-    preferRealtimePlayout(track?.receiver);
+  /**
+   * Что за дорожка с точки зрения допустимой задержки.
+   *
+   * Разговор обязан оставаться быстрым. Музыка и звук демонстрации могут отстать на
+   * секунду — их никто не перебивает, а непрерывность для них важнее отзывчивости.
+   */
+  private playoutKind(identity: string, source: Track.Source, kind: Track.Kind): PlayoutClass {
+    if (kind === Track.Kind.Video) return 'video';
+    if (source === Track.Source.ScreenShareAudio) return 'media';
+    return this.serviceParticipants.has(identity) ? 'media' : 'conversation';
+  }
+  /** Служебные участники комнаты по данным ядра: их звук считается музыкой, а не речью. */
+  setServiceParticipants(ids: Iterable<string>) {
+    const next = new Set(ids);
+    if (
+      next.size === this.serviceParticipants.size &&
+      [...next].every((id) => this.serviceParticipants.has(id))
+    )
+      return;
+    this.serviceParticipants = next;
+    void this.tunePlayout();
+  }
+  private playoutTracks(): PlayoutTrack[] {
+    const tracks: PlayoutTrack[] = [];
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.trackPublications.values()) {
+        const track = publication.track;
+        // Заглушённая дорожка из списка не выбрасывается: иначе каждое выключение микрофона
+        // стирало бы накопленное о ней знание, и после включения человек снова начинал бы
+        // с минимального запаса — на том же самом канале.
+        if (!publication.isSubscribed || !track) continue;
+        tracks.push({
+          id: publication.trackSid,
+          kind: this.playoutKind(participant.identity, publication.source, track.kind),
+          receiver: track.receiver,
+          stats: () => track.getRTCStatsReport(),
+        });
+      }
+    return tracks;
+  }
+  private async tunePlayout() {
+    if (this.disposed || this.playoutSampling || this.state.get().status !== 'connected') return;
+    this.playoutSampling = true;
+    const cycle = this.connectionCycle;
+    try {
+      await this.playout.tick(this.playoutTracks());
+      if (this.disposed || cycle !== this.connectionCycle) return;
+      // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
+      // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
+      if (linkChanged(this.link.get(), this.playout.link)) this.link.set(this.playout.link);
+    } catch {
+      // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
+    } finally {
+      this.playoutSampling = false;
+    }
+  }
+  private configurePlayout = (
+    track?: RemoteTrack,
+    publication?: RemoteTrackPublication,
+    participant?: Participant,
+  ) => {
+    if (!track || !publication || !participant) return;
+    // Запас выдаётся сразу при подписке. Ждать первой статистики нельзя: эти две секунды
+    // дорожка прожила бы с нулевым буфером, а первые секунды слышны лучше всех прочих.
+    this.playout.prime({
+      id: publication.trackSid,
+      kind: this.playoutKind(participant.identity, publication.source, track.kind),
+      receiver: track.receiver,
+      stats: () => track.getRTCStatsReport(),
+    });
   };
   private async checkLive() {
     if (this.disposed || this.liveSampling || this.state.get().status !== 'connected' || document.hidden)
@@ -237,9 +333,10 @@ export class MediaSession {
               const health = this.liveHealth.get(publication.trackSid) ?? new LiveHealth();
               this.liveHealth.set(publication.trackSid, health);
               let reset = false;
+              const requested = this.playout.targetFor(publication.trackSid);
               report?.forEach((stat) => {
                 if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
-                  reset ||= health.observe(stat);
+                  reset ||= health.observe(stat, requested);
               });
               if (reset) await this.resetLivePair(participant.identity, publication.source, true);
             })().catch(() => {}),
@@ -252,6 +349,83 @@ export class MediaSession {
     } finally {
       this.liveSampling = false;
     }
+  }
+  /** Какой запас буфера мы сейчас просим по каждой дорожке. Для диагностики. */
+  playoutTargets() {
+    return this.playout.targets();
+  }
+  /** Чем захватывать камеру и как её публиковать при нынешнем составе отдачи. */
+  private cameraCaptureNow() {
+    return this.cameraRole === 'companion' ? companionCameraCapture() : cameraCapture(this.cameraProfile);
+  }
+  private cameraOptionsNow() {
+    return this.cameraRole === 'companion' ? companionCameraOptions() : cameraOptions(this.cameraProfile);
+  }
+  /** Что мы сейчас отдаём — для решения, кому уступать. */
+  private upstreamInputs(limitation = 'none', available: number | null = null) {
+    return {
+      sharing: this.screenTracks.some((track) => track instanceof LocalVideoTrack),
+      camera: !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track,
+      limitation,
+      available,
+      screenAutomatic: this.profile.automatic,
+    };
+  }
+  /**
+   * Пересчитать бюджет отдачи после изменения состава дорожек.
+   *
+   * Вызывается там, где состав меняется по воле человека — включил камеру, начал или
+   * закончил показ, — а не только по таймеру: ждать следующего опроса значит несколько
+   * секунд отдавать лишние три мегабита ровно в тот момент, когда их меньше всего.
+   */
+  private syncUpstream() {
+    try {
+      const change = this.budget.observe(this.upstreamInputs());
+      if (change.camera) void this.applyCameraRole(change.camera);
+    } catch (error) {
+      // Бюджет — это экономия, а не право говорить. Его отказ не должен отменять показ
+      // экрана, к которому он прицеплен: лишние мегабиты лучше сорванной демонстрации.
+      this.report(error);
+    }
+  }
+  /**
+   * Переопубликовать камеру другим кадром.
+   *
+   * Дорожка пересобирается целиком — так же, как при смене профиля камеры: `restartTrack`
+   * меняет источник, а повторная публикация даёт кодировщику новые параметры. Сменить
+   * только битрейт на месте нельзя: слои simulcast считаются при публикации.
+   */
+  private applyCameraRole(role: CameraRole) {
+    if (this.cameraRole === role) return this.cameraChange;
+    this.cameraRole = role;
+    this.cameraChange = this.cameraChange.then(async () => {
+      if (this.disposed || !this.wanted.camera) return;
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (!(track instanceof LocalVideoTrack)) return;
+      // Роль могла смениться обратно, пока очередь ждала: применяем только последнюю.
+      const applied = this.cameraRole;
+      this.deviceBusy.add('camera');
+      try {
+        await track.restartTrack({
+          ...this.cameraCaptureNow(),
+          deviceId: this.preferences.get().devices.camera || undefined,
+        });
+        if (this.disposed || applied !== this.cameraRole) return;
+        await this.room.localParticipant.unpublishTrack(track, false);
+        if (this.disposed) return;
+        await this.room.localParticipant.publishTrack(track, {
+          ...this.cameraOptionsNow(),
+          source: Track.Source.Camera,
+        });
+        if (this.disposed) track.stop();
+        this.refreshTracks();
+      } catch (error) {
+        this.report(error);
+      } finally {
+        this.deviceBusy.delete('camera');
+      }
+    });
+    return this.cameraChange;
   }
   async returnToLive() {
     if (this.disposed || this.state.get().status !== 'connected') return;
@@ -476,19 +650,20 @@ export class MediaSession {
         const track = this.deviceTracks.get(source);
         if (track && track.mediaStreamTrack.readyState === 'live')
           await this.room.localParticipant.publishTrack(track, {
-            ...(source === Track.Source.Camera ? cameraOptions(this.cameraProfile) : {}),
+            ...(source === Track.Source.Camera ? this.cameraOptionsNow() : microphoneOptions()),
             source,
           });
         else if (source === Track.Source.Camera)
           await this.room.localParticipant.setCameraEnabled(
             true,
-            cameraCapture(this.cameraProfile),
-            cameraOptions(this.cameraProfile),
+            this.cameraCaptureNow(),
+            this.cameraOptionsNow(),
           );
         else {
           await this.room.localParticipant.setMicrophoneEnabled(
             true,
             audioCapture(this.preferences.get().audio, this.preferences.get().devices.microphone),
+            microphoneOptions(),
           );
           await this.applyAudioProcessor();
         }
@@ -509,6 +684,7 @@ export class MediaSession {
         });
       }
       this.refreshTracks();
+      this.syncUpstream();
     } catch (error) {
       if (!this.disposed) this.report(error);
     }
@@ -524,13 +700,14 @@ export class MediaSession {
         await this.room.localParticipant.setMicrophoneEnabled(
           !this.state.get().microphone,
           audioCapture(this.preferences.get().audio, deviceId),
+          microphoneOptions(),
         );
         if (this.room.localParticipant.isMicrophoneEnabled) await this.applyAudioProcessor();
       } else
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
-          { deviceId, ...cameraCapture(this.cameraProfile) },
-          cameraOptions(this.cameraProfile),
+          { deviceId, ...this.cameraCaptureNow() },
+          this.cameraOptionsNow(),
         );
       this.wanted[kind] =
         kind === 'microphone'
@@ -539,6 +716,9 @@ export class MediaSession {
       if (kind === 'camera' && !reusedCamera) this.cameraProfilePending = false;
       if (kind === 'camera' && this.wanted.camera && this.cameraProfilePending)
         await this.setCameraProfile(this.cameraProfile);
+      // Камеру включили посреди показа — она сразу идёт маленьким кадром; выключили —
+      // бюджет узнаёт об этом и вернёт полный кадр, когда камера появится снова.
+      if (kind === 'camera') this.syncUpstream();
       this.refreshTracks();
     } catch (error) {
       this.report(error);
@@ -547,7 +727,12 @@ export class MediaSession {
     }
   }
   saveSettings(patch: Partial<Preferences>) {
-    this.preferences.set(savePreferences(patch));
+    const next = savePreferences(patch);
+    this.preferences.set(next);
+    // Режим сети меняет только запас буфера, поэтому применяется на месте: ни переподписка,
+    // ни тем более переподключение для этого не нужны.
+    this.playout.setMode(next.network);
+    if (patch.network !== undefined) void this.tunePlayout();
   }
   setVolume(participantId: string, volume: number) {
     if (!Number.isFinite(volume)) return;
@@ -618,7 +803,7 @@ export class MediaSession {
       const currentFacing = track.mediaStreamTrack.getSettings().facingMode;
       const next = devices[(devices.findIndex((d) => d.deviceId === previous) + 1) % devices.length];
       await track.restartTrack({
-        ...cameraCapture(this.cameraProfile),
+        ...this.cameraCaptureNow(),
         deviceId: currentFacing ? undefined : next?.deviceId,
         facingMode: currentFacing ? (currentFacing === 'environment' ? 'user' : 'environment') : undefined,
       });
@@ -627,9 +812,7 @@ export class MediaSession {
       this.refreshTracks();
     } catch (error) {
       if (track instanceof LocalVideoTrack)
-        await track
-          .restartTrack({ ...cameraCapture(this.cameraProfile), deviceId: previous })
-          .catch(() => {});
+        await track.restartTrack({ ...this.cameraCaptureNow(), deviceId: previous }).catch(() => {});
       this.report(error);
     } finally {
       this.deviceBusy.delete('camera');
@@ -756,6 +939,9 @@ export class MediaSession {
         { once: true },
       );
       this.refreshTracks();
+      // Камера уступает место здесь же, а не после первой жалобы кодировщика: жалоба
+      // означала бы, что экран уже успел испортиться.
+      this.syncUpstream();
       this.monitorEncoder();
       stream = undefined;
     } catch (error) {
@@ -786,6 +972,10 @@ export class MediaSession {
     }
     await this.api.screen(false).catch(() => {});
     this.refreshTracks();
+    // Показа больше нет — камера возвращается к своему профилю, а лестница экрана
+    // начинается с начала: следующий показ может идти по другому каналу.
+    this.budget.reset();
+    this.syncUpstream();
   }
   setProfile(profile: ScreenProfile) {
     this.profile = profile;
@@ -804,14 +994,14 @@ export class MediaSession {
       this.deviceBusy.add('camera');
       try {
         await track.restartTrack({
-          ...cameraCapture(this.cameraProfile),
+          ...this.cameraCaptureNow(),
           deviceId: this.preferences.get().devices.camera || undefined,
         });
         if (this.disposed) return;
         await this.room.localParticipant.unpublishTrack(track, false);
         if (this.disposed) return;
         await this.room.localParticipant.publishTrack(track, {
-          ...cameraOptions(this.cameraProfile),
+          ...this.cameraOptionsNow(),
           source: Track.Source.Camera,
         });
         this.cameraProfilePending = false;
@@ -859,7 +1049,6 @@ export class MediaSession {
   private monitorEncoder() {
     clearInterval(this.qualityTimer);
     const health = new EncoderHealth();
-    const auto = new AutoQuality();
     const generation = this.screenGeneration;
     let sampling = false;
     this.qualityTimer = setInterval(() => {
@@ -884,10 +1073,11 @@ export class MediaSession {
             this.report(new Error('Кодировщик перегружен. Переключаем экран на совместимый кодек.'));
             return;
           }
-          // A chosen level is the user's instruction, not a suggestion: only automatic moves.
-          if (!this.profile.automatic) return;
-          const next = auto.observe(limitation, available);
-          if (next) void this.setProfile({ ...this.profile, ...next });
+          // Кодировщику тесно — уступают по очереди, и первой уступает камера. Выбранный
+          // вручную уровень экрана при этом не двигается: это указание, а не совет.
+          const change = this.budget.observe(this.upstreamInputs(limitation, available));
+          if (change.camera) void this.applyCameraRole(change.camera);
+          if (change.screen) void this.setProfile({ ...this.profile, ...change.screen });
         })
         .catch(() => {})
         .finally(() => {
@@ -906,6 +1096,7 @@ export class MediaSession {
     this.liveHealth.clear();
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
+    clearInterval(this.playoutTimer);
     clearTimeout(this.liveNoticeTimer);
     clearInterval(this.deadlineTimer);
     clearTimeout(this.reconnectTimer);

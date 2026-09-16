@@ -125,6 +125,13 @@ export class Meeting {
     if (snapshot.sequence < this.snapshot.get().sequence) return;
     this.listen(snapshot);
     this.snapshot.set(snapshot);
+    // Музыкальный бот публикует свой трек как обычный микрофон — иначе комната не услышала
+    // бы стерео. Значит, отличить музыку от речи по самой дорожке нельзя, и единственный,
+    // кто знает состав служебных участников, — ядро. Медиа узнаёт это отсюда, чтобы дать
+    // музыке право отстать на секунду, а разговору — нет.
+    this.media.setServiceParticipants(
+      snapshot.participants.filter((person) => person.service).map((person) => person.id),
+    );
     const viewing = this.viewing.get();
     if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen)) {
       this.viewRevision++;

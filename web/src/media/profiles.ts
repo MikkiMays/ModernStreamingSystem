@@ -84,6 +84,37 @@ export function cameraOptions(profile: ScreenProfile): TrackPublishOptions {
     ],
   };
 }
+/**
+ * Камера, пока идёт демонстрация экрана.
+ *
+ * Рядом с показываемым экраном камеру видно плиткой в угол экрана, и разницу между 360p
+ * одним слоем и 720p тремя там никто не назовёт. Зато разница в том, что уходит в сеть,
+ * шестикратная: 0,6 Мбит/с против 3,15 — и на два работающих кодировщика меньше.
+ *
+ * Слой здесь один намеренно. Simulcast нужен, чтобы отдать кому-то копию поменьше; когда
+ * дорожка **и есть** копия поменьше, второй такой же смысла не имеет, а бюджет кодировщика
+ * делит на всех именно он. Причина, по которой это вообще понадобилось, — в upstream.ts.
+ */
+export const companionCamera = { width: 640, height: 360, fps: 30 as FrameRate, bitrate: 600000 };
+export function companionCameraCapture() {
+  return {
+    resolution: {
+      width: companionCamera.width,
+      height: companionCamera.height,
+      frameRate: companionCamera.fps,
+    },
+  };
+}
+export function companionCameraOptions(): TrackPublishOptions {
+  return {
+    videoCodec: 'vp8',
+    videoEncoding: { maxBitrate: companionCamera.bitrate, maxFramerate: companionCamera.fps },
+    simulcast: false,
+    // Лицо в маленькой плитке узнаётся движением, а не резкостью: частота кадров уступает
+    // последней. Это тот же выбор, что и для выбранного вручную уровня демонстрации.
+    degradationPreference: 'maintain-framerate',
+  };
+}
 export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
   const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
   if (navigator.mediaCapabilities?.encodingInfo)

@@ -53,6 +53,14 @@ it('defaults to silent PING display and enabled notifications, then saves both i
   });
 });
 
+it('keeps the network mode automatic until asked otherwise, and rejects an unknown one', () => {
+  expect(readPreferences().network).toBe('auto');
+  savePreferences({ network: 'stable' });
+  expect(readPreferences().network).toBe('stable');
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ network: 'as-fast-as-possible' }));
+  expect(readPreferences().network).toBe('auto');
+});
+
 it('stores the integration roster choice and Yandex token for this browser profile', () => {
   savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });
   expect(readPreferences()).toMatchObject({

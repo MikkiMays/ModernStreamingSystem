@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, MonitorUp, Mic, Keyboard, User, Bell, Play, Plug, Server, Palette } from 'lucide-react';
+import {
+  Camera,
+  MonitorUp,
+  Mic,
+  Keyboard,
+  User,
+  Bell,
+  Play,
+  Plug,
+  Server,
+  Palette,
+  Waves,
+} from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
 import {
@@ -14,6 +26,8 @@ import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
 import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
+import type { NetworkMode } from '../media/playout';
+import { gradeName, pathName, unknownLink, type LinkState } from '../media/link-quality';
 import { Avatar, Modal, useStore, type Theme } from './primitives';
 import { readAvatar } from '../core/avatar';
 import { useMicLevel } from './useMicLevel';
@@ -151,6 +165,13 @@ export function QualityFields({
           ? 'Авто держит лучшее качество, которое выдерживает связь, и поднимает его, когда появляется запас.'
           : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
       </p>
+      {kind === 'camera' && (
+        <p className="form-footnote">
+          Пока вы показываете экран, камера идёт маленьким кадром: рядом с демонстрацией её видно плиткой, а
+          освободившиеся мегабиты достаются экрану. Настройка при этом не меняется — она снова вступит в силу,
+          когда показ закончится.
+        </p>
+      )}
     </section>
   );
 }
@@ -370,6 +391,77 @@ function ConnectionFields({
   );
 }
 
+/**
+ * Чем жертвовать, когда канал не даёт и непрерывности, и отзывчивости сразу.
+ *
+ * Настройка меняет ровно одно: сколько звука держать про запас, прежде чем его услышат.
+ * Запас — единственное, что вообще способно пережить скачок задержки: пакеты, пришедшие
+ * с опозданием, ещё можно проиграть, если их было куда положить. Поэтому «Авто» не
+ * означает «как раньше»: раньше запас просили нулевой, и переживать всплеск было нечем.
+ */
+function NetworkFields({
+  mode,
+  change,
+  link,
+}: {
+  mode: NetworkMode;
+  change: (mode: NetworkMode) => void;
+  link?: LinkState;
+}) {
+  const options: { value: NetworkMode; title: string; hint: string }[] = [
+    {
+      value: 'auto',
+      title: 'Автоматически',
+      hint: 'Запас растёт, когда связь начинает рваться, и снижается, когда всё ровно.',
+    },
+    {
+      value: 'low-latency',
+      title: 'Минимальная задержка',
+      hint: 'Отвечать быстрее ценой того, что всплеск пинга будет слышен.',
+    },
+    {
+      value: 'stable',
+      title: 'Максимальная устойчивость',
+      hint: 'Держать связь непрерывной даже на плохом канале. Голос заметно отстанет.',
+    },
+  ];
+  return (
+    <section className="audio-settings" aria-label="Поведение при плохой связи">
+      <h3>
+        <Waves size={19} /> Плохая связь
+      </h3>
+      <div role="radiogroup" aria-label="Поведение при плохой связи" className="network-modes">
+        {options.map((option) => (
+          <label className="check-setting" key={option.value}>
+            <input
+              type="radio"
+              name="network-mode"
+              checked={mode === option.value}
+              onChange={() => change(option.value)}
+            />
+            <span>
+              {option.title}
+              <small>{option.hint}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+      <p className="form-footnote">
+        Музыка и звук демонстрации всегда получают больший запас, чем разговор: их никто не перебивает, и
+        непрерывность для них важнее отзывчивости.
+      </p>
+      {link && link.path !== 'unknown' && (
+        <p className="form-footnote" role="status">
+          Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
+          {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
+          {link.ordered &&
+            '. Через TCP потерянный пакет переспрашивается, и всё пришедшее следом ждёт его. Запас поднят автоматически; если это повторяется, стоит проверить, пропускает ли сеть UDP.'}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function HotkeyField({ value, change }: { value: Hotkey | null; change: (key: Hotkey | null) => void }) {
   const [recording, setRecording] = useState(false);
   const nativeStatus = useStore(desktopHotkeyStatus);
@@ -469,7 +561,10 @@ export function Settings({
   setTheme?: (theme: Theme) => void;
 }) {
   const saved = useMemo(() => new Store(readPreferences()), []);
+  const offline = useMemo(() => new Store(unknownLink), []);
   const preferences = useStore(meeting?.media.preferences ?? saved);
+  // Вне встречи о канале сказать нечего, но хук должен вызываться всегда.
+  const link = useStore(meeting?.media.link ?? offline);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [tab, setTab] = useState(section ?? 'audio');
   useEffect(() => {
@@ -634,6 +729,7 @@ export function Settings({
             change={(showPing) => change({ showPing })}
             inCall={!!meeting && !meeting.ended.get()}
           />
+          <NetworkFields mode={preferences.network} link={link} change={(network) => change({ network })} />
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />

@@ -2426,6 +2426,10 @@ progress {
   color: var(--muted);
   font-weight: 400;
 }
+.network-modes {
+  display: grid;
+  gap: 14px;
+}
 .gain-setting,
 .participant-volume {
   display: grid;

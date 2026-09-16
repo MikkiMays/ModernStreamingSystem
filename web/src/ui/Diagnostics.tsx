@@ -3,6 +3,7 @@ import { RotateCcw, Wifi } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import { publicApi } from '../api/client';
 import { StatsSampler, type Sample } from '../media/diagnostics';
+import { gradeName, pathName } from '../media/link-quality';
 import { Modal, useStore } from './primitives';
 import { DeviceCheck } from './DeviceCheck';
 
@@ -13,8 +14,10 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
     times: [],
     failures: 0,
   });
+  const [targets, setTargets] = useState<ReturnType<Meeting['media']['playoutTargets']>>([]);
   const preferences = useStore(meeting.media.preferences);
   const media = useStore(meeting.media.state);
+  const link = useStore(meeting.media.link);
   const control = useStore(meeting.control.state);
   useEffect(() => {
     let disposed = false;
@@ -23,6 +26,7 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
     const timer = setInterval(() => {
       if (busy) return;
       busy = true;
+      setTargets(meeting.media.playoutTargets());
       void Promise.all(
         meeting.media.tracks.get().map(async (tile) =>
           (await sampler.sample(tile.track).catch(() => [])).map((sample) => ({
@@ -104,7 +108,38 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
                 }
               </dd>
             </div>
+            <div>
+              <dt>Путь медиа</dt>
+              <dd>
+                {pathName(link.path)} · {gradeName(link.grade)}
+              </dd>
+            </div>
+            <div>
+              <dt>Неровность прихода пакетов</dt>
+              <dd>{link.jitterMs === null ? 'Нет данных' : `${Math.round(link.jitterMs)} мс, пик`}</dd>
+            </div>
+            <div>
+              <dt>Запас буфера, который просит клиент</dt>
+              <dd>
+                {targets.length
+                  ? targets
+                      .map(
+                        (target) =>
+                          `${{ conversation: 'разговор', media: 'музыка и экран', video: 'видео' }[target.kind]} ${target.targetMs} мс`,
+                      )
+                      .join(' · ')
+                  : 'Нет подписанных дорожек'}
+              </dd>
+            </div>
           </dl>
+          {link.ordered && (
+            <p className="form-footnote" role="status">
+              Медиа идёт через ретранслятор поверх TCP/TLS. Такой путь не теряет пакеты, а переспрашивает их,
+              и всё пришедшее следом ждёт опоздавшего — на слух это «замолчало, а потом заговорило быстрее».
+              Запас буфера поднят автоматически. Если это повторяется, проверьте, пропускает ли сеть UDP до
+              сервера медиа: прямой путь заметно ровнее.
+            </p>
+          )}
           <button className="button secondary" disabled={network.running} onClick={() => void testNetwork()}>
             {network.running ? 'Проверяем…' : 'Проверить сеть'}
           </button>

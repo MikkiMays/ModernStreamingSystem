@@ -12,7 +12,15 @@ export class LiveHealth {
   private previous?: InboundSample;
   private stalled = 0;
   private buffered = 0;
-  observe(current: InboundSample): boolean {
+  /**
+   * @param requestedMs запас, который мы сами попросили держать для этой дорожки.
+   *
+   * ЗАЧЕМ ПАРАМЕТР. Раздутый буфер — признак отставания только тогда, когда о нём никто не
+   * просил. С тех пор как клиент осознанно набирает запас на плохом канале, постоянный
+   * порог объявлял бы отставанием собственную настройку и разрывал бы подписку каждые
+   * несколько секунд — то есть ломал бы ровно то, что этот запас и защищает.
+   */
+  observe(current: InboundSample, requestedMs = 0): boolean {
     const previous = this.previous;
     this.previous = current;
     const dt = previous ? current.timestamp - previous.timestamp : 0;
@@ -45,7 +53,8 @@ export class LiveHealth {
       previous.jitterBufferMinimumDelay !== undefined
         ? (current.jitterBufferMinimumDelay - previous.jitterBufferMinimumDelay) / emitted
         : Infinity;
-    this.buffered = delay > 0.8 && minimum < 0.25 ? this.buffered + dt : 0;
+    const asked = requestedMs / 1000;
+    this.buffered = delay > asked + 0.8 && minimum < asked + 0.25 ? this.buffered + dt : 0;
     if (this.stalled >= 6000 || this.buffered >= 6000) {
       this.stalled = this.buffered = 0;
       return true;

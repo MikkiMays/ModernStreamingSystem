@@ -12,10 +12,13 @@ vi.mock('livekit-client', async (importOriginal) => {
     state = 'connected';
     remoteParticipants = new Map();
     localParticipant = {
-      trackPublications: new Map(),
+      trackPublications: new Map<Track.Source, { track?: unknown }>(),
       isMicrophoneEnabled: false,
       isCameraEnabled: false,
       isScreenShareEnabled: false,
+      getTrackPublication(source: Track.Source) {
+        return this.trackPublications.get(source);
+      },
     };
     constructor(readonly options: RoomOptions) {
       super();
