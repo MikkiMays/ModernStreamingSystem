@@ -397,6 +397,10 @@ export function Prejoin({
             kind="screen"
             profile={preferences.screen}
             change={(p) => setPreferences(savePreferences({ screen: p }))}
+            preview={{
+              enabled: preferences.screenPreview,
+              change: (screenPreview) => setPreferences(savePreferences({ screenPreview })),
+            }}
           />
           {!destination && (
             <label className="check-setting">

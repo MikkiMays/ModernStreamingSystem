@@ -406,14 +406,19 @@ function ConnectionFields({
 }
 
 /**
- * Чем жертвовать, когда канал не даёт и непрерывности, и отзывчивости сразу.
+ * Сколько звука держать про запас, прежде чем его услышат.
  *
- * Настройка меняет ровно одно: сколько звука держать про запас, прежде чем его услышат.
- * Запас — единственное, что вообще способно пережить скачок задержки: пакеты, пришедшие
- * с опозданием, ещё можно проиграть, если их было куда положить. Поэтому «Авто» не
- * означает «как раньше»: раньше запас просили нулевой, и переживать всплеск было нечем.
+ * Запас — единственное, что вообще способно пережить скачок задержки: пакеты, пришедшие с
+ * опозданием, ещё можно проиграть, если их было куда положить. Поэтому «Авто» не означает
+ * «как раньше»: раньше запас просили нулевой, и переживать всплеск было нечем.
+ *
+ * Раздел назывался «Плохая связь» и стоял на виду, рядом с адресом сервера. Три строки
+ * «Автоматически / Минимальная задержка / Максимальная устойчивость» читались как выбор
+ * качества — и вопрос «зачем это, если качество я уже выставил» был совершенно законным.
+ * Настройка не трогает ни кадр, ни частоту, ни кодек; она про рывки звука, и живёт теперь
+ * там же, где остальной звук, — под «Дополнительно», потому что по умолчанию её не трогают.
  */
-function NetworkFields({
+function PlayoutFields({
   mode,
   change,
   link,
@@ -440,39 +445,45 @@ function NetworkFields({
     },
   ];
   return (
-    <section className="audio-settings" aria-label="Поведение при плохой связи">
-      <h3>
-        <Waves size={19} /> Плохая связь
-      </h3>
-      <div role="radiogroup" aria-label="Поведение при плохой связи" className="network-modes">
-        {options.map((option) => (
-          <label className="check-setting" key={option.value}>
-            <input
-              type="radio"
-              name="network-mode"
-              checked={mode === option.value}
-              onChange={() => change(option.value)}
-            />
-            <span>
-              {option.title}
-              <small>{option.hint}</small>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="form-footnote">
-        Музыка и звук демонстрации всегда получают больший запас, чем разговор: их никто не перебивает, и
-        непрерывность для них важнее отзывчивости.
-      </p>
-      {link && link.path !== 'unknown' && (
-        <p className="form-footnote" role="status">
-          Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
-          {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
-          {link.ordered &&
-            '. Через TCP потерянный пакет переспрашивается, и всё пришедшее следом ждёт его. Запас поднят автоматически; если это повторяется, стоит проверить, пропускает ли сеть UDP.'}
+    <details className="advanced-settings">
+      <summary>
+        <Waves size={17} /> Дополнительно · запас буфера приёма
+      </summary>
+      <section aria-label="Запас буфера приёма">
+        <p className="form-footnote">
+          На чёткость картинки не влияет — только на то, как звук переживает скачки задержки. Качество видео
+          целиком задаётся на вкладке «Видео».
         </p>
-      )}
-    </section>
+        <div role="radiogroup" aria-label="Запас буфера приёма" className="network-modes">
+          {options.map((option) => (
+            <label className="check-setting" key={option.value}>
+              <input
+                type="radio"
+                name="network-mode"
+                checked={mode === option.value}
+                onChange={() => change(option.value)}
+              />
+              <span>
+                {option.title}
+                <small>{option.hint}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="form-footnote">
+          Музыка и звук демонстрации всегда получают больший запас, чем разговор: их никто не перебивает, и
+          непрерывность для них важнее отзывчивости.
+        </p>
+        {link && link.path !== 'unknown' && (
+          <p className="form-footnote" role="status">
+            Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
+            {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
+            {link.ordered &&
+              '. Через TCP потерянный пакет переспрашивается, и всё пришедшее следом ждёт его. Запас поднят автоматически; если это повторяется, стоит проверить, пропускает ли сеть UDP.'}
+          </p>
+        )}
+      </section>
+    </details>
   );
 }
 
@@ -676,6 +687,7 @@ export function Settings({
             enabled={preferences.notificationSounds}
             change={(notificationSounds) => change({ notificationSounds })}
           />
+          <PlayoutFields mode={preferences.network} link={link} change={(network) => change({ network })} />
           {open && <DeviceCheck preferences={preferences} />}
         </Tabs.Panel>
         <Tabs.Panel value="video" className="settings-form">
@@ -747,7 +759,6 @@ export function Settings({
             change={(showPing) => change({ showPing })}
             inCall={!!meeting && !meeting.ended.get()}
           />
-          <NetworkFields mode={preferences.network} link={link} change={(network) => change({ network })} />
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />

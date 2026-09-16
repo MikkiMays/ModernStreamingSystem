@@ -37,8 +37,7 @@ textarea,
 .file-row strong,
 .upload-area strong,
 .action-menu [role='menuitem'],
-.settings-form label,
-.mode-selector strong {
+.settings-form label {
   font-size: 14px;
 }
 .form-footnote,
@@ -66,16 +65,6 @@ textarea,
 }
 .screen-tools {
   flex-wrap: wrap;
-}
-.mode-selector label {
-  min-width: 0;
-}
-.mode-selector strong {
-  font-size: 12px;
-}
-.mode-selector input {
-  width: 16px;
-  min-height: 16px;
 }
 .loading-room {
   display: grid;

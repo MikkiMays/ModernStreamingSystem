@@ -1700,7 +1700,14 @@ progress {
   width: min(500px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
-  padding: 24px;
+  /*
+    Отступ живёт переменной, потому что липкая шапка выходит за него отрицательным полем.
+    Пока это были два числа, на узком экране они расходились: отступ падал до 19 px, поле
+    оставалось −24, и шапка становилась на десять пикселей шире содержимого — отсюда
+    горизонтальная полоса прокрутки во всех разделах настроек на телефоне.
+  */
+  --modal-pad: 24px;
+  padding: var(--modal-pad);
   border-radius: 24px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1795,6 +1802,11 @@ progress {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+@media (max-width: 520px) {
+  .settings-row {
+    grid-template-columns: 1fr;
+  }
 }
 .settings-form select {
   font-size: 13px;
@@ -2313,7 +2325,7 @@ progress {
     min-width: 40px;
   }
   .modal {
-    padding: 19px;
+    --modal-pad: 19px;
     max-height: calc(100dvh - 24px);
     width: calc(100vw - 24px);
     border-radius: 19px;
@@ -2468,7 +2480,22 @@ progress {
   background: var(--surface-2);
   color: var(--text);
 }
-.settings-form input:not([type='range']):not([type='checkbox']) {
+/*
+  Рамка с отступом — для полей ввода, а не для всего, что называется `input`.
+  
+  Список исключений рос по одному — сначала ползунок, потом флажок, — и переключателя в нём
+  не оказалось: он появился позже. Radiobutton получал `width: 100%` и растягивался на всю
+  форму (720 px рядом с 18-пиксельным флажком), выталкивая подписи за край диалога, — отсюда
+  и горизонтальная полоса прокрутки на вкладке «Подключение». Перечисляем то, что оформляем,
+  а не то, что не оформляем: следующий тип поля уже ничего не сломает.
+*/
+.settings-form input[type='text'],
+.settings-form input[type='search'],
+.settings-form input[type='password'],
+.settings-form input[type='email'],
+.settings-form input[type='number'],
+.settings-form input[type='url'],
+.settings-form input:not([type]) {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -2485,23 +2512,73 @@ progress {
   align-items: center;
   gap: 8px;
 }
-.audio-settings .check-setting,
-.quality-section .check-setting {
+/*
+  Строка «флажок и подпись под ним». Правило висело на предке — `.audio-settings`, — и каждый
+  новый раздел с такой строкой приходилось дописывать в селектор; стоило вынести переключатели
+  в отдельный блок, как заголовок и пояснение слипались в одну строку. Теперь оформляется сам
+  элемент, а предок не имеет к этому отношения.
+*/
+.check-setting {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   font-weight: 500;
 }
-.audio-settings .check-setting small,
-.quality-section .check-setting small {
+.check-setting small {
   display: block;
   margin-top: 4px;
   color: var(--muted);
   font-weight: 400;
+  line-height: 1.5;
 }
+/* Флажок встаёт по первой строке подписи, а не по центру всего абзаца под ней. */
+.check-setting > input {
+  margin-top: 2px;
+  flex: none;
+}
+/*
+  Какой это сервер. Правило пропало вместе со списком серверов, а разметка осталась — имя и
+  адрес слипались в «Cordmeet.nikg.tech». `overflow-wrap` здесь не украшение: длинное имя
+  сервера без пробелов не даёт диалогу сузиться и разносит его по горизонтали.
+*/
+.connection-current {
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.connection-current small {
+  color: var(--muted);
+  font-size: 12px;
+}
+/*
+  Выбор одного из трёх. Раньше это были три голые строки без всякого оформления, посреди
+  разделов, у каждого из которых есть своя рамка: выглядело как обломок вёрстки.
+*/
 .network-modes {
   display: grid;
-  gap: 14px;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.network-modes .check-setting {
+  padding: 10px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.network-modes .check-setting:hover {
+  background: var(--surface-2);
+}
+.network-modes input[type='radio'] {
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: var(--blue);
 }
 .gain-setting,
 .participant-volume {
@@ -2620,13 +2697,38 @@ progress {
   cursor: pointer;
   padding: 12px 0;
 }
+/*
+  То, что по умолчанию не трогают. Свёрнутое — одна строка; развёрнутое — обычный раздел.
+  Настройка, которую видно всегда, читается как та, которую надо выбрать.
+*/
+.advanced-settings > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.advanced-settings > summary:hover {
+  color: var(--text);
+}
+.advanced-settings[open] > summary {
+  color: var(--text);
+}
+.advanced-settings > section {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 6px;
+}
 .modal-heading {
   position: sticky;
-  top: -24px;
+  top: calc(var(--modal-pad) * -1);
   z-index: 5;
   background: var(--surface);
-  margin: -24px -24px 12px;
-  padding: 20px 24px 12px;
+  margin: calc(var(--modal-pad) * -1) calc(var(--modal-pad) * -1) 12px;
+  padding: 20px var(--modal-pad) 12px;
   border-bottom: 1px solid var(--line);
 }
 .service-body {

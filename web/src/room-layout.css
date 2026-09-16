@@ -41,11 +41,6 @@
 .preview-settings:hover {
   background: #313a4d;
 }
-.check-setting {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .prejoin-form h1 {
   overflow-wrap: anywhere;
 }
