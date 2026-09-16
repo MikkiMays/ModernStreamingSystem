@@ -44,6 +44,7 @@ import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { waitForPublishPermissions } from './publish-permissions';
+import { PreviewImages, ScreenPreviewSource, PREVIEW_TOPIC } from './screen-preview';
 
 export interface MediaTile {
   id: string;
@@ -105,6 +106,10 @@ export class MediaSession {
   readonly deafened = new Store(false);
   /** Что мы отдаём прямо сейчас, по измерению, а не по настройке. */
   readonly outbound = new Store<OutboundVideo | null>(null);
+  /** Кто сейчас говорит — по данным SFU, а не по громкости, посчитанной в странице. */
+  readonly speaking = new Store<string[]>([]);
+  /** Последний кадр чужой демонстрации: participantId → ссылка на картинку. */
+  readonly screenPreviews = new Store<Record<string, string>>({});
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   private previousVolumes = new Map<string, number>();
@@ -148,6 +153,36 @@ export class MediaSession {
     for (const publication of this.remoteVideo())
       if (publication.isEnabled !== visible) publication.setEnabled(visible);
   };
+  private receivePreview = (payload: Uint8Array, participant?: Participant, _?: unknown, topic?: string) => {
+    if (topic !== PREVIEW_TOPIC || !participant || this.disposed || !payload.byteLength) return;
+    const url = this.previewImages.accept(participant.identity, payload);
+    this.screenPreviews.update((previews) => ({ ...previews, [participant.identity]: url }));
+  };
+  private dropPreview(participantId: string) {
+    if (!this.screenPreviews.get()[participantId]) return;
+    this.previewImages.forget(participantId);
+    this.screenPreviews.update(({ [participantId]: _, ...rest }) => rest);
+  }
+  /**
+   * Показывать ли комнате, что у нас на экране.
+   *
+   * Начинается вместе с показом и заканчивается вместе с ним. Настройка выключает именно
+   * отправку: смотреть чужие превью можно и не отдавая своего — это разные решения, и
+   * запрещать первое из-за второго не за что.
+   */
+  private syncPreview() {
+    const track = this.screenTracks.find((item) => item instanceof LocalVideoTrack);
+    if (!(track instanceof LocalVideoTrack) || !this.preferences.get().screenPreview) {
+      this.previewSource.stop();
+      return;
+    }
+    this.previewSource.start(track.mediaStreamTrack, (bytes) => {
+      if (this.disposed || this.room.state !== 'connected') return;
+      void this.room.localParticipant
+        .publishData(bytes, { reliable: true, topic: PREVIEW_TOPIC })
+        .catch(() => {});
+    });
+  }
   toggleParticipantMute(id: string) {
     const volume = this.volumes.get()[id] ?? 1;
     if (volume > 0) {
@@ -216,6 +251,8 @@ export class MediaSession {
   private resetting = new Set<string>();
   private liveAbort = new AbortController();
   private playout = new PlayoutController();
+  private previewSource = new ScreenPreviewSource();
+  private previewImages = new PreviewImages();
   private playoutTimer?: ReturnType<typeof setInterval>;
   private playoutSampling = false;
   /**
@@ -292,6 +329,16 @@ export class MediaSession {
       .on(RoomEvent.LocalTrackUnpublished, this.refreshTracks)
       .on(RoomEvent.ParticipantConnected, this.refreshTracks)
       .on(RoomEvent.ParticipantDisconnected, this.refreshTracks)
+      // Кто говорит, решает SFU: он слышит всех и сравнивает уровни между собой, а страница
+      // видит только тех, на кого подписана, и не слышит саму себя иначе как через эхо.
+      .on(RoomEvent.ActiveSpeakersChanged, (speakers) =>
+        this.speaking.set(speakers.map((participant) => participant.identity)),
+      )
+      .on(RoomEvent.DataReceived, this.receivePreview)
+      .on(RoomEvent.ParticipantDisconnected, (participant) => this.dropPreview(participant.identity))
+      .on(RoomEvent.TrackUnpublished, (publication, participant) => {
+        if (publication.source === Track.Source.ScreenShare) this.dropPreview(participant.identity);
+      })
       .on(RoomEvent.TrackMuted, (publication, participant) => {
         if (participant.isLocal && publication.source === Track.Source.Microphone)
           this.wanted.microphone = false;
@@ -856,6 +903,7 @@ export class MediaSession {
     // ни тем более переподключение для этого не нужны.
     this.playout.setMode(next.network);
     if (patch.network !== undefined) void this.tunePlayout();
+    if (patch.screenPreview !== undefined) this.syncPreview();
   }
   setVolume(participantId: string, volume: number) {
     if (!Number.isFinite(volume)) return;
@@ -1065,6 +1113,7 @@ export class MediaSession {
       // Камера уступает место здесь же, а не после первой жалобы кодировщика: жалоба
       // означала бы, что экран уже успел испортиться.
       this.syncUpstream();
+      this.syncPreview();
       this.upstreamCounters = undefined;
       stream = undefined;
     } catch (error) {
@@ -1086,6 +1135,7 @@ export class MediaSession {
     // Счётчики байтов принадлежали экрану; следующий интервал должен считаться заново,
     // иначе первый замер камеры вычтет из своих байтов чужие.
     this.upstreamCounters = undefined;
+    this.previewSource.stop();
     const tracks = this.screenTracks;
     this.screenTracks = [];
     for (const track of tracks) {
@@ -1287,6 +1337,10 @@ export class MediaSession {
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
     document.removeEventListener('visibilitychange', this.followVisibility);
+    this.previewSource.stop();
+    this.previewImages.clear();
+    this.screenPreviews.set({});
+    this.speaking.set([]);
     this.screenTracks.forEach((t) => t.stop());
     this.deviceTracks.forEach((t) => t.stop());
     this.deviceTracks.clear();

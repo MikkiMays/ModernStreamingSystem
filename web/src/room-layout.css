@@ -282,18 +282,62 @@
 .participant-menu .participant-volume {
   padding: 10px 6px;
 }
+/*
+  «Смотреть стрим» — главное, что можно сделать с этой плиткой, и стояло в углу, где обычно
+  живут пометки. Теперь по центру: туда и смотрят, и туда попадают пальцем.
+*/
 .watch-stream {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
-  gap: 7px;
+  gap: 9px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 12px 18px;
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: 600;
   border: 0;
-  border-radius: 9px;
+  border-radius: 12px;
   color: white;
-  background: #242733dd;
+  background: #242733ee;
+  box-shadow: 0 10px 30px #0000004d;
+}
+button.watch-stream {
+  cursor: pointer;
+}
+button.watch-stream:hover {
+  background: #2f3342f2;
+}
+/*
+  У показывающего это не кнопка, а подпись: своя демонстрация — тот же экран, на котором она
+  открыта, только с задержкой. Смотреть там нечего, а вот знать, что показ идёт, — нужно.
+*/
+.watch-stream.is-own {
+  background: #242733bb;
+  font-weight: 500;
+  cursor: default;
+}
+.watch-stream .live-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: #0e1a14;
+  background: #70c49e;
+}
+/* В ленте рядом с демонстрацией плитка 180×120: та же кнопка, но по размеру плитки. */
+.has-screens .watch-stream {
+  padding: 7px 9px;
+  min-height: 34px;
+  font-size: 11px;
+  gap: 6px;
+  border-radius: 9px;
+}
+.has-screens .watch-stream span:not(.live-badge) {
+  display: none;
 }
 .return-conversation {
   position: absolute;

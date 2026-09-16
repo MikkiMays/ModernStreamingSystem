@@ -92,6 +92,10 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
         .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id),
     ).toBe(micId);
     await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
+    // Свою демонстрацию открыть нельзя: у показывающего на своей плитке подпись, а не кнопка.
+    // Единственная кнопка, которую видит guest, — на чужой плитке.
+    await expect(guest!.getByText('Вы показываете экран')).toBeVisible();
+    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1);
     await expect(third!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(2);
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
     for (const name of ['Экран 1', 'Экран 2']) {

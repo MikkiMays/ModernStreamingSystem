@@ -19,6 +19,8 @@
   --blue-soft: #eaf0ff;
   --shadow: 0 12px 44px #1722340a;
   --radius: 20px;
+  /* Кто говорит. Зелёный здесь читается как «идёт звук», а не как «всё в порядке». */
+  --speaking: #2f9e5f;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -37,6 +39,7 @@
   --blue-hover: #85a0ff;
   --blue-soft: #293653;
   --shadow: 0 12px 44px #0002;
+  --speaking: #45d17f;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -51,6 +54,7 @@
     --blue-hover: #85a0ff;
     --blue-soft: #293653;
     --shadow: 0 12px 44px #0002;
+    --speaking: #45d17f;
   }
 }
 * {
@@ -866,6 +870,67 @@ h2 {
   outline: 1px solid #edbd64;
   outline-offset: -1px;
 }
+/*
+  Кто говорит. Тот же приём, что у закреплённой и у восстанавливающейся плитки: обводка
+  внутрь, чтобы сетка не дёргалась на каждой реплике. Свечение снаружи — потому что одной
+  линии на пёстром кадре мало, а перекрашивать сам кадр значит мешать смотреть.
+*/
+.person-tile[data-speaking='true'] {
+  outline: 2px solid var(--speaking);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--speaking) 26%, transparent);
+  transition:
+    outline-color 120ms ease,
+    box-shadow 120ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-tile[data-speaking='true'] {
+    transition: none;
+  }
+}
+/*
+  Чем занят человек, который показывает экран.
+  
+  Серый прямоугольник ничего не говорит о содержимом, а живой поток стоил бы каждому в
+  комнате столько же, сколько сам просмотр (почему — в media/screen-preview.ts). Поэтому
+  под аватаром — либо размытый кадр, присланный раз в несколько секунд, либо медленное
+  переливание, если кадра ещё нет или его владелец решил не делиться им.
+*/
+.screen-preview {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) saturate(1.35);
+  /* Размытие тянет края внутрь и оставляет бледную рамку; масштаб убирает её за пределы. */
+  transform: scale(1.18);
+  opacity: 0.75;
+}
+.screen-preview:not([style]) {
+  background:
+    radial-gradient(60% 70% at 22% 28%, color-mix(in srgb, var(--blue) 55%, transparent), transparent 70%),
+    radial-gradient(
+      55% 65% at 78% 70%,
+      color-mix(in srgb, var(--speaking) 45%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(70% 80% at 50% 110%, #7c5cff66, transparent 70%);
+  filter: blur(18px);
+  animation: preview-drift 14s ease-in-out infinite alternate;
+}
+@keyframes preview-drift {
+  from {
+    transform: scale(1.18) translate3d(-3%, -2%, 0);
+  }
+  to {
+    transform: scale(1.3) translate3d(3%, 2%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-preview:not([style]) {
+    animation: none;
+  }
+}
 .invite-hint {
   position: absolute;
   bottom: 38px;
@@ -1321,6 +1386,12 @@ h2 {
 .participant-row > .icon-button {
   min-width: 34px;
   width: 34px;
+}
+.participant-row[data-speaking='true'] > .avatar {
+  box-shadow: 0 0 0 2px var(--speaking);
+}
+.participant-row[data-speaking='true'] .participant-info strong {
+  color: var(--speaking);
 }
 .panel-tip {
   border-top: 1px solid var(--line);
@@ -2414,13 +2485,15 @@ progress {
   align-items: center;
   gap: 8px;
 }
-.audio-settings .check-setting {
+.audio-settings .check-setting,
+.quality-section .check-setting {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   font-weight: 500;
 }
-.audio-settings .check-setting small {
+.audio-settings .check-setting small,
+.quality-section .check-setting small {
   display: block;
   margin-top: 4px;
   color: var(--muted);

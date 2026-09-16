@@ -104,10 +104,13 @@ export function QualityFields({
   kind,
   profile,
   change,
+  preview,
 }: {
   kind: 'screen' | 'camera';
   profile: ScreenProfile;
   change: (next: ScreenProfile) => void;
+  /** Отдавать ли комнате размытый кадр своего экрана. Только для демонстрации. */
+  preview?: { enabled: boolean; change: (enabled: boolean) => void };
 }) {
   const title = kind === 'screen' ? 'Демонстрация экрана' : 'Видео с камеры';
   const label = kind === 'screen' ? 'Экран' : 'Камера';
@@ -166,6 +169,22 @@ export function QualityFields({
           освободившиеся мегабиты достаются экрану. Настройка при этом не меняется — она снова вступит в силу,
           когда показ закончится.
         </p>
+      )}
+      {kind === 'screen' && preview && (
+        <label className="check-setting">
+          <input
+            type="checkbox"
+            checked={preview.enabled}
+            onChange={(e) => preview.change(e.target.checked)}
+          />
+          <span>
+            Показывать превью демонстрации
+            <small>
+              Пока никто не открыл ваш показ, в вашей плитке видно размытый кадр экрана — так понятно, что вы
+              показываете. Обновляется раз в несколько секунд, разобрать текст в нём нельзя.
+            </small>
+          </span>
+        </label>
       )}
     </section>
   );
@@ -675,6 +694,10 @@ export function Settings({
             change={(screen) => {
               if (meeting) void meeting.media.setProfile(screen);
               else change({ screen });
+            }}
+            preview={{
+              enabled: preferences.screenPreview,
+              change: (screenPreview) => change({ screenPreview }),
             }}
           />
           {open && <DeviceCheck preferences={preferences} />}

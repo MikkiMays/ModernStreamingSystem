@@ -23,6 +23,13 @@ export interface Preferences {
   showPing: boolean;
   notificationSounds: boolean;
   showIntegrationPanel: boolean;
+  /**
+   * Отдавать ли комнате размытый кадр своей демонстрации, пока её не открыли.
+   *
+   * Отдельно от самой демонстрации: показывать экран и показывать, **что** на экране, тем,
+   * кто ещё не зашёл смотреть, — разные согласия. Несколько килобайт раз в четыре секунды.
+   */
+  screenPreview: boolean;
   yandexMusicToken: string;
   screen: ScreenProfile;
   camera: ScreenProfile;
@@ -71,6 +78,7 @@ export function readPreferences(): Preferences {
     showPing: data.showPing === true,
     notificationSounds: data.notificationSounds !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,
+    screenPreview: data.screenPreview !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: profile(data.screen, defaultScreen),
     camera: profile(data.camera, defaultCamera),
