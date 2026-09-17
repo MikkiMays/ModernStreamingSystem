@@ -71,9 +71,12 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await expect(guest!.locator('video.screen-video')).toHaveCount(0);
     await expect(guest!.locator('.person-tile video')).toHaveCount(1);
     await expect(guest!.locator('audio')).toHaveCount(1);
-    const localCaptureId = await host!
-      .locator('.person-tile video')
-      .evaluate((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]!.id);
+    const ownCamera = (page: (typeof pages)[number]) =>
+      page.locator('.person-tile video').evaluate((v: HTMLVideoElement) => {
+        const track = (v.srcObject as MediaStream).getVideoTracks()[0]!;
+        return { device: track.getSettings().deviceId ?? '', state: track.readyState, frames: v.videoWidth > 0 };
+      });
+    const localCapture = await ownCamera(host!);
     const micId = await guest!
       .locator('audio')
       .evaluate((v: HTMLAudioElement) => (v.srcObject as MediaStream).getAudioTracks()[0]!.id);
@@ -142,11 +145,12 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await expect(guest!.locator('.person-tile')).toHaveCount(3);
     await guest!.getByRole('button', { name: 'Расположение участников' }).click();
     await guest!.getByRole('menuitem', { name: /^Сетка/ }).click();
-    expect(
-      await host!
-        .locator('.person-tile video')
-        .evaluate((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]!.id),
-    ).toBe(localCaptureId);
+    // Своя камера пережила и просмотр чужого экрана, и смену раскладки: то же устройство,
+    // живая дорожка, идущие кадры. Сверять id самой дорожки здесь больше нельзя: «Авто»
+    // поднимает уровень, а показ экрана уводит камеру в маленький кадр — и то и другое
+    // пересобирает дорожку намеренно, так что совпадение id зависело бы от того, успел ли
+    // сработать замер. Проверка была бы не про переходы, а про расписание.
+    expect(await ownCamera(host!)).toEqual({ ...localCapture, state: 'live', frames: true });
     await guest!.getByRole('button', { name: 'Вернуться в разговор' }).click();
     await third!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await expect(third!.getByRole('alert')).toContainText('Уже транслируются два экрана');
