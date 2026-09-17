@@ -119,11 +119,29 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     }
     await guest!.locator('.person-tile').filter({ hasText: 'Экран 1' }).click({ button: 'right' });
     await guest!.getByRole('menuitem', { name: 'Закрепить камеру', exact: true }).click();
-    await expect(guest!.locator('.person-tile')).toHaveCount(1);
-    expect(await guest!.locator('.camera-video').evaluate((v) => getComputedStyle(v).transform)).toBe('none');
+    // Закрепление помечает плитку, а не прячет комнату. Раньше оно выбрасывало всех остальных
+    // из списка — закрепив собеседника, вы переставали видеть встречу; это был фильтр, а не
+    // раскладка, и здесь проверялось именно старое поведение.
+    await expect(guest!.locator('.person-tile')).toHaveCount(3);
+    await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(1);
+    await expect(guest!.locator('.person-tile[data-pinned="true"]')).toContainText('Экран 1');
+    // Своя камера зеркалится, чужая — нет: признак теперь facingMode, а не «моя дорожка».
+    expect(
+      await guest!
+        .locator('.person-tile[data-pinned="true"] .camera-video')
+        .evaluate((v) => getComputedStyle(v).transform),
+    ).toBe('none');
     expect(await host!.locator('.camera-video').evaluate((v) => getComputedStyle(v).transform)).toBe(
       'matrix(-1, 0, 0, 1, 0, 0)',
     );
+    // Раскладки: «Говорящий» делает закреплённого крупным, не убирая остальных.
+    await guest!.getByRole('button', { name: 'Расположение участников' }).click();
+    await guest!.getByRole('menuitem', { name: /^Говорящий/ }).click();
+    await expect(guest!.locator('.stage[data-layout="speaker"]')).toHaveCount(1);
+    await expect(guest!.locator('.person-tile[data-focused="true"]')).toContainText('Экран 1');
+    await expect(guest!.locator('.person-tile')).toHaveCount(3);
+    await guest!.getByRole('button', { name: 'Расположение участников' }).click();
+    await guest!.getByRole('menuitem', { name: /^Сетка/ }).click();
     expect(
       await host!
         .locator('.person-tile video')
