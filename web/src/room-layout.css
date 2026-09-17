@@ -439,35 +439,47 @@ button.watch-stream:hover {
   width: 24px !important;
   min-width: 24px !important;
 }
+/*
+  Панель звонка на телефоне.
+  
+  Здесь стояло сжатие: зазор 2 px, скрытые разделители и подписи. Восемь одинаковых кружков
+  вставали сплошной лентой, где микрофон отличался от «сбросить» только рисунком, и промах
+  стоил дорого. Теперь на узком экране в панели остаётся только то, что нажимают в разговоре,
+  кнопки крупные, а группы разделены настоящим зазором, а не надеждой на внимательность.
+*/
 @media (max-width: 700px) {
   .stage-wrap > .call-footer {
     gap: 2px;
     bottom: 8px;
   }
-  .stage-wrap > .call-footer .call-dock {
-    gap: 2px;
-    padding: 2px;
+  .stage-wrap > .call-footer .call-dock.is-compact {
+    gap: 4px;
+    padding: 5px;
   }
-  .stage-wrap > .call-footer .panel-controls {
-    gap: 2px;
+  .stage-wrap > .call-footer .call-dock.is-compact .icon-button {
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
   }
-  .stage-wrap > .call-footer .icon-button {
-    width: 34px;
-    height: 40px;
+  .stage-wrap > .call-footer .call-dock.is-compact .camera-menu-trigger {
+    width: 34px !important;
+    min-width: 34px !important;
   }
   .stage-wrap > .call-footer .dock-divider {
     display: none;
   }
-  .stage-wrap > .call-footer .share-button span {
-    display: none;
-  }
-  .stage-wrap > .call-footer .share-button {
-    padding: 8px;
-    min-width: 36px;
-  }
   .return-conversation {
     font-size: 12px;
   }
+}
+/* Зазор между группами: нажать «сбросить» вместо камеры — не та ошибка, которую исправляют. */
+.dock-gap {
+  width: 18px;
+  flex: none;
+}
+.call-dock.is-compact .hangup {
+  min-width: 56px !important;
+  width: 56px !important;
 }
 
 .conversation-stage .people-grid {

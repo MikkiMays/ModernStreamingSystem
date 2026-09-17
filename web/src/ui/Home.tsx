@@ -5,6 +5,7 @@ import { publicApi } from '../api/client';
 import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
+import { InstallHint } from './InstallHint';
 import { DesktopHome } from './DesktopHome';
 import { Settings } from './Settings';
 import { FavoriteSettings } from './FavoriteSettings';
@@ -120,8 +121,9 @@ function BrowserHome({
             <h2>Вас уже ждут?</h2>
             <p className="muted">
               Введите код или откройте приглашение.
-              <br />
-              Без аккаунта и лишних шагов.
+              {/* Перенос убирается на узком экране, поэтому пробел ставится отдельно:
+                  без него две фразы слипались в «приглашение.Без аккаунта». */}
+              <br /> Без аккаунта и лишних шагов.
             </p>
             <label htmlFor="invite-link">Код встречи или ссылка</label>
             <div className="input-icon">
@@ -221,6 +223,7 @@ function BrowserHome({
           </p>
         )}
       </main>
+      <InstallHint />
       <span className="build-label">CORD / 01</span>
     </div>
   );

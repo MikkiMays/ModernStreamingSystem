@@ -73,6 +73,26 @@ export function ThemeButton({ theme, setTheme }: { theme: Theme; setTheme: (them
 export function useStore<T>(store: Store<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.get);
 }
+/**
+ * Отвечает ли устройство на этот запрос вёрстки прямо сейчас.
+ *
+ * Для случаев, где одним CSS не обойтись: на телефоне часть кнопок не прячется, а переезжает
+ * в меню, и это решает разметка, а не стиль. `useSyncExternalStore` — чтобы не расходиться
+ * с серверной отрисовкой и не хранить копию состояния, которое и так есть у браузера.
+ */
+export function useMediaQuery(query: string): boolean {
+  const subscribe = (listener: () => void) => {
+    if (typeof matchMedia !== 'function') return () => {};
+    const media = matchMedia(query);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  };
+  return useSyncExternalStore(
+    subscribe,
+    () => typeof matchMedia === 'function' && matchMedia(query).matches,
+    () => false,
+  );
+}
 export function IconButton({
   label,
   children,

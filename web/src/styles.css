@@ -476,6 +476,49 @@ h2 {
   margin-top: 30px;
   align-items: center;
 }
+/*
+  Подсказка про экран «Домой». Внизу, над безопасной зоной, поверх содержимого: это
+  предложение, а не шаг, который надо пройти, — и закрывается оно навсегда.
+*/
+.install-hint {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.install-hint > div {
+  flex: 1;
+  min-width: 0;
+}
+.install-hint strong {
+  display: block;
+  font-size: 13px;
+}
+.install-hint small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.install-hint small svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.install-hint .button {
+  flex: none;
+  font-size: 12px;
+  padding: 9px 12px;
+}
 .build-label {
   position: absolute;
   bottom: 24px;
