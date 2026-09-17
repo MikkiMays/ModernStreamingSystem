@@ -30,7 +30,7 @@ import type { Meeting } from '../core/meeting';
 import { IconButton, Logo, useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { Ping } from './Ping';
-import { CameraMenu } from './CameraMenu';
+import { CameraChoices, CameraMenu } from './CameraMenu';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
 import { Settings } from './Settings';
@@ -446,6 +446,9 @@ export function MeetingView({
                           <Menu.Item onClick={() => togglePanel('chat')}>
                             <MessageSquare size={18} /> Чат и файлы
                           </Menu.Item>
+                          {/* Удержание кнопки переворота делает то же самое, но жест без
+                              подписи; здесь он назван словами. */}
+                          <CameraChoices meeting={meeting} />
                         </>
                       )}
                       <Menu.Item onClick={() => openServicesPanel()}>

@@ -160,6 +160,10 @@ export function Prejoin({
       else setMic(!enabled);
       if (preview.current) {
         preview.current.srcObject = stream.current;
+        // Зеркалим себя, а не камеру: у задней зеркала нет, там смотрят на мир.
+        // `environment` — единственное, что его отменяет; молчание камеры значит «фронтальная».
+        const facing = stream.current.getVideoTracks()[0]?.getSettings().facingMode;
+        preview.current.style.transform = facing === 'environment' ? 'none' : 'scaleX(-1)';
         void preview.current.play().catch(() => {});
       }
       refreshDevices();

@@ -128,7 +128,9 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
         videoTrack.current = track;
         if (video.current) {
           track.attach(video.current);
-          video.current.style.transform = 'scaleX(-1)';
+          // Тот же признак, что в разговоре и на предпросмотре: задняя камера не зеркалится.
+          const facing = track.mediaStreamTrack.getSettings().facingMode;
+          video.current.style.transform = facing === 'environment' ? 'none' : 'scaleX(-1)';
         }
         setCamera(true);
       }

@@ -580,7 +580,6 @@ h2 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1);
 }
 .preview-avatar {
   position: absolute;
@@ -906,9 +905,6 @@ h2 {
   object-fit: contain;
   position: absolute;
   inset: 0;
-}
-.mirrored {
-  transform: scaleX(-1);
 }
 .tile-recovery {
   position: absolute;
@@ -2681,7 +2677,6 @@ progress {
   object-fit: contain;
   border-radius: 10px;
   background: #101218;
-  transform: scaleX(-1);
 }
 .mic-test {
   display: grid;
@@ -2751,6 +2746,58 @@ progress {
 .technical-diagnostics summary {
   cursor: pointer;
   padding: 12px 0;
+}
+/*
+  Плашка «что-то устарело». Появляется только когда есть что сказать, поэтому может позволить
+  себе быть заметной: жёлтая, со значком, в одну строку. Зелёного «всё хорошо» здесь нет —
+  его роль играет пустое место.
+*/
+.update-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  background: color-mix(in srgb, #edbd64 16%, transparent);
+  border: 1px solid color-mix(in srgb, #edbd64 40%, transparent);
+}
+.update-notice svg {
+  flex: none;
+  margin-top: 2px;
+  /* Один цвет на обе темы: на светлом фоне он читается, на тёмном не режет. */
+  color: #c9963a;
+}
+:root[data-theme='dark'] .update-notice svg {
+  color: #edbd64;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .update-notice svg {
+    color: #edbd64;
+  }
+}
+.update-notice code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  font-size: 11px;
+}
+/* Кто это написал и куда писать. Внизу раздела: сначала дело, потом визитка. */
+.about-author {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.about-author p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.about-author .text-button {
+  font-size: 12px;
 }
 /*
   То, что по умолчанию не трогают. Свёрнутое — одна строка; развёрнутое — обычный раздел.

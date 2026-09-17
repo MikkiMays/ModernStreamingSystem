@@ -7,6 +7,22 @@ import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
 
+/**
+ * Показывать ли себя зеркально.
+ *
+ * Зеркалят себя, а не камеру: человек привык к отражению и по нему поправляет причёску.
+ * Но у задней камеры отражения нет — там вы смотрите **на** мир, а не на себя, и зеркало
+ * означает, что рука уезжает влево, когда её ведут вправо. Поэтому признак — не «моя
+ * дорожка», как было, а куда камера смотрит.
+ *
+ * `environment` — единственное, что отменяет зеркало. Настольные камеры не сообщают
+ * `facingMode` вовсе, и отсутствие ответа обязано означать «зеркалить»: они фронтальные.
+ */
+export function mirrored(tile: Pick<MediaTile, 'local' | 'source' | 'track'>) {
+  if (!tile.local || tile.source !== Track.Source.Camera) return false;
+  return tile.track.mediaStreamTrack?.getSettings().facingMode !== 'environment';
+}
+
 function VideoTrack({
   tile,
   screen = false,
@@ -23,9 +39,12 @@ function VideoTrack({
     tile.track.attach(element);
     element.muted = true;
     const mirror = () => {
-      element.style.transform = tile.local && !screen ? 'scaleX(-1)' : 'none';
+      element.style.transform = mirrored(tile) ? 'scaleX(-1)' : 'none';
     };
     mirror();
+    // Переворот камеры пересобирает дорожку, а не создаёт новую плитку, поэтому решение о
+    // зеркале нужно принимать заново здесь: `Restarted` — единственное место, где об этом
+    // вообще становится известно.
     tile.track.on(TrackEvent.Restarted, mirror);
     return () => {
       tile.track.off(TrackEvent.Restarted, mirror);
@@ -39,7 +58,7 @@ function VideoTrack({
       autoPlay
       playsInline
       muted
-      className={screen ? 'screen-video' : `camera-video ${tile.local ? 'mirrored' : ''}`}
+      className={screen ? 'screen-video' : 'camera-video'}
       aria-label={screen ? `Экран: ${tile.name}` : `Камера: ${tile.name}`}
     />
   );
