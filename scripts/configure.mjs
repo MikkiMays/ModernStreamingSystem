@@ -12,20 +12,70 @@ import {
 const args = Object.fromEntries(
   process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")),
 );
-const topology = resolveTopology(args);
-try {
-  await readFile(".env");
+
+/**
+ * Перевыпуск конфигурации работающего сервера.
+ *
+ * ЗАЧЕМ. `livekit.json`, `edge.json` и `redis.conf` порождаются здесь и в Git не хранятся.
+ * Значит, всё, что меняется в этом генераторе, до уже установленного сервера не доезжало
+ * никогда: `.env` существует, скрипт отказывается работать, и человек остаётся с конфигом
+ * той версии, на которой ставил. Именно этот класс расхождений и незаметен дольше всего.
+ *
+ * ЧТО ДЕЛАЕТ. Читает существующий `.env`, берёт из него ВСЕ секреты и адреса как есть и
+ * переписывает только порождаемые файлы. Секреты не меняются, живые сессии не отзываются,
+ * сам `.env` не трогается — включая то, что владелец правил руками (ACCESS_PASSWORD,
+ * ADMISSION_OPEN, лимиты).
+ */
+const refresh = "refresh" in args;
+const existing = await readFile(".env", "utf8").catch((e) => {
+  if (e.code === "ENOENT") return null;
+  throw e;
+});
+if (existing && !refresh)
   throw new Error(
-    ".env already exists. Preserve existing secrets; do not rotate active sessions accidentally.",
+    ".env already exists. Preserve existing secrets; do not rotate active sessions accidentally. Use --refresh to regenerate only the derived files.",
   );
-} catch (e) {
-  if (e.code !== "ENOENT") throw e;
+if (refresh && !existing)
+  throw new Error("--refresh needs an existing .env: there is nothing to preserve here.");
+
+const saved = Object.fromEntries(
+  (existing ?? "")
+    .split("\n")
+    .filter((line) => /^[A-Z_]+=/.test(line))
+    .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]),
+);
+
+/**
+ * Чем этот сервер был установлен.
+ *
+ * `.env` хранит не всё: соседние сайты на том же 443 (`--legacy-hosts`) живут только в
+ * `edge.json`, и перевыпуск по одному `.env` молча снёс бы их маршруты вместе с чужим
+ * сайтом. Поэтому аргументы установки сохраняются рядом с порождёнными файлами, и
+ * перевыпуск повторяет ровно их. Установке до появления этого файла перевыпуск честно
+ * отказывает и называет, чего ему не хватает, — это лучше тихо испорченной конфигурации.
+ */
+const TOPOLOGY_FILE = "infra/generated/topology.json";
+let topologyArgs = args;
+if (refresh) {
+  const stored = await readFile(TOPOLOGY_FILE, "utf8").then(JSON.parse, (e) => {
+    if (e.code !== "ENOENT") throw e;
+    return null;
+  });
+  if (!stored)
+    throw new Error(
+      `${TOPOLOGY_FILE} is missing: this server was configured before it existed, and .env does not record --legacy-hosts. ` +
+        "Re-run the original configure command with --refresh added, for example: " +
+        `node scripts/configure.mjs --refresh --domain=${saved.APP_HOST} --ip=${saved.PUBLIC_IP} [--legacy-hosts=...]`,
+    );
+  // Аргументы командной строки всё же старше: ими правят то, что поменялось на самом деле.
+  topologyArgs = { ...stored, ...args };
 }
+const topology = resolveTopology(topologyArgs);
 
 const secret = () => randomBytes(32).toString("hex");
-const key = `API${randomBytes(9).toString("hex")}`;
-const mediaSecret = secret();
-const redis = secret();
+const key = refresh ? saved.LIVEKIT_API_KEY : `API${randomBytes(9).toString("hex")}`;
+const mediaSecret = refresh ? saved.LIVEKIT_API_SECRET : secret();
+const redis = refresh ? saved.REDIS_PASSWORD : secret();
 const { ports, app, rtc, turn, ip, mode } = topology;
 
 await mkdir("infra/generated/tls", { recursive: true });
@@ -82,13 +132,15 @@ const values = {
   ACCESS_PASSWORD: "",
   SERVER_NAME: app,
 };
-await writeFile(
-  ".env",
-  Object.entries(values)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("\n") + "\n",
-  { mode: 0o600 },
-);
+// Перевыпуск не трогает .env: там живут секреты и то, что владелец правил руками.
+if (!refresh)
+  await writeFile(
+    ".env",
+    Object.entries(values)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n") + "\n",
+    { mode: 0o600 },
+  );
 
 const livekit = {
   port: 7880,
@@ -126,7 +178,16 @@ await writeFile(
 );
 await writeFile(
   "infra/generated/edge.json",
-  JSON.stringify(createEdge(args), null, 2),
+  JSON.stringify(createEdge(topologyArgs), null, 2),
+);
+// То, чем это было собрано, — чтобы следующий перевыпуск повторил ровно эту конфигурацию.
+await writeFile(
+  TOPOLOGY_FILE,
+  JSON.stringify(
+    Object.fromEntries(Object.entries(topologyArgs).filter(([k]) => k !== "refresh")),
+    null,
+    2,
+  ) + "\n",
 );
 await writeFile(
   "infra/generated/redis.conf",
