@@ -71,10 +71,15 @@ export function affectsServer(files: { filename?: unknown }[] | undefined): bool
   return files.some((file) => typeof file.filename === 'string' && runnable(file.filename));
 }
 
-/** Документация, картинки к ней и настройки CI на работающий сервер не попадают вовсе. */
+/**
+ * Документация, картинки к ней, настройки CI и тесты в работающий сервер не попадают вовсе:
+ * первые три не собираются, тесты собираются, но не выполняются нигде, кроме проверки.
+ */
 function runnable(path: string): boolean {
   if (path.startsWith('docs/') || path.startsWith('.github/')) return false;
   if (/\.(md|txt)$/i.test(path)) return false;
+  if (/(^|\/)(e2e|__tests__)\//.test(path) || /\/src\/test\//.test(path)) return false;
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(path)) return false;
   return !/^(LICENSE|CODEOWNERS|\.gitignore|\.gitattributes)$/.test(path);
 }
 

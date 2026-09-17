@@ -87,6 +87,20 @@ it('говорит, как только среди правок есть хот�
   await expect(upstreamState()).resolves.toEqual({ behind: 3 });
 });
 
+it('не считает правкой сервера то, что выполняется только в проверке', async () => {
+  const { affectsServer } = await load('a47e421');
+  expect(
+    affectsServer([
+      { filename: 'web/e2e/screens.spec.ts' },
+      { filename: 'web/src/ui/focus.test.ts' },
+      { filename: 'server/src/test/java/dev/mikki/stream/RoomServiceTest.java' },
+    ]),
+  ).toBe(false);
+  expect(affectsServer([{ filename: 'server/src/main/java/dev/mikki/stream/room/RoomService.java' }])).toBe(
+    true,
+  );
+});
+
 /** Обрезанный на трёхстах файлах или отсутствующий список — повод сказать, а не промолчать. */
 it('при неизвестном составе правок показывает плашку', async () => {
   const { affectsServer } = await load('a47e421');

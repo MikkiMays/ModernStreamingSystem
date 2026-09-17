@@ -74,7 +74,11 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     const ownCamera = (page: (typeof pages)[number]) =>
       page.locator('.person-tile video').evaluate((v: HTMLVideoElement) => {
         const track = (v.srcObject as MediaStream).getVideoTracks()[0]!;
-        return { device: track.getSettings().deviceId ?? '', state: track.readyState, frames: v.videoWidth > 0 };
+        return {
+          device: track.getSettings().deviceId ?? '',
+          state: track.readyState,
+          frames: v.videoWidth > 0,
+        };
       });
     const localCapture = await ownCamera(host!);
     const micId = await guest!
