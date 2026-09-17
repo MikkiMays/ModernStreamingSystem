@@ -100,9 +100,6 @@ textarea,
   .retention-note {
     font-size: 11px;
   }
-  .device-fields {
-    grid-template-columns: 1fr;
-  }
   .settings-row select {
     padding-inline: 8px;
     font-size: 14px;

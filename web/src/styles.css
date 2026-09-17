@@ -639,21 +639,6 @@ h2 {
 .prejoin-form > label {
   margin: 16px 0 9px;
 }
-.device-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 18px;
-}
-.device-fields select {
-  font-size: 13px;
-}
-.checkbox-label {
-  display: flex !important;
-  align-items: center;
-  gap: 10px;
-  font-weight: 450;
-}
 .prejoin-form > .button {
   margin: 18px 0 12px;
 }
@@ -1101,49 +1086,6 @@ h2 {
   z-index: 9;
   white-space: nowrap;
 }
-.screens-grid {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.screens-grid[data-count='1'],
-.screens-grid.focused {
-  grid-template-columns: minmax(0, 1fr);
-}
-.screens-grid.focused .screen-tile:not([data-focused='true']) {
-  display: none;
-}
-.screen-tile {
-  border-radius: 12px;
-  border: 1px solid #ffffff15;
-  background: #080a10;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-.screen-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  color: #ccd3e4;
-  font-size: 12px;
-  gap: 8px;
-}
-.screen-top > span {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.screen-top .live-badge {
-  font-size: 9px;
-  letter-spacing: 1px;
-  color: #92d7b7;
-}
 .live-badge i {
   background: #70c49e;
   border-radius: 50%;
@@ -1185,35 +1127,6 @@ h2 {
   font-size: 11px;
   width: 42px;
   text-align: center;
-}
-.has-screens .people-grid {
-  flex: 0 0 126px;
-  display: flex;
-  overflow-x: auto;
-  align-content: stretch;
-}
-.has-screens .person-tile {
-  flex: 0 0 180px;
-  width: 180px !important;
-  height: 120px !important;
-}
-.has-screens .avatar-large {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  font-size: 20px;
-}
-.has-screens .person-caption {
-  font-size: 10px;
-  bottom: 6px;
-  left: 7px;
-  right: 7px;
-}
-.has-screens .person-placeholder {
-  min-height: 0;
-}
-.has-screens .person-caption span {
-  padding: 3px 5px;
 }
 .call-footer {
   min-height: 94px;
@@ -1444,14 +1357,6 @@ h2 {
 .participant-row[data-speaking='true'] .participant-info strong {
   color: var(--speaking);
 }
-.panel-tip {
-  border-top: 1px solid var(--line);
-  padding-top: 20px;
-  margin-top: auto;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.8;
-}
 .chat-panel {
   flex: 1;
   min-height: 0;
@@ -1648,33 +1553,6 @@ h2 {
 .panel-error {
   padding: 10px 20px;
 }
-.files-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.upload-area {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  justify-content: center;
-  gap: 11px;
-  padding: 23px 12px;
-  border: 1px dashed var(--line);
-  border-radius: 14px;
-  background: var(--bg);
-  color: var(--muted);
-}
-.upload-area > svg {
-  color: var(--blue);
-}
-.upload-area strong {
-  font-size: 13px;
-  color: var(--text);
-}
-.upload-area span {
-  font-size: 10px;
-}
 .upload-progress {
   background: var(--surface-2);
   padding: 12px;
@@ -1727,12 +1605,6 @@ progress {
   font-size: 10px;
   color: var(--muted);
   margin-top: 6px;
-}
-.file-footnote {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.7;
-  margin-top: auto;
 }
 .modal-backdrop {
   position: fixed;
@@ -1957,17 +1829,6 @@ progress {
   }
 }
 @container (max-width:650px) {
-  .screens-grid {
-    grid-template-columns: 1fr;
-  }
-  .has-screens .people-grid {
-    flex-basis: 96px;
-  }
-  .has-screens .person-tile {
-    height: 90px !important;
-    flex-basis: 138px;
-    width: 138px !important;
-  }
   .people-grid[data-count='5'],
   .people-grid[data-count='6'],
   .people-grid[data-count='7'],
@@ -2288,15 +2149,8 @@ progress {
     font-size: 9px;
     bottom: 4px;
   }
-  .panel-open .screens-grid {
-    min-height: 74px;
-    max-height: 74px;
-  }
   .panel-open .screen-top,
   .panel-open .screen-tools {
-    display: none;
-  }
-  .panel-open .has-screens .people-grid {
     display: none;
   }
   .panel-heading {
@@ -2307,9 +2161,6 @@ progress {
   }
   .panel-tabs {
     margin-inline: 18px;
-  }
-  .panel-tip {
-    display: none;
   }
   .panel-tabs > button {
     font-size: 12px;
@@ -2368,10 +2219,6 @@ progress {
     height: 60px;
     border-radius: 20px;
   }
-  .screen-top {
-    padding: 8px;
-    font-size: 10px;
-  }
   .screen-tools .icon-button {
     min-width: 40px;
   }
@@ -2428,9 +2275,6 @@ progress {
   .connection-badge {
     display: none;
   }
-  .device-fields {
-    grid-template-columns: 1fr;
-  }
 }
 @media (max-height: 600px) and (min-width: 768px) {
   .meeting-header {
@@ -2441,18 +2285,6 @@ progress {
   }
   .stage-wrap {
     padding: 8px;
-  }
-  .has-screens .people-grid {
-    flex-basis: 80px;
-  }
-  .has-screens .person-tile {
-    height: 76px !important;
-    flex-basis: 118px;
-  }
-  .has-screens .avatar-large {
-    width: 33px;
-    height: 33px;
-    font-size: 17px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3011,12 +2843,6 @@ progress {
   font-size: 27px;
   font-weight: 700;
 }
-.yandex-card .field-label {
-  display: grid;
-  gap: 8px;
-  font-size: 13px;
-  margin-bottom: 18px;
-}
 .yandex-auth {
   display: flex;
   flex-direction: column;
@@ -3180,8 +3006,6 @@ progress {
   font-size: 13px;
 }
 /* Строка сервера: овальный контейнер, имя с точкой, действие в самом конце. */
-@media (prefers-reduced-motion: reduce) {
-}
 .connect-form {
   display: grid;
   gap: 16px;
@@ -3371,29 +3195,6 @@ progress {
 .download-note {
   margin: 0;
   max-width: 460px;
-}
-.download-digest {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  font-size: 11px;
-  color: var(--muted);
-}
-.download-digest code {
-  font-size: 11px;
-  word-break: break-all;
-  color: var(--text);
-}
-.download-digest .text-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 6px;
 }
 .download-portable {
   font-size: 13px;
