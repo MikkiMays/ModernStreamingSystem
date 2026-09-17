@@ -11,6 +11,7 @@ import {
   Server,
   Palette,
   Waves,
+  Info,
 } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
@@ -34,6 +35,7 @@ import { useMicLevel } from './useMicLevel';
 import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { disconnect, session } from '../core/session';
+import { AboutFields } from './AboutFields';
 
 /**
  * A picture is only offered where there is a comfortable way to pick one. On a phone the file
@@ -671,6 +673,9 @@ export function Settings({
           <Tabs.Tab value="hotkeys">
             <Keyboard size={17} /> Клавиши
           </Tabs.Tab>
+          <Tabs.Tab value="about">
+            <Info size={17} /> О программе
+          </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="audio" className="settings-form">
           {device('audioinput')}
@@ -762,6 +767,9 @@ export function Settings({
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />
+        </Tabs.Panel>
+        <Tabs.Panel value="about" className="settings-form">
+          {open && tab === 'about' && <AboutFields />}
         </Tabs.Panel>
       </Tabs.Root>
     </Modal>

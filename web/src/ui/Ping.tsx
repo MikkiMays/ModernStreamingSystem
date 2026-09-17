@@ -2,15 +2,34 @@ import { useEffect, useState } from 'react';
 import type { Meeting } from '../core/meeting';
 import { readPreferences } from '../core/preferences';
 import { Store } from '../core/store';
+import type { OutboundVideo } from '../media/session';
 import { useStore } from './primitives';
 const noPing = new Store<number | null>(null);
 const noControl = new Store('closed');
+const noVideo = new Store<OutboundVideo | null>(null);
+
+/**
+ * Что происходит с картинкой на самом деле.
+ *
+ * Плашка показывала один PING. Настройки при этом обещали 1440p и 60 кадров, а камера могла
+ * отдавать 1080p и сорок — и узнать об этом было неоткуда, кроме как открыть диагностику и
+ * поверить, что смотришь в нужную строку. Теперь рядом с задержкой стоят те же три числа,
+ * которые человек выставлял: размер кадра, частота и мегабиты. Числа измеренные, а не
+ * запрошенные; если они не сходятся с настройкой — это и есть ответ.
+ */
+function limitationLabel(reason: string) {
+  if (reason === 'bandwidth') return 'канал';
+  if (reason === 'cpu') return 'процессор';
+  return '';
+}
+
 export function Ping({ meeting }: { meeting?: Meeting | null }) {
   const [enabled, setEnabled] = useState(() => readPreferences().showPing);
   const [http, setHttp] = useState<number | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const rtt = useStore(meeting?.control.ping ?? noPing);
   const control = useStore(meeting?.control.state ?? noControl);
+  const video = useStore(meeting?.media.outbound ?? noVideo);
   useEffect(() => {
     const change = () => setEnabled(readPreferences().showPing);
     window.addEventListener('cord:preferences', change);
@@ -57,13 +76,30 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   if (!enabled) return null;
   const disconnected = meeting ? control === 'recovering' || control === 'closed' : offline;
   const value = meeting ? rtt : http;
+  const limited = video ? limitationLabel(video.limitation) : '';
   return (
     <div
       className="ping-badge"
       role="status"
-      title={meeting ? 'RTT управляющего WebSocket' : 'Время ответа сервера /api/v1/ping'}
+      title={
+        video
+          ? `Задержка управляющего канала и то, что уходит в сеть с ${video.source === 'screen' ? 'экрана' : 'камеры'}`
+          : meeting
+            ? 'RTT управляющего WebSocket'
+            : 'Время ответа сервера /api/v1/ping'
+      }
     >
       PING · {disconnected ? 'Нет связи' : value === null ? '—' : `${value} мс`}
+      {video && video.width > 0 && (
+        <>
+          {' · '}
+          {video.width}×{video.height}
+          {' · '}
+          {video.fps} fps
+          {video.mbps > 0 && ` · ${video.mbps.toFixed(1)} Мбит/с`}
+          {limited && <span className="ping-limited"> · ограничивает {limited}</span>}
+        </>
+      )}
     </div>
   );
 }

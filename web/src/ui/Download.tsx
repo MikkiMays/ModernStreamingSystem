@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Download as DownloadIcon, ShieldAlert } from 'lucide-react';
 import { AppIcon, Logo, ThemeButton, type Theme } from './primitives';
-import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
+import {
+  INSTALLER_URL,
+  PORTABLE_URL,
+  RELEASES_PAGE,
+  megabytes,
+  windowsRelease,
+  type WindowsRelease,
+} from '../core/download';
 
 /**
  * The page behind «Скачать Cord». It is deliberately outside the application: no server
@@ -10,7 +17,6 @@ import { megabytes, windowsRelease, type WindowsRelease } from '../core/download
  */
 export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
-  const [copied, setCopied] = useState(false);
   useEffect(() => {
     let active = true;
     void windowsRelease().then((found) => {
@@ -38,50 +44,57 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
           <AppIcon size={76} />
           <h1>Cord для Windows</h1>
           {release === undefined && <p className="muted">Смотрим, что опубликовано…</p>}
+          {/*
+            Даже когда ни этот сервер, ни GitHub не ответили, кнопка остаётся: постоянный адрес
+            последнего релиза не требует ни того, ни другого. Исчезающая кнопка «скачать» —
+            худший из возможных ответов на вопрос «где скачать».
+          */}
           {release === null && (
             <>
-              <p className="muted">
-                На этом сервере нет опубликованной сборки для Windows. Открывайте Cord в браузере — встречи,
-                экран и файлы работают там полностью.
-              </p>
-              <a className="button secondary full" href="/">
-                Открыть в браузере
-              </a>
-            </>
-          )}
-          {release && (
-            <>
-              <p className="muted">
-                Версия {release.version} · {megabytes(release.installer!.size)} · Windows 10 build 19041 и
-                новее, x64
-              </p>
-              <a className="button primary full download-primary" href={release.installer!.url} download>
+              <p className="muted">Последняя сборка · Windows 10 build 19041 и новее, x64</p>
+              <a className="button primary full download-primary" href={INSTALLER_URL}>
                 <DownloadIcon size={19} /> Скачать установщик
               </a>
               <p className="form-footnote download-note">
                 Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
                 если его ещё нет.
               </p>
-              <div className="download-digest">
-                <span>SHA-256</span>
-                <code>{release.installer!.sha256}</code>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    void navigator.clipboard
-                      ?.writeText(release.installer!.sha256)
-                      .then(() => setCopied(true))
-                      .catch(() => {});
-                  }}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Скопировано' : 'Копировать'}
-                </button>
-              </div>
+              <a className="text-button download-portable" href={PORTABLE_URL}>
+                Портативная сборка без установки · ZIP
+              </a>
+            </>
+          )}
+          {release && (
+            <>
+              <p className="muted">
+                Версия {release.version}
+                {release.installer!.size > 0 && ` · ${megabytes(release.installer!.size)}`} · Windows 10 build
+                19041 и новее, x64
+              </p>
+              <a
+                className="button primary full download-primary"
+                href={release.installer!.url}
+                download={release.origin === 'server' ? '' : undefined}
+              >
+                <DownloadIcon size={19} /> Скачать установщик
+              </a>
+              <p className="form-footnote download-note">
+                Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
+                если его ещё нет.
+              </p>
               {release.portable && (
-                <a className="text-button download-portable" href={release.portable.url} download>
-                  Портативная сборка без установки · ZIP, {megabytes(release.portable.size)}
+                <a
+                  className="text-button download-portable"
+                  href={release.portable.url}
+                  download={release.origin === 'server' ? '' : undefined}
+                >
+                  Портативная сборка без установки · ZIP
+                  {release.portable.size > 0 && `, ${megabytes(release.portable.size)}`}
                 </a>
               )}
+              <a className="text-button download-portable" href={RELEASES_PAGE}>
+                Все выпуски и что в них поменялось
+              </a>
             </>
           )}
         </section>
@@ -108,9 +121,8 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
             распакованных файлах, поэтому установщик спокойнее.
           </p>
           <p className="form-footnote download-note">
-            Хотите убедиться, что скачали именно то, что опубликовано, — сверьте SHA-256 выше:
-            <br />
-            <code>{`Get-FileHash .\\Cord-Setup-${release?.version ?? '0.0.0'}-x64.exe`}</code>
+            Установщик собирает GitHub Actions из исходников этого проекта; контрольные суммы каждого выпуска
+            лежат рядом с ним на странице релиза.
           </p>
         </section>
       </main>

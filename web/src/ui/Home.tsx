@@ -6,6 +6,7 @@ import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primi
 import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { InstallHint } from './InstallHint';
+import { appLabel } from '../core/version';
 import { DesktopHome } from './DesktopHome';
 import { Settings } from './Settings';
 import { FavoriteSettings } from './FavoriteSettings';
@@ -25,26 +26,35 @@ interface HomeProps {
 }
 export function Home(props: HomeProps) {
   const [settings, setSettings] = useState(false);
+  // Раздел, с которого открыться. Просит либо оболочка, либо строка версии внизу страницы.
+  const [section, setSection] = useState<string | undefined>(undefined);
   // The host can ask for a section by name — the profile block in its sidebar opens the page's
   // own profile settings, because that is where the picture lives.
   useEffect(() => {
     if (props.section) setSettings(true);
   }, [props.section]);
+  const open = (named?: string) => {
+    setSection(named);
+    setSettings(true);
+  };
   return (
     <>
       {window.chrome?.webview ? (
-        <DesktopHome {...props} onSettings={() => setSettings(true)} />
+        <DesktopHome {...props} onSettings={() => open()} />
       ) : (
-        <BrowserHome {...props} onSettings={() => setSettings(true)} />
+        <BrowserHome {...props} onSettings={open} />
       )}
       <Settings
         open={settings}
-        section={props.section}
+        section={props.section ?? section}
         theme={props.theme}
         setTheme={props.setTheme}
-        onOpenChange={(open) => {
-          setSettings(open);
-          if (!open) props.onSectionClosed?.();
+        onOpenChange={(shown) => {
+          setSettings(shown);
+          if (!shown) {
+            setSection(undefined);
+            props.onSectionClosed?.();
+          }
         }}
       />
     </>
@@ -56,7 +66,7 @@ function BrowserHome({
   theme,
   setTheme,
   onSettings,
-}: HomeProps & { onSettings: () => void }) {
+}: HomeProps & { onSettings: (section?: string) => void }) {
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
@@ -70,7 +80,7 @@ function BrowserHome({
           <span className="header-note">Пространство для общения</span>
           <DownloadLink />
           <ThemeButton theme={theme} setTheme={setTheme} />
-          <IconButton label="Настройки" onClick={onSettings}>
+          <IconButton label="Настройки" onClick={() => onSettings()}>
             <Settings2 size={20} />
           </IconButton>
         </div>
@@ -224,7 +234,14 @@ function BrowserHome({
         )}
       </main>
       <InstallHint />
-      <span className="build-label">CORD / 01</span>
+      {/*
+        Здесь стояло «CORD / 01» — надпись, похожая на версию и не бывшая ею. Теперь это
+        настоящая версия сборки, и по ней можно нажать: вопрос «какая у меня версия» почти
+        всегда следующим шагом становится «а есть ли новее».
+      */}
+      <button className="build-label" onClick={() => onSettings('about')}>
+        Cord {appLabel}
+      </button>
     </div>
   );
 }

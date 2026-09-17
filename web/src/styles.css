@@ -519,6 +519,11 @@ h2 {
   font-size: 12px;
   padding: 9px 12px;
 }
+/*
+  Строка версии внизу главной. Была надписью «CORD / 01», похожей на версию и не бывшей ею;
+  теперь это настоящая версия сборки и кнопка: вопрос «какая у меня версия» почти всегда
+  следующим шагом становится «а есть ли новее», и отвечать на него должно то же место.
+*/
 .build-label {
   position: absolute;
   bottom: 24px;
@@ -526,6 +531,13 @@ h2 {
   color: var(--muted);
   font-size: 10px;
   letter-spacing: 2px;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  cursor: pointer;
+}
+.build-label:hover {
+  color: var(--text);
 }
 .service-note {
   margin-top: 18px;

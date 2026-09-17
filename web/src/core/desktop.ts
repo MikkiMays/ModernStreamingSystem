@@ -1,5 +1,22 @@
 import { Store } from './store';
 export const desktopHotkeyStatus = new Store<string | null>(null);
+
+/**
+ * Что оболочка рассказала странице про обновление себя самой.
+ *
+ * Страница о файлах приложения ничего не знает и знать не должна: она умеет только попросить
+ * проверить и показать ответ. Пустое состояние — «оболочка ещё ничего не сказала», и это не
+ * то же самое, что «обновлений нет».
+ */
+export interface DesktopUpdate {
+  version: string;
+  status: string;
+  available: boolean;
+}
+export const desktopUpdate = new Store<DesktopUpdate>({ version: '', status: '', available: false });
+export function desktopVersion(state: DesktopUpdate) {
+  return state.version;
+}
 export interface DesktopCommand {
   version: 1;
   type:
@@ -13,7 +30,8 @@ export interface DesktopCommand {
     | 'hotkey.status'
     | 'session.token'
     | 'settings.open'
-    | 'profile.changed';
+    | 'profile.changed'
+    | 'update.status';
   showPing?: boolean;
   notificationSounds?: boolean;
   page?: 'home' | 'create' | 'favorite';
@@ -27,6 +45,8 @@ export interface DesktopCommand {
   serverName?: string;
   /** Which settings section to open, when the host asks for one. */
   tab?: string;
+  /** Версия установленного приложения и что с обновлением, для `update.status`. */
+  available?: boolean;
 }
 interface WebViewBridge {
   postMessage: (message: unknown) => void;
@@ -59,11 +79,18 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         'session.token',
         'settings.open',
         'profile.changed',
+        'update.status',
       ].includes(message.type ?? '')
     )
       return;
     if (message.type === 'hotkey.status' && typeof message.detail === 'string')
       desktopHotkeyStatus.set(message.detail);
+    if (message.type === 'update.status')
+      desktopUpdate.set({
+        version: typeof message.name === 'string' ? message.name : desktopUpdate.get().version,
+        status: typeof message.detail === 'string' ? message.detail : '',
+        available: message.available === true,
+      });
     listener(message as DesktopCommand);
   };
   const bridge = window.chrome?.webview;

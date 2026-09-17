@@ -102,6 +102,7 @@ export function MeetingView({
   const tracks = useStore(meeting.media.tracks);
   /** Телефон: часть кнопок не прячется, а переезжает в меню, и это решает разметка. */
   const compact = useMediaQuery('(max-width: 700px)');
+  const outbound = useStore(meeting.media.outbound);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen().catch((e) => meeting.media.report(e));
@@ -344,8 +345,21 @@ export function MeetingView({
                     ? 'До новой встречи'
                     : 'Устанавливаем связь'}
               </span>
-              <button onClick={() => setDiagnostics(true)} className="quality-tag">
-                {media.screen ? `${profile.resolution}p · ${profile.fps}` : 'HD'}
+              {/*
+                Здесь стояло «HD» — слово, не означающее ничего, — либо выбранный уровень, то
+                есть просьба, а не факт. Теперь это измеренное: сколько пикселей и кадров
+                действительно уходит в сеть, и кто это ограничивает, если ограничивает.
+              */}
+              <button
+                onClick={() => setDiagnostics(true)}
+                className="quality-tag"
+                title="Что уходит в сеть прямо сейчас. Нажмите, чтобы открыть диагностику"
+              >
+                {outbound && outbound.width > 0
+                  ? `${outbound.height}p · ${outbound.fps} fps`
+                  : media.screen || media.camera
+                    ? 'Измеряем…'
+                    : 'Камера выключена'}
               </button>
             </div>
             {/*

@@ -394,6 +394,14 @@ button.watch-stream:hover {
   padding: 3px 7px;
   font: 11px/1.4 monospace;
   pointer-events: auto;
+  max-width: calc(100vw - 12px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Почему кадр меньше заявленного. Жёлтым, потому что это не ошибка, а объяснение. */
+.ping-limited {
+  color: #edbd64;
 }
 .meeting-fullscreen {
   height: 100dvh;
