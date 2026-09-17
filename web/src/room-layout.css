@@ -121,7 +121,13 @@
   width: 100%;
   height: 100%;
 }
-.camera-stage .people-grid {
+/*
+  Одного человека показываем во всю сцену. Здесь стояло то же самое, но без условия на число
+  участников, — и поэтому сетки не было вообще: любой разговор без панели интеграций
+  выстраивал всех в одну колонку, на телефоне и на мониторе одинаково. Именно это выглядело
+  как «участники растянуты по всей ширине».
+*/
+.camera-stage .people-grid[data-count='1'] {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
 }
@@ -355,9 +361,6 @@ button.watch-stream:hover {
   align-content: stretch;
   grid-auto-rows: minmax(0, 1fr);
 }
-.conversation-stage .person-tile {
-  aspect-ratio: auto;
-}
 .stage-wrap > .call-footer {
   background: var(--surface);
   color: var(--text);
@@ -542,5 +545,115 @@ button.watch-stream:hover {
   }
   .meeting-fullscreen .stage-wrap > .call-footer {
     bottom: 42px;
+  }
+}
+
+/*
+  Три раскладки сцены.
+
+  Раньше была одна — сетка, — и «закрепить камеру» её не меняло, а просто выбрасывало всех
+  остальных из списка. Это не раскладка, а фильтр: закрепив человека, вы переставали видеть
+  комнату. Теперь закрепление никого не прячет, а расстановкой занимается `data-layout`.
+
+  Выбор принадлежит смотрящему и хранится на его устройстве: на телефоне в портрете и на
+  мониторе хочется разного, и договариваться об этом с собеседником незачем.
+*/
+
+/*
+  Говорящий: крупно один, остальные лентой справа.
+
+  Строки заданы явно по числу участников, потому что крупная плитка растягивается на всю
+  колонку через `grid-row: 1 / -1`, а `-1` считает только явные строки — без них она заняла
+  бы одну строку и оставила под собой пустоту. Больше пяти человек лента не растягивает:
+  дальше она прокручивается, иначе плитки превращаются в полоски.
+*/
+.stage[data-layout='speaker'] .people-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(96px, 18%, 210px);
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  align-content: stretch;
+  justify-items: center;
+  overflow-y: auto;
+}
+.stage[data-layout='speaker'] .people-grid[data-count='2'] {
+  grid-template-rows: minmax(0, 1fr);
+}
+.stage[data-layout='speaker'] .people-grid[data-count='3'] {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.stage[data-layout='speaker'] .people-grid[data-count='4'] {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+.stage[data-layout='speaker'] .person-tile {
+  grid-column: 2;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+.stage[data-layout='speaker'] .person-tile[data-focused='true'] {
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+/* Один человек — делить сцену не с кем, крупный план занимает её целиком. */
+.stage[data-layout='speaker'] .people-grid[data-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+  Лента: один за другим во всю ширину, листается.
+
+  Это раскладка телефона в портрете, где сетка из двух колонок даёт две марки вместо двух
+  лиц. На мониторе она тоже разумна, когда людей двое и хочется видеть их крупно.
+*/
+.stage[data-layout='strip'] .people-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow-y: auto;
+}
+.stage[data-layout='strip'] .person-tile {
+  /* Поровну по высоте, ширина — от кадра. Нижний предел нужен, чтобы лента из десяти
+     человек не схлопнула плитки в подписи: дальше она просто прокручивается. */
+  flex: 1 1 0;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  min-height: 140px;
+}
+
+/*
+  На телефоне лента справа съела бы половину экрана, поэтому она переезжает вниз.
+
+  Здесь не сетка, а перенос по строкам: крупная плитка занимает строку целиком, остальные
+  переходят на следующую и встают рядом. Сеткой это не выражается — неявные колонки, которые
+  создаёт лента, отбирают ширину у колонки крупного плана, и он сжимался до полоски.
+*/
+@media (max-width: 700px) {
+  .stage[data-layout='speaker'] .people-grid,
+  .stage[data-layout='speaker'] .people-grid[data-count='2'],
+  .stage[data-layout='speaker'] .people-grid[data-count='3'],
+  .stage[data-layout='speaker'] .people-grid[data-count='4'] {
+    display: flex;
+    flex-wrap: wrap;
+    /* По центру, а не от верха: плитка теперь ровно по кадру, и лишнее место — это фон
+       сцены, а не чернота внутри плитки. Прижатая к верху группа выглядела бы обрезанной. */
+    align-content: center;
+    justify-content: center;
+    gap: 8px;
+    overflow-y: auto;
+  }
+  .stage[data-layout='speaker'] .person-tile {
+    flex: 0 0 auto;
+    width: auto;
+    height: clamp(72px, 14vh, 108px);
+  }
+  .stage[data-layout='speaker'] .person-tile[data-focused='true'] {
+    order: -1;
+    flex: 1 1 100%;
+    width: auto;
+    height: auto;
+    max-height: calc(100% - 116px);
+    margin-inline: auto;
   }
 }

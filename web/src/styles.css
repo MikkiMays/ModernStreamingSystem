@@ -833,11 +833,19 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-content: stretch;
 }
+/*
+  Плитка принимает пропорции кадра, который в неё пришёл.
+
+  `--tile-aspect` ставит `Stage.tsx`, прочитав размер видео; пока дорожки нет — 16/10 под
+  аватар. Так вертикальный кадр с телефона перестаёт лежать посреди черноты в треть ширины,
+  а обрезать при этом ничего не нужно: вписывать больше нечего.
+*/
 .person-tile {
   position: relative;
-  aspect-ratio: 16/10;
+  aspect-ratio: var(--tile-aspect, 16 / 10);
   min-height: 0;
   max-height: 100%;
+  max-width: 100%;
   overflow: hidden;
   border-radius: 12px;
   background: #232937;
@@ -848,13 +856,23 @@ h2 {
 .person-tile:nth-child(3n) {
   background: #1e3032;
 }
+/* Один человек занимает сцену целиком: делить её не с кем. */
 .people-grid[data-count='1'] .person-tile {
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
 }
-.people-grid:not([data-count='1']):not([data-count='2']) .person-tile {
-  aspect-ratio: auto;
+/*
+  В сетке плитка центрируется в своей ячейке и не растягивает соседей: у портретного кадра
+  своя ширина, и без этого одна вертикальная плитка раздувала бы всю строку.
+*/
+.people-grid:not([data-count='1']) {
+  justify-items: center;
+  align-items: center;
+}
+.people-grid:not([data-count='1']) .person-tile {
+  height: 100%;
+  width: auto;
 }
 .person-placeholder {
   display: flex;

@@ -6,6 +6,7 @@ import type { Meeting } from '../core/meeting';
 import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
+import { focusedParticipant } from './focus';
 
 /**
  * Показывать ли себя зеркально.
@@ -42,13 +43,37 @@ function VideoTrack({
       element.style.transform = mirrored(tile) ? 'scaleX(-1)' : 'none';
     };
     mirror();
+    /*
+      Пропорции плитки — по кадру, а не по вкусу вёрстки.
+
+      Телефон отдаёт вертикальный кадр, плитка была ландшафтной, и `object-fit: contain`
+      честно вписывал портрет в середину, оставляя по бокам две трети черноты. Обрезать
+      вместо этого нельзя: у вертикального кадра срежется голова. Поэтому плитка принимает
+      пропорции источника — тогда вписывать уже нечего.
+
+      Размер известен только после метаданных и меняется на смену камеры, поэтому не
+      считается один раз.
+    */
+    const fit = () => {
+      if (screen || !element.videoWidth || !element.videoHeight) return;
+      element
+        .closest<HTMLElement>('.person-tile')
+        ?.style.setProperty('--tile-aspect', `${element.videoWidth} / ${element.videoHeight}`);
+    };
+    fit();
+    element.addEventListener('loadedmetadata', fit);
+    element.addEventListener('resize', fit);
     // Переворот камеры пересобирает дорожку, а не создаёт новую плитку, поэтому решение о
     // зеркале нужно принимать заново здесь: `Restarted` — единственное место, где об этом
     // вообще становится известно.
     tile.track.on(TrackEvent.Restarted, mirror);
     return () => {
+      element.removeEventListener('loadedmetadata', fit);
+      element.removeEventListener('resize', fit);
       tile.track.off(TrackEvent.Restarted, mirror);
       tile.track.detach(element);
+      // Дорожка ушла — пропорции вместе с ней: иначе аватар унаследует форму чужого кадра.
+      element.closest<HTMLElement>('.person-tile')?.style.removeProperty('--tile-aspect');
     };
   }, [tile.track, tile.local, screen]);
   return (
@@ -120,6 +145,9 @@ export function Stage({
   const pinned = useStore(meeting.pinnedCamera);
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
+  const layout = useStore(meeting.media.preferences).layout;
+  /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
+  const [focus, setFocus] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -207,18 +235,30 @@ export function Stage({
       </div>
     );
   }
-  const people = participants.filter(
-    (p) => !p.service && p.status !== 'WAITING' && (!pinned || p.id === pinned),
-  );
+  const people = participants.filter((p) => !p.service && p.status !== 'WAITING');
+  // Крупная плитка нужна только в «Говорящем»; в остальных раскладках считать её незачем,
+  // но хук обязан вызываться всегда, поэтому решение принимается здесь, а применяется ниже.
+  const focused = focusedParticipant({
+    pinned,
+    speaking,
+    current: focus,
+    people: people.map((p) => p.id),
+  });
+  useEffect(() => {
+    if (focused !== focus) setFocus(focused);
+  }, [focused, focus]);
   const showRoster =
     showServices &&
-    !pinned &&
+    layout === 'grid' &&
     participants.some(
       (participant) =>
         participant.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(participant.status),
     );
   return (
-    <div className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}>
+    <div
+      className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
+      data-layout={layout}
+    >
       <div className="people-grid" data-count={people.length}>
         {people.map((person) => {
           const camera = tracks.find(
@@ -240,6 +280,10 @@ export function Stage({
               // на цвет полагаться нельзя.
               data-speaking={mic && speaking.includes(person.id) ? 'true' : undefined}
               data-sharing={sharing ? 'true' : undefined}
+              data-pinned={pinned === person.id ? 'true' : undefined}
+              // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
+              // так видео не пересоздаётся при смене говорящего и не моргает.
+              data-focused={layout === 'speaker' && focused === person.id ? 'true' : undefined}
             >
               {camera ? (
                 <VideoTrack tile={camera} />

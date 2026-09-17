@@ -31,6 +31,7 @@ import { IconButton, Logo, useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { Ping } from './Ping';
 import { CameraChoices, CameraMenu } from './CameraMenu';
+import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
 import { Settings } from './Settings';
@@ -404,6 +405,8 @@ export function MeetingView({
                 {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
               </IconButton>
               <CameraMenu meeting={meeting} />
+              {!compact && <span className="dock-divider" />}
+              {!compact && <LayoutMenu meeting={meeting} />}
               {compact ? <span className="dock-gap" /> : <span className="dock-divider" />}
               {!compact && (
                 <button
@@ -449,6 +452,7 @@ export function MeetingView({
                           {/* Удержание кнопки переворота делает то же самое, но жест без
                               подписи; здесь он назван словами. */}
                           <CameraChoices meeting={meeting} />
+                          <LayoutChoices meeting={meeting} />
                         </>
                       )}
                       <Menu.Item onClick={() => openServicesPanel()}>

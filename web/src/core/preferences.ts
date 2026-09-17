@@ -6,6 +6,17 @@ import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
 
 export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 
+/**
+ * Как расставить участников.
+ *
+ * `grid` — все равные; `speaker` — крупно тот, кто говорит (или закреплённый), остальные
+ * лентой; `strip` — один за другим во всю ширину, листается. Выбор принадлежит смотрящему,
+ * а не комнате: на телефоне в портрете и на мониторе хочется разного, и договариваться об
+ * этом с собеседником незачем.
+ */
+export type StageLayout = 'grid' | 'speaker' | 'strip';
+export const stageLayouts: StageLayout[] = ['grid', 'speaker', 'strip'];
+
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
   echoCancellation: boolean;
@@ -40,6 +51,8 @@ export interface Preferences {
    * Влияет только на запас буфера приёма; ни переподключения, ни смены кодеков.
    */
   network: NetworkMode;
+  /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
+  layout: StageLayout;
   name: string;
   /** A small square data URI shown to the room, or an empty string. */
   avatar: string;
@@ -96,6 +109,7 @@ export function readPreferences(): Preferences {
           : 1,
     },
     network: networkModes.includes(data.network as NetworkMode) ? data.network! : 'auto',
+    layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,
