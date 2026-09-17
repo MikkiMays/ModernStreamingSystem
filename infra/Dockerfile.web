@@ -3,6 +3,9 @@ WORKDIR /workspace
 COPY web/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
+# Какой коммит собран. Репозиторий в образ не копируется, поэтому спросить git тут не у кого.
+ARG CORD_BUILD=""
+ENV CORD_BUILD=$CORD_BUILD
 RUN npm run build
 
 FROM caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648

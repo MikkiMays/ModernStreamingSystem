@@ -43,6 +43,7 @@ export function Sidebar({
   const ended = useStore(meeting.ended);
   const uploading = useStore(meeting.uploader.state);
   const tracks = useStore(meeting.media.tracks);
+  const speaking = useStore(meeting.media.speaking);
   const [now, setNow] = useState(Date.now);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
@@ -148,7 +149,13 @@ export function Sidebar({
             {people
               .filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
               .map((p) => (
-                <ParticipantMenu className="participant-row" key={p.id} meeting={meeting} person={p}>
+                <ParticipantMenu
+                  className="participant-row"
+                  key={p.id}
+                  meeting={meeting}
+                  person={p}
+                  data-speaking={speaking.includes(p.id) ? 'true' : undefined}
+                >
                   <Avatar name={p.name} src={p.avatar} />
                   <div className="participant-info">
                     <strong>

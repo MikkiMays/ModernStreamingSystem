@@ -12,12 +12,13 @@ export function ParticipantMenu({
   person,
   children,
   className = '',
+  ...marks
 }: {
   meeting: Meeting;
   person: Participant;
   children: ReactNode;
   className?: string;
-}) {
+} & Record<`data-${string}`, string | undefined>) {
   const snapshot = useStore(meeting.snapshot);
   const volumes = useStore(meeting.media.volumes);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
@@ -56,7 +57,9 @@ export function ParticipantMenu({
       {active && !person.service && (
         <Item onClick={() => meeting.pinCamera(person.id)}>Закрепить камеру</Item>
       )}
-      {person.screen && person.screenId && person.screenStarted && (
+      {/* Свою демонстрацию не смотрят: это тот же экран, на котором она открыта, только
+          с задержкой и через сеть. Показывающему нужна не она, а кнопка «остановить». */}
+      {remote && person.screen && person.screenId && person.screenStarted && (
         <Item onClick={() => meeting.openStream(person.id)}>Смотреть стрим</Item>
       )}
       {self?.owner && remote && active && (
@@ -90,7 +93,7 @@ export function ParticipantMenu({
       {/* The trigger renders the container itself, so the tile keeps its direct children and
           the CSS that positions the button by `>` still matches. Right click and long press
           open at the pointer; the button below keeps its own menu anchored to itself. */}
-      <ContextMenu.Trigger className={className} tabIndex={0}>
+      <ContextMenu.Trigger className={className} tabIndex={0} {...marks}>
         {children}
         <Menu.Root>
           <Menu.Trigger className="icon-button participant-more" aria-label={`Действия: ${person.name}`}>

@@ -217,6 +217,10 @@ export class Meeting {
     return ack;
   }
   openStream(participantId: string) {
+    // Никто не смотрит собственную демонстрацию: `watchScreen` управляет только чужими
+    // подписками, поэтому сюда попадала бы своя локальная дорожка — тот же экран, на котором
+    // всё и происходит, с задержкой и без возможности выйти обратно естественным путём.
+    if (participantId === this.admission.participantId) return;
     const person = this.snapshot.get().participants.find((p) => p.id === participantId);
     if (!person?.screen || !person.screenId) return;
     const screenId = person.screenId;

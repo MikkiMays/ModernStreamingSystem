@@ -10,6 +10,19 @@
       content="Cord — видеовстречи, демонстрация экрана и разговор без лишних шагов."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
+      На домашний экран телефона. iOS читает свои `apple-*`, остальные — манифест; обе
+      стороны указывают на одни и те же картинки. Камера и микрофон в standalone работают
+      с iOS 13.4 (WebKit #185448), поэтому вынесенный ярлык — полноценный клиент, а не
+      витрина. Ссылку из камеры или сообщения iOS всё равно откроет в Safari: Universal Links
+      выдаются только собранным приложениям, и обещать иное нельзя.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cord" />
     <title>Cord — пространство для общения</title>
   </head>
   <body>

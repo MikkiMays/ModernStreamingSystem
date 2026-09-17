@@ -30,7 +30,11 @@ services:
     depends_on: [gateway]
   gateway:
     logging: *default-logging
-    build: { context: ., dockerfile: infra/Dockerfile.web }
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.web
+      # Пустой по умолчанию: сборка без него остаётся сборкой, просто без номера коммита.
+      args: { CORD_BUILD: '${CORD_BUILD:-}' }
     network_mode: host
     env_file: .env
     restart: unless-stopped

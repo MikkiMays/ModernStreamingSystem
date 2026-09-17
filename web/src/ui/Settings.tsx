@@ -11,6 +11,7 @@ import {
   Server,
   Palette,
   Waves,
+  Info,
 } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
@@ -34,6 +35,7 @@ import { useMicLevel } from './useMicLevel';
 import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { disconnect, session } from '../core/session';
+import { AboutFields } from './AboutFields';
 
 /**
  * A picture is only offered where there is a comfortable way to pick one. On a phone the file
@@ -104,10 +106,13 @@ export function QualityFields({
   kind,
   profile,
   change,
+  preview,
 }: {
   kind: 'screen' | 'camera';
   profile: ScreenProfile;
   change: (next: ScreenProfile) => void;
+  /** Отдавать ли комнате размытый кадр своего экрана. Только для демонстрации. */
+  preview?: { enabled: boolean; change: (enabled: boolean) => void };
 }) {
   const title = kind === 'screen' ? 'Демонстрация экрана' : 'Видео с камеры';
   const label = kind === 'screen' ? 'Экран' : 'Камера';
@@ -124,14 +129,11 @@ export function QualityFields({
             aria-label={label + ': качество'}
             value={profile.automatic ? 'auto' : profile.resolution}
             onChange={(e) =>
-              change({
-                ...profile,
-                resolution:
-                  e.target.value === 'auto'
-                    ? automaticProfile(kind).resolution
-                    : (Number(e.target.value) as Resolution),
-                automatic: e.target.value === 'auto',
-              })
+              change(
+                e.target.value === 'auto'
+                  ? automaticProfile(kind)
+                  : { ...profile, resolution: Number(e.target.value) as Resolution, automatic: false },
+              )
             }
           >
             <option value="auto">Авто</option>
@@ -142,18 +144,16 @@ export function QualityFields({
         </label>
         <label>
           Плавность
+          {/* Частота принадлежит уровню, а не живёт отдельно: «разрешение автоматическое,
+              частота выбрана» обещало бы то, чего автоматика не умеет — она двигает и то,
+              и другое одной ступенью. Поэтому в Авто список показывает Авто и не спорит. */}
           <select
             aria-label={label + ': частота кадров'}
-            value={profile.automaticFps !== false ? 'auto' : profile.fps}
-            onChange={(e) =>
-              change({
-                ...profile,
-                fps: e.target.value === 'auto' ? 30 : (Number(e.target.value) as FrameRate),
-                automaticFps: e.target.value === 'auto',
-              })
-            }
+            disabled={profile.automatic}
+            value={profile.automatic ? 'auto' : profile.fps}
+            onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
           >
-            <option value="auto">Авто</option>
+            {profile.automatic && <option value="auto">Авто</option>}
             <option value="15">15 fps</option>
             <option value="30">30 fps</option>
             <option value="60">60 fps · плавнее</option>
@@ -162,8 +162,8 @@ export function QualityFields({
       </div>
       <p className="form-footnote">
         {profile.automatic
-          ? 'Авто держит лучшее качество, которое выдерживает связь, и поднимает его, когда появляется запас.'
-          : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
+          ? 'Авто выбирает и кадр, и частоту по тому, что выдерживает связь, — вплоть до 1440p · 60 fps, — и поднимает уровень, как только появляется запас.'
+          : `${profile.resolution}p · ${profile.fps} fps передаются как выбрано и не понижаются автоматически. Выбранный уровень действует и на приём: то, что вы смотрите, не ужимается под размер плитки. Если канал не тянет, картинка замрёт вместо того, чтобы стать хуже.`}
       </p>
       {kind === 'camera' && (
         <p className="form-footnote">
@@ -171,6 +171,22 @@ export function QualityFields({
           освободившиеся мегабиты достаются экрану. Настройка при этом не меняется — она снова вступит в силу,
           когда показ закончится.
         </p>
+      )}
+      {kind === 'screen' && preview && (
+        <label className="check-setting">
+          <input
+            type="checkbox"
+            checked={preview.enabled}
+            onChange={(e) => preview.change(e.target.checked)}
+          />
+          <span>
+            Показывать превью демонстрации
+            <small>
+              Пока никто не открыл ваш показ, в вашей плитке видно размытый кадр экрана — так понятно, что вы
+              показываете. Обновляется раз в несколько секунд, разобрать текст в нём нельзя.
+            </small>
+          </span>
+        </label>
       )}
     </section>
   );
@@ -392,14 +408,19 @@ function ConnectionFields({
 }
 
 /**
- * Чем жертвовать, когда канал не даёт и непрерывности, и отзывчивости сразу.
+ * Сколько звука держать про запас, прежде чем его услышат.
  *
- * Настройка меняет ровно одно: сколько звука держать про запас, прежде чем его услышат.
- * Запас — единственное, что вообще способно пережить скачок задержки: пакеты, пришедшие
- * с опозданием, ещё можно проиграть, если их было куда положить. Поэтому «Авто» не
- * означает «как раньше»: раньше запас просили нулевой, и переживать всплеск было нечем.
+ * Запас — единственное, что вообще способно пережить скачок задержки: пакеты, пришедшие с
+ * опозданием, ещё можно проиграть, если их было куда положить. Поэтому «Авто» не означает
+ * «как раньше»: раньше запас просили нулевой, и переживать всплеск было нечем.
+ *
+ * Раздел назывался «Плохая связь» и стоял на виду, рядом с адресом сервера. Три строки
+ * «Автоматически / Минимальная задержка / Максимальная устойчивость» читались как выбор
+ * качества — и вопрос «зачем это, если качество я уже выставил» был совершенно законным.
+ * Настройка не трогает ни кадр, ни частоту, ни кодек; она про рывки звука, и живёт теперь
+ * там же, где остальной звук, — под «Дополнительно», потому что по умолчанию её не трогают.
  */
-function NetworkFields({
+function PlayoutFields({
   mode,
   change,
   link,
@@ -426,39 +447,45 @@ function NetworkFields({
     },
   ];
   return (
-    <section className="audio-settings" aria-label="Поведение при плохой связи">
-      <h3>
-        <Waves size={19} /> Плохая связь
-      </h3>
-      <div role="radiogroup" aria-label="Поведение при плохой связи" className="network-modes">
-        {options.map((option) => (
-          <label className="check-setting" key={option.value}>
-            <input
-              type="radio"
-              name="network-mode"
-              checked={mode === option.value}
-              onChange={() => change(option.value)}
-            />
-            <span>
-              {option.title}
-              <small>{option.hint}</small>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="form-footnote">
-        Музыка и звук демонстрации всегда получают больший запас, чем разговор: их никто не перебивает, и
-        непрерывность для них важнее отзывчивости.
-      </p>
-      {link && link.path !== 'unknown' && (
-        <p className="form-footnote" role="status">
-          Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
-          {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
-          {link.ordered &&
-            '. Через TCP потерянный пакет переспрашивается, и всё пришедшее следом ждёт его. Запас поднят автоматически; если это повторяется, стоит проверить, пропускает ли сеть UDP.'}
+    <details className="advanced-settings">
+      <summary>
+        <Waves size={17} /> Дополнительно · запас буфера приёма
+      </summary>
+      <section aria-label="Запас буфера приёма">
+        <p className="form-footnote">
+          На чёткость картинки не влияет — только на то, как звук переживает скачки задержки. Качество видео
+          целиком задаётся на вкладке «Видео».
         </p>
-      )}
-    </section>
+        <div role="radiogroup" aria-label="Запас буфера приёма" className="network-modes">
+          {options.map((option) => (
+            <label className="check-setting" key={option.value}>
+              <input
+                type="radio"
+                name="network-mode"
+                checked={mode === option.value}
+                onChange={() => change(option.value)}
+              />
+              <span>
+                {option.title}
+                <small>{option.hint}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="form-footnote">
+          Музыка и звук демонстрации всегда получают больший запас, чем разговор: их никто не перебивает, и
+          непрерывность для них важнее отзывчивости.
+        </p>
+        {link && link.path !== 'unknown' && (
+          <p className="form-footnote" role="status">
+            Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
+            {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
+            {link.ordered &&
+              '. Через TCP потерянный пакет переспрашивается, и всё пришедшее следом ждёт его. Запас поднят автоматически; если это повторяется, стоит проверить, пропускает ли сеть UDP.'}
+          </p>
+        )}
+      </section>
+    </details>
   );
 }
 
@@ -646,6 +673,9 @@ export function Settings({
           <Tabs.Tab value="hotkeys">
             <Keyboard size={17} /> Клавиши
           </Tabs.Tab>
+          <Tabs.Tab value="about">
+            <Info size={17} /> О программе
+          </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="audio" className="settings-form">
           {device('audioinput')}
@@ -662,6 +692,7 @@ export function Settings({
             enabled={preferences.notificationSounds}
             change={(notificationSounds) => change({ notificationSounds })}
           />
+          <PlayoutFields mode={preferences.network} link={link} change={(network) => change({ network })} />
           {open && <DeviceCheck preferences={preferences} />}
         </Tabs.Panel>
         <Tabs.Panel value="video" className="settings-form">
@@ -680,6 +711,10 @@ export function Settings({
             change={(screen) => {
               if (meeting) void meeting.media.setProfile(screen);
               else change({ screen });
+            }}
+            preview={{
+              enabled: preferences.screenPreview,
+              change: (screenPreview) => change({ screenPreview }),
             }}
           />
           {open && <DeviceCheck preferences={preferences} />}
@@ -729,10 +764,12 @@ export function Settings({
             change={(showPing) => change({ showPing })}
             inCall={!!meeting && !meeting.ended.get()}
           />
-          <NetworkFields mode={preferences.network} link={link} change={(network) => change({ network })} />
         </Tabs.Panel>
         <Tabs.Panel value="hotkeys" className="settings-form">
           <HotkeyField value={preferences.micHotkey} change={(micHotkey) => change({ micHotkey })} />
+        </Tabs.Panel>
+        <Tabs.Panel value="about" className="settings-form">
+          {open && tab === 'about' && <AboutFields />}
         </Tabs.Panel>
       </Tabs.Root>
     </Modal>

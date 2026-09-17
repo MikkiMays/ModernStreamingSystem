@@ -1,27 +1,13 @@
 import { Menu } from '@base-ui/react/menu';
 import { ChevronDown, SwitchCamera } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Meeting } from '../core/meeting';
-import { IconButton } from './primitives';
-
-/** Touch devices have a front and a back camera and no use for a list of device names. */
-function useCoarsePointer() {
-  const [coarse, setCoarse] = useState(
-    () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
-  );
-  useEffect(() => {
-    if (typeof matchMedia !== 'function') return;
-    const query = matchMedia('(pointer: coarse)');
-    const change = () => setCoarse(query.matches);
-    query.addEventListener('change', change);
-    return () => query.removeEventListener('change', change);
-  }, []);
-  return coarse;
-}
+import { IconButton, useMediaQuery } from './primitives';
 
 export function CameraMenu({ meeting }: { meeting: Meeting }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const coarse = useCoarsePointer();
+  /** Touch devices have a front and a back camera and no use for a list of device names. */
+  const coarse = useMediaQuery('(pointer: coarse)');
 
   // A phone gets the gesture everyone already knows instead of a menu of opaque labels.
   if (coarse)

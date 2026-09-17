@@ -99,6 +99,8 @@ export function Stage({
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
+  const speaking = useStore(meeting.media.speaking);
+  const previews = useStore(meeting.media.screenPreviews);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -206,27 +208,57 @@ export function Stage({
           const mic = tracks.find(
             (t) => t.participantId === person.id && t.source === Track.Source.Microphone && !t.muted,
           );
+          const self = person.id === meeting.admission.participantId;
+          const sharing = !!(person.screen && person.screenId && person.screenStarted);
           return (
-            <ParticipantMenu meeting={meeting} person={person} key={person.id} className="person-tile">
+            <ParticipantMenu
+              meeting={meeting}
+              person={person}
+              key={person.id}
+              className="person-tile"
+              // Обводка вместо надписи: кто говорит, узнаётся боковым зрением, и читать для
+              // этого ничего не нужно. Заглушённый микрофон рядом остаётся отдельным знаком —
+              // на цвет полагаться нельзя.
+              data-speaking={mic && speaking.includes(person.id) ? 'true' : undefined}
+              data-sharing={sharing ? 'true' : undefined}
+            >
               {camera ? (
                 <VideoTrack tile={camera} />
               ) : (
                 <div className="person-placeholder">
+                  {sharing && (
+                    <div
+                      className="screen-preview"
+                      aria-hidden="true"
+                      style={
+                        previews[person.id] ? { backgroundImage: `url(${previews[person.id]})` } : undefined
+                      }
+                    />
+                  )}
                   <Avatar name={person.name} src={person.avatar} large />
                 </div>
               )}
               <div className="person-caption">
                 <span>
                   {person.name}
-                  {person.id === meeting.admission.participantId ? ' (Вы)' : ''}
+                  {self ? ' (Вы)' : ''}
                 </span>
                 {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
               </div>
-              {person.screen && person.screenId && person.screenStarted && (
-                <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
-                  <MonitorUp size={16} /> Смотреть стрим <span className="live-badge">LIVE</span>
-                </button>
-              )}
+              {sharing &&
+                (self ? (
+                  <span className="watch-stream is-own">
+                    <MonitorUp size={16} />
+                    <span>Вы показываете экран</span>
+                    <span className="live-badge">LIVE</span>
+                  </span>
+                ) : (
+                  <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
+                    <MonitorUp size={16} />
+                    <span>Смотреть стрим</span>
+                    <span className="live-badge">LIVE</span>
+                  </button>
+                ))}
               {person.status === 'RECOVERING' && <div className="tile-recovery">Восстанавливаем связь…</div>}
             </ParticipantMenu>
           );

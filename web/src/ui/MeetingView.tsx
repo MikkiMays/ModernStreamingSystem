@@ -23,10 +23,11 @@ import {
   Star,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
 import type { Meeting } from '../core/meeting';
-import { IconButton, Logo, useStore } from './primitives';
+import { IconButton, Logo, useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { Ping } from './Ping';
 import { CameraMenu } from './CameraMenu';
@@ -99,6 +100,13 @@ export function MeetingView({
   }, [fullscreen, controlsCollapsed]);
   const media = useStore(meeting.media.state);
   const tracks = useStore(meeting.media.tracks);
+  /** Телефон: часть кнопок не прячется, а переезжает в меню, и это решает разметка. */
+  const compact = useMediaQuery('(max-width: 700px)');
+  const outbound = useStore(meeting.media.outbound);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen().catch((e) => meeting.media.report(e));
+  };
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
   useEffect(() => {
@@ -337,21 +345,45 @@ export function MeetingView({
                     ? 'До новой встречи'
                     : 'Устанавливаем связь'}
               </span>
-              <button onClick={() => setDiagnostics(true)} className="quality-tag">
-                {media.screen ? `${profile.resolution}p · ${profile.fps}` : 'HD'}
+              {/*
+                Здесь стояло «HD» — слово, не означающее ничего, — либо выбранный уровень, то
+                есть просьба, а не факт. Теперь это измеренное: сколько пикселей и кадров
+                действительно уходит в сеть, и кто это ограничивает, если ограничивает.
+              */}
+              <button
+                onClick={() => setDiagnostics(true)}
+                className="quality-tag"
+                title="Что уходит в сеть прямо сейчас. Нажмите, чтобы открыть диагностику"
+              >
+                {outbound && outbound.width > 0
+                  ? `${outbound.height}p · ${outbound.fps} fps`
+                  : media.screen || media.camera
+                    ? 'Измеряем…'
+                    : 'Камера выключена'}
               </button>
             </div>
-            <div className="call-dock" aria-label="Управление встречей">
-              {/* Sits beside the microphone because it is the other half of the same decision:
-                  whether you are heard, and whether you hear. */}
-              <IconButton
-                label={deafened ? 'Включить звук встречи' : 'Выключить звук встречи'}
-                className={deafened ? 'dock-off' : 'dock-on'}
-                aria-pressed={deafened}
-                onClick={() => meeting.media.deafened.set(!deafened)}
-              >
-                {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
-              </IconButton>
+            {/*
+              Панель на телефоне — не та же панель, только меньше.
+              
+              Раньше она сжималась: зазор до двух пикселей, подписи прочь, разделители прочь —
+              и восемь одинаковых кружков вставали сплошной лентой, в которой микрофон от
+              «завершить» отличался только рисунком. Поэтому на узком экране остаётся то, что
+              нажимают в разговоре, — микрофон, камера и её переворот, — разнесённое зазорами,
+              а всё остальное уходит в меню, где у каждого пункта есть название.
+            */}
+            <div className={`call-dock ${compact ? 'is-compact' : ''}`} aria-label="Управление встречей">
+              {!compact && (
+                // Sits beside the microphone because it is the other half of the same decision:
+                // whether you are heard, and whether you hear.
+                <IconButton
+                  label={deafened ? 'Включить звук встречи' : 'Выключить звук встречи'}
+                  className={deafened ? 'dock-off' : 'dock-on'}
+                  aria-pressed={deafened}
+                  onClick={() => meeting.media.deafened.set(!deafened)}
+                >
+                  {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
+                </IconButton>
+              )}
               <IconButton
                 label={media.microphone ? 'Выключить микрофон' : 'Включить микрофон'}
                 className={media.microphone ? 'dock-on' : 'dock-off'}
@@ -361,6 +393,7 @@ export function MeetingView({
               >
                 {media.microphone ? <Mic size={22} /> : <MicOff size={22} />}
               </IconButton>
+              {compact && <span className="dock-gap" />}
               <IconButton
                 label={media.camera ? 'Выключить камеру' : 'Включить камеру'}
                 className={media.camera ? 'dock-on' : 'dock-off'}
@@ -371,27 +404,50 @@ export function MeetingView({
                 {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
               </IconButton>
               <CameraMenu meeting={meeting} />
-              <span className="dock-divider" />
-              <button
-                className={`share-button ${media.screen ? 'is-sharing' : ''}`}
-                disabled={!!ended || media.status !== 'connected'}
-                onClick={() => meeting.media.share(profile)}
-                aria-pressed={media.screen}
-              >
-                <MonitorUp size={21} />
-                <span>{media.screen ? 'Остановить' : 'Показать экран'}</span>
-              </button>
+              {compact ? <span className="dock-gap" /> : <span className="dock-divider" />}
+              {!compact && (
+                <button
+                  className={`share-button ${media.screen ? 'is-sharing' : ''}`}
+                  disabled={!!ended || media.status !== 'connected'}
+                  onClick={() => meeting.media.share(profile)}
+                  aria-pressed={media.screen}
+                >
+                  <MonitorUp size={21} />
+                  <span>{media.screen ? 'Остановить' : 'Показать экран'}</span>
+                </button>
+              )}
               <Menu.Root>
                 <Menu.Trigger
                   render={
                     <IconButton label="Настройки и действия" className="dock-more">
-                      <ChevronDown size={20} />
+                      {compact ? <MoreHorizontal size={22} /> : <ChevronDown size={20} />}
                     </IconButton>
                   }
                 />
                 <Menu.Portal>
                   <Menu.Positioner side="top" sideOffset={12}>
                     <Menu.Popup className="action-menu">
+                      {compact && (
+                        <>
+                          <Menu.Item
+                            disabled={!!ended || media.status !== 'connected'}
+                            onClick={() => meeting.media.share(profile)}
+                          >
+                            <MonitorUp size={18} /> {media.screen ? 'Остановить показ' : 'Показать экран'}
+                          </Menu.Item>
+                          <Menu.Item onClick={() => meeting.media.deafened.set(!deafened)}>
+                            {deafened ? <Headphones size={18} /> : <HeadphoneOff size={18} />}{' '}
+                            {deafened ? 'Включить звук встречи' : 'Выключить звук встречи'}
+                          </Menu.Item>
+                          <Menu.Item onClick={() => togglePanel('people')}>
+                            <Users size={18} /> Участники ·{' '}
+                            {snapshot.participants.filter((p) => !p.service).length}
+                          </Menu.Item>
+                          <Menu.Item onClick={() => togglePanel('chat')}>
+                            <MessageSquare size={18} /> Чат и файлы
+                          </Menu.Item>
+                        </>
+                      )}
                       <Menu.Item onClick={() => openServicesPanel()}>
                         <Music2 size={18} /> Интеграции
                       </Menu.Item>
@@ -401,6 +457,12 @@ export function MeetingView({
                       <Menu.Item onClick={() => setDiagnostics(true)}>
                         <Activity size={18} /> Диагностика
                       </Menu.Item>
+                      {compact && (
+                        <Menu.Item onClick={() => toggleFullscreen()}>
+                          {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}{' '}
+                          {fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+                        </Menu.Item>
+                      )}
                       {self?.owner && (
                         <Menu.Item
                           className="danger-text"
@@ -413,16 +475,15 @@ export function MeetingView({
                   </Menu.Positioner>
                 </Menu.Portal>
               </Menu.Root>
-              <IconButton
-                label={fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-                onClick={() => {
-                  if (document.fullscreenElement) void document.exitFullscreen();
-                  else
-                    void document.documentElement.requestFullscreen().catch((e) => meeting.media.report(e));
-                }}
-              >
-                {fullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-              </IconButton>
+              {!compact && (
+                <IconButton
+                  label={fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+                  onClick={toggleFullscreen}
+                >
+                  {fullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                </IconButton>
+              )}
+              {compact && <span className="dock-gap" />}
               <IconButton
                 label="Выйти из встречи"
                 className="hangup"
@@ -435,7 +496,7 @@ export function MeetingView({
                 <PhoneOff size={22} />
               </IconButton>
             </div>
-            <div className="panel-controls">
+            <div className="panel-controls" hidden={compact}>
               <IconButton
                 label="Участники"
                 aria-pressed={panel === 'people'}

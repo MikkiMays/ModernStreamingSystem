@@ -19,6 +19,8 @@
   --blue-soft: #eaf0ff;
   --shadow: 0 12px 44px #1722340a;
   --radius: 20px;
+  /* Кто говорит. Зелёный здесь читается как «идёт звук», а не как «всё в порядке». */
+  --speaking: #2f9e5f;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -37,6 +39,7 @@
   --blue-hover: #85a0ff;
   --blue-soft: #293653;
   --shadow: 0 12px 44px #0002;
+  --speaking: #45d17f;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -51,6 +54,7 @@
     --blue-hover: #85a0ff;
     --blue-soft: #293653;
     --shadow: 0 12px 44px #0002;
+    --speaking: #45d17f;
   }
 }
 * {
@@ -472,6 +476,54 @@ h2 {
   margin-top: 30px;
   align-items: center;
 }
+/*
+  Подсказка про экран «Домой». Внизу, над безопасной зоной, поверх содержимого: это
+  предложение, а не шаг, который надо пройти, — и закрывается оно навсегда.
+*/
+.install-hint {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.install-hint > div {
+  flex: 1;
+  min-width: 0;
+}
+.install-hint strong {
+  display: block;
+  font-size: 13px;
+}
+.install-hint small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.install-hint small svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.install-hint .button {
+  flex: none;
+  font-size: 12px;
+  padding: 9px 12px;
+}
+/*
+  Строка версии внизу главной. Была надписью «CORD / 01», похожей на версию и не бывшей ею;
+  теперь это настоящая версия сборки и кнопка: вопрос «какая у меня версия» почти всегда
+  следующим шагом становится «а есть ли новее», и отвечать на него должно то же место.
+*/
 .build-label {
   position: absolute;
   bottom: 24px;
@@ -479,6 +531,13 @@ h2 {
   color: var(--muted);
   font-size: 10px;
   letter-spacing: 2px;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  cursor: pointer;
+}
+.build-label:hover {
+  color: var(--text);
 }
 .service-note {
   margin-top: 18px;
@@ -865,6 +924,67 @@ h2 {
 .person-tile[data-recovering='true'] {
   outline: 1px solid #edbd64;
   outline-offset: -1px;
+}
+/*
+  Кто говорит. Тот же приём, что у закреплённой и у восстанавливающейся плитки: обводка
+  внутрь, чтобы сетка не дёргалась на каждой реплике. Свечение снаружи — потому что одной
+  линии на пёстром кадре мало, а перекрашивать сам кадр значит мешать смотреть.
+*/
+.person-tile[data-speaking='true'] {
+  outline: 2px solid var(--speaking);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--speaking) 26%, transparent);
+  transition:
+    outline-color 120ms ease,
+    box-shadow 120ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-tile[data-speaking='true'] {
+    transition: none;
+  }
+}
+/*
+  Чем занят человек, который показывает экран.
+  
+  Серый прямоугольник ничего не говорит о содержимом, а живой поток стоил бы каждому в
+  комнате столько же, сколько сам просмотр (почему — в media/screen-preview.ts). Поэтому
+  под аватаром — либо размытый кадр, присланный раз в несколько секунд, либо медленное
+  переливание, если кадра ещё нет или его владелец решил не делиться им.
+*/
+.screen-preview {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) saturate(1.35);
+  /* Размытие тянет края внутрь и оставляет бледную рамку; масштаб убирает её за пределы. */
+  transform: scale(1.18);
+  opacity: 0.75;
+}
+.screen-preview:not([style]) {
+  background:
+    radial-gradient(60% 70% at 22% 28%, color-mix(in srgb, var(--blue) 55%, transparent), transparent 70%),
+    radial-gradient(
+      55% 65% at 78% 70%,
+      color-mix(in srgb, var(--speaking) 45%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(70% 80% at 50% 110%, #7c5cff66, transparent 70%);
+  filter: blur(18px);
+  animation: preview-drift 14s ease-in-out infinite alternate;
+}
+@keyframes preview-drift {
+  from {
+    transform: scale(1.18) translate3d(-3%, -2%, 0);
+  }
+  to {
+    transform: scale(1.3) translate3d(3%, 2%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-preview:not([style]) {
+    animation: none;
+  }
 }
 .invite-hint {
   position: absolute;
@@ -1322,6 +1442,12 @@ h2 {
   min-width: 34px;
   width: 34px;
 }
+.participant-row[data-speaking='true'] > .avatar {
+  box-shadow: 0 0 0 2px var(--speaking);
+}
+.participant-row[data-speaking='true'] .participant-info strong {
+  color: var(--speaking);
+}
 .panel-tip {
   border-top: 1px solid var(--line);
   padding-top: 20px;
@@ -1629,7 +1755,14 @@ progress {
   width: min(500px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
-  padding: 24px;
+  /*
+    Отступ живёт переменной, потому что липкая шапка выходит за него отрицательным полем.
+    Пока это были два числа, на узком экране они расходились: отступ падал до 19 px, поле
+    оставалось −24, и шапка становилась на десять пикселей шире содержимого — отсюда
+    горизонтальная полоса прокрутки во всех разделах настроек на телефоне.
+  */
+  --modal-pad: 24px;
+  padding: var(--modal-pad);
   border-radius: 24px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1724,6 +1857,11 @@ progress {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+@media (max-width: 520px) {
+  .settings-row {
+    grid-template-columns: 1fr;
+  }
 }
 .settings-form select {
   font-size: 13px;
@@ -2242,7 +2380,7 @@ progress {
     min-width: 40px;
   }
   .modal {
-    padding: 19px;
+    --modal-pad: 19px;
     max-height: calc(100dvh - 24px);
     width: calc(100vw - 24px);
     border-radius: 19px;
@@ -2397,7 +2535,22 @@ progress {
   background: var(--surface-2);
   color: var(--text);
 }
-.settings-form input:not([type='range']):not([type='checkbox']) {
+/*
+  Рамка с отступом — для полей ввода, а не для всего, что называется `input`.
+  
+  Список исключений рос по одному — сначала ползунок, потом флажок, — и переключателя в нём
+  не оказалось: он появился позже. Radiobutton получал `width: 100%` и растягивался на всю
+  форму (720 px рядом с 18-пиксельным флажком), выталкивая подписи за край диалога, — отсюда
+  и горизонтальная полоса прокрутки на вкладке «Подключение». Перечисляем то, что оформляем,
+  а не то, что не оформляем: следующий тип поля уже ничего не сломает.
+*/
+.settings-form input[type='text'],
+.settings-form input[type='search'],
+.settings-form input[type='password'],
+.settings-form input[type='email'],
+.settings-form input[type='number'],
+.settings-form input[type='url'],
+.settings-form input:not([type]) {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -2414,21 +2567,73 @@ progress {
   align-items: center;
   gap: 8px;
 }
-.audio-settings .check-setting {
+/*
+  Строка «флажок и подпись под ним». Правило висело на предке — `.audio-settings`, — и каждый
+  новый раздел с такой строкой приходилось дописывать в селектор; стоило вынести переключатели
+  в отдельный блок, как заголовок и пояснение слипались в одну строку. Теперь оформляется сам
+  элемент, а предок не имеет к этому отношения.
+*/
+.check-setting {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   font-weight: 500;
 }
-.audio-settings .check-setting small {
+.check-setting small {
   display: block;
   margin-top: 4px;
   color: var(--muted);
   font-weight: 400;
+  line-height: 1.5;
 }
+/* Флажок встаёт по первой строке подписи, а не по центру всего абзаца под ней. */
+.check-setting > input {
+  margin-top: 2px;
+  flex: none;
+}
+/*
+  Какой это сервер. Правило пропало вместе со списком серверов, а разметка осталась — имя и
+  адрес слипались в «Cordmeet.nikg.tech». `overflow-wrap` здесь не украшение: длинное имя
+  сервера без пробелов не даёт диалогу сузиться и разносит его по горизонтали.
+*/
+.connection-current {
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.connection-current small {
+  color: var(--muted);
+  font-size: 12px;
+}
+/*
+  Выбор одного из трёх. Раньше это были три голые строки без всякого оформления, посреди
+  разделов, у каждого из которых есть своя рамка: выглядело как обломок вёрстки.
+*/
 .network-modes {
   display: grid;
-  gap: 14px;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.network-modes .check-setting {
+  padding: 10px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.network-modes .check-setting:hover {
+  background: var(--surface-2);
+}
+.network-modes input[type='radio'] {
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: var(--blue);
 }
 .gain-setting,
 .participant-volume {
@@ -2547,13 +2752,38 @@ progress {
   cursor: pointer;
   padding: 12px 0;
 }
+/*
+  То, что по умолчанию не трогают. Свёрнутое — одна строка; развёрнутое — обычный раздел.
+  Настройка, которую видно всегда, читается как та, которую надо выбрать.
+*/
+.advanced-settings > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.advanced-settings > summary:hover {
+  color: var(--text);
+}
+.advanced-settings[open] > summary {
+  color: var(--text);
+}
+.advanced-settings > section {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 6px;
+}
 .modal-heading {
   position: sticky;
-  top: -24px;
+  top: calc(var(--modal-pad) * -1);
   z-index: 5;
   background: var(--surface);
-  margin: -24px -24px 12px;
-  padding: 20px 24px 12px;
+  margin: calc(var(--modal-pad) * -1) calc(var(--modal-pad) * -1) 12px;
+  padding: 20px var(--modal-pad) 12px;
   border-bottom: 1px solid var(--line);
 }
 .service-body {

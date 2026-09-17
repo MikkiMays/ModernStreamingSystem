@@ -5,8 +5,14 @@ export type FrameRate = 15 | 30 | 60;
 export interface ScreenProfile {
   resolution: Resolution;
   fps: FrameRate;
+  /**
+   * Автоматический уровень: и кадр, и частоту выбирает лестница из `auto-quality.ts`.
+   *
+   * Раньше частота имела собственный флаг `automaticFps`, который никуда не передавался:
+   * «Плавность: Авто» просто записывала 30 и ничего больше не значила. Полусостояние
+   * «разрешение автоматическое, частота выбрана» обещало то, чего не было, поэтому его нет.
+   */
   automatic: boolean;
-  automaticFps?: boolean;
 }
 export const defaultProfile: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
 const bitrates = {
@@ -56,22 +62,40 @@ export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackP
     ],
   };
 }
-export function cameraCapture(profile: ScreenProfile) {
+/**
+ * Что просить у камеры.
+ *
+ * Раньше здесь стояли голые числа, а голое число в `getUserMedia` — это `ideal`: камера,
+ * которая не умеет 2560×1440, молча отдаёт 1920×1080, и никто об этом не узнаёт. Поэтому
+ * запрос идёт диапазоном с `max`, а `capabilities` (когда устройство их сообщает) зажимают
+ * его в то, что устройство действительно умеет. Фактический результат всё равно читается
+ * из `getSettings()` после захвата и показывается человеку — см. `reportCapture` в session.ts.
+ */
+export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackCapabilities) {
+  const width = Math.round((profile.resolution * 16) / 9);
+  const height = profile.resolution;
+  const cap = (value: number, range?: { max?: number }) =>
+    range?.max !== undefined ? Math.min(value, range.max) : value;
   return {
     resolution: {
-      width: Math.round((profile.resolution * 16) / 9),
-      height: profile.resolution,
-      frameRate: profile.fps,
+      width: cap(width, capabilities?.width),
+      height: cap(height, capabilities?.height),
+      frameRate: cap(profile.fps, capabilities?.frameRate),
     },
   };
 }
-export function cameraOptions(profile: ScreenProfile): TrackPublishOptions {
-  const bitrate =
-    { 720: 2.5, 1080: 5, 1440: 8 }[profile.resolution] *
-    (profile.fps === 60 ? 1.7 : profile.fps === 15 ? 0.65 : 1);
+/**
+ * Что камера отдаёт в сеть.
+ *
+ * Битрейт берётся из той же таблицы, что и у экрана: раньше у камеры была своя формула, и
+ * 1440p60 просил 13,6 Мбит/с там, где экран того же уровня просит 16. Одно и то же число
+ * в двух местах рано или поздно расходится — теперь оно одно.
+ */
+export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8'): TrackPublishOptions {
   const base = {
-    videoCodec: 'vp8' as const,
-    videoEncoding: { maxBitrate: bitrate * 1000000, maxFramerate: profile.fps },
+    videoCodec: codec,
+    backupCodec: codec === 'av1' || codec === 'vp9' ? ({ codec: 'vp8' } as const) : (false as const),
+    videoEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
   };
   if (!profile.automatic) return { ...base, ...forcedEncoding };
   return {
@@ -83,6 +107,16 @@ export function cameraOptions(profile: ScreenProfile): TrackPublishOptions {
       new VideoPreset(640, 360, 500000, Math.min(30, profile.fps)),
     ],
   };
+}
+/**
+ * Чем подсказать кодировщику, что важнее в этом кадре.
+ *
+ * До этого камера не получала подсказки вовсе — её задавали только демонстрации экрана. На
+ * 60 fps это заметно: без `motion` браузер волен отдать предпочтение резкости и уронить
+ * частоту, то есть ровно то, ради чего 60 и выбирают.
+ */
+export function cameraHint(profile: ScreenProfile): 'motion' | 'detail' {
+  return !profile.automatic || profile.fps >= 60 ? 'motion' : 'detail';
 }
 /**
  * Камера, пока идёт демонстрация экрана.
@@ -105,9 +139,10 @@ export function companionCameraCapture() {
     },
   };
 }
-export function companionCameraOptions(): TrackPublishOptions {
+export function companionCameraOptions(codec: VideoCodec = 'vp8'): TrackPublishOptions {
   return {
-    videoCodec: 'vp8',
+    videoCodec: codec,
+    backupCodec: codec === 'av1' || codec === 'vp9' ? ({ codec: 'vp8' } as const) : (false as const),
     videoEncoding: { maxBitrate: companionCamera.bitrate, maxFramerate: companionCamera.fps },
     simulcast: false,
     // Лицо в маленькой плитке узнаётся движением, а не резкостью: частота кадров уступает
@@ -115,29 +150,56 @@ export function companionCameraOptions(): TrackPublishOptions {
     degradationPreference: 'maintain-framerate',
   };
 }
-export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
+/** Умеет ли эта машина кодировать такой поток аппаратно и без рывков. */
+async function powerEfficient(contentType: string, profile: ScreenProfile) {
+  if (!navigator.mediaCapabilities?.encodingInfo) return false;
   const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
-  if (navigator.mediaCapabilities?.encodingInfo)
-    for (const [codec, contentType] of [
-      ['av1', 'video/AV1'],
-      ['vp9', 'video/VP9'],
-    ] as const) {
-      if (!available.some((c) => c.mimeType.toLowerCase() === contentType.toLowerCase())) continue;
-      try {
-        const capability = await navigator.mediaCapabilities.encodingInfo({
-          type: 'webrtc',
-          video: {
-            contentType,
-            width: Math.round((profile.resolution * 16) / 9),
-            height: profile.resolution,
-            bitrate: bitrates[profile.resolution][profile.fps] * 1000000,
-            framerate: profile.fps,
-          },
-        } as MediaEncodingConfiguration);
-        if (capability.supported && capability.smooth && capability.powerEfficient) return codec;
-      } catch {
-        /* Conservative baseline when WebRTC encoding information is unavailable. */
-      }
-    }
+  if (!available.some((c) => c.mimeType.toLowerCase() === contentType.toLowerCase())) return false;
+  try {
+    const capability = await navigator.mediaCapabilities.encodingInfo({
+      type: 'webrtc',
+      video: {
+        contentType,
+        width: Math.round((profile.resolution * 16) / 9),
+        height: profile.resolution,
+        bitrate: targetBitrate(profile),
+        framerate: profile.fps,
+      },
+    } as MediaEncodingConfiguration);
+    return !!(capability.supported && capability.smooth && capability.powerEfficient);
+  } catch {
+    /* Conservative baseline when WebRTC encoding information is unavailable. */
+    return false;
+  }
+}
+export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
+  for (const [codec, contentType] of [
+    ['av1', 'video/AV1'],
+    ['vp9', 'video/VP9'],
+  ] as const)
+    if (await powerEfficient(contentType, profile)) return codec;
+  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
+  return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
+}
+/**
+ * Каким кодеком отдавать камеру.
+ *
+ * Здесь годами стоял жёсткий VP8 — и это и есть ответ на «заявлено 60 fps, идёт 40». VP8
+ * почти нигде не кодируется и не декодируется железом: на 1080p60 кодировщик упирается в
+ * процессор и роняет частоту, а у того, кто смотрит, то же самое происходит с декодером.
+ *
+ * `powerEfficient` — единственный признак аппаратного пути, который браузер вообще сообщает.
+ * H.264 идёт первым намеренно: у него аппаратный кодировщик есть почти везде, тогда как
+ * VP9/AV1 в железе встречаются реже и их отказ обходится дороже. VP8 остаётся последним —
+ * тем, что работает всегда.
+ */
+export async function chooseCameraCodec(profile: ScreenProfile): Promise<VideoCodec> {
+  for (const [codec, contentType] of [
+    ['h264', 'video/H264'],
+    ['vp9', 'video/VP9'],
+    ['av1', 'video/AV1'],
+  ] as const)
+    if (await powerEfficient(contentType, profile)) return codec;
+  const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
   return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
 }

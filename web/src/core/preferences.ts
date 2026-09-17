@@ -23,6 +23,13 @@ export interface Preferences {
   showPing: boolean;
   notificationSounds: boolean;
   showIntegrationPanel: boolean;
+  /**
+   * Отдавать ли комнате размытый кадр своей демонстрации, пока её не открыли.
+   *
+   * Отдельно от самой демонстрации: показывать экран и показывать, **что** на экране, тем,
+   * кто ещё не зашёл смотреть, — разные согласия. Несколько килобайт раз в четыре секунды.
+   */
+  screenPreview: boolean;
   yandexMusicToken: string;
   screen: ScreenProfile;
   camera: ScreenProfile;
@@ -39,15 +46,22 @@ export interface Preferences {
   micHotkey: Hotkey | null;
 }
 const key = 'cord:preferences:v1';
+/**
+ * «Авто» — это не уровень, а лестница, и начинается она там же, где лестница в
+ * `media/auto-quality.ts`. Камера стояла здесь на 720p30, и это и означало «Авто»: не
+ * «столько, сколько тянет связь», а ровно 720p — хуже, чем у любого, кто выбрал уровень
+ * руками. Теперь это стартовая ступень, с которой автоматика уходит вверх.
+ */
 const defaultScreen: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
-const defaultCamera: ScreenProfile = { resolution: 720, fps: 30, automatic: true };
+const defaultCamera: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
 // Settings saved before the content mode was removed still carry it; the extra key is ignored.
+// `automaticFps` тоже остался в старых записях: частота теперь автоматическая ровно тогда,
+// когда автоматический сам уровень, и отдельным флагом больше не управляется.
 function profile(value: Partial<ScreenProfile> | undefined, fallback: ScreenProfile): ScreenProfile {
   return {
     resolution: [720, 1080, 1440].includes(value?.resolution ?? 0) ? value!.resolution! : fallback.resolution,
     fps: [15, 30, 60].includes(value?.fps ?? 0) ? value!.fps! : fallback.fps,
     automatic: typeof value?.automatic === 'boolean' ? value.automatic : true,
-    automaticFps: typeof value?.automaticFps === 'boolean' ? value.automaticFps : (value?.fps ?? 30) === 30,
   };
 }
 export function readPreferences(): Preferences {
@@ -64,6 +78,7 @@ export function readPreferences(): Preferences {
     showPing: data.showPing === true,
     notificationSounds: data.notificationSounds !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,
+    screenPreview: data.screenPreview !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: profile(data.screen, defaultScreen),
     camera: profile(data.camera, defaultCamera),

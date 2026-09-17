@@ -283,8 +283,8 @@ export function Prejoin({
           </h1>
           <p className="muted">
             Проверьте, как вас видят и слышат.
-            <br />
-            Подключиться можно и без устройств.
+            {/* Тот же случай, что и на главной: перенос прячется на узком экране. */}
+            <br /> Подключиться можно и без устройств.
           </p>
           <label htmlFor="display-name">Ваше имя</label>
           <input
@@ -397,6 +397,10 @@ export function Prejoin({
             kind="screen"
             profile={preferences.screen}
             change={(p) => setPreferences(savePreferences({ screen: p }))}
+            preview={{
+              enabled: preferences.screenPreview,
+              change: (screenPreview) => setPreferences(savePreferences({ screenPreview })),
+            }}
           />
           {!destination && (
             <label className="check-setting">

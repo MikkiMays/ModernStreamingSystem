@@ -1,7 +1,7 @@
 {
   "name": "@modern-streaming/web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.7.0",
   "author": "@nikgers (https://t.me/nikgers)",
   "type": "module",
   "scripts": {

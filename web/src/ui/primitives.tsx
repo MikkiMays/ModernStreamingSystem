@@ -27,8 +27,11 @@ export function AppIcon({ size = 64 }: { size?: number }) {
 }
 
 /**
- * Offered only where it can be honoured: a server whose operator never published a Windows
- * build has nothing behind this link, and the application itself is already the download.
+ * Ссылка на клиент для Windows.
+ *
+ * Раньше она появлялась, только если владелец этого сервера выложил у себя сборку, — то есть
+ * почти никогда. Теперь сборка есть всегда: своя копия, если она есть, иначе последний релиз
+ * проекта. Скрывается лишь там, где бессмысленна, — внутри самого приложения.
  */
 export function DownloadLink() {
   const [version, setVersion] = useState('');
@@ -42,9 +45,13 @@ export function DownloadLink() {
       active = false;
     };
   }, []);
-  if (!version) return null;
+  if (window.chrome?.webview) return null;
   return (
-    <a className="download-link" href="/download" title={`Cord для Windows ${version}`}>
+    <a
+      className="download-link"
+      href="/download"
+      title={version ? `Cord для Windows ${version}` : 'Cord для Windows'}
+    >
       <AppIcon size={22} />
       <span>Скачать Cord</span>
     </a>
@@ -72,6 +79,26 @@ export function ThemeButton({ theme, setTheme }: { theme: Theme; setTheme: (them
 
 export function useStore<T>(store: Store<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.get);
+}
+/**
+ * Отвечает ли устройство на этот запрос вёрстки прямо сейчас.
+ *
+ * Для случаев, где одним CSS не обойтись: на телефоне часть кнопок не прячется, а переезжает
+ * в меню, и это решает разметка, а не стиль. `useSyncExternalStore` — чтобы не расходиться
+ * с серверной отрисовкой и не хранить копию состояния, которое и так есть у браузера.
+ */
+export function useMediaQuery(query: string): boolean {
+  const subscribe = (listener: () => void) => {
+    if (typeof matchMedia !== 'function') return () => {};
+    const media = matchMedia(query);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  };
+  return useSyncExternalStore(
+    subscribe,
+    () => typeof matchMedia === 'function' && matchMedia(query).matches,
+    () => false,
+  );
 }
 export function IconButton({
   label,

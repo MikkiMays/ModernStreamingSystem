@@ -41,11 +41,6 @@
 .preview-settings:hover {
   background: #313a4d;
 }
-.check-setting {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .prejoin-form h1 {
   overflow-wrap: anywhere;
 }
@@ -282,18 +277,62 @@
 .participant-menu .participant-volume {
   padding: 10px 6px;
 }
+/*
+  «Смотреть стрим» — главное, что можно сделать с этой плиткой, и стояло в углу, где обычно
+  живут пометки. Теперь по центру: туда и смотрят, и туда попадают пальцем.
+*/
 .watch-stream {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
-  gap: 7px;
+  gap: 9px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 12px 18px;
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: 600;
   border: 0;
-  border-radius: 9px;
+  border-radius: 12px;
   color: white;
-  background: #242733dd;
+  background: #242733ee;
+  box-shadow: 0 10px 30px #0000004d;
+}
+button.watch-stream {
+  cursor: pointer;
+}
+button.watch-stream:hover {
+  background: #2f3342f2;
+}
+/*
+  У показывающего это не кнопка, а подпись: своя демонстрация — тот же экран, на котором она
+  открыта, только с задержкой. Смотреть там нечего, а вот знать, что показ идёт, — нужно.
+*/
+.watch-stream.is-own {
+  background: #242733bb;
+  font-weight: 500;
+  cursor: default;
+}
+.watch-stream .live-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: #0e1a14;
+  background: #70c49e;
+}
+/* В ленте рядом с демонстрацией плитка 180×120: та же кнопка, но по размеру плитки. */
+.has-screens .watch-stream {
+  padding: 7px 9px;
+  min-height: 34px;
+  font-size: 11px;
+  gap: 6px;
+  border-radius: 9px;
+}
+.has-screens .watch-stream span:not(.live-badge) {
+  display: none;
 }
 .return-conversation {
   position: absolute;
@@ -355,6 +394,14 @@
   padding: 3px 7px;
   font: 11px/1.4 monospace;
   pointer-events: auto;
+  max-width: calc(100vw - 12px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Почему кадр меньше заявленного. Жёлтым, потому что это не ошибка, а объяснение. */
+.ping-limited {
+  color: #edbd64;
 }
 .meeting-fullscreen {
   height: 100dvh;
@@ -400,35 +447,47 @@
   width: 24px !important;
   min-width: 24px !important;
 }
+/*
+  Панель звонка на телефоне.
+  
+  Здесь стояло сжатие: зазор 2 px, скрытые разделители и подписи. Восемь одинаковых кружков
+  вставали сплошной лентой, где микрофон отличался от «сбросить» только рисунком, и промах
+  стоил дорого. Теперь на узком экране в панели остаётся только то, что нажимают в разговоре,
+  кнопки крупные, а группы разделены настоящим зазором, а не надеждой на внимательность.
+*/
 @media (max-width: 700px) {
   .stage-wrap > .call-footer {
     gap: 2px;
     bottom: 8px;
   }
-  .stage-wrap > .call-footer .call-dock {
-    gap: 2px;
-    padding: 2px;
+  .stage-wrap > .call-footer .call-dock.is-compact {
+    gap: 4px;
+    padding: 5px;
   }
-  .stage-wrap > .call-footer .panel-controls {
-    gap: 2px;
+  .stage-wrap > .call-footer .call-dock.is-compact .icon-button {
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
   }
-  .stage-wrap > .call-footer .icon-button {
-    width: 34px;
-    height: 40px;
+  .stage-wrap > .call-footer .call-dock.is-compact .camera-menu-trigger {
+    width: 34px !important;
+    min-width: 34px !important;
   }
   .stage-wrap > .call-footer .dock-divider {
     display: none;
   }
-  .stage-wrap > .call-footer .share-button span {
-    display: none;
-  }
-  .stage-wrap > .call-footer .share-button {
-    padding: 8px;
-    min-width: 36px;
-  }
   .return-conversation {
     font-size: 12px;
   }
+}
+/* Зазор между группами: нажать «сбросить» вместо камеры — не та ошибка, которую исправляют. */
+.dock-gap {
+  width: 18px;
+  flex: none;
+}
+.call-dock.is-compact .hangup {
+  min-width: 56px !important;
+  width: 56px !important;
 }
 
 .conversation-stage .people-grid {
