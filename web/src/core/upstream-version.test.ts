@@ -54,6 +54,48 @@ it('переживает недоступную сеть', async () => {
   await expect(upstreamState()).resolves.toBeNull();
 });
 
+/**
+ * Первая же правка документации после выкатки делает прод «отставшим на коммит». Плашка,
+ * зовущая пересобрать сервер ради опечатки в тексте, обесценивает и тот случай, когда звать
+ * действительно надо.
+ */
+it('молчит, когда впереди только документация', async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    answer({
+      status: 'ahead',
+      ahead_by: 3,
+      files: [
+        { filename: 'docs/frontend.md' },
+        { filename: 'README.md' },
+        { filename: '.github/workflows/ci.yml' },
+      ],
+    }),
+  );
+  const { upstreamState } = await load('a47e421');
+  await expect(upstreamState()).resolves.toBeNull();
+});
+
+it('говорит, как только среди правок есть хоть одна рабочая', async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    answer({
+      status: 'ahead',
+      ahead_by: 3,
+      files: [{ filename: 'docs/frontend.md' }, { filename: 'web/src/ui/Stage.tsx' }],
+    }),
+  );
+  const { upstreamState } = await load('a47e421');
+  await expect(upstreamState()).resolves.toEqual({ behind: 3 });
+});
+
+/** Обрезанный на трёхстах файлах или отсутствующий список — повод сказать, а не промолчать. */
+it('при неизвестном составе правок показывает плашку', async () => {
+  const { affectsServer } = await load('a47e421');
+  expect(affectsServer(undefined)).toBe(true);
+  expect(affectsServer([])).toBe(true);
+  expect(affectsServer([{ filename: 'update.sh' }])).toBe(true);
+  expect(affectsServer([{ filename: 'LICENSE' }])).toBe(false);
+});
+
 it('склоняет коммиты по-русски', async () => {
   const { commitsLabel } = await load('a47e421');
   expect(commitsLabel(1)).toBe('1 коммит');

@@ -16,6 +16,12 @@
  *
  * Важно, что молчание — это нормальный, а не исключительный исход: плашка появляется только
  * когда есть что сказать. «Всё актуально» человек и так видит по отсутствию плашки.
+ *
+ * ПОЧЕМУ СЧИТАЮТСЯ НЕ ВСЕ КОММИТЫ. Первая же правка документации после выкатки делает прод
+ * «отставшим на 1 коммит» — и плашка предлагает пересобрать сервер ради опечатки в тексте,
+ * который на нём даже не лежит. Плашка, зовущая делать ненужное, обесценивает и тот случай,
+ * когда звать действительно надо. Тот же ответ сравнения перечисляет изменённые файлы, так что
+ * отличить «проект поехал дальше» от «этому серверу есть что обновить» можно бесплатно.
  */
 import { appBuild } from './version';
 
@@ -43,9 +49,33 @@ async function load(): Promise<UpstreamState | null> {
     signal: AbortSignal.timeout(6000),
   });
   if (!response.ok) return null;
-  const data = (await response.json()) as { status?: unknown; ahead_by?: unknown };
+  const data = (await response.json()) as {
+    status?: unknown;
+    ahead_by?: unknown;
+    files?: { filename?: unknown }[];
+  };
   if (data.status !== 'ahead' || typeof data.ahead_by !== 'number' || data.ahead_by <= 0) return null;
+  if (!affectsServer(data.files)) return null;
   return { behind: data.ahead_by };
+}
+
+/**
+ * Меняет ли этот набор файлов то, что сервер выполняет.
+ *
+ * Список приходит в том же ответе и обрезается на трёхстах файлах; отсутствующий или обрезанный
+ * список — повод показать плашку, а не промолчать: столько файлов без единой строки кода не
+ * меняют, и ошибиться здесь лучше в сторону «скажи».
+ */
+export function affectsServer(files: { filename?: unknown }[] | undefined): boolean {
+  if (!Array.isArray(files) || files.length === 0) return true;
+  return files.some((file) => typeof file.filename === 'string' && runnable(file.filename));
+}
+
+/** Документация, картинки к ней и настройки CI на работающий сервер не попадают вовсе. */
+function runnable(path: string): boolean {
+  if (path.startsWith('docs/') || path.startsWith('.github/')) return false;
+  if (/\.(md|txt)$/i.test(path)) return false;
+  return !/^(LICENSE|CODEOWNERS|\.gitignore|\.gitattributes)$/.test(path);
 }
 
 /** «7 коммитов», «1 коммит», «22 коммита» — русскому счёту нужен не один суффикс. */
