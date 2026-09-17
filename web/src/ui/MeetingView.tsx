@@ -24,6 +24,7 @@ import {
   Maximize2,
   Minimize2,
   MoreHorizontal,
+  Pencil,
 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
 import type { Meeting } from '../core/meeting';
@@ -34,6 +35,7 @@ import { CameraChoices, CameraMenu } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
+import { MeetingSettings } from './MeetingSettings';
 import { Settings } from './Settings';
 import { ThemeButton, formatCode, type Theme } from './Home';
 import { favoriteApi } from '../core/favorites';
@@ -117,6 +119,7 @@ export function MeetingView({
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
+  const [meetingSettings, setMeetingSettings] = useState(false);
   useEffect(() => {
     if (section) setSettings(true);
   }, [section]);
@@ -176,7 +179,16 @@ export function MeetingView({
           <Logo />
           <span className="header-divider" />
           <div>
-            <h1>{snapshot.title}</h1>
+            {/* Ведущему название — это ещё и кнопка: туда же, где оно написано, и идут, чтобы
+                его исправить. Остальным нажимать не на что, и заголовок остаётся заголовком. */}
+            {self?.owner && !ended ? (
+              <button className="meeting-rename" onClick={() => setMeetingSettings(true)}>
+                <h1>{snapshot.title}</h1>
+                <Pencil size={13} aria-label="Настройки встречи" />
+              </button>
+            ) : (
+              <h1>{snapshot.title}</h1>
+            )}
             <span className="room-subtitle">
               <ShieldCheck size={12} />{' '}
               <button className="room-code" aria-label="Код встречи" onClick={() => setInvite(true)}>
@@ -471,6 +483,11 @@ export function MeetingView({
                         </Menu.Item>
                       )}
                       {self?.owner && (
+                        <Menu.Item onClick={() => setMeetingSettings(true)}>
+                          <Pencil size={18} /> Настройки встречи
+                        </Menu.Item>
+                      )}
+                      {self?.owner && (
                         <Menu.Item
                           className="danger-text"
                           onClick={() => void meeting.command('close').catch((e) => meeting.media.report(e))}
@@ -572,6 +589,9 @@ export function MeetingView({
 
       <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
+      {self?.owner && (
+        <MeetingSettings meeting={meeting} open={meetingSettings} onOpenChange={setMeetingSettings} />
+      )}
       <Settings
         meeting={meeting}
         open={settings}

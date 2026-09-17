@@ -262,6 +262,29 @@ public class RoomService {
     return url;
   }
 
+  /**
+   * Название и режим входа встречи, которая уже идёт.
+   *
+   * Ровно тот же порядок, что у настроек интеграций рядом: взять замок, узнать участника,
+   * убедиться, что он ведущий и комната открыта, поменять, объявить. Объявление обязательно —
+   * `room.changed` заставляет всех перечитать снимок, и без него новое название знал бы
+   * только тот, кто его ввёл.
+   */
+  @Transactional
+  public Snapshot roomSettings(String roomId, String credential, Contracts.RoomSettings settings) {
+    var room = lock(roomId);
+    var member = authenticate(room, credential);
+    owner(member);
+    requireOpen(room);
+    // Проверка та же, что при создании: @NotBlank отсекает пустое и одни пробелы, @Size —
+    // длину. Дублировать её здесь значило бы завести второе место, где она может разойтись.
+    room.title = settings.title().strip();
+    room.approvalRequired = settings.approvalRequired();
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
+    return snapshotFor(room, member);
+  }
+
   @Transactional
   public Snapshot integrationSettings(String roomId, String credential, boolean enabled) {
     var room = lock(roomId);

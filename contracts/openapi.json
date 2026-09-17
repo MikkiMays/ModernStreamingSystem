@@ -677,6 +677,22 @@
         },
         "type": "object"
       },
+      "RoomSettings": {
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "title": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
       "Save": {
         "properties": {
           "roomCredential": {
@@ -1602,6 +1618,55 @@
         },
         "tags": [
           "integration-settings-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{roomId}/settings": {
+      "put": {
+        "operationId": "updateRoomSettings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "room-settings-controller"
         ]
       }
     },

@@ -520,6 +520,38 @@ h2 {
   padding: 9px 12px;
 }
 /*
+  Название встречи как кнопка — для ведущего.
+
+  Туда же, где название написано, и идут его исправлять; отдельный пункт меню для этого есть,
+  но искать его будет только тот, кто уже знает, что он там. Карандаш появляется по наведению,
+  чтобы заголовок оставался заголовком, а не выглядел полем ввода.
+*/
+.meeting-rename {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.meeting-rename svg {
+  opacity: 0;
+  color: var(--muted);
+  transition: opacity 150ms;
+}
+.meeting-rename:hover svg,
+.meeting-rename:focus-visible svg {
+  opacity: 1;
+}
+@media (hover: none) {
+  .meeting-rename svg {
+    opacity: 1;
+  }
+}
+/*
   Строка версии внизу главной. Была надписью «CORD / 01», похожей на версию и не бывшей ею;
   теперь это настоящая версия сборки и кнопка: вопрос «какая у меня версия» почти всегда
   следующим шагом становится «а есть ли новее», и отвечать на него должно то же место.

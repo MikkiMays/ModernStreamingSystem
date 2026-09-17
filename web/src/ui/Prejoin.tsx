@@ -8,6 +8,7 @@ import {
   ArrowRight,
   LoaderCircle,
   Settings2,
+  DoorOpen,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { publicApi, RoomApi } from '../api/client';
@@ -319,7 +320,7 @@ export function Prejoin({
                 required
                 placeholder="Например, Вечер с друзьями"
               />
-              <small className="form-footnote">Название задаётся один раз и останется у этой комнаты.</small>
+              <small className="form-footnote">Название можно будет поменять во встрече.</small>
             </>
           )}
           <p className="permission-note" role="status">
@@ -419,18 +420,51 @@ export function Prejoin({
               Разрешить интеграции всем участникам
             </label>
           )}
+          {/*
+            Раньше здесь стояла галочка «Подтверждать вход по приглашению» — формулировка, по
+            которой не видно, что произойдёт с теми, кто уже идёт по ссылке. Два названных
+            варианта отвечают на сам вопрос; и это больше не решение на всю жизнь комнаты —
+            его можно поменять во встрече.
+          */}
           {!destination && (
-            <label className="check-setting">
-              <input
-                type="checkbox"
-                checked={approvalRequired}
-                onChange={(e) => {
-                  setApprovalRequired(e.target.checked);
-                  commandId.current = crypto.randomUUID();
-                }}
-              />{' '}
-              Подтверждать вход по приглашению
-            </label>
+            <section className="audio-settings" aria-label="Кто может войти">
+              <h3>
+                <DoorOpen size={19} /> Кто может войти
+              </h3>
+              <div role="radiogroup" aria-label="Кто может войти" className="network-modes">
+                <label className="check-setting">
+                  <input
+                    type="radio"
+                    name="admission"
+                    checked={!approvalRequired}
+                    onChange={() => {
+                      setApprovalRequired(false);
+                      commandId.current = crypto.randomUUID();
+                    }}
+                  />
+                  <span>
+                    По ссылке и коду — сразу
+                    <small>Кто открыл приглашение, тот и вошёл. Подходит для своих.</small>
+                  </span>
+                </label>
+                <label className="check-setting">
+                  <input
+                    type="radio"
+                    name="admission"
+                    checked={approvalRequired}
+                    onChange={() => {
+                      setApprovalRequired(true);
+                      commandId.current = crypto.randomUUID();
+                    }}
+                  />
+                  <span>
+                    Только с вашего подтверждения
+                    <small>Каждый входящий ждёт, пока вы его впустите.</small>
+                  </span>
+                </label>
+              </div>
+              <p className="form-footnote">Это можно поменять и потом, уже во встрече.</p>
+            </section>
           )}
         </div>
       </Modal>

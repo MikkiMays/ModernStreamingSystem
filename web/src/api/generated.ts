@@ -287,6 +287,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{roomId}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateRoomSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/join-by-code": {
         parameters: {
             query?: never;
@@ -501,6 +517,10 @@ export interface components {
         Resume: {
             /** Format: int64 */
             after?: number;
+        };
+        RoomSettings: {
+            approvalRequired?: boolean;
+            title: string;
         };
         Save: {
             roomCredential: string;
@@ -1034,6 +1054,34 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Snapshot"];
+                };
+            };
+        };
+    };
+    updateRoomSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomSettings"];
             };
         };
         responses: {

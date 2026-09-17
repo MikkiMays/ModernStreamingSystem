@@ -103,6 +103,13 @@ export class RoomApi {
       this.credential,
     );
   command = (command: Command) => request<Ack>(`${this.base}/commands`, post(command), this.credential);
+  /** Название и режим входа встречи, которая уже идёт. Только у ведущего. */
+  settings = (settings: { title: string; approvalRequired: boolean }) =>
+    request<Snapshot>(
+      `${this.base}/settings`,
+      { method: 'PUT', body: JSON.stringify(settings) },
+      this.credential,
+    );
   token = () =>
     request<{ url: string; token: string; expiresAt: number }>(
       `${this.base}/media/token`,

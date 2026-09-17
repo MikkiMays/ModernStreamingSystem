@@ -186,6 +186,49 @@ class RoomServiceTest {
     verify(rpc, times(1)).run();
   }
 
+  /**
+   * Название и режим входа записывались один раз, при создании: опечатку комната несла до
+   * конца, а решение «пускать всех» приходилось принимать до того, как стало ясно, кто придёт.
+   */
+  @Test
+  void onlyHostRenamesTheRoomAndChangesWhoMayEnter() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Опечатка", "Организатор", false));
+    var guest = guest(host);
+    assertThatThrownBy(
+            () ->
+                rooms.roomSettings(
+                    host.roomId(), guest.credential(), new RoomSettings("Чужое название", true)))
+        .isInstanceOf(Problem.class);
+
+    var updated = rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("  Вечер  ", true));
+    assertThat(updated.title()).isEqualTo("Вечер");
+    assertThat(updated.approvalRequired()).isTrue();
+    // Остальные узнают об этом из снимка, а не из своей копии: правку объявляет room.changed.
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).title()).isEqualTo("Вечер");
+
+    // Режим входа — не только запись в снимке: следующий гость должен ждать подтверждения.
+    var waiting =
+        rooms.join(
+            host.roomId(),
+            new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Поздний"));
+    assertThat(
+            rooms.snapshot(host.roomId(), host.credential()).participants().stream()
+                .filter(p -> p.id().equals(waiting.participantId()))
+                .findFirst()
+                .orElseThrow()
+                .status())
+        .isEqualTo(RoomState.Status.WAITING);
+  }
+
+  @Test
+  void closedRoomKeepsItsNameAndAdmission() {
+    var host = host();
+    command(host, "close", null, 0);
+    assertThatThrownBy(
+            () -> rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("Поздно", true)))
+        .isInstanceOf(Problem.class);
+  }
+
   @Test
   void onlyHostCanChangeIntegrationPermissionAndItSurvivesReturn() {
     var host = rooms.create(new Create(UUID.randomUUID(), "Комната", "Организатор", false, false));

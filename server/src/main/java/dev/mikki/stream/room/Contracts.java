@@ -30,6 +30,18 @@ public final class Contracts {
 
   public record Rejoin(@NotNull UUID commandId, @NotBlank @Size(max = 40) String name) {}
 
+  /**
+   * Что ведущий может поменять во встрече, которая уже идёт.
+   *
+   * Название и режим входа записывались ровно один раз, при создании, и поменять их потом
+   * было нечем: опечатку в названии комната несла до конца, а решение «пускаю всех» или
+   * «пускаю по одному» приходилось принимать до того, как стало понятно, кто придёт.
+   *
+   * Ограничения те же, что при создании: одно и то же поле не может быть длиннее в одном
+   * месте и короче в другом.
+   */
+  public record RoomSettings(@NotBlank @Size(max = 80) String title, boolean approvalRequired) {}
+
   public record Command(
       @NotNull UUID commandId,
       @NotBlank
