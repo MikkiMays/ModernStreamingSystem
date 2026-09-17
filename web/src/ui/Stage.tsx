@@ -155,6 +155,24 @@ export function Stage({
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [viewing?.screenId]);
+  /*
+    Кто показан крупно — считается здесь, до всех выходов из компонента.
+
+    Просмотр чужого экрана возвращает другую сцену раньше, и хук, поставленный после этого
+    возврата, перестал бы вызываться ровно в тот момент, когда просмотр открывают. React
+    считает хуки по порядку, а не по имени: это не «лишний рендер», а падение всего экрана
+    встречи. Стоило одного зелёного прогона e2e, чтобы это стало видно.
+  */
+  const people = participants.filter((p) => !p.service && p.status !== 'WAITING');
+  const focused = focusedParticipant({
+    pinned,
+    speaking,
+    current: focus,
+    people: people.map((p) => p.id),
+  });
+  useEffect(() => {
+    if (focused !== focus) setFocus(focused);
+  }, [focused, focus]);
   if (viewing) {
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
@@ -235,18 +253,6 @@ export function Stage({
       </div>
     );
   }
-  const people = participants.filter((p) => !p.service && p.status !== 'WAITING');
-  // Крупная плитка нужна только в «Говорящем»; в остальных раскладках считать её незачем,
-  // но хук обязан вызываться всегда, поэтому решение принимается здесь, а применяется ниже.
-  const focused = focusedParticipant({
-    pinned,
-    speaking,
-    current: focus,
-    people: people.map((p) => p.id),
-  });
-  useEffect(() => {
-    if (focused !== focus) setFocus(focused);
-  }, [focused, focus]);
   const showRoster =
     showServices &&
     layout === 'grid' &&
