@@ -187,8 +187,8 @@ class RoomServiceTest {
   }
 
   /**
-   * Название и режим входа записывались один раз, при создании: опечатку комната несла до
-   * конца, а решение «пускать всех» приходилось принимать до того, как стало ясно, кто придёт.
+   * Название и режим входа записывались один раз, при создании: опечатку комната несла до конца, а
+   * решение «пускать всех» приходилось принимать до того, как стало ясно, кто придёт.
    */
   @Test
   void onlyHostRenamesTheRoomAndChangesWhoMayEnter() {
@@ -200,7 +200,8 @@ class RoomServiceTest {
                     host.roomId(), guest.credential(), new RoomSettings("Чужое название", true)))
         .isInstanceOf(Problem.class);
 
-    var updated = rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("  Вечер  ", true));
+    var updated =
+        rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("  Вечер  ", true));
     assertThat(updated.title()).isEqualTo("Вечер");
     assertThat(updated.approvalRequired()).isTrue();
     // Остальные узнают об этом из снимка, а не из своей копии: правку объявляет room.changed.
@@ -225,7 +226,9 @@ class RoomServiceTest {
     var host = host();
     command(host, "close", null, 0);
     assertThatThrownBy(
-            () -> rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("Поздно", true)))
+            () ->
+                rooms.roomSettings(
+                    host.roomId(), host.credential(), new RoomSettings("Поздно", true)))
         .isInstanceOf(Problem.class);
   }
 
