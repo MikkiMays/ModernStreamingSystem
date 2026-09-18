@@ -39,7 +39,31 @@ const (
 	// и перестать его догонять. Десять кадров — меньше, чем слышно как пауза, и заметно
 	// больше, чем обычная неточность сна в загруженной системе.
 	slack = 10 * frame
+	// Сколько кадров декодера накопить, прежде чем трек станет слышен, и сколько держать
+	// про запас дальше. Запас нужен не нам, а приёмнику: пока его нет, в комнату идёт
+	// тишина, и к первой ноте буфер приёма уже полон — начало трека не догоняют рывком.
+	lead  = 12
+	depth = 100
 )
+
+// Двадцать миллисекунд цифровой тишины, закодированные Opus.
+//
+// ЗАЧЕМ. Пауза раньше означала «перестать слать пакеты». Для приёмника это неотличимо от
+// оборванной связи: NetEq включает заглушку — тянет последний кадр и гасит его линейно по
+// децибелам примерно полсекунды. Измерено на этом сервере: после команды «пауза» звук ещё
+// 80 мс идёт как был, потом ползёт вниз по 3,2 дБ за 20 мс до нуля. **Это и есть «звук
+// поломки» при нажатии на паузу.** То же самое звучало между треками и в начале каждого:
+// там тоже была дыра в потоке.
+//
+// Поэтому поток теперь не прерывается никогда: нет музыки — идёт тишина. Кадр взят у самого
+// libopus (`ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -c:a libopus -application audio
+// -frame_duration 20`) и разобран из Ogg; повторять его можно сколько угодно.
+//
+// Байты не случайны: TOC `0xFC` — это конфигурация 31, то есть CELT, fullband, 20 мс, стерео,
+// один кадр в пакете. Ровно тот же режим, в котором приходит музыка, поэтому переход
+// «музыка → тишина» декодер проходит своим перекрытием MDCT, без щелчка: проверено —
+// наибольший скачок между соседними отсчётами на стыке равен обычному шагу синуса.
+var quiet = []byte{0xFC, 0xFF, 0xFE}
 
 type command struct {
 	Cmd      string  `json:"cmd"`
@@ -87,10 +111,18 @@ func setting(name, fallback string) string {
 // constrained 256 kbit/s so every 20 ms frame stays inside one packet. Seeking is asked for
 // before the input, so ffmpeg jumps instead of decoding everything ahead of the mark.
 //
-// `-packet_loss` — это не запрос FEC, а указание кодеку, что кадр может не доехать. Opus
-// в ответ меньше опирается на предыдущий кадр, и потеря одного пакета портит один пакет,
-// а не тянет за собой хвост. На 256 кбит/с за это платится битрейтом, которого там с
-// запасом, а слышно — разницу между щелчком и провалом на полсекунды.
+// `-packet_loss` — это не запрос FEC, а указание кодеку, что кадр может не доехать: Opus в
+// ответ меньше опирается на предыдущий кадр. По умолчанию — ноль, и вот почему.
+//
+// Раньше здесь стояло `5`, и платой считался «битрейт, которого с запасом». Померили на этом
+// сервере (тон 1 кГц и 440 Гц по каналам, 256 кбит/с, всё остальное то же): с `-packet_loss 5`
+// шум и искажения в расшифрованном сигнале **на 7–10 дБ громче**, чем без него, — −47,7 дБ
+// против −57,6 дБ слева и −45,3 против −52,2 справа. Ровно столько же приходит и в комнату:
+// запись с дорожки бота совпала с локальной расшифровкой до сотых долей децибела, то есть
+// это цена кодирования, а не дороги. На хорошем канале она платится ни за что.
+//
+// Значение 1 libopus не отличает от нуля, так что настраивать имеет смысл от 2 и выше —
+// и только там, где потери настоящие.
 func decode(path string, position float64) *exec.Cmd {
 	return exec.Command("ffmpeg",
 		"-nostdin", "-v", "error", "-threads", "1",
@@ -101,32 +133,53 @@ func decode(path string, position float64) *exec.Cmd {
 		"-af", "aresample=resampler=soxr:precision=28:dither_method=triangular_hp",
 		"-ac", "2", "-ar", "48000",
 		"-c:a", "libopus", "-b:a", setting("CORD_MUSIC_BITRATE", "256k"), "-vbr", "constrained",
-		"-packet_loss", setting("CORD_MUSIC_PACKET_LOSS", "5"),
+		"-packet_loss", setting("CORD_MUSIC_PACKET_LOSS", "0"),
 		"-compression_level", "10", "-application", "audio", "-frame_duration", "20",
 		"-f", "ogg", "-page_duration", "20000", "pipe:1",
 	)
 }
 
-// player owns the decoder and the pace. Nothing is buffered beyond one frame, so a pause, a
-// seek and a skip take effect now rather than after whatever was queued ahead of them.
+// source — один запущенный декодер: сам процесс и готовые кадры, которых ждёт расписание.
+type source struct {
+	process *exec.Cmd
+	frames  chan []byte
+	stop    chan struct{}
+	ended   chan struct{}
+	done    sync.WaitGroup
+	epoch   int64
+	origin  float64
+	sent    int
+	ready   bool
+}
+
+// player держит темп комнаты. Кадр уходит каждые двадцать миллисекунд всегда — музыка,
+// если она есть, и тишина, если её нет. Дыр в потоке не бывает, поэтому приёмнику нечего
+// прятать заглушкой, а счёт кадров и стенные часы не расходятся между треками.
+//
+// Запас декодера сбрасывается вместе с ним, поэтому пауза, перемотка и переключение
+// слышны сразу и не спорят с тем, что успело накопиться.
 type player struct {
-	track    *lksdk.LocalTrack
-	current  *exec.Cmd
-	stop     chan struct{}
-	finished sync.WaitGroup
+	track   *lksdk.LocalTrack
+	mu      sync.Mutex
+	current *source
+	written int
+	started time.Time
 }
 
 func (p *player) halt() {
-	if p.current == nil {
+	p.mu.Lock()
+	current := p.current
+	p.current = nil
+	p.mu.Unlock()
+	if current == nil {
 		return
 	}
-	close(p.stop)
+	close(current.stop)
 	// Killing comes first: ffmpeg is usually blocked writing into a pipe nobody reads, and
-	// a polite signal there is a wait with no end.
-	_ = p.current.Process.Kill()
-	p.finished.Wait()
-	_ = p.current.Wait()
-	p.current = nil
+	// a polite signal there is a wait with no end. Хоронит процесс тот же, кто его читал,
+	// поэтому здесь достаточно дождаться его.
+	_ = current.process.Process.Kill()
+	current.done.Wait()
 }
 
 func (p *player) play(path string, position float64, epoch int64) {
@@ -142,33 +195,31 @@ func (p *player) play(path string, position float64, epoch int64) {
 		say(event{Event: "failed", Epoch: epoch, Message: err.Error()})
 		return
 	}
-	p.current = process
-	p.stop = make(chan struct{})
-	stop := p.stop
-	p.finished.Add(1)
+	current := &source{
+		process: process,
+		frames:  make(chan []byte, depth),
+		stop:    make(chan struct{}),
+		ended:   make(chan struct{}),
+		epoch:   epoch,
+		origin:  position,
+	}
+	current.done.Add(1)
 	go func() {
-		defer p.finished.Done()
-		defer pipe.Close()
+		// Трек кончается двумя способами: сам и по команде. Похоронить процесс нужно в обоих,
+		// и делать это должен тот, кто его читал: `Wait` закрывает трубу, поэтому звать её
+		// может только тот, кто дочитал. Иначе закончившийся своим ходом ffmpeg оставался
+		// зомби — по одному на трек, пока издатель жив.
+		defer func() {
+			pipe.Close()
+			_ = process.Wait()
+			close(current.frames)
+			current.done.Done()
+		}()
 		stream := newOggStream(pipe)
-		// Отсчёт начинается с первого готового кадра, а не с запуска ffmpeg.
-		//
-		// ЗАЧЕМ. Между командой и первым кадром проходит время: запуск процесса, перемотка,
-		// декодирование, кодирование. Если считать от команды, к появлению первой страницы
-		// её кадры уже «опоздали», и цикл отдаёт их залпом — начало каждого трека уходило в
-		// комнату пачкой. Приёмник кладёт пачку в буфер целиком, а потом догоняет, выбрасывая
-		// куски: **начало трека звучало ускоренно**. С пустого отсчёта такого долга нет.
-		var started time.Time
-		written := 0
 		for {
 			packets, err := stream.next()
 			if err != nil {
-				select {
-				case <-stop:
-					return
-				default:
-				}
-				at := position + float64(written)*frame.Seconds()
-				say(event{Event: "finished", Epoch: epoch, Value: &at})
+				close(current.ended)
 				return
 			}
 			for _, packet := range packets {
@@ -179,47 +230,102 @@ func (p *player) play(path string, position float64, epoch int64) {
 						continue
 					}
 				}
+				// Кадр не влезает в пакет — значит, этих двадцати миллисекунд не будет.
+				// Пропустить их нельзя: счёт кадров уедет, и дальше вся позиция врёт.
+				// Тишина стоит того же места во времени, что и потерянный кадр.
 				if len(packet) > maxPacket {
-					continue
-				}
-				// Deadlines rather than a ticker: a ticker drops the ticks it missed, and
-				// an hour of playback would drift away from the position being reported.
-				if written == 0 {
-					started = time.Now()
-				}
-				deadline := started.Add(time.Duration(written) * frame)
-				// Отстали заметно — значит, машина или декодер на время замерли. Отдавать
-				// накопленное залпом нельзя: у приёмника это снова обернётся раздутым буфером
-				// и погоней за ним. Сдвигаем отсчёт и играем дальше ровно — потерянные доли
-				// секунды всё равно не вернуть, а ровный темп дороже.
-				if behind := time.Since(deadline); behind > slack {
-					started = started.Add(behind)
-					deadline = deadline.Add(behind)
-				}
-				if wait := time.Until(deadline); wait > 0 {
-					select {
-					case <-stop:
-						return
-					case <-time.After(wait):
-					}
+					packet = quiet
 				}
 				select {
-				case <-stop:
+				case current.frames <- packet:
+				case <-current.stop:
 					return
-				default:
-				}
-				if err := p.track.WriteSample(media.Sample{Data: packet, Duration: frame}, nil); err != nil {
-					say(event{Event: "failed", Epoch: epoch, Message: err.Error()})
-					return
-				}
-				written++
-				if written%report == 0 {
-					at := position + float64(written)*frame.Seconds()
-					say(event{Event: "position", Epoch: epoch, Value: &at})
 				}
 			}
 		}
 	}()
+	p.mu.Lock()
+	p.current = current
+	p.mu.Unlock()
+}
+
+// next — что уходит в комнату в ближайшие двадцать миллисекунд, и что об этом сказать.
+func (p *player) next() ([]byte, *event) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	current := p.current
+	if current == nil {
+		return quiet, nil
+	}
+	if !current.ready {
+		// Запас ещё набирается. Короткий трек может кончиться раньше, чем наберётся, —
+		// тогда ждать больше нечего.
+		select {
+		case <-current.ended:
+		default:
+			if len(current.frames) < lead {
+				return quiet, nil
+			}
+		}
+		current.ready = true
+	}
+	select {
+	case packet, ok := <-current.frames:
+		if !ok {
+			at := current.origin + float64(current.sent)*frame.Seconds()
+			p.current = nil
+			return quiet, &event{Event: "finished", Epoch: current.epoch, Value: &at}
+		}
+		current.sent++
+		if current.sent%report == 0 {
+			at := current.origin + float64(current.sent)*frame.Seconds()
+			return packet, &event{Event: "position", Epoch: current.epoch, Value: &at}
+		}
+		return packet, nil
+	default:
+		// Декодер не успел: двадцать миллисекунд тишины дешевле, чем дыра в потоке.
+		return quiet, nil
+	}
+}
+
+// pace — единственное место, которое пишет в дорожку, и единственные часы издателя.
+//
+// ЗАЧЕМ ОТСЧЁТ ОБЩИЙ, А НЕ ПОТРЕКОВЫЙ. Раньше расписание начиналось заново с первым кадром
+// каждого трека, а между треками поток прерывался. Теперь номер кадра растёт всё время, пока
+// издатель жив, поэтому метки RTP идут ровно за стенными часами: приёмнику не приходится
+// разбираться, что означает пауза в тридцать секунд с непрерывной нумерацией.
+func (p *player) pace(stop <-chan struct{}) {
+	p.started = time.Now()
+	for ; ; p.written++ {
+		deadline := p.started.Add(time.Duration(p.written) * frame)
+		// Отстали заметно — значит, машина на время замерла. Отдавать накопленное залпом
+		// нельзя: у приёмника это обернётся раздутым буфером и погоней за ним. Сдвигаем
+		// отсчёт и играем дальше ровно — потерянные доли секунды всё равно не вернуть.
+		if behind := time.Since(deadline); behind > slack {
+			p.started = p.started.Add(behind)
+			deadline = deadline.Add(behind)
+		}
+		if wait := time.Until(deadline); wait > 0 {
+			select {
+			case <-stop:
+				return
+			case <-time.After(wait):
+			}
+		}
+		select {
+		case <-stop:
+			return
+		default:
+		}
+		packet, announcement := p.next()
+		if err := p.track.WriteSample(media.Sample{Data: packet, Duration: frame}, nil); err != nil {
+			say(event{Event: "closed", Message: err.Error()})
+			return
+		}
+		if announcement != nil {
+			say(*announcement)
+		}
+	}
 }
 
 func main() {
@@ -275,6 +381,11 @@ func main() {
 	}
 	music := &player{track: track}
 	defer music.halt()
+	// Темп задаётся до первой команды: к моменту, когда зазвучит первый трек, буфер приёма
+	// у всех уже полон тишиной, и начало не приходится догонять.
+	paced := make(chan struct{})
+	defer close(paced)
+	go music.pace(paced)
 	say(event{Event: "ready"})
 
 	for {

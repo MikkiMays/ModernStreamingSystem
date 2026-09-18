@@ -101,6 +101,14 @@ jobs:
       - run: python3 scripts/cohost_cutover_test.py
       - run: python3 scripts/publish_windows_release_test.py
       - run: docker compose config --quiet
+      # Издателя музыки собирает тот же образ Go, что и рабочий Dockerfile, поэтому версия
+      # здесь и в сборке не может разойтись. Отдельный шаг нужен ради тестов: расписание
+      # кадров и разбор Ogg — это то, что слышно в комнате, а не то, что видно в логе.
+      - name: Verify the music publisher
+        run: >
+          docker run --rm -v "$PWD/services/publisher":/src -w /src -e GOFLAGS=-mod=mod
+          golang:1.26-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81
+          sh -c "gofmt -l . && go vet ./... && go test ./..."
       - run: docker compose build
       - name: Verify integrations, bot commands and audio queue
         run: docker compose run --rm --no-deps --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests -v
