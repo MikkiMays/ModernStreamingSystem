@@ -356,6 +356,38 @@ class QueueTests(Fixture):
         )
         restored.db.close()
 
+    async def test_adding_the_service_again_plays_instead_of_staying_paused(self):
+        """ЗАЧЕМ. Это и есть «добавил музыку, а она молчит».
+
+        Снятие сервиса со встречи ставило `paused`, очередь при этом оставалась. Добавление
+        сервиса заново `paused` не снимало, поэтому бот заходил в комнату, очередь была видна,
+        статус был честный — «на паузе», — а звука не появлялось, пока кто-нибудь не догадался
+        нажать «продолжить». Со стороны это выглядело как «зависит от того, что добавлять
+        раньше: треки или плеер».
+        """
+        await self.music.enable(ROOM, str(uuid.uuid4()))
+        await self.music.enqueue(ROOM, track(self.store, "One"))
+        await self.music.command(
+            ROOM, {"commandId": str(uuid.uuid4()), "action": "pause"}
+        )
+        self.assertTrue(self.store.get(ROOM)["paused"])
+        await self.music.disable(ROOM)
+        # Очередь переживает снятие сервиса, и треки можно добавлять, пока его нет.
+        await self.music.enqueue(ROOM, track(self.store, "Two"))
+        self.assertEqual(len(self.store.get(ROOM)["queue"]), 2)
+
+        state = await self.music.enable(ROOM, str(uuid.uuid4()))
+        self.assertFalse(state["paused"])
+        self.assertTrue(state["enabled"])
+
+        # А перезапуск самого сервиса — не просьба человека: пауза его переживает.
+        await self.music.command(
+            ROOM, {"commandId": str(uuid.uuid4()), "action": "pause"}
+        )
+        self.store.cache[ROOM]["admission"] = None
+        await self.music.resume(ROOM)
+        self.assertTrue(self.store.get(ROOM)["paused"])
+
     async def test_cleanup_drops_old_audio_and_invalidates_current_decoder(self):
         old = track(self.store, "Old", 86400001)
         recent = track(self.store, "New")

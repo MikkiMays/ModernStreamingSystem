@@ -32,7 +32,16 @@ class Music:
                 self.run(room_id), name="music-" + room_id
             )
 
-    async def enable(self, room_id: str, command_id: str):
+    async def enable(self, room_id: str, command_id: str, resumed: bool = False):
+        """Добавляет музыку во встречу. `resumed` — это перезапуск сервиса, а не просьба.
+
+        ЗАЧЕМ РАЗНИЦА. «Пауза» — это решение человека, и переживать перезапуск она обязана.
+        Но раньше её же ставило снятие сервиса со встречи, а снятие с неё ничего не снимало:
+        очередь переживала удаление, а `paused` вместе с ней. Кто убирал музыку и добавлял её
+        снова, получал бота в комнате, полную очередь — и тишину, потому что состояние было
+        «на паузе» ещё с прошлого раза. Отсюда и «надо сначала добавить плеер, а потом треки»:
+        порядок был ни при чём, важно было, добавляли ли сервис второй раз.
+        """
         async with self.locks[room_id]:
             state = self.store.get(room_id)
             if state["enabled"]:
@@ -52,6 +61,8 @@ class Music:
                 lastHumanAt=now(),
                 pendingCommandId=None,
             )
+            if not resumed:
+                state.update(paused=False, epoch=state["epoch"] + 1)
             self.store.save(state)
             self.start(room_id)
             return self.store.public(room_id)
@@ -59,9 +70,7 @@ class Music:
     async def disable(self, room_id: str):
         async with self.locks[room_id]:
             state = self.store.get(room_id)
-            state.update(
-                enabled=False, status="disabled", paused=True, epoch=state["epoch"] + 1
-            )
+            state.update(enabled=False, status="disabled", epoch=state["epoch"] + 1)
             self.store.save(state)
             task = self.tasks.pop(room_id, None)
             if task:
@@ -395,7 +404,7 @@ class Music:
         state["enabled"] = False
         self.store.save(state)
         try:
-            await self.enable(room_id, str(uuid.uuid4()))
+            await self.enable(room_id, str(uuid.uuid4()), resumed=True)
         except HTTPException:
             state = self.store.get(room_id)
             state.update(
