@@ -14,6 +14,7 @@ export type Cue =
   | 'join'
   | 'leave'
   | 'knock'
+  | 'message'
   | 'screen'
   | 'viewer'
   | 'connected'
@@ -53,6 +54,10 @@ const CUES: Record<Cue, Note[]> = {
   // Someone is waiting to be let in. A knock asks for an answer, so it is the one cue that
   // repeats its own pitch, and it is a triangle wave to stand apart from the rest.
   knock: [note(A5, 0, 0.07, 0.065, 'triangle'), note(A5, 0.12, 0.07, 0.065, 'triangle')],
+  // Сообщение в чате. Единственный сигнал из **одной** ноты — этим и отличается: остальные
+  // состоят из двух и трёх, и переспрашивать «это кто-то вошёл или написал?» не придётся.
+  // Писать в чат будут чаще, чем входить в комнату, поэтому нота короткая и тихая.
+  message: [note(C6, 0, 0.1, 0.045)],
   // The server, not the room: the same shape as arriving and leaving, an octave lower and
   // slower. Bigger scope reads as a bigger sound without being a different language.
   connected: [note(G4, 0, 0.2, 0.06), note(C5, 0.1, 0.26, 0.06)],

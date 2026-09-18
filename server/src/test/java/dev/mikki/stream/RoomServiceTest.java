@@ -315,7 +315,7 @@ class RoomServiceTest {
 
   @Test
   void numericCodeRequiresApprovalBeforeHistoryAndMediaAccess() {
-    var host = host();
+    var host = rooms.create(new Create(UUID.randomUUID(), "С подтверждением", "Организатор", true));
     assertThat(host.snapshot().code()).matches("[0-9]{9}");
     rooms.command(
         host.roomId(),
@@ -341,6 +341,44 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
     command(host, "participant.approve", pending.participantId(), 0);
     assertThat(rooms.snapshot(host.roomId(), pending.credential()).messages()).hasSize(1);
+  }
+
+  /**
+   * Правильный номер — это и есть приглашение. Комната, которая никого не просит подождать, не
+   * должна держать у двери тех, кто ввёл её код: настройка «По ссылке и коду — сразу» обещает
+   * именно это, а вход по коду годами ждал подтверждения вопреки ей.
+   */
+  @Test
+  void numericCodeAdmitsDirectlyWhenTheRoomAsksNobodyToWait() {
+    var host = host();
+    rooms.command(
+        host.roomId(),
+        host.credential(),
+        new Command(UUID.randomUUID(), "message.send", "Уже сказанное", null, 0));
+    var guest =
+        rooms.joinCode(new JoinCode(UUID.randomUUID(), host.snapshot().code(), "По коду сразу"));
+    assertThat(guest.snapshot().participants()).hasSize(2);
+    assertThat(
+            guest.snapshot().participants().stream()
+                .filter(p -> p.id().equals(guest.participantId()))
+                .findFirst()
+                .orElseThrow()
+                .status())
+        .isEqualTo(RoomState.Status.JOINING);
+    // Раз войти можно сразу, то и разговор виден сразу: отдельного «допуска» здесь нет.
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).messages()).hasSize(1);
+    assertThatCode(() -> media.token(host.roomId(), guest.credential())).doesNotThrowAnyException();
+    // Вернувшийся по коду тоже не начинает ждать заново.
+    command(guest, "leave", null, 0);
+    var again =
+        rooms.rejoin(host.roomId(), guest.credential(), new Rejoin(UUID.randomUUID(), "Он же"));
+    assertThat(
+            again.snapshot().participants().stream()
+                .filter(p -> p.id().equals(again.participantId()))
+                .findFirst()
+                .orElseThrow()
+                .status())
+        .isEqualTo(RoomState.Status.JOINING);
   }
 
   @Test
@@ -384,7 +422,7 @@ class RoomServiceTest {
 
   @Test
   void returnCannotBypassPendingApprovalRemovalOrCapacity() {
-    var host = host();
+    var host = rooms.create(new Create(UUID.randomUUID(), "С подтверждением", "Организатор", true));
     var pending =
         rooms.joinCode(new JoinCode(UUID.randomUUID(), host.snapshot().code(), "Ожидающий"));
     command(pending, "leave", null, 0);
@@ -637,35 +675,26 @@ class RoomServiceTest {
   }
 
   @Test
-  void favoritesRequireMembershipAndLimitFiveAtomically() throws Exception {
+  void favoritesRequireMembershipAndSaveAtomically() throws Exception {
     String profile = "A".repeat(43);
     var hosts = java.util.stream.IntStream.range(0, 12).mapToObj(_ -> host()).toList();
     try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
       var results =
           hosts.stream()
-              .map(
-                  h ->
-                      pool.submit(
-                          () -> {
-                            try {
-                              favorites.save(profile, h.roomId(), h.credential());
-                              return true;
-                            } catch (Problem problem) {
-                              assertThat(problem.code()).isEqualTo("FAVORITE_LIMIT");
-                              return false;
-                            }
-                          }))
+              .map(h -> pool.submit(() -> favorites.save(profile, h.roomId(), h.credential())))
               .toList();
-      int saved = 0;
-      for (var result : results) if (result.get()) saved++;
-      assertThat(saved).isEqualTo(5);
+      for (var result : results) result.get();
     }
-    assertThat(favorites.list(profile)).hasSize(5);
+    // Числа комнат больше нет: одновременная запись двенадцати сохраняет все двенадцать, по
+    // одной записи на комнату и без гонок.
+    assertThat(favorites.list(profile)).hasSize(12);
     assertThat(favorites.list("B".repeat(43))).isEmpty();
     var first = hosts.getFirst();
+    var closed =
+        rooms.create(new Create(UUID.randomUUID(), "С подтверждением", "Организатор", true));
     var pending =
-        rooms.joinCode(new JoinCode(UUID.randomUUID(), first.snapshot().code(), "Ожидающий"));
-    assertThatThrownBy(() -> favorites.save("B".repeat(43), first.roomId(), pending.credential()))
+        rooms.joinCode(new JoinCode(UUID.randomUUID(), closed.snapshot().code(), "Ожидающий"));
+    assertThatThrownBy(() -> favorites.save("B".repeat(43), closed.roomId(), pending.credential()))
         .isInstanceOf(Problem.class);
     assertThatThrownBy(() -> favorites.save("B".repeat(43), first.roomId(), "invalid"))
         .isInstanceOf(Problem.class);

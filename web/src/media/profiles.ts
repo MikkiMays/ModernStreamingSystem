@@ -149,18 +149,37 @@ export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackC
  *
  * Только для выбранного вручную уровня: в «Авто» частоту двигает лестница, и запрещать ей
  * опускаться значит отменять сам смысл «Авто».
+ *
+ * ПОЧЕМУ ЭТО ЛЕСТНИЦА, А НЕ ОДНА ПРОСЬБА. `min` — жёсткое условие, а размер кадра просился
+ * как `ideal`, то есть как пожелание. Для камеры, которая умеет 60 кадров только в 720p —
+ * а таких большинство, 1080p60 живёт в MJPEG и далеко не везде, — это означало вот что:
+ * человек выбирал 1080p60 и молча получал 720p, растянутый до 1080. «Принудительное
+ * качество хуже автоматического» — это оно и есть.
+ *
+ * Выбранное разрешение важнее выбранной частоты: в списке оно и называется «Качество», а
+ * частота — «Плавность». Поэтому сначала просим и то и другое жёстко, потом отпускаем
+ * частоту, оставив кадр, и лишь напоследок отпускаем всё. Первое, что камера согласится
+ * выполнить, тем разговор и пойдёт, а недобор честно виден в плашке отдачи.
  */
 export function forcedCameraConstraints(
   profile: ScreenProfile,
   capabilities?: MediaTrackCapabilities,
-): MediaTrackConstraints | null {
-  if (profile.automatic) return null;
+): MediaTrackConstraints[] {
+  if (profile.automatic) return [];
   const { resolution } = cameraCapture(profile, capabilities);
-  return {
-    width: { ideal: resolution.width },
-    height: { ideal: resolution.height },
-    frameRate: { min: resolution.frameRate, ideal: resolution.frameRate },
+  const frame = {
+    width: { min: resolution.width, ideal: resolution.width },
+    height: { min: resolution.height, ideal: resolution.height },
   };
+  return [
+    { ...frame, frameRate: { min: resolution.frameRate, ideal: resolution.frameRate } },
+    { ...frame, frameRate: { ideal: resolution.frameRate } },
+    {
+      width: { ideal: resolution.width },
+      height: { ideal: resolution.height },
+      frameRate: { ideal: resolution.frameRate },
+    },
+  ];
 }
 /**
  * Что камера отдаёт в сеть.

@@ -334,13 +334,7 @@ export function Prejoin({
           )}
           <button type="submit" className="button primary full" disabled={busy || !name.trim()}>
             {busy ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}{' '}
-            {busy
-              ? 'Подключаемся…'
-              : destination?.kind === 'code'
-                ? 'Запросить подключение'
-                : destination
-                  ? 'Войти во встречу'
-                  : 'Начать встречу'}
+            {busy ? 'Подключаемся…' : destination ? 'Войти во встречу' : 'Начать встречу'}
           </button>
           <p className="form-footnote">Ссылка и QR для приглашения появятся в комнате.</p>
         </form>

@@ -4,7 +4,7 @@ import { MoreHorizontal } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import type { Participant } from '../api/types';
 import type { Meeting } from '../core/meeting';
-import { useStore } from './primitives';
+import { Slider, useStore } from './primitives';
 
 /** The same menu and keyboard behavior are used on tiles and in the participant list. */
 export function ParticipantMenu({
@@ -39,12 +39,11 @@ export function ParticipantMenu({
               приходит сведённой и на своём уровне. Потолок для него такой же, как у ползунка
               под плеером, иначе 200 % можно было бы выставить в обход него.
             */}
-            <input
-              type="range"
+            <Slider
               min={0}
               max={person.service ? 100 : 200}
-              step={5}
-              value={volume * 100}
+              step={1}
+              value={Math.round(volume * 100)}
               aria-label={`Громкость: ${person.name}`}
               onChange={(e) => meeting.media.setVolume(person.id, Number(e.target.value) / 100)}
             />

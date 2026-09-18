@@ -60,15 +60,9 @@ public class FavoriteService {
             .query(Long.class)
             .single()
         > 0) return;
-    if (repository
-            .jdbc()
-            .sql("SELECT COUNT(*) FROM favorites WHERE profile_hash=?")
-            .param(key)
-            .query(Long.class)
-            .single()
-        >= 5)
-      throw Problem.conflict(
-          "FAVORITE_LIMIT", "В избранном уже пять комнат. Удалите одну, чтобы добавить новую.");
+    // Числа комнат в избранном здесь нет намеренно. Это список на **своём** сервере, и его
+    // длина — дело хозяина сервера, а не приложения: пять записей по паре десятков байт не
+    // экономят ничего, зато «удалите одну, чтобы добавить новую» стоило человеку выбора.
     repository
         .jdbc()
         .sql("INSERT INTO favorites(profile_hash,room_id,member_id,saved_at) VALUES(?,?,?,?)")

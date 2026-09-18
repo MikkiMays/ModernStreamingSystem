@@ -38,12 +38,10 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('desktop home stays centered and usable without page scroll with all five favorites', async ({
-  page,
-}) => {
+test('desktop home stays centered and usable without page scroll with five favorites', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByText('5 / 5')).toBeVisible();
+  await expect(page.getByText('5', { exact: true })).toBeVisible();
   for (const size of [
     { width: 1120, height: 740 },
     { width: 760, height: 620 },
@@ -90,7 +88,7 @@ test('desktop code entry and create actions open the shared prejoin with devices
   await page.getByLabel('Код встречи или ссылка').fill('333444555');
   await expect(page.getByLabel('Код встречи или ссылка')).toHaveValue('333-444-555');
   await page.getByRole('button', { name: 'Присоединиться', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Запросить подключение' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Войти во встречу' })).toBeVisible();
   await expect(page.getByLabel('Название встречи')).toHaveCount(0);
   await page.goto('/');
   await page.getByRole('button', { name: 'Новая встреча', exact: true }).click();
@@ -108,7 +106,7 @@ test('native favorite settings open unavailable rooms without joining and synchr
     if (request.url().endsWith('/join')) joins.push(request.url());
   });
   await page.goto('/');
-  await expect(page.getByText('5 / 5')).toBeVisible();
+  await expect(page.getByText('5', { exact: true })).toBeVisible();
   await page.evaluate(() =>
     window.dispatchEvent(
       new CustomEvent('test:host', {

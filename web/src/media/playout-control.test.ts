@@ -111,6 +111,62 @@ describe('контроллер запаса', () => {
     expect(bad.receiver.jitterBufferTarget).toBeGreaterThan(good.receiver.jitterBufferTarget);
   });
 
+  /**
+   * Это и есть ответ на «картинка отстаёт от звука». Замирания у видео случаются и от
+   * перегруженного декодера, а запас против них не помогает — зато уводит кадр от голоса
+   * ровно на столько, на сколько его подняли.
+   */
+  it('видео держится запаса своего звука, а не набирает свой от замираний', async () => {
+    const controller = new PlayoutController();
+    let at = 0;
+    let freezes = 0;
+    const frames = () => Math.round(at / 40);
+    const camera = {
+      ...track('cam', 'video', () =>
+        statsOf([
+          ...path(),
+          {
+            id: 'in',
+            type: 'inbound-rtp',
+            kind: 'video',
+            timestamp: at,
+            framesDecoded: frames(),
+            freezeCount: freezes,
+            jitter: 0,
+            jitterBufferEmittedCount: frames(),
+            jitterBufferDelay: 0,
+          },
+        ]),
+      ),
+      group: 'bob:camera',
+    };
+    const voice = {
+      ...track('voice', 'conversation', () => statsOf([...path(), inbound(at / 1000)])),
+      group: 'bob:camera',
+    };
+    await controller.tick([voice, camera], at);
+    for (let tick = 0; tick < 10; tick++) {
+      at += 2000;
+      freezes += 2;
+      await controller.tick([voice, camera], at);
+    }
+    expect(camera.receiver.jitterBufferTarget).toBe(voice.receiver.jitterBufferTarget);
+
+    // Молчащая демонстрация — единственный случай, где видео считает запас само.
+    const alone = new PlayoutController();
+    const lonely = { ...camera, id: 'screen', group: undefined };
+    at = 0;
+    freezes = 0;
+    await alone.tick([lonely], at);
+    const started = lonely.receiver.jitterBufferTarget;
+    for (let tick = 0; tick < 5; tick++) {
+      at += 2000;
+      freezes += 2;
+      await alone.tick([lonely], at);
+    }
+    expect(lonely.receiver.jitterBufferTarget).toBeGreaterThan(started);
+  });
+
   it('новую дорожку обеспечивает запасом сразу, не дожидаясь первой статистики', () => {
     const controller = new PlayoutController();
     const music = track('music', 'media', () => statsOf([]));

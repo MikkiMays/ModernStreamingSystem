@@ -16,6 +16,9 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
     await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('auto');
+    // Вход по коду подчиняется этой настройке: чтобы проверить ожидание и допуск, комнату
+    // надо явно закрыть. Открытая комната впускает по правильному коду сразу.
+    await host.getByRole('radio', { name: /Только с вашего подтверждения/ }).check();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toHaveCount(0);
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);
@@ -34,7 +37,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(guest.getByLabel('Код встречи или ссылка')).toHaveValue(code);
     await guest.getByRole('button', { name: 'Присоединиться', exact: true }).click();
     await guest.getByLabel('Ваше имя').fill('Гость по коду');
-    await guest.getByRole('button', { name: 'Запросить подключение' }).click();
+    await guest.getByRole('button', { name: 'Войти во встречу' }).click();
     await expect(guest.getByText('Организатор скоро впустит вас')).toBeVisible();
     await host.getByRole('button', { name: /Запросы на подключение/ }).click();
     await host.getByRole('button', { name: 'Разрешить вход: Гость по коду' }).click();

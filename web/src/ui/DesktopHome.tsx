@@ -107,7 +107,9 @@ export function DesktopHome({
               <ArrowRight size={20} />
             </button>
           </div>
-          <small id="desktop-code-hint">Вход по коду подтвердит организатор.</small>
+          <small id="desktop-code-hint">
+            Код открывает комнату сразу, если её хозяин не попросил подтверждать вход.
+          </small>
         </form>
         <button
           className="button secondary desktop-create"
@@ -126,7 +128,7 @@ export function DesktopHome({
             <span>
               <Star size={14} /> Избранные комнаты
             </span>
-            <span>{rooms.length} / 5</span>
+            {!!rooms.length && <span>{rooms.length}</span>}
           </div>
           <div className="desktop-favorites-expanded">
             {rooms.length ? (
@@ -157,7 +159,7 @@ export function DesktopHome({
         open={showFavorites}
         onOpenChange={setShowFavorites}
         title="Избранные комнаты"
-        description="До пяти комнат, в которые можно вернуться."
+        description="Комнаты, в которые можно вернуться."
       >
         {rooms.length ? list : <p className="muted">Добавьте комнату звёздочкой во время встречи.</p>}
       </Modal>

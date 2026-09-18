@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play, Repeat2, Shuffle, SkipForward } from 'lucide-react';
 import { musicSourceName, type MusicState } from '../core/services';
-import { IconButton } from './primitives';
+import { IconButton, Slider } from './primitives';
 import { afterSkip, formatDuration, playbackPosition } from './music-playback';
 
 /** Что сейчас звучит, где игла и чем это можно перебить. */
@@ -65,11 +65,10 @@ export function MusicPlayer({
       </div>
       {current && (
         <div className="music-progress">
-          <input
-            type="range"
-            min="0"
+          <Slider
+            min={0}
             max={Math.max(1, current.duration)}
-            step="1"
+            step={1}
             disabled={!canUse}
             aria-label="Позиция трека"
             value={dragging ?? position}
@@ -131,12 +130,12 @@ export function MusicPlayer({
             её честно исправлять усилением; трек же приходит сведённым и на своём уровне, и
             всё сверх 100 % — это не «громче», а клиппинг. Потолок в 200 % остаётся у людей.
           */}
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            value={volume * 100}
+          <Slider
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(volume * 100)}
+            aria-label="Громкость музыки"
             onChange={(e) => onVolume(Number(e.target.value) / 100)}
           />
         </label>

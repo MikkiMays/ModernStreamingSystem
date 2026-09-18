@@ -78,12 +78,29 @@ describe('screen profiles', () => {
    * двадцать кадров там, где просили тридцать. Нижнюю границу задаёт только `min`.
    */
   it('выбранную вручную частоту требует, а автоматическую — нет', () => {
-    expect(forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: false })).toEqual({
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: false });
+    expect(asked[0]).toEqual({
+      width: { min: 1920, ideal: 1920 },
+      height: { min: 1080, ideal: 1080 },
       frameRate: { min: 60, ideal: 60 },
     });
-    expect(forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: true })).toBeNull();
+    expect(forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: true })).toEqual([]);
+  });
+
+  /**
+   * Камера, умеющая 60 кадров только в 720p, обязана отдать выбранные 1080p, а не подменить
+   * их частотой: «Качество» в списке стоит выше «Плавности», и жёстким остаётся именно кадр.
+   */
+  it('уступает частотой, а не размером кадра', () => {
+    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: false });
+    expect(asked.map((step) => step.frameRate)).toEqual([
+      { min: 60, ideal: 60 },
+      { ideal: 60 },
+      { ideal: 60 },
+    ]);
+    // Кадр держится жёстко ровно до последней просьбы — той, где отпущено всё.
+    expect(asked.slice(0, 2).every((step) => 'min' in (step.width as { min?: number }))).toBe(true);
+    expect(asked.at(-1)!.width).toEqual({ ideal: 1920 });
   });
 
   /** Просить больше, чем устройство умеет, — это отказ вместо картинки. */
@@ -93,9 +110,9 @@ describe('screen profiles', () => {
       height: { max: 720 },
       frameRate: { max: 30 },
     } as MediaTrackCapabilities);
-    expect(modest).toEqual({
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+    expect(modest[0]).toEqual({
+      width: { min: 1280, ideal: 1280 },
+      height: { min: 720, ideal: 720 },
       frameRate: { min: 30, ideal: 30 },
     });
   });

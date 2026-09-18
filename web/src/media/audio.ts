@@ -50,6 +50,17 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
   readonly name = 'cord-audio';
   processedTrack?: MediaStreamTrack;
   private context?: AudioContext;
+  /**
+   * Контекст комнаты, каким его дали при первой настройке.
+   *
+   * ЗАЧЕМ ЗАПОМИНАТЬ. Смена микрофона идёт через `restartTrack`, а тот зовёт
+   * `processor.restart({ track, kind, element, localTrack })` — **без** `audioContext`, хотя
+   * в типе SDK это поле обязательное. Отсюда и красная строка внизу встречи «Cannot read
+   * properties of undefined (reading 'sampleRate')» после каждой смены устройства, которую
+   * лечил только перезаход в комнату. Своего контекста у обработчика может и не быть, а
+   * прежний остаётся годным: комната его не закрывает от смены микрофона.
+   */
+  private shared?: AudioContext;
   private ownsContext = false;
   private source?: MediaStreamAudioSourceNode;
   private gain?: GainNode;
@@ -59,10 +70,13 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
   constructor(private settings: AudioPreferences) {}
   async init({ track, audioContext }: AudioProcessorOptions) {
     const revision = ++this.revision;
-    this.ownsContext = audioContext.sampleRate !== 48000;
+    // `audioContext` приходит пустым при перезапуске дорожки — см. `shared`.
+    const given: AudioContext | undefined = audioContext ?? this.shared;
+    this.shared = given && given.state !== 'closed' ? given : undefined;
+    this.ownsContext = !this.shared || this.shared.sampleRate !== 48000;
     const context = this.ownsContext
       ? new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' })
-      : audioContext;
+      : this.shared!;
     this.context = context;
     try {
       const source = context.createMediaStreamSource(new MediaStream([track]));

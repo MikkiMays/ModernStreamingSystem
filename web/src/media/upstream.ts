@@ -87,20 +87,32 @@ const GRACE_TICKS = 2;
 class Ladder {
   private ceiling?: number;
   private quality: AutoQuality;
-  constructor(limit?: Rung) {
+  constructor(
+    limit?: Rung,
+    /**
+     * Начинать сразу с потолка, а не с обычной стартовой ступени.
+     *
+     * Так ведёт себя выбранный вручную уровень: его не подбирают снизу, его уже назвали.
+     * Лестница под ним нужна только на случай, когда названное не выходит.
+     */
+    private fromCeiling = false,
+  ) {
     this.ceiling = limit && ceilingFor(limit);
     this.quality = this.build();
   }
   private build() {
-    return this.ceiling === undefined
-      ? new AutoQuality(startingRung)
-      : new AutoQuality(Math.min(startingRung, this.ceiling), this.ceiling);
+    if (this.ceiling === undefined) return new AutoQuality(startingRung);
+    return new AutoQuality(
+      this.fromCeiling ? this.ceiling : Math.min(startingRung, this.ceiling),
+      this.ceiling,
+    );
   }
   /** Потолок сменился — человек выбрал другой уровень, и прежняя лестница о нём не знает. */
-  retarget(limit?: Rung) {
+  retarget(limit?: Rung, fromCeiling = this.fromCeiling) {
     const next = limit && ceilingFor(limit);
-    if (next === this.ceiling) return;
+    if (next === this.ceiling && fromCeiling === this.fromCeiling) return;
     this.ceiling = next;
+    this.fromCeiling = fromCeiling;
     this.quality = this.build();
   }
   observe(limitation: string, available: number | null) {
@@ -140,7 +152,7 @@ export class UpstreamBudget {
   observe(input: UpstreamInputs): UpstreamChange {
     const change: UpstreamChange = {};
     this.auto.retarget(input.screenCeiling);
-    this.cameraLadder.retarget(input.cameraCeiling);
+    this.cameraLadder.retarget(input.cameraCeiling, !input.cameraAutomatic);
 
     // Роль камеры определяется составом того, что мы отдаём, а не жалобами кодировщика:
     // рядом с демонстрацией камера маленькая всегда, а не только когда уже стало плохо.
@@ -161,7 +173,13 @@ export class UpstreamBudget {
     if (!input.sharing) {
       // Показа нет — камера и есть то, что видно, и лестница принадлежит ей. Ужатая камера
       // здесь невозможна: роль выше уже вернулась к 'full'.
-      if (input.camera && input.cameraAutomatic) {
+      //
+      // ЛЕСТНИЦА РАБОТАЕТ И ПОД ВЫБРАННЫМ УРОВНЕМ. Раньше выбранный вручную уровень не
+      // уступал ничему и никогда — и на машине, которой 1080p60 не по силам, это означало
+      // не «как выбрано», а замерший кадр у всех, кто смотрит. Выбор остаётся потолком:
+      // ниже него спускаются только после двух жалоб подряд и возвращаются наверх, едва
+      // кодировщик и канал это позволят. Запись в настройках при этом не меняется.
+      if (input.camera) {
         const next = this.cameraLadder.observe(input.limitation, input.available);
         if (next) change.cameraLevel = next;
       }
@@ -178,6 +196,11 @@ export class UpstreamBudget {
     const next = this.auto.observe(input.limitation, input.available);
     if (next) change.screen = next;
     return change;
+  }
+
+  /** Камеру включили заново: уступки прошлого включения к новому отношения не имеют. */
+  resetCamera() {
+    this.cameraLadder = new Ladder();
   }
 
   /** Демонстрация закончилась: лестница экрана начинается заново в следующий раз. */

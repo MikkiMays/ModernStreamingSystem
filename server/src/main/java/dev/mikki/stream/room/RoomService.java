@@ -111,10 +111,11 @@ public class RoomService {
           requireOpen(room);
           checkSeat(room);
           var member = newMember(room, request.name(), false, request.commandId());
-          member.status = WAITING;
-          member.approved = false;
-          member.codeRequest = true;
-          member.recoveryDeadline = null;
+          // Код — такое же приглашение, как ссылка, и решает про них обоих одна настройка
+          // комнаты. Раньше вход по коду ждал подтверждения **всегда**, и выбор «По ссылке и
+          // коду — сразу» не значил ничего: правильный номер не открывал дверь, пока хозяин
+          // не нажмёт кнопку. Теперь ждёт ровно тот, кого попросили подождать.
+          member.codeRequest = !member.approved;
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());

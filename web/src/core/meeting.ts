@@ -176,6 +176,15 @@ export class Meeting {
   private event = (event: RoomEvent, live: boolean) => {
     if (live && !this.ended.get()) {
       if (event.type === 'screen.started') this.cue('screen', event.eventId);
+      // Своё сообщение слышно как нажатие «отправить»; звучать оно должно только у других.
+      // Панель чата открыта не всегда, а сообщение — это обращение к комнате: без звука его
+      // замечали только те, кто в этот момент смотрел в правую колонку.
+      if (
+        event.type === 'message.created' &&
+        event.payload.message &&
+        event.payload.message.participantId !== this.admission.participantId
+      )
+        this.cue('message', event.eventId);
       // The room hears a screen start; only the person sharing hears that somebody came to
       // watch it. Everyone else getting that cue would be telling them about a stranger
       // arriving at a stream they are not running.

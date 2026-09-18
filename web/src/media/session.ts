@@ -40,7 +40,7 @@ import {
   type Reception,
 } from '../core/preferences';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
-import { browserCapture, type CaptureAdapter } from './capture';
+import { browserCapture, ownAudioLeaks, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
@@ -273,7 +273,18 @@ export class MediaSession {
   private deviceTracks = new Map<Track.Source, LocalTrack>();
   private captureSize = { width: 1920, height: 1080 };
   private profile = this.preferences.get().screen;
+  /** Что человек выбрал для камеры. Меняется только им, и только это попадает в настройки. */
   private cameraProfile = this.preferences.get().camera;
+  /**
+   * Чем камера идёт в сеть прямо сейчас.
+   *
+   * ЗАЧЕМ ОТДЕЛЬНО ОТ ВЫБОРА. Выбранный уровень — это потолок и обещание, а не гарантия:
+   * бывают машины, которым 1080p60 не по силам, и каналы, в которые он не проходит. Пока
+   * эти два числа были одним, у такой пары был единственный исход — замерший кадр у всех,
+   * кто смотрит, до самого конца разговора. Теперь лестница может временно спуститься ниже
+   * выбора и вернуться обратно, а сам выбор остаётся записанным и показанным как выбранный.
+   */
+  private cameraSending = this.preferences.get().camera;
   private cameraChange: Promise<void> = Promise.resolve();
   private cameraProfilePending = false;
   /**
@@ -431,6 +442,15 @@ export class MediaSession {
     if (source === Track.Source.ScreenShareAudio) return 'media';
     return this.serviceParticipants.has(identity) ? 'media' : 'conversation';
   }
+  /**
+   * Что показывается вместе и обязано совпадать по губам: камера с микрофоном, экран со
+   * звуком экрана. Пара — это участник и источник, а не один участник: он может показывать
+   * фильм и говорить одновременно, и у этих двух пар разные права на задержку.
+   */
+  private playoutGroup(identity: string, source: Track.Source) {
+    const screen = source === Track.Source.ScreenShare || source === Track.Source.ScreenShareAudio;
+    return `${identity}:${screen ? 'screen' : 'camera'}`;
+  }
   /** Служебные участники комнаты по данным ядра: их звук считается музыкой, а не речью. */
   setServiceParticipants(ids: Iterable<string>) {
     const next = new Set(ids);
@@ -454,6 +474,7 @@ export class MediaSession {
         tracks.push({
           id: publication.trackSid,
           kind: this.playoutKind(participant.identity, publication.source, track.kind),
+          group: this.playoutGroup(participant.identity, publication.source),
           receiver: track.receiver,
           stats: () => track.getRTCStatsReport(),
         });
@@ -487,6 +508,7 @@ export class MediaSession {
     this.playout.prime({
       id: publication.trackSid,
       kind: this.playoutKind(participant.identity, publication.source, track.kind),
+      group: this.playoutGroup(participant.identity, publication.source),
       receiver: track.receiver,
       stats: () => track.getRTCStatsReport(),
     });
@@ -569,7 +591,7 @@ export class MediaSession {
   private cameraOptionsNow() {
     return this.cameraRole === 'companion'
       ? companionCameraOptions(this.cameraCodec)
-      : cameraOptions(this.cameraProfile, this.cameraCodec);
+      : cameraOptions(this.cameraSending, this.cameraCodec);
   }
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
@@ -588,12 +610,15 @@ export class MediaSession {
   private async enforceCameraRate() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack) || this.cameraRole === 'companion') return;
-    const wanted = forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities());
-    if (!wanted) return;
-    try {
-      await track.mediaStreamTrack.applyConstraints(wanted);
-    } catch {
-      /* Камера не умеет столько кадров при этом кадре. Оставляем то, что она даёт. */
+    // Просьбы идут от самой строгой к самой мягкой; первая исполненная и остаётся. Отказ
+    // ничего не ломает: дорожка такая же, какой была, а недобор виден в плашке.
+    for (const wanted of forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities())) {
+      try {
+        await track.mediaStreamTrack.applyConstraints(wanted);
+        return;
+      } catch {
+        /* Камера не умеет столько при этом кадре — пробуем следующую просьбу. */
+      }
     }
   }
   /** Что мы сейчас отдаём — для решения, кому уступать. */
@@ -630,7 +655,48 @@ export class MediaSession {
   private applyUpstream(change: UpstreamChange) {
     if (change.camera) void this.applyCameraRole(change.camera);
     if (change.screen) void this.setProfile({ ...this.profile, ...change.screen });
-    if (change.cameraLevel) void this.setCameraProfile({ ...this.cameraProfile, ...change.cameraLevel });
+    if (change.cameraLevel)
+      // В «Авто» ступень лестницы — это и есть текущий выбор, и она запоминается: следующий
+      // разговор начнётся с неё, а не с настроек по умолчанию. Выбранный руками уровень
+      // менять нельзя: человек его назвал, и подмена записи была бы подменой самого выбора.
+      void (this.cameraProfile.automatic
+        ? this.setCameraProfile({ ...this.cameraProfile, ...change.cameraLevel })
+        : this.setCameraSending({ ...this.cameraProfile, ...change.cameraLevel }));
+  }
+  /**
+   * Сменить то, чем камера идёт в сеть, не трогая выбор человека.
+   *
+   * Захват остаётся прежним — тем, что выбрано: пересобирать источник ради битрейта незачем,
+   * а вернуться наверх из уменьшенного захвата было бы уже некуда. Переопубликовать всё же
+   * приходится: слои simulcast считаются при публикации и на месте не меняются.
+   */
+  private setCameraSending(level: ScreenProfile) {
+    if (level.resolution === this.cameraSending.resolution && level.fps === this.cameraSending.fps)
+      return this.cameraChange;
+    this.cameraSending = level;
+    this.cameraChange = this.cameraChange.then(async () => {
+      if (this.disposed || !this.wanted.camera || this.cameraRole === 'companion') return;
+      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (!(track instanceof LocalVideoTrack)) return;
+      const applied = this.cameraSending;
+      this.deviceBusy.add('camera');
+      try {
+        await this.room.localParticipant.unpublishTrack(track, false);
+        if (this.disposed || applied !== this.cameraSending) return;
+        await this.room.localParticipant.publishTrack(track, {
+          ...this.cameraOptionsNow(),
+          source: Track.Source.Camera,
+        });
+        this.applyCameraHint();
+        if (this.disposed) track.stop();
+        this.refreshTracks();
+      } catch (error) {
+        this.report(error);
+      } finally {
+        this.deviceBusy.delete('camera');
+      }
+    });
+    return this.cameraChange;
   }
   /**
    * Переопубликовать камеру другим кадром.
@@ -953,7 +1019,12 @@ export class MediaSession {
       } else {
         // Кодек выбирается до публикации: поменять его потом — это переговоры и перерыв в
         // картинке, а ответ платформы от момента вопроса не зависит.
-        if (!this.state.get().camera) await this.ensureCameraCodec();
+        if (!this.state.get().camera) {
+          await this.ensureCameraCodec();
+          // Каждое включение начинается с выбранного уровня: прежняя уступка не наследуется.
+          this.cameraSending = this.cameraProfile;
+          this.budget.resetCamera();
+        }
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
           { deviceId, ...this.cameraCaptureNow() },
@@ -1138,6 +1209,14 @@ export class MediaSession {
       if (!video) throw new Error('Не удалось получить экран');
       video.addEventListener('ended', captureEnded, { once: true });
       const settings = video.getSettings();
+      // Звук всего экрана — это и звук самого Cord. Если браузер не умеет его вычесть, лучше
+      // сказать об этом сразу, чем оставить зрителя гадать, почему он слышит сам себя.
+      if (ownAudioLeaks(video, stream.getAudioTracks()[0]))
+        this.report(
+          new Error(
+            'Этот браузер не умеет убирать звук самого Cord из звука системы: зрители услышат и разговор, и собственный голос. Поделитесь окном или вкладкой — либо обновите браузер.',
+          ),
+        );
       this.captureSize = { width: settings.width ?? 1920, height: settings.height ?? 1080 };
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
       await video.applyConstraints({
@@ -1242,6 +1321,9 @@ export class MediaSession {
   }
   setCameraProfile(profile: ScreenProfile) {
     this.cameraProfile = profile;
+    // Новый выбор отменяет прежнюю уступку: отдаём то, что назвали, и только если не выйдет —
+    // лестница спустится снова, уже от нового потолка.
+    this.cameraSending = profile;
     this.cameraProfilePending = true;
     this.preferences.set(savePreferences({ camera: profile }));
     this.cameraChange = this.cameraChange.then(async () => {
@@ -1379,7 +1461,9 @@ export class MediaSession {
               ? this.profile.fps
               : this.cameraRole === 'companion'
                 ? companionCamera.fps
-                : this.cameraProfile.fps,
+                : // Сравнивать надо с тем, что просили у кодировщика сейчас, а не с выбором:
+                  // иначе временная уступка читалась бы как «камера не даёт столько кадров».
+                  this.cameraSending.fps,
           dormant,
         });
       // Новые кодеки красивее, но стоят дороже. Три жалобы подряд на процессор означают, что

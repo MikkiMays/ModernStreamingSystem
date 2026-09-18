@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type ReactNode,
   type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
 } from 'react';
 import type { Store } from '../core/store';
 import { windowsRelease } from '../core/download';
@@ -110,6 +111,43 @@ export function IconButton({
     <button type="button" aria-label={label} title={label} className={`icon-button ${className}`} {...props}>
       {children}
     </button>
+  );
+}
+/**
+ * Ползунок, у которого ноль пуст, а сотня полна.
+ *
+ * ЗАЧЕМ СВОЙ. Нативный `input[type=range]` с `accent-color` рисует заливку не до значения, а
+ * **до центра бегунка**, а тот ходит с отступом в половину своей ширины от обоих краёв.
+ * Отсюда и жалоба: на нуле слева торчит синий огрызок — читается как «уже плюс пять», — а на
+ * сотне справа остаётся серый, то есть «не доехало». Числа при этом честные, врёт картинка.
+ *
+ * Здесь заливка считается от самого значения (`--slider-p` — доля от нуля до единицы), и
+ * бегунок её просто накрывает: на краях расхождение прячется под ним, в середине его нет.
+ */
+export function Slider({
+  min = 0,
+  max = 100,
+  value,
+  className = '',
+  style,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'min' | 'max'> & {
+  min?: number;
+  max?: number;
+  value: number;
+}) {
+  const span = max - min || 1;
+  const filled = Math.min(1, Math.max(0, (value - min) / span));
+  return (
+    <input
+      {...props}
+      type="range"
+      min={min}
+      max={max}
+      value={value}
+      className={`slider ${className}`.trim()}
+      style={{ ...style, '--slider-p': filled } as CSSProperties}
+    />
   );
 }
 export function Modal({

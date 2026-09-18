@@ -247,6 +247,25 @@ it('tells only the person sharing that somebody came to watch', async () => {
   expect(cues).toContain('screen');
 });
 
+it('звучит на чужое сообщение в чате и молчит на своё', async () => {
+  meeting.start();
+  const control = meeting.control as unknown as { onEvent: (event: unknown, live: boolean) => void };
+  const written = (participantId: string, eventId: string) => ({
+    version: 1,
+    type: 'message.created',
+    eventId,
+    sequence: 11,
+    occurredAt: 0,
+    payload: { message: { id: 'm', participantId, name: 'Кто-то', text: 'привет' } },
+  });
+  control.onEvent(written('guest', 'mine'), true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(cues).not.toContain('message');
+  control.onEvent(written('other', 'theirs'), true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(cues).toContain('message');
+});
+
 it('resolves a room deletion when the SFU disconnect arrives before its control event', async () => {
   meeting.start();
   snapshot = { ...snapshot, sequence: 3, closedAt: Date.now(), participants: [] };

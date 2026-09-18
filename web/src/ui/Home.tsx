@@ -1,4 +1,14 @@
-import { ArrowDownLeft, ArrowRight, Link, Plus, Video, Star, ShieldCheck, Settings2 } from 'lucide-react';
+import {
+  ArrowDownLeft,
+  ArrowRight,
+  Link,
+  Plus,
+  Video,
+  Star,
+  ServerCog,
+  ShieldCheck,
+  Settings2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../api/client';
@@ -150,7 +160,12 @@ function BrowserHome({
                 required
               />
             </div>
-            <small className="join-code-hint">По коду организатор подтвердит ваш вход.</small>
+            {/* Раньше здесь стояло «по коду организатор подтвердит ваш вход» — и так оно и
+                работало, вопреки настройке комнаты. Теперь решает комната, и обещать за неё
+                нельзя ни того, ни другого. */}
+            <small className="join-code-hint">
+              Правильный код открывает комнату сразу — если её хозяин не попросил подтверждать вход.
+            </small>
             {error && (
               <p role="alert" className="form-error">
                 {error}
@@ -164,7 +179,9 @@ function BrowserHome({
         <section className="recent-section">
           <div className="section-title">
             <h2>Избранные комнаты</h2>
-            <span>{favorites.data?.length ?? 0} / 5</span>
+            {/* Счётчик «N / 5» ушёл вместе с самим ограничением: сервер ваш, и сколько на нём
+                комнат — не вопрос приложения. */}
+            {!!favorites.data?.length && <span>{favorites.data.length}</span>}
           </div>
           {!!favorites.data?.length ? (
             <div className="recent-list">
@@ -223,9 +240,30 @@ function BrowserHome({
             </p>
           )}
         </section>
+        {/*
+          ЗАЧЕМ ЭТОТ БЛОК. Главная отвечает на «как войти» — это первое, зачем сюда приходят,
+          и оно остаётся сверху. Но приходят по чужой ссылке, и вопрос «а это чей вообще
+          Cord?» возникает следом. Ответ на него — не список возможностей, а одна мысль:
+          сервис, на который записываются, и программа, которую ставят себе, — разные вещи,
+          и Cord вторая. Поэтому здесь нет ни кнопки, ни формы: это не призыв, а разворот.
+        */}
+        <section className="own-server">
+          <span className="own-server-eyebrow">
+            <ServerCog size={15} /> ЭТО МОЖНО ПОСТАВИТЬ СЕБЕ
+          </span>
+          <h2>Свой сервер. Свои люди. Свой Cord.</h2>
+          <p>
+            Cord не живёт в облаке — он живёт там, куда вы его поставили. Одна машина, одна команда{' '}
+            <code>./setup.sh</code> — и адрес встреч ваш: ваши комнаты, ваши файлы, ваши голоса. Без
+            аккаунтов, без чужих правил и без чужих ограничений.
+          </p>
+          <p className="own-server-note">
+            Эта страница уже работает на чьём-то сервере. Следующая может работать на вашем.
+          </p>
+        </section>
         <footer className="home-footer">
           <ShieldCheck size={16} />
-          <span>До 10 участников · Два экрана одновременно · Временные файлы</span>
+          <span>Разговор целиком на этом сервере · Временные файлы · Без аккаунтов</span>
         </footer>
         {capabilities.isError && (
           <p className="service-note" role="status">

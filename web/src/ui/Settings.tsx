@@ -31,8 +31,9 @@ import { DeviceCheck } from './DeviceCheck';
 import type { ScreenProfile, FrameRate, Resolution } from '../media/profiles';
 import type { NetworkMode } from '../media/playout';
 import { gradeName, pathName, unknownLink, type LinkState } from '../media/link-quality';
-import { Avatar, Modal, useStore, type Theme } from './primitives';
-import { readAvatar } from '../core/avatar';
+import { Avatar, Modal, Slider, useStore, type Theme } from './primitives';
+import { openPicture } from '../core/avatar';
+import { AvatarCropper } from './AvatarCropper';
 import { useMicLevel } from './useMicLevel';
 import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
@@ -52,9 +53,15 @@ function AvatarPicker({
 }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Выбранная картинка до того, как выбран кадр: пока она здесь, открыто окно кадрирования.
+  const [chosen, setChosen] = useState<ImageBitmap | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const desktop =
     typeof matchMedia !== 'function' || matchMedia('(pointer: fine)').matches || !!window.chrome?.webview;
+  const forget = () => {
+    chosen?.close();
+    setChosen(null);
+  };
   if (!desktop) return null;
   return (
     <div>
@@ -75,7 +82,9 @@ function AvatarPicker({
               setBusy(true);
               setError('');
               try {
-                change({ avatar: await readAvatar(chosen) });
+                // Кадр выбирается после чтения файла, а не вместо него: в кружок попадёт то,
+                // что человек увидит в рамке, а не то, что оказалось в середине снимка.
+                setChosen(await openPicture(chosen));
               } catch (problem) {
                 setError((problem as Error).message);
               } finally {
@@ -99,6 +108,16 @@ function AvatarPicker({
         </p>
       ) : (
         <p className="form-footnote">Её увидят участники встречи. Картинка уменьшается до 64×64.</p>
+      )}
+      {chosen && (
+        <AvatarCropper
+          bitmap={chosen}
+          onCancel={forget}
+          onSave={(avatar) => {
+            change({ avatar });
+            forget();
+          }}
+        />
       )}
     </div>
   );
@@ -300,13 +319,13 @@ export function AudioFields({
           nothing would be a lie. It stays visible to show what the setting took over. */}
       <label className="gain-setting" data-disabled={audio.autoGainControl}>
         Уровень передачи · {audio.autoGainControl ? 'автоматический' : `${Math.round(audio.gain * 100)}%`}
-        <input
-          type="range"
-          min="0"
-          max="200"
-          step="5"
+        <Slider
+          min={0}
+          max={200}
+          step={1}
           disabled={audio.autoGainControl}
-          value={audio.gain * 100}
+          value={Math.round(audio.gain * 100)}
+          aria-label="Уровень передачи микрофона"
           onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
         />
       </label>
@@ -345,7 +364,10 @@ export function SoundFields({ enabled, change }: { enabled: boolean; change: (en
         <input type="checkbox" checked={enabled} onChange={(e) => change(e.target.checked)} />
         <span>
           Сообщать звуком о том, что происходит во встрече
-          <small>Вход и выход каждого участника, запрос на вход, ваш собственный вход и выход.</small>
+          <small>
+            Вход и выход каждого участника, запрос на вход, новое сообщение в чате, ваш собственный вход и
+            выход.
+          </small>
         </span>
       </label>
       <div className="sound-samples">
@@ -355,6 +377,7 @@ export function SoundFields({ enabled, change }: { enabled: boolean; change: (en
             ['join', 'Кто-то вошёл'],
             ['leave', 'Кто-то вышел'],
             ['knock', 'Просятся войти'],
+            ['message', 'Сообщение в чате'],
             ['screen', 'Начался показ экрана'],
           ] as const
         ).map(([cue, title]) => (

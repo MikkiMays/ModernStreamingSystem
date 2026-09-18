@@ -19,6 +19,8 @@
   --blue-soft: #eaf0ff;
   --shadow: 0 12px 44px #1722340a;
   --radius: 20px;
+  /* Стрелка выпадающего списка. Цвет вшит в картинку, поэтому у каждой темы она своя. */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%236c7484' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   /* Кто говорит. Зелёный здесь читается как «идёт звук», а не как «всё в порядке». */
   --speaking: #2f9e5f;
   color: var(--text);
@@ -39,6 +41,7 @@
   --blue-hover: #85a0ff;
   --blue-soft: #293653;
   --shadow: 0 12px 44px #0002;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23a0a8b9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   --speaking: #45d17f;
 }
 @media (prefers-color-scheme: dark) {
@@ -54,6 +57,7 @@
     --blue-hover: #85a0ff;
     --blue-soft: #293653;
     --shadow: 0 12px 44px #0002;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23a0a8b9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
     --speaking: #45d17f;
   }
 }
@@ -124,6 +128,82 @@ input[type='radio'] {
   margin: 0;
   accent-color: var(--blue);
   cursor: pointer;
+}
+/*
+  Выпадающий список.
+
+  Нативная стрелка живёт вплотную к правому краю и спорит со скруглением в 11 пикселей:
+  выглядит так, будто она наполовину вылезла из поля. Поэтому рисуем свою — с тем же
+  отступом, что и текст слева, — и оставляем ей место в padding, чтобы длинное название
+  устройства под неё не заезжало.
+*/
+select {
+  appearance: none;
+  padding-right: 40px;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 8px;
+}
+/*
+  Ползунок. Почему заливка считается так, а не встроенным `accent-color`, — в `Slider`.
+*/
+.slider {
+  --slider-p: 0;
+  appearance: none;
+  width: 100%;
+  min-height: 0;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    var(--line) calc(var(--slider-p) * 100%)
+  );
+}
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px #00000026;
+  /* (высота дорожки − высота бегунка) ÷ 2: иначе бегунок стоит на дорожке, а не на ней. */
+  margin-top: -5px;
+}
+.slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    var(--line) calc(var(--slider-p) * 100%)
+  );
+}
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px #00000026;
+}
+.slider:disabled {
+  cursor: not-allowed;
+}
+.slider:disabled::-webkit-slider-thumb {
+  background: var(--muted);
+}
+.slider:disabled::-moz-range-thumb {
+  background: var(--muted);
 }
 input::placeholder,
 textarea::placeholder {
@@ -466,6 +546,60 @@ h2 {
   padding: 11px;
   background: var(--surface-2);
   border-radius: 12px;
+}
+/*
+  Блок про свой сервер. Не карточка с кнопкой: кнопки на главной заняты входом, и спорить с
+  ними нечему. Это тихая плашка в ширину страницы — её читают после того, как вошли.
+*/
+.own-server {
+  margin-top: 46px;
+  padding: 26px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--blue-soft), var(--surface) 65%);
+}
+.own-server-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  color: var(--muted);
+}
+.own-server h2 {
+  margin-top: 10px;
+  font-size: 23px;
+  letter-spacing: -0.7px;
+}
+.own-server p {
+  margin-top: 10px;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+.own-server code {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  white-space: nowrap;
+}
+.own-server-note {
+  font-style: italic;
+  color: var(--text);
+  opacity: 0.75;
+}
+@media (max-width: 620px) {
+  .own-server {
+    padding: 20px 18px;
+  }
+  .own-server h2 {
+    font-size: 19px;
+  }
 }
 .home-footer {
   display: flex;
@@ -2296,7 +2430,10 @@ progress {
   }
   .settings-form select {
     font-size: 11px;
-    padding-inline: 9px;
+    /* Место под стрелку остаётся и на узком экране: без него название заезжает под неё. */
+    padding-left: 9px;
+    padding-right: 32px;
+    background-position: right 10px center;
   }
   .invite-qr {
     margin: 18px auto;
@@ -2377,6 +2514,43 @@ progress {
 }
 .modal-wide {
   width: min(780px, calc(100vw - 32px));
+}
+/*
+  Кадрирование картинки профиля. Круг здесь не украшение: комната показывает аватар кружком,
+  и рамка обязана показывать ровно то же самое. Снаружи круга картинка не прячется, а гасится —
+  так видно, что именно останется за кадром.
+*/
+.avatar-crop {
+  position: relative;
+  width: 256px;
+  height: 256px;
+  margin: 14px auto 6px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.avatar-crop-stage {
+  display: block;
+  width: 256px;
+  height: 256px;
+  cursor: grab;
+  touch-action: none;
+}
+.avatar-crop-stage:active {
+  cursor: grabbing;
+}
+.avatar-crop-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 9999px #0000008c,
+    inset 0 0 0 2px #ffffff5c;
+}
+.avatar-crop-zoom {
+  max-width: 256px;
+  margin: 0 auto 6px;
 }
 /* A disabled slider still has to read as a control that exists, not as broken furniture. */
 .gain-setting[data-disabled='true'] {

@@ -66,7 +66,11 @@ function screenFixture() {
     applyConstraints: vi.fn(async () => {}),
     stop: vi.fn(),
   });
-  const stream = { getVideoTracks: () => [video], getTracks: () => [video] } as unknown as MediaStream;
+  const stream = {
+    getVideoTracks: () => [video],
+    getAudioTracks: () => [],
+    getTracks: () => [video],
+  } as unknown as MediaStream;
   const result = fixture({ supported: () => true, capture: async () => stream });
   const permissions = {
     canPublish: true,

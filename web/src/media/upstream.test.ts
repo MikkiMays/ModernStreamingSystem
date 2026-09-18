@@ -138,11 +138,30 @@ describe('лестница камеры, когда показа нет', () => 
     expect(budget.observe(tight).cameraLevel).toEqual(ladder[startingRung - 1]);
   });
 
-  it('не трогает камеру, выбранную вручную', () => {
+  it('выбранный вручную уровень не трогает, пока он выходит', () => {
     const budget = new UpstreamBudget();
-    const chosen = alone({ cameraAutomatic: false });
+    const chosen = alone({ cameraAutomatic: false, cameraCeiling: { resolution: 1080, fps: 60 } });
     for (let i = 0; i < 12; i++) expect(budget.observe(chosen).cameraLevel).toBeUndefined();
-    expect(budget.cameraRung).toEqual(ladder[startingRung]);
+    // Ни вверх — выше выбора идти некуда, — ни вниз: жаловаться не на что.
+    expect(budget.cameraRung).toEqual({ resolution: 1080, fps: 60 });
+  });
+
+  /**
+   * Выбор — это потолок, а не заклинание. Машина, которой 1080p60 не по силам, при прежнем
+   * поведении отдавала замерший кадр до конца разговора: уровень не уступал ничему.
+   */
+  it('выбранный вручную уровень уступает, когда не выходит, и возвращается сам', () => {
+    const budget = new UpstreamBudget();
+    const ceiling = { resolution: 1080 as const, fps: 60 as const };
+    const hard = { cameraAutomatic: false, cameraCeiling: ceiling };
+    const tight = alone({ ...hard, limitation: 'cpu', available: mbps(1) });
+    // Разгон не считается жалобой, и одной жалобы мало: спуск начинается с четвёртого опроса.
+    for (let i = 0; i < SETTLE_TICKS + 1; i++) expect(budget.observe(tight).cameraLevel).toBeUndefined();
+    expect(budget.observe(tight).cameraLevel).toEqual({ resolution: 1080, fps: 30 });
+    const calm = alone({ ...hard, available: mbps(50) });
+    let restored;
+    for (let i = 0; i < 6; i++) restored = budget.observe(calm).cameraLevel ?? restored;
+    expect(restored).toEqual(ceiling);
   });
 
   it('пока идёт показ, камерой распоряжается роль, а не лестница', () => {

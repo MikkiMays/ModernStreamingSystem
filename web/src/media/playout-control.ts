@@ -21,6 +21,15 @@ export interface PlayoutTrack {
   /** Устойчивый идентификатор дорожки: trackSid публикации. */
   id: string;
   kind: PlayoutClass;
+  /**
+   * Что с чем показывается вместе: камера с микрофоном, экран со звуком экрана.
+   *
+   * Нужно ради губ. Запас приёма — это **минимальная** задержка воспроизведения, и если
+   * видео потребовало себе секунду, а разговор живёт на ста миллисекундах, то картинка и
+   * голос разъезжаются ровно на эту разницу. Свести их обратно браузер уже не может: мы
+   * сами запретили ему показывать кадр раньше.
+   */
+  group?: string;
   receiver?: RTCRtpReceiver;
   stats(): Promise<RTCStatsReport | undefined>;
 }
@@ -110,7 +119,13 @@ export class PlayoutController {
     if (this.linkState.ordered !== previousOrdered) this.retune();
 
     const result: PlayoutReport[] = [];
-    for (const { track, report } of collected) {
+    // Звук считается первым: видео берёт запас у своего звука, а не наоборот. Наоборот было
+    // бы хуже всего — голос ждал бы картинку, и разговор стал бы рацией из-за одного фриза.
+    const ordered = [...collected].sort(
+      (a, b) => Number(a.track.kind === 'video') - Number(b.track.kind === 'video'),
+    );
+    const heard = new Map<string, number>();
+    for (const { track, report } of ordered) {
       const sample = readInbound(report, track.kind);
       if (!sample) continue;
       let entry = this.buffers.get(track.id);
@@ -130,12 +145,23 @@ export class PlayoutController {
         this.buffers.set(track.id, entry);
       }
       const decision = entry.buffer.observe(sample, now);
+      if (track.kind !== 'video' && track.group) heard.set(track.group, decision.targetMs);
+      // У картинки нет своего права на задержку: она обязана совпадать с губами. Поэтому,
+      // когда рядом есть звук того же участника, видео просит ровно столько же, сколько он, —
+      // в границах, где это для видео вообще имеет смысл. Свой счёт остаётся только у
+      // дорожки без звука: у демонстрации экрана, которую показывают молча.
+      const together = track.kind === 'video' && track.group ? heard.get(track.group) : undefined;
+      const profile = profileFor(track.kind, this.mode, this.linkState);
+      const targetMs =
+        together === undefined
+          ? decision.targetMs
+          : Math.round(Math.min(profile.ceilingMs, Math.max(profile.floorMs, together)));
       let applied = false;
-      if (entry.appliedMs === null || Math.abs(decision.targetMs - entry.appliedMs) >= MEANINGFUL_MS) {
-        applied = applyPlayoutTarget(track.receiver, decision.targetMs);
-        if (applied) entry.appliedMs = decision.targetMs;
+      if (entry.appliedMs === null || Math.abs(targetMs - entry.appliedMs) >= MEANINGFUL_MS) {
+        applied = applyPlayoutTarget(track.receiver, targetMs);
+        if (applied) entry.appliedMs = targetMs;
       }
-      result.push({ ...decision, id: track.id, kind: track.kind, applied });
+      result.push({ ...decision, targetMs, id: track.id, kind: track.kind, applied });
     }
     return result;
   }
@@ -162,14 +188,17 @@ export class PlayoutController {
 
   /** Сколько запаса мы сами попросили для этой дорожки, или 0, если ещё не просили. */
   targetFor(id: string) {
-    return this.buffers.get(id)?.buffer.target ?? 0;
+    const entry = this.buffers.get(id);
+    // Именно попросили, а не насчитали: у видео эти числа расходятся, когда оно идёт за
+    // своим звуком, а спрашивают отсюда для того, чтобы не считать наш запас отставанием.
+    return entry?.appliedMs ?? entry?.buffer.target ?? 0;
   }
 
   targets(): { id: string; kind: PlayoutClass; targetMs: number }[] {
     return [...this.buffers].map(([id, entry]) => ({
       id,
       kind: entry.buffer.kind,
-      targetMs: entry.buffer.target,
+      targetMs: entry.appliedMs ?? entry.buffer.target,
     }));
   }
 }
