@@ -3,6 +3,7 @@ import type { Meeting } from '../core/meeting';
 import { readPreferences } from '../core/preferences';
 import { Store } from '../core/store';
 import type { OutboundVideo } from '../media/session';
+import { outboundNote } from '../media/outbound-note';
 import { useStore } from './primitives';
 const noPing = new Store<number | null>(null);
 const noControl = new Store('closed');
@@ -17,12 +18,6 @@ const noVideo = new Store<OutboundVideo | null>(null);
  * которые человек выставлял: размер кадра, частота и мегабиты. Числа измеренные, а не
  * запрошенные; если они не сходятся с настройкой — это и есть ответ.
  */
-function limitationLabel(reason: string) {
-  if (reason === 'bandwidth') return 'канал';
-  if (reason === 'cpu') return 'процессор';
-  return '';
-}
-
 export function Ping({ meeting }: { meeting?: Meeting | null }) {
   const [enabled, setEnabled] = useState(() => readPreferences().showPing);
   const [http, setHttp] = useState<number | null>(null);
@@ -76,7 +71,7 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   if (!enabled) return null;
   const disconnected = meeting ? control === 'recovering' || control === 'closed' : offline;
   const value = meeting ? rtt : http;
-  const limited = video ? limitationLabel(video.limitation) : '';
+  const note = video ? outboundNote(video) : '';
   return (
     <div
       className="ping-badge"
@@ -97,7 +92,7 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
           {' · '}
           {video.fps} fps
           {video.mbps > 0 && ` · ${video.mbps.toFixed(1)} Мбит/с`}
-          {limited && <span className="ping-limited"> · ограничивает {limited}</span>}
+          {note && <span className="ping-limited"> · {note}</span>}
         </>
       )}
     </div>

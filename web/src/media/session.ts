@@ -9,7 +9,6 @@ import {
   LocalAudioTrack,
   ConnectionQuality,
   DisconnectReason,
-  VideoQuality,
   type Participant,
   type LocalTrack,
   type VideoCodec,
@@ -25,6 +24,8 @@ import {
   screenOptions,
   cameraCapture,
   cameraOptions,
+  forcedCameraConstraints,
+  companionCamera,
   companionCameraCapture,
   companionCameraOptions,
   type ScreenProfile,
@@ -86,6 +87,21 @@ export interface OutboundVideo {
   mbps: number;
   /** `qualityLimitationReason`: почему кодировщик отдаёт меньше, чем его просили. */
   limitation: string;
+  /**
+   * Какую частоту у этой дорожки просили. Нужна, чтобы отличить «кодировщику тесно» от
+   * «источник столько и не даёт»: кодировщик о втором не сообщает ничего — с его точки
+   * зрения он успевает за всем, что ему приносят.
+   */
+  targetFps: number;
+  /**
+   * Есть ли слой, который опубликован, но сейчас не отправляется.
+   *
+   * Так выглядит dynacast: пока никто не смотрит крупно, верхний слой спит, и в сеть уходит
+   * тот, что помельче. Это не понижение качества — стоит кому-нибудь развернуть плитку, и
+   * слой проснётся, — но без этого признака плашка показывала бы 720p при выбранном 1080p
+   * и читалась бы как «настройка не применилась».
+   */
+  dormant: boolean;
 }
 
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
@@ -130,28 +146,6 @@ export class MediaSession {
         const wanted = this.shouldSubscribe(participant.identity, publication.source);
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
-  };
-  /** Каждая подписанная видеодорожка. */
-  private *remoteVideo() {
-    for (const participant of this.room.remoteParticipants.values())
-      for (const publication of participant.videoTrackPublications.values())
-        if (publication.isSubscribed) yield publication;
-  }
-  /**
-   * Попросить у сервера верхний слой.
-   *
-   * Только когда адаптация выключена: при включённой это ничего не даёт — размеры плитки
-   * всё равно окажутся меньше и победят, — и выглядело бы как настройка, которая не работает.
-   */
-  private pinQuality = () => {
-    if (this.adaptive) return;
-    for (const publication of this.remoteVideo()) publication.setVideoQuality(VideoQuality.HIGH);
-  };
-  private followVisibility = () => {
-    if (this.adaptive || this.disposed) return;
-    const visible = !document.hidden;
-    for (const publication of this.remoteVideo())
-      if (publication.isEnabled !== visible) publication.setEnabled(visible);
   };
   private receivePreview = (payload: Uint8Array, participant?: Participant, _?: unknown, topic?: string) => {
     if (topic !== PREVIEW_TOPIC || !participant || this.disposed || !payload.byteLength) return;
@@ -220,15 +214,6 @@ export class MediaSession {
    */
   private cameraCodec: VideoCodec = 'vp8';
   private cameraCodecChosen?: Promise<VideoCodec>;
-  /**
-   * Подстраивается ли приём под размер плитки.
-   *
-   * Выключен, когда человек выбрал уровень руками. Проверено в SDK: пока adaptiveStream
-   * включён, размеры плитки побеждают `setVideoQuality`, если они меньше, — то есть попросить
-   * максимум и одновременно оставить адаптацию нельзя. Выбранный уровень — указание, и оно
-   * относится к обеим сторонам: незачем отдавать 1440p, чтобы принять 360p.
-   */
-  private readonly adaptive: boolean;
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
   private deviceBusy = new Set<string>();
@@ -267,12 +252,19 @@ export class MediaSession {
     private capture: CaptureAdapter = browserCapture,
   ) {
     this.recovery = new RecoveryWindow((api.admission.recoverySeconds || 20) * 1000);
-    this.adaptive = this.cameraProfile.automatic && this.profile.automatic;
     this.room = new Room({
-      // `pixelDensity: 'screen'` — потому что плитка в 740 CSS-пикселей на экране с масштабом
-      // 150 % занимает 1110 настоящих, а запрос по умолчанию считает первое. На любом
-      // масштабированном мониторе это систематически на слой ниже, всегда и у всех.
-      adaptiveStream: this.adaptive ? { pixelDensity: 'screen' } : false,
+      // ПРИЁМ ПОДСТРАИВАЕТСЯ ПОД РАЗМЕР ПЛИТКИ — ВСЕГДА. Адаптация выключалась, когда
+      // человек выбирал уровень **отдачи** руками: «выбранный уровень относится к обеим
+      // сторонам». Это связывало два разных решения. То, каким я отдаю свою картинку, ничего
+      // не говорит о том, каким мне нужен чужой экран в плитке размером с визитку, — а
+      // платили за это все: комната отдавала верхний слой каждому, кто хоть раз тронул
+      // настройки, включая тех, кому он не по каналу.
+      //
+      // Размер плитки — правильный признак, и считается он у каждого свой: развёрнутая на
+      // весь экран демонстрация просит верхний слой и получает его, плитка в угол — мелкий.
+      // `pixelDensity: 'screen'` — потому что плитка в 740 CSS-пикселей на мониторе с
+      // масштабом 150 % занимает 1110 настоящих, и без этого выбор всегда на слой ниже.
+      adaptiveStream: { pixelDensity: 'screen' },
       dynacast: true,
       webAudioMix: true,
       stopLocalTrackOnUnpublish: false,
@@ -318,7 +310,6 @@ export class MediaSession {
       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
-      .on(RoomEvent.TrackSubscribed, this.pinQuality)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
         if (publication) this.playout.forget(publication.trackSid);
@@ -346,9 +337,6 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
-    // Свёрнутая вкладка не должна тянуть чужое видео. Обычно это делает adaptiveStream, но он
-    // выключен, когда человек попросил максимум, — значит, за паузой следим сами.
-    if (!this.adaptive) document.addEventListener('visibilitychange', this.followVisibility);
     this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
@@ -512,6 +500,24 @@ export class MediaSession {
     if (track instanceof LocalVideoTrack)
       track.mediaStreamTrack.contentHint =
         this.cameraRole === 'companion' ? 'motion' : cameraHint(this.cameraProfile);
+    void this.enforceCameraRate();
+  }
+  /**
+   * Потребовать у камеры выбранную частоту, а не попросить.
+   *
+   * Отказ здесь ничего не ломает: дорожка остаётся той же, какой была, а насколько камера
+   * не дотянула — видно в плашке. Поэтому `min` ставится после захвата, а не в нём.
+   */
+  private async enforceCameraRate() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (!(track instanceof LocalVideoTrack) || this.cameraRole === 'companion') return;
+    const wanted = forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities());
+    if (!wanted) return;
+    try {
+      await track.mediaStreamTrack.applyConstraints(wanted);
+    } catch {
+      /* Камера не умеет столько кадров при этом кадре. Оставляем то, что она даёт. */
+    }
   }
   /** Что мы сейчас отдаём — для решения, кому уступать. */
   private upstreamInputs(limitation = 'none', available: number | null = null) {
@@ -747,7 +753,6 @@ export class MediaSession {
     void this.restoreTracks(cycle);
     this.patch({ status: 'connected', remaining: this.recovery.durationMs / 1000, error: null });
     this.startUpstreamMonitor();
-    this.pinQuality();
     this.refreshTracks();
   };
   private refreshTracks = () => {
@@ -1263,6 +1268,7 @@ export class MediaSession {
       let fps = 0;
       let bytes = 0;
       let at = 0;
+      let dormant = false;
       report?.forEach((stat) => {
         if (stat.type === 'candidate-pair' && typeof stat.availableOutgoingBitrate === 'number')
           available = stat.availableOutgoingBitrate;
@@ -1271,6 +1277,7 @@ export class MediaSession {
           limitation = stat.qualityLimitationReason;
         bytes += Number(stat.bytesSent ?? 0);
         at = Math.max(at, Number(stat.timestamp ?? 0));
+        if (stat.active === false) dormant = true;
         // Слоёв может быть несколько; «что мы отдаём» — это самый крупный из них.
         const frame = Number(stat.frameWidth ?? 0);
         if (frame >= width) {
@@ -1290,6 +1297,13 @@ export class MediaSession {
           fps: Math.round(fps),
           mbps: seconds > 0 ? Math.max(0, ((bytes - previous!.bytes) * 8) / seconds / 1000000) : 0,
           limitation,
+          targetFps:
+            leading.source === 'screen'
+              ? this.profile.fps
+              : this.cameraRole === 'companion'
+                ? companionCamera.fps
+                : this.cameraProfile.fps,
+          dormant,
         });
       // Новые кодеки красивее, но стоят дороже. Три жалобы подряд на процессор означают, что
       // этот обмен не удался, и совместимый кодек лучше испорченной картинки.
@@ -1336,7 +1350,6 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
-    document.removeEventListener('visibilitychange', this.followVisibility);
     this.previewSource.stop();
     this.previewImages.clear();
     this.screenPreviews.set({});

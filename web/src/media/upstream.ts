@@ -144,7 +144,12 @@ export class UpstreamBudget {
 
     // Роль камеры определяется составом того, что мы отдаём, а не жалобами кодировщика:
     // рядом с демонстрацией камера маленькая всегда, а не только когда уже стало плохо.
-    const wanted: CameraRole = input.sharing && input.camera ? 'companion' : 'full';
+    //
+    // Но только в «Авто». Выбранный руками уровень — это указание, а не совет, и молча
+    // подменять его на 360p значит ровно то, чего от настройки не ждут: человек выставил
+    // число, а отдаётся другое, и узнать об этом можно было только из сноски в настройках.
+    // Кто выбрал уровень сам, тот и решает, что делать с мегабитами, когда включает показ.
+    const wanted: CameraRole = input.sharing && input.camera && input.cameraAutomatic ? 'companion' : 'full';
     if (wanted !== this.role) {
       const demoted = wanted === 'companion';
       this.role = wanted;

@@ -9,7 +9,7 @@ const inputs = (patch: Partial<Parameters<UpstreamBudget['observe']>[0]> = {}) =
   limitation: 'none',
   available: null,
   screenAutomatic: true,
-  cameraAutomatic: false,
+  cameraAutomatic: true,
   ...patch,
 });
 
@@ -88,6 +88,19 @@ describe('очередь уступок', () => {
   it('ужимает камеру даже при выбранном вручную уровне экрана: это разные решения', () => {
     const budget = new UpstreamBudget();
     expect(budget.observe(tight({ screenAutomatic: false })).camera).toBe('companion');
+  });
+
+  /**
+   * Главное свойство ручного выбора. Ужатие до 360p — это решение за человека, и принимать
+   * его можно только там, где он сам попросил решать за него. Иначе настройка показывает
+   * одно число, а в комнату уходит другое, и узнать об этом неоткуда.
+   */
+  it('не ужимает камеру, уровень которой выбран вручную', () => {
+    const budget = new UpstreamBudget();
+    const chosen = tight({ cameraAutomatic: false });
+    expect(budget.observe(chosen).camera).toBeUndefined();
+    for (let i = 0; i < 4; i++) budget.observe(chosen);
+    expect(budget.cameraRole).toBe('full');
   });
 
   it('после сброса лестница экрана начинается заново', () => {
