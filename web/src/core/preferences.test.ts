@@ -60,6 +60,21 @@ it('keeps the network mode automatic until asked otherwise, and rejects an unkno
   expect(readPreferences().network).toBe('auto');
 });
 
+/**
+ * Приём и отдача — разные решения. Раньше второе задавалось первым: выставил уровень камеры
+ * руками, и вместе с ним выключалась адаптация приёма. Теперь у приёма своя память.
+ */
+it('помнит качество приёма отдельно от качества отдачи', () => {
+  expect(readPreferences().reception).toBe('fit');
+  savePreferences({ camera: { resolution: 1440, fps: 60, automatic: false } });
+  expect(readPreferences().reception).toBe('fit');
+  savePreferences({ reception: 'best' });
+  expect(readPreferences().reception).toBe('best');
+  expect(readPreferences().camera.automatic).toBe(false);
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ reception: 'как можно лучше' }));
+  expect(readPreferences().reception).toBe('fit');
+});
+
 it('stores the integration roster choice and Yandex token for this browser profile', () => {
   savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });
   expect(readPreferences()).toMatchObject({

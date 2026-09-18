@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
   MonitorUp,
+  MonitorDown,
   Mic,
   Keyboard,
   User,
@@ -21,6 +22,7 @@ import {
   savePreferences,
   type AudioPreferences,
   type Preferences,
+  type Reception,
 } from '../core/preferences';
 import { Store } from '../core/store';
 import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../core/hotkeys';
@@ -182,6 +184,56 @@ export function QualityFields({
           </span>
         </label>
       )}
+    </section>
+  );
+}
+/**
+ * Каким присылать чужое видео.
+ *
+ * Отдельно от того, каким я отдаю своё: это два разных решения, и раньше они были склеены —
+ * выставил уровень камеры руками, и вместе с ним выключилась адаптация приёма. Незачем: в
+ * плитке размером с визитку 1440p не видно никому, а на развёрнутой демонстрации он нужен
+ * даже тому, кто сам отдаёт 720p.
+ */
+export function ReceptionFields({ mode, change }: { mode: Reception; change: (mode: Reception) => void }) {
+  const options: { value: Reception; title: string; hint: string }[] = [
+    {
+      value: 'fit',
+      title: 'По размеру окна',
+      hint: 'Мелкой плитке — мелкий поток, развёрнутой — лучший, что отдаёт собеседник.',
+    },
+    {
+      value: 'best',
+      title: 'Всегда максимум',
+      hint: 'Лучший слой даже в мелкой плитке. Больше трафика и нагрузки на приём.',
+    },
+  ];
+  return (
+    <section className="quality-section" aria-label="Качество приёма">
+      <h3>
+        <MonitorDown size={19} />
+        Что присылать мне
+      </h3>
+      <div role="radiogroup" aria-label="Качество приёма" className="network-modes">
+        {options.map((option) => (
+          <label className="check-setting" key={option.value}>
+            <input
+              type="radio"
+              name="reception-mode"
+              checked={mode === option.value}
+              onChange={() => change(option.value)}
+            />
+            <span>
+              {option.title}
+              <small>{option.hint}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+      <p className="form-footnote">
+        Выше того, что отдаёт собеседник, не станет: если он выбрал 720p, максимум — его 720p. Смена
+        применяется сразу.
+      </p>
     </section>
   );
 }
@@ -709,6 +761,13 @@ export function Settings({
             preview={{
               enabled: preferences.screenPreview,
               change: (screenPreview) => change({ screenPreview }),
+            }}
+          />
+          <ReceptionFields
+            mode={preferences.reception}
+            change={(reception) => {
+              if (meeting) void meeting.media.setReception(reception);
+              else change({ reception });
             }}
           />
           {open && <DeviceCheck preferences={preferences} />}

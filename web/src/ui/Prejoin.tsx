@@ -19,7 +19,7 @@ import { Avatar, IconButton, Logo, Modal } from './primitives';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
-import { AudioFields, QualityFields } from './Settings';
+import { AudioFields, QualityFields, ReceptionFields } from './Settings';
 import { audioCapture } from '../media/audio';
 
 export function Prejoin({
@@ -406,6 +406,10 @@ export function Prejoin({
               enabled: preferences.screenPreview,
               change: (screenPreview) => setPreferences(savePreferences({ screenPreview })),
             }}
+          />
+          <ReceptionFields
+            mode={preferences.reception}
+            change={(reception) => setPreferences(savePreferences({ reception }))}
           />
           {!destination && (
             <label className="check-setting">

@@ -7,6 +7,7 @@ import {
   type RemoteTrackPublication,
   LocalVideoTrack,
   LocalAudioTrack,
+  RemoteVideoTrack,
   ConnectionQuality,
   DisconnectReason,
   type Participant,
@@ -36,6 +37,7 @@ import {
   savePreferences,
   type AudioPreferences,
   type Preferences,
+  type Reception,
 } from '../core/preferences';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { browserCapture, type CaptureAdapter } from './capture';
@@ -104,6 +106,47 @@ export interface OutboundVideo {
   dormant: boolean;
 }
 
+/**
+ * Наблюдатель, который всегда просит у комнаты лучший слой.
+ *
+ * ЗАЧЕМ ИМЕННО ТАК. Режим «Всегда максимум» — это отключённая адаптация приёма, а она
+ * задаётся при создании комнаты, то есть при входе. Переподписка не помогает: дорожка
+ * пересоздаётся, но размеры плитки кэшируются на **публикации** и после отписки остаются
+ * от последнего измерения — проверено, приём после переключения падал до 360p вместо 720p.
+ * Лезть в это поле руками значит держаться за внутренность SDK, которая молча переименуется.
+ *
+ * Адаптация берёт **наибольший** из наблюдаемых элементов (`updateDimensions`). Значит,
+ * ничего выключать не надо: достаточно добавить к настоящей плитке ещё одного наблюдателя,
+ * который сообщает заведомо большой размер. Это публичный `observeElementInfo`, переключение
+ * мгновенное, и ни комнату, ни подписки трогать не приходится.
+ *
+ * Видимость остаётся честной: свёрнутая вкладка по-прежнему не тянет чужое видео.
+ */
+class WideOpen {
+  readonly element = {};
+  pictureInPicture = false;
+  visibilityChangedAt: number | undefined = 0;
+  handleResize?: () => void;
+  handleVisibilityChanged?: () => void;
+  get visible() {
+    return typeof document === 'undefined' || !document.hidden;
+  }
+  // Заведомо больше любого слоя: сервер отдаст самый крупный, какой есть.
+  width() {
+    return 7680;
+  }
+  height() {
+    return 4320;
+  }
+  observe() {
+    document.addEventListener('visibilitychange', this.changed);
+  }
+  stopObserving() {
+    document.removeEventListener('visibilitychange', this.changed);
+  }
+  private changed = () => this.handleVisibilityChanged?.();
+}
+
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
@@ -147,6 +190,39 @@ export class MediaSession {
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
   };
+  /** Каждая подписанная видеодорожка. */
+  private *remoteVideo() {
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.videoTrackPublications.values())
+        if (publication.isSubscribed) yield publication;
+  }
+  /** Держит режим приёма на каждой подписанной дорожке. Вызывается и при смене, и при подписке. */
+  private applyReception = () => {
+    const wanted = this.preferences.get().reception === 'best';
+    for (const publication of this.remoteVideo()) {
+      const track = publication.track;
+      if (!(track instanceof RemoteVideoTrack)) continue;
+      const watcher = this.wideOpen.get(publication.trackSid);
+      if (wanted && !watcher) {
+        const opened = new WideOpen();
+        this.wideOpen.set(publication.trackSid, opened);
+        track.observeElementInfo(opened);
+      } else if (!wanted && watcher) {
+        this.wideOpen.delete(publication.trackSid);
+        track.stopObservingElementInfo(watcher);
+      }
+    }
+  };
+  /**
+   * Сменить режим приёма посреди разговора — сразу, без перезахода во встречу.
+   *
+   * Раньше выбор приёма был следствием выбора отдачи и доезжал только при следующем входе;
+   * в настройках про это честно висела приписка, то есть настройка, которая не работает.
+   */
+  setReception(reception: Reception) {
+    this.preferences.set(savePreferences({ reception }));
+    this.applyReception();
+  }
   private receivePreview = (payload: Uint8Array, participant?: Participant, _?: unknown, topic?: string) => {
     if (topic !== PREVIEW_TOPIC || !participant || this.disposed || !payload.byteLength) return;
     const url = this.previewImages.accept(participant.identity, payload);
@@ -185,6 +261,7 @@ export class MediaSession {
     } else this.setVolume(id, this.previousVolumes.get(id) ?? 1);
   }
   private audioChange: Promise<void> = Promise.resolve();
+  private wideOpen = new Map<string, WideOpen>();
   readonly recovery: RecoveryWindow;
   readonly room: Room;
   private disposed = false;
@@ -253,15 +330,11 @@ export class MediaSession {
   ) {
     this.recovery = new RecoveryWindow((api.admission.recoverySeconds || 20) * 1000);
     this.room = new Room({
-      // ПРИЁМ ПОДСТРАИВАЕТСЯ ПОД РАЗМЕР ПЛИТКИ — ВСЕГДА. Адаптация выключалась, когда
-      // человек выбирал уровень **отдачи** руками: «выбранный уровень относится к обеим
-      // сторонам». Это связывало два разных решения. То, каким я отдаю свою картинку, ничего
-      // не говорит о том, каким мне нужен чужой экран в плитке размером с визитку, — а
-      // платили за это все: комната отдавала верхний слой каждому, кто хоть раз тронул
-      // настройки, включая тех, кому он не по каналу.
+      // ПРИЁМ — РЕШЕНИЕ СМОТРЯЩЕГО. Адаптация выключалась, когда человек выбирал уровень
+      // **отдачи** руками: «выбранный уровень относится к обеим сторонам». Это связывало два
+      // разных решения. То, каким я отдаю свою картинку, ничего не говорит о том, каким мне
+      // нужен чужой экран в плитке размером с визитку. Теперь решений два, и это — второе.
       //
-      // Размер плитки — правильный признак, и считается он у каждого свой: развёрнутая на
-      // весь экран демонстрация просит верхний слой и получает его, плитка в угол — мелкий.
       // `pixelDensity: 'screen'` — потому что плитка в 740 CSS-пикселей на мониторе с
       // масштабом 150 % занимает 1110 настоящих, и без этого выбор всегда на слой ниже.
       adaptiveStream: { pixelDensity: 'screen' },
@@ -310,9 +383,13 @@ export class MediaSession {
       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
+      .on(RoomEvent.TrackSubscribed, this.applyReception)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
-        if (publication) this.playout.forget(publication.trackSid);
+        if (publication) {
+          this.playout.forget(publication.trackSid);
+          this.wideOpen.delete(publication.trackSid);
+        }
       })
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnpublished, this.refreshTracks)

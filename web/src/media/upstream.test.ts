@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UpstreamBudget } from './upstream';
-import { ladder, startingRung } from './auto-quality';
+import { ladder, SETTLE_TICKS, startingRung } from './auto-quality';
 
 const mbps = (value: number) => value * 1_000_000;
 const inputs = (patch: Partial<Parameters<UpstreamBudget['observe']>[0]> = {}) => ({
@@ -62,26 +62,27 @@ describe('очередь уступок', () => {
 
   it('снижает экран, если после уступки камеры канала всё равно не хватает', () => {
     const budget = new UpstreamBudget();
-    // Два опроса уходят на паузу (первый из них — тот, где ужалась камера), и ещё два —
-    // на две подряд жалобы, без которых AutoQuality не снижает уровень.
-    budget.observe(tight());
-    budget.observe(tight());
+    // Два опроса уходят на паузу (первый из них — тот, где ужалась камера), два — на разгон
+    // полосы, которому лестница не верит, и ещё два — на две подряд жалобы.
+    for (let i = 0; i < 2 + SETTLE_TICKS; i++) expect(budget.observe(tight()).screen).toBeUndefined();
     expect(budget.observe(tight()).screen).toBeUndefined();
-    expect(budget.observe(tight()).screen).toEqual({ resolution: 720, fps: 15 });
+    // Спуск на ступень, а не на дно: оценка канала ещё ни разу не подтвердила уровень.
+    expect(budget.observe(tight()).screen).toEqual(ladder[startingRung - 1]);
   });
 
   it('без камеры экран уступает сразу после своих двух жалоб, без лишней паузы', () => {
     const budget = new UpstreamBudget();
     const only = inputs({ sharing: true, limitation: 'cpu', available: mbps(1) });
-    expect(budget.observe(only).screen).toBeUndefined();
-    expect(budget.observe(only).screen).toEqual({ resolution: 720, fps: 15 });
+    // Паузы на уступку камеры здесь нет — только разгон и две жалобы.
+    for (let i = 0; i < SETTLE_TICKS + 1; i++) expect(budget.observe(only).screen).toBeUndefined();
+    expect(budget.observe(only).screen).toEqual(ladder[startingRung - 1]);
   });
 
   it('не двигает выбранный вручную уровень экрана', () => {
     const budget = new UpstreamBudget();
     const chosen = { screenAutomatic: false };
     budget.observe(tight(chosen));
-    for (let i = 0; i < 6; i++) expect(budget.observe(tight(chosen)).screen).toBeUndefined();
+    for (let i = 0; i < 12; i++) expect(budget.observe(tight(chosen)).screen).toBeUndefined();
     expect(budget.screenRung).toEqual(ladder[startingRung]);
   });
 
@@ -105,7 +106,8 @@ describe('очередь уступок', () => {
 
   it('после сброса лестница экрана начинается заново', () => {
     const budget = new UpstreamBudget();
-    for (let i = 0; i < 5; i++) budget.observe(tight());
+    // Пауза на уступку камеры, разгон и две жалобы — только после этого уровень двинется.
+    for (let i = 0; i < 4 + SETTLE_TICKS; i++) budget.observe(tight());
     expect(budget.screenRung).not.toEqual(ladder[startingRung]);
     budget.reset();
     expect(budget.screenRung).toEqual(ladder[startingRung]);
@@ -129,17 +131,17 @@ describe('лестница камеры, когда показа нет', () => 
     expect(budget.cameraRung).toEqual({ resolution: 1080, fps: 30 });
   });
 
-  it('снижает камеру по двум жалобам подряд', () => {
+  it('снижает камеру по двум жалобам подряд, но не раньше, чем кончится разгон', () => {
     const budget = new UpstreamBudget();
     const tight = alone({ limitation: 'cpu', available: mbps(1) });
-    expect(budget.observe(tight).cameraLevel).toBeUndefined();
-    expect(budget.observe(tight).cameraLevel).toEqual({ resolution: 720, fps: 15 });
+    for (let i = 0; i < SETTLE_TICKS + 1; i++) expect(budget.observe(tight).cameraLevel).toBeUndefined();
+    expect(budget.observe(tight).cameraLevel).toEqual(ladder[startingRung - 1]);
   });
 
   it('не трогает камеру, выбранную вручную', () => {
     const budget = new UpstreamBudget();
     const chosen = alone({ cameraAutomatic: false });
-    for (let i = 0; i < 5; i++) expect(budget.observe(chosen).cameraLevel).toBeUndefined();
+    for (let i = 0; i < 12; i++) expect(budget.observe(chosen).cameraLevel).toBeUndefined();
     expect(budget.cameraRung).toEqual(ladder[startingRung]);
   });
 
@@ -153,9 +155,10 @@ describe('лестница камеры, когда показа нет', () => 
   it('новый потолок начинает лестницу заново, а совпадающий её не сбрасывает', () => {
     const budget = new UpstreamBudget();
     const tight = alone({ limitation: 'cpu', available: mbps(1), cameraCeiling: ladder[4] });
-    // Один и тот же потолок не должен стирать счётчик жалоб: иначе снижения не случится никогда.
-    budget.observe(tight);
-    expect(budget.observe(tight).cameraLevel).toEqual({ resolution: 720, fps: 15 });
+    // Один и тот же потолок не должен стирать счётчики: иначе ни разгон не кончится, ни
+    // жалобы не накопятся, и снижения не случится никогда.
+    for (let i = 0; i < SETTLE_TICKS + 1; i++) budget.observe(tight);
+    expect(budget.observe(tight).cameraLevel).toEqual(ladder[startingRung - 1]);
     // А другой — начинает всё заново, со ступени не выше нового потолка.
     budget.observe(alone({ cameraCeiling: { resolution: 720, fps: 30 } }));
     expect(budget.cameraRung).toEqual({ resolution: 720, fps: 30 });

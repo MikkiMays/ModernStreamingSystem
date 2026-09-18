@@ -17,6 +17,19 @@ export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 export type StageLayout = 'grid' | 'speaker' | 'strip';
 export const stageLayouts: StageLayout[] = ['grid', 'speaker', 'strip'];
 
+/**
+ * Каким присылать чужое видео — решение смотрящего, а не показывающего.
+ *
+ * `fit` — по размеру плитки: мелкой плитке мелкий поток, развёрнутой — лучший, что есть.
+ * `best` — всегда лучший слой, каким бы мелким ни было окно.
+ *
+ * ЗАЧЕМ ОТДЕЛЬНАЯ НАСТРОЙКА. Раньше это решалось за человека его же выбором **отдачи**:
+ * выставил уровень камеры руками — выключилась и адаптация приёма. Два разных решения были
+ * склеены в одно, и ни одно из них нельзя было принять отдельно. Теперь их два.
+ */
+export type Reception = 'fit' | 'best';
+export const receptionModes: Reception[] = ['fit', 'best'];
+
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
   echoCancellation: boolean;
@@ -53,6 +66,8 @@ export interface Preferences {
   network: NetworkMode;
   /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
   layout: StageLayout;
+  /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
+  reception: Reception;
   name: string;
   /** A small square data URI shown to the room, or an empty string. */
   avatar: string;
@@ -109,6 +124,7 @@ export function readPreferences(): Preferences {
           : 1,
     },
     network: networkModes.includes(data.network as NetworkMode) ? data.network! : 'auto',
+    reception: receptionModes.includes(data.reception as Reception) ? data.reception! : 'fit',
     layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
