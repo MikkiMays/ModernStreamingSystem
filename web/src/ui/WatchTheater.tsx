@@ -649,8 +649,10 @@ export function WatchTheater({
         </video>
         {!!lines.length && (
           <div className="watch-captions" aria-live="polite">
-            {lines.map((line) => (
-              <span key={line}>{line}</span>
+            {/* Ключ по месту, а не по тексту: у бегущей строки распознанной речи соседние
+                реплики бывают дословно одинаковыми, и текст ключом быть не может. */}
+            {lines.map((line, index) => (
+              <span key={index}>{line}</span>
             ))}
           </div>
         )}
