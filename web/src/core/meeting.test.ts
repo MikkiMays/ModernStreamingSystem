@@ -89,6 +89,7 @@ beforeEach(() => {
     participants: [person('guest', 'WAITING')],
     messages: [],
     serverTime: 0,
+    watch: null,
   };
   const admission = {
     roomId: 'room',

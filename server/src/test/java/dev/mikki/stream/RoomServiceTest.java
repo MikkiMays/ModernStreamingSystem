@@ -764,6 +764,117 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
   }
 
+  Ack watch(
+      Admission admission, String type, String provider, String kind, String id, Long position) {
+    return rooms.command(
+        admission.roomId(),
+        admission.credential(),
+        new Command(UUID.randomUUID(), type, null, null, 0, provider, kind, id, position));
+  }
+
+  @Test
+  void sharedVideoOpensPausedAndCarriesItsAnchorToEveryone() {
+    var host = host();
+    var guest = guest(host);
+    watch(host, "watch.open", "youtube", "video", "dQw4w9WgXcQ", null);
+    var opened = rooms.snapshot(host.roomId(), guest.credential()).watch();
+    assertThat(opened.provider()).isEqualTo("youtube");
+    assertThat(opened.contentId()).isEqualTo("dQw4w9WgXcQ");
+    // Пока комната загружает ролик, играть нечему: открытый ролик стоит в начале на паузе.
+    assertThat(opened.paused()).isTrue();
+    assertThat(opened.positionMs()).isZero();
+    assertThat(opened.openedBy()).isEqualTo(host.participantId());
+    now.addAndGet(5000);
+    watch(host, "watch.play", null, null, null, 12000L);
+    var playing = rooms.snapshot(host.roomId(), host.credential()).watch();
+    assertThat(playing.paused()).isFalse();
+    assertThat(playing.positionMs()).isEqualTo(12000);
+    assertThat(playing.anchorAt()).isEqualTo(now.get());
+    assertThat(playing.revision()).isGreaterThan(opened.revision());
+  }
+
+  @Test
+  void liveChannelHasNoPositionToShareAndCannotBeStopped() {
+    var host = host();
+    watch(host, "watch.open", "twitch", "channel", "some_channel", null);
+    assertThat(rooms.read(host.roomId()).watch.paused).isFalse();
+    assertThatThrownBy(() -> watch(host, "watch.pause", null, null, null, 0L))
+        .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> watch(host, "watch.seek", null, null, null, 60000L))
+        .isInstanceOf(Problem.class);
+  }
+
+  @Test
+  void watchingTogetherObeysTheIntegrationPermission() {
+    var host = host();
+    var guest = guest(host);
+    rooms.integrationSettings(host.roomId(), host.credential(), false);
+    assertThatThrownBy(() -> watch(guest, "watch.open", "youtube", "video", "abc", null))
+        .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> watch(guest, "watch.close", null, null, null, null))
+        .isInstanceOf(Problem.class);
+    rooms.integrationSettings(host.roomId(), host.credential(), true);
+    watch(guest, "watch.open", "youtube", "video", "abc", null);
+    assertThat(rooms.read(host.roomId()).watch.openedBy).isEqualTo(guest.participantId());
+  }
+
+  @Test
+  void theRemoteBelongsToWhoeverBroughtTheVideo() {
+    var host = host();
+    var guest = guest(host);
+    var third = guest(host);
+    watch(guest, "watch.open", "youtube", "video", "abc", null);
+    // Принёсший управляет, ведущий тоже — а посторонний в комнате, где интеграции разрешены,
+    // может сменить видео или закрыть его, но не нажимать паузу через плечо.
+    watch(guest, "watch.play", null, null, null, 1000L);
+    watch(host, "watch.pause", null, null, null, 2000L);
+    assertThatThrownBy(() -> watch(third, "watch.play", null, null, null, 0L))
+        .isInstanceOf(Problem.class);
+    watch(third, "watch.open", "youtube", "video", "xyz", null);
+    assertThat(rooms.read(host.roomId()).watch.openedBy).isEqualTo(third.participantId());
+    watch(third, "watch.play", null, null, null, 0L);
+    watch(guest, "watch.close", null, null, null, null);
+    assertThat(rooms.read(host.roomId()).watch).isNull();
+  }
+
+  @Test
+  void oneIntegrationAtATime() {
+    var host = host();
+    rooms.addMusicService(host.roomId(), UUID.randomUUID());
+    // Музыка уже занимает комнату — кинозалу в ней места нет, и наоборот.
+    assertThatThrownBy(() -> watch(host, "watch.open", "youtube", "video", "abc", null))
+        .isInstanceOf(Problem.class);
+    var music =
+        rooms.read(host.roomId()).members.values().stream()
+            .filter(m -> "music".equals(m.service))
+            .findFirst()
+            .orElseThrow();
+    command(host, "participant.remove", music.id, 0);
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    assertThatThrownBy(() -> rooms.addMusicService(host.roomId(), UUID.randomUUID()))
+        .isInstanceOf(Problem.class);
+  }
+
+  @Test
+  void endedMeetingLeavesNothingPlaying() {
+    var host = host();
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    command(host, "close", null, 0);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).watch()).isNull();
+    assertThatThrownBy(() -> watch(host, "watch.open", "youtube", "video", "abc", null))
+        .isInstanceOf(Problem.class);
+  }
+
+  @Test
+  void waitingGuestDoesNotSeeWhatTheRoomIsWatching() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Закрытая встреча", "Организатор", true));
+    var guest = guest(host);
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).watch()).isNull();
+    command(host, "participant.approve", guest.participantId(), 0);
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).watch()).isNotNull();
+  }
+
   @Test
   void removedParticipantCannotUseFavoriteToEvadeRemoval() {
     var host = host();

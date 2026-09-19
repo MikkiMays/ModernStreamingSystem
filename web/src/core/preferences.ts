@@ -10,12 +10,16 @@ export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
  * Как расставить участников.
  *
  * `grid` — все равные; `speaker` — крупно тот, кто говорит (или закреплённый), остальные
- * лентой; `strip` — один за другим во всю ширину, листается. Выбор принадлежит смотрящему,
- * а не комнате: на телефоне в портрете и на мониторе хочется разного, и договариваться об
- * этом с собеседником незачем.
+ * лентой сбоку. Выбор принадлежит смотрящему, а не комнате: на телефоне в портрете и на
+ * мониторе хочется разного, и договариваться об этом с собеседником незачем.
+ *
+ * Была ещё «Лента» — все один под другим во всю ширину. Она не пережила встречи с сеткой,
+ * которая теперь сама считает колонки по размеру сцены: в портрете сетка и так складывается
+ * в одну колонку, а на мониторе лента растягивала лица в полосы. Сохранённый выбор «strip»
+ * читается как «сетка» — проверка ниже не знает такого значения и берёт значение по умолчанию.
  */
-export type StageLayout = 'grid' | 'speaker' | 'strip';
-export const stageLayouts: StageLayout[] = ['grid', 'speaker', 'strip'];
+export type StageLayout = 'grid' | 'speaker';
+export const stageLayouts: StageLayout[] = ['grid', 'speaker'];
 
 /**
  * Каким присылать чужое видео — решение смотрящего, а не показывающего.
@@ -66,6 +70,11 @@ export interface Preferences {
   network: NetworkMode;
   /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
   layout: StageLayout;
+  /**
+   * Громкость совместного просмотра, 0–100. Тоже своя у каждого: ролик звучит у всех из своего
+   * плеера, и договариваться о громкости не с кем — как и о громкости собеседника.
+   */
+  watchVolume: number;
   /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
   reception: Reception;
   name: string;
@@ -126,6 +135,10 @@ export function readPreferences(): Preferences {
     network: networkModes.includes(data.network as NetworkMode) ? data.network! : 'auto',
     reception: receptionModes.includes(data.reception as Reception) ? data.reception! : 'fit',
     layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
+    watchVolume:
+      typeof data.watchVolume === 'number' && Number.isFinite(data.watchVolume)
+        ? Math.max(0, Math.min(100, Math.round(data.watchVolume)))
+        : 70,
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,

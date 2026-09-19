@@ -214,9 +214,29 @@
             "format": "uuid",
             "type": "string"
           },
+          "contentId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "pattern": "[A-Za-z0-9_-]*",
+            "type": "string"
+          },
           "generation": {
             "format": "int64",
             "type": "integer"
+          },
+          "kind": {
+            "pattern": "video|channel",
+            "type": "string"
+          },
+          "positionMs": {
+            "format": "int64",
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider": {
+            "pattern": "youtube|twitch",
+            "type": "string"
           },
           "targetId": {
             "maxLength": 36,
@@ -244,7 +264,12 @@
               "view.close",
               "view.playing",
               "microphone.mute",
-              "profile.avatar"
+              "profile.avatar",
+              "watch.open",
+              "watch.play",
+              "watch.pause",
+              "watch.seek",
+              "watch.close"
             ],
             "type": "string"
           }
@@ -794,6 +819,16 @@
           },
           "title": {
             "type": "string"
+          },
+          "watch": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Watch"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -807,6 +842,53 @@
           "participants",
           "sequence",
           "serverTime",
+          "title",
+          "watch"
+        ],
+        "type": "object"
+      },
+      "Watch": {
+        "properties": {
+          "anchorAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "contentId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "openedBy": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "positionMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "anchorAt",
+          "contentId",
+          "kind",
+          "openedBy",
+          "paused",
+          "positionMs",
+          "provider",
+          "revision",
           "title"
         ],
         "type": "object"

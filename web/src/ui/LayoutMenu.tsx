@@ -1,5 +1,5 @@
 import { Menu } from '@base-ui/react/menu';
-import { LayoutGrid, Rows3, UserSquare } from 'lucide-react';
+import { LayoutGrid, UserSquare } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { StageLayout } from '../core/preferences';
 import { IconButton, useStore } from './primitives';
@@ -14,7 +14,6 @@ import { IconButton, useStore } from './primitives';
 const LAYOUTS: { value: StageLayout; title: string; hint: string; icon: typeof LayoutGrid }[] = [
   { value: 'grid', title: 'Сетка', hint: 'Все одинакового размера', icon: LayoutGrid },
   { value: 'speaker', title: 'Говорящий', hint: 'Крупно тот, кто говорит', icon: UserSquare },
-  { value: 'strip', title: 'Лента', hint: 'Один за другим, во всю ширину', icon: Rows3 },
 ];
 
 function apply(meeting: Meeting, layout: StageLayout) {

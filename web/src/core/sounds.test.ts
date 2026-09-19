@@ -68,11 +68,36 @@ it('gives arrivals, departures and knocks their own shape', async () => {
     ['join', 2],
     ['leave', 2],
     ['knock', 2],
+    // Микрофон — тоже две ноты, но октавой: включение вверх, выключение вниз.
+    ['mic-on', 2],
+    ['mic-off', 2],
   ] as [Cue, number][]) {
     create.mockClear();
     sounds.play(cue);
     expect(create, cue).toHaveBeenCalledTimes(notes);
   }
+});
+
+it('answers the microphone the moment it is switched, and quietly', async () => {
+  const create = stubAudio();
+  const { NotificationSounds, unlockNotificationAudio } = await load();
+  unlockNotificationAudio();
+  document.dispatchEvent(new Event('pointerdown'));
+  const sounds = new NotificationSounds();
+  const frequencies = (cue: Cue): number[] => {
+    create.mockClear();
+    sounds.play(cue);
+    return create.mock.results.map(
+      (result) => (result.value as { frequency: { value: number } }).frequency.value,
+    );
+  };
+  // Одна и та же пара в разном порядке: спутать включение с выключением нельзя.
+  const [onLow, onHigh] = frequencies('mic-on');
+  const off = frequencies('mic-off');
+  expect(onHigh!).toBeGreaterThan(onLow!);
+  expect(off[1]!).toBeLessThan(off[0]!);
+  const on = [onLow, onHigh];
+  expect(on).toEqual([...off].reverse());
 });
 
 it('says when the last cue has finished so the window can close after it', async () => {

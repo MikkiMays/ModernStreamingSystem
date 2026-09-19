@@ -34,7 +34,12 @@ public class OpenApiConfig {
                           "view.close",
                           "view.playing",
                           "microphone.mute",
-                          "profile.avatar")));
+                          "profile.avatar",
+                          "watch.open",
+                          "watch.play",
+                          "watch.pause",
+                          "watch.seek",
+                          "watch.close")));
       schemas
           .get("Event")
           .getProperties()
@@ -61,6 +66,7 @@ public class OpenApiConfig {
               "Event",
               "EventPayload",
               "Replay",
+              "Watch",
               "Capabilities")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
@@ -79,7 +85,8 @@ public class OpenApiConfig {
               "Participant",
               List.of("recoveryDeadline", "service", "screenId", "viewingScreenId"),
               "Snapshot",
-              List.of("closedAt"),
+              // Смотреть вместе может быть нечего — и чаще всего нечего.
+              List.of("closedAt", "watch"),
               "Ack",
               List.of("value"),
               "Attachment",

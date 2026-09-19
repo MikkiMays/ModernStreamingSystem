@@ -18,7 +18,9 @@ export type Cue =
   | 'screen'
   | 'viewer'
   | 'connected'
-  | 'disconnected';
+  | 'disconnected'
+  | 'mic-on'
+  | 'mic-off';
 
 interface Note {
   hz: number;
@@ -35,6 +37,8 @@ const G5 = 783.99;
 const C6 = 1046.5;
 const A4 = 440;
 const A5 = 880;
+const D5 = 587.33;
+const D6 = 1174.66;
 const note = (hz: number, at: number, hold = 0.13, gain = 0.06, type: OscillatorType = 'sine'): Note => ({
   hz,
   at,
@@ -64,6 +68,17 @@ const CUES: Record<Cue, Note[]> = {
   disconnected: [note(C5, 0, 0.2, 0.06), note(G4, 0.1, 0.28, 0.06)],
   screen: [note(C5, 0), note(G5, 0.075)],
   viewer: [note(E5, 0), note(A5, 0.075), note(C6, 0.15)],
+  /*
+    Микрофон. Включён — октава вверх, выключен — вниз; ни один другой сигнал в наборе октаву
+    не берёт, поэтому спутать нельзя даже вполуха.
+
+    Эта пара — самая короткая и самая тихая из всех, и намеренно. За встречу микрофон трогают
+    десятки раз, чаще всего — чтобы вставить слово; сигнал, который звучит длиннее, чем длится
+    само нажатие, начинает мешать говорить. Слышит его только тот, кто нажал: комнате до
+    чужого микрофона дела нет, у неё есть перечёркнутый значок на плитке.
+  */
+  'mic-on': [note(D5, 0, 0.05, 0.05), note(D6, 0.045, 0.07, 0.05)],
+  'mic-off': [note(D6, 0, 0.05, 0.05), note(D5, 0.045, 0.08, 0.05)],
 };
 
 export class NotificationSounds {

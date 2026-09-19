@@ -81,7 +81,9 @@ export class Meeting {
         );
         if (state.status === 'connected' && !this.initialDevicesApplied) {
           this.initialDevicesApplied = true;
-          if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone);
+          // Без сигнала: человек включил микрофон ещё на предпросмотре, а услышал только что
+          // собственный вход — два звука подряд об одном и том же событии.
+          if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone, false);
           if (this.choices.cameraOn) void this.media.toggle('camera', this.choices.camera);
         }
       }),
@@ -122,6 +124,7 @@ export class Meeting {
   }
   private accept = (snapshot: Snapshot) => {
     if (this.disposed) return;
+    this.clockOffset = snapshot.serverTime - Date.now();
     if (snapshot.sequence < this.snapshot.get().sequence) return;
     this.listen(snapshot);
     this.snapshot.set(snapshot);
@@ -216,8 +219,33 @@ export class Meeting {
       }
     }
   }
-  async command(type: Command['type'], text?: string, targetId?: string) {
-    const ack = await this.control.command({ commandId: crypto.randomUUID(), type, text, targetId });
+  /**
+   * Который час на сервере.
+   *
+   * Совместный просмотр держится на общей точке отсчёта: позиция ролика верна в момент по
+   * часам **сервера**, а часы участников расходятся на минуты. Поправка берётся из каждого
+   * снимка — он и так приходит на любое изменение комнаты, и своей записи для этого не нужно.
+   * Задержка запроса делает поправку заниженной на половину времени ответа; против порога
+   * рассинхрона в полторы секунды это несущественно.
+   */
+  private clockOffset = 0;
+  serverNow(): number {
+    return Date.now() + this.clockOffset;
+  }
+  async command(
+    type: Command['type'],
+    text?: string,
+    targetId?: string,
+    /** Поля совместного просмотра: что открыть и с какого места. */
+    watch?: Pick<Command, 'provider' | 'kind' | 'contentId' | 'positionMs'>,
+  ) {
+    const ack = await this.control.command({
+      commandId: crypto.randomUUID(),
+      type,
+      text,
+      targetId,
+      ...watch,
+    });
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);
     await this.refresh();

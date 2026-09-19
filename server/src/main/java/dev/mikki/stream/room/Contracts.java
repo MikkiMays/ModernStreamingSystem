@@ -42,17 +42,32 @@ public final class Contracts {
    */
   public record RoomSettings(@NotBlank @Size(max = 80) String title, boolean approvalRequired) {}
 
+  /**
+   * Команда участника комнате.
+   *
+   * <p>Поля совместного просмотра пришли последними и необязательны: у команды одна форма на все
+   * типы, и добавление ещё одного типа не должно заводить второй конверт. Прежний конструктор из
+   * пяти полей оставлен, потому что им пользуется всё, что просмотра не касается.
+   */
   public record Command(
       @NotNull UUID commandId,
       @NotBlank
           @Size(max = 30)
           @Pattern(
               regexp =
-                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar")
+                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close")
           String type,
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
-      long generation) {}
+      long generation,
+      @Pattern(regexp = "youtube|twitch") String provider,
+      @Pattern(regexp = "video|channel") String kind,
+      @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]*") String contentId,
+      @Min(0) @Max(86400000) Long positionMs) {
+    public Command(UUID commandId, String type, String text, String targetId, long generation) {
+      this(commandId, type, text, targetId, generation, null, null, null, null);
+    }
+  }
 
   public record Participant(
       String id,
@@ -68,6 +83,21 @@ public final class Contracts {
       boolean screenStarted,
       String viewingScreenId) {}
 
+  /**
+   * Что комната смотрит вместе. {@code positionMs} верна в момент {@code anchorAt} по часам
+   * сервера; сам {@code serverTime} снимка и даёт клиенту поправку на его собственные часы.
+   */
+  public record Watch(
+      String provider,
+      String kind,
+      String contentId,
+      String title,
+      String openedBy,
+      boolean paused,
+      long positionMs,
+      long anchorAt,
+      long revision) {}
+
   public record Snapshot(
       String id,
       String title,
@@ -79,7 +109,8 @@ public final class Contracts {
       boolean integrationsAllowed,
       List<Participant> participants,
       List<RoomState.Message> messages,
-      long serverTime) {}
+      long serverTime,
+      Watch watch) {}
 
   public record Admission(
       String roomId,

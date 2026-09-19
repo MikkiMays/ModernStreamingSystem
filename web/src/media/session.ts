@@ -39,6 +39,7 @@ import {
   type Preferences,
   type Reception,
 } from '../core/preferences';
+import { signal } from '../core/sounds';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { browserCapture, ownAudioLeaks, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
@@ -419,8 +420,12 @@ export class MediaSession {
         if (publication.source === Track.Source.ScreenShare) this.dropPreview(participant.identity);
       })
       .on(RoomEvent.TrackMuted, (publication, participant) => {
-        if (participant.isLocal && publication.source === Track.Source.Microphone)
+        if (participant.isLocal && publication.source === Track.Source.Microphone) {
+          // Микрофон выключили не отсюда: это сделал ведущий. Тем более нужен звук — иначе
+          // человек узнаёт об этом, договорив фразу в тишину.
+          if (this.wanted.microphone) signal('mic-off');
           this.wanted.microphone = false;
+        }
         this.refreshTracks();
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
@@ -1002,7 +1007,15 @@ export class MediaSession {
       if (!this.disposed) this.report(error);
     }
   }
-  async toggle(kind: 'microphone' | 'camera', deviceId?: string) {
+  /**
+   * Включает или выключает устройство.
+   *
+   * `announce` — звучать ли сигналом. По умолчанию да: нажатие на микрофон слышно своим ухом
+   * раньше, чем глаз найдёт значок, и это единственное подтверждение, которое успевает прийти
+   * до первого произнесённого слова. Первичная выдача устройств при входе просит тишины: там
+   * человек ничего не переключал, а уже слышал, что вошёл.
+   */
+  async toggle(kind: 'microphone' | 'camera', deviceId?: string, announce = true) {
     if (this.deviceBusy.has(kind) || this.disposed) return;
     this.deviceBusy.add(kind);
     try {
@@ -1036,6 +1049,8 @@ export class MediaSession {
         kind === 'microphone'
           ? this.room.localParticipant.isMicrophoneEnabled
           : this.room.localParticipant.isCameraEnabled;
+      if (kind === 'microphone' && announce)
+        signal(this.room.localParticipant.isMicrophoneEnabled ? 'mic-on' : 'mic-off');
       if (kind === 'camera' && !reusedCamera) this.cameraProfilePending = false;
       if (kind === 'camera' && this.wanted.camera && this.cameraProfilePending)
         await this.setCameraProfile(this.cameraProfile);

@@ -975,29 +975,25 @@ h2 {
   gap: 12px;
   container-type: inline-size;
 }
+/*
+  Сетка участников. Колонки и место каждой плитки задаёт `Stage.tsx` по настоящему размеру
+  сцены — см. `ui/grid.ts`. Здесь остаётся всё, что от числа людей не зависит.
+
+  Раньше колонки были записаны прямо тут, по `data-count`: двое — две, пятеро — три, и так до
+  десяти. Ширину сцены это не учитывало вовсе (те же три колонки в узком окне с открытой
+  панелью), а неполный последний ряд прижимался к левому краю — третий вставал под первым,
+  хотя место было ровно посередине.
+*/
 .people-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   flex: 1;
   min-height: 0;
-  align-content: center;
+  align-content: stretch;
 }
 .people-grid[data-count='1'] {
   grid-template-columns: minmax(0, 1fr);
-}
-.people-grid[data-count='3'],
-.people-grid[data-count='4'] {
-  align-content: stretch;
-}
-.people-grid[data-count='5'],
-.people-grid[data-count='6'],
-.people-grid[data-count='7'],
-.people-grid[data-count='8'],
-.people-grid[data-count='9'],
-.people-grid[data-count='10'] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-content: stretch;
 }
 /*
   Плитка принимает пропорции кадра, который в неё пришёл.
@@ -2018,16 +2014,6 @@ progress {
     transform: rotate(360deg);
   }
 }
-@container (max-width:650px) {
-  .people-grid[data-count='5'],
-  .people-grid[data-count='6'],
-  .people-grid[data-count='7'],
-  .people-grid[data-count='8'],
-  .people-grid[data-count='9'],
-  .people-grid[data-count='10'] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (max-width: 1199px) {
   .meeting-body.panel-open {
     grid-template-columns: minmax(0, 1fr);
@@ -2245,10 +2231,9 @@ progress {
   .people-grid {
     gap: 8px;
   }
-  .people-grid[data-count='2'] {
-    grid-template-columns: 1fr;
-    align-content: stretch;
-  }
+  /* Двое на телефоне — это две половины экрана целиком: вписывать кадр в пропорции здесь
+     значит оставить чёрные поля там, где их можно не оставлять. Колонку из двух рядов сетка
+     в портрете выбирает и сама. */
   .people-grid[data-count='2'] .person-tile {
     aspect-ratio: auto;
   }
@@ -2512,8 +2497,13 @@ progress {
     justify-self: center;
   }
 }
+/*
+  Широкая модалка — это настройки. Их разделов шесть, и при 780 px последний («О программе»)
+  переносился на вторую строку: получалась одинокая кнопка под рядом остальных, в которой
+  человек видел не вкладку, а сбой вёрстки. Ширина подобрана по этому ряду, а не наугад.
+*/
 .modal-wide {
-  width: min(780px, calc(100vw - 32px));
+  width: min(940px, calc(100vw - 32px));
 }
 /*
   Кадрирование картинки профиля. Круг здесь не украшение: комната показывает аватар кружком,
@@ -2570,24 +2560,43 @@ progress {
   font-size: 11px;
   color: var(--muted);
 }
+/*
+  Разделы настроек стоят одной строкой и никогда не переносятся.
+
+  Перенос давал то, что выглядело поломкой: пять кнопок в ряд и шестая под ними. Вместо него —
+  одна строка на всю ширину окна, а если и её не хватает (узкий телефон), строка прокручивается
+  вбок. Полосу прокрутки при этом не показываем: это шесть кнопок, а не список.
+*/
 .settings-navigation {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   padding: 16px 0;
   border-bottom: 1px solid var(--line);
   margin-bottom: 22px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.settings-navigation::-webkit-scrollbar {
+  display: none;
 }
 .settings-navigation button {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
+  /* Кнопки делят строку поровну и сжимаются вместе, пока помещается подпись. */
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   padding: 10px 15px;
   border-radius: 10px;
   color: var(--muted);
   background: transparent;
   border: 0;
+}
+.settings-navigation button > svg {
+  flex-shrink: 0;
 }
 .settings-navigation button[data-active] {
   background: var(--surface-2);

@@ -313,6 +313,10 @@ public class RoomService {
           if (room.members.values().stream()
               .anyMatch(m -> "music".equals(m.service) && m.occupiesSeat()))
             throw Problem.conflict("SERVICE_EXISTS", "Музыкальный сервис уже подключён");
+          // Та же граница с другой стороны: пока комната смотрит кино, музыке в ней места нет.
+          if (room.watch != null)
+            throw Problem.conflict(
+                "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
           checkSeat(room);
           var member = newMember(room, "Музыка", false, commandId);
           member.service = "music";
@@ -357,7 +361,8 @@ public class RoomService {
             current.integrationsAllowed(),
             current.participants(),
             List.of(),
-            current.serverTime());
+            current.serverTime(),
+            current.watch());
     return new Admission(
         room.id,
         member.id,
@@ -470,7 +475,24 @@ public class RoomService {
         room.integrationsAllowed,
         participants,
         messages,
-        now());
+        now(),
+        watch(room));
+  }
+
+  private static Contracts.Watch watch(RoomState room) {
+    var watch = room.watch;
+    return watch == null
+        ? null
+        : new Contracts.Watch(
+            watch.provider,
+            watch.kind,
+            watch.contentId,
+            watch.title,
+            watch.openedBy,
+            watch.paused,
+            watch.positionMs,
+            watch.anchorAt,
+            watch.revision);
   }
 
   public Snapshot snapshot(String roomId, String credential) {
@@ -498,7 +520,10 @@ public class RoomService {
         current.integrationsAllowed(),
         current.participants().stream().filter(p -> p.id().equals(member.id)).toList(),
         List.of(),
-        current.serverTime());
+        current.serverTime(),
+        // Ожидающий в дверях ещё не во встрече: что комната смотрит — такая же её жизнь, как
+        // переписка, и до разрешения войти он этого не видит.
+        null);
   }
 
   @Transactional
@@ -597,6 +622,65 @@ public class RoomService {
               if (Objects.equals(member.viewingScreenId, command.targetId()))
                 member.viewingScreenId = null;
             }
+            /*
+             Совместный просмотр. Ролик открывается на паузе в начале: пока комната его
+             загружает, играть нечему, а «включить» — отдельное решение, которое принимает
+             человек и слышат все сразу. Живой эфир открывается играющим: у него нет позиции,
+             которую можно было бы поделить, и каждый смотрит собственный край трансляции.
+            */
+            case "watch.open" -> {
+              requireActive(room, member);
+              requireOpen(room);
+              integrations(room, member);
+              // Активная интеграция в комнате одна. Музыка и кинозал спорят за одно и то же —
+              // за уши участников, — и «добавились обе» означает два звука разом, из которых
+              // не выключить ни один.
+              if (room.members.values().stream()
+                  .anyMatch(m -> m.service != null && m.occupiesSeat()))
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY",
+                    "Во встрече уже есть другая интеграция. Сначала уберите её");
+              if (command.provider() == null
+                  || command.kind() == null
+                  || command.contentId() == null
+                  || command.contentId().isBlank())
+                throw new Problem(400, "WATCH_INVALID", "Нечего открывать");
+              var watch = new RoomState.Watch();
+              watch.provider = command.provider();
+              watch.kind = command.kind();
+              watch.contentId = command.contentId();
+              watch.title = label(command.text());
+              watch.openedBy = member.id;
+              watch.paused = watch.kind.equals("video");
+              watch.positionMs = 0;
+              watch.anchorAt = now();
+              watch.revision = room.watch == null ? 1 : room.watch.revision + 1;
+              room.watch = watch;
+            }
+            case "watch.play", "watch.pause", "watch.seek" -> {
+              requireActive(room, member);
+              requireOpen(room);
+              var watch = room.watch;
+              if (watch == null)
+                throw Problem.conflict("WATCH_CLOSED", "Совместный просмотр закрыт");
+              // Пультом владеет тот, кто принёс видео, и ведущий. Остальным доступно другое:
+              // поставить своё вместо этого или закрыть — если комната разрешила интеграции.
+              // Иначе десять человек нажимают паузу одновременно и никто не смотрит.
+              if (!member.owner && !member.id.equals(watch.openedBy)) throw Problem.forbidden();
+              if (!"video".equals(watch.kind))
+                throw Problem.conflict(
+                    "WATCH_LIVE", "Живой эфир нельзя останавливать и перематывать");
+              if (command.positionMs() != null) watch.positionMs = command.positionMs();
+              if (command.type().equals("watch.play")) watch.paused = false;
+              if (command.type().equals("watch.pause")) watch.paused = true;
+              watch.anchorAt = now();
+              watch.revision++;
+            }
+            case "watch.close" -> {
+              requireActive(room, member);
+              integrations(room, member);
+              room.watch = null;
+            }
             case "message.send" -> {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
@@ -677,6 +761,25 @@ public class RoomService {
   }
 
   /**
+   * Кто может <b>принести</b> во встречу постороннее: ведущий всегда, остальные — если комната
+   * разрешила интеграции всем. Тот же переключатель управляет ботами: заводить для просмотра второй
+   * значило бы спросить дважды об одном и том же.
+   *
+   * <p>Управление уже открытым — отдельный вопрос и решается не здесь: пультом владеет тот, кто это
+   * открыл.
+   */
+  private void integrations(RoomState room, RoomState.Member member) {
+    if (!member.owner && !room.integrationsAllowed) throw Problem.forbidden();
+  }
+
+  /** Подпись к открытому ролику: без управляющих символов и не длиннее строки заголовка. */
+  private static String label(String value) {
+    if (value == null) return null;
+    var text = value.replaceAll("\\p{Cntrl}", " ").strip();
+    return text.isEmpty() ? null : text.substring(0, Math.min(120, text.length()));
+  }
+
+  /**
    * An avatar is shown to everyone in the room, so what arrives is checked rather than trusted.
    * Only a base64 data URI of a known image type is accepted, the payload must actually decode, and
    * the size is bounded well below the command's own limit so a picture can never become a way to
@@ -706,6 +809,9 @@ public class RoomService {
   public void close(RoomState room) {
     if (room.closedAt != null) return;
     room.closedAt = now();
+    // Смотреть вместе больше некому: закрытая комната не должна открывать плеер тому, кто
+    // зайдёт в неё за историей переписки.
+    room.watch = null;
     freezeHistory(room, room.closedAt);
     room.members
         .values()

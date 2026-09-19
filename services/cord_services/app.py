@@ -14,6 +14,8 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from .cinema import Cinema
+from .cinema import routes as cinema_routes
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
@@ -63,6 +65,7 @@ def create_app(
     )
     public_url = os.environ.get("PUBLIC_URL", "https://meet.nikg.tech").rstrip("/")
     yandex = Yandex(store, music, core.secret)
+    cinema = Cinema(core.secret)
     telegram = None
     background = []
 
@@ -101,6 +104,7 @@ def create_app(
         if telegram:
             await telegram.client.aclose()
         await yandex.http.aclose()
+        await cinema.close()
         await core.client.aclose()
         store.db.close()
 
@@ -113,7 +117,9 @@ def create_app(
     )
     app.state.store, app.state.core, app.state.music = store, core, music
     app.state.yandex = yandex
+    app.state.cinema = cinema
     app.include_router(routes(yandex, core))
+    app.include_router(cinema_routes(cinema, core))
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
@@ -128,7 +134,10 @@ def create_app(
                 {"detail": "Максимальный размер аудиофайла — 50 МБ"}, status_code=413
             )
         response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
+        # Кинозал отвечает за свои заголовки сам: сегменты видео должны лежать в кэше
+        # браузера, иначе отмотка назад скачивает уже скачанное — и с нашего же канала.
+        if not request.url.path.startswith("/api/v1/services/cinema/"):
+            response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
@@ -165,7 +174,11 @@ def create_app(
 
     @app.post("/api/v1/services/rooms/{room_id}/music/enable")
     async def enable(room_id: str, operation: Operation, authorization: str = Header()):
-        await core.member(room_id, authorization, integration=True)
+        room, _ = await core.member(room_id, authorization, integration=True)
+        # Активная интеграция в комнате одна. Ядро скажет то же самое при создании места для
+        # бота, но здесь отказ приходит раньше — до того, как человек дождётся подключения.
+        if room.get("watch"):
+            raise HTTPException(409, "Во встрече открыт кинозал. Сначала закройте его")
         return await music.enable(room_id, str(operation.commandId))
 
     @app.delete("/api/v1/services/rooms/{room_id}/music")

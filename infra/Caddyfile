@@ -19,6 +19,9 @@
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
 		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
+		# Совместный просмотр ничего здесь не просит, и это следствие того, как он устроен:
+		# видео достаёт сервер и отдаёт его со своего адреса, а страница играет обычный
+		# `<video>`. Чужих скриптов и рамок нет — значит, и послаблений не нужно.
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST} https://api.github.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
 }

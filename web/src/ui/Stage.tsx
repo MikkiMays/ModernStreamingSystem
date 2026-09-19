@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import type { MediaTile } from '../media/session';
@@ -7,6 +7,9 @@ import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
 import { focusedParticipant } from './focus';
+import { gridPlan } from './grid';
+
+const WatchTheater = lazy(() => import('./WatchTheater'));
 
 /**
  * Показывать ли себя зеркально.
@@ -139,7 +142,8 @@ export function Stage({
   onOpenServices: () => void;
   showServices: boolean;
 }) {
-  const participants = useStore(meeting.snapshot).participants;
+  const snapshot = useStore(meeting.snapshot);
+  const participants = snapshot.participants;
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
@@ -148,6 +152,30 @@ export function Stage({
   const layout = useStore(meeting.media.preferences).layout;
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
+  /*
+    Настоящий размер сцены. Раскладка считается по нему, а не по числу людей: одна и та же
+    четвёрка на мониторе просит два ряда по двое, а в узком окне с открытой панелью — колонку,
+    и подобрать это заранее в CSS нечем. Элемент приходит колбэком, а не ref: сцена исчезает
+    на время просмотра чужого экрана и рождается заново, и наблюдатель обязан переехать вместе
+    с ней.
+  */
+  const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    if (!stage || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      const { width, height } = stage.getBoundingClientRect();
+      // Дробные доли пикселя приходят десятками в секунду при любом движении панели, а
+      // раскладку не меняют: пересчитывать на них — это перерисовывать сцену впустую.
+      setBox((current) =>
+        Math.abs(current.width - width) < 1 && Math.abs(current.height - height) < 1
+          ? current
+          : { width, height },
+      );
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [stage]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -173,6 +201,7 @@ export function Stage({
   useEffect(() => {
     if (focused !== focus) setFocus(focused);
   }, [focused, focus]);
+  const plan = useMemo(() => gridPlan(people.length, box), [people.length, box]);
   if (viewing) {
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
@@ -260,78 +289,123 @@ export function Stage({
       (participant) =>
         participant.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(participant.status),
     );
+  /**
+   * Одна и та же плитка и в сетке, и в ленте под общим плеером: в кинозале у неё отбирают
+   * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
+   * подписи, обводку говорящего и меню участника дважды.
+   */
+  const tile = (person: (typeof people)[number], index: number, placed: boolean) => {
+    const camera = tracks.find(
+      (t) => t.participantId === person.id && t.source === Track.Source.Camera && !t.muted,
+    );
+    const mic = tracks.find(
+      (t) => t.participantId === person.id && t.source === Track.Source.Microphone && !t.muted,
+    );
+    const self = person.id === meeting.admission.participantId;
+    const sharing = !!(person.screen && person.screenId && person.screenStarted);
+    return (
+      <ParticipantMenu
+        meeting={meeting}
+        person={person}
+        key={person.id}
+        className="person-tile"
+        // Обводка вместо надписи: кто говорит, узнаётся боковым зрением, и читать для
+        // этого ничего не нужно. Заглушённый микрофон рядом остаётся отдельным знаком —
+        // на цвет полагаться нельзя.
+        data-speaking={mic && speaking.includes(person.id) ? 'true' : undefined}
+        data-sharing={sharing ? 'true' : undefined}
+        data-pinned={pinned === person.id ? 'true' : undefined}
+        // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
+        // так видео не пересоздаётся при смене говорящего и не моргает.
+        data-focused={layout === 'speaker' && focused === person.id ? 'true' : undefined}
+        style={
+          placed && plan.cells[index]
+            ? ({
+                gridRow: plan.cells[index].row,
+                gridColumn: `${plan.cells[index].column} / span 2`,
+              } as CSSProperties)
+            : undefined
+        }
+      >
+        {camera ? (
+          <VideoTrack tile={camera} />
+        ) : (
+          <div className="person-placeholder">
+            {sharing && (
+              <div
+                className="screen-preview"
+                aria-hidden="true"
+                style={previews[person.id] ? { backgroundImage: `url(${previews[person.id]})` } : undefined}
+              />
+            )}
+            <Avatar name={person.name} src={person.avatar} large />
+          </div>
+        )}
+        <div className="person-caption">
+          <span>
+            {person.name}
+            {self ? ' (Вы)' : ''}
+          </span>
+          {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
+        </div>
+        {sharing &&
+          (self ? (
+            <span className="watch-stream is-own">
+              <MonitorUp size={16} />
+              <span>Вы показываете экран</span>
+              <span className="live-badge">LIVE</span>
+            </span>
+          ) : (
+            <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
+              <MonitorUp size={16} />
+              <span>Смотреть стрим</span>
+              <span className="live-badge">LIVE</span>
+            </button>
+          ))}
+        {person.status === 'RECOVERING' && <div className="tile-recovery">Восстанавливаем связь…</div>}
+      </ParticipantMenu>
+    );
+  };
+  /*
+    Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
+    занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но
+    главное на экране теперь не они.
+  */
+  if (snapshot.watch)
+    return (
+      <div className="stage watch-together-stage">
+        <Suspense fallback={<div className="watch-screen" />}>
+          <WatchTheater meeting={meeting} watch={snapshot.watch} />
+        </Suspense>
+        <div className="people-strip" data-count={people.length}>
+          {people.map((person, index) => tile(person, index, false))}
+        </div>
+      </div>
+    );
   return (
     <div
       className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
       data-layout={layout}
     >
-      <div className="people-grid" data-count={people.length}>
-        {people.map((person) => {
-          const camera = tracks.find(
-            (t) => t.participantId === person.id && t.source === Track.Source.Camera && !t.muted,
-          );
-          const mic = tracks.find(
-            (t) => t.participantId === person.id && t.source === Track.Source.Microphone && !t.muted,
-          );
-          const self = person.id === meeting.admission.participantId;
-          const sharing = !!(person.screen && person.screenId && person.screenStarted);
-          return (
-            <ParticipantMenu
-              meeting={meeting}
-              person={person}
-              key={person.id}
-              className="person-tile"
-              // Обводка вместо надписи: кто говорит, узнаётся боковым зрением, и читать для
-              // этого ничего не нужно. Заглушённый микрофон рядом остаётся отдельным знаком —
-              // на цвет полагаться нельзя.
-              data-speaking={mic && speaking.includes(person.id) ? 'true' : undefined}
-              data-sharing={sharing ? 'true' : undefined}
-              data-pinned={pinned === person.id ? 'true' : undefined}
-              // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
-              // так видео не пересоздаётся при смене говорящего и не моргает.
-              data-focused={layout === 'speaker' && focused === person.id ? 'true' : undefined}
-            >
-              {camera ? (
-                <VideoTrack tile={camera} />
-              ) : (
-                <div className="person-placeholder">
-                  {sharing && (
-                    <div
-                      className="screen-preview"
-                      aria-hidden="true"
-                      style={
-                        previews[person.id] ? { backgroundImage: `url(${previews[person.id]})` } : undefined
-                      }
-                    />
-                  )}
-                  <Avatar name={person.name} src={person.avatar} large />
-                </div>
-              )}
-              <div className="person-caption">
-                <span>
-                  {person.name}
-                  {self ? ' (Вы)' : ''}
-                </span>
-                {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
-              </div>
-              {sharing &&
-                (self ? (
-                  <span className="watch-stream is-own">
-                    <MonitorUp size={16} />
-                    <span>Вы показываете экран</span>
-                    <span className="live-badge">LIVE</span>
-                  </span>
-                ) : (
-                  <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
-                    <MonitorUp size={16} />
-                    <span>Смотреть стрим</span>
-                    <span className="live-badge">LIVE</span>
-                  </button>
-                ))}
-              {person.status === 'RECOVERING' && <div className="tile-recovery">Восстанавливаем связь…</div>}
-            </ParticipantMenu>
-          );
-        })}
+      <div
+        className="people-grid"
+        data-count={people.length}
+        ref={setStage}
+        /*
+          Колонок объявляется вдвое больше, чем плиток в ряду, и каждая плитка занимает две
+          доли. Это единственный способ поставить неполный ряд ровно посередине: «половины
+          колонки» в grid нет, и трое под четырьмя всегда прижимались бы к левому краю.
+        */
+        style={
+          layout === 'grid'
+            ? {
+                gridTemplateColumns: `repeat(${plan.columns * 2}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${plan.rows}, minmax(0, 1fr))`,
+              }
+            : undefined
+        }
+      >
+        {people.map((person, index) => tile(person, index, layout === 'grid'))}
       </div>
       {showRoster && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
     </div>

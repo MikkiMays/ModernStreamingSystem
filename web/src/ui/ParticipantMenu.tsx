@@ -1,7 +1,7 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { Menu } from '@base-ui/react/menu';
 import { MoreHorizontal } from 'lucide-react';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import type { Participant } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Slider, useStore } from './primitives';
@@ -12,12 +12,15 @@ export function ParticipantMenu({
   person,
   children,
   className = '',
+  style,
   ...marks
 }: {
   meeting: Meeting;
   person: Participant;
   children: ReactNode;
   className?: string;
+  /** Место плитки в сетке: его считает сцена по своему настоящему размеру, а не CSS. */
+  style?: CSSProperties;
 } & Record<`data-${string}`, string | undefined>) {
   const snapshot = useStore(meeting.snapshot);
   const volumes = useStore(meeting.media.volumes);
@@ -92,7 +95,7 @@ export function ParticipantMenu({
       {/* The trigger renders the container itself, so the tile keeps its direct children and
           the CSS that positions the button by `>` still matches. Right click and long press
           open at the pointer; the button below keeps its own menu anchored to itself. */}
-      <ContextMenu.Trigger className={className} tabIndex={0} {...marks}>
+      <ContextMenu.Trigger className={className} style={style} tabIndex={0} {...marks}>
         {children}
         <Menu.Root>
           <Menu.Trigger className="icon-button participant-more" aria-label={`Действия: ${person.name}`}>

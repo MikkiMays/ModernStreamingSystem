@@ -366,7 +366,7 @@ export function SoundFields({ enabled, change }: { enabled: boolean; change: (en
           Сообщать звуком о том, что происходит во встрече
           <small>
             Вход и выход каждого участника, запрос на вход, новое сообщение в чате, ваш собственный вход и
-            выход.
+            выход, включение и выключение вашего микрофона.
           </small>
         </span>
       </label>
@@ -379,6 +379,8 @@ export function SoundFields({ enabled, change }: { enabled: boolean; change: (en
             ['knock', 'Просятся войти'],
             ['message', 'Сообщение в чате'],
             ['screen', 'Начался показ экрана'],
+            ['mic-on', 'Микрофон включён'],
+            ['mic-off', 'Микрофон выключен'],
           ] as const
         ).map(([cue, title]) => (
           <button

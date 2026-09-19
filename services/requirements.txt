@@ -3,3 +3,4 @@ uvicorn==0.52.4
 httpx==0.28.1
 yandex-music[async]==3.0.0
 cryptography==46.0.5
+yt-dlp==2026.8.19

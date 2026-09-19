@@ -399,12 +399,17 @@ export interface components {
         Command: {
             /** Format: uuid */
             commandId: string;
+            contentId?: string;
             /** Format: int64 */
             generation?: number;
+            kind?: string;
+            /** Format: int64 */
+            positionMs?: number;
+            provider?: string;
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close";
         };
         Connect: {
             password?: string;
@@ -555,6 +560,21 @@ export interface components {
             sequence: number;
             /** Format: int64 */
             serverTime: number;
+            title: string;
+            watch: components["schemas"]["Watch"] | null;
+        };
+        Watch: {
+            /** Format: int64 */
+            anchorAt: number;
+            contentId: string;
+            kind: string;
+            openedBy: string;
+            paused: boolean;
+            /** Format: int64 */
+            positionMs: number;
+            provider: string;
+            /** Format: int64 */
+            revision: number;
             title: string;
         };
     };
