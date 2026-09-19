@@ -70,7 +70,9 @@ export class Meeting {
     this.cue('self-join');
     this.accept(this.snapshot.get());
     // The picture belongs to this device, so each room has to be told about it once. A room
-    // that rejects it is not worth interrupting the join for.
+    // that rejects it is not worth interrupting the join for: бюджет картинки здесь и в ядре
+    // один и тот же, поэтому отказ означает испорченную запись, а не обычную картинку —
+    // прерывать ради неё вход не стоит, а менять её всё равно идут в настройки.
     const avatar = readPreferences().avatar;
     if (avatar) void this.command('profile.avatar', avatar).catch(() => {});
     // Admission must also work when an intermediary stalls the events socket.

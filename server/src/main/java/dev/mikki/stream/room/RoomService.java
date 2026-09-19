@@ -790,16 +790,35 @@ public class RoomService {
   }
 
   /**
+   * Сколько места картинка профиля занимает в снимке комнаты.
+   *
+   * <p>Это же число знает браузер ({@code web/src/core/avatar.ts}): он подбирает размер и качество
+   * так, чтобы уложиться ровно в него. Оно одно на обе стороны — и должно таким оставаться.
+   */
+  private static final int AVATAR_URI = 3500;
+
+  /**
+   * Тот же предел, но в байтах самой картинки.
+   *
+   * <p>Считается из {@link #AVATAR_URI}, а не назначается отдельно, и это починка: раньше здесь
+   * стояло 2400 байт — меньше, чем помещается в 3500 символов base64. Больше половины картинок
+   * проходили проверку у себя и отвергались здесь, а отказ никому не показывался: человек видел
+   * свою картинку в настройках и не видел её в комнате. Два предела на одно и то же — это всегда
+   * одна такая щель.
+   */
+  private static final int AVATAR_BYTES = AVATAR_URI * 3 / 4;
+
+  /**
    * An avatar is shown to everyone in the room, so what arrives is checked rather than trusted.
    * Only a base64 data URI of a known image type is accepted, the payload must actually decode, and
-   * the size is bounded well below the command's own limit so a picture can never become a way to
-   * push bulk data through the snapshot. An empty value clears the picture.
+   * the size is bounded so a picture can never become a way to push bulk data through the snapshot.
+   * An empty value clears the picture.
    */
   private static String avatar(String value) {
     if (value == null || value.isBlank()) return null;
     var text = value.strip();
     var comma = text.indexOf(',');
-    if (comma < 0 || text.length() > 3500)
+    if (comma < 0 || text.length() > AVATAR_URI)
       throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     var header = text.substring(0, comma);
     if (!header.equals("data:image/webp;base64")
@@ -808,7 +827,7 @@ public class RoomService {
       throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     try {
       var bytes = java.util.Base64.getDecoder().decode(text.substring(comma + 1));
-      if (bytes.length == 0 || bytes.length > 2400)
+      if (bytes.length == 0 || bytes.length > AVATAR_BYTES)
         throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");
     } catch (IllegalArgumentException e) {
       throw new Problem(400, "INVALID_AVATAR", "Не удалось прочитать картинку");

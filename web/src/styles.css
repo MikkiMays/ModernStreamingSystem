@@ -2512,8 +2512,10 @@ progress {
 */
 .avatar-crop {
   position: relative;
-  width: 256px;
-  height: 256px;
+  /* На узком экране окошко сжимается по месту: 256 пикселей плюс поля диалога не помещаются
+     в телефон, а кадрируют картинку чаще всего именно там. */
+  width: min(256px, calc(100vw - 96px));
+  aspect-ratio: 1;
   margin: 14px auto 6px;
   border-radius: 18px;
   overflow: hidden;
@@ -2521,8 +2523,8 @@ progress {
 }
 .avatar-crop-stage {
   display: block;
-  width: 256px;
-  height: 256px;
+  width: 100%;
+  height: 100%;
   cursor: grab;
   touch-action: none;
 }
@@ -2539,7 +2541,7 @@ progress {
     inset 0 0 0 2px #ffffff5c;
 }
 .avatar-crop-zoom {
-  max-width: 256px;
+  max-width: min(256px, calc(100vw - 96px));
   margin: 0 auto 6px;
 }
 /* A disabled slider still has to read as a control that exists, not as broken furniture. */
@@ -3476,6 +3478,20 @@ progress {
 }
 .download-warning code {
   font-size: 12px;
+  color: var(--text);
+}
+/*
+  Адрес этого сервера на странице загрузки. Поле только для чтения, но настоящее: адрес надо
+  уметь выделить и скопировать даже там, где буфер обмена запрещён политикой браузера.
+*/
+.download-address .invite-link {
+  gap: 10px;
+}
+.download-address .invite-link input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px 14px 12px 0;
+  font-size: 14px;
   color: var(--text);
 }
 @media (width < 700px) {

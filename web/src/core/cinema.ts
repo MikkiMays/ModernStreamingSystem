@@ -11,9 +11,20 @@ import type { WatchProvider } from './watch';
  * достучаться, и поэтому же строгий CSP остаётся нетронутым: ни чужих скриптов, ни чужих
  * картинок на странице нет.
  */
+/**
+ * Что бывает в каталоге.
+ *
+ * `video` смотрят, `channel` у Twitch — это идущий эфир (его тоже смотрят), а `channel` у
+ * YouTube, `playlist` и `category` — двери: в них заходят, а не включают их комнате.
+ */
+export type CinemaKind = 'video' | 'channel' | 'playlist' | 'category';
+
+/** Вкладки страницы канала — те же, что у самой площадки. */
+export type ChannelTab = 'videos' | 'streams' | 'shorts' | 'playlists' | 'about';
+
 export interface CinemaItem {
   provider: WatchProvider;
-  kind: 'video' | 'channel';
+  kind: CinemaKind;
   id: string;
   title: string;
   author: string;
@@ -21,10 +32,15 @@ export interface CinemaItem {
   channelId?: string | null;
   duration: number | null;
   live: boolean;
-  /** Смотрят прямо сейчас — у эфира. */
+  /** Смотрят прямо сейчас — у эфира и у раздела Twitch. */
   viewers?: number | null;
   /** Посмотрели всего — у ролика и записи. */
   views?: number | null;
+  /** Сколько подписано — у карточки канала. */
+  followers?: number | null;
+  /** Сколько роликов — у плейлиста, когда площадка это сказала. */
+  count?: number | null;
+  description?: string | null;
   category?: string | null;
   published?: string | null;
   /** Адрес обложки **у нас**, уже подписанный. */
@@ -35,6 +51,8 @@ export interface CinemaChannel {
   provider: WatchProvider;
   id: string;
   title: string;
+  /** `@псевдоним` у YouTube, логин у Twitch — то, по чему канал узнают. */
+  handle?: string;
   description: string;
   followers: number | null;
   viewers: number | null;
@@ -44,9 +62,46 @@ export interface CinemaChannel {
   banner: string | null;
 }
 
+export interface CinemaPlaylist {
+  provider: WatchProvider;
+  kind: 'playlist';
+  id: string;
+  title: string;
+  author: string;
+  channelId: string | null;
+  description: string;
+  count: number | null;
+  views: number | null;
+  published: string | null;
+  poster: string | null;
+}
+
+/**
+ * Порция каталога.
+ *
+ * `next` — место, с которого продолжать; его передают обратно, не разбирая. Пусто значит
+ * «дальше ничего нет», и именно на это опирается подгрузка по мере прокрутки.
+ */
 export interface CinemaPage {
-  channel: CinemaChannel;
   items: CinemaItem[];
+  next: string | null;
+}
+
+/** Поиск: лента находок и полки над ней — каналы у YouTube, разделы у Twitch. */
+export interface CinemaResults extends CinemaPage {
+  channels: CinemaItem[];
+  categories: CinemaItem[];
+}
+
+/** Страница канала. `channel` пуст, когда такой вкладки у канала нет вовсе. */
+export interface CinemaChannelPage extends CinemaPage {
+  channel: CinemaChannel | null;
+}
+export interface CinemaPlaylistPage extends CinemaPage {
+  playlist: CinemaPlaylist;
+}
+export interface CinemaCategoryPage extends CinemaPage {
+  category: CinemaItem;
 }
 
 export interface CinemaDetails extends CinemaItem {
@@ -76,13 +131,38 @@ export class CinemaApi {
   private ask = <T>(path: string, signal?: AbortSignal) =>
     request<T>(`${this.base}${path}`, { signal }, this.admission.credential);
   /** Пустой запрос — это витрина: у Twitch популярные эфиры, у YouTube ничего. */
-  search = (provider: WatchProvider, query: string, signal?: AbortSignal) =>
-    this.ask<{ items: CinemaItem[] }>(
-      `/search?provider=${provider}&query=${encodeURIComponent(query)}`,
+  search = (provider: WatchProvider, query: string, cursor = '', signal?: AbortSignal) =>
+    this.ask<CinemaResults>(
+      `/search?provider=${provider}&query=${encodeURIComponent(query)}&cursor=${cursor}`,
       signal,
-    ).then((answer) => answer.items);
-  channel = (provider: WatchProvider, id: string, signal?: AbortSignal) =>
-    this.ask<CinemaPage>(`/channel?provider=${provider}&id=${encodeURIComponent(id)}`, signal);
+    );
+  channel = (
+    provider: WatchProvider,
+    id: string,
+    tab: ChannelTab = 'videos',
+    cursor = '',
+    signal?: AbortSignal,
+  ) =>
+    this.ask<CinemaChannelPage>(
+      `/channel?provider=${provider}&id=${encodeURIComponent(id)}&tab=${tab}&cursor=${cursor}`,
+      signal,
+    );
+  playlist = (provider: WatchProvider, id: string, cursor = '', signal?: AbortSignal) =>
+    this.ask<CinemaPlaylistPage>(
+      `/playlist?provider=${provider}&id=${encodeURIComponent(id)}&cursor=${cursor}`,
+      signal,
+    );
+  /** Разделы площадки: у Twitch это игры и рубрики, у YouTube их нет. */
+  categories = (provider: WatchProvider, query = '', cursor = '', signal?: AbortSignal) =>
+    this.ask<CinemaPage>(
+      `/categories?provider=${provider}&query=${encodeURIComponent(query)}&cursor=${cursor}`,
+      signal,
+    );
+  category = (provider: WatchProvider, id: string, cursor = '', signal?: AbortSignal) =>
+    this.ask<CinemaCategoryPage>(
+      `/category?provider=${provider}&id=${encodeURIComponent(id)}&cursor=${cursor}`,
+      signal,
+    );
   details = (provider: WatchProvider, id: string, kind: 'video' | 'channel', signal?: AbortSignal) =>
     this.ask<CinemaDetails>(
       `/details?provider=${provider}&kind=${kind}&id=${encodeURIComponent(id)}`,

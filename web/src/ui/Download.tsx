@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Download as DownloadIcon, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
 import { AppIcon, Logo, ThemeButton, type Theme } from './primitives';
 import {
   INSTALLER_URL,
@@ -17,6 +17,15 @@ import {
  */
 export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+  /**
+   * Адрес, который спросит Cord при первом запуске, — это адрес **вот этой** страницы.
+   *
+   * Приложение не знает никакого сервера заранее и ничего не угадывает; единственное место,
+   * где этот адрес заведомо известен, — сервер, с которого человек сейчас качает установщик.
+   * Поэтому он написан здесь, целиком и с кнопкой «скопировать».
+   */
+  const address = typeof location === 'undefined' ? '' : location.origin + '/';
   useEffect(() => {
     let active = true;
     void windowsRelease().then((found) => {
@@ -97,6 +106,42 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
               </a>
             </>
           )}
+        </section>
+        <section className="download-warning download-address">
+          <h2>
+            <Server size={19} /> Куда подключаться после установки
+          </h2>
+          <p>
+            Cord не подключается никуда сам — при первом запуске он спросит адрес сервера. Это адрес вот этой
+            страницы, тот же, с которого вы сейчас скачиваете приложение:
+          </p>
+          <div className="invite-link">
+            <Server size={18} />
+            <input
+              aria-label="Адрес этого сервера"
+              value={address}
+              readOnly
+              onFocus={(e) => e.target.select()}
+            />
+          </div>
+          <button
+            className="button secondary full"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(address);
+                setCopied(true);
+              } catch {
+                setCopied(false);
+              }
+            }}
+          >
+            {copied ? <Check size={18} /> : <Copy size={18} />}{' '}
+            {copied ? 'Адрес скопирован' : 'Скопировать адрес'}
+          </button>
+          <p className="form-footnote download-note">
+            В Cord: «Указать первый сервер» → вставьте адрес → «Добавить». Имя и пароль — по желанию сервера;
+            серверов можно держать несколько и переключаться между ними.
+          </p>
         </section>
         <section className="download-warning">
           <h2>

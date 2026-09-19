@@ -1446,6 +1446,175 @@ button.watch-stream:hover {
 .cinema-chip-button:hover {
   background: var(--surface-2);
 }
+/*
+  Витрина площадки и вкладки канала — одна и та же полоса кнопок.
+
+  Разница только в том, что она переключает: у Twitch это «эфиры или разделы», у канала —
+  «видео, трансляции, плейлисты, о канале». Выглядеть они должны одинаково: это одно и то же
+  движение и одно и то же место на экране.
+*/
+.cinema-shelves,
+.cinema-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+.cinema-shelf-tab,
+.cinema-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* Подчёркивание рисуется всегда, но прозрачным: иначе выбранная вкладка прыгала бы на
+     пиксель вниз в тот момент, когда её выбирают. */
+  box-shadow: inset 0 -2px 0 transparent;
+}
+.cinema-shelf-tab:hover,
+.cinema-tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.cinema-shelf-tab[aria-selected='true'],
+.cinema-tab[aria-selected='true'] {
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+/*
+  Конец ленты. Кнопка настоящая и нажимается руками, но обычно её нажимает наблюдатель, когда
+  до неё доезжает прокрутка, — поэтому она во всю ширину: попасть в неё должно быть легко и
+  пальцем, и взглядом.
+*/
+.cinema-more {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cinema-more:hover {
+  background: var(--surface-2);
+}
+.cinema-more svg {
+  animation: watch-spin 900ms linear infinite;
+}
+/* Обложки разделов Twitch вертикальные, как на самой площадке: в ряд их помещается больше. */
+.cinema-grid-boxes {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.cinema-grid-faces {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.cinema-box {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  overflow: hidden;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.cinema-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Карточка канала: лицо кружком, как его показывает сама площадка. */
+.cinema-face {
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  overflow: hidden;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.cinema-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cinema-tile-face {
+  justify-items: center;
+  text-align: center;
+}
+.cinema-tile-face .cinema-tile-meta {
+  justify-content: center;
+}
+/* Корешок стопки: плейлист видно как плейлист до того, как в него зашли. */
+.cinema-stack {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+  width: 42%;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: white;
+  background: #0b0d12cc;
+}
+.cinema-category-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cinema-box-art {
+  width: 86px;
+  min-width: 86px;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+.cinema-category-head h3 {
+  margin: 0;
+  font-size: 19px;
+}
+.cinema-category-head small {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cinema-story {
+  display: grid;
+  gap: 10px;
+  max-width: 900px;
+}
+/* На вкладке «О канале» описание и есть содержимое страницы — резать его здесь незачем. */
+.cinema-about-full {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  display: block;
+  font-size: 13.5px;
+}
+/* У плейлиста обложка — это подпись, а не кадр: читают здесь список, а не смотрят картинку. */
+.cinema-detail-list {
+  grid-template-columns: minmax(0, 30%) minmax(0, 1fr);
+}
+.cinema-detail-list .cinema-detail-art {
+  aspect-ratio: 16 / 9;
+}
 .cinema-channel-head {
   display: grid;
   gap: 12px;

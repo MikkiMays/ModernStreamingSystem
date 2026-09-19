@@ -167,6 +167,14 @@ class RoomServiceTest {
     assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
         .anySatisfy(p -> assertThat(p.avatar()).isEqualTo(png));
 
+    // Картинка размером ровно в бюджет браузера обязана приниматься. Браузер подбирает размер и
+    // качество под 3500 символов data URI; второй, более узкий предел на байты означал здесь
+    // «принято у себя, отвергнуто комнатой» — и молча, потому что смотрят на свой экран.
+    var full = "data:image/webp;base64," + "A".repeat(3476);
+    avatar(host, full);
+    assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
+        .anySatisfy(p -> assertThat(p.avatar()).isEqualTo(full));
+
     avatar(host, "");
     assertThat(rooms.snapshot(rooms.read(host.roomId())).participants())
         .allSatisfy(p -> assertThat(p.avatar()).isNull());

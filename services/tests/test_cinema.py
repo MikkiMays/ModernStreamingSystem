@@ -1,16 +1,21 @@
 import asyncio
+import time
 import unittest
 
 from fastapi import HTTPException
 
 from cord_services.cinema import (
+    PAGE,
     Cinema,
     Memo,
     Reels,
     Signer,
+    absolute,
     allowed,
     finished_playlist,
     master_playlist,
+    offset_of,
+    page,
     rewrite,
 )
 
@@ -264,6 +269,77 @@ class StreamChoiceTests(unittest.TestCase):
         self.assertEqual(Cinema._stream({"formats": []}), (None, "file"))
 
 
+
+
+class PagingTests(unittest.TestCase):
+    """
+    Лента каталога отдаётся порциями, и место в ней уходит наружу строкой.
+
+    Клиент передаёт её обратно, не разбирая: так одинаково листаются и настоящее продолжение
+    ленты YouTube, и уже полученный список Twitch — их GraphQL отвечает на продолжение отказом
+    `failed integrity check`, если спрашивать анонимно.
+    """
+
+    def test_no_cursor_is_the_beginning(self):
+        self.assertEqual(offset_of(""), 0)
+        self.assertEqual(offset_of(None), 0)
+        self.assertEqual(offset_of("30"), 30)
+
+    def test_a_cursor_that_is_not_a_place_in_the_list_is_refused(self):
+        for bad in ("завтра", "-1", "1e5", "99999"):
+            with self.assertRaises(HTTPException) as refusal:
+                offset_of(bad)
+            self.assertEqual(refusal.exception.status_code, 400)
+
+    def test_the_last_portion_says_there_is_nothing_after_it(self):
+        items = list(range(PAGE + 5))
+        first = page(items, 0)
+        self.assertEqual(len(first["items"]), PAGE)
+        self.assertEqual(first["next"], str(PAGE))
+        second = page(items, PAGE)
+        self.assertEqual(len(second["items"]), 5)
+        self.assertIsNone(second["next"])
+
+    def test_a_picture_without_a_scheme_still_gets_one(self):
+        # Обложки каналов YouTube приходят как `//yt3.ggpht.com/…`; без схемы такой адрес не
+        # проходит белый список, и лицо канала тихо пропадало бы с карточки.
+        self.assertEqual(absolute("//yt3.ggpht.com/x"), "https://yt3.ggpht.com/x")
+        self.assertEqual(absolute("https://i.ytimg.com/x"), "https://i.ytimg.com/x")
+        self.assertEqual(absolute(""), "")
+        self.assertTrue(Cinema("s").image("//yt3.ggpht.com/x"))
+
+
+class TwitchChannelPageTests(unittest.TestCase):
+    """Эфир стоит первым и только в первой порции; записи листаются по уже полученному списку."""
+
+    def setUp(self):
+        self.cinema = Cinema("secret")
+        live = {"id": "one", "live": True}
+        records = [{"id": str(number), "live": False} for number in range(PAGE + 4)]
+        self.cinema.catalog._items["twitch:channel:someone"] = (
+            time.time() + 60,
+            {"channel": {"id": "someone"}, "items": [live, *records]},
+        )
+
+    def ask(self, tab="videos", offset=0):
+        return asyncio.run(self.cinema._twitch_channel_page("someone", tab, offset))
+
+    def test_the_live_stream_leads_the_first_portion_only(self):
+        first = self.ask()
+        self.assertTrue(first["items"][0]["live"])
+        self.assertEqual(len(first["items"]), PAGE + 1)
+        self.assertEqual(first["next"], str(PAGE))
+        second = self.ask(offset=PAGE)
+        self.assertFalse(any(item["live"] for item in second["items"]))
+        # Ни один ролик не пропал между порциями: эфир не занимает место записи.
+        self.assertEqual([item["id"] for item in second["items"]], [str(PAGE), str(PAGE + 1), str(PAGE + 2), str(PAGE + 3)])
+        self.assertIsNone(second["next"])
+
+    def test_the_about_tab_is_the_channel_without_a_feed(self):
+        about = self.ask(tab="about")
+        self.assertEqual(about["items"], [])
+        self.assertIsNone(about["next"])
+        self.assertEqual(about["channel"]["id"], "someone")
 
 
 class SegmentMemoryTests(unittest.TestCase):

@@ -41,28 +41,47 @@ import { disconnect, session } from '../core/session';
 import { AboutFields } from './AboutFields';
 
 /**
- * A picture is only offered where there is a comfortable way to pick one. On a phone the file
- * chooser opens a camera roll for something shown at 40 pixels, which is not worth the step.
+ * Картинка профиля: выбрать, обрезать, заменить или убрать.
+ *
+ * ЗДЕСЬ ЖЕ И ОТКАЗ. Комната картинку **проверяет**, и отказ — такая же часть этого разговора,
+ * как согласие. Раньше он проглатывался (`catch(() => {})`), и выглядело это хуже любой
+ * ошибки: в настройках новая картинка стоит, у комнаты — старая или никакой. Теперь отказ
+ * виден, а местная картинка возвращается к прежней: два места не должны расходиться молча.
+ *
+ * Выбор раньше показывали только на мышином указателе — «на телефоне это неудобно». Неудобно
+ * было кадрирование, а не выбор, и кадрирование давно работает пальцем; телефон же — ровно то
+ * место, где лежат все фотографии человека.
  */
 function AvatarPicker({
   preferences,
   change,
 }: {
   preferences: Preferences;
-  change: (patch: Partial<Preferences>) => void;
+  change: (patch: Partial<Preferences>) => Promise<void>;
 }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   // Выбранная картинка до того, как выбран кадр: пока она здесь, открыто окно кадрирования.
   const [chosen, setChosen] = useState<ImageBitmap | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const desktop =
-    typeof matchMedia !== 'function' || matchMedia('(pointer: fine)').matches || !!window.chrome?.webview;
   const forget = () => {
     chosen?.close();
     setChosen(null);
   };
-  if (!desktop) return null;
+  /** Поставить картинку и сказать правду о том, чем это кончилось. */
+  const apply = async (avatar: string) => {
+    const previous = preferences.avatar;
+    setError('');
+    setBusy(true);
+    try {
+      await change({ avatar });
+    } catch (problem) {
+      await change({ avatar: previous }).catch(() => {});
+      setError((problem as Error).message || 'Комната не приняла картинку');
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div>
       <span className="avatar-picker-label">Картинка профиля</span>
@@ -96,7 +115,7 @@ function AvatarPicker({
             {busy ? 'Обрабатываем…' : preferences.avatar ? 'Заменить' : 'Выбрать картинку'}
           </button>
           {preferences.avatar && (
-            <button className="button ghost" onClick={() => change({ avatar: '' })}>
+            <button className="button ghost" disabled={busy} onClick={() => void apply('')}>
               Убрать
             </button>
           )}
@@ -117,7 +136,7 @@ function AvatarPicker({
           bitmap={chosen}
           onCancel={forget}
           onSave={(avatar) => {
-            change({ avatar });
+            void apply(avatar);
             forget();
           }}
         />
@@ -671,13 +690,21 @@ export function Settings({
   useEffect(() => {
     if (open && section) setTab(section);
   }, [open, section]);
-  const change = (patch: Partial<Preferences>) => {
+  /**
+   * Сохранить настройку — и, если это картинка профиля, дождаться ответа комнаты.
+   *
+   * Обещание возвращается ради одного этого случая: всё остальное здесь местное и отказать не
+   * может, а картинку комната проверяет и вправе не принять. Тот, кто её ставит, обязан узнать
+   * об этом — молчаливый отказ и был жалобой «не могу поменять аватар».
+   */
+  const change = (patch: Partial<Preferences>): Promise<void> => {
     if (meeting) meeting.media.saveSettings(patch);
     else saved.set(savePreferences(patch));
     // The room learns the picture when joining, so a change made during a meeting has to be
     // sent as well or it would only appear the next time.
     if (meeting && patch.avatar !== undefined)
-      void meeting.command('profile.avatar', patch.avatar).catch(() => {});
+      return meeting.command('profile.avatar', patch.avatar).then(() => undefined);
+    return Promise.resolve();
   };
   useEffect(() => {
     if (!open) return;

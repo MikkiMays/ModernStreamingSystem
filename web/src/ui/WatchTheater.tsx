@@ -587,13 +587,20 @@ export function WatchTheater({
                   </IconButton>
                 </>
               )}
-              <IconButton
-                label={live ? 'Обновить трансляцию' : 'Встать на секунду комнаты'}
-                className={behind || lag > LIVE_EDGE ? 'watch-behind' : ''}
-                onClick={resync}
-              >
-                <RefreshCw size={17} />
-              </IconButton>
+              {/*
+                У эфира этой кнопки нет: «обновить» и «LIVE» делали одно и то же действие
+                (`resync`) и стояли рядом — вторая ручка от того же самого. У записи она
+                остаётся, и смысл у неё другой: встать туда, где комната.
+              */}
+              {!live && (
+                <IconButton
+                  label="Встать на секунду комнаты"
+                  className={behind ? 'watch-behind' : ''}
+                  onClick={resync}
+                >
+                  <RefreshCw size={17} />
+                </IconButton>
+              )}
               <div className="watch-volume">
                 <IconButton
                   label={muted ? 'Включить звук просмотра' : 'Выключить звук просмотра'}

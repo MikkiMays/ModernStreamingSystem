@@ -1,4 +1,10 @@
-/** Everything the room sees has to fit the server's budget for a picture. */
+/**
+ * Everything the room sees has to fit the server's budget for a picture.
+ *
+ * Это число знает и ядро (`RoomService.AVATAR_URI`), и оно там **одно**: байтовая граница
+ * считается из него, а не назначается отдельно. Пока их было две, они разошлись — и картинка,
+ * влезавшая сюда, отвергалась комнатой.
+ */
 export const avatarMaxLength = 3500;
 /**
  * Сколько пикселей в картинке профиля.

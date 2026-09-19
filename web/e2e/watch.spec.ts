@@ -58,7 +58,8 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     await expect(guest.locator('.cinema-browser')).toHaveCount(0);
 
     await browse.locator('.cinema-search input').fill('big buck bunny');
-    const result = browse.locator('.cinema-tile').first();
+    // Ролик, а не канал: поиск теперь отвечает и каналами, и они стоят полкой выше сетки.
+    const result = browse.locator('.cinema-tile:not(.cinema-tile-face)').first();
     await expect(result).toBeVisible({ timeout: 30000 });
     const title = (await result.locator('.cinema-tile-title').textContent())?.trim() ?? '';
     // Сетка ведёт на страницу видео, а оттуда — в комнату.
@@ -77,6 +78,12 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     // Ролик открывается на паузе и включается, когда плеер принёсшего готов.
     await expect(host.getByRole('button', { name: 'Пауза для всех' })).toBeVisible({ timeout: 30000 });
     // Пауза общая: её жмёт и тот, кто ничего не приносил, и видят это все.
+    //
+    // Пульт уходит с кадра через пару секунд без движения мыши, и «нажать» по нему тогда
+    // нельзя: `pointer-events` у скрытого пульта выключены, а проверка попадания у Playwright
+    // не двигает настоящую мышь — она бы его разбудила. Человек перед нажатием мышь двигает,
+    // поэтому и здесь сначала наведение, как и у хозяина ниже.
+    await guest.locator('.watch-theater').hover();
     const pause = guest.getByRole('button', { name: 'Пауза для всех' });
     await expect(pause).toBeEnabled();
     await pause.click();
@@ -107,5 +114,85 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
   } finally {
     await first.close();
     await second.close();
+  }
+});
+
+/**
+ * Каталог как каталог: канал, его вкладки, плейлист внутри канала и разделы Twitch.
+ *
+ * Это не про видео и не про синхронность — это про то, что по каталогу **ходят**: находят
+ * канал по имени, заходят в него, листают ленту вниз, открывают плейлист и возвращаются
+ * назад. Раньше сюда нельзя было попасть иначе как через чужой ролик, и обратной дороги не
+ * было вовсе.
+ *
+ * Одна встреча, один браузер: комната здесь нужна только как ключ к службам.
+ */
+test('the catalogue is walked: channels, tabs, playlists and Twitch categories', async ({
+  browser,
+  request,
+  baseURL,
+}) => {
+  const catalog = await request.get(`${baseURL}/api/v1/services/catalog`).catch(() => null);
+  test.skip(!catalog?.ok(), 'Службы не подняты: кинозалу не у кого спрашивать');
+  test.slow();
+  const context = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1440, height: 960 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Новая встреча/ }).click();
+    await page.getByLabel('Ваше имя').fill('Майс');
+    await page.getByRole('button', { name: 'Начать встречу' }).click();
+    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await page.getByRole('button', { name: 'Интеграции', exact: true }).click();
+    await page.getByRole('button', { name: /Кинозал/ }).click();
+    await page.getByRole('button', { name: /YouTube/ }).click();
+    const browse = page.locator('.cinema-browser');
+    await expect(browse).toBeVisible();
+
+    // Набрано имя канала — найден сам канал, а не только ролики про него.
+    await browse.locator('.cinema-search input').fill('Lofi Girl');
+    const channelCard = browse.locator('.cinema-tile-face').first();
+    await expect(channelCard).toBeVisible({ timeout: 30000 });
+    await channelCard.locator('.cinema-open').click();
+    await expect(browse.locator('.cinema-channel-head')).toBeVisible({ timeout: 30000 });
+    const videos = browse.locator('.cinema-tile');
+    await expect(videos.first()).toBeVisible({ timeout: 30000 });
+    const first = await videos.count();
+
+    // Лента канала продолжается по мере спуска вниз, а не кнопкой «страница 2».
+    const more = browse.getByRole('button', { name: 'Показать ещё' });
+    if (await more.isVisible().catch(() => false)) {
+      await more.click();
+      await expect(async () => expect(await videos.count()).toBeGreaterThan(first)).toPass({
+        timeout: 30000,
+      });
+    }
+
+    // Вкладки канала — те же, что у площадки, и в плейлист можно зайти.
+    await browse.getByRole('tab', { name: 'Плейлисты' }).click();
+    const list = browse.locator('.cinema-tile-list').first();
+    await expect(list).toBeVisible({ timeout: 30000 });
+    await list.locator('.cinema-open').click();
+    await expect(browse.locator('.cinema-detail-list')).toBeVisible({ timeout: 30000 });
+    await expect(browse.locator('.cinema-tile').first()).toBeVisible({ timeout: 30000 });
+    // Назад из плейлиста — на канал, а не из каталога.
+    await browse.getByRole('button', { name: 'Назад' }).click();
+    await expect(browse.locator('.cinema-channel-head')).toBeVisible({ timeout: 30000 });
+    await browse.getByRole('tab', { name: 'О канале' }).click();
+    await expect(browse.locator('.cinema-story')).toBeVisible({ timeout: 30000 });
+
+    // Twitch начинается не с поиска: разделы там выбирают раньше, чем людей.
+    await browse.getByRole('tab', { name: 'Twitch' }).click();
+    await browse.getByRole('tab', { name: 'Категории' }).click();
+    const category = browse.locator('.cinema-tile-box').first();
+    await expect(category).toBeVisible({ timeout: 30000 });
+    await category.locator('.cinema-open').click();
+    await expect(browse.locator('.cinema-category-head')).toBeVisible({ timeout: 30000 });
+    await expect(browse.locator('.cinema-tile').first()).toBeVisible({ timeout: 30000 });
+  } finally {
+    await context.close();
   }
 });

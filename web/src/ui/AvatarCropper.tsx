@@ -41,8 +41,12 @@ export function AvatarCropper({
   const dragging = useRef<{ pointer: number; x: number; y: number } | null>(null);
   // Кадр — это часть исходника; сколько пикселей страницы приходится на один его пиксель,
   // зависит от приближения, и от этого же зависит, насколько «быстро» тянется картинка.
+  //
+  // Считается по настоящей ширине холста, а не по {@link STAGE}: на узком экране окошко
+  // сжимается по месту, и картинка под пальцем уезжала бы быстрее пальца.
   const { side } = cropRect(bitmap.width, bitmap.height, crop);
-  const scale = STAGE / side;
+  const shown = canvas?.clientWidth || STAGE;
+  const scale = shown / side;
 
   useEffect(() => {
     const context = canvas?.getContext('2d');
@@ -91,7 +95,7 @@ export function AvatarCropper({
           // Клавиатура — такой же способ выбрать кадр: шаг в десятую долю кадра.
           tabIndex={0}
           onKeyDown={(e) => {
-            const step = STAGE / 10;
+            const step = shown / 10;
             const by: Record<string, [number, number]> = {
               ArrowLeft: [step, 0],
               ArrowRight: [-step, 0],
