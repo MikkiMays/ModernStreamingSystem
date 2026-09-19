@@ -491,8 +491,11 @@ class RoomServiceTest {
         .isEqualTo(now.get() + config.recoverySeconds() * 1000L);
   }
 
+  /**
+   * Исключение и отзыв приглашения действуют сразу: прежний вход перестаёт работать в тот же миг.
+   */
   @Test
-  void revokedInvitesAndRemovedParticipantsCannotReenter() {
+  void revokedInvitesAndRemovedSessionsStopWorkingAtOnce() {
     var host = host();
     var guest = guest(host);
     var room = rooms.read(host.roomId());
@@ -917,16 +920,41 @@ class RoomServiceTest {
     assertThat(rooms.snapshot(host.roomId(), guest.credential()).watch()).isNotNull();
   }
 
+  /**
+   * Исключение заканчивает встречу для человека, а не знакомство с комнатой.
+   *
+   * <p>Прежний вход после него всё так же мёртв — иначе автоматическое переподключение отменяло бы
+   * решение ведущего через секунду. А вот войти заново можно: той же дверью и на тех же условиях,
+   * что и всем. Комната без подтверждения пускает сразу — ровно как пускала по ссылке-приглашению,
+   * которая и раньше была открыта: запрет действовал только на сохранённую комнату, то есть был не
+   * запретом, а неудобством.
+   */
   @Test
-  void removedParticipantCannotUseFavoriteToEvadeRemoval() {
+  void removedParticipantReturnsThroughTheSameDoorAsEveryoneElse() {
     var host = host();
     var guest = guest(host);
     String profile = "B".repeat(43);
     favorites.save(profile, host.roomId(), guest.credential());
     command(host, "participant.remove", guest.participantId(), 0);
-    assertThat(favorites.list(profile).getFirst().canJoin()).isFalse();
-    assertThatThrownBy(
-            () -> favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Снова")))
+    assertThatThrownBy(() -> rooms.snapshot(host.roomId(), guest.credential()))
         .isInstanceOf(Problem.class);
+    assertThat(favorites.list(profile).getFirst().canJoin()).isTrue();
+    var again = favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Снова"));
+    assertThat(rooms.read(host.roomId()).members.get(again.participantId()).status)
+        .isEqualTo(RoomState.Status.JOINING);
+  }
+
+  /** А комната с подтверждением спрашивает ведущего снова: прежнее согласие не наследуется. */
+  @Test
+  void returningAfterRemovalWaitsForApprovalWhenTheRoomAsksForIt() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "С подтверждением", "Организатор", true));
+    var guest = guest(host);
+    command(host, "participant.approve", guest.participantId(), 0);
+    String profile = "C".repeat(43);
+    favorites.save(profile, host.roomId(), guest.credential());
+    command(host, "participant.remove", guest.participantId(), 0);
+    var again = favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Снова"));
+    assertThat(rooms.read(host.roomId()).members.get(again.participantId()).status)
+        .isEqualTo(RoomState.Status.WAITING);
   }
 }

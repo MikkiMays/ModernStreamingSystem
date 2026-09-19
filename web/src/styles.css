@@ -1929,6 +1929,11 @@ progress {
   padding: 6px;
   border-radius: 14px;
   box-shadow: 0 15px 50px #0002;
+  /* Меню встречи — одиннадцать пунктов, и на телефоне они длиннее экрана. Лучше прокрутка
+     внутри меню, чем «Завершить для всех» за нижним краем. */
+  max-height: min(78dvh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .action-menu [role='menuitem'] {
   display: flex;

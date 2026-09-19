@@ -42,6 +42,7 @@ import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { notifyDesktop, onDesktopCommand } from '../core/desktop';
+import { fullscreenAvailable } from '../core/fullscreen';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -116,6 +117,16 @@ export function MeetingView({
     notifyDesktop('call-state', { inCall: !ended });
   }, [ended]);
   const [panel, setPanel] = useState<Panel | null>(null);
+  /*
+    Каталог кинозала открывается на сцене, а на телефоне сцена лежит **под** панелью: панель
+    там не полоса сбоку, а лист во весь низ экрана. Получалось, что выбор фильма честно
+    открывался — и был не виден, потому что его закрывал тот же список интеграций, из
+    которого его и открыли. Панель уступает место ровно тому, что сама же позвала.
+  */
+  const browsing = useStore(meeting.cinema);
+  useEffect(() => {
+    if (compact && browsing) setPanel(null);
+  }, [compact, browsing]);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
@@ -476,7 +487,13 @@ export function MeetingView({
                       <Menu.Item onClick={() => setDiagnostics(true)}>
                         <Activity size={18} /> Диагностика
                       </Menu.Item>
-                      {compact && (
+                      {/*
+                        На телефоне полноэкранного режима может не быть вовсе: iPhone
+                        разворачивает только собственный плеер видео. Пункт, который ничего не
+                        делает, хуже отсутствующего — там, где режима нет, его здесь и нет.
+                        Кинозал в этом случае разворачивается сам, своими силами.
+                      */}
+                      {compact && fullscreenAvailable() && (
                         <Menu.Item onClick={() => toggleFullscreen()}>
                           {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}{' '}
                           {fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
@@ -499,7 +516,7 @@ export function MeetingView({
                   </Menu.Positioner>
                 </Menu.Portal>
               </Menu.Root>
-              {!compact && (
+              {!compact && fullscreenAvailable() && (
                 <IconButton
                   label={fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
                   onClick={toggleFullscreen}

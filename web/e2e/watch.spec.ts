@@ -196,3 +196,75 @@ test('the catalogue is walked: channels, tabs, playlists and Twitch categories',
     await context.close();
   }
 });
+
+/**
+ * Язык озвучки и субтитры: то, чем ролик говорит и чем он подписан.
+ *
+ * Жалоба была «почему-то выставляется какой-то другой язык». У ролика с озвучками YouTube не
+ * помечает основной **ни одну** дорожку, и плеер брал первую по списку — а список отсортирован
+ * по коду языка: `ar`, `de`, `fr`. Здесь проверяется обратное: выбран оригинал, а не алфавит.
+ *
+ * Ролик взят самый известный из многоязычных; если площадка сегодня отдала его без озвучек,
+ * сценарий проверяет только субтитры и не выдумывает поломку там, где её нет.
+ */
+test('the player speaks the original language and can be subtitled', async ({
+  browser,
+  request,
+  baseURL,
+}) => {
+  const catalog = await request.get(`${baseURL}/api/v1/services/catalog`).catch(() => null);
+  test.skip(!catalog?.ok(), 'Службы не подняты: кинозалу не у кого спрашивать');
+  test.slow();
+  const context = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1440, height: 960 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Новая встреча/ }).click();
+    await page.getByLabel('Ваше имя').fill('Майс');
+    await page.getByRole('button', { name: 'Начать встречу' }).click();
+    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await page.getByRole('button', { name: 'Интеграции', exact: true }).click();
+    await page.getByRole('button', { name: /Кинозал/ }).click();
+    await page.getByRole('button', { name: /YouTube/ }).click();
+    const browse = page.locator('.cinema-browser');
+    await browse.locator('.cinema-search input').fill('PSY GANGNAM STYLE');
+    const start = browse.getByRole('button', { name: /Смотреть вместе: .*GANGNAM STYLE/ }).first();
+    await expect(start).toBeVisible({ timeout: 30000 });
+    await start.click({ force: true });
+    await expect(page.locator('.watch-theater')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('button', { name: 'Пауза для всех' })).toBeVisible({ timeout: 40000 });
+
+    // Меню качества и озвучки: у ролика с дорожками выбранной обязана быть оригинальная.
+    await page.locator('.watch-theater').hover();
+    await page.getByRole('button', { name: 'Качество картинки и язык звука' }).click();
+    const menu = page.locator('.watch-quality-menu');
+    await expect(menu).toBeVisible();
+    if (
+      await menu
+        .getByText('Язык озвучки')
+        .isVisible()
+        .catch(() => false)
+    ) {
+      await expect(menu.locator('[role="menuitem"][data-selected="true"]').first()).toContainText('оригинал');
+    }
+    await page.keyboard.press('Escape');
+
+    /*
+      Субтитры. В плейлисте YouTube лежат только написанные руками, а у этого ролика их нет
+      вовсе — есть распознанные речью, и их приносит наш сервер отдельным файлом. Для меню
+      разницы нет: одна строка среди прочих.
+    */
+    await page.locator('.watch-theater').hover();
+    await page.getByRole('button', { name: /Субтитры/ }).click();
+    const choice = page.locator('.watch-quality-menu [role="menuitem"]').nth(1);
+    await expect(choice).toBeVisible();
+    await choice.click();
+    // Реплики рисует сам плеер: в родном показе они лежали бы под пультом.
+    await expect(page.locator('.watch-captions')).not.toBeEmpty({ timeout: 40000 });
+  } finally {
+    await context.close();
+  }
+});

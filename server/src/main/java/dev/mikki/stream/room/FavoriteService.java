@@ -35,13 +35,16 @@ public class FavoriteService {
             (rs, n) -> {
               var room = rooms.read(rs.getString("room_id"));
               var member = room.members.get(rs.getString("member_id"));
+              // Исключённый участник тоже может вернуться: `participant.remove` заканчивает
+              // встречу, а не знакомство с комнатой. Пусто здесь бывает по другой причине —
+              // запись об участнике не пережила срок хранения комнаты.
               return new Favorite(
                   room.id,
                   room.title,
                   room.code,
                   rs.getLong("saved_at"),
                   room.closedAt != null,
-                  member != null && member.status != RoomState.Status.REMOVED);
+                  member != null);
             })
         .list();
   }

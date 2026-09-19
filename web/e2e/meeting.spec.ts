@@ -101,3 +101,62 @@ test('two real browser contexts exchange camera, audio and messages through Live
     await b.close();
   }
 });
+
+/**
+ * Встреча на телефоне: пульт одной строкой и ничем не закрытый.
+ *
+ * Жалоба была «панелька, где микрофон и камера, ходит, неровно». Кнопки с зазорами не влезали
+ * в ширину телефона на несколько пикселей, «завершить» уезжала на вторую строку, и высота
+ * пульта менялась от того, что в нём сейчас лежит: включённая камера добавляет рядом выбор
+ * линзы. Эту высоту знали трое и каждый по-своему — сцена, лист панели и сам пульт.
+ *
+ * Проверяется то, что видно: все кнопки на одной линии, пульт не залезает на плитку с людьми,
+ * а открытая панель не накрывает его собой.
+ */
+test('the call dock stays one row on a phone and nothing covers it', async ({ browser }) => {
+  const context = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Новая встреча/ }).click();
+    await page.getByLabel('Ваше имя').fill('Тест');
+    await page.getByRole('button', { name: 'Начать встречу' }).click();
+    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+
+    const rows = async () =>
+      page.evaluate(
+        () =>
+          [
+            ...new Set(
+              [...document.querySelectorAll('.call-dock button')]
+                .filter((b) => b.getBoundingClientRect().width > 0)
+                .map((b) => Math.round(b.getBoundingClientRect().top)),
+            ),
+          ].length,
+      );
+    expect(await rows()).toBe(1);
+    // Камера добавляет в пульт ещё кнопку — строка от этого не удваивается.
+    await page.getByRole('button', { name: 'Включить камеру', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Выключить камеру', exact: true })).toBeVisible();
+    expect(await rows()).toBe(1);
+
+    // Панель открывается листом снизу и останавливается над пультом, а не поверх него.
+    await page.getByRole('button', { name: 'Настройки и действия' }).click();
+    await page.getByRole('menuitem', { name: 'Чат и файлы' }).click();
+    const gap = await page.evaluate(() => {
+      const panel = document.querySelector('.side-panel')?.getBoundingClientRect();
+      const dock = document.querySelector('.call-footer')?.getBoundingClientRect();
+      return panel && dock ? Math.round(dock.top - panel.bottom) : null;
+    });
+    expect(gap).not.toBeNull();
+    expect(gap).toBeGreaterThanOrEqual(0);
+    await page.screenshot({ path: '../.local/meeting-phone.png' });
+  } finally {
+    await context.close();
+  }
+});

@@ -136,7 +136,7 @@ public class RoomService {
     rooms.lockGlobal();
     var room = lock(roomId);
     var member = room.members.get(memberId);
-    if (member == null || member.status == REMOVED) throw Problem.forbidden();
+    if (member == null) throw Problem.forbidden();
     return returnMember(room, member, request, true);
   }
 
@@ -163,9 +163,23 @@ public class RoomService {
           checkSeat(room);
           var member = newMember(room, request.name(), previous.owner, request.commandId());
           member.codeRequest = previous.codeRequest;
+          /*
+           Исключение заканчивает встречу для человека, а не знакомство с комнатой.
+
+           Раньше статус REMOVED закрывал дверь навсегда: сохранённая комната показывала
+           «доступ отозван», а прежний вход больше не работал — и это при том, что та же
+           ссылка-приглашение пускала того же человека обратно новым участником. Одно и то же
+           действие означало то запрет, то паузу, в зависимости от того, какой дверью пойти.
+
+           Теперь оно означает одно: выйти отсюда сейчас. Вернуться можно тем же путём, каким
+           заходят все, — и ровно на тех же условиях: комната с подтверждением спросит
+           ведущего снова, а прежнее согласие исключённому не наследуется. Ведущему, которому
+           нужен настоящий запрет, отвечает подтверждение входа: оно и есть «не пускать».
+          */
+          var returning = status == REMOVED;
           member.approved =
               previous.owner
-                  || previous.approved
+                  || (!returning && previous.approved)
                   || (!previous.codeRequest && !room.approvalRequired && status != WAITING);
           member.status = member.approved ? JOINING : WAITING;
           member.recoveryDeadline = member.approved ? now() + config.joinSeconds() * 1000L : null;

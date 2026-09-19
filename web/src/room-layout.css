@@ -381,28 +381,51 @@ button.watch-stream:hover {
   padding: 0;
 }
 
+/*
+  Пульт на телефоне — одна строка и одно число.
+
+  Он переносился: восемь кнопок с зазорами не влезали в ширину телефона на четыре пикселя, и
+  «завершить» уезжала на вторую строку. От этого панель становилась то в одну строку, то в
+  две — стоило включить камеру, и рядом появлялась ещё кнопка выбора линзы. Это и есть
+  «панелька ходит»: её высота зависела от того, что в ней сейчас лежит.
+
+  Причём высоту эту знали трое и каждый по-своему: сцена оставляла снизу 116 пикселей, лист
+  панели поднимался на 88, а панель занимала 128. Теперь число одно — `--dock`, — и его
+  знают все, кому оно нужно. Кнопки в строке не переносятся, а зазоры между группами
+  сжимаются: лучше узкий зазор, чем вторая строка.
+*/
 @media (max-width: 700px) {
-  .stage-wrap > .call-footer {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .stage-wrap > .call-footer .call-dock {
-    flex-wrap: wrap;
-    justify-content: center;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .stage-wrap > .call-footer .icon-button {
-    min-width: 34px;
+  .meeting-page {
+    --dock: 64px;
   }
   .stage-wrap {
-    padding-bottom: 116px;
+    padding-bottom: calc(var(--dock) + 24px);
   }
-}
-
-@media (max-width: 700px) {
+  .stage-wrap > .call-footer {
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: calc(100% - 16px);
+    max-width: calc(100% - 16px);
+    min-height: var(--dock);
+  }
+  .stage-wrap > .call-footer .call-dock {
+    flex-wrap: nowrap;
+    justify-content: center;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .stage-wrap > .call-footer .icon-button {
+    min-width: 44px;
+  }
+  /* Зазор между группами тянется и сжимается: на узком экране первым уступает он, а не строка. */
+  .stage-wrap > .call-footer .dock-gap {
+    width: auto;
+    flex: 1 1 4px;
+    min-width: 4px;
+    max-width: 18px;
+  }
   .meeting-page:not(.meeting-fullscreen) .side-panel {
-    bottom: 88px;
+    bottom: calc(var(--dock) + 24px);
   }
 }
 
@@ -937,6 +960,11 @@ button.watch-stream:hover {
   color: #ffffffbd;
   font-variant-numeric: tabular-nums;
 }
+.watch-quality-menu {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .watch-quality-menu [role='menuitem'] {
   justify-content: space-between;
   min-height: 40px;
@@ -947,6 +975,66 @@ button.watch-stream:hover {
 .watch-quality-menu [data-selected='true'] {
   color: var(--blue);
   font-weight: 650;
+}
+/* Заголовок раздела в меню: язык озвучки и качество живут в одном списке, но это два выбора. */
+.watch-menu-title {
+  margin: 6px 0 2px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.watch-menu-title:first-child {
+  margin-top: 2px;
+}
+/* Включённые субтитры видно по кнопке, а не только по тексту на кадре. */
+.watch-chrome .icon-button.watch-on {
+  color: var(--blue);
+  background: #ffffff1f;
+}
+/*
+  Субтитры рисуем сами, а не отдаём браузеру.
+
+  Браузер кладёт их на нижний край кадра — ровно туда, где лежит пульт с паузой и
+  громкостью, — и подвинуть их оттуда нечем. Здесь они поднимаются над пультом ровно тогда,
+  когда он на экране, и опускаются обратно, когда он уходит.
+*/
+.watch-captions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 5%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: min(92%, 1100px);
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 160ms ease;
+  z-index: 1;
+}
+/* Пульт занимает снизу около ста двадцати пикселей: строка времени и ряд кнопок. Реплики
+   встают над ним целиком, а не касаются его верхнего края. */
+.watch-theater:not([data-idle='true']) .watch-captions {
+  bottom: max(16%, 132px);
+}
+@media (max-width: 700px) {
+  .watch-theater:not([data-idle='true']) .watch-captions {
+    bottom: max(16%, 104px);
+  }
+}
+.watch-captions span {
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: #05070cd1;
+  color: #fff;
+  font-size: clamp(14px, 2.1vw, 24px);
+  line-height: 1.35;
+  font-weight: 500;
+  white-space: pre-line;
+  text-wrap: balance;
 }
 /*
   Лента участников под плеером. Высота задана, а не вычислена: сцена делится между плеером и
@@ -989,10 +1077,76 @@ button.watch-stream:hover {
     justify-content: flex-start;
     height: clamp(62px, 11vh, 92px);
   }
+  /* Лицо в ленте под плеером на телефоне меньше самой ленты: иначе подпись с именем ложится
+     поверх кружка, и из двух вещей не читается ни одна. */
+  .people-strip .avatar-large {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 14px;
+  }
+}
+/*
+  Пульт плеера на телефоне.
+
+  Кнопок в нём стало больше, чем помещается в ширину телефона: к паузе, началу, синхронизации,
+  громкости и качеству добавились субтитры. Первым уходит ползунок громкости — на телефоне её
+  и так крутят клавишами сбоку, а кнопка «без звука» остаётся. Остальное просто мельче.
+*/
+@media (max-width: 700px) {
+  .watch-volume .slider {
+    display: none;
+  }
+  .watch-volume {
+    width: auto;
+  }
+  .watch-chrome .icon-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+  }
+  .watch-tools {
+    gap: 2px;
+  }
+  .watch-browse span,
+  .watch-quality span {
+    display: none;
+  }
+  .watch-browse,
+  .watch-live,
+  .watch-quality {
+    height: 32px;
+    padding: 0 10px;
+  }
+  .watch-head {
+    padding: 8px 8px 20px;
+  }
+  .watch-foot {
+    padding: 20px 8px 8px;
+  }
 }
 /* В полном экране лента участников уезжает вместе со сценой: разворачивают плеер, а не встречу. */
 .watch-theater:fullscreen .watch-screen {
   height: 100%;
+}
+/*
+  Полный экран там, где настоящего нет.
+
+  На iPhone развернуть можно только родной плеер `<video>` — а он рисует свои кнопки и свои
+  субтитры вместо наших, то есть теряет и общую паузу, и дорожку текста. Поэтому плеер
+  раскладывается на всё окно сам. Полоса адреса браузера остаётся: убрать её со страницы
+  нельзя ничем.
+*/
+.watch-theater[data-full='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #05070c;
+  padding: 0;
+}
+.watch-theater[data-full='true'] .watch-screen {
+  height: 100%;
+  border-radius: 0;
 }
 
 /*
@@ -1260,6 +1414,34 @@ button.watch-stream:hover {
   padding: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+/*
+  Каталог на телефоне.
+
+  В одну строку шапка не помещается: значок, две площадки и поле поиска — это шестьсот
+  пикселей там, где их триста шестьдесят. Значок уходит (он ничего не делает), поиск встаёт
+  своей строкой, а обложки идут по две в ряд — как на самой площадке в телефоне.
+*/
+@media (max-width: 700px) {
+  .cinema-bar {
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+  .cinema-bar > .cinema-mark {
+    display: none;
+  }
+  .cinema-bar .cinema-search {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .cinema-body {
+    padding: 10px;
+    gap: 10px;
+  }
+  .cinema-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px 8px;
+  }
 }
 .cinema-notice {
   margin: 0;

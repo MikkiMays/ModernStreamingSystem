@@ -269,6 +269,71 @@ class StreamChoiceTests(unittest.TestCase):
         self.assertEqual(Cinema._stream({"formats": []}), (None, "file"))
 
 
+class CaptionTests(unittest.TestCase):
+    """
+    Какие дорожки текста уезжают в плеер, а какие остаются здесь.
+
+    Правило одно: наружу идёт то, чего в самом потоке нет и что площадка нам отдаёт. Ручные
+    субтитры лежат в мастере HLS, автоперевод площадка не отдаёт вовсе, и обе эти вещи
+    видно прямо в ответе — ни того, ни другого в списке быть не должно.
+    """
+
+    def setUp(self):
+        self.cinema = Cinema("secret")
+
+    @staticmethod
+    def _entry(name, url, ext="vtt", protocol=None):
+        return {"ext": ext, "name": name, "url": url, "protocol": protocol}
+
+    def test_recognised_speech_travels_because_the_playlist_has_none(self):
+        info = {
+            "subtitles": {},
+            "automatic_captions": {
+                "ko": [self._entry("Korean", "https://www.youtube.com/api/timedtext?lang=ko&fmt=vtt")],
+                "ko-orig": [
+                    self._entry("Korean (Original)", "https://www.youtube.com/api/timedtext?lang=ko&fmt=vtt")
+                ],
+                "ru": [
+                    self._entry(
+                        "Russian", "https://www.youtube.com/api/timedtext?lang=ko&tlang=ru&fmt=vtt"
+                    )
+                ],
+            },
+        }
+        tracks = self.cinema._captions(info, embedded=True)
+        # Один язык — одна строка: `ko` и `ko-orig` это одна и та же распознанная речь.
+        self.assertEqual([track["lang"] for track in tracks], ["ko"])
+        self.assertTrue(tracks[0]["auto"])
+        self.assertTrue(tracks[0]["url"].startswith("/api/v1/services/cinema/fetch?"))
+
+    def test_written_by_hand_is_not_repeated_after_the_playlist(self):
+        info = {
+            "subtitles": {"ru": [self._entry("Russian", "https://www.youtube.com/api/timedtext?lang=ru")]},
+            "automatic_captions": {
+                "ru": [self._entry("Russian", "https://www.youtube.com/api/timedtext?kind=asr&lang=ru")]
+            },
+        }
+        # Поток несёт ручные сам — отсюда не едет ничего, в том числе распознанное на том же языке.
+        self.assertEqual(self.cinema._captions(info, embedded=True), [])
+        # Потока с субтитрами нет — ручные едут, распознанное на том же языке по-прежнему нет.
+        alone = self.cinema._captions(info, embedded=False)
+        self.assertEqual([(track["lang"], track["auto"]) for track in alone], [("ru", False)])
+
+    def test_a_playlist_of_pieces_is_not_a_file_for_the_tag(self):
+        info = {
+            "subtitles": {},
+            "automatic_captions": {
+                "en": [
+                    self._entry(
+                        "English", "https://manifest.googlevideo.com/api/manifest/hls_timedtext_playlist/x",
+                        protocol="m3u8_native",
+                    ),
+                ]
+            },
+        }
+        self.assertEqual(self.cinema._captions(info, embedded=True), [])
+
+
 
 
 class PagingTests(unittest.TestCase):

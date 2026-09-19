@@ -199,7 +199,7 @@ function BrowserHome({
                       <strong>{room.title}</strong>
                       <small>
                         {formatCode(room.code)} ·{' '}
-                        {room.canJoin ? 'Можно вернуться в любое время' : 'Доступ отозван организатором'}
+                        {room.canJoin ? 'Можно вернуться в любое время' : 'Комната больше не помнит вас'}
                       </small>
                     </span>
                     <ArrowRight size={18} />

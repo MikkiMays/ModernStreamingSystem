@@ -47,7 +47,7 @@ export function DesktopHome({
             className="desktop-favorite-enter"
             disabled={!room.canJoin}
             onClick={() => enter(room)}
-            title={room.canJoin ? room.title : 'Доступ отозван организатором'}
+            title={room.canJoin ? room.title : 'Комната больше не помнит вас'}
           >
             <span className="desktop-room-hash">
               <Hash size={18} />

@@ -110,6 +110,24 @@ export interface CinemaDetails extends CinemaItem {
   channelAvatar?: string | null;
 }
 
+/**
+ * Дорожка текста, которой в самом потоке нет.
+ *
+ * В плейлисте YouTube лежат только субтитры, написанные руками; распознанные речью —
+ * те, что есть почти у всякого ролика, — площадка отдаёт отдельными файлами, и приносит их
+ * наш сервер. Для меню разница между ними — одна подпись, поэтому и приезжают они одинаково.
+ */
+export interface CinemaCaption {
+  /** Код языка, как его называет площадка: `ru`, `en-US`, `zh-Hans`. */
+  lang: string;
+  /** Как назвала дорожку площадка. Запасное название: обычно оно на английском. */
+  label: string;
+  /** Распознано речью, а не написано автором. */
+  auto: boolean;
+  /** Готовый WebVTT **у нас**, уже подписанный. */
+  url: string;
+}
+
 export interface CinemaSource {
   provider: WatchProvider;
   contentId: string;
@@ -120,6 +138,14 @@ export interface CinemaSource {
   /** `hls` — плейлист со всеми уровнями качества; `file` — один готовый файл. */
   kind: 'hls' | 'file';
   url: string;
+  /**
+   * На каком языке ролик говорит сам.
+   *
+   * Без этого звуковую дорожку выбрать не из чего: у YouTube в плейлисте **ни одна** из
+   * двух десятков озвучек не помечена основной, и плеер берёт первую по коду языка.
+   */
+  language: string;
+  captions: CinemaCaption[];
   poster: string | null;
 }
 

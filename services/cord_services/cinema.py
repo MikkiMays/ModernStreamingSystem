@@ -440,6 +440,36 @@ def absolute(url: str | None) -> str:
     return "https:" + url if url.startswith("//") else url
 
 
+# Сколько дорожек текста отдавать одному ролику. Двух десятков хватает даже тем, кого
+# переводили всем светом: длиннее этого списка бывает только автоперевод, а его площадка
+# нам всё равно не отдаёт.
+CAPTIONS_LIMIT = 24
+
+
+def _base_language(language: str) -> str:
+    """`ko-orig`, `zh-Hans`, `en-US` — всё это один язык на выбор в меню."""
+    return (language or "").split("-")[0].lower()
+
+
+def _vtt(entries: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+    """
+    Готовый файл субтитров, а не плейлист из кусочков.
+
+    yt-dlp перечисляет один и тот же текст в нескольких видах (`json3`, `srv3`, `ttml`,
+    `vtt`), а иногда — плейлистом HLS. Браузеру в `<track>` нужен ровно WebVTT одним файлом;
+    то, что пришло плейлистом, лежит в мастере и достаётся плеером без нашей помощи.
+    """
+    for entry in entries or []:
+        if (
+            entry.get("ext") == "vtt"
+            and entry.get("url")
+            and not str(entry.get("protocol") or "").startswith("m3u8")
+            and allowed(entry["url"])
+        ):
+            return entry
+    return None
+
+
 class Cinema:
     def __init__(self, secret: str, client: httpx.AsyncClient | None = None):
         self.signer = Signer(secret)
@@ -1139,6 +1169,12 @@ class Cinema:
             "live": bool(info.get("is_live")),
             "kind": kind,
             "url": proxied(self.signer, stream, "playlist" if kind == "hls" else "fetch"),
+            # На каком языке ролик говорит сам. Ни одна дорожка в мастере YouTube не помечена
+            # как основная (`DEFAULT=NO` у всех), и плеер без подсказки берёт первую по
+            # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
+            # язык»: выбора не было, был порядок строк.
+            "language": info.get("language") or "",
+            "captions": self._captions(info, kind == "hls"),
             "poster": self.image(poster),
         }
 
@@ -1158,6 +1194,59 @@ class Cinema:
                 return ydl.extract_info(source, download=False) or {}
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
             raise HTTPException(502, f"Не удалось открыть видео: {error}"[:300]) from None
+
+    def _captions(self, info: dict[str, Any], embedded: bool) -> list[dict[str, Any]]:
+        """
+        Дорожки текста, которых нет в самом потоке.
+
+        В мастере HLS у YouTube лежат **только написанные руками** субтитры — те, что автор
+        приложил к ролику. Распознанных речью (`kind=asr`) там нет ни одной, а именно они и
+        есть у большинства роликов: у «Gangnam Style» сто пятьдесят семь автоматических и ни
+        одной ручной. Поэтому их адрес берётся у yt-dlp и отдаётся отдельным списком.
+        Плеер складывает оба списка в одно меню — для человека разницы между ними нет.
+
+        Автоперевод (`tlang=` в адресе) сюда не попадает намеренно: на него площадка отвечает
+        нам «429 Too Many Requests» — с адреса сервера переводить она не даёт. Распознанная
+        речь на своём языке при этом отдаётся без единой жалобы.
+
+        `embedded` — поток уже несёт субтитры сам (мастер HLS). Тогда ручные не дублируются:
+        их покажет плеер из плейлиста, а отсюда приезжает только распознанное. И то, что
+        площадка написала руками, автоматическое не вытесняет — как и у самого YouTube.
+        """
+        manual = info.get("subtitles") or {}
+        written = {_base_language(language) for language in manual}
+        tracks: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        def offer(language: str, entries: list[dict[str, Any]], generated: bool) -> None:
+            base = _base_language(language)
+            found = _vtt(entries)
+            if not found or base in seen or (generated and base in written):
+                return
+            seen.add(base)
+            tracks.append(
+                {
+                    # `ko-orig` — выдумка yt-dlp, а не код языка: так помечена та же
+                    # распознанная речь, к которой не приложили перевод. Наружу уходит язык.
+                    "lang": language.removesuffix("-orig"),
+                    # Имя от площадки — на английском («Korean»), и оно запасное: плеер
+                    # называет язык сам, на языке смотрящего.
+                    "label": found.get("name") or language,
+                    "auto": generated,
+                    "url": proxied(self.signer, found["url"], "fetch"),
+                }
+            )
+
+        if not embedded:
+            for language, entries in manual.items():
+                offer(language, entries, False)
+        for language, entries in (info.get("automatic_captions") or {}).items():
+            found = _vtt(entries)
+            # Все нетронутые переводом дорожки — это одна и та же распознанная речь под
+            # разными ключами (`ko` и `ko-orig`); лишние отсеивает общий отбор по языку.
+            if found and "tlang=" not in found["url"]:
+                offer(language, entries, True)
+        return tracks[:CAPTIONS_LIMIT]
 
     @staticmethod
     def _stream(info: dict[str, Any]) -> tuple[str | None, str]:

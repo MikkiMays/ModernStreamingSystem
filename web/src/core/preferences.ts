@@ -75,6 +75,16 @@ export interface Preferences {
    * плеера, и договариваться о громкости не с кем — как и о громкости собеседника.
    */
   watchVolume: number;
+  /**
+   * Каким языком озвучки и какими субтитрами открывать следующий ролик.
+   *
+   * Тоже своё: комната смотрит одно кино, но слышать и читать его каждый может по-своему —
+   * как и громкость. Пустая озвучка означает «как снял автор»: у ролика с двумя десятками
+   * переозвучек это единственный ответ, который не зависит от порядка строк в плейлисте.
+   * Пустые субтитры — выключены.
+   */
+  watchAudio: string;
+  watchSubtitles: string;
   /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
   reception: Reception;
   name: string;
@@ -139,6 +149,8 @@ export function readPreferences(): Preferences {
       typeof data.watchVolume === 'number' && Number.isFinite(data.watchVolume)
         ? Math.max(0, Math.min(100, Math.round(data.watchVolume)))
         : 70,
+    watchAudio: typeof data.watchAudio === 'string' ? data.watchAudio.slice(0, 24) : '',
+    watchSubtitles: typeof data.watchSubtitles === 'string' ? data.watchSubtitles.slice(0, 32) : '',
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,

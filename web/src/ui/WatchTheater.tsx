@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Hls from 'hls.js';
 import {
+  Captions,
   Clapperboard,
   LoaderCircle,
   Maximize2,
@@ -21,8 +22,17 @@ import { Menu } from '@base-ui/react/menu';
 import type { Watch } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { CinemaApi, clock, type CinemaSource } from '../core/cinema';
+import { useFullscreen } from '../core/fullscreen';
 import { correction, targetPosition, VISIBLE_DRIFT } from '../core/watch';
 import { levelLabel, qualities, type Level } from './watch-levels';
+import {
+  audioChoices,
+  captionChoices,
+  pickAudio,
+  pickCaption,
+  type AudioChoice,
+  type CaptionChoice,
+} from './watch-tracks';
 import { IconButton, Slider, useStore } from './primitives';
 
 /**
@@ -70,6 +80,25 @@ const LIVE_LAG = 12;
  * {@link LIVE_EDGE}; дальше она гаснет, показывает число и предлагает вернуться.
  */
 const LIVE_EDGE = 7;
+/**
+ * Реплика субтитров без разметки.
+ *
+ * Распознанная речь приходит с покадровой подсветкой — `слово<00:00:12.400><c> следующее</c>`,
+ * — и в готовом виде это не текст, а разметка. Браузер разбирает её сам, но только для
+ * дорожек, которые сам же и рисует; наши он держит как данные, и разбор остаётся за нами.
+ * Заодно отсюда уходят пустые строки: у YouTube каждая вторая реплика — пустая половинка
+ * бегущей строки.
+ */
+function spoken(cue: TextTrackCue): string {
+  const raw =
+    (cue as VTTCue).getCueAsHTML?.().textContent ?? ((cue as VTTCue).text as string | undefined) ?? '';
+  return raw
+    .replace(/<[^>]*>/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n');
+}
 
 type Status = 'loading' | 'ready' | 'blocked' | 'failed';
 
@@ -100,6 +129,11 @@ export function WatchTheater({
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [automatic, setAutomatic] = useState(-1);
+  const [voices, setVoices] = useState<AudioChoice[]>([]);
+  const [voice, setVoice] = useState(-1);
+  const [texts, setTexts] = useState<CaptionChoice[]>([]);
+  const [text, setText] = useState('');
+  const [lines, setLines] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [position, setPosition] = useState(0);
@@ -107,10 +141,13 @@ export function WatchTheater({
   const [buffered, setBuffered] = useState(0);
   const [drift, setDrift] = useState(0);
   const [lag, setLag] = useState(0);
-  const [fullscreen, setFullscreen] = useState(false);
   const [idle, setIdle] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [captionMenu, setCaptionMenu] = useState(false);
   const screen = useRef<HTMLDivElement>(null);
+  // На телефоне полноэкранного режима для чужих элементов нет, и кнопка там раскладывает
+  // плеер на всё окно сама — см. {@link useFullscreen}.
+  const { full: fullscreen, toggle: toggleFullscreen } = useFullscreen(screen);
   const video = useRef<HTMLVideoElement>(null);
   const engine = useRef<Hls | null>(null);
   const suppressUntil = useRef(0);
@@ -118,6 +155,15 @@ export function WatchTheater({
   const started = useRef(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const loudness = useRef(Math.max(8, preferences.watchVolume || 70));
+  /**
+   * Что человек выбрал ушами и глазами, а не что сейчас играет.
+   *
+   * Живёт в ссылке, а не в состоянии, потому что спрашивают об этом изнутри плеера: список
+   * звуковых дорожек у YouTube меняется на **каждой** смене качества (у каждой лестницы своя
+   * группа звука), и на каждую такую смену выбор языка надо назначать заново.
+   */
+  const wantedVoice = useRef(preferences.watchAudio);
+  const wantedText = useRef(preferences.watchSubtitles);
   const live = watch.kind === 'channel' || !!source?.live;
   const latest = useRef({ watch, canControl, live });
   latest.current = { watch, canControl, live };
@@ -148,6 +194,10 @@ export function WatchTheater({
     setSource(null);
     setLevels([]);
     setLevel(-1);
+    setVoices([]);
+    setVoice(-1);
+    setTexts([]);
+    setLines([]);
     setDrift(0);
     setLag(0);
     started.current = false;
@@ -181,6 +231,10 @@ export function WatchTheater({
       setStatus('failed');
       setError(message);
     };
+    // Распознанная речь есть и у ролика без плейлиста: она приезжает отдельными файлами, и
+    // её список известен раньше, чем плеер что-либо скажет о своих дорожках.
+    setTexts(captionChoices([], source.captions));
+    const preferred = wantedVoice.current || source.language;
     if (source.kind === 'file') {
       element.src = source.url;
     } else if (Hls.isSupported()) {
@@ -234,8 +288,23 @@ export function WatchTheater({
         // двенадцати мы уже не отстаём, а смотрим запись.
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 12,
+        /*
+          Язык звука — до первого байта, а не после.
+
+          У ролика с озвучками YouTube не помечает основной **ни одну** дорожку: `DEFAULT=NO`
+          стоит у всех двадцати четырёх. Плеер в таком случае берёт первую по списку, а
+          список отсортирован по коду языка — так английский ролик и начинал говорить
+          по-арабски или по-французски. Подсказка здесь ставит нужную дорожку до загрузки,
+          а не переключает уже играющую; если такого языка у ролика нет, выбор поправится
+          по списку дорожек, когда он приедет.
+        */
+        audioPreference: preferred ? { lang: preferred } : undefined,
       });
       engine.current = hls;
+      // Рисуем реплики сами: браузер кладёт их на нижний край кадра, ровно под пульт с
+      // паузой и громкостью. Дорожка при этом остаётся живой — «спрятана» значит «разобрана,
+      // но не нарисована», и активные реплики по-прежнему приходят.
+      hls.subtitleDisplay = false;
       const readLevels = () => {
         if (!alive) return;
         setLevels(hls.levels as unknown as Level[]);
@@ -244,6 +313,26 @@ export function WatchTheater({
       hls.on(Hls.Events.MANIFEST_PARSED, readLevels);
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
         if (alive) setAutomatic(data.level);
+      });
+      /*
+        Дорожки звука приезжают не один раз: у каждой ступени качества своя группа, и смена
+        ступени переписывает список целиком. Поэтому выбранный язык назначается на каждое
+        обновление — он принадлежит человеку, а не группе, из которой сейчас идёт звук.
+      */
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+        if (!alive) return;
+        const tracks = hls.audioTracks;
+        setVoices(audioChoices(tracks));
+        const wanted = pickAudio(tracks, wantedVoice.current, source.language);
+        const track = tracks[wanted];
+        if (track && wanted !== hls.audioTrack) hls.setAudioOption({ lang: track.lang, name: track.name });
+        setVoice(wanted);
+      });
+      hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
+        if (alive) setVoice(data.id);
+      });
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, data) => {
+        if (alive) setTexts(captionChoices(data.subtitleTracks, source.captions));
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
@@ -275,11 +364,66 @@ export function WatchTheater({
     if (video.current) video.current.volume = Math.max(0, Math.min(1, preferences.watchVolume / 100));
   }, [preferences.watchVolume]);
 
+  // Список субтитров у каждого ролика свой, а выбор человека — один на все: он помнится
+  // языком и заново прикладывается к тому, что этот ролик предлагает.
+  useEffect(() => setText(pickCaption(texts, wantedText.current)), [texts]);
+
+  /**
+   * Показать выбранные субтитры — или ничьи.
+   *
+   * Дорожка из плейлиста включается плеером, отдельный файл — тегом `<track>` ниже. Обе
+   * дороги ведут в один и тот же список дорожек элемента `<video>`, откуда реплики и
+   * читаются; поэтому здесь важно ровно одно: чтобы включённой была одна.
+   */
   useEffect(() => {
-    const changed = () => setFullscreen(document.fullscreenElement === screen.current);
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
-  }, []);
+    const chosen = texts.find((item) => item.id === text);
+    if (engine.current) engine.current.subtitleTrack = chosen && chosen.track >= 0 ? chosen.track : -1;
+    if (!chosen) setLines([]);
+  }, [text, texts]);
+
+  /**
+   * Реплики, которые звучат прямо сейчас.
+   *
+   * Спрятанная дорожка — это разобранная, но не нарисованная: браузер держит её реплики в
+   * `activeCues` и предупреждает о смене, а рисуем мы сами. Так субтитры поднимаются над
+   * пультом, а не прячутся под ним, и выглядят одинаково во всех браузерах.
+   */
+  useEffect(() => {
+    const element = video.current;
+    if (!element || !text) return;
+    const list = element.textTracks;
+    const update = () => {
+      const shown: string[] = [];
+      for (const track of Array.from(list)) {
+        if (track.mode !== 'hidden') continue;
+        for (const cue of Array.from(track.activeCues ?? [])) {
+          const line = spoken(cue);
+          if (line) shown.push(line);
+        }
+      }
+      setLines(shown);
+    };
+    // Дорожки появляются и исчезают по ходу дела: файл субтитров подгружается тегом, а
+    // дорожки плейлиста заводит плеер, когда доберётся до них.
+    const listen = () => {
+      for (const track of Array.from(list)) {
+        track.removeEventListener('cuechange', update);
+        track.addEventListener('cuechange', update);
+      }
+      update();
+    };
+    list.addEventListener('addtrack', listen);
+    list.addEventListener('removetrack', listen);
+    list.addEventListener('change', listen);
+    listen();
+    return () => {
+      list.removeEventListener('addtrack', listen);
+      list.removeEventListener('removetrack', listen);
+      list.removeEventListener('change', listen);
+      for (const track of Array.from(list)) track.removeEventListener('cuechange', update);
+      setLines([]);
+    };
+  }, [text, source]);
 
   /** Пульт живёт, пока в плеере что-то происходит; потом уходит с кадра вместе с курсором. */
   const wake = useCallback(() => {
@@ -402,10 +546,26 @@ export function WatchTheater({
   };
 
   const choices = useMemo(() => qualities(levels), [levels]);
+  /** Выбранные субтитры — и файл, если их приносит не плейлист, а наш сервер. */
+  const caption = texts.find((item) => item.id === text);
+  const chooseText = (id: string) => {
+    wantedText.current = id;
+    setText(id);
+    meeting.media.saveSettings({ watchSubtitles: id });
+  };
+  const chooseVoice = (choice: AudioChoice) => {
+    const track = engine.current?.audioTracks[choice.index];
+    // Помним язык, а не номер: у следующего ролика номера будут другие, а язык тот же.
+    // Оригинал помнится пустой строкой — «как снял автор» у каждого ролика свой.
+    wantedVoice.current = choice.original ? '' : (track?.lang ?? '');
+    meeting.media.saveSettings({ watchAudio: wantedVoice.current });
+    setVoice(choice.index);
+    if (track) engine.current?.setAudioOption({ lang: track.lang, name: track.name });
+  };
   const title = source?.title ?? watch.title ?? 'Совместный просмотр';
   const muted = preferences.watchVolume <= 0;
   const behind = !live && Math.abs(drift) > VISIBLE_DRIFT;
-  const showControls = idle === false || !playing || menu || status !== 'ready';
+  const showControls = idle === false || !playing || menu || captionMenu || status !== 'ready';
   const chosen = level >= 0 ? levelLabel(levels[level]) : '';
   return (
     <section
@@ -467,7 +627,33 @@ export function WatchTheater({
               setError('Поток не открылся. Попробуйте другое видео');
             }
           }}
-        />
+        >
+          {/*
+            Субтитры, которых нет в плейлисте, приезжают отдельным файлом.
+
+            `metadata` — чтобы браузер разобрал дорожку, но не рисовал её сам и чтобы плеер
+            не принял её за свою: он держит список своих дорожек и гасит в нём чужие.
+            Рисуем мы, из `activeCues`; «спрятана» здесь значит «работает молча».
+          */}
+          {caption?.url && (
+            <track
+              key={caption.id}
+              kind="metadata"
+              src={caption.url}
+              label={caption.label}
+              ref={(node) => {
+                if (node?.track) node.track.mode = 'hidden';
+              }}
+            />
+          )}
+        </video>
+        {!!lines.length && (
+          <div className="watch-captions" aria-live="polite">
+            {lines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </div>
+        )}
         {status === 'ready' && waiting && playing && (
           <div className="watch-buffering" role="status" aria-label="Загружаем">
             <LoaderCircle size={34} />
@@ -516,8 +702,10 @@ export function WatchTheater({
                       : 'Смотрим вместе'}
               </small>
             </span>
+            {/* На телефоне подпись прячется, а имя кнопки остаётся: без него это была бы
+                кнопка без названия — и для голосового доступа, и для проверок. */}
             {onBrowse && (
-              <button className="watch-browse" onClick={onBrowse}>
+              <button className="watch-browse" aria-label="Каталог" onClick={onBrowse}>
                 <Clapperboard size={16} />
                 <span>Каталог</span>
               </button>
@@ -624,11 +812,48 @@ export function WatchTheater({
                 />
               </div>
               <span className="watch-gap" />
-              {choices.length > 1 && (
+              {/*
+                Субтитры — отдельной кнопкой, а не строкой в шестерёнке: их включают и
+                выключают посреди просмотра, и у площадки они стоят ровно здесь же.
+              */}
+              {texts.length > 0 && (
+                <Menu.Root open={captionMenu} onOpenChange={setCaptionMenu}>
+                  <Menu.Trigger
+                    render={
+                      <IconButton
+                        label={caption ? `Субтитры: ${caption.label}` : 'Субтитры'}
+                        className={caption ? 'watch-on' : ''}
+                      >
+                        <Captions size={19} />
+                      </IconButton>
+                    }
+                  />
+                  <Menu.Portal>
+                    <Menu.Positioner side="top" sideOffset={10} align="end">
+                      <Menu.Popup className="action-menu watch-quality-menu">
+                        <Menu.Item data-selected={text ? undefined : 'true'} onClick={() => chooseText('')}>
+                          Выключены
+                        </Menu.Item>
+                        {texts.map((item) => (
+                          <Menu.Item
+                            key={item.id}
+                            data-selected={text === item.id ? 'true' : undefined}
+                            onClick={() => chooseText(item.id)}
+                          >
+                            {item.label}
+                            {item.auto && <small>распознано</small>}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Popup>
+                    </Menu.Positioner>
+                  </Menu.Portal>
+                </Menu.Root>
+              )}
+              {(choices.length > 1 || voices.length > 1) && (
                 <Menu.Root open={menu} onOpenChange={setMenu}>
                   <Menu.Trigger
                     render={
-                      <button className="watch-quality" aria-label="Качество картинки">
+                      <button className="watch-quality" aria-label="Качество картинки и язык звука">
                         <Settings2 size={17} />
                         <span>{chosen || 'Авто'}</span>
                       </button>
@@ -637,28 +862,52 @@ export function WatchTheater({
                   <Menu.Portal>
                     <Menu.Positioner side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
-                        <Menu.Item
-                          data-selected={level < 0 ? 'true' : undefined}
-                          onClick={() => {
-                            setLevel(-1);
-                            if (engine.current) engine.current.currentLevel = -1;
-                          }}
-                        >
-                          Автоматически
-                          {level < 0 && automatic >= 0 && <small>{levelLabel(levels[automatic])}</small>}
-                        </Menu.Item>
-                        {choices.map((choice) => (
-                          <Menu.Item
-                            key={choice.label}
-                            data-selected={level === choice.level ? 'true' : undefined}
-                            onClick={() => {
-                              setLevel(choice.level);
-                              if (engine.current) engine.current.currentLevel = choice.level;
-                            }}
-                          >
-                            {choice.label}
-                          </Menu.Item>
-                        ))}
+                        {/*
+                          Язык звука стоит выше качества: у ролика с озвучками к нему идут
+                          сразу, а качество трогают раз за встречу, если вообще трогают.
+                        */}
+                        {voices.length > 1 && (
+                          <>
+                            <p className="watch-menu-title">Язык озвучки</p>
+                            {voices.map((item) => (
+                              <Menu.Item
+                                key={item.index}
+                                data-selected={voice === item.index ? 'true' : undefined}
+                                onClick={() => chooseVoice(item)}
+                              >
+                                {item.label}
+                                {item.original && <small>оригинал</small>}
+                              </Menu.Item>
+                            ))}
+                            {choices.length > 1 && <p className="watch-menu-title">Качество</p>}
+                          </>
+                        )}
+                        {choices.length > 1 && (
+                          <>
+                            <Menu.Item
+                              data-selected={level < 0 ? 'true' : undefined}
+                              onClick={() => {
+                                setLevel(-1);
+                                if (engine.current) engine.current.currentLevel = -1;
+                              }}
+                            >
+                              Автоматически
+                              {level < 0 && automatic >= 0 && <small>{levelLabel(levels[automatic])}</small>}
+                            </Menu.Item>
+                            {choices.map((choice) => (
+                              <Menu.Item
+                                key={choice.label}
+                                data-selected={level === choice.level ? 'true' : undefined}
+                                onClick={() => {
+                                  setLevel(choice.level);
+                                  if (engine.current) engine.current.currentLevel = choice.level;
+                                }}
+                              >
+                                {choice.label}
+                              </Menu.Item>
+                            ))}
+                          </>
+                        )}
                       </Menu.Popup>
                     </Menu.Positioner>
                   </Menu.Portal>
@@ -666,10 +915,7 @@ export function WatchTheater({
               )}
               <IconButton
                 label={fullscreen ? 'Выйти из полноэкранного режима' : 'Развернуть плеер'}
-                onClick={() => {
-                  if (document.fullscreenElement) void document.exitFullscreen();
-                  else void screen.current?.requestFullscreen().catch(() => {});
-                }}
+                onClick={toggleFullscreen}
               >
                 {fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
               </IconButton>
