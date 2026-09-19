@@ -192,7 +192,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
         <div className="service-groups">
           {GROUPS.map((item) => {
             // Занятую группу открыть можно — там её и выключают; чужую, пока эта занята, нет.
-            const blocked = !!occupied && occupied !== item.id;
+            // Ненаписанной группе объяснять нечего: у неё свой ответ — «скоро».
+            const blocked = item.ready && !!occupied && occupied !== item.id;
             return (
               <button
                 key={item.id}

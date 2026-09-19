@@ -663,10 +663,20 @@ public class RoomService {
               var watch = room.watch;
               if (watch == null)
                 throw Problem.conflict("WATCH_CLOSED", "Совместный просмотр закрыт");
-              // Пультом владеет тот, кто принёс видео, и ведущий. Остальным доступно другое:
-              // поставить своё вместо этого или закрыть — если комната разрешила интеграции.
-              // Иначе десять человек нажимают паузу одновременно и никто не смотрит.
-              if (!member.owner && !member.id.equals(watch.openedBy)) throw Problem.forbidden();
+              /*
+               Пультом владеет тот, кто принёс видео, и ведущий. Остальным доступно другое:
+               поставить своё вместо этого или закрыть — если комната разрешила интеграции.
+               Иначе десять человек нажимают паузу одновременно и никто не смотрит.
+
+               Ушедший пульта с собой не уносит: если открывшего в комнате больше нет, кино
+               остаётся на паузе навсегда, и нажать её было бы некому. Осиротевший пульт
+               достаётся тем, кому вообще можно трогать интеграции.
+              */
+              var opener = room.members.get(watch.openedBy);
+              var orphaned = opener == null || !opener.occupiesSeat();
+              if (orphaned) integrations(room, member);
+              else if (!member.owner && !member.id.equals(watch.openedBy))
+                throw Problem.forbidden();
               if (!"video".equals(watch.kind))
                 throw Problem.conflict(
                     "WATCH_LIVE", "Живой эфир нельзя останавливать и перематывать");

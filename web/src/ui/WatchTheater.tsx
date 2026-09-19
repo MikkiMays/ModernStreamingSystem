@@ -34,8 +34,15 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
   const preferences = useStore(meeting.media.preferences);
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const canControl = !!self && (self.owner || self.id === watch.openedBy);
   const owner = snapshot.participants.find((p) => p.id === watch.openedBy);
+  /**
+   * Пульт у принёсшего видео и у ведущего. Если принёсший вышел, пульт не уходит вместе с ним:
+   * иначе кино осталось бы на паузе навсегда, и нажать её было бы некому. Ядро проверяет это
+   * же правило; здесь оно только показывается кнопками.
+   */
+  const canControl =
+    !!self &&
+    (self.owner || self.id === watch.openedBy || (!owner && snapshot.integrationsAllowed !== false));
   const [source, setSource] = useState<CinemaSource | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'blocked' | 'failed'>('loading');
   const [error, setError] = useState('');
@@ -316,7 +323,7 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
                 ? 'Догоняем комнату…'
                 : canControl
                   ? 'Вы управляете просмотром'
-                  : `Управляет ${owner?.name ?? 'тот, кто открыл'}`}
+                  : `Управляет ${owner?.name ?? 'ведущий'}`}
           </small>
         </span>
         {/*

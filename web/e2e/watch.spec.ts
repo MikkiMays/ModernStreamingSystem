@@ -8,7 +8,19 @@ import { expect, test } from '@playwright/test';
  * из-за её настроения. Что видео действительно идёт синхронно, меряется живьём против прода
  * и записано в `docs/INTEGRATIONS.md`.
  */
-test('the cinema opens for the whole room from search, and only its owner drives', async ({ browser }) => {
+test('the cinema opens for the whole room from search, and only its owner drives', async ({
+  browser,
+  request,
+  baseURL,
+}) => {
+  /*
+    Кинозал живёт в контейнере служб, а локальный стенд поднимает только ядро, LiveKit и tusd:
+    искать там не у кого. Поэтому прогон сначала спрашивает, есть ли службы вообще, и молча
+    пропускает сценарий, если их нет, — вместо падения, которое означало бы «сломано», хотя
+    сломан здесь только стенд. Против прода этот же прогон идёт целиком.
+  */
+  const catalog = await request.get(`${baseURL}/api/v1/services/catalog`).catch(() => null);
+  test.skip(!catalog?.ok(), 'Службы не подняты: кинозалу не у кого спрашивать');
   const first = await browser.newContext({
     permissions: ['camera', 'microphone'],
     viewport: { width: 1440, height: 960 },

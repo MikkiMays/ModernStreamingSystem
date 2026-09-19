@@ -838,6 +838,24 @@ class RoomServiceTest {
   }
 
   @Test
+  void theRemoteDoesNotLeaveWithTheOneWhoBroughtTheVideo() {
+    var host = host();
+    var guest = guest(host);
+    var third = guest(host);
+    watch(guest, "watch.open", "youtube", "video", "abc", null);
+    assertThatThrownBy(() -> watch(third, "watch.pause", null, null, null, 0L))
+        .isInstanceOf(Problem.class);
+    command(guest, "leave", null, 0);
+    // Ушедший унёс бы с собой паузу, и кино осталось бы стоять навсегда.
+    watch(third, "watch.pause", null, null, null, 5000L);
+    assertThat(rooms.read(host.roomId()).watch.paused).isTrue();
+    rooms.integrationSettings(host.roomId(), host.credential(), false);
+    assertThatThrownBy(() -> watch(third, "watch.play", null, null, null, 0L))
+        .isInstanceOf(Problem.class);
+    watch(host, "watch.play", null, null, null, 0L);
+  }
+
+  @Test
   void oneIntegrationAtATime() {
     var host = host();
     rooms.addMusicService(host.roomId(), UUID.randomUUID());
