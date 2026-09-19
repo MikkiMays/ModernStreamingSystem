@@ -1517,6 +1517,13 @@ button.watch-stream:hover {
 .cinema-grid-boxes {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
+/* Полка над лентой — это подсказка, а не витрина: её карточки мельче и не отбирают экран. */
+.cinema-shelf .cinema-grid-boxes {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+}
+.cinema-shelf .cinema-tile-title {
+  font-size: 12.5px;
+}
 .cinema-grid-faces {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }

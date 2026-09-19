@@ -603,7 +603,12 @@ export function CinemaBrowser({
                 {!!results.data?.pages[0]?.categories.length && (
                   <>
                     <h4 className="cinema-heading">Разделы</h4>
-                    {grid(results.data.pages[0].categories, 'boxes')}
+                    {/* Полка, а не витрина: обложки здесь мельче и стоят одним рядом. В полный
+                        рост они занимали весь первый экран, и найденные каналы — то, за чем
+                        сюда и пришли, — оказывались ниже края. */}
+                    <div className="cinema-shelf">
+                      {grid(results.data.pages[0].categories.slice(0, 6), 'boxes')}
+                    </div>
                     <h4 className="cinema-heading">Каналы</h4>
                   </>
                 )}
