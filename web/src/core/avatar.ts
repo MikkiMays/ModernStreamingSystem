@@ -1,6 +1,18 @@
 /** Everything the room sees has to fit the server's budget for a picture. */
-export const avatarSize = 64;
 export const avatarMaxLength = 3500;
+/**
+ * Сколько пикселей в картинке профиля.
+ *
+ * ЛЕСТНИЦА, А НЕ ЧИСЛО. Раньше здесь стояло 64 — и это была не экономия, а недоразумение:
+ * бюджет комнаты (3500 символов) картинка такого размера не тратила и наполовину, зато на
+ * плитке участника она растягивается до ста двадцати шести пикселей, а на экране с двойной
+ * плотностью — до двухсот пятидесяти. Отсюда и «ужасное качество»: снимок увеличивали вчетверо.
+ *
+ * Теперь берётся самый крупный размер, который **влезает в тот же бюджет**: снимок комнаты от
+ * этого не растёт ни на байт, а пикселей в картинке становится в девять раз больше.
+ */
+export const avatarSizes = [192, 160, 128, 96, 64] as const;
+export const avatarSize = avatarSizes[0];
 
 /**
  * Какой кусок снимка попадёт в кружок.
@@ -41,28 +53,38 @@ export async function openPicture(file: File): Promise<ImageBitmap> {
 }
 
 /**
- * Переводит выбранный кадр в маленький квадратный data URI.
+ * Переводит выбранный кадр в квадратный data URI, самый подробный из влезающих в бюджет.
  *
- * WebP пробуется первым, и качество снижается по ступеням, пока результат не уложится в
- * бюджет: одна настройка качества не годится одновременно плоскому логотипу и подробной
- * фотографии.
+ * ДВЕ ЛЕСТНИЦЫ, А НЕ ОДНА. Сначала снижается качество, потом размер: у плоского логотипа и
+ * подробной фотографии бюджет расходуется по-разному, и одна настройка на всех означала бы
+ * либо мыло на логотипе, либо отказ на фотографии. Порядок именно такой: 192 пикселя при
+ * скромном качестве выглядят лучше, чем 96 при щедром, — резкость границ человек замечает
+ * раньше, чем шум внутри них.
+ *
+ * WebP пробуется первым: он вдвое экономнее JPEG на тех же пикселях, а бюджет здесь и есть
+ * ограничение.
  */
 export function encodeAvatar(bitmap: ImageBitmap, crop: AvatarCrop = wholePicture): string {
   const canvas = document.createElement('canvas');
-  canvas.width = avatarSize;
-  canvas.height = avatarSize;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Не удалось обработать картинку');
   const { side, left, top } = cropRect(bitmap.width, bitmap.height, crop);
-  context.drawImage(bitmap, left, top, side, side, 0, 0, avatarSize, avatarSize);
-  for (const type of ['image/webp', 'image/jpeg']) {
-    for (const quality of [0.8, 0.65, 0.5, 0.35]) {
-      const encoded = canvas.toDataURL(type, quality);
-      // A browser without WebP quietly returns a PNG instead, which would blow the budget.
-      if (!encoded.startsWith(`data:${type}`)) break;
-      if (encoded.length <= avatarMaxLength) return encoded;
+  // A browser without WebP quietly returns a PNG instead, which would blow the budget on
+  // every single step. Asking once is cheaper than discovering it twenty-five times.
+  canvas.width = canvas.height = 8;
+  const types = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+    ? ['image/webp', 'image/jpeg']
+    : ['image/jpeg'];
+  for (const type of types)
+    for (const size of avatarSizes) {
+      canvas.width = canvas.height = size;
+      context.clearRect(0, 0, size, size);
+      context.drawImage(bitmap, left, top, side, side, 0, 0, size, size);
+      for (const quality of [0.82, 0.7, 0.58, 0.45, 0.32]) {
+        const encoded = canvas.toDataURL(type, quality);
+        if (encoded.startsWith(`data:${type}`) && encoded.length <= avatarMaxLength) return encoded;
+      }
     }
-  }
   throw new Error('Не удалось уменьшить картинку до нужного размера');
 }
 

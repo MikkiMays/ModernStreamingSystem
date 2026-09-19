@@ -8,6 +8,7 @@ import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
 import { NotificationSounds, type Cue } from './sounds';
 import { readPreferences } from './preferences';
+import type { WatchProvider } from './watch';
 
 const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
 
@@ -16,6 +17,14 @@ export class Meeting {
   readonly snapshot: Store<Snapshot>;
   readonly viewing = new Store<{ screenId: string; participantId: string } | null>(null);
   readonly pinnedCamera = new Store<string | null>(null);
+  /**
+   * Какую площадку этот человек сейчас разглядывает в кинотеатре, или `null`.
+   *
+   * Своё у каждого, а не общее для комнаты: выбирать, что поставить, ходят по каталогу — и
+   * водить по чужому каталогу всех сразу значит отобрать экран у тех, кто просто смотрит кино.
+   * Комната узнаёт об этом только в момент «включить», и это обычная команда.
+   */
+  readonly cinema = new Store<WatchProvider | null>(null);
   private viewChange: Promise<unknown> = Promise.resolve();
   private viewRevision = 0;
   private played = new Set<string>();
@@ -122,9 +131,9 @@ export class Meeting {
       if (!present(this.roster.get(id))) this.cue('leave');
     }
   }
-  private accept = (snapshot: Snapshot) => {
+  private accept = (snapshot: Snapshot, roundTrip?: number) => {
     if (this.disposed) return;
-    this.clockOffset = snapshot.serverTime - Date.now();
+    this.tellTime(snapshot.serverTime, roundTrip);
     if (snapshot.sequence < this.snapshot.get().sequence) return;
     this.listen(snapshot);
     this.snapshot.set(snapshot);
@@ -208,7 +217,9 @@ export class Meeting {
     }
     this.refreshing = true;
     try {
-      this.accept(await this.api.snapshot());
+      const asked = Date.now();
+      const snapshot = await this.api.snapshot();
+      this.accept(snapshot, Date.now() - asked);
     } catch (error) {
       if (error instanceof ApiError && [403, 404, 410].includes(error.status)) this.end(error.message);
     } finally {
@@ -225,10 +236,24 @@ export class Meeting {
    * Совместный просмотр держится на общей точке отсчёта: позиция ролика верна в момент по
    * часам **сервера**, а часы участников расходятся на минуты. Поправка берётся из каждого
    * снимка — он и так приходит на любое изменение комнаты, и своей записи для этого не нужно.
-   * Задержка запроса делает поправку заниженной на половину времени ответа; против порога
-   * рассинхрона в полторы секунды это несущественно.
+   *
+   * ПОЧЕМУ ПОЛОВИНА ВРЕМЕНИ ОТВЕТА. `serverTime` был верен, когда сервер отвечал, — то есть
+   * примерно на середине запроса, а не в момент его получения. Без этой поправки чужие часы
+   * оказываются позади своих ровно на задержку сети, и двое с разной связью расходятся на
+   * разницу своих задержек: у кого-то полсекунды, и это уже слышно. Поправка меряется только
+   * там, где время запроса известно; снимок, пришедший каналом событий, часы не двигает — про
+   * его дорогу мы не знаем ничего.
    */
   private clockOffset = 0;
+  private clockMeasured = false;
+  private tellTime(serverTime: number, roundTrip?: number) {
+    if (roundTrip === undefined) {
+      if (!this.clockMeasured) this.clockOffset = serverTime - Date.now();
+      return;
+    }
+    this.clockMeasured = true;
+    this.clockOffset = serverTime + Math.min(roundTrip, 2000) / 2 - Date.now();
+  }
   serverNow(): number {
     return Date.now() + this.clockOffset;
   }
@@ -305,6 +330,14 @@ export class Meeting {
     this.returnToConversation();
     this.pinnedCamera.set(participantId);
   }
+  /**
+   * Открыть или закрыть каталог кинотеатра. Чужую демонстрацию он закрывает: сцена одна, и
+   * «я листаю каталог поверх чужого экрана» — это не два дела сразу, а потерянный экран.
+   */
+  openCinema(provider: WatchProvider | null) {
+    if (provider) this.returnToConversation();
+    this.cinema.set(provider);
+  }
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     this.end('Вы вышли из встречи');
@@ -317,6 +350,7 @@ export class Meeting {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
     if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
+    this.cinema.set(null);
     this.cue('self-leave');
     this.sounds.dispose();
     this.media.dispose();

@@ -13,7 +13,7 @@ const STAGE = 256;
  * увидит комната: круглая рамка, картинку под ней можно двигать и приближать.
  *
  * Картинка не масштабируется в canvas по ходу перетаскивания: пересчитывается только кадр —
- * три числа, — а в 64×64 всё сводится один раз, когда человек согласился.
+ * три числа, — а в маленький квадрат всё сводится один раз, когда человек согласился.
  */
 export function AvatarCropper({
   bitmap,
@@ -26,7 +26,18 @@ export function AvatarCropper({
 }) {
   const [crop, setCrop] = useState<AvatarCrop>({ zoom: 1, x: 0.5, y: 0.5 });
   const [error, setError] = useState('');
-  const canvas = useRef<HTMLCanvasElement>(null);
+  /**
+   * Холст приходит состоянием, а не ссылкой, и это починка, а не вкусовщина.
+   *
+   * Диалог показывает содержимое не первым же проходом — окно открывается со своей анимацией,
+   * и `<canvas>` появляется в разметке позже. Со ссылкой (`useRef`) рисующий хук успевал
+   * сработать раньше: холста ещё нет, рисовать некуда, а зависимости («снимок» и «кадр») с тех
+   * пор не менялись — значит, хук больше и не позвали. Выглядело это ровно так, как на это и
+   * жаловались: окно кадрирования открывается чёрным, а картинка появляется от первого
+   * движения ползунка приближения. Состояние заставляет хук повториться в тот момент, когда
+   * холсту наконец есть куда рисовать.
+   */
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const dragging = useRef<{ pointer: number; x: number; y: number } | null>(null);
   // Кадр — это часть исходника; сколько пикселей страницы приходится на один его пиксель,
   // зависит от приближения, и от этого же зависит, насколько «быстро» тянется картинка.
@@ -34,13 +45,12 @@ export function AvatarCropper({
   const scale = STAGE / side;
 
   useEffect(() => {
-    const surface = canvas.current;
-    const context = surface?.getContext('2d');
-    if (!surface || !context) return;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
     const { side: source, left, top } = cropRect(bitmap.width, bitmap.height, crop);
-    context.clearRect(0, 0, surface.width, surface.height);
-    context.drawImage(bitmap, left, top, source, source, 0, 0, surface.width, surface.height);
-  }, [bitmap, crop]);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, left, top, source, source, 0, 0, canvas.width, canvas.height);
+  }, [bitmap, canvas, crop]);
 
   const move = (dx: number, dy: number) =>
     setCrop((current) => ({
@@ -61,7 +71,7 @@ export function AvatarCropper({
     >
       <div className="avatar-crop">
         <canvas
-          ref={canvas}
+          ref={setCanvas}
           width={STAGE}
           height={STAGE}
           className="avatar-crop-stage"

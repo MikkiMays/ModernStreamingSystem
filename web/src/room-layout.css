@@ -644,9 +644,12 @@ button.watch-stream:hover {
   Кинозал: комната смотрит одно на всех.
 
   Плеер занимает середину сцены, люди сжимаются в ленту под ним — их по-прежнему видно и
-  слышно, но главное на экране теперь не они. Рамка площадки лежит в своей обёртке с
-  постоянными пропорциями: ифрейм чужого плеера не умеет «вписаться» сам, и без этого он либо
-  растягивался в полосу, либо выталкивал ленту участников за нижний край.
+  слышно, но главное на экране теперь не они.
+
+  УПРАВЛЕНИЕ ЛЕЖИТ ПОВЕРХ КАДРА, а не полосой под ним, и это не мода. Полоса под кадром
+  выглядела опрятнее, но в полноэкранном режиме разворачивался только кадр — и пульт вместе с
+  паузой и громкостью оставался за краем экрана. Поверх кадра эта разница исчезает: и в окне, и
+  во весь экран плеер один и тот же, а разворачивается он целиком.
 */
 .watch-together-stage {
   display: grid;
@@ -655,11 +658,16 @@ button.watch-stream:hover {
   height: 100%;
   min-height: 0;
 }
-.watch-theater {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 8px;
+/* Плеер и каталог делят одно место на сцене: каталог лежит поверх, кино продолжает идти. */
+.watch-main {
+  position: relative;
   min-height: 0;
+  display: grid;
+}
+.watch-theater {
+  position: relative;
+  min-height: 0;
+  display: grid;
 }
 .watch-screen {
   position: relative;
@@ -691,35 +699,113 @@ button.watch-stream:hover {
   max-width: 460px;
   line-height: 1.5;
 }
-.watch-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.watch-loading,
+.watch-buffering {
+  display: inline-flex;
   align-items: center;
-  gap: 6px 10px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
+  gap: 10px;
+  color: #eef2fb;
+}
+.watch-buffering {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.watch-loading svg,
+.watch-buffering svg {
+  animation: watch-spin 900ms linear infinite;
+}
+@keyframes watch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .watch-loading svg,
+  .watch-buffering svg {
+    animation-duration: 2.4s;
+  }
+}
+/*
+  Пульт. Прозрачный слой во весь кадр: нажатия пропускает насквозь везде, кроме самих полос, —
+  иначе клик по середине кадра (пауза) упирался бы в невидимую подложку.
+*/
+.watch-chrome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  color: #f2f5fb;
+}
+.watch-chrome[data-shown='true'],
+/* Клавиатурой пульт достаётся и тогда, когда мышь его усыпила: скрытый прозрачностью
+   элемент остаётся в обходе табом, и терять его там нельзя. */
+.watch-chrome:focus-within {
+  opacity: 1;
+}
+.watch-head,
+.watch-foot {
+  pointer-events: auto;
+}
+.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-head,
+.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-foot {
+  pointer-events: none;
+}
+.watch-theater[data-idle='true'] .watch-video {
+  cursor: none;
+}
+.watch-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 26px;
+  background: linear-gradient(to bottom, #05070cd9, #05070c00);
+}
+.watch-foot {
+  display: grid;
+  gap: 2px;
+  padding: 26px 12px 10px;
+  background: linear-gradient(to top, #05070ce6, #05070c00);
+}
+.watch-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .watch-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.watch-transport {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
+}
+.watch-gap {
+  flex: 1 1 auto;
+}
+.watch-chrome .icon-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  color: #f2f5fb;
+}
+.watch-chrome .icon-button:hover:not(:disabled) {
+  background: #ffffff1f;
+}
+.watch-chrome .icon-button:disabled {
+  opacity: 0.45;
 }
 .watch-title {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 8px;
+  gap: 1px 8px;
   align-items: center;
-  flex: 1 1 200px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 .watch-title b {
@@ -731,25 +817,136 @@ button.watch-stream:hover {
 .watch-title small {
   grid-column: 2;
   font-size: 11px;
-  color: var(--muted);
+  color: #ffffffa6;
 }
-.watch-syncing {
-  color: var(--blue);
+.watch-browse,
+.watch-live,
+.watch-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #ffffff2e;
+  background: #ffffff14;
+  color: #f2f5fb;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.watch-quality select {
-  margin-left: 6px;
-  min-height: 34px;
+.watch-browse:hover,
+.watch-live:hover,
+.watch-quality:hover {
+  background: #ffffff29;
 }
-.watch-quality,
+/*
+  «LIVE» стоит там, где у ролика пауза. Останавливать эфир нельзя, а вернуться к его краю
+  после затычки в сети — самое частое, чего от него хотят; красная точка означает «мы на краю»,
+  серая с числом — «отстали на столько».
+*/
+.watch-live {
+  letter-spacing: 0.6px;
+}
+.watch-live small {
+  font-weight: 500;
+  color: #ffffffb3;
+  font-variant-numeric: tabular-nums;
+}
+.watch-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff5c;
+}
+.watch-live[data-edge='true'] .watch-live-dot {
+  background: #ef3b53;
+  box-shadow: 0 0 0 4px #ef3b5333;
+}
+.watch-behind {
+  color: #ffd166;
+}
 .watch-volume {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 2px;
+  width: 132px;
+}
+.watch-volume .slider {
+  width: 88px;
+}
+/*
+  Поля в приложении светлые: у `input` есть подложка, рамка и высота в сорок восемь пикселей.
+  Для ползунка на светлой карточке это незаметно, а на тёмном пульте вокруг дорожки появлялась
+  белая таблетка во всю кнопку. Здесь она снимается — и заодно ползунок становится той высоты,
+  которую ему и задавали.
+*/
+.watch-chrome input.slider {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+}
+.watch-chrome .slider::-webkit-slider-thumb,
+.watch-chrome .slider::-moz-range-thumb {
+  border-color: #0b0e15;
+}
+.watch-chrome .slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff3d calc(var(--slider-p) * 100%)
+  );
+}
+.watch-chrome .slider::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff3d calc(var(--slider-p) * 100%)
+  );
+}
+/*
+  Полоса просмотра знает три состояния: просмотрено, загружено, впереди. Загруженное видно не
+  ради красоты — по нему понятно, застрял плеер или просто нечего играть.
+*/
+.watch-progress {
+  --slider-b: 0;
+  flex: 1 1 auto;
+  min-width: 80px;
+}
+.watch-progress::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-b) * 100%),
+    #ffffff26 calc(var(--slider-b) * 100%)
+  );
+}
+.watch-progress::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-b) * 100%),
+    #ffffff26 calc(var(--slider-b) * 100%)
+  );
+}
+.watch-time {
+  font-size: 11.5px;
+  color: #ffffffbd;
+  font-variant-numeric: tabular-nums;
+}
+.watch-quality-menu [role='menuitem'] {
+  justify-content: space-between;
+  min-height: 40px;
+}
+.watch-quality-menu [role='menuitem'] small {
   color: var(--muted);
 }
-.watch-volume {
-  width: 140px;
+.watch-quality-menu [data-selected='true'] {
+  color: var(--blue);
+  font-weight: 650;
 }
 /*
   Лента участников под плеером. Высота задана, а не вычислена: сцена делится между плеером и
@@ -788,17 +985,14 @@ button.watch-stream:hover {
   display: none;
 }
 @media (max-width: 700px) {
-  .watch-controls {
-    gap: 6px;
-    padding: 6px 8px;
-  }
-  .watch-volume {
-    width: 96px;
-  }
   .people-strip {
     justify-content: flex-start;
     height: clamp(62px, 11vh, 92px);
   }
+}
+/* В полном экране лента участников уезжает вместе со сценой: разворачивают плеер, а не встречу. */
+.watch-theater:fullscreen .watch-screen {
+  height: 100%;
 }
 
 /*
@@ -882,7 +1076,7 @@ button.watch-stream:hover {
   align-items: center;
   gap: 6px;
 }
-.cinema-open {
+.cinema-open-now {
   display: grid;
   gap: 6px;
   padding: 12px;
@@ -890,16 +1084,16 @@ button.watch-stream:hover {
   border-radius: 14px;
   background: var(--surface);
 }
-.cinema-open p {
+.cinema-open-now p {
   margin: 0;
   font-size: 13px;
 }
-.cinema-open small {
+.cinema-open-now small {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
 }
-.cinema-open .button {
+.cinema-open-now .button {
   justify-self: start;
 }
 .cinema-search {
@@ -924,40 +1118,16 @@ button.watch-stream:hover {
   outline: none;
 }
 .cinema-heading {
-  margin: 0;
-  font-size: 12px;
+  margin: 4px 0 0;
+  font-size: 12.5px;
   color: var(--muted);
-}
-.cinema-results {
-  display: grid;
-  gap: 8px;
-}
-.cinema-card {
-  display: grid;
-  grid-template-columns: 124px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 6px;
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
-  color: inherit;
-}
-.cinema-card:hover:not(:disabled) {
-  border-color: var(--line);
-  background: var(--surface-2);
-}
-.cinema-card:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 .cinema-poster {
   position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 9;
-  border-radius: 9px;
+  border-radius: 11px;
   overflow: hidden;
   background: var(--surface-2);
   color: var(--muted);
@@ -970,62 +1140,439 @@ button.watch-stream:hover {
 .cinema-live,
 .cinema-duration {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
-  padding: 2px 5px;
-  border-radius: 5px;
-  font-size: 9px;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 700;
   color: white;
-  background: #11141ccc;
+  background: #11141ce0;
 }
 .cinema-live {
-  left: 4px;
+  left: 6px;
   right: auto;
   background: #e0334b;
   letter-spacing: 0.4px;
 }
-.cinema-meta {
-  min-width: 0;
+.watch-theater:fullscreen,
+.watch-theater:fullscreen .watch-screen {
+  border-radius: 0;
 }
-.cinema-meta b {
+
+/*
+  КИНОТЕАТР НА СЦЕНЕ.
+
+  Каталог занимает то же место, что и плеер, и лежит поверх него: пока один выбирает, чем
+  продолжить, комната продолжает смотреть — разбирать плеер ради чужого выбора значило бы
+  остановить фильм всем. Поэтому подложка непрозрачная: кадр под ней всё равно не разглядеть,
+  а мелькающее видео за сеткой обложек мешает выбирать.
+*/
+.cinema-browser {
+  /*
+    Кинотеатр тёмный при любой теме приложения, и это не своеволие: он стоит внутри тёмной
+    сцены и меняется местами с чёрным плеером. Светлая панель посреди этого била бы по глазам
+    каждым переходом «каталог ↔ кино», а под тёмной обложки читаются так, как их и снимали.
+
+    Палитра переопределена здесь, а не переписана в каждом правиле ниже: те же имена, другие
+    значения — и весь каталог вместе с кнопками и полями переезжает в тёмное одной записью.
+  */
+  --bg: #101219;
+  --surface: #191c25;
+  --surface-2: #232733;
+  --text: #f0f2f7;
+  --muted: #a3abbd;
+  --line: #2f3542;
+  --blue-soft: #263351;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+.cinema-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.cinema-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.cinema-services {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.cinema-service {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cinema-service:hover {
+  color: var(--text);
+}
+/* Выбранная площадка узнаётся цветом самой площадки, а не одной общей обводкой. */
+.cinema-service[aria-selected='true'] {
+  color: white;
+  background: #4674f3;
+}
+.cinema-service[aria-selected='true'][data-id='youtube'] {
+  background: #e33b3b;
+}
+.cinema-service[aria-selected='true'][data-id='twitch'] {
+  background: #8250e6;
+}
+.cinema-bar .cinema-search {
+  flex: 1 1 auto;
+  min-width: 120px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.cinema-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cinema-notice {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.cinema-waiting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.cinema-waiting svg {
+  animation: watch-spin 900ms linear infinite;
+}
+/*
+  Сетка, а не список. Выбирают кино по кадру: чем шире сцена, тем больше обложек в ряд, и
+  минимум в двести сорок пикселей держит кадр читаемым даже с открытой боковой панелью.
+*/
+.cinema-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px 12px;
+}
+.cinema-tile {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 6px;
+  margin: -6px;
+  border-radius: 14px;
+}
+.cinema-tile:hover {
+  background: var(--surface-2);
+}
+/*
+  Растянутая кнопка: вся плитка ведёт к подробностям, но внутри неё живут ещё две кнопки —
+  «включить» и «канал». Кнопка внутри кнопки не бывает ни разметкой, ни клавиатурой, поэтому
+  главная лежит подложкой, а остальные поднимаются над ней.
+*/
+.cinema-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 14px;
+  background: transparent;
+}
+.cinema-open:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.cinema-tile .cinema-poster,
+.cinema-tile-title,
+.cinema-tile-meta {
+  position: relative;
+}
+/*
+  «Включить сразу» — кнопка в углу обложки, а не во всю обложку.
+
+  Большая кнопка по центру кадра выглядела лучше, но она же и накрывала собой всё, по чему
+  нажимают ради подробностей: нажатие попадало в неё, где бы человек ни целился. Угол решает
+  это без выбора между «красиво» и «работает»: середина плитки свободна и ведёт на страницу
+  видео, а включить на всю комнату — отдельное осознанное нажатие.
+*/
+.cinema-start {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: white;
+  background: #4674f3;
+  box-shadow: 0 6px 18px #05070c66;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+.cinema-start:hover {
+  background: #3763e0;
+}
+.cinema-tile:hover .cinema-start,
+.cinema-start:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cinema-start:disabled {
+  display: none;
+}
+/* Навести на касании нельзя, поэтому там кнопка видна всегда. */
+@media (hover: none) {
+  .cinema-start {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.cinema-tile-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.35;
 }
-.cinema-meta small {
+.cinema-tile-meta {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 9px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.cinema-tile-meta span {
+  display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin-top: 3px;
-  font-size: 11px;
+}
+.cinema-author {
+  z-index: 2;
+  padding: 0;
+  background: transparent;
   color: var(--muted);
+  font-size: 11.5px;
+  text-align: left;
+  max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Полоса просмотра занимает всё свободное место панели, остальное держит свой размер. */
-.watch-progress {
-  flex: 1 1 120px;
-  min-width: 80px;
+.cinema-author:hover {
+  color: var(--text);
+  text-decoration: underline;
 }
-.watch-time {
-  font-size: 11px;
+.cinema-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 10.5px;
+}
+/* Пустой поиск — это вопрос, и на него нужна подсказка, а не надпись «наберите название». */
+.cinema-empty {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 36px 16px;
+  text-align: center;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
-.watch-screen:fullscreen {
-  border-radius: 0;
+.cinema-empty b {
+  font-size: 16px;
+  color: var(--text);
+}
+.cinema-empty small {
+  font-size: 12.5px;
+  max-width: 420px;
+  line-height: 1.5;
+}
+.cinema-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cinema-chip-button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+}
+.cinema-chip-button:hover {
+  background: var(--surface-2);
+}
+.cinema-channel-head {
+  display: grid;
+  gap: 12px;
+}
+.cinema-banner {
+  display: block;
+  height: clamp(90px, 16vh, 170px);
+  border-radius: 14px;
+  background: var(--surface-2) center / cover no-repeat;
+}
+.cinema-channel-face {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.cinema-avatar {
+  width: 68px;
+  height: 68px;
+  min-width: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+.cinema-avatar-blank {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.cinema-channel-face h3 {
+  margin: 0;
+  font-size: 19px;
+}
+.cinema-channel-face small {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cinema-about {
+  margin: 0;
+  max-width: 900px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  white-space: pre-line;
+  /* Описание бывает на десять экранов, а решение принимают по первым строкам. */
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cinema-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.cinema-detail-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.cinema-detail-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cinema-detail-body {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+.cinema-detail-body h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+}
+.cinema-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cinema-detail-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cinema-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+@media (max-width: 860px) {
+  .cinema-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 700px) {
-  .cinema-card {
-    grid-template-columns: 96px minmax(0, 1fr);
+  .cinema-bar {
+    flex-wrap: wrap;
+  }
+  .cinema-bar .cinema-search {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .cinema-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px 10px;
+  }
+  .cinema-tile-title {
+    font-size: 12.5px;
   }
   .watch-time {
+    display: none;
+  }
+  .watch-volume {
+    width: 40px;
+  }
+  .watch-volume .slider {
     display: none;
   }
 }

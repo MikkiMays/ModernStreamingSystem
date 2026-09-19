@@ -1,11 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Hls from 'hls.js';
-import { Maximize2, Minimize2, Pause, Play, Radio, SkipBack, Tv, Volume2, X } from 'lucide-react';
+import {
+  Clapperboard,
+  LoaderCircle,
+  Maximize2,
+  Minimize2,
+  Pause,
+  Play,
+  Radio,
+  RefreshCw,
+  Settings2,
+  SkipBack,
+  Tv,
+  Volume1,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
+import { Menu } from '@base-ui/react/menu';
 import type { Watch } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { CinemaApi, clock, type CinemaSource } from '../core/cinema';
-import { correction, DRIFT_LIMIT, targetPosition } from '../core/watch';
-import { savePreferences } from '../core/preferences';
+import { correction, targetPosition, VISIBLE_DRIFT } from '../core/watch';
+import { levelLabel, qualities, type Level } from './watch-levels';
 import { IconButton, Slider, useStore } from './primitives';
 
 /**
@@ -18,52 +35,92 @@ import { IconButton, Slider, useStore } from './primitives';
  * качества (уровни HLS, а не «шестерёнка внутри чужой рамки»), свои элементы управления, ни
  * одного чужого скрипта на странице и строгий CSP обратно.
  *
- * ДВА ПРАВИЛА СИНХРОННОСТИ. Истина — у комнаты: раз в секунду сравниваем `currentTime` с общим
- * якорем (`core/watch.ts`) и правим расхождение больше полутора секунд. И пульт один: играет,
- * останавливает и перематывает тот, кто принёс видео (и ведущий). Остальные могут поставить
- * своё вместо этого или закрыть — если комната разрешила интеграции; нажатия у них не отбирают
- * управление, а значит, десять человек не перетягивают паузу друг у друга.
+ * ЧТО ОБЩЕЕ, А ЧТО СВОЁ. Общее — это **что** открыто, идёт ли это и с какой секунды: пауза
+ * одна на комнату, и нажать её может каждый, кому комната разрешает трогать интеграции. Своё —
+ * то, о чём договариваться не с кем: громкость, качество приёма, полный экран и место в живом
+ * эфире. Комната о них не знает и знать не должна.
+ *
+ * ГДЕ ЛЕЖИТ УПРАВЛЕНИЕ. Поверх кадра, а не полосой под ним, и с автоскрытием. Полоса под
+ * кадром выглядела опрятнее, но в полноэкранном режиме разворачивался **только кадр** — и
+ * пульт вместе с паузой и громкостью оставался за краем экрана. Поверх кадра эта разница
+ * исчезает: разворачивается весь плеер целиком, и в окне, и во весь экран он один и тот же.
  *
  * Своё эхо отличается окном тишины после каждой своей же команды плееру: без него пауза,
  * поставленная по приказу комнаты, улетала бы в комнату как новое нажатие.
  */
 const SUPPRESS_MS = 1200;
+/** Сколько пульт висит без движения мыши, прежде чем уйти с кадра. */
+const IDLE_MS = 2800;
+/**
+ * Насколько можно отстать от края живого эфира, прежде чем это стоит исправить прыжком.
+ *
+ * У эфира нет общей позиции, но есть край, и отстать от него можно надолго: одна затычка в
+ * сети, и буфер растёт, а картинка едет с задержкой в полминуты — это и есть жалоба «звук
+ * отстаёт на стриме», только отстаёт не звук от картинки, а всё вместе от эфира. Раз в секунду
+ * сравниваем себя с краем и возвращаемся, если отстали слишком сильно; кнопка «LIVE» делает то
+ * же самое по просьбе.
+ */
+const LIVE_LAG = 12;
+/**
+ * Отставание, которое для эфира нормально.
+ *
+ * У края эфира есть запас — три сегмента, — и это не задержка, а цена устойчивости: без него
+ * любая заминка в сети останавливает картинку. Измерено на Twitch: обычное отставание около
+ * пяти-шести секунд. Поэтому «мы на краю» — это не ноль, и красная точка горит до
+ * {@link LIVE_EDGE}; дальше она гаснет, показывает число и предлагает вернуться.
+ */
+const LIVE_EDGE = 7;
 
-export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watch }) {
+type Status = 'loading' | 'ready' | 'blocked' | 'failed';
+
+export function WatchTheater({
+  meeting,
+  watch,
+  onBrowse,
+}: {
+  meeting: Meeting;
+  watch: Watch;
+  /** Открыть каталог, не закрывая просмотр. */
+  onBrowse?: () => void;
+}) {
   const snapshot = useStore(meeting.snapshot);
   const preferences = useStore(meeting.media.preferences);
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const owner = snapshot.participants.find((p) => p.id === watch.openedBy);
   /**
-   * Пульт у принёсшего видео и у ведущего. Если принёсший вышел, пульт не уходит вместе с ним:
-   * иначе кино осталось бы на паузе навсегда, и нажать её было бы некому. Ядро проверяет это
-   * же правило; здесь оно только показывается кнопками.
+   * Пауза общая. Право на неё — то же самое право трогать во встрече постороннее: ведущему
+   * всегда, остальным пока комната разрешает интеграции. Ядро проверяет это же правило;
+   * здесь оно только показывается кнопками.
    */
-  const canControl =
-    !!self &&
-    (self.owner || self.id === watch.openedBy || (!owner && snapshot.integrationsAllowed !== false));
+  const canControl = !!self && (self.owner || snapshot.integrationsAllowed !== false);
   const [source, setSource] = useState<CinemaSource | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'blocked' | 'failed'>('loading');
+  const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState('');
-  const [levels, setLevels] = useState<{ id: number; label: string }[]>([]);
+  const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
+  const [automatic, setAutomatic] = useState(-1);
   const [playing, setPlaying] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [behind, setBehind] = useState(false);
-  /** Чтобы тик не дёргал состояние зря: он живёт дольше рендера и значения не видит. */
-  const behindRef = useRef(false);
-  behindRef.current = behind;
+  const [buffered, setBuffered] = useState(0);
+  const [drift, setDrift] = useState(0);
+  const [lag, setLag] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const [menu, setMenu] = useState(false);
   const screen = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const engine = useRef<Hls | null>(null);
   const suppressUntil = useRef(0);
   const sending = useRef(false);
   const started = useRef(false);
-  const latest = useRef({ watch, canControl });
-  latest.current = { watch, canControl };
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const loudness = useRef(Math.max(8, preferences.watchVolume || 70));
+  const live = watch.kind === 'channel' || !!source?.live;
+  const latest = useRef({ watch, canControl, live });
+  latest.current = { watch, canControl, live };
 
   const suppress = () => {
     suppressUntil.current = Date.now() + SUPPRESS_MS;
@@ -91,6 +148,8 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
     setSource(null);
     setLevels([]);
     setLevel(-1);
+    setDrift(0);
+    setLag(0);
     started.current = false;
     const current = latest.current.watch;
     void api
@@ -116,6 +175,7 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
     let alive = true;
     suppress();
     element.volume = Math.max(0, Math.min(1, preferences.watchVolume / 100));
+    element.playbackRate = 1;
     const fail = (message: string) => {
       if (!alive) return;
       setStatus('failed');
@@ -144,19 +204,46 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
         // 1440p в плитку шириной в тысячу пикселей — это втрое больше трафика без единого
         // лишнего пикселя на экране. Руками уровень по-прежнему выбирается любой.
         capLevelToPlayerSize: true,
+        /*
+          Дыру в полсекунды лучше перескочить, чем встать перед ней.
+
+          Значение по умолчанию — десятая доля секунды, и этого мало: у потока, собранного из
+          отдельных дорожек звука и картинки (а YouTube отдаёт именно такой), пропуск в одной
+          из них означает, что вторая продолжает идти. Слышно это как «звук ушёл вперёд», а
+          выглядит как застывший кадр с живым звуком. Перескок склеивает такой пропуск за
+          доли секунды вместо того, чтобы копить рассинхрон.
+        */
+        maxBufferHole: 0.5,
+        nudgeMaxRetry: 8,
+        /*
+          Не начинать с самого дна.
+
+          По умолчанию hls.js грузит первый кусок **нижним** уровнем, чтобы померить канал, —
+          и кино у всех начинается с 240p, поднимаясь через несколько сегментов. Измерено:
+          через четыре секунды после старта плеер всё ещё показывал 426×240 на экране в
+          полторы тысячи пикселей.
+
+          Мерить нам, в общем, нечего: поток идёт не от площадки, а от своего же сервера, и
+          нижняя оценка в полмегабита к нему отношения не имеет. Поэтому начальная оценка —
+          честные два с половиной мегабита, а дальше адаптация и `capLevelToPlayerSize`
+          поправят в обе стороны за считаные секунды.
+        */
+        testBandwidth: false,
+        abrEwmaDefaultEstimate: 2_500_000,
+        // Край живого эфира: три сегмента запаса — обычная цена устойчивости, а дальше
+        // двенадцати мы уже не отстаём, а смотрим запись.
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 12,
       });
       engine.current = hls;
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      const readLevels = () => {
         if (!alive) return;
-        setLevels(
-          hls.levels.map((item, index) => ({
-            id: index,
-            label: item.height
-              ? `${item.height}p${item.attrs?.['FRAME-RATE'] && Number(item.attrs['FRAME-RATE']) > 35 ? '60' : ''}`
-              : `${Math.round((item.bitrate || 0) / 1000)} кбит/с`,
-          })),
-        );
+        setLevels(hls.levels as unknown as Level[]);
         setLevel(hls.autoLevelEnabled ? -1 : hls.currentLevel);
+      };
+      hls.on(Hls.Events.MANIFEST_PARSED, readLevels);
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+        if (alive) setAutomatic(data.level);
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
@@ -194,6 +281,17 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
 
+  /** Пульт живёт, пока в плеере что-то происходит; потом уходит с кадра вместе с курсором. */
+  const wake = useCallback(() => {
+    setIdle(false);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
+  }, []);
+  useEffect(() => {
+    wake();
+    return () => clearTimeout(hideTimer.current);
+  }, [wake]);
+
   // Раз в секунду: где мы, где комната, и что из этого следует.
   useEffect(() => {
     const timer = setInterval(() => {
@@ -201,34 +299,57 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
       const now = latest.current.watch;
       if (!element) return;
       const serverNow = meeting.serverNow();
+      const ranges = element.buffered;
+      setBuffered(ranges.length ? ranges.end(ranges.length - 1) * 1000 : 0);
       /*
-        Полоса и отставание — только у ролика: у эфира нет ни общей позиции, ни конца. Но
-        поправку ниже считаем и для него — ровно ради одной команды `play`. Раньше эфир
-        отсеивался здесь, до неё, и выглядело это так: сегменты идут, окно растёт, картинка
-        стоит. Ни ошибки, ни подсказки — просто чёрный кадр с живым трафиком.
+        Полоса и отставание — только у произведения с началом и концом. У эфира ни общей
+        позиции, ни конца нет; у него считается другое — насколько мы отстали от края.
       */
-      if (now.kind === 'video') {
+      if (!latest.current.live) {
         setPosition(element.currentTime * 1000);
         setDuration(Number.isFinite(element.duration) ? element.duration * 1000 : 0);
-        const target = targetPosition(now, serverNow);
-        setBehind(!now.paused && Math.abs(element.currentTime * 1000 - target) > DRIFT_LIMIT);
-      } else if (behindRef.current) setBehind(false);
+        setDrift(now.paused ? 0 : element.currentTime * 1000 - targetPosition(now, serverNow));
+        setLag(0);
+      } else {
+        setDrift(0);
+        const edge = engine.current?.liveSyncPosition;
+        const known = edge !== undefined && edge !== null && Number.isFinite(edge);
+        const behind = known ? edge - element.currentTime : 0;
+        setLag(Math.max(0, behind));
+        // Отстали настолько, что это уже не эфир: возвращаемся к краю сами, не спрашивая.
+        if (known && behind > LIVE_LAG && element.readyState >= 2 && !element.paused) {
+          suppress();
+          element.currentTime = edge;
+        }
+      }
       if (Date.now() < suppressUntil.current || element.readyState < 2) return;
       const fix = correction({
         watch: now,
+        live: latest.current.live,
         serverNow,
         localMs: element.currentTime * 1000,
         playing: !element.paused && !element.ended,
+        rate: element.playbackRate,
       });
       if (fix.action === 'none') return;
+      // Подтяжка скоростью — не команда плееру, а наклон: своё эхо от неё не рождается, и
+      // глушить проверку на секунду из-за неё было бы ошибкой (за секунду она и не успеет).
+      if (fix.action === 'rate') {
+        element.playbackRate = fix.rate;
+        return;
+      }
       suppress();
       if (fix.action === 'play')
         void element.play().catch(() => setStatus((current) => (current === 'ready' ? 'blocked' : current)));
       if (fix.action === 'pause') {
         element.pause();
+        element.playbackRate = 1;
         element.currentTime = fix.positionMs / 1000;
       }
-      if (fix.action === 'seek') element.currentTime = fix.positionMs / 1000;
+      if (fix.action === 'seek') {
+        element.playbackRate = 1;
+        element.currentTime = fix.positionMs / 1000;
+      }
     }, 1000);
     return () => clearInterval(timer);
   }, [meeting]);
@@ -236,38 +357,92 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
   /** Нажатие пультом: сначала комнате, а плеер догонит себя сам ближайшей проверкой. */
   const command = (type: 'watch.play' | 'watch.pause' | 'watch.seek', positionMs?: number) => {
     if (!canControl) return;
+    wake();
     suppress();
     const element = video.current;
     const at =
       positionMs ??
       Math.round(element ? element.currentTime * 1000 : targetPosition(watch, meeting.serverNow()));
+    if (element) element.playbackRate = 1;
     if (type === 'watch.seek' && element) element.currentTime = at / 1000;
     if (type === 'watch.play') void element?.play().catch(() => {});
     if (type === 'watch.pause') element?.pause();
     send(type, Math.max(0, at));
   };
 
-  const live = watch.kind === 'channel' || !!source?.live;
+  /**
+   * Вернуться туда, где комната, — или к краю эфира.
+   *
+   * Своё действие, а не команда: комнату оно не двигает. Автоматика делает это сама, но
+   * «сама» — это через секунду и незаметно, а кнопка нужна тогда, когда человек уже видит,
+   * что отстал, и ждать не хочет.
+   */
+  const resync = () => {
+    const element = video.current;
+    if (!element) return;
+    wake();
+    suppress();
+    element.playbackRate = 1;
+    if (live) {
+      const edge = engine.current?.liveSyncPosition;
+      if (edge !== undefined && edge !== null && Number.isFinite(edge)) element.currentTime = edge;
+      else engine.current?.startLoad(-1);
+      setLag(0);
+    } else {
+      element.currentTime = targetPosition(latest.current.watch, meeting.serverNow()) / 1000;
+      setDrift(0);
+    }
+    if (!element.paused) return;
+    if (live || !latest.current.watch.paused) void element.play().catch(() => {});
+  };
+
+  const setVolume = (value: number) => {
+    if (value > 0) loudness.current = value;
+    meeting.media.saveSettings({ watchVolume: value });
+  };
+
+  const choices = useMemo(() => qualities(levels), [levels]);
   const title = source?.title ?? watch.title ?? 'Совместный просмотр';
+  const muted = preferences.watchVolume <= 0;
+  const behind = !live && Math.abs(drift) > VISIBLE_DRIFT;
+  const showControls = idle === false || !playing || menu || status !== 'ready';
+  const chosen = level >= 0 ? levelLabel(levels[level]) : '';
   return (
-    <section className="watch-theater" aria-label="Совместный просмотр">
-      <div className="watch-screen" ref={screen}>
+    <section
+      className="watch-theater"
+      aria-label="Совместный просмотр"
+      ref={screen}
+      data-idle={showControls ? undefined : 'true'}
+      data-full={fullscreen ? 'true' : undefined}
+      onPointerMove={wake}
+      onPointerDown={wake}
+      onFocusCapture={wake}
+    >
+      <div className="watch-screen">
         <video
           ref={video}
           className="watch-video"
           playsInline
           poster={source?.poster ?? undefined}
+          onClick={() => {
+            if (live || !canControl) return;
+            command(watch.paused ? 'watch.play' : 'watch.pause');
+          }}
           onPlay={() => {
             setPlaying(true);
+            setWaiting(false);
             setStatus((current) => (current === 'blocked' ? 'ready' : current));
             if (Date.now() < suppressUntil.current || !latest.current.canControl) return;
-            if (latest.current.watch.paused) command('watch.play');
+            if (latest.current.watch.paused && !latest.current.live) command('watch.play');
           }}
           onPause={() => {
             setPlaying(false);
             if (Date.now() < suppressUntil.current || !latest.current.canControl) return;
-            if (!latest.current.watch.paused && !video.current?.ended) command('watch.pause');
+            if (latest.current.live || video.current?.ended) return;
+            if (!latest.current.watch.paused) command('watch.pause');
           }}
+          onWaiting={() => setWaiting(true)}
+          onPlaying={() => setWaiting(false)}
           onLoadedMetadata={() => {
             setStatus('ready');
             const element = video.current;
@@ -293,9 +468,19 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
             }
           }}
         />
+        {status === 'ready' && waiting && playing && (
+          <div className="watch-buffering" role="status" aria-label="Загружаем">
+            <LoaderCircle size={34} />
+          </div>
+        )}
         {status !== 'ready' && (
           <div className="watch-overlay" role="status">
-            {status === 'loading' && <span>Открываем…</span>}
+            {status === 'loading' && (
+              <span className="watch-loading">
+                <LoaderCircle size={30} />
+                Открываем…
+              </span>
+            )}
             {status === 'blocked' && (
               <button
                 className="button primary"
@@ -311,106 +496,179 @@ export function WatchTheater({ meeting, watch }: { meeting: Meeting; watch: Watc
             {status === 'failed' && <span className="watch-error">{error}</span>}
           </div>
         )}
-      </div>
-      <div className="watch-controls">
-        <span className="watch-title">
-          {live ? <Radio size={16} /> : <Tv size={16} />}
-          <b>{title}</b>
-          <small>
-            {live
-              ? `Эфир · ${source?.author || watch.contentId}`
-              : behind
-                ? 'Догоняем комнату…'
-                : canControl
-                  ? 'Вы управляете просмотром'
-                  : `Управляет ${owner?.name ?? 'ведущий'}`}
-          </small>
-        </span>
         {/*
-          Два ряда заданы намеренно, а не получились переносом: сверху — что открыто и кто
-          этим распоряжается, снизу — лента времени. В одну строку это лезло только на широком
-          мониторе, а с открытой панелью кнопки сваливались вниз по одной и выглядели поломкой.
+          Управление лежит поверх кадра одним слоем: так полный экран разворачивает плеер
+          вместе с пультом, а не кадр без него. Верхняя строка — что открыто и кто принёс,
+          нижняя — лента времени и кнопки.
         */}
-        <div className="watch-tools">
-          {levels.length > 1 && (
-            <label className="watch-quality">
-              Качество
-              <select
-                value={level}
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  setLevel(next);
-                  if (engine.current) engine.current.currentLevel = next;
+        <div className="watch-chrome" data-shown={showControls ? 'true' : undefined}>
+          <div className="watch-head">
+            <span className="watch-title">
+              {live ? <Radio size={15} /> : <Tv size={15} />}
+              <b>{title}</b>
+              <small>
+                {live
+                  ? `Эфир · ${source?.author || watch.contentId}`
+                  : behind
+                    ? 'Догоняем комнату…'
+                    : owner
+                      ? `Открыл${owner.id === self?.id ? 'и вы' : ` ${owner.name}`}`
+                      : 'Смотрим вместе'}
+              </small>
+            </span>
+            {onBrowse && (
+              <button className="watch-browse" onClick={onBrowse}>
+                <Clapperboard size={16} />
+                <span>Каталог</span>
+              </button>
+            )}
+            {canControl && (
+              <IconButton label="Закрыть просмотр для всех" onClick={() => send('watch.close')}>
+                <X size={19} />
+              </IconButton>
+            )}
+          </div>
+          <div className="watch-foot">
+            {!live && (
+              <div className="watch-line">
+                <span className="watch-time">{clock(position / 1000)}</span>
+                <Slider
+                  className="watch-progress"
+                  min={0}
+                  max={Math.max(1000, duration)}
+                  step={1000}
+                  value={Math.min(position, duration || position)}
+                  disabled={!canControl || !duration}
+                  aria-label="Положение в ролике"
+                  style={
+                    {
+                      '--slider-b': Math.min(1, buffered / Math.max(1000, duration)),
+                    } as CSSProperties
+                  }
+                  onChange={(event) => command('watch.seek', Number(event.target.value))}
+                />
+                <span className="watch-time">{clock(duration / 1000)}</span>
+              </div>
+            )}
+            <div className="watch-tools">
+              {/*
+                У эфира на месте «играть» стоит «LIVE»: останавливать его нельзя, а вот
+                вернуться к краю после затычки в сети — самое частое, чего от него хотят.
+              */}
+              {live ? (
+                <button
+                  className="watch-live"
+                  data-edge={lag > LIVE_EDGE ? undefined : 'true'}
+                  aria-label={
+                    lag > LIVE_EDGE ? `Вернуться к эфиру, отстали на ${Math.round(lag)} с` : 'Идёт эфир'
+                  }
+                  onClick={resync}
+                >
+                  <span className="watch-live-dot" />
+                  LIVE
+                  {lag > LIVE_EDGE && <small>−{Math.round(lag)} с</small>}
+                </button>
+              ) : (
+                <>
+                  <IconButton
+                    label={watch.paused ? 'Включить для всех' : 'Пауза для всех'}
+                    className="watch-play"
+                    disabled={!canControl}
+                    onClick={() => command(watch.paused ? 'watch.play' : 'watch.pause')}
+                  >
+                    {watch.paused || !playing ? <Play size={21} /> : <Pause size={21} />}
+                  </IconButton>
+                  <IconButton
+                    label="В начало для всех"
+                    disabled={!canControl}
+                    onClick={() => command('watch.seek', 0)}
+                  >
+                    <SkipBack size={18} />
+                  </IconButton>
+                </>
+              )}
+              <IconButton
+                label={live ? 'Обновить трансляцию' : 'Встать на секунду комнаты'}
+                className={behind || lag > LIVE_EDGE ? 'watch-behind' : ''}
+                onClick={resync}
+              >
+                <RefreshCw size={17} />
+              </IconButton>
+              <div className="watch-volume">
+                <IconButton
+                  label={muted ? 'Включить звук просмотра' : 'Выключить звук просмотра'}
+                  onClick={() => setVolume(muted ? loudness.current : 0)}
+                >
+                  {muted ? (
+                    <VolumeX size={18} />
+                  ) : preferences.watchVolume < 50 ? (
+                    <Volume1 size={18} />
+                  ) : (
+                    <Volume2 size={18} />
+                  )}
+                </IconButton>
+                <Slider
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={preferences.watchVolume}
+                  aria-label="Громкость просмотра"
+                  onChange={(event) => setVolume(Number(event.target.value))}
+                />
+              </div>
+              <span className="watch-gap" />
+              {choices.length > 1 && (
+                <Menu.Root open={menu} onOpenChange={setMenu}>
+                  <Menu.Trigger
+                    render={
+                      <button className="watch-quality" aria-label="Качество картинки">
+                        <Settings2 size={17} />
+                        <span>{chosen || 'Авто'}</span>
+                      </button>
+                    }
+                  />
+                  <Menu.Portal>
+                    <Menu.Positioner side="top" sideOffset={10} align="end">
+                      <Menu.Popup className="action-menu watch-quality-menu">
+                        <Menu.Item
+                          data-selected={level < 0 ? 'true' : undefined}
+                          onClick={() => {
+                            setLevel(-1);
+                            if (engine.current) engine.current.currentLevel = -1;
+                          }}
+                        >
+                          Автоматически
+                          {level < 0 && automatic >= 0 && <small>{levelLabel(levels[automatic])}</small>}
+                        </Menu.Item>
+                        {choices.map((choice) => (
+                          <Menu.Item
+                            key={choice.label}
+                            data-selected={level === choice.level ? 'true' : undefined}
+                            onClick={() => {
+                              setLevel(choice.level);
+                              if (engine.current) engine.current.currentLevel = choice.level;
+                            }}
+                          >
+                            {choice.label}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Popup>
+                    </Menu.Positioner>
+                  </Menu.Portal>
+                </Menu.Root>
+              )}
+              <IconButton
+                label={fullscreen ? 'Выйти из полноэкранного режима' : 'Развернуть плеер'}
+                onClick={() => {
+                  if (document.fullscreenElement) void document.exitFullscreen();
+                  else void screen.current?.requestFullscreen().catch(() => {});
                 }}
               >
-                <option value={-1}>Автоматически</option>
-                {levels
-                  .slice()
-                  .reverse()
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          )}
-          <label className="watch-volume">
-            <Volume2 size={16} aria-label="Громкость просмотра" />
-            <Slider
-              min={0}
-              max={100}
-              step={1}
-              value={preferences.watchVolume}
-              aria-label="Громкость просмотра"
-              onChange={(event) => savePreferences({ watchVolume: Number(event.target.value) })}
-            />
-          </label>
-          <IconButton
-            label={fullscreen ? 'Выйти из полноэкранного режима' : 'Развернуть плеер'}
-            onClick={() => {
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void screen.current?.requestFullscreen().catch(() => {});
-            }}
-          >
-            {fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
-          </IconButton>
-          {(canControl || snapshot.integrationsAllowed !== false) && (
-            <IconButton label="Закрыть просмотр для всех" onClick={() => send('watch.close')}>
-              <X size={19} />
-            </IconButton>
-          )}
-        </div>
-        {!live && (
-          <div className="watch-transport">
-            <IconButton
-              label={watch.paused ? 'Включить для всех' : 'Пауза для всех'}
-              disabled={!canControl}
-              onClick={() => command(watch.paused ? 'watch.play' : 'watch.pause')}
-            >
-              {watch.paused || !playing ? <Play size={20} /> : <Pause size={20} />}
-            </IconButton>
-            <IconButton
-              label="В начало для всех"
-              disabled={!canControl}
-              onClick={() => command('watch.seek', 0)}
-            >
-              <SkipBack size={19} />
-            </IconButton>
-            <span className="watch-time">{clock(position / 1000)}</span>
-            <Slider
-              className="watch-progress"
-              min={0}
-              max={Math.max(1000, duration)}
-              step={1000}
-              value={Math.min(position, duration || position)}
-              disabled={!canControl || !duration}
-              aria-label="Положение в ролике"
-              onChange={(event) => command('watch.seek', Number(event.target.value))}
-            />
-            <span className="watch-time">{clock(duration / 1000)}</span>
+                {fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
+              </IconButton>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </section>
   );

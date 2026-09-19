@@ -430,6 +430,7 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
+    window.addEventListener('cord:preferences', this.settingsChanged);
     this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
@@ -1064,6 +1065,18 @@ export class MediaSession {
       this.deviceBusy.delete(kind);
     }
   }
+  /**
+   * Настройки поменяли где-то ещё в приложении.
+   *
+   * ЗАЧЕМ. Это хранилище — то, на что подписан весь интерфейс встречи, но записывает в
+   * `localStorage` кто угодно (`savePreferences`), и о чужой записи хранилище не узнавало
+   * никак. Выглядело это не как «значение не обновилось», а как сломанная ручка: ползунок
+   * громкости кинозала стоял на месте, потому что показывал заморожённое значение из
+   * хранилища, а не то, что человек только что передвинул.
+   */
+  private settingsChanged = () => {
+    if (!this.disposed) this.preferences.set(readPreferences());
+  };
   saveSettings(patch: Partial<Preferences>) {
     const next = savePreferences(patch);
     this.preferences.set(next);
@@ -1526,6 +1539,7 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
+    window.removeEventListener('cord:preferences', this.settingsChanged);
     this.previewSource.stop();
     this.previewImages.clear();
     this.screenPreviews.set({});

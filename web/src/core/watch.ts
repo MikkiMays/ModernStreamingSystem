@@ -10,9 +10,9 @@ import type { Watch } from '../api/types';
  * тут стоит секунды рассинхрона, и только в момент нажатия; ежесекундная рассылка позиций
  * стоила бы того же самого, но постоянно.
  *
- * ЧЕГО ЗДЕСЬ НЕТ. Живой эфир (`kind: 'channel'`) позиции не имеет: у Twitch каждый смотрит
- * собственный край трансляции, и догонять там нечего — синхронизируется только то, **что**
- * открыто. Попытка «подтянуть» живой поток перемоткой даёт бесконечную буферизацию.
+ * ЧЕГО ЗДЕСЬ НЕТ. Живой эфир позиции не имеет: у Twitch каждый смотрит собственный край
+ * трансляции, и догонять там нечего — синхронизируется только то, **что** открыто. Попытка
+ * «подтянуть» живой поток перемоткой даёт бесконечную буферизацию.
  */
 export type WatchProvider = Watch['provider'];
 export type WatchKind = Watch['kind'];
@@ -23,11 +23,30 @@ export function targetPosition(watch: Watch, serverNow: number): number {
   return Math.max(0, watch.positionMs + elapsed);
 }
 
-/** Насколько можно разойтись, прежде чем это стоит исправлять перемоткой. */
-export const DRIFT_LIMIT = 1500;
 /**
- * Догоняя, целимся чуть вперёд: пока перемотка доедет и плеер добуферизует, уйдёт ещё несколько
- * долей секунды, и приземление ровно в цель означает снова отставать.
+ * Три порога вместо одного — и это главное про синхронность.
+ *
+ * Раньше был один: разошлись больше чем на полторы секунды — перемотать. Перемотка стоит
+ * чёрного кадра и провала звука у всех, кого она коснулась, поэтому порог держали высоким, и
+ * жить с секундой расхождения приходилось постоянно: у друга уже сказали, у тебя ещё нет.
+ *
+ * Теперь расхождение до {@link DRIFT_LIMIT} не трогают вовсе (шевелиться тут дороже, чем
+ * отставать), от него и до {@link JUMP_LIMIT} — **подтягивают скоростью**: пять процентов к
+ * скорости воспроизведения незаметны на слух, зато полсекунды разницы уходят за десять секунд
+ * без единого разрыва. И только разрыв больше {@link JUMP_LIMIT} — настоящая перемотка: это
+ * уже не расхождение, а другое место в фильме.
+ */
+export const DRIFT_LIMIT = 300;
+export const JUMP_LIMIT = 2500;
+/** Разошлись настолько, что это видно человеку, а не только счётчику. */
+export const VISIBLE_DRIFT = 1200;
+/** На сколько разгоняться и притормаживать, догоняя. Больше — слышно, меньше — слишком долго. */
+export const NUDGE = 0.05;
+/** Догнали: возвращаем обычную скорость, не дожидаясь нуля, иначе она дребезжит. */
+const SETTLED = 120;
+/**
+ * Догоняя перемоткой, целимся чуть вперёд: пока перемотка доедет и плеер добуферизует, уйдёт
+ * ещё несколько долей секунды, и приземление ровно в цель означает снова отставать.
  */
 const CATCH_UP_LEAD = 400;
 
@@ -35,7 +54,8 @@ export type Correction =
   | { action: 'none' }
   | { action: 'play' }
   | { action: 'pause'; positionMs: number }
-  | { action: 'seek'; positionMs: number };
+  | { action: 'seek'; positionMs: number }
+  | { action: 'rate'; rate: number };
 
 /**
  * Что сделать со своим плеером, чтобы оказаться там же, где комната. Ответ считается от
@@ -43,12 +63,25 @@ export type Correction =
  */
 export function correction(input: {
   watch: Watch;
+  /**
+   * Эфир это или произведение с началом и концом.
+   *
+   * Отдельно от {@link Watch.kind}, потому что одно не сводится к другому: запись трансляции
+   * Twitch приходит как `video` — её можно ставить на паузу, — но пока эфир не кончился,
+   * площадка отдаёт её живым потоком без общей позиции. Считать такую запись роликом значило
+   * бы перематывать её к секунде, которой в потоке ещё нет.
+   */
+  live?: boolean;
   serverNow: number;
   /** Позиция своего плеера, мс. `null` — плеер ещё не отвечает. */
   localMs: number | null;
   playing: boolean;
+  /** Своя скорость воспроизведения: подтяжка помнится между проверками, а не начинается с нуля. */
+  rate?: number;
 }): Correction {
   const { watch, serverNow, localMs, playing } = input;
+  const rate = input.rate ?? 1;
+  const ordinary = (): Correction => (rate === 1 ? { action: 'none' } : { action: 'rate', rate: 1 });
   /*
     Живой эфир не двигают: общей позиции у него нет, а перемотка к «краю» — это бесконечная
     буферизация. Общим остаётся только то, какой канал открыт.
@@ -58,17 +91,25 @@ export function correction(input: {
     команду `play()` не давал никто. У ролика её даёт комната, а у эфира комнате нечего
     сказать: каждый смотрит свой край трансляции.
   */
-  if (watch.kind !== 'video') return playing ? { action: 'none' } : { action: 'play' };
+  if (input.live || watch.kind !== 'video') return playing ? ordinary() : { action: 'play' };
   const target = targetPosition(watch, serverNow);
   if (watch.paused) {
     if (playing) return { action: 'pause', positionMs: target };
-    if (localMs !== null && Math.abs(localMs - target) > DRIFT_LIMIT)
+    if (localMs !== null && Math.abs(localMs - target) > JUMP_LIMIT)
       return { action: 'seek', positionMs: target };
-    return { action: 'none' };
+    return ordinary();
   }
   if (!playing) return { action: 'play' };
   if (localMs === null) return { action: 'none' };
   const drift = localMs - target;
-  if (Math.abs(drift) <= DRIFT_LIMIT) return { action: 'none' };
-  return { action: 'seek', positionMs: drift < 0 ? target + CATCH_UP_LEAD : target };
+  if (Math.abs(drift) > JUMP_LIMIT)
+    return { action: 'seek', positionMs: drift < 0 ? target + CATCH_UP_LEAD : target };
+  if (Math.abs(drift) > DRIFT_LIMIT) {
+    const wanted = Number((drift < 0 ? 1 + NUDGE : 1 - NUDGE).toFixed(3));
+    return rate === wanted ? { action: 'none' } : { action: 'rate', rate: wanted };
+  }
+  // Между «догнали» и «пора подтягивать» скорость не меняется ни в ту, ни в другую сторону:
+  // без этой полосы плеер щёлкал бы туда-сюда каждую секунду у самого порога.
+  if (Math.abs(drift) <= SETTLED) return ordinary();
+  return { action: 'none' };
 }

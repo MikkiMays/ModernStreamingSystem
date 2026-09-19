@@ -10,6 +10,7 @@ import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
 
 const WatchTheater = lazy(() => import('./WatchTheater'));
+const CinemaBrowser = lazy(() => import('./CinemaBrowser'));
 
 /**
  * Показывать ли себя зеркально.
@@ -149,6 +150,7 @@ export function Stage({
   const pinned = useStore(meeting.pinnedCamera);
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
+  const cinema = useStore(meeting.cinema);
   const layout = useStore(meeting.media.preferences).layout;
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -370,13 +372,36 @@ export function Stage({
     Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
     занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но
     главное на экране теперь не они.
+
+    Каталог живёт здесь же и **поверх** плеера, а не вместо него: пока один выбирает, чем
+    продолжить, комната продолжает смотреть — и разбирать плеер ради чужого выбора значило бы
+    остановить фильм всем.
   */
-  if (snapshot.watch)
+  if (snapshot.watch || cinema)
     return (
       <div className="stage watch-together-stage">
-        <Suspense fallback={<div className="watch-screen" />}>
-          <WatchTheater meeting={meeting} watch={snapshot.watch} />
-        </Suspense>
+        <div className="watch-main">
+          {snapshot.watch && (
+            <Suspense fallback={<div className="watch-screen" />}>
+              <WatchTheater
+                meeting={meeting}
+                watch={snapshot.watch}
+                onBrowse={() => meeting.openCinema(snapshot.watch!.provider)}
+              />
+            </Suspense>
+          )}
+          {cinema && (
+            <Suspense fallback={<div className="cinema-browser" />}>
+              <CinemaBrowser
+                meeting={meeting}
+                provider={cinema}
+                watching={!!snapshot.watch}
+                onProvider={(next) => meeting.openCinema(next)}
+                onClose={() => meeting.openCinema(null)}
+              />
+            </Suspense>
+          )}
+        </div>
         <div className="people-strip" data-count={people.length}>
           {people.map((person, index) => tile(person, index, false))}
         </div>

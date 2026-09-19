@@ -819,40 +819,56 @@ class RoomServiceTest {
   }
 
   @Test
-  void theRemoteBelongsToWhoeverBroughtTheVideo() {
+  void anybodyWatchingMayStopItForEveryone() {
     var host = host();
     var guest = guest(host);
     var third = guest(host);
     watch(guest, "watch.open", "youtube", "video", "abc", null);
-    // Принёсший управляет, ведущий тоже — а посторонний в комнате, где интеграции разрешены,
-    // может сменить видео или закрыть его, но не нажимать паузу через плечо.
+    // Пауза общая: смотрят вместе свои, и просить принёсшего нажать её вслух незачем.
     watch(guest, "watch.play", null, null, null, 1000L);
     watch(host, "watch.pause", null, null, null, 2000L);
-    assertThatThrownBy(() -> watch(third, "watch.play", null, null, null, 0L))
-        .isInstanceOf(Problem.class);
+    watch(third, "watch.play", null, null, null, 3000L);
+    assertThat(rooms.read(host.roomId()).watch.paused).isFalse();
+    assertThat(rooms.read(host.roomId()).watch.positionMs).isEqualTo(3000);
     watch(third, "watch.open", "youtube", "video", "xyz", null);
     assertThat(rooms.read(host.roomId()).watch.openedBy).isEqualTo(third.participantId());
-    watch(third, "watch.play", null, null, null, 0L);
     watch(guest, "watch.close", null, null, null, null);
     assertThat(rooms.read(host.roomId()).watch).isNull();
   }
 
   @Test
-  void theRemoteDoesNotLeaveWithTheOneWhoBroughtTheVideo() {
+  void theRemoteFollowsTheIntegrationPermissionAndNotTheOpener() {
     var host = host();
     var guest = guest(host);
     var third = guest(host);
     watch(guest, "watch.open", "youtube", "video", "abc", null);
-    assertThatThrownBy(() -> watch(third, "watch.pause", null, null, null, 0L))
-        .isInstanceOf(Problem.class);
-    command(guest, "leave", null, 0);
-    // Ушедший унёс бы с собой паузу, и кино осталось бы стоять навсегда.
     watch(third, "watch.pause", null, null, null, 5000L);
     assertThat(rooms.read(host.roomId()).watch.paused).isTrue();
+    // «Интеграции только мне» отбирает пульт у всех, включая принёсшего: это то же самое
+    // разрешение трогать во встрече постороннее, а не отдельное право на паузу.
     rooms.integrationSettings(host.roomId(), host.credential(), false);
     assertThatThrownBy(() -> watch(third, "watch.play", null, null, null, 0L))
         .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> watch(guest, "watch.play", null, null, null, 0L))
+        .isInstanceOf(Problem.class);
     watch(host, "watch.play", null, null, null, 0L);
+    assertThat(rooms.read(host.roomId()).watch.paused).isFalse();
+  }
+
+  @Test
+  void anEmptyRoomStopsWatchingBeforeItCloses() {
+    var host = host();
+    var guest = guest(host);
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    command(host, "leave", null, 0);
+    lifecycle.sweepRoom(host.roomId());
+    // Один остался — кино идёт: комната ещё смотрит, просто вдвое тише.
+    assertThat(rooms.read(host.roomId()).watch).isNotNull();
+    command(guest, "leave", null, 0);
+    lifecycle.sweepRoom(host.roomId());
+    // Пустой зал не должен тянуть сегменты минутами до закрытия комнаты, а вернувшийся —
+    // попадать в середину чужого фильма вместо своей встречи.
+    assertThat(rooms.read(host.roomId()).watch).isNull();
   }
 
   @Test

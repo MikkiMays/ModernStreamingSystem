@@ -1,8 +1,18 @@
+import asyncio
 import unittest
 
 from fastapi import HTTPException
 
-from cord_services.cinema import Cinema, Signer, allowed, master_playlist, rewrite
+from cord_services.cinema import (
+    Cinema,
+    Memo,
+    Reels,
+    Signer,
+    allowed,
+    finished_playlist,
+    master_playlist,
+    rewrite,
+)
 
 MASTER = """#EXTM3U
 #EXT-X-INDEPENDENT-SEGMENTS
@@ -21,6 +31,15 @@ https://rr5.googlevideo.com/videoplayback/seg1.ts
 #EXTINF:4.033333,
 seg2.ts
 #EXT-X-ENDLIST
+"""
+
+LIVE = """#EXTM3U
+#EXT-X-TARGETDURATION:2
+#EXT-X-MEDIA-SEQUENCE:8410
+#EXTINF:2.0,
+https://video-edge-1.hls.ttvnw.net/v1/segment/8410.ts
+#EXTINF:2.0,
+https://video-edge-1.hls.ttvnw.net/v1/segment/8411.ts
 """
 
 
@@ -93,6 +112,132 @@ class PlaylistTests(unittest.TestCase):
             self.signer,
         )
         self.assertIn("https://example.com/seg.ts", body)
+
+
+class NumberedPlaylistTests(unittest.TestCase):
+    """
+    Фильм целиком нумеруется, живой эфир — подписывается.
+
+    Речь не об экономии на пустом месте: у YouTube один адрес сегмента — тысяча двести
+    символов, и тринадцатичасовой ролик превращался в шестнадцать мегабайт, которые браузер
+    обязан скачать до первого кадра.
+    """
+
+    def setUp(self):
+        self.signer = Signer("secret")
+        self.reels = Reels(self.signer, ttl=60)
+
+    def test_a_finished_film_is_told_from_a_live_edge(self):
+        self.assertTrue(finished_playlist(MEDIA))
+        self.assertFalse(finished_playlist(LIVE))
+
+    def test_segments_of_a_film_become_short_relative_numbers(self):
+        body = rewrite(MEDIA, "https://rr5.googlevideo.com/videoplayback/", self.signer, self.reels)
+        lines = [line for line in body.splitlines() if line and not line.startswith("#")]
+        self.assertEqual(len(lines), 2)
+        for number, line in enumerate(lines):
+            key, index = line.split("/")[1], int(line.split("/")[2])
+            self.assertEqual(index, number)
+            self.assertLess(len(line), 40)
+            self.assertTrue(self.reels.find(key, index).startswith("https://rr5.googlevideo.com/"))
+        # Относительный адрес развёрнут по базе, а не оставлен как был.
+        self.assertIn("videoplayback/seg2.ts", self.reels.find(key, 1))
+        # Карта инициализации — одна на плейлист, ей нумерация ни к чему.
+        self.assertIn("/api/v1/services/cinema/fetch?", body)
+
+    def test_a_live_edge_keeps_signatures_because_its_numbers_move(self):
+        body = rewrite(LIVE, "https://video-edge-1.hls.ttvnw.net/v1/", self.signer, self.reels)
+        self.assertEqual(body.count("/api/v1/services/cinema/fetch?"), 2)
+        self.assertNotIn("seg/", body)
+
+    def test_the_same_playlist_is_one_list_for_the_whole_room(self):
+        base = "https://rr5.googlevideo.com/videoplayback/"
+        first = rewrite(MEDIA, base, self.signer, self.reels)
+        second = rewrite(MEDIA, base, self.signer, self.reels)
+        self.assertEqual(first, second)
+
+    def test_a_forgotten_list_is_gone_rather_than_wrong(self):
+        stale = Reels(self.signer, ttl=-1)
+        key = stale.remember("https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"])
+        with self.assertRaises(HTTPException) as refusal:
+            stale.find(key, 0)
+        self.assertEqual(refusal.exception.status_code, 410)
+
+    def test_a_number_outside_the_film_is_not_a_server_error(self):
+        key = self.reels.remember("https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"])
+        with self.assertRaises(HTTPException) as refusal:
+            self.reels.find(key, 7)
+        self.assertEqual(refusal.exception.status_code, 404)
+
+    def test_another_secret_cannot_name_a_list(self):
+        url = "https://rr5.googlevideo.com/x"
+        self.assertNotEqual(self.reels.remember(url, []), Signer("other").name(url))
+
+    def test_only_the_watched_list_survives_a_full_shelf(self):
+        small = Reels(self.signer, ttl=60, capacity=2)
+        keys = [
+            small.remember(f"https://rr5.googlevideo.com/{name}", [f"https://rr5.googlevideo.com/{name}.ts"])
+            for name in "ab"
+        ]
+        small.find(keys[0], 0)  # первый смотрят прямо сейчас
+        small.remember("https://rr5.googlevideo.com/c", ["https://rr5.googlevideo.com/c.ts"])
+        self.assertTrue(small.find(keys[0], 0))
+        with self.assertRaises(HTTPException):
+            small.find(keys[1], 0)
+
+
+class MemoTests(unittest.TestCase):
+    """Один разбор на комнату: пятеро зрителей одного ролика — это один запрос наружу."""
+
+    def test_the_first_caller_works_and_the_rest_wait_for_the_answer(self):
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            await asyncio.sleep(0.01)
+            return {"live": False}
+
+        async def room():
+            return await asyncio.gather(*(memo.get("k", produce, 60) for _ in range(5)))
+
+        answers = asyncio.run(room())
+        self.assertEqual(calls, 1)
+        self.assertEqual(len(answers), 5)
+
+    def test_a_stale_answer_is_asked_again(self):
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            return calls
+
+        async def twice():
+            first = await memo.get("k", produce, -1)
+            return first, await memo.get("k", produce, -1)
+
+        self.assertEqual(asyncio.run(twice()), (1, 2))
+
+    def test_how_long_to_keep_may_depend_on_the_answer(self):
+        # Живой эфир держится меньше ролика: его адреса обновляются чаще, чем афиша.
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            return {"live": True}
+
+        async def twice():
+            keep = lambda value: -1 if value["live"] else 3600  # noqa: E731
+            await memo.get("k", produce, keep)
+            await memo.get("k", produce, keep)
+
+        asyncio.run(twice())
+        self.assertEqual(calls, 2)
 
 
 class StreamChoiceTests(unittest.TestCase):

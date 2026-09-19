@@ -42,6 +42,24 @@ public class Lifecycle {
         .params(id, now - config.retentionSeconds() * 1000L, now)
         .update();
     room.invites.values().removeIf(i -> i.expiresAt() <= now);
+    /*
+     Все разошлись — гасим и то, что играло.
+
+     Комната не закрывается сразу: ей отведены минуты на «я сейчас вернусь», и всё это время
+     кино продолжало идти в пустом зале. Никто его не видел, но сервер тянул сегменты, а
+     вернувшийся попадал в середину чужого фильма вместо своей встречи. Служебные участники
+     здесь не считаются: музыкальный бот — это не зритель, и оставаться ради него не для кого
+     (он и сам уходит, не услышав людей минуту).
+
+     Место для восстановления связи уже учтено: пока человек переподключается, он занимает
+     место, и до «никого нет» дело не доходит.
+    */
+    boolean watched =
+        room.members.values().stream().anyMatch(m -> m.service == null && m.occupiesSeat());
+    if (room.watch != null && !watched) {
+      room.watch = null;
+      changed = true;
+    }
     if (room.closedAt == null) {
       boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);
       if (occupied) room.emptySince = null;
