@@ -829,15 +829,25 @@ button.watch-stream:hover {
   min-width: 74px;
   height: 74px;
 }
-/* Число на кнопке перемотки: сколько секунд она отматывает — внутри самой стрелки. */
+/*
+  Число на кнопке перемотки: сколько секунд она отматывает — внутри самой стрелки.
+
+  `inset: 0` обязателен. Без координат абсолютный элемент встаёт туда, где стоял бы в
+  обычном потоке, — то есть рядом со стрелкой, а не в её кольце: на стенде это выглядело
+  как «15», прилипшее к краю кнопки.
+*/
 .watch-skip {
   position: relative;
 }
 .watch-skip span {
   position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
+  pointer-events: none;
 }
 @media (max-width: 700px) {
   .watch-chrome .watch-center .icon-button {
