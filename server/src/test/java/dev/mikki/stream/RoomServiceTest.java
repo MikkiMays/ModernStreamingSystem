@@ -638,7 +638,7 @@ class RoomServiceTest {
                         UUID.randomUUID(), "large", config.fileMaxBytes() + 1)))
         .isInstanceOf(Problem.class);
     command(host, "close", null, 0);
-    now.addAndGet(config.closedRetentionSeconds() * 1000L);
+    now.addAndGet(config.retention().closedHistory().toMillis());
     assertThatThrownBy(() -> attachments.download(file.id(), host.credential()))
         .isInstanceOf(Problem.class);
     assertThat(Files.exists(attachments.path(file.id()))).isTrue();
@@ -648,11 +648,15 @@ class RoomServiceTest {
 
   @Test
   void unusedRoomsAndEmptyMeetingsCloseAtDifferentDeadlines() {
+    // Обе комнаты сохранены в избранное: иначе закрытие и удаление случаются одним проходом,
+    // и проверять сроки закрытия стало бы не на чем. Про само удаление — отдельный тест.
     var unused = host();
+    saved(unused);
     now.addAndGet(300000);
     lifecycle.sweepRoom(unused.roomId());
     assertThat(rooms.read(unused.roomId()).closedAt).isNotNull();
     var used = host();
+    saved(used);
     connected(used);
     command(used, "leave", null, 0);
     lifecycle.sweepRoom(used.roomId());
@@ -733,11 +737,38 @@ class RoomServiceTest {
     assertThat(returned.snapshot().closedAt()).isNull();
     command(returned, "leave", null, 0);
     favorites.remove(b, host.roomId());
-    lifecycle.sweepRoom(host.roomId());
-    assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
-    now.addAndGet(3600000);
+    // Последний убрал встречу из избранного: держать её больше не для кого, и уходит она тем
+    // же проходом, который её закрывает, — без часа ожидания неизвестно кого.
     lifecycle.sweepRoom(host.roomId());
     assertThatThrownBy(() -> rooms.read(host.roomId())).isInstanceOf(Problem.class);
+  }
+
+  /**
+   * Встречу, которую никто себе не сохранил, ждать некому.
+   *
+   * <p>ЗАЧЕМ ТЕСТ. Раньше такая комната лежала в базе час после завершения — на случай, которого не
+   * бывает: вернуться в неё можно только по ссылке из списка недавних, а список этот живёт у того,
+   * кто уже ушёл. Час оплачивался снимком, расписками и ежесекундной уборкой на каждую брошенную
+   * встречу. Проверяем обе половины срока {@code stream.retention.unsaved-room}: несохранённая
+   * уходит сразу, сохранённая в том же проходе остаётся.
+   */
+  @Test
+  void aMeetingNobodySavedDisappearsWithTheConversation() {
+    var forgotten = host();
+    connected(forgotten);
+    command(forgotten, "leave", null, 0);
+    var kept = host();
+    connected(kept);
+    favorites.save("D".repeat(43), kept.roomId(), kept.credential());
+    command(kept, "leave", null, 0);
+    // Первый проход отмечает, что комнаты опустели, второй — по истечении срока — закрывает.
+    lifecycle.sweepRoom(forgotten.roomId());
+    lifecycle.sweepRoom(kept.roomId());
+    now.addAndGet(config.emptyRoomSeconds() * 1000L);
+    lifecycle.sweepRoom(forgotten.roomId());
+    lifecycle.sweepRoom(kept.roomId());
+    assertThatThrownBy(() -> rooms.read(forgotten.roomId())).isInstanceOf(Problem.class);
+    assertThat(rooms.read(kept.roomId()).closedAt).isNotNull();
   }
 
   /**
@@ -760,7 +791,7 @@ class RoomServiceTest {
     lifecycle.sweepRoom(host.roomId());
     assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
     // За день до срока комната на месте: её держит избранное, как и держало.
-    now.addAndGet(config.roomRetentionSeconds() * 1000L - 86400000L);
+    now.addAndGet(config.retention().savedRoom().toMillis() - 86400000L);
     lifecycle.sweepRoom(host.roomId());
     assertThat(favorites.list(a)).hasSize(1);
     now.addAndGet(86400000L);
@@ -781,14 +812,14 @@ class RoomServiceTest {
     favorites.save(profile, host.roomId(), host.credential());
     command(host, "leave", null, 0);
     for (int week = 0; week < 3; week++) {
-      now.addAndGet(config.roomRetentionSeconds() * 1000L - 86400000L);
+      now.addAndGet(config.retention().savedRoom().toMillis() - 86400000L);
       lifecycle.sweepRoom(host.roomId());
       assertThat(favorites.list(profile)).hasSize(1);
       var returned = favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Снова"));
       command(returned, "leave", null, 0);
       lifecycle.sweepRoom(host.roomId());
     }
-    now.addAndGet(config.roomRetentionSeconds() * 1000L);
+    now.addAndGet(config.retention().savedRoom().toMillis());
     lifecycle.sweepRoom(host.roomId());
     assertThatThrownBy(() -> rooms.read(host.roomId())).isInstanceOf(Problem.class);
   }
@@ -804,6 +835,9 @@ class RoomServiceTest {
   @Test
   void anIdleRoomIsNotRewrittenOnEverySweep() {
     var host = host();
+    // Встречу сохранили: та, которую не сохранил никто, до «лежит и не меняется» не доживает —
+    // она уходит вместе с разговором, и переписывать там нечего.
+    String profile = saved(host);
     command(host, "leave", null, 0);
     now.addAndGet(config.unusedRoomSeconds() * 1000L);
     lifecycle.sweepRoom(host.roomId());
@@ -815,7 +849,7 @@ class RoomServiceTest {
     }
     assertThat(updatedAt(host.roomId())).isEqualTo(settled);
     // А изменение всё так же записывается — и вместе с ним отметка последнего входа.
-    var returned = favorites.join(saved(host), host.roomId(), new Rejoin(UUID.randomUUID(), "Я"));
+    var returned = favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Я"));
     assertThat(updatedAt(host.roomId())).isGreaterThan(settled);
     command(returned, "leave", null, 0);
     now.addAndGet(config.unusedRoomSeconds() * 1000L);

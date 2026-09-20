@@ -55,6 +55,9 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
         self.closed = False
         self.integrations_allowed = False
         self.owner_present = False
+        # Место музыкального бота в комнате. По умолчанию его нет: снимок спрашивают и те,
+        # кто про бота ничего не знает, а лишний участник в нём менял бы их проверки.
+        self.bot_present = False
         self.core.client = httpx.AsyncClient(
             transport=httpx.MockTransport(self.respond)
         )
@@ -89,10 +92,14 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
         )
         assert request.headers["x-internal-secret"] == "internal-test"
         path = request.url.path
+        if path.endswith("/media/token"):
+            return httpx.Response(200, json={"token": "test"})
         if path == "/api/v1/rooms/" + ROOM:
             if request.headers.get("authorization") not in (
                 f"Bearer {HOST}.secret",
                 f"Bearer {GUEST}.secret",
+                # Снимок комнаты спрашивает и сам бот: по нему он понимает, ушли ли все.
+                "Bearer bot.secret",
             ):
                 return httpx.Response(403, json={"detail": "Forbidden"})
             return httpx.Response(
@@ -117,7 +124,20 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
                             "owner": False,
                             "service": None,
                         },
-                    ],
+                    ]
+                    + (
+                        [
+                            {
+                                "id": BOT,
+                                "name": "Музыка",
+                                "status": "CONNECTED",
+                                "owner": False,
+                                "service": "music",
+                            }
+                        ]
+                        if self.bot_present
+                        else []
+                    ),
                 },
             )
         if path == "/internal/services/" + ROOM:
@@ -593,6 +613,65 @@ class QueueTests(Fixture):
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
         self.assertIn(("close",), commands)
+
+    async def test_room_ending_is_not_reported_as_a_broken_connection(self):
+        """Все разошлись — это конец работы, а не поломка.
+
+        ЗАЧЕМ ТЕСТ. Обрыв у издателя одинаковый в обоих случаях, и раньше он одинаково же и
+        объяснялся: «Музыкальный сервис потерял соединение». Надпись переживала саму встречу
+        и встречала следующего, кто открывал панель, — при том что добавление сервиса
+        работало с первого нажатия. Проверяем обе половины: у закрытой комнаты ошибки нет, у
+        живой с людьми — есть.
+        """
+        for closed, expected_error in ((True, False), (False, True)):
+            with self.subTest(closed=closed):
+                self.closed = closed
+                self.bot_present = True
+                state = self.store.get(ROOM)
+                state.update(
+                    enabled=True,
+                    status="playing",
+                    error=None,
+                    admission={
+                        "roomId": ROOM,
+                        "participantId": BOT,
+                        "credential": "bot.secret",
+                    },
+                )
+                self.store.save(state)
+                events = asyncio.Queue()
+                events.put_nowait({"event": "closed", "message": "room closed"})
+
+                class FakePublisher:
+                    connected = True
+
+                    @classmethod
+                    async def start(cls, url, token, name="Музыка"):
+                        return cls()
+
+                    async def play(self, path, position, epoch):
+                        pass
+
+                    async def pause(self):
+                        pass
+
+                    async def event(self, timeout):
+                        try:
+                            return await asyncio.wait_for(events.get(), timeout)
+                        except TimeoutError:
+                            return None
+
+                    async def close(self):
+                        pass
+
+                player = Music(self.store, self.core, "http://rtc.test")
+                with patch("cord_services.music.Publisher", FakePublisher):
+                    await player.run(ROOM)
+                state = self.store.get(ROOM)
+                self.assertEqual(bool(state["error"]), expected_error)
+                self.assertEqual(
+                    state["status"], "error" if expected_error else "disabled"
+                )
 
 
 class TelegramTests(Fixture):

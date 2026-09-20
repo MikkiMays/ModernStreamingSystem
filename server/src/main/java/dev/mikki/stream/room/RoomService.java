@@ -243,7 +243,7 @@ public class RoomService {
               m ->
                   !m.occupiesSeat()
                       && !retained.contains(m.id)
-                      && now() - m.joinedAt > config.retentionSeconds() * 1000L);
+                      && now() - m.joinedAt > config.retention().messages().toMillis());
     }
     if (room.members.size() >= 500)
       throw new Problem(429, "SESSION_LIMIT", "Достигнут лимит входов за время встречи");
@@ -408,7 +408,11 @@ public class RoomService {
     room.invites.put(
         id,
         new RoomState.Invite(
-            id, Secrets.hash(token), now(), now() + config.retentionSeconds() * 1000L, false));
+            id,
+            Secrets.hash(token),
+            now(),
+            now() + config.retention().messages().toMillis(),
+            false));
     return config.publicUrl() + "/join/" + room.id + "#invite=" + token;
   }
 
@@ -424,7 +428,8 @@ public class RoomService {
         || !Secrets.equal(member.secretHash, Secrets.hash(parts[1]))
         || (!allowReplaced && member.replacedBy != null)
         || member.status == REMOVED) throw Problem.forbidden();
-    if (room.closedAt != null && now() >= room.closedAt + config.closedRetentionSeconds() * 1000L)
+    if (room.closedAt != null
+        && now() >= room.closedAt + config.retention().closedHistory().toMillis())
       throw new Problem(410, "HISTORY_EXPIRED", "История встречи удалена");
     return member;
   }
@@ -442,10 +447,10 @@ public class RoomService {
 
   public long expiry(long createdAt, RoomState room) {
     return Math.min(
-        createdAt + config.retentionSeconds() * 1000L,
+        createdAt + config.retention().messages().toMillis(),
         room.closedAt == null
             ? Long.MAX_VALUE
-            : room.closedAt + config.closedRetentionSeconds() * 1000L);
+            : room.closedAt + config.retention().closedHistory().toMillis());
   }
 
   public Snapshot snapshot(RoomState room) {
@@ -472,7 +477,7 @@ public class RoomService {
         rooms
             .jdbc()
             .sql("SELECT * FROM messages WHERE room_id=? AND created_at>? ORDER BY created_at,id")
-            .params(room.id, now() - config.retentionSeconds() * 1000L)
+            .params(room.id, now() - config.retention().messages().toMillis())
             .query(
                 (rs, n) ->
                     new RoomState.Message(
@@ -888,8 +893,8 @@ public class RoomService {
                   + table
                   + " SET expires_at=LEAST(COALESCE(expires_at,created_at+?),?) WHERE room_id=? AND created_at<=?")
           .params(
-              config.retentionSeconds() * 1000L,
-              endedAt + config.closedRetentionSeconds() * 1000L,
+              config.retention().messages().toMillis(),
+              endedAt + config.retention().closedHistory().toMillis(),
               room.id,
               endedAt)
           .update();
@@ -983,7 +988,7 @@ public class RoomService {
             commandId.toString(),
             fingerprint,
             Json.write(response),
-            now() + config.retentionSeconds() * 1000L,
+            now() + config.retention().messages().toMillis(),
             roomId)
         .update();
     return response;

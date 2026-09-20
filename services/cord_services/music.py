@@ -307,13 +307,21 @@ class Music:
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("Music playback failed")
-            state = self.store.get(room_id)
-            state.update(
-                status="error",
-                error="Музыкальный сервис потерял соединение. Организатор может подключить его заново.",
-            )
-            self.store.save(state)
+            reason = await self.expected_end(room_id)
+            if reason:
+                logger.info("Music left the room %s: %s", room_id, reason)
+                if not self.stopping:
+                    state = self.store.get(room_id)
+                    state.update(enabled=False, status="disabled", error=None)
+                    self.store.save(state)
+            else:
+                logger.exception("Music playback failed")
+                state = self.store.get(room_id)
+                state.update(
+                    status="error",
+                    error="Музыкальный сервис потерял соединение. Организатор может подключить его заново.",
+                )
+                self.store.save(state)
         finally:
             if watcher:
                 watcher.cancel()
@@ -330,6 +338,66 @@ class Music:
             if state["status"] != "error":
                 state["status"] = "disabled"
             self.store.save(state)
+
+    async def expected_end(self, room_id: str) -> str | None:
+        """Почему оборвалась связь: встречи больше нет — или это всё-таки сбой.
+
+        ЗАЧЕМ. Когда все расходятся, комната закрывается, SFU распускает её, и издатель
+        честно сообщает «closed». Для цикла воспроизведения это исключение, и раньше любое
+        исключение означало одно: «Музыкальный сервис потерял соединение. Организатор может
+        подключить его заново». Надпись оставалась в хранилище комнаты и встречала того, кто
+        заходил в панель в следующий раз, — при том что ничего не сломалось и добавление
+        сервиса работало с первого нажатия. Жалоба «ошибка есть, а всё работает» — про это.
+
+        Разница не выводится из самого обрыва: он в обоих случаях одинаковый. Спросить надо
+        комнату. Закрытая встреча, отсутствующее место, отобранное право, снятый флажок и
+        разошедшиеся люди — это конец работы, а не поломка; всё остальное — поломка, и о ней
+        по-прежнему говорится вслух.
+
+        @returns причина для журнала, если конец ожидаемый, иначе None.
+        """
+        state = self.store.get(room_id)
+        if self.stopping:
+            return "служба останавливается"
+        if not state["enabled"]:
+            return "сервис уже сняли со встречи"
+        admission = state["admission"]
+        if not admission:
+            return "во встрече нет нашего места"
+        try:
+            snapshot = await self.core.request(
+                "GET",
+                f"/api/v1/rooms/{room_id}",
+                credential=admission["credential"],
+            )
+        except HTTPException as error:
+            # Ядро отвечает «нельзя» ровно тогда, когда комнаты или нас в ней больше нет.
+            if error.status_code in (403, 404, 410):
+                return "комната недоступна нашему пропуску"
+            return None
+        except Exception:
+            # Ядро не ответило вовсе — про комнату мы ничего не знаем, значит это сбой.
+            return None
+        if snapshot.get("closedAt"):
+            return "встреча завершена"
+        member = next(
+            (
+                p
+                for p in snapshot["participants"]
+                if p["id"] == admission["participantId"]
+            ),
+            None,
+        )
+        if member is None or member["status"] in ("LEFT", "EXPIRED", "REMOVED"):
+            return "наше место во встрече освободили"
+        if not [
+            p
+            for p in snapshot["participants"]
+            if not p.get("service")
+            and p["status"] in ("JOINING", "CONNECTED", "RECOVERING")
+        ]:
+            return "во встрече не осталось людей"
+        return None
 
     async def watch(self, room_id: str, admission: dict, publisher: Publisher):
         while True:

@@ -42,12 +42,20 @@ stream:
   join-seconds: 120
   empty-room-seconds: 60
   unused-room-seconds: 300
-  retention-seconds: 86400
-  closed-retention-seconds: 3600
-  # Неделя. Комната живёт час после завершения, а потом остаётся пустой строкой — ради тех,
-  # кто сохранил её в избранное и вернётся по той же ссылке. Неделя без единого входа
-  # означает, что не вернётся никто: такую комнату удаляем целиком.
-  room-retention-seconds: ${ROOM_RETENTION_SECONDS:604800}
+  # Сроки хранения — словами. Понимаются `7 days`, `2 weeks`, `3 months`, `month`, `90m`,
+  # `never` и `immediately`; окончание `s` необязательно, `m` — это минуты, а месяц — `mo`
+  # или `month`. Разбор и единицы — в `config/Term.java`.
+  retention:
+    # Сохранённая в избранное встреча ждёт возвращения неделю. Отсчёт — от последнего входа
+    # человека: пока в неё заходят, она живёт сколько угодно долго.
+    saved-room: ${SAVED_ROOM_RETENTION:7 days}
+    # Встречу, которую никто себе не сохранил, держать не для кого: она уходит вместе с
+    # разговором. Поставьте `1 hour`, если нужно окно на «я случайно вышел».
+    unsaved-room: ${UNSAVED_ROOM_RETENTION:immediately}
+    # Сколько после завершения хранится переписка и события встречи.
+    closed-history: ${CLOSED_HISTORY_RETENTION:1 hour}
+    # Сколько живут сообщения, события, расписки, приглашения и вложения идущей встречи.
+    messages: ${MESSAGE_RETENTION:1 day}
   upload-timeout-seconds: 3600
   file-max-bytes: 104857600
   room-max-bytes: 1073741824

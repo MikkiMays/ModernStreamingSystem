@@ -33,7 +33,7 @@ public class Lifecycle {
     rooms
         .jdbc()
         .sql("DELETE FROM messages WHERE created_at<=? OR expires_at<=?")
-        .params(now - config.retentionSeconds() * 1000L, now)
+        .params(now - config.retention().messages().toMillis(), now)
         .update();
     rooms.jdbc().sql("DELETE FROM room_events WHERE expires_at<=?").param(now).update();
     rooms.jdbc().sql("DELETE FROM command_receipts WHERE expires_at<=?").param(now).update();
@@ -105,42 +105,43 @@ public class Lifecycle {
     // вечно, при том что не менялось ничего. Заодно `updated_at` снова значит «менялась»,
     // а не «уборка проходила мимо».
     if (dirty) rooms.save(room, now);
+    if (room.closedAt == null) return;
     /*
-     Забытая встреча удаляется целиком — вместе с избранным у всех, кто её сохранил.
+     Сколько завершённой встрече ещё жить — решает один вопрос: сохранил ли её себе хоть кто-то.
 
-     ЗАЧЕМ. Сохранённая комната переживала своё закрытие навсегда: `!rooms.saved(id)` не давал
-     удалить её, пока хоть у кого-то она в избранном, а убрать её оттуда мог только сам этот
-     человек. Комната, куда никто не вернулся, оставалась строкой в базе до конца жизни
-     сервера — и место занимала не она сама, а то, что с ней связано: расписки, события и
-     ежесекундная перезапись снимка.
+     НЕ СОХРАНИЛ НИКТО — держать не для кого, и она уходит вместе с разговором (по умолчанию
+     `stream.retention.unsaved-room: immediately`). Раньше такая комната лежала ещё час, и
+     единственным, кто об этом знал, был диск.
 
-     Срок считается от последнего входа, а не от закрытия: пока во встречу заходят, она
-     остаётся, сколько бы месяцев ей ни было. Неделя тишины — и она уходит у всех разом,
-     потому что записи избранного стоят на `ON DELETE CASCADE`. Отдельного «убрать у всех»
-     здесь нет и быть не должно: список избранного — это ссылки на комнату, а не её копии.
+     СОХРАНИЛ ХОТЯ БЫ ОДИН — начинается отсчёт от последнего входа человека, а не от закрытия:
+     пока во встречу заходят, она остаётся, сколько бы месяцев ей ни было. Неделя тишины — и
+     она уходит у всех разом, потому что записи избранного стоят на `ON DELETE CASCADE`.
+     Отдельного «убрать у всех» здесь нет и быть не должно: список избранного — это ссылки на
+     комнату, а не её копии. Убрал последний из избранного — встреча снова несохранённая, и
+     срок у неё соответствующий.
 
-     Порядок важен. Удалять можно только после того, как истёк час хранения истории, иначе
-     удаление забытого месяц назад унесло бы переписку встречи, которая закончилась минуту
-     назад. Поэтому `forgotten` не отменяет проверку закрытия, а снимает ровно одну — защиту
-     избранного.
+     История уходит своим сроком (`closed-history`) и не может пережить саму комнату: удаление
+     встречи уносит переписку в том же проходе.
     */
-    boolean forgotten = now - room.lastSeenAt(now) >= config.roomRetentionSeconds() * 1000L;
-    if (room.closedAt != null && now >= room.closedAt + config.closedRetentionSeconds() * 1000L) {
-      rooms.jdbc().sql("DELETE FROM room_events WHERE room_id=?").param(id).update();
-      rooms.jdbc().sql("DELETE FROM messages WHERE room_id=?").param(id).update();
-      rooms.jdbc().sql("DELETE FROM command_receipts WHERE room_id=?").param(id).update();
-      // Вложения переживают комнату только физически: пока файл лежит на диске, строка о нём
-      // нужна, иначе он станет ничьим. Минутный проход `AttachmentService` уносит просроченные
-      // файлы сам, и комната уходит следующим заходом — на день позже, но без мусора на диске.
-      if (rooms
-                  .jdbc()
-                  .sql("SELECT COUNT(*) FROM attachments WHERE room_id=?")
-                  .param(id)
-                  .query(Long.class)
-                  .single()
-              == 0
-          && (forgotten || !rooms.saved(id)))
-        rooms.jdbc().sql("DELETE FROM rooms WHERE id=?").param(id).update();
-    }
+    var keep = config.retention();
+    long roomUntil =
+        rooms.saved(id)
+            ? room.lastSeenAt(now) + keep.savedRoom().toMillis()
+            : room.closedAt + keep.unsavedRoom().toMillis();
+    if (now < room.closedAt + keep.closedHistory().toMillis() && now < roomUntil) return;
+    rooms.jdbc().sql("DELETE FROM room_events WHERE room_id=?").param(id).update();
+    rooms.jdbc().sql("DELETE FROM messages WHERE room_id=?").param(id).update();
+    rooms.jdbc().sql("DELETE FROM command_receipts WHERE room_id=?").param(id).update();
+    // Вложения переживают комнату только физически: пока файл лежит на диске, строка о нём
+    // нужна, иначе он станет ничьим. Минутный проход `AttachmentService` уносит просроченные
+    // файлы сам, и комната уходит следующим заходом — позже, но без мусора на диске.
+    if (now >= roomUntil
+        && rooms
+                .jdbc()
+                .sql("SELECT COUNT(*) FROM attachments WHERE room_id=?")
+                .param(id)
+                .query(Long.class)
+                .single()
+            == 0) rooms.jdbc().sql("DELETE FROM rooms WHERE id=?").param(id).update();
   }
 }
