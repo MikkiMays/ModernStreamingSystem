@@ -780,8 +780,76 @@ button.watch-stream:hover {
 .watch-chrome:not([data-shown='true']):not(:focus-within) .watch-foot {
   pointer-events: none;
 }
-.watch-theater[data-idle='true'] .watch-video {
+/*
+  Уснувший плеер прячет и курсор.
+
+  Раньше правило стояло только на `<video>`, а поверх кадра лежит прозрачный пульт: стрелка
+  над его невидимой серединой оставалась стрелкой. Пропадает она теперь вместе с пультом — и
+  возвращается от первого же движения, потому что движение будит пульт.
+*/
+.watch-theater[data-idle='true'],
+.watch-theater[data-idle='true'] * {
   cursor: none;
+}
+/*
+  Середина кадра: пятнадцать секунд назад, пауза, пятнадцать вперёд.
+
+  ЗАЧЕМ. Пальцем паузу ставили нажатием по кадру — то есть случайно, стоило дотронуться до
+  экрана, чтобы посмотреть, сколько осталось. Теперь касание кадра показывает пульт, а
+  останавливает кино вот эта кнопка: её видно, в неё целятся, и промахнуться мимо неё
+  безопасно. Мышь в окне работает как работала — ей наводиться не нужно.
+*/
+.watch-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 7vw, 46px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.watch-center[data-shown='true'] {
+  opacity: 1;
+}
+.watch-center[data-shown='true'] .icon-button {
+  pointer-events: auto;
+}
+.watch-chrome .watch-center .icon-button {
+  width: 54px;
+  min-width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #12151ea8;
+}
+.watch-chrome .watch-center .icon-button:hover:not(:disabled) {
+  background: #2f3342d9;
+}
+.watch-chrome .watch-center .watch-center-play {
+  width: 74px;
+  min-width: 74px;
+  height: 74px;
+}
+/* Число на кнопке перемотки: сколько секунд она отматывает — внутри самой стрелки. */
+.watch-skip {
+  position: relative;
+}
+.watch-skip span {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+@media (max-width: 700px) {
+  .watch-chrome .watch-center .icon-button {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+  }
+  .watch-chrome .watch-center .watch-center-play {
+    width: 62px;
+    min-width: 62px;
+    height: 62px;
+  }
 }
 .watch-head {
   display: flex;
@@ -976,18 +1044,33 @@ button.watch-stream:hover {
   color: var(--blue);
   font-weight: 650;
 }
-/* Заголовок раздела в меню: язык озвучки и качество живут в одном списке, но это два выбора. */
-.watch-menu-title {
-  margin: 6px 0 2px;
-  padding: 0 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+/*
+  Возврат к разделам шестерёнки.
+
+  Раздел открыт — первой строкой стоит его название с стрелкой назад, и оно же кнопка.
+  Заголовком его сделать нельзя: без возврата человек в списке из двадцати озвучек не
+  понимает, куда попал и как выйти, а закрывать меню целиком ради этого — терять место.
+*/
+.watch-menu-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
 }
-.watch-menu-title:first-child {
-  margin-top: 2px;
+.watch-menu-back:hover {
+  color: var(--text);
 }
 /* Включённые субтитры видно по кнопке, а не только по тексту на кадре. */
 .watch-chrome .icon-button.watch-on {
@@ -1164,6 +1247,15 @@ button.watch-stream:hover {
 .service-tiles {
   display: grid;
   gap: 10px;
+}
+/*
+  Telegram стоит внизу и сам по себе: он не «ещё одна интеграция во встрече», а связь комнаты
+  с беседой снаружи. Черта над ним — это и есть всё объяснение.
+*/
+.service-groups-apart {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .service-group,
 .service-tile {

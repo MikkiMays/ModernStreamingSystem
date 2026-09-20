@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Gamepad2, Music2, Tv, Unplug } from 'lucide-react';
+import { ArrowLeft, Gamepad2, Music2, Send, Tv, Unplug } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import {
   YandexApi,
@@ -16,7 +16,6 @@ import { YandexIntegration } from './YandexIntegration';
 import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
 import { MusicUpload } from './MusicUpload';
-import { TelegramService } from './TelegramService';
 import { CinemaGroup } from './CinemaGroup';
 import {
   foresee,
@@ -36,15 +35,16 @@ import {
  * полным списком и тишиной. Поэтому сначала плеер: пока его нет, панель предлагает ровно одно
  * действие, а всё, что относится к содержимому и источникам, появляется после него.
  */
-type Group = 'cinema' | 'music' | 'games';
-const GROUPS: {
+type Group = 'cinema' | 'music' | 'games' | 'telegram';
+type GroupCard = {
   id: Group;
   name: string;
   hint: string;
   icon: typeof Music2;
   accent: string;
   ready: boolean;
-}[] = [
+};
+const GROUPS: GroupCard[] = [
   {
     id: 'cinema',
     name: 'Кинозал',
@@ -70,6 +70,22 @@ const GROUPS: {
     ready: false,
   },
 ];
+/**
+ * Telegram стоит отдельно и внизу — и пока не открывается.
+ *
+ * Он не «ещё один сервис во встрече»: остальные три звучат и показывают, а этот связывает
+ * комнату с беседой снаружи. Жил он при музыке — как её часть, хотя музыка про него не знает
+ * ничего, кроме того, что оттуда тоже присылают треки. Нынешняя привязка устарела целиком и
+ * будет переделана; до тех пор она недоступна, как и «Игры», — обещание видно, а не спрятано.
+ */
+const TELEGRAM: GroupCard = {
+  id: 'telegram',
+  name: 'Telegram',
+  hint: 'Встреча и музыка из вашей беседы',
+  icon: Send,
+  accent: '#2ea6da',
+  ready: false,
+};
 
 export function Services({ meeting }: { meeting: Meeting }) {
   /**
@@ -112,7 +128,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
   // them for the length of a round trip is what made the panel look like it was reloading.
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [link, setLink] = useState<{ command: string; expiresAt: number } | null>(null);
   const [foresight, setForesight] = useState<Foresight | null>(null);
   const [source, setSource] = useState<MusicSource>('yandex');
   const sources = useMemo(() => offeredSources(catalog.data?.sources), [catalog.data?.sources]);
@@ -185,68 +200,41 @@ export function Services({ meeting }: { meeting: Meeting }) {
     «Музыка», «Игры», — а внутри каждой её собственные сервисы. Группа «Игры» пустая
     намеренно: место для неё занято, и обещание видно, а не спрятано в планах.
   */
+  const groupCard = (item: GroupCard) => {
+    // Занятую группу открыть можно — там её и выключают; чужую, пока эта занята, нет.
+    // Ненаписанной группе объяснять нечего: у неё свой ответ — «скоро».
+    const blocked = item.ready && !!occupied && occupied !== item.id;
+    return (
+      <button
+        key={item.id}
+        className="service-group"
+        data-active={occupied === item.id ? 'true' : undefined}
+        disabled={!item.ready || blocked}
+        onClick={() => item.ready && !blocked && setGroup(item.id)}
+      >
+        <span className="service-group-icon" style={{ background: item.accent }}>
+          <item.icon size={24} />
+        </span>
+        <span>
+          <b>{item.name}</b>
+          <small>
+            {blocked
+              ? `Сейчас активна другая интеграция — ${GROUPS.find((g) => g.id === occupied)?.name}`
+              : item.hint}
+          </small>
+        </span>
+        {!item.ready && <span className="service-soon">Скоро</span>}
+        {occupied === item.id && <span className="service-live">Активна</span>}
+      </button>
+    );
+  };
+
   if (!group)
     return (
       <div className="services-panel" key="groups">
         <h3 className="services-title">Что добавить во встречу</h3>
-        <div className="service-groups">
-          {GROUPS.map((item) => {
-            // Занятую группу открыть можно — там её и выключают; чужую, пока эта занята, нет.
-            // Ненаписанной группе объяснять нечего: у неё свой ответ — «скоро».
-            const blocked = item.ready && !!occupied && occupied !== item.id;
-            return (
-              <button
-                key={item.id}
-                className="service-group"
-                data-active={occupied === item.id ? 'true' : undefined}
-                disabled={!item.ready || blocked}
-                onClick={() => item.ready && !blocked && setGroup(item.id)}
-              >
-                <span className="service-group-icon" style={{ background: item.accent }}>
-                  <item.icon size={24} />
-                </span>
-                <span>
-                  <b>{item.name}</b>
-                  <small>
-                    {blocked
-                      ? `Сейчас активна другая интеграция — ${GROUPS.find((g) => g.id === occupied)?.name}`
-                      : item.hint}
-                  </small>
-                </span>
-                {!item.ready && <span className="service-soon">Скоро</span>}
-                {occupied === item.id && <span className="service-live">Активна</span>}
-              </button>
-            );
-          })}
-        </div>
-        {self?.owner && active && (
-          <section className="integration-permission">
-            <label className="check-setting">
-              <input
-                type="checkbox"
-                checked={snapshot.integrationsAllowed !== false}
-                disabled={busy}
-                onChange={async (e) => {
-                  const enabled = e.target.checked;
-                  setBusy(true);
-                  try {
-                    await api.permissions(enabled);
-                    await meeting.refresh();
-                  } catch (err) {
-                    setError((err as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              />
-              Разрешить интеграции всем участникам
-            </label>
-            <p className="form-footnote">
-              Без галочки добавлять и убирать сервисы можете только вы. Управляет открытым видео всегда тот,
-              кто его принёс.
-            </p>
-          </section>
-        )}
+        <div className="service-groups">{GROUPS.map(groupCard)}</div>
+        <div className="service-groups service-groups-apart">{groupCard(TELEGRAM)}</div>
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -267,31 +255,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
       <button className="text-button cinema-back" onClick={() => setGroup(null)}>
         <ArrowLeft size={16} /> Группы интеграций
       </button>
-      {self?.owner && active && (
-        <section className="integration-permission">
-          <label className="check-setting">
-            <input
-              type="checkbox"
-              checked={snapshot.integrationsAllowed !== false}
-              disabled={!canUse || busy}
-              onChange={async (e) => {
-                const enabled = e.target.checked;
-                setBusy(true);
-                try {
-                  await api.permissions(enabled);
-                  await meeting.refresh();
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-            Разрешить интеграции всем участникам
-          </label>
-          <p className="form-footnote">Привязку Telegram меняете только вы.</p>
-        </section>
-      )}
       {active && !canUse && (
         <p className="muted">
           Организатор разрешил управление интеграциями только себе. Громкость музыки для себя можно менять
@@ -410,24 +373,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
           onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
         />
       )}
-      <TelegramService
-        username={catalog.data?.telegram.username}
-        canLink={!!self?.owner && active && canUse}
-        busy={busy}
-        link={link}
-        onError={setError}
-        onLink={async () => {
-          setBusy(true);
-          setError('');
-          try {
-            setLink(await api.linkTelegram());
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      />
       {error && (
         <p className="form-error" role="alert">
           {error}

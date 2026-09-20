@@ -321,6 +321,66 @@ export function Prejoin({
                 placeholder="Например, Вечер с друзьями"
               />
               <small className="form-footnote">Название можно будет поменять во встрече.</small>
+              {/*
+                Что это за встреча — решается здесь, а не за шестерёнкой предпросмотра.
+
+                Оба вопроса стояли в окне «Перед разговором», между качеством камеры и запасом
+                буфера: настройку устройств открывают не все и не всегда, а «кого пускать» —
+                это про саму встречу, и спросить об этом надо до того, как она началась.
+                Решения не окончательные: то и другое меняется в настройках встречи.
+              */}
+              <section className="audio-settings" aria-label="Кто может войти">
+                <h3>
+                  <DoorOpen size={19} /> Кто может войти
+                </h3>
+                <div role="radiogroup" aria-label="Кто может войти" className="network-modes">
+                  <label className="check-setting">
+                    <input
+                      type="radio"
+                      name="admission"
+                      checked={!approvalRequired}
+                      onChange={() => {
+                        setApprovalRequired(false);
+                        commandId.current = crypto.randomUUID();
+                      }}
+                    />
+                    <span>
+                      По ссылке и коду — сразу
+                      <small>Кто открыл приглашение, тот и вошёл. Подходит для своих.</small>
+                    </span>
+                  </label>
+                  <label className="check-setting">
+                    <input
+                      type="radio"
+                      name="admission"
+                      checked={approvalRequired}
+                      onChange={() => {
+                        setApprovalRequired(true);
+                        commandId.current = crypto.randomUUID();
+                      }}
+                    />
+                    <span>
+                      Только с вашего подтверждения
+                      <small>Каждый входящий ждёт, пока вы его впустите.</small>
+                    </span>
+                  </label>
+                </div>
+                <label className="check-setting">
+                  <input
+                    type="checkbox"
+                    checked={integrationsAllowed}
+                    onChange={(e) => {
+                      setIntegrationsAllowed(e.target.checked);
+                      commandId.current = crypto.randomUUID();
+                    }}
+                  />
+                  <span>
+                    Разрешить интеграции всем участникам
+                    <small>Иначе кинозал и музыку добавляете и убираете только вы.</small>
+                  </span>
+                </label>
+                <p className="form-footnote">Это можно поменять и потом, уже во встрече.</p>
+              </section>
             </>
           )}
           <p className="permission-note" role="status">
@@ -396,74 +456,11 @@ export function Prejoin({
             kind="screen"
             profile={preferences.screen}
             change={(p) => setPreferences(savePreferences({ screen: p }))}
-            preview={{
-              enabled: preferences.screenPreview,
-              change: (screenPreview) => setPreferences(savePreferences({ screenPreview })),
-            }}
           />
           <ReceptionFields
             mode={preferences.reception}
             change={(reception) => setPreferences(savePreferences({ reception }))}
           />
-          {!destination && (
-            <label className="check-setting">
-              <input
-                type="checkbox"
-                checked={integrationsAllowed}
-                onChange={(e) => {
-                  setIntegrationsAllowed(e.target.checked);
-                  commandId.current = crypto.randomUUID();
-                }}
-              />
-              Разрешить интеграции всем участникам
-            </label>
-          )}
-          {/*
-            Раньше здесь стояла галочка «Подтверждать вход по приглашению» — формулировка, по
-            которой не видно, что произойдёт с теми, кто уже идёт по ссылке. Два названных
-            варианта отвечают на сам вопрос; и это больше не решение на всю жизнь комнаты —
-            его можно поменять во встрече.
-          */}
-          {!destination && (
-            <section className="audio-settings" aria-label="Кто может войти">
-              <h3>
-                <DoorOpen size={19} /> Кто может войти
-              </h3>
-              <div role="radiogroup" aria-label="Кто может войти" className="network-modes">
-                <label className="check-setting">
-                  <input
-                    type="radio"
-                    name="admission"
-                    checked={!approvalRequired}
-                    onChange={() => {
-                      setApprovalRequired(false);
-                      commandId.current = crypto.randomUUID();
-                    }}
-                  />
-                  <span>
-                    По ссылке и коду — сразу
-                    <small>Кто открыл приглашение, тот и вошёл. Подходит для своих.</small>
-                  </span>
-                </label>
-                <label className="check-setting">
-                  <input
-                    type="radio"
-                    name="admission"
-                    checked={approvalRequired}
-                    onChange={() => {
-                      setApprovalRequired(true);
-                      commandId.current = crypto.randomUUID();
-                    }}
-                  />
-                  <span>
-                    Только с вашего подтверждения
-                    <small>Каждый входящий ждёт, пока вы его впустите.</small>
-                  </span>
-                </label>
-              </div>
-              <p className="form-footnote">Это можно поменять и потом, уже во встрече.</p>
-            </section>
-          )}
         </div>
       </Modal>
     </div>

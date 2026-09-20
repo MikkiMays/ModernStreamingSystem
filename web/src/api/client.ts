@@ -110,6 +110,19 @@ export class RoomApi {
       { method: 'PUT', body: JSON.stringify(settings) },
       this.credential,
     );
+  /**
+   * Кому можно приносить во встречу постороннее. Только у ведущего.
+   *
+   * Отдельная ручка ядра, а не поле настроек встречи: правило это проверяется на каждую
+   * команду интеграции, и жило оно всегда здесь. Спрашивают о нём теперь там же, где о
+   * названии и о входе, — в настройках встречи, а не на панели музыки.
+   */
+  integrations = (enabled: boolean) =>
+    request<Snapshot>(
+      `${this.base}/integrations`,
+      { method: 'PUT', body: JSON.stringify({ enabled }) },
+      this.credential,
+    );
   token = () =>
     request<{ url: string; token: string; expiresAt: number }>(
       `${this.base}/media/token`,

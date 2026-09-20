@@ -808,6 +808,10 @@ h2 {
 .prejoin-form > .button {
   margin: 18px 0 12px;
 }
+/* «Кто может войти» — отдельный вопрос, а не продолжение подписи под названием встречи. */
+.prejoin-form .audio-settings {
+  margin-top: 18px;
+}
 .avatar {
   display: inline-flex;
   width: 40px;
@@ -1115,7 +1119,7 @@ h2 {
   
   Серый прямоугольник ничего не говорит о содержимом, а живой поток стоил бы каждому в
   комнате столько же, сколько сам просмотр (почему — в media/screen-preview.ts). Поэтому
-  под аватаром — либо размытый кадр, присланный раз в несколько секунд, либо медленное
+  под аватаром — либо размытый кадр, присланный раз в десять секунд, либо медленное
   переливание, если кадра ещё нет или его владелец решил не делиться им.
 */
 .screen-preview {
@@ -2779,13 +2783,37 @@ progress {
   min-height: 60px;
   font-size: 17px;
 }
+/*
+  Разделы настроек на телефоне: сетка, а не полоса.
+
+  ЗАЧЕМ. Шесть кнопок в одну строку на экране в 360 пикселей — это шесть подписей по
+  одиннадцать пунктов, из которых видно три с половиной, и прокрутка вбок, о которой ничто
+  не сообщает: полосу мы прячем, а обрезанная кнопка у края читается как край экрана, а не
+  как «здесь есть ещё». Открывший настройки на телефоне просто не находил «О программе».
+
+  Три колонки в два ряда показывают все шесть сразу, значок над подписью. Прокрутки нет —
+  ни вбок, ни вдоль: ряд разделов остаётся на месте, а листается содержимое под ним.
+*/
 @media (max-width: 600px) {
   .device-check {
     padding: 13px;
   }
+  .settings-navigation {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 10px 0 12px;
+    margin-bottom: 16px;
+    overflow: visible;
+  }
   .settings-navigation button {
-    padding: 9px 10px;
-    font-size: 12px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 4px;
+    min-height: 54px;
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.2;
   }
 }
 .network-check {
@@ -3056,33 +3084,10 @@ progress {
   color: var(--blue);
   font-weight: 700;
 }
-.telegram-link {
-  display: grid;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  font-size: 11px;
-  line-height: 1.6;
-}
-.telegram-link p {
-  margin: 0;
-}
-.telegram-link code {
-  overflow-wrap: anywhere;
-  user-select: all;
-}
 .service-card .button {
   font-size: 11px;
 }
 
-.integration-permission {
-  padding: 4px 0 12px;
-}
-.integration-permission .check-setting {
-  margin: 0;
-  line-height: 1.5;
-}
 .service-icon.yandex {
   background: #ffdf5b;
   color: #211b00;

@@ -14,9 +14,25 @@ import { useStore } from './primitives';
  * внутри приложения просто ничего не делает, и это не догадка: ровно так себя вела «Все
  * выпуски», пока её не убрали отсюда.
  */
-function External({ href, children }: { href: string; children: React.ReactNode }) {
+function External({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  /** Чем ссылка называется, когда на ней виден только значок. */
+  label?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <a className="text-button" href={href} target="_blank" rel="noopener noreferrer">
+    <a
+      className="text-button"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      title={label}
+    >
       {children}
     </a>
   );
@@ -125,15 +141,19 @@ export function AboutFields() {
 
       <div className="about-author">
         <p>
-          Cord создаёт и развивает <strong>@nikgers</strong>. Пишите по вопросам, предложениям и
-          сотрудничеству.
+          Cord создаёт и развивает <strong>@nikgers</strong>.
         </p>
+        {/*
+          У двух ссылок остались одни значки: конверт Telegram и кот GitHub узнаются и без
+          подписи, а подписи рядом с именем автора читались как призыв написать. Имя для
+          доступности и подсказки никуда не делось — оно в `aria-label`.
+        */}
         <div className="check-actions">
-          <External href="https://t.me/nikgers">
-            <Send size={15} /> Telegram
+          <External href="https://t.me/nikgers" label="Telegram автора">
+            <Send size={16} />
           </External>
-          <External href={CORE_REPOSITORY_URL}>
-            <Github size={15} /> Исходный код
+          <External href={CORE_REPOSITORY_URL} label="Исходный код">
+            <Github size={16} />
           </External>
           {/* В приложении эта ссылка лишняя: обновления оно ставит само, а список выпусков —
               разговор для того, кто читает репозиторий, и до него один клик выше. */}

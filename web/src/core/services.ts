@@ -60,12 +60,6 @@ export class MusicApi {
       post({ commandId: crypto.randomUUID(), action, ...extra }),
       this.admission.credential,
     );
-  permissions = (enabled: boolean) =>
-    request(
-      `/rooms/${this.admission.roomId}/integrations`,
-      { method: 'PUT', body: JSON.stringify({ enabled }) },
-      this.admission.credential,
-    );
   linkTelegram = () =>
     request<{ command: string; expiresAt: number }>(
       `${this.base}/telegram/link`,

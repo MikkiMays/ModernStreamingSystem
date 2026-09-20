@@ -40,6 +40,7 @@ import {
   type Reception,
 } from '../core/preferences';
 import { signal } from '../core/sounds';
+import { recallVolume, rememberVolume } from '../core/volumes';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { browserCapture, ownAudioLeaks, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
@@ -173,6 +174,9 @@ export class MediaSession {
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   private previousVolumes = new Map<string, number>();
+  /** Номер участника → устойчивый ключ в памяти громкостей. См. `core/volumes.ts`. */
+  private volumeKeys = new Map<string, string>();
+  private volumeRoom = '';
   private watchedParticipant: string | null = null;
   watchScreen(participantId: string | null) {
     this.watchedParticipant = participantId;
@@ -243,7 +247,7 @@ export class MediaSession {
    */
   private syncPreview() {
     const track = this.screenTracks.find((item) => item instanceof LocalVideoTrack);
-    if (!(track instanceof LocalVideoTrack) || !this.preferences.get().screenPreview) {
+    if (!(track instanceof LocalVideoTrack)) {
       this.previewSource.stop();
       return;
     }
@@ -1088,11 +1092,35 @@ export class MediaSession {
     // ни тем более переподключение для этого не нужны.
     this.playout.setMode(next.network);
     if (patch.network !== undefined) void this.tunePlayout();
-    if (patch.screenPreview !== undefined) this.syncPreview();
   }
   setVolume(participantId: string, volume: number) {
     if (!Number.isFinite(volume)) return;
-    this.volumes.update((values) => ({ ...values, [participantId]: Math.max(0, Math.min(2, volume)) }));
+    const value = Math.max(0, Math.min(2, volume));
+    this.volumes.update((values) => ({ ...values, [participantId]: value }));
+    const person = this.volumeKeys.get(participantId);
+    if (this.volumeRoom && person) rememberVolume(this.volumeRoom, person, value);
+  }
+  /**
+   * Кого в этой встрече как зовут — и насколько громко его уже просили звучать.
+   *
+   * Зовётся на каждый снимок комнаты: пришедшему или вернувшемуся сразу ставится громкость,
+   * которую для него выбрали раньше. Номер участника меняется от входа к входу, поэтому
+   * память ведётся по устойчивому ключу, а связывает одно с другим этот список.
+   *
+   * Уже выставленную в этой сессии громкость память не трогает: последнее слово всегда за
+   * ползунком, а не за тем, что записано на диске.
+   */
+  rememberPeople(roomId: string, people: { id: string; key: string | null }[]) {
+    this.volumeRoom = roomId;
+    const restored: Record<string, number> = {};
+    for (const person of people) {
+      if (!person.key) continue;
+      this.volumeKeys.set(person.id, person.key);
+      if (this.volumes.get()[person.id] !== undefined) continue;
+      const remembered = recallVolume(roomId, person.key);
+      if (remembered !== undefined) restored[person.id] = remembered;
+    }
+    if (Object.keys(restored).length) this.volumes.update((values) => ({ ...values, ...restored }));
   }
   async setAudioSettings(audio: AudioPreferences) {
     this.audioChange = this.audioChange.then(async () => {

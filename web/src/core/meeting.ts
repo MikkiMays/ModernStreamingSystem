@@ -8,6 +8,7 @@ import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
 import { NotificationSounds, type Cue } from './sounds';
 import { readPreferences } from './preferences';
+import { volumeKey } from './volumes';
 import type { WatchProvider } from './watch';
 
 const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
@@ -145,6 +146,12 @@ export class Meeting {
     // музыке право отстать на секунду, а разговору — нет.
     this.media.setServiceParticipants(
       snapshot.participants.filter((person) => person.service).map((person) => person.id),
+    );
+    // Громкость принадлежит встрече, а не сессии: вернувшегося и заново добавленную музыку
+    // слышно так же, как их попросили звучать в прошлый раз. См. `core/volumes.ts`.
+    this.media.rememberPeople(
+      this.admission.roomId,
+      snapshot.participants.map((person) => ({ id: person.id, key: volumeKey(person) })),
     );
     const viewing = this.viewing.get();
     if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen)) {

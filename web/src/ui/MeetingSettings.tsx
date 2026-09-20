@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DoorOpen, ShieldCheck } from 'lucide-react';
+import { DoorOpen, Puzzle, ShieldCheck } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import { Modal, useStore } from './primitives';
 
@@ -26,6 +26,7 @@ export function MeetingSettings({
   const snapshot = useStore(meeting.snapshot);
   const [title, setTitle] = useState(snapshot.title);
   const [approval, setApproval] = useState(snapshot.approvalRequired);
+  const [integrations, setIntegrations] = useState(snapshot.integrationsAllowed !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Пока диалог закрыт, поля следуют за комнатой: её мог переименовать другой ведущий.
@@ -33,14 +34,20 @@ export function MeetingSettings({
     if (!open) {
       setTitle(snapshot.title);
       setApproval(snapshot.approvalRequired);
+      setIntegrations(snapshot.integrationsAllowed !== false);
       setError('');
     }
-  }, [open, snapshot.title, snapshot.approvalRequired]);
-  const changed = title.trim() !== snapshot.title || approval !== snapshot.approvalRequired;
+  }, [open, snapshot.title, snapshot.approvalRequired, snapshot.integrationsAllowed]);
+  const integrationsChanged = integrations !== (snapshot.integrationsAllowed !== false);
+  const changed =
+    title.trim() !== snapshot.title || approval !== snapshot.approvalRequired || integrationsChanged;
   const save = async () => {
     setBusy(true);
     setError('');
     try {
+      // Две ручки ядра, одна кнопка: разрешение интеграций проверяется на каждую команду
+      // сервиса и живёт отдельно от названия и входа. Человеку об этом знать незачем.
+      if (integrationsChanged) await meeting.api.integrations(integrations);
       await meeting.api.settings({ title: title.trim(), approvalRequired: approval });
       await meeting.refresh();
       onOpenChange(false);
@@ -92,6 +99,31 @@ export function MeetingSettings({
             <ShieldCheck size={14} /> Ссылка и код у встречи не меняются. Чтобы закрыть доступ по старой
             ссылке, отзовите приглашение и создайте новое.
           </p>
+        </section>
+        {/*
+          Кому можно приносить во встречу постороннее — вопрос про встречу, а не про музыку, и
+          стоять ему здесь, рядом с «кого пускать». Раньше эта галочка жила на панели
+          интеграций — то есть её видел только тот, кто и так туда зашёл, и находилась она
+          дважды: и на витрине, и внутри музыки.
+        */}
+        <section className="audio-settings" aria-label="Интеграции">
+          <h3>
+            <Puzzle size={19} /> Интеграции
+          </h3>
+          <label className="check-setting">
+            <input
+              type="checkbox"
+              checked={integrations}
+              onChange={(e) => setIntegrations(e.target.checked)}
+            />
+            <span>
+              Разрешить интеграции всем участникам
+              <small>
+                Без галочки кинозал и музыку добавляете и убираете только вы. Громкость каждый всё равно
+                ставит себе сам.
+              </small>
+            </span>
+          </label>
         </section>
         {error && (
           <p className="form-error" role="alert">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Hls from 'hls.js';
 import {
+  ArrowLeft,
   Captions,
   Clapperboard,
   LoaderCircle,
@@ -10,6 +11,8 @@ import {
   Play,
   Radio,
   RefreshCw,
+  RotateCcw,
+  RotateCw,
   Settings2,
   SkipBack,
   Tv,
@@ -33,6 +36,7 @@ import {
   type AudioChoice,
   type CaptionChoice,
 } from './watch-tracks';
+import { controlsShown, framePress, skipTarget } from './watch-controls';
 import { IconButton, Slider, useStore } from './primitives';
 
 /**
@@ -59,8 +63,16 @@ import { IconButton, Slider, useStore } from './primitives';
  * поставленная по приказу комнаты, улетала бы в комнату как новое нажатие.
  */
 const SUPPRESS_MS = 1200;
-/** Сколько пульт висит без движения мыши, прежде чем уйти с кадра. */
+/** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором. */
 const IDLE_MS = 2800;
+/**
+ * Шаг перемотки кнопками, миллисекунды.
+ *
+ * Пятнадцать секунд — не круглое число, а привычка: столько отматывают плееры, у которых это
+ * есть, и рука к ним уже приучена. Перемотка общая, как и пауза: комната смотрит одно кино, и
+ * «отмотать себе» означало бы смотреть его в одиночку.
+ */
+const SKIP_MS = 15000;
 /**
  * Насколько можно отстать от края живого эфира, прежде чем это стоит исправить прыжком.
  *
@@ -143,7 +155,18 @@ export function WatchTheater({
   const [lag, setLag] = useState(0);
   const [idle, setIdle] = useState(false);
   const [menu, setMenu] = useState(false);
+  /** Какая страница открыта в шестерёнке: сам список разделов, качество или язык звука. */
+  const [menuPage, setMenuPage] = useState<'root' | 'quality' | 'voice'>('root');
   const [captionMenu, setCaptionMenu] = useState(false);
+  /**
+   * Пальцем или мышью.
+   *
+   * Разница здесь не в удобстве, а в том, что означает нажатие по кадру. Мышь наводится
+   * заранее, и пульт под ней уже виден — клик по кадру осмысленно ставит паузу. Палец
+   * наводиться не умеет: первое касание в спящем плеере — это «покажи, что тут есть», и
+   * принимать его за паузу значит останавливать кино каждый раз, когда до него дотронулись.
+   */
+  const coarse = useMemo(() => window.matchMedia?.('(pointer: coarse)').matches ?? false, []);
   const screen = useRef<HTMLDivElement>(null);
   // На телефоне полноэкранного режима для чужих элементов нет, и кнопка там раскладывает
   // плеер на всё окно сама — см. {@link useFullscreen}.
@@ -514,6 +537,13 @@ export function WatchTheater({
     send(type, Math.max(0, at));
   };
 
+  /** Отмотать всем на пятнадцать секунд назад или вперёд — не дальше начала и конца. */
+  const skip = (delta: number) => {
+    const element = video.current;
+    const at = element ? element.currentTime * 1000 : targetPosition(watch, meeting.serverNow());
+    command('watch.seek', skipTarget(at, delta, duration));
+  };
+
   /**
    * Вернуться туда, где комната, — или к краю эфира.
    *
@@ -565,7 +595,14 @@ export function WatchTheater({
   const title = source?.title ?? watch.title ?? 'Совместный просмотр';
   const muted = preferences.watchVolume <= 0;
   const behind = !live && Math.abs(drift) > VISIBLE_DRIFT;
-  const showControls = idle === false || !playing || menu || captionMenu || status !== 'ready';
+  // Когда пульт виден — правило в `watch-controls.ts`: по бездействию он уходит и на паузе.
+  const showControls = controlsShown({
+    idle,
+    menuOpen: menu || captionMenu,
+    ready: status === 'ready',
+  });
+  /** Большая кнопка посередине есть только у записи: эфир не останавливают и не мотают. */
+  const showCenter = showControls && !live && status === 'ready';
   const chosen = level >= 0 ? levelLabel(levels[level]) : '';
   return (
     <section
@@ -585,8 +622,11 @@ export function WatchTheater({
           playsInline
           poster={source?.poster ?? undefined}
           onClick={() => {
-            if (live || !canControl) return;
-            command(watch.paused ? 'watch.play' : 'watch.pause');
+            // Что значит нажатие по кадру — решает `watch-controls.ts`: пальцем и во весь
+            // экран это «покажи пульт», мышью в окне — привычная пауза.
+            const press = framePress({ coarse, fullscreen, live, canControl });
+            if (press === 'wake') wake();
+            if (press === 'toggle') command(watch.paused ? 'watch.play' : 'watch.pause');
           }}
           onPlay={() => {
             setPlaying(true);
@@ -716,6 +756,42 @@ export function WatchTheater({
               <IconButton label="Закрыть просмотр для всех" onClick={() => send('watch.close')}>
                 <X size={19} />
               </IconButton>
+            )}
+          </div>
+          {/*
+            Середина кадра: отмотать, остановить, отмотать. Здесь её ждут пальцем — и здесь же
+            она честно говорит, что пауза общая: комната останавливается вся сразу.
+          */}
+          <div className="watch-center" data-shown={showCenter ? 'true' : undefined}>
+            {showCenter && (
+              <>
+                <IconButton
+                  label="Назад на 15 секунд для всех"
+                  className="watch-skip"
+                  disabled={!canControl || !duration}
+                  onClick={() => skip(-SKIP_MS)}
+                >
+                  <RotateCcw size={22} />
+                  <span>15</span>
+                </IconButton>
+                <IconButton
+                  label={watch.paused ? 'Включить для всех' : 'Пауза для всех'}
+                  className="watch-center-play"
+                  disabled={!canControl}
+                  onClick={() => command(watch.paused ? 'watch.play' : 'watch.pause')}
+                >
+                  {watch.paused || !playing ? <Play size={30} /> : <Pause size={30} />}
+                </IconButton>
+                <IconButton
+                  label="Вперёд на 15 секунд для всех"
+                  className="watch-skip"
+                  disabled={!canControl || !duration}
+                  onClick={() => skip(SKIP_MS)}
+                >
+                  <RotateCw size={22} />
+                  <span>15</span>
+                </IconButton>
+              </>
             )}
           </div>
           <div className="watch-foot">
@@ -852,7 +928,15 @@ export function WatchTheater({
                 </Menu.Root>
               )}
               {(choices.length > 1 || voices.length > 1) && (
-                <Menu.Root open={menu} onOpenChange={setMenu}>
+                <Menu.Root
+                  open={menu}
+                  onOpenChange={(open) => {
+                    setMenu(open);
+                    // Закрылось — значит, в следующий раз открывается с разделов, а не там,
+                    // где его бросили: список языков без заголовка читается как весь список.
+                    if (!open) setMenuPage('root');
+                  }}
+                >
                   <Menu.Trigger
                     render={
                       <button className="watch-quality" aria-label="Качество картинки и язык звука">
@@ -865,26 +949,56 @@ export function WatchTheater({
                     <Menu.Positioner side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
                         {/*
-                          Язык звука стоит выше качества: у ролика с озвучками к нему идут
-                          сразу, а качество трогают раз за встречу, если вообще трогают.
+                          Два раздела, а не один список.
+
+                          Раньше озвучки и качества лежали друг под другом, разделённые только
+                          подписями: у ролика с двумя десятками переозвучек это полтора экрана
+                          прокрутки, в конце которых — «Автоматически». Теперь сначала вопрос
+                          («что менять»), потом ответы; каждый раздел показывает выбранное
+                          прямо в строке, так что заходить ради проверки не нужно.
                         */}
-                        {voices.length > 1 && (
+                        {menuPage === 'root' && (
                           <>
-                            <p className="watch-menu-title">Язык озвучки</p>
-                            {voices.map((item) => (
-                              <Menu.Item
-                                key={item.index}
-                                data-selected={voice === item.index ? 'true' : undefined}
-                                onClick={() => chooseVoice(item)}
-                              >
-                                {item.label}
-                                {item.original && <small>оригинал</small>}
+                            {voices.length > 1 && (
+                              <Menu.Item closeOnClick={false} onClick={() => setMenuPage('voice')}>
+                                Язык озвучки
+                                <small>{voices.find((item) => item.index === voice)?.label ?? 'Авто'}</small>
                               </Menu.Item>
-                            ))}
-                            {choices.length > 1 && <p className="watch-menu-title">Качество</p>}
+                            )}
+                            {choices.length > 1 && (
+                              <Menu.Item closeOnClick={false} onClick={() => setMenuPage('quality')}>
+                                Качество
+                                <small>
+                                  {level < 0
+                                    ? `Авто${automatic >= 0 ? ` · ${levelLabel(levels[automatic])}` : ''}`
+                                    : chosen}
+                                </small>
+                              </Menu.Item>
+                            )}
                           </>
                         )}
-                        {choices.length > 1 && (
+                        {menuPage !== 'root' && (
+                          <button
+                            type="button"
+                            className="watch-menu-back"
+                            onClick={() => setMenuPage('root')}
+                          >
+                            <ArrowLeft size={15} />
+                            {menuPage === 'voice' ? 'Язык озвучки' : 'Качество'}
+                          </button>
+                        )}
+                        {menuPage === 'voice' &&
+                          voices.map((item) => (
+                            <Menu.Item
+                              key={item.index}
+                              data-selected={voice === item.index ? 'true' : undefined}
+                              onClick={() => chooseVoice(item)}
+                            >
+                              {item.label}
+                              {item.original && <small>оригинал</small>}
+                            </Menu.Item>
+                          ))}
+                        {menuPage === 'quality' && (
                           <>
                             <Menu.Item
                               data-selected={level < 0 ? 'true' : undefined}

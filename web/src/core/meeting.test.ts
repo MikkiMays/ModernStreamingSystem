@@ -16,6 +16,7 @@ vi.mock('../media/session', async () => {
         this.state.set({ status: 'connected' });
       });
       setServiceParticipants = vi.fn();
+      rememberPeople = vi.fn();
       dispose = vi.fn();
     },
   };
