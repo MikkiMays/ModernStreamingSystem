@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from 'vitest';
-import { cacheFavorites, cachedFavorites, favoriteProfile } from './favorites';
+import { autoJoinEnabled, cacheFavorites, cachedFavorites, favoriteProfile, setAutoJoin } from './favorites';
 import type { Favorite } from './favorites';
 
 const room = (roomId: string): Favorite => ({
@@ -35,4 +35,23 @@ it('ignores a cache a previous version or a broken write left behind', () => {
   expect(cachedFavorites()?.map((r) => r.roomId)).toEqual(['a']);
   localStorage.setItem('cord:favorites:v1', '{ broken');
   expect(cachedFavorites()).toBeUndefined();
+});
+
+it('forgets auto-join for meetings the server no longer has', () => {
+  setAutoJoin('a', true);
+  setAutoJoin('b', true);
+  // Комнату `b` удалил сервер по сроку хранения: её нет в присланном списке, и войти в неё
+  // больше нельзя — значит и автовходу в неё храниться не за чем.
+  cacheFavorites([room('a')]);
+  expect(autoJoinEnabled('a')).toBe(true);
+  expect(autoJoinEnabled('b')).toBe(false);
+  expect(JSON.parse(localStorage.getItem('cord:autojoin:v1')!)).toEqual(['a']);
+});
+
+it('leaves auto-join alone when the list is empty or unreadable', () => {
+  cacheFavorites([]);
+  expect(localStorage.getItem('cord:autojoin:v1')).toBeNull();
+  localStorage.setItem('cord:autojoin:v1', '{ broken');
+  cacheFavorites([room('a')]);
+  expect(localStorage.getItem('cord:autojoin:v1')).toBe('{ broken');
 });

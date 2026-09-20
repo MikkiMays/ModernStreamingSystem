@@ -33,7 +33,8 @@ public class MediaReconciler {
 
   @Scheduled(fixedDelay = 1000)
   public void deadlines() {
-    for (var room : repository.all()) lifecycle.sweepRoom(room.id);
+    for (var id : repository.ids()) lifecycle.sweepRoom(id);
+    lifecycle.sweepLedger();
   }
 
   @Scheduled(fixedDelay = 2000)

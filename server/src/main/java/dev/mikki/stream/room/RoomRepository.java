@@ -28,14 +28,14 @@ public class RoomRepository {
   }
 
   public void insert(RoomState room, long now) {
-    jdbc.sql("INSERT INTO rooms(id,state,updated_at,room_code) VALUES(?,?,?,?)")
-        .params(room.id, Json.write(room), now, room.code)
+    jdbc.sql("INSERT INTO rooms(id,state,updated_at,room_code,last_seen_at) VALUES(?,?,?,?,?)")
+        .params(room.id, Json.write(room), now, room.code, room.lastSeenAt(now))
         .update();
   }
 
   public void save(RoomState room, long now) {
-    jdbc.sql("UPDATE rooms SET state=?, updated_at=?, room_code=? WHERE id=?")
-        .params(Json.write(room), now, room.code, room.id)
+    jdbc.sql("UPDATE rooms SET state=?, updated_at=?, room_code=?, last_seen_at=? WHERE id=?")
+        .params(Json.write(room), now, room.code, room.lastSeenAt(now), room.id)
         .update();
   }
 
@@ -43,6 +43,29 @@ public class RoomRepository {
     return jdbc.sql("SELECT state FROM rooms").query(String.class).list().stream()
         .map(s -> Json.read(s, RoomState.class))
         .toList();
+  }
+
+  /**
+   * Только идентификаторы.
+   *
+   * <p>Проход сроков ходит по комнатам раз в секунду и каждую всё равно перечитывает под замком —
+   * разбирать ради списка снимок каждой из них значит разобрать его дважды. На тридцати комнатах
+   * это тридцать лишних разборов JSON в секунду, и самый большой снимок здесь — пятьдесят килобайт.
+   */
+  public List<String> ids() {
+    return jdbc.sql("SELECT id FROM rooms").query(String.class).list();
+  }
+
+  /**
+   * Поправить отметку последнего входа, не трогая снимок.
+   *
+   * <p>{@code <>} в условии — не украшение: без него запуск переписывал бы каждую комнату, а
+   * приводить в порядок нужно только те, у которых значение разошлось. Обычно это ноль строк.
+   */
+  public void touch(String roomId, long lastSeenAt) {
+    jdbc.sql("UPDATE rooms SET last_seen_at=? WHERE id=? AND last_seen_at<>?")
+        .params(lastSeenAt, roomId, lastSeenAt)
+        .update();
   }
 
   public String roomForCode(String code) {

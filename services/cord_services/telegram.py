@@ -232,6 +232,25 @@ class Telegram:
     ):
         scope = self.scope(message)
         binding = self.store.binding(scope)
+        info = None
+        if binding is not None and not create:
+            # Встречу чата могло не стать: ядро удаляет комнату, в которую неделю никто не
+            # заходил, и привязка после этого указывает в пустоту. Без этой ветки чат
+            # оставался бы заперт навсегда — `/meet` спрашивал бы удалённую комнату и
+            # отвечал «не найдена», а создать новую мешала бы та же самая привязка.
+            #
+            # Забытая встреча — это ровно то же состояние, что и «привязки ещё нет»:
+            # возвращаться некуда, и разговор начинается заново. Все прочие ошибки идут
+            # наверх как раньше: недоступное ядро — не повод заводить вторую комнату.
+            try:
+                info = await self.core.request(
+                    "GET", f"/internal/services/{binding['roomId']}"
+                )
+            except HTTPException as error:
+                if error.status_code != 404:
+                    raise
+                self.store.unbind(scope)
+                binding = None
         if binding is None or create:
             if message["chat"]["type"] == "channel":
                 raise HTTPException(
@@ -273,7 +292,11 @@ class Telegram:
                 "ownerName": self.actor(message),
             }
             self.store.bind(scope, binding)
-        info = await self.core.request("GET", f"/internal/services/{binding['roomId']}")
+            info = None
+        if info is None:
+            info = await self.core.request(
+                "GET", f"/internal/services/{binding['roomId']}"
+            )
         if info.get("closedAt"):
             await self.core.request(
                 "POST",

@@ -14,6 +14,11 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("metadata", type=Path, help="GitHub releases/tags/vX.Y.Z API JSON")
 parser.add_argument("artifacts", type=Path, help="Extracted Cord-win-x64 workflow artifact")
 parser.add_argument("--destination", type=Path, default=Path(".local/windows-releases"))
+# Сколько выпусков остаётся на сервере. Наружу отдаётся ровно один — тот, что в latest.json:
+# страница /download и обновлялка клиента спрашивают только его, а старые каталоги лежали
+# мёртвым грузом по 400 МБ каждый. Второй остаётся не для раздачи, а для человека: вернуть
+# вчерашний установщик, не ходя на GitHub. Ноль означает «не убирать ничего».
+parser.add_argument("--keep", type=int, default=2, help="How many releases stay on disk (0 keeps all)")
 args = parser.parse_args()
 release = json.loads(args.metadata.read_text())
 tag = release["tag_name"]
@@ -83,4 +88,29 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
     catalogue.write_text(json.dumps(page, ensure_ascii=False, indent=2) + "\n")
     os.chmod(catalogue, 0o644)
     os.replace(catalogue, args.destination / "download.json")
-print(f"Published {tag}: {len(names)} verified assets; prior releases preserved")
+
+# Старые выпуски убираются ПОСЛЕ того, как `latest.json` и `download.json` уже указывают на
+# новый. Порядок здесь — это и есть безопасность: пока манифест не переписан, страница
+# раздаёт прежний каталог, и убрать его значило бы отдать 404 тому, кто нажал «Скачать» в
+# эту секунду. Провалившаяся выкладка сюда не доходит вовсе — и ничего не удаляет.
+removed = []
+if args.keep > 0:
+    # Тот же образец, что и у принимаемых меток: каталог, который не выглядит выпуском,
+    # уборке не принадлежит — она его не сортирует и не удаляет.
+    order = sorted(
+        (path for path in args.destination.glob("v*") if path.is_dir() and re.fullmatch(r"v\d+\.\d+\.\d+", path.name)),
+        key=lambda path: tuple(int(part) for part in path.name[1:].split(".")),
+        reverse=True,
+    )
+    for path in order[args.keep:]:
+        # Отдаваемый выпуск защищён отдельно от счёта: если --keep когда-нибудь поставят в
+        # единицу на половине выкладки, счёт не должен унести файл, на который уже ссылается
+        # страница. Проверка дешёвая, а ошибка стоила бы раздачи.
+        if path.name == tag:
+            continue
+        shutil.rmtree(path)
+        removed.append(path.name)
+print(
+    f"Published {tag}: {len(names)} verified assets"
+    + (f"; removed {', '.join(removed)}" if removed else "; nothing to remove")
+)

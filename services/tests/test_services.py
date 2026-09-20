@@ -402,6 +402,34 @@ class QueueTests(Fixture):
             with self.assertRaises(HTTPException):
                 self.music.check_quota(ROOM, 1)
 
+    async def test_cleanup_forgets_rooms_that_stopped_using_music(self):
+        # Запись о комнате, где музыку выключили сутки назад, не хранит ничего: очередь
+        # пуста, а комнаты к этому времени уже нет и в ядре. Раньше такие записи копились
+        # без предела — и не только на диске: ledger целиком поднимается в память при старте.
+        old = track(self.store, "Old", 86400001)
+        await self.music.enqueue(ROOM, old)
+        state = self.store.get(ROOM)
+        state["enabled"] = False
+        state["lastHumanAt"] = 0
+        self.store.save(state, changed=False)
+        self.store.cleanup()
+        self.assertNotIn(ROOM, self.store.cache)
+        self.assertEqual(self.store.db.execute("SELECT COUNT(*) FROM music").fetchone()[0], 0)
+        self.assertFalse((self.store.files / old["file"]).exists())
+        # Забытая комната — это чистый лист, а не отказ: включат музыку снова, и запись
+        # заведётся заново.
+        self.assertEqual(self.store.get(ROOM)["queue"], [])
+
+    async def test_cleanup_keeps_a_room_that_is_still_playing(self):
+        await self.music.enqueue(ROOM, track(self.store, "New"))
+        state = self.store.get(ROOM)
+        state["enabled"] = True
+        state["lastHumanAt"] = 0
+        self.store.save(state, changed=False)
+        self.store.cleanup()
+        self.assertIn(ROOM, self.store.cache)
+        self.assertEqual([t["title"] for t in self.store.get(ROOM)["queue"]], ["New"])
+
     async def test_probe_rejects_external_playlist_and_accepts_audio(self):
         path = self.root / "source"
         path.write_text("#EXTM3U\nhttps://example.test/audio.mp3\n")

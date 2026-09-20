@@ -139,6 +139,13 @@ else
   note "Open 443/tcp, 3478/udp, 7882/udp and — outside strict mode — 5349/tcp yourself."
 fi
 
+# Disk housekeeping, installed before the first build rather than after it: the build is
+# already the largest thing this script writes, and a server that fills up has no good
+# moment to be told about the timer it never got. Details and the list of what the sweep
+# will never touch live in infra/tidy.sh.
+step "Installing the daily disk cleanup"
+bash infra/tidy.sh --install || note "Cleanup timer not installed; run it by hand: bash infra/tidy.sh"
+
 step "Building and starting the stack"
 note "The first build compiles the server and the web client; expect several minutes."
 docker compose build

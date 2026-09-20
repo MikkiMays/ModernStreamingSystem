@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any
 
 
+# Сколько живёт принесённое в комнату: и сам файл в очереди, и запись о комнате после того,
+# как музыку в ней выключили. Сутки — один срок на оба, потому что вопрос один: «этим ещё
+# пользуются?». Разные числа здесь означали бы, что запись переживает собственную очередь
+# неизвестно зачем.
+TRACK_TTL = 86400000
+
+
 def now() -> int:
     return int(time.time() * 1000)
 
@@ -169,12 +176,17 @@ class Store:
             if name not in referenced:
                 (self.files / name).unlink(missing_ok=True)
 
+    def forget(self, room_id: str):
+        self.cache.pop(room_id, None)
+        self.flushed.pop(room_id, None)
+        self.db.execute("DELETE FROM music WHERE room_id=?", (room_id,))
+
     def cleanup(self):
         for room in self.rooms():
             expired = [
                 track
                 for track in room["queue"]
-                if track.get("createdAt", 0) <= now() - 86400000
+                if track.get("createdAt", 0) <= now() - TRACK_TTL
             ]
             if expired:
                 if room["queue"][0] in expired:
@@ -185,6 +197,24 @@ class Store:
                 ]
                 self.save(room)
                 self.prune_files([track["file"] for track in expired])
+            # Пустая запись о музыке комнаты, которой давно не пользовались, не хранит
+            # ничего: очередь пуста, музыка выключена, пропуск бота в комнату протух. А
+            # запись остаётся — и не только в файле: весь ledger поднимается в память при
+            # старте, то есть каждая встреча, где когда-либо включали музыку, занимает место
+            # до перезапуска службы. Ядро свою комнату к этому моменту уже удалило; здесь
+            # исчезает её тень. Понадобится снова — `initial()` заведёт запись заново.
+            #
+            # Срок считается по `lastHumanAt`, а не по `updatedAt`, и это не мелочь:
+            # `updatedAt` двигает любая запись, включая ту, что делает сама уборка строкой
+            # выше. По нему комната, у которой только что истекла очередь, выглядела бы
+            # свежей — и держалась бы ещё сутки после каждой уборки. `lastHumanAt` отвечает
+            # на нужный вопрос и меняется только от людей в комнате.
+            if (
+                not room["enabled"]
+                and not room["queue"]
+                and room.get("lastHumanAt", room["updatedAt"]) <= now() - TRACK_TTL
+            ):
+                self.forget(room["roomId"])
         self.db.execute("DELETE FROM claims WHERE expires_at<=?", (now(),))
         self.db.execute("DELETE FROM receipts WHERE expires_at<=?", (now(),))
         referenced = {track["file"] for room in self.rooms() for track in room["queue"]}

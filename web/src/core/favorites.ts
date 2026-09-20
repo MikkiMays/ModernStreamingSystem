@@ -75,9 +75,28 @@ export function cachedFavorites(): Favorite[] | undefined {
 export function cacheFavorites(rooms: Favorite[]) {
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify({ profile: favoriteProfile(), rooms }));
+    forgetAutoJoinForMissingRooms(rooms);
   } catch {
     /* The list is still correct in memory for this visit. */
   }
+}
+
+/**
+ * Забыть автовход в комнаты, которых больше нет.
+ *
+ * Список автовхода пополнялся сам и очищался только руками: `remove` вычёркивает комнату,
+ * когда её убирают из избранного, — а встреча, которую сервер удалил по сроку хранения,
+ * никем не убирается и остаётся в `localStorage` навсегда. Сами по себе тридцать шесть байт
+ * ничего не весят; плохо то, что список растёт от простого пользования и не уменьшается
+ * никогда. Ответ уже есть в руках: сервер только что прислал полный список избранного, и
+ * всё, чего в нём нет, — это комнаты, в которые войти больше нельзя.
+ */
+function forgetAutoJoinForMissingRooms(rooms: Favorite[]) {
+  const saved: unknown = JSON.parse(localStorage.getItem('cord:autojoin:v1') ?? '[]');
+  if (!Array.isArray(saved) || saved.length === 0) return;
+  const live = new Set(rooms.map((room) => room.roomId));
+  const kept = saved.filter((id): id is string => typeof id === 'string' && live.has(id));
+  if (kept.length !== saved.length) localStorage.setItem('cord:autojoin:v1', JSON.stringify(kept));
 }
 
 export function autoJoinEnabled(roomId: string): boolean {

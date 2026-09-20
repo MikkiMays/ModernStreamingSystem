@@ -85,17 +85,29 @@ public class RoomService {
     return code;
   }
 
+  /**
+   * Что старым комнатам проставляется при запуске.
+   *
+   * <p>Код встречи — комнатам, заведённым до того, как коды появились. Отметка последнего входа —
+   * всем: миграция не умеет считать её из снимка (одно и то же выражение должно работать и в
+   * Postgres, и в H2 у тестов) и ставит туда {@code updated_at}, а он у комнаты, которую годами
+   * переписывала уборка, означает «сегодня». Решения об удалении это не касается — их принимает
+   * {@link Lifecycle} по свежему снимку, — но запрос «что скоро удалится» неделю показывал бы
+   * пусто. Здесь столбец один раз приводится к тому, что говорит сам снимок.
+   *
+   * <p>Дальше он поддерживается сам: {@code save} пишет его при каждом изменении комнаты.
+   */
   @org.springframework.context.event.EventListener(
       org.springframework.boot.context.event.ApplicationReadyEvent.class)
   @Transactional
-  public void assignLegacyCodes() {
+  public void adoptLegacyRooms() {
     rooms.lockGlobal();
     for (var old : rooms.all())
       if (old.code == null) {
         var room = lock(old.id);
         room.code = newCode();
         rooms.save(room, now());
-      }
+      } else rooms.touch(old.id, old.lastSeenAt(now()));
   }
 
   @Transactional

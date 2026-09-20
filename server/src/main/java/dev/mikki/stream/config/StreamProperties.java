@@ -31,6 +31,10 @@ public record StreamProperties(
     @Min(60) int unusedRoomSeconds,
     @Min(60) @Max(86400) int retentionSeconds,
     @Min(60) @Max(3600) int closedRetentionSeconds,
+    // Через сколько забытая встреча удаляется вместе со всеми следами — в том числе из
+    // избранного у всех, кто её сохранил. Час снизу, а не минута: удаление здесь
+    // необратимо, и срок, на котором опечатка стоит чужой переписки, задавать нельзя.
+    @Min(3600) int roomRetentionSeconds,
     @Min(60) @Max(3600) int uploadTimeoutSeconds,
     @Min(1) long fileMaxBytes,
     @Min(1) long roomMaxBytes,

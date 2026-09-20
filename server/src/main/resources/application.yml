@@ -44,6 +44,10 @@ stream:
   unused-room-seconds: 300
   retention-seconds: 86400
   closed-retention-seconds: 3600
+  # Неделя. Комната живёт час после завершения, а потом остаётся пустой строкой — ради тех,
+  # кто сохранил её в избранное и вернётся по той же ссылке. Неделя без единого входа
+  # означает, что не вернётся никто: такую комнату удаляем целиком.
+  room-retention-seconds: ${ROOM_RETENTION_SECONDS:604800}
   upload-timeout-seconds: 3600
   file-max-bytes: 104857600
   room-max-bytes: 1073741824

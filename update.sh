@@ -140,6 +140,14 @@ if (( ${#REBUILD[@]} )); then
       note "$service → $ROLLBACK_TAG-$service"
     fi
   done
+  # Прежние наборы отката здесь и заканчиваются. Откат — это «вернуть то, что работало
+  # минуту назад», и такой набор ровно один: тот, что мы только что пометили. Всё, что
+  # осталось от прошлых обновлений, с этого момента не откат, а полтора гигабайта на
+  # каждое. Раньше здесь печаталось «удалите, когда убедитесь, что всё в порядке» — и не
+  # удалял никто: к следующему дню про это забывают, а девять таких наборов съели 6 ГБ.
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep '^cord-rollback-' | grep -v "^$ROLLBACK_TAG-"); do
+    docker rmi "$image" >/dev/null 2>&1 && note "убран прежний откат: $image"
+  done
 fi
 
 rollback() {
@@ -229,14 +237,20 @@ if [[ -n "$ORIGIN" ]]; then
   fi
 fi
 
+# Суточная уборка появилась позже самого сервера, и на машинах, поставленных до неё,
+# `setup.sh` больше не запускают. Обновление — единственное место, где о ней можно
+# вспомнить за хозяина; уже стоящий таймер `--install` просто перезаписывает своими же
+# файлами, поэтому проверять «а не стоит ли он уже» незачем.
+if ! systemctl is-enabled cord-tidy.timer >/dev/null 2>&1; then
+  step "Ставим суточную уборку диска"
+  bash infra/tidy.sh --install || warn "Не удалось. Поставить руками: sudo bash infra/tidy.sh --install"
+fi
+
 step "Готово"
 note "Версия: $(git rev-parse --short HEAD)"
 if (( ${#TAGGED[@]} )); then
   note "Образы для отката: $ROLLBACK_TAG-*"
-  images=""
-  for service in "${TAGGED[@]}"; do images+="$ROLLBACK_TAG-$service:latest "; done
-  note "Удалить, когда убедитесь, что всё в порядке:"
-  note "  docker image rm $images"
+  note "Прежние наборы уже убраны; этот уйдёт при следующем обновлении или суточной уборке."
 fi
 if (( KEEP_CALLS )) && (( RESTART_MEDIA )); then
   warn "Осталось доделать, когда в комнатах никого не будет:"

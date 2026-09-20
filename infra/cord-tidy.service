@@ -1,0 +1,16 @@
+[Unit]
+# Суточная уборка Cord: выпуски клиента, образы отката, разовые теги, кэш сборки.
+# Что именно и почему — в шапке самого скрипта; там же названо, чего он не трогает никогда.
+Description=Cord tidy — keep the disk from filling between deployments
+Documentation=file:@CORD_ROOT@/infra/tidy.sh
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@CORD_ROOT@
+ExecStart=/usr/bin/env bash @CORD_ROOT@/infra/tidy.sh
+# Журнал отдельным файлом, а не только в journald: у уборки он читается целиком и задним
+# числом — «когда место начало кончаться», — а не хвостом за последний час.
+StandardOutput=append:/var/log/cord-tidy.log
+StandardError=append:/var/log/cord-tidy.log

@@ -22,6 +22,32 @@ public class RoomState {
   /** Что комната смотрит вместе прямо сейчас, или null. Живёт и умирает вместе с комнатой. */
   public Watch watch;
 
+  /**
+   * Когда в комнате последний раз был человек.
+   *
+   * <p>Это единственное определение «встречей пользуются» на весь проект: по нему считается срок
+   * хранения ({@code stream.room-retention-seconds}), и оно же ложится в столбец {@code
+   * rooms.last_seen_at}, чтобы забытые комнаты можно было увидеть запросом, а не разбором JSON.
+   *
+   * <p>Берётся самое позднее из четырёх: создание, закрытие, момент, когда комната опустела, и вход
+   * любого из участников. Четыре, а не одно, потому что ни одного из них не хватает: у комнаты, где
+   * сидят прямо сейчас, нет ни закрытия, ни пустоты; у закрытой ведущим нет {@code emptySince}; а
+   * {@code joinedAt} у трёхдневной встречи остаётся в первом дне.
+   *
+   * <p>Служебные участники не считаются. Музыкальный бот — не человек, и комната, в которой он
+   * остался один, не «используется»: он и сам уходит, не услышав людей минуту. Иначе достаточно
+   * было бы раз в неделю включать в комнате музыку, чтобы она не удалялась никогда.
+   */
+  public long lastSeenAt(long now) {
+    if (members.values().stream().anyMatch(m -> m.service == null && m.occupiesSeat())) return now;
+    long seen = createdAt;
+    if (closedAt != null) seen = Math.max(seen, closedAt);
+    if (emptySince != null) seen = Math.max(seen, emptySince);
+    for (var member : members.values())
+      if (member.service == null) seen = Math.max(seen, member.joinedAt);
+    return seen;
+  }
+
   public enum Status {
     WAITING,
     JOINING,

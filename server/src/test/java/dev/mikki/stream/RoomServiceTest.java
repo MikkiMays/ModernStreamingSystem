@@ -740,6 +740,109 @@ class RoomServiceTest {
     assertThatThrownBy(() -> rooms.read(host.roomId())).isInstanceOf(Problem.class);
   }
 
+  /**
+   * Неделя без единого входа — и встреча уходит у всех разом.
+   *
+   * <p>Проверяются обе половины обещания: комната исчезает из базы, и вместе с ней исчезают записи
+   * избранного у каждого, кто её сохранил, — даже у того, кто ничего не удалял. Отдельного «убрать
+   * у всех» в коде нет: избранное держит ссылку на комнату, а не её копию.
+   */
+  @Test
+  void aMeetingNobodyReturnsToDisappearsFromEveryFavoriteList() {
+    var host = host();
+    var guest = guest(host);
+    String a = "A".repeat(43), b = "B".repeat(43);
+    favorites.save(a, host.roomId(), host.credential());
+    favorites.save(b, host.roomId(), guest.credential());
+    command(host, "leave", null, 0);
+    command(guest, "leave", null, 0);
+    now.addAndGet(config.unusedRoomSeconds() * 1000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
+    // За день до срока комната на месте: её держит избранное, как и держало.
+    now.addAndGet(config.roomRetentionSeconds() * 1000L - 86400000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThat(favorites.list(a)).hasSize(1);
+    now.addAndGet(86400000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThatThrownBy(() -> rooms.read(host.roomId())).isInstanceOf(Problem.class);
+    assertThat(favorites.list(a)).isEmpty();
+    assertThat(favorites.list(b)).isEmpty();
+    assertThatThrownBy(
+            () -> favorites.join(b, host.roomId(), new Rejoin(UUID.randomUUID(), "Поздно")))
+        .isInstanceOf(Problem.class);
+  }
+
+  /** Пока во встречу возвращаются, срок отсчитывается заново — сколько бы ей ни было месяцев. */
+  @Test
+  void returningToASavedMeetingStartsTheRetentionWindowOver() {
+    var host = host();
+    String profile = "A".repeat(43);
+    favorites.save(profile, host.roomId(), host.credential());
+    command(host, "leave", null, 0);
+    for (int week = 0; week < 3; week++) {
+      now.addAndGet(config.roomRetentionSeconds() * 1000L - 86400000L);
+      lifecycle.sweepRoom(host.roomId());
+      assertThat(favorites.list(profile)).hasSize(1);
+      var returned = favorites.join(profile, host.roomId(), new Rejoin(UUID.randomUUID(), "Снова"));
+      command(returned, "leave", null, 0);
+      lifecycle.sweepRoom(host.roomId());
+    }
+    now.addAndGet(config.roomRetentionSeconds() * 1000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThatThrownBy(() -> rooms.read(host.roomId())).isInstanceOf(Problem.class);
+  }
+
+  /**
+   * Пустая комната не переписывается каждый проход.
+   *
+   * <p>ЗАЧЕМ ТЕСТ. Раньше {@code sweepRoom} сохранял комнату безусловно, и тридцать сохранённых
+   * встреч означали тридцать обновлений строки в секунду навсегда — при том что не менялось ничего.
+   * Видно это не было ниоткуда: снимок оставался прежним, а росли только WAL и раздувание таблицы.
+   * Сторож здесь — {@code updated_at}: он обязан стоять, пока комната не изменилась.
+   */
+  @Test
+  void anIdleRoomIsNotRewrittenOnEverySweep() {
+    var host = host();
+    command(host, "leave", null, 0);
+    now.addAndGet(config.unusedRoomSeconds() * 1000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
+    long settled = updatedAt(host.roomId());
+    for (int pass = 0; pass < 5; pass++) {
+      now.addAndGet(1000);
+      lifecycle.sweepRoom(host.roomId());
+    }
+    assertThat(updatedAt(host.roomId())).isEqualTo(settled);
+    // А изменение всё так же записывается — и вместе с ним отметка последнего входа.
+    var returned = favorites.join(saved(host), host.roomId(), new Rejoin(UUID.randomUUID(), "Я"));
+    assertThat(updatedAt(host.roomId())).isGreaterThan(settled);
+    command(returned, "leave", null, 0);
+    now.addAndGet(config.unusedRoomSeconds() * 1000L);
+    lifecycle.sweepRoom(host.roomId());
+    assertThat(lastSeenAt(host.roomId())).isGreaterThan(settled);
+  }
+
+  String saved(Admission host) {
+    String profile = "C".repeat(43);
+    favorites.save(profile, host.roomId(), host.credential());
+    return profile;
+  }
+
+  long updatedAt(String roomId) {
+    return jdbc.sql("SELECT updated_at FROM rooms WHERE id=?")
+        .param(roomId)
+        .query(Long.class)
+        .single();
+  }
+
+  long lastSeenAt(String roomId) {
+    return jdbc.sql("SELECT last_seen_at FROM rooms WHERE id=?")
+        .param(roomId)
+        .query(Long.class)
+        .single();
+  }
+
   @Test
   void reopeningSavedRoomDoesNotExtendClosedChatOrFileRetention() throws Exception {
     var host = host();
