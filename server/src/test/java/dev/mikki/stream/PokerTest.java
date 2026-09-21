@@ -132,6 +132,54 @@ class PokerTest {
   }
 
   @Test
+  void pauseStopsTheClockWhereItStoodAndForbidsActing() {
+    var table = table("friendly", 3);
+    table.deal(T0);
+    long deadline = table.deadline;
+    table.configure("pause", T0 + 5000);
+    // Часы встали: срока нет, ход сделать нельзя, и за отсутствующих никто не ходит.
+    assertThat(table.deadline).isZero();
+    assertThat(table.tick(T0 + 600000)).isFalse();
+    assertThatThrownBy(() -> table.act("p0", "fold", 0, T0 + 6000))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("паузе");
+    assertThat(table.view("p0", T0 + 6000).you().turn()).isFalse();
+    assertThat(table.view("p0", T0 + 6000).you().actions()).isEmpty();
+    // Продолжение возвращает ровно тот остаток, который был: ни секунды в подарок.
+    table.configure("resume", T0 + 65000);
+    assertThat(table.deadline - (T0 + 65000)).isEqualTo(deadline - (T0 + 5000));
+    table.act("p0", "fold", 0, T0 + 66000);
+    assertThat(seat(table, 0).folded).isTrue();
+  }
+
+  @Test
+  void twoMissedTurnsInARowSendTheSeatToTheAudience() {
+    var table = table("friendly", 2);
+    table.deal(T0);
+    int victim = table.actor;
+    long now = T0;
+    // Первый пропуск — обычное дело: стол ходит за человека и остаётся его ждать.
+    for (int guard = 0; guard < 40 && seat(table, victim).misses < 1; guard++) {
+      now = Math.max(now + 1, table.deadline);
+      if (!table.tick(now)) now += 5000;
+    }
+    assertThat(seat(table, victim).misses).isEqualTo(1);
+    assertThat(seat(table, victim).leaving).isFalse();
+    // Второй подряд — и стол решает за человека сам.
+    for (int guard = 0; guard < 200 && !seat(table, victim).leaving; guard++) {
+      now = Math.max(now + 1, table.deadline);
+      if (!table.tick(now)) now += 5000;
+    }
+    assertThat(seat(table, victim).misses).isGreaterThanOrEqualTo(2);
+    // Место освобождается в конце раздачи: фишки доигрывают банк, а стул уже свободен.
+    for (int guard = 0; guard < 20 && table.seats.get(victim).taken(); guard++) {
+      now = Math.max(now + 1, table.deadline);
+      if (!table.tick(now)) now += 5000;
+    }
+    assertThat(table.seats.get(victim).taken()).isFalse();
+  }
+
+  @Test
   void youAlwaysSeeWhatYouAreHoldingCalledByName() {
     var table = table("friendly", 2);
     deal(table, T0, "Ah 7d 2c", "As Ad", "Ks Qh");
@@ -410,16 +458,19 @@ class PokerTest {
   }
 
   @Test
-  void pausingStopsTheTableAfterTheHandRatherThanInsideIt() {
+  void pauseBetweenHandsKeepsTheTableFromDealingTheNextOne() {
     var table = table("friendly", 3);
     table.deal(T0);
-    table.configure("pause", T0);
-    assertThat(table.phase).isEqualTo("preflop");
     table.act("p0", "fold", 0, T0);
     table.act("p1", "fold", 0, T0);
     table.tick(table.deadline);
     assertThat(table.phase).isEqualTo("lobby");
+    assertThat(table.deadline).isGreaterThan(0);
+    table.configure("pause", T0 + 1000);
     assertThat(table.deadline).isZero();
+    assertThat(table.tick(T0 + 100000)).isFalse();
+    table.configure("resume", T0 + 2000);
+    assertThat(table.deadline).isEqualTo(T0 + 2000 + Table.NEXT_HAND_MS);
   }
 
   // --- Что видно кому ---------------------------------------------------------------------

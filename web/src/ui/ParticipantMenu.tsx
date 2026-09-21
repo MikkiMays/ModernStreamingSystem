@@ -102,14 +102,14 @@ export function ParticipantMenu({
             <MoreHorizontal size={19} />
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Positioner sideOffset={6} align="end">
+            <Menu.Positioner className="menu-layer" sideOffset={6} align="end">
               <Menu.Popup className="action-menu participant-menu">{items(Menu.Item)}</Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Positioner>
+        <ContextMenu.Positioner className="menu-layer">
           <ContextMenu.Popup className="action-menu participant-menu">
             {items(ContextMenu.Item)}
           </ContextMenu.Popup>

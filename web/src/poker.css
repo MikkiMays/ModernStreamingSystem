@@ -99,6 +99,7 @@
 /* --- Столешница ------------------------------------------------------------------------ */
 
 .poker-felt-wrap {
+  position: relative;
   container-type: size;
   display: grid;
   place-items: center;
@@ -288,6 +289,11 @@
 .poker-waiting small {
   color: var(--muted);
   width: 100%;
+}
+.poker-waiting.is-paused {
+  background: #14202bee;
+  border-color: color-mix(in oklab, var(--gold) 45%, transparent);
+  color: var(--gold-soft);
 }
 .poker-waiting.is-over {
   background: linear-gradient(180deg, #2a2312, #16202b);
@@ -761,12 +767,28 @@
     inset 0 0 0 1px #ffffff2e,
     inset 0 0 0 4px #1a2660;
 }
+/*
+  Победная карта ВЫЕЗЖАЕТ, а не подсвечивается.
+
+  Подсветка красит карту в цвет, которого у карт не бывает, и читается как «выделено мышью».
+  За настоящим столом выигравшую пятёрку просто выдвигают вперёд — и это единственное
+  движение, которого достаточно: глаз ловит смещение быстрее любого свечения. Остаётся тень
+  под приподнятой картой, потому что без неё она не приподнята, а просто уехала.
+*/
 .playing-card[data-highlight] {
-  box-shadow:
-    0 0 0 2px var(--gold),
-    0 0 18px #f0c04a80,
-    0 2px 6px #00000059;
-  transform: translateY(-6%);
+  animation: poker-lift 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+  z-index: 2;
+}
+@keyframes poker-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-26%);
+    box-shadow:
+      0 14px 22px #00000080,
+      inset 0 0 0 1px #ffffff;
+  }
 }
 /*
   Карта, которая уже не играет. За настоящим столом её просто убирают, и смотреть на неё
@@ -986,12 +1008,20 @@
 
 /* --- Нижняя панель ---------------------------------------------------------------------- */
 
+/*
+  Панель под столом — одна строка по центру.
+
+  Раньше она была прижата к краям: свои карты слева, кнопки справа, и между ними пустая
+  середина во весь стол. Смотрят при этом в середину — там карты и банк, — и рука от края до
+  края означала, что глаза ходят через весь экран на каждом ходе.
+*/
 .poker-controls {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  padding: 8px 12px;
+  justify-content: center;
+  gap: 10px 18px;
+  padding: 8px 14px;
   border-radius: 18px;
   background: color-mix(in oklab, var(--surface) 88%, transparent);
   border: 1px solid var(--line);
@@ -1034,7 +1064,7 @@
 .poker-actions {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: center;
   flex-wrap: wrap;
 }
 .poker-action {
@@ -1101,7 +1131,7 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
 }
 .poker-step {
   display: grid;
@@ -1144,7 +1174,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
 }
 .poker-idle-hint {
   font-size: 12px;
@@ -1177,43 +1207,98 @@
   color: #ff8d8d;
 }
 .poker-error {
-  grid-column: 1 / -1;
+  width: 100%;
   margin: 0;
+  text-align: center;
 }
-.poker-feed {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 8px;
+/*
+  Лента игры — отдельная панель, и только по желанию.
+
+  Строкой под кнопками она читалась как бегущий текст: «Алекс уравнивает 200» и «Флоп»
+  выглядели одинаково, а найти в ней нужное было нельзя. Теперь это список у края стола: знак
+  события, текст и сумма отдельным столбцом, раздачи и улицы выделены цветом. Включается в
+  меню «Вид» — тем, кому она не нужна, стол остаётся чистым.
+*/
+.poker-log {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: min(220px, 30%);
+  max-height: 44%;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: #0a1117d9;
+  border: 1px solid #ffffff14;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  z-index: 10;
+}
+.poker-log > b {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff8c;
+}
+.poker-log ol {
+  display: grid;
+  gap: 3px;
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-  font-size: 11px;
-  color: var(--muted);
+  overflow: hidden;
 }
-.poker-feed::-webkit-scrollbar {
-  display: none;
+.poker-log li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #cfd7e4;
+  padding: 2px 4px;
+  border-radius: 7px;
 }
-.poker-feed li {
+.poker-log i {
+  font-style: normal;
+  text-align: center;
+  opacity: 0.6;
+}
+.poker-log span {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #ffffff0f;
 }
-.poker-feed li[data-kind='win'] {
+.poker-log u {
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 11px;
   color: var(--gold-soft);
-  background: #f0c04a1f;
 }
-.poker-feed li[data-kind='bust'],
-.poker-feed li[data-kind='over'] {
-  color: #ffb4b4;
-  background: #e24d4d1f;
-}
-.poker-feed li[data-kind='hand'],
-.poker-feed li[data-kind='street'] {
-  color: #cfe3ff;
+.poker-log li[data-kind='hand'],
+.poker-log li[data-kind='street'] {
   background: #6b8dff1f;
+  color: #dbe6ff;
+  font-weight: 600;
+}
+.poker-log li[data-kind='win'],
+.poker-log li[data-kind='over'] {
+  background: #f0c04a1f;
+  color: var(--gold-soft);
+  font-weight: 600;
+}
+.poker-log li[data-kind='bust'] {
+  background: #e24d4d1f;
+  color: #ffc4c4;
+}
+.poker-log li[data-kind='sit'],
+.poker-log li[data-kind='stand'],
+.poker-log li[data-kind='rebuy'],
+.poker-log li[data-kind='settings'],
+.poker-log li[data-kind='open'],
+.poker-log li[data-kind='level'] {
+  color: #98a5b6;
 }
 
 /* --- Узкий экран ------------------------------------------------------------------------ */
@@ -1285,7 +1370,7 @@
   .poker-action kbd {
     display: none;
   }
-  .poker-feed {
+  .poker-log {
     display: none;
   }
 }
@@ -1527,4 +1612,65 @@
   font-size: 12px;
   color: var(--muted);
   line-height: 1.35;
+}
+
+/* --- Шпаргалка по комбинациям ------------------------------------------------------------ */
+
+.hand-ranks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
+}
+.hand-ranks li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.hand-ranks b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.hand-ranks b i {
+  font-style: normal;
+  font-size: 11px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.hand-ranks small {
+  grid-column: 1;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hand-ranks-cards {
+  grid-row: span 2;
+  display: flex;
+  gap: 3px;
+}
+.hand-ranks-cards em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 3px;
+  border-radius: 4px;
+  background: #fff;
+  color: #16202b;
+  box-shadow: 0 1px 3px #0000004d;
+}
+.hand-ranks-cards em[data-red] {
+  color: #d5333f;
 }

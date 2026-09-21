@@ -59,7 +59,7 @@ export function CameraMenu({ meeting }: { meeting: Meeting }) {
           }
         />
         <Menu.Portal>
-          <Menu.Positioner side="top" sideOffset={12}>
+          <Menu.Positioner className="menu-layer" side="top" sideOffset={12}>
             <Menu.Popup className="action-menu">
               {choices.length ? (
                 choices.map((choice) => (
@@ -96,7 +96,7 @@ export function CameraMenu({ meeting }: { meeting: Meeting }) {
         <ChevronDown size={15} />
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner side="top" sideOffset={12}>
+        <Menu.Positioner className="menu-layer" side="top" sideOffset={12}>
           <Menu.Popup className="action-menu">
             <Menu.Item onClick={() => void meeting.media.flipCamera()}>Следующая камера</Menu.Item>
             {devices

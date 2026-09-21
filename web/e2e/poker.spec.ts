@@ -73,7 +73,8 @@ test('two browsers play a hand of poker with private cards and a verifiable deal
     await expect(host.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 15000 });
     // На вскрытии карты открыты у обоих, и у каждой руки есть имя.
     await expect(host.locator('.poker-combo').first()).toBeVisible();
-    await expect(host.locator('.poker-feed li').first()).toContainText('забирает');
+    // Лента — отдельная панель у края стола, и её можно выключить в меню «Вид».
+    await expect(host.locator('.poker-log li').first()).toContainText('забирает');
 
     // Раздача проверяема: браузер пересобирает колоду из зерна и сверяет её с отпечатком.
     await host.getByRole('button', { name: /Проверить раздачу/ }).click();

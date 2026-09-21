@@ -907,7 +907,7 @@ export function WatchTheater({
                     }
                   />
                   <Menu.Portal>
-                    <Menu.Positioner side="top" sideOffset={10} align="end">
+                    <Menu.Positioner className="menu-layer" side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
                         <Menu.Item data-selected={text ? undefined : 'true'} onClick={() => chooseText('')}>
                           Выключены
@@ -946,7 +946,7 @@ export function WatchTheater({
                     }
                   />
                   <Menu.Portal>
-                    <Menu.Positioner side="top" sideOffset={10} align="end">
+                    <Menu.Positioner className="menu-layer" side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
                         {/*
                           Два раздела, а не один список.

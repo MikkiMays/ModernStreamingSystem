@@ -1,8 +1,19 @@
 import { useState } from 'react';
-import { ArrowLeft, ChevronDown, Coins, Play, Spade, Timer, TrendingUp, Users, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  Coins,
+  ListOrdered,
+  Play,
+  Spade,
+  Timer,
+  TrendingUp,
+  Users,
+  X,
+} from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { PokerMode } from '../api/types';
-import { blindsFor, chips, MAX_STACK, MIN_STACK, POKER_MODES } from '../core/poker';
+import { blindsFor, cardFace, chips, HAND_RANKS, MAX_STACK, MIN_STACK, POKER_MODES } from '../core/poker';
 import { useStore } from './primitives';
 
 /**
@@ -53,6 +64,52 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
     setMode(next);
     setStack(Math.round(chosen.stack * (Number.isFinite(ratio) ? ratio : 1)));
   };
+
+  const help = useStore(meeting.pokerHelp);
+  if (help)
+    return (
+      <div className="games-group">
+        <button className="text-button cinema-back" onClick={() => meeting.pokerHelp.set(false)}>
+          <ArrowLeft size={16} /> Назад к игре
+        </button>
+        <section className="service-card">
+          <div className="service-heading">
+            <span className="service-icon" style={{ background: '#8a5cf6' }}>
+              <ListOrdered size={24} />
+            </span>
+            <div>
+              <h3>Комбинации</h3>
+              <p>Сверху сильные, снизу слабые</p>
+            </div>
+          </div>
+          <ol className="hand-ranks">
+            {HAND_RANKS.map((rank, index) => (
+              <li key={rank.name}>
+                <b>
+                  <i>{index + 1}</i> {rank.name}
+                </b>
+                <span className="hand-ranks-cards" aria-hidden="true">
+                  {rank.cards.map((card) => {
+                    const face = cardFace(card);
+                    return (
+                      <em key={card} data-red={face.red || undefined}>
+                        {face.rank}
+                        {face.suit}
+                      </em>
+                    );
+                  })}
+                </span>
+                <small>{rank.hint}</small>
+              </li>
+            ))}
+          </ol>
+          <p className="form-footnote">
+            Рука собирается из пяти карт: две свои и пять общих, любые пять из семи. Равные комбинации делят
+            банк, а спорит между ними кикер — старшая из оставшихся карт.
+          </p>
+        </section>
+      </div>
+    );
 
   return (
     <div className="games-group">

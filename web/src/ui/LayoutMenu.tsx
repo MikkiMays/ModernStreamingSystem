@@ -33,7 +33,7 @@ export function LayoutMenu({ meeting }: { meeting: Meeting }) {
         }
       />
       <Menu.Portal>
-        <Menu.Positioner side="top" sideOffset={12}>
+        <Menu.Positioner className="menu-layer" side="top" sideOffset={12}>
           <Menu.Popup className="action-menu">
             {LAYOUTS.map((item) => (
               <Menu.Item key={item.value} onClick={() => apply(meeting, item.value)}>

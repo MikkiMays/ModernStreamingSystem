@@ -307,7 +307,9 @@ export function MeetingView({
             <>
               <Stage
                 meeting={meeting}
-                onOpenServices={openServicesPanel}
+                /* Со сцены панель всегда открывают, а не переключают: нажатие «покажи
+                   комбинации» при уже открытой панели закрывало бы её. */
+                onOpenServices={() => setPanel('services')}
                 showServices={showIntegrationPanel}
               />
               {(viewing || pinned) && (
@@ -451,7 +453,7 @@ export function MeetingView({
                   }
                 />
                 <Menu.Portal>
-                  <Menu.Positioner side="top" sideOffset={12}>
+                  <Menu.Positioner className="menu-layer" side="top" sideOffset={12}>
                     <Menu.Popup className="action-menu">
                       {compact && (
                         <>

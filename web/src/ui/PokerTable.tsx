@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Track, TrackEvent } from 'livekit-client';
+import { Menu } from '@base-ui/react/menu';
 import {
+  Check,
   Coins,
   Crown,
   Hand,
@@ -8,6 +10,9 @@ import {
   Pause,
   Play,
   Plus,
+  ListOrdered,
+  ScrollText,
+  Settings2,
   ShieldCheck,
   Timer,
   TrendingUp,
@@ -39,6 +44,7 @@ import {
   type SeatSpot,
   type Verdict,
 } from '../core/poker';
+import { readPreferences, savePreferences } from '../core/preferences';
 import { Avatar, useStore } from './primitives';
 
 /**
@@ -55,8 +61,17 @@ import { Avatar, useStore } from './primitives';
  * ядро и присылает готовым ({@code you.actions}). Вторая копия правил в браузере означала бы, что
  * однажды кнопка и стол разойдутся во мнениях, и права будет кнопка.
  */
-export default function PokerTable({ meeting, table }: { meeting: Meeting; table: Table }) {
+export default function PokerTable({
+  meeting,
+  table,
+  onOpenServices,
+}: {
+  meeting: Meeting;
+  table: Table;
+  onOpenServices: () => void;
+}) {
   const tracks = useStore(meeting.media.tracks);
+  const preferences = useStore(meeting.media.preferences);
   const snapshot = useStore(meeting.snapshot);
   const me = meeting.admission.participantId;
   const you = table.you;
@@ -114,7 +129,16 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
 
   return (
     <div className="poker" data-phase={table.phase} data-drama={cheer?.level}>
-      <TableBar meeting={meeting} table={table} dealer={dealer} onSend={send} />
+      <TableBar
+        meeting={meeting}
+        table={table}
+        dealer={dealer}
+        onSend={send}
+        onHelp={() => {
+          meeting.pokerHelp.set(true);
+          onOpenServices();
+        }}
+      />
       <div className="poker-felt-wrap">
         <div className="poker-felt">
           {/* Борт, дорожка и сукно — три слоя одного стола, как у настоящего. */}
@@ -163,6 +187,13 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               )}
               <span className="poker-street">{phaseLabel(table.phase)}</span>
             </div>
+            {/* Пауза посреди раздачи: часы стоят, ходить нельзя — и это должно быть видно. */}
+            {table.paused && playing(table) && (
+              <div className="poker-waiting is-paused" role="status">
+                <Pause size={18} /> <b>Пауза</b>
+                <small>Часы остановлены</small>
+              </div>
+            )}
             <Waiting meeting={meeting} table={table} dealer={dealer} onSend={send} />
           </div>
           {spots.map((spot) => {
@@ -210,8 +241,9 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
           {showdown && <div className="poker-dim" aria-hidden="true" />}
           {cheer && table.result && <Cheer table={table} cheer={cheer} spots={spots} />}
         </div>
+        {preferences.pokerFeed && <Feed table={table} />}
       </div>
-      <Controls table={table} dealer={dealer} onSend={send} error={error} />
+      <Controls table={table} dealer={dealer} onSend={send} error={error} hints={preferences.pokerHints} />
     </div>
   );
 }
@@ -235,13 +267,19 @@ function TableBar({
   table,
   dealer,
   onSend,
+  onHelp,
 }: {
   meeting: Meeting;
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+  onHelp: () => void;
 }) {
   const seated = table.seats.filter((seat) => seat.memberId).length;
+  const preferences = useStore(meeting.media.preferences);
+  // Вид стола — своё у каждого, поэтому пишется в настройки устройства, а не в комнату.
+  const toggle = (key: 'pokerHints' | 'pokerFeed') =>
+    savePreferences({ ...readPreferences(), [key]: !preferences[key] });
   return (
     <header className="poker-bar">
       <span className="poker-mode">
@@ -261,6 +299,28 @@ function TableBar({
       <span className="poker-seated">
         {seated} из 10 мест{table.seatingOpen ? '' : ' · посадка закрыта'}
       </span>
+      <Menu.Root>
+        <Menu.Trigger className="button secondary small poker-view" aria-label="Вид стола">
+          <Settings2 size={15} /> Вид
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner className="menu-layer" side="bottom" align="end" sideOffset={8}>
+            <Menu.Popup className="action-menu">
+              <Menu.Item onClick={() => toggle('pokerHints')}>
+                {preferences.pokerHints ? <Check size={18} /> : <span style={{ width: 18 }} />}
+                Подсказки: что у меня собралось
+              </Menu.Item>
+              <Menu.Item onClick={() => toggle('pokerFeed')}>
+                {preferences.pokerFeed ? <Check size={18} /> : <ScrollText size={18} />}
+                Лента игры
+              </Menu.Item>
+              <Menu.Item onClick={onHelp}>
+                <ListOrdered size={18} /> Комбинации — в панель справа
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
       {dealer && (
         <div className="poker-host-actions">
           {table.phase === 'lobby' && (
@@ -430,7 +490,10 @@ function SeatView({
       <div className="poker-person">
         <div className="poker-face">
           {camera ? <SeatCamera tile={camera} /> : <Avatar name={seat.name} src={avatar} />}
-          {active && <TurnRing table={table} elapsed={meeting.serverNow() - table.actionAt} />}
+          {/* На паузе кольца нет: срока нет, и кольцо, домотанное до конца, врало бы. */}
+          {active && !table.paused && (
+            <TurnRing table={table} elapsed={meeting.serverNow() - table.actionAt} />
+          )}
           {winner && <span className="poker-rays" aria-hidden="true" />}
           {table.button === seat.index && (
             <span className="poker-puck is-dealer" title="Дилер">
@@ -447,7 +510,7 @@ function SeatView({
           <span>{seat.name}</span>
           <b>{seat.busted ? `${seat.place} место` : chips(seat.stack)}</b>
         </div>
-        {active && (
+        {active && !table.paused && (
           <span className="poker-remaining">
             <Countdown meeting={meeting} until={table.deadline} />
           </span>
@@ -609,11 +672,13 @@ function Controls({
   dealer,
   onSend,
   error,
+  hints,
 }: {
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   error: string;
+  hints: boolean;
 }) {
   const you = table.you;
   const [raising, setRaising] = useState(false);
@@ -681,7 +746,7 @@ function Controls({
           <span className="poker-mine-stack">
             <b>{chips(seat.stack)}</b>
             {/* Что собралось — словами. Считает ядро и только по вашим картам. */}
-            {you?.hand && seat.cards.length > 0 ? (
+            {hints && you?.hand && seat.cards.length > 0 ? (
               <small className="poker-mine-hand">{you.hand}</small>
             ) : (
               <small>
@@ -751,7 +816,7 @@ function Controls({
               <button className="poker-action is-call" onClick={() => act('call')}>
                 <span>
                   Колл {chips(you.callAmount)}
-                  {share !== null && <small>{share}% банка</small>}
+                  {hints && share !== null && <small>{share}% банка</small>}
                 </span>
                 <kbd>C</kbd>
               </button>
@@ -800,7 +865,6 @@ function Controls({
           {error}
         </p>
       )}
-      <Feed table={table} />
     </div>
   );
 }
@@ -843,17 +907,48 @@ function Fairness({ table }: { table: Table }) {
   );
 }
 
-/** Лента стола: что произошло за последние минуты. */
+/**
+ * Лента стола.
+ *
+ * Сплошной строкой она читалась как бегущий текст, в котором «Алекс уравнивает 200» и «Флоп»
+ * выглядят одинаково. Теперь это список: у каждой записи свой знак и свой цвет, раздачи
+ * разделены, а суммы стоят справа отдельным столбцом — глазами находится то, что ищут, а не
+ * всё подряд.
+ */
+const FEED_MARKS: Record<string, string> = {
+  hand: '•',
+  street: '•',
+  blind: '◦',
+  ante: '◦',
+  action: '',
+  win: '★',
+  bust: '✕',
+  over: '★',
+  sit: '+',
+  stand: '−',
+  rebuy: '+',
+  settings: '·',
+  reveal: '◇',
+  level: '↑',
+  open: '·',
+};
+
 function Feed({ table }: { table: Table }) {
-  const items = table.log.slice(-7).reverse();
+  const items = table.log.slice(-6).reverse();
+  if (!items.length) return null;
   return (
-    <ol className="poker-feed" aria-label="События стола">
-      {items.map((note, index) => (
-        <li key={`${note.at}-${index}`} data-kind={note.kind}>
-          {note.text}
-        </li>
-      ))}
-    </ol>
+    <aside className="poker-log" aria-label="События стола">
+      <b>Лента игры</b>
+      <ol>
+        {items.map((note, index) => (
+          <li key={`${note.at}-${index}`} data-kind={note.kind}>
+            <i aria-hidden="true">{FEED_MARKS[note.kind] ?? ''}</i>
+            <span>{note.text}</span>
+            {note.amount > 0 && <u>{chips(note.amount)}</u>}
+          </li>
+        ))}
+      </ol>
+    </aside>
   );
 }
 

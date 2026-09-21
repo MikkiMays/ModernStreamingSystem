@@ -158,6 +158,12 @@ public class Table {
   public boolean autoDeal = true;
 
   public boolean paused;
+
+  /** Сколько оставалось на ход, когда нажали паузу, и сколько его уже прошло. */
+  public long pausedRemaining;
+
+  public long pausedElapsed;
+
   public List<Seat> seats = new ArrayList<>();
 
   /** Колода: то, что ещё не роздано. Ни одним полем не уходит в браузер. */
@@ -226,6 +232,15 @@ public class Table {
     public long awaySince;
     public long timeBankMs;
     public boolean usingBank;
+
+    /**
+     * Сколько ходов подряд человек не сделал.
+     *
+     * <p>Два пропуска — и место освобождается: стол, который каждый круг ждёт по тридцать секунд
+     * того, кто ушёл, перестаёт быть игрой для остальных. Любое действие обнуляет счётчик.
+     */
+    public int misses;
+
     public String lastAction;
     public long lastActionAmount;
     public long lastActionAt;
@@ -586,7 +601,9 @@ public class Table {
     var seat = seatOf(memberId);
     if (seat == null) throw Problem.forbidden();
     int index = seats.indexOf(seat);
+    if (paused) throw Problem.conflict("POKER_PAUSED", "Игра на паузе");
     if (!playing() || actor != index) throw Problem.conflict("POKER_TURN", "Сейчас не ваш ход");
+    seat.misses = 0;
     apply(seat, index, action, chips, now, false);
   }
 
@@ -978,7 +995,7 @@ public class Table {
    * здесь, и только по часам сервера.
    */
   public boolean tick(long now) {
-    if (deadline == 0 || now < deadline) return false;
+    if (paused || deadline == 0 || now < deadline) return false;
     switch (phase) {
       case "showdown" -> finish(now);
       case "lobby" -> {
@@ -1000,12 +1017,28 @@ public class Table {
             revision++;
             return true;
           }
-          apply(seat, actor, seat.bet >= betToCall ? "check" : "fold", 0, now, true);
+          miss(seat, actor, now);
         }
       }
       default -> deadline = 0;
     }
     return true;
+  }
+
+  /**
+   * Ход, которого не сделали.
+   *
+   * <p>Первый пропуск — обычное дело: отвлёкся, не успел. Второй подряд означает, что за столом
+   * сидит пустой стул, и остальные ждут его по тридцать секунд каждый круг. Место освобождается в
+   * конце раздачи, фишки остаются человеку — он может сесть снова.
+   */
+  private void miss(Seat seat, int index, long now) {
+    seat.misses++;
+    apply(seat, index, seat.bet >= betToCall ? "check" : "fold", 0, now, true);
+    if (seat.misses >= 2 && !seat.leaving) {
+      seat.leaving = true;
+      note(now, "stand", index, seat.name, 0, seat.name + " не отвечает и уходит в наблюдатели");
+    }
   }
 
   /**
@@ -1017,6 +1050,17 @@ public class Table {
    */
   public boolean presence(Set<String> present, long now) {
     boolean changed = false;
+    if (paused) {
+      // На паузе за отсутствующих не ходят: замерло — значит замерло.
+      for (var seat : seats)
+        if (seat.taken() && !present.contains(seat.memberId) && !seat.away) {
+          seat.away = true;
+          seat.awaySince = now;
+          changed = true;
+        }
+      if (changed) revision++;
+      return changed;
+    }
     for (var seat : seats) {
       if (!seat.taken()) continue;
       boolean away = !present.contains(seat.memberId);
@@ -1034,7 +1078,7 @@ public class Table {
     if (playing() && actor >= 0) {
       var seat = seats.get(actor);
       if (seat.away && now - seat.awaySince > AWAY_ACT_MS) {
-        apply(seat, actor, seat.bet >= betToCall ? "check" : "fold", 0, now, true);
+        miss(seat, actor, now);
         changed = true;
       }
     }
@@ -1070,14 +1114,33 @@ public class Table {
         seatingOpen = false;
         note(now, "settings", -1, "", 0, "Посадка закрыта до конца игры");
       }
+      /*
+       Пауза останавливает стол, а не «следующую раздачу».
+
+       Сначала она означала «доиграем и встанем», и это выглядело поломкой: на паузе шли часы
+       хода и работали кнопки. Человек, нажимающий паузу, имеет в виду ровно одно — замереть,
+       — и теперь так и происходит: часы останавливаются там, где стояли, ходить нельзя, за
+       отсутствующих никто не ходит. Продолжение возвращает ровно тот остаток времени, который
+       был: пауза не должна ни дарить секунды, ни отнимать их.
+      */
       case "pause" -> {
         paused = true;
-        if ("lobby".equals(phase)) deadline = 0;
-        note(now, "settings", -1, "", 0, "Игра встанет после этой раздачи");
+        if (deadline > 0) {
+          pausedRemaining = Math.max(0, deadline - now);
+          pausedElapsed = Math.max(0, now - actionAt);
+        }
+        deadline = 0;
+        note(now, "settings", -1, "", 0, "Пауза");
       }
       case "resume" -> {
         paused = false;
-        if ("lobby".equals(phase) && readyCount() >= 2) deadline = now + NEXT_HAND_MS;
+        if (playing() && actor >= 0 && pausedRemaining > 0) {
+          actionAt = now - pausedElapsed;
+          deadline = now + pausedRemaining;
+        } else if (playing() && pausedRemaining > 0) deadline = now + pausedRemaining;
+        else if ("lobby".equals(phase) && readyCount() >= 2) deadline = now + NEXT_HAND_MS;
+        pausedRemaining = 0;
+        pausedElapsed = 0;
         note(now, "settings", -1, "", 0, "Игра продолжается");
       }
       case "auto-deal" -> {
@@ -1239,7 +1302,8 @@ public class Table {
     var seat = seatOf(viewerId);
     if (seat == null) return null;
     int index = seats.indexOf(seat);
-    boolean turn = playing() && actor == index;
+    // На паузе ходить нельзя никому: кнопки не показываются, часы стоят.
+    boolean turn = playing() && actor == index && !paused;
     return new TableView.YouView(
         index,
         Cards.texts(seat.cards),

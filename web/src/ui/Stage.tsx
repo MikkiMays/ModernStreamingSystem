@@ -381,7 +381,7 @@ export function Stage({
       <div className="stage poker-stage">
         <div className="poker-main">
           <Suspense fallback={<div className="poker-loading" />}>
-            <PokerTable meeting={meeting} table={table} />
+            <PokerTable meeting={meeting} table={table} onOpenServices={onOpenServices} />
           </Suspense>
         </div>
         {watchers.length > 0 && (

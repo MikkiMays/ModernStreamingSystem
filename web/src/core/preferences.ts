@@ -84,6 +84,14 @@ export interface Preferences {
   /** A small square data URI shown to the room, or an empty string. */
   avatar: string;
   micHotkey: Hotkey | null;
+  /**
+   * Что показывать за карточным столом помимо самой игры.
+   *
+   * Своё у каждого, как громкость: одному нужна подсказка «что у меня собралось», другому она
+   * мешает думать; одному лента событий, другому чистый стол. Комната об этом не знает.
+   */
+  pokerHints: boolean;
+  pokerFeed: boolean;
 }
 const key = 'cord:preferences:v1';
 /**
@@ -117,6 +125,8 @@ export function readPreferences(): Preferences {
   return {
     showPing: data.showPing === true,
     notificationSounds: data.notificationSounds !== false,
+    pokerHints: data.pokerHints !== false,
+    pokerFeed: data.pokerFeed !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: profile(data.screen, defaultScreen),
