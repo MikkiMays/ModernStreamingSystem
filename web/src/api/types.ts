@@ -92,7 +92,10 @@ export type DurakYou = Omit<components['schemas']['DurakYou'], 'actions'> & {
   actions: DurakAction[];
 };
 export type DurakPair = components['schemas']['CardPair'];
-export type DurakBeat = components['schemas']['BeatView'];
+export type DurakScore = components['schemas']['DurakScore'];
+/** Итог одной партии вместе со счётом вечера на её момент. */
+export type DurakGame = components['schemas']['DurakSummary'];
+export type DurakGamePlayer = components['schemas']['DurakPlayer'];
 export type DurakNote = components['schemas']['DurakNote'];
 export type DurakResult = components['schemas']['DurakResult'];
 

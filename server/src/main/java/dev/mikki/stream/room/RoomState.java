@@ -79,8 +79,24 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<dev.mikki.stream.game.GameSummary> pokerGames;
 
+  /**
+   * Чем кончились партии дурака этой беседы.
+   *
+   * <p>Партия дурака короткая, и за вечер их набирается больше, чем покерных игр, — но правило то
+   * же: снимок комнаты не архив, старые записи уходят первыми. Каждая запись несёт и счёт вечера на
+   * свой момент, поэтому «сколько у кого» читается из последней, а не складывается заново.
+   *
+   * <p>{@code NON_NULL} и {@code null} по умолчанию — не украшение: комната, в которой не доиграли
+   * ни одной партии, обязана записываться ровно так же, как записывалась до появления истории.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public List<dev.mikki.stream.game.DurakSummary> durakGames;
+
   /** Сколько игр помнит комната. */
   public static final int POKER_HISTORY = 20;
+
+  /** Сколько партий дурака помнит комната. Они короче, поэтому их влезает больше. */
+  public static final int DURAK_HISTORY = 30;
 
   /**
    * Когда в комнате последний раз был человек.

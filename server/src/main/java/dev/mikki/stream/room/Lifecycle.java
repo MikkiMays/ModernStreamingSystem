@@ -222,6 +222,16 @@ public class Lifecycle {
                   if (!owner.id.equals(room.durak.hostId)) room.durak.host(owner.id);
                 });
       if (room.durak.tick(now)) changed = true;
+      /*
+       Доигранная партия уходит в историю сразу — пока стол ещё на сцене.
+
+       Это единственный момент, когда записать её можно, ничего не спрашивая: дурак уже назван, а
+       стол ещё цел. Следующая раздача снимет отметку, и запись будет своя.
+      */
+      if ("over".equals(room.durak.phase) && !room.durak.archived) {
+        RoomService.archiveDurak(room, now);
+        changed = true;
+      }
       long idleBefore = room.durak.idleSince;
       boolean expired = room.durak.linger(now, startedAt(now));
       if (room.durak.idleSince != idleBefore) changed = true;

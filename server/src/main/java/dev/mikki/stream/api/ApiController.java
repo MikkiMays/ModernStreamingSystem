@@ -118,6 +118,13 @@ public class ApiController {
     return rooms.games(id.toString(), credential);
   }
 
+  /** То же самое для дурака: итоги партий этой беседы вместе со счётом вечера. */
+  @GetMapping("/rooms/{id}/durak-games")
+  public List<dev.mikki.stream.game.DurakSummary> durakGames(
+      @PathVariable UUID id, @RequestHeader("Authorization") String credential) {
+    return rooms.durakGames(id.toString(), credential);
+  }
+
   @PostMapping("/rooms/join-by-code")
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {

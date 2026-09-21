@@ -37,37 +37,25 @@ export interface SeatSpot {
 /**
  * Где какое место.
  *
- * ДУГА, А НЕ ОВАЛ, И ЭТО ГЛАВНОЕ ОТЛИЧИЕ ОТ ПОКЕРА. За покерным столом своё место такой же стул
- * на овале, как остальные. В дураке своё место — это рука: шесть карт веером, которые занимают
- * всю нижнюю полосу. Посадить туда ещё и кружок с собственным лицом значит наложить его на свои
- * же карты — ровно это и случилось в первой версии: лицо уезжало за край сукна, а имя обрезалось.
+ * РОВНЫЙ ОВАЛ, ШЕСТЬ ШАГОВ ПО ШЕСТЬДЕСЯТ ГРАДУСОВ. Здесь была дуга над столом — она освобождала
+ * низ под руку, но делала стол несимметричным: четверо сидели тесно наверху, а половина сукна
+ * пустовала. Теперь места стоят так, как стоят стулья: через равные промежутки по всему кругу.
  *
- * Поэтому остальные садятся дугой над столом — слева, через верх, направо, — а низ отдан руке.
- * Место {@code slot 0} (своё) уводится за нижний край: его рисует не сукно, а полоса под столом.
- *
- * Зритель, который не сидит, видит всех шестерых на той же дуге: прятать от него нижнее место
- * было бы враньём — оно занято, просто не им.
+ * СВОЁ МЕСТО — ВСЕГДА ВНИЗУ. За настоящим столом человек сидит на своём стуле, а не смотрит на
+ * себя со стороны. Оно поджато к центру: под ним лежит веер, и кружок с лицом не должен
+ * оказаться под собственными картами.
  */
 export function seatLayout(mySeat: number | null, seats = SEATS): SeatSpot[] {
-  const seated = mySeat !== null;
   const anchor = mySeat ?? 0;
-  const places = seated ? seats - 1 : seats;
   return Array.from({ length: seats }, (_, index) => {
     const slot = (index - anchor + seats) % seats;
-    if (seated && slot === 0) return { index, x: 50, y: 104, side: 'bottom' as const, slot };
-    const step = seated ? slot - 1 : slot;
-    const share = places === 1 ? 0.5 : step / (places - 1);
-    const angle = Math.PI * (1 - share);
-    const x = 50 + 30 * Math.cos(angle);
-    /*
-      Число — это ВЕРХ места, а не его середина.
-
-      Место выше карты: кружок, имя, роль и рубашки. Считая от середины, верхний игрок дуги
-      уезжал шапкой за край сукна, а крайние ложились на колоду. От верха это считается один
-      раз и одинаково для всех шестерых.
-    */
-    const y = 22 - 18 * Math.sin(angle);
-    const side: SeatSide = share < 0.28 ? 'left' : share > 0.72 ? 'right' : 'top';
+    const angle = Math.PI / 2 + (slot * 2 * Math.PI) / seats;
+    const reach = slot === 0 ? 0.55 : 1;
+    const x = 50 + 43 * Math.cos(angle);
+    const y = 50 + 42 * Math.sin(angle) * reach;
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const side: SeatSide = sin > 0.5 ? 'bottom' : sin < -0.5 ? 'top' : cos > 0 ? 'right' : 'left';
     return { index, x, y, side, slot };
   });
 }
@@ -196,6 +184,39 @@ export function tableSays(table: DurakTable, mySeat: number | null): string {
 /** Сколько ещё карт влезает в бой. Ноль — больше ничего не подкинуть. */
 export function roomLeft(table: DurakTable): number {
   return Math.max(0, table.limit - table.table.length);
+}
+
+/**
+ * Куда карту уронили.
+ *
+ * ЖЕСТ РЕШАЕТ, ЧТО ЗА ХОД, И БОЛЬШЕ НИЧЕГО. Уронил на карту противника — значит бьёшь именно её;
+ * уронил на сукно — значит кладёшь новую. Это единственное, что браузер знает о ходе: законен ли
+ * он, решает сервер, и узнаём мы об этом, отпустив карту.
+ */
+export type Drop = { kind: 'beat'; under: string } | { kind: 'table' } | null;
+
+/** Разобрать точку броска: ближайшая зона сброса вверх по дереву. */
+export function dropFrom(element: Element | null | undefined): Drop {
+  const zone = element?.closest?.('[data-drop]') as HTMLElement | null | undefined;
+  if (!zone) return null;
+  if (zone.dataset.drop === 'pair') {
+    const under = zone.dataset.under;
+    return under ? { kind: 'beat', under } : null;
+  }
+  return zone.dataset.drop === 'table' ? { kind: 'table' } : null;
+}
+
+/**
+ * Во что превращается бросок: слово команды и карта, которую бьют.
+ *
+ * Защитник, бросающий на сукно, — это перевод; все остальные — заход или подкидывание, и стол
+ * различает их сам. Незаконный ход здесь не отсеивается: он уходит на сервер и возвращается
+ * отказом, а карта — в руку.
+ */
+export function commandFor(drop: Drop, defending: boolean): { option: string; under?: string } | null {
+  if (!drop) return null;
+  if (drop.kind === 'beat') return { option: 'beat', under: drop.under };
+  return { option: defending ? 'transfer' : 'attack' };
 }
 
 export type Verdict =

@@ -180,24 +180,6 @@
         ],
         "type": "object"
       },
-      "BeatView": {
-        "properties": {
-          "cards": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "under": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "cards",
-          "under"
-        ],
-        "type": "object"
-      },
       "Capabilities": {
         "properties": {
           "admissionOpen": {
@@ -468,6 +450,71 @@
         ],
         "type": "object"
       },
+      "DurakPlayer": {
+        "properties": {
+          "bestStreak": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "defences": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "firsts": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "fool": {
+            "type": "boolean"
+          },
+          "fools": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "games": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "takes": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "thrown": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "transfers": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "trumpsBurned": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bestStreak",
+          "defences",
+          "firsts",
+          "fool",
+          "fools",
+          "games",
+          "name",
+          "place",
+          "takes",
+          "thrown",
+          "transfers",
+          "trumpsBurned"
+        ],
+        "type": "object"
+      },
       "DurakResult": {
         "properties": {
           "at": {
@@ -502,6 +549,32 @@
           "foolName",
           "foolSeat",
           "places"
+        ],
+        "type": "object"
+      },
+      "DurakScore": {
+        "properties": {
+          "fools": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "games": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "streak": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fools",
+          "games",
+          "name",
+          "streak"
         ],
         "type": "object"
       },
@@ -559,6 +632,79 @@
           "out",
           "passed",
           "place"
+        ],
+        "type": "object"
+      },
+      "DurakSummary": {
+        "properties": {
+          "bouts": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "deckSize": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "draw": {
+            "type": "boolean"
+          },
+          "finishedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "foolName": {
+            "type": "string"
+          },
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/Highlight"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "modeName": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/DurakPlayer"
+            },
+            "type": "array"
+          },
+          "startedAt": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bouts",
+          "deckSize",
+          "draw",
+          "finishedAt",
+          "foolName",
+          "highlights",
+          "id",
+          "mode",
+          "modeName",
+          "number",
+          "places",
+          "players",
+          "startedAt"
         ],
         "type": "object"
       },
@@ -623,6 +769,9 @@
             "format": "int32",
             "type": "integer"
           },
+          "firstFive": {
+            "type": "boolean"
+          },
           "handNumber": {
             "format": "int32",
             "type": "integer"
@@ -646,6 +795,9 @@
           "modeName": {
             "type": "string"
           },
+          "neighbours": {
+            "type": "boolean"
+          },
           "phase": {
             "type": "string"
           },
@@ -662,6 +814,12 @@
           "revision": {
             "format": "int64",
             "type": "integer"
+          },
+          "score": {
+            "items": {
+              "$ref": "#/components/schemas/DurakScore"
+            },
+            "type": "array"
           },
           "seatingOpen": {
             "type": "boolean"
@@ -731,15 +889,18 @@
           "deckSize",
           "defender",
           "discarded",
+          "firstFive",
           "handNumber",
           "hostId",
           "limit",
           "log",
           "mode",
           "modeName",
+          "neighbours",
           "phase",
           "result",
           "revision",
+          "score",
           "seatingOpen",
           "seats",
           "seed",
@@ -761,18 +922,6 @@
             },
             "type": "array"
           },
-          "attacks": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "beats": {
-            "items": {
-              "$ref": "#/components/schemas/BeatView"
-            },
-            "type": "array"
-          },
           "cards": {
             "items": {
               "type": "string"
@@ -783,23 +932,14 @@
             "format": "int32",
             "type": "integer"
           },
-          "transfers": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "turn": {
             "type": "boolean"
           }
         },
         "required": [
           "actions",
-          "attacks",
-          "beats",
           "cards",
           "seat",
-          "transfers",
           "turn"
         ],
         "type": "object"
@@ -1734,6 +1874,10 @@
               }
             ]
           },
+          "durakGamesAt": {
+            "format": "int64",
+            "type": "integer"
+          },
           "id": {
             "type": "string"
           },
@@ -1794,6 +1938,7 @@
           "code",
           "createdAt",
           "durak",
+          "durakGamesAt",
           "id",
           "integrationsAllowed",
           "messages",
@@ -2603,6 +2748,48 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/durak-games": {
+      "get": {
+        "operationId": "durakGames",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DurakSummary"
+                  },
+                  "type": "array"
                 }
               }
             },

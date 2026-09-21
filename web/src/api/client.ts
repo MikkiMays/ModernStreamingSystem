@@ -1,4 +1,13 @@
-import type { Ack, Admission, Attachment, Capabilities, Command, PokerGame, Snapshot } from './types';
+import type {
+  Ack,
+  Admission,
+  Attachment,
+  Capabilities,
+  Command,
+  DurakGame,
+  PokerGame,
+  Snapshot,
+} from './types';
 
 export class ApiError extends Error {
   constructor(
@@ -142,6 +151,9 @@ export class RoomApi {
    * таблиц, и пересылать их на каждое чужое повышение незачем.
    */
   games = () => request<PokerGame[]>(`${this.base}/games`, {}, this.credential);
+
+  /** То же для дурака: итоги партий вместе со счётом вечера на их момент. */
+  durakGames = () => request<DurakGame[]>(`${this.base}/durak-games`, {}, this.credential);
   files = () => request<Attachment[]>(`${this.base}/attachments`, {}, this.credential);
   reserve = (name: string, size: number, commandId: string) =>
     request<Attachment>(`${this.base}/attachments`, post({ name, size, commandId }), this.credential);

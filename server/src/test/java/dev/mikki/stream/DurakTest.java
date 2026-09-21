@@ -65,7 +65,8 @@ class DurakTest {
     table.attacker = 0;
     table.defender = 1;
     table.limit = Math.min(Durak.MAX_ATTACKS, table.seats.get(1).hand.size());
-    table.boutNumber = 1;
+    // Второй бой, а не первый: первый кон не переводят, и проверять перевод на нём нельзя.
+    table.boutNumber = 2;
   }
 
   /**
@@ -269,6 +270,7 @@ class DurakTest {
     var table = table(2);
     table.firstFive = true;
     deal(table, "9h", "", "6s 6h 6c 6d 7s 7h", "As Ks Qs Js Ts 9s");
+    table.boutNumber = 1;
     // deal() выставляет limit сам; пересчитываем так же, как это делает стол.
     table.limit = Math.min(Durak.FIRST_ATTACKS, table.seats.get(1).hand.size());
     assertThat(table.limit).isEqualTo(5);
@@ -342,6 +344,47 @@ class DurakTest {
     assertThatThrownBy(() -> act(table, 1, "transfer", "6h", null))
         .isInstanceOf(Problem.class)
         .hasMessageContaining("не хватит карт");
+  }
+
+  /**
+   * Первый кон не переводят.
+   *
+   * <p>Заход в партии один, и достаётся он младшему козырю не по выбору. Отдать этот бой соседу
+   * значит отдать ему чужую шестёрку — за столом так не делают.
+   */
+  @Test
+  void theFirstBoutOfAGameIsNeverTransferred() {
+    var table = table(3, "perevodnoy", 36);
+    deal(
+        table,
+        "9h",
+        "6d 7d 8d Td Jd Qd",
+        "6s 7s 8s 9s Ts Js",
+        "6h Ks As Ac Kc Qc",
+        "Qs 7h 8h Jc Tc 9c");
+    table.boutNumber = 1;
+    act(table, 0, "attack", "6s", null);
+    assertThatThrownBy(() -> act(table, 1, "transfer", "6h", null))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("Первый кон");
+  }
+
+  /**
+   * Перевод упирается в тот же предел, что и подкидывание.
+   *
+   * <p>Расхождение, найденное сверкой с чужими движками: без этой проверки шестикарточный бой можно
+   * было продлить переводом до семи карт.
+   */
+  @Test
+  void transferObeysTheBoutLimit() {
+    var table = table(3, "perevodnoy", 36);
+    deal(table, "9h", "", "6s 6c 6d 7s 8s 9s", "6h Ks As Ac Kc Qc", "Qs 7h 8h Jc Tc 9c");
+    table.limit = 2;
+    act(table, 0, "attack", "6s", null);
+    act(table, 0, "attack", "6c", null);
+    assertThatThrownBy(() -> act(table, 1, "transfer", "6h", null))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("больше не положить");
   }
 
   @Test
@@ -461,19 +504,26 @@ class DurakTest {
     assertThat(text).doesNotContain(String.valueOf(table.seed));
   }
 
+  /**
+   * Снимок не подсказывает, чем ходить.
+   *
+   * <p>Раньше он присылал три списка законных карт, и браузер подсвечивал ими руку. За настоящим
+   * столом никто не подсвечивает: человек кладёт карту и узнаёт, легла ли она. Поэтому из снимка
+   * уходит всё, кроме двух слов для кнопок, — а законность по-прежнему решает сервер.
+   */
   @Test
-  void theSnapshotSpellsOutWhichCardsAreLegal() {
+  void theSnapshotNeverHintsWhichCardIsLegal() {
     var table = table(2);
     deal(table, "9h", "6d 7d 8d Td Jd Qd", "6s 7s 8s 9s Ts Js", "As Ks 6h Ac Kc Qc");
     act(table, 0, "attack", "6s", null);
     var defender = table.view("p1", T0).you();
-    assertThat(defender.actions()).contains("beat", "take");
-    // Шестёрку пик бьёт туз, король — и любой козырь. Ничего из этого браузер не считает сам.
-    assertThat(defender.beats()).hasSize(1);
-    assertThat(defender.beats().get(0).under()).isEqualTo("6s");
-    assertThat(defender.beats().get(0).cards()).contains("As", "Ks", "6h");
+    // Защитнику предлагают ровно одно слово: взять. Отбиться — это движение карты, не кнопка.
+    assertThat(defender.actions()).containsExactly("take");
+    assertThat(defender.cards()).hasSize(6);
+    // Ни одной карты в подсказке — их нет в снимке как понятия.
+    assertThat(table.view("p1", T0).toString()).doesNotContain("beats=");
     var attacker = table.view("p0", T0).you();
-    assertThat(attacker.actions()).doesNotContain("beat", "take");
+    assertThat(attacker.actions()).doesNotContain("take");
   }
 
   @Test
@@ -530,6 +580,79 @@ class DurakTest {
     assertThatThrownBy(() -> table.configure("deck", 36L, T0))
         .isInstanceOf(Problem.class)
         .hasMessageContaining("между партиями");
+  }
+
+  // --- Счёт и история ------------------------------------------------------------------------
+
+  /**
+   * Счёт беседы копится на человеке и виден на сцене.
+   *
+   * <p>Это не история: история — про вечер, который уже кончился, а счёт спрашивают, не вставая
+   * из-за стола.
+   */
+  @Test
+  void theScoreCountsFoolsPerPerson() {
+    var table = table(2);
+    endgame(table, "9h", "6s", "As Ks");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "As", "6s");
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    var score = table.view("p0", T0).score();
+    assertThat(score).hasSize(2);
+    // Первым идёт тот, кто чаще был дураком.
+    assertThat(score.get(0).name()).isEqualTo("Игрок 1");
+    assertThat(score.get(0).fools()).isEqualTo(1);
+    assertThat(score.get(0).games()).isEqualTo(1);
+    assertThat(score.get(1).fools()).isZero();
+    // Кто не проиграл — тому пошла серия.
+    assertThat(score.get(1).streak()).isEqualTo(1);
+  }
+
+  /** Счёт едет за человеком, а не за идентификатором: переподключившийся получает новый. */
+  @Test
+  void theScoreFollowsThePersonThroughAReconnect() {
+    var table = table(2);
+    endgame(table, "9h", "6s", "As Ks");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "As", "6s");
+    table.tick(table.deadline);
+    table.rebind("p1", "p1-new", "Игрок 1");
+    var score = table.view("p0", T0).score();
+    assertThat(score.get(0).name()).isEqualTo("Игрок 1");
+    assertThat(score.get(0).fools()).isEqualTo(1);
+  }
+
+  /** Итог партии собирается из того, что стол копил по ходу, и знает, кто дурак. */
+  @Test
+  void theSummaryRemembersWhoWasTheFool() {
+    var table = table(2);
+    endgame(table, "9h", "6s", "As Ks");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "As", "6s");
+    table.tick(table.deadline);
+    var summary = dev.mikki.stream.game.DurakStandings.of(table, T0 + 5000);
+    assertThat(summary.draw()).isFalse();
+    assertThat(summary.foolName()).isEqualTo("Игрок 1");
+    assertThat(summary.number()).isEqualTo(1);
+    assertThat(summary.deckSize()).isEqualTo(36);
+    assertThat(summary.players()).hasSize(2);
+    // Дурак идёт в таблице последним — она читается как финиш, а не как список.
+    assertThat(summary.players().get(summary.players().size() - 1).fool()).isTrue();
+    assertThat(summary.players().get(0).place()).isEqualTo(1);
+  }
+
+  /** Отбился целиком — это считается. Взял — тоже. */
+  @Test
+  void takingAndDefendingAreCounted() {
+    var table = table(2);
+    deal(table, "9h", "6d 7d 8d Td Jd Qd 6c 7c", "6s 6h 8s 9s Ts Js", "As Ks Qs Ac Kc Qc");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "take", null, null);
+    act(table, 0, "pass", null, null);
+    table.tick(table.deadline);
+    assertThat(table.tally.get("p1").takes).isEqualTo(1);
+    assertThat(table.tally.get("p1").defences).isZero();
   }
 
   @Test

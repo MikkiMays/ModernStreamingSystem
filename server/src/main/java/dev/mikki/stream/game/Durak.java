@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import dev.mikki.stream.shared.Problem;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -160,6 +162,20 @@ public class Durak {
 
   public List<Note> log = new ArrayList<>();
 
+  /** Кто и как играл за этим столом, ключ — идентификатор человека. */
+  public Map<String, Player> tally = new LinkedHashMap<>();
+
+  /**
+   * Записана ли сыгранная партия в историю беседы.
+   *
+   * <p>Отметка стоит на самом столе, поэтому второй проход уборки ничего не дублирует. Сбрасывается
+   * раздачей: следующая партия — это следующая запись.
+   */
+  public boolean archived;
+
+  /** Когда партия началась: в записи истории это её начало. */
+  public long handStartedAt;
+
   public Result result;
 
   /** С какого момента за столом никого. Ноль — есть кто-то. */
@@ -205,6 +221,48 @@ public class Durak {
     public int seat = -1;
     public String name = "";
     public String text = "";
+  }
+
+  /**
+   * Память об игроке за всё время, пока стоит стол.
+   *
+   * <p>КЛЮЧ ЗДЕСЬ — ЧЕЛОВЕК, А НЕ МЕСТО. Он мог встать, сесть на другой стул и вернуться после
+   * переподключения с новым идентификатором — все три раза это один и тот же игрок, и счёт «сколько
+   * раз был дураком» обязан ехать за ним (см. {@link #rebind}).
+   *
+   * <p>Копится это по ходу партий, а не собирается в конце: в конце партии нет ни карт, ни половины
+   * сидевших.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class Player {
+    public String name = "";
+    public int games;
+
+    /** Сколько раз оказался дураком. Это и есть счёт беседы. */
+    public int fools;
+
+    /** Сколько раз вышел из партии первым. */
+    public int firsts;
+
+    /** Сколько раз брал карты. */
+    public int takes;
+
+    /** Сколько боёв отбил целиком, ни разу не взяв. */
+    public int defences;
+
+    /** Сколько карт подкинул за все партии. */
+    public int thrown;
+
+    /** Сколько козырей потратил на защиту: этим и меряется «отбивался дорого». */
+    public int trumpsBurned;
+
+    /** Сколько раз перевёл бой на соседа. */
+    public int transfers;
+
+    /** Сколько партий подряд не был дураком — сейчас и лучшая за игру. */
+    public int streak;
+
+    public int bestStreak;
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -269,6 +327,7 @@ public class Durak {
     seat.fool = false;
     // Партию не пересдают ради опоздавшего: он смотрит бой и играет со следующей раздачи.
     seat.waiting = playing();
+    player(memberId, name);
     idleSince = 0;
     note(now, "sit", index, name, name + " садится за стол");
     revision++;
@@ -334,6 +393,18 @@ public class Durak {
     reschedule(now);
   }
 
+  /** Память об этом человеке: заводится, когда он садится, и живёт, пока стоит стол. */
+  private Player player(String memberId, String name) {
+    var player = tally.computeIfAbsent(memberId, key -> new Player());
+    if (name != null && !name.isBlank()) player.name = name;
+    return player;
+  }
+
+  /** То же, но только если человек и правда играл за этим столом. */
+  private Player known(String memberId) {
+    return memberId == null ? null : tally.get(memberId);
+  }
+
   public Seat seatOf(String memberId) {
     if (memberId == null) return null;
     for (var seat : seats) if (memberId.equals(seat.memberId)) return seat;
@@ -349,6 +420,15 @@ public class Durak {
   public boolean rebind(String previousId, String memberId, String name) {
     var seat = seatOf(previousId);
     if (seat == null) return false;
+    /*
+     Счёт идёт за человеком, а не за идентификатором: переподключившийся получает новый, и без
+     этого переноса вторая половина вечера записалась бы на постороннего.
+    */
+    var player = tally.remove(previousId);
+    if (player != null) {
+      if (name != null && !name.isBlank()) player.name = name;
+      tally.put(memberId, player);
+    }
     seat.memberId = memberId;
     seat.name = name;
     seat.away = false;
@@ -464,6 +544,12 @@ public class Durak {
     for (var index : players) sortHand(seats.get(index));
     discarded = 0;
     handNumber++;
+    archived = false;
+    handStartedAt = now;
+    for (var index : players) {
+      var seat = seats.get(index);
+      player(seat.memberId, seat.name).games++;
+    }
     boutNumber = 0;
     result = null;
     phase = "bout";
@@ -578,6 +664,7 @@ public class Durak {
     beats.add(-1);
     // Подкинутая карта снова открывает бой для всех: спасовавший мог придержать вторую такую же.
     passed.clear();
+    if (attacks.size() > 1) player(seat.memberId, seat.name).thrown++;
     /*
       В ленте — кто и что сделал, а не какой картой.
 
@@ -607,6 +694,7 @@ public class Durak {
       throw Problem.conflict("DURAK_WEAK", Cards.text(card) + " не бьёт " + Cards.text(under));
     seat.hand.remove((Integer) card);
     beats.set(slot, card);
+    if (Cards.suit(card) == trumpSuit) player(seat.memberId, seat.name).trumpsBurned++;
     note(now, "beat", index, seat.name, seat.name + " отбивается");
     reschedule(now);
   }
@@ -625,6 +713,7 @@ public class Durak {
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
     if (attacks.isEmpty()) throw Problem.conflict("DURAK_EMPTY", "Брать пока нечего");
     taking = true;
+    player(seats.get(index).memberId, seats.get(index).name).takes++;
     // Взял — значит, можно докинуть «вдогонку»: спасовавшие снова в игре.
     passed.clear();
     note(now, "take", index, seats.get(index).name, seats.get(index).name + " берёт");
@@ -645,8 +734,24 @@ public class Durak {
     if (index != defender) throw Problem.conflict("DURAK_TURN", "Переводит тот, кто отбивается");
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
     if (attacks.isEmpty()) throw Problem.conflict("DURAK_EMPTY", "Переводить пока нечего");
+    /*
+     Первый кон не переводят.
+
+     Заход в партии один, и он достаётся младшему козырю не просто так: это единственный ход,
+     который не выбирают. Перевести его дальше по кругу значит отдать соседу бой, к которому его
+     привела чужая шестёрка, — за столом это и не принято.
+    */
+    if (boutNumber <= 1) throw Problem.conflict("DURAK_FIRST_BOUT", "Первый кон не переводят");
     if (beats.stream().anyMatch(beat -> beat >= 0))
       throw Problem.conflict("DURAK_BEATEN", "Переводят до того, как начали отбиваться");
+    /*
+     Перевод — это ещё одна карта в бой, и предел боя он не обходит.
+
+     Расхождение, найденное сверкой с чужими движками: у проверенного перевода стоит тот же
+     потолок, что у подкидывания. Без него шестикарточный бой можно было продлить переводом.
+    */
+    if (attacks.size() >= limit)
+      throw Problem.conflict("DURAK_LIMIT", "В этот бой больше не положить");
     var seat = seats.get(index);
     if (!seat.hand.contains(card)) throw Problem.forbidden();
     if (Cards.rank(card) != Cards.rank(attacks.get(0)))
@@ -659,6 +764,7 @@ public class Durak {
     attacks.add(card);
     beats.add(-1);
     passed.clear();
+    player(seat.memberId, seat.name).transfers++;
     attacker = index;
     defender = next;
     int cap = firstFive && boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
@@ -750,6 +856,8 @@ public class Durak {
       sortHand(loser);
     } else {
       discarded += played();
+      // Отбился целиком и ничего не взял — это то, чем в дураке и хвастаются.
+      player(loser.memberId, loser.name).defences++;
     }
     int nextAttacker = taken ? nextPlaying(defender) : defender;
     clearBout();
@@ -830,6 +938,25 @@ public class Durak {
             .sorted(Comparator.comparingInt(seat -> seat.place))
             .map(seat -> seat.name)
             .toList();
+    /*
+     Счёт беседы обновляется здесь, а не при записи в историю.
+
+     Историю пишет комната — она же может и не успеть (стол убрали в ту же секунду). А счёт
+     «сколько раз кто был дураком» виден на сцене сразу, как только партия кончилась, и
+     зависеть от уборки он не должен.
+    */
+    for (var seat : seats) {
+      if (!seat.taken()) continue;
+      var player = player(seat.memberId, seat.name);
+      if (seat.fool) {
+        player.fools++;
+        player.streak = 0;
+      } else {
+        player.streak++;
+        player.bestStreak = Math.max(player.bestStreak, player.streak);
+      }
+      if (seat.place == 1) player.firsts++;
+    }
     phase = "over";
     revealedSeed = seed;
     clearBout();
@@ -1024,6 +1151,8 @@ public class Durak {
         hostId,
         deckSize,
         transferAllowed(),
+        neighbours,
+        firstFive,
         turnSeconds,
         seatingOpen,
         revision,
@@ -1046,6 +1175,7 @@ public class Durak {
         places,
         notes,
         you(mine, waiting),
+        score(),
         result(),
         commitment,
         revealedSeed,
@@ -1075,38 +1205,36 @@ public class Durak {
     var seat = seats.get(index);
     var cards = seat.hand.stream().map(Cards::text).toList();
     var actions = new ArrayList<String>();
-    var throwable = new ArrayList<String>();
-    var beatable = new ArrayList<DurakView.BeatView>();
-    var transfers = new ArrayList<String>();
     boolean live = playing() && boutEnd == null && seat.playing();
-    if (live && canThrow(index) && !passed.contains(index)) {
-      var ranks = ranksOnTable();
-      for (var card : seat.hand)
-        if (attacks.isEmpty() || ranks.contains(Cards.rank(card))) throwable.add(Cards.text(card));
-      if (!throwable.isEmpty()) actions.add("attack");
-    }
-    if (live && index != defender && !attacks.isEmpty() && (taking || !beats.contains(-1))) {
+    /*
+     Две кнопки, и обе — про то, чего нельзя сделать картой.
+
+     «Беру» и «Бито» — это отказ ходить, и отказ нажимают. Всё остальное — зайти, подкинуть,
+     отбиться, перевести — это движение карты на стол, и кнопки у него нет. Законность самого
+     движения сюда не приезжает вовсе: её узнают, положив карту.
+    */
+    if (live && index != defender && !attacks.isEmpty() && (taking || !beats.contains(-1)))
       if (!passed.contains(index) && mayThrow(index)) actions.add("pass");
-    }
-    if (live && index == defender && !taking) {
-      for (int slot = 0; slot < attacks.size(); slot++) {
-        if (beats.get(slot) >= 0) continue;
-        int under = attacks.get(slot);
-        var options =
-            seat.hand.stream().filter(card -> beatsCard(card, under)).map(Cards::text).toList();
-        if (!options.isEmpty()) beatable.add(new DurakView.BeatView(Cards.text(under), options));
-      }
-      if (!beatable.isEmpty()) actions.add("beat");
-      if (!attacks.isEmpty()) actions.add("take");
-      if (transferAllowed() && beats.stream().noneMatch(card -> card >= 0) && !attacks.isEmpty()) {
-        int next = nextPlaying(index);
-        if (next != index && seats.get(next).hand.size() >= attacks.size() + 1)
-          for (var card : seat.hand)
-            if (Cards.rank(card) == Cards.rank(attacks.get(0))) transfers.add(Cards.text(card));
-        if (!transfers.isEmpty()) actions.add("transfer");
-      }
-    }
-    return new DurakView.DurakYou(
-        index, cards, actions, throwable, beatable, transfers, waiting.contains(index));
+    if (live && index == defender && !taking && !attacks.isEmpty()) actions.add("take");
+    return new DurakView.DurakYou(index, cards, actions, waiting.contains(index));
+  }
+
+  /**
+   * Счёт беседы.
+   *
+   * <p>Сначала те, кто чаще был дураком: за столом спрашивают именно «у кого больше», а не «кто
+   * молодец». Люди без единой сыгранной партии в счёт не идут — они ещё не играли.
+   */
+  private List<DurakView.DurakScore> score() {
+    return tally.values().stream()
+        .filter(player -> player.games > 0)
+        .sorted(
+            Comparator.comparingInt((Player player) -> -player.fools)
+                .thenComparing(player -> player.name))
+        .map(
+            player ->
+                new DurakView.DurakScore(
+                    player.name, player.games, player.fools, player.bestStreak))
+        .toList();
   }
 }

@@ -238,7 +238,9 @@ public final class Contracts {
        * метка — единственное, чего не хватало браузеру, чтобы перечитать историю в тот момент,
        * когда она и правда изменилась.
        */
-      long pokerGamesAt) {}
+      long pokerGamesAt,
+      /** То же самое для дурака: одно число, по которому браузер понимает, что история выросла. */
+      long durakGamesAt) {}
 
   public record Admission(
       String roomId,

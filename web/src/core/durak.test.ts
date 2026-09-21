@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DurakSeat, DurakTable } from '../api/types';
 import {
+  commandFor,
+  dropFrom,
   faceOf,
   fanAngle,
   modeName,
@@ -50,6 +52,8 @@ function table(patch: Partial<DurakTable> = {}): DurakTable {
     hostId: 'm0',
     deckSize: 36,
     transfer: false,
+    neighbours: false,
+    firstFive: false,
     turnSeconds: 40,
     seatingOpen: true,
     revision: 1,
@@ -76,6 +80,7 @@ function table(patch: Partial<DurakTable> = {}): DurakTable {
     ],
     log: [],
     you: null,
+    score: [],
     result: null,
     commitment: CORE_COMMITMENT,
     seed: null,
@@ -130,6 +135,66 @@ describe('места', () => {
   it('раскладывает шестерых по кругу без повторов', () => {
     const slots = seatLayout(0).map((spot) => spot.slot);
     expect(new Set(slots).size).toBe(6);
+  });
+
+  /**
+   * Места стоят ровно: шесть шагов по шестьдесят градусов.
+   *
+   * Сравниваются углы, а не расстояния: точки лежат на овале, и по нему равные углы дают разные
+   * хорды. Раньше здесь была дуга над столом — четверо сидели тесно наверху, пока половина сукна
+   * пустовала.
+   */
+  it('расставляет места равными шагами по овалу', () => {
+    const spots = seatLayout(2);
+    const angle = (spot: (typeof spots)[number]) => Math.atan2((spot.y - 50) / 42, (spot.x - 50) / 43);
+    // Место зрителя поджато к центру под веер, поэтому угол берётся у остальных пяти.
+    const around = spots.filter((spot) => spot.slot > 0).sort((a, b) => a.slot - b.slot);
+    for (let index = 1; index < around.length; index++) {
+      const step = angle(around[index]!) - angle(around[index - 1]!);
+      const wrapped = ((step % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      expect(wrapped).toBeCloseTo(Math.PI / 3, 5);
+    }
+  });
+
+  /** Своё место — внизу по центру и поджато к сукну: под ним лежит веер. */
+  it('поджимает своё место под веер', () => {
+    const mine = seatLayout(4).find((spot) => spot.slot === 0)!;
+    expect(mine.index).toBe(4);
+    expect(mine.x).toBeCloseTo(50);
+    expect(mine.y).toBeLessThan(50 + 42);
+    expect(mine.y).toBeGreaterThan(50);
+  });
+});
+
+describe('бросок карты', () => {
+  /** Крошечная подделка элемента: `closest` — единственное, чем пользуется разбор зоны. */
+  function zone(drop?: string, under?: string): Element {
+    const element = { dataset: { drop, under } } as unknown as HTMLElement;
+    return {
+      closest: (selector: string) => (drop && selector === '[data-drop]' ? element : null),
+    } as unknown as Element;
+  }
+
+  it('на чужой карте означает «бью именно её»', () => {
+    expect(dropFrom(zone('pair', '6s'))).toEqual({ kind: 'beat', under: '6s' });
+    expect(commandFor({ kind: 'beat', under: '6s' }, false)).toEqual({ option: 'beat', under: '6s' });
+  });
+
+  it('на сукне означает ход, а у защитника — перевод', () => {
+    expect(dropFrom(zone('table'))).toEqual({ kind: 'table' });
+    expect(commandFor({ kind: 'table' }, false)).toEqual({ option: 'attack' });
+    expect(commandFor({ kind: 'table' }, true)).toEqual({ option: 'transfer' });
+  });
+
+  it('мимо стола не означает ничего', () => {
+    expect(dropFrom(zone())).toBeNull();
+    expect(dropFrom(null)).toBeNull();
+    expect(commandFor(null, false)).toBeNull();
+  });
+
+  /** Пара без карты — это не зона: бить нечего, и команду собирать не из чего. */
+  it('пара без карты зоной не считается', () => {
+    expect(dropFrom(zone('pair'))).toBeNull();
   });
 });
 

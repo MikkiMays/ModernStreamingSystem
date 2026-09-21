@@ -94,6 +94,7 @@ beforeEach(() => {
     poker: null,
     durak: null,
     pokerGamesAt: 0,
+    durakGamesAt: 0,
   };
   const admission = {
     roomId: 'room',

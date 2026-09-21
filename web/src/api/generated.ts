@@ -175,6 +175,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{id}/durak-games": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["durakGames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{id}/events": {
         parameters: {
             query?: never;
@@ -404,10 +420,6 @@ export interface components {
             seat: number;
             split: boolean;
         };
-        BeatView: {
-            cards: string[];
-            under: string;
-        };
         Capabilities: {
             admissionOpen: boolean;
             /** Format: int64 */
@@ -472,6 +484,30 @@ export interface components {
             seat: number;
             text: string;
         };
+        DurakPlayer: {
+            /** Format: int32 */
+            bestStreak: number;
+            /** Format: int32 */
+            defences: number;
+            /** Format: int32 */
+            firsts: number;
+            fool: boolean;
+            /** Format: int32 */
+            fools: number;
+            /** Format: int32 */
+            games: number;
+            name: string;
+            /** Format: int32 */
+            place: number;
+            /** Format: int32 */
+            takes: number;
+            /** Format: int32 */
+            thrown: number;
+            /** Format: int32 */
+            transfers: number;
+            /** Format: int32 */
+            trumpsBurned: number;
+        };
         DurakResult: {
             /** Format: int64 */
             at: number;
@@ -482,6 +518,15 @@ export interface components {
             /** Format: int32 */
             foolSeat: number;
             places: string[];
+        };
+        DurakScore: {
+            /** Format: int32 */
+            fools: number;
+            /** Format: int32 */
+            games: number;
+            name: string;
+            /** Format: int32 */
+            streak: number;
         };
         DurakSeat: {
             attacker: boolean;
@@ -498,6 +543,26 @@ export interface components {
             passed: boolean;
             /** Format: int32 */
             place: number;
+        };
+        DurakSummary: {
+            /** Format: int32 */
+            bouts: number;
+            /** Format: int32 */
+            deckSize: number;
+            draw: boolean;
+            /** Format: int64 */
+            finishedAt: number;
+            foolName: string;
+            highlights: components["schemas"]["Highlight"][];
+            id: string;
+            mode: string;
+            modeName: string;
+            /** Format: int32 */
+            number: number;
+            places: string[];
+            players: components["schemas"]["DurakPlayer"][];
+            /** Format: int64 */
+            startedAt: number;
         };
         DurakView: {
             acting: number[];
@@ -523,6 +588,7 @@ export interface components {
             defender: number;
             /** Format: int32 */
             discarded: number;
+            firstFive: boolean;
             /** Format: int32 */
             handNumber: number;
             hostId: string;
@@ -531,10 +597,12 @@ export interface components {
             log: components["schemas"]["DurakNote"][];
             mode: string;
             modeName: string;
+            neighbours: boolean;
             phase: string;
             result: components["schemas"]["DurakResult"] | null;
             /** Format: int64 */
             revision: number;
+            score: components["schemas"]["DurakScore"][];
             seatingOpen: boolean;
             seats: components["schemas"]["DurakSeat"][];
             seed: string | null;
@@ -549,12 +617,9 @@ export interface components {
         };
         DurakYou: {
             actions: string[];
-            attacks: string[];
-            beats: components["schemas"]["BeatView"][];
             cards: string[];
             /** Format: int32 */
             seat: number;
-            transfers: string[];
             turn: boolean;
         };
         Event: {
@@ -830,6 +895,8 @@ export interface components {
             /** Format: int64 */
             createdAt: number;
             durak: components["schemas"]["DurakView"] | null;
+            /** Format: int64 */
+            durakGamesAt: number;
             id: string;
             integrationsAllowed: boolean;
             messages: components["schemas"]["Message"][];
@@ -1257,6 +1324,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Ack"];
+                };
+            };
+        };
+    };
+    durakGames: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DurakSummary"][];
                 };
             };
         };

@@ -403,7 +403,8 @@ public class RoomService {
             current.watch(),
             current.poker(),
             current.durak(),
-            current.pokerGamesAt());
+            current.pokerGamesAt(),
+            current.durakGamesAt());
     return new Admission(
         room.id,
         member.id,
@@ -536,7 +537,8 @@ public class RoomService {
         watch(room),
         room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()),
         room.durak == null ? null : room.durak.view(viewer == null ? null : viewer.id, now()),
-        lastGameAt(room));
+        lastGameAt(room),
+        lastDurakAt(room));
   }
 
   /**
@@ -551,6 +553,12 @@ public class RoomService {
   private static long lastGameAt(RoomState room) {
     if (room.pokerGames == null || room.pokerGames.isEmpty()) return 0;
     return room.pokerGames.get(room.pokerGames.size() - 1).finishedAt();
+  }
+
+  /** То же самое для дурака: когда в этой беседе последний раз доиграли партию. */
+  private static long lastDurakAt(RoomState room) {
+    if (room.durakGames == null || room.durakGames.isEmpty()) return 0;
+    return room.durakGames.get(room.durakGames.size() - 1).finishedAt();
   }
 
   private static Contracts.Watch watch(RoomState room) {
@@ -601,6 +609,7 @@ public class RoomService {
         null,
         null,
         null,
+        0,
         0);
   }
 
@@ -876,6 +885,8 @@ public class RoomService {
             case "durak.close" -> {
               requireActive(room, member);
               fool(room, member);
+              // Доигранная партия остаётся в истории, даже если стол унесли сразу после неё.
+              archiveDurak(room, now());
               room.durak = null;
             }
             case "durak.sit" ->
@@ -1017,6 +1028,31 @@ public class RoomService {
   }
 
   /**
+   * Сложить сыгранную партию дурака в историю беседы.
+   *
+   * <p>КОНЕЦ ЗДЕСЬ ОДИН, И ЭТИМ ДУРАК ПРОЩЕ ПОКЕРА. У покера их четыре — победитель, убранный стол,
+   * пустой стол, конец встречи, — потому что фишки надо записать в любом случае. Партия дурака
+   * записывается, только если она доиграна до дурака: прерванная партия — это не «игра с
+   * неизвестным результатом», а отсутствие результата. Поэтому единственное условие — {@code phase
+   * == over}, а отметка на столе не даёт записать её дважды.
+   */
+  static void archiveDurak(RoomState room, long now) {
+    var table = room.durak;
+    if (table == null || table.archived || !"over".equals(table.phase)) return;
+    table.archived = true;
+    if (room.durakGames == null) room.durakGames = new java.util.ArrayList<>();
+    room.durakGames.add(dev.mikki.stream.game.DurakStandings.of(table, now));
+    while (room.durakGames.size() > RoomState.DURAK_HISTORY) room.durakGames.remove(0);
+  }
+
+  /** Партии дурака этой беседы — отдельной ручкой, по той же причине, что и покерные игры. */
+  public List<dev.mikki.stream.game.DurakSummary> durakGames(String roomId, String credential) {
+    var room = read(roomId);
+    authenticate(room, credential);
+    return room.durakGames == null ? List.of() : List.copyOf(room.durakGames);
+  }
+
+  /**
    * История игр беседы.
    *
    * <p>Отдельная ручка, а не поле снимка: итоги десяти игр — это килобайты таблиц, которые
@@ -1140,6 +1176,7 @@ public class RoomService {
     room.watch = null;
     archiveGame(room, "meeting", room.closedAt);
     room.poker = null;
+    archiveDurak(room, room.closedAt);
     room.durak = null;
     games.forget(room.id);
     freezeHistory(room, room.closedAt);

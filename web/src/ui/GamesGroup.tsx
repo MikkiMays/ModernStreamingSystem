@@ -265,6 +265,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
         })}
       </div>
       <GameHistory meeting={meeting} />
+      <DurakHistory meeting={meeting} />
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -514,6 +515,114 @@ function StackChoice({
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Партии дурака этой беседы.
+ *
+ * СЧЁТ ВЕЧЕРА СТОИТ НАД СПИСКОМ, А НЕ ВНУТРИ НЕГО. За столом спрашивают «сколько у кого», а не
+ * «чем кончилась третья партия» — поэтому первое видно сразу, а второе раскрывается. Счёт берётся
+ * из последней записи: каждая партия несёт его на свой момент, и складывать список заново не
+ * нужно.
+ *
+ * Перечитывается по метке снимка ({@code durakGamesAt}) — ровно та же ловушка, что у покера:
+ * ключ от самого стола уводил запрос в миг окончания партии, то есть до того, как ядро успевало
+ * её записать.
+ */
+function DurakHistory({ meeting }: { meeting: Meeting }) {
+  const snapshot = useStore(meeting.snapshot);
+  const [open, setOpen] = useState<string | null>(null);
+  const games = useQuery({
+    queryKey: ['durak-games', meeting.admission.roomId, snapshot.durakGamesAt],
+    queryFn: meeting.api.durakGames,
+    placeholderData: keepPreviousData,
+    staleTime: 10000,
+  });
+  const list = [...(games.data ?? [])].reverse();
+  if (!list.length) return null;
+  const score = [...(list[0]?.players ?? [])].sort(
+    (a, b) => b.fools - a.fools || a.name.localeCompare(b.name),
+  );
+  return (
+    <section className="games-history">
+      <h4>
+        <Club size={15} /> Дурак · {plural(list.length, 'партия', 'партии', 'партий')}
+      </h4>
+      {score.length > 1 && (
+        <ul className="games-score">
+          {score.map((player) => (
+            <li key={player.name}>
+              <b>{player.name}</b>
+              <span>{plural(player.fools, 'раз', 'раза', 'раз')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="games-list">
+        {list.map((game) => {
+          const expanded = open === game.id;
+          return (
+            <article key={game.id} className="games-item" data-open={expanded || undefined}>
+              <button
+                className="games-head"
+                aria-expanded={expanded}
+                onClick={() => setOpen(expanded ? null : game.id)}
+              >
+                <span className="games-icon" style={{ background: '#2b3442' }}>
+                  <Club size={18} />
+                </span>
+                <b>Партия {game.number}</b>
+                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                <small>
+                  {game.draw ? 'ничья' : `дурак — ${game.foolName}`} ·{' '}
+                  {plural(game.bouts, 'бой', 'боя', 'боёв')} · {game.modeName.toLowerCase()}
+                </small>
+              </button>
+              {expanded && (
+                <div className="games-body">
+                  <table className="durak-score-table">
+                    <thead>
+                      <tr>
+                        <th>Игрок</th>
+                        <th>Дурак</th>
+                        <th>Брал</th>
+                        <th>Отбил</th>
+                        <th>Козырей</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {game.players.map((player) => (
+                        <tr key={player.name} data-fool={player.fool || undefined}>
+                          <td>{player.name}</td>
+                          <td>{player.fools}</td>
+                          <td>{player.takes}</td>
+                          <td>{player.defences}</td>
+                          <td>{player.trumpsBurned}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {game.highlights.length > 0 && (
+                    <ul className="games-highlights">
+                      {game.highlights.map((line) => (
+                        <li key={line.id}>
+                          <b>{line.title}</b>
+                          <span>
+                            {line.name} — {line.value}
+                          </span>
+                          <small>{line.hint}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

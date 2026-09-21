@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { TrackEvent } from 'livekit-client';
 import { Hand, LogOut, Maximize2, Minimize2, Play, Settings2, ShieldCheck, X } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
@@ -9,11 +9,12 @@ import {
   BOUT_MS,
   DEAL_MS,
   DEAL_STEP_MS,
+  commandFor,
+  dropFrom,
   faceOf,
   fanAngle,
   modeName,
   plural,
-  roomLeft,
   seatLayout,
   tableSays,
   trumpName,
@@ -26,16 +27,34 @@ import { Avatar, IconButton, useStore } from './primitives';
 /**
  * Стол дурака на сцене встречи.
  *
- * ЧЕГО ЗДЕСЬ НЕТ. Правил. Что законно нажать и — в отличие от покера — **какой картой**, решает
- * ядро и присылает готовым: `you.attacks`, `you.beats`, `you.transfers`. Здесь нет ни одной
- * строчки вида «бьёт ли дама валета»: карта, которую нельзя положить, просто не поднимается с
- * руки.
+ * ЗДЕСЬ НЕТ ПРАВИЛ И НЕТ ПОДСКАЗОК. Первая версия получала от ядра три списка законных карт и
+ * подсвечивала ими руку. За настоящим столом никто не подсвечивает: человек берёт карту, кладёт
+ * её — и узнаёт, легла ли. Теперь так же: все карты выглядят одинаково, любую можно взять
+ * пальцем, а незаконный ход просто не ложится и возвращается в руку.
  *
- * ПОЧЕМУ ЗДЕСЬ ПОЧТИ НЕТ ТАЙМЕРОВ. Всё, что движется, — прилёт карт, кольцо хода, уход боя —
- * это CSS с длительностью из снимка и отрицательной задержкой, равной уже прошедшему времени.
- * Единственный настоящий таймер — секунды в подписи, и он не перерисовывает ничего вокруг.
+ * ХОД — ЭТО ДВИЖЕНИЕ, А НЕ НАЖАТИЕ. Карту тащат: на чужую карту — значит бьют именно её, на
+ * сукно — значит кладут новую (а защитник этим переводит). Кнопок остаётся ровно две, и обе про
+ * отказ ходить: «Беру» и «Бито».
+ *
+ * ПОЧЕМУ ЗДЕСЬ ПОЧТИ НЕТ ТАЙМЕРОВ. Всё, что движется само, — прилёт карт, кольцо хода, уход боя —
+ * это CSS с длительностью из снимка и отрицательной задержкой, равной уже прошедшему времени. За
+ * пальцем карта едет, разумеется, кадрами, но ровно пока палец на ней.
  */
-type SheetKind = 'settings' | 'result' | null;
+type SheetKind = 'settings' | 'result' | 'score' | null;
+
+/** Карта в полёте: что тащим, откуда взяли и где палец сейчас. */
+interface Drag {
+  card: string;
+  pointer: number;
+  x: number;
+  y: number;
+  /** Откуда карта поднялась: по этой точке считается наклон и то, сдвинули ли её вообще. */
+  fromX: number;
+  fromY: number;
+  width: number;
+  angle: number;
+  moved: boolean;
+}
 
 export default function DurakTable({ meeting, table }: { meeting: Meeting; table: Table }) {
   const tracks = useStore(meeting.media.tracks);
@@ -45,35 +64,34 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
   const mySeat = you ? you.seat : null;
   const spots = useMemo(() => seatLayout(mySeat), [mySeat]);
   const host = table.hostId === me || !!snapshot.participants.find((p) => p.id === me)?.owner;
-  const [error, setError] = useState('');
   const [sheet, setSheet] = useState<SheetKind>(null);
   /*
-    Выбранная карта — единственное состояние, которое браузер держит сам.
+    Отказ сервера — единственная обратная связь про законность хода, и живёт он пару секунд.
 
-    Оно нужно ровно для одного случая: защитник выбрал карту, а побить ею можно две разные
-    атаки. Тогда карта поднимается, подходящие атаки на столе обводятся, и второе нажатие
-    выбирает цель. Во всех остальных случаях ход уходит с первого нажатия.
+    Это не подсказка: подсказка говорит «сюда нельзя» до того, как человек попробовал. Здесь
+    наоборот — попробовал, не легло, услышал почему.
   */
-  const [picked, setPicked] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState('');
+  const refusalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refuse = useCallback((text: string) => {
+    setRefusal(text);
+    if (refusalTimer.current) clearTimeout(refusalTimer.current);
+    refusalTimer.current = setTimeout(() => setRefusal(''), 2600);
+  }, []);
+  useEffect(() => () => void (refusalTimer.current && clearTimeout(refusalTimer.current)), []);
 
   const scene = useRef<HTMLDivElement>(null);
   const { full, toggle: toggleFull } = useFullscreen(scene);
 
-  const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
-    setError('');
-    setPicked(null);
-    void meeting.command(type, undefined, undefined, extra).catch((e) => setError((e as Error).message));
+  const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) =>
+    meeting.command(type, undefined, undefined, extra);
+  const command = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
+    void send(type, extra).catch((e) => refuse((e as Error).message));
   };
 
-  // Карта, которой перестали быть должны, не должна оставаться поднятой.
-  useEffect(() => {
-    if (picked && !you?.cards.includes(picked)) setPicked(null);
-  }, [picked, you?.cards]);
-
   /*
-    Свой ход слышно. Человек за столом почти всегда занят ещё и разговором, и «ваш ход» без
-    звука означает ход, проигранный по часам. Сигнал звучит один раз на ход: снимок приходит на
-    каждое чужое действие, и без этой отметки он повторялся бы.
+    Свой ход слышно. Человек за столом почти всегда занят ещё и разговором, и «ваш ход» без звука
+    означает ход, проигранный по часам. Сигнал звучит один раз на ход.
   */
   const announced = useRef(0);
   useEffect(() => {
@@ -92,36 +110,108 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
     setSheet('result');
   }, [table.result]);
 
-  const says = tableSays(table, mySeat);
-  const alarm = table.boutEnd === 'taken' || (!!table.result && !table.result.draw);
-  const seated = table.seats.filter((seat) => seat.memberId).length;
-  const canPlay = table.phase === 'bout' && !table.boutEnd;
-  /* Чем ещё можно побить — приходит списком «под какую карту»; здесь он только разворачивается. */
-  const targetsFor = (card: string) =>
-    (you?.beats ?? []).filter((beat) => beat.cards.includes(card)).map((beat) => beat.under);
+  // --- Перетаскивание -----------------------------------------------------------------------
 
-  const playCard = (card: string) => {
-    if (!you || !canPlay) return;
-    const targets = targetsFor(card);
-    const transferable = you.transfers.includes(card);
-    // Одно нажатие там, где выбор один. Второе — только когда его действительно два.
-    if (targets.length === 1 && !transferable) {
-      send('durak.act', { option: 'beat', card, under: targets[0]! });
-      return;
-    }
-    if (!targets.length && !transferable && you.attacks.includes(card)) {
-      send('durak.act', { option: 'attack', card });
-      return;
-    }
-    setPicked(picked === card ? null : card);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  /*
+    Карта, выбранная нажатием.
+
+    Запасной путь для клавиатуры и для тех, кто привык тапать: нажал карту, нажал цель. Это не
+    подсказка — подсвечивается ровно та карта, которую человек поднял сам, и ничего больше.
+  */
+  const [picked, setPicked] = useState<string | null>(null);
+  /** Карта, которая уже ушла на стол и ждёт ответа сервера: из руки она пропадает сразу. */
+  const [flying, setFlying] = useState<string | null>(null);
+  const dragRef = useRef<Drag | null>(null);
+  dragRef.current = drag;
+
+  // Карта, которой больше нет на руках, не может оставаться выбранной.
+  useEffect(() => {
+    if (picked && !you?.cards.includes(picked)) setPicked(null);
+  }, [picked, you?.cards]);
+
+  const canPlay = table.phase === 'bout' && !table.boutEnd && !!you;
+
+  const lift = (card: string, event: React.PointerEvent<HTMLElement>) => {
+    if (!canPlay || flying) return;
+    /*
+      Без этого браузер занимается своим: тянет выделение текста по столу и отменяет захват
+      указателя своим `pointercancel`. Карта при этом не едет никуда, и жест пропадает целиком —
+      ровно это и случилось в первой версии.
+    */
+    event.preventDefault();
+    const box = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({
+      card,
+      pointer: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      fromX: box.left + box.width / 2,
+      fromY: box.top + box.height / 2,
+      width: box.width,
+      angle: 0,
+      moved: false,
+    });
   };
 
-  const legal = (card: string) =>
-    !!you &&
-    canPlay &&
-    (you.attacks.includes(card) || !!targetsFor(card).length || you.transfers.includes(card));
+  const move = (event: React.PointerEvent<HTMLElement>) => {
+    const current = dragRef.current;
+    if (!current || current.pointer !== event.pointerId) return;
+    setDrag({
+      ...current,
+      x: event.clientX,
+      y: event.clientY,
+      // Карта отклоняется по ходу движения — так её и несут в руке.
+      angle: Math.max(-12, Math.min(12, (event.clientX - current.fromX) / 14)),
+      moved: current.moved || Math.abs(event.clientY - current.fromY) > 6,
+    });
+  };
 
-  const pickedTargets = picked ? targetsFor(picked) : [];
+  /*
+    Бросок.
+
+    Зону выбирает точка под пальцем, а не сама карта: летящая карта лежит поверх всего и не ловит
+    нажатия, иначе `elementFromPoint` всегда возвращал бы её же. Движение меньше шести пикселей
+    броском не считается — это случайное касание веера, а не ход.
+  */
+  /** Положить выбранную нажатием карту: та же команда, что и у броска. */
+  const place = (target: { kind: 'beat'; under: string } | { kind: 'table' }) => {
+    if (!picked) return;
+    const shape = commandFor(target, mySeat !== null && mySeat === table.defender);
+    if (!shape) return;
+    const card = picked;
+    setPicked(null);
+    setFlying(card);
+    void send('durak.act', { option: shape.option, card, under: shape.under })
+      .catch((e) => refuse((e as Error).message))
+      .finally(() => setFlying(null));
+  };
+
+  const drop = (event: React.PointerEvent<HTMLElement>) => {
+    const current = dragRef.current;
+    if (!current || current.pointer !== event.pointerId) return;
+    setDrag(null);
+    // Нажатие без движения — это выбор карты, а не бросок.
+    if (!current.moved) {
+      setPicked(picked === current.card ? null : current.card);
+      return;
+    }
+    setPicked(null);
+    const target = dropFrom(document.elementFromPoint(event.clientX, event.clientY));
+    const shape = commandFor(target, mySeat !== null && mySeat === table.defender);
+    if (!shape) return;
+    setFlying(current.card);
+    void send('durak.act', { option: shape.option, card: current.card, under: shape.under })
+      .catch((e) => refuse((e as Error).message))
+      .finally(() => setFlying(null));
+  };
+
+  const says = tableSays(table, mySeat);
+  const alarm = table.boutEnd === 'taken' || (!!table.result && !table.result.draw);
+  const seated = table.seats.filter((s) => s.memberId).length;
+  const hand = (you?.cards ?? []).filter((card) => card !== flying);
+  const myScore = table.score.find((row) => row.name === table.seats[mySeat ?? -1]?.name);
 
   return (
     <div className="durak" ref={scene} data-phase={table.phase} data-bout={table.boutEnd ?? undefined}>
@@ -130,15 +220,16 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           <b>{modeName(table.mode)} дурак</b>
           <small>
             {table.deckSize} карт{table.trumpSuit ? ` · козыри ${trumpName(table)}` : ''} ·{' '}
-            {table.turnSeconds} с на ход
+            {table.turnSeconds} с
           </small>
         </div>
-        <span className="durak-says" data-alarm={alarm || undefined} role="status">
-          {says}
+        <span className="durak-says" data-alarm={alarm || !!refusal || undefined} role="status">
+          {refusal || says}
         </span>
         <span className="durak-bar-spacer" />
+        <Scoreboard table={table} onOpen={() => setSheet('score')} />
         {host && table.phase !== 'bout' && (
-          <button className="button primary" onClick={() => send('durak.deal')}>
+          <button className="button primary" onClick={() => command('durak.deal')}>
             <Play size={16} /> Раздать
           </button>
         )}
@@ -152,39 +243,46 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           {full ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
         </IconButton>
         {mySeat !== null && (
-          <IconButton label="Встать из-за стола" onClick={() => send('durak.stand')}>
+          <IconButton label="Встать из-за стола" onClick={() => command('durak.stand')}>
             <LogOut size={17} />
           </IconButton>
         )}
       </div>
 
       <div className="durak-table">
-        <div className="durak-felt">
+        {/*
+          Сукно — оно же зона сброса «на стол».
+
+          Одна зона на весь овал, а не аккуратный прямоугольник в центре: человек бросает карту
+          примерно туда, куда смотрит, и промахнуться мимо стола он не должен.
+        */}
+        <div className="durak-felt" data-drop="table">
           <Stock table={table} />
           <Discard count={table.discarded} />
-          {table.phase === 'bout' && (
-            <div
-              className="durak-bout"
-              data-end={table.boutEnd ?? undefined}
-              style={{ '--bout-ms': `${BOUT_MS}ms` } as CSSProperties}
-            >
-              {table.table.map((pair, index) => {
-                const target = pickedTargets.includes(pair.attack);
-                return (
+          <div
+            className="durak-mat"
+            data-armed={!!drag || !!picked || undefined}
+            onClick={picked ? () => place({ kind: 'table' }) : undefined}
+          >
+            {table.phase === 'bout' && (
+              <div
+                className="durak-bout"
+                data-end={table.boutEnd ?? undefined}
+                style={{ '--bout-ms': `${BOUT_MS}ms` } as CSSProperties}
+              >
+                {table.table.map((pair, index) => (
                   <div
                     className="durak-pair"
                     key={`${pair.attack}-${index}`}
+                    data-drop="pair"
+                    data-under={pair.attack}
                     data-open={(!pair.beat && !table.boutEnd) || undefined}
-                    data-target={target || undefined}
-                    data-dim={(!!picked && !target && !pair.beat) || undefined}
                   >
-                    {target ? (
+                    {picked ? (
                       <button
                         className="durak-attack"
-                        onClick={() =>
-                          send('durak.act', { option: 'beat', card: picked!, under: pair.attack })
-                        }
-                        aria-label={`Побить ${faceOf(pair.attack).label} картой ${faceOf(picked!).label}`}
+                        onClick={() => place({ kind: 'beat', under: pair.attack })}
+                        aria-label={`Побить ${faceOf(pair.attack).label}`}
                       >
                         <Card card={pair.attack} />
                       </button>
@@ -199,33 +297,28 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                       </span>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-          {table.phase !== 'bout' && (
-            <div className="durak-center">
-              <p>
-                {table.phase === 'over'
-                  ? 'Партия сыграна'
-                  : seated < 2
-                    ? 'Нужен ещё игрок'
-                    : host
-                      ? 'Все на местах — можно раздавать'
-                      : 'Ждём, пока раздадут'}
-              </p>
-              {host && seated >= 2 && (
-                <button className="button primary" onClick={() => send('durak.deal')}>
-                  <Play size={17} /> Раздать
-                </button>
-              )}
-            </div>
-          )}
-          {/*
-            Своё место на сукне не рисуется вовсе: им стала рука внизу. Кружок с собственным
-            лицом стоит рядом с веером, в полосе под столом, — иначе он ложится прямо на свои же
-            карты и уезжает за нижний край.
-          */}
+                ))}
+              </div>
+            )}
+            {table.phase !== 'bout' && (
+              <div className="durak-center">
+                <p>
+                  {table.phase === 'over'
+                    ? 'Партия сыграна'
+                    : seated < 2
+                      ? 'Нужен ещё игрок'
+                      : host
+                        ? 'Все на местах'
+                        : 'Ждём, пока раздадут'}
+                </p>
+                {host && seated >= 2 && (
+                  <button className="button primary" onClick={() => command('durak.deal')}>
+                    <Play size={17} /> Раздать
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           {table.seats.map((seat, index) =>
             index === mySeat ? null : (
               <Seat
@@ -233,49 +326,52 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                 seat={seat}
                 spot={spots[index]!}
                 table={table}
-                mine={false}
                 tile={tracks.find((t) => t.participantId === seat.memberId && t.source === 'camera')}
                 avatar={snapshot.participants.find((p) => p.id === seat.memberId)?.avatar ?? null}
-                onSit={mySeat === null ? () => send('durak.sit', { seat: index }) : undefined}
+                onSit={mySeat === null ? () => command('durak.sit', { seat: index }) : undefined}
               />
             ),
           )}
-          <Feed table={table} />
+          {mySeat !== null && (
+            <Seat
+              seat={table.seats[mySeat]!}
+              spot={spots[mySeat]!}
+              table={table}
+              mine
+              tile={tracks.find((t) => t.participantId === me && t.source === 'camera')}
+              avatar={snapshot.participants.find((p) => p.id === me)?.avatar ?? null}
+            />
+          )}
           {sheet === 'settings' && (
-            <Settings table={table} host={host} onSend={send} onClose={() => setSheet(null)} />
+            <Settings table={table} host={host} onSend={command} onClose={() => setSheet(null)} />
           )}
           {sheet === 'result' && table.result && <Result table={table} onClose={() => setSheet(null)} />}
+          {sheet === 'score' && <Score table={table} onClose={() => setSheet(null)} />}
         </div>
-      </div>
-
-      <div className="durak-mine">
-        {mySeat !== null && (
-          <MySeat
-            seat={table.seats[mySeat]!}
-            table={table}
-            tile={tracks.find((t) => t.participantId === me && t.source === 'camera')}
-            avatar={snapshot.participants.find((p) => p.id === me)?.avatar ?? null}
-          />
-        )}
+        {/*
+          Рука лежит поверх сукна, у нижнего края: карты в руках человека, сидящего за столом, а
+          не в полосе под ним. Отсюда их и тащат в центр — одним движением, без границы.
+        */}
         <div className="durak-hand" aria-label="Ваши карты">
-          {you?.cards.map((card, index) => {
-            const { angle, lift } = fanAngle(index, you.cards.length);
+          {hand.map((card, index) => {
+            const { angle, lift: raise } = fanAngle(index, hand.length);
             const face = faceOf(card);
-            const usable = legal(card);
             return (
               <button
                 key={card}
                 className="durak-hand-card"
-                data-legal={usable}
+                data-held={drag?.card === card || undefined}
                 data-picked={picked === card || undefined}
-                data-trump={face.suit === table.trumpSuit || undefined}
-                disabled={!usable}
-                onClick={() => playCard(card)}
-                aria-label={`${face.label}${usable ? '' : ' — сейчас не ходит'}`}
+                disabled={!canPlay}
+                onPointerDown={(event) => lift(card, event)}
+                onPointerMove={move}
+                onPointerUp={drop}
+                onPointerCancel={() => setDrag(null)}
+                aria-label={face.label}
                 style={
                   {
                     '--angle': `${angle}deg`,
-                    '--lift': lift,
+                    '--lift': raise,
                     animationDuration: `${DEAL_MS}ms`,
                     animationDelay: `${index * DEAL_STEP_MS - Math.max(0, meeting.serverNow() - table.dealtAt)}ms`,
                   } as CSSProperties
@@ -286,18 +382,29 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             );
           })}
         </div>
-        <Controls
-          table={table}
-          picked={picked}
-          onSend={send}
-          onSit={mySeat === null ? undefined : () => undefined}
-        />
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
       </div>
+
+      <Controls table={table} score={myScore} feed={<Feed table={table} />} onSend={command} />
+      {/*
+        Карта в полёте живёт вне стола: `position: fixed` и никакого `overflow`, который мог бы её
+        обрезать. Нажатия она не ловит — иначе точка под пальцем читалась бы как сама карта.
+      */}
+      {drag && (
+        <div
+          className="durak-flying"
+          style={
+            {
+              left: `${drag.x}px`,
+              top: `${drag.y}px`,
+              width: `${drag.width}px`,
+              rotate: `${drag.angle}deg`,
+            } as CSSProperties
+          }
+          aria-hidden="true"
+        >
+          <Card card={drag.card} />
+        </div>
+      )}
     </div>
   );
 }
@@ -305,12 +412,11 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
 /**
  * Колода с козырной картой под ней.
  *
- * Это главный ориентир стола, и он отвечает сразу на два вопроса: какая масть козырная и сколько
- * осталось тянуть. Когда колода кончилась, козырь остаётся один и загорается — «козыри пошли»
- * за столом объявляют вслух, и здесь это видно без слов.
+ * Главный ориентир стола: он отвечает сразу на два вопроса — какая масть козырная и сколько
+ * осталось тянуть. Колода кончилась — козырь остаётся один и загорается: «козыри пошли» за столом
+ * объявляют вслух, и здесь это видно без слов.
  */
 function Stock({ table }: { table: Table }) {
-  // Козыря нет — значит, и раздачи не было: пустой стол не должен объявлять «колода пуста».
   if (!table.trump) return null;
   const backs = Math.min(3, Math.max(0, table.deckLeft - 1));
   return (
@@ -327,7 +433,7 @@ function Stock({ table }: { table: Table }) {
       </div>
       <div className="durak-stock-count">
         {table.deckLeft}
-        <small>{table.deckLeft === 0 ? 'колода пуста' : 'в колоде'}</small>
+        <small>{table.deckLeft === 0 ? 'козыри' : 'в колоде'}</small>
       </div>
     </div>
   );
@@ -345,73 +451,35 @@ function Discard({ count }: { count: number }) {
   );
 }
 
-/** Карта. Без аргумента — рубашка: так переворот остаётся одним элементом. */
+/**
+ * Карта.
+ *
+ * Номинал стоит в двух углах и перевёрнут во втором — так напечатаны настоящие карты, и по этому
+ * их узнают, держа веер: видно всегда только левый верхний угол соседней. Без аргумента рисуется
+ * рубашка: так переворот остаётся одним элементом.
+ */
 function Card({ card }: { card?: string }) {
   const face = card ? faceOf(card) : null;
   return (
     <span className="durak-card" data-red={face?.red || undefined} data-back={!face || undefined}>
       {face && (
         <>
-          <b className="durak-card-rank">{face.rank}</b>
-          <i className="durak-card-suit">{face.glyph}</i>
+          <b className="durak-card-rank">
+            {face.rank}
+            <i>{face.glyph}</i>
+          </b>
           <u className="durak-card-pip">{face.glyph}</u>
+          <b className="durak-card-rank durak-card-foot">
+            {face.rank}
+            <i>{face.glyph}</i>
+          </b>
         </>
       )}
     </span>
   );
 }
 
-/**
- * Своё место — рядом с рукой, а не на сукне.
- *
- * Здесь только то, чего не видно по собственным картам: лицо (та же дорожка, что в плитке
- * встречи), имя и роль в бою. Кольцо хода горит тут же — «ваш ход» должно быть видно, не
- * поднимая глаз от веера.
- */
-function MySeat({
-  seat,
-  table,
-  tile,
-  avatar,
-}: {
-  seat: DurakSeat;
-  table: Table;
-  tile?: MediaTile;
-  avatar: string | null;
-}) {
-  const acting = table.acting.includes(seat.index);
-  return (
-    <div
-      className="durak-seat durak-seat-own"
-      data-mine="true"
-      data-role={seat.defender ? 'defender' : seat.attacker ? 'attacker' : undefined}
-      data-out={seat.out || undefined}
-    >
-      <span className="durak-seat-face">
-        {acting && <TurnRing table={table} />}
-        {tile ? <SeatCamera tile={tile} /> : <Avatar name={seat.name} src={avatar} />}
-      </span>
-      <span className="durak-seat-name">{seat.name} — вы</span>
-      <span className="durak-seat-role">
-        {seat.fool
-          ? 'дурак'
-          : seat.out
-            ? `вышли ${seat.place}-м`
-            : seat.defender
-              ? table.taking
-                ? 'берёте'
-                : 'отбиваетесь'
-              : seat.passed
-                ? 'бито'
-                : seat.attacker
-                  ? 'ходите'
-                  : ''}
-      </span>
-    </div>
-  );
-}
-
-/** Место за столом: человек, его роль в бою и рубашки его карт. */
+/** Место за столом: лицо, имя, роль в бою и сколько карт на руках. */
 function Seat({
   seat,
   spot,
@@ -424,21 +492,16 @@ function Seat({
   seat: DurakSeat;
   spot: { x: number; y: number; side: string };
   table: Table;
-  mine: boolean;
+  mine?: boolean;
   tile?: MediaTile;
   avatar: string | null;
   onSit?: () => void;
 }) {
   const acting = table.acting.includes(seat.index);
-  const role = seat.defender ? 'defender' : seat.attacker ? 'attacker' : undefined;
   const style = { left: `${spot.x}%`, top: `${spot.y}%` } as CSSProperties;
   if (!seat.memberId) {
     return (
       <div className="durak-seat is-empty" data-side={spot.side} style={style}>
-        {/*
-          Пустое место — это круг, а не надпись в воздухе. Без него «свободно» висело посреди
-          сукна, ни к чему не привязанное, и дуга не читалась как шесть мест.
-        */}
         <span className="durak-seat-face durak-seat-free" aria-hidden="true" />
         {onSit ? (
           <button className="durak-sit" onClick={onSit}>
@@ -450,53 +513,38 @@ function Seat({
       </div>
     );
   }
+  const role = seat.fool
+    ? 'дурак'
+    : seat.out
+      ? `вышел ${seat.place}-м`
+      : seat.defender
+        ? table.taking
+          ? 'берёт'
+          : 'отбивается'
+        : seat.passed
+          ? 'бито'
+          : seat.attacker
+            ? 'ходит'
+            : '';
   return (
     <div
       className="durak-seat"
       data-side={spot.side}
-      data-role={role}
+      data-role={seat.defender ? 'defender' : seat.attacker ? 'attacker' : undefined}
       data-away={seat.away || undefined}
       data-out={seat.out || undefined}
       data-passed={seat.passed || undefined}
       data-mine={mine || undefined}
+      data-acting={acting || undefined}
       style={style}
     >
       <span className="durak-seat-face">
         {acting && <TurnRing table={table} />}
         {tile ? <SeatCamera tile={tile} /> : <Avatar name={seat.name} src={avatar} />}
-        {/*
-          Число карт на кружке — не дубль рубашек, а ответ на телефоне, где рубашек нет.
-          «Сколько у него осталось» — главный вопрос второй половины партии, и считать веер
-          из восьми полосок глазами никто не станет.
-        */}
         {seat.held > 0 && <b className="durak-seat-count">{seat.held}</b>}
       </span>
-      <span className="durak-seat-name">
-        {seat.name}
-        {mine ? ' — вы' : ''}
-      </span>
-      <span className="durak-seat-role">
-        {seat.fool
-          ? 'дурак'
-          : seat.out
-            ? `вышел ${seat.place}-м`
-            : seat.defender
-              ? table.taking
-                ? 'берёт'
-                : 'отбивается'
-              : seat.passed
-                ? 'бито'
-                : seat.attacker
-                  ? 'ходит'
-                  : ''}
-      </span>
-      {!mine && (
-        <span className="durak-seat-hand" aria-hidden="true">
-          {Array.from({ length: Math.min(8, seat.held) }, (_, index) => (
-            <Card key={index} />
-          ))}
-        </span>
-      )}
+      <span className="durak-seat-name">{mine ? `${seat.name} — вы` : seat.name}</span>
+      <span className="durak-seat-role">{role}</span>
     </div>
   );
 }
@@ -547,25 +595,28 @@ function SeatCamera({ tile }: { tile: MediaTile }) {
   return <video ref={ref} autoPlay playsInline muted aria-label={`Камера: ${tile.name}`} />;
 }
 
-/** Кнопки хода. Что здесь законно — прислало ядро; здесь только подписи. */
+/**
+ * Две кнопки, и обе — про отказ ходить.
+ *
+ * «Беру» и «Бито» — единственное, чего нельзя сделать картой, поэтому только у них и есть кнопка.
+ * Зайти, подкинуть, отбиться, перевести — это движение карты на стол.
+ */
 function Controls({
   table,
-  picked,
+  score,
+  feed,
   onSend,
 }: {
   table: Table;
-  picked: string | null;
+  score?: { games: number; fools: number };
+  feed: React.ReactNode;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
-  onSit?: () => void;
 }) {
   const you = table.you;
-  if (!you) return <p className="durak-hint">Вы смотрите игру. Сядьте за свободное место, чтобы играть.</p>;
-  const actions = you.actions;
-  const canTransfer = !!picked && you.transfers.includes(picked);
-  const left = roomLeft(table);
   return (
-    <div className="durak-controls" data-turn={you.turn || undefined}>
-      {actions.includes('take') && (
+    <div className="durak-controls" data-turn={you?.turn || undefined}>
+      <div className="durak-controls-side">{feed}</div>
+      {you?.actions.includes('take') && (
         <button
           className="durak-act"
           data-kind="take"
@@ -574,17 +625,7 @@ function Controls({
           Беру
         </button>
       )}
-      {canTransfer && (
-        <button
-          className="durak-act"
-          data-kind="transfer"
-          onClick={() => onSend('durak.act', { option: 'transfer', card: picked! })}
-        >
-          Перевести {faceOf(picked!).rank}
-          {faceOf(picked!).glyph}
-        </button>
-      )}
-      {actions.includes('pass') && (
+      {you?.actions.includes('pass') && (
         <button
           className="durak-act"
           data-kind="pass"
@@ -593,10 +634,69 @@ function Controls({
           Бито
         </button>
       )}
-      {picked && !canTransfer && <span className="durak-hint">Выберите карту на столе, которую бьёте</span>}
-      {!picked && actions.includes('attack') && table.table.length > 0 && left > 0 && (
-        <span className="durak-hint">Можно подкинуть ещё {plural(left, 'карту', 'карты', 'карт')}</span>
-      )}
+      <div className="durak-controls-side durak-controls-mine">
+        {score && score.games > 0 && (
+          <span className="durak-mine-score">
+            {plural(score.games, 'партия', 'партии', 'партий')} · дурак {score.fools}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Счёт беседы у края стола.
+ *
+ * Одно число на человека — сколько раз он был дураком. Это то, что за столом и спрашивают, не
+ * вставая; всё остальное живёт в истории, которую открывают, когда вечер кончился.
+ */
+function Scoreboard({ table, onOpen }: { table: Table; onOpen: () => void }) {
+  if (table.score.length < 2) return null;
+  return (
+    <button className="durak-score" onClick={onOpen} aria-label="Счёт беседы">
+      {table.score.slice(0, 4).map((row) => (
+        <span key={row.name}>
+          <i>{row.name}</i>
+          <b>{row.fools}</b>
+        </span>
+      ))}
+    </button>
+  );
+}
+
+/** Счёт беседы целиком: та же таблица, но со всеми числами. */
+function Score({ table, onClose }: { table: Table; onClose: () => void }) {
+  return (
+    <div className="durak-sheet" role="region" aria-label="Счёт беседы">
+      <div className="durak-sheet-body">
+        <div className="durak-sheet-row">
+          <h3>Счёт беседы</h3>
+          <IconButton label="Закрыть" onClick={onClose}>
+            <X size={17} />
+          </IconButton>
+        </div>
+        <table className="durak-score-table">
+          <thead>
+            <tr>
+              <th>Игрок</th>
+              <th>Партий</th>
+              <th>Дурак</th>
+              <th>Серия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.score.map((row) => (
+              <tr key={row.name}>
+                <td>{row.name}</td>
+                <td>{row.games}</td>
+                <td>{row.fools}</td>
+                <td>{row.streak}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -604,7 +704,7 @@ function Controls({
 /**
  * Настройки стола и проверка раздачи.
  *
- * ВНУТРИ СЦЕНЫ, А НЕ В ПАНЕЛИ СПРАВА, и роль здесь `region`, а не `dialog`: стол за спиной
+ * Внутри сцены, а не в панели справа, и роль здесь `region`, а не `dialog`: стол за спиной
  * продолжает играть, и уводить человека из-за него ради переключателя незачем.
  */
 function Settings({
@@ -652,7 +752,7 @@ function Settings({
             <div className="durak-sheet-row">
               <label>
                 Правила
-                <small>Перевод — картой того же номинала</small>
+                <small>Первый кон не переводят</small>
               </label>
               <div className="durak-choice">
                 <button
@@ -668,6 +768,34 @@ function Settings({
                   onClick={() => set('rules', 1)}
                 >
                   Переводной
+                </button>
+              </div>
+            </div>
+            <div className="durak-sheet-row">
+              <label>
+                Подкидывают
+                <small>За большим столом бой легче держать вдвоём</small>
+              </label>
+              <div className="durak-choice">
+                <button data-active={!table.neighbours || undefined} onClick={() => set('neighbours')}>
+                  Все
+                </button>
+                <button data-active={table.neighbours || undefined} onClick={() => set('neighbours')}>
+                  Соседи
+                </button>
+              </div>
+            </div>
+            <div className="durak-sheet-row">
+              <label>
+                Первый бой
+                <small>Поблажка заходящему</small>
+              </label>
+              <div className="durak-choice">
+                <button data-active={!table.firstFive || undefined} onClick={() => set('first-five')}>
+                  6 карт
+                </button>
+                <button data-active={table.firstFive || undefined} onClick={() => set('first-five')}>
+                  5 карт
                 </button>
               </div>
             </div>
@@ -716,8 +844,7 @@ function Settings({
  * Проверка раздачи.
  *
  * Стол объявляет отпечаток колоды <b>до</b> раздачи и показывает зерно после. Здесь колода
- * собирается заново прямо в браузере и сверяется с тем, что лежало на столе. Кнопка, которая
- * ничего не меняет, но отвечает на вопрос «а не подсуживает ли сервер».
+ * собирается заново прямо в браузере и сверяется с тем, что лежало на столе.
  */
 function Fairness({ table }: { table: Table }) {
   const [verdict, setVerdict] = useState<Verdict | null>(null);
@@ -774,7 +901,7 @@ function Result({ table, onClose }: { table: Table; onClose: () => void }) {
 /**
  * Лента стола.
  *
- * Три последние строки, и не больше: за столом помнят последний ход и то, чем кончился прошлый
+ * Две последние строки, и не больше: за столом помнят последний ход и то, чем кончился прошлый
  * бой. Всё, что было раньше, обсуждают голосом — на то и встреча.
  */
 function Feed({ table }: { table: Table }) {

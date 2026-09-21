@@ -64,7 +64,9 @@ public class OpenApiConfig {
               "DurakSeat",
               "DurakNote",
               "DurakYou",
-              "BeatView",
+              "DurakScore",
+              "DurakSummary",
+              "DurakPlayer",
               "DurakResult")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
