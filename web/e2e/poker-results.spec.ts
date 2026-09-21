@@ -67,7 +67,9 @@ test('итоги игры приезжают обоим, остаются в и�
     const stack = host.getByLabel('Стартовый стек, фишки');
     await stack.fill('300');
     await stack.press('Enter');
-    await expect(host.locator('.games-stack-head small')).toContainText('блайнды');
+    await expect(host.locator('.games-stack:not(.games-rebuys) .games-stack-head small')).toContainText(
+      'блайнды',
+    );
 
     // Турнир: с таким стеком одна раздача решает игру целиком.
     await host.getByRole('button', { name: /^Турнир/ }).click();

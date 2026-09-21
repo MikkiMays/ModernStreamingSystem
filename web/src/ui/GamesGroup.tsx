@@ -250,7 +250,7 @@ function RebuyChoice({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="games-stack">
+    <div className="games-stack games-rebuys">
       <div className="games-stack-head">
         <label>
           Додепы на человека
