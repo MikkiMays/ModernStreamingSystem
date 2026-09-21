@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.IntPredicate;
 
 /**
@@ -51,8 +53,23 @@ public class Table {
   /** Сколько ждать того, кто ушёл из встречи, прежде чем ходить за него. */
   public static final long AWAY_ACT_MS = 3000;
 
-  /** Сколько отсутствия — и место освобождается для других. */
-  public static final long AWAY_STAND_MS = 300000;
+  /**
+   * Сколько стол ждёт, когда за ним не осталось никого.
+   *
+   * <p>Десять минут — это «мы отошли», а не «мы разошлись»: за чаем, покурить, ответить на звонок.
+   * Если за это время никто не сел и раздача не пошла, игра заканчивается сама и уходит в историю
+   * комнаты. Меньше нельзя: случайно завершённая игра — это чужие стеки, которых уже не вернуть.
+   */
+  public static final long LINGER_MS = 600000;
+
+  /**
+   * Сколько отсутствия — и место освобождается для других.
+   *
+   * <p>Тот же срок, что и у пустого стола, и это не совпадение. Обещание у них одно: десять минут
+   * ничего не пропадает. Пока эти числа расходились (место освобождалось через пять минут, а игра
+   * кончалась через десять), половину обещанного времени стек ушедшего был уже не его.
+   */
+  public static final long AWAY_STAND_MS = LINGER_MS;
 
   /** Сколько строк ленты храним: она про «что сейчас было», а не архив. */
   private static final int LOG_LIMIT = 40;
@@ -130,6 +147,9 @@ public class Table {
     return mode;
   }
 
+  /** Имя этой игры: с ним она и ложится в историю комнаты. */
+  public String gameId;
+
   public String mode = "friendly";
   public String hostId;
   public String phase = "lobby";
@@ -194,6 +214,67 @@ public class Table {
   public List<Note> log = new ArrayList<>();
   public Result result;
 
+  /** Самый крупный банк игры: тот, что видели все, а не чей-то личный. */
+  public long biggestPot;
+
+  /**
+   * С каких пор за столом никого.
+   *
+   * <p>Ноль — значит есть: кто-то сидит и он во встрече, или прямо сейчас идёт раздача. Отсюда и
+   * считается срок, после которого игра заканчивается сама ({@link #LINGER_MS}).
+   */
+  public long idleSince;
+
+  /** Ушла ли игра в историю комнаты. Записывается один раз, чем бы она ни кончилась. */
+  public boolean archived;
+
+  /**
+   * Что игра насчитала про каждого, кто за ней сидел.
+   *
+   * <p>Ключ — человек, а не место: он мог встать, сесть на другой стул, переподключиться с новым
+   * идентификатором — и все три раза это один и тот же игрок с одной и той же статистикой. Место
+   * такой памяти не годится: его освобождают, и вместе с ним исчезло бы всё, что человек сделал.
+   */
+  public Map<String, Player> tally = new LinkedHashMap<>();
+
+  /**
+   * Итог одного человека за всю игру.
+   *
+   * <p>Копится по ходу дела, а не считается в конце: к концу игры уже нет ни карт, ни ставок, ни
+   * половины сидевших — восстановить «сколько раз он пошёл ва-банк» будет неоткуда.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class Player {
+    public String name;
+    public long buyIn;
+    public int rebuys;
+    public long invested;
+    public long won;
+    public int hands;
+    public int handsWon;
+    public int showdowns;
+    public int showdownWins;
+    public int allIns;
+    public int folds;
+    public int checks;
+    public int calls;
+    public int raises;
+    public int voluntary;
+    public long biggestBet;
+    public long biggestPotWon;
+    public long peakStack;
+    public int knockouts;
+    public int streak;
+    public int bestStreak;
+    public String bestHand;
+    public int bestHandScore;
+
+    /** С чем человек остался. Обновляется и когда он встаёт из-за стола, и в конце игры. */
+    public long stack;
+
+    public int place;
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Seat {
     public String memberId;
@@ -209,6 +290,9 @@ public class Table {
 
     /** Сел, пока раздача шла: играет со следующей. */
     public boolean waiting;
+
+    /** Вложился в эту раздачу сам, а не блайндом: этим и меряется «азартный». */
+    public boolean putIn;
 
     /** Нажал «встать»: место освободится, когда раздача кончится. */
     public boolean leaving;
@@ -329,6 +413,7 @@ public class Table {
   public static Table open(String hostId, String modeId, long now, long stack) {
     var chosen = mode(modeId);
     var table = new Table();
+    table.gameId = java.util.UUID.randomUUID().toString();
     table.mode = chosen.id();
     table.hostId = hostId;
     table.openedAt = now;
@@ -390,8 +475,29 @@ public class Table {
     seat.timeBankMs = timeBankSeconds * 1000L;
     seat.waiting = playing();
     seat.place = 0;
+    var player = player(memberId, name);
+    // Второй приход за стол — это те же фишки, взятые заново: человек встал со своим стеком и
+    // сел с новым. В счёт докупок это и идёт, иначе «сколько он брал» перестало бы сходиться.
+    if (player.buyIn > 0) player.rebuys++;
+    player.buyIn += startingStack;
+    player.place = 0;
+    player.stack = startingStack;
+    player.peakStack = Math.max(player.peakStack, startingStack);
+    idleSince = 0;
     note(now, "sit", index, name, 0, name + " садится за стол");
     revision++;
+  }
+
+  /** Память об этом человеке: заводится, когда он садится, и живёт до конца игры. */
+  private Player player(String memberId, String name) {
+    var player = tally.computeIfAbsent(memberId, key -> new Player());
+    if (name != null && !name.isBlank()) player.name = name;
+    return player;
+  }
+
+  /** То же, но только если человек и правда играл. Иначе считать нечего. */
+  private Player known(String memberId) {
+    return memberId == null ? null : tally.get(memberId);
   }
 
   /**
@@ -424,6 +530,13 @@ public class Table {
 
   /** Освободить место от того, кто сидел. Фишки уходят вместе с ним. */
   private void free(Seat seat) {
+    // Стек и место запоминаются до того, как стул опустеет: иначе в итогах игры человек,
+    // вставший за пять раздач до конца, остался бы с нулём, которого у него не было.
+    var player = known(seat.memberId);
+    if (player != null) {
+      player.stack = seat.stack;
+      if (seat.place > 0) player.place = seat.place;
+    }
     var empty = new Seat();
     seats.set(seats.indexOf(seat), empty);
   }
@@ -442,6 +555,11 @@ public class Table {
     seat.buyIn += added;
     seat.busted = false;
     seat.place = 0;
+    var player = player(memberId, seat.name);
+    player.rebuys++;
+    player.buyIn += added;
+    player.stack = seat.stack;
+    player.place = 0;
     note(now, "rebuy", seats.indexOf(seat), seat.name, added, seat.name + " докупается");
     revision++;
   }
@@ -509,6 +627,7 @@ public class Table {
       seat.lastActionAmount = 0;
       seat.wonAmount = 0;
       seat.usingBank = false;
+      seat.putIn = false;
     }
     result = null;
     var players = new ArrayList<Integer>();
@@ -519,8 +638,14 @@ public class Table {
       actor = -1;
       return;
     }
-    for (int index : players) seats.get(index).inHand = true;
+    for (int index : players) {
+      var seat = seats.get(index);
+      seat.inHand = true;
+      var player = player(seat.memberId, seat.name);
+      player.hands++;
+    }
     handNumber++;
+    idleSince = 0;
     button = next(button, index -> seats.get(index).inHand);
     long total = 0;
     for (int index : players) total += seats.get(index).stack;
@@ -692,6 +817,7 @@ public class Table {
     seat.lastAction = action;
     seat.lastActionAmount = amount;
     seat.lastActionAt = now;
+    count(seat, action, amount);
     note(
         now,
         "action",
@@ -699,6 +825,33 @@ public class Table {
         seat.name,
         amount,
         seat.name + word + (amount > 0 ? String.valueOf(amount) : ""));
+  }
+
+  /**
+   * Что человек сделал — в его счёт за игру.
+   *
+   * <p>Считается здесь, в единственном месте, через которое проходит любое действие: и своё, и
+   * сделанное столом за того, кто не успел. Автоматический пас — это тоже пас, и прятать его из
+   * статистики значило бы рассказывать о игре не то, что в ней было.
+   */
+  private void count(Seat seat, String action, long amount) {
+    var player = known(seat.memberId);
+    if (player == null) return;
+    switch (action) {
+      case "fold" -> player.folds++;
+      case "check" -> player.checks++;
+      case "call" -> player.calls++;
+      case "bet", "raise" -> player.raises++;
+      case "allin" -> player.allIns++;
+      default -> {}
+    }
+    if (amount > 0) player.biggestBet = Math.max(player.biggestBet, amount);
+    // Добровольно вложился — то есть заплатил не блайндом, а своим решением. Один раз за
+    // раздачу: три повышения на одной улице — это всё ещё одна сыгранная рука.
+    if (!seat.putIn && !"fold".equals(action) && !"check".equals(action)) {
+      seat.putIn = true;
+      player.voluntary++;
+    }
   }
 
   /** Кто ходит следующим, или конец круга. */
@@ -836,6 +989,12 @@ public class Table {
 
   private void settle(long now) {
     collect();
+    // Вложенное считается здесь: `collect` уже вернул неперекрытую часть ставки, а через
+    // несколько строк `finish` обнулит `committed` — позже взять это число будет негде.
+    for (var seat : seats) {
+      var player = known(seat.memberId);
+      if (player != null && seat.committed > 0) player.invested += seat.committed;
+    }
     var live = new ArrayList<Integer>();
     for (int index = 0; index < SEATS; index++) if (seats.get(index).live()) live.add(index);
     result = new Result();
@@ -843,9 +1002,12 @@ public class Table {
     result.pot = pot;
     result.showdown = live.size() > 1;
     revealedSeed = seed;
+    // Кто какой банк забрал: по этому и считается, чьи фишки кончились у выбывшего.
+    var potWinners = new TreeMap<Long, Integer>();
     if (live.size() == 1) {
       var winner = seats.get(live.get(0));
       award(winner, live.get(0), pot, null, false, now);
+      potWinners.put(Long.MAX_VALUE, live.get(0));
     } else {
       var hands = new LinkedHashMap<Integer, Hands.Hand>();
       for (int index : live) {
@@ -879,6 +1041,7 @@ public class Table {
           long amountFor = share + (i < odd ? 1 : 0);
           award(seats.get(index), index, amountFor, hands.get(index), winners.size() > 1, now);
         }
+        potWinners.put(threshold, ordered.get(0));
       }
     }
     pot = 0;
@@ -887,6 +1050,30 @@ public class Table {
       if (seat.inHand && seat.stack == 0) result.busted.add(seats.indexOf(seat));
     }
     result.drama = drama();
+    biggestPot = Math.max(biggestPot, result.pot);
+    knockouts(potWinners);
+    /*
+     Итоги раздачи в счёт каждого играющего.
+
+     Серия — это выигранные подряд раздачи, и обнуляет её любая сыгранная и не выигранная:
+     считать её можно только здесь, где известно и кто играл, и кто забрал. Вскрытие считается
+     отдельно от победы: дойти до вскрытия шесть раз и выиграть один — это про игрока больше,
+     чем любая другая пара чисел в этой таблице.
+    */
+    for (var seat : seats) {
+      var player = known(seat.memberId);
+      if (player == null || !seat.inHand) continue;
+      if (result.showdown && seat.live()) {
+        player.showdowns++;
+        if (seat.wonAmount > 0) player.showdownWins++;
+      }
+      if (seat.wonAmount > 0) {
+        player.streak++;
+        player.bestStreak = Math.max(player.bestStreak, player.streak);
+      } else player.streak = 0;
+      player.peakStack = Math.max(player.peakStack, seat.stack);
+      player.stack = seat.stack;
+    }
     actor = -1;
     phase = "showdown";
     deadline = now + (result.showdown ? SHOWDOWN_MS : QUICK_MS);
@@ -904,6 +1091,18 @@ public class Table {
     entry.handCards = hand == null ? List.of() : hand.cards();
     entry.split = split;
     result.awards.add(entry);
+    var player = known(seat.memberId);
+    if (player != null) {
+      // Побочных банков в раздаче бывает несколько, и «выиграл раздачу» — это про раздачу, а не
+      // про каждый из них: считается один раз, по первому взятому банку.
+      if (seat.wonAmount == amount) player.handsWon++;
+      player.won += amount;
+      player.biggestPotWon = Math.max(player.biggestPotWon, seat.wonAmount);
+      if (hand != null && hand.score() > player.bestHandScore) {
+        player.bestHandScore = hand.score();
+        player.bestHand = hand.name();
+      }
+    }
     note(
         now,
         "win",
@@ -930,6 +1129,31 @@ public class Table {
     return "normal";
   }
 
+  /**
+   * Кому записать чужой пустой стек.
+   *
+   * <p>ПО БАНКУ, А НЕ ПО РАЗМЕРУ ВЫИГРЫША. Последние фишки выбывшего лежат в том банке, до уровня
+   * которого он доложил, — забрал их тот, кто этот банк и выиграл. На столе с побочными банками это
+   * разные люди: короткий олл-ин уходит одному, а главный банк в той же раздаче — другому, и
+   * записывать нокаут тому, кто просто взял больше, значило бы врать о том, что все видели.
+   *
+   * <p>Ключ карты — уровень банка (сколько нужно было вложить, чтобы на него претендовать), и
+   * берётся первый уровень не ниже вложенного выбывшим. Разделённый банк отдаёт нокаут первому из
+   * победителей: делить одного выбитого на двоих точнее арифметически и бессмысленнее по сути.
+   */
+  private void knockouts(NavigableMap<Long, Integer> potWinners) {
+    if (result == null || result.busted.isEmpty() || potWinners.isEmpty()) return;
+    for (int index : result.busted) {
+      var loser = seats.get(index);
+      var level = potWinners.ceilingEntry(loser.committed);
+      if (level == null) level = potWinners.lastEntry();
+      int winner = level.getValue();
+      if (winner == index) continue;
+      var player = known(seats.get(winner).memberId);
+      if (player != null) player.knockouts++;
+    }
+  }
+
   private void finish(long now) {
     /*
      Кто вылетел этой раздачей — считается до того, как стол приберут.
@@ -953,6 +1177,11 @@ public class Table {
     for (var seat : falling) {
       seat.busted = true;
       seat.place = place++;
+      var player = known(seat.memberId);
+      if (player != null) {
+        player.place = seat.place;
+        player.stack = 0;
+      }
       note(
           now,
           "bust",
@@ -967,6 +1196,11 @@ public class Table {
       var winner =
           seats.stream().filter(seat -> seat.taken() && seat.stack > 0).findFirst().orElseThrow();
       winner.place = 1;
+      var champion = known(winner.memberId);
+      if (champion != null) {
+        champion.place = 1;
+        champion.stack = winner.stack;
+      }
       phase = "over";
       actor = -1;
       deadline = 0;
@@ -1086,14 +1320,82 @@ public class Table {
     return changed;
   }
 
+  /**
+   * Пуст ли стол прямо сейчас.
+   *
+   * <p>Три условия, и все три обязательны: никакая раздача не идёт, и ни за одним занятым местом
+   * нет человека, который во встрече. Пустой стол — это и «все встали», и «все закрыли вкладку», и
+   * «стол принесли, но никто так и не сел».
+   */
+  public boolean deserted() {
+    if (playing()) return false;
+    for (var seat : seats) if (seat.taken() && !seat.away) return false;
+    return true;
+  }
+
+  /**
+   * Пора ли заканчивать игру.
+   *
+   * <p>ЗДЕСЬ ОДНО УСЛОВИЕ, И ЭТО НАМЕРЕННО. Случайно завершённая игра — это чужие стеки, которых
+   * уже не вернуть, поэтому срок идёт только пока стол по-настоящему пуст ({@link #deserted()}) и
+   * сбрасывается в ноль в тот же миг, как за столом кто-то появился. Ни пауза, ни «отошёл» сами по
+   * себе игру не заканчивают: за ними стоит человек, который вернётся.
+   *
+   * <p>ПАУЗА ИГРУ НЕ ЗАКАНЧИВАЕТ ВОВСЕ. Пауза посреди раздачи оставляет её незаконченной, а
+   * незаконченная раздача — это не пустой стол, сколько бы времени ни прошло. Так и задумано:
+   * человек, нажавший паузу, сказал «замрите», а не «разберите стол».
+   *
+   * <p>Считается это на замке комнаты и по часам сервера — там же, где двигаются все остальные
+   * сроки стола. Два перевода часов срок не поджигают: назад — потому что начало простоя берётся
+   * заново, вперёд через перезапуск ядра — потому что {@code since} (момент, с которого сервер
+   * снова работает) отсекает простой, случившийся, пока вернуться было некуда. Десять минут
+   * отсчитываются от времени, в которое человек и правда мог сесть за стол.
+   *
+   * @param since момент, раньше которого простой не считается: запуск этого экземпляра ядра
+   */
+  public boolean linger(long now, long since) {
+    if (!deserted()) {
+      if (idleSince != 0) {
+        idleSince = 0;
+        revision++;
+      }
+      return false;
+    }
+    if (idleSince == 0 || idleSince > now || idleSince < since) {
+      idleSince = now;
+      revision++;
+      return false;
+    }
+    return now - idleSince >= LINGER_MS;
+  }
+
+  /** Когда стол закроется сам, или 0 — пока за ним кто-то есть. */
+  public long closesAt() {
+    return idleSince == 0 ? 0 : idleSince + LINGER_MS;
+  }
+
   /** Переименовать и перепривязать место: вернувшийся во встречу получает новый идентификатор. */
   public boolean rebind(String previousId, String memberId, String name) {
     var seat = seatOf(previousId);
     if (seat == null) return false;
+    /*
+     Статистика идёт за человеком, а не за идентификатором.
+
+     Переподключившийся получает новый идентификатор, и без этого переноса вторая половина его
+     игры записалась бы на постороннего. Запись переезжает целиком и безусловно: новый
+     идентификатор выдаётся свежим на каждый вход, и та память, что связана с местом, — это
+     ровно то, что человек за этим местом и наиграл.
+    */
+    var player = tally.remove(previousId);
+    if (player != null) {
+      if (name != null && !name.isBlank()) player.name = name;
+      tally.put(memberId, player);
+    }
     seat.memberId = memberId;
     seat.name = name;
     seat.away = false;
     seat.awaySince = 0;
+    idleSince = 0;
     revision++;
     return true;
   }
@@ -1274,7 +1576,11 @@ public class Table {
         resultView(),
         you(viewerId),
         commitment == null ? "" : commitment,
-        revealedSeed == null ? "" : revealedSeed);
+        revealedSeed == null ? "" : revealedSeed,
+        closesAt(),
+        // Итоги считаются только для законченной игры: считать их на каждый снимок посреди
+        // раздачи значило бы присылать таблицу из десяти строк на каждое чужое повышение.
+        "over".equals(phase) ? Standings.of(this, "winner", now) : null);
   }
 
   private TableView.ResultView resultView() {

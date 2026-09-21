@@ -34,10 +34,12 @@ export type Watch = Omit<components['schemas']['Watch'], 'provider' | 'kind' | '
 export type PokerPhase = 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'over';
 export type PokerMode = 'friendly' | 'tournament' | 'turbo';
 export type PokerAction = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin';
-export type PokerTable = Omit<components['schemas']['TableView'], 'phase' | 'mode' | 'you'> & {
+export type PokerTable = Omit<components['schemas']['TableView'], 'phase' | 'mode' | 'you' | 'summary'> & {
   phase: PokerPhase;
   mode: PokerMode;
   you: PokerYou | null;
+  /** Итоги игры — только когда она кончилась; всё остальное время `null`. */
+  summary: PokerGame | null;
 };
 export type PokerSeat = components['schemas']['SeatView'];
 export type PokerYou = Omit<components['schemas']['YouView'], 'actions'> & { actions: PokerAction[] };
@@ -45,6 +47,26 @@ export type PokerResult = components['schemas']['ResultView'];
 export type PokerAward = components['schemas']['AwardView'];
 export type PokerNote = components['schemas']['NoteView'];
 export type PokerPot = components['schemas']['PotView'];
+/**
+ * Игра, которая кончилась.
+ *
+ * Итог, а не лог: кто играл, сколько докупался, сколько поставил, кто сорвал самый крупный банк.
+ * Приезжает отдельной ручкой (`/games`), а не в снимке комнаты — десять таких таблиц в каждом
+ * снимке означали бы килобайты на каждое чужое повышение.
+ */
+export type PokerGame = Omit<components['schemas']['GameSummary'], 'ending'> & {
+  ending: PokerEnding;
+};
+/**
+ * Чем кончилась игра.
+ *
+ * Ядро присылает это строкой — снимок комнаты читается и той версией, которая новых концов не
+ * знает. Полнота проверяется здесь, где это ничего не стоит: подписи к концам лежат в
+ * `Record<PokerEnding, string>`, и забытый конец не компилируется.
+ */
+export type PokerEnding = 'winner' | 'closed' | 'idle' | 'meeting';
+export type PokerPlayer = components['schemas']['PlayerSummary'];
+export type PokerHighlight = components['schemas']['Highlight'];
 
 export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'> & {
   version: 1;

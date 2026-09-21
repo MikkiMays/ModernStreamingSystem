@@ -26,14 +26,6 @@ export class Meeting {
    * Комната узнаёт об этом только в момент «включить», и это обычная команда.
    */
   readonly cinema = new Store<WatchProvider | null>(null);
-  /**
-   * Открыта ли справа шпаргалка по комбинациям.
-   *
-   * Тоже своё, а не общее: один смотрит, что старше — флеш или стрит, — а стол у остальных
-   * при этом не меняется. Живёт здесь, потому что спрашивают со стола, а показывается в
-   * панели интеграций: связать их иначе нечем.
-   */
-  readonly pokerHelp = new Store(false);
   private viewChange: Promise<unknown> = Promise.resolve();
   private viewRevision = 0;
   private played = new Set<string>();

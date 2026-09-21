@@ -1,4 +1,12 @@
-import type { PokerAction, PokerMode, PokerResult, PokerSeat, PokerTable } from '../api/types';
+import type {
+  PokerAction,
+  PokerGame,
+  PokerMode,
+  PokerPlayer,
+  PokerResult,
+  PokerSeat,
+  PokerTable,
+} from '../api/types';
 
 /**
  * Стол, посчитанный до того, как его нарисовали.
@@ -84,6 +92,43 @@ export function actionLabel(action: string, amount = 0): string {
   if (!word) return '';
   if (action === 'fold' || action === 'check') return word;
   return amount > 0 ? `${word} ${chips(amount)}` : word;
+}
+
+/**
+ * Число со словом.
+ *
+ * «1 раздач» в итогах игры выглядит как недоделанная таблица, поэтому правило русского счёта
+ * здесь одно на все подписи: единица, двойка-четвёрка и всё остальное, с изъятием на
+ * подростковые одиннадцать-четырнадцать. То же правило стоит в ядре ({@code Standings.plural}) —
+ * там оно подписывает прикольные строчки итогов.
+ */
+export function plural(count: number, one: string, few: string, many: string): string {
+  const tail = count % 10;
+  const teen = count % 100;
+  if (teen >= 11 && teen <= 14) return `${count} ${many}`;
+  if (tail === 1) return `${count} ${one}`;
+  if (tail >= 2 && tail <= 4) return `${count} ${few}`;
+  return `${count} ${many}`;
+}
+
+/** Как называется игра в истории беседы: день и время, когда она кончилась. */
+export function gameTitle(game: PokerGame): string {
+  return new Date(game.finishedAt).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Кто в этой игре первый.
+ *
+ * В турнире это место, в дружеской игре мест нет — и первым считается верхний в таблице, а её
+ * ядро уже отсортировало по прибыли.
+ */
+export function winnerOf(game: PokerGame): PokerPlayer | undefined {
+  return game.players.find((player) => player.place === 1) ?? game.players[0];
 }
 
 const PHASES: Record<string, string> = {
@@ -305,6 +350,56 @@ export function chipPile(amount: number, limit = 6): ChipDisc[] {
   }
   if (!discs.length && amount > 0) discs.push({ value: 1, tone: '#e9edf4' });
   return discs;
+}
+
+export interface ChipColumn {
+  value: number;
+  /** Сколько фишек этого номинала. Рисуется не больше {@link COLUMN_HEIGHT}, остальное — числом. */
+  count: number;
+  tone: string;
+}
+
+/** Сколько фишек в столбике видно глазом. Выше — уже не «высокая стопка», а частокол. */
+export const COLUMN_HEIGHT = 5;
+
+/**
+ * Стек человека фишками, а не числом.
+ *
+ * ГЛАВНАЯ ЗДЕСЬ МЫСЛЬ — РАЗМЕН. Пять фишек за пять единиц нарисовать можно, пять тысяч за пять
+ * тысяч — нельзя, и не нужно: за настоящим столом крупные суммы лежат крупными номиналами, и
+ * «много» читается по цвету верхней фишки, а не по высоте до потолка. Поэтому сумма раскладывается
+ * по номиналам сверху вниз, и остаются только самые крупные из получившихся столбиков — мелочь
+ * ниже них глазу всё равно ничего не говорит, а точное число стоит рядом цифрами.
+ *
+ * Отсюда же и предел: не больше {@code columns} столбиков и не больше {@link COLUMN_HEIGHT} фишек
+ * в каждом, а сколько их там на самом деле, подписывается числом. Так пятёрка остаётся одной
+ * фишкой, а пятьдесят тысяч — четырьмя столбиками, и одно от другого отличается с одного взгляда.
+ */
+export function chipColumns(amount: number, columns = 4): ChipColumn[] {
+  let left = Math.max(0, Math.round(amount));
+  if (left <= 0) return [];
+  const all: ChipColumn[] = [];
+  for (const [value, tone] of DENOMINATIONS) {
+    const count = Math.floor(left / value);
+    if (count > 0) {
+      all.push({ value, count, tone });
+      left -= count * value;
+    }
+  }
+  if (!all.length) return [];
+  // Крупные номиналы первыми: они и есть размер стека. Мелочь, не попавшую в предел, не
+  // показываем вовсе — врать она не может, потому что сумма всё равно написана рядом.
+  return all.slice(0, columns).reverse();
+}
+
+/**
+ * Куда человек двигает свои фишки.
+ *
+ * Не в середину стола и не под себя, а к линии ставок — на пятую часть пути к центру. Это и есть
+ * ставка «на сукне»: она уже не в стеке, но ещё не в банке, и в конце круга её сгребают туда.
+ */
+export function betSpot(spot: { x: number; y: number }, share = 0.22): { x: number; y: number } {
+  return { x: spot.x + (50 - spot.x) * share, y: spot.y + (50 - spot.y) * share };
 }
 
 /**

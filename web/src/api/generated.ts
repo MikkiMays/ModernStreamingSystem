@@ -191,6 +191,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{id}/games": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["games"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{id}/join": {
         parameters: {
             query?: never;
@@ -463,6 +479,38 @@ export interface components {
             savedAt: number;
             title: string;
         };
+        GameSummary: {
+            /** Format: int64 */
+            bigBlind: number;
+            /** Format: int64 */
+            biggestPot: number;
+            ending: string;
+            /** Format: int64 */
+            finishedAt: number;
+            /** Format: int32 */
+            hands: number;
+            highlights: components["schemas"]["Highlight"][];
+            id: string;
+            /** Format: int32 */
+            level: number;
+            mode: string;
+            modeName: string;
+            players: components["schemas"]["PlayerSummary"][];
+            /** Format: int64 */
+            smallBlind: number;
+            /** Format: int64 */
+            startedAt: number;
+            /** Format: int64 */
+            startingStack: number;
+            tournament: boolean;
+        };
+        Highlight: {
+            hint: string;
+            id: string;
+            name: string;
+            title: string;
+            value: string;
+        };
         Info: {
             /** Format: int64 */
             closedAt?: number;
@@ -527,6 +575,54 @@ export interface components {
             /** @enum {string} */
             status: "WAITING" | "JOINING" | "CONNECTED" | "RECOVERING" | "LEFT" | "EXPIRED" | "REMOVED";
             viewingScreenId?: string | null;
+        };
+        PlayerSummary: {
+            /** Format: int32 */
+            allIns: number;
+            bestHand: string;
+            /** Format: int32 */
+            bestStreak: number;
+            /** Format: int64 */
+            biggestBet: number;
+            /** Format: int64 */
+            biggestPotWon: number;
+            /** Format: int64 */
+            buyIn: number;
+            /** Format: int32 */
+            calls: number;
+            /** Format: int32 */
+            checks: number;
+            /** Format: int32 */
+            folds: number;
+            /** Format: int32 */
+            hands: number;
+            /** Format: int32 */
+            handsWon: number;
+            /** Format: int64 */
+            invested: number;
+            /** Format: int32 */
+            knockouts: number;
+            name: string;
+            /** Format: int64 */
+            net: number;
+            /** Format: int64 */
+            peakStack: number;
+            /** Format: int32 */
+            place: number;
+            /** Format: int32 */
+            raises: number;
+            /** Format: int32 */
+            rebuys: number;
+            /** Format: int32 */
+            showdowns: number;
+            /** Format: int32 */
+            showdownWins: number;
+            /** Format: int64 */
+            stack: number;
+            /** Format: int32 */
+            voluntary: number;
+            /** Format: int64 */
+            won: number;
         };
         PotView: {
             /** Format: int64 */
@@ -634,6 +730,8 @@ export interface components {
             participants: components["schemas"]["Participant"][];
             poker: components["schemas"]["TableView"] | null;
             /** Format: int64 */
+            pokerGamesAt: number;
+            /** Format: int64 */
             sequence: number;
             /** Format: int64 */
             serverTime: number;
@@ -655,6 +753,8 @@ export interface components {
             board: string[];
             /** Format: int32 */
             button: number;
+            /** Format: int64 */
+            closesAt: number;
             commitment: string;
             /** Format: int64 */
             deadline: number;
@@ -688,6 +788,7 @@ export interface components {
             startingStack: number;
             /** Format: int64 */
             streetAt: number;
+            summary: components["schemas"]["GameSummary"] | null;
             /** Format: int32 */
             turnSeconds: number;
             you: components["schemas"]["YouView"] | null;
@@ -1067,6 +1168,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Replay"];
+                };
+            };
+        };
+    };
+    games: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GameSummary"][];
                 };
             };
         };

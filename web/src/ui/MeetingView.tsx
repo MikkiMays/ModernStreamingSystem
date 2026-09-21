@@ -8,7 +8,7 @@ import {
   Headphones,
   Link,
   MessageSquare,
-  Music2,
+  Puzzle,
   Mic,
   MicOff,
   MonitorUp,
@@ -481,7 +481,7 @@ export function MeetingView({
                         </>
                       )}
                       <Menu.Item onClick={() => openServicesPanel()}>
-                        <Music2 size={18} /> Интеграции
+                        <Puzzle size={18} /> Интеграции
                       </Menu.Item>
                       <Menu.Item onClick={() => setSettings(true)}>
                         <Settings2 size={18} /> Настройки
@@ -563,7 +563,7 @@ export function MeetingView({
                 className={panel === 'services' ? 'selected' : ''}
                 onClick={() => togglePanel('services')}
               >
-                <Music2 size={21} />
+                <Puzzle size={21} />
               </IconButton>
             </div>
           </footer>

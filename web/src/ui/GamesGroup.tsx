@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   ChevronDown,
   Coins,
-  ListOrdered,
+  History,
   Play,
   Spade,
   Timer,
@@ -13,7 +14,17 @@ import {
 } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { PokerMode } from '../api/types';
-import { blindsFor, cardFace, chips, HAND_RANKS, MAX_STACK, MIN_STACK, POKER_MODES } from '../core/poker';
+import {
+  blindsFor,
+  chips,
+  gameTitle,
+  MAX_STACK,
+  MIN_STACK,
+  plural,
+  POKER_MODES,
+  winnerOf,
+} from '../core/poker';
+import { GameResult } from './PokerResult';
 import { useStore } from './primitives';
 
 /**
@@ -24,8 +35,9 @@ import { useStore } from './primitives';
  * по-разному. Поэтому здесь список: у каждой игры строка, по нажатию она раскрывается прямо в
  * списке — режим, настройки, кнопка, — и раскрытой остаётся одна.
  *
- * Сама игра живёт на сцене: в узкой колонке стол превратился бы в таблицу с номерами мест.
- * Панели остаётся то, для чего она и нужна, — принести, настроить и убрать.
+ * Сама игра живёт на сцене: в узкой колонке стол превратился бы в таблицу с номерами мест. Панели
+ * остаётся то, для чего она и нужна, — принести, убрать и посмотреть, чем кончились прошлые игры.
+ * Правила и шпаргалки сюда не переезжают: о столе спрашивают у стола.
  */
 type GameId = 'poker';
 
@@ -65,52 +77,6 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
     setStack(Math.round(chosen.stack * (Number.isFinite(ratio) ? ratio : 1)));
   };
 
-  const help = useStore(meeting.pokerHelp);
-  if (help)
-    return (
-      <div className="games-group">
-        <button className="text-button cinema-back" onClick={() => meeting.pokerHelp.set(false)}>
-          <ArrowLeft size={16} /> Назад к игре
-        </button>
-        <section className="service-card">
-          <div className="service-heading">
-            <span className="service-icon" style={{ background: '#8a5cf6' }}>
-              <ListOrdered size={24} />
-            </span>
-            <div>
-              <h3>Комбинации</h3>
-              <p>Сверху сильные, снизу слабые</p>
-            </div>
-          </div>
-          <ol className="hand-ranks">
-            {HAND_RANKS.map((rank, index) => (
-              <li key={rank.name}>
-                <b>
-                  <i>{index + 1}</i> {rank.name}
-                </b>
-                <span className="hand-ranks-cards" aria-hidden="true">
-                  {rank.cards.map((card) => {
-                    const face = cardFace(card);
-                    return (
-                      <em key={card} data-red={face.red || undefined}>
-                        {face.rank}
-                        {face.suit}
-                      </em>
-                    );
-                  })}
-                </span>
-                <small>{rank.hint}</small>
-              </li>
-            ))}
-          </ol>
-          <p className="form-footnote">
-            Рука собирается из пяти карт: две свои и пять общих, любые пять из семи. Равные комбинации делят
-            банк, а спорит между ними кикер — старшая из оставшихся карт.
-          </p>
-        </section>
-      </div>
-    );
-
   return (
     <div className="games-group">
       <button className="text-button cinema-back" onClick={onBack}>
@@ -143,10 +109,12 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     </span>
                   )}
                 </b>
-                <ChevronDown
-                  size={18}
-                  style={{ transform: expanded ? 'rotate(180deg)' : undefined, flex: '0 0 auto' }}
-                />
+                {/*
+                  Стрелка стоит в своей колонке и по центру всей строки, а не по центру первой её
+                  строки: подпись под названием сдвигала её вверх, и выглядело это как съехавшая
+                  вёрстка. Поворот — классом, чтобы он был с переходом, а не прыжком.
+                */}
+                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
                 <small>
                   {live
                     ? `${table.modeName} · блайнды ${chips(table.smallBlind)}/${chips(table.bigBlind)}`
@@ -173,10 +141,6 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                         </li>
                       )}
                     </ul>
-                    <p className="form-footnote">
-                      Стол открыт на сцене. Свободное место занимают нажатием на стул, а выйти из-за стола
-                      можно в любой момент — фишки останутся до конца встречи.
-                    </p>
                     {dealer ? (
                       <>
                         {table.phase === 'lobby' && (
@@ -184,34 +148,6 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                             <Play size={17} /> Раздать
                           </button>
                         )}
-                        <label className="games-toggle">
-                          <input
-                            type="checkbox"
-                            checked={table.seatingOpen}
-                            onChange={() =>
-                              send('poker.settings', {
-                                option: table.seatingOpen ? 'seating-locked' : 'seating-open',
-                              })
-                            }
-                          />
-                          <span>
-                            <b>Пускать новых за стол</b>
-                            <small>
-                              Выключено — сыграть до конца игры не получится никому, кроме тех, кто уже сидит.
-                            </small>
-                          </span>
-                        </label>
-                        <label className="games-toggle">
-                          <input
-                            type="checkbox"
-                            checked={table.autoDeal}
-                            onChange={() => send('poker.settings', { option: 'auto-deal' })}
-                          />
-                          <span>
-                            <b>Раздавать подряд</b>
-                            <small>Выключено — каждую раздачу начинаете вы.</small>
-                          </span>
-                        </label>
                         <button className="button ghost full" onClick={() => send('poker.close')}>
                           <X size={17} /> Убрать стол из встречи
                         </button>
@@ -235,45 +171,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                         </button>
                       ))}
                     </div>
-                    {/*
-                      Стек выбирают одним числом, а блайнды считаются от него: глубина режима
-                      сохраняется, и «раздайте по десять тысяч» не превращается в игру, где
-                      первая ставка ничего не решает.
-                    */}
-                    <div className="games-stack">
-                      <div className="games-stack-head">
-                        <span>
-                          Стартовый стек <b>{chips(stack)}</b>
-                        </span>
-                        <small>
-                          блайнды {chips(blinds.small)}/{chips(blinds.big)}
-                        </small>
-                      </div>
-                      <input
-                        className="slider"
-                        type="range"
-                        min={MIN_STACK}
-                        max={Math.min(MAX_STACK, preset.stack * 10)}
-                        step={Math.max(50, Math.round(preset.stack / 50))}
-                        value={Math.min(stack, Math.min(MAX_STACK, preset.stack * 10))}
-                        onChange={(event) => setStack(Number(event.target.value))}
-                        aria-label="Стартовый стек"
-                      />
-                      <div className="games-quick">
-                        {STACK_STEPS.map((step) => {
-                          const value = Math.round(preset.stack * step);
-                          return (
-                            <button
-                              key={step}
-                              data-active={stack === value || undefined}
-                              onClick={() => setStack(value)}
-                            >
-                              {chips(value)}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <StackChoice preset={preset.stack} stack={stack} blinds={blinds} onChange={setStack} />
                     {canUse ? (
                       <button
                         className="button primary full"
@@ -284,22 +182,168 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     ) : (
                       <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
                     )}
-                    <p className="form-footnote">
-                      Фишки — игровые: ни ставок на деньги, ни счетов здесь нет. Музыка столу не мешает и
-                      может играть одновременно; кинозал — нет, сцена у них одна.
-                    </p>
                   </div>
                 ))}
             </section>
           );
         })}
       </div>
-      <p className="form-footnote">Здесь появятся и другие игры — список для того и сделан.</p>
+      <GameHistory meeting={meeting} />
       {error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Сколько фишек раздать.
+ *
+ * ТРИ СПОСОБА СКАЗАТЬ ОДНО ЧИСЛО, И ВСЕ ТРИ НУЖНЫ. Готовые стеки — для «как обычно»; ползунок —
+ * когда хочется прикинуть на глаз; поле — когда число уже известно («раздай по двадцать пять
+ * тысяч»), и добираться до него ползунком означало бы ловить его мышью. Раньше поля не было, и
+ * ровно этот случай был единственным, который не получался.
+ *
+ * Границы стола — от двухсот фишек до миллиона: ниже не сыграешь, выше — уже не счёт. Написанное
+ * приводится к ним молча, а блайнды считаются от стека и округляются до ровных чисел сами, поэтому
+ * «двадцать пять тысяч триста» — законная просьба, а не ошибка ввода.
+ */
+function StackChoice({
+  preset,
+  stack,
+  blinds,
+  onChange,
+}: {
+  preset: number;
+  stack: number;
+  blinds: { small: number; big: number };
+  onChange: (value: number) => void;
+}) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const accept = (text: string) => {
+    const digits = Number(text.replace(/[^\d]/g, ''));
+    setTyped(null);
+    if (!digits) return;
+    onChange(Math.min(MAX_STACK, Math.max(MIN_STACK, Math.round(digits))));
+  };
+  // Ползунок дотягивается до того, что вписали руками: иначе поле показывало бы одно число, а
+  // ползунок стоял бы на другом.
+  const top = Math.min(MAX_STACK, Math.max(preset * 10, stack));
+  return (
+    <div className="games-stack">
+      <div className="games-stack-head">
+        <label>
+          Стартовый стек
+          <input
+            className="games-stack-input"
+            type="text"
+            inputMode="numeric"
+            value={typed ?? chips(stack)}
+            onChange={(event) => setTyped(event.target.value)}
+            onBlur={(event) => accept(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                accept((event.target as HTMLInputElement).value);
+              }
+              if (event.key === 'Escape') setTyped(null);
+            }}
+            aria-label="Стартовый стек, фишки"
+          />
+        </label>
+        <small>
+          блайнды {chips(blinds.small)}/{chips(blinds.big)}
+        </small>
+      </div>
+      <input
+        className="slider"
+        type="range"
+        min={MIN_STACK}
+        max={top}
+        step={Math.max(50, Math.round(preset / 50))}
+        value={Math.min(stack, top)}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-label="Стартовый стек"
+      />
+      <div className="games-quick">
+        {STACK_STEPS.map((step) => {
+          const value = Math.round(preset * step);
+          return (
+            <button key={step} data-active={stack === value || undefined} onClick={() => onChange(value)}>
+              {chips(value)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * История игр этой беседы.
+ *
+ * ИТОГ, А НЕ ЛОГ. Ход раздач не хранится вовсе: «кто что сходил на ривере» через день не нужно
+ * никому. Остаётся то, с чем люди встали из-за стола, — кто играл, сколько докупался, сколько
+ * поставил, кто сорвал самый крупный банк, — и спрашивается это отдельной ручкой, а не приезжает в
+ * каждом снимке комнаты: десять таких таблиц в снимке означали бы килобайты на каждое чужое
+ * повышение.
+ *
+ * СПИСОК ПЕРЕЧИТЫВАЕТСЯ ПО МЕТКЕ СНИМКА, А НЕ ПО ИСЧЕЗНОВЕНИЮ СТОЛА. Сначала здесь стоял ключ от
+ * самого стола — и запрос уходил в тот самый миг, когда игра кончилась, то есть **до** того, как
+ * ядро успело её записать: список приезжал пустым и больше не обновлялся. Метка {@code
+ * pokerGamesAt} меняется ровно в момент записи, чем бы игра ни кончилась (победитель, убранный
+ * стол, пустой стол, конец встречи), — по ней список и перечитывается.
+ */
+function GameHistory({ meeting }: { meeting: Meeting }) {
+  const snapshot = useStore(meeting.snapshot);
+  const [open, setOpen] = useState<string | null>(null);
+  const games = useQuery({
+    queryKey: ['poker-games', meeting.admission.roomId, snapshot.pokerGamesAt],
+    queryFn: meeting.api.games,
+    // Новая игра меняет ключ, а список при этом не должен мигать пустотой: прошлые итоги
+    // остаются на экране, пока не приедут новые.
+    placeholderData: keepPreviousData,
+    staleTime: 10000,
+  });
+  const list = [...(games.data ?? [])].reverse();
+  if (!list.length) return null;
+  return (
+    <section className="games-history">
+      <h4>
+        <History size={15} /> История игр
+      </h4>
+      <div className="games-list">
+        {list.map((game) => {
+          const expanded = open === game.id;
+          const winner = winnerOf(game);
+          return (
+            <article key={game.id} className="games-item" data-open={expanded || undefined}>
+              <button
+                className="games-head"
+                aria-expanded={expanded}
+                onClick={() => setOpen(expanded ? null : game.id)}
+              >
+                <span className="games-icon" style={{ background: '#2b3442' }}>
+                  <Spade size={18} />
+                </span>
+                <b>{gameTitle(game)}</b>
+                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                <small>
+                  {game.modeName} · {plural(game.hands, 'раздача', 'раздачи', 'раздач')}
+                  {winner ? ` · впереди ${winner.name}` : ''}
+                </small>
+              </button>
+              {expanded && (
+                <div className="games-body">
+                  <GameResult game={game} />
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }

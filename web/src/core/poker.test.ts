@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { PokerSeat, PokerTable } from '../api/types';
 import {
   actionLabel,
+  betSpot,
   betSteps,
   callShare,
+  chipColumns,
   chipPile,
   deadCards,
   cardFace,
@@ -92,6 +94,8 @@ function table(patch: Partial<PokerTable> = {}): PokerTable {
     you: null,
     commitment: '',
     seed: '',
+    closesAt: 0,
+    summary: null,
     ...patch,
   };
 }
@@ -152,6 +156,31 @@ describe('фишки на сукне', () => {
     // Стопка не растёт бесконечно: шести фишек хватает, чтобы прочитать «много».
     expect(chipPile(99999).length).toBeLessThanOrEqual(6);
     expect(chipPile(26, 2).map((disc) => disc.value)).toEqual([25, 1]);
+  });
+
+  it('разменивает стек так, чтобы пятёрка осталась пятёркой, а пять тысяч читались взглядом', () => {
+    expect(chipColumns(0)).toEqual([]);
+    // Мелкая сумма — это ровно те фишки, которые за неё дают.
+    expect(chipColumns(5)).toEqual([{ value: 5, count: 1, tone: '#e04b4b' }]);
+    expect(chipColumns(7).map((column) => [column.value, column.count])).toEqual([
+      [1, 2],
+      [5, 1],
+    ]);
+    // Крупная — крупными номиналами, и не больше четырёх столбиков: мелочь глазу не говорит
+    // ничего, а точное число написано рядом.
+    const big = chipColumns(5000);
+    expect(big.length).toBeLessThanOrEqual(4);
+    expect(big.at(-1)?.value).toBe(5000);
+    expect(chipColumns(12345).map((column) => column.value)).toEqual([25, 100, 1000, 5000]);
+    expect(chipColumns(12345, 2).map((column) => column.value)).toEqual([1000, 5000]);
+    // Фишек одного номинала бывает много — это столбик со счётчиком, а не сто фишек в ряд.
+    expect(chipColumns(4000).map((column) => [column.value, column.count])).toEqual([[1000, 4]]);
+  });
+
+  it('двигает ставку к линии, а не в середину стола', () => {
+    expect(betSpot({ x: 50, y: 93 })).toEqual({ x: 50, y: 93 - 43 * 0.22 });
+    // Из середины двигать некуда.
+    expect(betSpot({ x: 50, y: 50 })).toEqual({ x: 50, y: 50 });
   });
 
   it('считает, какую долю банка стоит ответ', () => {

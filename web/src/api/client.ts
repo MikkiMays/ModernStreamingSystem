@@ -1,4 +1,4 @@
-import type { Ack, Admission, Attachment, Capabilities, Command, Snapshot } from './types';
+import type { Ack, Admission, Attachment, Capabilities, Command, PokerGame, Snapshot } from './types';
 
 export class ApiError extends Error {
   constructor(
@@ -135,6 +135,13 @@ export class RoomApi {
       post({ enabled, commandId: crypto.randomUUID() }),
       this.credential,
     );
+  /**
+   * История игр этой беседы: чем кончилась каждая.
+   *
+   * Спрашивается по требованию, а не приезжает в снимке: итоги десятка игр — это килобайты
+   * таблиц, и пересылать их на каждое чужое повышение незачем.
+   */
+  games = () => request<PokerGame[]>(`${this.base}/games`, {}, this.credential);
   files = () => request<Attachment[]>(`${this.base}/attachments`, {}, this.credential);
   reserve = (name: string, size: number, commandId: string) =>
     request<Attachment>(`${this.base}/attachments`, post({ name, size, commandId }), this.credential);

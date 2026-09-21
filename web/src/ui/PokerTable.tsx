@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Track, TrackEvent } from 'livekit-client';
 import { Menu } from '@base-ui/react/menu';
 import {
@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Timer,
   TrendingUp,
+  Trophy,
   X,
   Zap,
 } from 'lucide-react';
@@ -26,17 +27,21 @@ import { signal } from '../core/sounds';
 import { isTyping } from '../core/hotkeys';
 import {
   actionLabel,
+  betSpot,
   betSteps,
   blindSeats,
   callShare,
   cardFace,
   celebration,
+  chipColumns,
   chipPile,
   chips,
   COLLECT_MS,
+  COLUMN_HEIGHT,
   DEAL_MS,
   deadCards,
   dealDelay,
+  HAND_RANKS,
   phaseLabel,
   playing,
   seatLayout,
@@ -44,6 +49,7 @@ import {
   type SeatSpot,
   type Verdict,
 } from '../core/poker';
+import { GameResult, GameCrown } from './PokerResult';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { Avatar, useStore } from './primitives';
 
@@ -61,15 +67,7 @@ import { Avatar, useStore } from './primitives';
  * ядро и присылает готовым ({@code you.actions}). Вторая копия правил в браузере означала бы, что
  * однажды кнопка и стол разойдутся во мнениях, и права будет кнопка.
  */
-export default function PokerTable({
-  meeting,
-  table,
-  onOpenServices,
-}: {
-  meeting: Meeting;
-  table: Table;
-  onOpenServices: () => void;
-}) {
+export default function PokerTable({ meeting, table }: { meeting: Meeting; table: Table }) {
   const tracks = useStore(meeting.media.tracks);
   const preferences = useStore(meeting.media.preferences);
   const snapshot = useStore(meeting.snapshot);
@@ -80,6 +78,24 @@ export default function PokerTable({
   const dealer = table.hostId === me || !!snapshot.participants.find((p) => p.id === me)?.owner;
   const cheer = celebration(table.result);
   const [error, setError] = useState('');
+  /*
+    Шпаргалка и итоги живут ЗДЕСЬ, внутри сцены, а не в панели справа.
+
+    Раньше «комбинации» уводили в панель интеграций: человек за столом нажимал кнопку и
+    оказывался в другом месте приложения, рядом с настройками музыки, — а стол в этот момент
+    продолжал играть без него. Обе панели полупрозрачные и лежат поверх сукна: они закрывают
+    часть стола, но не забирают его.
+  */
+  const [help, setHelp] = useState(false);
+  const [results, setResults] = useState(false);
+  const summary = table.summary;
+  // Игра кончилась — итоги открываются сами: это тот единственный момент, когда их и ждут.
+  const shown = useRef('');
+  useEffect(() => {
+    if (!summary || shown.current === summary.id) return;
+    shown.current = summary.id;
+    setResults(true);
+  }, [summary]);
 
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
@@ -126,6 +142,7 @@ export default function PokerTable({
     showdown && table.result
       ? table.result.pot
       : table.pot + table.seats.reduce((sum, seat) => sum + seat.bet, 0);
+  const beat = usePotBeat(pot);
 
   return (
     <div className="poker" data-phase={table.phase} data-drama={cheer?.level}>
@@ -134,20 +151,27 @@ export default function PokerTable({
         table={table}
         dealer={dealer}
         onSend={send}
-        onHelp={() => {
-          meeting.pokerHelp.set(true);
-          onOpenServices();
-        }}
+        help={help}
+        onHelp={() => setHelp((open) => !open)}
+        results={!!summary}
+        onResults={() => setResults(true)}
       />
       <div className="poker-felt-wrap">
         <div className="poker-felt">
           {/* Борт, дорожка и сукно — три слоя одного стола, как у настоящего. */}
           <div className="poker-rail" aria-hidden="true" />
           <div className="poker-cloth" aria-hidden="true">
+            {/*
+              Знак заведения на сукне — и заведение здесь одно, Cord. Те же три полосы и то же
+              слово, что в шапке приложения, только вытканные в зелень: видно, что раздача идёт
+              на своём столе, а не на картинке из интернета. Выше него не ложится ничего, кроме
+              карт и фишек, — потому он и приглушён до тени.
+            */}
             <span className="poker-mark">
               <i />
               <i />
               <i />
+              <em>cord</em>
             </span>
           </div>
           <div className="poker-line" aria-hidden="true" />
@@ -165,9 +189,15 @@ export default function PokerTable({
               ))}
             </div>
             <div className="poker-pot-line">
+              {/*
+                Банк растёт на глазах. Ключ здесь — не оптимизация, а наоборот: он нарочно
+                пересобирает пилюлю банка на каждом приросте, и CSS проигрывает толчок заново.
+                Без него банк молча менял число, и «мои фишки уехали в банк» приходилось
+                достраивать в уме.
+              */}
               {pot > 0 && (
-                <span className="poker-pot">
-                  <ChipStack amount={pot} limit={4} />
+                <span className="poker-pot" key={beat}>
+                  <ChipColumns amount={pot} columns={4} size={11} />
                   <b>{chips(pot)}</b>
                 </span>
               )}
@@ -194,7 +224,27 @@ export default function PokerTable({
                 <small>Часы остановлены</small>
               </div>
             )}
-            <Waiting meeting={meeting} table={table} dealer={dealer} onSend={send} />
+            <Waiting
+              meeting={meeting}
+              table={table}
+              dealer={dealer}
+              onSend={send}
+              onResults={() => setResults(true)}
+            />
+            {/*
+              Срок пустого стола — вслух.
+
+              Стол, за которым десять минут никого, заканчивает игру сам, и исчезнуть без
+              предупреждения он не вправе: это выглядело бы как потерянная игра, а не как уборка.
+              Число приезжает в снимке, поэтому у всех оно одно и то же.
+            */}
+            {table.closesAt > 0 && !playing(table) && (
+              <span className="poker-linger" role="status">
+                За столом никого: игра закончится через{' '}
+                <Countdown meeting={meeting} until={table.closesAt} minutes />. Сядьте за стол, и отсчёт
+                остановится.
+              </span>
+            )}
           </div>
           {spots.map((spot) => {
             const seat = table.seats[spot.index];
@@ -218,7 +268,7 @@ export default function PokerTable({
           })}
           {flights.map((flight) => (
             <span
-              key={flight.id}
+              key={`${flight.batch}-${flight.id}`}
               className="poker-flight"
               style={
                 {
@@ -242,23 +292,53 @@ export default function PokerTable({
           {cheer && table.result && <Cheer table={table} cheer={cheer} spots={spots} />}
         </div>
         {preferences.pokerFeed && <Feed table={table} />}
+        {help && <Combinations onClose={() => setHelp(false)} />}
+        {results && summary && <Results game={summary} onClose={() => setResults(false)} />}
       </div>
       <Controls table={table} dealer={dealer} onSend={send} error={error} hints={preferences.pokerHints} />
     </div>
   );
 }
 
-/** Стопка фишек: столько дисков, сколько нужно, чтобы сумма читалась взглядом. */
-function ChipStack({ amount, limit = 5 }: { amount: number; limit?: number }) {
-  const pile = useMemo(() => chipPile(amount, limit), [amount, limit]);
-  if (!pile.length) return null;
+/**
+ * Фишки суммой, а не числом.
+ *
+ * ПОЧЕМУ СТОЛБИКИ, А НЕ ОДНА СТОПКА. Стопка отвечает на «сколько фишек», а за столом спрашивают
+ * «сколько денег»: пять единиц — это пять белых кружков, пять тысяч — не пять тысяч кружков, а
+ * жёлтый номинал в две стопки. Размен считает {@link chipColumns}, здесь остаётся только рисование:
+ * столбик на номинал, не выше {@link COLUMN_HEIGHT} дисков, а сколько их там на самом деле —
+ * подписывается числом. Точная сумма всё равно стоит рядом цифрами, поэтому врать этим нельзя.
+ */
+function ChipColumns({ amount, columns = 3, size = 7 }: { amount: number; columns?: number; size?: number }) {
+  const piles = useMemo(() => chipColumns(amount, columns), [amount, columns]);
+  if (!piles.length) return null;
   return (
-    <span className="chip-stack" aria-hidden="true">
-      {pile.map((disc, index) => (
-        <i key={index} style={{ background: disc.tone, bottom: `${index * 3}px` }} />
+    <span className="chip-columns" style={{ '--chip': `${size}px` } as CSSProperties} aria-hidden="true">
+      {piles.map((pile) => (
+        <i key={pile.value} data-count={pile.count > COLUMN_HEIGHT ? pile.count : undefined}>
+          {Array.from({ length: Math.min(pile.count, COLUMN_HEIGHT) }, (_, index) => (
+            <b key={index} style={{ background: pile.tone, bottom: `calc(var(--chip) * ${index * 0.26})` }} />
+          ))}
+        </i>
       ))}
     </span>
   );
+}
+
+/**
+ * Толчок банка при каждом приросте.
+ *
+ * Считается по разнице снимков: в самом снимке «банк вырос» не написано, а без этого банк молча
+ * менял число — фишки улетали в середину стола, и там ничего не происходило.
+ */
+function usePotBeat(pot: number): number {
+  const [beat, setBeat] = useState(0);
+  const previous = useRef(pot);
+  useEffect(() => {
+    if (pot > previous.current) setBeat((count) => count + 1);
+    previous.current = pot;
+  }, [pot]);
+  return beat;
 }
 
 /** Верхняя полоса: чем играем, какие блайнды и что может сделать раздающий. */
@@ -267,13 +347,19 @@ function TableBar({
   table,
   dealer,
   onSend,
+  help,
   onHelp,
+  results,
+  onResults,
 }: {
   meeting: Meeting;
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+  help: boolean;
   onHelp: () => void;
+  results: boolean;
+  onResults: () => void;
 }) {
   const seated = table.seats.filter((seat) => seat.memberId).length;
   const preferences = useStore(meeting.media.preferences);
@@ -315,8 +401,14 @@ function TableBar({
                 Лента игры
               </Menu.Item>
               <Menu.Item onClick={onHelp}>
-                <ListOrdered size={18} /> Комбинации — в панель справа
+                {help ? <Check size={18} /> : <ListOrdered size={18} />}
+                Комбинации
               </Menu.Item>
+              {results && (
+                <Menu.Item onClick={onResults}>
+                  <Trophy size={18} /> Итоги игры
+                </Menu.Item>
+              )}
             </Menu.Popup>
           </Menu.Positioner>
         </Menu.Portal>
@@ -366,11 +458,13 @@ function Waiting({
   table,
   dealer,
   onSend,
+  onResults,
 }: {
   meeting: Meeting;
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+  onResults: () => void;
 }) {
   if (table.phase === 'over') {
     const winner = table.seats.find((seat) => seat.place === 1);
@@ -378,6 +472,9 @@ function Waiting({
       <div className="poker-waiting is-over" role="status">
         <Crown size={22} />
         <b>{winner ? `${winner.name} забирает всё` : 'Игра окончена'}</b>
+        <button className="button secondary small" onClick={onResults}>
+          <Trophy size={15} /> Итоги игры
+        </button>
         {dealer && (
           <button
             className="button primary small"
@@ -506,9 +603,26 @@ function SeatView({
             </span>
           )}
         </div>
+        {/*
+          Фишки человека — рядом с человеком.
+
+          Одно число говорит, сколько у него денег, но не показывает этого: две тысячи и двадцать
+          тысяч выглядят одинаково, пока их не прочитаешь. Здесь рядом с числом лежит его размен
+          (см. {@link chipColumns}) — столбики по номиналам, которые растут и таят вместе со
+          стеком, так что «у кого сколько» видно по столу, а не по чтению цифр.
+        */}
         <div className="poker-name">
           <span>{seat.name}</span>
-          <b>{seat.busted ? `${seat.place} место` : chips(seat.stack)}</b>
+          <b>
+            {seat.busted ? (
+              `${seat.place} место`
+            ) : (
+              <>
+                <ChipColumns amount={seat.stack} columns={3} size={9} />
+                {chips(seat.stack)}
+              </>
+            )}
+          </b>
         </div>
         {active && !table.paused && (
           <span className="poker-remaining">
@@ -539,7 +653,7 @@ function SeatView({
       </div>
       {seat.bet > 0 && (
         <span className="poker-bet">
-          <ChipStack amount={seat.bet} limit={4} />
+          <ChipColumns amount={seat.bet} columns={3} size={10} />
           {chips(seat.bet)}
         </span>
       )}
@@ -654,8 +768,13 @@ function PlayingCard({
   );
 }
 
-/** Секунды, которые тикают сами по себе и никого вокруг не перерисовывают. */
-function Countdown({ meeting, until }: { meeting: Meeting; until: number }) {
+/**
+ * Секунды, которые тикают сами по себе и никого вокруг не перерисовывают.
+ *
+ * Долгие сроки считаются минутами: «540 с» до закрытия стола — это число, которое нужно делить в
+ * уме, а отвечает оно на вопрос «успею ли я вернуться».
+ */
+function Countdown({ meeting, until, minutes }: { meeting: Meeting; until: number; minutes?: boolean }) {
   const [left, setLeft] = useState(() => Math.max(0, Math.ceil((until - meeting.serverNow()) / 1000)));
   useEffect(() => {
     const update = () => setLeft(Math.max(0, Math.ceil((until - meeting.serverNow()) / 1000)));
@@ -663,7 +782,7 @@ function Countdown({ meeting, until }: { meeting: Meeting; until: number }) {
     const timer = setInterval(update, 250);
     return () => clearInterval(timer);
   }, [meeting, until]);
-  return <>{left} с</>;
+  return <>{minutes && left > 90 ? `${Math.ceil(left / 60)} мин` : `${left} с`}</>;
 }
 
 /** Кнопки хода. Что здесь законно — прислало ядро; здесь только размеры и подписи. */
@@ -744,6 +863,7 @@ function Controls({
         )}
         {seat && (
           <span className="poker-mine-stack">
+            <ChipColumns amount={seat.stack} columns={4} size={13} />
             <b>{chips(seat.stack)}</b>
             {/* Что собралось — словами. Считает ядро и только по вашим картам. */}
             {hints && you?.hand && seat.cards.length > 0 ? (
@@ -953,6 +1073,103 @@ function Feed({ table }: { table: Table }) {
 }
 
 /**
+ * Полупрозрачная панель поверх сукна.
+ *
+ * ПОЧЕМУ ВНУТРИ СЦЕНЫ, А НЕ В ПАНЕЛИ СПРАВА. И шпаргалка, и итоги — это вопросы к столу: «флеш
+ * старше стрита?», «сколько я в итоге проиграл?». Уводить с ними в панель интеграций, к настройкам
+ * музыки, значило бы выйти из игры, чтобы о ней спросить. Панель выезжает поверх стола, оставляет
+ * его видимым сквозь себя и закрывается тем же движением — Escape или крестиком.
+ *
+ * Роль здесь не {@code dialog} намеренно: стол за спиной продолжает играть, и горячие клавиши хода
+ * (они выключаются любым открытым диалогом) должны работать.
+ */
+function Sheet({
+  label,
+  wide,
+  head,
+  children,
+  onClose,
+}: {
+  label: string;
+  wide?: boolean;
+  head: ReactNode;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const keys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
+  }, [onClose]);
+  return (
+    <aside className="poker-sheet" data-wide={wide || undefined} role="region" aria-label={label}>
+      <header className="poker-sheet-head">
+        {head}
+        <button className="poker-sheet-close" onClick={onClose} aria-label="Закрыть">
+          <X size={16} />
+        </button>
+      </header>
+      <div className="poker-sheet-body">{children}</div>
+    </aside>
+  );
+}
+
+/** Лестница комбинаций — там же, где играют, а не в панели справа. */
+function Combinations({ onClose }: { onClose: () => void }) {
+  return (
+    <Sheet
+      label="Комбинации"
+      onClose={onClose}
+      head={
+        <span className="poker-sheet-title">
+          <ListOrdered size={16} />
+          <b>Комбинации</b>
+          <small>Сверху сильные, снизу слабые</small>
+        </span>
+      }
+    >
+      <ol className="hand-ranks">
+        {HAND_RANKS.map((rank, index) => (
+          <li key={rank.name}>
+            <b>
+              <i>{index + 1}</i> {rank.name}
+            </b>
+            <span className="hand-ranks-cards" aria-hidden="true">
+              {rank.cards.map((card) => {
+                const face = cardFace(card);
+                return (
+                  <em key={card} data-red={face.red || undefined}>
+                    {face.rank}
+                    {face.suit}
+                  </em>
+                );
+              })}
+            </span>
+            <small>{rank.hint}</small>
+          </li>
+        ))}
+      </ol>
+      <p className="poker-sheet-note">
+        Рука собирается из пяти карт: две свои и пять общих, любые пять из семи. Равные комбинации делят банк,
+        а спорит между ними кикер — старшая из оставшихся карт.
+      </p>
+    </Sheet>
+  );
+}
+
+/** Итоги игры — сразу, как она кончилась, и сколько стоит стол. */
+function Results({ game, onClose }: { game: NonNullable<Table['summary']>; onClose: () => void }) {
+  return (
+    <Sheet label="Итоги игры" wide onClose={onClose} head={<GameCrown game={game} />}>
+      <GameResult game={game} />
+      <p className="poker-sheet-note">Эти итоги останутся в истории беседы — в панели «Игры».</p>
+    </Sheet>
+  );
+}
+
+/**
  * Праздник.
  *
  * Уровень выбирает сервер, а не браузер: «крупный банк» должен быть крупным у всех сразу, и
@@ -1022,6 +1239,8 @@ function Cheer({
 
 interface Flight {
   id: number;
+  /** Номер партии: он же и ключ. Без него React оставил бы прежний узел, и анимация не повторилась. */
+  batch: number;
   from: { x: number; y: number };
   to: { x: number; y: number };
   delay: number;
@@ -1031,51 +1250,78 @@ interface Flight {
 /**
  * Фишки, летящие по столу.
  *
- * Их нельзя нарисовать по одному снимку: в том, где ставок уже нет, банк их уже съел, а в том,
- * где есть победитель, ставок нет и подавно. Поэтому здесь помнится предыдущее состояние — ровно
- * два числа на место, — и по разнице собирается перелёт.
+ * ТРИ ПЕРЕЛЁТА, И ВСЕ ТРИ — ЭТО ОДНО ДВИЖЕНИЕ ДЕНЕГ. Человек ставит: фишки уезжают из его стека к
+ * линии ставок. Круг кончился: всё, что лежит на линии, сгребают в середину — банк растёт. Раздача
+ * сыграна: банк уезжает победителю. Ни одного из трёх нельзя нарисовать по одному снимку: в том,
+ * где ставок уже нет, банк их съел, а в том, где есть победитель, ставок нет и подавно. Поэтому
+ * здесь помнится предыдущее состояние — ровно по числу на место — и по разнице собирается перелёт.
+ *
+ * Сколько фишек летит, а не сколько их поставили: три-пять дисков читаются как «фишки поехали», а
+ * сорок — как рябь. Номиналы берутся у самой суммы ({@link chipPile}), поэтому крупная ставка и
+ * летит крупными цветами.
  */
 function useChipFlights(table: Table, spots: SeatSpot[]): Flight[] {
   const [flights, setFlights] = useState<Flight[]>([]);
   const previous = useRef({
     streetAt: table.streetAt,
+    handNumber: table.handNumber,
     bets: table.seats.map((seat) => seat.bet),
     resultAt: 0,
   });
+  const batch = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const bets = table.seats.map((seat) => seat.bet);
+    const street = table.streetAt !== previous.current.streetAt;
+    const fresh = table.handNumber !== previous.current.handNumber;
     const next: Flight[] = [];
+    const group = ++batch.current;
     let id = 0;
-    if (table.streetAt !== previous.current.streetAt)
+    const fly = (
+      from: { x: number; y: number },
+      to: { x: number; y: number },
+      amount: number,
+      limit: number,
+      delay: number,
+      step: number,
+    ) => {
+      for (const [index, disc] of chipPile(amount, limit).entries())
+        next.push({ id: id++, batch: group, from, to, delay: delay + index * step, tone: disc.tone });
+    };
+    if (fresh)
+      /*
+        Блайнды — это тоже брошенные фишки, и лететь они обязаны.
+
+        Считаются они от нуля, а не от предыдущего снимка: в нём лежит прошлая раздача, и
+        разница с ней ничего не значит. Летят с задержкой, сравнимой с раздачей карт, — чтобы
+        не спорить с ними за внимание в первую же секунду.
+      */
+      bets.forEach((bet, index) => {
+        const spot = spots[index];
+        if (bet > 0 && spot) fly(spot, betSpot(spot), bet, 3, 180, 60);
+      });
+    else if (street)
+      // Круг кончился: ставки со всего стола уезжают в банк — оттуда, где они лежали.
       previous.current.bets.forEach((bet, index) => {
         const spot = spots[index];
-        if (bet > 0 && spot)
-          for (const [step, disc] of chipPile(bet, 3).entries())
-            next.push({
-              id: id++,
-              from: spot,
-              to: { x: 50, y: 50 },
-              delay: index * 40 + step * 70,
-              tone: disc.tone,
-            });
+        if (bet > 0 && spot) fly(betSpot(spot), { x: 50, y: 50 }, bet, 3, index * 40, 70);
+      });
+    else
+      bets.forEach((bet, index) => {
+        // Ставка: только прирост, иначе доложенная разница выглядела бы новой ставкой целиком.
+        const added = bet - (previous.current.bets[index] ?? 0);
+        const spot = spots[index];
+        if (added > 0 && spot) fly(spot, betSpot(spot), added, 3, 0, 60);
       });
     const result = table.result;
     if (result && result.at !== previous.current.resultAt)
       result.awards.forEach((award, index) => {
         const spot = spots[award.seat];
-        if (spot)
-          for (const [step, disc] of chipPile(award.amount, 5).entries())
-            next.push({
-              id: id++,
-              from: { x: 50, y: 50 },
-              to: spot,
-              delay: 260 + index * 120 + step * 80,
-              tone: disc.tone,
-            });
+        if (spot) fly({ x: 50, y: 50 }, spot, award.amount, 5, 260 + index * 120, 80);
       });
     previous.current = {
       streetAt: table.streetAt,
+      handNumber: table.handNumber,
       bets,
       resultAt: result?.at ?? previous.current.resultAt,
     };

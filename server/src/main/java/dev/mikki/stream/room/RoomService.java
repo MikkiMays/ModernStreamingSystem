@@ -400,7 +400,8 @@ public class RoomService {
             List.of(),
             current.serverTime(),
             current.watch(),
-            current.poker());
+            current.poker(),
+            current.pokerGamesAt());
     return new Admission(
         room.id,
         member.id,
@@ -531,7 +532,22 @@ public class RoomService {
         messages,
         now(),
         watch(room),
-        room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()));
+        room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()),
+        lastGameAt(room));
+  }
+
+  /**
+   * Когда в этой беседе последний раз доиграли.
+   *
+   * <p>ОДНО ЧИСЛО ВМЕСТО ИСТОРИИ. Сами итоги в снимок не ложатся — это килобайты таблиц на каждое
+   * чужое повышение, — но знать, что история изменилась, браузеру необходимо: иначе он спрашивает
+   * её в тот самый миг, когда игра кончилась, получает пустой список и больше не возвращается. Эта
+   * метка меняется ровно в момент записи, чем бы игра ни кончилась, и по ней список перечитывается
+   * сам.
+   */
+  private static long lastGameAt(RoomState room) {
+    if (room.pokerGames == null || room.pokerGames.isEmpty()) return 0;
+    return room.pokerGames.get(room.pokerGames.size() - 1).finishedAt();
   }
 
   private static Contracts.Watch watch(RoomState room) {
@@ -577,9 +593,11 @@ public class RoomService {
         List.of(),
         current.serverTime(),
         // Ожидающий в дверях ещё не во встрече: что комната смотрит и во что играет — такая же
-        // её жизнь, как переписка, и до разрешения войти он этого не видит.
+        // её жизнь, как переписка, и до разрешения войти он этого не видит. Прошлые игры — тем
+        // более: история беседы начинается после того, как в неё пустили.
         null,
-        null);
+        null,
+        0);
   }
 
   @Transactional
@@ -778,6 +796,9 @@ public class RoomService {
             case "poker.close" -> {
               requireActive(room, member);
               dealer(room, member);
+              // Стол уносят вместе с фишками, а итог игры остаётся: иначе «убрать стол» означало
+              // бы стереть то, что за ним происходило полчаса.
+              archiveGame(room, "closed", now());
               room.poker = null;
             }
             case "poker.sit" ->
@@ -899,6 +920,38 @@ public class RoomService {
     if (!member.owner && !room.integrationsAllowed) throw Problem.forbidden();
   }
 
+  /**
+   * Сложить игру в историю беседы.
+   *
+   * <p>ОДНА ДВЕРЬ НА ВСЕ КОНЦЫ ИГРЫ, и это главное про этот метод. Игра кончается по-разному — за
+   * столом остался один, стол убрали руками, за столом десять минут никого не было, встречу
+   * завершили, — и записать её нужно ровно один раз в любом из этих случаев. Отметка стоит на самом
+   * столе ({@code archived}), поэтому второй вызов ничего не делает, сколько бы концов ни совпало.
+   *
+   * <p>Игра без единой раздачи в историю не идёт: стол, который принесли и убрали, — это не «игра с
+   * нулевой статистикой», а отсутствие игры.
+   */
+  static void archiveGame(RoomState room, String ending, long now) {
+    var table = room.poker;
+    if (table == null || table.archived || table.handNumber == 0) return;
+    table.archived = true;
+    if (room.pokerGames == null) room.pokerGames = new java.util.ArrayList<>();
+    room.pokerGames.add(dev.mikki.stream.game.Standings.of(table, ending, now));
+    while (room.pokerGames.size() > RoomState.POKER_HISTORY) room.pokerGames.remove(0);
+  }
+
+  /**
+   * История игр беседы.
+   *
+   * <p>Отдельная ручка, а не поле снимка: итоги десяти игр — это килобайты таблиц, которые
+   * пересылать на каждое чужое повышение незачем. Их спрашивают тогда, когда открывают историю.
+   */
+  public List<dev.mikki.stream.game.GameSummary> games(String roomId, String credential) {
+    var room = read(roomId);
+    authenticate(room, credential);
+    return room.pokerGames == null ? List.of() : List.copyOf(room.pokerGames);
+  }
+
   /** Стол, который точно есть. Команда игре без стола — это не ошибка правил, а опоздание. */
   private static dev.mikki.stream.game.Table table(RoomState room) {
     if (room.poker == null) throw Problem.conflict("POKER_CLOSED", "Стол уже убрали из встречи");
@@ -982,6 +1035,7 @@ public class RoomService {
     // Смотреть и играть вместе больше некому: закрытая комната не должна открывать ни плеер,
     // ни стол тому, кто зайдёт в неё за историей переписки.
     room.watch = null;
+    archiveGame(room, "meeting", room.closedAt);
     room.poker = null;
     games.forget(room.id);
     freezeHistory(room, room.closedAt);

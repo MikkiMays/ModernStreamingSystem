@@ -3,7 +3,9 @@ package dev.mikki.stream;
 import static org.assertj.core.api.Assertions.*;
 
 import dev.mikki.stream.game.Cards;
+import dev.mikki.stream.game.GameSummary;
 import dev.mikki.stream.game.Hands;
+import dev.mikki.stream.game.Standings;
 import dev.mikki.stream.game.Table;
 import dev.mikki.stream.shared.Problem;
 import java.util.ArrayList;
@@ -350,6 +352,34 @@ class PokerTest {
     assertThat(table.result.awards).hasSize(2);
   }
 
+  /**
+   * Нокаут записывается тому, кто забрал последние фишки выбывшего.
+   *
+   * <p>На столе с побочными банками это разные люди: главный банк уходит одному, верхний — другому,
+   * и оба кого-то выбивают. Считать нокауты по размеру выигрыша (как было сначала) значит записать
+   * обоих выбывших на того, кто просто взял больше, — и рассказать про игру не то, что все видели.
+   */
+  @Test
+  void aKnockoutGoesToWhoeverTookTheLastChipsAndNotToTheBiggestWinner() {
+    var table = table("friendly", 4);
+    seat(table, 0).stack = 500;
+    seat(table, 1).stack = 1500;
+    seat(table, 2).stack = 3000;
+    seat(table, 3).stack = 3000;
+    deal(table, T0, "2c 7d 9s Jh 4c", "3h 5d", "As Ad", "Ks Kd", "Qs Qd");
+    for (int step = 0; step < 4; step++) table.act("p" + table.actor, "allin", 0, T0);
+    runOut(table);
+    // Три банка: пятьсот с каждого и тысяча с троих — тузам, полторы тысячи с двоих — королям.
+    assertThat(seat(table, 1).stack).isEqualTo(5000);
+    assertThat(seat(table, 2).stack).isEqualTo(3000);
+    assertThat(seat(table, 0).stack).isZero();
+    assertThat(seat(table, 3).stack).isZero();
+    // Тузы взяли больше всех, но дам выбили короли — их фишки лежали в верхнем банке.
+    assertThat(table.tally.get("p1").knockouts).isEqualTo(1);
+    assertThat(table.tally.get("p2").knockouts).isEqualTo(1);
+    assertThat(table.tally.get("p3").knockouts).isZero();
+  }
+
   @Test
   void aSplitPotGivesTheOddChipToTheSeatLeftOfTheButton() {
     var table = table("friendly", 3);
@@ -502,5 +532,190 @@ class PokerTest {
     table.act("p" + table.actor, "fold", 0, T0);
     assertThat(table.view("p0", T0).seed()).isEqualTo(secret);
     assertThat(Cards.commitment(secret)).isEqualTo(table.commitment);
+  }
+
+  // --- Пустой стол ------------------------------------------------------------------------
+
+  /**
+   * Срок пустого стола.
+   *
+   * <p>Проверяется здесь не «работает ли таймер», а то, из-за чего эту логику страшно писать:
+   * случайно завершённая игра — это чужие стеки, которых уже не вернуть. Поэтому срок не идёт, пока
+   * за столом есть кто угодно, и не срабатывает ни на секунду раньше десяти минут.
+   */
+  @Test
+  void anEmptyTableWaitsTenMinutesAndOnlyThenEndsTheGame() {
+    var table = table("friendly", 2);
+    assertThat(table.deserted()).isFalse();
+    assertThat(table.linger(T0, T0)).isFalse();
+    assertThat(table.idleSince).isZero();
+    assertThat(table.linger(T0 + Table.LINGER_MS * 3, T0)).isFalse();
+    assertThat(table.closesAt()).isZero();
+    // Все ушли из встречи: срок пошёл — и ровно с этого момента.
+    table.presence(Set.of(), T0);
+    assertThat(table.deserted()).isTrue();
+    assertThat(table.linger(T0, T0)).isFalse();
+    assertThat(table.closesAt()).isEqualTo(T0 + Table.LINGER_MS);
+    assertThat(table.linger(T0 + Table.LINGER_MS - 1, T0)).isFalse();
+    assertThat(table.linger(T0 + Table.LINGER_MS, T0)).isTrue();
+  }
+
+  @Test
+  void anybodyAtTheTableResetsTheDeadlineAndTheNextOneStartsOver() {
+    var table = table("friendly", 2);
+    table.presence(Set.of(), T0);
+    table.linger(T0, T0);
+    assertThat(table.closesAt()).isEqualTo(T0 + Table.LINGER_MS);
+    // Вернулся один из сидящих — срока больше нет вовсе.
+    table.presence(Set.of("p0"), T0 + 60000);
+    assertThat(table.linger(T0 + 60000, T0)).isFalse();
+    assertThat(table.closesAt()).isZero();
+    // Ушёл снова — отсчёт начинается заново, а не продолжает прежний.
+    table.presence(Set.of(), T0 + 120000);
+    table.linger(T0 + 120000, T0);
+    assertThat(table.linger(T0 + 120000 + Table.LINGER_MS - 1, T0)).isFalse();
+    assertThat(table.linger(T0 + 120000 + Table.LINGER_MS, T0)).isTrue();
+  }
+
+  /**
+   * Простой, случившийся при лежащем ядре, человеку не принадлежит.
+   *
+   * <p>Это та поломка, которую видно только в проде: ядро перезапустили через час, стол всё это
+   * время был пуст — и первый же проход уборки закончил бы игру мгновенно, хотя вернуться за стол
+   * было некуда. Отсчёт начинается заново от запуска.
+   */
+  @Test
+  void theDeadlineDoesNotCountTheTimeTheCoreWasDown() {
+    var table = table("friendly", 2);
+    table.presence(Set.of(), T0);
+    table.linger(T0, T0);
+    assertThat(table.idleSince).isEqualTo(T0);
+    // Ядро подняли через час: прежний момент простоя старше запуска — и он не считается.
+    long booted = T0 + 3600000;
+    assertThat(table.linger(booted, booted)).isFalse();
+    assertThat(table.idleSince).isEqualTo(booted);
+    assertThat(table.linger(booted + Table.LINGER_MS - 1, booted)).isFalse();
+    assertThat(table.linger(booted + Table.LINGER_MS, booted)).isTrue();
+  }
+
+  /** Раздача, которая идёт, пустым столом не считается: карты на руках — это игра. */
+  @Test
+  void aHandInProgressIsNeverAnEmptyTable() {
+    var table = table("friendly", 3);
+    table.deal(T0);
+    table.presence(Set.of(), T0);
+    assertThat(table.deserted()).isFalse();
+    assertThat(table.linger(T0 + Table.LINGER_MS * 2, T0)).isFalse();
+  }
+
+  /** Стол, за который никто так и не сел, — тоже пустой стол. */
+  @Test
+  void aTableNobodyEverSatAtIsEmptyFromTheStart() {
+    var table = Table.open("host", "friendly", T0);
+    assertThat(table.deserted()).isTrue();
+    assertThat(table.linger(T0, T0)).isFalse();
+    assertThat(table.linger(T0 + Table.LINGER_MS, T0)).isTrue();
+    // Но играть в ней было нечему, и в историю такая «игра» не идёт.
+    assertThat(table.handNumber).isZero();
+  }
+
+  // --- Итоги игры -------------------------------------------------------------------------
+
+  /**
+   * Что игра помнит о каждом.
+   *
+   * <p>Числа здесь считаются по ходу дела и в конце уже не восстановимы: ни карт, ни ставок, ни
+   * половины сидевших к этому моменту нет. Ошибка в любом из них выглядит как исправная таблица, в
+   * которой изредка не сходится то, что люди только что видели сами.
+   */
+  @Test
+  void theSummaryTellsWhoPutInHowMuchAndWhatTheyTookOut() {
+    var table = table("friendly", 2);
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0);
+    table.act("p" + table.actor, "call", 0, T0);
+    runOut(table);
+    table.tick(table.deadline);
+    var summary = Standings.of(table, "closed", T0 + 1000);
+    assertThat(summary.hands()).isEqualTo(1);
+    assertThat(summary.biggestPot()).isEqualTo(10000);
+    assertThat(summary.tournament()).isFalse();
+    // Порядок в дружеской игре — по прибыли: мест здесь нет, а «плюс пять тысяч» есть.
+    var winner = summary.players().get(0);
+    var loser = summary.players().get(1);
+    assertThat(winner.name()).isEqualTo("Игрок 0");
+    assertThat(winner.hands()).isEqualTo(1);
+    assertThat(winner.handsWon()).isEqualTo(1);
+    assertThat(winner.allIns()).isEqualTo(1);
+    assertThat(winner.invested()).isEqualTo(5000);
+    assertThat(winner.won()).isEqualTo(10000);
+    assertThat(winner.stack()).isEqualTo(10000);
+    assertThat(winner.net()).isEqualTo(5000);
+    assertThat(winner.showdowns()).isEqualTo(1);
+    assertThat(winner.showdownWins()).isEqualTo(1);
+    assertThat(winner.biggestPotWon()).isEqualTo(10000);
+    assertThat(winner.peakStack()).isEqualTo(10000);
+    assertThat(winner.knockouts()).isEqualTo(1);
+    assertThat(winner.bestHand()).isEqualTo("Сет тузов");
+    assertThat(loser.stack()).isZero();
+    assertThat(loser.net()).isEqualTo(-5000);
+    assertThat(loser.invested()).isEqualTo(5000);
+    assertThat(loser.handsWon()).isZero();
+    // Прикольные строчки складываются из тех же чисел и без данных не появляются.
+    assertThat(summary.highlights())
+        .extracting(GameSummary.Highlight::id)
+        .contains("pot", "allin", "hand", "profit", "knockouts");
+    assertThat(summary.highlights())
+        .extracting(GameSummary.Highlight::id)
+        .doesNotContain("rebuys", "showdown");
+    assertThat(
+            summary.highlights().stream()
+                .filter(one -> one.id().equals("pot"))
+                .findFirst()
+                .orElseThrow()
+                .name())
+        .isEqualTo("Игрок 0");
+  }
+
+  /** Докупка и второй приход за стол — это одно и то же: человек взял фишки заново. */
+  @Test
+  void topUpsAndSecondBuyInsAreBothCountedAsRebuys() {
+    var table = table("friendly", 2);
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0);
+    table.act("p" + table.actor, "call", 0, T0);
+    runOut(table);
+    table.tick(table.deadline);
+    table.rebuy("p1", T0 + 1000);
+    assertThat(table.tally.get("p1").rebuys).isEqualTo(1);
+    assertThat(table.tally.get("p1").buyIn).isEqualTo(10000);
+    table.stand("p1", T0 + 2000);
+    table.sit("p1", "Игрок 1", 4, T0 + 3000);
+    assertThat(table.tally.get("p1").rebuys).isEqualTo(2);
+    assertThat(table.tally.get("p1").buyIn).isEqualTo(15000);
+    var summary = Standings.of(table, "closed", T0 + 4000);
+    assertThat(summary.highlights()).extracting(GameSummary.Highlight::id).contains("rebuys");
+  }
+
+  /** Турнир кончается сам, и его итог — это места, а не прибыль. */
+  @Test
+  void aTournamentEndsWithPlacesAndItsSummaryIsReadyRightThere() {
+    var table = table("tournament", 2);
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0);
+    table.act("p" + table.actor, "call", 0, T0);
+    runOut(table);
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    var summary = table.view("p0", T0 + 1000).summary();
+    assertThat(summary).isNotNull();
+    assertThat(summary.tournament()).isTrue();
+    assertThat(summary.ending()).isEqualTo("winner");
+    assertThat(summary.players().get(0).place()).isEqualTo(1);
+    assertThat(summary.players().get(1).place()).isEqualTo(2);
+    // Имя записи не меняется от снимка к снимку: иначе итоги перерисовывались бы без причины.
+    assertThat(table.view("p1", T0 + 2000).summary().id()).isEqualTo(summary.id());
+    // Пока игра идёт, итогов нет вовсе.
+    assertThat(table("tournament", 2).view("p0", T0).summary()).isNull();
   }
 }

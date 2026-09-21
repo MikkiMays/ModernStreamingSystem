@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Clapperboard, Radio, Tv, X } from 'lucide-react';
+import { ArrowLeft, Radio, Tv, X } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { WatchProvider } from '../core/watch';
 import { useStore } from './primitives';
@@ -63,14 +63,10 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
           </button>
         ))}
       </div>
-      {cinema ? (
+      {cinema && (
         <button className="button secondary full" onClick={() => meeting.openCinema(null)}>
           <X size={17} /> Закрыть каталог
         </button>
-      ) : (
-        <p className="form-footnote">
-          <Clapperboard size={13} /> Каталог откроется на сцене — там же, где потом пойдёт кино.
-        </p>
       )}
       {!canUse && <p className="form-footnote">Ведущий разрешил включать и останавливать только себе.</p>}
       {error && (

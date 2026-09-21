@@ -83,7 +83,10 @@ public class OpenApiConfig {
               "NoteView",
               "ResultView",
               "AwardView",
-              "YouView")) {
+              "YouView",
+              "GameSummary",
+              "PlayerSummary",
+              "Highlight")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
@@ -108,7 +111,8 @@ public class OpenApiConfig {
               "SeatView",
               List.of("memberId"),
               "TableView",
-              List.of("result", "you"),
+              // Итоги есть только у законченной игры.
+              List.of("result", "you", "summary"),
               "Ack",
               List.of("value"),
               "Attachment",

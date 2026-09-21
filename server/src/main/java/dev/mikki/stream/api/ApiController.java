@@ -106,6 +106,18 @@ public class ApiController {
     return rooms.snapshot(id.toString(), credential);
   }
 
+  /**
+   * История игр этой беседы: чем кончилась каждая.
+   *
+   * <p>Отдельная ручка, а не поле снимка: итоги десяти игр — это килобайты таблиц, и пересылать их
+   * на каждое чужое повышение незачем. Спрашивают их тогда, когда открывают историю.
+   */
+  @GetMapping("/rooms/{id}/games")
+  public List<dev.mikki.stream.game.GameSummary> games(
+      @PathVariable UUID id, @RequestHeader("Authorization") String credential) {
+    return rooms.games(id.toString(), credential);
+  }
+
   @PostMapping("/rooms/join-by-code")
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {

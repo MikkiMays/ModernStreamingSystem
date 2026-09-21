@@ -1204,8 +1204,110 @@ class RoomServiceTest {
   @Test
   void closingTheMeetingTakesTheTableAwayWithIt() {
     var host = host();
+    var guest = guest(host);
     poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    poker(guest, "poker.sit", null, 1, null);
+    poker(host, "poker.deal", null, null, null);
     command(host, "close", null, 0);
     assertThat(rooms.read(host.roomId()).poker).isNull();
+    // Стола нет, а игра была: её итог остаётся в истории беседы.
+    var games = rooms.read(host.roomId()).pokerGames;
+    assertThat(games).hasSize(1);
+    assertThat(games.get(0).ending()).isEqualTo("meeting");
+  }
+
+  /**
+   * Стол убрали руками — игра кончилась, но не исчезла.
+   *
+   * <p>Иначе «убрать стол» означало бы стереть то, что за ним происходило полчаса. А вот стол, за
+   * которым не сыграли ни одной раздачи, в историю не идёт: это не игра с нулевой статистикой, а
+   * отсутствие игры.
+   */
+  @Test
+  void removingTheTableKeepsTheResultOfWhatWasActuallyPlayed() {
+    var host = host();
+    var guest = guest(host);
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.close", null, null, null);
+    assertThat(rooms.read(host.roomId()).pokerGames).isNull();
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    poker(guest, "poker.sit", null, 1, null);
+    poker(host, "poker.deal", null, null, null);
+    poker(host, "poker.close", null, null, null);
+    var games = rooms.games(host.roomId(), host.credential());
+    assertThat(games).hasSize(1);
+    assertThat(games.get(0).ending()).isEqualTo("closed");
+    assertThat(games.get(0).hands()).isEqualTo(1);
+    // Метка в снимке — единственное, по чему браузер узнаёт, что историю пора перечитать.
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).pokerGamesAt())
+        .isEqualTo(games.get(0).finishedAt());
+    assertThat(games.get(0).players())
+        .extracting(dev.mikki.stream.game.GameSummary.PlayerSummary::name)
+        .containsExactlyInAnyOrder("Организатор", "Гость");
+  }
+
+  /**
+   * Стол, за которым десять минут никого, заканчивает игру сам.
+   *
+   * <p>Раньше он стоял до конца встречи: люди вставали, уходили, возвращались через час — и
+   * заставали чужую игру на сцене. Проверяется именно то, чего в этой логике боишься: девять минут
+   * ничего не происходит, а на одиннадцатой игра уходит в историю целиком, а не наполовину.
+   */
+  @Test
+  void aTableNobodySitsAtEndsTheGameAfterTenMinutes() {
+    // Ядро считает простой только с момента своего запуска, и здесь он — сейчас: иначе часы
+    // соседних проверок, уехавшие на дни вперёд, отсекали бы весь отсчёт этой.
+    lifecycle.started();
+    var host = host();
+    var guest = guest(host);
+    media.observe(
+        host.roomId(),
+        Map.of(host.participantId(), "PA_host", guest.participantId(), "PA_guest"),
+        now.incrementAndGet());
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    poker(guest, "poker.sit", null, 1, null);
+    poker(host, "poker.deal", null, null, null);
+    // Оба встали из-за стола; раздача при этом доигрывается своим чередом.
+    poker(host, "poker.stand", null, null, null);
+    poker(guest, "poker.stand", null, null, null);
+    now.set(rooms.read(host.roomId()).poker.deadline + 1);
+    lifecycle.sweepRoom(host.roomId());
+    var waiting = rooms.read(host.roomId()).poker;
+    assertThat(waiting).isNotNull();
+    assertThat(waiting.deserted()).isTrue();
+    assertThat(waiting.closesAt()).isGreaterThan(now.get());
+    // Девять минут — стол на месте: это «мы отошли», а не «мы разошлись».
+    now.addAndGet(9 * 60_000);
+    lifecycle.sweepRoom(host.roomId());
+    assertThat(rooms.read(host.roomId()).poker).isNotNull();
+    // Одиннадцатая минута — игры больше нет, а её итог есть.
+    now.addAndGet(2 * 60_000);
+    lifecycle.sweepRoom(host.roomId());
+    var room = rooms.read(host.roomId());
+    assertThat(room.poker).isNull();
+    assertThat(room.pokerGames).hasSize(1);
+    assertThat(room.pokerGames.get(0).ending()).isEqualTo("idle");
+    assertThat(room.pokerGames.get(0).players()).hasSize(2);
+    assertThat(rooms.games(host.roomId(), host.credential())).hasSize(1);
+  }
+
+  /** Стол, за которым сидят, не заканчивается сам — сколько бы ни ждал следующей раздачи. */
+  @Test
+  void aTableWithSomebodyAtItIsNeverEndedByTheClock() {
+    var host = host();
+    media.observe(host.roomId(), Map.of(host.participantId(), "PA_host"), now.incrementAndGet());
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    for (int minutes = 0; minutes < 30; minutes++) {
+      now.addAndGet(60_000);
+      lifecycle.sweepRoom(host.roomId());
+    }
+    var table = rooms.read(host.roomId()).poker;
+    assertThat(table).isNotNull();
+    assertThat(table.closesAt()).isZero();
+    assertThat(table.seats.get(0).memberId).isEqualTo(host.participantId());
   }
 }

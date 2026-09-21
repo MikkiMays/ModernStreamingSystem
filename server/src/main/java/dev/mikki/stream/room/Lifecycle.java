@@ -18,6 +18,15 @@ public class Lifecycle {
   private final GameClock games;
   private final ApplicationEventPublisher events;
 
+  /**
+   * С какого момента этот экземпляр ядра работает.
+   *
+   * <p>Нужно ровно одному правилу — сроку пустого стола. Простой, случившийся, пока ядро лежало,
+   * человеку не принадлежит: вернуться за стол в это время было некуда, и засчитывать эти минуты в
+   * десять, после которых игра заканчивается, нечестно.
+   */
+  private volatile long startedAt;
+
   public Lifecycle(
       RoomService service,
       RoomRepository rooms,
@@ -29,6 +38,18 @@ public class Lifecycle {
     this.config = config;
     this.games = games;
     this.events = events;
+  }
+
+  @org.springframework.context.event.EventListener(
+      org.springframework.boot.context.event.ApplicationReadyEvent.class)
+  public void started() {
+    startedAt = service.now();
+  }
+
+  /** То же, когда события запуска не было: первый проход уборки и есть начало. */
+  private long startedAt(long now) {
+    if (startedAt == 0) startedAt = now;
+    return startedAt;
   }
 
   /**
@@ -121,14 +142,14 @@ public class Lifecycle {
       changed = true;
     }
     /*
-     Стол переживает уход всех — в отличие от кино.
+     Стол переживает уход всех дольше, чем кино, но не навсегда.
 
-     Кино в пустом зале тянет сегменты с площадки, и гасить его надо. Стол не делает ничего:
-     это фишки, лежащие в снимке комнаты. А выйти всем на минуту — обычное дело («я за чаем»),
-     и разобрать из-за этого игру с чужими стеками было бы куда хуже. Если не вернётся никто,
-     стол уйдёт вместе с комнатой, когда она закроется по своему сроку.
+     Кино в пустом зале тянет сегменты с площадки, и гасить его надо сразу. Стол не делает
+     ничего: это фишки, лежащие в снимке комнаты. А выйти всем на минуту — обычное дело («я за
+     чаем»), и разобрать из-за этого игру с чужими стеками было бы куда хуже. Поэтому у пустого
+     стола свой срок — десять минут, — и только по нему игра заканчивается сама.
 
-     Что здесь всё-таки делается: стол узнаёт, кого из сидящих во встрече больше нет. За
+     Что здесь делается кроме срока: стол узнаёт, кого из сидящих во встрече больше нет. За
      ушедшего он ходит сам — иначе один закрытый браузер держал бы круг все тридцать секунд.
     */
     if (room.poker != null) {
@@ -148,7 +169,34 @@ public class Lifecycle {
                   if (!owner.id.equals(room.poker.hostId)) room.poker.host(owner.id);
                 });
       if (room.poker.tick(now)) changed = true;
-      games.schedule(id, room.poker.deadline);
+      /*
+       Игра, которая кончилась сама, уходит в историю сразу — пока стол ещё на сцене.
+
+       Победителя за столом видно, итоги открываются тут же, и это единственный момент, когда
+       записать игру можно, ничего не спрашивая: она уже сыграна, а стол ещё цел.
+      */
+      if ("over".equals(room.poker.phase) && !room.poker.archived) {
+        RoomService.archiveGame(room, "winner", now);
+        changed = true;
+      }
+      /*
+       Стол, за которым никого.
+
+       Раньше он стоял до конца встречи: люди вставали, уходили, возвращались через час — и
+       заставали чужую игру на сцене. Теперь у пустого стола есть срок ({@code Table.LINGER_MS}),
+       и до него на сцене видно, сколько осталось. Срок идёт только пока за столом по-настоящему
+       никого (ни раздачи, ни присутствующего игрока) и сбрасывается в ноль в тот же миг, как
+       кто-то сел или вернулся: случайно завершённая игра — это чужие стеки, которых не вернуть.
+      */
+      long idleBefore = room.poker.idleSince;
+      boolean expired = room.poker.linger(now, startedAt(now));
+      if (room.poker.idleSince != idleBefore) changed = true;
+      if (expired) {
+        RoomService.archiveGame(room, "idle", now);
+        room.poker = null;
+        games.forget(id);
+        changed = true;
+      } else games.schedule(id, room.poker.deadline);
     } else games.forget(id);
     if (room.closedAt == null) {
       boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);
