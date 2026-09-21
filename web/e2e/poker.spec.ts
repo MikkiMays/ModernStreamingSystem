@@ -40,6 +40,8 @@ test('two browsers play a hand of poker with private cards and a verifiable deal
 
     await host.getByRole('button', { name: 'Интеграции', exact: true }).click();
     await host.getByRole('button', { name: /Игры/ }).click();
+    // Игр будет больше одной, поэтому в группе список: сначала раскрывается строка игры.
+    await host.getByRole('button', { name: /Покер/ }).click();
     await host.getByRole('button', { name: /Открыть стол/ }).click();
     await expect(host.locator('.poker-felt')).toBeVisible();
     await expect(guest.locator('.poker-felt')).toBeVisible({ timeout: 10000 });

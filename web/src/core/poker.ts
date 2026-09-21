@@ -1,4 +1,4 @@
-import type { PokerAction, PokerResult, PokerSeat, PokerTable } from '../api/types';
+import type { PokerAction, PokerMode, PokerResult, PokerSeat, PokerTable } from '../api/types';
 
 /**
  * Стол, посчитанный до того, как его нарисовали.
@@ -194,6 +194,155 @@ export function celebration(result: PokerResult | null | undefined): Celebration
   return { level, label, knockout };
 }
 
+/**
+ * Режимы стола — те же, что знает ядро.
+ *
+ * Список повторён здесь ради одного: показать выбор **до** того, как стол создан, — сервер про
+ * него в этот момент ещё ничего не знает. Правила из этих чисел не следуют: их применяет ядро,
+ * а несовпадение ловится тестом, который пересчитывает блайнды теми же числами.
+ */
+export interface PokerModeInfo {
+  id: PokerMode;
+  name: string;
+  hint: string;
+  stack: number;
+  /** Во сколько больших блайндов оценён стартовый стек: от него считаются блайнды. */
+  depth: number;
+  turnSeconds: number;
+}
+
+export const POKER_MODES: PokerModeInfo[] = [
+  {
+    id: 'friendly',
+    name: 'Дружеская игра',
+    hint: 'Блайнды стоят на месте, докупиться можно между раздачами. Никто не вылетает насовсем.',
+    stack: 5000,
+    depth: 100,
+    turnSeconds: 45,
+  },
+  {
+    id: 'tournament',
+    name: 'Турнир',
+    hint: 'Один стек на всю игру, блайнды растут каждые восемь минут. Проиграл — выбыл, и стол считает места.',
+    stack: 10000,
+    depth: 100,
+    turnSeconds: 30,
+  },
+  {
+    id: 'turbo',
+    name: 'Блиц',
+    hint: 'Тот же турнир, только быстрее: блайнды каждые три минуты и пятнадцать секунд на ход.',
+    stack: 3000,
+    depth: 30,
+    turnSeconds: 15,
+  },
+];
+
+export const MIN_STACK = 200;
+export const MAX_STACK = 1_000_000;
+
+/** Ровное число: 1, 2, 5 и их десятки. Тот же расчёт, что и в ядре. */
+export function niceChips(value: number): number {
+  if (value <= 1) return 1;
+  let power = 1;
+  while (power * 10 <= value) power *= 10;
+  const lead = Math.floor(value / power);
+  const rounded = lead >= 7 ? 10 : lead >= 4 ? 5 : lead >= 2 ? 2 : 1;
+  return rounded * power;
+}
+
+/**
+ * Какими будут блайнды при таком стеке.
+ *
+ * Меняют одно число — стек, — а блайнды считаются от него, сохраняя глубину режима. Иначе
+ * «раздайте по десять тысяч» означало бы игру, в которой первая ставка ничего не решает.
+ */
+export function blindsFor(mode: PokerMode, stack: number): { small: number; big: number } {
+  const preset = POKER_MODES.find((item) => item.id === mode) ?? POKER_MODES[0]!;
+  const wanted = Math.max(MIN_STACK, Math.min(MAX_STACK, Math.round(stack) || preset.stack));
+  const big = Math.max(2, niceChips(Math.floor(wanted / preset.depth)));
+  return { small: Math.max(1, Math.floor(big / 2)), big };
+}
+
+/**
+ * Фишки, как они лежат на сукне.
+ *
+ * ПОЧЕМУ НЕ ОДИН КРУЖОК С ЧИСЛОМ. За столом размер ставки узнают не чтением, а взглядом: по
+ * высоте стопки и по цветам. Цвета взяты казиношные — те, к которым привыкли: белый единица,
+ * красный пятёрка, синий десятка, зелёный четвертак, чёрный сотня, фиолетовый пятьсот, оранжевый
+ * тысяча. Число рядом остаётся, потому что игровые стеки бывают любыми.
+ */
+export interface ChipDisc {
+  value: number;
+  tone: string;
+}
+
+const DENOMINATIONS: [number, string][] = [
+  [25000, '#f2f4f8'],
+  [5000, '#e8c33c'],
+  [1000, '#e8862c'],
+  [500, '#8a5cf6'],
+  [100, '#23282f'],
+  [25, '#1f9d63'],
+  [10, '#3564f3'],
+  [5, '#e04b4b'],
+  [1, '#e9edf4'],
+];
+
+/**
+ * Во что раскладывается сумма. Стопка ограничена по высоте: двадцать фишек в кружке места
+ * нарисовать негде, а «много» читается и с шести.
+ */
+export function chipPile(amount: number, limit = 6): ChipDisc[] {
+  const discs: ChipDisc[] = [];
+  let left = Math.max(0, Math.round(amount));
+  for (const [value, tone] of DENOMINATIONS) {
+    while (left >= value && discs.length < limit) {
+      discs.push({ value, tone });
+      left -= value;
+    }
+    if (discs.length >= limit) break;
+  }
+  if (!discs.length && amount > 0) discs.push({ value: 1, tone: '#e9edf4' });
+  return discs;
+}
+
+/**
+ * Сколько стоит ответ относительно банка.
+ *
+ * Без жаргона: не «шансы банка 3 к 1», а доля банка, которую придётся доложить. Это то же
+ * число, только его не нужно переводить в уме.
+ */
+export function callShare(table: PokerTable): number | null {
+  const you = table.you;
+  if (!you || you.callAmount <= 0) return null;
+  const live = table.pot + table.seats.reduce((sum, seat) => sum + seat.bet, 0) + you.callAmount;
+  if (live <= 0) return null;
+  return Math.round((you.callAmount / live) * 100);
+}
+
+/**
+ * Какие карты на вскрытии уже не играют.
+ *
+ * За настоящим столом лишние карты не подсвечивают — их просто убирают из поля зрения, а
+ * комбинацию называют вслух. Здесь то же самое: всё, что не вошло в победную пятёрку, гаснет,
+ * и смотреть остаётся ровно на то, чем выиграли.
+ */
+export function deadCards(table: PokerTable): Set<string> {
+  const dead = new Set<string>();
+  if (table.phase !== 'showdown') return dead;
+  // Живо то, что вошло хоть в чью-нибудь пятёрку: общая карта может играть у одного и не
+  // играть у другого, и гасить её, пока она кому-то нужна, нельзя.
+  const alive = new Set<string>();
+  for (const seat of table.seats) seat.handCards.forEach((card) => alive.add(card));
+  if (!alive.size) return dead;
+  for (const card of table.board) if (!alive.has(card)) dead.add(card);
+  for (const seat of table.seats)
+    if (seat.handCards.length)
+      for (const card of seat.cards) if (!seat.handCards.includes(card)) dead.add(`${seat.index}:${card}`);
+  return dead;
+}
+
 /** Карта разобранная: чем рисовать и каким цветом. */
 export interface CardFace {
   rank: string;
@@ -233,6 +382,20 @@ export function dealOrder(table: PokerTable): number[] {
     if (table.seats[index]?.inHand) order.push(index);
   }
   return order;
+}
+
+/**
+ * Кто платит блайнды в этой раздаче.
+ *
+ * Считается от кнопки, а не берётся из ленты: лента короткая и к риверу забывает начало
+ * раздачи, а кнопка и состав играющих известны всегда. Голова к голове малый блайнд платит
+ * сама кнопка — это то место в правилах, где все и ошибаются.
+ */
+export function blindSeats(table: PokerTable): { small: number; big: number } | null {
+  const order = dealOrder(table);
+  if (order.length < 2) return null;
+  if (order.length === 2) return { small: table.button, big: order[0]! };
+  return { small: order[0]!, big: order[1]! };
 }
 
 /** Идёт ли торговля: по этому решается, показывать ли кнопки и часы. */

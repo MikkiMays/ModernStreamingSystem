@@ -711,6 +711,7 @@ export interface components {
             /** Format: int64 */
             callAmount: number;
             cards: string[];
+            hand: string;
             /** Format: int64 */
             maxRaiseTo: number;
             /** Format: int64 */

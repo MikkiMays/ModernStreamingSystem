@@ -139,6 +139,10 @@ public class Table {
   public int button = -1;
   public long smallBlind;
   public long bigBlind;
+
+  /** С чего блайнды начинались: по нему растёт лестница уровней. */
+  public long baseBigBlind;
+
   public long ante;
   public int level = 1;
   public long levelUpAt;
@@ -274,22 +278,64 @@ public class Table {
     public boolean split;
   }
 
+  /** Сколько фишек можно попросить на старте: ниже не сыграешь, выше — уже не счёт. */
+  public static final long MIN_STACK = 200;
+
+  public static final long MAX_STACK = 1_000_000;
+
+  /**
+   * Ровное число.
+   *
+   * <p>Блайнды считаются от стека, и деление даёт то 37, то 143 — числа, которыми за столом не
+   * говорят. Здесь они приводятся к ближайшему «человеческому»: 1, 2, 5 и их десятки.
+   */
+  static long nice(long value) {
+    if (value <= 1) return 1;
+    long power = 1;
+    while (power * 10 <= value) power *= 10;
+    long lead = value / power;
+    long rounded = lead >= 7 ? 10 : lead >= 4 ? 5 : lead >= 2 ? 2 : 1;
+    return rounded * power;
+  }
+
   /** Новый стол в комнате: места пустые, раздавать нечего, все решения впереди. */
   public static Table open(String hostId, String modeId, long now) {
+    return open(hostId, modeId, now, 0);
+  }
+
+  /**
+   * То же, но с выбранным стартовым стеком.
+   *
+   * <p>Блайнды при этом не назначаются отдельно, а <b>считаются от стека</b>: у режима есть своя
+   * глубина — сто больших блайндов у обычной игры, тридцать у блица, — и менять нужно одно
+   * число, а не три. Иначе выставить «по десять тысяч» означало бы получить блайнды от пяти
+   * тысяч и игру, в которой первая же ставка ничего не решает.
+   */
+  public static Table open(String hostId, String modeId, long now, long stack) {
     var chosen = mode(modeId);
     var table = new Table();
     table.mode = chosen.id();
     table.hostId = hostId;
     table.openedAt = now;
     table.revision = 1;
-    table.smallBlind = chosen.smallBlind();
-    table.bigBlind = chosen.bigBlind();
+    long wanted = stack <= 0 ? chosen.stack() : Math.max(MIN_STACK, Math.min(MAX_STACK, stack));
+    long depth = Math.max(1, chosen.stack() / chosen.bigBlind());
+    table.bigBlind = Math.max(2, nice(wanted / depth));
+    table.smallBlind = Math.max(1, table.bigBlind / 2);
+    table.baseBigBlind = table.bigBlind;
     table.turnSeconds = chosen.turnSeconds();
     table.timeBankSeconds = chosen.timeBankSeconds();
-    table.startingStack = chosen.stack();
+    table.startingStack = wanted;
     table.rebuyAllowed = chosen.rebuy();
     for (int index = 0; index < SEATS; index++) table.seats.add(new Seat());
-    table.note(now, "open", -1, "", 0, "Стол открыт: " + chosen.name());
+    table.note(
+        now,
+        "open",
+        -1,
+        "",
+        0,
+        "Стол открыт: " + chosen.name() + " · по " + wanted + " фишек, блайнды "
+            + table.smallBlind + "/" + table.bigBlind);
     return table;
   }
 
@@ -500,8 +546,11 @@ public class Table {
 
   private void applyLevel(Mode preset) {
     long factor = LADDER[Math.min(level, LADDER.length) - 1];
-    smallBlind = preset.smallBlind() * factor;
-    bigBlind = preset.bigBlind() * factor;
+    // Лестница умножает блайнды **этого стола**, а не режима: стек выбирает ведущий, и блайнды
+    // посчитаны от него. Иначе стол на тысячу фишек рос бы по расписанию стола на десять тысяч.
+    long baseBig = baseBigBlind > 0 ? baseBigBlind : preset.bigBlind();
+    smallBlind = Math.max(1, (baseBig * factor) / 2);
+    bigBlind = baseBig * factor;
     // Анте появляется не сразу: на первых уровнях оно только мешает считать.
     ante = level >= 5 ? Math.max(1, bigBlind / 10) : 0;
   }
@@ -1188,12 +1237,28 @@ public class Table {
     return new TableView.YouView(
         index,
         Cards.texts(seat.cards),
+        ownHand(seat),
         turn ? actions(seat) : List.of(),
         Math.min(seat.stack, Math.max(0, betToCall - seat.bet)),
         Math.min(seat.bet + seat.stack, betToCall == 0 ? bigBlind : betToCall + lastRaise),
         seat.bet + seat.stack,
         seat.timeBankMs,
         turn);
+  }
+
+  /**
+   * Что у этого человека собралось прямо сейчас.
+   *
+   * <p>Считается по его собственным картам и общему борду — то есть не раскрывает ничего, чего он
+   * и так не видит. Нужно это ровно там, где человек иначе складывает две карты с пятью в уме на
+   * каждой улице, а заодно избавляет от вопроса «у меня вообще стрит или нет».
+   */
+  private String ownHand(Seat seat) {
+    if (seat.cards.size() < 2) return "";
+    if (board.size() < 3) return Hands.pocket(seat.cards.get(0), seat.cards.get(1));
+    var cards = new ArrayList<>(seat.cards);
+    cards.addAll(board);
+    return Hands.best(cards).name();
   }
 
   /** Что законно нажать. Считает сервер — чтобы кнопка и правило не могли разойтись. */

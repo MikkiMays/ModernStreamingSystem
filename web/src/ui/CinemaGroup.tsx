@@ -35,9 +35,6 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
           <p>
             Сейчас смотрим: <b>{watch.title ?? watch.contentId}</b>
           </p>
-          <small>
-            Пауза, перемотка и полный экран — на самом плеере. Громкость и качество у каждого свои.
-          </small>
           {canUse && (
             <button
               className="button"

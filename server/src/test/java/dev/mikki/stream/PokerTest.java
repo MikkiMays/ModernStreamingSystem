@@ -93,6 +93,59 @@ class PokerTest {
     return table.seats.get(index);
   }
 
+  // --- Стол под свои фишки ----------------------------------------------------------------
+
+  @Test
+  void theStackIsChosenAndTheBlindsFollowItInsteadOfStayingBehind() {
+    // Глубина режима сохраняется: сто больших блайндов у обычной игры, тридцать у блица.
+    assertThat(Table.open("host", "friendly", T0, 5000).bigBlind).isEqualTo(50);
+    assertThat(Table.open("host", "friendly", T0, 10000).bigBlind).isEqualTo(100);
+    assertThat(Table.open("host", "friendly", T0, 1000).bigBlind).isEqualTo(10);
+    assertThat(Table.open("host", "turbo", T0, 3000).bigBlind).isEqualTo(100);
+    var custom = Table.open("host", "friendly", T0, 25000);
+    assertThat(custom.startingStack).isEqualTo(25000);
+    assertThat(custom.smallBlind).isEqualTo(custom.bigBlind / 2);
+    // Блайнды называются ровными числами, а не остатком от деления: 37 — это не блайнд.
+    assertThat(Table.open("host", "friendly", T0, 3700).bigBlind).isEqualTo(20);
+    // Просьбу за пределами разумного стол приводит к своим границам, а не отвергает.
+    assertThat(Table.open("host", "friendly", T0, 1).startingStack).isEqualTo(Table.MIN_STACK);
+    assertThat(Table.open("host", "friendly", T0, 99_000_000L).startingStack)
+        .isEqualTo(Table.MAX_STACK);
+    // Без просьбы — как было в режиме.
+    assertThat(Table.open("host", "tournament", T0).startingStack).isEqualTo(10000);
+  }
+
+  @Test
+  void blindsGrowFromThisTableRatherThanFromTheModeDefaults() {
+    var table = Table.open("host", "turbo", T0, 30000);
+    assertThat(table.bigBlind).isEqualTo(1000);
+    table.sit("p0", "Первый", 0, T0);
+    table.sit("p1", "Второй", 1, T0);
+    table.deal(T0);
+    // Уровень растёт по расписанию режима, но от блайндов этого стола.
+    table.tick(table.deadline);
+    long levelUp = table.levelUpAt;
+    while (table.playing()) table.act("p" + table.actor, "fold", 0, levelUp + 1);
+    table.tick(table.deadline);
+    table.tick(Math.max(table.deadline, levelUp + 1));
+    assertThat(table.bigBlind).isEqualTo(2000);
+  }
+
+  @Test
+  void youAlwaysSeeWhatYouAreHoldingCalledByName() {
+    var table = table("friendly", 2);
+    deal(table, T0, "Ah 7d 2c", "As Ad", "Ks Qh");
+    // До флопа — то, как об этом говорят: пара, или две карты со мастью.
+    assertThat(table.view("p0", T0).you().hand()).isEqualTo("Пара тузов");
+    assertThat(table.view("p1", T0).you().hand()).isEqualTo("Король и дама");
+    table.act("p" + table.actor, "call", 0, T0);
+    table.act("p" + table.actor, "check", 0, T0);
+    // С флопом — настоящая комбинация, и только по своим картам.
+    assertThat(table.view("p0", T0).you().hand()).isEqualTo("Сет тузов");
+    // Туз с борда играет и у того, у кого его нет на руках, — это та же общая карта.
+    assertThat(table.view("p1", T0).you().hand()).isEqualTo("Старшая карта — туз");
+  }
+
   // --- Комбинации -------------------------------------------------------------------------
 
   @Test

@@ -1379,6 +1379,9 @@
             },
             "type": "array"
           },
+          "hand": {
+            "type": "string"
+          },
           "maxRaiseTo": {
             "format": "int64",
             "type": "integer"
@@ -1403,6 +1406,7 @@
           "actions",
           "callAmount",
           "cards",
+          "hand",
           "maxRaiseTo",
           "minRaiseTo",
           "seat",

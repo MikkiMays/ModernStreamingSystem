@@ -3,6 +3,9 @@ import type { PokerSeat, PokerTable } from '../api/types';
 import {
   actionLabel,
   betSteps,
+  callShare,
+  chipPile,
+  deadCards,
   cardFace,
   cardText,
   celebration,
@@ -141,6 +144,68 @@ describe('числа и подписи', () => {
   });
 });
 
+describe('фишки на сукне', () => {
+  it('раскладывает сумму по номиналам, от старших к младшим', () => {
+    expect(chipPile(0)).toEqual([]);
+    expect(chipPile(1).map((disc) => disc.value)).toEqual([1]);
+    expect(chipPile(130).map((disc) => disc.value)).toEqual([100, 25, 5]);
+    // Стопка не растёт бесконечно: шести фишек хватает, чтобы прочитать «много».
+    expect(chipPile(99999).length).toBeLessThanOrEqual(6);
+    expect(chipPile(26, 2).map((disc) => disc.value)).toEqual([25, 1]);
+  });
+
+  it('считает, какую долю банка стоит ответ', () => {
+    const idle = table();
+    expect(callShare(idle)).toBeNull();
+    const facing = table({
+      pot: 300,
+      you: {
+        seat: 0,
+        cards: [],
+        hand: '',
+        actions: ['call'],
+        callAmount: 100,
+        minRaiseTo: 200,
+        maxRaiseTo: 5000,
+        timeBankMs: 0,
+        turn: true,
+      },
+    });
+    // Сто в банк из четырёхсот — четверть.
+    expect(callShare(facing)).toBe(25);
+  });
+});
+
+describe('вскрытие', () => {
+  it('гасит карты, которые больше не играют, и не трогает чужие закрытые', () => {
+    const state = table({
+      phase: 'showdown',
+      board: ['As', '7d', '9s', 'Jh', '4c'],
+      seats: table().seats.map((one) =>
+        seat(one.index, {
+          memberId: one.memberId,
+          cards: one.index === 0 ? ['Ah', '2c'] : one.index === 1 ? ['Kd', 'Kc'] : [],
+          handCards:
+            one.index === 0
+              ? ['As', 'Ah', 'Jh', '9s', '7d']
+              : one.index === 1
+                ? ['Kd', 'Kc', 'As', 'Jh', '9s']
+                : [],
+        }),
+      ),
+    });
+    const dead = deadCards(state);
+    // Четвёрка не вошла ни в одну пятёрку — она и гаснет.
+    expect(dead.has('4c')).toBe(true);
+    expect(dead.has('As')).toBe(false);
+    // Лишняя карта в чужой руке гаснет вместе с ней, но только у своего места.
+    expect(dead.has('0:2c')).toBe(true);
+    expect(dead.has('0:Ah')).toBe(false);
+    // Пока раздача идёт, не гаснет ничего.
+    expect(deadCards({ ...state, phase: 'river' }).size).toBe(0);
+  });
+});
+
 describe('часы хода', () => {
   it('меряет остаток по серверным часам и краснеет к концу', () => {
     const state = table();
@@ -159,6 +224,7 @@ describe('ставки в одно нажатие', () => {
       you: {
         seat: 0,
         cards: ['As', 'Ah'],
+        hand: 'Пара тузов',
         actions: ['fold', 'call', 'raise', 'allin'],
         callAmount: 100,
         minRaiseTo: 200,

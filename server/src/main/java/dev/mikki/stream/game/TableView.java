@@ -99,6 +99,12 @@ public record TableView(
   public record YouView(
       int seat,
       List<String> cards,
+      /**
+       * Что у вас собралось — словами. Считается только по <b>вашим</b> картам и общему столу,
+       * поэтому ничего чужого не раскрывает, а смотреть на свои две карты и складывать их с
+       * бордом в уме приходится каждую улицу.
+       */
+      String hand,
       List<String> actions,
       long callAmount,
       long minRaiseTo,

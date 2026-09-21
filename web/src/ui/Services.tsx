@@ -17,7 +17,7 @@ import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
 import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './CinemaGroup';
-import { PokerGroup } from './PokerGroup';
+import { GamesGroup } from './GamesGroup';
 import {
   foresee,
   foresightSpent,
@@ -268,7 +268,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
   if (group === 'games')
     return (
       <div className="services-panel" key="games">
-        <PokerGroup meeting={meeting} onBack={() => setGroup(null)} />
+        <GamesGroup meeting={meeting} onBack={() => setGroup(null)} />
       </div>
     );
 

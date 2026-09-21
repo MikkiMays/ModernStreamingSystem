@@ -113,6 +113,22 @@ public final class Hands {
     }
   }
 
+  /**
+   * Как назвать две карты на руках, пока стола ещё нет.
+   *
+   * <p>До флопа комбинации не существует, но человек всё равно держит в голове «пара дам» или
+   * «туз-король одной масти» — и именно это он хочет видеть под своими картами. Считать здесь
+   * нечего, поэтому и оценщик не зовётся.
+   */
+  public static String pocket(int first, int second) {
+    int high = Math.max(Cards.rank(first), Cards.rank(second));
+    int low = Math.min(Cards.rank(first), Cards.rank(second));
+    if (high == low) return "Пара " + OF[high];
+    boolean suited = Cards.suit(first) == Cards.suit(second);
+    var name = ONE[high] + " и " + ONE[low] + (suited ? ", одна масть" : "");
+    return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+  }
+
   /** Лучшая пятёрка из пяти, шести или семи карт. */
   public static Hand best(List<Integer> cards) {
     if (cards.size() < 5) throw new IllegalArgumentException("Комбинация собирается из пяти карт");

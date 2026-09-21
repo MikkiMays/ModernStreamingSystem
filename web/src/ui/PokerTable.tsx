@@ -22,11 +22,15 @@ import { isTyping } from '../core/hotkeys';
 import {
   actionLabel,
   betSteps,
+  blindSeats,
+  callShare,
   cardFace,
   celebration,
+  chipPile,
   chips,
   COLLECT_MS,
   DEAL_MS,
+  deadCards,
   dealDelay,
   phaseLabel,
   playing,
@@ -91,46 +95,56 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
   // Фишки, летящие по столу: в банк в конце круга и из банка победителю. Считать их можно
   // только по разнице снимков — в новом ставок уже нет, а в старом ещё нет победителя.
   const flights = useChipFlights(table, spots);
-
-  const board = table.board;
   /*
-    Сколько в банке прямо сейчас. Ставки, лежащие перед игроками, — уже часть банка: они
-    вернутся только к тому, чью ставку никто не перекрыл, и всё это время человек считает их
-    именно банком. После раздачи показываем то, что было разыграно, — иначе банк обнулялся бы
-    ровно в тот момент, когда на него смотрят.
+    Что на вскрытии уже не играет. За настоящим столом лишние карты не подсвечивают — их
+    убирают из виду и называют комбинацию вслух; здесь они гаснут, и смотреть остаётся ровно
+    на то, чем выиграли.
   */
-  const live =
-    table.phase === 'showdown' && table.result
+  const dead = useMemo(() => deadCards(table), [table]);
+  const blinds = useMemo(() => blindSeats(table), [table]);
+  const showdown = table.phase === 'showdown';
+  const winners = useMemo(
+    () => new Set((table.result?.awards ?? []).map((award) => award.seat)),
+    [table.result],
+  );
+  const pot =
+    showdown && table.result
       ? table.result.pot
       : table.pot + table.seats.reduce((sum, seat) => sum + seat.bet, 0);
-  const highlight = useMemo(() => {
-    const winning = new Set<string>();
-    if (table.result?.showdown)
-      for (const award of table.result.awards) award.handCards.forEach((card) => winning.add(card));
-    return winning;
-  }, [table.result]);
 
   return (
     <div className="poker" data-phase={table.phase} data-drama={cheer?.level}>
       <TableBar meeting={meeting} table={table} dealer={dealer} onSend={send} />
       <div className="poker-felt-wrap">
         <div className="poker-felt">
+          {/* Борт, дорожка и сукно — три слоя одного стола, как у настоящего. */}
           <div className="poker-rail" aria-hidden="true" />
+          <div className="poker-cloth" aria-hidden="true">
+            <span className="poker-mark">
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
+          <div className="poker-line" aria-hidden="true" />
+          {playing(table) && <span className="poker-deck" aria-hidden="true" />}
           <div className="poker-center">
             <div className="poker-board" aria-label="Карты стола">
-              {board.map((card, index) => (
+              {table.board.map((card, index) => (
                 <PlayingCard
                   key={`${table.handNumber}-${card}`}
                   card={card}
-                  highlight={highlight.has(card)}
+                  dead={dead.has(card)}
+                  highlight={showdown && !dead.has(card)}
                   delay={index * 120 - Math.max(0, meeting.serverNow() - table.streetAt)}
                 />
               ))}
             </div>
             <div className="poker-pot-line">
-              {live > 0 && (
+              {pot > 0 && (
                 <span className="poker-pot">
-                  <Coins size={15} /> Банк {chips(live)}
+                  <ChipStack amount={pot} limit={4} />
+                  <b>{chips(pot)}</b>
                 </span>
               )}
               {/*
@@ -140,9 +154,9 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               */}
               {table.pots.length > 1 && table.seats.some((seat) => seat.allIn) && (
                 <span className="poker-sidepots">
-                  {table.pots.map((pot, index) => (
+                  {table.pots.map((side, index) => (
                     <b key={index}>
-                      {index === 0 ? 'Основной' : `Побочный ${index}`} {chips(pot.amount)}
+                      {index === 0 ? 'Основной' : `Побочный ${index}`} {chips(side.amount)}
                     </b>
                   ))}
                 </span>
@@ -162,6 +176,9 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 table={table}
                 meeting={meeting}
                 tracks={tracks}
+                dead={dead}
+                blind={blinds?.small === spot.index ? 'SB' : blinds?.big === spot.index ? 'BB' : null}
+                winner={winners.has(spot.index)}
                 mine={spot.index === mySeat}
                 avatar={snapshot.participants.find((p) => p.id === seat.memberId)?.avatar ?? null}
                 onSit={() => send('poker.sit', { seat: spot.index })}
@@ -183,14 +200,32 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               }
               aria-hidden="true"
             >
-              <i />
+              <i style={{ background: flight.tone }} />
             </span>
           ))}
+          {/*
+            Свет гаснет на всём, кроме выигравшего. Это и есть «вскрытие»: смотреть в этот
+            момент нужно на две карты и на пять, а не на десять кружков по кругу.
+          */}
+          {showdown && <div className="poker-dim" aria-hidden="true" />}
           {cheer && table.result && <Cheer table={table} cheer={cheer} spots={spots} />}
         </div>
       </div>
       <Controls table={table} dealer={dealer} onSend={send} error={error} />
     </div>
+  );
+}
+
+/** Стопка фишек: столько дисков, сколько нужно, чтобы сумма читалась взглядом. */
+function ChipStack({ amount, limit = 5 }: { amount: number; limit?: number }) {
+  const pile = useMemo(() => chipPile(amount, limit), [amount, limit]);
+  if (!pile.length) return null;
+  return (
+    <span className="chip-stack" aria-hidden="true">
+      {pile.map((disc, index) => (
+        <i key={index} style={{ background: disc.tone, bottom: `${index * 3}px` }} />
+      ))}
+    </span>
   );
 }
 
@@ -249,7 +284,9 @@ function TableBar({
           <button
             className="button secondary small"
             onClick={() =>
-              onSend('poker.settings', { option: table.seatingOpen ? 'seating-locked' : 'seating-open' })
+              onSend('poker.settings', {
+                option: table.seatingOpen ? 'seating-locked' : 'seating-open',
+              })
             }
           >
             {table.seatingOpen ? 'Закрыть посадку' : 'Открыть посадку'}
@@ -286,7 +323,7 @@ function Waiting({
             className="button primary small"
             onClick={() => {
               onSend('poker.close');
-              setTimeout(() => onSend('poker.open', { option: table.mode }), 250);
+              setTimeout(() => onSend('poker.open', { option: table.mode, chips: table.startingStack }), 250);
             }}
           >
             Собрать заново
@@ -332,6 +369,9 @@ function SeatView({
   table,
   meeting,
   tracks,
+  dead,
+  blind,
+  winner,
   mine,
   avatar,
   onSit,
@@ -341,6 +381,9 @@ function SeatView({
   table: Table;
   meeting: Meeting;
   tracks: MediaTile[];
+  dead: Set<string>;
+  blind: 'SB' | 'BB' | null;
+  winner: boolean;
   mine: boolean;
   avatar: string | null;
   onSit: () => void;
@@ -351,7 +394,7 @@ function SeatView({
   );
   const speaking = useStore(meeting.media.speaking).includes(seat.memberId ?? '');
   // Откуда прилетают карты: из середины стола. Направление — вектор к центру, в долях ширины
-  // стола (высота у него ровно вдвое с небольшим меньше, отсюда множитель у вертикали).
+  // стола (высоту из него пересчитывает CSS через `--felt-ratio`).
   const style = {
     left: `${spot.x}%`,
     top: `${spot.y}%`,
@@ -368,6 +411,7 @@ function SeatView({
       </div>
     );
   const won = table.result?.awards.filter((award) => award.seat === seat.index) ?? [];
+  const showdown = table.phase === 'showdown';
   return (
     <div
       className="poker-seat"
@@ -379,7 +423,7 @@ function SeatView({
       data-busted={seat.busted || undefined}
       data-away={seat.away || undefined}
       data-waiting={seat.waiting || undefined}
-      data-winner={won.length > 0 || undefined}
+      data-winner={winner || undefined}
       data-speaking={speaking || undefined}
       data-mine={mine || undefined}
     >
@@ -387,9 +431,15 @@ function SeatView({
         <div className="poker-face">
           {camera ? <SeatCamera tile={camera} /> : <Avatar name={seat.name} src={avatar} />}
           {active && <TurnRing table={table} elapsed={meeting.serverNow() - table.actionAt} />}
+          {winner && <span className="poker-rays" aria-hidden="true" />}
           {table.button === seat.index && (
-            <span className="poker-dealer-chip" title="Дилер">
+            <span className="poker-puck is-dealer" title="Дилер">
               D
+            </span>
+          )}
+          {blind && !seat.folded && playing(table) && (
+            <span className="poker-puck is-blind" title={blind === 'SB' ? 'Малый блайнд' : 'Большой блайнд'}>
+              {blind}
             </span>
           )}
         </div>
@@ -410,7 +460,8 @@ function SeatView({
                 key={`${table.handNumber}-${seat.index}-${index}`}
                 card={card}
                 small
-                highlight={seat.handCards.includes(card)}
+                dead={dead.has(`${seat.index}:${card}`)}
+                highlight={showdown && seat.handCards.includes(card)}
                 delay={dealDelay(table, seat, index, meeting.serverNow())}
               />
             ))
@@ -418,13 +469,14 @@ function SeatView({
               <PlayingCard
                 key={`${table.handNumber}-${seat.index}-back-${index}`}
                 small
+                dead={seat.folded}
                 delay={dealDelay(table, seat, index, meeting.serverNow())}
               />
             ))}
       </div>
       {seat.bet > 0 && (
         <span className="poker-bet">
-          <i className="poker-chip" aria-hidden="true" />
+          <ChipStack amount={seat.bet} limit={4} />
           {chips(seat.bet)}
         </span>
       )}
@@ -434,10 +486,11 @@ function SeatView({
       {seat.folded && <span className="poker-bubble is-quiet">Пас</span>}
       {seat.waiting && <span className="poker-bubble is-quiet">Ждёт раздачу</span>}
       {seat.away && !seat.busted && <span className="poker-bubble is-quiet">Отошёл</span>}
-      {seat.handName && table.phase === 'showdown' && <span className="poker-combo">{seat.handName}</span>}
+      {seat.handName && showdown && <span className="poker-combo">{seat.handName}</span>}
       {won.length > 0 && (
         <span className="poker-won">+{chips(won.reduce((sum, award) => sum + award.amount, 0))}</span>
       )}
+      {seat.busted && <span className="poker-out">Вылет</span>}
     </div>
   );
 }
@@ -507,11 +560,13 @@ function PlayingCard({
   card,
   small,
   highlight,
+  dead,
   delay = 0,
 }: {
   card?: string;
   small?: boolean;
   highlight?: boolean;
+  dead?: boolean;
   delay?: number;
 }) {
   const face = card ? cardFace(card) : null;
@@ -521,13 +576,15 @@ function PlayingCard({
       data-small={small || undefined}
       data-red={face?.red || undefined}
       data-back={!face || undefined}
-      data-highlight={highlight || undefined}
+      data-highlight={(highlight && !dead) || undefined}
+      data-dead={dead || undefined}
       style={{ animationDelay: `${Math.round(delay)}ms`, animationDuration: `${DEAL_MS}ms` }}
     >
       {face && (
         <>
           <b>{face.rank}</b>
           <i>{face.suit}</i>
+          <u>{face.suit}</u>
         </>
       )}
     </span>
@@ -563,6 +620,7 @@ function Controls({
   const [amount, setAmount] = useState(0);
   const [sent, setSent] = useState(0);
   const steps = useMemo(() => betSteps(table), [table]);
+  const share = callShare(table);
   const turn = !!you?.turn && sent !== table.actionAt;
   useEffect(() => {
     if (!you?.turn) {
@@ -578,9 +636,9 @@ function Controls({
     onSend('poker.act', { option: action, chips: chipsTo });
   };
   /*
-    Клавиши для тех, кто играет часто: пас, колл, повышение. Ставить их нужно осторожно —
-    в той же встрече есть чат и горячая клавиша микрофона, поэтому набор текста и открытые
-    диалоги выключают их целиком.
+    Клавиши для тех, кто играет часто: пас, колл, повышение, ва-банк. Ставить их нужно
+    осторожно — в той же встрече есть чат и горячая клавиша микрофона, поэтому набор текста и
+    открытые диалоги выключают их целиком.
   */
   useEffect(() => {
     if (!turn || !you) return;
@@ -593,6 +651,7 @@ function Controls({
       else if ((key === 'c' || key === 'с') && you.actions.includes('call')) act('call');
       else if ((key === 'r' || key === 'к') && (you.actions.includes('raise') || you.actions.includes('bet')))
         setRaising(true);
+      else if ((key === 'a' || key === 'ф') && you.actions.includes('allin')) act('allin');
     };
     window.addEventListener('keydown', keys);
     return () => window.removeEventListener('keydown', keys);
@@ -609,7 +668,7 @@ function Controls({
               <PlayingCard
                 key={`${table.handNumber}-mine-${index}`}
                 card={card}
-                highlight={seat.handCards.includes(card)}
+                highlight={table.phase === 'showdown' && seat.handCards.includes(card)}
               />
             ))}
           </div>
@@ -621,11 +680,16 @@ function Controls({
         {seat && (
           <span className="poker-mine-stack">
             <b>{chips(seat.stack)}</b>
-            <small>
-              {seat.timeBankMs > 0
-                ? `банк времени ${Math.round(seat.timeBankMs / 1000)} с`
-                : 'банк времени истрачен'}
-            </small>
+            {/* Что собралось — словами. Считает ядро и только по вашим картам. */}
+            {you?.hand && seat.cards.length > 0 ? (
+              <small className="poker-mine-hand">{you.hand}</small>
+            ) : (
+              <small>
+                {seat.timeBankMs > 0
+                  ? `банк времени ${Math.round(seat.timeBankMs / 1000)} с`
+                  : 'банк времени истрачен'}
+              </small>
+            )}
           </span>
         )}
       </div>
@@ -685,7 +749,11 @@ function Controls({
             )}
             {you.actions.includes('call') && (
               <button className="poker-action is-call" onClick={() => act('call')}>
-                Колл {chips(you.callAmount)} <kbd>C</kbd>
+                <span>
+                  Колл {chips(you.callAmount)}
+                  {share !== null && <small>{share}% банка</small>}
+                </span>
+                <kbd>C</kbd>
               </button>
             )}
             {(you.actions.includes('raise') || you.actions.includes('bet')) && (
@@ -697,7 +765,7 @@ function Controls({
               !you.actions.includes('raise') &&
               !you.actions.includes('bet') && (
                 <button className="poker-action is-allin" onClick={() => act('allin')}>
-                  <Zap size={16} /> Ва-банк {chips(you.maxRaiseTo)}
+                  <Zap size={16} /> Ва-банк {chips(you.maxRaiseTo)} <kbd>A</kbd>
                 </button>
               )}
           </div>
@@ -812,10 +880,12 @@ function Cheer({
     let state = Math.max(1, result.at % 2147483647);
     const next = () => (state = (state * 48271) % 2147483647) / 2147483647;
     const count = cheer.level === 'huge' ? 34 : cheer.level === 'big' ? 18 : 0;
+    const tones = ['#f0c04a', '#e04b4b', '#1f9d63', '#f2f4f8', '#8a5cf6'];
     return Array.from({ length: count }, () => ({
       x: next() * 100,
       delay: next() * 900,
       spin: next() * 720 - 360,
+      tone: tones[Math.floor(next() * tones.length)] ?? '#f0c04a',
     }));
   }, [result.at, cheer.level]);
   return (
@@ -843,6 +913,7 @@ function Cheer({
           style={
             {
               left: `${chip.x}%`,
+              background: chip.tone,
               animationDelay: `${chip.delay}ms`,
               '--spin': `${chip.spin}deg`,
             } as CSSProperties
@@ -859,6 +930,7 @@ interface Flight {
   from: { x: number; y: number };
   to: { x: number; y: number };
   delay: number;
+  tone: string;
 }
 
 /**
@@ -882,20 +954,40 @@ function useChipFlights(table: Table, spots: SeatSpot[]): Flight[] {
     let id = 0;
     if (table.streetAt !== previous.current.streetAt)
       previous.current.bets.forEach((bet, index) => {
-        if (bet > 0 && spots[index])
-          next.push({ id: id++, from: spots[index], to: { x: 50, y: 50 }, delay: index * 40 });
+        const spot = spots[index];
+        if (bet > 0 && spot)
+          for (const [step, disc] of chipPile(bet, 3).entries())
+            next.push({
+              id: id++,
+              from: spot,
+              to: { x: 50, y: 50 },
+              delay: index * 40 + step * 70,
+              tone: disc.tone,
+            });
       });
     const result = table.result;
     if (result && result.at !== previous.current.resultAt)
       result.awards.forEach((award, index) => {
         const spot = spots[award.seat];
-        if (spot) next.push({ id: id++, from: { x: 50, y: 50 }, to: spot, delay: 260 + index * 120 });
+        if (spot)
+          for (const [step, disc] of chipPile(award.amount, 5).entries())
+            next.push({
+              id: id++,
+              from: { x: 50, y: 50 },
+              to: spot,
+              delay: 260 + index * 120 + step * 80,
+              tone: disc.tone,
+            });
       });
-    previous.current = { streetAt: table.streetAt, bets, resultAt: result?.at ?? previous.current.resultAt };
+    previous.current = {
+      streetAt: table.streetAt,
+      bets,
+      resultAt: result?.at ?? previous.current.resultAt,
+    };
     if (!next.length) return;
     setFlights(next);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setFlights([]), COLLECT_MS + 700);
+    timer.current = setTimeout(() => setFlights([]), COLLECT_MS + 1200);
   }, [table, spots]);
   useEffect(() => () => clearTimeout(timer.current), []);
   return flights;

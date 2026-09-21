@@ -768,7 +768,12 @@ public class RoomService {
                 throw Problem.conflict(
                     "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
               if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
-              room.poker = dev.mikki.stream.game.Table.open(member.id, command.option(), now());
+              room.poker =
+                  dev.mikki.stream.game.Table.open(
+                      member.id,
+                      command.option(),
+                      now(),
+                      command.chips() == null ? 0 : command.chips());
             }
             case "poker.close" -> {
               requireActive(room, member);
