@@ -3,9 +3,10 @@ import type { components } from './generated';
 export type Participant = components['schemas']['Participant'];
 export type Status = Participant['status'];
 export type Message = components['schemas']['Message'];
-export type Snapshot = Omit<components['schemas']['Snapshot'], 'watch' | 'poker'> & {
+export type Snapshot = Omit<components['schemas']['Snapshot'], 'watch' | 'poker' | 'durak'> & {
   watch: Watch | null;
   poker: PokerTable | null;
+  durak: DurakTable | null;
 };
 /** Снимок сужен (см. `Watch`), поэтому всё, что его содержит, сужается вместе с ним. */
 export type Admission = Omit<components['schemas']['Admission'], 'snapshot'> & { snapshot: Snapshot };
@@ -67,6 +68,33 @@ export type PokerGame = Omit<components['schemas']['GameSummary'], 'ending'> & {
 export type PokerEnding = 'winner' | 'closed' | 'idle' | 'meeting';
 export type PokerPlayer = components['schemas']['PlayerSummary'];
 export type PokerHighlight = components['schemas']['Highlight'];
+
+/**
+ * Стол дурака так, как его видит этот браузер.
+ *
+ * Сужение то же самое, что у покера, и по той же причине: ядро присылает фазу, режим и действия
+ * строками, а забытая ветка по строке молча ничего не рисует. Чужих карт в этих типах нет не
+ * потому, что их «не показывают», — их нет в ответе сервера (`DurakView`).
+ */
+export type DurakPhase = 'lobby' | 'bout' | 'over';
+export type DurakMode = 'podkidnoy' | 'perevodnoy';
+/** Чем кончился бой, который ещё лежит на столе. */
+export type DurakBoutEnd = 'beaten' | 'taken';
+export type DurakAction = 'attack' | 'beat' | 'take' | 'pass' | 'transfer';
+export type DurakTable = Omit<components['schemas']['DurakView'], 'phase' | 'mode' | 'you' | 'boutEnd'> & {
+  phase: DurakPhase;
+  mode: DurakMode;
+  you: DurakYou | null;
+  boutEnd: DurakBoutEnd | null;
+};
+export type DurakSeat = components['schemas']['DurakSeat'];
+export type DurakYou = Omit<components['schemas']['DurakYou'], 'actions'> & {
+  actions: DurakAction[];
+};
+export type DurakPair = components['schemas']['CardPair'];
+export type DurakBeat = components['schemas']['BeatView'];
+export type DurakNote = components['schemas']['DurakNote'];
+export type DurakResult = components['schemas']['DurakResult'];
 
 export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'> & {
   version: 1;

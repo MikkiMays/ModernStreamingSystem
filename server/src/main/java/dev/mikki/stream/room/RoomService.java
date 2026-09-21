@@ -216,6 +216,7 @@ public class RoomService {
           // принадлежат человеку, а не сессии: без этой строки стул с деньгами остался бы
           // пустовать до конца игры, а его хозяин сидел бы рядом зрителем.
           if (room.poker != null) room.poker.rebind(previous.id, member.id, member.name);
+          if (room.durak != null) room.durak.rebind(previous.id, member.id, member.name);
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -401,6 +402,7 @@ public class RoomService {
             current.serverTime(),
             current.watch(),
             current.poker(),
+            current.durak(),
             current.pokerGamesAt());
     return new Admission(
         room.id,
@@ -533,6 +535,7 @@ public class RoomService {
         now(),
         watch(room),
         room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()),
+        room.durak == null ? null : room.durak.view(viewer == null ? null : viewer.id, now()),
         lastGameAt(room));
   }
 
@@ -595,6 +598,7 @@ public class RoomService {
         // Ожидающий в дверях ещё не во встрече: что комната смотрит и во что играет — такая же
         // её жизнь, как переписка, и до разрешения войти он этого не видит. Прошлые игры — тем
         // более: история беседы начинается после того, как в неё пустили.
+        null,
         null,
         null,
         0);
@@ -717,6 +721,9 @@ public class RoomService {
               if (room.poker != null)
                 throw Problem.conflict(
                     "INTEGRATION_BUSY", "Во встрече открыт покерный стол. Сначала закройте его");
+              if (room.durak != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт стол дурака. Сначала закройте его");
               if (command.provider() == null
                   || command.kind() == null
                   || command.contentId() == null
@@ -785,6 +792,9 @@ public class RoomService {
               if (room.watch != null)
                 throw Problem.conflict(
                     "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
+              if (room.durak != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт стол дурака. Сначала закройте его");
               if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
               room.poker =
                   dev.mikki.stream.game.Table.open(
@@ -836,6 +846,62 @@ public class RoomService {
                         command.chips() == null ? 0 : command.chips(),
                         active(room, member));
             case "poker.reveal" -> table(room).reveal(member.id, active(room, member));
+            /*
+             Дурак. Те же права и та же сцена, что у покера: принести стол, убрать и раздать
+             может тот, кому комната разрешила интеграции, а сесть и сходить — любой участник.
+
+             ЧЕГО ЗДЕСЬ НЕТ ПО СРАВНЕНИЮ С ПОКЕРОМ. Истории: партия кончается дураком, и всё,
+             что от неё остаётся, — это разговор за столом. Писать в снимок комнаты таблицу с
+             одной строкой «кто проиграл» значило бы завести архив ради факта, который все
+             только что видели.
+            */
+            case "durak.open" -> {
+              requireActive(room, member);
+              requireOpen(room);
+              integrations(room, member);
+              if (room.watch != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
+              if (room.poker != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт покерный стол. Сначала закройте его");
+              if (room.durak != null) throw Problem.conflict("DURAK_OPEN", "Стол уже открыт");
+              room.durak =
+                  dev.mikki.stream.game.Durak.open(
+                      member.id,
+                      command.option(),
+                      now(),
+                      command.chips() == null ? 36 : command.chips().intValue());
+            }
+            case "durak.close" -> {
+              requireActive(room, member);
+              fool(room, member);
+              room.durak = null;
+            }
+            case "durak.sit" ->
+                durak(room)
+                    .sit(
+                        member.id,
+                        member.name,
+                        command.seat() == null ? -1 : command.seat(),
+                        active(room, member));
+            case "durak.stand" -> durak(room).stand(member.id, active(room, member));
+            case "durak.deal" -> {
+              fool(room, member);
+              durak(room).deal(active(room, member));
+            }
+            case "durak.act" ->
+                durak(room)
+                    .act(
+                        member.id,
+                        command.option(),
+                        command.card(),
+                        command.under(),
+                        active(room, member));
+            case "durak.settings" -> {
+              fool(room, member);
+              durak(room).configure(command.option(), command.chips(), active(room, member));
+            }
             case "message.send" -> {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
@@ -889,7 +955,7 @@ public class RoomService {
           rooms.save(room, now());
           // Стол мог назначить себе срок — конец хода, паузу перед следующей раздачей. Часы
           // узнают об этом сразу, а не через секунду, когда до комнаты дойдёт общий проход.
-          games.schedule(room.id, room.poker == null ? 0 : room.poker.deadline);
+          games.schedule(room.id, gameDeadline(room));
           return new Ack(command.commandId(), true, room.sequence, value);
         });
   }
@@ -962,6 +1028,20 @@ public class RoomService {
     return room.pokerGames == null ? List.of() : List.copyOf(room.pokerGames);
   }
 
+  /**
+   * Ближайший срок, который назначила себе игра комнаты.
+   *
+   * <p>Сцена одна, и стол на ней тоже один, — но брать из двух полей ближайшее дешевле, чем помнить
+   * об этом в каждом месте, где срок ставится. Ноль означает «будить незачем».
+   */
+  static long gameDeadline(RoomState room) {
+    long poker = room.poker == null ? 0 : room.poker.deadline;
+    long durak = room.durak == null ? 0 : room.durak.deadline;
+    if (poker <= 0) return durak;
+    if (durak <= 0) return poker;
+    return Math.min(poker, durak);
+  }
+
   /** Стол, который точно есть. Команда игре без стола — это не ошибка правил, а опоздание. */
   private static dev.mikki.stream.game.Table table(RoomState room) {
     if (room.poker == null) throw Problem.conflict("POKER_CLOSED", "Стол уже убрали из встречи");
@@ -978,6 +1058,19 @@ public class RoomService {
     requireActive(room, member);
     var poker = table(room);
     if (!member.owner && !member.id.equals(poker.hostId)) throw Problem.forbidden();
+  }
+
+  /** Стол дурака, который точно есть. */
+  private static dev.mikki.stream.game.Durak durak(RoomState room) {
+    if (room.durak == null) throw Problem.conflict("DURAK_CLOSED", "Стол уже убрали из встречи");
+    return room.durak;
+  }
+
+  /** Кто распоряжается столом дурака: принёсший его и ведущий встречи. То же, что у покера. */
+  private void fool(RoomState room, RoomState.Member member) {
+    requireActive(room, member);
+    var table = durak(room);
+    if (!member.owner && !member.id.equals(table.hostId)) throw Problem.forbidden();
   }
 
   /** Участник во встрече и вправе действовать; возвращает время, которым это и произошло. */
@@ -1047,6 +1140,7 @@ public class RoomService {
     room.watch = null;
     archiveGame(room, "meeting", room.closedAt);
     room.poker = null;
+    room.durak = null;
     games.forget(room.id);
     freezeHistory(room, room.closedAt);
     room.members

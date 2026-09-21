@@ -68,10 +68,34 @@ public final class Cards {
    * <p>Тот же порядок получит любой, кто повторит эти двадцать строк у себя.
    */
   public static List<Integer> shuffle(String seed) {
-    var cards = new ArrayList<Integer>(DECK);
-    for (int card = 0; card < DECK; card++) cards.add(card);
+    return shuffle(seed, deck(DECK));
+  }
+
+  /**
+   * Колода на {@code size} карт: 52 — полная, 36 — от шестёрки и выше.
+   *
+   * <p>ТРИДЦАТЬ ШЕСТЬ — ЭТО ПОДМНОЖЕСТВО ПЯТИДЕСЯТИ ДВУХ, А НЕ ДРУГАЯ НУМЕРАЦИЯ. Младшие номиналы
+   * просто не кладутся в колоду, а карта остаётся тем же числом, {@code rank} — тем же сравнением,
+   * {@code text} — той же строкой. Иначе у дурака завелась бы собственная арифметика карт, и
+   * «семёрка» означала бы в двух играх разные числа.
+   */
+  public static List<Integer> deck(int size) {
+    int skip = (DECK - size) / 4;
+    var cards = new ArrayList<Integer>(size);
+    for (int card = skip * 4; card < DECK; card++) cards.add(card);
+    return cards;
+  }
+
+  /**
+   * Та же тасовка для колоды любой длины.
+   *
+   * <p>Фишер-Йетс и поток байт здесь общие с полной колодой: у колоды на 36 карт меняется только
+   * длина, а не алгоритм, — и повторить её в браузере по-прежнему можно теми же десятью строками.
+   */
+  public static List<Integer> shuffle(String seed, List<Integer> deck) {
+    var cards = new ArrayList<>(deck);
     var stream = new ByteStream(seed);
-    for (int i = DECK - 1; i > 0; i--) {
+    for (int i = cards.size() - 1; i > 0; i--) {
       int j = stream.below(i + 1);
       var swap = cards.get(i);
       cards.set(i, cards.get(j));

@@ -275,7 +275,10 @@ export class Meeting {
      * фишек у игры. Конверт один на все типы — заводить второй ради каждой новой интеграции
      * значило бы переписывать канал команд на каждую из них.
      */
-    extra?: Pick<Command, 'provider' | 'kind' | 'contentId' | 'positionMs' | 'option' | 'seat' | 'chips'>,
+    extra?: Pick<
+      Command,
+      'provider' | 'kind' | 'contentId' | 'positionMs' | 'option' | 'seat' | 'chips' | 'card' | 'under'
+    >,
   ) {
     const ack = await this.control.command({
       commandId: crypto.randomUUID(),

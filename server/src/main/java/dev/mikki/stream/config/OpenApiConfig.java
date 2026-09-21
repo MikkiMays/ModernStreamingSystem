@@ -58,7 +58,14 @@ public class OpenApiConfig {
               "YouView",
               "GameSummary",
               "PlayerSummary",
-              "Highlight")) {
+              "Highlight",
+              "DurakView",
+              "CardPair",
+              "DurakSeat",
+              "DurakNote",
+              "DurakYou",
+              "BeatView",
+              "DurakResult")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
@@ -70,29 +77,30 @@ public class OpenApiConfig {
           .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
       Map<String, List<String>> nullable =
-          Map.of(
-              "Admission",
-              List.of("inviteUrl"),
-              "Participant",
-              List.of("recoveryDeadline", "service", "screenId", "viewingScreenId"),
-              "Snapshot",
+          Map.ofEntries(
+              Map.entry("Admission", List.of("inviteUrl")),
+              Map.entry(
+                  "Participant",
+                  List.of("recoveryDeadline", "service", "screenId", "viewingScreenId")),
               // Смотреть и играть вместе может быть нечего — и чаще всего нечего.
-              List.of("closedAt", "watch", "poker"),
+              Map.entry("Snapshot", List.of("closedAt", "watch", "poker", "durak")),
               // Пустое место — это место без человека; итог есть только у сыгранной раздачи;
               // кнопок нет у того, кто не сидит за столом.
-              "SeatView",
-              List.of("memberId"),
-              "TableView",
+              Map.entry("SeatView", List.of("memberId")),
               // Итоги есть только у законченной игры.
-              List.of("result", "you", "summary"),
-              "Ack",
-              List.of("value"),
-              "Attachment",
-              List.of("uploadId", "completedAt", "sha256", "cancelledAt"),
-              "EventPayload",
-              List.of("message", "screenId", "participantId"),
-              "Replay",
-              List.of("snapshot"));
+              Map.entry("TableView", List.of("result", "you", "summary")),
+              // У дурака то же самое: карты и козырь появляются с раздачей, зерно — после
+              // партии, а кнопок нет у того, кто за столом не сидит.
+              Map.entry(
+                  "DurakView",
+                  List.of("trump", "trumpSuit", "boutEnd", "you", "result", "commitment", "seed")),
+              Map.entry("DurakSeat", List.of("memberId")),
+              // Карта лежит неотбитой ровно до тех пор, пока её не побили.
+              Map.entry("CardPair", List.of("beat")),
+              Map.entry("Ack", List.of("value")),
+              Map.entry("Attachment", List.of("uploadId", "completedAt", "sha256", "cancelledAt")),
+              Map.entry("EventPayload", List.of("message", "screenId", "participantId")),
+              Map.entry("Replay", List.of("snapshot")));
       nullable.forEach(
           (name, fields) -> {
             var schema = schemas.get(name);

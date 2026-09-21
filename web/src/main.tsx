@@ -5,6 +5,7 @@ import './accessibility.css';
 import './room-layout.css';
 import './desktop-home.css';
 import './poker.css';
+import './durak.css';
 import App from './App';
 import { unlockNotificationAudio } from './core/sounds';
 unlockNotificationAudio();

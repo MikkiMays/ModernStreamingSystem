@@ -67,13 +67,14 @@ public class Lifecycle {
       games.forget(roomId);
       return;
     }
-    if (room.poker == null) {
+    if (room.poker == null && room.durak == null) {
       games.forget(roomId);
       return;
     }
     long now = service.now();
-    boolean moved = room.poker.tick(now);
-    games.schedule(roomId, room.poker.deadline);
+    boolean moved = room.poker != null && room.poker.tick(now);
+    if (room.durak != null && room.durak.tick(now)) moved = true;
+    games.schedule(roomId, RoomService.gameDeadline(room));
     if (!moved) return;
     service.emit(room, "room.changed", Contracts.EventPayload.changed());
     rooms.save(room, now);
@@ -196,8 +197,41 @@ public class Lifecycle {
         room.poker = null;
         games.forget(id);
         changed = true;
-      } else games.schedule(id, room.poker.deadline);
-    } else games.forget(id);
+      }
+    }
+    /*
+     Стол дурака — тот же срок и та же причина, что у покерного.
+
+     Разница ровно одна: записывать нечего. Партия дурака кончается дураком, и всё, что от неё
+     остаётся, люди видели своими глазами. Поэтому здесь нет ни `archiveGame`, ни проверки
+     «кончилась ли игра сама»: конец партии виден на сцене и живёт там до следующей раздачи.
+    */
+    if (room.durak != null) {
+      var present =
+          room.members.values().stream()
+              .filter(m -> m.service == null && m.occupiesSeat())
+              .map(m -> m.id)
+              .collect(Collectors.toSet());
+      if (room.durak.presence(present, now)) changed = true;
+      if (room.durak.hostId != null && !present.contains(room.durak.hostId))
+        room.members.values().stream()
+            .filter(m -> m.owner && m.occupiesSeat())
+            .findFirst()
+            .ifPresent(
+                owner -> {
+                  if (!owner.id.equals(room.durak.hostId)) room.durak.host(owner.id);
+                });
+      if (room.durak.tick(now)) changed = true;
+      long idleBefore = room.durak.idleSince;
+      boolean expired = room.durak.linger(now, startedAt(now));
+      if (room.durak.idleSince != idleBefore) changed = true;
+      if (expired) {
+        room.durak = null;
+        changed = true;
+      }
+    }
+    if (room.poker == null && room.durak == null) games.forget(id);
+    else games.schedule(id, RoomService.gameDeadline(room));
     if (room.closedAt == null) {
       boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);
       var emptyBefore = room.emptySince;

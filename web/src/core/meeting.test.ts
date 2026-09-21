@@ -92,6 +92,7 @@ beforeEach(() => {
     serverTime: 0,
     watch: null,
     poker: null,
+    durak: null,
     pokerGamesAt: 0,
   };
   const admission = {

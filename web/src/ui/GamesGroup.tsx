@@ -3,9 +3,12 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   ChevronDown,
+  Club,
   Coins,
   History,
+  Layers,
   Play,
+  Shuffle,
   Spade,
   Timer,
   TrendingUp,
@@ -13,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
-import type { PokerMode } from '../api/types';
+import type { DurakTable, PokerMode } from '../api/types';
 import {
   blindsFor,
   chips,
@@ -39,14 +42,30 @@ import { useStore } from './primitives';
  * остаётся то, для чего она и нужна, — принести, убрать и посмотреть, чем кончились прошлые игры.
  * Правила и шпаргалки сюда не переезжают: о столе спрашивают у стола.
  */
-type GameId = 'poker';
+type GameId = 'poker' | 'durak';
 
 const GAMES: {
   id: GameId;
   name: string;
   hint: string;
   accent: string;
-}[] = [{ id: 'poker', name: 'Покер', hint: 'Безлимитный холдем, до десяти игроков', accent: '#8a5cf6' }];
+  icon: typeof Spade;
+}[] = [
+  {
+    id: 'poker',
+    name: 'Покер',
+    hint: 'Безлимитный холдем, до десяти игроков',
+    accent: '#8a5cf6',
+    icon: Spade,
+  },
+  {
+    id: 'durak',
+    name: 'Дурак',
+    hint: 'Подкидной и переводной, до шести игроков',
+    accent: '#c9a227',
+    icon: Club,
+  },
+];
 
 /** Во сколько раз стартовый стек больше или меньше обычного для режима. */
 const STACK_STEPS = [0.5, 1, 2, 5];
@@ -56,9 +75,17 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const canUse = !!self && (self.owner || snapshot.integrationsAllowed !== false);
   const table = snapshot.poker;
+  const durak = snapshot.durak;
   const dealer = !!table && (table.hostId === self?.id || !!self?.owner);
   // Стол уже стоит — значит, открыта его строка; иначе открывается та, на которую нажали.
-  const [open, setOpen] = useState<GameId | null>(table ? 'poker' : null);
+  const [open, setOpen] = useState<GameId | null>(table ? 'poker' : durak ? 'durak' : null);
+  /*
+    Настройки дурака выбираются до того, как стол принесут: колода и правила перевода меняются
+    только между партиями, и спрашивать о них после раздачи поздно. Дальше их всё равно можно
+    поменять — но уже за столом, там же, где играют.
+  */
+  const [deck, setDeck] = useState(36);
+  const [transfer, setTransfer] = useState(false);
   const [mode, setMode] = useState<PokerMode>('friendly');
   const preset = POKER_MODES.find((item) => item.id === mode) ?? POKER_MODES[0]!;
   const [stack, setStack] = useState(preset.stack);
@@ -114,8 +141,13 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
       </button>
       <div className="games-list">
         {GAMES.map((game) => {
-          const live = game.id === 'poker' && !!table;
+          const live = game.id === 'poker' ? !!table : !!durak;
           const expanded = open === game.id;
+          const Icon = game.icon;
+          const seated =
+            game.id === 'poker'
+              ? (table?.seats.filter((seat) => seat.memberId).length ?? 0)
+              : (durak?.seats.filter((seat) => seat.memberId).length ?? 0);
           return (
             <section
               key={game.id}
@@ -129,13 +161,13 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 onClick={() => setOpen(expanded ? null : game.id)}
               >
                 <span className="games-icon" style={{ background: game.accent }}>
-                  <Spade size={20} />
+                  <Icon size={20} />
                 </span>
                 <b>
                   {game.name}
                   {live && (
                     <span className="games-state" data-live="true">
-                      За столом {table.seats.filter((seat) => seat.memberId).length}
+                      За столом {seated}
                     </span>
                   )}
                 </b>
@@ -146,13 +178,29 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 */}
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
                 <small>
-                  {live
-                    ? `${table.modeName} · блайнды ${chips(table.smallBlind)}/${chips(table.bigBlind)}`
-                    : game.hint}
+                  {!live
+                    ? game.hint
+                    : game.id === 'poker'
+                      ? `${table!.modeName} · блайнды ${chips(table!.smallBlind)}/${chips(table!.bigBlind)}`
+                      : `${durak!.modeName} · ${durak!.deckSize} карт`}
                 </small>
               </button>
+              {expanded && game.id === 'durak' && (
+                <DurakBody
+                  table={durak}
+                  canUse={canUse}
+                  owner={!!self?.owner}
+                  selfId={self?.id}
+                  deck={deck}
+                  transfer={transfer}
+                  onDeck={setDeck}
+                  onTransfer={setTransfer}
+                  onSend={send}
+                />
+              )}
               {expanded &&
-                (live ? (
+                game.id === 'poker' &&
+                (live && table ? (
                   <div className="games-body">
                     <ul className="games-facts">
                       <li>
@@ -221,6 +269,120 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
         <p className="form-error" role="alert">
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Дурак в списке игр.
+ *
+ * ТЕЛО РАСКРЫТИЯ, А НЕ ОТДЕЛЬНЫЙ ЭКРАН. Список игр для того и сделан списком: у каждой игры своя
+ * пара вопросов, и задавать их нужно там же, где выбирают игру. У дурака вопросов ровно два —
+ * колода и перевод, — и оба меняются только между партиями, поэтому спрашиваются заранее.
+ *
+ * Всё остальное, что есть у стола (секунды на ход, посадка, соседи, первый бой), живёт на самой
+ * сцене: об этом спрашивают, уже сидя за столом.
+ */
+function DurakBody({
+  table,
+  canUse,
+  owner,
+  selfId,
+  deck,
+  transfer,
+  onDeck,
+  onTransfer,
+  onSend,
+}: {
+  table: DurakTable | null;
+  canUse: boolean;
+  owner: boolean;
+  selfId: string | undefined;
+  deck: number;
+  transfer: boolean;
+  onDeck: (value: number) => void;
+  onTransfer: (value: boolean) => void;
+  onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+}) {
+  if (table) {
+    const host = table.hostId === selfId || owner;
+    const seated = table.seats.filter((seat) => seat.memberId).length;
+    return (
+      <div className="games-body">
+        <ul className="games-facts">
+          <li>
+            <Users size={14} /> За столом {seated} из 6
+          </li>
+          <li>
+            <Layers size={14} /> Колода {table.deckSize} карт
+          </li>
+          <li>
+            <Shuffle size={14} /> {table.modeName}
+          </li>
+          <li>
+            <Timer size={14} /> {table.turnSeconds} секунд на ход
+          </li>
+        </ul>
+        {host ? (
+          <>
+            {table.phase !== 'bout' && (
+              <button className="button primary full" onClick={() => onSend('durak.deal')}>
+                <Play size={17} /> Раздать
+              </button>
+            )}
+            <button className="button ghost full" onClick={() => onSend('durak.close')}>
+              <X size={17} /> Убрать стол из встречи
+            </button>
+          </>
+        ) : (
+          <p className="form-footnote">Раздаёт тот, кто принёс стол, и ведущий встречи.</p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="games-body">
+      <div className="games-stack">
+        <div className="games-stack-head">
+          <label>
+            Колода
+            <small>без джокеров</small>
+          </label>
+        </div>
+        <div className="games-quick">
+          {[36, 52].map((size) => (
+            <button key={size} data-active={deck === size || undefined} onClick={() => onDeck(size)}>
+              {size} карт
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="games-stack">
+        <div className="games-stack-head">
+          <label>
+            Правила
+            <small>перевод — картой того же номинала</small>
+          </label>
+        </div>
+        <div className="games-quick">
+          <button data-active={!transfer || undefined} onClick={() => onTransfer(false)}>
+            Подкидной
+          </button>
+          <button data-active={transfer || undefined} onClick={() => onTransfer(true)}>
+            Переводной
+          </button>
+        </div>
+      </div>
+      {canUse ? (
+        <button
+          className="button primary full"
+          onClick={() => onSend('durak.open', { option: transfer ? 'perevodnoy' : 'podkidnoy', chips: deck })}
+        >
+          <Club size={17} /> Открыть стол
+        </button>
+      ) : (
+        <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
       )}
     </div>
   );

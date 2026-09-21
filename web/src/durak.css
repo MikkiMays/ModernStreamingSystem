@@ -1,0 +1,995 @@
+/*
+  Стол дурака.
+
+  НЕ ПОКЕР В ДРУГОМ ЦВЕТЕ. У покера зелёное сукно, борт и фишки — стол казино. Дурак играют не в
+  казино: его играют на кухне, на даче, в поезде. Поэтому здесь другой материал и другой свет —
+  тёмная шерсть под одной лампой, которая висит слева над столом.
+
+  ОДНА ЛАМПА — ЭТО ЕДИНСТВЕННОЕ ПРАВИЛО ВСЕГО ФАЙЛА. Пятно света лежит в левом верхнем углу
+  сукна, и всё, что на столе, подчиняется ему: тени падают вправо-вниз, дальний край темнее
+  ближнего, латунь бликует только сверху. Без этого разложенные карты выглядят плитками
+  интерфейса, а не картами, лежащими на столе. С этим — выглядят.
+
+  СИГНАТУРА СЦЕНЫ — КОЗЫРЬ ПОД КОЛОДОЙ. Колода лежит слева, из-под неё наискось выдвинута
+  козырная карта лицом вверх. Это самый узнаваемый образ игры, его видно с другого конца
+  комнаты, и он отвечает на главный вопрос стола одним взглядом. Когда колода кончается, козырь
+  остаётся один и загорается латунью: «козыри пошли» — момент, который за столом объявляют
+  вслух.
+
+  ВСЁ ДВИЖЕНИЕ — CSS ОТ СЕРВЕРНЫХ МЕТОК. Раздача, кольцо хода и уход боя заданы кадрами с
+  отрицательной задержкой, равной уже прошедшему времени. Поэтому карты летят у всех
+  одновременно, а открывший вкладку в середине боя видит их уже на местах. JavaScript не считает
+  ни одного кадра.
+*/
+.durak {
+  /* Шерсть, а не сукно: холодный сине-зелёный, который темнеет к дальнему краю. */
+  --wool: #16303a;
+  --wool-lit: #27545f;
+  --wool-far: #0e222a;
+  --rim: #0b1a20;
+  /* Латунь лампы. Ею же горит козырь, кольцо хода и всё, что требует внимания. */
+  --brass: #c9a227;
+  --brass-soft: #e8cf7c;
+  /* «Беру» — единственное красное на столе, и оно приглушено до обожжённой глины. */
+  --alarm: #d9654a;
+  --bg: #101a1f;
+  --surface: #17262d;
+  --surface-2: #1f333c;
+  --text: #eaf2f2;
+  --muted: #92a8ad;
+  --line: #26404a;
+  /* Карта: одна пропорция на всю сцену, от неё считается всё остальное. */
+  --card-w: 5.2cqw;
+  --card-r: 0.7cqw;
+  color: var(--text);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- Полоса стола -------------------------------------------------------------------- */
+
+.durak-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  border: 1px solid var(--line);
+}
+.durak-mode {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.durak-mode b {
+  font-size: 14px;
+}
+.durak-mode small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.durak-bar-spacer {
+  flex: 1;
+}
+.durak-bar button {
+  font: inherit;
+}
+/*
+  Статус стола набран разрядкой и капсом.
+
+  Шрифт сюда не тащится: лишний файл ради одной строки — это килобайты на каждый вход в комнату.
+  Характер даёт трактовка: узкий капс с разрядкой читается как надпись, выштампованная на
+  металле лампы, и отличает «что происходит» от обычного текста интерфейса.
+*/
+.durak-says {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.durak-says[data-alarm='true'] {
+  color: var(--alarm);
+}
+
+/* --- Столешница ---------------------------------------------------------------------- */
+
+.durak-table {
+  position: relative;
+  min-height: 0;
+  container-type: inline-size;
+  border-radius: 22px;
+  padding: 1.4cqw;
+  background: var(--rim);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--brass) 18%, transparent),
+    0 22px 48px rgb(0 0 0 / 55%);
+}
+/*
+  Сукно и лампа.
+
+  Первый слой — пятно света: несимметричный эллипс в левой верхней четверти. Второй — сама
+  шерсть с уклоном к дальнему краю. Третий — ворс: мелкий шум в data-URI, тот же приём, что у
+  покерного стола, потому что без него ровная заливка читается как картонка.
+*/
+.durak-felt {
+  position: relative;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      68% 74% at 26% 16%,
+      color-mix(in oklab, var(--wool-lit) 88%, transparent) 0%,
+      transparent 72%
+    ),
+    linear-gradient(168deg, var(--wool) 0%, var(--wool-far) 100%);
+  box-shadow: inset 0 0 6cqw rgb(0 0 0 / 45%);
+}
+.durak-felt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* --- Колода и козырь ------------------------------------------------------------------ */
+
+/*
+  Сигнатура сцены.
+
+  Козырь лежит под колодой, повёрнутый поперёк и выдвинутый наружу — ровно так, как его кладут
+  рукой. Стопка над ним чуть повёрнута и отбрасывает тень вправо-вниз: лампа слева сверху.
+
+  Место — нижний левый угол, под дугой мест. В первой версии колода стояла по центру левого
+  края, и нижнее место дуги ложилось прямо на неё: кнопка «Сесть» оказывалась под стопкой и
+  переставала нажиматься вовсе.
+*/
+.durak-stock {
+  position: absolute;
+  left: 3cqw;
+  bottom: 3cqw;
+  display: grid;
+  justify-items: center;
+  gap: 0.8cqw;
+  z-index: 4;
+}
+.durak-stock-cards {
+  position: relative;
+  width: calc(var(--card-w) * 2.3);
+  height: calc(var(--card-w) * 1.42);
+}
+.durak-trump {
+  position: absolute;
+  left: calc(var(--card-w) * 1);
+  top: 50%;
+  translate: 0 -50%;
+  rotate: 90deg;
+  transform-origin: center;
+  transition: filter 240ms ease;
+}
+/* Колода кончилась — козырь остаётся один и загорается: козыри пошли. */
+.durak-stock[data-empty='true'] .durak-trump {
+  left: 50%;
+  translate: -50% -50%;
+  filter: drop-shadow(0 0 1.2cqw color-mix(in oklab, var(--brass) 70%, transparent));
+}
+.durak-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  rotate: -4deg;
+}
+.durak-back:nth-of-type(2) {
+  rotate: -2deg;
+  left: 0.3cqw;
+}
+.durak-back:nth-of-type(3) {
+  rotate: 1deg;
+  left: 0.6cqw;
+}
+.durak-stock-count {
+  font-size: 2.1cqw;
+  font-variant-numeric: tabular-nums;
+  color: var(--brass-soft);
+  letter-spacing: 0.08em;
+}
+.durak-stock-count small {
+  display: block;
+  font-size: 1.4cqw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- Отбой ----------------------------------------------------------------------------- */
+
+/*
+  Стопка, в которую больше никто не смотрит.
+
+  Поэтому она нарочно небрежная: карты лежат под разными углами и без подписи. Растёт она
+  числом рубашек до пяти — дальше это уже «много», и считать их никто не станет.
+*/
+.durak-discard {
+  position: absolute;
+  right: 3cqw;
+  bottom: 4cqw;
+  width: calc(var(--card-w) * 1.4);
+  height: calc(var(--card-w) * 1.9);
+  z-index: 3;
+  opacity: 0.62;
+}
+.durak-discard .durak-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+.durak-discard .durak-card:nth-child(1) {
+  translate: -50% -50%;
+  rotate: -7deg;
+}
+.durak-discard .durak-card:nth-child(2) {
+  translate: -46% -52%;
+  rotate: 4deg;
+}
+.durak-discard .durak-card:nth-child(3) {
+  translate: -53% -48%;
+  rotate: -2deg;
+}
+.durak-discard .durak-card:nth-child(4) {
+  translate: -48% -51%;
+  rotate: 9deg;
+}
+.durak-discard .durak-card:nth-child(5) {
+  translate: -51% -49%;
+  rotate: -4deg;
+}
+
+/* --- Бой -------------------------------------------------------------------------------- */
+
+/*
+  Карты кладут парами, а не в две строки.
+
+  Защита ложится поверх атаки со сдвигом вниз-вправо и небольшим поворотом — так их и кладут
+  рукой, и так сразу видно, что чем побито. Две отдельные строки «атаки» и «защиты» выглядели бы
+  таблицей, в которой пары приходится сопоставлять глазами.
+*/
+.durak-bout {
+  position: absolute;
+  left: 50%;
+  top: 74%;
+  translate: -50% -50%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 1cqw 0.6cqw;
+  width: min(58cqw, 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+.durak-bout > * {
+  pointer-events: auto;
+}
+.durak-pair {
+  position: relative;
+  /*
+    Коробка пары шире и выше самой карты: защита ложится со сдвигом, и без запаса она наезжала
+    на соседнюю пару — три боя подряд читались как одна куча.
+  */
+  width: calc(var(--card-w) * 1.28);
+  height: calc(var(--card-w) * 1.72);
+}
+.durak-pair .durak-attack {
+  position: absolute;
+  inset: 0;
+}
+.durak-pair .durak-defence {
+  position: absolute;
+  left: 22%;
+  top: 22%;
+  rotate: 7deg;
+}
+/* Неотбитая карта дышит: она единственная, что ждёт ответа. */
+.durak-pair[data-open='true'] .durak-attack {
+  animation: durak-await 2.1s ease-in-out infinite;
+}
+@keyframes durak-await {
+  0%,
+  100% {
+    box-shadow: 0 0.5cqw 1.2cqw rgb(0 0 0 / 45%);
+  }
+  50% {
+    box-shadow:
+      0 0.5cqw 1.2cqw rgb(0 0 0 / 45%),
+      0 0 1.6cqw color-mix(in oklab, var(--brass) 55%, transparent);
+  }
+}
+/* Выбранную карту примеряют: её цель обводится, остальные гаснут. */
+.durak-pair[data-target='true'] .durak-attack {
+  outline: 0.3cqw solid var(--brass);
+  outline-offset: 0.2cqw;
+  animation: none;
+}
+.durak-pair[data-dim='true'] {
+  opacity: 0.4;
+}
+.durak-pair button.durak-attack {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* Бой кончился: карты уезжают туда, где им место. */
+.durak-bout[data-end='beaten'] {
+  animation: durak-sweep var(--bout-ms, 1300ms) ease-in forwards;
+}
+.durak-bout[data-end='taken'] {
+  animation: durak-scoop var(--bout-ms, 1300ms) ease-in forwards;
+}
+@keyframes durak-sweep {
+  60% {
+    opacity: 1;
+  }
+  100% {
+    translate: calc(-50% + 22cqw) -50%;
+    opacity: 0;
+    rotate: 6deg;
+  }
+}
+@keyframes durak-scoop {
+  60% {
+    opacity: 1;
+  }
+  100% {
+    translate: -50% 26cqh;
+    opacity: 0;
+    scale: 0.82;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .durak-bout[data-end] {
+    animation: none;
+    opacity: 0.5;
+  }
+  .durak-pair[data-open='true'] .durak-attack {
+    animation: none;
+  }
+}
+
+/* --- Карта ------------------------------------------------------------------------------ */
+
+/*
+  Карта рисуется, а не берётся картинкой: ни одного запроса, любой размер, и масти не
+  рассыпаются на телефоне. Номинал стоит в углу крупно, масть — под ним; в середине тот же знак
+  вполсилы, чтобы карта читалась и краем глаза.
+*/
+/*
+  `display: block` здесь не косметика, а условие существования карты.
+
+  Карта — это `<span>`, а у строчного элемента ширина и пропорция не работают вовсе: первая
+  версия рисовала не карты, а смазанную строчку из значков мастей. Тот же промах повторяется
+  в каждой рубашке, поэтому размер задаётся здесь, один раз на все места, где карта лежит.
+*/
+.durak-card {
+  --face: #f4f1e8;
+  --ink: #16303a;
+  display: block;
+  position: relative;
+  width: var(--card-w);
+  aspect-ratio: 5 / 7.1;
+  border-radius: var(--card-r);
+  background: linear-gradient(160deg, var(--face) 0%, #e2dccb 100%);
+  color: var(--ink);
+  box-shadow: 0 0.5cqw 1.2cqw rgb(0 0 0 / 45%);
+  user-select: none;
+  flex: none;
+}
+.durak-card[data-red='true'] {
+  --ink: #b23b2e;
+}
+.durak-card-rank {
+  position: absolute;
+  left: 8%;
+  top: 4%;
+  font-size: 2.6cqw;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.durak-card-suit {
+  position: absolute;
+  left: 8%;
+  top: 30%;
+  font-size: 2cqw;
+  line-height: 1;
+}
+.durak-card-pip {
+  position: absolute;
+  right: 6%;
+  bottom: 4%;
+  font-size: 4.2cqw;
+  line-height: 1;
+  opacity: 0.26;
+}
+/* Рубашка — та же карта без лица, чтобы переворот оставался одним элементом. */
+.durak-card[data-back='true'] {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in oklab, var(--brass) 22%, #1d3a45) 0 0.5cqw,
+      #1d3a45 0.5cqw 1cqw
+    ),
+    #1d3a45;
+  border: 0.25cqw solid color-mix(in oklab, var(--brass) 38%, transparent);
+}
+.durak-card[data-back='true'] > * {
+  display: none;
+}
+
+/* --- Места ------------------------------------------------------------------------------ */
+
+.durak-seat {
+  position: absolute;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.5cqw;
+  width: 13cqw;
+  z-index: 2;
+}
+.durak-seat[data-side='left'],
+.durak-seat[data-side='right'] {
+  width: 14cqw;
+}
+.durak-seat-face {
+  position: relative;
+  width: 6cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  font-size: 2.4cqw;
+  font-weight: 600;
+  color: var(--muted);
+  box-shadow: 0 0.4cqw 1cqw rgb(0 0 0 / 45%);
+}
+/* Сколько карт на руках — числом на кружке. */
+.durak-seat-count {
+  position: absolute;
+  right: -0.6cqw;
+  bottom: -0.4cqw;
+  min-width: 2.4cqw;
+  padding: 0 0.4cqw;
+  border-radius: 999px;
+  background: var(--rim);
+  border: 0.15cqw solid color-mix(in oklab, var(--brass) 55%, transparent);
+  color: var(--brass-soft);
+  font-size: 1.5cqw;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.durak-seat-face video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/*
+  Кольцо хода — чистая CSS-анимация с отрицательной задержкой: длительность равна всему времени
+  на ход, сдвиг — уже прошедшему. Поэтому у шестерых оно стоит в одном и том же месте.
+*/
+.durak-ring {
+  position: absolute;
+  inset: -0.7cqw;
+  rotate: -90deg;
+  overflow: visible;
+}
+.durak-ring circle {
+  fill: none;
+  stroke-width: 7;
+}
+.durak-ring-track {
+  stroke: color-mix(in oklab, var(--brass) 26%, transparent);
+}
+.durak-ring-run {
+  stroke: var(--brass);
+  stroke-linecap: round;
+  stroke-dasharray: 289;
+  animation: durak-drain linear 1 forwards;
+}
+@keyframes durak-drain {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 289;
+  }
+}
+.durak-seat-name {
+  font-size: 1.5cqw;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.durak-seat[data-away='true'] {
+  opacity: 0.5;
+}
+.durak-seat[data-out='true'] .durak-seat-face {
+  filter: grayscale(1);
+}
+/* Роль — подпись, а не цветной кружок: за столом это и говорят словами. */
+.durak-seat-role {
+  font-size: 1.2cqw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-height: 1.5cqw;
+}
+.durak-seat[data-role='defender'] .durak-seat-role {
+  color: var(--alarm);
+}
+.durak-seat[data-role='attacker'] .durak-seat-role {
+  color: var(--brass-soft);
+}
+.durak-seat[data-passed='true'] .durak-seat-role {
+  color: var(--muted);
+}
+/* Чужие карты — рубашками, веером, числом ровно столько, сколько их на руках. */
+.durak-seat-hand {
+  display: flex;
+  justify-content: center;
+  height: calc(var(--card-w) * 0.44);
+  overflow: hidden;
+}
+.durak-seat-hand .durak-card {
+  --card-w: 3cqw;
+  margin-inline: -1.25cqw;
+  box-shadow: 0 0.2cqw 0.5cqw rgb(0 0 0 / 45%);
+}
+/* Пустое место: тот же круг, но нарисованный пунктиром и без содержимого. */
+.durak-seat-free {
+  background: transparent;
+  border: 0.25cqw dashed color-mix(in oklab, var(--brass) 30%, transparent);
+  box-shadow: none;
+}
+.durak-sit {
+  padding: 0.5cqw 1.4cqw;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--brass) 45%, transparent);
+  background: color-mix(in oklab, var(--surface) 80%, transparent);
+  color: var(--brass-soft);
+  font-size: 1.5cqw;
+  cursor: pointer;
+}
+.durak-sit:hover {
+  background: color-mix(in oklab, var(--brass) 22%, var(--surface));
+}
+
+/* --- Своя рука -------------------------------------------------------------------------- */
+
+/*
+  Веер, а не ряд.
+
+  Шесть карт в ряд читаются как панель кнопок; веер читается как рука. Законные карты подняты и
+  полноцветные, незаконные — опущены и приглушены; какие из них какие, решает сервер, и здесь
+  это только два класса.
+*/
+/*
+  Полоса под столом: своё место слева, веер по центру.
+
+  Кружок стоит здесь, а не на сукне, по простой причине — на сукне его негде поставить. Нижнюю
+  дугу занял веер, и место, посаженное туда, ложилось прямо на собственные карты и уезжало за
+  край. А знать, что ты отбиваешься, нужно не поднимая глаз от руки.
+*/
+.durak-mine {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  /*
+    Здесь кончаются контейнерные единицы: `cqw` считает от `.durak-table`, а эта полоса лежит
+    снаружи него — там та же запись означала бы процент ширины окна. Поэтому размеры руки
+    заданы пикселями: скруглению карты в 66 пикселей неоткуда взяться из ширины экрана.
+  */
+  --card-r: 5px;
+}
+.durak-mine > .durak-hand {
+  grid-column: 2;
+}
+.durak-mine > .durak-controls,
+.durak-mine > .form-error {
+  grid-column: 1 / -1;
+}
+.durak-seat-own {
+  position: static;
+  translate: none;
+  width: auto;
+  justify-items: start;
+  padding-bottom: 6px;
+}
+.durak-seat-own .durak-seat-face {
+  width: 56px;
+  font-size: 20px;
+  box-shadow: 0 4px 10px rgb(0 0 0 / 45%);
+}
+.durak-seat-own .durak-seat-name,
+.durak-seat-own .durak-seat-role {
+  font-size: 12px;
+  max-width: 96px;
+}
+.durak-seat-own .durak-ring {
+  inset: -5px;
+}
+.durak-hand {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 108px;
+  padding-top: 14px;
+}
+.durak-hand-card {
+  --card-w: 66px;
+  position: relative;
+  margin-inline: -9px;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  rotate: var(--angle, 0deg);
+  translate: 0 calc(var(--lift, 0) * -1px);
+  transform-origin: bottom center;
+  transition:
+    translate 140ms ease,
+    filter 140ms ease;
+  /*
+    Карты прилетают от колоды, а не появляются.
+
+    Длительность и отрицательная задержка приходят из снимка (`dealtAt`), поэтому у шестерых
+    карты летят в один и тот же момент, а открывший вкладку в середине раздачи видит их уже на
+    местах — без единого кадра, посчитанного в JavaScript.
+  */
+  animation: durak-deal ease-out 1 both;
+}
+@keyframes durak-deal {
+  from {
+    translate: -34vw 12vh;
+    rotate: -50deg;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .durak-hand-card {
+    animation: none;
+  }
+}
+.durak-hand-card .durak-card {
+  width: 66px;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 50%);
+}
+.durak-hand-card[data-legal='false'] {
+  cursor: default;
+  filter: grayscale(0.65) brightness(0.72);
+  translate: 0 8px;
+}
+.durak-hand-card[data-legal='true']:hover,
+.durak-hand-card[data-legal='true']:focus-visible {
+  translate: 0 calc(var(--lift, 0) * -1px - 16px);
+  z-index: 2;
+}
+.durak-hand-card[data-picked='true'] {
+  translate: 0 calc(var(--lift, 0) * -1px - 22px);
+  z-index: 3;
+}
+.durak-hand-card[data-picked='true'] .durak-card {
+  outline: 3px solid var(--brass);
+  outline-offset: 2px;
+}
+.durak-hand-card[data-trump='true'] .durak-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-r);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--brass) 55%, transparent);
+}
+
+/* --- Кнопки хода ------------------------------------------------------------------------ */
+
+.durak-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+.durak-act {
+  padding: 10px 22px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.durak-act:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--brass) 16%, var(--surface-2));
+}
+.durak-act:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.durak-act[data-kind='take'] {
+  border-color: color-mix(in oklab, var(--alarm) 60%, transparent);
+  color: var(--alarm);
+}
+.durak-act[data-kind='pass'] {
+  border-color: color-mix(in oklab, var(--brass) 55%, transparent);
+  color: var(--brass-soft);
+}
+.durak-hint {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* --- Полупрозрачные панели -------------------------------------------------------------- */
+
+/*
+  Настройки и итог партии лежат внутри сцены, а не в панели справа: это вопросы к столу. Роль у
+  них `region`, а не `dialog`, — иначе стол за спиной терял бы горячие клавиши хода.
+*/
+.durak-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 3cqw;
+  background: color-mix(in oklab, var(--bg) 78%, transparent);
+  backdrop-filter: blur(6px);
+}
+.durak-sheet-body {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+}
+.durak-sheet-body h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.durak-sheet-body > .durak-sheet-row:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding-top: 2px;
+}
+.durak-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.durak-sheet-row:last-of-type {
+  border-bottom: 0;
+}
+.durak-sheet-row label {
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+.durak-sheet-row small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.durak-choice {
+  display: flex;
+  gap: 6px;
+}
+.durak-choice button {
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.durak-choice button[data-active='true'] {
+  border-color: var(--brass);
+  color: var(--brass-soft);
+  background: color-mix(in oklab, var(--brass) 14%, transparent);
+}
+
+/* Итог партии: крупно тот, кто проиграл, и порядок, в котором выходили остальные. */
+.durak-over {
+  display: grid;
+  gap: 10px;
+  text-align: center;
+}
+.durak-over b {
+  font-size: 26px;
+  letter-spacing: 0.02em;
+  color: var(--alarm);
+}
+.durak-over[data-draw='true'] b {
+  color: var(--brass-soft);
+}
+.durak-places {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--muted);
+}
+.durak-places li span {
+  color: var(--brass-soft);
+  font-variant-numeric: tabular-nums;
+  margin-right: 8px;
+}
+
+/* --- Лента ------------------------------------------------------------------------------ */
+
+.durak-feed {
+  position: absolute;
+  left: 50%;
+  bottom: 0.2cqw;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  max-width: 44cqw;
+  font-size: 1.25cqw;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 6;
+}
+.durak-feed span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.durak-feed span:last-child {
+  color: var(--text);
+}
+
+/* --- Центр пустого стола ---------------------------------------------------------------- */
+
+.durak-center {
+  position: absolute;
+  left: 50%;
+  top: 72%;
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  z-index: 6;
+  /*
+    Середина стола не ловит нажатия.
+
+    Та же ловушка, что была у покера: колонка лежит поверх мест, и подпись «нужен ещё игрок»
+    перекрывала кнопки «Сесть» — нажатие не срабатывало вовсе. Ловят только сами кнопки.
+  */
+  pointer-events: none;
+}
+.durak-center > button {
+  pointer-events: auto;
+}
+.durak-center p {
+  margin: 0;
+  font-size: 1.8cqw;
+  color: var(--muted);
+}
+.durak-loading {
+  height: 100%;
+  border-radius: 22px;
+  background: var(--rim);
+}
+
+/* --- Телефон ----------------------------------------------------------------------------- */
+
+/*
+  В портрете овал не помещается: шесть кружков по кругу на узком экране превращаются в кашу.
+  Поэтому места уезжают в полосу над столом, бой занимает всю ширину, а рука остаётся веером —
+  она и есть то, чем играют.
+*/
+/*
+  Телефон.
+
+  Пять мест по дуге на трёхстах пикселях — это пять кружков, налезающих друг на друга вместе с
+  подписями. Поэтому здесь место худеет до кружка с числом карт: рубашки уходят (их заменяет
+  число), отбой уходит совсем (он декоративный), а колода прижимается к углу. Рука не меняется —
+  ею играют, и она должна остаться читаемой.
+*/
+@media (max-width: 720px) {
+  .durak {
+    --card-w: 12cqw;
+  }
+  /*
+    Полоса стола в две строки, а не в три: длинная строка состояния занимает свою, а название и
+    кнопки остаются вместе. Три строки съедали ту самую высоту, которой на телефоне и не хватает.
+  */
+  .durak-bar {
+    gap: 6px 10px;
+    padding: 6px 10px;
+  }
+  .durak-mode small {
+    display: none;
+  }
+  .durak-says {
+    order: 9;
+    flex-basis: 100%;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .durak-stock {
+    left: 1cqw;
+    bottom: 1cqw;
+    gap: 0.2cqw;
+  }
+  .durak-discard {
+    display: none;
+  }
+  .durak-bout {
+    top: 70%;
+    width: 96%;
+    gap: 0.6cqw 0.4cqw;
+  }
+  .durak-seat {
+    width: 17cqw;
+    gap: 0.2cqw;
+  }
+  .durak-seat-face {
+    width: 9cqw;
+  }
+  .durak-seat-hand {
+    display: none;
+  }
+  .durak-seat-count {
+    font-size: 2.6cqw;
+    min-width: 4cqw;
+  }
+  .durak-seat-name,
+  .durak-seat-role {
+    font-size: 2.3cqw;
+  }
+  .durak-feed {
+    display: none;
+  }
+  .durak-hand-card {
+    --card-w: 54px;
+    margin-inline: -16px;
+  }
+  .durak-hand-card .durak-card {
+    width: 54px;
+  }
+}

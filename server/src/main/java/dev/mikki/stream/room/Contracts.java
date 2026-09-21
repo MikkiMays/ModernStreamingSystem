@@ -54,7 +54,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -87,9 +87,37 @@ public final class Contracts {
       @Size(max = 24) @Pattern(regexp = "[a-z-]*") String option,
       @Min(0) @Max(9) Integer seat,
       /** Фишки: до чего повышать. Верхний предел — больше, чем может быть на любом столе. */
-      @Min(0) @Max(100000000) Long chips) {
+      @Min(0) @Max(100000000) Long chips,
+      /**
+       * Карта, которой ходят: {@code As}, {@code Td}, {@code 7h}.
+       *
+       * <p>Пришла вместе с дураком, где ход — это карта, а не сумма. Записана так же, как карты
+       * приезжают обратно в снимке, — иначе провод говорил бы о картах на двух языках.
+       */
+      @Size(max = 2) @Pattern(regexp = "[23456789TJQKA][shdc]|") String card,
+      /**
+       * Какую карту бьём.
+       *
+       * <p>Второе поле, а не догадка «бьём первую неотбитую»: когда на столе две неотбитые карты,
+       * «чем» без «что» неоднозначно, и сервер выбрал бы за человека не ту.
+       */
+      @Size(max = 2) @Pattern(regexp = "[23456789TJQKA][shdc]|") String under) {
     public Command(UUID commandId, String type, String text, String targetId, long generation) {
-      this(commandId, type, text, targetId, generation, null, null, null, null, null, null, null);
+      this(
+          commandId,
+          type,
+          text,
+          targetId,
+          generation,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null);
     }
 
     public Command(
@@ -113,6 +141,39 @@ public final class Contracts {
           contentId,
           positionMs,
           null,
+          null,
+          null,
+          null,
+          null);
+    }
+
+    /** Конверт игры без карт: покеру хватает слова, места и числа фишек. */
+    public Command(
+        UUID commandId,
+        String type,
+        String text,
+        String targetId,
+        long generation,
+        String provider,
+        String kind,
+        String contentId,
+        Long positionMs,
+        String option,
+        Integer seat,
+        Long chips) {
+      this(
+          commandId,
+          type,
+          text,
+          targetId,
+          generation,
+          provider,
+          kind,
+          contentId,
+          positionMs,
+          option,
+          seat,
+          chips,
           null,
           null);
     }
@@ -165,6 +226,11 @@ public final class Contracts {
        * на конкретного участника и никогда не пересылается от одного другому.
        */
       dev.mikki.stream.game.TableView poker,
+      /**
+       * Стол дурака — тоже у каждого свой: карты в нём только собственные, а колода и козырь под
+       * ней остаются в ядре.
+       */
+      dev.mikki.stream.game.DurakView durak,
       /**
        * Когда в этой беседе последний раз доиграли, или 0 — если ещё ни разу.
        *

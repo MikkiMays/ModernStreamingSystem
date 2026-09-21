@@ -404,6 +404,10 @@ export interface components {
             seat: number;
             split: boolean;
         };
+        BeatView: {
+            cards: string[];
+            under: string;
+        };
         Capabilities: {
             admissionOpen: boolean;
             /** Format: int64 */
@@ -422,7 +426,12 @@ export interface components {
             /** Format: int64 */
             roomMaxBytes: number;
         };
+        CardPair: {
+            attack: string;
+            beat: string | null;
+        };
         Command: {
+            card?: string;
             /** Format: int64 */
             chips?: number;
             /** Format: uuid */
@@ -440,7 +449,8 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings";
+            under?: string;
         };
         Connect: {
             password?: string;
@@ -452,6 +462,100 @@ export interface components {
             integrationsAllowed?: boolean;
             name: string;
             title: string;
+        };
+        DurakNote: {
+            /** Format: int64 */
+            at: number;
+            kind: string;
+            name: string;
+            /** Format: int32 */
+            seat: number;
+            text: string;
+        };
+        DurakResult: {
+            /** Format: int64 */
+            at: number;
+            /** Format: int32 */
+            bouts: number;
+            draw: boolean;
+            foolName: string;
+            /** Format: int32 */
+            foolSeat: number;
+            places: string[];
+        };
+        DurakSeat: {
+            attacker: boolean;
+            away: boolean;
+            defender: boolean;
+            fool: boolean;
+            /** Format: int32 */
+            held: number;
+            /** Format: int32 */
+            index: number;
+            memberId: string | null;
+            name: string;
+            out: boolean;
+            passed: boolean;
+            /** Format: int32 */
+            place: number;
+        };
+        DurakView: {
+            acting: number[];
+            /** Format: int64 */
+            actionAt: number;
+            /** Format: int32 */
+            attacker: number;
+            /** Format: int64 */
+            boutAt: number;
+            boutEnd: string | null;
+            /** Format: int64 */
+            closesAt: number;
+            commitment: string | null;
+            /** Format: int64 */
+            deadline: number;
+            /** Format: int64 */
+            dealtAt: number;
+            /** Format: int32 */
+            deckLeft: number;
+            /** Format: int32 */
+            deckSize: number;
+            /** Format: int32 */
+            defender: number;
+            /** Format: int32 */
+            discarded: number;
+            /** Format: int32 */
+            handNumber: number;
+            hostId: string;
+            /** Format: int32 */
+            limit: number;
+            log: components["schemas"]["DurakNote"][];
+            mode: string;
+            modeName: string;
+            phase: string;
+            result: components["schemas"]["DurakResult"] | null;
+            /** Format: int64 */
+            revision: number;
+            seatingOpen: boolean;
+            seats: components["schemas"]["DurakSeat"][];
+            seed: string | null;
+            table: components["schemas"]["CardPair"][];
+            taking: boolean;
+            transfer: boolean;
+            trump: string | null;
+            trumpSuit: string | null;
+            /** Format: int32 */
+            turnSeconds: number;
+            you: components["schemas"]["DurakYou"] | null;
+        };
+        DurakYou: {
+            actions: string[];
+            attacks: string[];
+            beats: components["schemas"]["BeatView"][];
+            cards: string[];
+            /** Format: int32 */
+            seat: number;
+            transfers: string[];
+            turn: boolean;
         };
         Event: {
             eventId: string;
@@ -725,6 +829,7 @@ export interface components {
             code: string;
             /** Format: int64 */
             createdAt: number;
+            durak: components["schemas"]["DurakView"] | null;
             id: string;
             integrationsAllowed: boolean;
             messages: components["schemas"]["Message"][];

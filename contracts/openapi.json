@@ -180,6 +180,24 @@
         ],
         "type": "object"
       },
+      "BeatView": {
+        "properties": {
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "under": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cards",
+          "under"
+        ],
+        "type": "object"
+      },
       "Capabilities": {
         "properties": {
           "admissionOpen": {
@@ -244,8 +262,32 @@
         ],
         "type": "object"
       },
+      "CardPair": {
+        "properties": {
+          "attack": {
+            "type": "string"
+          },
+          "beat": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "attack",
+          "beat"
+        ],
+        "type": "object"
+      },
       "Command": {
         "properties": {
+          "card": {
+            "maxLength": 2,
+            "minLength": 0,
+            "pattern": "[23456789TJQKA][shdc]|",
+            "type": "string"
+          },
           "chips": {
             "format": "int64",
             "maximum": 100000000,
@@ -333,8 +375,21 @@
               "poker.act",
               "poker.settings",
               "poker.rebuy",
-              "poker.reveal"
+              "poker.reveal",
+              "durak.open",
+              "durak.close",
+              "durak.sit",
+              "durak.stand",
+              "durak.deal",
+              "durak.act",
+              "durak.settings"
             ],
+            "type": "string"
+          },
+          "under": {
+            "maxLength": 2,
+            "minLength": 0,
+            "pattern": "[23456789TJQKA][shdc]|",
             "type": "string"
           }
         },
@@ -381,6 +436,371 @@
           "commandId",
           "name",
           "title"
+        ],
+        "type": "object"
+      },
+      "DurakNote": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "name",
+          "seat",
+          "text"
+        ],
+        "type": "object"
+      },
+      "DurakResult": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "bouts": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "draw": {
+            "type": "boolean"
+          },
+          "foolName": {
+            "type": "string"
+          },
+          "foolSeat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "places": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "at",
+          "bouts",
+          "draw",
+          "foolName",
+          "foolSeat",
+          "places"
+        ],
+        "type": "object"
+      },
+      "DurakSeat": {
+        "properties": {
+          "attacker": {
+            "type": "boolean"
+          },
+          "away": {
+            "type": "boolean"
+          },
+          "defender": {
+            "type": "boolean"
+          },
+          "fool": {
+            "type": "boolean"
+          },
+          "held": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "index": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "memberId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "out": {
+            "type": "boolean"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "place": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attacker",
+          "away",
+          "defender",
+          "fool",
+          "held",
+          "index",
+          "memberId",
+          "name",
+          "out",
+          "passed",
+          "place"
+        ],
+        "type": "object"
+      },
+      "DurakView": {
+        "properties": {
+          "acting": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "actionAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "attacker": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "boutAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "boutEnd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "closesAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "commitment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deadline": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "dealtAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deckLeft": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "deckSize": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "defender": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "discarded": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "handNumber": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "limit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "log": {
+            "items": {
+              "$ref": "#/components/schemas/DurakNote"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "modeName": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DurakResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "seatingOpen": {
+            "type": "boolean"
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/DurakSeat"
+            },
+            "type": "array"
+          },
+          "seed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "table": {
+            "items": {
+              "$ref": "#/components/schemas/CardPair"
+            },
+            "type": "array"
+          },
+          "taking": {
+            "type": "boolean"
+          },
+          "transfer": {
+            "type": "boolean"
+          },
+          "trump": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trumpSuit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "turnSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "you": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DurakYou"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "acting",
+          "actionAt",
+          "attacker",
+          "boutAt",
+          "boutEnd",
+          "closesAt",
+          "commitment",
+          "deadline",
+          "dealtAt",
+          "deckLeft",
+          "deckSize",
+          "defender",
+          "discarded",
+          "handNumber",
+          "hostId",
+          "limit",
+          "log",
+          "mode",
+          "modeName",
+          "phase",
+          "result",
+          "revision",
+          "seatingOpen",
+          "seats",
+          "seed",
+          "table",
+          "taking",
+          "transfer",
+          "trump",
+          "trumpSuit",
+          "turnSeconds",
+          "you"
+        ],
+        "type": "object"
+      },
+      "DurakYou": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "attacks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "beats": {
+            "items": {
+              "$ref": "#/components/schemas/BeatView"
+            },
+            "type": "array"
+          },
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "transfers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "turn": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "actions",
+          "attacks",
+          "beats",
+          "cards",
+          "seat",
+          "transfers",
+          "turn"
         ],
         "type": "object"
       },
@@ -1304,6 +1724,16 @@
             "format": "int64",
             "type": "integer"
           },
+          "durak": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DurakView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -1363,6 +1793,7 @@
           "closedAt",
           "code",
           "createdAt",
+          "durak",
           "id",
           "integrationsAllowed",
           "messages",

@@ -12,6 +12,7 @@ import { gridPlan } from './grid';
 const WatchTheater = lazy(() => import('./WatchTheater'));
 const CinemaBrowser = lazy(() => import('./CinemaBrowser'));
 const PokerTable = lazy(() => import('./PokerTable'));
+const DurakTable = lazy(() => import('./DurakTable'));
 
 /**
  * Показывать ли себя зеркально.
@@ -382,6 +383,26 @@ export function Stage({
         <div className="poker-main">
           <Suspense fallback={<div className="poker-loading" />}>
             <PokerTable meeting={meeting} table={table} />
+          </Suspense>
+        </div>
+        {watchers.length > 0 && (
+          <div className="people-strip" data-count={watchers.length}>
+            {watchers.map((person, index) => tile(person, index, false))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  // Стол дурака живёт на сцене по тем же правилам, что покерный: лица играющих — в кружках их
+  // мест, а лента под столом остаётся зрителям.
+  if (snapshot.durak) {
+    const table = snapshot.durak;
+    const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
+    return (
+      <div className="stage poker-stage">
+        <div className="poker-main">
+          <Suspense fallback={<div className="durak-loading" />}>
+            <DurakTable meeting={meeting} table={table} />
           </Suspense>
         </div>
         {watchers.length > 0 && (
