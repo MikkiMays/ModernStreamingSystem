@@ -62,12 +62,42 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   const [mode, setMode] = useState<PokerMode>('friendly');
   const preset = POKER_MODES.find((item) => item.id === mode) ?? POKER_MODES[0]!;
   const [stack, setStack] = useState(preset.stack);
+  /*
+    Правила додепа задаются заранее, вместе со стеком: «сколько раз можно взять фишки заново» —
+    это про условия игры, а не про настройку по ходу. Дружеская игра пускает без ограничений,
+    турнир — ни разу; дальше это решение ведущего, и менять его можно и потом.
+  */
+  const [rebuys, setRebuys] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const limit = rebuys ?? (preset.id === 'friendly' ? -1 : 0);
   const blinds = blindsFor(mode, stack);
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
     void meeting.command(type, undefined, undefined, extra).catch((e) => setError((e as Error).message));
   };
+  /*
+    Стол открывается одной командой, а правила додепа приезжают следующей.
+
+    Конверт команды один на все типы, и совать в него третье и четвёртое число ради одного
+    экрана настройки — значит расширять его для всех. Стол в этот момент пустой: между двумя
+    командами с ним всё равно ничего не происходит, а если вторая не дойдёт, правила
+    останутся режимными и их видно в настройках игры.
+  */
+  const bring = async () => {
+    setError('');
+    try {
+      await meeting.command('poker.open', undefined, undefined, { option: mode, chips: stack });
+      const fromMode = mode === 'friendly' ? -1 : 0;
+      if (limit !== fromMode)
+        await meeting.command('poker.settings', undefined, undefined, {
+          option: 'rebuy-limit',
+          chips: limit < 0 ? undefined : limit,
+        });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const chooseMode = (next: PokerMode) => {
     const chosen = POKER_MODES.find((item) => item.id === next) ?? preset;
     // Стек переезжает вместе с режимом, сохраняя кратность: выбрали «вдвое больше обычного» —
@@ -172,11 +202,9 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                       ))}
                     </div>
                     <StackChoice preset={preset.stack} stack={stack} blinds={blinds} onChange={setStack} />
+                    <RebuyChoice limit={limit} stack={stack} onChange={setRebuys} />
                     {canUse ? (
-                      <button
-                        className="button primary full"
-                        onClick={() => send('poker.open', { option: mode, chips: stack })}
-                      >
+                      <button className="button primary full" onClick={() => void bring()}>
                         <Spade size={17} /> Открыть стол
                       </button>
                     ) : (
@@ -194,6 +222,52 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Сколько раз можно брать фишки заново.
+ *
+ * Три готовых ответа и «без ограничений» — потому что за домашним столом именно так и говорят:
+ * «без додепов», «по одному», «по три», «сколько влезет». Ноль — это тоже ответ, а не
+ * отсутствие настройки, поэтому он назван словом.
+ */
+const REBUY_CHOICES: { value: number; label: string }[] = [
+  { value: 0, label: 'Без додепов' },
+  { value: 1, label: '1' },
+  { value: 3, label: '3' },
+  { value: -1, label: 'Без ограничений' },
+];
+
+function RebuyChoice({
+  limit,
+  stack,
+  onChange,
+}: {
+  limit: number;
+  stack: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="games-stack">
+      <div className="games-stack-head">
+        <label>
+          Додепы на человека
+          <small>по {chips(stack)}</small>
+        </label>
+      </div>
+      <div className="games-quick">
+        {REBUY_CHOICES.map((choice) => (
+          <button
+            key={choice.value}
+            data-active={limit === choice.value || undefined}
+            onClick={() => onChange(choice.value)}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

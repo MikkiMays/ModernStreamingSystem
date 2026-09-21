@@ -440,7 +440,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal";
         };
         Connect: {
             password?: string;
@@ -699,6 +699,7 @@ export interface components {
             name: string;
             /** Format: int32 */
             place: number;
+            revealed: boolean;
             /** Format: int64 */
             stack: number;
             /** Format: int64 */
@@ -746,6 +747,7 @@ export interface components {
             /** Format: int64 */
             ante: number;
             autoDeal: boolean;
+            awaiting: boolean;
             /** Format: int64 */
             betToCall: number;
             /** Format: int64 */
@@ -776,6 +778,10 @@ export interface components {
             pot: number;
             pots: components["schemas"]["PotView"][];
             rebuy: boolean;
+            /** Format: int64 */
+            rebuyChips: number;
+            /** Format: int32 */
+            rebuyLimit: number;
             result: components["schemas"]["ResultView"] | null;
             /** Format: int64 */
             revision: number;
@@ -817,6 +823,10 @@ export interface components {
             maxRaiseTo: number;
             /** Format: int64 */
             minRaiseTo: number;
+            /** Format: int64 */
+            rebuy: number;
+            /** Format: int32 */
+            rebuysLeft: number;
             /** Format: int32 */
             seat: number;
             /** Format: int64 */

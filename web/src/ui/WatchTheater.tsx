@@ -168,6 +168,18 @@ export function WatchTheater({
    */
   const coarse = useMemo(() => window.matchMedia?.('(pointer: coarse)').matches ?? false, []);
   const screen = useRef<HTMLDivElement>(null);
+  /*
+    КУДА КЛАДУТСЯ ПОПАПЫ ПЛЕЕРА, И ПОЧЕМУ ЭТО НЕ МЕЛОЧЬ.
+
+    Меню качества и субтитров Base UI по умолчанию уезжают порталом в `body`. В полном экране
+    браузер рисует **только поддерево развёрнутого элемента** — и меню открывалось в
+    невидимости: нажатие срабатывало, попап существовал, а на экране не менялось ничего.
+    Выглядело это как «в полном экране качество не переключается».
+
+    Поэтому портал направлен в сам плеер (`container={screen}`): там он и в обычном режиме, и в
+    полном экране лежит внутри того, что видно. Ссылка та же, что у полного экрана, — второй
+    якорь развёл бы их однажды по разным элементам.
+  */
   // На телефоне полноэкранного режима для чужих элементов нет, и кнопка там раскладывает
   // плеер на всё окно сама — см. {@link useFullscreen}.
   const { full: fullscreen, toggle: toggleFullscreen } = useFullscreen(screen);
@@ -906,7 +918,7 @@ export function WatchTheater({
                       </IconButton>
                     }
                   />
-                  <Menu.Portal>
+                  <Menu.Portal container={screen}>
                     <Menu.Positioner className="menu-layer" side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
                         <Menu.Item data-selected={text ? undefined : 'true'} onClick={() => chooseText('')}>
@@ -945,7 +957,7 @@ export function WatchTheater({
                       </button>
                     }
                   />
-                  <Menu.Portal>
+                  <Menu.Portal container={screen}>
                     <Menu.Positioner className="menu-layer" side="top" sideOffset={10} align="end">
                       <Menu.Popup className="action-menu watch-quality-menu">
                         {/*

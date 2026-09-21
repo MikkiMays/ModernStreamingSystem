@@ -83,9 +83,15 @@ test('итоги игры приезжают обоим, остаются в и�
     // Фишки стоят рядом с человеком и в банке.
     await expect(host.locator('.poker-seat[data-mine] .chip-columns i').first()).toBeVisible();
 
-    // Комбинации открываются внутри сцены, а не уводят в панель справа.
-    await host.locator('.poker-bar').getByRole('button', { name: 'Вид стола' }).click();
-    await host.getByRole('menuitem', { name: /Комбинации/ }).click();
+    // Настройки игры — лист поверх стола: переключатели справа, оттуда же комбинации.
+    await host
+      .locator('.poker-bar')
+      .getByRole('button', { name: /Настройки игры/ })
+      .click();
+    await expect(host.locator('.poker-sheet')).toBeVisible();
+    const auto = host.getByRole('switch', { name: /Авто-раздача/ });
+    await expect(auto).toHaveAttribute('aria-checked', 'false');
+    await host.getByRole('button', { name: /Комбинации/ }).click();
     await expect(host.locator('.poker-sheet')).toBeVisible();
     await expect(host.locator('.poker-sheet .hand-ranks li').first()).toContainText('Флеш-рояль');
     // Панель лежит внутри стола, а не в боковой панели встречи.
@@ -100,7 +106,7 @@ test('итоги игры приезжают обоим, остаются в и�
 
     // Ва-банк с двух сторон: игра кончится этой же раздачей.
     for (let step = 0; step < 40; step++) {
-      if (await host.locator('.poker[data-phase="over"], .poker[data-phase="showdown"]').count()) break;
+      if (await host.locator('.poker[data-phase="showdown"]').count()) break;
       const acting: Page = (await host.locator('.poker-controls[data-turn]').count()) ? host : guest;
       const allin = acting.locator('.poker-action.is-allin');
       const raise = acting.locator('.poker-action.is-raise');
@@ -115,6 +121,20 @@ test('итоги игры приезжают обоим, остаются в и�
       } else if (await call.count()) await call.click();
       else await acting.waitForTimeout(250);
     }
+    // Вскрытие стоит на столе, пока его не уберут: темп держит ведущий, а не часы.
+    await expect(host.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 30000 });
+    /*
+      Светится только победная пятёрка.
+
+      Проверяется главное: ни одна карта проигравшего не горит, а чему гореть — есть. Считать
+      ровно пять нельзя: разделённый банк освещает две комбинации сразу, и это правильно.
+    */
+    await expect(host.locator('.poker-felt .playing-card[data-highlight]')).not.toHaveCount(0);
+    await expect(host.locator('.poker-seat:not([data-winner]) .playing-card[data-highlight]')).toHaveCount(0);
+    await expect(host.locator('.poker-felt .playing-card[data-dead]').first()).toBeVisible();
+    await host.screenshot({ path: '../.local/poker-showdown-lit.png' });
+    await host.locator('.poker-bar').getByRole('button', { name: 'Продолжить' }).click();
+
     // Итоги игры открываются сами, как только игра кончилась.
     await expect(host.locator('.poker-sheet[data-wide]')).toBeVisible({ timeout: 30000 });
     await expect(host.locator('.poker-result-players li')).toHaveCount(2);

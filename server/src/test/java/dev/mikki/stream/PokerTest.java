@@ -123,6 +123,8 @@ class PokerTest {
     assertThat(table.bigBlind).isEqualTo(1000);
     table.sit("p0", "Первый", 0, T0);
     table.sit("p1", "Второй", 1, T0);
+    // Проверка про уровни, а не про темп: раздачи должны идти сами, иначе следующей не будет.
+    table.configure("auto-deal", T0);
     table.deal(T0);
     // Уровень растёт по расписанию режима, но от блайндов этого стола.
     table.tick(table.deadline);
@@ -157,6 +159,7 @@ class PokerTest {
   @Test
   void twoMissedTurnsInARowSendTheSeatToTheAudience() {
     var table = table("friendly", 2);
+    table.configure("auto-deal", T0);
     table.deal(T0);
     int victim = table.actor;
     long now = T0;
@@ -473,6 +476,8 @@ class PokerTest {
   @Test
   void afterAHandTheTableDealsItselfTheNextOne() {
     var table = table("friendly", 3);
+    // Сам стол не сдаёт, пока его об этом не попросили: «Авто» — решение ведущего.
+    table.configure("auto-deal", T0);
     table.deal(T0);
     table.act("p0", "fold", 0, T0);
     table.act("p1", "fold", 0, T0);
@@ -490,6 +495,7 @@ class PokerTest {
   @Test
   void pauseBetweenHandsKeepsTheTableFromDealingTheNextOne() {
     var table = table("friendly", 3);
+    table.configure("auto-deal", T0);
     table.deal(T0);
     table.act("p0", "fold", 0, T0);
     table.act("p1", "fold", 0, T0);
@@ -501,6 +507,56 @@ class PokerTest {
     assertThat(table.tick(T0 + 100000)).isFalse();
     table.configure("resume", T0 + 2000);
     assertThat(table.deadline).isEqualTo(T0 + 2000 + Table.NEXT_HAND_MS);
+  }
+
+  /**
+   * Темп держит человек, а не стол.
+   *
+   * <p>Раньше стол сдавал следующую раздачу сам, и вскрытие пролетало за семь секунд: посмотреть,
+   * чем всё кончилось, было некогда. Теперь вскрытие ждёт «Продолжить», а следующую раздачу
+   * начинает тот же человек — и только «Авто» возвращает прежний автомат.
+   */
+  @Test
+  void theShowdownWaitsForTheDealerInsteadOfRunningAwayInSevenSeconds() {
+    var table = table("friendly", 2);
+    assertThat(table.autoDeal).isFalse();
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0);
+    table.act("p" + table.actor, "call", 0, T0);
+    runOut(table);
+    assertThat(table.phase).isEqualTo("showdown");
+    // Семь секунд ничего не меняют: карты на столе, пока их не уберут.
+    assertThat(table.deadline - T0).isGreaterThan(Table.SHOWDOWN_MS);
+    assertThat(table.tick(T0 + Table.SHOWDOWN_MS + 1)).isFalse();
+    assertThat(table.phase).isEqualTo("showdown");
+    // «Продолжить» убирает вскрытие и ничего не раздаёт.
+    table.next(T0 + 20000);
+    assertThat(table.phase).isEqualTo("lobby");
+    assertThat(table.deadline).isZero();
+    assertThat(table.handNumber).isEqualTo(1);
+    // И страховка на случай ушедшего ведущего: через три минуты стол приберётся сам.
+    var forgotten = table("friendly", 2);
+    deal(forgotten, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    forgotten.act("p" + forgotten.actor, "allin", 0, T0);
+    forgotten.act("p" + forgotten.actor, "call", 0, T0);
+    runOut(forgotten);
+    assertThat(forgotten.tick(forgotten.deadline)).isTrue();
+    assertThat(forgotten.phase).isEqualTo("lobby");
+  }
+
+  /** «Раздать» прямо со вскрытия — это «прибери и сдавай», а не ошибка. */
+  @Test
+  void dealingStraightFromTheShowdownTidiesTheTableFirst() {
+    var table = table("friendly", 2);
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As 2d", "Kh Qh");
+    table.act("p" + table.actor, "call", 0, T0);
+    table.act("p" + table.actor, "check", 0, T0);
+    while (table.playing()) table.act("p" + table.actor, "check", 0, T0);
+    assertThat(table.phase).isEqualTo("showdown");
+    table.deal(T0 + 9000);
+    assertThat(table.phase).isEqualTo("preflop");
+    assertThat(table.handNumber).isEqualTo(2);
+    assertThat(seat(table, 0).cards).hasSize(2);
   }
 
   // --- Что видно кому ---------------------------------------------------------------------
@@ -686,7 +742,8 @@ class PokerTest {
     table.act("p" + table.actor, "call", 0, T0);
     runOut(table);
     table.tick(table.deadline);
-    table.rebuy("p1", T0 + 1000);
+    table.next(T0 + 500);
+    table.rebuy("p1", 0, T0 + 1000);
     assertThat(table.tally.get("p1").rebuys).isEqualTo(1);
     assertThat(table.tally.get("p1").buyIn).isEqualTo(10000);
     table.stand("p1", T0 + 2000);
@@ -695,6 +752,92 @@ class PokerTest {
     assertThat(table.tally.get("p1").buyIn).isEqualTo(15000);
     var summary = Standings.of(table, "closed", T0 + 4000);
     assertThat(summary.highlights()).extracting(GameSummary.Highlight::id).contains("rebuys");
+  }
+
+  /**
+   * Додеп — решение, а не кнопка «дотянуть стек».
+   *
+   * <p>Раньше нажатие молча доливало фишки до стартового стека, и сделать это можно было с любым
+   * стеком, хоть с половиной. Теперь фишки берут заново только там, где их не осталось совсем;
+   * сколько раз это можно сделать и сколько фишек дают — решает ведущий стола.
+   */
+  @Test
+  void chipsAreTakenAgainOnlyWhenThereAreNoneAndOnlyAsOftenAsAllowed() {
+    var table = table("friendly", 2);
+    assertThat(table.rebuyLimit()).isEqualTo(-1);
+    assertThat(table.rebuySize()).isEqualTo(5000);
+    // Пока фишки есть, предлагать нечего — и «дотянуть» их нельзя.
+    assertThat(table.canRebuy(seat(table, 0))).isFalse();
+    seat(table, 0).stack = 2000;
+    assertThatThrownBy(() -> table.rebuy("p0", 0, T0))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("Фишки ещё есть");
+    // Фишек не осталось — можно взять заново, и не больше, чем даёт стол.
+    seat(table, 0).stack = 0;
+    assertThat(table.canRebuy(seat(table, 0))).isTrue();
+    table.rebuy("p0", 99999, T0 + 1000);
+    assertThat(seat(table, 0).stack).isEqualTo(5000);
+    // Меньше — можно: сколько дают, решает стол, сколько брать — человек.
+    seat(table, 0).stack = 0;
+    table.rebuy("p0", 1000, T0 + 2000);
+    assertThat(seat(table, 0).stack).isEqualTo(1000);
+
+    // Ведущий ограничивает: два додепа на человека и по тысяче фишек.
+    var limited = table("friendly", 2);
+    limited.configure("rebuy-limit", 2L, T0);
+    limited.configure("rebuy-size", 1000L, T0);
+    assertThat(limited.rebuysLeft("p0")).isEqualTo(2);
+    seat(limited, 0).stack = 0;
+    limited.rebuy("p0", 0, T0 + 1000);
+    assertThat(seat(limited, 0).stack).isEqualTo(1000);
+    assertThat(limited.rebuysLeft("p0")).isEqualTo(1);
+    seat(limited, 0).stack = 0;
+    limited.rebuy("p0", 0, T0 + 2000);
+    assertThat(limited.rebuysLeft("p0")).isZero();
+    seat(limited, 0).stack = 0;
+    assertThat(limited.canRebuy(seat(limited, 0))).isFalse();
+    assertThatThrownBy(() -> limited.rebuy("p0", 0, T0 + 3000))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("кончились");
+
+    // Запрет — это тоже ответ, и он не зависит от режима.
+    var strict = table("friendly", 2);
+    strict.configure("rebuy-limit", 0L, T0);
+    seat(strict, 0).stack = 0;
+    assertThat(strict.canRebuy(seat(strict, 0))).isFalse();
+  }
+
+  /**
+   * Пока додеп у человека есть, он не выбыл — и игра не кончилась.
+   *
+   * <p>Иначе победителя объявляли бы за того, кого не спросили: фишки кончились, а решение «беру
+   * заново» ещё не принято.
+   */
+  @Test
+  void aPlayerWithARebuyLeftHasNotBustedAndTheGameIsNotOver() {
+    var table = table("tournament", 2);
+    table.configure("rebuy-limit", 1L, T0);
+    deal(table, T0, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0);
+    table.act("p" + table.actor, "call", 0, T0);
+    runOut(table);
+    table.next(T0 + 1000);
+    // Игра продолжается: у проигравшего остался один додеп.
+    assertThat(table.phase).isEqualTo("lobby");
+    assertThat(seat(table, 1).busted).isFalse();
+    assertThat(table.canRebuy(seat(table, 1))).isTrue();
+    // Он его берёт — и снова играет.
+    table.rebuy("p1", 0, T0 + 2000);
+    assertThat(seat(table, 1).stack).isEqualTo(10000);
+    // Второй раз фишки кончаются насовсем: додепов больше нет, и это уже вылет.
+    deal(table, T0 + 3000, "Ah 7d 2c Ks 3h", "As Ad", "Kh Qh");
+    table.act("p" + table.actor, "allin", 0, T0 + 3000);
+    table.act("p" + table.actor, "call", 0, T0 + 3000);
+    runOut(table);
+    table.next(T0 + 4000);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(seat(table, 1).busted).isTrue();
+    assertThat(seat(table, 1).place).isEqualTo(2);
   }
 
   /** Турнир кончается сам, и его итог — это места, а не прибыль. */

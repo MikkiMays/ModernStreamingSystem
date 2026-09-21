@@ -329,6 +329,7 @@
               "poker.sit",
               "poker.stand",
               "poker.deal",
+              "poker.next",
               "poker.act",
               "poker.settings",
               "poker.rebuy",
@@ -1211,6 +1212,9 @@
             "format": "int32",
             "type": "integer"
           },
+          "revealed": {
+            "type": "boolean"
+          },
           "stack": {
             "format": "int64",
             "type": "integer"
@@ -1247,6 +1251,7 @@
           "memberId",
           "name",
           "place",
+          "revealed",
           "stack",
           "timeBankMs",
           "waiting",
@@ -1388,6 +1393,9 @@
           "autoDeal": {
             "type": "boolean"
           },
+          "awaiting": {
+            "type": "boolean"
+          },
           "betToCall": {
             "format": "int64",
             "type": "integer"
@@ -1467,6 +1475,14 @@
           "rebuy": {
             "type": "boolean"
           },
+          "rebuyChips": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rebuyLimit": {
+            "format": "int32",
+            "type": "integer"
+          },
           "result": {
             "oneOf": [
               {
@@ -1535,6 +1551,7 @@
           "actor",
           "ante",
           "autoDeal",
+          "awaiting",
           "betToCall",
           "bigBlind",
           "board",
@@ -1555,6 +1572,8 @@
           "pot",
           "pots",
           "rebuy",
+          "rebuyChips",
+          "rebuyLimit",
           "result",
           "revision",
           "seatingOpen",
@@ -1644,6 +1663,14 @@
             "format": "int64",
             "type": "integer"
           },
+          "rebuy": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rebuysLeft": {
+            "format": "int32",
+            "type": "integer"
+          },
           "seat": {
             "format": "int32",
             "type": "integer"
@@ -1663,6 +1690,8 @@
           "hand",
           "maxRaiseTo",
           "minRaiseTo",
+          "rebuy",
+          "rebuysLeft",
           "seat",
           "timeBankMs",
           "turn"

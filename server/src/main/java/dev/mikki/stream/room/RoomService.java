@@ -813,6 +813,11 @@ public class RoomService {
               dealer(room, member);
               table(room).deal(active(room, member));
             }
+            // «Продолжить»: вскрытие убирается со стола, а раздаёт по-прежнему человек.
+            case "poker.next" -> {
+              dealer(room, member);
+              table(room).next(active(room, member));
+            }
             case "poker.act" ->
                 table(room)
                     .act(
@@ -822,9 +827,14 @@ public class RoomService {
                         active(room, member));
             case "poker.settings" -> {
               dealer(room, member);
-              table(room).configure(command.option(), active(room, member));
+              table(room).configure(command.option(), command.chips(), active(room, member));
             }
-            case "poker.rebuy" -> table(room).rebuy(member.id, active(room, member));
+            case "poker.rebuy" ->
+                table(room)
+                    .rebuy(
+                        member.id,
+                        command.chips() == null ? 0 : command.chips(),
+                        active(room, member));
             case "poker.reveal" -> table(room).reveal(member.id, active(room, member));
             case "message.send" -> {
               requireActive(room, member);

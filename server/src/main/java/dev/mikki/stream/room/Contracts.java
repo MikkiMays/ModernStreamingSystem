@@ -43,6 +43,27 @@ public final class Contracts {
   public record RoomSettings(@NotBlank @Size(max = 80) String title, boolean approvalRequired) {}
 
   /**
+   * Все типы команд, какие комната принимает, — одной строкой.
+   *
+   * <p>ОДИН СПИСОК, А НЕ ДВА. Раньше их было именно два: эта регулярка и перечисление в {@code
+   * OpenApiConfig}, из которого рождается тип для браузера. Добавить команду в одно место и забыть
+   * про второе — значит получить кнопку, которая собирается, проходит все тесты и отвечает
+   * «Проверьте данные запроса» в первом же живом нажатии. Теперь схема читает этот же список.
+   *
+   * <p>Точки экранированы, потому что это выражение: {@link #commandTypes()} возвращает его уже
+   * разобранным на имена.
+   */
+  public static final String COMMAND_TYPES =
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal";
+
+  /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
+  private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
+
+  public static List<String> commandTypes() {
+    return TYPES;
+  }
+
+  /**
    * Команда участника комнате.
    *
    * <p>Поля совместного просмотра пришли последними и необязательны: у команды одна форма на все
@@ -51,12 +72,7 @@ public final class Contracts {
    */
   public record Command(
       @NotNull UUID commandId,
-      @NotBlank
-          @Size(max = 30)
-          @Pattern(
-              regexp =
-                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal")
-          String type,
+      @NotBlank @Size(max = 30) @Pattern(regexp = COMMAND_TYPES) String type,
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
       long generation,

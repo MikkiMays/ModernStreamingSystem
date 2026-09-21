@@ -417,25 +417,47 @@ export function callShare(table: PokerTable): number | null {
 }
 
 /**
- * Какие карты на вскрытии уже не играют.
+ * Что светится на вскрытии, а что гаснет.
  *
- * За настоящим столом лишние карты не подсвечивают — их просто убирают из поля зрения, а
- * комбинацию называют вслух. Здесь то же самое: всё, что не вошло в победную пятёрку, гаснет,
- * и смотреть остаётся ровно на то, чем выиграли.
+ * ГЛАВНОЕ ПРАВИЛО: СВЕТИТСЯ ТОЛЬКО ТО, ЧЕМ ВЫИГРАЛИ. Раньше живой считалась любая карта, вошедшая
+ * хоть в чью-нибудь пятёрку, — и на вскрытии горел почти весь борд, потому что проигравший тоже
+ * что-то из него собрал. Смотреть при этом нужно ровно на пять карт: то, что победитель взял со
+ * стола, и то, что у него было на руках. Всё остальное — и чужие руки, и лишние карты борда —
+ * уходит в серое, как за настоящим столом, где их просто убирают из виду.
+ *
+ * Победителей бывает двое: разделённый банк освещает обе пятёрки. Одна карта — одно состояние, и
+ * возвращается оно картой (`Map`), а не двумя наборами: «светится» и «погашена» исключают друг
+ * друга, и хранить их порознь значит однажды получить обе сразу.
  */
-export function deadCards(table: PokerTable): Set<string> {
-  const dead = new Set<string>();
-  if (table.phase !== 'showdown') return dead;
-  // Живо то, что вошло хоть в чью-нибудь пятёрку: общая карта может играть у одного и не
-  // играть у другого, и гасить её, пока она кому-то нужна, нельзя.
-  const alive = new Set<string>();
-  for (const seat of table.seats) seat.handCards.forEach((card) => alive.add(card));
-  if (!alive.size) return dead;
-  for (const card of table.board) if (!alive.has(card)) dead.add(card);
+export type CardState = 'winning' | 'dead';
+
+/** Имя карты на столе: у места — своё, потому что одна и та же двойка бывает у двоих. */
+export function cardKey(card: string, seat?: number): string {
+  return seat === undefined ? card : `${seat}:${card}`;
+}
+
+export function showdownCards(table: PokerTable): Map<string, CardState> {
+  const state = new Map<string, CardState>();
+  if (table.phase !== 'showdown') return state;
+  // Пятёрки победителей: из них и состоит всё, что на вскрытии горит.
+  const combos = new Set<string>();
+  for (const award of table.result?.awards ?? []) for (const card of award.handCards) combos.add(card);
+  // Банк забрали без вскрытия — гасить нечего: карт на столе и так никто не видел.
+  if (!combos.size) return state;
+  for (const card of table.board) state.set(cardKey(card), combos.has(card) ? 'winning' : 'dead');
+  /*
+    Карта на руках горит, если она вошла в победную пятёрку. Проверять, чья это рука, не нужно:
+    колода одна, и карта проигравшего в чужой комбинации оказаться не может.
+  */
   for (const seat of table.seats)
-    if (seat.handCards.length)
-      for (const card of seat.cards) if (!seat.handCards.includes(card)) dead.add(`${seat.index}:${card}`);
-  return dead;
+    for (const card of seat.cards)
+      state.set(cardKey(card, seat.index), combos.has(card) ? 'winning' : 'dead');
+  return state;
+}
+
+/** Сколько человек за столом готовы играть: сидят, при фишках и не отошли. */
+export function readyCount(table: PokerTable): number {
+  return table.seats.filter((seat) => seat.memberId && seat.stack > 0 && !seat.away).length;
 }
 
 /**

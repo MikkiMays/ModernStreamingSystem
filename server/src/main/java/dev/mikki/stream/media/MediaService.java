@@ -143,8 +143,26 @@ public class MediaService {
           member.recoveryDeadline = null;
           changed = true;
         } else if (present.containsKey(member.id)) {
-          if (member.status != CONNECTED && !member.clientReportedLoss) {
+          /*
+           МНЕНИЕ КЛИЕНТА О СВЯЗИ — НЕ ВЕЧНОЕ.
+
+           `clientReportedLoss` существует потому, что браузер знает о своей связи больше, чем
+           SFU: участник может числиться в комнате, а звук и картинка у него уже не идут. Но
+           снимать этот флаг умел только сам браузер — и на телефоне с погашенным экраном это
+           означало вот что: страница успела сказать «связь потерялась», и её заморозили. SFU
+           всё это время видит участника на месте, а сказать «восстановилось» некому — через
+           двадцать секунд человек выпадал из встречи, лежа в кармане с живым соединением.
+
+           Поэтому у мнения есть срок: первую половину окна восстановления верим браузеру,
+           дальше — тому, что видит SFU. Разговор в кармане продолжается, а настоящая потеря
+           по-прежнему кончается выходом: участника, которого SFU не видит, никто не спасает.
+          */
+          boolean stale =
+              member.recoveryDeadline != null
+                  && rooms.now() > member.recoveryDeadline - config.recoverySeconds() * 500L;
+          if (member.status != CONNECTED && (!member.clientReportedLoss || stale)) {
             member.status = CONNECTED;
+            member.clientReportedLoss = false;
             member.recoveryDeadline = null;
             member.generation++;
             changed = true;

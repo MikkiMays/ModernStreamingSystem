@@ -438,6 +438,8 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
+    // Экран погас или снова зажёгся: окно восстановления встаёт и идёт дальше (`screenAwake`).
+    document.addEventListener('visibilitychange', this.screenAwake);
     window.addEventListener('cord:preferences', this.settingsChanged);
     this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
@@ -869,6 +871,23 @@ export class MediaSession {
       void this.start();
     }
   };
+  /*
+    ЗВОНОК В КАРМАНЕ.
+
+    Пока на экран не смотрят, окно восстановления стоит: браузер в это время душит таймеры, а
+    то и замораживает страницу целиком, и «не восстановилось за двадцать секунд» означало бы
+    «человек убрал телефон в карман». Само переподключение при этом продолжается — его ведёт
+    SDK, и мешать ему незачем.
+
+    Вернулись к экрану — окно идёт дальше с того же остатка, а если связь так и не вернулась,
+    человек увидит честный отсчёт и сможет что-то сделать. Заодно возвращение — хороший повод
+    попробовать подключиться прямо сейчас, не дожидаясь очередной попытки по расписанию.
+  */
+  private screenAwake = () => {
+    const hidden = typeof document !== 'undefined' && document.hidden;
+    this.recovery.hold(hidden);
+    if (!hidden) this.network();
+  };
   private lost = () => {
     if (this.disposed) return;
     this.liveHealth.clear();
@@ -881,6 +900,8 @@ export class MediaSession {
     clearInterval(this.deadlineTimer);
     this.deadlineTimer = setInterval(() => {
       if (!this.recovery.current(epoch)) return;
+      // Придержанное окно не заканчивается: см. `screenAwake`.
+      if (this.recovery.holding) return;
       const remaining = this.recovery.remaining();
       this.patch({ remaining: Math.ceil(remaining / 1000) });
       if (remaining <= 0) {
@@ -1571,6 +1592,7 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
+    document.removeEventListener('visibilitychange', this.screenAwake);
     window.removeEventListener('cord:preferences', this.settingsChanged);
     this.previewSource.stop();
     this.previewImages.clear();

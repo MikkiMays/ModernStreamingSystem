@@ -242,6 +242,14 @@
     0 8px 18px #00000073;
   z-index: 2;
 }
+/*
+  Середина стола: борд, банк и то, что стол говорит словами.
+
+  СКВОЗЬ ЭТУ КОЛОНКУ НАЖИМАЕТСЯ. Она лежит поверх мест (z-index 6 против 3) и на узком окне
+  накрывает стулья в середине — «Нужен ещё игрок» и предупреждение о сроке перехватывали
+  нажатие, и кнопка «Сесть» под ними не работала вовсе. Сама колонка нажатий больше не ловит;
+  ловят только её кнопки, которых ради этого и ждут.
+*/
 .poker-center {
   position: absolute;
   inset: 30% 22% 26%;
@@ -251,6 +259,10 @@
   gap: 8px;
   text-align: center;
   z-index: 6;
+  pointer-events: none;
+}
+.poker-center button {
+  pointer-events: auto;
 }
 .poker-board {
   display: flex;
@@ -524,15 +536,21 @@
   line-height: 1.25;
   max-width: calc(var(--seat-face) * 1.7);
 }
-.poker-name span {
+.poker-name > span {
   font-size: clamp(9px, 1.35cqw, 12px);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Фишки человека стоят рядом с его числом: одно показывает, сколько денег, другое — сколько их. */
-.poker-name b {
+/*
+  Фишки человека стоят рядом с его числом: одно показывает, сколько денег, другое — сколько их.
+
+  Селектор прямого ребёнка: внутри этого же `b` лежат диски фишек, тоже `b`, и общее правило
+  доставалось и им — размер шрифта дискам без надобности, а `display: flex` ломал бы их, будь
+  они чуть сложнее.
+*/
+.poker-name > b {
   display: flex;
   align-items: flex-end;
   gap: 5px;
@@ -861,19 +879,48 @@
   движение, которого достаточно: глаз ловит смещение быстрее любого свечения. Остаётся тень
   под приподнятой картой, потому что без неё она не приподнята, а просто уехала.
 */
+/*
+  Победная пятёрка выплывает из расклада.
+
+  СВЕТИТСЯ ТОЛЬКО ТО, ЧЕМ ВЫИГРАЛИ — остальное гаснет (`data-dead`), и это не украшение, а
+  ответ на вопрос, который задают вслух каждую раздачу: «а чем он выиграл?». Карта поднимается,
+  чуть прибавляет в росте и получает золотой кант: глаз ловит смещение быстрее любого свечения,
+  а золото здесь единственное на весь стол — им же подписана и комбинация.
+*/
 .playing-card[data-highlight] {
-  animation: poker-lift 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both;
-  z-index: 2;
+  animation: poker-lift 0.6s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+  z-index: 3;
+}
+/* Кант и свечение — отдельным слоем: тень в кадрах анимации перерисовывала бы карту каждый
+   кадр, а прозрачность псевдоэлемента браузер складывает уже готовыми слоями. */
+.playing-card[data-highlight]::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 22px color-mix(in oklab, var(--gold) 45%, transparent);
+  animation: poker-glow 0.6s ease-out both;
+  pointer-events: none;
 }
 @keyframes poker-lift {
   from {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+  }
+  60% {
+    transform: translateY(-32%) scale(1.09);
   }
   to {
-    transform: translateY(-26%);
-    box-shadow:
-      0 14px 22px #00000080,
-      inset 0 0 0 1px #ffffff;
+    transform: translateY(-26%) scale(1.06);
+  }
+}
+@keyframes poker-glow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 /*
@@ -881,11 +928,16 @@
   перестают; здесь она гаснет и уходит на второй план — но остаётся на месте, потому что по
   ней видно, из чего комбинация НЕ собралась.
 */
+/* Гаснет по прозрачности и размеру — их браузер умеет двигать без перерисовки; сам серый
+   фильтр встаёт сразу, потому что двадцать карт, плавно теряющих цвет, — это двадцать слоёв. */
 .playing-card[data-dead] {
-  filter: grayscale(1) brightness(0.92) contrast(0.75);
-  opacity: 0.55;
-  transform: scale(0.92);
+  filter: grayscale(1) brightness(0.8) contrast(0.7);
+  opacity: 0.4;
+  transform: scale(0.9);
   box-shadow: 0 1px 3px #0000004d;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
 }
 /*
   Раздача. Карта вылетает из середины стола — оттуда, где лежит колода, — доворачивается и
@@ -1088,6 +1140,14 @@
     opacity: 0;
     transform: translate(-50%, -140%) scale(1);
   }
+}
+/* Подложка под именем: оно всплывает поверх лица победителя, и без неё белое ложится на
+   белое ровно в тот момент, когда на него и смотрят. */
+.poker-cheer-name b,
+.poker-cheer-name i {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #060b10cc;
 }
 .poker-cheer-name b {
   font-size: clamp(11px, 1.6cqw, 15px);
@@ -1518,6 +1578,259 @@
   color: var(--muted);
 }
 
+/* --- Фишки кончились ---------------------------------------------------------------------- */
+
+/*
+  Красная полоса вместо кнопки.
+
+  Это не ещё одно действие в ряду, а конец участия: фишек нет, и дальше человек либо берёт их
+  заново, либо встаёт. Поэтому цвет тревожный, полоса занимает всю нижнюю панель, а подтверждение
+  — движение, а не касание: одно случайное нажатие не должно выдавать новый стек.
+*/
+.poker-controls[data-out='true'] {
+  border-color: #e2545466;
+  background: linear-gradient(180deg, #2a1414, #17202b);
+}
+.poker-rebuy {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  justify-items: stretch;
+}
+.poker-rebuy-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.poker-rebuy-head b {
+  font-size: 15px;
+  color: #ff9c9c;
+}
+.poker-rebuy-head small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.poker-rebuy-amount {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.poker-rebuy-amount b {
+  font-size: 14px;
+  color: var(--gold-soft);
+}
+.poker-rebuy-out {
+  justify-self: center;
+  color: var(--muted);
+}
+
+/*
+  Подтверждение движением.
+
+  Дорожка с шайбой: пока её тянут, заполненная часть догоняет палец, а на девяти десятых пути
+  действие срабатывает один раз. Шайба — обычная кнопка, поэтому с клавиатуры это `Enter`, а
+  не безвыходность.
+*/
+.poker-slide {
+  position: relative;
+  height: 52px;
+  border-radius: 14px;
+  background: #3a1a1a;
+  border: 1px solid #e2545480;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+.poker-slide-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-left: 46px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd9d9;
+  pointer-events: none;
+}
+.poker-slide-knob {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 48px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #ff6a6a, #d93a3a);
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+}
+.poker-slide-knob:active {
+  cursor: grabbing;
+}
+.poker-slide[data-done] {
+  background: #14361f;
+  border-color: #2f9c5a;
+}
+.poker-slide[data-done] .poker-slide-knob {
+  background: linear-gradient(180deg, #58d98a, #2f9c5a);
+}
+
+/* --- Настройки игры --------------------------------------------------------------------- */
+
+/*
+  Переключатель: подпись слева, ползунок справа.
+
+  Справа — потому что так их читают и так к ним тянется рука: взгляд идёт по строке от названия
+  к состоянию, а палец на телефоне живёт у правого края. Это настоящая кнопка с ролью `switch`,
+  а не нарисованный поверх чекбокса ползунок: она сама попадает в обход с клавиатуры и сама
+  рассказывает о себе программе чтения с экрана.
+*/
+.poker-settings {
+  display: grid;
+  gap: 6px;
+}
+.poker-settings[data-host='true'] {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.poker-settings-head {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Один рецепт строки на весь лист: настройки, номинации и места в итогах — это одна и та же
+   карточка, и расходиться в отступах и скруглении им незачем. */
+.poker-toggle,
+.poker-settings-link,
+.poker-result-highlights li,
+.poker-result-players li {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.poker-toggle,
+.poker-settings-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  width: 100%;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.poker-toggle:hover,
+.poker-settings-link:hover {
+  border-color: color-mix(in oklab, var(--gold) 45%, transparent);
+}
+.poker-toggle b,
+.poker-settings-link b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.poker-toggle small,
+.poker-settings-link small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.poker-settings-link {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+/* Выбор одной цифрой: подпись слева, варианты справа — тот же порядок, что у переключателей. */
+.poker-settings-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.poker-settings-choice b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.poker-settings-choice small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.poker-settings-steps {
+  display: flex;
+  gap: 4px;
+}
+.poker-settings-steps button {
+  min-width: 30px;
+  padding: 4px 7px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.poker-settings-steps button[data-active] {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+}
+.poker-settings-link.is-danger {
+  color: #ff9c9c;
+}
+.poker-settings-link.is-danger:hover {
+  border-color: #e2545466;
+  background: #2a1414;
+}
+.poker-settings-link small {
+  grid-column: 2;
+}
+/* Ползунок. Дорожка и шайба — два элемента одного `i`, чтобы не заводить лишней вёрстки. */
+.poker-toggle i {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 23px;
+  border-radius: 999px;
+  background: #0b131a;
+  border: 1px solid var(--line);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+.poker-toggle i::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #7a879a;
+  transition:
+    transform 0.18s cubic-bezier(0.3, 1.3, 0.5, 1),
+    background 0.18s ease;
+}
+.poker-toggle[aria-checked='true'] i {
+  background: color-mix(in oklab, var(--gold) 32%, #0b131a);
+  border-color: var(--gold);
+}
+.poker-toggle[aria-checked='true'] i::after {
+  transform: translateX(17px);
+  background: var(--gold);
+}
+
 /* --- Итоги игры -------------------------------------------------------------------------- */
 
 /*
@@ -1574,10 +1887,6 @@
 .poker-result-highlights li {
   display: grid;
   gap: 1px;
-  padding: 7px 9px;
-  border-radius: 11px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
 }
 .poker-result-highlights b {
   font-size: 10px;
@@ -1612,10 +1921,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 2px 8px;
-  padding: 6px 9px;
-  border-radius: 11px;
-  background: var(--surface-2);
-  border: 1px solid transparent;
+  border-color: transparent;
 }
 .poker-result-players li[data-top] {
   border-color: color-mix(in oklab, var(--gold) 45%, transparent);
@@ -1663,6 +1969,34 @@
   font-size: 11px;
   line-height: 1.35;
   color: var(--muted);
+}
+
+/* --- Полный экран ------------------------------------------------------------------------ */
+
+/*
+  Стол во весь экран — тот же приём, что у кинозала, и по той же причине.
+
+  Вокруг стола живёт вся встреча: шапка, лента зрителей, пульт звонка, боковая панель. На
+  большом экране это соседи, на телефоне — конкуренты: овалу остаётся треть высоты, и карты в
+  нём меньше ногтя. `data-full` ставится и на настоящем полном экране, и на его замене там, где
+  режима нет вовсе (iPhone), — снаружи разницы никакой.
+*/
+.poker[data-full='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding: 8px;
+  background: #070c11;
+}
+.poker[data-full='true'] .poker-felt-wrap {
+  padding-bottom: 34px;
+}
+@media (max-width: 700px) {
+  /* Ради этого полный экран и нужен: в нём столу достаётся вся ширина, а не остаток от
+     шапки встречи и ленты зрителей. */
+  .poker[data-full='true'] .poker-felt {
+    width: min(94cqw, 72cqh);
+  }
 }
 
 /* --- Узкий экран ------------------------------------------------------------------------ */
@@ -1716,12 +2050,19 @@
 }
 @media (max-width: 860px) {
   .poker-bar {
-    gap: 8px;
+    gap: 6px 8px;
     padding: 6px 9px;
   }
   .poker-host-actions {
     width: 100%;
     margin-left: 0;
+  }
+  /* Кнопки ведущего на телефоне делят строку поровну: три подписи по краям читаются хуже,
+     чем три равные кнопки, в которые попадают пальцем. */
+  .poker-host-actions .button {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
   }
   .poker-controls {
     grid-template-columns: minmax(0, 1fr);
@@ -1742,6 +2083,91 @@
   }
   .poker-log {
     display: none;
+  }
+}
+/*
+  Телефон.
+
+  Полоса стола здесь перестаёт быть строкой: режим и блайнды слева, число мест и настройки
+  дальше — всё переносится, и это нормально. А вот что было не нормально: нижняя панель на
+  390 пикселях занимала треть экрана, отбирая её у самого стола. Свои карты ужимаются, подписи
+  уходят, кнопки хода остаются крупными — нажимают только их.
+*/
+@media (max-width: 560px) {
+  .poker {
+    gap: 6px;
+  }
+  /* Число мест и уровень на телефоне уходят: строка одна, и занимать её должно то, что
+     нажимают каждую раздачу. Паузу и «убрать стол» туда же не рисует сам стол. */
+  .poker-view-label,
+  .poker-seated,
+  .poker-level {
+    display: none;
+  }
+  .poker-bar {
+    flex-wrap: nowrap;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+  .poker-mode b {
+    font-size: 13px;
+  }
+  .poker-host-actions {
+    width: auto;
+    flex: 1;
+    margin-left: 0;
+  }
+  .poker-view {
+    padding: 6px 9px;
+  }
+  .poker-controls {
+    padding: 7px 8px;
+    gap: 7px;
+  }
+  .poker-mine {
+    gap: 8px;
+  }
+  .poker-mine-cards .playing-card {
+    width: 34px;
+    height: 48px;
+  }
+  .poker-mine-stack b {
+    font-size: 14px;
+  }
+  .poker-mine-stack small,
+  .poker-mine-stack .chip-columns {
+    display: none;
+  }
+  .poker-action {
+    min-height: 46px;
+    font-size: 14px;
+  }
+  .poker-steps {
+    gap: 5px;
+  }
+  .poker-step {
+    padding: 4px 8px;
+  }
+  .poker-idle {
+    gap: 6px;
+  }
+  .poker-fair {
+    width: 100%;
+  }
+  /* Лист поверх сукна на телефоне — снизу вверх на всю ширину: справа для него нет места. */
+  .poker-sheet {
+    top: auto;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    max-height: 72%;
+    animation-name: poker-sheet-up;
+  }
+  @keyframes poker-sheet-up {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
   }
 }
 @media (max-width: 860px) {

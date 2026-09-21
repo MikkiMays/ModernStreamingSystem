@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Track, TrackEvent } from 'livekit-client';
-import { Menu } from '@base-ui/react/menu';
 import {
   Check,
-  Coins,
+  ChevronRight,
   Crown,
+  Eye,
   Hand,
   LogOut,
   Pause,
   Play,
   Plus,
   ListOrdered,
-  ScrollText,
+  Maximize2,
+  Minimize2,
   Settings2,
   ShieldCheck,
   Timer,
@@ -32,6 +33,7 @@ import {
   blindSeats,
   callShare,
   cardFace,
+  cardKey,
   celebration,
   chipColumns,
   chipPile,
@@ -39,19 +41,23 @@ import {
   COLLECT_MS,
   COLUMN_HEIGHT,
   DEAL_MS,
-  deadCards,
   dealDelay,
   HAND_RANKS,
   phaseLabel,
   playing,
+  plural,
+  readyCount,
   seatLayout,
+  showdownCards,
   verifyDeal,
+  type CardState,
   type SeatSpot,
   type Verdict,
 } from '../core/poker';
 import { GameResult, GameCrown } from './PokerResult';
+import { useFullscreen } from '../core/fullscreen';
 import { readPreferences, savePreferences } from '../core/preferences';
-import { Avatar, useStore } from './primitives';
+import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 
 /**
  * Покерный стол на сцене встречи.
@@ -67,6 +73,9 @@ import { Avatar, useStore } from './primitives';
  * ядро и присылает готовым ({@code you.actions}). Вторая копия правил в браузере означала бы, что
  * однажды кнопка и стол разойдутся во мнениях, и права будет кнопка.
  */
+/** Какой лист лежит поверх сукна. Одновременно — ровно один. */
+type SheetKind = 'settings' | 'help' | 'results' | null;
+
 export default function PokerTable({ meeting, table }: { meeting: Meeting; table: Table }) {
   const tracks = useStore(meeting.media.tracks);
   const preferences = useStore(meeting.media.preferences);
@@ -86,16 +95,22 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     продолжал играть без него. Обе панели полупрозрачные и лежат поверх сукна: они закрывают
     часть стола, но не забирают его.
   */
-  const [help, setHelp] = useState(false);
-  const [results, setResults] = useState(false);
+  const [sheet, setSheet] = useState<SheetKind>(null);
   const summary = table.summary;
   // Игра кончилась — итоги открываются сами: это тот единственный момент, когда их и ждут.
   const shown = useRef('');
   useEffect(() => {
     if (!summary || shown.current === summary.id) return;
     shown.current = summary.id;
-    setResults(true);
+    setSheet('results');
   }, [summary]);
+  /*
+    Полный экран — тот же, что у кинозала, и по той же причине: стол это то, на что смотрят, а
+    вокруг него шапка встречи, лента зрителей и пульт звонка. На телефоне без него играть
+    почти невозможно — овал ужимается до трети экрана.
+  */
+  const scene = useRef<HTMLDivElement>(null);
+  const { full, toggle: toggleFull } = useFullscreen(scene);
 
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
@@ -127,17 +142,20 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
   // только по разнице снимков — в новом ставок уже нет, а в старом ещё нет победителя.
   const flights = useChipFlights(table, spots);
   /*
-    Что на вскрытии уже не играет. За настоящим столом лишние карты не подсвечивают — их
-    убирают из виду и называют комбинацию вслух; здесь они гаснут, и смотреть остаётся ровно
-    на то, чем выиграли.
+    Что светится на вскрытии, а что гаснет. За настоящим столом лишние карты не подсвечивают —
+    их убирают из виду и называют комбинацию вслух; здесь остаётся гореть ровно победная
+    пятёрка, а весь остальной борд и чужие руки уходят в серое.
   */
-  const dead = useMemo(() => deadCards(table), [table]);
-  const blinds = useMemo(() => blindSeats(table), [table]);
+  const show = useMemo(() => showdownCards(table), [table.phase, table.revision]);
+  const blinds = useMemo(() => blindSeats(table), [table.revision]);
   const showdown = table.phase === 'showdown';
   const winners = useMemo(
     () => new Set((table.result?.awards ?? []).map((award) => award.seat)),
     [table.result],
   );
+  // Телефон решает не таблица стилей, а сам стол: кнопку, которой там не место, он просто не
+  // рисует — вместо того, чтобы нарисовать и спрятать правилом с подкрученным весом.
+  const compact = useMediaQuery('(max-width: 560px)');
   const pot =
     showdown && table.result
       ? table.result.pot
@@ -145,16 +163,23 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
   const beat = usePotBeat(pot);
 
   return (
-    <div className="poker" data-phase={table.phase} data-drama={cheer?.level}>
+    <div
+      className="poker"
+      ref={scene}
+      data-phase={table.phase}
+      data-drama={cheer?.level}
+      data-full={full ? 'true' : undefined}
+    >
       <TableBar
         meeting={meeting}
         table={table}
         dealer={dealer}
         onSend={send}
-        help={help}
-        onHelp={() => setHelp((open) => !open)}
-        results={!!summary}
-        onResults={() => setResults(true)}
+        sheet={sheet}
+        onSheet={setSheet}
+        compact={compact}
+        full={full}
+        onFull={toggleFull}
       />
       <div className="poker-felt-wrap">
         <div className="poker-felt">
@@ -182,8 +207,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 <PlayingCard
                   key={`${table.handNumber}-${card}`}
                   card={card}
-                  dead={dead.has(card)}
-                  highlight={showdown && !dead.has(card)}
+                  state={show.get(cardKey(card))}
                   delay={index * 120 - Math.max(0, meeting.serverNow() - table.streetAt)}
                 />
               ))}
@@ -229,7 +253,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               table={table}
               dealer={dealer}
               onSend={send}
-              onResults={() => setResults(true)}
+              onResults={() => setSheet('results')}
             />
             {/*
               Срок пустого стола — вслух.
@@ -257,7 +281,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 table={table}
                 meeting={meeting}
                 tracks={tracks}
-                dead={dead}
+                show={show}
                 blind={blinds?.small === spot.index ? 'SB' : blinds?.big === spot.index ? 'BB' : null}
                 winner={winners.has(spot.index)}
                 mine={spot.index === mySeat}
@@ -292,10 +316,27 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
           {cheer && table.result && <Cheer table={table} cheer={cheer} spots={spots} />}
         </div>
         {preferences.pokerFeed && <Feed table={table} />}
-        {help && <Combinations onClose={() => setHelp(false)} />}
-        {results && summary && <Results game={summary} onClose={() => setResults(false)} />}
+        {sheet === 'help' && <Combinations onClose={() => setSheet(null)} />}
+        {sheet === 'settings' && (
+          <GameSettings
+            meeting={meeting}
+            table={table}
+            dealer={dealer}
+            onSend={send}
+            onHelp={() => setSheet('help')}
+            onClose={() => setSheet(null)}
+          />
+        )}
+        {sheet === 'results' && summary && <Results game={summary} onClose={() => setSheet(null)} />}
       </div>
-      <Controls table={table} dealer={dealer} onSend={send} error={error} hints={preferences.pokerHints} />
+      <Controls
+        table={table}
+        show={show}
+        dealer={dealer}
+        onSend={send}
+        error={error}
+        hints={preferences.pokerHints}
+      />
     </div>
   );
 }
@@ -347,25 +388,25 @@ function TableBar({
   table,
   dealer,
   onSend,
-  help,
-  onHelp,
-  results,
-  onResults,
+  sheet,
+  onSheet,
+  compact,
+  full,
+  onFull,
 }: {
   meeting: Meeting;
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
-  help: boolean;
-  onHelp: () => void;
-  results: boolean;
-  onResults: () => void;
+  sheet: SheetKind;
+  onSheet: (sheet: SheetKind) => void;
+  compact: boolean;
+  full: boolean;
+  onFull: () => void;
 }) {
   const seated = table.seats.filter((seat) => seat.memberId).length;
-  const preferences = useStore(meeting.media.preferences);
-  // Вид стола — своё у каждого, поэтому пишется в настройки устройства, а не в комнату.
-  const toggle = (key: 'pokerHints' | 'pokerFeed') =>
-    savePreferences({ ...readPreferences(), [key]: !preferences[key] });
+  const ready = readyCount(table);
+  const showdown = table.phase === 'showdown';
   return (
     <header className="poker-bar">
       <span className="poker-mode">
@@ -385,70 +426,263 @@ function TableBar({
       <span className="poker-seated">
         {seated} из 10 мест{table.seatingOpen ? '' : ' · посадка закрыта'}
       </span>
-      <Menu.Root>
-        <Menu.Trigger className="button secondary small poker-view" aria-label="Вид стола">
-          <Settings2 size={15} /> Вид
-        </Menu.Trigger>
-        <Menu.Portal>
-          <Menu.Positioner className="menu-layer" side="bottom" align="end" sideOffset={8}>
-            <Menu.Popup className="action-menu">
-              <Menu.Item onClick={() => toggle('pokerHints')}>
-                {preferences.pokerHints ? <Check size={18} /> : <span style={{ width: 18 }} />}
-                Подсказки: что у меня собралось
-              </Menu.Item>
-              <Menu.Item onClick={() => toggle('pokerFeed')}>
-                {preferences.pokerFeed ? <Check size={18} /> : <ScrollText size={18} />}
-                Лента игры
-              </Menu.Item>
-              <Menu.Item onClick={onHelp}>
-                {help ? <Check size={18} /> : <ListOrdered size={18} />}
-                Комбинации
-              </Menu.Item>
-              {results && (
-                <Menu.Item onClick={onResults}>
-                  <Trophy size={18} /> Итоги игры
-                </Menu.Item>
-              )}
-            </Menu.Popup>
-          </Menu.Positioner>
-        </Menu.Portal>
-      </Menu.Root>
+      {/*
+        Одна кнопка вместо меню «Вид».
+
+        В меню лежали и настройки, и справка, и итоги — то есть всё, что не поместилось в
+        полосу, и называлось это «Вид». Теперь это «Настройки игры»: лист поверх стола, где
+        переключатели стоят справа, как им и положено, а комбинации с итогами открываются
+        оттуда же.
+      */}
+      <button
+        className="button secondary small poker-view"
+        aria-label="Настройки игры"
+        aria-pressed={sheet === 'settings'}
+        onClick={() => onSheet(sheet === 'settings' ? null : 'settings')}
+      >
+        {/* На телефоне от кнопки остаётся один значок: подпись в два слова забирала там
+            половину строки, а имя для клавиатуры и озвучки остаётся в `aria-label`. */}
+        <Settings2 size={15} /> <span className="poker-view-label">Настройки игры</span>
+      </button>
+      {table.summary && (
+        <button className="button secondary small" onClick={() => onSheet('results')}>
+          <Trophy size={15} /> Итоги
+        </button>
+      )}
       {dealer && (
         <div className="poker-host-actions">
-          {table.phase === 'lobby' && (
+          {/*
+            ТЕМП ДЕРЖИТ ВЕДУЩИЙ. Вскрытие стоит на столе, пока его не уберут: «Продолжить»
+            прибирает карты, «Раздать» прибирает и сдаёт сразу. Обе кнопки на одном месте,
+            чтобы не искать их глазами после каждой раздачи.
+          */}
+          {table.awaiting && (
+            <button className="button primary small" onClick={() => onSend('poker.next')}>
+              <Check size={15} /> Продолжить
+            </button>
+          )}
+          {(table.phase === 'lobby' || showdown) && (
             <button
-              className="button primary small"
-              disabled={seated < 2}
+              className={showdown ? 'button secondary small' : 'button primary small'}
+              disabled={ready < 2}
               onClick={() => onSend('poker.deal')}
             >
               <Play size={15} /> Раздать
             </button>
           )}
-          {table.phase !== 'over' && (
+          {/*
+            Пауза остаётся в полосе на большом экране и прячется на телефоне: там у полосы есть
+            ровно одна строка, и занимать её должно то, что нажимают каждую раздачу. Убрать стол
+            и вовсе переехало в настройки — это действие редкое и необратимое.
+          */}
+          {table.phase !== 'over' && !compact && (
             <button
               className="button secondary small"
               onClick={() => onSend('poker.settings', { option: table.paused ? 'resume' : 'pause' })}
             >
               {table.paused ? <Play size={15} /> : <Pause size={15} />}
-              {table.paused ? 'Продолжить' : 'Пауза'}
+              {table.paused ? 'Снять паузу' : 'Пауза'}
             </button>
           )}
-          <button
-            className="button secondary small"
-            onClick={() =>
+        </div>
+      )}
+      {/* Условия вокруг кнопки нет намеренно: замену полному экрану там, где его не бывает,
+          держит сам `useFullscreen` — снаружи разницы никакой. */}
+      <IconButton
+        label={full ? 'Выйти из полноэкранного режима' : 'Развернуть стол'}
+        className="poker-full"
+        onClick={onFull}
+      >
+        {full ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+      </IconButton>
+    </header>
+  );
+}
+
+/**
+ * Настройки игры.
+ *
+ * ПЕРЕКЛЮЧАТЕЛИ, А НЕ ГАЛОЧКИ, И СПРАВА. Галочка в меню отвечает на вопрос «выбрано ли», а здесь
+ * вопрос другой — «включено ли»; и рука на телефоне тянется к правому краю строки, а не к левому.
+ * Каждый переключатель — настоящая кнопка с ролью `switch`: её видно с клавиатуры и слышно
+ * программе чтения с экрана, чего скрытый `checkbox` с нарисованным поверх ползунком не даёт.
+ *
+ * ДВА РАЗДЕЛА, И ЭТО ГРАНИЦА ПРАВ. Верхний — про то, как стол выглядит у вас: хранится на
+ * устройстве и никого больше не касается. Нижний — про то, как идёт игра: это решения ведущего
+ * стола, они уезжают в комнату и меняют её для всех.
+ */
+function GameSettings({
+  meeting,
+  table,
+  dealer,
+  onSend,
+  onHelp,
+  onClose,
+}: {
+  meeting: Meeting;
+  table: Table;
+  dealer: boolean;
+  onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+  onHelp: () => void;
+  onClose: () => void;
+}) {
+  const preferences = useStore(meeting.media.preferences);
+  // Вид стола — своё у каждого, поэтому пишется в настройки устройства, а не в комнату.
+  const toggle = (key: 'pokerHints' | 'pokerFeed') =>
+    savePreferences({ ...readPreferences(), [key]: !preferences[key] });
+  return (
+    <Sheet
+      label="Настройки игры"
+      onClose={onClose}
+      head={
+        <span className="poker-sheet-title">
+          <Settings2 size={16} />
+          <b>Настройки игры</b>
+          <small>{dealer ? 'Нижние — для всего стола' : 'Только для вас'}</small>
+        </span>
+      }
+    >
+      <div className="poker-settings">
+        <Toggle
+          on={preferences.pokerHints}
+          title="Подсказки"
+          hint="Что у меня собралось и сколько стоит ответ"
+          onChange={() => toggle('pokerHints')}
+        />
+        <Toggle
+          on={preferences.pokerFeed}
+          title="Лента игры"
+          hint="Кто что сходил — списком у края стола"
+          onChange={() => toggle('pokerFeed')}
+        />
+        <SettingsAction
+          icon={<ListOrdered size={16} />}
+          title="Комбинации"
+          hint="Десять строк от флеш-рояля до старшей карты"
+          onClick={onHelp}
+        />
+      </div>
+      {dealer && (
+        <div className="poker-settings" data-host="true">
+          <p className="poker-settings-head">Стол</p>
+          <Toggle
+            on={table.autoDeal}
+            title="Авто-раздача"
+            hint={
+              table.autoDeal
+                ? 'Стол сдаёт следующую раздачу сам'
+                : 'Каждую раздачу начинаете вы кнопкой «Раздать»'
+            }
+            onChange={() => onSend('poker.settings', { option: 'auto-deal' })}
+          />
+          <Toggle
+            on={table.seatingOpen}
+            title="Пускать новых за стол"
+            hint={
+              table.seatingOpen ? 'Свободное место занимают нажатием на стул' : 'Доиграют те, кто уже сидит'
+            }
+            onChange={() =>
               onSend('poker.settings', {
                 option: table.seatingOpen ? 'seating-locked' : 'seating-open',
               })
             }
-          >
-            {table.seatingOpen ? 'Закрыть посадку' : 'Открыть посадку'}
-          </button>
-          <button className="button ghost small" onClick={() => onSend('poker.close')}>
-            <X size={15} /> Убрать стол
-          </button>
+          />
+          {/*
+            Правила додепа — тем же языком, что и при открытии стола: сколько раз можно взять
+            фишки заново. Размер додепа остаётся равным первому входу; менять его по ходу игры
+            означало бы, что стол у вошедших и у доигрывающих разный.
+          */}
+          <div className="poker-settings-choice">
+            <span>
+              <b>Додепы на человека</b>
+              <small>
+                {table.rebuyLimit < 0
+                  ? `Без ограничений, по ${chips(table.rebuyChips)}`
+                  : table.rebuyLimit === 0
+                    ? 'Запрещены: фишки кончились — человек выбыл'
+                    : `${plural(table.rebuyLimit, 'додеп', 'додепа', 'додепов')} по ${chips(table.rebuyChips)}`}
+              </small>
+            </span>
+            <span className="poker-settings-steps">
+              {[0, 1, 3, -1].map((value) => (
+                <button
+                  key={value}
+                  data-active={table.rebuyLimit === value || undefined}
+                  onClick={() =>
+                    onSend('poker.settings', {
+                      option: 'rebuy-limit',
+                      chips: value < 0 ? undefined : value,
+                    })
+                  }
+                >
+                  {value < 0 ? '∞' : value === 0 ? 'нет' : value}
+                </button>
+              ))}
+            </span>
+          </div>
+          {table.phase !== 'over' && (
+            <SettingsAction
+              icon={table.paused ? <Play size={16} /> : <Pause size={16} />}
+              title={table.paused ? 'Снять паузу' : 'Поставить на паузу'}
+              hint="Часы останавливаются там, где стояли"
+              onClick={() => onSend('poker.settings', { option: table.paused ? 'resume' : 'pause' })}
+            />
+          )}
+          <SettingsAction
+            icon={<X size={16} />}
+            title="Убрать стол из встречи"
+            hint="Игра закончится, а её итоги останутся в истории"
+            danger
+            onClick={() => onSend('poker.close')}
+          />
         </div>
       )}
-    </header>
+    </Sheet>
+  );
+}
+
+/** Строка настроек, которая не переключает, а ведёт: значок, подпись и пояснение. */
+function SettingsAction({
+  icon,
+  title,
+  hint,
+  danger,
+  onClick,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button className={danger ? 'poker-settings-link is-danger' : 'poker-settings-link'} onClick={onClick}>
+      {icon} <b>{title}</b>
+      <small>{hint}</small>
+    </button>
+  );
+}
+
+/** Переключатель: подпись слева, ползунок справа. */
+function Toggle({
+  on,
+  title,
+  hint,
+  onChange,
+}: {
+  on: boolean;
+  title: string;
+  hint?: string;
+  onChange: () => void;
+}) {
+  return (
+    <button className="poker-toggle" role="switch" aria-checked={on} onClick={onChange}>
+      <span>
+        <b>{title}</b>
+        {hint && <small>{hint}</small>}
+      </span>
+      <i aria-hidden="true" />
+    </button>
   );
 }
 
@@ -526,7 +760,7 @@ function SeatView({
   table,
   meeting,
   tracks,
-  dead,
+  show,
   blind,
   winner,
   mine,
@@ -538,7 +772,7 @@ function SeatView({
   table: Table;
   meeting: Meeting;
   tracks: MediaTile[];
-  dead: Set<string>;
+  show: Map<string, CardState>;
   blind: 'SB' | 'BB' | null;
   winner: boolean;
   mine: boolean;
@@ -637,8 +871,7 @@ function SeatView({
                 key={`${table.handNumber}-${seat.index}-${index}`}
                 card={card}
                 small
-                dead={dead.has(`${seat.index}:${card}`)}
-                highlight={showdown && seat.handCards.includes(card)}
+                state={show.get(cardKey(card, seat.index))}
                 delay={dealDelay(table, seat, index, meeting.serverNow())}
               />
             ))
@@ -732,17 +965,23 @@ function TurnRing({ table, elapsed }: { table: Table; elapsed: number }) {
   );
 }
 
-/** Карта. Рубашка — та же карта без лица: так переворот остаётся одним элементом. */
+/**
+ * Карта. Рубашка — та же карта без лица: так переворот остаётся одним элементом.
+ *
+ * Состояние на вскрытии приходит одним значением, а не парой флагов: «светится» и «погашена»
+ * исключают друг друга, и защищаться здесь от того, что пришло и то и другое, больше не нужно.
+ */
 function PlayingCard({
   card,
   small,
-  highlight,
+  state,
   dead,
   delay = 0,
 }: {
   card?: string;
   small?: boolean;
-  highlight?: boolean;
+  state?: CardState;
+  /** Сброшенная рубашка гаснет и без вскрытия: это про руку, а не про комбинацию. */
   dead?: boolean;
   delay?: number;
 }) {
@@ -753,8 +992,8 @@ function PlayingCard({
       data-small={small || undefined}
       data-red={face?.red || undefined}
       data-back={!face || undefined}
-      data-highlight={(highlight && !dead) || undefined}
-      data-dead={dead || undefined}
+      data-highlight={state === 'winning' || undefined}
+      data-dead={state === 'dead' || dead || undefined}
       style={{ animationDelay: `${Math.round(delay)}ms`, animationDuration: `${DEAL_MS}ms` }}
     >
       {face && (
@@ -788,12 +1027,14 @@ function Countdown({ meeting, until, minutes }: { meeting: Meeting; until: numbe
 /** Кнопки хода. Что здесь законно — прислало ядро; здесь только размеры и подписи. */
 function Controls({
   table,
+  show,
   dealer,
   onSend,
   error,
   hints,
 }: {
   table: Table;
+  show: Map<string, CardState>;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   error: string;
@@ -843,6 +1084,20 @@ function Controls({
 
   const seat = you ? table.seats[you.seat] : null;
   const seated = !!seat;
+  /*
+    ФИШКИ КОНЧИЛИСЬ — ЭТО СОБЫТИЕ, А НЕ КНОПКА В РЯДУ ДРУГИХ.
+
+    Раньше здесь стояло «Докупиться до 5 000», и одно случайное нажатие молча добавляло фишки:
+    человек ещё не понял, что вылетел, а стол уже выдал ему новый стек. Теперь это отдельная
+    красная полоса поверх кнопок хода — с суммой, которую видно, и подтверждением движением, а
+    не касанием. Показывает её сервер: {@code you.rebuy} — это и «можно», и «сколько».
+  */
+  if (you && you.rebuy > 0 && seat)
+    return (
+      <div className="poker-controls" data-out="true">
+        <Rebuy you={you} table={table} onSend={onSend} error={error} />
+      </div>
+    );
   return (
     <div className="poker-controls" data-turn={turn || undefined}>
       <div className="poker-mine">
@@ -852,7 +1107,7 @@ function Controls({
               <PlayingCard
                 key={`${table.handNumber}-mine-${index}`}
                 card={card}
-                highlight={table.phase === 'showdown' && seat.handCards.includes(card)}
+                state={show.get(cardKey(card, seat.index))}
               />
             ))}
           </div>
@@ -959,14 +1214,16 @@ function Controls({
         <div className="poker-idle">
           {seated && seat && (
             <>
-              {seat.stack === 0 && table.rebuy && !seat.inHand && (
-                <button className="button primary small" onClick={() => onSend('poker.rebuy')}>
-                  <Coins size={15} /> Докупиться до {chips(table.startingStack)}
-                </button>
-              )}
-              {table.phase === 'showdown' && seat.cards.length > 0 && !table.result?.showdown && (
+              {/*
+                Показать карты — право, а не обязанность, и предлагается оно там, где им
+                пользуются: на вскрытии. Раньше кнопка появлялась только у раздач, кончившихся
+                без вскрытия, и пропадала ровно в тот момент, когда за столом как раз и говорят
+                «а что у тебя было». Тот, кого вскрыли принудительно, её не видит вовсе:
+                `revealed` приезжает с сервера, и второй раз нажимать нечего.
+              */}
+              {table.phase === 'showdown' && seat.cards.length > 0 && !seat.revealed && (
                 <button className="button secondary small" onClick={() => onSend('poker.reveal')}>
-                  Показать карты
+                  <Eye size={15} /> Показать карты
                 </button>
               )}
               <button className="button ghost small" onClick={() => onSend('poker.stand')}>
@@ -985,6 +1242,127 @@ function Controls({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Фишки кончились: взять заново или встать.
+ *
+ * ПОЧЕМУ ДВИЖЕНИЕМ, А НЕ НАЖАТИЕМ. Это единственное действие за столом, которое меняет не ход
+ * игры, а её условия: у человека появляется стек, которого не было. Нажатие такого веса
+ * случается мимо воли — палец на телефоне, привычка добивать кнопки после проигранной раздачи, —
+ * и раньше оно так и происходило: фишки добавлялись молча, одним касанием. Движение слева
+ * направо случайным не бывает; так же подтверждают оплату, и объяснять этот жест никому не нужно.
+ *
+ * Сумму человек выбирает сам, но не больше того, что даёт стол ({@code you.rebuy}), а правила
+ * считает сервер: сколько додепов осталось, идёт ли раздача, пуст ли стек.
+ */
+function Rebuy({
+  you,
+  table,
+  onSend,
+  error,
+}: {
+  you: NonNullable<Table['you']>;
+  table: Table;
+  onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
+  error: string;
+}) {
+  const most = you.rebuy;
+  const least = Math.min(most, Math.max(200, table.bigBlind * 10));
+  const [amount, setAmount] = useState(most);
+  const left = you.rebuysLeft;
+  return (
+    <div className="poker-rebuy" role="alert">
+      <span className="poker-rebuy-head">
+        <b>Фишки кончились</b>
+        <small>
+          {left < 0
+            ? 'Взять заново можно сколько угодно раз'
+            : `Осталось ${plural(left, 'додеп', 'додепа', 'додепов')}`}
+        </small>
+      </span>
+      {most > least && (
+        <label className="poker-rebuy-amount">
+          <span>
+            Взять <b>{chips(amount)}</b>
+          </span>
+          <input
+            className="slider"
+            type="range"
+            min={least}
+            max={most}
+            step={Math.max(1, table.bigBlind)}
+            value={Math.min(most, Math.max(least, amount))}
+            onChange={(event) => setAmount(Number(event.target.value))}
+            aria-label="Сколько фишек взять"
+          />
+        </label>
+      )}
+      <Slide label={`Взять ${chips(amount)}`} onConfirm={() => onSend('poker.rebuy', { chips: amount })} />
+      <button className="text-button poker-rebuy-out" onClick={() => onSend('poker.stand')}>
+        <LogOut size={14} /> Встать из-за стола
+      </button>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Подтверждение движением.
+ *
+ * Ползунок, который нужно дотянуть до конца: до девяти десятых пути он возвращается назад, а
+ * дойдя — срабатывает один раз. Пальцем и мышью это одно и то же событие указателя, поэтому
+ * отдельной ветки для телефона здесь нет.
+ *
+ * С КЛАВИАТУРЫ ЭТО ОБЫЧНАЯ КНОПКА. Жест, без которого действие недоступно, — это действие,
+ * недоступное половине людей: `Enter` и пробел подтверждают сразу, потому что случайными они не
+ * бывают тем более.
+ */
+function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [part, setPart] = useState(0);
+  const done = useRef(false);
+  const finish = () => {
+    if (done.current) return;
+    done.current = true;
+    setPart(1);
+    onConfirm();
+  };
+  const move = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.buttons === 0 || done.current) return;
+    const box = track.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const next = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
+    setPart(next);
+    if (next >= 0.9) finish();
+  };
+  return (
+    <div
+      className="poker-slide"
+      ref={track}
+      data-done={part >= 0.9 || undefined}
+      onPointerMove={move}
+      onPointerUp={() => !done.current && setPart(0)}
+      onPointerLeave={() => !done.current && setPart(0)}
+    >
+      <span className="poker-slide-label">{label} — потяните вправо</span>
+      <button
+        className="poker-slide-knob"
+        style={{ left: `calc(${(part * 100).toFixed(1)}% - ${(part * 48).toFixed(1)}px)` }}
+        aria-label={label}
+        onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') finish();
+        }}
+      >
+        <ChevronRight size={18} />
+      </button>
     </div>
   );
 }
@@ -1096,13 +1474,23 @@ function Sheet({
   children: ReactNode;
   onClose: () => void;
 }) {
+  /*
+    Escape закрывает лист, и слушатель ставится один раз.
+
+    `onClose` приходит стрелкой из разметки, то есть новой на каждый снимок стола, — а снимки
+    идут на каждое чужое действие. С ним в зависимостях слушатель снимался и ставился заново
+    несколько раз в секунду; ссылка на свежий обработчик живёт в `ref` и решает это без
+    договорённостей на стороне вызывающего.
+  */
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') close.current();
     };
     window.addEventListener('keydown', keys);
     return () => window.removeEventListener('keydown', keys);
-  }, [onClose]);
+  }, []);
   return (
     <aside className="poker-sheet" data-wide={wide || undefined} role="region" aria-label={label}>
       <header className="poker-sheet-head">

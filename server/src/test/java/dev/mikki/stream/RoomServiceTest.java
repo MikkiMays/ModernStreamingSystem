@@ -1200,6 +1200,102 @@ class RoomServiceTest {
     assertThat(table.seats.get(table.button).folded).isTrue();
   }
 
+  /**
+   * Каждая команда, которую знает комната, проходит проверку запроса.
+   *
+   * <p>Проверка и схема раньше держали свои списки типов, и забытая строчка выглядела так: кнопка
+   * собирается, тесты зелёные, а живое нажатие отвечает «Проверьте данные запроса». Теперь список
+   * один, и этот тест сторожит именно это — что он и правда один.
+   */
+  @Test
+  void everyCommandTypeTheRoomKnowsPassesRequestValidation() {
+    var types = Contracts.commandTypes();
+    assertThat(types).contains("poker.deal", "poker.next", "poker.settings", "message.send");
+    try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+      var validator = factory.getValidator();
+      for (var type : types)
+        assertThat(validator.validate(new Command(UUID.randomUUID(), type, null, null, 0)))
+            .as("тип команды %s", type)
+            .isEmpty();
+      // И обратное: незнакомое имя дальше проверки не проходит вовсе.
+      assertThat(validator.validate(new Command(UUID.randomUUID(), "poker.cheat", null, null, 0)))
+          .isNotEmpty();
+    }
+  }
+
+  /**
+   * Каждая команда игры, которую умеет ядро, объявлена и в списке типов.
+   *
+   * <p>Тест намеренно ходит через настоящий вызов: список и {@code switch} в {@link RoomService} —
+   * это два разных места, и проверять список сам собой бессмысленно. Забытое имя выглядит отсюда
+   * как «Неизвестная команда», а из браузера — как «Проверьте данные запроса».
+   */
+  @Test
+  void everyPokerCommandTheCoreImplementsIsAlsoDeclared() {
+    var host = host();
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    for (var type : List.of("poker.settings", "poker.next", "poker.reveal", "poker.stand")) {
+      assertThat(Contracts.commandTypes()).contains(type);
+      // Правила могут отказать по существу — но «Неизвестная команда» означало бы, что имени
+      // нет в ядре вовсе.
+      try {
+        poker(host, type, type.equals("poker.settings") ? "auto-deal" : null, null, null);
+      } catch (Problem problem) {
+        assertThat(problem.getMessage()).doesNotContain("Неизвестная команда");
+      }
+    }
+  }
+
+  /**
+   * Телефон в кармане не выпадает из встречи.
+   *
+   * <p>Это та поломка, которую видно только с телефона: страница успевает сказать «связь
+   * потерялась», экран гаснет, браузер её замораживает — и сказать «восстановилось» больше некому.
+   * SFU при этом видит участника на месте всё это время. Раньше через двадцать секунд человек
+   * выпадал из разговора, лежа в кармане с живым соединением; теперь мнение браузера живёт половину
+   * окна, а дальше верят тому, что видно снаружи.
+   */
+  @Test
+  void aBackgroundedPhoneStaysInTheMeetingWhileTheSfuStillSeesIt() {
+    var host = host();
+    connected(host);
+    var room = rooms.read(host.roomId());
+    assertThat(room.members.get(host.participantId()).status).isEqualTo(RoomState.Status.CONNECTED);
+    // Браузер сообщил о потере и замолчал.
+    command(host, "media.lost", null, room.members.get(host.participantId()).generation);
+    var reported = rooms.read(host.roomId()).members.get(host.participantId());
+    assertThat(reported.status).isEqualTo(RoomState.Status.RECOVERING);
+    assertThat(reported.clientReportedLoss).isTrue();
+    // Первую половину окна ему верят: сам сказал — сам и отменит.
+    now.addAndGet(config.recoverySeconds() * 1000L / 4);
+    media.observe(host.roomId(), Map.of(host.participantId(), "PA_first"), now.incrementAndGet());
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.RECOVERING);
+    // Дальше решает то, что видит SFU: участник на месте — значит, разговор продолжается.
+    now.addAndGet(config.recoverySeconds() * 1000L / 2);
+    media.observe(host.roomId(), Map.of(host.participantId(), "PA_first"), now.incrementAndGet());
+    var alive = rooms.read(host.roomId()).members.get(host.participantId());
+    assertThat(alive.status).isEqualTo(RoomState.Status.CONNECTED);
+    assertThat(alive.clientReportedLoss).isFalse();
+  }
+
+  /** А настоящая потеря по-прежнему кончается выходом: спасать некого. */
+  @Test
+  void aPhoneTheSfuNoLongerSeesStillExpires() {
+    var host = host();
+    connected(host);
+    command(
+        host,
+        "media.lost",
+        null,
+        rooms.read(host.roomId()).members.get(host.participantId()).generation);
+    now.addAndGet(config.recoverySeconds() * 1000L + 1000);
+    media.observe(host.roomId(), Map.of(), now.incrementAndGet());
+    assertThat(rooms.read(host.roomId()).members.get(host.participantId()).status)
+        .isEqualTo(RoomState.Status.EXPIRED);
+  }
+
   /** Завершённая встреча не открывает стол тому, кто зашёл в неё за историей переписки. */
   @Test
   void closingTheMeetingTakesTheTableAwayWithIt() {

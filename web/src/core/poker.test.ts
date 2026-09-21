@@ -7,7 +7,7 @@ import {
   callShare,
   chipColumns,
   chipPile,
-  deadCards,
+  showdownCards,
   cardFace,
   cardText,
   celebration,
@@ -39,6 +39,7 @@ function seat(index: number, patch: Partial<PokerSeat> = {}): PokerSeat {
     buyIn: 5000,
     cards: [],
     held: 0,
+    revealed: false,
     inHand: false,
     folded: false,
     allIn: false,
@@ -74,8 +75,11 @@ function table(patch: Partial<PokerTable> = {}): PokerTable {
     turnSeconds: 45,
     seatingOpen: true,
     autoDeal: true,
+    awaiting: false,
     paused: false,
     rebuy: true,
+    rebuyLimit: -1,
+    rebuyChips: 5000,
     startingStack: 5000,
     pot: 0,
     betToCall: 50,
@@ -198,6 +202,8 @@ describe('фишки на сукне', () => {
         maxRaiseTo: 5000,
         timeBankMs: 0,
         turn: true,
+        rebuy: 0,
+        rebuysLeft: -1,
       },
     });
     // Сто в банк из четырёхсот — четверть.
@@ -206,8 +212,12 @@ describe('фишки на сукне', () => {
 });
 
 describe('вскрытие', () => {
-  it('гасит карты, которые больше не играют, и не трогает чужие закрытые', () => {
-    const state = table({
+  /**
+   * Пара тузов победителя против пары королей проигравшего: общий борд у них почти одинаковый,
+   * и раньше горел почти целиком — «подсвечено всё» вместо «вот чем выиграли».
+   */
+  const showdown = (patch: Partial<PokerTable> = {}) =>
+    table({
       phase: 'showdown',
       board: ['As', '7d', '9s', 'Jh', '4c'],
       seats: table().seats.map((one) =>
@@ -222,16 +232,95 @@ describe('вскрытие', () => {
                 : [],
         }),
       ),
+      result: {
+        at: 2000,
+        showdown: true,
+        pot: 600,
+        drama: 'big',
+        busted: [],
+        awards: [
+          {
+            seat: 0,
+            name: 'Игрок 0',
+            amount: 600,
+            handName: 'Пара тузов',
+            handCards: ['As', 'Ah', 'Jh', '9s', '7d'],
+            split: false,
+          },
+        ],
+      },
+      ...patch,
     });
-    const dead = deadCards(state);
-    // Четвёрка не вошла ни в одну пятёрку — она и гаснет.
-    expect(dead.has('4c')).toBe(true);
-    expect(dead.has('As')).toBe(false);
-    // Лишняя карта в чужой руке гаснет вместе с ней, но только у своего места.
-    expect(dead.has('0:2c')).toBe(true);
-    expect(dead.has('0:Ah')).toBe(false);
-    // Пока раздача идёт, не гаснет ничего.
-    expect(deadCards({ ...state, phase: 'river' }).size).toBe(0);
+
+  it('светит только победной пятёркой, а остальное гасит', () => {
+    const state = showdownCards(showdown());
+    // Пять карт победителя — и ни одной больше.
+    expect([...state.values()].filter((one) => one === 'winning')).toHaveLength(5);
+    expect(state.get('As')).toBe('winning');
+    expect(state.get('0:Ah')).toBe('winning');
+    // Четвёрка не вошла в победную пятёрку — гаснет, хотя у проигравшего борд почти тот же.
+    expect(state.get('4c')).toBe('dead');
+    // Чужая рука на вскрытии гаснет целиком: она проиграла, и играть в ней нечему.
+    expect(state.get('1:Kd')).toBe('dead');
+    expect(state.get('1:Kc')).toBe('dead');
+    // Лишняя карта победителя тоже гаснет: в комбинацию вошла не она.
+    expect(state.get('0:2c')).toBe('dead');
+  });
+
+  it('делит свет между обоими, когда банк разделили', () => {
+    const split = showdownCards(
+      showdown({
+        result: {
+          at: 2000,
+          showdown: true,
+          pot: 600,
+          drama: 'normal',
+          busted: [],
+          awards: [
+            {
+              seat: 0,
+              name: 'Игрок 0',
+              amount: 300,
+              handName: 'Пара тузов',
+              handCards: ['As', 'Ah', 'Jh', '9s', '7d'],
+              split: true,
+            },
+            {
+              seat: 1,
+              name: 'Игрок 1',
+              amount: 300,
+              handName: 'Пара королей',
+              handCards: ['Kd', 'Kc', 'As', 'Jh', '9s'],
+              split: true,
+            },
+          ],
+        },
+      }),
+    );
+    expect(split.get('0:Ah')).toBe('winning');
+    expect(split.get('1:Kd')).toBe('winning');
+    expect(split.get('4c')).toBe('dead');
+    expect(split.get('7d')).toBe('winning');
+  });
+
+  it('пока раздача идёт, не гасит и не светит ничего', () => {
+    expect(showdownCards(showdown({ phase: 'river' })).size).toBe(0);
+  });
+
+  it('банк без вскрытия не подсвечивает ничего: карт никто не видел', () => {
+    const folded = showdownCards(
+      showdown({
+        result: {
+          at: 2000,
+          showdown: false,
+          pot: 150,
+          drama: 'normal',
+          busted: [],
+          awards: [{ seat: 0, name: 'Игрок 0', amount: 150, handName: '', handCards: [], split: false }],
+        },
+      }),
+    );
+    expect(folded.size).toBe(0);
   });
 });
 
@@ -260,6 +349,8 @@ describe('ставки в одно нажатие', () => {
         maxRaiseTo: 5000,
         timeBankMs: 60000,
         turn: true,
+        rebuy: 0,
+        rebuysLeft: -1,
       },
     });
     const steps = betSteps(state);

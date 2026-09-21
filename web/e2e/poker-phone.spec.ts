@@ -32,9 +32,21 @@ test('стол на телефоне: панели не выезжают за э
     // На телефоне панель интеграций занимает экран целиком: пока она открыта, стола не видно.
     await page.getByRole('button', { name: 'Закрыть панель' }).click();
     await expect(page.locator('.poker-felt')).toBeVisible();
-    await page.locator('.poker-bar').getByRole('button', { name: 'Вид стола' }).click();
-    await page.getByRole('menuitem', { name: /Комбинации/ }).click();
+    await page
+      .locator('.poker-bar')
+      .getByRole('button', { name: /Настройки игры/ })
+      .click();
     await expect(page.locator('.poker-sheet')).toBeVisible();
+    // Переключатель стоит справа: подпись слева, ползунок у правого края строки.
+    const hints = page.getByRole('switch', { name: /Подсказки/ });
+    const placed = await hints.evaluate((node) => {
+      const row = node.getBoundingClientRect();
+      const knob = node.querySelector('i')!.getBoundingClientRect();
+      return { right: row.right - knob.right, left: knob.left - row.left };
+    });
+    expect(placed.left).toBeGreaterThan(placed.right);
+    await page.getByRole('button', { name: /Комбинации/ }).click();
+    await expect(page.locator('.poker-sheet .hand-ranks')).toBeVisible();
     const overflow = await page.evaluate(() => ({
       body: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       sheet: (() => {
@@ -46,6 +58,13 @@ test('стол на телефоне: панели не выезжают за э
     expect(overflow.sheet.left).toBeGreaterThanOrEqual(0);
     expect(overflow.sheet.right).toBeGreaterThanOrEqual(0);
     await page.screenshot({ path: '../.local/poker-phone.png' });
+    // Полный экран: стол забирает себе всё окно, как плеер в кинозале.
+    await page.locator('.poker-sheet').getByRole('button', { name: 'Закрыть' }).click();
+    await page.getByRole('button', { name: 'Развернуть стол' }).click();
+    await expect(page.locator('.poker[data-full="true"]')).toBeVisible();
+    const scene = await page.locator('.poker').boundingBox();
+    expect(scene?.height ?? 0).toBeGreaterThan(700);
+    await page.screenshot({ path: '../.local/poker-phone-full.png' });
   } finally {
     await phone.close();
   }

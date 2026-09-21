@@ -39,6 +39,16 @@ public class Table {
   /** То же, но когда вскрывать нечего: все спасовали, и рука кончилась в одно движение. */
   public static final long QUICK_MS = 2800;
 
+  /**
+   * Сколько вскрытие стоит на столе, когда стол не сдаёт сам.
+   *
+   * <p>Семи секунд хватает, чтобы заметить, что раздача кончилась, и не хватает, чтобы разобрать
+   * чем: чьи карты открылись, что сложилось у соседа, откуда взялся стрит. Поэтому в ручном режиме
+   * вскрытие ждёт ведущего стола — а эти три минуты только страховка от ведущего, который ушёл, и
+   * ничего не раздают сами: стол просто прибирает карты и возвращается к ожиданию.
+   */
+  public static final long REVIEW_MS = 180000;
+
   /** Пауза между улицами, когда ставить уже некому: карты доигрываются «на вылет». */
   public static final long RUNOUT_MS = 1800;
 
@@ -169,13 +179,39 @@ public class Table {
   public int turnSeconds;
   public int timeBankSeconds;
   public long startingStack;
+
+  /**
+   * Разрешает ли режим докупаться. Осталось от времён, когда это был единственный вопрос.
+   *
+   * <p>Читается только как запасной ответ для столов, открытых прежним ядром: живые правила лежат в
+   * {@link #rebuys} и {@link #rebuyChips}, а спрашивать о них нужно через {@link #rebuyLimit()}.
+   */
   public boolean rebuyAllowed;
+
+  /**
+   * Сколько додепов разрешено одному человеку: {@code -1} — сколько угодно, {@code 0} — ни одного.
+   *
+   * <p>{@code null} означает «стол открыт прежним ядром»: тогда ответ берётся у режима. Поэтому
+   * поле и объектное — у {@code int} нет значения «не спрашивали», и ноль был бы неотличим от
+   * «додепы запрещены».
+   */
+  public Integer rebuys;
+
+  /** Сколько фишек даёт один додеп. По умолчанию — столько же, сколько первый вход. */
+  public long rebuyChips;
 
   /** Пускать ли за стол новых. Решение ведущего стола, а не свойство режима. */
   public boolean seatingOpen = true;
 
-  /** Сдавать ли следующую раздачу самим. Выключается кнопкой «Пауза». */
-  public boolean autoDeal = true;
+  /**
+   * Сдавать ли следующую раздачу самим.
+   *
+   * <p>ПО УМОЛЧАНИЮ — НЕТ, и это решение о том, кто держит темп. Стол, который сдаёт сам, гонит:
+   * раздача кончилась, посмотреть на вскрытие не успели, а карты уже летят снова. Каждый круг
+   * начинает ведущий стола кнопкой, а кто хочет обратно к автомату — включает «Авто» в настройках
+   * игры.
+   */
+  public boolean autoDeal;
 
   public boolean paused;
 
@@ -427,6 +463,10 @@ public class Table {
     table.timeBankSeconds = chosen.timeBankSeconds();
     table.startingStack = wanted;
     table.rebuyAllowed = chosen.rebuy();
+    // Дружеская игра пускает докупаться сколько угодно, турнир — ни разу. Дальше это решение
+    // ведущего стола, а не свойство режима.
+    table.rebuys = chosen.rebuy() ? -1 : 0;
+    table.rebuyChips = wanted;
     for (int index = 0; index < SEATS; index++) table.seats.add(new Seat());
     table.note(
         now,
@@ -541,17 +581,68 @@ public class Table {
     seats.set(seats.indexOf(seat), empty);
   }
 
-  /** Докупиться до стартового стека. Только там, где режим это позволяет. */
-  public void rebuy(String memberId, long now) {
-    if (!rebuyAllowed) throw Problem.conflict("POKER_NO_REBUY", "В этом режиме докупаться нельзя");
+  /** Сколько додепов разрешено одному человеку: -1 — сколько угодно, 0 — ни одного. */
+  public int rebuyLimit() {
+    return rebuys != null ? rebuys : rebuyAllowed ? -1 : 0;
+  }
+
+  /** Сколько фишек даёт один додеп на этом столе. */
+  public long rebuySize() {
+    return rebuyChips > 0 ? rebuyChips : startingStack;
+  }
+
+  /** Сколько додепов осталось у этого человека: -1 — сколько угодно. */
+  public int rebuysLeft(String memberId) {
+    int limit = rebuyLimit();
+    if (limit <= 0) return limit == 0 ? 0 : -1;
+    var player = known(memberId);
+    return Math.max(0, limit - (player == null ? 0 : player.rebuys));
+  }
+
+  /**
+   * Может ли этот человек взять фишки заново.
+   *
+   * <p>ДОДЕП — ЭТО ПРО ПУСТОЙ СТЕК, А НЕ ПРО КОРОТКИЙ. Раньше можно было «дотянуть» любой стек до
+   * стартового, и одно нажатие делало это молча: человек ещё играл, а фишки уже добавились. Теперь
+   * фишки берут заново там, где их не осталось совсем, — и берут решением, а не случайным нажатием.
+   */
+  public boolean canRebuy(Seat seat) {
+    if (seat == null || !seat.taken()) return false;
+    if (rebuyLimit() == 0) return false;
+    if (seat.stack > 0) return false;
+    if (seat.live() && playing()) return false;
+    return rebuysLeft(seat.memberId) != 0;
+  }
+
+  /**
+   * Может ли этот человек взять фишки когда-нибудь — хоть и не сейчас.
+   *
+   * <p>Отличается от {@link #canRebuy(Seat)} тем, что не смотрит на текущую раздачу: вопрос здесь
+   * не «дать ли кнопку», а «выбыл ли человек из игры». Пока додеп у него есть, он не выбыл.
+   */
+  private boolean canRebuyLater(Seat seat) {
+    if (seat == null || !seat.taken() || seat.stack > 0) return false;
+    return rebuyLimit() != 0 && rebuysLeft(seat.memberId) != 0;
+  }
+
+  /**
+   * Взять фишки заново.
+   *
+   * <p>Сумму называет тот, кто берёт, — но не больше разрешённой ведущим: «сколько дают» решает
+   * стол, «сколько беру» решает человек. Ноль означает «сколько дают».
+   */
+  public void rebuy(String memberId, long chips, long now) {
     var seat = seatOf(memberId);
     if (seat == null) throw Problem.forbidden();
+    if (rebuyLimit() == 0)
+      throw Problem.conflict("POKER_NO_REBUY", "За этим столом докупаться нельзя");
+    if (rebuysLeft(memberId) == 0)
+      throw Problem.conflict("POKER_NO_REBUY", "Додепы за этим столом кончились");
     if (seat.live() && playing())
       throw Problem.conflict("POKER_IN_HAND", "Докупиться можно между раздачами");
-    if (seat.stack >= startingStack)
-      throw Problem.conflict("POKER_STACK_FULL", "У вас и так полный стек");
-    long added = startingStack - seat.stack;
-    seat.stack = startingStack;
+    if (seat.stack > 0) throw Problem.conflict("POKER_STACK_FULL", "Фишки ещё есть");
+    long added = chips <= 0 ? rebuySize() : Math.min(rebuySize(), Math.max(MIN_STACK, chips));
+    seat.stack = added;
     seat.buyIn += added;
     seat.busted = false;
     seat.place = 0;
@@ -560,7 +651,7 @@ public class Table {
     player.buyIn += added;
     player.stack = seat.stack;
     player.place = 0;
-    note(now, "rebuy", seats.indexOf(seat), seat.name, added, seat.name + " докупается");
+    note(now, "rebuy", seats.indexOf(seat), seat.name, added, seat.name + " берёт " + added);
     revision++;
   }
 
@@ -589,11 +680,31 @@ public class Table {
   /** Раздать. Это делает ведущий стола — и дальше стол продолжает сам, пока его не остановят. */
   public void deal(long now) {
     if (playing()) throw Problem.conflict("POKER_IN_HAND", "Раздача уже идёт");
+    /*
+     Сначала прибрать, потом проверять — и проверять уже то, что получилось.
+
+     «Раздать» прямо со вскрытия означает и «прибери прошлую»: требовать для этого двух нажатий
+     подряд незачем. Но уборка меняет стол: последней раздачей кто-то мог вылететь, и игра —
+     кончиться. Поэтому все проверки стоят после неё, а не до: иначе человек получал бы
+     «нужно хотя бы двое» там, где на самом деле уже определился победитель.
+    */
+    next(now);
     if ("over".equals(phase)) throw Problem.conflict("POKER_OVER", "Игра закончена");
     if (readyCount() < 2)
       throw Problem.conflict("POKER_NEED_PLAYERS", "Нужно хотя бы двое готовых игроков");
     paused = false;
     begin(now);
+  }
+
+  /**
+   * Убрать вскрытие со стола, ничего не раздавая.
+   *
+   * <p>Это и есть «Продолжить»: карты собраны, вылетевшие посчитаны, стол вернулся к ожиданию — а
+   * раздаёт по-прежнему тот, кто решит и когда решит.
+   */
+  public void next(long now) {
+    if (!"showdown".equals(phase)) return;
+    finish(now);
   }
 
   private void begin(long now) {
@@ -1076,7 +1187,16 @@ public class Table {
     }
     actor = -1;
     phase = "showdown";
-    deadline = now + (result.showdown ? SHOWDOWN_MS : QUICK_MS);
+    /*
+     Сколько держать итог раздачи на столе.
+
+     Автомат отмеряет своё и едет дальше — это его работа: семь секунд на вскрытие, две с
+     половиной там, где вскрывать нечего. В ручном режиме ждут ведущего, и ждут **всегда**, а
+     не только на вскрытии: банк, взятый без карт, — это ровно тот случай, когда победителя
+     просят показать, что у него было, и двух секунд на это не хватает никому. Три минуты —
+     страховка от ведущего, который ушёл; она ничего не раздаёт, а только прибирает стол.
+    */
+    deadline = now + (autoDeal ? (result.showdown ? SHOWDOWN_MS : QUICK_MS) : REVIEW_MS);
     revision++;
   }
 
@@ -1163,7 +1283,7 @@ public class Table {
     */
     var falling = new ArrayList<Seat>();
     for (var seat : seats)
-      if (seat.taken() && seat.inHand && seat.stack == 0 && !seat.busted && !rebuyAllowed)
+      if (seat.taken() && seat.inHand && seat.stack == 0 && !seat.busted && !canRebuyLater(seat))
         falling.add(seat);
     falling.sort((a, b) -> Long.compare(b.committed, a.committed));
     for (var seat : seats) {
@@ -1191,8 +1311,15 @@ public class Table {
           seat.name + " выбывает · " + seat.place + " место");
     }
     for (var seat : seats) if (seat.taken() && seat.leaving) free(seat);
-    if (!rebuyAllowed
-        && seats.stream().filter(seat -> seat.taken() && seat.stack > 0).count() == 1) {
+    /*
+     Игра кончилась, когда фишки остались у одного и вернуться больше некому.
+
+     Второе условие важнее первого: пока у кого-то есть неиспользованный додеп, за столом ещё
+     есть игрок — он просто думает, брать ли фишки заново. Объявить победителя в этот момент
+     значило бы закончить игру за того, кого не спросили.
+    */
+    if (seats.stream().filter(seat -> seat.taken() && seat.stack > 0).count() == 1
+        && seats.stream().noneMatch(this::canRebuyLater)) {
       var winner =
           seats.stream().filter(seat -> seat.taken() && seat.stack > 0).findFirst().orElseThrow();
       winner.place = 1;
@@ -1369,6 +1496,18 @@ public class Table {
     return now - idleSince >= LINGER_MS;
   }
 
+  /**
+   * Ждёт ли стол ведущего.
+   *
+   * <p>Вскрытие в ручном режиме никуда не уходит само: карты лежат, пока их не уберут. Это
+   * отдельное состояние стола, и спрашивать о нём должен стол, а не браузер по фазе и настройке —
+   * иначе кнопка «Продолжить» показывалась бы и в автоматическом режиме, где она наперегонки с
+   * семисекундным сроком.
+   */
+  public boolean awaiting() {
+    return "showdown".equals(phase) && !autoDeal;
+  }
+
   /** Когда стол закроется сам, или 0 — пока за ним кто-то есть. */
   public long closesAt() {
     return idleSince == 0 ? 0 : idleSince + LINGER_MS;
@@ -1405,8 +1544,13 @@ public class Table {
     revision++;
   }
 
-  /** Настройки стола: посадка, автоматическая раздача, пауза. */
+  /** Настройки стола: посадка, автоматическая раздача, пауза, правила додепа. */
   public void configure(String option, long now) {
+    configure(option, null, now);
+  }
+
+  /** То же, но для настроек, у которых есть число: например, сколько додепов разрешено. */
+  public void configure(String option, Long value, long now) {
     switch (option) {
       case "seating-open" -> {
         seatingOpen = true;
@@ -1456,6 +1600,30 @@ public class Table {
             "",
             0,
             autoDeal ? "Раздачи идут подряд" : "Каждую раздачу сдаёт ведущий");
+      }
+      /*
+       Правила додепа — решение ведущего стола, а не свойство режима.
+
+       Их задают заранее, при открытии, и меняют по ходу: «по три додепа на человека» или «без
+       ограничений», и сколько фишек даёт один. Ноль означает «докупаться нельзя»: это законный
+       ответ, а не отсутствие настройки, поэтому он и передаётся числом.
+      */
+      case "rebuy-limit" -> {
+        rebuys = value == null ? -1 : (int) Math.max(-1, Math.min(9, value));
+        note(
+            now,
+            "settings",
+            -1,
+            "",
+            0,
+            rebuys < 0
+                ? "Додепы без ограничений"
+                : rebuys == 0 ? "Додепы запрещены" : "Додепов на человека: " + rebuys);
+      }
+      case "rebuy-size" -> {
+        rebuyChips =
+            value == null ? startingStack : Math.max(MIN_STACK, Math.min(MAX_STACK, value));
+        note(now, "settings", -1, "", 0, "Додеп даёт " + rebuyChips + " фишек");
       }
       default -> throw new Problem(400, "POKER_OPTION", "Неизвестная настройка стола");
     }
@@ -1513,6 +1681,7 @@ public class Table {
               seat.buyIn,
               open ? Cards.texts(seat.cards) : List.of(),
               seat.cards.size(),
+              seat.revealed,
               seat.inHand,
               seat.folded,
               seat.allIn,
@@ -1560,7 +1729,9 @@ public class Table {
         seatingOpen,
         autoDeal,
         paused,
-        rebuyAllowed,
+        rebuyLimit() != 0,
+        rebuyLimit(),
+        rebuySize(),
         startingStack,
         pot,
         betToCall,
@@ -1577,10 +1748,15 @@ public class Table {
         you(viewerId),
         commitment == null ? "" : commitment,
         revealedSeed == null ? "" : revealedSeed,
+        awaiting(),
         closesAt(),
         // Итоги считаются только для законченной игры: считать их на каждый снимок посреди
         // раздачи значило бы присылать таблицу из десяти строк на каждое чужое повышение.
-        "over".equals(phase) ? Standings.of(this, "winner", now) : null);
+        // Время конца берётся у последней раздачи, а не у часов: иначе снимок отличался бы от
+        // снимка одним лишь «сколько шла игра», и длительность в открытых итогах росла бы сама.
+        "over".equals(phase)
+            ? Standings.of(this, "winner", result == null ? now : result.at)
+            : null);
   }
 
   private TableView.ResultView resultView() {
@@ -1619,7 +1795,9 @@ public class Table {
         Math.min(seat.bet + seat.stack, betToCall == 0 ? bigBlind : betToCall + lastRaise),
         seat.bet + seat.stack,
         seat.timeBankMs,
-        turn);
+        turn,
+        canRebuy(seat) ? rebuySize() : 0,
+        rebuysLeft(seat.memberId));
   }
 
   /**

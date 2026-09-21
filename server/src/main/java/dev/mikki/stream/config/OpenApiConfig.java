@@ -12,43 +12,15 @@ public class OpenApiConfig {
       api.getInfo().setTitle("ModernStreamingSystem API");
       api.getInfo().setVersion("1.0.0");
       var schemas = api.getComponents().getSchemas();
+      // Типы команд — из одного места с проверкой запроса: второй список рано или поздно
+      // разойдётся с первым, и разойдётся он молча (dev.mikki.stream.room.Contracts).
       schemas
           .get("Command")
           .getProperties()
           .put(
               "type",
               new io.swagger.v3.oas.models.media.StringSchema()
-                  ._enum(
-                      List.of(
-                          "leave",
-                          "close",
-                          "invite.create",
-                          "invite.revoke",
-                          "participant.remove",
-                          "participant.approve",
-                          "message.send",
-                          "media.lost",
-                          "media.restored",
-                          "screen.started",
-                          "view.open",
-                          "view.close",
-                          "view.playing",
-                          "microphone.mute",
-                          "profile.avatar",
-                          "watch.open",
-                          "watch.play",
-                          "watch.pause",
-                          "watch.seek",
-                          "watch.close",
-                          "poker.open",
-                          "poker.close",
-                          "poker.sit",
-                          "poker.stand",
-                          "poker.deal",
-                          "poker.act",
-                          "poker.settings",
-                          "poker.rebuy",
-                          "poker.reveal")));
+                  ._enum(dev.mikki.stream.room.Contracts.commandTypes()));
       schemas
           .get("Event")
           .getProperties()
