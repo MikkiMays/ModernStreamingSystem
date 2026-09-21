@@ -378,6 +378,16 @@ export interface components {
             size: number;
             uploadId: string | null;
         };
+        AwardView: {
+            /** Format: int64 */
+            amount: number;
+            handCards: string[];
+            handName: string;
+            name: string;
+            /** Format: int32 */
+            seat: number;
+            split: boolean;
+        };
         Capabilities: {
             admissionOpen: boolean;
             /** Format: int64 */
@@ -397,19 +407,24 @@ export interface components {
             roomMaxBytes: number;
         };
         Command: {
+            /** Format: int64 */
+            chips?: number;
             /** Format: uuid */
             commandId: string;
             contentId?: string;
             /** Format: int64 */
             generation?: number;
             kind?: string;
+            option?: string;
             /** Format: int64 */
             positionMs?: number;
             provider?: string;
+            /** Format: int32 */
+            seat?: number;
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal";
         };
         Connect: {
             password?: string;
@@ -485,6 +500,17 @@ export interface components {
             participantId: string;
             text: string;
         };
+        NoteView: {
+            /** Format: int64 */
+            amount: number;
+            /** Format: int64 */
+            at: number;
+            kind: string;
+            name: string;
+            /** Format: int32 */
+            seat: number;
+            text: string;
+        };
         Participant: {
             avatar: string;
             /** Format: int64 */
@@ -501,6 +527,11 @@ export interface components {
             /** @enum {string} */
             status: "WAITING" | "JOINING" | "CONNECTED" | "RECOVERING" | "LEFT" | "EXPIRED" | "REMOVED";
             viewingScreenId?: string | null;
+        };
+        PotView: {
+            /** Format: int64 */
+            amount: number;
+            seats: number[];
         };
         Rejoin: {
             /** Format: uuid */
@@ -519,6 +550,16 @@ export interface components {
             /** Format: int64 */
             size?: number;
         };
+        ResultView: {
+            /** Format: int64 */
+            at: number;
+            awards: components["schemas"]["AwardView"][];
+            busted: number[];
+            drama: string;
+            /** Format: int64 */
+            pot: number;
+            showdown: boolean;
+        };
         Resume: {
             /** Format: int64 */
             after?: number;
@@ -534,6 +575,41 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             enabled?: boolean;
+        };
+        SeatView: {
+            allIn: boolean;
+            away: boolean;
+            /** Format: int64 */
+            bet: number;
+            busted: boolean;
+            /** Format: int64 */
+            buyIn: number;
+            cards: string[];
+            /** Format: int64 */
+            committed: number;
+            folded: boolean;
+            handCards: string[];
+            handName: string;
+            /** Format: int32 */
+            held: number;
+            /** Format: int32 */
+            index: number;
+            inHand: boolean;
+            lastAction: string;
+            /** Format: int64 */
+            lastActionAmount: number;
+            leaving: boolean;
+            memberId: string | null;
+            name: string;
+            /** Format: int32 */
+            place: number;
+            /** Format: int64 */
+            stack: number;
+            /** Format: int64 */
+            timeBankMs: number;
+            waiting: boolean;
+            /** Format: int64 */
+            wonAmount: number;
         };
         Session: {
             /** Format: int64 */
@@ -556,12 +632,65 @@ export interface components {
             integrationsAllowed: boolean;
             messages: components["schemas"]["Message"][];
             participants: components["schemas"]["Participant"][];
+            poker: components["schemas"]["TableView"] | null;
             /** Format: int64 */
             sequence: number;
             /** Format: int64 */
             serverTime: number;
             title: string;
             watch: components["schemas"]["Watch"] | null;
+        };
+        TableView: {
+            /** Format: int64 */
+            actionAt: number;
+            /** Format: int32 */
+            actor: number;
+            /** Format: int64 */
+            ante: number;
+            autoDeal: boolean;
+            /** Format: int64 */
+            betToCall: number;
+            /** Format: int64 */
+            bigBlind: number;
+            board: string[];
+            /** Format: int32 */
+            button: number;
+            commitment: string;
+            /** Format: int64 */
+            deadline: number;
+            /** Format: int32 */
+            handNumber: number;
+            /** Format: int64 */
+            handStartedAt: number;
+            hostId: string;
+            /** Format: int32 */
+            level: number;
+            /** Format: int64 */
+            levelUpAt: number;
+            log: components["schemas"]["NoteView"][];
+            mode: string;
+            modeName: string;
+            paused: boolean;
+            phase: string;
+            /** Format: int64 */
+            pot: number;
+            pots: components["schemas"]["PotView"][];
+            rebuy: boolean;
+            result: components["schemas"]["ResultView"] | null;
+            /** Format: int64 */
+            revision: number;
+            seatingOpen: boolean;
+            seats: components["schemas"]["SeatView"][];
+            seed: string;
+            /** Format: int64 */
+            smallBlind: number;
+            /** Format: int64 */
+            startingStack: number;
+            /** Format: int64 */
+            streetAt: number;
+            /** Format: int32 */
+            turnSeconds: number;
+            you: components["schemas"]["YouView"] | null;
         };
         Watch: {
             /** Format: int64 */
@@ -576,6 +705,21 @@ export interface components {
             /** Format: int64 */
             revision: number;
             title: string;
+        };
+        YouView: {
+            actions: string[];
+            /** Format: int64 */
+            callAmount: number;
+            cards: string[];
+            /** Format: int64 */
+            maxRaiseTo: number;
+            /** Format: int64 */
+            minRaiseTo: number;
+            /** Format: int32 */
+            seat: number;
+            /** Format: int64 */
+            timeBankMs: number;
+            turn: boolean;
         };
     };
     responses: never;

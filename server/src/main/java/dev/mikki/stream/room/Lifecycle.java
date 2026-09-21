@@ -3,7 +3,10 @@ package dev.mikki.stream.room;
 import static dev.mikki.stream.room.RoomState.Status.*;
 
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.shared.Problem;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,11 +15,48 @@ public class Lifecycle {
   private final RoomService service;
   private final RoomRepository rooms;
   private final StreamProperties config;
+  private final GameClock games;
+  private final ApplicationEventPublisher events;
 
-  public Lifecycle(RoomService service, RoomRepository rooms, StreamProperties config) {
+  public Lifecycle(
+      RoomService service,
+      RoomRepository rooms,
+      StreamProperties config,
+      GameClock games,
+      ApplicationEventPublisher events) {
     this.service = service;
     this.rooms = rooms;
     this.config = config;
+    this.games = games;
+    this.events = events;
+  }
+
+  /**
+   * Двинуть стол, у которого вышел срок: кончился ход, доигрался борд, прошла пауза.
+   *
+   * <p>Отдельно от секундного прохода и намеренно дёшево: комната читается только тогда, когда её
+   * срок действительно настал ({@link GameClock}).
+   */
+  @Transactional
+  public void advanceGame(String roomId) {
+    RoomState room;
+    try {
+      room = service.lock(roomId);
+    } catch (Problem missing) {
+      games.forget(roomId);
+      return;
+    }
+    if (room.poker == null) {
+      games.forget(roomId);
+      return;
+    }
+    long now = service.now();
+    boolean moved = room.poker.tick(now);
+    games.schedule(roomId, room.poker.deadline);
+    if (!moved) return;
+    service.emit(room, "room.changed", Contracts.EventPayload.changed());
+    rooms.save(room, now);
+    events.publishEvent(new RoomChanged(roomId));
   }
 
   /**
@@ -80,6 +120,36 @@ public class Lifecycle {
       room.watch = null;
       changed = true;
     }
+    /*
+     Стол переживает уход всех — в отличие от кино.
+
+     Кино в пустом зале тянет сегменты с площадки, и гасить его надо. Стол не делает ничего:
+     это фишки, лежащие в снимке комнаты. А выйти всем на минуту — обычное дело («я за чаем»),
+     и разобрать из-за этого игру с чужими стеками было бы куда хуже. Если не вернётся никто,
+     стол уйдёт вместе с комнатой, когда она закроется по своему сроку.
+
+     Что здесь всё-таки делается: стол узнаёт, кого из сидящих во встрече больше нет. За
+     ушедшего он ходит сам — иначе один закрытый браузер держал бы круг все тридцать секунд.
+    */
+    if (room.poker != null) {
+      var present =
+          room.members.values().stream()
+              .filter(m -> m.service == null && m.occupiesSeat())
+              .map(m -> m.id)
+              .collect(Collectors.toSet());
+      if (room.poker.presence(present, now)) changed = true;
+      // Раздающий закрыл вкладку — стол переходит ведущему встречи, иначе раздать станет некому.
+      if (room.poker.hostId != null && !present.contains(room.poker.hostId))
+        room.members.values().stream()
+            .filter(m -> m.owner && m.occupiesSeat())
+            .findFirst()
+            .ifPresent(
+                owner -> {
+                  if (!owner.id.equals(room.poker.hostId)) room.poker.host(owner.id);
+                });
+      if (room.poker.tick(now)) changed = true;
+      games.schedule(id, room.poker.deadline);
+    } else games.forget(id);
     if (room.closedAt == null) {
       boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);
       var emptyBefore = room.emptySince;
@@ -105,6 +175,8 @@ public class Lifecycle {
     // вечно, при том что не менялось ничего. Заодно `updated_at` снова значит «менялась»,
     // а не «уборка проходила мимо».
     if (dirty) rooms.save(room, now);
+    // Объявлять изменение имеет смысл только после записи: до неё снимок ещё прежний.
+    if (changed) events.publishEvent(new RoomChanged(id));
     if (room.closedAt == null) return;
     /*
      Сколько завершённой встрече ещё жить — решает один вопрос: сохранил ли её себе хоть кто-то.

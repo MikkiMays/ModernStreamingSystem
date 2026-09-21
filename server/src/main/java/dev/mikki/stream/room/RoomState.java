@@ -1,8 +1,18 @@
 package dev.mikki.stream.room;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.*;
 
-/** A room is the transaction boundary; at most ten members may hold a seat. */
+/**
+ * A room is the transaction boundary; at most ten members may hold a seat.
+ *
+ * <p>Снимок читается тем же ядром, которое его писало, — но не обязательно той же его версией:
+ * между записью и чтением помещается выкатка, а иногда и откат. Поэтому неизвестные поля здесь
+ * пропускаются, а не роняют комнату: иначе вернуть предыдущий образ значило бы сделать нечитаемыми
+ * все комнаты, которые успел тронуть новый.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RoomState {
   public String id;
   public String title;
@@ -21,6 +31,23 @@ public class RoomState {
 
   /** Что комната смотрит вместе прямо сейчас, или null. Живёт и умирает вместе с комнатой. */
   public Watch watch;
+
+  /**
+   * Покерный стол комнаты, или null.
+   *
+   * <p>Лежит здесь же, в снимке комнаты, — вместе с фишками, колодой и чужими картами. Из этого и
+   * следует главное свойство игры: она переживает перезапуск ядра, но не переживает саму встречу, и
+   * никакого отдельного хранилища у неё нет.
+   *
+   * <p>Наружу это поле не отдаётся никогда. Браузер получает {@link
+   * dev.mikki.stream.game.TableView} — то же самое, но без колоды и без чужих карт.
+   *
+   * <p>{@code NON_NULL} здесь не украшение: комната без стола обязана записываться ровно так же,
+   * как записывалась до появления игры. Тогда предыдущий образ ядра, не знающий про покер,
+   * продолжает читать такие комнаты — то есть откат остаётся возможным.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public dev.mikki.stream.game.Table poker;
 
   /**
    * Когда в комнате последний раз был человек.

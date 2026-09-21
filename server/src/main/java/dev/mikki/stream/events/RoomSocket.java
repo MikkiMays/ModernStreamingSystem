@@ -107,6 +107,19 @@ public class RoomSocket extends TextWebSocketHandler {
     }
   }
 
+  /**
+   * Комната изменилась сама, без команды: вышел срок хода за столом, истекло восстановление.
+   *
+   * <p>Раньше такое доезжало до людей секундным проходом {@link #catchUp()} — для встречи это
+   * незаметно, для карточного стола это «подвисло». Слушаем <b>после фиксации</b> транзакции:
+   * снимок, разосланный до записи, был бы предыдущим.
+   */
+  @org.springframework.transaction.event.TransactionalEventListener(fallbackExecution = true)
+  public void roomChanged(dev.mikki.stream.room.RoomChanged event) {
+    if (config.redisEnabled()) redis.convertAndSend("room-events", event.roomId());
+    else flushRoom(event.roomId());
+  }
+
   public void flushRoom(String id) {
     for (var c : sockets.values())
       if (id.equals(c.roomId))

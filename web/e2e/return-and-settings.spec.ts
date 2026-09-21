@@ -13,12 +13,16 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.goto('/');
     await host.getByRole('button', { name: /Новая встреча/ }).click();
     await host.getByLabel('Название встречи').fill('Наша любимая комната');
+    // Вход по коду подчиняется этой настройке: чтобы проверить ожидание и допуск, комнату
+    // надо явно закрыть. Открытая комната впускает по правильному коду сразу.
+    //
+    // Спрашивают об этом на самом предпросмотре, а не в его настройках, — и нажимать нужно
+    // там же. Пока это лежало в диалоге, нажатие делалось при открытом диалоге; теперь
+    // диалог модальный и прячет от теста всё, что за ним.
+    await host.getByRole('radio', { name: /Только с вашего подтверждения/ }).check();
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
     await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('auto');
-    // Вход по коду подчиняется этой настройке: чтобы проверить ожидание и допуск, комнату
-    // надо явно закрыть. Открытая комната впускает по правильному коду сразу.
-    await host.getByRole('radio', { name: /Только с вашего подтверждения/ }).check();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toHaveCount(0);
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);

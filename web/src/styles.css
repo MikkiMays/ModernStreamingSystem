@@ -1173,11 +1173,19 @@ h2 {
   background: #171c28e6;
   white-space: nowrap;
 }
+/*
+  Сообщение о потере связи лежит поверх сцены и ничего не спрашивает — значит, и нажатий ловить
+  не должно. Пока оно их ловило, под ним оказывались кнопки: с карточным столом это видно сразу
+  («раздать» не нажимается во время переподключения), но так же было и с любым другим
+  содержимым сцены. `role="status"` без единой кнопки внутри — ровно тот случай, когда
+  `pointer-events: none` не хитрость, а точное описание.
+*/
 .recovery-banner {
   display: flex;
   align-items: center;
   gap: 14px;
   z-index: 4;
+  pointer-events: none;
   position: absolute;
   top: 26px;
   left: 50%;
@@ -1207,6 +1215,7 @@ h2 {
 .control-banner {
   position: absolute;
   z-index: 3;
+  pointer-events: none;
   top: 20px;
   align-self: center;
   background: #2a3448;

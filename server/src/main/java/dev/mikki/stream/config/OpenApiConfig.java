@@ -39,7 +39,16 @@ public class OpenApiConfig {
                           "watch.play",
                           "watch.pause",
                           "watch.seek",
-                          "watch.close")));
+                          "watch.close",
+                          "poker.open",
+                          "poker.close",
+                          "poker.sit",
+                          "poker.stand",
+                          "poker.deal",
+                          "poker.act",
+                          "poker.settings",
+                          "poker.rebuy",
+                          "poker.reveal")));
       schemas
           .get("Event")
           .getProperties()
@@ -67,7 +76,14 @@ public class OpenApiConfig {
               "EventPayload",
               "Replay",
               "Watch",
-              "Capabilities")) {
+              "Capabilities",
+              "TableView",
+              "SeatView",
+              "PotView",
+              "NoteView",
+              "ResultView",
+              "AwardView",
+              "YouView")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
@@ -85,8 +101,14 @@ public class OpenApiConfig {
               "Participant",
               List.of("recoveryDeadline", "service", "screenId", "viewingScreenId"),
               "Snapshot",
-              // Смотреть вместе может быть нечего — и чаще всего нечего.
-              List.of("closedAt", "watch"),
+              // Смотреть и играть вместе может быть нечего — и чаще всего нечего.
+              List.of("closedAt", "watch", "poker"),
+              // Пустое место — это место без человека; итог есть только у сыгранной раздачи;
+              // кнопок нет у того, кто не сидит за столом.
+              "SeatView",
+              List.of("memberId"),
+              "TableView",
+              List.of("result", "you"),
               "Ack",
               List.of("value"),
               "Attachment",

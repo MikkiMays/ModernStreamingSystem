@@ -20,13 +20,20 @@ public class RoomService {
   private final StreamProperties config;
   private final Secrets secrets;
   private final Clock clock;
+  private final GameClock games;
   private final SecureRandom codeRandom = new SecureRandom();
 
-  public RoomService(RoomRepository rooms, StreamProperties config, Secrets secrets, Clock clock) {
+  public RoomService(
+      RoomRepository rooms,
+      StreamProperties config,
+      Secrets secrets,
+      Clock clock,
+      GameClock games) {
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
     this.clock = clock;
+    this.games = games;
   }
 
   public long now() {
@@ -205,6 +212,10 @@ public class RoomService {
               .sql("UPDATE favorites SET member_id=? WHERE room_id=? AND member_id=?")
               .params(member.id, room.id, previous.id)
               .update();
+          // Вернувшийся — тот же человек с новым идентификатором. Место за столом и фишки
+          // принадлежат человеку, а не сессии: без этой строки стул с деньгами остался бы
+          // пустовать до конца игры, а его хозяин сидел бы рядом зрителем.
+          if (room.poker != null) room.poker.rebind(previous.id, member.id, member.name);
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -388,7 +399,8 @@ public class RoomService {
             current.participants(),
             List.of(),
             current.serverTime(),
-            current.watch());
+            current.watch(),
+            current.poker());
     return new Admission(
         room.id,
         member.id,
@@ -454,6 +466,17 @@ public class RoomService {
   }
 
   public Snapshot snapshot(RoomState room) {
+    return snapshot(room, null);
+  }
+
+  /**
+   * Снимок комнаты глазами конкретного участника.
+   *
+   * <p>Участник здесь нужен ровно для одного: покер. Всё остальное в комнате — общее, и показывать
+   * его по-разному незачем; карты же принадлежат тому, кому их раздали, и снимок «для всех» их не
+   * содержит вовсе ({@code viewer == null} — это взгляд постороннего).
+   */
+  private Snapshot snapshot(RoomState room, RoomState.Member viewer) {
     var participants =
         room.members.values().stream()
             .filter(m -> m.occupiesSeat())
@@ -507,7 +530,8 @@ public class RoomService {
         participants,
         messages,
         now(),
-        watch(room));
+        watch(room),
+        room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()));
   }
 
   private static Contracts.Watch watch(RoomState room) {
@@ -538,7 +562,7 @@ public class RoomService {
   }
 
   private Snapshot snapshotFor(RoomState room, RoomState.Member member) {
-    var current = snapshot(room);
+    var current = snapshot(room, member);
     if (historyAllowed(room, member)) return current;
     return new Snapshot(
         current.id(),
@@ -552,8 +576,9 @@ public class RoomService {
         current.participants().stream().filter(p -> p.id().equals(member.id)).toList(),
         List.of(),
         current.serverTime(),
-        // Ожидающий в дверях ещё не во встрече: что комната смотрит — такая же её жизнь, как
-        // переписка, и до разрешения войти он этого не видит.
+        // Ожидающий в дверях ещё не во встрече: что комната смотрит и во что играет — такая же
+        // её жизнь, как переписка, и до разрешения войти он этого не видит.
+        null,
         null);
   }
 
@@ -671,6 +696,9 @@ public class RoomService {
                 throw Problem.conflict(
                     "INTEGRATION_BUSY",
                     "Во встрече уже есть другая интеграция. Сначала уберите её");
+              if (room.poker != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт покерный стол. Сначала закройте его");
               if (command.provider() == null
                   || command.kind() == null
                   || command.contentId() == null
@@ -722,6 +750,56 @@ public class RoomService {
               integrations(room, member);
               room.watch = null;
             }
+            /*
+             Покер. Сцена в комнате одна, и стол занимает её целиком — как кинозал. Поэтому
+             открыть их вместе нельзя, и проверка стоит с обеих сторон. А вот музыка столу не
+             мешает: она в ушах, он на экране, и играть под музыку — это ровно то, чего от
+             домашней игры и ждут.
+
+             ПРАВО ОТКРЫТЬ И ПРАВО ИГРАТЬ — РАЗНЫЕ. Принести стол во встречу, убрать его,
+             раздать и поменять настройки может тот, кому комната разрешила интеграции. А сесть
+             и сходить — любой участник: игра, в которую пускают одного ведущего, не игра.
+            */
+            case "poker.open" -> {
+              requireActive(room, member);
+              requireOpen(room);
+              integrations(room, member);
+              if (room.watch != null)
+                throw Problem.conflict(
+                    "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
+              if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
+              room.poker = dev.mikki.stream.game.Table.open(member.id, command.option(), now());
+            }
+            case "poker.close" -> {
+              requireActive(room, member);
+              dealer(room, member);
+              room.poker = null;
+            }
+            case "poker.sit" ->
+                table(room)
+                    .sit(
+                        member.id,
+                        member.name,
+                        command.seat() == null ? -1 : command.seat(),
+                        active(room, member));
+            case "poker.stand" -> table(room).stand(member.id, active(room, member));
+            case "poker.deal" -> {
+              dealer(room, member);
+              table(room).deal(active(room, member));
+            }
+            case "poker.act" ->
+                table(room)
+                    .act(
+                        member.id,
+                        command.option(),
+                        command.chips() == null ? 0 : command.chips(),
+                        active(room, member));
+            case "poker.settings" -> {
+              dealer(room, member);
+              table(room).configure(command.option(), active(room, member));
+            }
+            case "poker.rebuy" -> table(room).rebuy(member.id, active(room, member));
+            case "poker.reveal" -> table(room).reveal(member.id, active(room, member));
             case "message.send" -> {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
@@ -773,6 +851,9 @@ public class RoomService {
           }
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
+          // Стол мог назначить себе срок — конец хода, паузу перед следующей раздачей. Часы
+          // узнают об этом сразу, а не через секунду, когда до комнаты дойдёт общий проход.
+          games.schedule(room.id, room.poker == null ? 0 : room.poker.deadline);
           return new Ack(command.commandId(), true, room.sequence, value);
         });
   }
@@ -811,6 +892,30 @@ public class RoomService {
    */
   private void integrations(RoomState room, RoomState.Member member) {
     if (!member.owner && !room.integrationsAllowed) throw Problem.forbidden();
+  }
+
+  /** Стол, который точно есть. Команда игре без стола — это не ошибка правил, а опоздание. */
+  private static dev.mikki.stream.game.Table table(RoomState room) {
+    if (room.poker == null) throw Problem.conflict("POKER_CLOSED", "Стол уже убрали из встречи");
+    return room.poker;
+  }
+
+  /**
+   * Кто распоряжается столом: тот, кто его принёс, и ведущий встречи.
+   *
+   * <p>Ведущий здесь не «начальник», а запасной выход: принёсший стол мог закрыть вкладку, и без
+   * этого правила игра осталась бы без того, кто раздаёт, до конца встречи.
+   */
+  private void dealer(RoomState room, RoomState.Member member) {
+    requireActive(room, member);
+    var poker = table(room);
+    if (!member.owner && !member.id.equals(poker.hostId)) throw Problem.forbidden();
+  }
+
+  /** Участник во встрече и вправе действовать; возвращает время, которым это и произошло. */
+  private long active(RoomState room, RoomState.Member member) {
+    requireActive(room, member);
+    return now();
   }
 
   /** Подпись к открытому ролику: без управляющих символов и не длиннее строки заголовка. */
@@ -869,9 +974,11 @@ public class RoomService {
   public void close(RoomState room) {
     if (room.closedAt != null) return;
     room.closedAt = now();
-    // Смотреть вместе больше некому: закрытая комната не должна открывать плеер тому, кто
-    // зайдёт в неё за историей переписки.
+    // Смотреть и играть вместе больше некому: закрытая комната не должна открывать ни плеер,
+    // ни стол тому, кто зайдёт в неё за историей переписки.
     room.watch = null;
+    room.poker = null;
+    games.forget(room.id);
     freezeHistory(room, room.closedAt);
     room.members
         .values()
@@ -951,7 +1058,9 @@ public class RoomService {
         || after > room.sequence
         || (!events.isEmpty() && events.getFirst().sequence() != after + 1)
         || (events.isEmpty() && after < room.sequence))
-      return new Replay(true, snapshot(room), List.of());
+      // Снимок собирается на того, кто его просит: общий пересылать нельзя — в нём были бы
+      // чужие карты.
+      return new Replay(true, snapshotFor(room, member), List.of());
     return new Replay(false, null, events);
   }
 

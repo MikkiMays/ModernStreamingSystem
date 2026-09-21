@@ -55,7 +55,7 @@ public final class Contracts {
           @Size(max = 30)
           @Pattern(
               regexp =
-                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close")
+                  "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal")
           String type,
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
@@ -63,9 +63,42 @@ public final class Contracts {
       @Pattern(regexp = "youtube|twitch") String provider,
       @Pattern(regexp = "video|channel") String kind,
       @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]*") String contentId,
-      @Min(0) @Max(86400000) Long positionMs) {
+      @Min(0) @Max(86400000) Long positionMs,
+      /**
+       * Одно слово, уточняющее команду: режим стола, действие в раздаче, имя настройки. Игра пришла
+       * последней и ведёт себя так же, как просмотр до неё, — одним конвертом на все типы.
+       */
+      @Size(max = 24) @Pattern(regexp = "[a-z-]*") String option,
+      @Min(0) @Max(9) Integer seat,
+      /** Фишки: до чего повышать. Верхний предел — больше, чем может быть на любом столе. */
+      @Min(0) @Max(100000000) Long chips) {
     public Command(UUID commandId, String type, String text, String targetId, long generation) {
-      this(commandId, type, text, targetId, generation, null, null, null, null);
+      this(commandId, type, text, targetId, generation, null, null, null, null, null, null, null);
+    }
+
+    public Command(
+        UUID commandId,
+        String type,
+        String text,
+        String targetId,
+        long generation,
+        String provider,
+        String kind,
+        String contentId,
+        Long positionMs) {
+      this(
+          commandId,
+          type,
+          text,
+          targetId,
+          generation,
+          provider,
+          kind,
+          contentId,
+          positionMs,
+          null,
+          null,
+          null);
     }
   }
 
@@ -110,7 +143,12 @@ public final class Contracts {
       List<Participant> participants,
       List<RoomState.Message> messages,
       long serverTime,
-      Watch watch) {}
+      Watch watch,
+      /**
+       * Покерный стол — у каждого свой: карты в нём только собственные. Поэтому снимок собирается
+       * на конкретного участника и никогда не пересылается от одного другому.
+       */
+      dev.mikki.stream.game.TableView poker) {}
 
   public record Admission(
       String roomId,

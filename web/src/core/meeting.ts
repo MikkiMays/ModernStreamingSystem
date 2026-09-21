@@ -270,15 +270,19 @@ export class Meeting {
     type: Command['type'],
     text?: string,
     targetId?: string,
-    /** Поля совместного просмотра: что открыть и с какого места. */
-    watch?: Pick<Command, 'provider' | 'kind' | 'contentId' | 'positionMs'>,
+    /**
+     * Уточнения к команде: что открыть и с какого места у просмотра, какое место и сколько
+     * фишек у игры. Конверт один на все типы — заводить второй ради каждой новой интеграции
+     * значило бы переписывать канал команд на каждую из них.
+     */
+    extra?: Pick<Command, 'provider' | 'kind' | 'contentId' | 'positionMs' | 'option' | 'seat' | 'chips'>,
   ) {
     const ack = await this.control.command({
       commandId: crypto.randomUUID(),
       type,
       text,
       targetId,
-      ...watch,
+      ...extra,
     });
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);

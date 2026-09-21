@@ -144,6 +144,42 @@
         ],
         "type": "object"
       },
+      "AwardView": {
+        "properties": {
+          "amount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "handCards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "handName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "split": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "amount",
+          "handCards",
+          "handName",
+          "name",
+          "seat",
+          "split"
+        ],
+        "type": "object"
+      },
       "Capabilities": {
         "properties": {
           "admissionOpen": {
@@ -210,6 +246,12 @@
       },
       "Command": {
         "properties": {
+          "chips": {
+            "format": "int64",
+            "maximum": 100000000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "commandId": {
             "format": "uuid",
             "type": "string"
@@ -228,6 +270,12 @@
             "pattern": "video|channel",
             "type": "string"
           },
+          "option": {
+            "maxLength": 24,
+            "minLength": 0,
+            "pattern": "[a-z-]*",
+            "type": "string"
+          },
           "positionMs": {
             "format": "int64",
             "maximum": 86400000,
@@ -237,6 +285,12 @@
           "provider": {
             "pattern": "youtube|twitch",
             "type": "string"
+          },
+          "seat": {
+            "format": "int32",
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer"
           },
           "targetId": {
             "maxLength": 36,
@@ -269,7 +323,16 @@
               "watch.play",
               "watch.pause",
               "watch.seek",
-              "watch.close"
+              "watch.close",
+              "poker.open",
+              "poker.close",
+              "poker.sit",
+              "poker.stand",
+              "poker.deal",
+              "poker.act",
+              "poker.settings",
+              "poker.rebuy",
+              "poker.reveal"
             ],
             "type": "string"
           }
@@ -547,6 +610,40 @@
         ],
         "type": "object"
       },
+      "NoteView": {
+        "properties": {
+          "amount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "at",
+          "kind",
+          "name",
+          "seat",
+          "text"
+        ],
+        "type": "object"
+      },
       "Participant": {
         "properties": {
           "avatar": {
@@ -622,6 +719,26 @@
         ],
         "type": "object"
       },
+      "PotView": {
+        "properties": {
+          "amount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "seats": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "amount",
+          "seats"
+        ],
+        "type": "object"
+      },
       "Rejoin": {
         "properties": {
           "commandId": {
@@ -692,6 +809,46 @@
         ],
         "type": "object"
       },
+      "ResultView": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "awards": {
+            "items": {
+              "$ref": "#/components/schemas/AwardView"
+            },
+            "type": "array"
+          },
+          "busted": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "drama": {
+            "type": "string"
+          },
+          "pot": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "showdown": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "at",
+          "awards",
+          "busted",
+          "drama",
+          "pot",
+          "showdown"
+        ],
+        "type": "object"
+      },
       "Resume": {
         "properties": {
           "after": {
@@ -743,6 +900,124 @@
         },
         "required": [
           "commandId"
+        ],
+        "type": "object"
+      },
+      "SeatView": {
+        "properties": {
+          "allIn": {
+            "type": "boolean"
+          },
+          "away": {
+            "type": "boolean"
+          },
+          "bet": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "busted": {
+            "type": "boolean"
+          },
+          "buyIn": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "committed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "folded": {
+            "type": "boolean"
+          },
+          "handCards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "handName": {
+            "type": "string"
+          },
+          "held": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "index": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "inHand": {
+            "type": "boolean"
+          },
+          "lastAction": {
+            "type": "string"
+          },
+          "lastActionAmount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "leaving": {
+            "type": "boolean"
+          },
+          "memberId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "place": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "stack": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeBankMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "waiting": {
+            "type": "boolean"
+          },
+          "wonAmount": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allIn",
+          "away",
+          "bet",
+          "busted",
+          "buyIn",
+          "cards",
+          "committed",
+          "folded",
+          "handCards",
+          "handName",
+          "held",
+          "inHand",
+          "index",
+          "lastAction",
+          "lastActionAmount",
+          "leaving",
+          "memberId",
+          "name",
+          "place",
+          "stack",
+          "timeBankMs",
+          "waiting",
+          "wonAmount"
         ],
         "type": "object"
       },
@@ -809,6 +1084,16 @@
             },
             "type": "array"
           },
+          "poker": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TableView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "sequence": {
             "format": "int64",
             "type": "integer"
@@ -840,10 +1125,193 @@
           "integrationsAllowed",
           "messages",
           "participants",
+          "poker",
           "sequence",
           "serverTime",
           "title",
           "watch"
+        ],
+        "type": "object"
+      },
+      "TableView": {
+        "properties": {
+          "actionAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "actor": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "ante": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "autoDeal": {
+            "type": "boolean"
+          },
+          "betToCall": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "bigBlind": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "board": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "button": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "commitment": {
+            "type": "string"
+          },
+          "deadline": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "handNumber": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "handStartedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "level": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "levelUpAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "log": {
+            "items": {
+              "$ref": "#/components/schemas/NoteView"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "modeName": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "pot": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pots": {
+            "items": {
+              "$ref": "#/components/schemas/PotView"
+            },
+            "type": "array"
+          },
+          "rebuy": {
+            "type": "boolean"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ResultView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "seatingOpen": {
+            "type": "boolean"
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/SeatView"
+            },
+            "type": "array"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "smallBlind": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startingStack": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "streetAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "turnSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "you": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/YouView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "actionAt",
+          "actor",
+          "ante",
+          "autoDeal",
+          "betToCall",
+          "bigBlind",
+          "board",
+          "button",
+          "commitment",
+          "deadline",
+          "handNumber",
+          "handStartedAt",
+          "hostId",
+          "level",
+          "levelUpAt",
+          "log",
+          "mode",
+          "modeName",
+          "paused",
+          "phase",
+          "pot",
+          "pots",
+          "rebuy",
+          "result",
+          "revision",
+          "seatingOpen",
+          "seats",
+          "seed",
+          "smallBlind",
+          "startingStack",
+          "streetAt",
+          "turnSeconds",
+          "you"
         ],
         "type": "object"
       },
@@ -890,6 +1358,56 @@
           "provider",
           "revision",
           "title"
+        ],
+        "type": "object"
+      },
+      "YouView": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "callAmount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "maxRaiseTo": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "minRaiseTo": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "timeBankMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "turn": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "actions",
+          "callAmount",
+          "cards",
+          "maxRaiseTo",
+          "minRaiseTo",
+          "seat",
+          "timeBankMs",
+          "turn"
         ],
         "type": "object"
       }

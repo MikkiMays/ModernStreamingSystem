@@ -91,6 +91,7 @@ beforeEach(() => {
     messages: [],
     serverTime: 0,
     watch: null,
+    poker: null,
   };
   const admission = {
     roomId: 'room',

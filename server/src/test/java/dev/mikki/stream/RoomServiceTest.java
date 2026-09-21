@@ -1094,4 +1094,118 @@ class RoomServiceTest {
     assertThat(rooms.read(host.roomId()).members.get(again.participantId()).status)
         .isEqualTo(RoomState.Status.WAITING);
   }
+
+  Ack poker(Admission admission, String type, String option, Integer seat, Long chips) {
+    return rooms.command(
+        admission.roomId(),
+        admission.credential(),
+        new Command(
+            UUID.randomUUID(), type, null, null, 0, null, null, null, null, option, seat, chips));
+  }
+
+  /**
+   * Принести стол во встречу и играть за ним — разные права.
+   *
+   * <p>Иначе получалось бы, что в комнате, где интеграции ограничены ведущим, играет в карты один
+   * ведущий. Стол приносит тот, кому комната разрешила приносить постороннее; садится за него любой
+   * участник.
+   */
+  @Test
+  void aTableIsBroughtByWhoeverMayBringIntegrationsAndPlayedByEveryone() {
+    var host = host();
+    var guest = guest(host);
+    rooms.integrationSettings(host.roomId(), host.credential(), false);
+    assertThatThrownBy(() -> poker(guest, "poker.open", "friendly", null, null))
+        .isInstanceOf(Problem.class);
+    poker(host, "poker.open", "friendly", null, null);
+    poker(guest, "poker.sit", null, 3, null);
+    assertThat(rooms.read(host.roomId()).poker.seats.get(3).memberId)
+        .isEqualTo(guest.participantId());
+    assertThatThrownBy(() -> poker(guest, "poker.deal", null, null, null))
+        .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> poker(guest, "poker.close", null, null, null))
+        .isInstanceOf(Problem.class);
+    poker(host, "poker.close", null, null, null);
+    assertThat(rooms.read(host.roomId()).poker).isNull();
+  }
+
+  /** Главное свойство карточной игры в общей комнате: снимок у каждого свой. */
+  @Test
+  void nobodyEverReceivesSomebodyElsesCards() {
+    var host = host();
+    var guest = guest(host);
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    poker(guest, "poker.sit", null, 1, null);
+    poker(host, "poker.deal", null, null, null);
+    var mine = rooms.snapshot(host.roomId(), host.credential()).poker();
+    assertThat(mine.seats().get(0).cards()).hasSize(2);
+    assertThat(mine.seats().get(1).cards()).isEmpty();
+    assertThat(mine.seats().get(1).held()).isEqualTo(2);
+    var theirs = rooms.snapshot(host.roomId(), guest.credential()).poker();
+    assertThat(theirs.seats().get(1).cards()).hasSize(2);
+    assertThat(theirs.seats().get(0).cards()).isEmpty();
+    // Тот же снимок приезжает и каналом событий, когда клиент отстал. Раньше там отдавался
+    // общий снимок комнаты — с покером это означало бы чужие карты в первом же переподключении.
+    var replay = rooms.replay(host.roomId(), guest.credential(), -1);
+    assertThat(replay.reset()).isTrue();
+    assertThat(replay.snapshot().poker().seats().get(0).cards()).isEmpty();
+  }
+
+  /** Сцена в комнате одна: стол и кинозал не делят её, а исключают друг друга. */
+  @Test
+  void theTableAndTheCinemaCannotShareTheStage() {
+    var host = host();
+    poker(host, "poker.open", "friendly", null, null);
+    assertThatThrownBy(() -> watch(host, "watch.open", "youtube", "video", "abc", null))
+        .isInstanceOf(Problem.class);
+    poker(host, "poker.close", null, null, null);
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    assertThatThrownBy(() -> poker(host, "poker.open", "friendly", null, null))
+        .isInstanceOf(Problem.class);
+  }
+
+  /** Место и фишки принадлежат человеку, а не сессии: вернувшийся садится на свой стул. */
+  @Test
+  void aSeatAndItsChipsSurviveAReturnToTheMeeting() {
+    var host = host();
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 2, null);
+    var again =
+        rooms.rejoin(host.roomId(), host.credential(), new Rejoin(UUID.randomUUID(), "Снова"));
+    var seat = rooms.read(host.roomId()).poker.seats.get(2);
+    assertThat(seat.memberId).isEqualTo(again.participantId());
+    assertThat(seat.stack).isEqualTo(5000);
+  }
+
+  /** Часы стола идут на сервере: ход, который никто не сделал, кончается сам. */
+  @Test
+  void theTableMovesItselfWhenNobodyActs() {
+    var host = host();
+    var guest = guest(host);
+    poker(host, "poker.open", "friendly", null, null);
+    poker(host, "poker.sit", null, 0, null);
+    poker(guest, "poker.sit", null, 1, null);
+    poker(host, "poker.deal", null, null, null);
+    long first = rooms.read(host.roomId()).poker.deadline;
+    now.set(first + 1);
+    lifecycle.advanceGame(host.roomId());
+    // Сначала в дело идёт банк времени — он для «отвернулся на минуту», а не поблажка.
+    long second = rooms.read(host.roomId()).poker.deadline;
+    assertThat(second).isGreaterThan(first);
+    now.set(second + 1);
+    lifecycle.advanceGame(host.roomId());
+    var table = rooms.read(host.roomId()).poker;
+    assertThat(table.phase).isEqualTo("showdown");
+    assertThat(table.seats.get(table.button).folded).isTrue();
+  }
+
+  /** Завершённая встреча не открывает стол тому, кто зашёл в неё за историей переписки. */
+  @Test
+  void closingTheMeetingTakesTheTableAwayWithIt() {
+    var host = host();
+    poker(host, "poker.open", "friendly", null, null);
+    command(host, "close", null, 0);
+    assertThat(rooms.read(host.roomId()).poker).isNull();
+  }
 }

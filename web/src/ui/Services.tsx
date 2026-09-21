@@ -17,6 +17,7 @@ import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
 import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './CinemaGroup';
+import { PokerGroup } from './PokerGroup';
 import {
   foresee,
   foresightSpent,
@@ -64,10 +65,10 @@ const GROUPS: GroupCard[] = [
   {
     id: 'games',
     name: 'Игры',
-    hint: 'Совместные игры во встрече',
+    hint: 'Покер на всю комнату, до десяти игроков',
     icon: Gamepad2,
     accent: '#8a5cf6',
-    ready: false,
+    ready: true,
   },
 ];
 /**
@@ -103,17 +104,31 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const active = !!self && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) && !ended;
   const canUse = active && (self?.owner || snapshot.integrationsAllowed !== false);
   /**
-   * Что во встрече занято прямо сейчас. Интеграция одна: музыка и кинозал звучат в одни и те
-   * же уши, и добавленные вместе они не делят встречу, а перебивают друг друга. Запрет стоит
-   * и в ядре, и в службе — здесь он лишь виден заранее, до нажатия.
+   * Что во встрече занято прямо сейчас — и что чему мешает.
+   *
+   * Спорят не все со всеми, а за одно и то же. Кинозал и покер делят **сцену**: там и там
+   * смотреть нужно в середину экрана, и вместе они не помещаются. Кинозал и музыка делят
+   * **уши**: два звука разом — это не две интеграции, а ни одной. А музыка со столом не спорит
+   * вовсе, и играть под неё в карты — ровно то, чего от домашней игры и ждут.
+   *
+   * Запреты стоят в ядре; здесь они лишь видны заранее, до нажатия.
    */
-  const occupied: Group | null = snapshot.watch
-    ? 'cinema'
-    : snapshot.participants.some(
-          (person) => person.service === 'music' && person.status !== 'LEFT' && person.status !== 'REMOVED',
-        )
-      ? 'music'
-      : null;
+  const running: Record<Group, boolean> = {
+    cinema: !!snapshot.watch,
+    music: snapshot.participants.some(
+      (person) => person.service === 'music' && person.status !== 'LEFT' && person.status !== 'REMOVED',
+    ),
+    games: !!snapshot.poker,
+    telegram: false,
+  };
+  const RIVALS: Record<Group, Group[]> = {
+    cinema: ['music', 'games'],
+    music: ['cinema'],
+    games: ['cinema'],
+    telegram: [],
+  };
+  const blockedBy = (group: Group): Group | null =>
+    running[group] ? null : (RIVALS[group].find((rival) => running[rival]) ?? null);
   const client = useQueryClient();
   const key = ['music', meeting.admission.roomId, meeting.admission.participantId];
   const catalog = useQuery({ queryKey: ['services'], queryFn: servicesApi.catalog, staleTime: 30000 });
@@ -201,15 +216,15 @@ export function Services({ meeting }: { meeting: Meeting }) {
     намеренно: место для неё занято, и обещание видно, а не спрятано в планах.
   */
   const groupCard = (item: GroupCard) => {
-    // Занятую группу открыть можно — там её и выключают; чужую, пока эта занята, нет.
+    // Занятую группу открыть можно — там её и выключают; ту, которой мешает соседняя, нет.
     // Ненаписанной группе объяснять нечего: у неё свой ответ — «скоро».
-    const blocked = item.ready && !!occupied && occupied !== item.id;
+    const blocked = item.ready ? blockedBy(item.id) : null;
     return (
       <button
         key={item.id}
         className="service-group"
-        data-active={occupied === item.id ? 'true' : undefined}
-        disabled={!item.ready || blocked}
+        data-active={running[item.id] ? 'true' : undefined}
+        disabled={!item.ready || !!blocked}
         onClick={() => item.ready && !blocked && setGroup(item.id)}
       >
         <span className="service-group-icon" style={{ background: item.accent }}>
@@ -219,12 +234,12 @@ export function Services({ meeting }: { meeting: Meeting }) {
           <b>{item.name}</b>
           <small>
             {blocked
-              ? `Сейчас активна другая интеграция — ${GROUPS.find((g) => g.id === occupied)?.name}`
+              ? `Сейчас активна другая интеграция — ${GROUPS.find((g) => g.id === blocked)?.name}`
               : item.hint}
           </small>
         </span>
         {!item.ready && <span className="service-soon">Скоро</span>}
-        {occupied === item.id && <span className="service-live">Активна</span>}
+        {running[item.id] && <span className="service-live">Активна</span>}
       </button>
     );
   };
@@ -247,6 +262,13 @@ export function Services({ meeting }: { meeting: Meeting }) {
     return (
       <div className="services-panel" key="cinema">
         <CinemaGroup meeting={meeting} onBack={() => setGroup(null)} />
+      </div>
+    );
+
+  if (group === 'games')
+    return (
+      <div className="services-panel" key="games">
+        <PokerGroup meeting={meeting} onBack={() => setGroup(null)} />
       </div>
     );
 

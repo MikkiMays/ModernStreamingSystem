@@ -1,0 +1,1150 @@
+/*
+  Покерный стол.
+
+  СВОЯ ПАЛИТРА, А НЕ ПЕРЕКРАШЕННАЯ ОБЩАЯ. Сцена встречи задаёт светлый текст на тёмном
+  (`.stage-wrap`), и любая светлая панель, положенная на неё, получает белые буквы на белом.
+  Поэтому стол, как и кинозал, переопределяет палитру у себя на корне и становится тёмным
+  целиком — вместе с кнопками, полями и подсказками, которые он наследует от общего набора.
+
+  ВСЁ ДВИЖЕНИЕ — CSS. Раздача, кольцо хода, перелёт фишек и праздник заданы кадрами с
+  длительностью из снимка и отрицательной задержкой, равной уже прошедшему времени. Поэтому
+  анимации не считает JavaScript: они не дёргаются, когда браузер занят видео, и начинаются у
+  всех в один и тот же момент по часам сервера.
+*/
+.poker {
+  --felt-1: #1d7a56;
+  --felt-2: #0d4231;
+  --felt-edge: #071f17;
+  --rail-1: #2a3340;
+  --rail-2: #131922;
+  --gold: #f0c04a;
+  --gold-soft: #f7dd9a;
+  --chip: #e04b4b;
+  --bg: #121820;
+  --surface: #1b2430;
+  --surface-2: #232e3c;
+  --text: #f1f4f9;
+  --muted: #a4b0c2;
+  --line: #2e3a49;
+  color: var(--text);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- Верхняя полоса ------------------------------------------------------------------- */
+
+.poker-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  border: 1px solid var(--line);
+}
+.poker-mode {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.poker-mode b {
+  font-size: 14px;
+}
+.poker-mode small,
+.poker-seated,
+.poker-level {
+  font-size: 12px;
+  color: var(--muted);
+}
+.poker-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.poker-host-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.poker .button.small {
+  padding: 6px 11px;
+  font-size: 13px;
+  min-height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.poker .button.secondary,
+.poker .button.ghost {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.poker .button.ghost {
+  background: transparent;
+}
+
+/* --- Сукно --------------------------------------------------------------------------- */
+
+.poker-felt-wrap {
+  container-type: size;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  /* Снизу запас под имя и комбинацию нижнего ряда: они висят под кружком и иначе ложатся на
+     панель с кнопками. */
+  padding: 6px 6px 30px;
+}
+.poker-felt {
+  container-type: inline-size;
+  position: relative;
+  width: min(100cqw, 158cqh);
+  aspect-ratio: 8 / 5;
+  border-radius: 46% / 52%;
+  background:
+    radial-gradient(
+      120% 120% at 50% 30%,
+      color-mix(in oklab, var(--felt-1) 96%, white 4%),
+      var(--felt-2) 68%
+    ),
+    var(--felt-2);
+  box-shadow:
+    inset 0 0 70px #00000073,
+    inset 0 2px 0 #ffffff14,
+    0 34px 70px #0000005c;
+  /* Во сколько раз высота стола меньше ширины: этим пересчитывается полёт карт к центру. */
+  --felt-ratio: 0.625;
+  --seat-face: clamp(42px, 12cqw, 92px);
+  --card-w: clamp(20px, 4.1cqw, 40px);
+  --board-w: clamp(30px, 5.6cqw, 58px);
+}
+/* Борт: кольцо вокруг сукна с золотой волосяной линией — по ней стол и читается как стол. */
+.poker-rail {
+  position: absolute;
+  inset: -2.2cqw;
+  border-radius: 46% / 52%;
+  background: linear-gradient(160deg, var(--rail-1), var(--rail-2));
+  box-shadow:
+    inset 0 0 0 1px #ffffff12,
+    0 18px 50px #0000006b;
+  z-index: -1;
+}
+.poker-rail::after {
+  content: '';
+  position: absolute;
+  inset: 2cqw;
+  border-radius: 46% / 52%;
+  border: 1px solid color-mix(in oklab, var(--gold) 42%, transparent);
+}
+.poker-center {
+  position: absolute;
+  inset: 26% 22%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.poker-board {
+  display: flex;
+  gap: clamp(3px, 0.7cqw, 8px);
+  min-height: calc(var(--board-w) * 1.4);
+}
+.poker-pot-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.poker-pot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(12px, 1.7cqw, 16px);
+  color: #16202b;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  box-shadow: 0 6px 18px #0000004d;
+}
+.poker-sidepots {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: #e8edf5;
+}
+.poker-sidepots b {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #00000047;
+  font-weight: 600;
+}
+.poker-street {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff9e;
+}
+.poker-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: #0b141bb8;
+  border: 1px solid #ffffff1f;
+  font-size: 13px;
+}
+.poker-waiting small {
+  color: var(--muted);
+  width: 100%;
+}
+.poker-waiting.is-over {
+  background: linear-gradient(180deg, #2a2312, #16202b);
+  border-color: color-mix(in oklab, var(--gold) 50%, transparent);
+  color: var(--gold-soft);
+}
+
+/* --- Места --------------------------------------------------------------------------- */
+
+.poker-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: max-content;
+  transition:
+    opacity 0.25s,
+    filter 0.25s;
+}
+.poker-seat[data-folded] {
+  opacity: 0.42;
+  filter: grayscale(0.6);
+}
+.poker-seat[data-busted] {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.poker-person {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+.poker-face {
+  position: relative;
+  width: var(--seat-face);
+  height: var(--seat-face);
+  border-radius: 50%;
+  overflow: visible;
+  background: #0c141c;
+  box-shadow:
+    0 0 0 2px #ffffff1f,
+    0 10px 24px #00000059;
+  display: grid;
+  place-items: center;
+}
+.poker-face .avatar,
+.poker-camera {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  font-size: calc(var(--seat-face) * 0.4);
+}
+.poker-camera {
+  display: block;
+  background: #0c141c;
+}
+.poker-seat[data-speaking] .poker-face {
+  box-shadow:
+    0 0 0 2px var(--speaking),
+    0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
+    0 10px 24px #00000059;
+}
+.poker-seat[data-active] .poker-face {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 26px color-mix(in oklab, var(--gold) 55%, transparent),
+    0 10px 24px #00000059;
+}
+.poker-seat[data-winner] .poker-face {
+  animation: poker-winner 1.1s ease-out 3;
+}
+@keyframes poker-winner {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--gold),
+      0 0 10px #f0c04a55;
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px var(--gold),
+      0 0 40px #f0c04acc;
+  }
+}
+.poker-name {
+  display: grid;
+  justify-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #0b131ad9;
+  border: 1px solid #ffffff1a;
+  line-height: 1.25;
+  max-width: calc(var(--seat-face) * 1.7);
+}
+.poker-name span {
+  font-size: clamp(9px, 1.35cqw, 12px);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.poker-name b {
+  font-size: clamp(10px, 1.5cqw, 13px);
+  color: var(--gold-soft);
+}
+.poker-seat[data-mine] .poker-name {
+  border-color: color-mix(in oklab, var(--gold) 55%, transparent);
+}
+.poker-remaining {
+  position: absolute;
+  top: calc(var(--seat-face) * 0.5);
+  right: calc(var(--seat-face) * -0.42);
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  background: #0b131ae6;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+.poker-dealer-chip {
+  position: absolute;
+  right: -6px;
+  bottom: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1b2430;
+  background: linear-gradient(180deg, #fff, #d9dee6);
+  box-shadow: 0 3px 8px #00000066;
+}
+/* Кольцо хода: круг, который «сматывается» ровно за отведённое время. */
+.poker-ring {
+  position: absolute;
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.poker-ring circle {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.poker-ring-track {
+  stroke: #ffffff24;
+}
+.poker-ring-run {
+  stroke: var(--gold);
+  stroke-dasharray: 289;
+  animation-name: poker-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes poker-countdown {
+  from {
+    stroke-dashoffset: 0;
+    stroke: var(--gold);
+  }
+  70% {
+    stroke: var(--gold);
+  }
+  90% {
+    stroke: #f08a3c;
+  }
+  to {
+    stroke-dashoffset: 289;
+    stroke: #e24d4d;
+  }
+}
+.poker-hand {
+  display: flex;
+  gap: 2px;
+}
+/*
+  У нижних мест карты лежат НАД лицом, а не под ним.
+
+  Под нижним рядом кончается стол и начинается панель с кнопками: всё, что висит ниже кружка,
+  ложится на неё. А заодно так честнее — карты лежат на сукне перед игроком, между ним и
+  серединой стола, ровно как за настоящим столом.
+*/
+.poker-seat[data-side='bottom'] .poker-hand {
+  order: -1;
+}
+/* Ставка лежит между местом и серединой стола — с той стороны, с которой это место сидит. */
+.poker-bet {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 999px;
+  background: #0b131ae0;
+  border: 1px solid #ffffff1f;
+  font-size: clamp(9px, 1.3cqw, 12px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.poker-seat[data-side='bottom'] .poker-bet {
+  bottom: calc(100% + 6px);
+}
+.poker-seat[data-side='top'] .poker-bet {
+  top: calc(100% + 6px);
+}
+.poker-seat[data-side='left'] .poker-bet {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.poker-seat[data-side='right'] .poker-bet {
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.poker-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8a8a, var(--chip) 60%);
+  box-shadow:
+    0 0 0 2px #ffffffcc inset,
+    0 2px 4px #0006;
+}
+.poker-bubble {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #2d3a4b, #1a2430);
+  border: 1px solid #ffffff21;
+  animation: poker-pop 0.22s ease-out;
+}
+.poker-bubble.is-quiet {
+  background: #0d151dcc;
+  color: var(--muted);
+  font-weight: 500;
+}
+.poker-seat[data-side='top'] .poker-bubble {
+  top: auto;
+  bottom: -10px;
+  transform: translate(-50%, 100%);
+}
+@keyframes poker-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.8);
+  }
+}
+.poker-combo {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: #0b131ae6;
+  border: 1px solid color-mix(in oklab, var(--gold) 45%, transparent);
+  color: var(--gold-soft);
+  white-space: nowrap;
+}
+.poker-won {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  font-weight: 800;
+  font-size: clamp(12px, 1.8cqw, 17px);
+  color: var(--gold);
+  text-shadow: 0 2px 10px #000;
+  animation: poker-rise 1.4s ease-out forwards;
+}
+@keyframes poker-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -110%) scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -130%) scale(1);
+  }
+}
+.poker-seat.is-empty .poker-sit {
+  width: var(--seat-face);
+  height: var(--seat-face);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  font-size: clamp(9px, 1.3cqw, 12px);
+  color: #e6ecf5;
+  background: #0b131a80;
+  border: 2px dashed #ffffff33;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    transform 0.18s;
+}
+.poker-seat.is-empty .poker-sit:hover:not(:disabled) {
+  background: #12202bcc;
+  border-color: var(--gold);
+  transform: scale(1.06);
+}
+.poker-seat.is-empty .poker-sit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* --- Карты --------------------------------------------------------------------------- */
+
+.playing-card {
+  position: relative;
+  width: var(--board-w);
+  height: calc(var(--board-w) * 1.4);
+  border-radius: clamp(3px, 0.6cqw, 6px);
+  background: linear-gradient(180deg, #fff, #eef1f6);
+  color: #16202b;
+  box-shadow:
+    0 2px 6px #00000059,
+    inset 0 0 0 1px #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  animation-name: poker-deal;
+  animation-timing-function: cubic-bezier(0.18, 0.72, 0.24, 1);
+  animation-fill-mode: both;
+}
+.playing-card[data-small] {
+  width: var(--card-w);
+  height: calc(var(--card-w) * 1.4);
+}
+.playing-card b {
+  font-size: calc(var(--board-w) * 0.44);
+  line-height: 1;
+}
+.playing-card[data-small] b {
+  font-size: calc(var(--card-w) * 0.5);
+}
+.playing-card i {
+  position: absolute;
+  right: 8%;
+  bottom: 4%;
+  font-size: calc(var(--board-w) * 0.34);
+  font-style: normal;
+  line-height: 1;
+}
+.playing-card[data-small] i {
+  font-size: calc(var(--card-w) * 0.42);
+}
+.playing-card[data-red] {
+  color: #d5333f;
+}
+/* Рубашка — та же карта без лица: диагональная сетка, как на настоящей колоде. */
+.playing-card[data-back] {
+  background: repeating-linear-gradient(45deg, #2a3f8f 0 4px, #1d2d6b 4px 8px), #223478;
+  box-shadow:
+    0 2px 6px #00000059,
+    inset 0 0 0 1px #ffffff2e,
+    inset 0 0 0 4px #1a2660;
+}
+.playing-card[data-highlight] {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 18px #f0c04a80,
+    0 2px 6px #00000059;
+  transform: translateY(-4%);
+}
+/*
+  Раздача. Карта вылетает из середины стола — оттуда, где сидел бы дилер, — доворачивается и
+  ложится на место. Длительность и задержка приходят из снимка: у опоздавшего задержка
+  отрицательная, и карта сразу оказывается на месте, а не летит второй раз.
+*/
+@keyframes poker-deal {
+  from {
+    opacity: 0;
+    transform: translate(calc(var(--dx, 0) * 1cqw), calc(var(--dy, -6) * 1cqw)) rotate(-18deg) scale(0.72);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
+}
+
+/* --- Фишки в полёте ------------------------------------------------------------------- */
+
+/*
+  Путь фишки задаётся `left`/`top` в процентах стола, а не сдвигом: у элемента нулевого
+  размера проценты в `translate` считаются от него самого, то есть от нуля, — фишка никуда бы
+  не полетела. Шесть фишек за круг такой анимации стоят дешевле, чем ошибка в этой строке.
+*/
+.poker-flight {
+  position: absolute;
+  left: var(--fx);
+  top: var(--fy);
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  animation: poker-fly 620ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  pointer-events: none;
+}
+.poker-flight i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--gold-soft), var(--gold) 62%);
+  box-shadow:
+    0 0 0 2px #ffffffb3 inset,
+    0 3px 8px #0007;
+}
+@keyframes poker-fly {
+  from {
+    left: var(--fx);
+    top: var(--fy);
+    opacity: 1;
+  }
+  to {
+    left: var(--tx);
+    top: var(--ty);
+    opacity: 0.15;
+  }
+}
+
+/* --- Праздник ------------------------------------------------------------------------- */
+
+.poker-cheer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.poker-cheer[data-level='big']::after,
+.poker-cheer[data-level='huge']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(60% 60% at 50% 50%, #f0c04a30, transparent 70%);
+  animation: poker-flash 1.2s ease-out forwards;
+}
+.poker-cheer[data-level='huge']::after {
+  background: radial-gradient(70% 70% at 50% 50%, #f0c04a5c, transparent 72%);
+  animation-duration: 1.8s;
+}
+@keyframes poker-flash {
+  from {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.poker-ribbon {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 20px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: clamp(11px, 1.8cqw, 17px);
+  color: #1b1405;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  box-shadow: 0 10px 30px #0000007a;
+  animation: poker-ribbon 2.4s ease-out forwards;
+}
+@keyframes poker-ribbon {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.06);
+  }
+  25% {
+    transform: translateX(-50%) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.poker-cheer-name {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  animation: poker-rise 2.2s ease-out forwards;
+}
+.poker-cheer-name b {
+  font-size: clamp(11px, 1.6cqw, 15px);
+}
+.poker-cheer-name i {
+  font-style: normal;
+  font-size: clamp(9px, 1.3cqw, 12px);
+  color: var(--gold-soft);
+}
+.poker-cheer-name u {
+  text-decoration: none;
+  font-weight: 800;
+  font-size: clamp(13px, 2cqw, 20px);
+  color: var(--gold);
+  text-shadow: 0 2px 12px #000;
+}
+.poker-rain {
+  position: absolute;
+  top: -8%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--gold-soft), var(--gold) 60%);
+  box-shadow: 0 0 0 2px #ffffff99 inset;
+  animation: poker-rain 1.9s cubic-bezier(0.4, 0.1, 0.7, 1) forwards;
+}
+@keyframes poker-rain {
+  from {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(1100%) rotate(var(--spin, 180deg));
+    opacity: 0;
+  }
+}
+
+/* --- Нижняя панель -------------------------------------------------------------------- */
+
+.poker-controls {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 14px;
+  padding: 8px 12px;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+}
+.poker-controls[data-turn] {
+  border-color: color-mix(in oklab, var(--gold) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--gold) 28%, transparent);
+}
+.poker-mine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  --board-w: clamp(34px, 6vh, 54px);
+}
+.poker-mine-cards {
+  display: flex;
+  gap: 4px;
+}
+.poker-mine-hint {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 190px;
+}
+.poker-mine-stack {
+  display: grid;
+  line-height: 1.2;
+}
+.poker-mine-stack b {
+  font-size: 16px;
+  color: var(--gold-soft);
+}
+.poker-mine-stack small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.poker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.poker-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid #ffffff1f;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    filter 0.16s;
+}
+.poker-action:hover {
+  filter: brightness(1.12);
+}
+.poker-action:active {
+  transform: translateY(1px);
+}
+.poker-action kbd {
+  font: inherit;
+  font-size: 10px;
+  opacity: 0.55;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.poker-action.is-fold {
+  background: #33232a;
+  border-color: #6b3d47;
+}
+.poker-action.is-call,
+.poker-action.is-check {
+  background: linear-gradient(180deg, #2c6f4f, #1d5239);
+  border-color: #3d8e68;
+}
+.poker-action.is-raise,
+.poker-action.is-allin {
+  background: linear-gradient(180deg, #e2b649, #c08f22);
+  color: #1b1405;
+  border-color: #f0c04a;
+}
+.poker-sizer {
+  display: grid;
+  gap: 8px;
+}
+.poker-steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.poker-step {
+  display: grid;
+  padding: 5px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.poker-step b {
+  font-size: 12px;
+}
+.poker-step small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.poker-step[data-active] {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.poker-sizer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.poker-sizer-row .slider {
+  flex: 1;
+  min-width: 120px;
+}
+.poker .button.primary {
+  background: linear-gradient(180deg, #e2b649, #c08f22);
+  color: #1b1405;
+  border: 1px solid #f0c04a;
+  font-weight: 700;
+}
+.poker-idle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.poker-idle-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.poker-fair {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.poker-fair .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.poker-fair small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.poker-fair small[data-state='ok'] {
+  color: #6fd39a;
+}
+.poker-fair small[data-state='mismatch'] {
+  color: #ff8d8d;
+}
+.poker-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.poker-feed {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-size: 11px;
+  color: var(--muted);
+}
+.poker-feed::-webkit-scrollbar {
+  display: none;
+}
+.poker-feed li {
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ffffff0f;
+}
+.poker-feed li[data-kind='win'] {
+  color: var(--gold-soft);
+  background: #f0c04a1f;
+}
+.poker-feed li[data-kind='bust'],
+.poker-feed li[data-kind='over'] {
+  color: #ffb4b4;
+  background: #e24d4d1f;
+}
+.poker-feed li[data-kind='hand'],
+.poker-feed li[data-kind='street'] {
+  color: #cfe3ff;
+  background: #6b8dff1f;
+}
+
+/* --- Узкий экран ---------------------------------------------------------------------- */
+
+/*
+  На телефоне стол разворачивается: экран там выше, чем шире, и ландшафтный овал оставлял под
+  собой пустую половину. Пропорции меняются вместе с направлением полёта карт — иначе они
+  летели бы мимо центра.
+*/
+@media (max-width: 700px) {
+  .poker-felt {
+    /* Места сидят на борту, то есть наполовину снаружи сукна: на узком экране столу нужно
+       оставить по краям место под них, иначе крайние стулья срезает рамкой. */
+    width: min(84cqw, 66cqh);
+    aspect-ratio: 5 / 7;
+    --felt-ratio: 1.4;
+    --seat-face: clamp(40px, 17cqw, 74px);
+    --card-w: clamp(18px, 6cqw, 32px);
+    --board-w: clamp(26px, 9cqw, 44px);
+  }
+  .poker-center {
+    inset: 32% 8%;
+  }
+}
+@media (max-width: 860px) {
+  .poker-bar {
+    gap: 8px;
+    padding: 6px 9px;
+  }
+  .poker-host-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .poker-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .poker-actions,
+  .poker-steps,
+  .poker-idle {
+    justify-content: center;
+  }
+  .poker-action {
+    flex: 1;
+    justify-content: center;
+    padding: 0 10px;
+    min-height: 50px;
+  }
+  .poker-action kbd {
+    display: none;
+  }
+  .poker-feed {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playing-card,
+  .poker-flight,
+  .poker-rain,
+  .poker-ribbon,
+  .poker-won,
+  .poker-cheer-name,
+  .poker-seat[data-winner] .poker-face {
+    animation: none !important;
+  }
+}
+
+/* --- Сцена и панель интеграций --------------------------------------------------------- */
+
+/*
+  Лента под столом — только зрители. Лица играющих уже на столе, в кружках их мест, и второй
+  ряд тех же людей отбирал бы у стола половину сцены ради повторения.
+*/
+.poker-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+.poker-main {
+  min-height: 0;
+  display: grid;
+}
+.poker-loading {
+  border-radius: var(--radius);
+  background: #0f1a1499;
+}
+.games-group {
+  display: grid;
+  gap: 12px;
+}
+.games-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+.games-facts li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.games-modes {
+  display: grid;
+  gap: 8px;
+}
+.games-mode {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.games-mode[data-active] {
+  border-color: #8a5cf6;
+  box-shadow: 0 0 0 1px #8a5cf6;
+}
+.games-mode b {
+  font-size: 14px;
+}
+.games-mode small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.games-mode span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.games-mode i {
+  font-style: normal;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.games-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.games-toggle input {
+  margin-top: 2px;
+}
+.games-toggle span {
+  display: grid;
+  gap: 2px;
+}
+.games-toggle b {
+  font-size: 13px;
+}
+.games-toggle small {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}

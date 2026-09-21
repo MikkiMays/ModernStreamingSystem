@@ -11,6 +11,7 @@ import { gridPlan } from './grid';
 
 const WatchTheater = lazy(() => import('./WatchTheater'));
 const CinemaBrowser = lazy(() => import('./CinemaBrowser'));
+const PokerTable = lazy(() => import('./PokerTable'));
 
 /**
  * Показывать ли себя зеркально.
@@ -368,6 +369,29 @@ export function Stage({
       </ParticipantMenu>
     );
   };
+  /*
+    Карточный стол. В отличие от кинозала, лента под ним — не все, а **только зрители**: лица
+    играющих уже на столе, в кружках их мест, и показывать их вторым рядом значило бы отобрать
+    у стола половину сцены ради повторения.
+  */
+  if (snapshot.poker) {
+    const table = snapshot.poker;
+    const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
+    return (
+      <div className="stage poker-stage">
+        <div className="poker-main">
+          <Suspense fallback={<div className="poker-loading" />}>
+            <PokerTable meeting={meeting} table={table} />
+          </Suspense>
+        </div>
+        {watchers.length > 0 && (
+          <div className="people-strip" data-count={watchers.length}>
+            {watchers.map((person, index) => tile(person, index, false))}
+          </div>
+        )}
+      </div>
+    );
+  }
   /*
     Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
     занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но

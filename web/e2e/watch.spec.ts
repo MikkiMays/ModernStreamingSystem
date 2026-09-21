@@ -49,7 +49,8 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
 
     // Панель интеграций — выключатель: площадку выбирают в ней, а каталог открывается на сцене.
     await host.getByRole('button', { name: 'Интеграции', exact: true }).click();
-    await expect(host.getByRole('button', { name: /Игры/ })).toBeDisabled();
+    // Пока сцена свободна, в неё можно принести что угодно — в том числе покерный стол.
+    await expect(host.getByRole('button', { name: /Игры/ })).toBeEnabled();
     await host.getByRole('button', { name: /Кинозал/ }).click();
     await host.getByRole('button', { name: /YouTube/ }).click();
     const browse = host.locator('.cinema-browser');
@@ -76,7 +77,9 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     await expect(host.locator('.watch-title b')).toContainText(title.slice(0, 12));
 
     // Ролик открывается на паузе и включается, когда плеер принёсшего готов.
-    await expect(host.getByRole('button', { name: 'Пауза для всех' })).toBeVisible({ timeout: 30000 });
+    await expect(host.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
+      timeout: 30000,
+    });
     // Пауза общая: её жмёт и тот, кто ничего не приносил, и видят это все.
     //
     // Пульт уходит с кадра через пару секунд без движения мыши, и «нажать» по нему тогда
@@ -84,18 +87,20 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     // не двигает настоящую мышь — она бы его разбудила. Человек перед нажатием мышь двигает,
     // поэтому и здесь сначала наведение, как и у хозяина ниже.
     await guest.locator('.watch-theater').hover();
-    const pause = guest.getByRole('button', { name: 'Пауза для всех' });
+    const pause = guest.locator('.watch-play');
     await expect(pause).toBeEnabled();
     await pause.click();
-    await expect(host.getByRole('button', { name: 'Включить для всех' })).toBeVisible({
+    await expect(host.locator('.watch-play')).toHaveAttribute('aria-label', 'Включить для всех', {
       timeout: 15000,
     });
     // Громкость и качество — личные: комнату они не двигают.
     await expect(guest.getByRole('slider', { name: 'Громкость просмотра' })).toBeVisible();
 
-    // Вторая интеграция во встречу не пускается, пока открыта первая.
+    // Вторая интеграция во встречу не пускается, пока открыта первая. Музыке кино мешает
+    // ушами, покеру — сценой: обе группы закрыты, пока идёт просмотр.
     await guest.getByRole('button', { name: 'Интеграции', exact: true }).click();
     await expect(guest.getByRole('button', { name: /Музыка/ })).toBeDisabled();
+    await expect(guest.getByRole('button', { name: /Игры/ })).toBeDisabled();
 
     // Каталог открывается поверх плеера, не разбирая его: кино продолжает идти.
     await host.locator('.watch-theater').hover();
@@ -235,7 +240,9 @@ test('the player speaks the original language and can be subtitled', async ({
     await expect(start).toBeVisible({ timeout: 30000 });
     await start.click({ force: true });
     await expect(page.locator('.watch-theater')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByRole('button', { name: 'Пауза для всех' })).toBeVisible({ timeout: 40000 });
+    await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
+      timeout: 40000,
+    });
 
     // Меню качества и озвучки: у ролика с дорожками выбранной обязана быть оригинальная.
     await page.locator('.watch-theater').hover();
