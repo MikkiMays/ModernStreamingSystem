@@ -107,7 +107,11 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
       Дальше партия доигрывается двумя кнопками и одним перетаскиванием на бой: защитник берёт,
       нападающий пасует, заходящий кладёт карту в пустой бой.
     */
-    for (let step = 0; step < 160; step++) {
+    // Bound actual commands, not polls: each settled bout intentionally pauses for 1300 ms.
+    // Counting idle scans used up the old 160-step budget with cards still in the attacker's hand.
+    const playUntil = Date.now() + 120000;
+    let actions = 1; // The first attack above is already acknowledged.
+    while (actions < 160 && Date.now() < playUntil) {
       if (await host.locator('.durak[data-phase="over"]').count()) break;
       let moved = false;
       for (const page of [host, guest] as Page[]) {
@@ -118,6 +122,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
           // A click sends an asynchronous room command. Do not click the same old snapshot
           // again while its acknowledgement and authoritative snapshot are still in flight.
           await expect(take).toHaveCount(0, { timeout: 10000 });
+          actions++;
           moved = true;
           continue;
         }
@@ -125,6 +130,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
         if (await pass.count()) {
           await pass.click({ timeout: 10000 });
           await expect(pass).toHaveCount(0, { timeout: 10000 });
+          actions++;
           moved = true;
           continue;
         }
@@ -134,10 +140,36 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
         if (turn && empty && (await card.count())) {
           await dragTo(page, card, page.locator('.durak-mat'));
           await expect(page.locator('.durak-pair')).toHaveCount(1, { timeout: 10000 });
+          actions++;
           moved = true;
         }
       }
-      if (!moved) await host.waitForTimeout(400);
+      if (!moved) {
+        await expect
+          .poll(
+            async () => {
+              for (const page of [host, guest]) {
+                const ready = await page.locator('.durak').evaluate((table) => {
+                  if (table.getAttribute('data-phase') === 'over') return true;
+                  if (table.querySelector('.durak-act[data-kind="take"], .durak-act[data-kind="pass"]'))
+                    return true;
+                  return !!(
+                    table.querySelector('.durak-controls[data-turn]') &&
+                    !table.querySelector('.durak-pair') &&
+                    table.querySelector('.durak-hand-card')
+                  );
+                });
+                if (ready) return true;
+              }
+              return false;
+            },
+            {
+              message: 'A settled bout must expose the next legal action or the game result',
+              timeout: Math.max(1, Math.min(10000, playUntil - Date.now())),
+            },
+          )
+          .toBe(true);
+      }
     }
 
     await expect(host.locator('.durak[data-phase="over"]')).toBeVisible({ timeout: 30000 });
