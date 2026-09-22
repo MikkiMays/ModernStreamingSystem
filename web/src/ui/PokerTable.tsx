@@ -205,7 +205,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
         <button
           className="button primary game-seat-action"
           disabled={!table.seatingOpen}
-          onClick={() => send('poker.sit', { seat: table.seats.find((seat) => !seat.memberId)!.index })}
+          onClick={() => send('poker.sit')}
         >
           Сесть за стол
         </button>

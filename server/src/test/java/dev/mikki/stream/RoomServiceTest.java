@@ -1408,6 +1408,51 @@ class RoomServiceTest {
   }
 
   @Test
+  void autoSeatingCommandsChooseDistinctSeatsWithoutRefreshingEitherClient() throws Exception {
+    for (String game : List.of("poker", "durak")) {
+      var host = host();
+      var guest = guest(host);
+      poker(host, game + ".open", game.equals("poker") ? "friendly" : "podkidnoy", null, null);
+      var hostRequest = new Command(UUID.randomUUID(), game + ".sit", null, null, 0);
+      var guestRequest = new Command(UUID.randomUUID(), game + ".sit", null, null, 0);
+      var start = new CountDownLatch(1);
+      try (var pool = Executors.newFixedThreadPool(2)) {
+        var first =
+            pool.submit(
+                () -> {
+                  start.await();
+                  return rooms.command(host.roomId(), host.credential(), hostRequest);
+                });
+        var second =
+            pool.submit(
+                () -> {
+                  start.await();
+                  return rooms.command(host.roomId(), guest.credential(), guestRequest);
+                });
+        start.countDown();
+        assertThat(first.get(10, TimeUnit.SECONDS)).isNotNull();
+        assertThat(second.get(10, TimeUnit.SECONDS)).isNotNull();
+      }
+      // Replaying the exact receipt must not seat the same member again.
+      rooms.command(host.roomId(), host.credential(), hostRequest);
+      rooms.command(host.roomId(), guest.credential(), guestRequest);
+      var room = rooms.read(host.roomId());
+      var seated =
+          game.equals("poker")
+              ? room.poker.seats.stream()
+                  .filter(seat -> seat.memberId != null)
+                  .map(seat -> seat.memberId)
+                  .toList()
+              : room.durak.seats.stream()
+                  .filter(seat -> seat.memberId != null)
+                  .map(seat -> seat.memberId)
+                  .toList();
+      assertThat(seated).containsExactlyInAnyOrder(host.participantId(), guest.participantId());
+      assertThat(game.equals("poker") ? room.poker.revision : room.durak.revision).isGreaterThan(0);
+    }
+  }
+
+  @Test
   void durakReactionReceiptsAreIdempotentAndDoNotLeakToOtherRooms() {
     var host = host();
     var other = host();

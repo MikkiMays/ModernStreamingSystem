@@ -75,11 +75,14 @@ it('keyboard card selection submits exactly one beat instead of bubbling a secon
   });
 });
 it('renders occupied IDs only and a single external spectator seat action', () => {
-  const { container } = render(<DurakTable meeting={meeting()} table={{ ...table, you: null }} />);
+  const room = meeting();
+  const { container } = render(<DurakTable meeting={room} table={{ ...table, you: null }} />);
   expect(container.querySelectorAll('.durak-seat')).toHaveLength(3);
   expect(
     [...container.querySelectorAll('[data-game-seat]')].map((e) => e.getAttribute('data-game-seat')),
   ).toEqual(['0', '3', '5']);
   expect(screen.getAllByRole('button', { name: 'Сесть за стол' })).toHaveLength(1);
   expect(container.querySelector('.durak-felt .game-seat-action')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' }));
+  expect(room.command).toHaveBeenCalledWith('durak.sit', undefined, undefined, undefined);
 });

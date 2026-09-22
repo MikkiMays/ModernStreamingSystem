@@ -44,20 +44,19 @@ test('додеп подтверждают движением, а не нажат
       перерисовывается. Нажатие, попавшее ровно в этот кадр, теряется — человек нажмёт ещё раз и
       не заметит, а тест обязан довести дело до конца.
     */
-    const sit = async (page: Page, nth: number) => {
+    const sit = async (page: Page) => {
       for (let attempt = 0; attempt < 6; attempt++) {
         if (await page.locator('.poker-seat[data-mine]').count()) return;
         await page
           .locator('.game-seat-action')
-          .nth(nth)
           .click({ timeout: 5000 })
           .catch(() => {});
         await page.waitForTimeout(300);
       }
       throw new Error('не удалось сесть за стол');
     };
-    await sit(host, 0);
-    await sit(guest, 3);
+    await sit(host);
+    await sit(guest);
     await expect.poll(() => host.locator('.poker-seat:not(.is-empty)').count()).toBe(2);
 
     const bust = async () => {

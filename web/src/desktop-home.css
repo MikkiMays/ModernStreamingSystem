@@ -100,6 +100,11 @@ body:has(.desktop-home) {
   align-items: center;
   gap: 7px;
 }
+.desktop-favorites-expanded {
+  max-height: max(0px, calc(100dvh - 490px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .desktop-favorites-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -218,6 +223,14 @@ body:has(.desktop-home) {
   }
   .desktop-welcome p {
     margin-top: 6px;
+  }
+}
+@media (max-height: 760px) {
+  .desktop-favorites-expanded {
+    display: none;
+  }
+  .desktop-favorites-compact {
+    display: flex;
   }
 }
 @media (max-height: 510px) {

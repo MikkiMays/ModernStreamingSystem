@@ -320,11 +320,19 @@ public class Durak {
   // --- Места ------------------------------------------------------------------------------
 
   /** Сесть на свободное место. Посреди партии это место в следующей раздаче. */
-  public void sit(String memberId, String name, int index, long now) {
-    if (index < 0 || index >= SEATS)
+  public void sit(String memberId, String name, Integer index, long now) {
+    if (index != null && (index < 0 || index >= SEATS))
       throw new Problem(400, "DURAK_SEAT", "Такого места за столом нет");
     if (seatOf(memberId) != null) throw Problem.conflict("DURAK_SEATED", "Вы уже за столом");
     if (!seatingOpen) throw Problem.conflict("DURAK_CLOSED", "Ведущий закрыл посадку");
+    // This selection runs inside the room command transaction/lock, not from a client snapshot.
+    if (index == null) {
+      index =
+          java.util.stream.IntStream.range(0, SEATS)
+              .filter(candidate -> !seats.get(candidate).taken())
+              .findFirst()
+              .orElseThrow(() -> Problem.conflict("DURAK_FULL", "За столом нет свободных мест"));
+    }
     var seat = seats.get(index);
     if (seat.taken()) throw Problem.conflict("DURAK_TAKEN", "Место уже занято");
     seat.memberId = memberId;

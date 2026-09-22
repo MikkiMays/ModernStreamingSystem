@@ -501,13 +501,21 @@ public class Table {
   // --- Места ------------------------------------------------------------------------------
 
   /** Сесть на свободное место. До первой раздачи это просто выбор стула. */
-  public void sit(String memberId, String name, int index, long now) {
-    if (index < 0 || index >= SEATS)
+  public void sit(String memberId, String name, Integer index, long now) {
+    if (index != null && (index < 0 || index >= SEATS))
       throw new Problem(400, "POKER_SEAT", "Такого места за столом нет");
     if (seatOf(memberId) != null) throw Problem.conflict("POKER_SEATED", "Вы уже за столом");
     if (!seatingOpen)
       throw Problem.conflict("POKER_CLOSED", "Ведущий закрыл посадку до конца игры");
     if ("over".equals(phase)) throw Problem.conflict("POKER_OVER", "Игра закончена");
+    // This selection runs inside the room command transaction/lock, not from a client snapshot.
+    if (index == null) {
+      index =
+          java.util.stream.IntStream.range(0, SEATS)
+              .filter(candidate -> !seats.get(candidate).taken())
+              .findFirst()
+              .orElseThrow(() -> Problem.conflict("POKER_FULL", "За столом нет свободных мест"));
+    }
     var seat = seats.get(index);
     if (seat.taken()) throw Problem.conflict("POKER_TAKEN", "Место уже занято");
     seat.memberId = memberId;

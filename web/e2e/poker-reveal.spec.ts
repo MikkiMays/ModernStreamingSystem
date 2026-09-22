@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * «Показать карты» — право, а не обязанность.
@@ -38,14 +38,19 @@ test('карты показывают по желанию, и это видят 
     await expect(host.locator('.poker-mine-cards .playing-card')).toHaveCount(2);
 
     // Кто-то пасует — банк уходит без вскрытия, и карт победителя не видел никто.
-    for (let step = 0; step < 10; step++) {
-      if (await host.locator('.poker[data-phase="showdown"]').count()) break;
-      const acting: Page = (await host.locator('.poker-controls[data-turn]').count()) ? host : guest;
-      const fold = acting.locator('.poker-action.is-fold');
-      if (await fold.count()) await fold.click();
-      else await acting.locator('.poker-action.is-check, .poker-action.is-call').first().click();
-    }
+    // Вдвоём один пас сразу заканчивает раздачу. Ждём опубликованный ход, а после
+    // команды — итог у обоих клиентов: ответ на нажатие ещё не означает новый снимок.
+    await expect
+      .poll(
+        async () =>
+          (await host.locator('.poker-action.is-fold').isVisible()) ||
+          (await guest.locator('.poker-action.is-fold').isVisible()),
+      )
+      .toBe(true);
+    const acting = (await host.locator('.poker-action.is-fold').isVisible()) ? host : guest;
+    await acting.locator('.poker-action.is-fold').click();
     await expect(host.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 15000 });
+    await expect(guest.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 15000 });
 
     // Итог раздачи ждёт ведущего — значит, и кнопка ждёт вместе с ним, а не гаснет за две секунды.
     const shower = (await host.getByRole('button', { name: /Показать карты/ }).count()) ? host : guest;

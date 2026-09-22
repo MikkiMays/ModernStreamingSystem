@@ -821,12 +821,7 @@ public class RoomService {
               room.poker = null;
             }
             case "poker.sit" ->
-                table(room)
-                    .sit(
-                        member.id,
-                        member.name,
-                        command.seat() == null ? -1 : command.seat(),
-                        active(room, member));
+                table(room).sit(member.id, member.name, command.seat(), active(room, member));
             case "poker.stand" -> table(room).stand(member.id, active(room, member));
             case "poker.deal" -> {
               dealer(room, member);
@@ -890,12 +885,7 @@ public class RoomService {
               room.durak = null;
             }
             case "durak.sit" ->
-                durak(room)
-                    .sit(
-                        member.id,
-                        member.name,
-                        command.seat() == null ? -1 : command.seat(),
-                        active(room, member));
+                durak(room).sit(member.id, member.name, command.seat(), active(room, member));
             case "durak.stand" -> durak(room).stand(member.id, active(room, member));
             case "durak.react" ->
                 durak(room).react(member.id, command.option(), active(room, member));
