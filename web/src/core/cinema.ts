@@ -136,8 +136,10 @@ export interface CinemaSource {
   duration: number | null;
   live: boolean;
   /** `hls` — плейлист со всеми уровнями качества; `file` — один готовый файл. */
-  kind: 'hls' | 'file';
+  kind: 'hls' | 'dash' | 'file';
   url: string;
+  expiresAt?: number;
+  notice?: string | null;
   /**
    * На каком языке ролик говорит сам.
    *
@@ -194,10 +196,24 @@ export class CinemaApi {
       `/details?provider=${provider}&kind=${kind}&id=${encodeURIComponent(id)}`,
       signal,
     );
-  resolve = (provider: WatchProvider, contentId: string, kind: 'video' | 'channel') =>
+  resolve = (
+    provider: WatchProvider,
+    contentId: string,
+    kind: 'video' | 'channel',
+    options: { adaptive?: boolean; refresh?: boolean } = {},
+  ) =>
     request<CinemaSource>(
       `${this.base}/resolve`,
-      { method: 'POST', body: JSON.stringify({ provider, contentId, kind }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          provider,
+          contentId,
+          kind,
+          adaptive: typeof MediaSource !== 'undefined',
+          ...options,
+        }),
+      },
       this.admission.credential,
     );
 }

@@ -31,8 +31,8 @@ test('карты показывают по желанию, и это видят 
     await host.getByRole('button', { name: /Игры/ }).click();
     await host.getByRole('button', { name: /Покер/ }).click();
     await host.getByRole('button', { name: /Открыть стол/ }).click();
-    await host.locator('.poker-seat.is-empty .poker-sit').first().click();
-    await guest.locator('.poker-seat.is-empty .poker-sit').nth(3).click();
+    await host.locator('.game-seat-action').first().click();
+    await guest.locator('.game-seat-action').first().click();
     await expect.poll(() => host.locator('.poker-seat:not(.is-empty)').count()).toBe(2);
     await host.locator('.poker-bar').getByRole('button', { name: 'Раздать' }).click();
     await expect(host.locator('.poker-mine-cards .playing-card')).toHaveCount(2);

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
+  Copy,
   Download,
   File,
   FileUp,
@@ -48,10 +49,12 @@ export function Sidebar({
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
   const scroll = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const fileInput = useRef<HTMLInputElement>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
   const files = useQuery({
     queryKey: ['files', snapshot.id, meeting.admission.participantId],
@@ -113,6 +116,25 @@ export function Sidebar({
     if (file && writable && !uploadBusy) {
       nearBottom.current = true;
       void meeting.uploader.start(file);
+    }
+  };
+  useEffect(
+    () => () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    },
+    [],
+  );
+  const copyMessage = async (text: string) => {
+    setError('');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Копирование недоступно в этом браузере');
+      await navigator.clipboard.writeText(text);
+      setFeedback('Сообщение скопировано');
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = setTimeout(() => setFeedback(''), 2200);
+    } catch (e) {
+      setFeedback('');
+      setError((e as Error).message || 'Не удалось скопировать сообщение');
     }
   };
   return (
@@ -259,6 +281,13 @@ export function Sidebar({
                     </time>
                   </div>
                   <p>{entry.message.text}</p>
+                  <IconButton
+                    label="Скопировать сообщение"
+                    className="message-copy"
+                    onClick={() => void copyMessage(entry.message.text)}
+                  >
+                    <Copy size={15} />
+                  </IconButton>
                 </div>
               ) : (
                 <div className="attachment-message" key={entry.id}>
@@ -409,6 +438,11 @@ export function Sidebar({
               </IconButton>
             </div>
           </form>
+          {feedback && (
+            <p className="chat-feedback" role="status">
+              {feedback}
+            </p>
+          )}
         </Tabs.Panel>
         <Tabs.Panel value="services" className="panel-body service-body">
           <Services meeting={meeting} />

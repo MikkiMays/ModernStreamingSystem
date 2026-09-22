@@ -35,7 +35,11 @@ export type Watch = Omit<components['schemas']['Watch'], 'provider' | 'kind' | '
 export type PokerPhase = 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'over';
 export type PokerMode = 'friendly' | 'tournament' | 'turbo';
 export type PokerAction = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin';
-export type PokerTable = Omit<components['schemas']['TableView'], 'phase' | 'mode' | 'you' | 'summary'> & {
+export type PokerTable = Omit<
+  components['schemas']['TableView'],
+  'phase' | 'mode' | 'you' | 'summary' | 'visualEvents'
+> & {
+  visualEvents?: GameVisualEvent[];
   phase: PokerPhase;
   mode: PokerMode;
   you: PokerYou | null;
@@ -81,7 +85,12 @@ export type DurakMode = 'podkidnoy' | 'perevodnoy';
 /** Чем кончился бой, который ещё лежит на столе. */
 export type DurakBoutEnd = 'beaten' | 'taken';
 export type DurakAction = 'attack' | 'beat' | 'take' | 'pass' | 'transfer';
-export type DurakTable = Omit<components['schemas']['DurakView'], 'phase' | 'mode' | 'you' | 'boutEnd'> & {
+export type DurakTable = Omit<
+  components['schemas']['DurakView'],
+  'phase' | 'mode' | 'you' | 'boutEnd' | 'visualEvents' | 'reactions'
+> & {
+  visualEvents?: GameVisualEvent[];
+  reactions?: GameReaction[];
   phase: DurakPhase;
   mode: DurakMode;
   you: DurakYou | null;
@@ -103,3 +112,8 @@ export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'>
   version: 1;
   type: 'room.changed' | 'message.created' | 'files.changed' | 'screen.started' | 'screen.first_viewer';
 };
+
+export type GameVisualEvent = Omit<components['schemas']['GameVisualEvent'], 'type'> & {
+  type: 'deal' | 'draw' | 'play' | 'take' | 'discard';
+};
+export type GameReaction = components['schemas']['DurakReaction'];

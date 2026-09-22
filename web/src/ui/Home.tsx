@@ -14,13 +14,14 @@ import { useQuery } from '@tanstack/react-query';
 import { publicApi } from '../api/client';
 import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
 import { favoriteApi } from '../core/favorites';
-import { useFavorites } from './useFavorites';
+import { useFavorites, useReorderFavorites } from './useFavorites';
 import { InstallHint } from './InstallHint';
 import { appLabel } from '../core/version';
 import { DesktopHome } from './DesktopHome';
 import { Settings } from './Settings';
 import { FavoriteSettings } from './FavoriteSettings';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
+import { FavoriteReorder } from './favorite-reorder';
 export { formatCode, parseInvite, type Destination } from '../core/invitation';
 // The theme control lives with the other primitives so the connect screen can use it without
 // pulling in the whole home page.
@@ -81,6 +82,7 @@ function BrowserHome({
   const [error, setError] = useState('');
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
   const favorites = useFavorites();
+  const reorder = useReorderFavorites();
   const [removing, setRemoving] = useState<string | null>(null);
   return (
     <div className="home-page">
@@ -184,8 +186,13 @@ function BrowserHome({
             {!!favorites.data?.length && <span>{favorites.data.length}</span>}
           </div>
           {!!favorites.data?.length ? (
-            <div className="recent-list">
-              {favorites.data.map((room) => (
+            <FavoriteReorder
+              className="recent-list"
+              rooms={favorites.data}
+              pending={reorder.isPending}
+              reorder={(roomIds) => reorder.mutate(roomIds)}
+            >
+              {(room) => (
                 <div key={room.roomId} className="favorite-row">
                   <button
                     className="recent-room"
@@ -206,7 +213,7 @@ function BrowserHome({
                   </button>
                   <FavoriteSettings
                     room={room}
-                    removing={removing === room.roomId}
+                    removing={removing === room.roomId || reorder.isPending}
                     remove={async () => {
                       setRemoving(room.roomId);
                       try {
@@ -220,8 +227,8 @@ function BrowserHome({
                     }}
                   />
                 </div>
-              ))}
-            </div>
+              )}
+            </FavoriteReorder>
           ) : (
             <div className="recent-empty">
               <Star size={22} />
@@ -237,6 +244,11 @@ function BrowserHome({
               <button className="text-button" onClick={() => void favorites.refetch()}>
                 Повторить
               </button>
+            </p>
+          )}
+          {reorder.isError && (
+            <p className="form-error" role="alert">
+              {(reorder.error as Error).message}
             </p>
           )}
         </section>

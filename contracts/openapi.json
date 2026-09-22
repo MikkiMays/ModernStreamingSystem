@@ -297,7 +297,7 @@
           "option": {
             "maxLength": 24,
             "minLength": 0,
-            "pattern": "[a-z-]*",
+            "pattern": "[a-z0-9-]*",
             "type": "string"
           },
           "positionMs": {
@@ -364,7 +364,8 @@
               "durak.stand",
               "durak.deal",
               "durak.act",
-              "durak.settings"
+              "durak.settings",
+              "durak.react"
             ],
             "type": "string"
           },
@@ -512,6 +513,37 @@
           "thrown",
           "transfers",
           "trumpsBurned"
+        ],
+        "type": "object"
+      },
+      "DurakReaction": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "seat": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "stickerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "expiresAt",
+          "id",
+          "seat",
+          "stickerId"
         ],
         "type": "object"
       },
@@ -801,6 +833,12 @@
           "phase": {
             "type": "string"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/DurakReaction"
+            },
+            "type": "array"
+          },
           "result": {
             "oneOf": [
               {
@@ -863,6 +901,12 @@
           "turnSeconds": {
             "format": "int32",
             "type": "integer"
+          },
+          "visualEvents": {
+            "items": {
+              "$ref": "#/components/schemas/GameVisualEvent"
+            },
+            "type": "array"
           },
           "you": {
             "oneOf": [
@@ -1128,6 +1172,62 @@
         ],
         "type": "object"
       },
+      "GameVisualEvent": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "fromSeat": {
+            "format": "int32",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "toSeat": {
+            "format": "int32",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "type": {
+            "enum": [
+              "deal",
+              "draw",
+              "play",
+              "take",
+              "discard"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "cards",
+          "count",
+          "fromSeat",
+          "id",
+          "toSeat",
+          "type"
+        ],
+        "type": "object"
+      },
       "Highlight": {
         "properties": {
           "hint": {
@@ -1310,6 +1410,21 @@
           "name",
           "seat",
           "text"
+        ],
+        "type": "object"
+      },
+      "Order": {
+        "properties": {
+          "roomIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roomIds"
         ],
         "type": "object"
       },
@@ -2111,6 +2226,12 @@
             "format": "int32",
             "type": "integer"
           },
+          "visualEvents": {
+            "items": {
+              "$ref": "#/components/schemas/GameVisualEvent"
+            },
+            "type": "array"
+          },
           "you": {
             "oneOf": [
               {
@@ -2520,6 +2641,39 @@
                 }
               }
             },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/order": {
+      "put": {
+        "operationId": "reorder",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Order"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
             "description": "OK"
           }
         },

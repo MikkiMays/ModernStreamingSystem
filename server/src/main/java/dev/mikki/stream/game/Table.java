@@ -165,6 +165,8 @@ public class Table {
   public String phase = "lobby";
   public long openedAt;
   public long revision;
+  public long visualSequence;
+  public List<GameVisualEvent> visualEvents = new ArrayList<>();
   public int handNumber;
   public int button = -1;
   public long smallBlind;
@@ -795,8 +797,12 @@ public class Table {
     deadline = now + DEAL_MS + turnSeconds * 1000L;
     for (int round = 0; round < 2; round++)
       for (int step = 1; step <= SEATS; step++) {
-        var seat = seats.get((button + step) % SEATS);
-        if (seat.inHand) seat.cards.add(draw());
+        int index = (button + step) % SEATS;
+        var seat = seats.get(index);
+        if (seat.inHand) {
+          seat.cards.add(draw());
+          visual(now, "deal", null, index, 1, List.of());
+        }
       }
     revision++;
   }
@@ -848,6 +854,7 @@ public class Table {
     switch (action) {
       case "fold" -> {
         seat.folded = true;
+        visual(now, "discard", index, null, seat.cards.size(), List.of());
         say(seat, index, "fold", 0, now, automatic ? " не успевает и сбрасывает" : " сбрасывает");
       }
       case "check" -> {
@@ -1037,6 +1044,7 @@ public class Table {
   }
 
   private void street(long now) {
+    int previousCards = board.size();
     burned.add(draw());
     switch (phase) {
       case "preflop" -> {
@@ -1058,6 +1066,8 @@ public class Table {
       }
       default -> throw new IllegalStateException("Улица после ривера: " + phase);
     }
+    for (int index = previousCards; index < board.size(); index++)
+      visual(now, "draw", null, null, 1, List.of(Cards.text(board.get(index))));
     streetAt = now;
     revision++;
     if (seats.stream().filter(Seat::acting).count() <= 1) {
@@ -1756,7 +1766,17 @@ public class Table {
         // снимка одним лишь «сколько шла игра», и длительность в открытых итогах росла бы сама.
         "over".equals(phase)
             ? Standings.of(this, "winner", result == null ? now : result.at)
-            : null);
+            : null,
+        List.copyOf(visualEvents));
+  }
+
+  private void visual(
+      long at, String type, Integer from, Integer to, int count, List<String> cards) {
+    if (count == 0) return;
+    long timestamp = visualEvents.isEmpty() ? at : Math.max(at, visualEvents.getLast().at());
+    visualEvents.add(
+        new GameVisualEvent(++visualSequence, timestamp, type, from, to, count, cards));
+    while (visualEvents.size() > 128) visualEvents.removeFirst();
   }
 
   private TableView.ResultView resultView() {

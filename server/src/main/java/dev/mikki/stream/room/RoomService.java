@@ -897,6 +897,8 @@ public class RoomService {
                         command.seat() == null ? -1 : command.seat(),
                         active(room, member));
             case "durak.stand" -> durak(room).stand(member.id, active(room, member));
+            case "durak.react" ->
+                durak(room).react(member.id, command.option(), active(room, member));
             case "durak.deal" -> {
               fool(room, member);
               durak(room).deal(active(room, member));

@@ -1,0 +1,159 @@
+/* Room-specific polish stays separate from the shared foundation stylesheet. */
+.service-group {
+  position: relative;
+}
+
+.service-state {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  margin-left: auto;
+  max-width: 13rem;
+  text-align: right;
+}
+
+.service-group .service-live + .service-state,
+.service-group .service-state + .service-live {
+  margin-left: 8px;
+}
+
+.message {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.message > p {
+  padding: 11px 48px 11px 13px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.message.own > p {
+  background: var(--blue-soft);
+  border-color: color-mix(in srgb, var(--blue) 24%, var(--line));
+}
+
+.message-copy {
+  position: absolute;
+  top: 18px;
+  right: 4px;
+  min-width: 32px;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px #00000016;
+}
+
+.message-copy:hover,
+.message-copy:focus-visible {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .message-copy {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .message:hover .message-copy,
+  .message:focus-within .message-copy {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.chat-feedback {
+  margin: 0 16px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.favorite-reorder-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+
+.favorite-reorder-handle {
+  align-self: stretch;
+  width: 36px;
+  min-width: 36px;
+  min-height: 44px;
+  height: auto;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+}
+
+.favorite-reorder-handle:hover,
+.favorite-reorder-handle:focus-visible {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.favorite-reorder-item[data-dragging='true'] {
+  opacity: 0.55;
+}
+
+.favorite-reorder-item[data-insertion='before']::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--blue);
+}
+
+.favorite-reorder-item[data-insertion='after']::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: -5px;
+  left: 0;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--blue);
+}
+
+.favorite-reorder-item > .favorite-row,
+.favorite-reorder-item > .desktop-favorite {
+  min-width: 0;
+}
+
+/* Reordering follows a vertical insertion line; desktop favorites become one readable column here. */
+.desktop-favorites-grid.favorite-reorder {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The hook's fallback has the same target as native fullscreen, so player/table layout is kept. */
+.meeting-page[data-full='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg);
+}
+
+.meeting-page[data-full='true'] .meeting-header {
+  display: none;
+}
+
+.meeting-page[data-full='true'] .meeting-body {
+  padding: 0;
+}
+
+.meeting-page[data-full='true'] .stage-wrap {
+  border-radius: 0;
+}

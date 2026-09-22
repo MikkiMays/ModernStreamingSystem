@@ -29,7 +29,7 @@ public class FavoriteService {
     return repository
         .jdbc()
         .sql(
-            "SELECT room_id,member_id,saved_at FROM favorites WHERE profile_hash=? ORDER BY saved_at DESC")
+            "SELECT room_id,member_id,saved_at FROM favorites WHERE profile_hash=? ORDER BY sort_order, saved_at DESC, room_id")
         .param(key(credential))
         .query(
             (rs, n) -> {
@@ -66,11 +66,51 @@ public class FavoriteService {
     // Числа комнат в избранном здесь нет намеренно. Это список на **своём** сервере, и его
     // длина — дело хозяина сервера, а не приложения: пять записей по паре десятков байт не
     // экономят ничего, зато «удалите одну, чтобы добавить новую» стоило человеку выбора.
+    long first =
+        repository
+            .jdbc()
+            .sql("SELECT COALESCE(MIN(sort_order), 0) FROM favorites WHERE profile_hash=?")
+            .param(key)
+            .query(Long.class)
+            .single();
     repository
         .jdbc()
-        .sql("INSERT INTO favorites(profile_hash,room_id,member_id,saved_at) VALUES(?,?,?,?)")
-        .params(key, roomId, member.id, rooms.now())
+        .sql(
+            "INSERT INTO favorites(profile_hash,room_id,member_id,saved_at,sort_order) VALUES(?,?,?,?,?)")
+        .params(key, roomId, member.id, rooms.now(), first - 1)
         .update();
+  }
+
+  @Transactional
+  public void reorder(String credential, List<String> roomIds) {
+    var profile = key(credential);
+    if (roomIds == null
+        || roomIds.stream().anyMatch(Objects::isNull)
+        || new HashSet<>(roomIds).size() != roomIds.size()) {
+      throw new Problem(400, "FAVORITE_ORDER_INVALID", "Комнаты в списке не должны повторяться");
+    }
+    // Save/remove share the global lock; row locks also serialize cascade deletion on expiry.
+    repository.lockGlobal();
+    var current =
+        repository
+            .jdbc()
+            .sql("SELECT room_id FROM favorites WHERE profile_hash=? ORDER BY room_id FOR UPDATE")
+            .param(profile)
+            .query(String.class)
+            .list();
+    if (!new HashSet<>(current).equals(new HashSet<>(roomIds))) {
+      throw Problem.conflict("FAVORITES_CHANGED", "Список комнат изменился. Обновите избранное");
+    }
+    for (int position = 0; position < roomIds.size(); position++) {
+      int updated =
+          repository
+              .jdbc()
+              .sql("UPDATE favorites SET sort_order=? WHERE profile_hash=? AND room_id=?")
+              .params(position, profile, roomIds.get(position))
+              .update();
+      if (updated != 1)
+        throw Problem.conflict("FAVORITES_CHANGED", "Список комнат изменился. Обновите избранное");
+    }
   }
 
   @Transactional

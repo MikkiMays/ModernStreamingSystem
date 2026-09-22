@@ -68,7 +68,8 @@ public record TableView(
      */
     long closesAt,
     /** Итоги игры — только когда она кончилась. Всё остальное время {@code null}. */
-    GameSummary summary) {
+    GameSummary summary,
+    List<GameVisualEvent> visualEvents) {
 
   /** Место за столом. Пустое место — это {@code memberId == null}, остальное в нём не заполнено. */
   public record SeatView(

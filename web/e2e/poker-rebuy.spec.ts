@@ -48,7 +48,7 @@ test('додеп подтверждают движением, а не нажат
       for (let attempt = 0; attempt < 6; attempt++) {
         if (await page.locator('.poker-seat[data-mine]').count()) return;
         await page
-          .locator('.poker-seat.is-empty .poker-sit')
+          .locator('.game-seat-action')
           .nth(nth)
           .click({ timeout: 5000 })
           .catch(() => {});

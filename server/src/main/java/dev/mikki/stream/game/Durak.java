@@ -66,6 +66,9 @@ public class Durak {
   public static final int MAX_TURN = 120;
 
   private static final int LOG_LIMIT = 30;
+  private static final int VISUAL_LIMIT = 128;
+  public static final long REACTION_COOLDOWN_MS = 1500;
+  public static final long REACTION_DISPLAY_MS = 2500;
 
   /** Сколько карт бывает в колоде. Джокеров нет ни в одной. */
   public static final List<Integer> DECKS = List.of(36, 52);
@@ -161,6 +164,10 @@ public class Durak {
   public long dealtAt;
 
   public List<Note> log = new ArrayList<>();
+  public long visualSequence;
+  public List<GameVisualEvent> visualEvents = new ArrayList<>();
+  public long reactionSequence;
+  public List<DurakView.DurakReaction> reactions = new ArrayList<>();
 
   /** Кто и как играл за этим столом, ключ — идентификатор человека. */
   public Map<String, Player> tally = new LinkedHashMap<>();
@@ -237,6 +244,7 @@ public class Durak {
   public static class Player {
     public String name = "";
     public int games;
+    public Long lastReactionAt;
 
     /** Сколько раз оказался дураком. Это и есть счёт беседы. */
     public int fools;
@@ -344,9 +352,11 @@ public class Durak {
     var seat = seatOf(memberId);
     if (seat == null) return;
     int index = seats.indexOf(seat);
+    reactions.removeIf(reaction -> reaction.seat() == index);
     boolean inGame = playing() && seat.playing();
     note(now, "stand", index, seat.name, seat.name + " выходит из игры");
     if (inGame) {
+      visual(now, "discard", index, null, seat.hand.size(), List.of());
       discarded += seat.hand.size();
       seat.hand.clear();
       seat.out = true;
@@ -365,6 +375,7 @@ public class Durak {
       // перестали сидеть. Стол возвращается к ожиданию раздачи.
       note(now, "abort", -1, "", "Игроков не осталось — партия прервана");
       phase = "lobby";
+      visual(now, "discard", null, null, played(), publicBoard());
       clearBout();
       revealedSeed = seed;
       deadline = 0;
@@ -374,6 +385,7 @@ public class Durak {
     if (!seats.get(defender).playing() || !seats.get(attacker).playing()) {
       // Ушёл кто-то из двоих, вокруг кого шёл бой. Бой в таком виде не доигрывается: карты со
       // стола уходят в отбой, и следующий заходит с чистого сукна.
+      visual(now, "discard", null, null, played(), publicBoard());
       discarded += attacks.size() + (int) beats.stream().filter(card -> card >= 0).count();
       if (seats.get(defender).playing()) {
         // Защитник на месте — заходит он: карты, которые под него положили, он не брал.
@@ -382,7 +394,7 @@ public class Durak {
         attacker = nextPlaying(defender);
       }
       clearBout();
-      refill();
+      refill(now);
       if (finish(now)) return;
       attacker = alive(attacker);
       defender = nextPlaying(attacker);
@@ -414,6 +426,23 @@ public class Durak {
   public int indexOf(String memberId) {
     var seat = seatOf(memberId);
     return seat == null ? -1 : seats.indexOf(seat);
+  }
+
+  /** The surrounding room transaction supplies command receipts and serializes cooldown checks. */
+  public void react(String memberId, String stickerId, long now) {
+    int index = indexOf(memberId);
+    if (index < 0) throw Problem.forbidden();
+    if (stickerId == null || !stickerId.matches("durak-online-(0[1-9]|[1-4][0-9]|5[0-4])"))
+      throw new Problem(400, "DURAK_REACTION", "Неизвестная реакция");
+    var player = player(memberId, seats.get(index).name);
+    if (player.lastReactionAt != null && now - player.lastReactionAt < REACTION_COOLDOWN_MS)
+      throw new Problem(429, "DURAK_REACTION_COOLDOWN", "Подождите перед следующей реакцией");
+    player.lastReactionAt = now;
+    reactions.removeIf(reaction -> reaction.expiresAt() <= now || reaction.seat() == index);
+    reactions.add(
+        new DurakView.DurakReaction(
+            ++reactionSequence, now, now + REACTION_DISPLAY_MS, index, stickerId));
+    revision++;
   }
 
   /** Переименовать и перепривязать место: вернувшийся во встречу получает новый идентификатор. */
@@ -538,8 +567,10 @@ public class Durak {
     trumpSuit = Cards.suit(trump);
     int people = players.size();
     for (int card = 0; card < HAND; card++)
-      for (int place = 0; place < people; place++)
+      for (int place = 0; place < people; place++) {
         seats.get(players.get(place)).hand.add(shuffled.get(place + card * people));
+        visual(now, "deal", null, players.get(place), 1, List.of());
+      }
     deck = new ArrayList<>(shuffled.subList(people * HAND, shuffled.size()));
     for (var index : players) sortHand(seats.get(index));
     discarded = 0;
@@ -660,6 +691,7 @@ public class Durak {
     if (!attacks.isEmpty() && !ranksOnTable().contains(Cards.rank(card)))
       throw Problem.conflict("DURAK_RANK", "Такого номинала на столе нет");
     seat.hand.remove((Integer) card);
+    visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     attacks.add(card);
     beats.add(-1);
     // Подкинутая карта снова открывает бой для всех: спасовавший мог придержать вторую такую же.
@@ -693,6 +725,7 @@ public class Durak {
     if (!beatsCard(card, under))
       throw Problem.conflict("DURAK_WEAK", Cards.text(card) + " не бьёт " + Cards.text(under));
     seat.hand.remove((Integer) card);
+    visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     beats.set(slot, card);
     if (Cards.suit(card) == trumpSuit) player(seat.memberId, seat.name).trumpsBurned++;
     note(now, "beat", index, seat.name, seat.name + " отбивается");
@@ -761,6 +794,7 @@ public class Durak {
     if (seats.get(next).hand.size() < attacks.size() + 1)
       throw Problem.conflict("DURAK_TRANSFER", "У следующего не хватит карт, чтобы отбиться");
     seat.hand.remove((Integer) card);
+    visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     attacks.add(card);
     beats.add(-1);
     passed.clear();
@@ -832,6 +866,8 @@ public class Durak {
   private void closeBout(long now) {
     boutEnd = taking ? "taken" : "beaten";
     boutAt = now;
+    visual(
+        now, taking ? "take" : "discard", null, taking ? defender : null, played(), publicBoard());
     deadline = now + BOUT_MS;
     var seat = seats.get(defender);
     note(
@@ -861,7 +897,7 @@ public class Durak {
     }
     int nextAttacker = taken ? nextPlaying(defender) : defender;
     clearBout();
-    refill();
+    refill(now);
     if (finish(now)) return;
     attacker = alive(nextAttacker);
     defender = nextPlaying(attacker);
@@ -879,7 +915,7 @@ public class Durak {
    * следствие именно этого порядка. Главный атакующий, потом остальные нападающие по кругу,
    * последним защитник — так за столом и тянут.
    */
-  private void refill() {
+  private void refill(long now) {
     var order = new ArrayList<Integer>();
     int at = attacker;
     for (int step = 0; step < SEATS; step++) {
@@ -889,7 +925,10 @@ public class Durak {
     if (seats.get(defender).playing()) order.add(defender);
     for (var index : order) {
       var seat = seats.get(index);
-      while (seat.hand.size() < HAND && !deck.isEmpty()) seat.hand.add(deck.remove(0));
+      while (seat.hand.size() < HAND && !deck.isEmpty()) {
+        seat.hand.add(deck.remove(0));
+        visual(now, "draw", null, index, 1, List.of());
+      }
       sortHand(seat);
     }
   }
@@ -1042,6 +1081,8 @@ public class Durak {
         changed = true;
       }
       if (seat.away && !(playing() && seat.playing()) && now - seat.awaySince > AWAY_STAND_MS) {
+        int leaving = seats.indexOf(seat);
+        reactions.removeIf(reaction -> reaction.seat() == leaving);
         note(now, "stand", seats.indexOf(seat), seat.name, seat.name + " покидает стол");
         seats.set(seats.indexOf(seat), new Seat());
         changed = true;
@@ -1105,6 +1146,21 @@ public class Durak {
     entry.text = text;
     log.add(entry);
     while (log.size() > LOG_LIMIT) log.remove(0);
+  }
+
+  private List<String> publicBoard() {
+    var cards = new ArrayList<Integer>(attacks);
+    for (var card : beats) if (card >= 0) cards.add(card);
+    return Cards.texts(cards);
+  }
+
+  private void visual(
+      long at, String type, Integer from, Integer to, int count, List<String> cards) {
+    if (count == 0) return;
+    long timestamp = visualEvents.isEmpty() ? at : Math.max(at, visualEvents.getLast().at());
+    visualEvents.add(
+        new GameVisualEvent(++visualSequence, timestamp, type, from, to, count, cards));
+    while (visualEvents.size() > VISUAL_LIMIT) visualEvents.removeFirst();
   }
 
   // --- Снимок -----------------------------------------------------------------------------
@@ -1179,7 +1235,9 @@ public class Durak {
         result(),
         commitment,
         revealedSeed,
-        closesAt());
+        closesAt(),
+        List.copyOf(visualEvents),
+        reactions.stream().filter(reaction -> reaction.expiresAt() > now).toList());
   }
 
   private DurakView.DurakResult result() {

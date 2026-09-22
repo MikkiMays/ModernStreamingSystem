@@ -42,7 +42,7 @@ import { favoriteApi } from '../core/favorites';
 import { useFavorites } from './useFavorites';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { notifyDesktop, onDesktopCommand } from '../core/desktop';
-import { fullscreenAvailable } from '../core/fullscreen';
+import { useFullscreen } from '../core/fullscreen';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -68,7 +68,8 @@ export function MeetingView({
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
-  const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement);
+  const page = useRef<HTMLDivElement>(null);
+  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(page);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const lastActivity = useRef(Date.now());
@@ -78,18 +79,10 @@ export function MeetingView({
     if (!controlsCollapsed) setControlsVisible(true);
   };
   useEffect(() => {
-    const changed = () => {
-      setFullscreen(!!document.fullscreenElement);
-      setControlsVisible(true);
-      setControlsCollapsed(false);
-      lastActivity.current = Date.now();
-    };
-    document.addEventListener('fullscreenchange', changed);
-    return () => {
-      document.removeEventListener('fullscreenchange', changed);
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-    };
-  }, []);
+    setControlsVisible(true);
+    setControlsCollapsed(false);
+    lastActivity.current = Date.now();
+  }, [fullscreen]);
   useEffect(() => {
     if (!fullscreen || controlsCollapsed) return;
     const timer = setInterval(() => {
@@ -107,10 +100,6 @@ export function MeetingView({
   /** Телефон: часть кнопок не прячется, а переезжает в меню, и это решает разметка. */
   const compact = useMediaQuery('(max-width: 700px)');
   const outbound = useStore(meeting.media.outbound);
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen().catch((e) => meeting.media.report(e));
-  };
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
   useEffect(() => {
@@ -178,7 +167,9 @@ export function MeetingView({
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
   return (
     <div
-      className={`meeting-page ${fullscreen ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
+      ref={page}
+      className={`meeting-page ${targetFull ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
+      data-full={targetFull ? 'true' : undefined}
       onPointerMove={wakeControls}
       onPointerDown={wakeControls}
       onFocusCapture={wakeControls}
@@ -489,13 +480,7 @@ export function MeetingView({
                       <Menu.Item onClick={() => setDiagnostics(true)}>
                         <Activity size={18} /> Диагностика
                       </Menu.Item>
-                      {/*
-                        На телефоне полноэкранного режима может не быть вовсе: iPhone
-                        разворачивает только собственный плеер видео. Пункт, который ничего не
-                        делает, хуже отсутствующего — там, где режима нет, его здесь и нет.
-                        Кинозал в этом случае разворачивается сам, своими силами.
-                      */}
-                      {compact && fullscreenAvailable() && (
+                      {compact && (
                         <Menu.Item onClick={() => toggleFullscreen()}>
                           {fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}{' '}
                           {fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
@@ -518,7 +503,7 @@ export function MeetingView({
                   </Menu.Positioner>
                 </Menu.Portal>
               </Menu.Root>
-              {!compact && fullscreenAvailable() && (
+              {!compact && (
                 <IconButton
                   label={fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
                   onClick={toggleFullscreen}

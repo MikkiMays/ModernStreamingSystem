@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import '../game-polish.css';
+import { useState, type CSSProperties } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -28,7 +29,7 @@ import {
   winnerOf,
 } from '../core/poker';
 import { GameResult } from './PokerResult';
-import { useStore } from './primitives';
+import { Modal, useStore } from './primitives';
 
 /**
  * Игры в панели интеграций.
@@ -95,6 +96,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
     турнир — ни разу; дальше это решение ведущего, и менять его можно и потом.
   */
   const [rebuys, setRebuys] = useState<number | null>(null);
+  const [history, setHistory] = useState(false);
   const [error, setError] = useState('');
   const limit = rebuys ?? (preset.id === 'friendly' ? -1 : 0);
   const blinds = blindsFor(mode, stack);
@@ -143,7 +145,6 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
         {GAMES.map((game) => {
           const live = game.id === 'poker' ? !!table : !!durak;
           const expanded = open === game.id;
-          const Icon = game.icon;
           const seated =
             game.id === 'poker'
               ? (table?.seats.filter((seat) => seat.memberId).length ?? 0)
@@ -151,6 +152,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
           return (
             <section
               key={game.id}
+              style={{ '--game-accent': game.accent } as CSSProperties}
               className="games-item"
               data-open={expanded || undefined}
               data-live={live || undefined}
@@ -161,7 +163,13 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 onClick={() => setOpen(expanded ? null : game.id)}
               >
                 <span className="games-icon" style={{ background: game.accent }}>
-                  <Icon size={20} />
+                  <img
+                    src={`/games/${game.id === 'poker' ? 'poker-hand' : 'card-joker'}.svg`}
+                    alt=""
+                    width="28"
+                    height="28"
+                    draggable={false}
+                  />
                 </span>
                 <b>
                   {game.name}
@@ -177,13 +185,6 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   вёрстка. Поворот — классом, чтобы он был с переходом, а не прыжком.
                 */}
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
-                <small>
-                  {!live
-                    ? game.hint
-                    : game.id === 'poker'
-                      ? `${table!.modeName} · блайнды ${chips(table!.smallBlind)}/${chips(table!.bigBlind)}`
-                      : `${durak!.modeName} · ${durak!.deckSize} карт`}
-                </small>
               </button>
               {expanded && game.id === 'durak' && (
                 <DurakBody
@@ -264,8 +265,17 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
           );
         })}
       </div>
-      <GameHistory meeting={meeting} />
-      <DurakHistory meeting={meeting} />
+      <button className="button game-history-button" onClick={() => setHistory(true)}>
+        <History size={17} /> История игр
+      </button>
+      <Modal open={history} onOpenChange={setHistory} title="История игр" wide>
+        {history && (
+          <>
+            <GameHistory meeting={meeting} />
+            <DurakHistory meeting={meeting} />
+          </>
+        )}
+      </Modal>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -540,7 +550,17 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
     staleTime: 10000,
   });
   const list = [...(games.data ?? [])].reverse();
-  if (!list.length) return null;
+  if (games.isPending) return <p role="status">Загружаем историю…</p>;
+  if (games.isError)
+    return (
+      <p role="alert">
+        Не удалось загрузить историю.{' '}
+        <button className="text-button" onClick={() => void games.refetch()}>
+          Повторить
+        </button>
+      </p>
+    );
+  if (!list.length) return <p className="muted">Сыгранных партий пока нет.</p>;
   const score = [...(list[0]?.players ?? [])].sort(
     (a, b) => b.fools - a.fools || a.name.localeCompare(b.name),
   );
@@ -653,7 +673,17 @@ function GameHistory({ meeting }: { meeting: Meeting }) {
     staleTime: 10000,
   });
   const list = [...(games.data ?? [])].reverse();
-  if (!list.length) return null;
+  if (games.isPending) return <p role="status">Загружаем историю…</p>;
+  if (games.isError)
+    return (
+      <p role="alert">
+        Не удалось загрузить историю.{' '}
+        <button className="text-button" onClick={() => void games.refetch()}>
+          Повторить
+        </button>
+      </p>
+    );
+  if (!list.length) return <p className="muted">Сыгранных партий пока нет.</p>;
   return (
     <section className="games-history">
       <h4>

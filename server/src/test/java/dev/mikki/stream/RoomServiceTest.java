@@ -1406,4 +1406,51 @@ class RoomServiceTest {
     assertThat(table.closesAt()).isZero();
     assertThat(table.seats.get(0).memberId).isEqualTo(host.participantId());
   }
+
+  @Test
+  void durakReactionReceiptsAreIdempotentAndDoNotLeakToOtherRooms() {
+    var host = host();
+    var other = host();
+    connected(host);
+    connected(other);
+    poker(host, "durak.open", "podkidnoy", null, null);
+    poker(host, "durak.sit", null, 0, null);
+    poker(other, "durak.open", "podkidnoy", null, null);
+    var react =
+        new Command(
+            UUID.randomUUID(),
+            "durak.react",
+            null,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null,
+            "durak-online-01",
+            null,
+            null);
+    var ack = rooms.command(host.roomId(), host.credential(), react);
+    assertThat(rooms.command(host.roomId(), host.credential(), react)).isEqualTo(ack);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).durak().reactions()).hasSize(1);
+    assertThat(rooms.read(host.roomId()).durak.reactionSequence).isEqualTo(1);
+    assertThat(rooms.snapshot(other.roomId(), other.credential()).durak().reactions()).isEmpty();
+    assertThatThrownBy(() -> poker(host, "durak.react", "durak-online-02", null, null))
+        .isInstanceOf(Problem.class);
+    now.addAndGet(1500);
+    poker(host, "durak.react", "durak-online-02", null, null);
+    assertThat(rooms.read(host.roomId()).durak.reactionSequence).isEqualTo(2);
+    now.addAndGet(2500);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).durak().reactions()).isEmpty();
+  }
+
+  @Test
+  void unseatedRoomMembersCannotReactAtDurakTable() {
+    var host = host();
+    connected(host);
+    poker(host, "durak.open", "podkidnoy", null, null);
+    assertThatThrownBy(() -> poker(host, "durak.react", "durak-online-01", null, null))
+        .isInstanceOf(Problem.class);
+    assertThat(rooms.read(host.roomId()).durak.reactionSequence).isZero();
+  }
 }

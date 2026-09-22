@@ -5,8 +5,9 @@ import { publicApi } from '../api/client';
 import { favoriteApi, type Favorite } from '../core/favorites';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
 import { IconButton, Modal } from './primitives';
-import { useFavorites } from './useFavorites';
+import { useFavorites, useReorderFavorites } from './useFavorites';
 import { FavoriteSettings } from './FavoriteSettings';
+import { FavoriteReorder } from './favorite-reorder';
 
 export function DesktopHome({
   onCreate,
@@ -22,6 +23,7 @@ export function DesktopHome({
   const [removing, setRemoving] = useState<string | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
   const favorites = useFavorites();
+  const reorder = useReorderFavorites();
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
   const remove = async (room: Favorite) => {
     setRemoving(room.roomId);
@@ -40,8 +42,13 @@ export function DesktopHome({
   };
   const rooms = favorites.data ?? [];
   const list = (
-    <div className="desktop-favorites-grid">
-      {rooms.map((room) => (
+    <FavoriteReorder
+      className="desktop-favorites-grid"
+      rooms={rooms}
+      pending={reorder.isPending}
+      reorder={(roomIds) => reorder.mutate(roomIds)}
+    >
+      {(room) => (
         <div className="desktop-favorite" key={room.roomId}>
           <button
             className="desktop-favorite-enter"
@@ -57,10 +64,14 @@ export function DesktopHome({
               <small>{formatCode(room.code)}</small>
             </span>
           </button>
-          <FavoriteSettings room={room} removing={removing === room.roomId} remove={() => remove(room)} />
+          <FavoriteSettings
+            room={room}
+            removing={removing === room.roomId || reorder.isPending}
+            remove={() => remove(room)}
+          />
         </div>
-      ))}
-    </div>
+      )}
+    </FavoriteReorder>
   );
   return (
     <main className="desktop-home">
@@ -147,6 +158,11 @@ export function DesktopHome({
             <button className="text-button desktop-favorites-retry" onClick={() => void favorites.refetch()}>
               Повторить загрузку избранного
             </button>
+          )}
+          {reorder.isError && (
+            <p className="form-error desktop-home-error" role="alert">
+              {(reorder.error as Error).message}
+            </p>
           )}
         </section>
         {capabilities.isError && (

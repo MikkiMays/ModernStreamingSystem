@@ -1,3 +1,6 @@
+import '../game-polish.css';
+import { occupiedSeatLayout } from '../core/game-layout';
+import { CardMotion, GameTurn, useTableRatio } from './GamePresentation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Track, TrackEvent } from 'livekit-client';
 import {
@@ -9,7 +12,6 @@ import {
   LogOut,
   Pause,
   Play,
-  Plus,
   ListOrdered,
   Maximize2,
   Minimize2,
@@ -47,7 +49,6 @@ import {
   playing,
   plural,
   readyCount,
-  seatLayout,
   showdownCards,
   verifyDeal,
   type CardState,
@@ -83,7 +84,12 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
   const me = meeting.admission.participantId;
   const you = table.you;
   const mySeat = you ? you.seat : null;
-  const spots = useMemo(() => seatLayout(mySeat), [mySeat]);
+  const tableGeometry = useTableRatio();
+  const spots = occupiedSeatLayout(
+    table.seats.filter((seat) => seat.memberId).map((seat) => seat.index),
+    mySeat,
+    tableGeometry.ratio,
+  );
   const dealer = table.hostId === me || !!snapshot.participants.find((p) => p.id === me)?.owner;
   const cheer = celebration(table.result);
   const [error, setError] = useState('');
@@ -110,7 +116,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     почти невозможно — овал ужимается до трети экрана.
   */
   const scene = useRef<HTMLDivElement>(null);
-  const { full, toggle: toggleFull } = useFullscreen(scene);
+  const { full, targetFull, toggle: toggleFull } = useFullscreen(scene);
 
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
@@ -168,7 +174,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
       ref={scene}
       data-phase={table.phase}
       data-drama={cheer?.level}
-      data-full={full ? 'true' : undefined}
+      data-full={targetFull ? 'true' : undefined}
     >
       <TableBar
         meeting={meeting}
@@ -181,8 +187,32 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
         full={full}
         onFull={toggleFull}
       />
+      <GameTurn
+        meeting={meeting}
+        deadline={table.deadline}
+        active={!!you?.turn && !table.paused}
+        label={
+          table.paused
+            ? 'Пауза'
+            : you?.turn
+              ? `Ваш ход · ${you.callAmount > 0 ? `уравнять ${chips(you.callAmount)} или повысить` : 'чек или ставка'}`
+              : table.seats.find((seat) => seat.index === table.actor)?.name
+                ? `Ходит ${table.seats.find((seat) => seat.index === table.actor)?.name}`
+                : phaseLabel(table.phase)
+        }
+      />
+      {mySeat === null && table.seats.some((seat) => !seat.memberId) && (
+        <button
+          className="button primary game-seat-action"
+          disabled={!table.seatingOpen}
+          onClick={() => send('poker.sit', { seat: table.seats.find((seat) => !seat.memberId)!.index })}
+        >
+          Сесть за стол
+        </button>
+      )}
       <div className="poker-felt-wrap">
-        <div className="poker-felt">
+        <div className="poker-felt" ref={tableGeometry.ref}>
+          <CardMotion meeting={meeting} events={table.visualEvents} spots={spots} />
           {/* Борт, дорожка и сукно — три слоя одного стола, как у настоящего. */}
           <div className="poker-rail" aria-hidden="true" />
           <div className="poker-cloth" aria-hidden="true">
@@ -271,7 +301,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
             )}
           </div>
           {spots.map((spot) => {
-            const seat = table.seats[spot.index];
+            const seat = table.seats.find((seat) => seat.index === spot.index);
             if (!seat) return null;
             return (
               <SeatView
@@ -286,7 +316,6 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 winner={winners.has(spot.index)}
                 mine={spot.index === mySeat}
                 avatar={snapshot.participants.find((p) => p.id === seat.memberId)?.avatar ?? null}
-                onSit={() => send('poker.sit', { seat: spot.index })}
               />
             );
           })}
@@ -765,7 +794,6 @@ function SeatView({
   winner,
   mine,
   avatar,
-  onSit,
 }: {
   spot: SeatSpot;
   seat: PokerSeat;
@@ -777,7 +805,6 @@ function SeatView({
   winner: boolean;
   mine: boolean;
   avatar: string | null;
-  onSit: () => void;
 }) {
   const active = table.actor === seat.index && playing(table);
   const camera = tracks.find(
@@ -792,20 +819,13 @@ function SeatView({
     '--dx': 50 - spot.x,
     '--dyp': 50 - spot.y,
   } as CSSProperties;
-  if (!seat.memberId)
-    return (
-      <div className="poker-seat is-empty" style={style} data-side={spot.side}>
-        <button className="poker-sit" onClick={onSit} disabled={!table.seatingOpen}>
-          <Plus size={16} />
-          <span>{table.seatingOpen ? 'Сесть' : 'Закрыто'}</span>
-        </button>
-      </div>
-    );
+  if (!seat.memberId) return null;
   const won = table.result?.awards.filter((award) => award.seat === seat.index) ?? [];
   const showdown = table.phase === 'showdown';
   return (
     <div
       className="poker-seat"
+      data-game-seat={seat.index}
       style={style}
       data-side={spot.side}
       data-active={active || undefined}
@@ -846,7 +866,7 @@ function SeatView({
           стеком, так что «у кого сколько» видно по столу, а не по чтению цифр.
         */}
         <div className="poker-name">
-          <span>{seat.name}</span>
+          <span title={seat.name}>{seat.name}</span>
           <b>
             {seat.busted ? (
               `${seat.place} место`
@@ -959,7 +979,14 @@ function TurnRing({ table, elapsed }: { table: Table; elapsed: number }) {
         cx="50"
         cy="50"
         r="46"
-        style={{ animationDuration: `${total}ms`, animationDelay: `${-Math.max(0, elapsed)}ms` }}
+        style={
+          {
+            animationDuration: `${total}ms`,
+            animationDelay: `${-Math.max(0, elapsed)}ms`,
+            '--turn-duration': `${total}ms`,
+            '--turn-delay': `${-Math.max(0, elapsed)}ms`,
+          } as CSSProperties
+        }
       />
     </svg>
   );
@@ -1082,7 +1109,7 @@ function Controls({
     return () => window.removeEventListener('keydown', keys);
   }, [turn, you]);
 
-  const seat = you ? table.seats[you.seat] : null;
+  const seat = you ? table.seats.find((seat) => seat.index === you.seat) : null;
   const seated = !!seat;
   /*
     ФИШКИ КОНЧИЛИСЬ — ЭТО СОБЫТИЕ, А НЕ КНОПКА В РЯДУ ДРУГИХ.
@@ -1113,7 +1140,7 @@ function Controls({
           </div>
         ) : (
           <span className="poker-mine-hint">
-            {seated ? 'Ждём следующую раздачу' : 'Нажмите свободное место, чтобы сесть'}
+            {seated ? 'Ждём следующую раздачу' : 'Сядьте за стол, чтобы играть'}
           </span>
         )}
         {seat && (
@@ -1600,7 +1627,10 @@ function Cheer({
           <span
             key={award.seat}
             className="poker-cheer-name"
-            style={{ left: `${spots[award.seat]?.x ?? 50}%`, top: `${spots[award.seat]?.y ?? 50}%` }}
+            style={{
+              left: `${spots.find((spot) => spot.index === award.seat)?.x ?? 50}%`,
+              top: `${spots.find((spot) => spot.index === award.seat)?.y ?? 50}%`,
+            }}
           >
             <b>{award.name}</b>
             <i>{award.handName || (award.split ? 'делит банк' : 'забирает банк')}</i>
@@ -1685,26 +1715,26 @@ function useChipFlights(table: Table, spots: SeatSpot[]): Flight[] {
         не спорить с ними за внимание в первую же секунду.
       */
       bets.forEach((bet, index) => {
-        const spot = spots[index];
+        const spot = spots.find((spot) => spot.index === table.seats[index]?.index);
         if (bet > 0 && spot) fly(spot, betSpot(spot), bet, 3, 180, 60);
       });
     else if (street)
       // Круг кончился: ставки со всего стола уезжают в банк — оттуда, где они лежали.
       previous.current.bets.forEach((bet, index) => {
-        const spot = spots[index];
+        const spot = spots.find((spot) => spot.index === table.seats[index]?.index);
         if (bet > 0 && spot) fly(betSpot(spot), { x: 50, y: 50 }, bet, 3, index * 40, 70);
       });
     else
       bets.forEach((bet, index) => {
         // Ставка: только прирост, иначе доложенная разница выглядела бы новой ставкой целиком.
         const added = bet - (previous.current.bets[index] ?? 0);
-        const spot = spots[index];
+        const spot = spots.find((spot) => spot.index === table.seats[index]?.index);
         if (added > 0 && spot) fly(spot, betSpot(spot), added, 3, 0, 60);
       });
     const result = table.result;
     if (result && result.at !== previous.current.resultAt)
       result.awards.forEach((award, index) => {
-        const spot = spots[award.seat];
+        const spot = spots.find((spot) => spot.index === award.seat);
         if (spot) fly({ x: 50, y: 50 }, spot, award.amount, 5, 260 + index * 120, 80);
       });
     previous.current = {

@@ -108,6 +108,10 @@ function Workspace() {
           : null,
     });
     return onDesktopCommand((command) => {
+      if (command.type === 'favorites.changed') {
+        void queryClient.invalidateQueries({ queryKey: ['favorites'] });
+        return;
+      }
       if (command.type === 'preferences.changed') {
         const patch = {
           ...(typeof command.showPing === 'boolean' ? { showPing: command.showPing } : {}),

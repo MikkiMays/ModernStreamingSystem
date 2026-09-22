@@ -78,8 +78,8 @@ test('итоги игры приезжают обоим, остаются в и�
     await host.getByRole('button', { name: /Открыть стол/ }).click();
     await expect(host.locator('.poker-felt')).toBeVisible();
 
-    await host.locator('.poker-seat.is-empty .poker-sit').first().click();
-    await guest.locator('.poker-seat.is-empty .poker-sit').nth(3).click();
+    await host.locator('.game-seat-action').first().click();
+    await guest.locator('.game-seat-action').first().click();
     await expect.poll(() => host.locator('.poker-seat:not(.is-empty)').count()).toBe(2);
 
     // Фишки стоят рядом с человеком и в банке.
@@ -148,9 +148,15 @@ test('итоги игры приезжают обоим, остаются в и�
 
     // История игр в панели: та же таблица, но уже после стола.
     await host.locator('.poker-sheet').getByRole('button', { name: 'Закрыть' }).click();
+    await host.getByRole('button', { name: 'История игр', exact: true }).click();
     await expect(host.locator('.games-history')).toBeVisible({ timeout: 15000 });
     await host.locator('.games-history .games-head').first().click();
     await expect(host.locator('.games-history .poker-result-players li').first()).toBeVisible();
+
+    await host
+      .getByRole('dialog', { name: 'История игр' })
+      .getByRole('button', { name: 'Закрыть', exact: true })
+      .click();
 
     // Пустой стол объявляет свой срок: оба встают, и отсчёт виден на сцене.
     await host

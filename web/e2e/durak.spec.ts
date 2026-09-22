@@ -59,8 +59,8 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     await expect(host.locator('.durak-felt')).toBeVisible();
     await expect(guest.locator('.durak-felt')).toBeVisible({ timeout: 10000 });
 
-    await host.locator('.durak-seat.is-empty .durak-sit').first().click();
-    await guest.locator('.durak-seat.is-empty .durak-sit').nth(1).click();
+    await host.locator('.game-seat-action').first().click();
+    await guest.locator('.game-seat-action').first().click();
     await expect(host.locator('.durak-seat[data-mine]')).toBeVisible();
     await expect(guest.locator('.durak-seat[data-mine]')).toBeVisible();
 
@@ -144,16 +144,17 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     await expect(host.locator('.durak-score')).toBeVisible();
 
     // Итог партии уехал в историю беседы вместе со счётом.
+    await host.getByRole('button', { name: 'История игр', exact: true }).click();
     await expect(host.locator('.games-history').filter({ hasText: 'Дурак' })).toBeVisible({
       timeout: 15000,
     });
 
-    // Раздача проверяема: браузер пересобирает колоду из зерна и сверяет с отпечатком.
+    await host
+      .getByRole('dialog', { name: 'История игр' })
+      .getByRole('button', { name: 'Закрыть', exact: true })
+      .click();
     await host.getByRole('button', { name: 'Настройки стола' }).click();
-    await host.getByRole('button', { name: /Проверить/ }).click();
-    await expect(host.locator('.durak-sheet-body')).toContainText('сошлась с обещанной', {
-      timeout: 10000,
-    });
+    await expect(host.getByRole('button', { name: /Проверить раздачу/ })).toHaveCount(0);
     await host.screenshot({ path: '../.local/durak-over.png' });
   } finally {
     await a.close();

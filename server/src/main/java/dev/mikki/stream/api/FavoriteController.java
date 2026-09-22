@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 public class FavoriteController {
   public record Save(@NotBlank @Size(max = 150) String roomCredential) {}
 
+  public record Order(@NotNull List<@NotNull UUID> roomIds) {}
+
   private final FavoriteService favorites;
   private final RateLimits limits;
 
@@ -32,6 +34,13 @@ public class FavoriteController {
       @Valid @RequestBody Save request) {
     limits.check("favorite:" + Secrets.hash(profile), 60);
     favorites.save(profile, id.toString(), request.roomCredential());
+  }
+
+  @PutMapping("/order")
+  public void reorder(
+      @RequestHeader("Authorization") String profile, @Valid @RequestBody Order request) {
+    limits.check("favorite:" + Secrets.hash(profile), 60);
+    favorites.reorder(profile, request.roomIds().stream().map(UUID::toString).toList());
   }
 
   @DeleteMapping("/{id}")

@@ -54,7 +54,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -84,7 +84,7 @@ public final class Contracts {
        * Одно слово, уточняющее команду: режим стола, действие в раздаче, имя настройки. Игра пришла
        * последней и ведёт себя так же, как просмотр до неё, — одним конвертом на все типы.
        */
-      @Size(max = 24) @Pattern(regexp = "[a-z-]*") String option,
+      @Size(max = 24) @Pattern(regexp = "[a-z0-9-]*") String option,
       @Min(0) @Max(9) Integer seat,
       /** Фишки: до чего повышать. Верхний предел — больше, чем может быть на любом столе. */
       @Min(0) @Max(100000000) Long chips,

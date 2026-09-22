@@ -3,6 +3,7 @@ import '@fontsource-variable/inter';
 import './styles.css';
 import './accessibility.css';
 import './room-layout.css';
+import './room-polish.css';
 import './desktop-home.css';
 import './poker.css';
 import './durak.css';

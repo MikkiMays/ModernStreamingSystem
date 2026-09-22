@@ -37,6 +37,7 @@ import {
   type CaptionChoice,
 } from './watch-tracks';
 import { controlsShown, framePress, skipTarget } from './watch-controls';
+import { attachDash, type DashPlayback } from './watch-dash';
 import { IconButton, Slider, useStore } from './primitives';
 
 /**
@@ -182,9 +183,13 @@ export function WatchTheater({
   */
   // На телефоне полноэкранного режима для чужих элементов нет, и кнопка там раскладывает
   // плеер на всё окно сама — см. {@link useFullscreen}.
-  const { full: fullscreen, toggle: toggleFullscreen } = useFullscreen(screen);
+  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(screen);
   const video = useRef<HTMLVideoElement>(null);
   const engine = useRef<Hls | null>(null);
+  const dashEngine = useRef<DashPlayback | null>(null);
+  const refreshing = useRef(false);
+  const sourceGeneration = useRef(0);
+  const renewals = useRef(0);
   const suppressUntil = useRef(0);
   const sending = useRef(false);
   const started = useRef(false);
@@ -224,6 +229,9 @@ export function WatchTheater({
   const content = `${watch.provider}:${watch.kind}:${watch.contentId}`;
   useEffect(() => {
     let alive = true;
+    sourceGeneration.current++;
+    renewals.current = 0;
+    refreshing.current = false;
     setStatus('loading');
     setError('');
     setSource(null);
@@ -249,8 +257,48 @@ export function WatchTheater({
       });
     return () => {
       alive = false;
+      sourceGeneration.current++;
     };
   }, [api, content]);
+
+  const renewSource = useCallback(
+    async (adaptive = true) => {
+      if (refreshing.current) return;
+      refreshing.current = true;
+      const generation = sourceGeneration.current;
+      const current = latest.current.watch;
+      try {
+        const resolved = await api.resolve(current.provider, current.contentId, current.kind, {
+          adaptive,
+          refresh: true,
+        });
+        if (generation !== sourceGeneration.current) return;
+        suppressUntil.current = Date.now() + SUPPRESS_MS;
+        setLevels([]);
+        setLevel(-1);
+        setAutomatic(-1);
+        setStatus('loading');
+        setSource(resolved);
+      } catch (e) {
+        if (generation === sourceGeneration.current) {
+          setStatus('failed');
+          setError((e as Error).message || 'Не удалось обновить поток');
+        }
+      } finally {
+        if (generation === sourceGeneration.current) refreshing.current = false;
+      }
+    },
+    [api],
+  );
+
+  useEffect(() => {
+    if (!source?.expiresAt) return;
+    const timer = setTimeout(
+      () => void renewSource(source.kind === 'dash'),
+      Math.max(1000, source.expiresAt - Date.now() - 60000),
+    );
+    return () => clearTimeout(timer);
+  }, [source, renewSource]);
 
   // Плеер живёт, пока не сменился источник: пересоздавать его на каждое изменение комнаты —
   // это чёрный кадр у всех на каждую чужую паузу.
@@ -272,6 +320,31 @@ export function WatchTheater({
     const preferred = wantedVoice.current || source.language;
     if (source.kind === 'file') {
       element.src = source.url;
+    } else if (source.kind === 'dash') {
+      void attachDash(element, source.url, preferred, {
+        alive: () => alive,
+        levels: (next, current) => {
+          setLevels(next);
+          setAutomatic(current);
+        },
+        voices: (next, current) => {
+          setVoices(next);
+          setVoice(current);
+        },
+        error: () => {
+          if (refreshing.current) return;
+          // Retry signed sources once, then use the compatible file rather than a retry loop.
+          const adaptive = renewals.current++ === 0;
+          void renewSource(adaptive);
+        },
+      })
+        .then((player) => {
+          if (!alive) player?.destroy();
+          else dashEngine.current = player;
+        })
+        .catch(() => {
+          if (alive) void renewSource(false);
+        });
     } else if (Hls.isSupported()) {
       /*
         hls.js идёт первым, и это не вкусовщина.
@@ -289,10 +362,8 @@ export function WatchTheater({
         maxBufferLength: 30,
         fragLoadingMaxRetry: 6,
         manifestLoadingMaxRetry: 4,
-        // Качество по размеру окна, а не по жадности. Поток идёт через наш сервер, и
-        // 1440p в плитку шириной в тысячу пикселей — это втрое больше трафика без единого
-        // лишнего пикселя на экране. Руками уровень по-прежнему выбирается любой.
-        capLevelToPlayerSize: true,
+        // Network throughput chooses automatic quality; a small player must not hide HD.
+        capLevelToPlayerSize: false,
         /*
           Дыру в полсекунды лучше перескочить, чем встать перед ней.
 
@@ -314,7 +385,7 @@ export function WatchTheater({
 
           Мерить нам, в общем, нечего: поток идёт не от площадки, а от своего же сервера, и
           нижняя оценка в полмегабита к нему отношения не имеет. Поэтому начальная оценка —
-          честные два с половиной мегабита, а дальше адаптация и `capLevelToPlayerSize`
+          честные два с половиной мегабита, а дальше адаптация
           поправят в обе стороны за считаные секунды.
         */
         testBandwidth: false,
@@ -371,6 +442,10 @@ export function WatchTheater({
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
+        if ((data.response?.code === 403 || data.response?.code === 410) && renewals.current++ < 2) {
+          void renewSource();
+          return;
+        }
         // Сеть и декодер лечатся на месте; всё остальное — честный отказ, а не вечный
         // чёрный кадр. Протухшую подпись чинит переоткрытие: адрес живёт пять часов.
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
@@ -386,6 +461,9 @@ export function WatchTheater({
     }
     return () => {
       alive = false;
+      suppressUntil.current = Date.now() + SUPPRESS_MS;
+      dashEngine.current?.destroy();
+      dashEngine.current = null;
       engine.current?.destroy();
       engine.current = null;
       element.removeAttribute('src');
@@ -599,7 +677,8 @@ export function WatchTheater({
     const track = engine.current?.audioTracks[choice.index];
     // Помним язык, а не номер: у следующего ролика номера будут другие, а язык тот же.
     // Оригинал помнится пустой строкой — «как снял автор» у каждого ролика свой.
-    wantedVoice.current = choice.original ? '' : (track?.lang ?? '');
+    const dashLanguage = dashEngine.current?.voice(choice.index);
+    wantedVoice.current = choice.original ? '' : (dashLanguage ?? track?.lang ?? '');
     meeting.media.saveSettings({ watchAudio: wantedVoice.current });
     setVoice(choice.index);
     if (track) engine.current?.setAudioOption({ lang: track.lang, name: track.name });
@@ -622,7 +701,7 @@ export function WatchTheater({
       aria-label="Совместный просмотр"
       ref={screen}
       data-idle={showControls ? undefined : 'true'}
-      data-full={fullscreen ? 'true' : undefined}
+      data-full={targetFull ? 'true' : undefined}
       onPointerMove={wake}
       onPointerDown={wake}
       onFocusCapture={wake}
@@ -660,6 +739,10 @@ export function WatchTheater({
             const element = video.current;
             if (!element) return;
             setDuration(Number.isFinite(element.duration) ? element.duration * 1000 : 0);
+            if (!latest.current.live) {
+              suppress();
+              element.currentTime = targetPosition(latest.current.watch, meeting.serverNow()) / 1000;
+            }
             // Открывший включает, как только его плеер готов: состояние уже у всех, а
             // отставших подтянет обычная проверка расхождения.
             const now = latest.current.watch;
@@ -747,13 +830,14 @@ export function WatchTheater({
               {live ? <Radio size={15} /> : <Tv size={15} />}
               <b>{title}</b>
               <small>
-                {live
-                  ? `Эфир · ${source?.author || watch.contentId}`
-                  : behind
-                    ? 'Догоняем комнату…'
-                    : owner
-                      ? `Открыл${owner.id === self?.id ? 'и вы' : ` ${owner.name}`}`
-                      : 'Смотрим вместе'}
+                {source?.notice ||
+                  (live
+                    ? `Эфир · ${source?.author || watch.contentId}`
+                    : behind
+                      ? 'Догоняем комнату…'
+                      : owner
+                        ? `Открыл${owner.id === self?.id ? 'и вы' : ` ${owner.name}`}`
+                        : 'Смотрим вместе')}
               </small>
             </span>
             {/* На телефоне подпись прячется, а имя кнопки остаётся: без него это была бы
@@ -1017,6 +1101,7 @@ export function WatchTheater({
                               onClick={() => {
                                 setLevel(-1);
                                 if (engine.current) engine.current.currentLevel = -1;
+                                dashEngine.current?.quality(-1);
                               }}
                             >
                               Автоматически
@@ -1029,6 +1114,7 @@ export function WatchTheater({
                                 onClick={() => {
                                   setLevel(choice.level);
                                   if (engine.current) engine.current.currentLevel = choice.level;
+                                  dashEngine.current?.quality(choice.level);
                                 }}
                               >
                                 {choice.label}

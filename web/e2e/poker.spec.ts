@@ -46,8 +46,8 @@ test('two browsers play a hand of poker with private cards and a verifiable deal
     await expect(host.locator('.poker-felt')).toBeVisible();
     await expect(guest.locator('.poker-felt')).toBeVisible({ timeout: 10000 });
 
-    await host.locator('.poker-seat.is-empty .poker-sit').first().click();
-    await guest.locator('.poker-seat.is-empty .poker-sit').nth(3).click();
+    await host.locator('.game-seat-action').first().click();
+    await guest.locator('.game-seat-action').first().click();
     await expect(host.locator('.poker-seat[data-mine]')).toBeVisible();
     await expect(guest.locator('.poker-seat[data-mine]')).toBeVisible();
     await expect.poll(() => host.locator('.poker-seat:not(.is-empty)').count()).toBe(2);

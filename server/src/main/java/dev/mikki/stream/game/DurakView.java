@@ -86,7 +86,13 @@ public record DurakView(
     /** Зерно тасовки — только после того, как партия сыграна. */
     String seed,
     /** Когда стол закроется сам, потому что за ним никого, или 0 — пока кто-то есть. */
-    long closesAt) {
+    long closesAt,
+    /** Bounded ordered public movement history; ignore historical entries on initial snapshot. */
+    List<GameVisualEvent> visualEvents,
+    /** Only unexpired reactions for currently seated players. */
+    List<DurakReaction> reactions) {
+
+  public record DurakReaction(long id, long at, long expiresAt, int seat, String stickerId) {}
 
   /** Пара «атака — защита». {@code beat} пуст, пока карту не побили. */
   public record CardPair(String attack, String beat) {}

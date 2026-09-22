@@ -26,6 +26,7 @@ import {
   preferredSource,
   type Foresight,
 } from './music-playback';
+import { gameActivity, musicActivity } from './services-status';
 
 /**
  * Панель сервисов встречи.
@@ -65,7 +66,7 @@ const GROUPS: GroupCard[] = [
   {
     id: 'games',
     name: 'Игры',
-    hint: 'Покер на всю комнату, до десяти игроков',
+    hint: 'Покер и Дурак с участниками встречи',
     icon: Gamepad2,
     accent: '#8a5cf6',
     ready: true,
@@ -113,12 +114,21 @@ export function Services({ meeting }: { meeting: Meeting }) {
    *
    * Запреты стоят в ядре; здесь они лишь видны заранее, до нажатия.
    */
+  const client = useQueryClient();
+  const key = ['music', meeting.admission.roomId, meeting.admission.participantId];
+  const catalog = useQuery({ queryKey: ['services'], queryFn: servicesApi.catalog, staleTime: 30000 });
+  const music = useQuery({
+    queryKey: key,
+    queryFn: api.state,
+    enabled: active,
+    refetchInterval: active ? 2000 : false,
+  });
+  const musicStatus = musicActivity(music.data, music.isError);
+  const gamesStatus = gameActivity(snapshot.poker, snapshot.durak);
   const running: Record<Group, boolean> = {
     cinema: !!snapshot.watch,
-    music: snapshot.participants.some(
-      (person) => person.service === 'music' && person.status !== 'LEFT' && person.status !== 'REMOVED',
-    ),
-    games: !!snapshot.poker,
+    music: musicStatus.active,
+    games: gamesStatus.active,
     telegram: false,
   };
   const RIVALS: Record<Group, Group[]> = {
@@ -129,15 +139,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
   };
   const blockedBy = (group: Group): Group | null =>
     running[group] ? null : (RIVALS[group].find((rival) => running[rival]) ?? null);
-  const client = useQueryClient();
-  const key = ['music', meeting.admission.roomId, meeting.admission.participantId];
-  const catalog = useQuery({ queryKey: ['services'], queryFn: servicesApi.catalog, staleTime: 30000 });
-  const music = useQuery({
-    queryKey: key,
-    queryFn: api.state,
-    enabled: active,
-    refetchInterval: active ? 2000 : false,
-  });
   // `busy` covers only what genuinely takes seconds and changes the room: adding the service,
   // removing it, changing who may use it. The transport buttons are not that, and disabling
   // them for the length of a round trip is what made the panel look like it was reloading.
@@ -239,7 +240,11 @@ export function Services({ meeting }: { meeting: Meeting }) {
           </small>
         </span>
         {!item.ready && <span className="service-soon">Скоро</span>}
-        {running[item.id] && <span className="service-live">Активна</span>}
+        {item.id === 'music' && <span className="service-state">{musicStatus.label}</span>}
+        {item.id === 'games' && gamesStatus.active && (
+          <span className="service-state">{gamesStatus.label}</span>
+        )}
+        {running[item.id] && item.id !== 'music' && <span className="service-live">Активна</span>}
       </button>
     );
   };

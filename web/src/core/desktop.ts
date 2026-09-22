@@ -21,6 +21,7 @@ export interface DesktopCommand {
   version: 1;
   type:
     | 'favorite.settings'
+    | 'favorites.changed'
     | 'preferences.changed'
     | 'navigate'
     | 'network.changed'
@@ -69,6 +70,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
       message.version !== 1 ||
       ![
         'favorite.settings',
+        'favorites.changed',
         'preferences.changed',
         'navigate',
         'network.changed',

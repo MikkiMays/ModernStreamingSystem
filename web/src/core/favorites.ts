@@ -39,6 +39,20 @@ export const favoriteApi = {
     setAutoJoin(roomId, false);
     notifyDesktop('favorites.changed');
   },
+  async reorder(roomIds: string[]) {
+    try {
+      await request(
+        '/favorites/order',
+        { method: 'PUT', body: JSON.stringify({ roomIds }) },
+        favoriteProfile(),
+      );
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && (error.status === 404 || error.status === 405))
+        throw new Error('Этот сервер ещё не поддерживает изменение порядка избранного. Обновите сервер.');
+      throw error;
+    }
+    notifyDesktop('favorites.changed');
+  },
   join: (roomId: string, name: string, commandId: string) =>
     request<Admission>(
       `/favorites/${roomId}/join`,

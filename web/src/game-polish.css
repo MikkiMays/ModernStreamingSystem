@@ -1,0 +1,487 @@
+/* The felt is the focal point; controls and hands occupy their own readable bands. */
+.poker.poker,
+.durak.durak {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  user-select: none;
+}
+.poker input,
+.durak input,
+.poker-sheet,
+.durak-sheet,
+.modal {
+  user-select: text;
+}
+.poker button,
+.durak button,
+.games-group button {
+  min-height: 44px;
+}
+.poker-felt-wrap {
+  flex: 1;
+  min-height: 320px;
+  padding: 30px 20px 44px;
+}
+.poker-felt {
+  width: min(100%, 980px);
+  --seat-face: clamp(40px, 7cqw, 68px);
+}
+.poker-name > span {
+  font-size: clamp(12px, 1.8cqw, 15px);
+  max-width: 130px;
+}
+.poker-seat {
+  max-width: 140px;
+}
+.poker {
+  --game-accent: #bba1ff;
+}
+.durak {
+  --game-accent: #e8cf7c;
+}
+.game-turn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 16px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.game-turn strong {
+  font-weight: 550;
+}
+.game-turn[data-active] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--game-accent) 15%, var(--surface));
+  border-inline-start: 4px solid var(--game-accent);
+}
+.game-turn[data-urgent] {
+  border-color: #f48478;
+}
+.game-turn > span {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.game-seat-action {
+  align-self: center;
+  flex-shrink: 0;
+}
+.durak-says {
+  display: none;
+}
+.durak-table {
+  flex: 1;
+  display: grid;
+  grid-template-rows: minmax(260px, 1fr) auto;
+  min-height: 400px;
+  gap: 26px;
+}
+.durak-table > .durak-felt {
+  overflow: visible;
+  min-height: 260px;
+}
+.durak-seat-name {
+  max-width: 140px;
+  font-size: clamp(12px, 1.7cqw, 15px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.durak-seat-role {
+  font-size: 12px;
+}
+.durak-hand {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  translate: none;
+  justify-content: safe center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 30px 20px 12px;
+  min-height: 130px;
+}
+.durak-hand-card {
+  flex-shrink: 0;
+  --card-w: 70px;
+  margin-inline: -7px;
+  rotate: clamp(-5deg, var(--angle), 5deg);
+}
+.durak-hand-card:focus-visible {
+  outline: 3px solid var(--brass-soft);
+  outline-offset: 4px;
+}
+.durak-seat[data-mine] {
+  z-index: 9;
+}
+.durak-reaction-trigger {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.durak-reaction-trigger:focus-visible {
+  outline: 3px solid var(--brass-soft);
+  outline-offset: 3px;
+}
+.durak-reaction-bubble {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  left: 50%;
+  bottom: 80%;
+  translate: -50% 0;
+  z-index: 30;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 6px #0008);
+}
+.durak-reaction-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+.durak-reaction-picker button {
+  min-height: 64px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.durak-reaction-picker img {
+  width: 100%;
+  height: 62px;
+  object-fit: contain;
+}
+.durak-reaction-picker button:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+.games-group .games-head {
+  grid-template-rows: auto;
+  padding-block: 12px;
+}
+.games-group .games-head > b {
+  align-self: center;
+}
+.game-history-button {
+  margin-block: 18px 4px;
+  width: 100%;
+}
+.game-motion {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+.game-card-flight {
+  position: absolute;
+  width: 34px;
+  height: 48px;
+  padding: 3px;
+  border: 1px solid #b9bac0;
+  border-radius: 4px;
+  color: #20252c;
+  background: #fffaf2;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  box-shadow: 0 3px 7px #0005;
+  animation: game-card-flight 420ms ease-in-out both;
+}
+.game-card-flight[data-red] {
+  color: #c02c38;
+}
+.game-card-flight[data-back] {
+  background: repeating-linear-gradient(45deg, #2e4778 0 3px, #213253 3px 6px);
+  border: 2px solid #f4ecd8;
+}
+@keyframes game-card-flight {
+  from {
+    left: var(--fx);
+    top: var(--fy);
+    transform: translate(-50%, -50%) rotate(-12deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    left: var(--tx);
+    top: var(--ty);
+    transform: translate(-50%, -50%) rotate(4deg);
+    opacity: 0;
+  }
+}
+@media (max-width: 560px) {
+  .poker-felt-wrap {
+    min-height: 470px;
+    padding: 36px 20px 55px;
+  }
+  .poker-felt {
+    aspect-ratio: 0.8;
+    --seat-face: 38px;
+    --board-w: 33px;
+    --card-w: 29px;
+  }
+  .poker-name > span {
+    max-width: 86px;
+    font-size: 12px;
+  }
+  .poker-name > b {
+    font-size: 12px;
+  }
+  .poker-seat {
+    max-width: 95px;
+  }
+  .poker-person {
+    flex-direction: column;
+  }
+  .poker-hand {
+    gap: 1px;
+  }
+  .durak-table {
+    min-height: 540px;
+    padding: 20px 14px 8px;
+    grid-template-rows: minmax(340px, 1fr) auto;
+  }
+  .durak-seat-name {
+    max-width: 95px;
+    font-size: 12px;
+  }
+  .durak-hand-card {
+    --card-w: 64px;
+    margin-inline: -9px;
+  }
+  .durak-bar,
+  .poker-bar {
+    gap: 6px;
+    padding: 6px;
+  }
+  .durak-mode small,
+  .poker-mode small {
+    font-size: 11px;
+  }
+  .game-turn {
+    font-size: 14px;
+    padding-inline: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-card-flight {
+    display: none;
+  }
+  .poker *:not(.poker-ring-run),
+  .durak *:not(.durak-ring-run) {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.durak-arena {
+  position: relative;
+  min-height: 260px;
+}
+.durak-arena > .durak-felt {
+  height: 100%;
+  overflow: visible;
+}
+.durak.durak .durak-table {
+  padding: 24px 22px 8px;
+}
+.durak.durak .durak-hand {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  translate: none;
+}
+.poker.poker .poker-seat[data-mine] .poker-hand {
+  display: none;
+}
+.poker.poker .playing-card,
+.durak.durak .durak-hand-card,
+.durak.durak .durak-attack,
+.durak.durak .durak-defence,
+.durak.durak .durak-mat[data-end] {
+  animation: none;
+}
+@media (max-width: 560px) {
+  .durak-arena {
+    min-height: 340px;
+  }
+  .durak.durak .durak-seat-name,
+  .durak.durak .durak-seat-role {
+    font-size: 12px;
+  }
+  .durak.durak .durak-seat-face {
+    width: 44px;
+  }
+  .durak.durak .durak-seat-count {
+    font-size: 12px;
+    min-width: 22px;
+  }
+  .poker.poker .poker-felt {
+    aspect-ratio: 0.8;
+    width: 100%;
+  }
+}
+.poker.poker .poker-felt {
+  --seat-face: clamp(40px, 7cqw, 64px);
+}
+.poker.poker .poker-name > span {
+  font-size: 13px;
+  max-width: 140px;
+}
+.durak.durak .durak-card-rank {
+  font-size: calc(var(--card-w) * 0.27);
+}
+.durak.durak .durak-card-rank i {
+  font-size: calc(var(--card-w) * 0.21);
+}
+.durak.durak .durak-card-pip {
+  font-size: calc(var(--card-w) * 0.48);
+}
+.durak.durak .durak-hand-card {
+  --card-w: 70px;
+  margin-inline: -7px;
+}
+.durak.durak .durak-seat[data-mine] .durak-seat-name {
+  display: block;
+}
+.durak.durak .durak-stock-count {
+  font-size: 14px;
+}
+.durak.durak .durak-stock-count small {
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+@media (max-width: 560px) {
+  .poker.poker .poker-felt {
+    --seat-face: 38px;
+  }
+  .poker.poker .poker-name > span {
+    font-size: 12px;
+    max-width: 86px;
+  }
+  .poker.poker .poker-name {
+    max-width: 95px;
+  }
+  .poker.poker .poker-felt-wrap {
+    min-height: 510px;
+  }
+  .durak.durak .durak-hand-card {
+    --card-w: 64px;
+    margin-inline: -8px;
+  }
+  .durak.durak .durak-seat {
+    width: 95px;
+  }
+}
+.durak-reaction-bubble img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.durak-sticker-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 62px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+}
+.durak.durak .durak-hand {
+  justify-content: safe center;
+}
+.durak.durak .durak-hand-card:first-child {
+  margin-inline-start: 0;
+}
+.durak.durak .durak-hand-card:last-child {
+  margin-inline-end: 0;
+}
+.durak.durak .durak-pair .durak-card,
+.durak.durak .durak-bout[data-end] {
+  animation: none;
+}
+.durak.durak .durak-bout[data-end] {
+  opacity: 0;
+}
+.durak-place {
+  z-index: 7;
+  margin-bottom: 8px;
+  min-width: 150px;
+}
+.durak.durak .durak-hand-card {
+  rotate: clamp(-5deg, var(--angle), 5deg);
+}
+.durak.durak .durak-hand[data-large] .durak-hand-card {
+  rotate: none;
+  translate: none;
+}
+.games-group .games-item[data-open] {
+  border-color: var(--game-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--game-accent) 20%, transparent);
+}
+.games-group .games-icon,
+.games-group .games-chevron {
+  grid-row: 1;
+}
+.durak-hand-band {
+  position: relative;
+  min-width: 0;
+}
+.durak-hand-scroll {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 12;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 28px;
+  box-shadow: 0 2px 8px #0005;
+}
+.durak-hand-scroll.is-left {
+  left: -12px;
+}
+.durak-hand-scroll.is-right {
+  right: -12px;
+}
+/* A clock is progress information; retain it when spatial motion is reduced. */
+@media (prefers-reduced-motion: reduce) {
+  .poker .poker-ring-run {
+    animation: poker-countdown var(--turn-duration) linear var(--turn-delay) 1 forwards !important;
+  }
+  .durak .durak-ring-run {
+    animation: durak-drain var(--turn-duration) linear var(--turn-delay) 1 forwards !important;
+  }
+}
+/* Fit the ellipse to the available stage height as well as width, above the action band. */
+.poker.poker .poker-felt {
+  width: min(100cqw, 158cqh, 980px);
+}
+.poker.poker .poker-controls {
+  position: relative;
+  flex-shrink: 0;
+}
+@media (max-width: 560px) {
+  .poker.poker .poker-felt {
+    width: min(100cqw, 76cqh);
+  }
+}

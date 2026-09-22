@@ -1,0 +1,542 @@
+[
+  {
+    "id": "durak-online-01",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD1VUAAvF6IEo.webp",
+    "pack": "tgtg",
+    "sha256": "4efccb4cad8e5eaa398415489a3c6f2aea44e4c1ab1b3ef44078e8316e2a0c0a",
+    "asset": "/games/durak-online-01.webp",
+    "label": "Смех до слёз",
+    "canonicalId": "durak-online-01",
+    "assetSha256": "9400960ef80eded1c8025c078485e05af35ff51570e635425d9d4b9ea97630e9"
+  },
+  {
+    "id": "durak-online-02",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD3koAAkijIEo.webp",
+    "pack": "tgtg",
+    "sha256": "bf0a9d9b1c62ec44e806f95650314066e068852136bfe8cb7c735f3a1513e020",
+    "asset": "/games/durak-online-02.webp",
+    "label": "Закрыть лицо рукой",
+    "canonicalId": "durak-online-02",
+    "assetSha256": "4d91cef6a0b8dd81fabeaca83dc5e96be3d380b8ca777bba7dfba776d372bd15"
+  },
+  {
+    "id": "durak-online-03",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD3kYAAncNIUo.webp",
+    "pack": "tgtg",
+    "sha256": "c8f6cd6f2ee3646e20942f1b5f9a4b71340a1c39499ef39c34c7c1c18548bbd6",
+    "asset": "/games/durak-online-03.webp",
+    "label": "Усталость",
+    "canonicalId": "durak-online-03",
+    "assetSha256": "94331a729792695884a8e66e29bcdadaa07051e3cb748cff9a58a0885b2b35bc"
+  },
+  {
+    "id": "durak-online-04",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD3UkAAlgYIEo.webp",
+    "pack": "tgtg",
+    "sha256": "1635e33749a3abf5a0e155a3564ed23e7e6957654f7380f39663a7b327268365",
+    "asset": "/games/durak-online-04.webp",
+    "label": "Две шестёрки",
+    "canonicalId": "durak-online-04",
+    "assetSha256": "8f11717fc7f9d8c1e21cef590197517f4fcd68f70c2f777d0ac3276799d3fc45"
+  },
+  {
+    "id": "durak-online-05",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD5E4AAowDIEo.webp",
+    "pack": "tgtg",
+    "sha256": "008211b1f143e15e20d9dd99f6c81bdcff47887b4e8088a8b94637b3384fb737",
+    "asset": "/games/durak-online-05.webp",
+    "label": "Злость",
+    "canonicalId": "durak-online-05",
+    "assetSha256": "2c1dce7e02e7c1a1215c78757dfebc8a713091aa29539cc3db170835ecbbf30e"
+  },
+  {
+    "id": "durak-online-06",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD80sAAg2OGEo.webp",
+    "pack": "tgtg",
+    "sha256": "7105d6d643b60a245bd708fbb2eb450fbf29ac0c142401a1bf45c60a43bd6af7",
+    "asset": "/games/durak-online-06.webp",
+    "label": "Спокойствие",
+    "canonicalId": "durak-online-06",
+    "assetSha256": "6a2087d517836f8d9e84bc3630d09d1647018f87ca8e621a0fd7ce8adbe5f404"
+  },
+  {
+    "id": "durak-online-07",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADBE8AAjJXIEo.webp",
+    "pack": "tgtg",
+    "sha256": "b1ac12da5ee4628b57d9527f66d132a8ebf3fe9839f69cfaeebd11fb2aed19c5",
+    "asset": "/games/durak-online-07.webp",
+    "label": "Подмигивание",
+    "canonicalId": "durak-online-07",
+    "assetSha256": "9e36e389e9484d04cafd62dec21ec207711d89282e2e4184fc0e05447dcbf9d3"
+  },
+  {
+    "id": "durak-online-08",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADbVEAAriuGUo.webp",
+    "pack": "tgtg",
+    "sha256": "27c41bff634f9fc2f49596995483490d730b82560b1b1f1be65c8d038fb3045f",
+    "asset": "/games/durak-online-08.webp",
+    "label": "Насмешка",
+    "canonicalId": "durak-online-08",
+    "assetSha256": "ec5103590c7cc2d7644d7260bc16477de353d7188ffda5477dcf3029da460f01"
+  },
+  {
+    "id": "durak-online-09",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADC0kAAjZrIUo.webp",
+    "pack": "tgtg",
+    "sha256": "9c0becebd0a5f798166d897966753456281ec8197c7547653fa7e697f9db635e",
+    "asset": "/games/durak-online-09.webp",
+    "label": "Размышление",
+    "canonicalId": "durak-online-09",
+    "assetSha256": "efe7916c4defe9f4d643e6e80a36a802a1ccb13cf9b51ec80e8b7168e5492330"
+  },
+  {
+    "id": "durak-online-10",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgAD-EcAAsA3IUo.webp",
+    "pack": "tgtg",
+    "sha256": "8595ee664f863fac87d89f6ae887126c1b26e531a2d594a871d0dd16a61d1245",
+    "asset": "/games/durak-online-10.webp",
+    "label": "Цветы",
+    "canonicalId": "durak-online-10",
+    "assetSha256": "5f5b7208b0a93bd812b292f22934043f6c3fd321180aff48fe5b2fe74b8ebe97"
+  },
+  {
+    "id": "durak-online-11",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADelAAArfDIEo.webp",
+    "pack": "tgtg",
+    "sha256": "c5593b6490a4d80b15f8e8971beab682044070c396ad34159ef663c798fa6dea",
+    "asset": "/games/durak-online-11.webp",
+    "label": "Без выражения",
+    "canonicalId": "durak-online-11",
+    "assetSha256": "050807168c3f86cb69a68e77d20e825ab0ec8a31f70067c58c543add11eac6f5"
+  },
+  {
+    "id": "durak-online-12",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADeVIAAgGVIUo.webp",
+    "pack": "tgtg",
+    "sha256": "c525e61befe484e18615fa0348d405ac282dd52838657218b8d5705a959b204c",
+    "asset": "/games/durak-online-12.webp",
+    "label": "Грусть",
+    "canonicalId": "durak-online-12",
+    "assetSha256": "eca4b0d4bf179cbb56e78f5a0f71dda4b3a7ac5bd443ad193d424f1b2f6354c9"
+  },
+  {
+    "id": "durak-online-13",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADGUkAAnj-IEo.webp",
+    "pack": "tgtg",
+    "sha256": "4bd3db3196197f42130fac5db1d030831eba81f691c2c544563f71f75a550221",
+    "asset": "/games/durak-online-13.webp",
+    "label": "На замке",
+    "canonicalId": "durak-online-13",
+    "assetSha256": "4bd3db3196197f42130fac5db1d030831eba81f691c2c544563f71f75a550221"
+  },
+  {
+    "id": "durak-online-14",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADi1EAAgiFIUo.webp",
+    "pack": "tgtg",
+    "sha256": "d58982fa5a8a06a0cf0a47d15703c799a76a3afbabe0a8d735564bda4e1c1416",
+    "asset": "/games/durak-online-14.webp",
+    "label": "Нажать кнопку",
+    "canonicalId": "durak-online-14",
+    "assetSha256": "b3e12c723af1777c5bc8a79d1c9cb51a73f56a903f849a1a9adc370b5592e2e6"
+  },
+  {
+    "id": "durak-online-15",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADiEwAAlZ8GUo.webp",
+    "pack": "tgtg",
+    "sha256": "8675b58186861915f5e80b29351fa8d5b78b9e5be2f512457931dd00e8a93ba9",
+    "asset": "/games/durak-online-15.webp",
+    "label": "Класс",
+    "canonicalId": "durak-online-15",
+    "assetSha256": "18f23aa9f0954be71ee04efc6c275a5f2440288c08736ca0624f3bd1c7a4b48d"
+  },
+  {
+    "id": "durak-online-16",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADklMAAhoBIUo.webp",
+    "pack": "tgtg",
+    "sha256": "b0934d202e427c23735676450b43ccd331da61cfd6aa8130d69c9a46b98c450d",
+    "asset": "/games/durak-online-16.webp",
+    "label": "Свист",
+    "canonicalId": "durak-online-16",
+    "assetSha256": "80eb626cb55ae05c48cfb7a0c90ad15d8950f8ab0780ff63f42977839d40785b"
+  },
+  {
+    "id": "durak-online-17",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADkU0AApDzGUo.webp",
+    "pack": "tgtg",
+    "sha256": "46c6f345d4ef030554654092616c09f1166f7ccab0871f69af1264def68101a1",
+    "asset": "/games/durak-online-17.webp",
+    "label": "Беспокойство",
+    "canonicalId": "durak-online-17",
+    "assetSha256": "6d07f9b376b6e9e26eb0a10cd2fa6fa17096395cadbae5f1107ae3e66382c93d"
+  },
+  {
+    "id": "durak-online-18",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADLVIAAoA2IUo.webp",
+    "pack": "tgtg",
+    "sha256": "07e8f57b8d775c03042bfb5f63cfe57e5c87c29559d11364bd0501b41f8300c1",
+    "asset": "/games/durak-online-18.webp",
+    "label": "Салют",
+    "canonicalId": "durak-online-18",
+    "assetSha256": "51bf3baa4f78a8adc44c5e70c727524c849fc9becff52903adca317438504bc8"
+  },
+  {
+    "id": "durak-online-19",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADQ0YAAr__IUo.webp",
+    "pack": "tgtg",
+    "sha256": "21c0046c0aa34a706bad76f9950c73efb05bc52dd1ced73551ca8170734e5edb",
+    "asset": "/games/durak-online-19.webp",
+    "label": "Привет",
+    "canonicalId": "durak-online-19",
+    "assetSha256": "e1ea44ed606a3cd0f72b6d729a3b0db528c2875d27cf7b9c532f275b9e9b50e8"
+  },
+  {
+    "id": "durak-online-20",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADrUoAAkvfIEo.webp",
+    "pack": "tgtg",
+    "sha256": "6a230d32f198374712c89866fca24a8889b09cc7f5dfbcf1d04becedfc5365a9",
+    "asset": "/games/durak-online-20.webp",
+    "label": "Удивление",
+    "canonicalId": "durak-online-20",
+    "assetSha256": "ed6bb0b610ee2448f17c60d398b305fb01a7ba7a05cf40eb04b74a84ae162e21"
+  },
+  {
+    "id": "durak-online-21",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADsksAAqttIEo.webp",
+    "pack": "tgtg",
+    "sha256": "60af17a81489cb95ce9fdf26f7d38332bcbc44eb7c19b1fdea03c8a3e7e51385",
+    "asset": "/games/durak-online-21.webp",
+    "label": "Хитрая улыбка",
+    "canonicalId": "durak-online-21",
+    "assetSha256": "43b4aa8404c9ce2299aa23fe87f459d163ece37349717551b6b9cf1abcfbbd64"
+  },
+  {
+    "id": "durak-online-22",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADSVAAAv3cIEo.webp",
+    "pack": "tgtg",
+    "sha256": "6e7fe32d92e5c6f90e6c0e6f476ef50e32a0cdda241546e39fb279284dbde412",
+    "asset": "/games/durak-online-22.webp",
+    "label": "Улыбка",
+    "canonicalId": "durak-online-22",
+    "assetSha256": "cc00838d054b9a59fa45a631d4471bba6e9af479feef9faeb38eb000635251e7"
+  },
+  {
+    "id": "durak-online-23",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADVE8AAioXIUo.webp",
+    "pack": "tgtg",
+    "sha256": "882f40a6add4d48d90c29df86c588dfd1bf2b78ff302b600a547075753c91ba4",
+    "asset": "/games/durak-online-23.webp",
+    "label": "В тёмных очках",
+    "canonicalId": "durak-online-23",
+    "assetSha256": "9d8bfebcd1d20eef513a68b6490cf6c919fe0dbe760ff6d17449f8ace40f0ee8"
+  },
+  {
+    "id": "durak-online-24",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADWUoAAny0IEo.webp",
+    "pack": "tgtg",
+    "sha256": "f1de7854ef2fe54f4652e5692b4c8e33a3d9d541def80bf328170d4a86eb7a43",
+    "asset": "/games/durak-online-24.webp",
+    "label": "Почесать голову",
+    "canonicalId": "durak-online-24",
+    "assetSha256": "b88359445d24375b33300c4a18690568a0d33e0afd88f83203abcf8fdbbd6155"
+  },
+  {
+    "id": "durak-online-25",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADyk0AAqHfIUo.webp",
+    "pack": "tgtg",
+    "sha256": "5f7d0bc0ee963257362a4e8020bf8d50ef85deee2d123f496b7b084a3dca6ad7",
+    "asset": "/games/durak-online-25.webp",
+    "label": "Показать язык",
+    "canonicalId": "durak-online-25",
+    "assetSha256": "ebb43dba86c40d41ef5b36873af1f84f5e3270063a60bc135c8e9db76728ed0c"
+  },
+  {
+    "id": "durak-online-26",
+    "source": "https://tgtg.su/storage/stickers/f7/54/DurakOnlineAllEmoji/thumbs/AgADYksAAsOwIEo.webp",
+    "pack": "tgtg",
+    "sha256": "8c35169a30beb5d14f8c32dddebee60b9bc25e8597a86d23790645c0dda2fec5",
+    "asset": "/games/durak-online-26.webp",
+    "label": "Поцелуй",
+    "canonicalId": "durak-online-26",
+    "assetSha256": "6c9624f8847b98f938d78ce3d872af6a8f6b640d71f1243ac94e2ad4ec2d3f0a"
+  },
+  {
+    "id": "durak-online-27",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD6g4AAqpa4Uk.webp",
+    "pack": "botobot",
+    "sha256": "e1ea44ed606a3cd0f72b6d729a3b0db528c2875d27cf7b9c532f275b9e9b50e8",
+    "asset": "/games/durak-online-19.webp",
+    "label": "Привет",
+    "canonicalId": "durak-online-19",
+    "assetSha256": "e1ea44ed606a3cd0f72b6d729a3b0db528c2875d27cf7b9c532f275b9e9b50e8"
+  },
+  {
+    "id": "durak-online-28",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADlQoAAlu12Ek.webp",
+    "pack": "botobot",
+    "sha256": "6a2087d517836f8d9e84bc3630d09d1647018f87ca8e621a0fd7ce8adbe5f404",
+    "asset": "/games/durak-online-06.webp",
+    "label": "Спокойствие",
+    "canonicalId": "durak-online-06",
+    "assetSha256": "6a2087d517836f8d9e84bc3630d09d1647018f87ca8e621a0fd7ce8adbe5f404"
+  },
+  {
+    "id": "durak-online-29",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADAgsAAk1x4Uk.webp",
+    "pack": "botobot",
+    "sha256": "9400960ef80eded1c8025c078485e05af35ff51570e635425d9d4b9ea97630e9",
+    "asset": "/games/durak-online-01.webp",
+    "label": "Смех до слёз",
+    "canonicalId": "durak-online-01",
+    "assetSha256": "9400960ef80eded1c8025c078485e05af35ff51570e635425d9d4b9ea97630e9"
+  },
+  {
+    "id": "durak-online-30",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD8gkAAg0j2Ek.webp",
+    "pack": "botobot",
+    "sha256": "8f11717fc7f9d8c1e21cef590197517f4fcd68f70c2f777d0ac3276799d3fc45",
+    "asset": "/games/durak-online-04.webp",
+    "label": "Две шестёрки",
+    "canonicalId": "durak-online-04",
+    "assetSha256": "8f11717fc7f9d8c1e21cef590197517f4fcd68f70c2f777d0ac3276799d3fc45"
+  },
+  {
+    "id": "durak-online-31",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADbAwAAjKy2Uk.webp",
+    "pack": "botobot",
+    "sha256": "80eb626cb55ae05c48cfb7a0c90ad15d8950f8ab0780ff63f42977839d40785b",
+    "asset": "/games/durak-online-16.webp",
+    "label": "Свист",
+    "canonicalId": "durak-online-16",
+    "assetSha256": "80eb626cb55ae05c48cfb7a0c90ad15d8950f8ab0780ff63f42977839d40785b"
+  },
+  {
+    "id": "durak-online-32",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADjg0AAtjj2Uk.webp",
+    "pack": "botobot",
+    "sha256": "cc00838d054b9a59fa45a631d4471bba6e9af479feef9faeb38eb000635251e7",
+    "asset": "/games/durak-online-22.webp",
+    "label": "Улыбка",
+    "canonicalId": "durak-online-22",
+    "assetSha256": "cc00838d054b9a59fa45a631d4471bba6e9af479feef9faeb38eb000635251e7"
+  },
+  {
+    "id": "durak-online-33",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADvwwAAsCt4Uk.webp",
+    "pack": "botobot",
+    "sha256": "9e36e389e9484d04cafd62dec21ec207711d89282e2e4184fc0e05447dcbf9d3",
+    "asset": "/games/durak-online-07.webp",
+    "label": "Подмигивание",
+    "canonicalId": "durak-online-07",
+    "assetSha256": "9e36e389e9484d04cafd62dec21ec207711d89282e2e4184fc0e05447dcbf9d3"
+  },
+  {
+    "id": "durak-online-34",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADfQ0AAibE4Uk.webp",
+    "pack": "botobot",
+    "sha256": "51bf3baa4f78a8adc44c5e70c727524c849fc9becff52903adca317438504bc8",
+    "asset": "/games/durak-online-18.webp",
+    "label": "Салют",
+    "canonicalId": "durak-online-18",
+    "assetSha256": "51bf3baa4f78a8adc44c5e70c727524c849fc9becff52903adca317438504bc8"
+  },
+  {
+    "id": "durak-online-35",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADigsAAlJC4Ek.webp",
+    "pack": "botobot",
+    "sha256": "18f23aa9f0954be71ee04efc6c275a5f2440288c08736ca0624f3bd1c7a4b48d",
+    "asset": "/games/durak-online-15.webp",
+    "label": "Класс",
+    "canonicalId": "durak-online-15",
+    "assetSha256": "18f23aa9f0954be71ee04efc6c275a5f2440288c08736ca0624f3bd1c7a4b48d"
+  },
+  {
+    "id": "durak-online-36",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADRw4AAqOI2Ek.webp",
+    "pack": "botobot",
+    "sha256": "5f5b7208b0a93bd812b292f22934043f6c3fd321180aff48fe5b2fe74b8ebe97",
+    "asset": "/games/durak-online-10.webp",
+    "label": "Цветы",
+    "canonicalId": "durak-online-10",
+    "assetSha256": "5f5b7208b0a93bd812b292f22934043f6c3fd321180aff48fe5b2fe74b8ebe97"
+  },
+  {
+    "id": "durak-online-37",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD_wwAAlI04Uk.webp",
+    "pack": "botobot",
+    "sha256": "ebb43dba86c40d41ef5b36873af1f84f5e3270063a60bc135c8e9db76728ed0c",
+    "asset": "/games/durak-online-25.webp",
+    "label": "Показать язык",
+    "canonicalId": "durak-online-25",
+    "assetSha256": "ebb43dba86c40d41ef5b36873af1f84f5e3270063a60bc135c8e9db76728ed0c"
+  },
+  {
+    "id": "durak-online-38",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD1QoAAqQ12Ek.webp",
+    "pack": "botobot",
+    "sha256": "9d8bfebcd1d20eef513a68b6490cf6c919fe0dbe760ff6d17449f8ace40f0ee8",
+    "asset": "/games/durak-online-23.webp",
+    "label": "В тёмных очках",
+    "canonicalId": "durak-online-23",
+    "assetSha256": "9d8bfebcd1d20eef513a68b6490cf6c919fe0dbe760ff6d17449f8ace40f0ee8"
+  },
+  {
+    "id": "durak-online-39",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADgQ4AAkQM4Uk.webp",
+    "pack": "botobot",
+    "sha256": "6c9624f8847b98f938d78ce3d872af6a8f6b640d71f1243ac94e2ad4ec2d3f0a",
+    "asset": "/games/durak-online-26.webp",
+    "label": "Поцелуй",
+    "canonicalId": "durak-online-26",
+    "assetSha256": "6c9624f8847b98f938d78ce3d872af6a8f6b640d71f1243ac94e2ad4ec2d3f0a"
+  },
+  {
+    "id": "durak-online-40",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADOgwAAhDe4Ek.webp",
+    "pack": "botobot",
+    "sha256": "ed6bb0b610ee2448f17c60d398b305fb01a7ba7a05cf40eb04b74a84ae162e21",
+    "asset": "/games/durak-online-20.webp",
+    "label": "Удивление",
+    "canonicalId": "durak-online-20",
+    "assetSha256": "ed6bb0b610ee2448f17c60d398b305fb01a7ba7a05cf40eb04b74a84ae162e21"
+  },
+  {
+    "id": "durak-online-41",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD-AsAAoOQ4Ek.webp",
+    "pack": "botobot",
+    "sha256": "6d07f9b376b6e9e26eb0a10cd2fa6fa17096395cadbae5f1107ae3e66382c93d",
+    "asset": "/games/durak-online-17.webp",
+    "label": "Беспокойство",
+    "canonicalId": "durak-online-17",
+    "assetSha256": "6d07f9b376b6e9e26eb0a10cd2fa6fa17096395cadbae5f1107ae3e66382c93d"
+  },
+  {
+    "id": "durak-online-42",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD1AwAAr932Ek.webp",
+    "pack": "botobot",
+    "sha256": "eca4b0d4bf179cbb56e78f5a0f71dda4b3a7ac5bd443ad193d424f1b2f6354c9",
+    "asset": "/games/durak-online-12.webp",
+    "label": "Грусть",
+    "canonicalId": "durak-online-12",
+    "assetSha256": "eca4b0d4bf179cbb56e78f5a0f71dda4b3a7ac5bd443ad193d424f1b2f6354c9"
+  },
+  {
+    "id": "durak-online-43",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADfA0AAiDJ2Ek.webp",
+    "pack": "botobot",
+    "sha256": "b3e12c723af1777c5bc8a79d1c9cb51a73f56a903f849a1a9adc370b5592e2e6",
+    "asset": "/games/durak-online-14.webp",
+    "label": "Нажать кнопку",
+    "canonicalId": "durak-online-14",
+    "assetSha256": "b3e12c723af1777c5bc8a79d1c9cb51a73f56a903f849a1a9adc370b5592e2e6"
+  },
+  {
+    "id": "durak-online-44",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADbAwAAojP4Ek.webp",
+    "pack": "botobot",
+    "sha256": "050807168c3f86cb69a68e77d20e825ab0ec8a31f70067c58c543add11eac6f5",
+    "asset": "/games/durak-online-11.webp",
+    "label": "Без выражения",
+    "canonicalId": "durak-online-11",
+    "assetSha256": "050807168c3f86cb69a68e77d20e825ab0ec8a31f70067c58c543add11eac6f5"
+  },
+  {
+    "id": "durak-online-45",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD9gsAAmL64Uk.webp",
+    "pack": "botobot",
+    "sha256": "94331a729792695884a8e66e29bcdadaa07051e3cb748cff9a58a0885b2b35bc",
+    "asset": "/games/durak-online-03.webp",
+    "label": "Усталость",
+    "canonicalId": "durak-online-03",
+    "assetSha256": "94331a729792695884a8e66e29bcdadaa07051e3cb748cff9a58a0885b2b35bc"
+  },
+  {
+    "id": "durak-online-46",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADEgwAAp634Ek.webp",
+    "pack": "botobot",
+    "sha256": "b88359445d24375b33300c4a18690568a0d33e0afd88f83203abcf8fdbbd6155",
+    "asset": "/games/durak-online-24.webp",
+    "label": "Почесать голову",
+    "canonicalId": "durak-online-24",
+    "assetSha256": "b88359445d24375b33300c4a18690568a0d33e0afd88f83203abcf8fdbbd6155"
+  },
+  {
+    "id": "durak-online-47",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADBw8AAlPl4Uk.webp",
+    "pack": "botobot",
+    "sha256": "43b4aa8404c9ce2299aa23fe87f459d163ece37349717551b6b9cf1abcfbbd64",
+    "asset": "/games/durak-online-21.webp",
+    "label": "Хитрая улыбка",
+    "canonicalId": "durak-online-21",
+    "assetSha256": "43b4aa8404c9ce2299aa23fe87f459d163ece37349717551b6b9cf1abcfbbd64"
+  },
+  {
+    "id": "durak-online-48",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADbAsAAikx4Ek.webp",
+    "pack": "botobot",
+    "sha256": "2c1dce7e02e7c1a1215c78757dfebc8a713091aa29539cc3db170835ecbbf30e",
+    "asset": "/games/durak-online-05.webp",
+    "label": "Злость",
+    "canonicalId": "durak-online-05",
+    "assetSha256": "2c1dce7e02e7c1a1215c78757dfebc8a713091aa29539cc3db170835ecbbf30e"
+  },
+  {
+    "id": "durak-online-49",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADpQkAAjxt4Uk.webp",
+    "pack": "botobot",
+    "sha256": "ec5103590c7cc2d7644d7260bc16477de353d7188ffda5477dcf3029da460f01",
+    "asset": "/games/durak-online-08.webp",
+    "label": "Насмешка",
+    "canonicalId": "durak-online-08",
+    "assetSha256": "ec5103590c7cc2d7644d7260bc16477de353d7188ffda5477dcf3029da460f01"
+  },
+  {
+    "id": "durak-online-50",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADWg0AAvZA4Uk.webp",
+    "pack": "botobot",
+    "sha256": "4d91cef6a0b8dd81fabeaca83dc5e96be3d380b8ca777bba7dfba776d372bd15",
+    "asset": "/games/durak-online-02.webp",
+    "label": "Закрыть лицо рукой",
+    "canonicalId": "durak-online-02",
+    "assetSha256": "4d91cef6a0b8dd81fabeaca83dc5e96be3d380b8ca777bba7dfba776d372bd15"
+  },
+  {
+    "id": "durak-online-51",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADogwAAted4Uk.webp",
+    "pack": "botobot",
+    "sha256": "efe7916c4defe9f4d643e6e80a36a802a1ccb13cf9b51ec80e8b7168e5492330",
+    "asset": "/games/durak-online-09.webp",
+    "label": "Размышление",
+    "canonicalId": "durak-online-09",
+    "assetSha256": "efe7916c4defe9f4d643e6e80a36a802a1ccb13cf9b51ec80e8b7168e5492330"
+  },
+  {
+    "id": "durak-online-52",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADnwsAAlyH4Ek.webp",
+    "pack": "botobot",
+    "sha256": "96483621333c09a8cb3579ab43c3a2faefc60b116c4e8c950bdb94638607a467",
+    "asset": "/games/durak-online-52.webp",
+    "label": "Растерянность с мемом",
+    "canonicalId": "durak-online-52",
+    "assetSha256": "96483621333c09a8cb3579ab43c3a2faefc60b116c4e8c950bdb94638607a467"
+  },
+  {
+    "id": "durak-online-53",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgADgBUAArD1cUg.webp",
+    "pack": "botobot",
+    "sha256": "6cab4bebecf1bcf4115f06812b85ba545e772e6f8203d93de70aa683554e4964",
+    "asset": "/games/durak-online-53.webp",
+    "label": "Перевёрнутый класс",
+    "canonicalId": "durak-online-53",
+    "assetSha256": "6cab4bebecf1bcf4115f06812b85ba545e772e6f8203d93de70aa683554e4964"
+  },
+  {
+    "id": "durak-online-54",
+    "source": "https://botobot.ru/catalog/sticker-assets/telegram-stickers/sets/yodurakonline/stickers/AgAD3xUAAvMueEg.webp",
+    "pack": "botobot",
+    "sha256": "ac59dbf3f45c5f6fc6d84f98e4e840c5b190e3f45dc00d500b284d61a449bf97",
+    "asset": "/games/durak-online-54.webp",
+    "label": "Недовольный класс",
+    "canonicalId": "durak-online-54",
+    "assetSha256": "ac59dbf3f45c5f6fc6d84f98e4e840c5b190e3f45dc00d500b284d61a449bf97"
+  }
+]

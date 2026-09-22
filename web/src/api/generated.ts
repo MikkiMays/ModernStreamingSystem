@@ -95,6 +95,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/favorites/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ping": {
         parameters: {
             query?: never;
@@ -461,7 +477,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react";
             under?: string;
         };
         Connect: {
@@ -507,6 +523,17 @@ export interface components {
             transfers: number;
             /** Format: int32 */
             trumpsBurned: number;
+        };
+        DurakReaction: {
+            /** Format: int64 */
+            at: number;
+            /** Format: int64 */
+            expiresAt: number;
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            seat: number;
+            stickerId: string;
         };
         DurakResult: {
             /** Format: int64 */
@@ -599,6 +626,7 @@ export interface components {
             modeName: string;
             neighbours: boolean;
             phase: string;
+            reactions?: components["schemas"]["DurakReaction"][];
             result: components["schemas"]["DurakResult"] | null;
             /** Format: int64 */
             revision: number;
@@ -613,6 +641,7 @@ export interface components {
             trumpSuit: string | null;
             /** Format: int32 */
             turnSeconds: number;
+            visualEvents?: components["schemas"]["GameVisualEvent"][];
             you: components["schemas"]["DurakYou"] | null;
         };
         DurakYou: {
@@ -673,6 +702,21 @@ export interface components {
             startingStack: number;
             tournament: boolean;
         };
+        GameVisualEvent: {
+            /** Format: int64 */
+            at: number;
+            cards: string[];
+            /** Format: int32 */
+            count: number;
+            /** Format: int32 */
+            fromSeat: null | number;
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            toSeat: null | number;
+            /** @enum {string} */
+            type: "deal" | "draw" | "play" | "take" | "discard";
+        };
         Highlight: {
             hint: string;
             id: string;
@@ -727,6 +771,9 @@ export interface components {
             /** Format: int32 */
             seat: number;
             text: string;
+        };
+        Order: {
+            roomIds: string[];
         };
         Participant: {
             avatar: string;
@@ -969,6 +1016,7 @@ export interface components {
             summary: components["schemas"]["GameSummary"] | null;
             /** Format: int32 */
             turnSeconds: number;
+            visualEvents?: components["schemas"]["GameVisualEvent"][];
             you: components["schemas"]["YouView"] | null;
         };
         Watch: {
@@ -1175,6 +1223,30 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["Admission"];
                 };
+            };
+        };
+    };
+    reorder: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Order"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

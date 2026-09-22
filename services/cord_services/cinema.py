@@ -29,12 +29,14 @@ import re
 import time
 from hashlib import sha256
 from typing import Any, Awaitable, Callable, Literal
-from urllib.parse import urlencode, urljoin, urlsplit
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+
+from .dash import candidates, manifest as dash_manifest, number, read_ranges
 
 PREFIX = "/api/v1/services/cinema"
 
@@ -76,6 +78,8 @@ class Resolve(BaseModel):
     provider: Provider
     contentId: str = Field(min_length=1, max_length=64, pattern=r"[A-Za-z0-9_-]+")
     kind: Kind = "video"
+    adaptive: bool = False
+    refresh: bool = False
 
 
 def allowed(url: str) -> bool:
@@ -477,6 +481,8 @@ class Cinema:
         self.reels = Reels(self.signer)
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
+        self.dash_manifests: dict[str, tuple[float, str]] = {}
+        self.index_reads = asyncio.Semaphore(4)
         self.client = client or httpx.AsyncClient(
             timeout=httpx.Timeout(20.0, read=60.0),
             follow_redirects=True,
@@ -1140,10 +1146,16 @@ class Cinema:
         # Один разбор на всю комнату: пятеро зрителей открывают одно и то же видео в одну и ту
         # же минуту, и пять запросов к площадке ради одного ответа — это просто пять ожиданий.
         # Живой эфир держится меньше: его адреса обновляются чаще, чем меняется афиша.
+        key = f"{request.provider}:{request.kind}:{request.contentId}:{request.adaptive}"
+        if request.refresh:
+            self.sources._items.pop(key, None)
         return await self.sources.get(
-            f"{request.provider}:{request.kind}:{request.contentId}",
+            key,
             lambda: self._resolve(request),
-            lambda source: 45 if source["live"] else 1800,
+            lambda source: min(
+                45 if source["live"] else 1800,
+                max(0, source["expiresAt"] / 1000 - time.time() - 60),
+            ),
         )
 
     async def _resolve(self, request: Resolve) -> dict[str, Any]:
@@ -1155,10 +1167,21 @@ class Cinema:
             source = f"https://www.twitch.tv/{request.contentId}"
         info = await asyncio.to_thread(self._probe, source)
         stream, kind = self._stream(info)
+        dash = None
+        if (
+            request.adaptive
+            and request.provider == "youtube"
+            and not info.get("is_live")
+            and kind != "hls"
+        ):
+            dash = await self._dash(info)
+        if dash:
+            stream, expires = dash
+            kind = "dash"
+        else:
+            expires = self._expiry([stream] if stream else [])
         if not stream:
-            raise HTTPException(
-                502, "Площадка не отдала поток для этого видео. Попробуйте другое"
-            )
+            raise HTTPException(502, "Площадка не отдала поток для этого видео. Попробуйте другое")
         poster = info.get("thumbnail") or ""
         return {
             "provider": request.provider,
@@ -1168,7 +1191,18 @@ class Cinema:
             "duration": None if info.get("is_live") else info.get("duration"),
             "live": bool(info.get("is_live")),
             "kind": kind,
-            "url": proxied(self.signer, stream, "playlist" if kind == "hls" else "fetch"),
+            "url": stream
+            if kind == "dash"
+            else proxied(
+                self.signer,
+                stream,
+                "playlist" if kind == "hls" else "fetch",
+                max(1, int(expires - time.time())),
+            ),
+            "expiresAt": int(expires * 1000),
+            "notice": "Доступен только готовый файл: качество ограничено источником"
+            if kind == "file"
+            else None,
             # На каком языке ролик говорит сам. Ни одна дорожка в мастере YouTube не помечена
             # как основная (`DEFAULT=NO` у всех), и плеер без подсказки берёт первую по
             # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
@@ -1177,6 +1211,68 @@ class Cinema:
             "captions": self._captions(info, kind == "hls"),
             "poster": self.image(poster),
         }
+
+    @staticmethod
+    def _expiry(urls: list[str]) -> float:
+        expires = time.time() + SIGNATURE_TTL
+        for url in urls:
+            for value in parse_qs(urlsplit(url).query).get("expire", []):
+                if value.isdigit():
+                    expires = min(expires, int(value))
+        return expires
+
+    async def _dash(self, info: dict[str, Any]) -> tuple[str, float] | None:
+        duration = number(info.get("duration"))
+        if not duration:
+            return None
+        formats = [item for item in candidates(info.get("formats") or []) if allowed(item["url"])]
+
+        async def inspect(item):
+            try:
+                ranges = await read_ranges(self.client, item["url"], self.index_reads)
+                return item, ranges
+            except (ValueError, httpx.HTTPError):
+                return None
+
+        try:
+            async with asyncio.timeout(20):
+                found = [
+                    item
+                    for item in await asyncio.gather(*(inspect(item) for item in formats))
+                    if item
+                ]
+        except TimeoutError:
+            return None
+        expires = self._expiry([item[0]["url"] for item in found])
+        if expires - time.time() < 60:
+            return None
+        ttl = max(1, int(expires - time.time()))
+        try:
+            body = dash_manifest(
+                [
+                    (item, ranges, proxied(self.signer, item["url"], "fetch", ttl))
+                    for item, ranges in found
+                ],
+                duration,
+            )
+        except ValueError:
+            return None
+        key = self.signer.name(body)
+        self.dash_manifests[key] = (expires, body)
+        while len(self.dash_manifests) > 64:
+            self.dash_manifests.pop(next(iter(self.dash_manifests)))
+        return f"{PREFIX}/dash/{key}", expires
+
+    def dash(self, key: str) -> Response:
+        found = self.dash_manifests.get(key)
+        if not found or found[0] <= time.time():
+            self.dash_manifests.pop(key, None)
+            raise HTTPException(410, "Ссылка устарела, откройте видео заново")
+        return Response(
+            found[1],
+            media_type="application/dash+xml",
+            headers={"Cache-Control": "no-store"},
+        )
 
     def _probe(self, source: str) -> dict[str, Any]:
         import yt_dlp
@@ -1279,8 +1375,8 @@ class Cinema:
     # --- прокси ------------------------------------------------------------------------
 
     async def manifest(self, url: str, encodings: str | None = None) -> Response:
-        response = await self.client.get(url)
-        if response.status_code >= 400:
+        response = await self.client.get(url, follow_redirects=False)
+        if response.status_code >= 300:
             raise HTTPException(502, "Площадка не отдала плейлист")
         body = rewrite(response.text, str(response.url), self.signer, self.reels)
         headers = {"Cache-Control": "no-store"}
@@ -1293,32 +1389,48 @@ class Cinema:
         return Response(payload, media_type="application/vnd.apple.mpegurl", headers=headers)
 
     async def fetch(self, url: str, range_header: str | None) -> Response:
+        if range_header and not re.fullmatch(r"bytes=(?:\d+-\d*|-\d+)", range_header):
+            raise HTTPException(416, "Неверный диапазон байтов")
+        if (
+            range_header
+            and (match := re.fullmatch(r"bytes=(\d+)-(\d+)", range_header))
+            and int(match[1]) > int(match[2])
+        ):
+            raise HTTPException(416, "Неверный диапазон байтов")
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
         # Частичный запрос (перемотка в готовом файле) обслуживается напрямую.
         if not range_header:
             cached = self.segments.get(url)
             if cached:
                 body, kind = cached
-                return Response(body, media_type=kind, headers={"Cache-Control": "private, max-age=600"})
+                return Response(
+                    body,
+                    media_type=kind,
+                    headers={"Cache-Control": "private, max-age=600"},
+                )
             async with self.segments.lock(url):
                 cached = self.segments.get(url)
                 if cached:
                     body, kind = cached
                     return Response(
-                        body, media_type=kind, headers={"Cache-Control": "private, max-age=600"}
+                        body,
+                        media_type=kind,
+                        headers={"Cache-Control": "private, max-age=600"},
                     )
-                answer = await self.client.get(url)
-                if answer.status_code >= 400:
+                answer = await self.client.get(url, follow_redirects=False)
+                if answer.status_code >= 300:
                     raise HTTPException(502, "Площадка не отдала данные")
                 kind = answer.headers.get("content-type", "video/mp2t")
                 self.segments.put(url, answer.content, kind)
                 return Response(
-                    answer.content, media_type=kind, headers={"Cache-Control": "private, max-age=600"}
+                    answer.content,
+                    media_type=kind,
+                    headers={"Cache-Control": "private, max-age=600"},
                 )
         headers = {"Range": range_header}
         request = self.client.build_request("GET", url, headers=headers)
-        upstream = await self.client.send(request, stream=True)
-        if upstream.status_code >= 400:
+        upstream = await self.client.send(request, stream=True, follow_redirects=False)
+        if upstream.status_code >= 300:
             await upstream.aclose()
             raise HTTPException(502, "Площадка не отдала данные")
 
@@ -1332,8 +1444,7 @@ class Cinema:
         passed = {
             name: value
             for name, value in upstream.headers.items()
-            if name.lower()
-            in ("content-length", "content-range", "accept-ranges", "content-type")
+            if name.lower() in ("content-length", "content-range", "accept-ranges", "content-type")
         }
         passed["Cache-Control"] = "private, max-age=600"
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
@@ -1423,6 +1534,10 @@ def routes(cinema: Cinema, core) -> APIRouter:
     @router.get(PREFIX + "/fetch")
     async def fetch(u: str, e: str, s: str, range: str | None = Header(default=None)):
         return await cinema.fetch(cinema.signer.open(u, e, s), range)
+
+    @router.get(PREFIX + "/dash/{key}")
+    async def dash(key: str):
+        return cinema.dash(key)
 
     # Сегмент фильма — по номеру в уже разобранном плейлисте. Имя плейлиста подписано тем же
     # ключом, а сам список составлен нами и содержит только разрешённые адреса.
