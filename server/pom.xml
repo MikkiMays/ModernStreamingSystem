@@ -18,6 +18,11 @@
     <dependency><groupId>com.auth0</groupId><artifactId>java-jwt</artifactId><version>4.5.1</version></dependency>
     <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>2.21.3</version></dependency>
     <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jsr310</artifactId><version>2.21.3</version></dependency>
+    <dependency>
+      <groupId>io.github.asdfjkl</groupId><artifactId>jchesslib</artifactId><version>1.2</version>
+      <!-- Only Board/Move are used; ICU belongs to the optional PGN reader. -->
+      <exclusions><exclusion><groupId>com.ibm.icu</groupId><artifactId>icu4j</artifactId></exclusion></exclusions>
+    </dependency>
     <dependency><groupId>org.springdoc</groupId><artifactId>springdoc-openapi-starter-webmvc-api</artifactId><version>3.1.0</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
     <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit-junit5</artifactId><version>1.5.0</version><scope>test</scope></dependency>

@@ -13,6 +13,8 @@ const WatchTheater = lazy(() => import('./WatchTheater'));
 const CinemaBrowser = lazy(() => import('./CinemaBrowser'));
 const PokerTable = lazy(() => import('./PokerTable'));
 const DurakTable = lazy(() => import('./DurakTable'));
+const ChessTable = lazy(() => import('./ChessTable'));
+const GarticTable = lazy(() => import('./GarticTable'));
 
 /**
  * Показывать ли себя зеркально.
@@ -375,6 +377,21 @@ export function Stage({
     играющих уже на столе, в кружках их мест, и показывать их вторым рядом значило бы отобрать
     у стола половину сцены ради повторения.
   */
+  if (snapshot.chess || snapshot.gartic) {
+    return (
+      <div className="stage room-game-stage">
+        <Suspense
+          fallback={
+            <div role="status" className="poker-loading">
+              Открываем игру…
+            </div>
+          }
+        >
+          {snapshot.chess ? <ChessTable meeting={meeting} /> : <GarticTable meeting={meeting} />}
+        </Suspense>
+      </div>
+    );
+  }
   if (snapshot.poker) {
     const table = snapshot.poker;
     const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));

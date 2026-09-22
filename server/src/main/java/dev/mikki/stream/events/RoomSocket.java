@@ -1,7 +1,6 @@
 package dev.mikki.stream.events;
 
 import dev.mikki.stream.access.RateLimits;
-import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.application.CommandDispatcher;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.*;
@@ -89,8 +88,8 @@ public class RoomSocket extends TextWebSocketHandler {
           if (requestId.length() > 64) throw new Problem(400, "INVALID_PING", "Некорректный PING");
           send(c, Map.of("type", "pong", "serverTime", rooms.now(), "requestId", requestId));
         } else if (type.equals("command")) {
-          limits.check("command:" + Secrets.hash(c.credential.replaceFirst("^Bearer ", "")), 120);
           var command = Json.read(body.path("command").toString(), Contracts.Command.class);
+          limits.command(c.credential, command.type());
           if (!validator.validate(command).isEmpty())
             throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
           var ack = commands.execute(c.roomId, c.credential, command);

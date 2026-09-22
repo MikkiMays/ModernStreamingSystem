@@ -3,10 +3,15 @@ import type { components } from './generated';
 export type Participant = components['schemas']['Participant'];
 export type Status = Participant['status'];
 export type Message = components['schemas']['Message'];
-export type Snapshot = Omit<components['schemas']['Snapshot'], 'watch' | 'poker' | 'durak'> & {
+export type Snapshot = Omit<
+  components['schemas']['Snapshot'],
+  'watch' | 'poker' | 'durak' | 'chess' | 'gartic'
+> & {
   watch: Watch | null;
   poker: PokerTable | null;
   durak: DurakTable | null;
+  chess?: ChessTable | null;
+  gartic?: GarticTable | null;
 };
 /** Снимок сужен (см. `Watch`), поэтому всё, что его содержит, сужается вместе с ним. */
 export type Admission = Omit<components['schemas']['Admission'], 'snapshot'> & { snapshot: Snapshot };
@@ -117,3 +122,5 @@ export type GameVisualEvent = Omit<components['schemas']['GameVisualEvent'], 'ty
   type: 'deal' | 'draw' | 'play' | 'take' | 'discard';
 };
 export type GameReaction = components['schemas']['DurakReaction'];
+export type ChessTable = components['schemas']['ChessView'];
+export type GarticTable = components['schemas']['GarticView'];

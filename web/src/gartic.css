@@ -1,0 +1,1122 @@
+.gartic {
+  --gartic-ink: #7250c8;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  padding: clamp(12px, 2vw, 28px);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.gartic button,
+.gartic input,
+.gartic textarea,
+.gartic select {
+  font: inherit;
+}
+.gartic-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.gartic-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gartic-heading > svg {
+  color: var(--gartic-ink);
+}
+.gartic-heading h2 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.6px;
+}
+.gartic-heading span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.gartic-round {
+  padding: 6px 10px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+.gartic-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gartic-rules {
+  position: relative;
+  font-size: 13px;
+}
+.gartic-rules summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 9px;
+  border-radius: 8px;
+}
+.gartic-rules summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.gartic-rules > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: min(340px, 80vw);
+  z-index: 8;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  line-height: 1.6;
+}
+.gartic-rules p {
+  margin: 0 0 10px;
+}
+.gartic-rules p:last-child {
+  margin-bottom: 0;
+}
+.gartic .game-turn {
+  flex-shrink: 0;
+}
+.gartic .game-turn strong {
+  font-size: 14px;
+}
+.gartic-connection {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.gartic-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  border-left: 3px solid #d46a38;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.gartic-error button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  text-decoration: underline;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+}
+.gartic-lobby {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  align-items: center;
+  gap: clamp(24px, 5vw, 70px);
+  width: min(100%, 1000px);
+  margin: auto;
+  padding: 18px 0 30px;
+}
+.gartic-lobby-intro {
+  max-width: 390px;
+}
+.gartic-sketch {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 35px 28px;
+  margin-bottom: 24px;
+  background: #fff;
+  color: #7250c8;
+  border: 1px solid #ded8ef;
+  border-radius: 5px 24px 5px 5px;
+  box-shadow: 5px 6px 0 #7250c810;
+  transform: rotate(-2deg);
+}
+.gartic-sketch span {
+  font-size: clamp(21px, 2.5vw, 29px);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.8px;
+}
+.gartic-lobby h3 {
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.65px;
+  margin: 0 0 14px;
+}
+.gartic-lobby-intro p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0;
+}
+.gartic-lobby-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.gartic-mode-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gartic-mode-picker button {
+  text-align: left;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 3px;
+  padding: 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.gartic-mode-picker button[aria-pressed='true'] {
+  border-color: var(--gartic-ink);
+  box-shadow: inset 3px 0 var(--gartic-ink);
+}
+.gartic-mode-picker button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.gartic-mode-picker svg {
+  grid-row: span 2;
+  color: var(--gartic-ink);
+}
+.gartic-mode-picker b {
+  font-size: 14px;
+}
+.gartic-mode-picker span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.gartic-settings {
+  display: flex;
+  gap: 16px;
+}
+.gartic-settings label {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.gartic-settings select,
+.gartic-brush select {
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 25px 9px 10px;
+}
+.gartic-lobby-players {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 6px;
+  font-size: 13px;
+}
+.gartic-lobby-players > span {
+  flex-basis: 100%;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.gartic-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.gartic-ready {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--speaking);
+  margin: 0;
+  line-height: 1.6;
+}
+.gartic-ready svg {
+  flex-shrink: 0;
+}
+.gartic-small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+.gartic-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 245px;
+  gap: 20px;
+  width: min(100%, 1280px);
+  margin: 0 auto;
+}
+.gartic-workspace,
+.gartic-drawing {
+  min-width: 0;
+}
+.gartic-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gartic-drawing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gartic-word {
+  min-height: 57px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 2px;
+  padding: 7px;
+  text-align: center;
+}
+.gartic-word > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.gartic-word strong {
+  font-size: clamp(20px, 3vw, 30px);
+  font-weight: 650;
+  letter-spacing: 2px;
+  overflow-wrap: anywhere;
+}
+.gartic-word small {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--muted);
+}
+.gartic-paper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d4d8e1;
+  border-radius: 8px;
+  color-scheme: light;
+}
+.gartic-paper > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1.6;
+}
+.gartic-paper[data-editable] > svg {
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+}
+.gartic-paper[data-eraser] > svg {
+  cursor: cell;
+}
+.gartic-paper-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #9297a3;
+  pointer-events: none;
+  font-size: 13px;
+}
+.gartic-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px 0;
+}
+.gartic-palette,
+.gartic-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gartic-palette {
+  flex-wrap: wrap;
+}
+.gartic-palette button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 1px solid #22263130;
+  padding: 0;
+}
+.gartic-palette button[aria-pressed='true'] {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  margin: 0 3px;
+}
+.gartic-tool {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.gartic-tool[aria-pressed='true'] {
+  color: var(--gartic-ink);
+  border-color: var(--gartic-ink);
+}
+.gartic-brush {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.gartic-brush select {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 11px;
+}
+.gartic-canvas-status {
+  min-height: 19px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.gartic-choose {
+  min-height: 310px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.gartic-choose > svg {
+  color: var(--gartic-ink);
+}
+.gartic-choose h3 {
+  margin: 0;
+  font-size: 23px;
+  letter-spacing: -0.6px;
+}
+.gartic-choose p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.gartic-choose > div {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 12px;
+}
+.gartic-choose button {
+  border: 1px solid var(--gartic-ink);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 17px;
+  padding: 14px 18px;
+  border-radius: 9px;
+}
+.gartic-choose button:hover:not(:disabled) {
+  background: var(--blue-soft);
+}
+.gartic-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 18px;
+}
+.gartic-scores h3,
+.gartic-guesses h3,
+.gartic-albums h3 {
+  font-size: 13px;
+  margin: 0 0 10px;
+  font-weight: 650;
+}
+.gartic-scores ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.gartic-scores li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 0;
+}
+.gartic-scores li[data-current] {
+  border-left: 3px solid var(--gartic-ink);
+  padding-left: 8px;
+}
+.gartic-scores li[data-away] {
+  opacity: 0.65;
+}
+.gartic-scores .game-person {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.gartic-scores .game-person-face {
+  width: 30px;
+  height: 30px;
+}
+.gartic-scores .game-person-copy b {
+  font-size: 12px;
+}
+.gartic-scores .game-person-copy small {
+  font-size: 10px;
+}
+.gartic-score {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.gartic-score svg,
+.gartic-player-progress {
+  color: var(--speaking);
+}
+.gartic-guesses {
+  display: flex;
+  flex-direction: column;
+  min-height: 210px;
+  flex: 1;
+}
+.gartic-guesses ol {
+  flex: 1;
+  max-height: 260px;
+  overflow: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.gartic-guesses li {
+  padding: 7px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+.gartic-guesses li span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.gartic-guesses li[data-correct] {
+  color: var(--speaking);
+}
+.gartic-guesses .gartic-empty-guesses {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.gartic-guesses form {
+  display: flex;
+  gap: 5px;
+}
+.gartic-guesses input {
+  min-width: 0;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 12px;
+}
+.gartic-guesses form button {
+  flex-shrink: 0;
+  background: var(--blue);
+  color: var(--surface);
+  border: 0;
+  border-radius: 8px;
+  min-width: 39px;
+  display: grid;
+  place-items: center;
+}
+.gartic-guessed {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--speaking);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+.gartic-guessed svg {
+  flex-shrink: 0;
+}
+.gartic-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gartic-footer-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.gartic-footer-state > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-right: auto;
+}
+.gartic-footer .text-button {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gartic-phone-task {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.gartic-phone-wait,
+.gartic-prompt-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 34px 20px;
+  text-align: center;
+}
+.gartic-phone-wait {
+  min-height: 320px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+.gartic-phone-wait > svg,
+.gartic-prompt-intro > svg {
+  color: var(--gartic-ink);
+}
+.gartic-phone-wait h3,
+.gartic-prompt-intro h3 {
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
+  margin: 0;
+}
+.gartic-phone-wait p,
+.gartic-prompt-intro p {
+  max-width: 430px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.gartic-phone-prompt {
+  padding: 15px 20px;
+  border-left: 3px solid var(--gartic-ink);
+  background: var(--surface);
+}
+.gartic-phone-prompt > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.gartic-phone-prompt blockquote {
+  margin: 7px 0 0;
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 550;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.gartic-text-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.gartic-text-entry textarea {
+  resize: vertical;
+  min-height: 95px;
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 15px;
+  line-height: 1.5;
+  font-size: 17px;
+}
+.gartic-text-entry > span {
+  color: var(--muted);
+  text-align: right;
+  font-size: 11px;
+}
+.gartic-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.gartic-assignment-author {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.gartic-assignment-author .game-person-face {
+  width: 28px;
+  height: 28px;
+}
+.gartic-finish {
+  width: min(100%, 570px);
+  margin: 15px auto 30px;
+  text-align: center;
+}
+.gartic-finish > svg {
+  color: #c69a22;
+  margin-bottom: 12px;
+}
+.gartic-finish > h3 {
+  margin: 0 0 10px;
+  font-size: 30px;
+  letter-spacing: -0.9px;
+}
+.gartic-finish > p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+.gartic-finish .gartic-scores {
+  text-align: left;
+}
+.gartic-rank {
+  color: var(--muted);
+  font-size: 14px;
+  width: 22px;
+}
+.gartic-reveal {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 28px;
+  width: min(100%, 1100px);
+  margin: 10px auto 25px;
+}
+.gartic-albums {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.gartic-albums > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 13px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+.gartic-albums > button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gartic-albums > button small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.gartic-albums > button[aria-pressed='true'] {
+  background: var(--surface);
+  border-color: var(--gartic-ink);
+}
+.gartic-albums > button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.gartic-album-page {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gartic-album-page > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 13px;
+}
+.gartic-album-page > header strong {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.gartic-reveal-entry {
+  animation: gartic-reveal 220ms ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gartic-reveal-entry > blockquote {
+  margin: 0;
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+  font-size: clamp(22px, 3vw, 36px);
+  font-weight: 550;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.gartic-reveal-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+@keyframes gartic-reveal {
+  from {
+    opacity: 0.4;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Desktop paper follows the space left after meeting/game controls, not viewport width.
+   Keep the SVG's actual box at 8:5 so pointer coordinates and visible ink stay aligned. */
+@media (min-width: 901px) {
+  .gartic {
+    padding: 16px;
+    gap: 12px;
+  }
+  .gartic-header,
+  .gartic-footer {
+    flex-shrink: 0;
+  }
+  .gartic-play {
+    flex: 1;
+    min-height: 460px;
+  }
+  .gartic-workspace,
+  .gartic-phone-task {
+    min-height: 0;
+    flex: 1;
+  }
+  .gartic-workspace {
+    gap: 8px;
+  }
+  .gartic-drawing {
+    container-type: size;
+    flex: 1;
+    min-height: 260px;
+  }
+  .gartic-drawing > .gartic-paper {
+    width: min(100%, max(192px, calc(160cqh - 205px)));
+    margin-inline: auto;
+    flex-shrink: 0;
+  }
+  .gartic-word {
+    min-height: 44px;
+    padding: 4px;
+  }
+  .gartic-word strong {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+  .gartic-tools {
+    justify-content: center;
+    padding: 4px 0;
+  }
+  .gartic-sidebar {
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+  }
+  .gartic-footer .game-people {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 3px 2px;
+  }
+  .gartic-footer .game-person {
+    flex-shrink: 0;
+  }
+  .gartic-phone-task {
+    gap: 10px;
+  }
+  .gartic-phone-prompt {
+    padding: 8px 14px;
+  }
+  .gartic-phone-prompt blockquote {
+    margin-top: 4px;
+    font-size: 22px;
+    line-height: 1.3;
+  }
+  .gartic-assignment-author {
+    padding-top: 4px;
+  }
+  .gartic-phone-task > .gartic-paper {
+    width: min(100%, max(224px, calc(160cqh - 832px)));
+    margin-inline: auto;
+    flex-shrink: 0;
+  }
+  .gartic-reveal {
+    flex: 1;
+    min-height: 420px;
+    margin: 0 auto;
+  }
+  .gartic-album-page {
+    container-type: size;
+    min-height: 0;
+  }
+  .gartic-reveal-entry {
+    min-height: 0;
+    flex: 1;
+    justify-content: center;
+  }
+  .gartic-reveal-entry > .gartic-paper {
+    width: min(100%, max(224px, calc(160cqh - 288px)));
+    margin-inline: auto;
+    flex-shrink: 0;
+  }
+  .gartic-reveal-entry > blockquote {
+    min-height: 0;
+    flex: 1;
+  }
+  .gartic-reveal-navigation {
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 1000px) {
+  .gartic-play {
+    grid-template-columns: minmax(0, 1fr) 205px;
+    gap: 14px;
+  }
+  .gartic-palette button {
+    width: 25px;
+    height: 25px;
+  }
+  .gartic-brush {
+    font-size: 0;
+  }
+  .gartic-tools {
+    gap: 8px;
+  }
+}
+@media (max-width: 700px) {
+  .gartic {
+    padding: 12px;
+    gap: 12px;
+  }
+  .gartic-header {
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .gartic-heading {
+    gap: 8px;
+  }
+  .gartic-heading h2 {
+    font-size: 21px;
+  }
+  .gartic-heading span {
+    font-size: 10px;
+  }
+  .gartic-round {
+    font-size: 11px;
+    padding: 5px 7px;
+  }
+  .gartic-rules summary {
+    padding: 6px;
+    font-size: 0;
+  }
+  .gartic-rules summary svg {
+    width: 18px;
+    height: 18px;
+  }
+  .gartic-lobby {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    margin: 0 auto;
+    max-width: 500px;
+    padding: 5px 0;
+  }
+  .gartic-lobby-intro {
+    max-width: none;
+  }
+  .gartic-sketch {
+    display: none;
+  }
+  .gartic-lobby h3 {
+    font-size: 22px;
+  }
+  .gartic-lobby-intro p {
+    font-size: 13px;
+  }
+  .gartic-play {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .gartic-sidebar {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .gartic-sidebar > .gartic-scores {
+    width: 40%;
+    flex-shrink: 0;
+  }
+  .gartic-guesses {
+    min-width: 0;
+  }
+  .gartic-play-phone .gartic-sidebar > .gartic-scores {
+    width: 100%;
+  }
+  .gartic-play-phone .gartic-scores ol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 15px;
+  }
+  .gartic-word {
+    min-height: 40px;
+  }
+  .gartic-word strong {
+    font-size: 22px;
+  }
+  .gartic-tools {
+    padding: 4px 0;
+  }
+  .gartic-palette {
+    flex-basis: 100%;
+    gap: 8px;
+    padding: 3px;
+  }
+  .gartic-palette button {
+    width: 25px;
+    height: 25px;
+  }
+  .gartic-palette button[aria-pressed='true'] {
+    margin: 0;
+  }
+  .gartic-brush {
+    font-size: 11px;
+  }
+  .gartic-tool-group:last-child {
+    margin-left: auto;
+  }
+  .gartic-phone-wait {
+    min-height: 230px;
+  }
+  .gartic-prompt-intro {
+    padding: 20px 8px;
+  }
+  .gartic-reveal {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .gartic-albums {
+    flex-direction: row;
+    overflow: auto;
+    flex-wrap: nowrap;
+  }
+  .gartic-albums > h3,
+  .gartic-albums > p {
+    display: none;
+  }
+  .gartic-albums > button {
+    flex-shrink: 0;
+  }
+  .gartic-albums > button small {
+    display: none;
+  }
+  .gartic-reveal-entry > blockquote {
+    min-height: 230px;
+    padding: 20px;
+  }
+  .gartic-choose {
+    min-height: 260px;
+    padding: 20px 12px;
+  }
+  .gartic-choose button {
+    font-size: 15px;
+    padding: 12px 14px;
+  }
+}
+@media (max-width: 390px) {
+  .gartic-round {
+    order: 3;
+    width: 100%;
+    border-left: 0;
+    padding: 0;
+  }
+  .gartic-palette {
+    gap: 6px;
+  }
+  .gartic-palette button {
+    width: 28px;
+    height: 28px;
+  }
+  .gartic-sidebar {
+    flex-direction: column;
+  }
+  .gartic-sidebar > .gartic-scores,
+  .gartic-guesses {
+    width: 100%;
+  }
+  .gartic-scores ol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+  }
+  .gartic-brush {
+    font-size: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gartic-reveal-entry {
+    animation: none;
+  }
+}

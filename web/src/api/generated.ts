@@ -458,6 +458,61 @@ export interface components {
             attack: string;
             beat: string | null;
         };
+        ChessMove: {
+            /** Format: int64 */
+            at: number;
+            fen: string;
+            /** Format: int32 */
+            ply: number;
+            san: string;
+            uci: string;
+        };
+        ChessPlayer: {
+            away: boolean;
+            memberId: string;
+            name: string;
+        };
+        ChessView: {
+            /** Format: int64 */
+            anchorAt: number;
+            black: components["schemas"]["ChessPlayer"] | null;
+            /** Format: int64 */
+            blackMs: number;
+            check: boolean;
+            claimableDraws: string[];
+            claimableMoves: string[];
+            /** Format: int64 */
+            closesAt: number;
+            /** Format: int64 */
+            deadline: number;
+            drawOffer: string | null;
+            fen: string;
+            /** Format: int64 */
+            finishedAt: number;
+            hostId: string;
+            id: string;
+            /** Format: int64 */
+            incrementMs: number;
+            initialFen: string;
+            legalMoves: string[];
+            moves: components["schemas"]["ChessMove"][];
+            pgn: string;
+            phase: string;
+            /** Format: int32 */
+            ply: number;
+            preset: string;
+            rematchRequests: string[];
+            result: string | null;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            startedAt: number;
+            turn: string;
+            white: components["schemas"]["ChessPlayer"] | null;
+            /** Format: int64 */
+            whiteMs: number;
+            winner: string | null;
+        };
         Command: {
             card?: string;
             /** Format: int64 */
@@ -477,7 +532,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal";
             under?: string;
         };
         Connect: {
@@ -717,6 +772,101 @@ export interface components {
             /** @enum {string} */
             type: "deal" | "draw" | "play" | "take" | "discard";
         };
+        GarticAlbum: {
+            /** Format: int32 */
+            entries: number;
+            /** Format: int32 */
+            index: number;
+            ownerId: string;
+            ownerName: string;
+        };
+        GarticEntry: {
+            authorId: string;
+            authorName: string;
+            kind: string;
+            skipped: boolean;
+            /** Format: int32 */
+            step: number;
+            strokes: components["schemas"]["GarticStroke"][];
+            text: string | null;
+        };
+        GarticGuess: {
+            /** Format: int64 */
+            at: number;
+            correct: boolean;
+            /** Format: int64 */
+            id: number;
+            memberId: string;
+            name: string;
+            text: string;
+        };
+        GarticPlayer: {
+            active: boolean;
+            away: boolean;
+            guessed: boolean;
+            memberId: string;
+            name: string;
+            /** Format: int32 */
+            score: number;
+            submitted: boolean;
+        };
+        GarticStroke: {
+            color: string;
+            id: string;
+            points: number[][];
+            /** Format: int32 */
+            width: number;
+        };
+        GarticView: {
+            albums: components["schemas"]["GarticAlbum"][];
+            answer: string | null;
+            canvas: components["schemas"]["GarticStroke"][];
+            /** Format: int64 */
+            closesAt: number;
+            /** Format: int64 */
+            deadline: number;
+            drawerId: string | null;
+            gameId: string;
+            guesses: components["schemas"]["GarticGuess"][];
+            hint: string | null;
+            hostId: string;
+            mode: string;
+            phase: string;
+            /** Format: int64 */
+            phaseStartedAt: number;
+            players: components["schemas"]["GarticPlayer"][];
+            /** Format: int32 */
+            revealAlbum: number;
+            revealed: components["schemas"]["GarticEntry"] | null;
+            /** Format: int32 */
+            revealEntry: number;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int32 */
+            round: number;
+            /** Format: int32 */
+            rounds: number;
+            /** Format: int32 */
+            step: number;
+            /** Format: int32 */
+            totalSteps: number;
+            /** Format: int32 */
+            turnSeconds: number;
+            /** Format: int64 */
+            turnToken: number;
+            you: components["schemas"]["GarticYou"] | null;
+        };
+        GarticYou: {
+            canDraw: boolean;
+            canGuess: boolean;
+            canSubmit: boolean;
+            choices: string[];
+            memberId: string;
+            playing: boolean;
+            previous: components["schemas"]["GarticEntry"] | null;
+            prompt: string | null;
+            submitted: boolean;
+        };
         Highlight: {
             hint: string;
             id: string;
@@ -936,6 +1086,7 @@ export interface components {
         };
         Snapshot: {
             approvalRequired: boolean;
+            chess?: components["schemas"]["ChessView"] | null;
             /** Format: int64 */
             closedAt: null | number;
             code: string;
@@ -944,6 +1095,7 @@ export interface components {
             durak: components["schemas"]["DurakView"] | null;
             /** Format: int64 */
             durakGamesAt: number;
+            gartic?: components["schemas"]["GarticView"] | null;
             id: string;
             integrationsAllowed: boolean;
             messages: components["schemas"]["Message"][];

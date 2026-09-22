@@ -262,6 +262,225 @@
         ],
         "type": "object"
       },
+      "ChessMove": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "ply": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "san": {
+            "type": "string"
+          },
+          "uci": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "fen",
+          "ply",
+          "san",
+          "uci"
+        ],
+        "type": "object"
+      },
+      "ChessPlayer": {
+        "properties": {
+          "away": {
+            "type": "boolean"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "away",
+          "memberId",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ChessView": {
+        "properties": {
+          "anchorAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "black": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChessPlayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blackMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "check": {
+            "type": "boolean"
+          },
+          "claimableDraws": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "claimableMoves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "closesAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deadline": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "drawOffer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fen": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "incrementMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "initialFen": {
+            "type": "string"
+          },
+          "legalMoves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/ChessMove"
+            },
+            "type": "array"
+          },
+          "pgn": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "ply": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "preset": {
+            "type": "string"
+          },
+          "rematchRequests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "result": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "turn": {
+            "type": "string"
+          },
+          "white": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChessPlayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "whiteMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "winner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "anchorAt",
+          "black",
+          "blackMs",
+          "check",
+          "claimableDraws",
+          "claimableMoves",
+          "closesAt",
+          "deadline",
+          "drawOffer",
+          "fen",
+          "finishedAt",
+          "hostId",
+          "id",
+          "incrementMs",
+          "initialFen",
+          "legalMoves",
+          "moves",
+          "pgn",
+          "phase",
+          "ply",
+          "preset",
+          "rematchRequests",
+          "result",
+          "revision",
+          "startedAt",
+          "turn",
+          "white",
+          "whiteMs",
+          "winner"
+        ],
+        "type": "object"
+      },
       "Command": {
         "properties": {
           "card": {
@@ -365,7 +584,27 @@
               "durak.deal",
               "durak.act",
               "durak.settings",
-              "durak.react"
+              "durak.react",
+              "chess.open",
+              "chess.close",
+              "chess.sit",
+              "chess.stand",
+              "chess.start",
+              "chess.settings",
+              "chess.move",
+              "chess.act",
+              "gartic.open",
+              "gartic.close",
+              "gartic.join",
+              "gartic.leave",
+              "gartic.settings",
+              "gartic.start",
+              "gartic.choose",
+              "gartic.draw",
+              "gartic.canvas",
+              "gartic.guess",
+              "gartic.submit",
+              "gartic.reveal"
             ],
             "type": "string"
           },
@@ -1228,6 +1467,383 @@
         ],
         "type": "object"
       },
+      "GarticAlbum": {
+        "properties": {
+          "entries": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "index": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "ownerName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "index",
+          "ownerId",
+          "ownerName"
+        ],
+        "type": "object"
+      },
+      "GarticEntry": {
+        "properties": {
+          "authorId": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "step": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "strokes": {
+            "items": {
+              "$ref": "#/components/schemas/GarticStroke"
+            },
+            "type": "array"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "authorId",
+          "authorName",
+          "kind",
+          "skipped",
+          "step",
+          "strokes",
+          "text"
+        ],
+        "type": "object"
+      },
+      "GarticGuess": {
+        "properties": {
+          "at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "correct",
+          "id",
+          "memberId",
+          "name",
+          "text"
+        ],
+        "type": "object"
+      },
+      "GarticPlayer": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "away": {
+            "type": "boolean"
+          },
+          "guessed": {
+            "type": "boolean"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "score": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "submitted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active",
+          "away",
+          "guessed",
+          "memberId",
+          "name",
+          "score",
+          "submitted"
+        ],
+        "type": "object"
+      },
+      "GarticStroke": {
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "items": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "width": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "color",
+          "id",
+          "points",
+          "width"
+        ],
+        "type": "object"
+      },
+      "GarticView": {
+        "properties": {
+          "albums": {
+            "items": {
+              "$ref": "#/components/schemas/GarticAlbum"
+            },
+            "type": "array"
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canvas": {
+            "items": {
+              "$ref": "#/components/schemas/GarticStroke"
+            },
+            "type": "array"
+          },
+          "closesAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deadline": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "drawerId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "guesses": {
+            "items": {
+              "$ref": "#/components/schemas/GarticGuess"
+            },
+            "type": "array"
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "phaseStartedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/GarticPlayer"
+            },
+            "type": "array"
+          },
+          "revealAlbum": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "revealed": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GarticEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revealEntry": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "round": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rounds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "step": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalSteps": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "turnSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "turnToken": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "you": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GarticYou"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "albums",
+          "answer",
+          "canvas",
+          "closesAt",
+          "deadline",
+          "drawerId",
+          "gameId",
+          "guesses",
+          "hint",
+          "hostId",
+          "mode",
+          "phase",
+          "phaseStartedAt",
+          "players",
+          "revealAlbum",
+          "revealEntry",
+          "revealed",
+          "revision",
+          "round",
+          "rounds",
+          "step",
+          "totalSteps",
+          "turnSeconds",
+          "turnToken",
+          "you"
+        ],
+        "type": "object"
+      },
+      "GarticYou": {
+        "properties": {
+          "canDraw": {
+            "type": "boolean"
+          },
+          "canGuess": {
+            "type": "boolean"
+          },
+          "canSubmit": {
+            "type": "boolean"
+          },
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "playing": {
+            "type": "boolean"
+          },
+          "previous": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GarticEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submitted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "canDraw",
+          "canGuess",
+          "canSubmit",
+          "choices",
+          "memberId",
+          "playing",
+          "previous",
+          "prompt",
+          "submitted"
+        ],
+        "type": "object"
+      },
       "Highlight": {
         "properties": {
           "hint": {
@@ -1965,6 +2581,16 @@
           "approvalRequired": {
             "type": "boolean"
           },
+          "chess": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChessView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "closedAt": {
             "format": "int64",
             "type": [
@@ -1992,6 +2618,16 @@
           "durakGamesAt": {
             "format": "int64",
             "type": "integer"
+          },
+          "gartic": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GarticView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "type": "string"

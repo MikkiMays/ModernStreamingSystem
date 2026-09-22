@@ -217,6 +217,8 @@ public class RoomService {
           // пустовать до конца игры, а его хозяин сидел бы рядом зрителем.
           if (room.poker != null) room.poker.rebind(previous.id, member.id, member.name);
           if (room.durak != null) room.durak.rebind(previous.id, member.id, member.name);
+          if (room.chess != null) room.chess.rebind(previous.id, member.id, member.name);
+          if (room.gartic != null) room.gartic.rebind(previous.id, member.id, member.name);
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -404,7 +406,9 @@ public class RoomService {
             current.poker(),
             current.durak(),
             current.pokerGamesAt(),
-            current.durakGamesAt());
+            current.durakGamesAt(),
+            current.chess(),
+            current.gartic());
     return new Admission(
         room.id,
         member.id,
@@ -538,7 +542,9 @@ public class RoomService {
         room.poker == null ? null : room.poker.view(viewer == null ? null : viewer.id, now()),
         room.durak == null ? null : room.durak.view(viewer == null ? null : viewer.id, now()),
         lastGameAt(room),
-        lastDurakAt(room));
+        lastDurakAt(room),
+        room.chess == null ? null : room.chess.view(viewer == null ? null : viewer.id, now()),
+        room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()));
   }
 
   /**
@@ -610,7 +616,9 @@ public class RoomService {
         null,
         null,
         0,
-        0);
+        0,
+        null,
+        null);
   }
 
   @Transactional
@@ -719,6 +727,7 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
+              newGamesAbsent(room);
               // Активная интеграция в комнате одна. Музыка и кинозал спорят за одно и то же —
               // за уши участников, — и «добавились обе» означает два звука разом, из которых
               // не выключить ни один.
@@ -798,6 +807,7 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
+              newGamesAbsent(room);
               if (room.watch != null)
                 throw Problem.conflict(
                     "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
@@ -863,6 +873,7 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
+              newGamesAbsent(room);
               if (room.watch != null)
                 throw Problem.conflict(
                     "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
@@ -904,6 +915,116 @@ public class RoomService {
             case "durak.settings" -> {
               fool(room, member);
               durak(room).configure(command.option(), command.chips(), active(room, member));
+            }
+            case "chess.open" -> {
+              requireActive(room, member);
+              integrations(room, member);
+              gameStageAvailable(room);
+              room.chess =
+                  dev.mikki.stream.game.Chess.open(member.id, member.name, command.option(), now());
+            }
+            case "chess.close" -> {
+              requireActive(room, member);
+              gameHost(member, chess(room).hostId);
+              gameIdentity(chess(room).id, command.contentId());
+              room.chess = null;
+            }
+            case "chess.sit" -> {
+              requireActive(room, member);
+              gameIdentity(chess(room).id, command.contentId());
+              room.chess.sit(member.id, member.name, command.seat(), now());
+            }
+            case "chess.stand" -> {
+              requireActive(room, member);
+              gameIdentity(chess(room).id, command.contentId());
+              room.chess.stand(member.id, now());
+            }
+            case "chess.start" -> {
+              requireActive(room, member);
+              gameHost(member, chess(room).hostId);
+              room.chess.start(command.contentId(), now());
+            }
+            case "chess.settings" -> {
+              requireActive(room, member);
+              gameHost(member, chess(room).hostId);
+              gameIdentity(room.chess.id, command.contentId());
+              room.chess.configure(command.option(), now());
+            }
+            case "chess.move" -> {
+              requireActive(room, member);
+              chess(room)
+                  .move(
+                      member.id, command.contentId(), command.positionMs(), command.text(), now());
+            }
+            case "chess.act" -> {
+              requireActive(room, member);
+              chess(room)
+                  .act(
+                      member.id,
+                      command.contentId(),
+                      command.positionMs(),
+                      command.option(),
+                      command.text(),
+                      now());
+            }
+            case "gartic.open" -> {
+              requireActive(room, member);
+              integrations(room, member);
+              gameStageAvailable(room);
+              room.gartic =
+                  dev.mikki.stream.game.Gartic.open(
+                      member.id, member.name, command.option(), now());
+            }
+            case "gartic.close",
+                "gartic.join",
+                "gartic.leave",
+                "gartic.settings",
+                "gartic.start",
+                "gartic.choose",
+                "gartic.draw",
+                "gartic.canvas",
+                "gartic.guess",
+                "gartic.submit",
+                "gartic.reveal" -> {
+              requireActive(room, member);
+              var drawing = gartic(room);
+              gameIdentity(drawing.gameId, command.contentId());
+              switch (command.type()) {
+                case "gartic.close" -> {
+                  gameHost(member, drawing.hostId);
+                  room.gartic = null;
+                }
+                case "gartic.join" -> drawing.join(member.id, member.name, now());
+                case "gartic.leave" -> drawing.leave(member.id, now());
+                case "gartic.settings" -> {
+                  gameHost(member, drawing.hostId);
+                  drawing.configure(command.option(), command.chips(), now());
+                }
+                case "gartic.start" -> {
+                  gameHost(member, drawing.hostId);
+                  drawing.start(now());
+                }
+                case "gartic.choose" ->
+                    drawing.choose(
+                        member.id, gameNumber(command.chips()), gameTurn(command), now());
+                case "gartic.draw" ->
+                    drawing.draw(member.id, command.text(), gameTurn(command), now());
+                case "gartic.canvas" ->
+                    drawing.canvas(member.id, command.option(), gameTurn(command), now());
+                case "gartic.guess" ->
+                    drawing.guess(member.id, command.text(), gameTurn(command), now());
+                case "gartic.submit" ->
+                    drawing.submit(member.id, command.text(), gameTurn(command), now());
+                case "gartic.reveal" -> {
+                  gameHost(member, drawing.hostId);
+                  drawing.reveal(
+                      gameNumber(command.chips()),
+                      command.seat() == null ? 0 : command.seat(),
+                      gameTurn(command),
+                      now());
+                }
+                default -> throw new IllegalStateException("Unhandled drawing command");
+              }
             }
             case "message.send" -> {
               requireActive(room, member);
@@ -1063,11 +1184,59 @@ public class RoomService {
    * об этом в каждом месте, где срок ставится. Ноль означает «будить незачем».
    */
   static long gameDeadline(RoomState room) {
-    long poker = room.poker == null ? 0 : room.poker.deadline;
-    long durak = room.durak == null ? 0 : room.durak.deadline;
-    if (poker <= 0) return durak;
-    if (durak <= 0) return poker;
-    return Math.min(poker, durak);
+    return java.util.stream.LongStream.of(
+            room.poker == null ? 0 : room.poker.deadline,
+            room.durak == null ? 0 : room.durak.deadline,
+            room.chess == null ? 0 : room.chess.deadline,
+            room.gartic == null ? 0 : room.gartic.deadline)
+        .filter(value -> value > 0)
+        .min()
+        .orElse(0);
+  }
+
+  private static void newGamesAbsent(RoomState room) {
+    if (room.chess != null || room.gartic != null)
+      throw Problem.conflict(
+          "INTEGRATION_BUSY", "Во встрече уже открыта игра. Сначала закройте её");
+  }
+
+  private static void gameStageAvailable(RoomState room) {
+    newGamesAbsent(room);
+    if (room.watch != null || room.poker != null || room.durak != null)
+      throw Problem.conflict("INTEGRATION_BUSY", "Сначала закройте текущую игру или кинозал");
+  }
+
+  private static void gameHost(RoomState.Member member, String hostId) {
+    if (!member.owner && !member.id.equals(hostId))
+      throw Problem.conflict("GAME_HOST_ONLY", "Это действие доступно ведущему игры");
+  }
+
+  private static void gameIdentity(String actual, String expected) {
+    if (!Objects.equals(actual, expected))
+      throw Problem.conflict("GAME_STALE", "Игра уже изменилась. Дождитесь обновления");
+  }
+
+  private static long gameTurn(Command command) {
+    if (command.positionMs() == null)
+      throw new Problem(400, "GAME_TURN_REQUIRED", "Не указан текущий этап игры");
+    return command.positionMs();
+  }
+
+  private static int gameNumber(Long value) {
+    if (value == null || value < 0 || value > Integer.MAX_VALUE)
+      throw new Problem(400, "GAME_OPTION_REQUIRED", "Выберите вариант игры");
+    return value.intValue();
+  }
+
+  private static dev.mikki.stream.game.Chess chess(RoomState room) {
+    if (room.chess == null) throw Problem.conflict("CHESS_CLOSED", "Шахматная доска уже закрыта");
+    return room.chess;
+  }
+
+  private static dev.mikki.stream.game.Gartic gartic(RoomState room) {
+    if (room.gartic == null)
+      throw Problem.conflict("GARTIC_CLOSED", "Игра в рисование уже закрыта");
+    return room.gartic;
   }
 
   /** Стол, который точно есть. Команда игре без стола — это не ошибка правил, а опоздание. */
@@ -1170,6 +1339,8 @@ public class RoomService {
     room.poker = null;
     archiveDurak(room, room.closedAt);
     room.durak = null;
+    room.chess = null;
+    room.gartic = null;
     games.forget(room.id);
     freezeHistory(room, room.closedAt);
     room.members

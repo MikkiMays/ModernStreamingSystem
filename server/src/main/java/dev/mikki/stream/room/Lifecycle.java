@@ -67,13 +67,15 @@ public class Lifecycle {
       games.forget(roomId);
       return;
     }
-    if (room.poker == null && room.durak == null) {
+    if (room.poker == null && room.durak == null && room.chess == null && room.gartic == null) {
       games.forget(roomId);
       return;
     }
     long now = service.now();
     boolean moved = room.poker != null && room.poker.tick(now);
     if (room.durak != null && room.durak.tick(now)) moved = true;
+    if (room.chess != null && room.chess.tick(now)) moved = true;
+    if (room.gartic != null && room.gartic.tick(now)) moved = true;
     games.schedule(roomId, RoomService.gameDeadline(room));
     if (!moved) return;
     service.emit(room, "room.changed", Contracts.EventPayload.changed());
@@ -240,7 +242,52 @@ public class Lifecycle {
         changed = true;
       }
     }
-    if (room.poker == null && room.durak == null) games.forget(id);
+    if (room.chess != null || room.gartic != null) {
+      var present =
+          room.members.values().stream()
+              .filter(m -> m.service == null && m.occupiesSeat())
+              .map(m -> m.id)
+              .collect(Collectors.toSet());
+      var nextHost =
+          room.members.values().stream()
+              .filter(m -> m.service == null && m.mediaAllowed())
+              .sorted(java.util.Comparator.comparing((RoomState.Member m) -> !m.owner))
+              .map(m -> m.id)
+              .findFirst()
+              .orElse(null);
+      if (room.chess != null) {
+        if (room.chess.presence(present, now)) changed = true;
+        if (nextHost != null && !present.contains(room.chess.hostId)) {
+          room.chess.host(nextHost);
+          changed = true;
+        }
+        if (room.chess.tick(now)) changed = true;
+        long idle = room.chess.idleSince;
+        boolean expired = room.chess.linger(now, startedAt(now));
+        if (idle != room.chess.idleSince) changed = true;
+        if (expired) {
+          room.chess = null;
+          changed = true;
+        }
+      }
+      if (room.gartic != null) {
+        if (room.gartic.presence(present, now)) changed = true;
+        if (nextHost != null && !present.contains(room.gartic.hostId)) {
+          room.gartic.host(nextHost);
+          changed = true;
+        }
+        if (room.gartic.tick(now)) changed = true;
+        long idle = room.gartic.idleSince;
+        boolean expired = room.gartic.linger(now, startedAt(now));
+        if (idle != room.gartic.idleSince) changed = true;
+        if (expired) {
+          room.gartic = null;
+          changed = true;
+        }
+      }
+    }
+    if (room.poker == null && room.durak == null && room.chess == null && room.gartic == null)
+      games.forget(id);
     else games.schedule(id, RoomService.gameDeadline(room));
     if (room.closedAt == null) {
       boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);

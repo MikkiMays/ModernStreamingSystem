@@ -54,7 +54,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -240,7 +240,9 @@ public final class Contracts {
        */
       long pokerGamesAt,
       /** То же самое для дурака: одно число, по которому браузер понимает, что история выросла. */
-      long durakGamesAt) {}
+      long durakGamesAt,
+      dev.mikki.stream.game.ChessView chess,
+      dev.mikki.stream.game.GarticView gartic) {}
 
   public record Admission(
       String roomId,

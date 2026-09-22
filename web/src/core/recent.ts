@@ -34,7 +34,7 @@ export function rememberMeeting(admission: Admission) {
     `${prefix}${admission.roomId}`,
     JSON.stringify({
       ...admission,
-      snapshot: { ...admission.snapshot, messages: [] },
+      snapshot: { ...admission.snapshot, messages: [], chess: null, gartic: null },
       visitedAt: Date.now(),
     }),
   );

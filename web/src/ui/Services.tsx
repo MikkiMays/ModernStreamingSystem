@@ -66,7 +66,7 @@ const GROUPS: GroupCard[] = [
   {
     id: 'games',
     name: 'Игры',
-    hint: 'Покер и Дурак с участниками встречи',
+    hint: 'Покер, Дурак, шахматы и Gartic',
     icon: Gamepad2,
     accent: '#8a5cf6',
     ready: true,
@@ -124,7 +124,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
     refetchInterval: active ? 2000 : false,
   });
   const musicStatus = musicActivity(music.data, music.isError);
-  const gamesStatus = gameActivity(snapshot.poker, snapshot.durak);
+  const gamesStatus = gameActivity(snapshot.poker, snapshot.durak, snapshot.chess, snapshot.gartic);
   const running: Record<Group, boolean> = {
     cinema: !!snapshot.watch,
     music: musicStatus.active,

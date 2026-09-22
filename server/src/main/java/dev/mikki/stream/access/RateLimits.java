@@ -46,4 +46,12 @@ public class RateLimits {
     if (count > limit)
       throw new Problem(429, "RATE_LIMITED", "Слишком много запросов. Подождите минуту");
   }
+
+  /** Drawing cannot consume the quota needed to chat, leave or operate the meeting. */
+  public void command(String credential, String type) {
+    boolean drawing = "gartic.draw".equals(type);
+    check(
+        (drawing ? "drawing:" : "command:") + Secrets.hash(credential.replaceFirst("^Bearer ", "")),
+        drawing ? 300 : 120);
+  }
 }

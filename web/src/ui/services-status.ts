@@ -19,16 +19,22 @@ export function musicActivity(state: MusicState | undefined, unavailable = false
 }
 
 function gameLabel(name: string, phase: string) {
-  const status = phase === 'lobby' ? 'лобби' : phase === 'over' ? 'завершён' : 'игра идёт';
+  const status =
+    phase === 'lobby' ? 'лобби' : ['over', 'finished', 'reveal'].includes(phase) ? 'завершён' : 'игра идёт';
   return `${name}: ${status}`;
 }
 
 export function gameActivity(
   poker: Pick<PokerTable, 'phase'> | null,
   durak: Pick<DurakTable, 'phase'> | null,
+  chess?: { phase: string } | null,
+  gartic?: { phase: string } | null,
 ) {
-  const labels = [poker && gameLabel('Покер', poker.phase), durak && gameLabel('Дурак', durak.phase)].filter(
-    Boolean,
-  );
+  const labels = [
+    poker && gameLabel('Покер', poker.phase),
+    durak && gameLabel('Дурак', durak.phase),
+    chess && gameLabel('Шахматы', chess.phase),
+    gartic && gameLabel('Gartic', gartic.phase),
+  ].filter(Boolean);
   return { active: labels.length > 0, label: labels.join(' · ') };
 }

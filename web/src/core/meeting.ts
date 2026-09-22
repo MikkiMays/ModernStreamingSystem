@@ -290,7 +290,7 @@ export class Meeting {
     if (type === 'invite.create' && ack.value) this.invite.set(ack.value);
     if (type === 'invite.revoke') this.invite.set(null);
     await this.refresh();
-    if (!this.disposed)
+    if (!this.disposed && type !== 'gartic.draw')
       rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
     return ack;
   }

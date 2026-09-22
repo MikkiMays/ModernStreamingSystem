@@ -166,7 +166,7 @@ public class ApiController {
       @PathVariable UUID id,
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody Contracts.Command command) {
-    limits.check("command:" + Secrets.hash(credential.replaceFirst("^Bearer ", "")), 120);
+    limits.command(credential, command.type());
     return commands.execute(id.toString(), credential, command);
   }
 

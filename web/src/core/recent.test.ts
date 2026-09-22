@@ -11,12 +11,19 @@ it('stores only the five most recently visited rooms and never retains chat bodi
     rememberMeeting({
       roomId: `room-${i}`,
       credential: 'credential',
-      snapshot: { createdAt: 500, messages: [{ text: 'private' }] },
+      snapshot: {
+        createdAt: 500,
+        messages: [{ text: 'private' }],
+        gartic: { secret: 'secret-drawing-prompt' },
+        chess: { moves: ['large-game-history'] },
+      },
     } as unknown as Admission);
   }
   expect(recentMeetings().map((r) => r.roomId)).toEqual(['room-7', 'room-6', 'room-5', 'room-4', 'room-3']);
   expect(Object.keys(sessionStorage).filter((k) => k.startsWith('cord:session:'))).toHaveLength(5);
   expect(JSON.stringify(sessionStorage)).not.toContain('private');
+  expect(JSON.stringify(sessionStorage)).not.toContain('secret-drawing-prompt');
+  expect(JSON.stringify(sessionStorage)).not.toContain('large-game-history');
   vi.spyOn(Date, 'now').mockReturnValue(2000);
   rememberMeeting(getRecent('room-3')!);
   expect(recentMeetings()[0]?.roomId).toBe('room-3');

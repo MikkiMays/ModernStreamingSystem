@@ -5,10 +5,12 @@ import {
   ArrowLeft,
   ChevronDown,
   Club,
+  Crown,
   Coins,
   History,
   Layers,
   Play,
+  Pencil,
   Shuffle,
   Spade,
   Timer,
@@ -43,7 +45,7 @@ import { Modal, useStore } from './primitives';
  * остаётся то, для чего она и нужна, — принести, убрать и посмотреть, чем кончились прошлые игры.
  * Правила и шпаргалки сюда не переезжают: о столе спрашивают у стола.
  */
-type GameId = 'poker' | 'durak';
+type GameId = 'poker' | 'durak' | 'chess' | 'gartic';
 
 const GAMES: {
   id: GameId;
@@ -66,6 +68,20 @@ const GAMES: {
     accent: '#c9a227',
     icon: Club,
   },
+  {
+    id: 'chess',
+    name: 'Шахматы',
+    hint: 'Два игрока, контроль времени и зрители',
+    accent: '#5271a3',
+    icon: Crown,
+  },
+  {
+    id: 'gartic',
+    name: 'Gartic',
+    hint: 'Рисуем, угадываем и передаём истории',
+    accent: '#8d65c5',
+    icon: Pencil,
+  },
 ];
 
 /** Во сколько раз стартовый стек больше или меньше обычного для режима. */
@@ -79,7 +95,11 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   const durak = snapshot.durak;
   const dealer = !!table && (table.hostId === self?.id || !!self?.owner);
   // Стол уже стоит — значит, открыта его строка; иначе открывается та, на которую нажали.
-  const [open, setOpen] = useState<GameId | null>(table ? 'poker' : durak ? 'durak' : null);
+  const [open, setOpen] = useState<GameId | null>(
+    table ? 'poker' : durak ? 'durak' : snapshot.chess ? 'chess' : snapshot.gartic ? 'gartic' : null,
+  );
+  const [chessPreset, setChessPreset] = useState('10-5');
+  const [garticMode, setGarticMode] = useState('classic');
   /*
     Настройки дурака выбираются до того, как стол принесут: колода и правила перевода меняются
     только между партиями, и спрашивать о них после раздачи поздно. Дальше их всё равно можно
@@ -143,12 +163,23 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
       </button>
       <div className="games-list">
         {GAMES.map((game) => {
-          const live = game.id === 'poker' ? !!table : !!durak;
+          const live =
+            game.id === 'poker'
+              ? !!table
+              : game.id === 'durak'
+                ? !!durak
+                : game.id === 'chess'
+                  ? !!snapshot.chess
+                  : !!snapshot.gartic;
           const expanded = open === game.id;
           const seated =
             game.id === 'poker'
               ? (table?.seats.filter((seat) => seat.memberId).length ?? 0)
-              : (durak?.seats.filter((seat) => seat.memberId).length ?? 0);
+              : game.id === 'durak'
+                ? (durak?.seats.filter((seat) => seat.memberId).length ?? 0)
+                : game.id === 'chess'
+                  ? [snapshot.chess?.white, snapshot.chess?.black].filter(Boolean).length
+                  : (snapshot.gartic?.players.filter((player) => player.active).length ?? 0);
           return (
             <section
               key={game.id}
@@ -163,13 +194,17 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 onClick={() => setOpen(expanded ? null : game.id)}
               >
                 <span className="games-icon" style={{ background: game.accent }}>
-                  <img
-                    src={`/games/${game.id === 'poker' ? 'poker-hand' : 'card-joker'}.svg`}
-                    alt=""
-                    width="28"
-                    height="28"
-                    draggable={false}
-                  />
+                  {game.id === 'chess' || game.id === 'gartic' ? (
+                    <game.icon size={26} aria-hidden="true" />
+                  ) : (
+                    <img
+                      src={`/games/${game.id === 'poker' ? 'poker-hand' : 'card-joker'}.svg`}
+                      alt=""
+                      width="28"
+                      height="28"
+                      draggable={false}
+                    />
+                  )}
                 </span>
                 <b>
                   {game.name}
@@ -186,6 +221,85 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 */}
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
               </button>
+              {expanded && (game.id === 'chess' || game.id === 'gartic') && (
+                <div className="games-body">
+                  <p className="form-footnote">{game.hint}</p>
+                  {live ? (
+                    <>
+                      <p>Игра открыта на сцене встречи. Голос и камеры остаются с вами.</p>
+                      {(self?.owner ||
+                        (game.id === 'chess' ? snapshot.chess?.hostId : snapshot.gartic?.hostId) ===
+                          self?.id) && (
+                        <button
+                          className="button ghost full"
+                          onClick={() =>
+                            send(game.id === 'chess' ? 'chess.close' : 'gartic.close', {
+                              contentId: game.id === 'chess' ? snapshot.chess?.id : snapshot.gartic?.gameId,
+                            })
+                          }
+                        >
+                          <X size={16} /> Закрыть игру
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {game.id === 'chess' ? (
+                        <label className="field">
+                          Контроль времени
+                          <select
+                            aria-label="Контроль времени"
+                            value={chessPreset}
+                            onChange={(event) => setChessPreset(event.target.value)}
+                          >
+                            <option value="untimed">Без часов</option>
+                            <option value="3-2">3 минуты + 2 секунды</option>
+                            <option value="5-0">5 минут</option>
+                            <option value="10-5">10 минут + 5 секунд</option>
+                            <option value="15-10">15 минут + 10 секунд</option>
+                          </select>
+                        </label>
+                      ) : (
+                        <div className="games-quick" role="group" aria-label="Режим рисования">
+                          <button
+                            data-active={garticMode === 'classic' || undefined}
+                            onClick={() => setGarticMode('classic')}
+                          >
+                            Угадай рисунок
+                          </button>
+                          <button
+                            data-active={garticMode === 'telephone' || undefined}
+                            onClick={() => setGarticMode('telephone')}
+                          >
+                            Испорченный телефон
+                          </button>
+                        </div>
+                      )}
+                      {game.id === 'gartic' && (
+                        <p className="form-footnote">
+                          {garticMode === 'classic'
+                            ? 'Один рисует, остальные угадывают слово. От двух игроков.'
+                            : 'Фраза превращается в рисунок, рисунок — в новую фразу. От трёх игроков.'}
+                        </p>
+                      )}
+                      {canUse ? (
+                        <button
+                          className="button primary full"
+                          onClick={() =>
+                            send(game.id === 'chess' ? 'chess.open' : 'gartic.open', {
+                              option: game.id === 'chess' ? chessPreset : garticMode,
+                            })
+                          }
+                        >
+                          <game.icon size={17} /> {game.id === 'chess' ? 'Открыть доску' : 'Открыть Gartic'}
+                        </button>
+                      ) : (
+                        <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {expanded && game.id === 'durak' && (
                 <DurakBody
                   table={durak}

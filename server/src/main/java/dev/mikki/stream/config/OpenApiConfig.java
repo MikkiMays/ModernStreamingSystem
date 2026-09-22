@@ -69,7 +69,17 @@ public class OpenApiConfig {
               "DurakPlayer",
               "DurakResult",
               "GameVisualEvent",
-              "DurakReaction")) {
+              "DurakReaction",
+              "ChessView",
+              "ChessPlayer",
+              "ChessMove",
+              "GarticView",
+              "GarticPlayer",
+              "GarticYou",
+              "GarticStroke",
+              "GarticEntry",
+              "GarticAlbum",
+              "GarticGuess")) {
         var schema = schemas.get(name);
         if (schema != null && schema.getProperties() != null)
           schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
@@ -80,6 +90,7 @@ public class OpenApiConfig {
           .getRequired()
           .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
+      schemas.get("Snapshot").getRequired().removeAll(List.of("chess", "gartic"));
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas.get("DurakView").getRequired().removeAll(List.of("visualEvents", "reactions"));
       schemas
@@ -96,7 +107,12 @@ public class OpenApiConfig {
                   "Participant",
                   List.of("recoveryDeadline", "service", "screenId", "viewingScreenId")),
               // Смотреть и играть вместе может быть нечего — и чаще всего нечего.
-              Map.entry("Snapshot", List.of("closedAt", "watch", "poker", "durak")),
+              Map.entry(
+                  "Snapshot", List.of("closedAt", "watch", "poker", "durak", "chess", "gartic")),
+              Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
+              Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
+              Map.entry("GarticYou", List.of("prompt", "previous")),
+              Map.entry("GarticEntry", List.of("text")),
               // Пустое место — это место без человека; итог есть только у сыгранной раздачи;
               // кнопок нет у того, кто не сидит за столом.
               Map.entry("SeatView", List.of("memberId")),

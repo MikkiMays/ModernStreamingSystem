@@ -63,6 +63,12 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public dev.mikki.stream.game.Durak durak;
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public dev.mikki.stream.game.Chess chess;
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public dev.mikki.stream.game.Gartic gartic;
+
   /**
    * Чем кончились игры этой беседы.
    *
