@@ -163,6 +163,12 @@ public class Durak {
   /** Когда начали раздавать: от этой метки браузер считает полёт карт. */
   public long dealtAt;
 
+  /** Persisted clock freeze; deadline is zero until the host explicitly resumes. */
+  public boolean paused;
+
+  public long pausedAt;
+  public long pausedRemaining;
+
   public List<Note> log = new ArrayList<>();
   public long visualSequence;
   public List<GameVisualEvent> visualEvents = new ArrayList<>();
@@ -359,6 +365,7 @@ public class Durak {
   public void stand(String memberId, long now) {
     var seat = seatOf(memberId);
     if (seat == null) return;
+    if (paused && seat.playing()) requireRunning();
     int index = seats.indexOf(seat);
     reactions.removeIf(reaction -> reaction.seat() == index);
     boolean inGame = playing() && seat.playing();
@@ -455,8 +462,13 @@ public class Durak {
 
   /** Переименовать и перепривязать место: вернувшийся во встречу получает новый идентификатор. */
   public boolean rebind(String previousId, String memberId, String name) {
+    boolean wasHost = previousId != null && previousId.equals(hostId);
+    if (wasHost) hostId = memberId;
     var seat = seatOf(previousId);
-    if (seat == null) return false;
+    if (seat == null) {
+      if (wasHost) revision++;
+      return wasHost;
+    }
     /*
      Счёт идёт за человеком, а не за идентификатором: переподключившийся получает новый, и без
      этого переноса вторая половина вечера записалась бы на постороннего.
@@ -490,6 +502,14 @@ public class Durak {
    */
   public void configure(String option, Long value, long now) {
     switch (option == null ? "" : option) {
+      case "pause" -> {
+        pause(now);
+        return;
+      }
+      case "resume" -> {
+        resume(now);
+        return;
+      }
       case "deck" -> {
         requireIdle();
         int wanted = value == null ? 36 : value.intValue();
@@ -512,6 +532,7 @@ public class Durak {
         note(now, "settings", -1, "", firstFive ? "Первый бой — пять карт" : "Первый бой — шесть");
       }
       case "turn" -> {
+        requireRunning();
         int wanted = value == null ? 40 : value.intValue();
         turnSeconds = Math.max(MIN_TURN, Math.min(MAX_TURN, wanted));
         note(now, "settings", -1, "", turnSeconds + " секунд на ход");
@@ -523,6 +544,39 @@ public class Durak {
       }
       default -> throw new Problem(400, "DURAK_SETTING", "Неизвестная настройка стола");
     }
+    revision++;
+  }
+
+  private void requireRunning() {
+    if (paused) throw Problem.conflict("DURAK_PAUSED", "Игра на паузе. Дождитесь продолжения");
+  }
+
+  private void pause(long now) {
+    if (paused) return;
+    if (!playing()) throw Problem.conflict("DURAK_IDLE", "Партия не идёт");
+    paused = true;
+    pausedAt = now;
+    pausedRemaining = Math.max(0, deadline - now);
+    deadline = 0;
+    note(now, "pause", -1, "", "Игра на паузе");
+    revision++;
+  }
+
+  private void resume(long now) {
+    if (!paused) return;
+    long frozenFor = Math.max(0, now - pausedAt);
+    // Shift origins too: a pause during dealing or bout settlement must preserve that phase.
+    if (actionAt > 0) actionAt += frozenFor;
+    if (dealtAt > 0) dealtAt += frozenFor;
+    if (boutAt > 0) boutAt += frozenFor;
+    for (var seat : seats)
+      if (seat.away && seat.awaySince > 0)
+        seat.awaySince += Math.max(0, now - Math.max(pausedAt, seat.awaySince));
+    deadline = playing() ? now + pausedRemaining : 0;
+    paused = false;
+    pausedAt = 0;
+    pausedRemaining = 0;
+    note(now, "resume", -1, "", "Игра продолжается");
     revision++;
   }
 
@@ -544,6 +598,7 @@ public class Durak {
    * последним: его вытянет тот, кому не хватит карт в самом конце.
    */
   public void deal(long now) {
+    requireRunning();
     if (playing()) throw Problem.conflict("DURAK_IN_HAND", "Партия уже идёт");
     var players = new ArrayList<Integer>();
     for (int index = 0; index < SEATS; index++) if (seats.get(index).taken()) players.add(index);
@@ -666,6 +721,7 @@ public class Durak {
     int index = indexOf(memberId);
     if (index < 0) throw Problem.forbidden();
     if (!playing()) throw Problem.conflict("DURAK_IDLE", "Партия не идёт");
+    requireRunning();
     if (boutEnd != null) throw Problem.conflict("DURAK_BOUT_OVER", "Бой уже закончился");
     if (!seats.get(index).playing()) throw Problem.conflict("DURAK_WAITING", "Вы не в этой партии");
     if (now < dealtAt + DEAL_MS) now = dealtAt + DEAL_MS;
@@ -686,7 +742,7 @@ public class Durak {
     throw new Problem(400, "DURAK_CARD", "Такой карты не бывает");
   }
 
-  private void attack(int index, int card, long now) {
+  private void validateAttack(int index, int card) {
     if (index == defender) throw Problem.conflict("DURAK_DEFENDER", "Вы отбиваетесь");
     if (attacks.isEmpty() && index != attacker)
       throw Problem.conflict("DURAK_TURN", "Заходит тот, чей ход");
@@ -698,6 +754,11 @@ public class Durak {
     if (!seat.hand.contains(card)) throw Problem.forbidden();
     if (!attacks.isEmpty() && !ranksOnTable().contains(Cards.rank(card)))
       throw Problem.conflict("DURAK_RANK", "Такого номинала на столе нет");
+  }
+
+  private void attack(int index, int card, long now) {
+    validateAttack(index, card);
+    var seat = seats.get(index);
     seat.hand.remove((Integer) card);
     visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     attacks.add(card);
@@ -722,7 +783,7 @@ public class Durak {
     reschedule(now);
   }
 
-  private void beat(int index, int card, int under, long now) {
+  private void validateBeat(int index, int card, int under) {
     if (index != defender) throw Problem.conflict("DURAK_TURN", "Отбивается не тот");
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
     int slot = attacks.indexOf(under);
@@ -732,6 +793,12 @@ public class Durak {
     if (!seat.hand.contains(card)) throw Problem.forbidden();
     if (!beatsCard(card, under))
       throw Problem.conflict("DURAK_WEAK", Cards.text(card) + " не бьёт " + Cards.text(under));
+  }
+
+  private void beat(int index, int card, int under, long now) {
+    validateBeat(index, card, under);
+    var seat = seats.get(index);
+    int slot = attacks.indexOf(under);
     seat.hand.remove((Integer) card);
     visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     beats.set(slot, card);
@@ -770,7 +837,7 @@ public class Durak {
     reschedule(now);
   }
 
-  private void transfer(int index, int card, long now) {
+  private void validateTransfer(int index, int card) {
     if (!transferAllowed()) throw Problem.conflict("DURAK_NO_TRANSFER", "Этот стол без перевода");
     if (index != defender) throw Problem.conflict("DURAK_TURN", "Переводит тот, кто отбивается");
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
@@ -801,6 +868,12 @@ public class Durak {
     if (next == index) throw Problem.conflict("DURAK_TRANSFER", "Переводить некому");
     if (seats.get(next).hand.size() < attacks.size() + 1)
       throw Problem.conflict("DURAK_TRANSFER", "У следующего не хватит карт, чтобы отбиться");
+  }
+
+  private void transfer(int index, int card, long now) {
+    validateTransfer(index, card);
+    var seat = seats.get(index);
+    int next = nextPlaying(index);
     seat.hand.remove((Integer) card);
     visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     attacks.add(card);
@@ -1049,7 +1122,7 @@ public class Durak {
    * при этом не считается сроком: карты летят, но стол уже ждёт первого хода.
    */
   public boolean tick(long now) {
-    if (!playing() || deadline == 0 || now < deadline) return false;
+    if (paused || !playing() || deadline == 0 || now < deadline) return false;
     if (boutEnd != null) {
       settleBout(now);
       revision++;
@@ -1088,7 +1161,10 @@ public class Durak {
         seat.awaySince = away ? now : 0;
         changed = true;
       }
-      if (seat.away && !(playing() && seat.playing()) && now - seat.awaySince > AWAY_STAND_MS) {
+      if (!paused
+          && seat.away
+          && !(playing() && seat.playing())
+          && now - seat.awaySince > AWAY_STAND_MS) {
         int leaving = seats.indexOf(seat);
         reactions.removeIf(reaction -> reaction.seat() == leaving);
         note(now, "stand", seats.indexOf(seat), seat.name, seat.name + " покидает стол");
@@ -1096,7 +1172,7 @@ public class Durak {
         changed = true;
       }
     }
-    if (playing() && boutEnd == null) {
+    if (!paused && playing() && boutEnd == null) {
       for (var index : acting()) {
         var seat = seats.get(index);
         if (!seat.away || now - seat.awaySince <= AWAY_ACT_MS) continue;
@@ -1230,6 +1306,9 @@ public class Durak {
         waiting,
         actionAt,
         deadline,
+        paused,
+        pausedAt,
+        pausedRemaining,
         taking,
         limit,
         boutEnd,
@@ -1259,30 +1338,41 @@ public class Durak {
         result.places == null ? List.of() : result.places);
   }
 
-  /**
-   * Что этот человек может сделать — вместе с картами, которыми это законно.
-   *
-   * <p>Здесь и живёт обещание «в браузере нет правил». Список слов отвечает, какие кнопки показать;
-   * три списка карт — какие карты поднимутся с руки. Посчитано это одним и тем же кодом, которым
-   * ход и проверяется, поэтому «кнопка есть, а ход не проходит» здесь невозможно.
-   */
+  /** Private guidance shares the command validators; stale choices are validated again on act. */
   private DurakView.DurakYou you(int index, List<Integer> waiting) {
     if (index < 0) return null;
     var seat = seats.get(index);
     var cards = seat.hand.stream().map(Cards::text).toList();
     var actions = new ArrayList<String>();
-    boolean live = playing() && boutEnd == null && seat.playing();
-    /*
-     Две кнопки, и обе — про то, чего нельзя сделать картой.
-
-     «Беру» и «Бито» — это отказ ходить, и отказ нажимают. Всё остальное — зайти, подкинуть,
-     отбиться, перевести — это движение карты на стол, и кнопки у него нет. Законность самого
-     движения сюда не приезжает вовсе: её узнают, положив карту.
-    */
+    boolean live = !paused && playing() && boutEnd == null && seat.playing();
     if (live && index != defender && !attacks.isEmpty() && (taking || !beats.contains(-1)))
       if (!passed.contains(index) && mayThrow(index)) actions.add("pass");
     if (live && index == defender && !taking && !attacks.isEmpty()) actions.add("take");
-    return new DurakView.DurakYou(index, cards, actions, waiting.contains(index));
+    return new DurakView.DurakYou(
+        index, cards, actions, live && waiting.contains(index), live ? plays(index) : List.of());
+  }
+
+  private List<DurakView.DurakPlay> plays(int index) {
+    var choices = new ArrayList<DurakView.DurakPlay>();
+    for (var card : seats.get(index).hand) {
+      if (legal(() -> validateAttack(index, card)))
+        choices.add(new DurakView.DurakPlay(Cards.text(card), "attack", null));
+      if (legal(() -> validateTransfer(index, card)))
+        choices.add(new DurakView.DurakPlay(Cards.text(card), "transfer", null));
+      for (var under : attacks)
+        if (legal(() -> validateBeat(index, card, under)))
+          choices.add(new DurakView.DurakPlay(Cards.text(card), "beat", Cards.text(under)));
+    }
+    return choices;
+  }
+
+  private static boolean legal(Runnable validation) {
+    try {
+      validation.run();
+      return true;
+    } catch (Problem illegalMove) {
+      return false;
+    }
   }
 
   /**

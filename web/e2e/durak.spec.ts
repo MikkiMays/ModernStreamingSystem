@@ -7,9 +7,9 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
  * обоим, **чужая рука не приезжает в браузер вовсе**, карта ходит перетаскиванием, партия
  * доигрывается до дурака через общий канал команд, а итог появляется в истории встречи.
  *
- * ПОЧЕМУ ПАРТИЯ ИГРАЕТСЯ ИМЕННО ТАК. Подсказок в интерфейсе больше нет — значит, и тест не знает,
- * какая карта законна, ровно как человек. Зато он знает два правила, которых достаточно, чтобы
- * партия кончилась: заход в пустой бой законен любой картой, а «Беру» и «Бито» есть кнопками.
+ * Для завершения партии достаточно двух правил: заход в пустой бой законен любой картой,
+ * а «Беру» и «Бито» доступны отдельными кнопками. Подсказки выбранной карты не нужны этому
+ * сценарию: их точность отдельно проверяется вместе с серверными правилами.
  * Защитник берёт всегда, нападающие пасуют — колода пустеет, у заходящего карты кончаются, и
  * дурак находится сам.
  */
@@ -59,8 +59,8 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     await expect(host.locator('.durak-felt')).toBeVisible();
     await expect(guest.locator('.durak-felt')).toBeVisible({ timeout: 10000 });
 
-    await host.locator('.game-seat-action').first().click();
-    await guest.locator('.game-seat-action').first().click();
+    await host.locator('.durak').getByRole('button', { name: 'Сесть за стол', exact: true }).click();
+    await guest.locator('.durak').getByRole('button', { name: 'Сесть за стол', exact: true }).click();
     await expect(host.locator('.durak-seat[data-mine]')).toBeVisible();
     await expect(guest.locator('.durak-seat[data-mine]')).toBeVisible();
 
@@ -73,29 +73,22 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     /*
       Чужой руки в браузере нет вовсе.
 
-      У чужого места не рубашки, а число карт: единственное, что о ней известно. Открытых карт на
-      чужом месте ноль — если бы снимок собирался общий на всю комнату, их было бы шесть.
+      У чужого места нет ни открытых карт, ни счётчика. Приватные карты доступны только владельцу.
     */
-    await expect(host.locator('.durak-seat:not([data-mine]) .durak-seat-count')).toHaveText('6');
+    await expect(host.locator('.durak-seat-count')).toHaveCount(0);
     await expect(host.locator('.durak-seat:not([data-mine]) .durak-card')).toHaveCount(0);
 
-    // Подсказок нет: ни одна карта в руке не помечена законной или незаконной.
+    // Рука остаётся читаемой: выделение цели появляется после выбора карты.
     await expect(host.locator('.durak-hand-card[data-legal]')).toHaveCount(0);
 
-    /*
-      Дождаться, пока карты долетят.
-
-      Раздача — это полторы секунды полёта от колоды, и всё это время карта едет: координаты,
-      взятые до прилёта, к моменту нажатия уже не те. Человек столкнётся с этим разве что нарочно,
-      а тест — каждый раз, потому что он быстрее человека.
-    */
-    await expect(host.locator('.game-card-flight')).toHaveCount(0, { timeout: 10000 });
+    // Автоматическая раздача не анимируется; движется только подтверждённый бросок.
+    await expect(host.locator('.game-card-flight')).toHaveCount(0);
 
     /*
       Первый ход — перетаскиванием, и он обязан пройти с первой попытки: заход в пустой бой
       законен любой картой. Это и есть проверка самого механизма броска.
     */
-    const first: Page = (await host.locator('.durak-controls[data-turn]').count()) ? host : guest;
+    const first: Page = (await host.locator('.durak-turn[data-active]').count()) ? host : guest;
     await dragTo(first, first.locator('.durak-hand-card').first(), first.locator('.durak-mat'));
     await expect(first.locator('.durak-pair')).toHaveCount(1, { timeout: 10000 });
     await expect(first.locator('.durak-hand-card')).toHaveCount(5);
@@ -116,7 +109,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
       let moved = false;
       for (const page of [host, guest] as Page[]) {
         if (await page.locator('.durak[data-phase="over"]').count()) break;
-        const take = page.locator('.durak-act[data-kind="take"]');
+        const take = page.locator('.durak-actions').getByRole('button', { name: 'Беру', exact: true });
         if (await take.count()) {
           await take.click({ timeout: 10000 });
           // A click sends an asynchronous room command. Do not click the same old snapshot
@@ -126,7 +119,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
           moved = true;
           continue;
         }
-        const pass = page.locator('.durak-act[data-kind="pass"]');
+        const pass = page.locator('.durak-actions').getByRole('button', { name: 'Бито', exact: true });
         if (await pass.count()) {
           await pass.click({ timeout: 10000 });
           await expect(pass).toHaveCount(0, { timeout: 10000 });
@@ -134,7 +127,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
           moved = true;
           continue;
         }
-        const turn = await page.locator('.durak-controls[data-turn]').count();
+        const turn = await page.locator('.durak-turn[data-active]').count();
         const empty = (await page.locator('.durak-pair').count()) === 0;
         const card = page.locator('.durak-hand-card').first();
         if (turn && empty && (await card.count())) {
@@ -151,10 +144,9 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
               for (const page of [host, guest]) {
                 const ready = await page.locator('.durak').evaluate((table) => {
                   if (table.getAttribute('data-phase') === 'over') return true;
-                  if (table.querySelector('.durak-act[data-kind="take"], .durak-act[data-kind="pass"]'))
-                    return true;
+                  if (table.querySelector('.durak-actions .durak-act')) return true;
                   return !!(
-                    table.querySelector('.durak-controls[data-turn]') &&
+                    table.querySelector('.durak-turn[data-active]') &&
                     !table.querySelector('.durak-pair') &&
                     table.querySelector('.durak-hand-card')
                   );
@@ -173,12 +165,17 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     }
 
     await expect(host.locator('.durak[data-phase="over"]')).toBeVisible({ timeout: 30000 });
-    await expect(host.locator('.durak-over b')).toContainText(/дурак|Ничья/);
-    await expect(guest.locator('.durak-over b')).toContainText(/дурак|Ничья/);
+    await expect(host.locator('.durak-over h3')).toContainText(/дурак|Ничья/);
+    await expect(guest.locator('.durak-over h3')).toContainText(/дурак|Ничья/);
 
     // Счёт вечера появился на столе, как только партия кончилась.
     await host.getByRole('button', { name: 'К столу' }).click();
-    await expect(host.locator('.durak-score')).toBeVisible();
+    await host.getByRole('button', { name: 'Счёт игры', exact: true }).click();
+    await expect(host.locator('.durak-score-table')).toBeVisible();
+    await host
+      .getByRole('dialog', { name: 'Счёт игры' })
+      .getByRole('button', { name: 'Закрыть', exact: true })
+      .click();
 
     // Итог партии уехал в историю беседы вместе со счётом.
     await host.getByRole('button', { name: 'История игр', exact: true }).click();

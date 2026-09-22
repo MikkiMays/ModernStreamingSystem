@@ -1498,4 +1498,100 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
     assertThat(rooms.read(host.roomId()).durak.reactionSequence).isZero();
   }
+
+  @Test
+  void durakPauseIsPersistedIdempotentAndControlledByIntegrationHostOrOwner() {
+    var owner = host();
+    var host = guest(owner);
+    var guest = guest(owner);
+    media.observe(
+        owner.roomId(),
+        Map.of(
+            owner.participantId(),
+            "PA_owner",
+            host.participantId(),
+            "PA_host",
+            guest.participantId(),
+            "PA_guest"),
+        now.incrementAndGet());
+    poker(host, "durak.open", "perevodnoy", null, null);
+    poker(host, "durak.sit", null, 0, null);
+    poker(guest, "durak.sit", null, 1, null);
+    poker(host, "durak.deal", null, null, null);
+    now.addAndGet(5000);
+    long originalDeadline = rooms.read(host.roomId()).durak.deadline;
+    long pauseAt = now.get();
+    var pause =
+        new Command(
+            UUID.randomUUID(),
+            "durak.settings",
+            null,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null,
+            "pause",
+            null,
+            null);
+    var ack = rooms.command(host.roomId(), host.credential(), pause);
+    assertThat(rooms.command(host.roomId(), host.credential(), pause)).isEqualTo(ack);
+    var persisted = repository.get(host.roomId(), false).durak;
+    assertThat(persisted.paused).isTrue();
+    assertThat(persisted.pausedRemaining).isEqualTo(originalDeadline - pauseAt);
+    now.addAndGet(60_000);
+    lifecycle.advanceGame(host.roomId());
+    lifecycle.sweepRoom(host.roomId());
+    var view = rooms.snapshot(host.roomId(), guest.credential()).durak();
+    assertThat(view.paused()).isTrue();
+    assertThat(view.deadline()).isZero();
+    assertThat(view.you().plays()).isEmpty();
+    assertThat(view.table()).isEmpty();
+    poker(owner, "durak.settings", "resume", null, null);
+    assertThat(rooms.read(host.roomId()).durak.deadline).isEqualTo(originalDeadline + 60_000);
+    // The old pause receipt cannot pause the game again after a later resume.
+    assertThat(rooms.command(host.roomId(), host.credential(), pause)).isEqualTo(ack);
+    assertThat(rooms.read(host.roomId()).durak.paused).isFalse();
+  }
+
+  @Test
+  void durakPauseAuthorizationAndMoveFailuresLeavePersistedStateUntouched() {
+    var host = host();
+    var guest = guest(host);
+    var outsider = host();
+    poker(host, "durak.open", "podkidnoy", null, null);
+    poker(host, "durak.sit", null, 0, null);
+    poker(guest, "durak.sit", null, 1, null);
+    poker(host, "durak.deal", null, null, null);
+    var pause =
+        new Command(
+            UUID.randomUUID(),
+            "durak.settings",
+            null,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null,
+            "pause",
+            null,
+            null);
+    var before = dev.mikki.stream.shared.Json.write(rooms.read(host.roomId()));
+    assertThatThrownBy(() -> rooms.command(host.roomId(), guest.credential(), pause))
+        .isInstanceOf(Problem.class)
+        .satisfies(error -> assertThat(((Problem) error).status()).isEqualTo(403));
+    assertThatThrownBy(() -> rooms.command(host.roomId(), outsider.credential(), pause))
+        .isInstanceOf(Problem.class);
+    assertThat(dev.mikki.stream.shared.Json.write(rooms.read(host.roomId()))).isEqualTo(before);
+    rooms.command(host.roomId(), host.credential(), pause);
+    var frozen = dev.mikki.stream.shared.Json.write(rooms.read(host.roomId()));
+    assertThatThrownBy(() -> poker(guest, "durak.settings", "resume", null, null))
+        .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> poker(guest, "durak.act", "take", null, null))
+        .isInstanceOf(Problem.class)
+        .satisfies(error -> assertThat(((Problem) error).code()).isEqualTo("DURAK_PAUSED"));
+    assertThat(dev.mikki.stream.shared.Json.write(rooms.read(host.roomId()))).isEqualTo(frozen);
+  }
 }

@@ -10,11 +10,9 @@ import java.util.List;
  * чужие карты» означало бы открыть инструменты разработчика. О чужой руке известно ровно одно
  * число: сколько в ней карт ({@code held}), — столько рубашек и рисуется.
  *
- * <p>ЗАКОННЫХ КАРТ ЗДЕСЬ ТОЖЕ НЕТ, И ЭТО РЕШЕНИЕ, А НЕ УПУЩЕНИЕ. Первая версия присылала три списка
- * — чем пойти, чем побить каждую атаку, чем перевести, — и браузер подсвечивал ими руку. За
- * настоящим столом никто не подсвечивает: человек берёт карту и кладёт, а если она не ложится, он
- * забирает её обратно. Снимок несёт только {@code actions} — слова для кнопок «Беру» и «Бито»;
- * законность хода по-прежнему решает сервер, но узнаёт о ней игрок <b>после</b> хода, а не до.
+ * <p>Подсказки {@code you.plays} вычисляются только для собственной руки из тех же проверок,
+ * которыми сервер принимает ход. Чужие руки и подсказки зрителю не раскрываются; любой ход повторно
+ * проверяется по текущему состоянию стола.
  */
 public record DurakView(
     /** {@code podkidnoy} или {@code perevodnoy}. */
@@ -57,6 +55,12 @@ public record DurakView(
     List<Integer> acting,
     long actionAt,
     long deadline,
+    /** Host-controlled pause. Old snapshots omit these three fields. */
+    boolean paused,
+    /** Server epoch milliseconds at which local progress indicators must freeze. */
+    long pausedAt,
+    /** Milliseconds left until the next turn or bout deadline; zero outside a pause. */
+    long pausedRemaining,
     /** Защитник сказал «беру»: карты уже его, но подкинуть ещё можно. */
     boolean taking,
     /** Сколько карт всего можно положить в этот бой. */
@@ -131,7 +135,11 @@ public record DurakView(
        */
       List<String> actions,
       /** Ждут ли хода именно от вас. */
-      boolean turn) {}
+      boolean turn,
+      /** Legal choices from this player's hand only; optional on older servers. */
+      List<DurakPlay> plays) {}
+
+  public record DurakPlay(String card, String option, String under) {}
 
   /**
    * Счёт беседы: сколько раз кто был дураком за этим столом.

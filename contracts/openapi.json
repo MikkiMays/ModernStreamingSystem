@@ -690,6 +690,33 @@
         ],
         "type": "object"
       },
+      "DurakPlay": {
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "option": {
+            "enum": [
+              "attack",
+              "beat",
+              "transfer"
+            ],
+            "type": "string"
+          },
+          "under": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "card",
+          "option",
+          "under"
+        ],
+        "type": "object"
+      },
       "DurakPlayer": {
         "properties": {
           "bestStreak": {
@@ -1069,6 +1096,17 @@
           "neighbours": {
             "type": "boolean"
           },
+          "paused": {
+            "type": "boolean"
+          },
+          "pausedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pausedRemaining": {
+            "format": "int64",
+            "type": "integer"
+          },
           "phase": {
             "type": "string"
           },
@@ -1208,6 +1246,12 @@
           "cards": {
             "items": {
               "type": "string"
+            },
+            "type": "array"
+          },
+          "plays": {
+            "items": {
+              "$ref": "#/components/schemas/DurakPlay"
             },
             "type": "array"
           },

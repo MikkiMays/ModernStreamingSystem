@@ -64,6 +64,7 @@ public class OpenApiConfig {
               "DurakSeat",
               "DurakNote",
               "DurakYou",
+              "DurakPlay",
               "DurakScore",
               "DurakSummary",
               "DurakPlayer",
@@ -92,7 +93,18 @@ public class OpenApiConfig {
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
       schemas.get("Snapshot").getRequired().removeAll(List.of("chess", "gartic"));
       schemas.get("TableView").getRequired().remove("visualEvents");
-      schemas.get("DurakView").getRequired().removeAll(List.of("visualEvents", "reactions"));
+      schemas
+          .get("DurakView")
+          .getRequired()
+          .removeAll(List.of("visualEvents", "reactions", "paused", "pausedAt", "pausedRemaining"));
+      schemas.get("DurakYou").getRequired().remove("plays");
+      schemas
+          .get("DurakPlay")
+          .getProperties()
+          .put(
+              "option",
+              new io.swagger.v3.oas.models.media.StringSchema()
+                  ._enum(List.of("attack", "beat", "transfer")));
       schemas
           .get("GameVisualEvent")
           .getProperties()
@@ -124,6 +136,7 @@ public class OpenApiConfig {
                   "DurakView",
                   List.of("trump", "trumpSuit", "boutEnd", "you", "result", "commitment", "seed")),
               Map.entry("DurakSeat", List.of("memberId")),
+              Map.entry("DurakPlay", List.of("under")),
               Map.entry("GameVisualEvent", List.of("fromSeat", "toSeat")),
               // Карта лежит неотбитой ровно до тех пор, пока её не побили.
               Map.entry("CardPair", List.of("beat")),

@@ -555,6 +555,12 @@ export interface components {
             seat: number;
             text: string;
         };
+        DurakPlay: {
+            card: string;
+            /** @enum {string} */
+            option: "attack" | "beat" | "transfer";
+            under: string | null;
+        };
         DurakPlayer: {
             /** Format: int32 */
             bestStreak: number;
@@ -680,6 +686,11 @@ export interface components {
             mode: string;
             modeName: string;
             neighbours: boolean;
+            paused?: boolean;
+            /** Format: int64 */
+            pausedAt?: number;
+            /** Format: int64 */
+            pausedRemaining?: number;
             phase: string;
             reactions?: components["schemas"]["DurakReaction"][];
             result: components["schemas"]["DurakResult"] | null;
@@ -702,6 +713,7 @@ export interface components {
         DurakYou: {
             actions: string[];
             cards: string[];
+            plays?: components["schemas"]["DurakPlay"][];
             /** Format: int32 */
             seat: number;
             turn: boolean;

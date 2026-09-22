@@ -1,0 +1,21 @@
+/* One confirmed throw. No dealing, sweeping or repeated idle animation. */
+.durak-motion-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.durak .durak-motion-card {
+  position: absolute;
+  margin: 0;
+  transform-origin: center;
+  animation: none !important;
+  transition: none !important;
+  rotate: none;
+  translate: none;
+  scale: none;
+  will-change: transform;
+  pointer-events: none;
+}
