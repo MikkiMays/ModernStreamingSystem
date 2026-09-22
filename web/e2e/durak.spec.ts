@@ -5,7 +5,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
  *
  * Проверяется не вёрстка, а пять вещей, которых нельзя увидеть в юнит-тестах: карты раздаются
  * обоим, **чужая рука не приезжает в браузер вовсе**, карта ходит перетаскиванием, партия
- * доигрывается до дурака через общий канал команд, и браузер сам пересобирает колоду из зерна.
+ * доигрывается до дурака через общий канал команд, а итог появляется в истории встречи.
  *
  * ПОЧЕМУ ПАРТИЯ ИГРАЕТСЯ ИМЕННО ТАК. Подсказок в интерфейсе больше нет — значит, и тест не знает,
  * какая карта законна, ровно как человек. Зато он знает два правила, которых достаточно, чтобы
@@ -89,7 +89,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
       взятые до прилёта, к моменту нажатия уже не те. Человек столкнётся с этим разве что нарочно,
       а тест — каждый раз, потому что он быстрее человека.
     */
-    await host.waitForTimeout(1800);
+    await expect(host.locator('.game-card-flight')).toHaveCount(0, { timeout: 10000 });
 
     /*
       Первый ход — перетаскиванием, и он обязан пройти с первой попытки: заход в пустой бой
@@ -114,13 +114,17 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
         if (await page.locator('.durak[data-phase="over"]').count()) break;
         const take = page.locator('.durak-act[data-kind="take"]');
         if (await take.count()) {
-          await take.click();
+          await take.click({ timeout: 10000 });
+          // A click sends an asynchronous room command. Do not click the same old snapshot
+          // again while its acknowledgement and authoritative snapshot are still in flight.
+          await expect(take).toHaveCount(0, { timeout: 10000 });
           moved = true;
           continue;
         }
         const pass = page.locator('.durak-act[data-kind="pass"]');
         if (await pass.count()) {
-          await pass.click();
+          await pass.click({ timeout: 10000 });
+          await expect(pass).toHaveCount(0, { timeout: 10000 });
           moved = true;
           continue;
         }
@@ -129,6 +133,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
         const card = page.locator('.durak-hand-card').first();
         if (turn && empty && (await card.count())) {
           await dragTo(page, card, page.locator('.durak-mat'));
+          await expect(page.locator('.durak-pair')).toHaveCount(1, { timeout: 10000 });
           moved = true;
         }
       }

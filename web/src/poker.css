@@ -2213,6 +2213,12 @@
   height: 100%;
   min-height: 0;
 }
+
+/* The stage already reserves room for the call dock. A rebuy is taller than a normal action
+   row, so let the felt give it that room instead of putting its confirmation under the dock. */
+.poker:has(.poker-controls[data-out='true']) .poker-felt-wrap {
+  min-height: 220px;
+}
 .poker-main {
   min-height: 0;
   display: grid;

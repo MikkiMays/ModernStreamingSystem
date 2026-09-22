@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { PokerSeat, PokerTable } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
-import PokerScene from './PokerTable';
+import PokerScene, { Slide } from './PokerTable';
 vi.mock('../core/sounds', () => ({ signal: vi.fn() }));
 vi.stubGlobal(
   'ResizeObserver',
@@ -102,4 +102,32 @@ it('asks the server for a seat instead of choosing one from a stale snapshot', (
   render(<PokerScene meeting={room} table={table({ phase: 'lobby' })} />);
   fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' }));
   expect(command).toHaveBeenCalledWith('poker.sit', undefined, undefined, undefined);
+});
+
+it('keeps a rebuy drag active when the moving knob leaves the track', () => {
+  const confirm = vi.fn();
+  const view = render(<Slide label="Взять 400" onConfirm={confirm} />);
+  const track = view.container.querySelector<HTMLElement>('.poker-slide')!;
+  const knob = view.getByRole('button', { name: 'Взять 400' });
+  vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+    bottom: 52,
+    height: 52,
+    left: 0,
+    right: 200,
+    top: 0,
+    width: 200,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  Object.assign(track, { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn(() => false) });
+
+  fireEvent.pointerDown(knob, { button: 0, buttons: 1, pointerId: 1, isPrimary: true });
+  fireEvent.pointerMove(track, { buttons: 1, clientX: 100, pointerId: 1 });
+  fireEvent.pointerLeave(track, { buttons: 1, pointerId: 1 });
+
+  expect(track).not.toHaveAttribute('data-done');
+  expect(knob).toHaveStyle({ left: 'calc(50.0% - 24.0px)' });
+  fireEvent.pointerMove(track, { buttons: 1, clientX: 196, pointerId: 1 });
+  expect(confirm).toHaveBeenCalledOnce();
 });

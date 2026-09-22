@@ -1351,10 +1351,11 @@ function Rebuy({
  * недоступное половине людей: `Enter` и пробел подтверждают сразу, потому что случайными они не
  * бывают тем более.
  */
-function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
+export function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
   const track = useRef<HTMLDivElement>(null);
   const [part, setPart] = useState(0);
   const done = useRef(false);
+  const pointer = useRef<number | null>(null);
   const finish = () => {
     if (done.current) return;
     done.current = true;
@@ -1362,12 +1363,19 @@ function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
     onConfirm();
   };
   const move = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.buttons === 0 || done.current) return;
+    if (pointer.current !== event.pointerId || event.buttons === 0 || done.current) return;
     const box = track.current?.getBoundingClientRect();
     if (!box || box.width === 0) return;
     const next = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
     setPart(next);
     if (next >= 0.9) finish();
+  };
+  const release = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (pointer.current !== event.pointerId) return;
+    if (track.current?.hasPointerCapture(event.pointerId))
+      track.current.releasePointerCapture(event.pointerId);
+    pointer.current = null;
+    if (!done.current) setPart(0);
   };
   return (
     <div
@@ -1375,15 +1383,19 @@ function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
       ref={track}
       data-done={part >= 0.9 || undefined}
       onPointerMove={move}
-      onPointerUp={() => !done.current && setPart(0)}
-      onPointerLeave={() => !done.current && setPart(0)}
+      onPointerUp={release}
+      onPointerCancel={release}
     >
       <span className="poker-slide-label">{label} — потяните вправо</span>
       <button
         className="poker-slide-knob"
         style={{ left: `calc(${(part * 100).toFixed(1)}% - ${(part * 48).toFixed(1)}px)` }}
         aria-label={label}
-        onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+        onPointerDown={(event) => {
+          if (event.button !== 0 || event.isPrimary === false) return;
+          pointer.current = event.pointerId;
+          track.current?.setPointerCapture(event.pointerId);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') finish();
         }}

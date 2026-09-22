@@ -91,6 +91,12 @@ test('додеп подтверждают движением, а не нажат
     const knob = loser.locator('.poker-slide-knob');
     const box = (await slide.boundingBox())!;
     const grip = (await knob.boundingBox())!;
+    expect(
+      await loser.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.poker-slide-knob'), {
+        x: grip.x + grip.width / 2,
+        y: grip.y + grip.height / 2,
+      }),
+    ).toBe(true);
     await loser.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
     await loser.mouse.down();
     await loser.mouse.move(box.x + box.width * 0.5, grip.y + grip.height / 2, { steps: 8 });
