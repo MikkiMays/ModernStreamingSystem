@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
   BookOpen,
   Check,
   CheckCheck,
@@ -11,7 +9,6 @@ import {
   Pencil,
   Play,
   Send,
-  Trophy,
   Users,
   X,
 } from 'lucide-react';
@@ -19,6 +16,7 @@ import type { Meeting } from '../core/meeting';
 import type { GarticTable as Table } from '../api/types';
 import { GamePeople, GamePerson } from './GamePeople';
 import { GameTurn } from './GamePresentation';
+import { AlbumReveal, ClassicResults } from './GarticResults';
 import { IconButton, useStore } from './primitives';
 import GarticCanvas, { GarticPicture, type GarticCanvasHandle } from './GarticCanvas';
 import '../gartic.css';
@@ -45,6 +43,7 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
   const host = table.hostId === me || owner;
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  const pendingAction = useRef(false);
   const phone = table.mode === 'telephone';
   const lobby = table.phase === 'lobby';
   const ended = table.phase === 'finished' || table.phase === 'reveal';
@@ -62,7 +61,8 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
     text?: string,
     extra?: Parameters<Meeting['command']>[3],
   ) => {
-    if (pending) return;
+    if (pendingAction.current) return;
+    pendingAction.current = true;
     setError('');
     setPending(true);
     try {
@@ -70,6 +70,7 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
+      pendingAction.current = false;
       setPending(false);
     }
   };
@@ -102,7 +103,7 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
                       : 'Угадайте слово';
 
   return (
-    <section className="gartic" aria-label="Gartic">
+    <section className="gartic" aria-label="Gartic" data-phase={table.phase}>
       <header className="gartic-header">
         <div className="gartic-heading">
           <Palette size={23} />
@@ -111,7 +112,7 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
             <span>{phone ? 'Испорченный телефон' : 'Рисуй и угадывай'}</span>
           </div>
         </div>
-        {!lobby && (
+        {!lobby && !(phone && ended) && (
           <span className="gartic-round">
             {phone
               ? `Шаг ${Math.min(table.step + 1, table.totalSteps)} из ${table.totalSteps}`
@@ -300,18 +301,11 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
           table={table}
           host={host}
           disabled={!connected || pending}
-          send={act}
+          pending={pending}
+          onReveal={(album, entry) => void act('gartic.reveal', undefined, { chips: album, seat: entry })}
         />
       ) : table.phase === 'finished' ? (
-        <div className="gartic-finish">
-          <Trophy size={40} />
-          <h3>Вот это нарисовали!</h3>
-          <p>
-            {[...table.players].sort((a, b) => b.score - a.score)[0]?.name ?? 'Игроки'} набирает больше всего
-            очков.
-          </p>
-          <Scoreboard table={table} meeting={meeting} final />
-        </div>
+        <ClassicResults table={table} meeting={meeting} />
       ) : (
         <div className={`gartic-play ${phone ? 'gartic-play-phone' : ''}`}>
           <div className="gartic-workspace">
@@ -370,6 +364,7 @@ function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table;
               <Play size={16} /> Сыграть снова
             </button>
           )}
+          {!host && ended && <span>Следующую игру запускает ведущий</span>}
         </div>
         <GamePeople meeting={meeting} />
       </footer>
@@ -422,6 +417,7 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
         <GarticCanvas
           strokes={table.canvas}
           editable={!!table.you?.canDraw}
+          smoothRemote={table.phase === 'drawing' && !table.you?.canDraw}
           connected={connected}
           onDraw={(text) => send('gartic.draw', text)}
           onEdit={(option) => send('gartic.canvas', undefined, { option })}
@@ -638,144 +634,80 @@ function PhoneTask({
       )}
       {you.previous && (
         <div className="gartic-assignment-author">
-          <GamePerson meeting={meeting} memberId={you.previous.authorId} label="Предыдущий шаг" />
+          <GamePerson
+            meeting={meeting}
+            memberId={you.previous.authorId}
+            fallbackName={you.previous.authorName}
+            label="Предыдущий шаг"
+          />
         </div>
       )}
     </form>
   );
 }
 
-function Scoreboard({ table, meeting, final = false }: { table: Table; meeting: Meeting; final?: boolean }) {
+function playerStatus(player: Table['players'][number], table: Table) {
+  if (player.away) return 'Нет связи';
+  if (!player.active) return 'Зритель';
+  if (player.memberId === table.drawerId)
+    return table.phase === 'choosing'
+      ? 'Выбирает слово'
+      : table.phase === 'round-reveal'
+        ? 'Рисовал'
+        : 'Рисует';
+  if (table.mode === 'telephone')
+    return player.submitted ? 'Готово' : table.phase === 'drawing' ? 'Рисует' : 'Думает';
+  return player.guessed
+    ? 'Угадал'
+    : table.phase === 'choosing'
+      ? 'Ждёт слово'
+      : table.phase === 'round-reveal'
+        ? 'Ждёт следующий ход'
+        : 'Угадывает';
+}
+
+function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
   const phone = table.mode === 'telephone';
-  const players = final || !phone ? [...table.players].sort((a, b) => b.score - a.score) : table.players;
+  const players = !phone ? [...table.players].sort((a, b) => b.score - a.score) : table.players;
+  const active = players.filter((player) => player.active);
+  const ready = active.filter((player) => player.submitted).length;
   return (
     <div className="gartic-scores">
-      <h3>
-        {phone
-          ? `Готово ${players.filter((player) => player.active && player.submitted).length} из ${players.filter((player) => player.active).length}`
-          : final
-            ? 'Итоговый счёт'
-            : 'Игроки'}
-      </h3>
-      <ol>
-        {players.map((player, index) => (
+      <h3>{phone ? `Готово ${ready} из ${active.length}` : 'Игроки'}</h3>
+      {phone && (
+        <progress
+          className="gartic-player-completion"
+          aria-label="Готовность игроков"
+          value={ready}
+          max={Math.max(1, active.length)}
+        />
+      )}
+      <ol aria-label={phone ? 'Прогресс игроков' : 'Счёт игроков'}>
+        {players.map((player) => (
           <li
             key={player.memberId}
             data-away={player.away || !player.active || undefined}
             data-current={player.memberId === table.drawerId || undefined}
           >
-            {final && <span className="gartic-rank">{index + 1}</span>}
             <GamePerson
               meeting={meeting}
               memberId={player.memberId}
-              label={
-                player.memberId === table.drawerId
-                  ? 'Рисует'
-                  : player.away
-                    ? 'Нет связи'
-                    : !player.active
-                      ? 'Зритель'
-                      : undefined
-              }
+              fallbackName={player.name}
+              label={playerStatus(player, table)}
             />
             {phone ? (
-              <span className="gartic-player-progress" aria-label={player.submitted ? 'Готово' : 'Думает'}>
-                {player.submitted ? <Check size={17} /> : '…'}
+              <span className="gartic-player-progress" aria-hidden="true">
+                {player.submitted ? <Check size={18} /> : <span className="gartic-waiting-dot" />}
               </span>
             ) : (
               <strong className="gartic-score" aria-label={`${player.score} очков`}>
                 {player.score}
-                {player.guessed && !final && <Check size={13} />}
+                {player.guessed && <Check size={14} />}
               </strong>
             )}
           </li>
         ))}
       </ol>
-    </div>
-  );
-}
-
-function AlbumReveal({
-  meeting,
-  table,
-  host,
-  disabled,
-  send,
-}: {
-  meeting: Meeting;
-  table: Table;
-  host: boolean;
-  disabled: boolean;
-  send: SendCommand;
-}) {
-  const album = table.albums.find((item) => item.index === table.revealAlbum) ?? table.albums[0];
-  const entry = table.revealed;
-  const change = (albumIndex: number, entryIndex: number) => {
-    void send('gartic.reveal', undefined, { chips: albumIndex, seat: entryIndex });
-  };
-  return (
-    <div className="gartic-reveal">
-      <div className="gartic-albums" aria-label="Альбомы игроков">
-        <h3>Как менялась история</h3>
-        {table.albums.map((item) => (
-          <button
-            key={item.index}
-            type="button"
-            aria-pressed={item.index === table.revealAlbum}
-            disabled={!host || disabled}
-            onClick={() => change(item.index, 0)}
-          >
-            <BookOpen size={17} />
-            <span>{item.ownerName}</span>
-            <small>{item.entries} шагов</small>
-          </button>
-        ))}
-        {!host && <p className="gartic-small">Ведущий листает альбомы для всех.</p>}
-      </div>
-      <div className="gartic-album-page">
-        <header>
-          <span>История {album?.ownerName ?? ''}</span>
-          <strong>
-            {table.revealEntry + 1} / {album?.entries ?? table.totalSteps}
-          </strong>
-        </header>
-        <div className="gartic-reveal-entry" key={`${table.revealAlbum}:${table.revealEntry}`}>
-          {entry?.kind === 'drawing' ? (
-            <GarticPicture strokes={entry.strokes} label={`Рисунок: ${entry.authorName}`} />
-          ) : (
-            <blockquote>
-              {entry?.skipped ? 'Участник пропустил этот шаг' : (entry?.text ?? 'История начинается…')}
-            </blockquote>
-          )}
-          {entry && (
-            <GamePerson
-              meeting={meeting}
-              memberId={entry.authorId}
-              label={`${entry.kind === 'drawing' ? 'Рисунок' : 'Фраза'} · шаг ${entry.step + 1}`}
-            />
-          )}
-        </div>
-        {host && (
-          <nav className="gartic-reveal-navigation" aria-label="Листать историю">
-            <button
-              type="button"
-              className="button secondary"
-              disabled={disabled || table.revealEntry <= 0}
-              onClick={() => change(table.revealAlbum, table.revealEntry - 1)}
-            >
-              <ArrowLeft size={17} /> Назад
-            </button>
-            <button
-              type="button"
-              className="button primary"
-              disabled={disabled || table.revealEntry + 1 >= (album?.entries ?? 0)}
-              onClick={() => change(table.revealAlbum, table.revealEntry + 1)}
-            >
-              Следующий шаг <ArrowRight size={17} />
-            </button>
-          </nav>
-        )}
-      </div>
     </div>
   );
 }

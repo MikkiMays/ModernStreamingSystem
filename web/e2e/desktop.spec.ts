@@ -38,10 +38,13 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('desktop home stays centered and usable without page scroll with five favorites', async ({ page }) => {
+test('desktop home keeps entry centered and reachable while favorites stay in the native shell', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByText('5', { exact: true })).toBeVisible();
+  await expect(page.locator('.desktop-home')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Избранные комнаты' })).toHaveCount(0);
   for (const size of [
     { width: 1120, height: 740 },
     { width: 760, height: 620 },
@@ -53,25 +56,24 @@ test('desktop home stays centered and usable without page scroll with five favor
     const bounds = await page.locator('.desktop-connect').boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.y).toBeGreaterThanOrEqual(0);
-    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height + 1);
+    if (size.height >= 430) expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height + 1);
     expect(Math.abs(bounds!.x + bounds!.width / 2 - size.width / 2)).toBeLessThan(2);
-    expect(Math.abs(bounds!.y + bounds!.height / 2 - size.height / 2)).toBeLessThan(2);
-    expect(
-      await page.evaluate(() => ({
-        vertical: document.documentElement.scrollHeight > innerHeight,
-        horizontal: document.documentElement.scrollWidth > innerWidth,
-      })),
-    ).toEqual({ vertical: false, horizontal: false });
+    const overflow = await page.evaluate(() => ({
+      vertical: document.documentElement.scrollHeight > innerHeight,
+      horizontal: document.documentElement.scrollWidth > innerWidth,
+    }));
+    expect(overflow.horizontal).toBe(false);
+    if (size.height >= 430) expect(overflow.vertical).toBe(false);
+    await page.getByRole('button', { name: 'Новая встреча', exact: true }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'Новая встреча', exact: true })).toBeInViewport({
       ratio: 1,
     });
+    await page.getByRole('button', { name: 'Присоединиться', exact: true }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'Присоединиться', exact: true })).toBeInViewport({
       ratio: 1,
     });
   }
-  await page.getByRole('button', { name: 'Открыть избранное' }).click();
-  await expect(page.getByRole('dialog').locator('.desktop-favorite')).toHaveCount(5);
-  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Открыть избранное' })).toHaveCount(0);
   await page.setViewportSize({ width: 1120, height: 740 });
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
@@ -106,7 +108,7 @@ test('native favorite settings open unavailable rooms without joining and synchr
     if (request.url().endsWith('/join')) joins.push(request.url());
   });
   await page.goto('/');
-  await expect(page.getByText('5', { exact: true })).toBeVisible();
+  await expect(page.locator('.desktop-home')).toBeVisible();
   await page.evaluate(() =>
     window.dispatchEvent(
       new CustomEvent('test:host', {

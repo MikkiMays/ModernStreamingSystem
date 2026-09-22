@@ -18,9 +18,9 @@
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
+  flex: 0 0 var(--game-person-size, 38px);
+  width: var(--game-person-size, 38px);
+  height: var(--game-person-size, 38px);
   border-radius: 50%;
   overflow: hidden;
   background: var(--surface-2);
@@ -38,7 +38,7 @@
   outline-color: var(--speaking);
 }
 .game-person[data-away] {
-  opacity: 0.55;
+  color: var(--muted);
 }
 .game-person-copy {
   display: grid;

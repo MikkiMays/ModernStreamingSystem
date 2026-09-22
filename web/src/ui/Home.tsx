@@ -1,30 +1,17 @@
-import {
-  ArrowDownLeft,
-  ArrowRight,
-  Link,
-  Plus,
-  Video,
-  Star,
-  ServerCog,
-  ShieldCheck,
-  Settings2,
-} from 'lucide-react';
+import { ArrowRight, Star, Settings2, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { publicApi } from '../api/client';
-import { DownloadLink, IconButton, Logo, ThemeButton, type Theme } from './primitives';
+import { DownloadLink, IconButton, Logo, Modal, ThemeButton, type Theme } from './primitives';
 import { favoriteApi } from '../core/favorites';
 import { useFavorites, useReorderFavorites } from './useFavorites';
 import { InstallHint } from './InstallHint';
 import { appLabel } from '../core/version';
 import { DesktopHome } from './DesktopHome';
+import { HomeEntry } from './HomeEntry';
 import { Settings } from './Settings';
 import { FavoriteSettings } from './FavoriteSettings';
-import { formatCode, parseInvite, type Destination } from '../core/invitation';
+import { formatCode, type Destination } from '../core/invitation';
 import { FavoriteReorder } from './favorite-reorder';
 export { formatCode, parseInvite, type Destination } from '../core/invitation';
-// The theme control lives with the other primitives so the connect screen can use it without
-// pulling in the whole home page.
 export { ThemeButton, type Theme } from './primitives';
 interface HomeProps {
   onCreate: () => void;
@@ -78,18 +65,26 @@ function BrowserHome({
   setTheme,
   onSettings,
 }: HomeProps & { onSettings: (section?: string) => void }) {
-  const [link, setLink] = useState('');
-  const [error, setError] = useState('');
-  const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favoriteError, setFavoriteError] = useState('');
+  const [removing, setRemoving] = useState<string | null>(null);
   const favorites = useFavorites();
   const reorder = useReorderFavorites();
-  const [removing, setRemoving] = useState<string | null>(null);
   return (
-    <div className="home-page">
+    <div className="home-page home-shell">
       <header className="app-header">
         <Logo />
         <div className="header-end">
-          <span className="header-note">Пространство для общения</span>
+          <button
+            type="button"
+            className="home-favorites-trigger"
+            aria-label="Избранные комнаты"
+            aria-haspopup="dialog"
+            onClick={() => setShowFavorites(true)}
+          >
+            <Star size={18} aria-hidden="true" />
+            <span>Избранное</span>
+          </button>
           <DownloadLink />
           <ThemeButton theme={theme} setTheme={setTheme} />
           <IconButton label="Настройки" onClick={() => onSettings()}>
@@ -97,94 +92,25 @@ function BrowserHome({
           </IconButton>
         </div>
       </header>
-      <main className="home-main">
-        <div className="eyebrow">
-          <span className="status-dot" /> ВАШ СЛЕДУЮЩИЙ РАЗГОВОР
-        </div>
-        <h1>На одной волне.</h1>
-        <p className="home-intro">
-          Встречайтесь, показывайте, делитесь.
-          <br />
-          Всё нужное — в одной комнате.
-        </p>
-        <div className="home-actions">
-          <button
-            className="create-card"
-            onClick={onCreate}
-            disabled={capabilities.data?.admissionOpen === false}
-          >
-            <span className="create-top">
-              <span className="action-icon">
-                <Video size={28} />
-              </span>
-              <Plus size={26} />
-            </span>
-            <span className="create-title">Новая встреча</span>
-            <span className="create-description">Начните разговор и пригласите своих</span>
-            <span className="create-bottom">
-              Создать комнату <ArrowRight size={22} />
-            </span>
-          </button>
-          <form
-            className="join-card"
-            onSubmit={(e) => {
-              e.preventDefault();
-              try {
-                setError('');
-                onJoin(parseInvite(link));
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            <span className="action-icon secondary">
-              <ArrowDownLeft size={28} />
-            </span>
-            <h2>Вас уже ждут?</h2>
-            <p className="muted">
-              Введите код или откройте приглашение.
-              {/* Перенос убирается на узком экране, поэтому пробел ставится отдельно:
-                  без него две фразы слипались в «приглашение.Без аккаунта». */}
-              <br /> Без аккаунта и лишних шагов.
-            </p>
-            <label htmlFor="invite-link">Код встречи или ссылка</label>
-            <div className="input-icon">
-              <Link size={18} />
-              <input
-                id="invite-link"
-                type="text"
-                value={link}
-                onChange={(e) =>
-                  setLink(/^[\d\s-]*$/.test(e.target.value) ? formatCode(e.target.value) : e.target.value)
-                }
-                placeholder="333-333-333"
-                autoComplete="off"
-                required
-              />
-            </div>
-            {/* Раньше здесь стояло «по коду организатор подтвердит ваш вход» — и так оно и
-                работало, вопреки настройке комнаты. Теперь решает комната, и обещать за неё
-                нельзя ни того, ни другого. */}
-            <small className="join-code-hint">
-              Правильный код открывает комнату сразу — если её хозяин не попросил подтверждать вход.
-            </small>
-            {error && (
-              <p role="alert" className="form-error">
-                {error}
-              </p>
-            )}
-            <button className="button secondary full" type="submit">
-              Присоединиться <ArrowRight size={18} />
-            </button>
-          </form>
-        </div>
-        <section className="recent-section">
-          <div className="section-title">
-            <h2>Избранные комнаты</h2>
-            {/* Счётчик «N / 5» ушёл вместе с самим ограничением: сервер ваш, и сколько на нём
-                комнат — не вопрос приложения. */}
-            {!!favorites.data?.length && <span>{favorites.data.length}</span>}
-          </div>
+      <main className="home-entry-main">
+        <HomeEntry onCreate={onCreate} onJoin={onJoin} />
+      </main>
+      <footer className="home-shell-footer">
+        <span className="home-privacy-note">
+          <ShieldCheck size={15} aria-hidden="true" /> Без аккаунта. На вашем сервере.
+        </span>
+        <button className="build-label" onClick={() => onSettings('about')}>
+          Cord {appLabel}
+        </button>
+      </footer>
+      <InstallHint />
+      <Modal
+        open={showFavorites}
+        onOpenChange={setShowFavorites}
+        title="Избранные комнаты"
+        description="Сохранённые встречи на этом сервере."
+      >
+        <div className="home-favorites-content">
           {!!favorites.data?.length ? (
             <FavoriteReorder
               className="recent-list"
@@ -197,30 +123,34 @@ function BrowserHome({
                   <button
                     className="recent-room"
                     disabled={!room.canJoin}
-                    onClick={() => onJoin({ kind: 'favorite', favorite: room })}
+                    onClick={() => {
+                      setShowFavorites(false);
+                      onJoin({ kind: 'favorite', favorite: room });
+                    }}
                   >
                     <span className="recent-icon">
-                      <Star size={20} />
+                      <Star size={18} aria-hidden="true" />
                     </span>
                     <span>
                       <strong>{room.title}</strong>
                       <small>
-                        {formatCode(room.code)} ·{' '}
-                        {room.canJoin ? 'Можно вернуться в любое время' : 'Комната больше не помнит вас'}
+                        {formatCode(room.code)}
+                        {!room.canJoin && ' · Комната больше не помнит вас'}
                       </small>
                     </span>
-                    <ArrowRight size={18} />
+                    <ArrowRight size={18} aria-hidden="true" />
                   </button>
                   <FavoriteSettings
                     room={room}
                     removing={removing === room.roomId || reorder.isPending}
                     remove={async () => {
                       setRemoving(room.roomId);
+                      setFavoriteError('');
                       try {
                         await favoriteApi.remove(room.roomId);
                         await favorites.refetch();
-                      } catch (e) {
-                        setError((e as Error).message);
+                      } catch (error) {
+                        setFavoriteError((error as Error).message);
                       } finally {
                         setRemoving(null);
                       }
@@ -229,69 +159,36 @@ function BrowserHome({
                 </div>
               )}
             </FavoriteReorder>
-          ) : (
-            <div className="recent-empty">
-              <Star size={22} />
-              <div>
-                Ваши люди, одно место
-                <small>Нажмите звёздочку во встрече. Сохранённая комната останется с вами.</small>
-              </div>
+          ) : favorites.isPending ? (
+            <p className="muted" role="status">
+              Загружаем избранное…
+            </p>
+          ) : !favorites.isError ? (
+            <div className="home-favorites-empty">
+              <Star size={24} aria-hidden="true" />
+              <strong>Здесь будут ваши встречи</strong>
+              <p>Нажмите звёздочку во встрече, чтобы легко вернуться к ней.</p>
             </div>
-          )}
+          ) : null}
           {favorites.isError && (
             <p className="form-error" role="status">
               Не удалось загрузить избранное.{' '}
-              <button className="text-button" onClick={() => void favorites.refetch()}>
+              <button
+                className="text-button"
+                disabled={favorites.isFetching}
+                onClick={() => void favorites.refetch()}
+              >
                 Повторить
               </button>
             </p>
           )}
-          {reorder.isError && (
+          {(favoriteError || reorder.isError) && (
             <p className="form-error" role="alert">
-              {(reorder.error as Error).message}
+              {favoriteError || (reorder.error as Error).message}
             </p>
           )}
-        </section>
-        {/*
-          ЗАЧЕМ ЭТОТ БЛОК. Главная отвечает на «как войти» — это первое, зачем сюда приходят,
-          и оно остаётся сверху. Но приходят по чужой ссылке, и вопрос «а это чей вообще
-          Cord?» возникает следом. Ответ на него — не список возможностей, а одна мысль:
-          сервис, на который записываются, и программа, которую ставят себе, — разные вещи,
-          и Cord вторая. Поэтому здесь нет ни кнопки, ни формы: это не призыв, а разворот.
-        */}
-        <section className="own-server">
-          <span className="own-server-eyebrow">
-            <ServerCog size={15} /> ЭТО МОЖНО ПОСТАВИТЬ СЕБЕ
-          </span>
-          <h2>Свой сервер. Свои люди. Свой Cord.</h2>
-          <p>
-            Cord не живёт в облаке — он живёт там, куда вы его поставили. Одна машина, одна команда{' '}
-            <code>./setup.sh</code> — и адрес встреч ваш: ваши комнаты, ваши файлы, ваши голоса. Без
-            аккаунтов, без чужих правил и без чужих ограничений.
-          </p>
-          <p className="own-server-note">
-            Эта страница уже работает на чьём-то сервере. Следующая может работать на вашем.
-          </p>
-        </section>
-        <footer className="home-footer">
-          <ShieldCheck size={16} />
-          <span>Разговор целиком на этом сервере · Временные файлы · Без аккаунтов</span>
-        </footer>
-        {capabilities.isError && (
-          <p className="service-note" role="status">
-            Сервер сейчас недоступен. Можно настроить устройства; для входа понадобится соединение.
-          </p>
-        )}
-      </main>
-      <InstallHint />
-      {/*
-        Здесь стояло «CORD / 01» — надпись, похожая на версию и не бывшая ею. Теперь это
-        настоящая версия сборки, и по ней можно нажать: вопрос «какая у меня версия» почти
-        всегда следующим шагом становится «а есть ли новее».
-      */}
-      <button className="build-label" onClick={() => onSettings('about')}>
-        Cord {appLabel}
-      </button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 test('home and prejoin are responsive and keyboard accessible', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'На одной волне.' })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('textbox', { name: 'Код встречи или ссылка' })).toBeVisible();
   await page.screenshot({ path: '../.local/home-desktop.png', fullPage: true });
   const accessibility = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])

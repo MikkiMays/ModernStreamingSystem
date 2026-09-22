@@ -33,10 +33,15 @@ export function GamePerson({
   meeting,
   memberId,
   label,
+  fallbackName,
+  interactive = true,
 }: {
   meeting: Meeting;
   memberId?: string | null;
   label?: string;
+  /** Recorded game identity remains readable after the member leaves the meeting. */
+  fallbackName?: string;
+  interactive?: boolean;
 }) {
   const snapshot = useStore(meeting.snapshot);
   const tracks = useStore(meeting.media.tracks);
@@ -46,22 +51,19 @@ export function GamePerson({
     (track) => track.participantId === memberId && track.source === 'camera' && !track.muted,
   );
   const speaking = !!memberId && speakers.includes(memberId);
+  const name = person?.name ?? fallbackName ?? label ?? 'Свободное место';
   const content = (
     <>
       <span className="game-person-face">
-        {camera ? (
-          <GameCamera tile={camera} />
-        ) : (
-          <Avatar name={person?.name ?? label ?? '?'} src={person?.avatar} />
-        )}
+        {camera ? <GameCamera tile={camera} /> : <Avatar name={name} src={person?.avatar} />}
       </span>
       <span className="game-person-copy">
-        <b>{person?.name ?? label ?? 'Свободное место'}</b>
-        {speaking ? <small className="game-person-speaking">Говорит</small> : label && <small>{label}</small>}
+        <b title={name}>{name}</b>
+        {label ? <small>{label}</small> : speaking && <small className="game-person-speaking">Говорит</small>}
       </span>
     </>
   );
-  return person ? (
+  return person && interactive ? (
     <ParticipantMenu
       meeting={meeting}
       person={person}
@@ -72,7 +74,9 @@ export function GamePerson({
       {content}
     </ParticipantMenu>
   ) : (
-    <div className="game-person">{content}</div>
+    <div className="game-person" data-speaking={speaking ? 'true' : undefined}>
+      {content}
+    </div>
   );
 }
 

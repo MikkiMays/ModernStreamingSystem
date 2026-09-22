@@ -1,6 +1,7 @@
 import {
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -10,6 +11,7 @@ import {
 } from 'react';
 import { Check, Eraser, Pencil, RotateCw, Trash2, Undo2, WifiOff } from 'lucide-react';
 import { DRAWING_LIMITS, DrawingQueue, drawingPoint, mergeDrawing, type DrawingStroke } from '../core/gartic';
+import { useMediaQuery } from './primitives';
 
 export interface GarticCanvasHandle {
   flush: () => Promise<void>;
@@ -47,6 +49,113 @@ function Ink({ stroke }: { stroke: DrawingStroke }) {
   );
 }
 
+function sameStroke(before: DrawingStroke, after: DrawingStroke | undefined) {
+  return (
+    !!after &&
+    before.id === after.id &&
+    before.color === after.color &&
+    before.width === after.width &&
+    before.points.length === after.points.length &&
+    before.points.every(
+      (point, index) => point[0] === after.points[index]![0] && point[1] === after.points[index]![1],
+    )
+  );
+}
+
+type InkAnimation = { frame: number; paths: SVGPolylineElement[] };
+function finishInk(animation: InkAnimation | null) {
+  if (!animation) return;
+  cancelAnimationFrame(animation.frame);
+  for (const path of animation.paths) {
+    path.removeAttribute('pathLength');
+    path.style.removeProperty('stroke-dasharray');
+    path.style.removeProperty('stroke-dashoffset');
+    path.style.removeProperty('visibility');
+  }
+}
+
+/** Present fresh remote ink between snapshots; never delay authoritative canvas changes. */
+function RemoteInk({ strokes, connected }: { strokes: DrawingStroke[]; connected: boolean }) {
+  const group = useRef<SVGGElement>(null);
+  const previous = useRef<DrawingStroke[] | null>(null);
+  const awaitingSnapshot = useRef(false);
+  const animation = useRef<InkAnimation | null>(null);
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+
+  useLayoutEffect(() => {
+    const before = previous.current;
+    previous.current = strokes;
+    if (!connected) awaitingSnapshot.current = true;
+    if (!connected || awaitingSnapshot.current || reducedMotion || document.hidden || !before) {
+      finishInk(animation.current);
+      animation.current = null;
+      // Authentication can finish before its first snapshot. Wait for that snapshot,
+      // including an identical copy, so recovered strokes never replay as live ink.
+      if (connected && !document.hidden && strokes !== before) awaitingSnapshot.current = false;
+      return;
+    }
+    const appended = strokes.length - before.length;
+    const prefixUnchanged = before.every((stroke, index) => sameStroke(stroke, strokes[index]));
+    if (appended === 0 && prefixUnchanged) return;
+    finishInk(animation.current);
+    animation.current = null;
+    // Large batches are catch-up. There is no animation queue: a newer batch finishes
+    // the previous one immediately, keeping presentation latency bounded to 200 ms.
+    if (!prefixUnchanged || appended < 1 || appended > 4 || !group.current) return;
+    const paths = [...group.current.children]
+      .slice(before.length)
+      .filter((element): element is SVGPolylineElement => element.tagName.toLowerCase() === 'polyline');
+    if (!paths.length) return;
+    for (const path of paths) {
+      path.setAttribute('pathLength', '1');
+      path.style.strokeDasharray = '1';
+      path.style.strokeDashoffset = '1';
+      path.style.visibility = 'hidden';
+    }
+    const current: InkAnimation = { frame: 0, paths };
+    animation.current = current;
+    const started = performance.now();
+    const paint = (now: number) => {
+      const progress = Math.min(1, (now - started) / 200);
+      if (progress >= 1) {
+        finishInk(current);
+        animation.current = null;
+        return;
+      }
+      paths.forEach((path, index) => {
+        const revealed = Math.max(0, Math.min(1, progress * paths.length - index));
+        path.style.visibility = progress * paths.length >= index ? '' : 'hidden';
+        path.style.strokeDashoffset = String(1 - revealed);
+      });
+      current.frame = requestAnimationFrame(paint);
+    };
+    current.frame = requestAnimationFrame(paint);
+  }, [strokes, connected, reducedMotion]);
+
+  useLayoutEffect(() => {
+    const visibilityChanged = () => {
+      if (!document.hidden) return;
+      awaitingSnapshot.current = true;
+      finishInk(animation.current);
+      animation.current = null;
+    };
+    document.addEventListener('visibilitychange', visibilityChanged);
+    return () => {
+      document.removeEventListener('visibilitychange', visibilityChanged);
+      finishInk(animation.current);
+      animation.current = null;
+    };
+  }, []);
+
+  return (
+    <g ref={group}>
+      {strokes.map((stroke) => (
+        <Ink key={stroke.id} stroke={stroke} />
+      ))}
+    </g>
+  );
+}
+
 /** Only validated geometry becomes SVG attributes; no remote markup or bitmap payloads. */
 export function GarticPicture({
   strokes,
@@ -76,6 +185,7 @@ export default function GarticCanvas({
   editable,
   connected,
   locked = false,
+  smoothRemote = false,
   interval = 250,
   onDraw,
   onEdit,
@@ -85,6 +195,7 @@ export default function GarticCanvas({
   editable: boolean;
   connected: boolean;
   locked?: boolean;
+  smoothRemote?: boolean;
   interval?: number;
   onDraw: (text: string) => Promise<unknown>;
   onEdit: (option: 'undo' | 'clear') => Promise<unknown>;
@@ -372,9 +483,11 @@ export default function GarticCanvas({
           onLostPointerCapture={end}
         >
           <rect width="1000" height="625" fill="#ffffff" />
-          {ink.map((stroke) => (
-            <Ink key={stroke.id} stroke={stroke} />
-          ))}
+          {smoothRemote && !editable ? (
+            <RemoteInk strokes={strokes} connected={connected} />
+          ) : (
+            ink.map((stroke) => <Ink key={stroke.id} stroke={stroke} />)
+          )}
           {editable && active && <Ink stroke={active} />}
         </svg>
         {!ink.length && !active && (
@@ -384,17 +497,9 @@ export default function GarticCanvas({
           </div>
         )}
       </div>
-      {editable && (
+      {editable && !connected && (
         <div className="gartic-canvas-status" role="status">
-          {!connected ? (
-            <>
-              <WifiOff size={14} /> Связь восстанавливается. Штрихи сохранены на этом устройстве.
-            </>
-          ) : pending ? (
-            'Сохраняем рисунок…'
-          ) : (
-            'Рисунок сохранён'
-          )}
+          <WifiOff size={14} /> Связь восстанавливается. Штрихи сохранены на этом устройстве.
         </div>
       )}
       {error && (
