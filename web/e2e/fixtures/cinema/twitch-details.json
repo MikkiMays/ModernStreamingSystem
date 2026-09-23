@@ -1,0 +1,21 @@
+{
+  "provider": "twitch",
+  "id": "pesh",
+  "title": "☁️EVENTO TORNEO DEL PORCO/STEMMA ABBONATO SECONDO GIORNO☁️!discord☁️@NamePesh on social !social☁️!sub☁️!prime☁️!vip☁️ !JD !msi☁️",
+  "handle": "pesh",
+  "description": "Ciao, hai mangiato?",
+  "followers": 159735,
+  "viewers": 836,
+  "live": true,
+  "category": "Fortnite",
+  "avatar": "/fixtures/poster.png",
+  "banner": "/fixtures/poster.png",
+  "kind": "channel",
+  "author": "Pesh",
+  "channelId": "pesh",
+  "channelAvatar": "/fixtures/poster.png",
+  "duration": null,
+  "views": null,
+  "published": null,
+  "poster": "/fixtures/poster.png"
+}

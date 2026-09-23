@@ -1,0 +1,15 @@
+{
+  "provider": "youtube",
+  "contentId": "dQw4w9WgXcQ",
+  "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+  "author": "Rick Astley",
+  "duration": 12,
+  "live": false,
+  "kind": "hls",
+  "url": "/fixtures/hls/master.m3u8",
+  "expiresAt": 1790221848453,
+  "notice": null,
+  "language": "en",
+  "captions": [{ "lang": "en", "label": "English", "auto": true, "url": "/fixtures/hls/captions.vtt" }],
+  "poster": "/fixtures/poster.png"
+}

@@ -1,0 +1,101 @@
+{
+  "items": [
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "509658",
+      "title": "Just Chatting",
+      "viewers": 264880,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "32982",
+      "title": "Grand Theft Auto V",
+      "viewers": 211671,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "18122",
+      "title": "World of Warcraft",
+      "viewers": 175632,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "33214",
+      "title": "Fortnite",
+      "viewers": 102000,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "21779",
+      "title": "League of Legends",
+      "viewers": 88252,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "123184772",
+      "title": "EA Sports FC 27",
+      "viewers": 81219,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "516575",
+      "title": "VALORANT",
+      "viewers": 68743,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "1960720223",
+      "title": "SILENT HILL: townfall",
+      "viewers": 67950,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "743893402",
+      "title": "WARDOGS",
+      "viewers": 64325,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "32399",
+      "title": "Counter-Strike",
+      "viewers": 58793,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "29595",
+      "title": "Dota 2",
+      "viewers": 55557,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "twitch",
+      "kind": "category",
+      "id": "27471",
+      "title": "Minecraft",
+      "viewers": 53615,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

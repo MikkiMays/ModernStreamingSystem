@@ -1,0 +1,96 @@
+{
+  "channel": {
+    "provider": "youtube",
+    "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+    "title": "Blender",
+    "handle": "@BlenderOfficial",
+    "description": "Official YouTube channel for Blender, the Free and Open Source 3D Creation Suite.\n\nThe Freedom to Create\n",
+    "followers": 1250000,
+    "viewers": null,
+    "live": false,
+    "category": null,
+    "avatar": "/fixtures/poster.png",
+    "banner": "/fixtures/poster.png"
+  },
+  "items": [
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "g4OXlrxqIx0",
+      "title": "What's New in Blender 5.2 LTS! Official Overview",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 2217,
+      "live": false,
+      "viewers": null,
+      "views": 237000,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "DveYH4fQL4w",
+      "title": "The personality test | Blenderheads Ep. 12",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 1000,
+      "live": false,
+      "viewers": null,
+      "views": 8300,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "8r3xoRwwN6I",
+      "title": "What's New in Blender 5.1! Official Overview",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 824,
+      "live": false,
+      "viewers": null,
+      "views": 253000,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "6d5rI5y8hqQ",
+      "title": "The end of an era | Blenderheads Ep. 11",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 780,
+      "live": false,
+      "viewers": null,
+      "views": 144000,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "4wEqD-jK0DU",
+      "title": "What's New in Blender 5.0! Official Overview",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 3219,
+      "live": false,
+      "viewers": null,
+      "views": 367000,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "youtube",
+      "kind": "video",
+      "id": "V-1COPWo3ok",
+      "title": "Blender: 26 years at SIGGRAPH! - BLENDERHEADS ep.10",
+      "author": "Blender",
+      "channelId": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "duration": 1090,
+      "live": false,
+      "viewers": null,
+      "views": 11000,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

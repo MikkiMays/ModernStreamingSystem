@@ -1,0 +1,17 @@
+{
+  "channel": {
+    "provider": "twitch",
+    "id": "pesh",
+    "title": "Pesh",
+    "handle": "pesh",
+    "description": "Ciao, hai mangiato?",
+    "followers": 159735,
+    "viewers": 836,
+    "live": true,
+    "category": "Fortnite",
+    "avatar": "/fixtures/poster.png",
+    "banner": "/fixtures/poster.png"
+  },
+  "items": [],
+  "next": null
+}

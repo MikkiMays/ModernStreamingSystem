@@ -1,0 +1,17 @@
+{
+  "channel": {
+    "provider": "youtube",
+    "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+    "title": "Blender",
+    "handle": "@BlenderOfficial",
+    "description": "Official YouTube channel for Blender, the Free and Open Source 3D Creation Suite.\n\nThe Freedom to Create\n",
+    "followers": 1250000,
+    "viewers": null,
+    "live": false,
+    "category": null,
+    "avatar": "/fixtures/poster.png",
+    "banner": "/fixtures/poster.png"
+  },
+  "items": [],
+  "next": null
+}

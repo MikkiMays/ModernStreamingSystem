@@ -1,0 +1,6 @@
+{
+  "services": [{ "id": "music", "name": "Музыка", "description": "Общая очередь и музыка во встрече" }],
+  "telegram": { "username": "cord_meet_bot", "connected": true },
+  "sources": ["upload", "telegram", "yandex"],
+  "maxFileBytes": 52428800
+}
