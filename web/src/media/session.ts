@@ -31,6 +31,7 @@ import {
   companionCameraOptions,
   type ScreenProfile,
 } from './profiles';
+import { rememberLayout, retune } from './retune';
 import { UpstreamBudget, type CameraRole, type UpstreamChange } from './upstream';
 import {
   readPreferences,
@@ -670,21 +671,39 @@ export class MediaSession {
   }
   private applyUpstream(change: UpstreamChange) {
     if (change.camera) void this.applyCameraRole(change.camera);
-    if (change.screen) void this.setProfile({ ...this.profile, ...change.screen });
-    if (change.cameraLevel)
+    if (change.screen) void this.stepScreen({ ...this.profile, ...change.screen });
+    if (change.cameraLevel) {
+      const level = { ...this.cameraProfile, ...change.cameraLevel };
       // В «Авто» ступень лестницы — это и есть текущий выбор, и она запоминается: следующий
       // разговор начнётся с неё, а не с настроек по умолчанию. Выбранный руками уровень
       // менять нельзя: человек его назвал, и подмена записи была бы подменой самого выбора.
-      void (this.cameraProfile.automatic
-        ? this.setCameraProfile({ ...this.cameraProfile, ...change.cameraLevel })
-        : this.setCameraSending({ ...this.cameraProfile, ...change.cameraLevel }));
+      //
+      // Но запоминается она тихо. Раньше ступень «Авто» шла через `setCameraProfile`, то есть
+      // через перезапуск камеры и переопубликацию — как если бы человек сам сменил настройку.
+      // Это и моргало у всех, кто смотрит, при каждом шаге лестницы. Теперь шаг один для обоих
+      // режимов: `setCameraSending`, на месте.
+      if (this.cameraProfile.automatic) {
+        this.cameraProfile = level;
+        this.preferences.set(savePreferences({ camera: level }));
+      }
+      void this.setCameraSending(level);
+    }
   }
   /**
    * Сменить то, чем камера идёт в сеть, не трогая выбор человека.
    *
-   * Захват остаётся прежним — тем, что выбрано: пересобирать источник ради битрейта незачем,
-   * а вернуться наверх из уменьшенного захвата было бы уже некуда. Переопубликовать всё же
-   * приходится: слои simulcast считаются при публикации и на месте не меняются.
+   * НА МЕСТЕ, А НЕ ПЕРЕОПУБЛИКАЦИЕЙ. Здесь стояло «переопубликовать всё же приходится: слои
+   * simulcast считаются при публикации и на месте не меняются». Число слоёв — да; их кадр,
+   * битрейт и частота — меняются, и браузер делает это в работающем кодировщике. А
+   * переопубликация стоила каждого шага лестницы: у зрителей дорожка пропадала и появлялась
+   * заново с нижнего слоя — «моргнула, полсекунды мыло, потом нормально». Замерено на стенде:
+   * после шага SSRC у зрителя менялся и 0,3 с не было кадра вовсе; после `setParameters` тот же
+   * SSRC и новый размер кадра внутри потока (`retune.ts`).
+   *
+   * Захват остаётся прежним — тем, что выбрано, — пока ступень в него помещается. «Авто»
+   * снимает под свою ступень, и если лестница поднялась выше, захват растёт той же дорожкой
+   * (`applyConstraints`): камера не перезапускается и не переопубликовывается. Переопубликация
+   * осталась только запасным путём — если браузер не дал подстроить слои на месте.
    */
   private setCameraSending(level: ScreenProfile) {
     if (level.resolution === this.cameraSending.resolution && level.fps === this.cameraSending.fps)
@@ -695,6 +714,9 @@ export class MediaSession {
       const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
       if (!(track instanceof LocalVideoTrack)) return;
       const applied = this.cameraSending;
+      // Пока очередь ждала, лестница шагнула ещё раз: этот шаг уже никому не нужен.
+      if (applied !== level) return;
+      if (await this.retuneCamera(track, applied).catch(() => false)) return;
       this.deviceBusy.add('camera');
       try {
         await this.room.localParticipant.unpublishTrack(track, false);
@@ -713,6 +735,43 @@ export class MediaSession {
       }
     });
     return this.cameraChange;
+  }
+  /**
+   * Ступень камеры на работающей дорожке. Захват растёт только в «Авто» и только если ступень
+   * выше того, что камера сейчас снимает и умеет: выбранный вручную уровень и так снимается
+   * целиком, а просить у камеры больше её возможностей значит перезапускать захват впустую.
+   */
+  private async retuneCamera(track: LocalVideoTrack, level: ScreenProfile): Promise<boolean> {
+    if (!rememberLayout(track)) return false;
+    const media = track.mediaStreamTrack;
+    const settings = media.getSettings();
+    const short = Math.min(settings.width ?? 0, settings.height ?? 0);
+    const capabilities = this.cameraCapabilities();
+    const wanted = cameraCapture(level, capabilities).resolution;
+    const canGrow =
+      Math.min(wanted.width, wanted.height) > short * 1.05 ||
+      (settings.frameRate !== undefined && wanted.frameRate > settings.frameRate + 1);
+    if (this.cameraProfile.automatic && short && canGrow)
+      await media
+        .applyConstraints({
+          width: { ideal: wanted.width },
+          height: { ideal: wanted.height },
+          frameRate: { ideal: wanted.frameRate },
+        })
+        .catch(() => {});
+    if (!(await retune(track, level))) return false;
+    media.contentHint = cameraHint(level);
+    return true;
+  }
+  /**
+   * Вернуть камере текущую ступень после смены устройства. LiveKit после `restartTrack`
+   * пересчитывает слои от параметров публикации — то есть от уровня, с которым камеру
+   * включили, а не от того, на котором лестница стоит сейчас.
+   */
+  private async reapplyCameraLevel() {
+    const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+    if (!(track instanceof LocalVideoTrack) || this.cameraRole === 'companion') return;
+    await this.retuneCamera(track, this.cameraSending).catch(() => false);
   }
   /**
    * Переопубликовать камеру другим кадром.
@@ -1176,6 +1235,7 @@ export class MediaSession {
         : undefined);
     try {
       await this.room.switchActiveDevice(kind, id);
+      if (kind === 'videoinput') await this.reapplyCameraLevel();
       const devices = {
         ...this.preferences.get().devices,
         [kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker']: id,
@@ -1212,6 +1272,7 @@ export class MediaSession {
         deviceId: currentFacing ? undefined : next?.deviceId,
         facingMode: currentFacing ? (currentFacing === 'environment' ? 'user' : 'environment') : undefined,
       });
+      await this.reapplyCameraLevel();
       const id = track.mediaStreamTrack.getSettings().deviceId;
       if (id) this.saveSettings({ devices: { ...this.preferences.get().devices, camera: id } });
       this.refreshTracks();
@@ -1436,11 +1497,27 @@ export class MediaSession {
     });
     return this.cameraChange;
   }
-  private async applyProfile(profile: ScreenProfile) {
+  /**
+   * Шаг лестницы «Авто» для показа — тем же способом, что у камеры: на месте.
+   *
+   * Отличие от `setProfile` одно, и оно главное. `setProfile` зовут, когда человек выбрал
+   * уровень или когда сменился кодек: там новая публикация честная — другой кодек иначе не
+   * отдать. Шаг лестницы не выбор и не кодек, и переопубликация на каждом шаге означала, что
+   * зрители теряли показ на время подписки заново — ровно тогда, когда канал и так тесный.
+   */
+  private stepScreen(profile: ScreenProfile) {
+    this.profile = profile;
+    this.preferences.set(savePreferences({ screen: profile }));
+    this.profileChange = this.profileChange.then(() => this.applyProfile(this.profile, true));
+    return this.profileChange;
+  }
+  private async applyProfile(profile: ScreenProfile, inPlace = false) {
     const track = this.screenTracks.find((t) => t instanceof LocalVideoTrack);
     if (!(track instanceof LocalVideoTrack)) return;
     const generation = this.screenGeneration;
     try {
+      // Слои запоминаются до смены захвата: подпорки записаны в пикселях того кадра.
+      if (inPlace) rememberLayout(track);
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
       await track.mediaStreamTrack.applyConstraints({
         width: { max: size.width },
@@ -1449,6 +1526,7 @@ export class MediaSession {
       });
       track.mediaStreamTrack.contentHint = profile.automatic ? 'detail' : 'motion';
       if (this.disposed || generation !== this.screenGeneration) return;
+      if (inPlace && (await retune(track, profile).catch(() => false))) return;
       await this.room.localParticipant.unpublishTrack(track, false);
       if (this.disposed || generation !== this.screenGeneration) return;
       await this.room.localParticipant.publishTrack(track, {

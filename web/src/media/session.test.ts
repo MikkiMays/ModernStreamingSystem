@@ -4,6 +4,7 @@ import { RoomEvent, DisconnectReason, Track, type RoomOptions } from 'livekit-cl
 import { MediaSession } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter } from './capture';
+import { fakeCameraTrack } from './fake-track';
 
 vi.mock('livekit-client', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('livekit-client')>();
@@ -189,5 +190,78 @@ describe('selective screen subscriptions', () => {
     media.watchScreen(null);
     expect(b.map((p) => p.isDesired)).toEqual([false, false]);
     media.dispose();
+  });
+});
+
+/**
+ * «Камера моргает». Шаг лестницы качества раньше снимал камеру с публикации и публиковал заново:
+ * у всех, кто смотрит, пропадала дорожка и начиналась новая — с нижнего слоя и разгона полосы.
+ * Теперь шаг — это параметры слоёв у той же дорожки. Лестница здесь зовётся напрямую: её входы
+ * (жалобы кодировщика) проверены в upstream/auto-quality, а здесь важно, ЧЕМ шаг исполняется.
+ */
+describe('шаг лестницы камеры', () => {
+  function cameraFixture(
+    camera: { resolution: number; fps: number; automatic: boolean },
+    size?: { width: number; height: number },
+  ) {
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera }));
+    const { media: session } = fixture();
+    const track = fakeCameraTrack(size);
+    const unpublishTrack = vi.fn(async () => {});
+    const publishTrack = vi.fn(async () => ({}));
+    const local = session.room.localParticipant as unknown as {
+      trackPublications: Map<Track.Source, { track?: unknown }>;
+    };
+    local.trackPublications.set(Track.Source.Camera, { track: track.track });
+    Object.assign(session.room.localParticipant, { unpublishTrack, publishTrack });
+    const inner = session as unknown as {
+      wanted: { camera: boolean };
+      applyUpstream(change: { cameraLevel?: { resolution: number; fps: number } }): void;
+    };
+    inner.wanted.camera = true;
+    return {
+      session,
+      capture: track.media,
+      sender: track.sender,
+      layers: track.layers,
+      unpublishTrack,
+      publishTrack,
+      step: (resolution: number, fps: number) => inner.applyUpstream({ cameraLevel: { resolution, fps } }),
+    };
+  }
+  afterEach(() => localStorage.clear());
+
+  it('под выбранным вручную уровнем меняет слои той же дорожки и не трогает захват', async () => {
+    const f = cameraFixture({ resolution: 1440, fps: 60, automatic: false });
+    try {
+      f.step(1080, 60);
+      await vi.waitFor(() => expect(f.sender.setParameters).toHaveBeenCalledOnce());
+      expect(f.layers().at(-1)).toMatchObject({ maxBitrate: 10000000, maxFramerate: 60 });
+      expect(f.capture.applyConstraints).not.toHaveBeenCalled();
+      expect(f.unpublishTrack).not.toHaveBeenCalled();
+      expect(f.publishTrack).not.toHaveBeenCalled();
+    } finally {
+      f.session.dispose();
+    }
+  });
+
+  it('в «Авто» выше снятого расширяет захват той же дорожкой и запоминает ступень', async () => {
+    const f = cameraFixture({ resolution: 1080, fps: 30, automatic: true }, { width: 1920, height: 1080 });
+    try {
+      f.step(1440, 60);
+      await vi.waitFor(() => expect(f.sender.setParameters).toHaveBeenCalledOnce());
+      expect(f.capture.applyConstraints).toHaveBeenCalledWith(
+        expect.objectContaining({ height: { ideal: 1440 }, frameRate: { ideal: 60 } }),
+      );
+      expect(f.unpublishTrack).not.toHaveBeenCalled();
+      expect(f.publishTrack).not.toHaveBeenCalled();
+      expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).camera).toMatchObject({
+        resolution: 1440,
+        fps: 60,
+        automatic: true,
+      });
+    } finally {
+      f.session.dispose();
+    }
   });
 });

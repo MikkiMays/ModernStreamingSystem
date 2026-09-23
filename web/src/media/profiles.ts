@@ -210,6 +210,64 @@ export function cameraOptions(profile: ScreenProfile, codec: VideoCodec = 'vp8')
  * 60 fps это заметно: без `motion` браузер волен отдать предпочтение резкости и уронить
  * частоту, то есть ровно то, ради чего 60 и выбирают.
  */
+/** Слой simulcast так, как он был опубликован: короткая сторона кадра, битрейт и частота. */
+export interface LayerShape {
+  height: number;
+  bitrate: number;
+  fps: number;
+}
+/** Что сказать кодировщику про один слой — ровно три поля `RTCRtpEncodingParameters`. */
+export interface LayerTune {
+  scaleResolutionDownBy: number;
+  maxBitrate: number;
+  maxFramerate: number;
+}
+/**
+ * Слои под новую ступень лестницы — на лету, без переопубликации.
+ *
+ * ЗАЧЕМ. Раньше каждая ступень «Авто» (и лестница под выбранным вручную уровнем) снимала камеру
+ * с публикации и публиковала заново. У зрителя это новая дорожка: плитка гаснет, подписка
+ * начинается с нижнего слоя, битрейт разгоняется заново с одного мегабита — то самое «камера
+ * моргнула, полсекунды мыло, потом нормально». Лестница двигается от жалоб кодировщика и сама
+ * пробует вверх раз в полминуты, поэтому моргание было не случайностью, а расписанием.
+ *
+ * Ступень — это три числа у существующих слоёв: во сколько раз ужать кадр, сколько битрейта и
+ * кадров разрешить. Их браузер меняет в работающем кодировщике (`setParameters`), и зритель
+ * продолжает ту же дорожку: кадр просто становится другим внутри потока.
+ *
+ * Верхний слой становится ступенью. Подпорки остаются собой, пока они мельче слоя над ними;
+ * если ступень опустилась до размера подпорки, та ужимается вдвое от слоя выше, а битрейт —
+ * пропорционально площади: две одинаковые копии одного кадра — это вдвое больше работы и
+ * мегабит ровно тогда, когда лестница спустилась, чтобы их сэкономить.
+ *
+ * @param sourceShort короткая сторона того, что сейчас снимается
+ * @param helpers подпорки снизу вверх — так, как их опубликовали
+ * @returns параметры слоёв снизу вверх, на один больше, чем подпорок
+ */
+export function layerTunes(
+  sourceShort: number,
+  level: Pick<ScreenProfile, 'resolution' | 'fps'>,
+  helpers: LayerShape[],
+): LayerTune[] {
+  const scale = (height: number) => Math.max(1, sourceShort / Math.max(2, height));
+  const top = Math.min(sourceShort, level.resolution);
+  const tunes: LayerTune[] = [
+    { scaleResolutionDownBy: scale(top), maxBitrate: targetBitrate(level), maxFramerate: level.fps },
+  ];
+  let above = top;
+  for (let index = helpers.length - 1; index >= 0; index--) {
+    const helper = helpers[index]!;
+    const height = helper.height < above * 0.85 ? helper.height : Math.round(above / 2);
+    const area = Math.min(1, (height / Math.max(1, helper.height)) ** 2);
+    tunes.unshift({
+      scaleResolutionDownBy: scale(height),
+      maxBitrate: Math.max(100000, Math.round(helper.bitrate * area)),
+      maxFramerate: Math.min(helper.fps, level.fps),
+    });
+    above = height;
+  }
+  return tunes;
+}
 export function cameraHint(profile: ScreenProfile): 'motion' | 'detail' {
   return !profile.automatic || profile.fps >= 60 ? 'motion' : 'detail';
 }
