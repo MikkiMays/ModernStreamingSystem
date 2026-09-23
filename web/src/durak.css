@@ -129,6 +129,24 @@
     position: relative;
     min-width: 0;
     min-height: 250px;
+    /* Контейнер по высоте: по ней считается, какого размера карты боя ещё помещаются. */
+    container-type: size;
+  }
+  /*
+    Поле боя — между местом соперника и своим, а не поверх них.
+
+    Карты боя были размера руки, а сукно тянется по высоте того, что осталось от сцены: на окне
+    1400×900 это полоса в 250 пикселей, на телефоне — чуть больше. Шесть пар ложились на имя
+    соперника сверху и на своё лицо снизу. Теперь карта боя не выше, чем позволяет полоса между
+    местами (`--seat-room` — сколько сукна занимает место с именем), а на телефоне, где пары идут
+    в два ряда, — вдвое меньше.
+  */
+  & .durak-mat {
+    --seat-room: 86px;
+    --bout-w: min(var(--card-w), calc((100cqh - 2 * var(--seat-room)) / 1.8));
+  }
+  & .durak-bout {
+    --card-w: max(34px, var(--bout-w));
   }
   & .durak-felt {
     position: relative;
@@ -1009,6 +1027,18 @@
       grid-template-rows: minmax(305px, 1fr) auto;
       padding: 8px 18px 0;
       gap: 20px;
+    }
+    /* Узкое сукно: с третьей пары бой идёт в два ряда, и каждому ряду достаётся половина
+       полосы между местами. С пятой — поле шире, чтобы в ряд вставали три пары. */
+    & .durak-mat {
+      --seat-room: 84px;
+    }
+    & .durak-bout:is([data-pairs='3'], [data-pairs='4'], [data-pairs='5'], [data-pairs='6']) {
+      --card-w: max(30px, min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - 8px) / 3.6)));
+      gap: 8px 4px;
+    }
+    & .durak-mat:has(> .durak-bout:is([data-pairs='5'], [data-pairs='6'])) {
+      width: 90%;
     }
     & .durak-arena {
       min-height: 305px;

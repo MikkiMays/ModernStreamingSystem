@@ -104,6 +104,34 @@ class NewGamesIntegrationTest {
     assertThat(state(a).chess()).isNull();
   }
 
+  /**
+   * Пауза без хозяина. Ведущий стола — не владелец встречи — ставит паузу и уходит, владельца во
+   * встрече нет. Раньше стол переходил только владельцу, и оставшимся было некому снять паузу:
+   * встать на паузе нельзя, пустым стол с идущей партией не считается — сцена занята до конца
+   * встречи. Теперь стол достаётся игроку, который за ним сидит.
+   */
+  @Test
+  void aPausedDurakTableIsNotStrandedWhenItsHostAndTheOwnerLeave() {
+    var owner = host(false, true);
+    var dealer = guest(owner, "Раздающий");
+    var player = guest(owner, "Игрок");
+    send(dealer, "durak.open", null, null, null, null, null, null);
+    send(dealer, "durak.sit", null, null, null, null, 0, null);
+    send(player, "durak.sit", null, null, null, null, 1, null);
+    send(dealer, "durak.deal", null, null, null, null, null, null);
+    send(dealer, "durak.settings", null, "pause", null, null, null, null);
+    assertThat(state(player).durak().paused()).isTrue();
+    assertThatThrownBy(() -> send(player, "durak.settings", null, "resume", null, null, null, null))
+        .isInstanceOf(Problem.class);
+
+    send(owner, "leave", null, null, null, null, null, null);
+    send(dealer, "leave", null, null, null, null, null, null);
+    lifecycle.sweepRoom(owner.roomId());
+
+    send(player, "durak.settings", null, "resume", null, null, null, null);
+    assertThat(state(player).durak().paused()).isFalse();
+  }
+
   @Test
   void gamePermissionsSeparateOpeningFromPlayingAndEnforceStageExclusivity() {
     var a = host(false, false);

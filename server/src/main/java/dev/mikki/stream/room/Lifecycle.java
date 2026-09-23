@@ -5,7 +5,9 @@ import static dev.mikki.stream.room.RoomState.Status.*;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -162,14 +164,16 @@ public class Lifecycle {
               .map(m -> m.id)
               .collect(Collectors.toSet());
       if (room.poker.presence(present, now)) changed = true;
-      // Раздающий закрыл вкладку — стол переходит ведущему встречи, иначе раздать станет некому.
+      // Раздающий закрыл вкладку — стол переходит тому, кто рядом, иначе раздать станет некому.
       if (room.poker.hostId != null && !present.contains(room.poker.hostId))
-        room.members.values().stream()
-            .filter(m -> m.owner && m.occupiesSeat())
-            .findFirst()
+        heir(
+                room,
+                room.poker.seats.stream()
+                    .filter(seat -> seat.taken() && present.contains(seat.memberId))
+                    .map(seat -> seat.memberId))
             .ifPresent(
-                owner -> {
-                  if (!owner.id.equals(room.poker.hostId)) room.poker.host(owner.id);
+                heir -> {
+                  if (!heir.equals(room.poker.hostId)) room.poker.host(heir);
                 });
       if (room.poker.tick(now)) changed = true;
       /*
@@ -216,12 +220,14 @@ public class Lifecycle {
               .collect(Collectors.toSet());
       if (room.durak.presence(present, now)) changed = true;
       if (room.durak.hostId != null && !present.contains(room.durak.hostId))
-        room.members.values().stream()
-            .filter(m -> m.owner && m.occupiesSeat())
-            .findFirst()
+        heir(
+                room,
+                room.durak.seats.stream()
+                    .filter(seat -> seat.taken() && present.contains(seat.memberId))
+                    .map(seat -> seat.memberId))
             .ifPresent(
-                owner -> {
-                  if (!owner.id.equals(room.durak.hostId)) room.durak.host(owner.id);
+                heir -> {
+                  if (!heir.equals(room.durak.hostId)) room.durak.host(heir);
                 });
       if (room.durak.tick(now)) changed = true;
       /*
@@ -354,5 +360,22 @@ public class Lifecycle {
                 .query(Long.class)
                 .single()
             == 0) rooms.jdbc().sql("DELETE FROM rooms WHERE id=?").param(id).update();
+  }
+
+  /**
+   * Кому достаётся стол, чей ведущий ушёл: ведущему встречи, а если его нет — игроку за столом.
+   *
+   * <p>Раньше наследником мог быть только ведущий встречи. Встреча без него — обычное дело (позвал
+   * друзей и вышел), и тогда стол оставался без хозяина: раздать, снять паузу или убрать его было
+   * некому. С паузой это становилось тупиком навсегда — часы стоят, встать из-за стола на паузе
+   * нельзя, а пустым стол не считается, пока партия идёт. Игрок за столом и так вправе сидеть и
+   * ходить; право продолжить игру, которую он уже играет, — не больше этого.
+   */
+  private static Optional<String> heir(RoomState room, Stream<String> seated) {
+    return room.members.values().stream()
+        .filter(m -> m.owner && m.service == null && m.occupiesSeat())
+        .map(m -> m.id)
+        .findFirst()
+        .or(() -> seated.findFirst());
   }
 }

@@ -379,7 +379,11 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             <div className="durak-focus-shade" aria-hidden="true" />
             <div className="durak-mat" data-focus={focusChoice || undefined}>
               {table.phase === 'bout' && (
-                <div className="durak-bout" data-end={table.boutEnd ?? undefined}>
+                <div
+                  className="durak-bout"
+                  data-end={table.boutEnd ?? undefined}
+                  data-pairs={table.table.length}
+                >
                   {table.table.map((pair) => {
                     const target = !!selected && selectedBeats.some((match) => match.attack === pair.attack);
                     return (
