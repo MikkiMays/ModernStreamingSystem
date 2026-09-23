@@ -164,7 +164,10 @@ export function FavoriteReorder({
           <IconButton
             label={`Переместить «${room.title}». Стрелки вверх и вниз меняют порядок.`}
             className="favorite-reorder-handle"
-            disabled={pending}
+            // Не `disabled`: выключенная кнопка теряет фокус, и после первого шага стрелкой
+            // перестановка с клавиатуры обрывалась — фокус уезжал в body. Нажатия во время
+            // сохранения и так отбрасывает каждый обработчик ниже.
+            aria-disabled={pending || undefined}
             aria-grabbed={dragging === room.roomId}
             onPointerDown={(event) => {
               if (

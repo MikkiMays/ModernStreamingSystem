@@ -28,6 +28,19 @@
     margin-bottom: 22px;
   }
 }
+/* Узкое и низкое окно (360×430): подсказка под полем переносится в две строки, и карточка
+   вместе с отступами становилась на 20 пикселей выше окна. Подзаголовок здесь уходит раньше. */
+@media (max-height: 460px) {
+  .desktop-connect.home-entry {
+    padding-block: 20px;
+  }
+  .desktop-connect .home-entry-welcome {
+    margin-bottom: 16px;
+  }
+  .desktop-connect .home-entry-welcome p {
+    display: none;
+  }
+}
 @media (max-height: 380px) {
   .desktop-connect.home-entry {
     padding-block: 18px;

@@ -26,7 +26,7 @@ async function dragTo(page: Page, source: Locator, target: Locator) {
 }
 
 test('two browsers play a hand of durak by dragging cards onto the table', async ({ browser }) => {
-  test.setTimeout(200000);
+  test.setTimeout(360000);
   const a = await browser.newContext({
     permissions: ['camera', 'microphone'],
     viewport: { width: 1500, height: 950 },
@@ -102,7 +102,10 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     */
     // Bound actual commands, not polls: each settled bout intentionally pauses for 1300 ms.
     // Counting idle scans used up the old 160-step budget with cards still in the attacker's hand.
-    const playUntil = Date.now() + 120000;
+    // Защитник здесь всегда берёт, и партия идёт около тридцати боёв по 1,3 с паузы каждый плюс
+    // бросок: двух минут не хватало ни раннеру CI, ни нагруженной машине — партия обрывалась
+    // посередине, и тест падал не на правилах, а на часах.
+    const playUntil = Date.now() + 270000;
     let actions = 1; // The first attack above is already acknowledged.
     while (actions < 160 && Date.now() < playUntil) {
       if (await host.locator('.durak[data-phase="over"]').count()) break;
@@ -187,7 +190,7 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
       .getByRole('dialog', { name: 'История игр' })
       .getByRole('button', { name: 'Закрыть', exact: true })
       .click();
-    await host.getByRole('button', { name: 'Настройки стола' }).click();
+    await host.getByRole('button', { name: 'Настройки игры' }).click();
     await expect(host.getByRole('button', { name: /Проверить раздачу/ })).toHaveCount(0);
     await host.screenshot({ path: '../.local/durak-over.png' });
   } finally {
