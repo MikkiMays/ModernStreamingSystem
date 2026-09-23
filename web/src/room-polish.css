@@ -138,11 +138,13 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* The hook's fallback has the same target as native fullscreen, so player/table layout is kept. */
+/* The hook's fallback has the same target as native fullscreen, so player/table layout is kept.
+   Слой ниже меню (40) и диалогов (50): они рисуются порталом в `<body>`, и страница, поднятая
+   над ними, закрывала бы их собой — ровно то, от чего полный экран документа и спасает. */
 .meeting-page[data-full='true'] {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 30;
   background: var(--bg);
 }
 

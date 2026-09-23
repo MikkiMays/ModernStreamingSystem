@@ -68,8 +68,18 @@ export function MeetingView({
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
-  const page = useRef<HTMLDivElement>(null);
-  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(page);
+  /*
+    На весь экран разворачивается документ, а не страница встречи.
+
+    Меню, диалоги и настройки Base UI рисует в портале — в самом конце `<body>`, то есть вне
+    `.meeting-page`. Браузер в полноэкранном режиме показывает только развёрнутый элемент и то,
+    что внутри него: пока разворачивалась страница встречи, «Настройки и действия», меню камеры,
+    интеграции и диагностика открывались невидимыми — с фокусом, но без картинки. Документ
+    целиком содержит и порталы; состояние кнопок при этом по-прежнему одно на всех, его держит
+    общий `useFullscreen`.
+  */
+  const root = useRef<HTMLElement>(document.documentElement);
+  const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(root);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const lastActivity = useRef(Date.now());
@@ -167,7 +177,6 @@ export function MeetingView({
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
   return (
     <div
-      ref={page}
       className={`meeting-page ${targetFull ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
       data-full={targetFull ? 'true' : undefined}
       onPointerMove={wakeControls}
