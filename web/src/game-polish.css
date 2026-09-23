@@ -1,9 +1,12 @@
 /* The felt is the focal point; controls and hands occupy their own readable bands. */
-.poker.poker,
 .durak.durak {
   display: flex;
   flex-direction: column;
   overflow: auto;
+}
+/* Стол — предмет, а не текст: сукно, знак заведения, карты и масти не выделяются мышью. */
+.poker,
+.durak {
   user-select: none;
 }
 .poker input,
@@ -13,26 +16,16 @@
 .modal {
   user-select: text;
 }
-.poker button,
 .durak button,
 .games-group button {
   min-height: 44px;
 }
-.poker-felt-wrap {
-  flex: 1;
-  min-height: 320px;
-  padding: 30px 20px 44px;
-}
-.poker-felt {
-  width: min(100%, 980px);
-  --seat-face: clamp(40px, 7cqw, 68px);
-}
-.poker-name > span {
-  font-size: clamp(12px, 1.8cqw, 15px);
-  max-width: 130px;
-}
-.poker-seat {
-  max-width: 140px;
+/* Кнопки полосы стола — под палец только там, где нажимают пальцем: на мыши полоса в 44 пикселя
+   отнимала высоту у стола, который на широком экране упирается именно в неё. */
+@media (pointer: coarse) {
+  .poker button {
+    min-height: 44px;
+  }
 }
 .poker {
   --game-accent: #bba1ff;
@@ -225,32 +218,6 @@
   }
 }
 @media (max-width: 560px) {
-  .poker-felt-wrap {
-    min-height: 470px;
-    padding: 36px 20px 55px;
-  }
-  .poker-felt {
-    aspect-ratio: 0.8;
-    --seat-face: 38px;
-    --board-w: 33px;
-    --card-w: 29px;
-  }
-  .poker-name > span {
-    max-width: 86px;
-    font-size: 12px;
-  }
-  .poker-name > b {
-    font-size: 12px;
-  }
-  .poker-seat {
-    max-width: 95px;
-  }
-  .poker-person {
-    flex-direction: column;
-  }
-  .poker-hand {
-    gap: 1px;
-  }
   .durak-table {
     min-height: 540px;
     padding: 20px 14px 8px;
@@ -264,13 +231,11 @@
     --card-w: 64px;
     margin-inline: -9px;
   }
-  .durak-bar,
-  .poker-bar {
+  .durak-bar {
     gap: 6px;
     padding: 6px;
   }
-  .durak-mode small,
-  .poker-mode small {
+  .durak-mode small {
     font-size: 11px;
   }
   .game-turn {
@@ -310,7 +275,9 @@
 .poker.poker .poker-seat[data-mine] .poker-hand {
   display: none;
 }
-.poker.poker .playing-card,
+/* Раздачу покера рисуют полёты `CardMotion`; своя CSS-раздача погашена, чтобы карта не летела
+   дважды. Победная пятёрка — не раздача: её подъём на вскрытии остаётся. */
+.poker .playing-card:not([data-highlight]),
 .durak.durak .durak-hand-card,
 .durak.durak .durak-attack,
 .durak.durak .durak-defence,
@@ -332,17 +299,6 @@
     font-size: 12px;
     min-width: 22px;
   }
-  .poker.poker .poker-felt {
-    aspect-ratio: 0.8;
-    width: 100%;
-  }
-}
-.poker.poker .poker-felt {
-  --seat-face: clamp(40px, 7cqw, 64px);
-}
-.poker.poker .poker-name > span {
-  font-size: 13px;
-  max-width: 140px;
 }
 .durak.durak .durak-card-rank {
   font-size: calc(var(--card-w) * 0.27);
@@ -369,19 +325,6 @@
   text-transform: none;
 }
 @media (max-width: 560px) {
-  .poker.poker .poker-felt {
-    --seat-face: 38px;
-  }
-  .poker.poker .poker-name > span {
-    font-size: 12px;
-    max-width: 86px;
-  }
-  .poker.poker .poker-name {
-    max-width: 95px;
-  }
-  .poker.poker .poker-felt-wrap {
-    min-height: 510px;
-  }
   .durak.durak .durak-hand-card {
     --card-w: 64px;
     margin-inline: -8px;
@@ -470,18 +413,5 @@
   }
   .durak .durak-ring-run {
     animation: durak-drain var(--turn-duration) linear var(--turn-delay) 1 forwards !important;
-  }
-}
-/* Fit the ellipse to the available stage height as well as width, above the action band. */
-.poker.poker .poker-felt {
-  width: min(100cqw, 158cqh, 980px);
-}
-.poker.poker .poker-controls {
-  position: relative;
-  flex-shrink: 0;
-}
-@media (max-width: 560px) {
-  .poker.poker .poker-felt {
-    width: min(100cqw, 76cqh);
   }
 }

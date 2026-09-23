@@ -31,7 +31,9 @@
   --line: #2e3a49;
   color: var(--text);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Полоса и стол. Своя рука — не третья строка, а часть стола: она стоит сразу под сукном
+     (`.poker-under`), и оба центрируются одной группой. */
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
   height: 100%;
   min-height: 0;
@@ -101,17 +103,33 @@
 .poker-felt-wrap {
   position: relative;
   container-type: size;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* `safe`: если панель под столом выше, чем осталось места, группа прижимается к верху, а не
+     уезжает вверх за край, откуда её уже не прокрутить. */
+  justify-content: safe center;
   min-height: 0;
-  /* Снизу запас под имя и комбинацию нижнего ряда: они висят под кружком и иначе ложатся на
-     панель с кнопками. */
-  padding: 6px 6px 30px;
+  /* Между сукном и панелью — запас под имя и комбинацию нижнего ряда: они висят под кружком и
+     иначе ложились бы на панель с кнопками. */
+  --under-gap: 30px;
+  gap: var(--under-gap);
+  /* Сверху — запас под верхний ряд: места сидят на борту, и кружок верхнего наполовину
+     выступает над сукном. Без запаса он ложился на полосу стола, как только овал упирался в
+     высоту. */
+  padding: 26px 6px 0;
+  /* Сколько стол отдаёт панели под собой; меряет её сам стол, до первого замера — обычная
+     высота строки с кнопками хода. */
+  --poker-play: calc(100cqh - var(--poker-under, 80px) - var(--under-gap));
 }
 .poker-felt {
   container-type: inline-size;
   position: relative;
-  width: min(100cqw, 158cqh);
+  flex: none;
+  /* Стол занимает сцену целиком: по ширине — всю, по высоте — всё, что осталось над своей
+     рукой. Потолка в пикселях нет намеренно: на мониторе 2560×1440 стол в 980 пикселей был
+     островком посреди пустой сцены, а лица игроков — кружками размером с ноготь. */
+  width: min(100cqw, calc(var(--poker-play) * 1.58));
   aspect-ratio: 8 / 5;
   /* Во сколько раз высота стола меньше ширины: этим пересчитывается полёт карт к центру. */
   --felt-ratio: 0.625;
@@ -120,6 +138,50 @@
   --board-w: clamp(30px, 5.6cqw, 58px);
   --oval: 46% / 52%;
   filter: drop-shadow(0 30px 44px #00000073);
+}
+/* Слот под столом: своя рука, кнопки хода, «Сесть за стол». Шириной со стол — это лоток перед
+   игроком, а не полоса через всю сцену; на узком экране — во всю ширину. */
+.poker-under {
+  flex: none;
+  /* Не уже строки хода: лоток в две строки отнимал у стола высоту, которой ему и так мало. */
+  width: min(100%, max(880px, min(100cqw, calc(var(--poker-play) * 1.58))));
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+.poker-under:empty {
+  display: none;
+}
+.poker-under > .game-seat-action {
+  justify-self: center;
+  min-width: 220px;
+}
+/* «Чей ход» в полосе стола: плашка посередине строки, а не полоса во всю ширину над сукном. */
+.poker-bar .game-turn {
+  flex: 0 1 auto;
+  margin-inline: auto;
+  justify-content: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  border-inline-start-width: 1px;
+  font-size: 13px;
+  background: transparent;
+}
+.poker-bar .game-turn[data-active] {
+  color: var(--gold-soft);
+  background: color-mix(in oklab, var(--gold) 14%, transparent);
+  border-color: color-mix(in oklab, var(--gold) 45%, transparent);
+}
+.poker-bar .game-turn[data-urgent] {
+  color: #ffd7cf;
+  border-color: #f48478;
+  background: #f4847824;
+}
+.poker-bar .game-turn > span {
+  font-size: 15px;
 }
 /* Борт: тёмная кожа с прострочкой по краю. На него садятся места. */
 .poker-rail {
@@ -1504,7 +1566,8 @@
   position: absolute;
   top: 6px;
   right: 6px;
-  bottom: 6px;
+  /* Лист лежит на столе, а не на своей руке: кнопки хода под ним остаются нажимаемыми. */
+  bottom: calc(var(--poker-under, 80px) + 6px);
   z-index: 11;
   width: min(340px, 92%);
   display: flex;
@@ -1989,13 +2052,13 @@
   background: #070c11;
 }
 .poker[data-full='true'] .poker-felt-wrap {
-  padding-bottom: 34px;
+  padding-bottom: 4px;
 }
 @media (max-width: 700px) {
   /* Ради этого полный экран и нужен: в нём столу достаётся вся ширина, а не остаток от
      шапки встречи и ленты зрителей. */
   .poker[data-full='true'] .poker-felt {
-    width: min(94cqw, 72cqh);
+    width: min(94cqw, calc(var(--poker-play) * 0.72));
   }
 }
 
@@ -2008,10 +2071,18 @@
   каждый процент ширины на счету.
 */
 @media (max-width: 700px) {
+  /* Узкий стол стоит портретом, и лоток под ним на всю ширину: иначе кнопки хода не влезают.
+     Верхний ряд портретного овала сидит внутри сукна, запас над ним не нужен. */
+  .poker-under {
+    width: 100%;
+  }
+  .poker-felt-wrap {
+    padding-top: 6px;
+  }
   .poker-felt {
     /* Места сидят на борту, то есть наполовину снаружи сукна: на узком экране столу нужно
        оставить по краям место под них, иначе крайние стулья срезает рамкой. */
-    width: min(84cqw, 66cqh);
+    width: min(84cqw, calc(var(--poker-play) * 0.7));
     aspect-ratio: 5 / 7;
     --felt-ratio: 1.4;
     --seat-face: clamp(40px, 17cqw, 74px);
@@ -2159,7 +2230,7 @@
     top: auto;
     left: 4px;
     right: 4px;
-    bottom: 4px;
+    bottom: calc(var(--poker-under, 80px) + 4px);
     max-height: 72%;
     animation-name: poker-sheet-up;
   }
@@ -2214,11 +2285,6 @@
   min-height: 0;
 }
 
-/* The stage already reserves room for the call dock. A rebuy is taller than a normal action
-   row, so let the felt give it that room instead of putting its confirmation under the dock. */
-.poker:has(.poker-controls[data-out='true']) .poker-felt-wrap {
-  min-height: 220px;
-}
 .poker-main {
   min-height: 0;
   display: grid;

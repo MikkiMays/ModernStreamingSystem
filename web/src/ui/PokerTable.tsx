@@ -1,7 +1,15 @@
 import '../game-polish.css';
 import { occupiedSeatLayout } from '../core/game-layout';
 import { CardMotion, GameTurn, useTableRatio } from './GamePresentation';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { Track, TrackEvent } from 'livekit-client';
 import {
   Check,
@@ -117,6 +125,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
   */
   const scene = useRef<HTMLDivElement>(null);
   const { full, targetFull, toggle: toggleFull } = useFullscreen(scene);
+  const { play, under } = useUnderHeight();
 
   const send = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => {
     setError('');
@@ -186,31 +195,36 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
         compact={compact}
         full={full}
         onFull={toggleFull}
-      />
-      <GameTurn
-        meeting={meeting}
-        deadline={table.deadline}
-        active={!!you?.turn && !table.paused}
-        label={
-          table.paused
-            ? 'Пауза'
-            : you?.turn
-              ? `Ваш ход · ${you.callAmount > 0 ? `уравнять ${chips(you.callAmount)} или повысить` : 'чек или ставка'}`
-              : table.seats.find((seat) => seat.index === table.actor)?.name
-                ? `Ходит ${table.seats.find((seat) => seat.index === table.actor)?.name}`
-                : phaseLabel(table.phase)
-        }
-      />
-      {mySeat === null && table.seats.some((seat) => !seat.memberId) && (
-        <button
-          className="button primary game-seat-action"
-          disabled={!table.seatingOpen}
-          onClick={() => send('poker.sit')}
-        >
-          Сесть за стол
-        </button>
-      )}
-      <div className="poker-felt-wrap">
+      >
+        {/*
+          Чей ход — строкой в полосе стола, а не отдельной полосой над сукном.
+
+          Отдельная полоса забирала у стола полсотни пикселей высоты, а стол на широком экране
+          упирается именно в высоту: овал от этого сжимался целиком. Здесь ей хватает места в
+          той же строке, где режим и блайнды, и видно её оттуда же, откуда смотрят на банк.
+          На телефоне строка одна, поэтому там остаётся только «Ваш ход» — кольцо на месте и
+          подсвеченная панель говорят остальное.
+        */}
+        {(!compact || (you?.turn && !table.paused)) && (
+          <GameTurn
+            meeting={meeting}
+            deadline={table.deadline}
+            active={!!you?.turn && !table.paused}
+            label={
+              table.paused
+                ? 'Пауза'
+                : you?.turn
+                  ? compact
+                    ? 'Ваш ход'
+                    : `Ваш ход · ${you.callAmount > 0 ? `уравнять ${chips(you.callAmount)} или повысить` : 'чек или ставка'}`
+                  : table.seats.find((seat) => seat.index === table.actor)?.name
+                    ? `Ходит ${table.seats.find((seat) => seat.index === table.actor)?.name}`
+                    : phaseLabel(table.phase)
+            }
+          />
+        )}
+      </TableBar>
+      <div className="poker-felt-wrap" ref={play}>
         <div className="poker-felt" ref={tableGeometry.ref}>
           <CardMotion meeting={meeting} events={table.visualEvents} spots={spots} />
           {/* Борт, дорожка и сукно — три слоя одного стола, как у настоящего. */}
@@ -357,17 +371,63 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
           />
         )}
         {sheet === 'results' && summary && <Results game={summary} onClose={() => setSheet(null)} />}
+        {/*
+          Своя рука — сразу под столом, а не у нижнего края сцены.
+
+          Раньше панель стояла третьей строкой сетки и прижималась к пульту звонка, а стол
+          центрировался в оставшемся месте: на широком окне между ними лежала пустая полоса, и
+          глаза ходили от своих карт к банку через неё. Теперь панель — продолжение стола: они
+          стоят одной группой по центру, а высоту панели стол вычитает из своей (`--poker-under`
+          меряет сама панель), поэтому высокая полоса додепа не залезает под пульт, а просто
+          делает овал чуть меньше.
+        */}
+        <div className="poker-under" ref={under}>
+          {mySeat === null && table.seats.some((seat) => !seat.memberId) && (
+            <button
+              className="button primary game-seat-action"
+              disabled={!table.seatingOpen}
+              onClick={() => send('poker.sit')}
+            >
+              Сесть за стол
+            </button>
+          )}
+          <Controls
+            table={table}
+            show={show}
+            dealer={dealer}
+            onSend={send}
+            error={error}
+            hints={preferences.pokerHints}
+          />
+        </div>
       </div>
-      <Controls
-        table={table}
-        show={show}
-        dealer={dealer}
-        onSend={send}
-        error={error}
-        hints={preferences.pokerHints}
-      />
     </div>
   );
+}
+
+/**
+ * Высота слота под столом — в переменную `--poker-under` на области стола.
+ *
+ * Ширина овала считается из высоты области минус эта панель: только так стол и своя рука
+ * помещаются одной группой без прокрутки, какой бы высоты панель ни стала (ход, додеп, зритель
+ * без места). Замкнутого круга «стол сжался → панель стала уже → выросла в высоту» здесь нет:
+ * лоток шириной со стол, но не уже строки хода (`.poker-under`), поэтому переносов, которые
+ * меняли бы его высоту вслед за столом, не бывает.
+ */
+function useUnderHeight() {
+  const play = useRef<HTMLDivElement>(null);
+  const under = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const host = play.current;
+    const slot = under.current;
+    if (!host || !slot) return;
+    const apply = () => host.style.setProperty('--poker-under', `${Math.ceil(slot.offsetHeight)}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, []);
+  return { play, under };
 }
 
 /**
@@ -422,6 +482,7 @@ function TableBar({
   compact,
   full,
   onFull,
+  children,
 }: {
   meeting: Meeting;
   table: Table;
@@ -432,6 +493,7 @@ function TableBar({
   compact: boolean;
   full: boolean;
   onFull: () => void;
+  children?: ReactNode;
 }) {
   const seated = table.seats.filter((seat) => seat.memberId).length;
   const ready = readyCount(table);
@@ -478,6 +540,7 @@ function TableBar({
           <Trophy size={15} /> Итоги
         </button>
       )}
+      {children}
       {dealer && (
         <div className="poker-host-actions">
           {/*
@@ -608,7 +671,9 @@ function GameSettings({
             on={table.seatingOpen}
             title="Пускать новых за стол"
             hint={
-              table.seatingOpen ? 'Свободное место занимают нажатием на стул' : 'Доиграют те, кто уже сидит'
+              table.seatingOpen
+                ? 'Место занимают кнопкой «Сесть за стол» под столом'
+                : 'Доиграют те, кто уже сидит'
             }
             onChange={() =>
               onSend('poker.settings', {
@@ -764,7 +829,7 @@ function Waiting({
       ) : ready < 2 ? (
         <>
           <Hand size={18} /> <b>Нужен ещё игрок</b>
-          <small>Займите место за столом — кнопки на свободных стульях</small>
+          <small>Кнопка «Сесть за стол» — под столом</small>
         </>
       ) : table.deadline > 0 ? (
         <>
