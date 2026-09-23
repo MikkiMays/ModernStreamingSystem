@@ -81,7 +81,7 @@ beforeEach(() => {
   animate.mockClear();
   animations.length = 0;
   connection.set('connected');
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     const shape = this.dataset.source
       ? [50, 500, 100, 140]
       : this.dataset.gameSeat

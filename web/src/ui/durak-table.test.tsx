@@ -209,7 +209,7 @@ it('disconnect clears selected targets and blocks game commands until recovery',
   const room = meeting();
   render(<DurakTable meeting={room} table={table} />);
   pick('7, черви');
-  act(() => room.control.state.set('reconnecting'));
+  act(() => room.control.state.set('recovering'));
   expect(screen.queryByRole('button', { name: 'Перевести' })).toBeNull();
   expect(screen.getByRole('button', { name: '8, трефы' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Поставить игру на паузу' })).toBeDisabled();
