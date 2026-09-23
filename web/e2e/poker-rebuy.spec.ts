@@ -79,7 +79,25 @@ test('додеп подтверждают движением, а не нажат
       await host.locator('.poker-bar').getByRole('button', { name: 'Продолжить' }).click();
     };
 
-    await bust();
+    /*
+      Кто вылетел, узнаётся ожиданием, а не одним взглядом. Полоса додепа приезжает следующим
+      снимком после «Продолжить», и мгновенная проверка у ведущего на медленном раннере CI
+      назначала проигравшим не того. А ва-банк вдвоём иногда делит банк — тогда не вылетел
+      никто, и нужна ещё одна раздача.
+    */
+    const busted = async () =>
+      (await host.locator('.poker-rebuy').count()) + (await guest.locator('.poker-rebuy').count()) > 0;
+    for (let hand = 0; hand < 3; hand++) {
+      await bust();
+      const out = await expect
+        .poll(busted, { timeout: 10000 })
+        .toBe(true)
+        .then(
+          () => true,
+          () => false,
+        );
+      if (out) break;
+    }
     // У проигравшего фишек нет: красная полоса вместо кнопок, и кнопки «докупиться» больше нет.
     const loser: Page = (await host.locator('.poker-rebuy').count()) ? host : guest;
     await expect(loser.locator('.poker-controls[data-out="true"]')).toBeVisible();
