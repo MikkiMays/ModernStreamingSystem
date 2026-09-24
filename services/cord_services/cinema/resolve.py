@@ -21,7 +21,7 @@ from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
 from .captions import CAPTIONS_LIMIT, _base_language, _vtt
-from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, allowed, proxied
+from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
 
 # Ролик целиком и без плейлиста вокруг: так его открывают и страница ролика, и сам поток.
 PROBE = {
@@ -144,10 +144,11 @@ class Resolver:
     План площадки → ответ `resolve`: адрес потока у нас, срок его подписи, язык, субтитры.
 
     Про площадки он не знает ничего: страницу для yt-dlp и разрешение собирать DASH ему
-    приносит план, а подписывает он всё одним ключом, как и раньше.
+    приносит план. Подписывает он всё одним ключом и от имени площадки, чей это поток: её
+    политика хостов решает, какие дорожки, субтитры и обложки вообще можно отдать.
     """
 
-    def __init__(self, signer: Signer, ytdlp: YtDlp, image: Callable[[str], str | None]):
+    def __init__(self, signer: Signer, ytdlp: YtDlp, image: Callable[[str, str], str | None]):
         self.signer = signer
         self.ytdlp = ytdlp
         self.image = image
@@ -163,7 +164,7 @@ class Resolver:
         stream, kind = self._stream(info)
         dash = None
         if adaptive and plan.dash and not info.get("is_live") and kind != "hls":
-            dash = await self._dash(info, net)
+            dash = await self._dash(info, net, provider)
         if dash:
             stream, expires = dash
             kind = "dash"
@@ -187,6 +188,7 @@ class Resolver:
                 stream,
                 "playlist" if kind == "hls" else "fetch",
                 max(1, int(expires - time.time())),
+                provider=provider,
             ),
             "expiresAt": int(expires * 1000),
             "notice": "Доступен только готовый файл: качество ограничено источником"
@@ -197,8 +199,8 @@ class Resolver:
             # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
             # язык»: выбора не было, был порядок строк.
             "language": info.get("language") or "",
-            "captions": self._captions(info, kind == "hls"),
-            "poster": self.image(poster),
+            "captions": self._captions(info, kind == "hls", provider),
+            "poster": self.image(poster, provider),
         }
 
     def _direct(self, plan: SourcePlan, provider: str, content_id: str) -> dict[str, Any]:
@@ -217,15 +219,16 @@ class Resolver:
                 plan.url,
                 "playlist" if plan.kind == "hls" else "fetch",
                 max(1, int(expires - time.time())),
+                provider=provider,
             ),
             "expiresAt": int(expires * 1000),
             "notice": None,
             "language": plan.language,
             "captions": [
-                {**track, "url": proxied(self.signer, track["url"], "fetch")}
+                {**track, "url": proxied(self.signer, track["url"], "fetch", provider=provider)}
                 for track in plan.captions[:CAPTIONS_LIMIT]
             ],
-            "poster": self.image(plan.poster or ""),
+            "poster": self.image(plan.poster or "", provider),
         }
         # Новые ключи — только у тех, кто их знает: остальным клиентам они не нужны вовсе.
         extra = {
@@ -249,11 +252,17 @@ class Resolver:
                     expires = min(expires, int(value))
         return expires
 
-    async def _dash(self, info: dict[str, Any], net: httpx.AsyncClient) -> tuple[str, float] | None:
+    async def _dash(
+        self, info: dict[str, Any], net: httpx.AsyncClient, provider: str
+    ) -> tuple[str, float] | None:
         duration = number(info.get("duration"))
         if not duration:
             return None
-        formats = [item for item in candidates(info.get("formats") or []) if allowed(item["url"])]
+        formats = [
+            item
+            for item in candidates(info.get("formats") or [])
+            if self.signer.allows(item["url"], provider)
+        ]
 
         async def inspect(item):
             try:
@@ -278,7 +287,7 @@ class Resolver:
         try:
             body = dash_manifest(
                 [
-                    (item, ranges, proxied(self.signer, item["url"], "fetch", ttl))
+                    (item, ranges, proxied(self.signer, item["url"], "fetch", ttl, provider=provider))
                     for item, ranges in found
                 ],
                 duration,
@@ -302,7 +311,7 @@ class Resolver:
             headers={"Cache-Control": "no-store"},
         )
 
-    def _captions(self, info: dict[str, Any], embedded: bool) -> list[dict[str, Any]]:
+    def _captions(self, info: dict[str, Any], embedded: bool, provider: str) -> list[dict[str, Any]]:
         """
         Дорожки текста, которых нет в самом потоке.
 
@@ -325,9 +334,12 @@ class Resolver:
         tracks: list[dict[str, Any]] = []
         seen: set[str] = set()
 
+        def allows(url: str) -> bool:
+            return self.signer.allows(url, provider)
+
         def offer(language: str, entries: list[dict[str, Any]], generated: bool) -> None:
             base = _base_language(language)
-            found = _vtt(entries)
+            found = _vtt(entries, allows)
             if not found or base in seen or (generated and base in written):
                 return
             seen.add(base)
@@ -340,7 +352,7 @@ class Resolver:
                     # называет язык сам, на языке смотрящего.
                     "label": found.get("name") or language,
                     "auto": generated,
-                    "url": proxied(self.signer, found["url"], "fetch"),
+                    "url": proxied(self.signer, found["url"], "fetch", provider=provider),
                 }
             )
 
@@ -348,7 +360,7 @@ class Resolver:
             for language, entries in manual.items():
                 offer(language, entries, False)
         for language, entries in (info.get("automatic_captions") or {}).items():
-            found = _vtt(entries)
+            found = _vtt(entries, allows)
             # Все нетронутые переводом дорожки — это одна и та же распознанная речь под
             # разными ключами (`ko` и `ko-orig`); лишние отсеивает общий отбор по языку.
             if found and "tlang=" not in found["url"]:

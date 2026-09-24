@@ -166,7 +166,7 @@ class RangeTests(unittest.IsolatedAsyncioTestCase):
             for action in [
                 lambda: cinema.fetch("https://r.googlevideo.com/a", "bytes=0-100"),
                 lambda: cinema.fetch("https://r.googlevideo.com/a", None),
-                lambda: cinema.manifest("https://r.googlevideo.com/a"),
+                lambda: cinema.manifest("https://r.googlevideo.com/a", None, "youtube"),
             ]:
                 with self.assertRaises(Exception) as failure:
                     await action()

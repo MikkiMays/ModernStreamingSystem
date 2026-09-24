@@ -9,21 +9,28 @@
 
 import asyncio
 import copy
+import hmac
 import json
 import re
 import time
 import unittest
+from hashlib import sha256
 from unittest.mock import patch
 
-import httpx
-from fastapi import HTTPException
-from test_cinema_providers import Stage
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
-from cord_services.cinema import Cinema, Memo, Resolve
+import httpx
+from fastapi import FastAPI, HTTPException
+import test_cinema_providers as characterization
+from test_cinema_providers import USER, Stage, indexed_mp4, twitch_user
+
+from cord_services.cinema import PREFIX, Cinema, Memo, Resolve, routes
 from cord_services.cinema.limits import Window
+from cord_services.cinema.providers.twitch import Twitch
 from cord_services.cinema.providers.youtube import YT_FLAT, YouTube
 from cord_services.cinema.registry import Kit, Provider, Registry
 from cord_services.cinema.resolve import YtDlp
+from cord_services.cinema.transport.signer import Signer
 
 
 def kit():
@@ -113,6 +120,188 @@ class TwitchQueryTests(Stage):
             self.assertEqual(value, typed)
             # После литерала — ровно то, что стояло в шаблоне: ввод из строки не вышел.
             self.assertTrue(query[end:].startswith(', platform: "web", target: {index: '), query)
+
+
+class SignedLinkTests(Stage):
+    """
+    Подпись связывает маршрут, площадку и адрес, а хост проверяет политика своей площадки.
+
+    Раньше подписаны были только адрес и срок: ссылка картинки (сутки жизни) открывала и
+    `/fetch`, и `/playlist`, а хост сверялся с общим списком двух площадок — Twitch мог отдать
+    через наш прокси адрес YouTube и наоборот. Проверяется всё через настоящие маршруты и
+    только теми ссылками, которые служба выдала сама.
+    """
+
+    WATCH = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+    TWITCH_MASTER = "https://usher.ttvnw.net/api/channel/hls/someone.m3u8?sig=x"
+    TWITCH_BODY = (
+        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n"
+        "https://video-weaver.hls.ttvnw.net/v1/playlist/a.m3u8\n"
+        "#EXT-X-STREAM-INF:BANDWIDTH=2\n"
+        "https://manifest.googlevideo.com/api/manifest/hls_playlist/b\n"
+    )
+
+    def serve(self, request):
+        if request.url.host == "gql.twitch.tv":
+            return super().serve(request)
+        self.seen.append(request)
+        if request.url.host == "usher.ttvnw.net":
+            return httpx.Response(200, text=self.TWITCH_BODY)
+        if request.url.path.endswith("videoplayback"):
+            payload = indexed_mp4()
+            return httpx.Response(
+                206,
+                headers={"content-range": f"bytes 0-{len(payload) - 1}/{len(payload) + 100}"},
+                content=payload,
+            )
+        return httpx.Response(200, content=b"bytes", headers={"content-type": "image/jpeg"})
+
+    async def get(self, path):
+        app = FastAPI()
+        app.include_router(routes(self.cinema, None))
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://cord.test") as client:
+            return await client.get(path)
+
+    async def refused_link(self, path, detail="Ссылка не подписана этим сервером"):
+        answer = await self.get(path)
+        self.assertEqual(answer.status_code, 403, path)
+        self.assertEqual(answer.json(), {"detail": detail})
+
+    async def youtube_poster(self):
+        self.library.answers["ytsearch60:big buck"] = {"entries": [{"id": "aqz-KE-bpKQ"}]}
+        found = await self.cinema.search("youtube", "big buck", "")
+        return found["items"][0]["poster"]
+
+    async def test_a_picture_link_opens_the_picture_and_nothing_else(self):
+        poster = await self.youtube_poster()
+        self.assertTrue(poster.startswith(PREFIX + "/image?"), poster)
+        self.assertEqual((await self.get(poster)).status_code, 200)
+        for route in ("fetch", "playlist"):
+            await self.refused_link(poster.replace("/image?", f"/{route}?"))
+
+    async def test_a_stream_link_opens_only_its_own_route(self):
+        master = "https://manifest.googlevideo.com/api/manifest/hls_variant/m.m3u8"
+        self.library.answers[self.WATCH] = {"formats": [{"protocol": "m3u8", "manifest_url": master}]}
+        found = await self.cinema.resolve(Resolve(provider="youtube", contentId="aqz-KE-bpKQ"))
+        self.assertTrue(found["url"].startswith(PREFIX + "/playlist?"), found["url"])
+        for route in ("fetch", "image"):
+            await self.refused_link(found["url"].replace("/playlist?", f"/{route}?"))
+
+    async def test_a_link_signed_for_one_platform_does_not_open_as_another(self):
+        poster = await self.youtube_poster()
+        query = dict(parse_qsl(urlsplit(poster).query))
+        query["p"] = "twitch"
+        await self.refused_link(PREFIX + "/image?" + urlencode(query))
+
+    async def test_a_platform_cannot_hand_out_a_host_of_another_platform(self):
+        # Запись Twitch, у которой yt-dlp нашёл файл на хосте YouTube: подпись Twitch его не
+        # открывает, и наружу за ним никто не ходит.
+        self.library.answers["https://www.twitch.tv/videos/2000000001"] = {
+            "formats": [
+                {
+                    "protocol": "https",
+                    "url": "https://rr1.googlevideo.com/videoplayback?itag=18",
+                    "acodec": "mp4a",
+                    "vcodec": "avc1",
+                }
+            ]
+        }
+        found = await self.cinema.resolve(Resolve(provider="twitch", contentId="2000000001", kind="video"))
+        await self.refused_link(found["url"], "Этот адрес не обслуживается")
+        self.assertEqual(self.seen, [])
+
+    async def test_a_playlist_proxies_only_the_hosts_of_its_platform(self):
+        self.library.answers["https://www.twitch.tv/someone"] = {
+            "is_live": True,
+            "formats": [{"protocol": "m3u8_native", "manifest_url": self.TWITCH_MASTER}],
+        }
+        found = await self.cinema.resolve(Resolve(provider="twitch", contentId="someone", kind="channel"))
+        answer = await self.get(found["url"])
+        self.assertEqual(answer.status_code, 200)
+        self.assertNotIn("video-weaver", answer.text)
+        self.assertEqual(answer.text.count(PREFIX + "/playlist?"), 1)
+        # Строка на хосте YouTube осталась как была: плеер пойдёт за ней сам, не через нас.
+        self.assertIn("\nhttps://manifest.googlevideo.com/api/manifest/hls_playlist/b\n", answer.text)
+
+    async def test_pictures_of_another_platform_are_not_signed(self):
+        user = twitch_user(live=False)
+        user["user"]["profileImageURL"] = "https://yt3.ggpht.com/avatar"
+        self.gql[USER % ("someone", 100)] = user
+        found = await self.cinema.channel("twitch", "someone", "about", "")
+        self.assertIsNone(found["channel"]["avatar"])
+        self.assertTrue(found["channel"]["banner"].startswith(PREFIX + "/image?"))
+
+    async def test_captions_and_dash_tracks_of_another_platform_are_left_out(self):
+        tracks = [
+            {**track, "url": track["url"].replace("rr1.googlevideo.com", "rr1.ttvnw.net")}
+            for track in characterization.ResolveTests.separate_tracks()[:2]
+        ]
+        self.library.answers[self.WATCH] = {
+            "duration": 10,
+            "formats": [*tracks, characterization.ResolveTests.separate_tracks()[2]],
+            "subtitles": {
+                "en": [{"ext": "vtt", "url": "https://www.youtube.com/api/timedtext?lang=en"}],
+                "de": [{"ext": "vtt", "url": "https://static-cdn.jtvnw.net/captions/de.vtt"}],
+            },
+        }
+        found = await self.cinema.resolve(Resolve(provider="youtube", contentId="aqz-KE-bpKQ", adaptive=True))
+        self.assertEqual(found["kind"], "file")
+        self.assertEqual([track["lang"] for track in found["captions"]], ["en"])
+        self.assertFalse([request for request in self.seen if request.url.host.endswith("ttvnw.net")])
+
+
+class SignerTests(unittest.TestCase):
+    """Подпись по отдельности: что именно в неё входит и что она отказывается открыть."""
+
+    URL = "https://rr5.googlevideo.com/videoplayback?id=1"
+
+    def setUp(self):
+        clock = patch("time.time", return_value=1_800_000_000.0)
+        clock.start()
+        self.addCleanup(clock.stop)
+        self.signer = Signer("secret", {"youtube": YouTube.hosts, "twitch": Twitch.hosts}.get)
+
+    def refused(self, route, parts, status=403, detail="Ссылка не подписана этим сервером"):
+        with self.assertRaises(HTTPException) as refusal:
+            self.signer.open(route, parts["u"], parts["e"], parts["s"], parts["p"])
+        self.assertEqual((refusal.exception.status_code, refusal.exception.detail), (status, detail))
+
+    def test_a_signature_opens_only_its_route(self):
+        for route in ("playlist", "fetch", "image"):
+            parts = self.signer.sign(self.URL, 60, route, "youtube")
+            self.assertEqual(
+                self.signer.open(route, parts["u"], parts["e"], parts["s"], parts["p"]), self.URL
+            )
+            for other in {"playlist", "fetch", "image"} - {route}:
+                self.refused(other, parts)
+
+    def test_a_signature_opens_only_as_its_platform(self):
+        parts = self.signer.sign(self.URL, 60, "fetch", "youtube")
+        self.refused("fetch", {**parts, "p": "twitch"})
+        self.refused("fetch", {**parts, "p": ""})
+
+    def test_a_platform_that_is_not_on_opens_nothing(self):
+        # Подписанный адрес выключенной или незнакомой площадки: подпись верна, но политики
+        # хостов нет — и прокси за ним не идёт.
+        parts = self.signer.sign(self.URL, 60, "fetch", "vimeo")
+        self.refused("fetch", parts, detail="Этот адрес не обслуживается")
+
+    def test_a_link_issued_before_the_route_was_signed_is_refused_not_broken(self):
+        # Старая форма: подписаны только адрес и срок, площадки в ссылке нет. Плеер получает 403
+        # и переоткрывает источник сам.
+        packed = self.signer.sign(self.URL, 60, "fetch", "youtube")["u"]
+        expires = "1800000060"
+        digest = hmac.new(b"secret", f"{packed}|{expires}".encode(), sha256).hexdigest()[:32]
+        self.refused("fetch", {"u": packed, "e": expires, "s": digest, "p": ""})
+
+    def test_a_signature_in_another_alphabet_is_a_refusal_not_a_crash(self):
+        parts = self.signer.sign(self.URL, 60, "fetch", "youtube")
+        self.refused("fetch", {**parts, "s": "щ" * 32})
+
+    def test_there_is_no_signature_for_an_unknown_route(self):
+        with self.assertRaises(ValueError):
+            self.signer.sign(self.URL, 60, "seg", "youtube")
 
 
 class MemoryKeyTests(Stage):
@@ -207,7 +396,9 @@ class UpstreamFailureTests(Stage):
 
     async def test_a_playlist_or_a_piece_that_cannot_be_reached_is_a_bad_gateway(self):
         self.failure = httpx.ConnectError("нет сети")
-        await self.refused(self.cinema.manifest(self.URL), 502, "Площадка не отдала плейлист")
+        await self.refused(
+            self.cinema.manifest(self.URL, None, "youtube"), 502, "Площадка не отдала плейлист"
+        )
         for range_header in (None, "bytes=0-100"):
             await self.refused(self.cinema.fetch(self.URL, range_header), 502, "Площадка не отдала данные")
 

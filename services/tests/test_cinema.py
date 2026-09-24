@@ -18,7 +18,13 @@ from cord_services.cinema import (
     page,
     rewrite,
 )
+from cord_services.cinema.providers.twitch import Twitch
+from cord_services.cinema.providers.youtube import YouTube
 from cord_services.cinema.resolve import Resolver
+from cord_services.cinema.transport.signer import SIGNATURE_TTL
+
+# Политики хостов площадок, как их видит подпись: адрес открывается только своей площадкой.
+HOSTS = {"youtube": YouTube.hosts, "twitch": Twitch.hosts}
 
 MASTER = """#EXTM3U
 #EXT-X-INDEPENDENT-SEGMENTS
@@ -51,62 +57,73 @@ https://video-edge-1.hls.ttvnw.net/v1/segment/8411.ts
 
 class SignatureTests(unittest.TestCase):
     def setUp(self):
-        self.signer = Signer("secret")
+        self.signer = Signer("secret", HOSTS.get)
+
+    def sign(self, url, ttl=SIGNATURE_TTL, route="fetch", provider="youtube", signer=None):
+        return (signer or self.signer).sign(url, ttl, route, provider)
+
+    def open(self, parts, route="fetch"):
+        return self.signer.open(route, parts["u"], parts["e"], parts["s"], parts["p"])
 
     def test_round_trip(self):
         url = "https://rr5.googlevideo.com/videoplayback?id=1"
-        parts = self.signer.sign(url)
-        self.assertEqual(self.signer.open(parts["u"], parts["e"], parts["s"]), url)
+        self.assertEqual(self.open(self.sign(url)), url)
 
     def test_forged_signature_is_refused(self):
-        parts = self.signer.sign("https://rr5.googlevideo.com/a")
+        parts = self.sign("https://rr5.googlevideo.com/a")
         with self.assertRaises(HTTPException) as refusal:
-            self.signer.open(parts["u"], parts["e"], "0" * 32)
+            self.open({**parts, "s": "0" * 32})
         self.assertEqual(refusal.exception.status_code, 403)
 
     def test_another_secret_cannot_sign_for_us(self):
-        parts = Signer("other").sign("https://rr5.googlevideo.com/a")
+        parts = self.sign("https://rr5.googlevideo.com/a", signer=Signer("other", HOSTS.get))
         with self.assertRaises(HTTPException):
-            self.signer.open(parts["u"], parts["e"], parts["s"])
+            self.open(parts)
 
     def test_expired_link_is_gone_not_forbidden(self):
-        parts = self.signer.sign("https://rr5.googlevideo.com/a", ttl=-10)
+        parts = self.sign("https://rr5.googlevideo.com/a", ttl=-10)
         with self.assertRaises(HTTPException) as refusal:
-            self.signer.open(parts["u"], parts["e"], parts["s"])
+            self.open(parts)
         self.assertEqual(refusal.exception.status_code, 410)
 
-    def test_only_the_two_platforms_are_proxied(self):
-        # Иначе это открытый прокси: подпись есть, но пускать в чужую сеть всё равно нельзя.
-        self.assertTrue(allowed("https://rr5---sn-x.googlevideo.com/videoplayback"))
-        self.assertTrue(allowed("https://video-weaver.fra05.hls.ttvnw.net/v1/playlist.m3u8"))
-        self.assertFalse(allowed("https://example.com/video.mp4"))
-        self.assertFalse(allowed("http://rr5.googlevideo.com/videoplayback"))
-        self.assertFalse(allowed("https://evil.com/?x=googlevideo.com"))
+    def test_each_platform_proxies_only_its_own_hosts(self):
+        # Иначе это открытый прокси: подпись есть, но пускать в чужую сеть всё равно нельзя. И
+        # не общим списком: YouTube не отдаёт через нас адреса Twitch, и наоборот.
+        self.assertTrue(allowed("https://rr5---sn-x.googlevideo.com/videoplayback", YouTube.hosts))
+        self.assertTrue(allowed("https://video-weaver.fra05.hls.ttvnw.net/v1/playlist.m3u8", Twitch.hosts))
+        self.assertFalse(allowed("https://video-weaver.fra05.hls.ttvnw.net/v1/playlist.m3u8", YouTube.hosts))
+        self.assertFalse(allowed("https://rr5---sn-x.googlevideo.com/videoplayback", Twitch.hosts))
+        for hosts in HOSTS.values():
+            self.assertFalse(allowed("https://example.com/video.mp4", hosts))
+            self.assertFalse(allowed("https://evil.com/?x=googlevideo.com", hosts))
+        self.assertFalse(allowed("http://rr5.googlevideo.com/videoplayback", YouTube.hosts))
+        self.assertFalse(allowed("https://rr5.googlevideo.com/videoplayback", None))
 
     def test_a_foreign_host_is_refused_even_with_a_good_signature(self):
-        parts = self.signer.sign("https://example.com/secret")
+        parts = self.sign("https://example.com/secret")
         with self.assertRaises(HTTPException) as refusal:
-            self.signer.open(parts["u"], parts["e"], parts["s"])
+            self.open(parts)
         self.assertEqual(refusal.exception.status_code, 403)
 
 
 class PlaylistTests(unittest.TestCase):
     def setUp(self):
-        self.signer = Signer("secret")
+        self.signer = Signer("secret", HOSTS.get)
 
     def test_master_and_media_are_told_apart(self):
         self.assertTrue(master_playlist(MASTER))
         self.assertFalse(master_playlist(MEDIA))
 
     def test_master_sends_every_child_through_the_playlist_route(self):
-        body = rewrite(MASTER, "https://manifest.googlevideo.com/api/manifest/x/", self.signer)
+        base = "https://manifest.googlevideo.com/api/manifest/x/"
+        body = rewrite(MASTER, base, self.signer, provider="youtube")
         self.assertNotIn("googlevideo.com", body.replace("#EXT-X", ""))
         self.assertEqual(body.count("/api/v1/services/cinema/playlist?"), 3)
         # Относительный адрес разворачивается по базе, а не теряется.
         self.assertNotIn("../other", body)
 
     def test_media_sends_segments_keys_and_maps_through_the_byte_route(self):
-        body = rewrite(MEDIA, "https://rr5.googlevideo.com/videoplayback/", self.signer)
+        body = rewrite(MEDIA, "https://rr5.googlevideo.com/videoplayback/", self.signer, provider="youtube")
         self.assertEqual(body.count("/api/v1/services/cinema/fetch?"), 3)
         self.assertIn("#EXT-X-ENDLIST", body)
         self.assertIn("#EXTINF:4.033333,", body)
@@ -116,6 +133,7 @@ class PlaylistTests(unittest.TestCase):
             "#EXTM3U\n#EXTINF:1,\nhttps://example.com/seg.ts\n",
             "https://rr5.googlevideo.com/",
             self.signer,
+            provider="youtube",
         )
         self.assertIn("https://example.com/seg.ts", body)
 
@@ -130,7 +148,7 @@ class NumberedPlaylistTests(unittest.TestCase):
     """
 
     def setUp(self):
-        self.signer = Signer("secret")
+        self.signer = Signer("secret", HOSTS.get)
         self.reels = Reels(self.signer, ttl=60)
 
     def test_a_finished_film_is_told_from_a_live_edge(self):
@@ -138,55 +156,77 @@ class NumberedPlaylistTests(unittest.TestCase):
         self.assertFalse(finished_playlist(LIVE))
 
     def test_segments_of_a_film_become_short_relative_numbers(self):
-        body = rewrite(MEDIA, "https://rr5.googlevideo.com/videoplayback/", self.signer, self.reels)
+        base = "https://rr5.googlevideo.com/videoplayback/"
+        body = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
         lines = [line for line in body.splitlines() if line and not line.startswith("#")]
         self.assertEqual(len(lines), 2)
         for number, line in enumerate(lines):
             key, index = line.split("/")[1], int(line.split("/")[2])
             self.assertEqual(index, number)
             self.assertLess(len(line), 40)
-            self.assertTrue(self.reels.find(key, index).startswith("https://rr5.googlevideo.com/"))
+            self.assertTrue(self.reels.find(key, index).url.startswith("https://rr5.googlevideo.com/"))
+            # Кусочек помнит свою площадку: за ним прокси пойдёт её выходом наружу.
+            self.assertEqual(self.reels.find(key, index).provider, "youtube")
         # Относительный адрес развёрнут по базе, а не оставлен как был.
-        self.assertIn("videoplayback/seg2.ts", self.reels.find(key, 1))
+        self.assertIn("videoplayback/seg2.ts", self.reels.find(key, 1).url)
         # Карта инициализации — одна на плейлист, ей нумерация ни к чему.
         self.assertIn("/api/v1/services/cinema/fetch?", body)
 
     def test_a_live_edge_keeps_signatures_because_its_numbers_move(self):
-        body = rewrite(LIVE, "https://video-edge-1.hls.ttvnw.net/v1/", self.signer, self.reels)
+        base = "https://video-edge-1.hls.ttvnw.net/v1/"
+        body = rewrite(LIVE, base, self.signer, self.reels, provider="twitch")
         self.assertEqual(body.count("/api/v1/services/cinema/fetch?"), 2)
         self.assertNotIn("seg/", body)
 
     def test_the_same_playlist_is_one_list_for_the_whole_room(self):
         base = "https://rr5.googlevideo.com/videoplayback/"
-        first = rewrite(MEDIA, base, self.signer, self.reels)
-        second = rewrite(MEDIA, base, self.signer, self.reels)
+        first = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
+        second = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
         self.assertEqual(first, second)
 
     def test_a_forgotten_list_is_gone_rather_than_wrong(self):
         stale = Reels(self.signer, ttl=-1)
-        key = stale.remember("https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"])
+        key = stale.remember("https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"], "youtube")
         with self.assertRaises(HTTPException) as refusal:
             stale.find(key, 0)
         self.assertEqual(refusal.exception.status_code, 410)
 
     def test_a_number_outside_the_film_is_not_a_server_error(self):
-        key = self.reels.remember("https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"])
+        key = self.reels.remember(
+            "https://rr5.googlevideo.com/x", ["https://rr5.googlevideo.com/a.ts"], "youtube"
+        )
         with self.assertRaises(HTTPException) as refusal:
             self.reels.find(key, 7)
         self.assertEqual(refusal.exception.status_code, 404)
 
     def test_another_secret_cannot_name_a_list(self):
         url = "https://rr5.googlevideo.com/x"
-        self.assertNotEqual(self.reels.remember(url, []), Signer("other").name(url))
+        other = Reels(Signer("other"))
+        self.assertNotEqual(self.reels.remember(url, [], "youtube"), other.remember(url, [], "youtube"))
+
+    def test_one_address_under_two_platforms_is_two_lists(self):
+        # Площадка с любыми хостами (ссылка) может разобрать тот же плейлист, что и YouTube, но
+        # отобрать в нём другие строки: общий список сбил бы нумерацию и выход наружу обоим.
+        url = "https://rr5.googlevideo.com/x"
+        youtube = self.reels.remember(url, ["https://rr5.googlevideo.com/a.ts"], "youtube")
+        both = ["https://example.org/b.ts", "https://rr5.googlevideo.com/a.ts"]
+        other = self.reels.remember(url, both, "link")
+        self.assertNotEqual(youtube, other)
+        self.assertEqual(self.reels.find(youtube, 0), ("https://rr5.googlevideo.com/a.ts", "youtube"))
+        self.assertEqual(self.reels.find(other, 0), ("https://example.org/b.ts", "link"))
+        with self.assertRaises(HTTPException):
+            self.reels.find(youtube, 1)
 
     def test_only_the_watched_list_survives_a_full_shelf(self):
         small = Reels(self.signer, ttl=60, capacity=2)
         keys = [
-            small.remember(f"https://rr5.googlevideo.com/{name}", [f"https://rr5.googlevideo.com/{name}.ts"])
+            small.remember(
+                f"https://rr5.googlevideo.com/{name}", [f"https://rr5.googlevideo.com/{name}.ts"], "youtube"
+            )
             for name in "ab"
         ]
         small.find(keys[0], 0)  # первый смотрят прямо сейчас
-        small.remember("https://rr5.googlevideo.com/c", ["https://rr5.googlevideo.com/c.ts"])
+        small.remember("https://rr5.googlevideo.com/c", ["https://rr5.googlevideo.com/c.ts"], "youtube")
         self.assertTrue(small.find(keys[0], 0))
         with self.assertRaises(HTTPException):
             small.find(keys[1], 0)
@@ -379,7 +419,7 @@ class CaptionTests(unittest.TestCase):
                 ],
             },
         }
-        tracks = self.cinema.resolver._captions(info, embedded=True)
+        tracks = self.cinema.resolver._captions(info, embedded=True, provider="youtube")
         # Один язык — одна строка: `ko` и `ko-orig` это одна и та же распознанная речь.
         self.assertEqual([track["lang"] for track in tracks], ["ko"])
         self.assertTrue(tracks[0]["auto"])
@@ -393,9 +433,9 @@ class CaptionTests(unittest.TestCase):
             },
         }
         # Поток несёт ручные сам — отсюда не едет ничего, в том числе распознанное на том же языке.
-        self.assertEqual(self.cinema.resolver._captions(info, embedded=True), [])
+        self.assertEqual(self.cinema.resolver._captions(info, embedded=True, provider="youtube"), [])
         # Потока с субтитрами нет — ручные едут, распознанное на том же языке по-прежнему нет.
-        alone = self.cinema.resolver._captions(info, embedded=False)
+        alone = self.cinema.resolver._captions(info, embedded=False, provider="youtube")
         self.assertEqual([(track["lang"], track["auto"]) for track in alone], [("ru", False)])
 
     def test_a_playlist_of_pieces_is_not_a_file_for_the_tag(self):
@@ -410,7 +450,7 @@ class CaptionTests(unittest.TestCase):
                 ]
             },
         }
-        self.assertEqual(self.cinema.resolver._captions(info, embedded=True), [])
+        self.assertEqual(self.cinema.resolver._captions(info, embedded=True, provider="youtube"), [])
 
 
 
@@ -450,7 +490,7 @@ class PagingTests(unittest.TestCase):
         self.assertEqual(absolute("//yt3.ggpht.com/x"), "https://yt3.ggpht.com/x")
         self.assertEqual(absolute("https://i.ytimg.com/x"), "https://i.ytimg.com/x")
         self.assertEqual(absolute(""), "")
-        self.assertTrue(Cinema("s").image("//yt3.ggpht.com/x"))
+        self.assertTrue(Cinema("s").image("//yt3.ggpht.com/x", "youtube"))
 
 
 class TwitchChannelPageTests(unittest.TestCase):

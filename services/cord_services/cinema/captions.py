@@ -3,9 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from .transport.signer import allowed
+from typing import Any, Callable
 
 
 # Сколько дорожек текста отдавать одному ролику. Двух десятков хватает даже тем, кого
@@ -19,20 +17,22 @@ def _base_language(language: str) -> str:
     return (language or "").split("-")[0].lower()
 
 
-def _vtt(entries: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+def _vtt(entries: list[dict[str, Any]] | None, allows: Callable[[str], bool]) -> dict[str, Any] | None:
     """
     Готовый файл субтитров, а не плейлист из кусочков.
 
     yt-dlp перечисляет один и тот же текст в нескольких видах (`json3`, `srv3`, `ttml`,
     `vtt`), а иногда — плейлистом HLS. Браузеру в `<track>` нужен ровно WebVTT одним файлом;
     то, что пришло плейлистом, лежит в мастере и достаётся плеером без нашей помощи.
+
+    `allows` — политика хостов площадки: файл с чужого хоста прокси всё равно не откроет.
     """
     for entry in entries or []:
         if (
             entry.get("ext") == "vtt"
             and entry.get("url")
             and not str(entry.get("protocol") or "").startswith("m3u8")
-            and allowed(entry["url"])
+            and allows(entry["url"])
         ):
             return entry
     return None

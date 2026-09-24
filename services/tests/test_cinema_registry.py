@@ -26,11 +26,26 @@ from cord_services.cinema.providers.twitch import Twitch
 from cord_services.cinema.providers.youtube import YouTube
 from cord_services.cinema.registry import Ctx, Features, HostPolicy, Kit, Provider, Registry, Unsupported
 from cord_services.cinema.resolve import Resolver, YtDlp, direct, ytdlp
-from cord_services.cinema.transport.signer import ALLOWED_HOSTS, proxied
+from cord_services.cinema.transport.signer import proxied
 from cord_services.core import Core
 
 ROOM = str(uuid.uuid4())
 NOW = 1_800_000_000.0
+
+# Общий список хостов, которым прокси проверял адреса до задачи 4. Теперь его держат площадки —
+# каждая свою часть, и вместе ровно этот список: ни потеряно, ни добавлено ни одного хоста.
+FORMER_ALLOWED_HOSTS = (
+    "googlevideo.com",
+    "youtube.com",
+    "ytimg.com",
+    "ggpht.com",
+    "googleusercontent.com",
+    "ttvnw.net",
+    "jtvnw.net",
+    "twitchcdn.net",
+    "twitch.tv",
+    "akamaized.net",
+)
 
 # Ключи в том порядке, в каком их отдавал прод: ответы службы, снятые с meet.nikg.tech для
 # браузерных тестов (`web/e2e/fixtures/cinema/*.json`). Тесты службы каталога `web/` не видят,
@@ -189,11 +204,11 @@ class PlatformTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(Twitch.features, Features(search=True, channels=True, categories=True, live=True))
         self.assertEqual({kind.features.account for kind in PROVIDERS}, {"none"})
 
-    def test_the_hosts_of_the_platforms_are_exactly_the_shared_list(self):
-        # Проверка хоста переедет с общего списка на площадку — и не должна при этом ни
-        # потерять, ни приобрести ни одного хоста.
+    def test_the_hosts_of_the_platforms_are_exactly_the_former_shared_list(self):
+        # Проверка хоста переехала с общего списка на площадку — и не потеряла при этом и не
+        # приобрела ни одного хоста.
         owned = [suffix for kind in PROVIDERS for suffix in kind.hosts.suffixes]
-        self.assertEqual(sorted(owned), sorted(ALLOWED_HOSTS))
+        self.assertEqual(sorted(owned), sorted(FORMER_ALLOWED_HOSTS))
 
     def test_a_host_belongs_to_a_platform_by_suffix_not_by_substring(self):
         self.assertTrue(YouTube.hosts.allows("rr5---sn-x.googlevideo.com"))
@@ -337,7 +352,9 @@ class DirectSourceTests(unittest.IsolatedAsyncioTestCase):
         clock.start()
         self.addCleanup(clock.stop)
         self.library = YtDlp()
-        self.resolver = Resolver(Signer("secret"), self.library, lambda url: url and "poster:" + url)
+        self.resolver = Resolver(
+            Signer("secret"), self.library, lambda url, provider: url and f"poster:{provider}:{url}"
+        )
 
     async def test_a_direct_stream_is_signed_and_nothing_is_asked_of_yt_dlp(self):
         master = "https://bl.rutube.ru/route/x.m3u8?expire=1800003600"
@@ -366,7 +383,7 @@ class DirectSourceTests(unittest.IsolatedAsyncioTestCase):
                 "duration": 60,
                 "live": False,
                 "kind": "hls",
-                "url": proxied(signer, master, "playlist", 3600),
+                "url": proxied(signer, master, "playlist", 3600, provider="rutube"),
                 "expiresAt": 1800003600000,
                 "notice": None,
                 "language": "ru",
@@ -375,10 +392,10 @@ class DirectSourceTests(unittest.IsolatedAsyncioTestCase):
                         "lang": "ru",
                         "label": "Русский",
                         "auto": False,
-                        "url": proxied(signer, caption, "fetch"),
+                        "url": proxied(signer, caption, "fetch", provider="rutube"),
                     }
                 ],
-                "poster": "poster:https://pic.rtbcdn.ru/x.jpg",
+                "poster": "poster:rutube:https://pic.rtbcdn.ru/x.jpg",
             },
         )
 

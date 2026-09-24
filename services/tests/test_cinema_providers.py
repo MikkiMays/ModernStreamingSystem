@@ -154,17 +154,19 @@ def game_search(text):
     )
 
 
-def img(url):
-    """Обложка так, как её подписывает сервер при остановленных часах: сутки жизни."""
-    return proxied(Signer(SECRET), url, "image", DAY)
+def img(url, provider):
+    """Обложка так, как её подписывает сервер при остановленных часах: сутки жизни.
+
+    Подпись с задачи 4 знает маршрут и площадку — поэтому площадка здесь названа явно."""
+    return proxied(Signer(SECRET), url, "image", DAY, provider=provider)
 
 
-def signed(url, route, ttl=FIVE_HOURS):
-    return proxied(Signer(SECRET), url, route, ttl)
+def signed(url, route, provider, ttl=FIVE_HOURS):
+    return proxied(Signer(SECRET), url, route, ttl, provider=provider)
 
 
 def thumb(video_id):
-    return img(f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg")
+    return img(f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg", "youtube")
 
 
 def box(kind, payload=b""):
@@ -365,7 +367,7 @@ class YouTubeSearchTests(Stage):
                 "views": None,
                 "followers": 1900000,
                 "description": "x" * 300,
-                "poster": img("https://yt3.ggpht.com/b"),
+                "poster": img("https://yt3.ggpht.com/b", "youtube"),
             },
             {
                 "provider": "youtube",
@@ -550,7 +552,7 @@ class TwitchSearchTests(Stage):
                 "id": str(743 + number),
                 "title": f"Game {number}" if number else "game-0",
                 "viewers": 1000 - number,
-                "poster": img(BOX % (743 + number)),
+                "poster": img(BOX % (743 + number), "twitch"),
             }
             for number in range(count)
         ]
@@ -573,7 +575,7 @@ class TwitchSearchTests(Stage):
                         "viewers": 5000,
                         "views": None,
                         "category": "Celeste",
-                        "poster": img("https://static-cdn.jtvnw.net/previews-ttv/a-440x248.jpg"),
+                        "poster": img("https://static-cdn.jtvnw.net/previews-ttv/a-440x248.jpg", "twitch"),
                     },
                     {
                         "provider": "twitch",
@@ -616,7 +618,7 @@ class TwitchSearchTests(Stage):
                         "viewers": 900,
                         "views": None,
                         "category": "Chess",
-                        "poster": img(BIG_PREVIEW),
+                        "poster": img(BIG_PREVIEW, "twitch"),
                     },
                     {
                         "provider": "twitch",
@@ -644,7 +646,9 @@ class TwitchSearchTests(Stage):
                         "viewers": None,
                         "views": None,
                         "category": None,
-                        "poster": img("https://static-cdn.jtvnw.net/jtv_user_pictures/q-300x300.png"),
+                        "poster": img(
+                            "https://static-cdn.jtvnw.net/jtv_user_pictures/q-300x300.png", "twitch"
+                        ),
                     },
                 ],
                 "next": None,
@@ -723,8 +727,8 @@ class YouTubeChannelTests(Stage):
                     "viewers": None,
                     "live": True,
                     "category": None,
-                    "avatar": img("https://yt3.googleusercontent.com/avatar=s900"),
-                    "banner": img("https://yt3.googleusercontent.com/banner=w2120"),
+                    "avatar": img("https://yt3.googleusercontent.com/avatar=s900", "youtube"),
+                    "banner": img("https://yt3.googleusercontent.com/banner=w2120", "youtube"),
                 },
                 "items": [
                     {
@@ -808,7 +812,7 @@ class YouTubeChannelTests(Stage):
                 "viewers": None,
                 "views": None,
                 "count": 0,
-                "poster": img("https://i.ytimg.com/vi/a0/hqdefault.jpg"),
+                "poster": img("https://i.ytimg.com/vi/a0/hqdefault.jpg", "youtube"),
             },
         )
         self.assertEqual(
@@ -900,8 +904,8 @@ class TwitchChannelTests(Stage):
             "viewers": 321 if live else None,
             "live": live,
             "category": "Chess" if live else None,
-            "avatar": img(PROFILE),
-            "banner": img(BANNER),
+            "avatar": img(PROFILE, "twitch"),
+            "banner": img(BANNER, "twitch"),
         }
 
     def live(self):
@@ -917,7 +921,7 @@ class TwitchChannelTests(Stage):
             "viewers": 321,
             "views": None,
             "category": "Chess",
-            "poster": img(PREVIEW),
+            "poster": img(PREVIEW, "twitch"),
         }
 
     def records(self):
@@ -935,7 +939,7 @@ class TwitchChannelTests(Stage):
                 "views": 50,
                 "category": "Chess",
                 "published": "2026-09-20",
-                "poster": img(VOD_THUMB),
+                "poster": img(VOD_THUMB, "twitch"),
             },
             {
                 "provider": "twitch",
@@ -1023,7 +1027,7 @@ class YouTubePlaylistTests(Stage):
                     "count": 3,
                     "views": 999,
                     "published": "20260101",
-                    "poster": img("https://i.ytimg.com/vi/a/hq2.jpg"),
+                    "poster": img("https://i.ytimg.com/vi/a/hq2.jpg", "youtube"),
                 },
                 "items": [
                     {
@@ -1129,7 +1133,7 @@ class TwitchCategoryTests(Stage):
             "id": str(100 + number),
             "title": f"Game {number}",
             "viewers": 5000 - number,
-            "poster": img(BOX % (100 + number)),
+            "poster": img(BOX % (100 + number), "twitch"),
         }
 
     async def test_sections_are_listed_by_popularity_in_portions(self):
@@ -1207,7 +1211,7 @@ class TwitchCategoryTests(Stage):
                     "id": "743",
                     "title": "Chess",
                     "viewers": 12000,
-                    "poster": img(BOX % 743),
+                    "poster": img(BOX % 743, "twitch"),
                 },
                 "items": [
                     {
@@ -1222,7 +1226,7 @@ class TwitchCategoryTests(Stage):
                         "viewers": 700,
                         "views": None,
                         "category": "Chess",
-                        "poster": img("https://static-cdn.jtvnw.net/previews-ttv/gm-440x248.jpg"),
+                        "poster": img("https://static-cdn.jtvnw.net/previews-ttv/gm-440x248.jpg", "twitch"),
                     }
                 ],
                 "next": None,
@@ -1281,7 +1285,7 @@ class DetailsTests(Stage):
                 "published": "20140519",
                 "category": "Film & Animation",
                 "description": "b" * 4000,
-                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg"),
+                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg", "youtube"),
             },
         )
         self.assertEqual(self.library.calls, [(self.WATCH, PROBE, False)])
@@ -1341,16 +1345,16 @@ class DetailsTests(Stage):
                 "viewers": 321,
                 "live": True,
                 "category": "Chess",
-                "avatar": img(PROFILE),
-                "banner": img(BANNER),
+                "avatar": img(PROFILE, "twitch"),
+                "banner": img(BANNER, "twitch"),
                 "kind": "channel",
                 "author": "SomeOne",
                 "channelId": "someone",
-                "channelAvatar": img(PROFILE),
+                "channelAvatar": img(PROFILE, "twitch"),
                 "duration": None,
                 "views": None,
                 "published": None,
-                "poster": img(PREVIEW),
+                "poster": img(PREVIEW, "twitch"),
             },
         )
         # Подробности канала не кладут его страницу в память — только сам ответ.
@@ -1360,7 +1364,7 @@ class DetailsTests(Stage):
         self.gql[USER % ("SomeOne", 100)] = twitch_user(live=False)
         found = await self.cinema.details("twitch", "SomeOne", "channel")
         self.assertEqual(found["title"], "SomeOne")
-        self.assertEqual(found["poster"], img(BANNER))
+        self.assertEqual(found["poster"], img(BANNER, "twitch"))
         self.assertFalse(found["live"])
 
     async def test_a_twitch_record_is_its_owner_and_its_numbers(self):
@@ -1392,7 +1396,7 @@ class DetailsTests(Stage):
                 "title": "Yesterday",
                 "author": "SomeOne",
                 "channelId": "someone",
-                "channelAvatar": img(PROFILE),
+                "channelAvatar": img(PROFILE, "twitch"),
                 "duration": 3600,
                 "live": False,
                 "views": 50,
@@ -1401,7 +1405,7 @@ class DetailsTests(Stage):
                 "published": "2026-09-20",
                 "category": "Chess",
                 "description": "v" * 4000,
-                "poster": img(VOD_THUMB),
+                "poster": img(VOD_THUMB, "twitch"),
             },
         )
 
@@ -1512,7 +1516,7 @@ class ResolveTests(Stage):
                 "duration": 635,
                 "live": False,
                 "kind": "hls",
-                "url": signed(self.MASTER, "playlist", 3600),
+                "url": signed(self.MASTER, "playlist", "youtube", 3600),
                 "expiresAt": 1800003600000,
                 "notice": None,
                 "language": "en",
@@ -1522,11 +1526,13 @@ class ResolveTests(Stage):
                         "label": "French (Original)",
                         "auto": True,
                         "url": signed(
-                            "https://www.youtube.com/api/timedtext?lang=fr&kind=asr&fmt=vtt", "fetch"
+                            "https://www.youtube.com/api/timedtext?lang=fr&kind=asr&fmt=vtt",
+                            "fetch",
+                            "youtube",
                         ),
                     }
                 ],
-                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg"),
+                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg", "youtube"),
             },
         )
         self.assertEqual(self.library.calls, [(self.WATCH, PROBE, False)])
@@ -1572,7 +1578,9 @@ class ResolveTests(Stage):
                 "duration": None,
                 "live": False,
                 "kind": "file",
-                "url": signed("https://rr1.googlevideo.com/videoplayback?itag=22", "fetch", FIVE_HOURS),
+                "url": signed(
+                    "https://rr1.googlevideo.com/videoplayback?itag=22", "fetch", "youtube", FIVE_HOURS
+                ),
                 "expiresAt": int((NOW + FIVE_HOURS) * 1000),
                 "notice": "Доступен только готовый файл: качество ограничено источником",
                 "language": "",
@@ -1581,13 +1589,15 @@ class ResolveTests(Stage):
                         "lang": "ru",
                         "label": "Russian",
                         "auto": False,
-                        "url": signed("https://www.youtube.com/api/timedtext?lang=ru", "fetch"),
+                        "url": signed("https://www.youtube.com/api/timedtext?lang=ru", "fetch", "youtube"),
                     },
                     {
                         "lang": "ko",
                         "label": "ko",
                         "auto": True,
-                        "url": signed("https://www.youtube.com/api/timedtext?lang=ko&kind=asr", "fetch"),
+                        "url": signed(
+                            "https://www.youtube.com/api/timedtext?lang=ko&kind=asr", "fetch", "youtube"
+                        ),
                     },
                 ],
                 "poster": None,
@@ -1613,7 +1623,7 @@ class ResolveTests(Stage):
                 "notice": None,
                 "language": "en",
                 "captions": [],
-                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg"),
+                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg", "youtube"),
             },
         )
         manifest = self.cinema.dash(key)
@@ -1655,12 +1665,12 @@ class ResolveTests(Stage):
                 "duration": None,
                 "live": True,
                 "kind": "hls",
-                "url": signed(master, "playlist", FIVE_HOURS),
+                "url": signed(master, "playlist", "youtube", FIVE_HOURS),
                 "expiresAt": int((NOW + FIVE_HOURS) * 1000),
                 "notice": None,
                 "language": "en",
                 "captions": [],
-                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg"),
+                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg", "youtube"),
             },
         )
         self.assertEqual(self.library.calls, [(self.WATCH, PROBE, False)])
@@ -1688,7 +1698,7 @@ class ResolveTests(Stage):
                 "duration": 3600,
                 "live": False,
                 "kind": "file",
-                "url": signed(self.separate_tracks()[2]["url"], "fetch", 7200),
+                "url": signed(self.separate_tracks()[2]["url"], "fetch", "twitch", 7200),
                 "expiresAt": 1800007200000,
                 "notice": "Доступен только готовый файл: качество ограничено источником",
                 "language": "",
@@ -1721,12 +1731,14 @@ class ResolveTests(Stage):
                 "duration": None,
                 "live": True,
                 "kind": "hls",
-                "url": signed(master, "playlist", FIVE_HOURS),
+                "url": signed(master, "playlist", "twitch", FIVE_HOURS),
                 "expiresAt": int((NOW + FIVE_HOURS) * 1000),
                 "notice": None,
                 "language": "",
                 "captions": [],
-                "poster": img("https://static-cdn.jtvnw.net/previews-ttv/live_user_someone-1920x1080.jpg"),
+                "poster": img(
+                    "https://static-cdn.jtvnw.net/previews-ttv/live_user_someone-1920x1080.jpg", "twitch"
+                ),
             },
         )
         self.assertEqual(self.library.calls, [(address, PROBE, False)])
@@ -1755,7 +1767,8 @@ class ResolveTests(Stage):
         found = await self.cinema.resolve(Resolve(provider="youtube", contentId="aqz-KE-bpKQ"))
         self.assertEqual(found["expiresAt"], 1800000030000)
         self.assertEqual(
-            found["url"], signed("https://manifest.googlevideo.com/m.m3u8?expire=1800000030", "playlist", 30)
+            found["url"],
+            signed("https://manifest.googlevideo.com/m.m3u8?expire=1800000030", "playlist", "youtube", 30),
         )
         # Срок ноль: ответ ляжет в память, но следующий же зритель спросит площадку заново.
         self.assertEqual(self.kept(self.cinema.sources), {"youtube:video:aqz-KE-bpKQ:False": 0})

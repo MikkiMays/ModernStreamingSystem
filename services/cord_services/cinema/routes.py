@@ -13,6 +13,8 @@ from .transport.signer import PREFIX
 # Площадка — строка, а не перечень в схеме: её проверяет реестр. Незнакомая или выключенная
 # получает 400 с человеческим текстом, а не 422 со схемой валидации.
 ProviderId = Annotated[str, Query(max_length=32)]
+# Площадка в подписанной ссылке: её проверяет подпись, а не схема запроса.
+Signed = Annotated[str, Query(max_length=32)]
 
 
 def routes(cinema: Cinema, core) -> APIRouter:
@@ -96,27 +98,31 @@ def routes(cinema: Cinema, core) -> APIRouter:
         return await cinema.resolve(request, room=room_id)
 
     # Эти открыты по подписи, а не по заголовку: их дёргает сам плеер, десятками запросов
-    # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь.
+    # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь. Подпись
+    # знает свой маршрут и свою площадку (`p`): ссылка без `p` — выданная до этого — получит
+    # 403, и плеер переоткроет источник сам.
     @router.get(PREFIX + "/playlist")
-    async def playlist(u: str, e: str, s: str, accept_encoding: str | None = Header(default=None)):
-        return await cinema.manifest(cinema.signer.open(u, e, s), accept_encoding)
+    async def playlist(
+        u: str, e: str, s: str, p: Signed = "", accept_encoding: str | None = Header(default=None)
+    ):
+        return await cinema.manifest(cinema.signer.open("playlist", u, e, s, p), accept_encoding, p)
 
     @router.get(PREFIX + "/fetch")
-    async def fetch(u: str, e: str, s: str, range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.signer.open(u, e, s), range)
+    async def fetch(u: str, e: str, s: str, p: Signed = "", range: str | None = Header(default=None)):
+        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p), range)
 
     @router.get(PREFIX + "/dash/{key}")
     async def dash(key: str):
         return cinema.dash(key)
 
     # Сегмент фильма — по номеру в уже разобранном плейлисте. Имя плейлиста подписано тем же
-    # ключом, а сам список составлен нами и содержит только разрешённые адреса.
+    # ключом, а сам список составлен нами и содержит только адреса, разрешённые его площадке.
     @router.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.reels.find(key, index), range)
+        return await cinema.fetch(cinema.reels.find(key, index).url, range)
 
     @router.get(PREFIX + "/image")
-    async def image(u: str, e: str, s: str):
-        return await cinema.fetch(cinema.signer.open(u, e, s), None)
+    async def image(u: str, e: str, s: str, p: Signed = ""):
+        return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None)
 
     return router

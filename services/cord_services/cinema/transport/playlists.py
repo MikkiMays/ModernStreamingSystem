@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import os
 import time
+from typing import NamedTuple
 from urllib.parse import urljoin
 
 from fastapi import HTTPException
 
-from .signer import SIGNATURE_TTL, Signer, allowed, proxied
+from .signer import SIGNATURE_TTL, Signer, proxied
 
 
 def master_playlist(body: str) -> bool:
@@ -20,6 +21,13 @@ def master_playlist(body: str) -> bool:
 def finished_playlist(body: str) -> bool:
     """Целое произведение или край живого эфира: у первого список сегментов больше не меняется."""
     return "#EXT-X-ENDLIST" in body or "#EXT-X-PLAYLIST-TYPE:VOD" in body
+
+
+class Reel(NamedTuple):
+    """Кусочек фильма по номеру: его адрес и площадка, от имени которой он открывается."""
+
+    url: str
+    provider: str
 
 
 class Reels:
@@ -41,52 +49,56 @@ class Reels:
 
     Живой эфир сюда не попадает: у него номера сегментов уезжают вперёд каждые несколько
     секунд, а плейлист и без того короткий.
+
+    Список помнит свою площадку: за кусочком прокси идёт её выходом наружу, а в имя списка
+    она входит, чтобы один и тот же адрес у двух площадок (у «ссылки» он может совпасть с
+    YouTube) не давал один список, отобранный разными политиками хостов.
     """
 
     def __init__(self, signer: Signer, ttl: float = SIGNATURE_TTL, capacity: int = 24):
         self.signer = signer
         self.ttl = ttl
         self.capacity = capacity
-        self._items: dict[str, tuple[float, str, list[str]]] = {}
+        self._items: dict[str, tuple[float, str, list[str], str]] = {}
 
-    def remember(self, playlist_url: str, targets: list[str]) -> str:
-        key = self.signer.name(playlist_url)
+    def remember(self, playlist_url: str, targets: list[str], provider: str) -> str:
+        key = self.signer.name(f"{provider}|{playlist_url}")
         shared = os.path.commonprefix(targets) if targets else ""
         self._items.pop(key, None)
-        self._items[key] = (time.time(), shared, [target[len(shared) :] for target in targets])
+        self._items[key] = (time.time(), shared, [target[len(shared) :] for target in targets], provider)
         while len(self._items) > self.capacity:
             self._items.pop(next(iter(self._items)))
         return key
 
-    def find(self, key: str, index: int) -> str:
+    def find(self, key: str, index: int) -> Reel:
         found = self._items.get(key)
         if not found or time.time() - found[0] > self.ttl:
             raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
-        _, shared, tails = found
+        _, shared, tails, provider = found
         if index < 0 or index >= len(tails):
             raise HTTPException(404, "Такого кусочка в этом видео нет")
         # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
         # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
         # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
         self._items.pop(key)
-        self._items[key] = (time.time(), shared, tails)
-        return shared + tails[index]
+        self._items[key] = (time.time(), shared, tails, provider)
+        return Reel(shared + tails[index], provider)
 
 
-def _attribute(line: str, base: str, signer: Signer) -> str:
+def _attribute(line: str, base: str, signer: Signer, provider: str) -> str:
     """Ссылка внутри тега: дорожка звука в мастере, карта инициализации и ключи в сегментах."""
     if 'URI="' not in line:
         return line
     head, _, rest = line.partition('URI="')
     inner, _, tail = rest.partition('"')
     target = urljoin(base, inner)
-    if not allowed(target):
+    if not signer.allows(target, provider):
         return line
     kind = "playlist" if line.startswith("#EXT-X-MEDIA") else "fetch"
-    return f'{head}URI="{proxied(signer, target, kind)}"{tail}'
+    return f'{head}URI="{proxied(signer, target, kind, provider=provider)}"{tail}'
 
 
-def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None) -> str:
+def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None, *, provider: str) -> str:
     """
     Переписывает плейлист на свои адреса.
 
@@ -97,23 +109,29 @@ def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None) ->
 
     Досмотренному до конца списку сегментов достаётся нумерация вместо подписи, если есть куда
     её записать ({@link Reels}); живому эфиру и мастеру — подпись, как и раньше.
+
+    Какие ссылки проксировать, решает политика хостов площадки, чей это плейлист: чужой хост
+    остаётся в строке как был, и через наш прокси за ним никто не пойдёт.
     """
     if reels is not None and not master_playlist(body) and finished_playlist(body):
-        return _numbered(body, base, signer, reels)
+        return _numbered(body, base, signer, reels, provider)
     route = "playlist" if master_playlist(body) else "fetch"
     lines = []
     for line in body.splitlines():
         if not line:
             lines.append(line)
         elif line.startswith("#"):
-            lines.append(_attribute(line, base, signer))
+            lines.append(_attribute(line, base, signer, provider))
         else:
             target = urljoin(base, line.strip())
-            lines.append(proxied(signer, target, route) if allowed(target) else line)
+            if signer.allows(target, provider):
+                lines.append(proxied(signer, target, route, provider=provider))
+            else:
+                lines.append(line)
     return "\n".join(lines) + "\n"
 
 
-def _numbered(body: str, base: str, signer: Signer, reels: Reels) -> str:
+def _numbered(body: str, base: str, signer: Signer, reels: Reels, provider: str) -> str:
     """
     То же самое, но сегменты нумеруются.
 
@@ -128,15 +146,15 @@ def _numbered(body: str, base: str, signer: Signer, reels: Reels) -> str:
         if not line:
             shape.append(line)
         elif line.startswith("#"):
-            shape.append(_attribute(line, base, signer))
+            shape.append(_attribute(line, base, signer, provider))
         else:
             target = urljoin(base, line.strip())
-            if allowed(target):
+            if signer.allows(target, provider):
                 shape.append(None)
                 targets.append(target)
             else:
                 shape.append(line)
-    key = reels.remember(base, targets)
+    key = reels.remember(base, targets, provider)
     lines = []
     number = 0
     for line in shape:

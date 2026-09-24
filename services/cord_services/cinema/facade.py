@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import gzip
 import logging
 import re
@@ -27,11 +28,11 @@ from .limits import Window
 from .memo import Memo
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
-from .registry import Ctx, Kit, Provider, Registry
+from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import Resolver, YtDlp
 from .transport.playlists import Reels, rewrite
 from .transport.segments import Segments
-from .transport.signer import Signer, allowed, proxied
+from .transport.signer import Signer, proxied
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,9 @@ class Cinema:
         enabled: str | None = None,
     ):
         """`enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все."""
-        self.signer = Signer(secret)
+        # Подпись открывает адрес только по политике хостов своей площадки — и только
+        # включённой: выключенная площадка не отдаёт через прокси ничего, даже по старой ссылке.
+        self.signer = Signer(secret, self._hosts)
         self.segments = Segments()
         self.reels = Reels(self.signer)
         self.catalog = Memo()
@@ -113,8 +116,17 @@ class Cinema:
 
     def _kit(self, kind: type[Provider]) -> Kit:
         # Память площадки — общая память под её именем: ключ одной площадки не может ни
-        # прочитать, ни затереть ответ другой, даже при одинаковом номере ролика.
-        return Kit(memo=self.catalog.scope(kind.id), image=self.image, ytdlp=self.ytdlp)
+        # прочитать, ни затереть ответ другой, даже при одинаковом номере ролика. Обложки она
+        # подписывает своим именем: чужой хост её подпись не откроет.
+        return Kit(
+            memo=self.catalog.scope(kind.id),
+            image=functools.partial(self.image, provider=kind.id),
+            ytdlp=self.ytdlp,
+        )
+
+    def _hosts(self, provider: str) -> HostPolicy | None:
+        found = self.registry.find(provider)
+        return found.hosts if found else None
 
     def _ctx(self, room: str) -> Ctx:
         return Ctx(room=room, net=self.client)
@@ -263,11 +275,14 @@ class Cinema:
             600,
         )
 
-    def image(self, url: str) -> str | None:
+    def image(self, url: str, provider: str) -> str | None:
         """Обложка у нас, а не у площадки. Адрес без схемы получает её здесь — иначе он
-        не прошёл бы белый список и картинка тихо пропала бы с карточки."""
+        не прошёл бы политику хостов и картинка тихо пропала бы с карточки. Картинка с хоста
+        чужой площадки не подписывается вовсе: её подпись всё равно ничего бы не открыла."""
         full = absolute(url)
-        return proxied(self.signer, full, "image", IMAGE_TTL) if full and allowed(full) else None
+        if not full or not self.signer.allows(full, provider):
+            return None
+        return proxied(self.signer, full, "image", IMAGE_TTL, provider=provider)
 
     # --- разрешение ссылки в поток ---------------------------------------------------
 
@@ -309,7 +324,7 @@ class Cinema:
 
     # --- прокси ------------------------------------------------------------------------
 
-    async def manifest(self, url: str, encodings: str | None = None) -> Response:
+    async def manifest(self, url: str, encodings: str | None, provider: str) -> Response:
         try:
             response = await self.client.get(url, follow_redirects=False)
         except httpx.HTTPError:
@@ -317,7 +332,7 @@ class Cinema:
             raise HTTPException(502, "Площадка не отдала плейлист") from None
         if response.status_code >= 300:
             raise HTTPException(502, "Площадка не отдала плейлист")
-        body = rewrite(response.text, str(response.url), self.signer, self.reels)
+        body = rewrite(response.text, str(response.url), self.signer, self.reels, provider=provider)
         headers = {"Cache-Control": "no-store"}
         payload = body.encode()
         # Плейлист фильма — это тысячи почти одинаковых строк. Сжатие снимает с них ещё

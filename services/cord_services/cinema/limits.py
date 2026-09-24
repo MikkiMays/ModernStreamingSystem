@@ -20,9 +20,7 @@ class Window:
     из окна уходит её старейшее событие, — это время и уходит в `Retry-After`.
     """
 
-    def __init__(
-        self, limit: int, period: float, detail: str, clock: Callable[[], float] = time.monotonic
-    ):
+    def __init__(self, limit: int, period: float, detail: str, clock: Callable[[], float] = time.monotonic):
         self.limit = limit
         self.period = period
         self.detail = detail
