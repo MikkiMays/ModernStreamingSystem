@@ -23,6 +23,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import wire
+from .limits import Window
 from .memo import Memo
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
@@ -36,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 # Обложки живут дольше: они не меняются и ничего не стоят.
 IMAGE_TTL = 24 * 3600
+
+# Сколько разборов ссылок (yt-dlp, секунды работы и запросы к площадке) комната может начать
+# за минуту. Ответ из общей памяти в счёт не идёт — он ничего не стоит.
+RESOLVES_PER_MINUTE = 30
 
 Kind = Literal["video", "channel"]
 
@@ -91,6 +96,9 @@ class Cinema:
         self.reels = Reels(self.signer)
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
+        self.resolves = Window(
+            RESOLVES_PER_MINUTE, 60.0, "Комната слишком часто открывает видео, подождите минуту"
+        )
         self.client = client or httpx.AsyncClient(
             timeout=httpx.Timeout(20.0, read=60.0),
             follow_redirects=True,
@@ -275,7 +283,12 @@ class Cinema:
             raise HTTPException(400, "Непонятный адрес видео")
         key = f"{source.id}:{request.kind}:{request.contentId}:{request.adaptive}"
         if request.refresh:
-            self.sources._items.pop(key, None)
+            self.sources.forget(key)
+        # Предел — на работу, а не на вопросы: готовый ответ и разбор, который уже идёт для
+        # соседа по комнате, наружу ничего не стоят. Иначе комната из десяти человек упиралась бы
+        # в предел за три ролика, а злоумышленник с `refresh` — нет.
+        if not self.sources.known(key):
+            self.resolves.take(room)
         ctx = self._ctx(room)
         return await self.sources.get(
             key,

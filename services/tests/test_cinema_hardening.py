@@ -16,9 +16,11 @@ import unittest
 from unittest.mock import patch
 
 import httpx
+from fastapi import HTTPException
 from test_cinema_providers import Stage
 
 from cord_services.cinema import Cinema, Memo, Resolve
+from cord_services.cinema.limits import Window
 from cord_services.cinema.providers.youtube import YT_FLAT, YouTube
 from cord_services.cinema.registry import Kit, Provider, Registry
 from cord_services.cinema.resolve import YtDlp
@@ -318,6 +320,89 @@ class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(log.records), 1)
         self.assertIn("broken", log.output[0])
         self.assertNotIn("ключ в логе", log.output[0])
+
+
+class ResolveLimitTests(Stage):
+    """
+    Комната не может заставить сервер разбирать ссылки без конца: 30 разборов в минуту.
+
+    Считается только работа наружу — новый разбор или `refresh`. Зритель, который получил
+    ответ из общей памяти или присоединился к уже идущему разбору, площадке ничего не стоит и
+    лимит не тратит: иначе комната из десяти человек упиралась бы в него за три ролика.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.now = 1000.0
+        self.cinema.resolves.clock = lambda: self.now
+        for number in range(40):
+            self.library.answers[f"https://www.youtube.com/watch?v=video{number:06d}"] = {
+                "formats": [{"protocol": "m3u8", "manifest_url": "https://manifest.googlevideo.com/m.m3u8"}]
+            }
+
+    def ask(self, number, room="room-a", refresh=False):
+        request = Resolve(provider="youtube", contentId=f"video{number:06d}", refresh=refresh)
+        return self.cinema.resolve(request, room=room)
+
+    async def test_the_thirty_first_new_video_in_a_minute_is_refused(self):
+        for number in range(30):
+            await self.ask(number)
+        with self.assertRaises(HTTPException) as refusal:
+            await self.ask(30)
+        self.assertEqual(
+            (refusal.exception.status_code, refusal.exception.detail),
+            (429, "Комната слишком часто открывает видео, подождите минуту"),
+        )
+        self.assertEqual(refusal.exception.headers, {"Retry-After": "60"})
+        self.assertEqual(len(self.library.calls), 30)
+        # Другая комната живёт своим счётом.
+        await self.ask(30, room="room-b")
+
+    async def test_the_window_slides_rather_than_resets(self):
+        for number in range(30):
+            self.now = 1000.0 + number
+            await self.ask(number)
+        self.now = 1059.5
+        with self.assertRaises(HTTPException) as refusal:
+            await self.ask(30)
+        self.assertEqual(refusal.exception.headers, {"Retry-After": "1"})
+        # Через минуту после первого разбора освобождается ровно одно место.
+        self.now = 1060.0
+        await self.ask(30)
+        with self.assertRaises(HTTPException):
+            await self.ask(31)
+
+    async def test_answers_from_shared_memory_cost_nothing(self):
+        for _ in range(45):
+            await self.ask(0)
+        self.assertEqual(len(self.library.calls), 1)
+        for number in range(1, 30):
+            await self.ask(number)
+
+    async def test_viewers_joining_a_running_resolve_cost_nothing(self):
+        await asyncio.gather(*(self.ask(0) for _ in range(10)))
+        self.assertEqual(len(self.library.calls), 1)
+        for number in range(1, 30):
+            await self.ask(number)
+
+    async def test_a_refresh_is_real_work_and_counts(self):
+        for _ in range(30):
+            await self.ask(0, refresh=True)
+        with self.assertRaises(HTTPException) as refusal:
+            await self.ask(0, refresh=True)
+        self.assertEqual(refusal.exception.status_code, 429)
+
+
+class WindowTests(unittest.TestCase):
+    def test_rooms_that_went_quiet_leave_the_memory(self):
+        # Комнат за день — тысячи; счёт каждой не должен жить вечно после того, как она затихла.
+        now = 0.0
+        window = Window(30, 60.0, "подождите", clock=lambda: now)
+        for room in range(1100):
+            window.take(f"room-{room}")
+        now = 61.0
+        window.take("fresh")
+        self.assertEqual(list(window._events), ["fresh"])
 
 
 if __name__ == "__main__":

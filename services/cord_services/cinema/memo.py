@@ -48,6 +48,14 @@ class Memo:
         # Отмена ожидающего не должна отменять общий ответ: его ждут и другие.
         return await asyncio.shield(flight)
 
+    def known(self, key: str) -> bool:
+        """Есть ли свежий ответ или его уже считают: тогда вопрос ничего наружу не стоит."""
+        return self._fresh(key) is not None or key in self._flights
+
+    def forget(self, key: str) -> None:
+        """Забыть готовый ответ: тот, кто просит обновить, получит новый."""
+        self._items.pop(key, None)
+
     def scope(self, namespace: str) -> Scope:
         """Память одной площадки: все её ключи начинаются с её имени."""
         return Scope(self, namespace)
