@@ -279,7 +279,7 @@ class RangeTests(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         }
-        with patch.object(cinema, "_probe", return_value=info):
+        with patch.object(cinema.ytdlp, "probe", return_value=info):
             old = await cinema.resolve(Resolve(provider="youtube", contentId="abc"))
             new = await cinema.resolve(Resolve(provider="youtube", contentId="abc", adaptive=True))
         self.assertEqual(old["kind"], "file")

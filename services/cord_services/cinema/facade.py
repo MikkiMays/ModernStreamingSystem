@@ -1,38 +1,37 @@
-"""Класс Cinema целиком: поиск и каталог YouTube и Twitch, разбор ссылки в поток
-и сам прокси поверх подписанных адресов."""
+"""
+Фасад кинозала: проверка ввода → площадка из реестра → её метод → память → ответ.
+
+О площадках он знает только то, что они сами о себе объявили (`features`): ни одной развилки
+«YouTube это или Twitch» здесь нет. Ключи памяти и сроки — прежние, до буквы: клиент к ним не
+привязан, но от них зависит, сколько раз мы ходим наружу. Здесь же прокси поверх подписанных
+адресов — он общий для всех площадок.
+"""
 
 from __future__ import annotations
 
-import asyncio
 import gzip
 import re
 import time
 from typing import Any, Literal
-from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..dash import candidates, manifest as dash_manifest, number, read_ranges
-from .captions import CAPTIONS_LIMIT, _base_language, _vtt
 from .memo import Memo
-from .paging import PAGE, SEARCH_DEPTH, absolute, offset_of, page
+from .paging import absolute, offset_of
+from .providers import PROVIDERS
+from .registry import Ctx, Kit, Provider, Registry
+from .resolve import Resolver, YtDlp
 from .transport.playlists import Reels, rewrite
 from .transport.segments import Segments
-from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, allowed, proxied
+from .transport.signer import Signer, allowed, proxied
 
 
 # Обложки живут дольше: они не меняются и ничего не стоят.
 IMAGE_TTL = 24 * 3600
 
-TWITCH_GQL = "https://gql.twitch.tv/gql"
-# Открытый идентификатор веб-клиента Twitch. Не секрет и не наш: его отдаёт их же страница,
-# и на нём работают streamlink и twitch-dl.
-TWITCH_CLIENT = "kimne78kx3ncx6brgo4mv6wki5h1ko"
-
-Provider = Literal["youtube", "twitch"]
 Kind = Literal["video", "channel"]
 
 # Имя канала приходит от браузера и уходит в чужой адрес, поэтому проверяется здесь, а не
@@ -41,44 +40,14 @@ CHANNEL_ID = re.compile(r"^[A-Za-z0-9_.@-]{1,80}$")
 
 
 class Resolve(BaseModel):
-    provider: Provider
+    # Площадку проверяет реестр, а не перечень в схеме: незнакомая или выключенная — это отказ
+    # 400 с человеческим текстом, как и любой другой вопрос, на который у площадки ответа нет.
+    provider: str = Field(max_length=32)
     contentId: str = Field(min_length=1, max_length=64, pattern=r"[A-Za-z0-9_-]+")
     kind: Kind = "video"
     adaptive: bool = False
     refresh: bool = False
 
-
-TWITCH_CHANNEL = """{ user(login: "%s") { id login displayName description
-  profileImageURL(width: 300) bannerImageURL
-  followers { totalCount }
-  stream { id title viewersCount previewImageURL(width: 440, height: 248) game { name } }
-  videos(first: %d, sort: TIME) { edges { node { id title lengthSeconds viewCount
-    publishedAt previewThumbnailURL(width: 440, height: 248) game { name } } } } } }"""
-
-TWITCH_VIDEO = """{ video(id: "%s") { id title lengthSeconds viewCount publishedAt
-  description previewThumbnailURL(width: 440, height: 248) game { name }
-  owner { login displayName profileImageURL(width: 300) followers { totalCount } } } }"""
-
-# Категория Twitch — это игра или раздел вроде «Just Chatting». Берётся по числовому
-# идентификатору, а не по названию: имя приходит из браузера, а идентификатор проверяется
-# одной цифровой проверкой и не может стать ничем иным.
-TWITCH_CATEGORY = """{ game(id: "%s") { id name displayName viewersCount
-  boxArtURL(width: 285, height: 380)
-  streams(first: %d) { edges { node { id title viewersCount
-    previewImageURL(width: 440, height: 248) broadcaster { login displayName }
-    game { name } } } } } }"""
-
-YT_FLAT = {
-    "quiet": True,
-    "no_warnings": True,
-    "skip_download": True,
-    "extract_flat": True,
-    "cachedir": False,
-    "socket_timeout": 20,
-}
-
-# Сколько живых эфиров и записей просить у Twitch за один раз.
-TWITCH_DEPTH = 100
 
 # Что показывает страница канала. `about` — единственная без ленты: она про сам канал.
 Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
@@ -91,83 +60,63 @@ CATEGORY_ID = re.compile(r"^[0-9]{1,20}$")
 
 
 class Cinema:
-    def __init__(self, secret: str, client: httpx.AsyncClient | None = None):
+    def __init__(
+        self,
+        secret: str,
+        client: httpx.AsyncClient | None = None,
+        *,
+        enabled: str | None = None,
+    ):
+        """`enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все."""
         self.signer = Signer(secret)
         self.segments = Segments()
         self.reels = Reels(self.signer)
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
-        self.dash_manifests: dict[str, tuple[float, str]] = {}
-        self.index_reads = asyncio.Semaphore(4)
         self.client = client or httpx.AsyncClient(
             timeout=httpx.Timeout(20.0, read=60.0),
             follow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Cord/1.0"},
         )
+        self.ytdlp = YtDlp()
+        self.resolver = Resolver(self.signer, self.ytdlp, self.image)
+        kit = Kit(memo=self.catalog, image=self.image, ytdlp=self.ytdlp)
+        self.registry = Registry((kind(kit) for kind in PROVIDERS), enabled)
 
     async def close(self):
         await self.client.aclose()
 
+    def _ctx(self, room: str) -> Ctx:
+        return Ctx(room=room, net=self.client)
+
+    def _able(self, provider: str, feature: str) -> Provider:
+        """
+        Площадка, у которой это есть.
+
+        Отказ звучит раньше, чем разбирается остальной ввод, — как и тогда, когда проверка
+        площадки стояла первой строкой метода: у Twitch «плейлистов нет» и с кривым адресом.
+        """
+        source = self.registry.get(provider)
+        if not getattr(source.features, feature):
+            raise source.refuse(feature)
+        return source
+
     # --- поиск и каталог -------------------------------------------------------------
 
-    async def search(self, provider: Provider, query: str, cursor: str = "") -> dict[str, Any]:
+    async def search(self, provider: str, query: str, cursor: str = "", *, room: str = "") -> dict[str, Any]:
         """
         Что показать по набранному — и что показать, пока не набрано ничего.
 
-        Ответ один на обе площадки: лента карточек, а над ней полки — каналы у YouTube,
+        Ответ один на все площадки: лента карточек, а над ней полки — каналы у YouTube,
         категории у Twitch. Полка приезжает только с первой порцией: листая ленту вниз,
         каналы второй раз не ищут.
         """
+        source = self._able(provider, "search")
         offset = offset_of(cursor)
-        query = query.strip()
-        if provider == "twitch":
-            return await self._twitch_catalog(query, offset)
-        return await self._youtube_catalog(query, offset)
-
-    async def _youtube_catalog(self, query: str, offset: int) -> dict[str, Any]:
-        """
-        Поиск YouTube: ролики лентой, каналы полкой.
-
-        ПОЧЕМУ ДВА ЗАПРОСА. `ytsearch` отдаёт **только ролики** — набрав имя канала, человек
-        получал что угодно про него, кроме его самого, и дверь на канал находилась лишь через
-        чужой ролик. Вкладка «Каналы» у самого YouTube — это отдельный поиск (`sp=EgIQAg`), и
-        здесь он такой же отдельный: идут оба разом, а ждём мы того, кто медленнее.
-        """
-        if len(query) < 2:
-            return {"items": [], "channels": [], "categories": [], "next": None}
-        low = query.lower()
-        wanted = [
-            self.catalog.get(
-                f"search:youtube:{low}",
-                lambda: asyncio.to_thread(self._youtube_videos, query, SEARCH_DEPTH),
-                120,
-            )
-        ]
-        if offset == 0:
-            wanted.append(
-                self.catalog.get(
-                    f"search:youtube:channels:{low}",
-                    lambda: asyncio.to_thread(self._youtube_channels, query, 4),
-                    300,
-                )
-            )
-        found = await asyncio.gather(*wanted)
-        return {**page(found[0], offset), "channels": found[1] if offset == 0 else [], "categories": []}
-
-    async def _twitch_catalog(self, query: str, offset: int) -> dict[str, Any]:
-        """Пусто — это витрина живых эфиров; набрано — каналы лентой и категории полкой."""
-        if not query:
-            streams = await self.catalog.get("twitch:live", self._twitch_popular, 60)
-            return {**page(streams, offset), "channels": [], "categories": []}
-        low = query.lower()
-        channels, categories = await asyncio.gather(
-            self.catalog.get(f"twitch:search:{low}", lambda: self._twitch_search(query), 120),
-            self.catalog.get(f"twitch:games:{low}", lambda: self._twitch_games(query), 300),
-        )
-        return {**page(channels, offset), "channels": [], "categories": categories[:8] if offset == 0 else []}
+        return await source.search(self._ctx(room), query.strip(), offset)
 
     async def channel(
-        self, provider: Provider, channel_id: str, tab: Tab = "videos", cursor: str = ""
+        self, provider: str, channel_id: str, tab: Tab = "videos", cursor: str = "", *, room: str = ""
     ) -> dict[str, Any]:
         """
         Страница канала, вкладка за вкладкой.
@@ -176,579 +125,68 @@ class Cinema:
         роликов, десяток плейлистов и идущий прямо сейчас эфир, одной лентой не показывается
         никак. Каждая вкладка листается своей лентой; `about` ленты не имеет вовсе.
         """
+        source = self._able(provider, "channels")
         if not CATALOG_ID.match(channel_id):
             raise HTTPException(400, "Непонятное имя канала")
         offset = offset_of(cursor)
+        ctx = self._ctx(room)
         return await self.catalog.get(
-            f"channel:{provider}:{channel_id.lower()}:{tab}:{offset}",
-            lambda: (
-                asyncio.to_thread(self._youtube_channel, channel_id, tab, offset)
-                if provider == "youtube"
-                else self._twitch_channel_page(channel_id, tab, offset)
-            ),
+            f"channel:{source.id}:{channel_id.lower()}:{tab}:{offset}",
+            lambda: source.channel(ctx, channel_id, tab, offset),
             # Память короткая нарочно: сверху у канала лежит самое свежее, и «самое свежее»
             # не должно означать «самое свежее полчаса назад».
             60,
         )
 
-    async def playlist(self, provider: Provider, playlist_id: str, cursor: str = "") -> dict[str, Any]:
+    async def playlist(
+        self, provider: str, playlist_id: str, cursor: str = "", *, room: str = ""
+    ) -> dict[str, Any]:
         """Плейлист целиком: его описание и ролики в том порядке, в котором их собрали."""
-        if provider != "youtube":
-            raise HTTPException(400, "Плейлисты есть только у YouTube")
+        source = self._able(provider, "playlists")
         if not CATALOG_ID.match(playlist_id):
             raise HTTPException(400, "Непонятный адрес плейлиста")
         offset = offset_of(cursor)
+        ctx = self._ctx(room)
         return await self.catalog.get(
+            # Площадки в ключе нет, как не было и раньше: плейлисты пока есть только у одной.
+            # Вторая площадка с плейлистами должна добавить её сюда.
             f"playlist:{playlist_id.lower()}:{offset}",
-            lambda: asyncio.to_thread(self._youtube_playlist, playlist_id, offset),
+            lambda: source.playlist(ctx, playlist_id, offset),
             60,
         )
 
-    async def categories(self, provider: Provider, query: str = "", cursor: str = "") -> dict[str, Any]:
-        """Разделы Twitch: что смотрят прямо сейчас, по играм и рубрикам."""
-        if provider != "twitch":
+    async def categories(
+        self, provider: str, query: str = "", cursor: str = "", *, room: str = ""
+    ) -> dict[str, Any]:
+        """Разделы площадки: что смотрят прямо сейчас, по играм и рубрикам."""
+        source = self.registry.get(provider)
+        if not source.features.categories:
+            # Площадка без разделов отвечает пустым списком, а не отказом, — и раньше, чем
+            # разбирается курсор: так кинозал отвечал всегда.
             return {"items": [], "next": None}
         offset = offset_of(cursor)
-        query = query.strip()
-        items = await self.catalog.get(
-            f"twitch:games:{query.lower()}" if query else "twitch:games",
-            lambda: self._twitch_games(query),
-            300 if query else 120,
-        )
-        return page(items, offset)
+        return await source.categories(self._ctx(room), query.strip(), offset)
 
-    async def category(self, provider: Provider, category_id: str, cursor: str = "") -> dict[str, Any]:
-        """Один раздел Twitch: его карточка и эфиры, которые идут в нём сейчас."""
-        if provider != "twitch":
-            raise HTTPException(400, "Разделы есть только у Twitch")
+    async def category(
+        self, provider: str, category_id: str, cursor: str = "", *, room: str = ""
+    ) -> dict[str, Any]:
+        """Один раздел: его карточка и эфиры, которые идут в нём сейчас."""
+        source = self._able(provider, "categories")
         if not CATEGORY_ID.match(category_id):
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
-        found = await self.catalog.get(
-            f"twitch:category:{category_id}", lambda: self._twitch_category(category_id), 60
-        )
-        return {"category": found["category"], **page(found["items"], offset)}
+        return await source.category(self._ctx(room), category_id, offset)
 
-    async def details(self, provider: Provider, content_id: str, kind: Kind) -> dict[str, Any]:
+    async def details(self, provider: str, content_id: str, kind: Kind, *, room: str = "") -> dict[str, Any]:
+        source = self.registry.get(provider)
         if not CHANNEL_ID.match(content_id):
             raise HTTPException(400, "Непонятный адрес видео")
+        ctx = self._ctx(room)
         return await self.catalog.get(
-            f"details:{provider}:{kind}:{content_id.lower()}",
-            lambda: (
-                asyncio.to_thread(self._youtube_details, content_id)
-                if provider == "youtube"
-                else self._twitch_details(content_id, kind)
-            ),
+            f"details:{source.id}:{kind}:{content_id.lower()}",
+            lambda: source.details(ctx, kind, content_id),
             600,
         )
-
-    @staticmethod
-    def _extract(address: str, options: dict[str, Any]) -> dict[str, Any]:
-        import yt_dlp
-
-        with yt_dlp.YoutubeDL(options) as ydl:
-            return ydl.extract_info(address, download=False) or {}
-
-    def _youtube_videos(self, query: str, limit: int):
-        found = self._extract(f"ytsearch{limit}:{query}", YT_FLAT)
-        return [
-            self._youtube_item(entry)
-            for entry in found.get("entries", []) or []
-            if entry and entry.get("id")
-        ]
-
-    def _youtube_channels(self, query: str, limit: int):
-        """
-        Каналы по названию — отдельной вкладкой поиска YouTube (`sp=EgIQAg`).
-
-        В карточке есть всё, ради чего на канал и смотрят до перехода: лицо, имя, псевдоним и
-        сколько людей подписано. Ошибка здесь не ломает поиск: полка каналов пропадает, лента
-        роликов остаётся.
-        """
-        address = "https://www.youtube.com/results?" + urlencode(
-            {"search_query": query, "sp": "EgIQAg=="}
-        )
-        try:
-            found = self._extract(address, {**YT_FLAT, "playlistend": limit})
-        except Exception:
-            return []
-        cards = []
-        for entry in found.get("entries", []) or []:
-            identity = (entry or {}).get("channel_id") or (entry or {}).get("id")
-            if not entry or not identity or not str(identity).startswith("UC"):
-                continue
-            cards.append(
-                {
-                    "provider": "youtube",
-                    "kind": "channel",
-                    "id": identity,
-                    "title": entry.get("channel") or entry.get("title") or identity,
-                    "author": entry.get("uploader_id") or "",
-                    "channelId": identity,
-                    "duration": None,
-                    "live": False,
-                    "viewers": None,
-                    "views": None,
-                    "followers": entry.get("channel_follower_count"),
-                    "description": (entry.get("description") or "")[:300],
-                    "poster": self.image(self._widest(entry.get("thumbnails") or [], portrait=True)),
-                }
-            )
-        return cards
-
-    def _youtube_item(
-        self, entry: dict[str, Any], channel: dict[str, str] | None = None
-    ) -> dict[str, Any]:
-        # На странице канала у роликов нет ни его имени, ни его идентификатора: они лежат
-        # уровнем выше, у самой страницы. Без этого дверь «Открыть канал» со страницы ролика
-        # пропадала ровно там, где по ней и ходят — при переходе с канала на канал.
-        return {
-            "provider": "youtube",
-            "kind": "video",
-            "id": entry["id"],
-            "title": entry.get("title") or "Без названия",
-            "author": entry.get("channel") or entry.get("uploader") or (channel or {}).get("title") or "",
-            "channelId": entry.get("channel_id") or (channel or {}).get("id") or None,
-            "duration": entry.get("duration"),
-            # У ленты канала признак эфира приходит словом, а у поиска — флагом: идущий
-            # прямо сейчас эфир иначе выглядел бы как обычный ролик без длительности.
-            "live": bool(entry.get("is_live")) or entry.get("live_status") == "is_live",
-            "viewers": entry.get("concurrent_view_count"),
-            "views": entry.get("view_count"),
-            "poster": self.image(f"https://i.ytimg.com/vi/{entry['id']}/mqdefault.jpg"),
-        }
-
-    def _youtube_playlist_card(
-        self, entry: dict[str, Any], channel: dict[str, str] | None = None
-    ) -> dict[str, Any]:
-        """Плейлист в ленте канала. Смотреть его нельзя — в него заходят."""
-        pictures = entry.get("thumbnails") or []
-        return {
-            "provider": "youtube",
-            "kind": "playlist",
-            "id": entry["id"],
-            "title": entry.get("title") or "Плейлист",
-            # У плейлистов в ленте канала на месте имени автора стоит «View full playlist» —
-            # подпись кнопки, а не чьё-то имя. Имя здесь всегда известно уровнем выше.
-            "author": (channel or {}).get("title") or "",
-            "channelId": (channel or {}).get("id") or None,
-            "duration": None,
-            "live": False,
-            "viewers": None,
-            "views": None,
-            "count": entry.get("playlist_count"),
-            "poster": self.image(pictures[-1]["url"] if pictures else ""),
-        }
-
-    @staticmethod
-    def _youtube_address(channel_id: str) -> str:
-        return (
-            f"https://www.youtube.com/{channel_id}"
-            if channel_id.startswith("@")
-            else f"https://www.youtube.com/channel/{channel_id}"
-        )
-
-    def _youtube_channel(self, channel_id: str, tab: Tab = "videos", offset: int = 0) -> dict[str, Any]:
-        """
-        Одна вкладка канала и одна порция её ленты.
-
-        `about` ленты не имеет, но шапка нужна и ей — поэтому спрашивается та же вкладка
-        роликов, только одной строкой: дешевле, чем отдельный разбор главной страницы.
-
-        Вкладки у канала бывают не все: у кого-то нет трансляций, у кого-то коротких роликов.
-        Площадка отвечает на это отказом, и отказ здесь — это пустая вкладка, а не сломанная
-        страница: шапка канала к этому моменту уже показана.
-        """
-        listing = "videos" if tab == "about" else tab
-        options = {
-            **YT_FLAT,
-            "extract_flat": "in_playlist",
-            "playliststart": offset + 1,
-            "playlistend": offset + (1 if tab == "about" else PAGE),
-        }
-        try:
-            found = self._extract(f"{self._youtube_address(channel_id)}/{listing}", options)
-        except Exception as error:
-            if "does not have a" in str(error):
-                return {"channel": None, "items": [], "next": None}
-            raise HTTPException(502, f"Канал не открылся: {error}"[:200]) from None
-        pictures = found.get("thumbnails") or []
-        identity = {
-            "id": found.get("channel_id") or channel_id,
-            "title": found.get("channel") or found.get("uploader") or channel_id,
-        }
-        entries = [entry for entry in (found.get("entries") or []) if entry and entry.get("id")]
-        card = self._youtube_playlist_card if tab == "playlists" else self._youtube_item
-        items = [] if tab == "about" else [card(entry, identity) for entry in entries]
-        return {
-            "channel": {
-                "provider": "youtube",
-                "id": identity["id"],
-                "title": identity["title"],
-                # Псевдоним канала (`@имя`) — то, по чему его узнают и ищут, и то, чем он
-                # открывается снова: ссылка на него короче и переживает переименование.
-                "handle": found.get("uploader_id") or (channel_id if channel_id.startswith("@") else ""),
-                "description": (found.get("description") or "")[:1200],
-                "followers": found.get("channel_follower_count"),
-                "viewers": None,
-                "live": any(item.get("live") for item in items),
-                "category": None,
-                "avatar": self.image(self._widest(pictures, portrait=True)),
-                "banner": self.image(self._widest(pictures, portrait=False)),
-            },
-            "items": items,
-            "next": str(offset + PAGE) if len(entries) >= PAGE and tab != "about" else None,
-        }
-
-    def _youtube_playlist(self, playlist_id: str, offset: int) -> dict[str, Any]:
-        """Плейлист целиком: его собственная карточка и ролики порциями, в порядке сборки."""
-        options = {
-            **YT_FLAT,
-            "extract_flat": "in_playlist",
-            "playliststart": offset + 1,
-            "playlistend": offset + PAGE,
-        }
-        try:
-            found = self._extract(
-                f"https://www.youtube.com/playlist?list={playlist_id}", options
-            )
-        except Exception as error:
-            raise HTTPException(502, f"Плейлист не открылся: {error}"[:200]) from None
-        pictures = found.get("thumbnails") or []
-        identity = {
-            "id": found.get("channel_id") or "",
-            "title": found.get("channel") or found.get("uploader") or "",
-        }
-        entries = [entry for entry in (found.get("entries") or []) if entry and entry.get("id")]
-        return {
-            "playlist": {
-                "provider": "youtube",
-                "kind": "playlist",
-                "id": playlist_id,
-                "title": found.get("title") or "Плейлист",
-                "author": identity["title"],
-                "channelId": identity["id"] or None,
-                "description": (found.get("description") or "")[:1200],
-                "count": found.get("playlist_count"),
-                "views": found.get("view_count"),
-                "published": found.get("modified_date"),
-                "poster": self.image(pictures[-1]["url"] if pictures else ""),
-            },
-            "items": [self._youtube_item(entry, identity) for entry in entries],
-            "next": str(offset + PAGE) if len(entries) >= PAGE else None,
-        }
-
-    @staticmethod
-    def _widest(pictures: list[dict[str, Any]], portrait: bool) -> str:
-        """
-        Лицо канала и его полоса лежат в одном списке, и отличаются только формой кадра.
-
-        Квадратное — это аватар, вытянутое в четыре ширины — шапка. Разделять их по именам
-        полей нельзя: имён у yt-dlp для этого нет, а форма есть у каждой картинки.
-        """
-        fitting = [
-            picture
-            for picture in pictures
-            if picture.get("url")
-            and picture.get("width")
-            and picture.get("height")
-            and (
-                (picture["width"] / picture["height"] < 1.6)
-                if portrait
-                else (picture["width"] / picture["height"] > 3)
-            )
-        ]
-        if not fitting:
-            return ""
-        return max(fitting, key=lambda picture: picture["width"])["url"]
-
-    def _youtube_details(self, content_id: str) -> dict[str, Any]:
-        info = self._probe(f"https://www.youtube.com/watch?v={content_id}")
-        return {
-            "provider": "youtube",
-            "kind": "video",
-            "id": content_id,
-            "title": info.get("title") or content_id,
-            "author": info.get("channel") or info.get("uploader") or "",
-            "channelId": info.get("channel_id") or None,
-            "channelAvatar": None,
-            "duration": None if info.get("is_live") else info.get("duration"),
-            "live": bool(info.get("is_live")),
-            "views": info.get("view_count"),
-            "viewers": info.get("concurrent_view_count"),
-            "followers": info.get("channel_follower_count"),
-            "published": info.get("upload_date"),
-            "category": (info.get("categories") or [None])[0],
-            "description": (info.get("description") or "")[:4000],
-            "poster": self.image(info.get("thumbnail") or ""),
-        }
-
-    async def _twitch_gql(self, query: str) -> dict[str, Any]:
-        response = await self.client.post(
-            TWITCH_GQL,
-            json={"query": query},
-            headers={"Client-ID": TWITCH_CLIENT},
-        )
-        if response.status_code != 200:
-            raise HTTPException(502, "Twitch не ответил на запрос каталога")
-        body = response.json()
-        if body.get("errors"):
-            raise HTTPException(502, "Twitch отказал в запросе каталога")
-        return body.get("data") or {}
-
-    def _twitch_stream(self, node: dict[str, Any]) -> dict[str, Any] | None:
-        """Идущий эфир как карточка каталога. Смотрится он по имени канала, а не по номеру эфира."""
-        caster = node.get("broadcaster") or {}
-        if not caster.get("login"):
-            return None
-        return {
-            "provider": "twitch",
-            "kind": "channel",
-            "id": caster["login"],
-            "title": node.get("title") or caster.get("displayName") or "",
-            "author": caster.get("displayName") or caster["login"],
-            "channelId": caster["login"],
-            "duration": None,
-            "live": True,
-            "viewers": node.get("viewersCount"),
-            "views": None,
-            "category": (node.get("game") or {}).get("name"),
-            "poster": self.image(node.get("previewImageURL") or ""),
-        }
-
-    async def _twitch_popular(self):
-        # Тридцать — не наша скромность, а предел самого Twitch: `first` больше тридцати он
-        # отвергает, а на продолжение анонимному клиенту отвечает отказом о проверке целостности.
-        data = await self._twitch_gql(
-            "{ streams(first: 30) { edges { node { id title viewersCount "
-            "previewImageURL(width: 440, height: 248) broadcaster { login displayName } "
-            "game { name } } } } }"
-        )
-        items = []
-        for edge in (data.get("streams") or {}).get("edges", []) or []:
-            found = self._twitch_stream(edge.get("node") or {})
-            if found:
-                items.append(found)
-        return items
-
-    async def _twitch_games(self, query: str = ""):
-        """
-        Разделы Twitch: список рубрик с обложкой и числом смотрящих.
-
-        Пустой запрос — витрина по популярности, набранный — поиск по названию. Это те же
-        категории, по которым на Twitch и ходят: «что сейчас играют» там выбирают раньше, чем
-        «кого смотреть».
-        """
-        if query:
-            safe = query.replace("\\", " ").replace('"', " ")[:60]
-            data = await self._twitch_gql(
-                '{ searchFor(userQuery: "%s", platform: "web", target: {index: GAME}) '
-                "{ games { items { id name displayName viewersCount "
-                "boxArtURL(width: 285, height: 380) } } } }" % safe
-            )
-            nodes = ((data.get("searchFor") or {}).get("games") or {}).get("items") or []
-        else:
-            data = await self._twitch_gql(
-                "{ games(first: %d) { edges { node { id name displayName viewersCount "
-                "boxArtURL(width: 285, height: 380) } } } }" % TWITCH_DEPTH
-            )
-            nodes = [edge.get("node") or {} for edge in (data.get("games") or {}).get("edges", []) or []]
-        return [
-            {
-                "provider": "twitch",
-                "kind": "category",
-                "id": str(node["id"]),
-                "title": node.get("displayName") or node.get("name") or "",
-                "viewers": node.get("viewersCount"),
-                "poster": self.image(node.get("boxArtURL") or ""),
-            }
-            for node in nodes
-            if node.get("id")
-        ]
-
-    async def _twitch_category(self, category_id: str) -> dict[str, Any]:
-        data = await self._twitch_gql(TWITCH_CATEGORY % (category_id, TWITCH_DEPTH))
-        game = data.get("game")
-        if not game:
-            raise HTTPException(404, "Такого раздела на Twitch нет")
-        items = []
-        for edge in (game.get("streams") or {}).get("edges", []) or []:
-            found = self._twitch_stream(edge.get("node") or {})
-            if found:
-                items.append(found)
-        return {
-            "category": {
-                "provider": "twitch",
-                "kind": "category",
-                "id": str(game["id"]),
-                "title": game.get("displayName") or game.get("name") or "",
-                "viewers": game.get("viewersCount"),
-                "poster": self.image(game.get("boxArtURL") or ""),
-            },
-            "items": items,
-        }
-
-    async def _twitch_search(self, query: str, limit: int = TWITCH_DEPTH):
-        safe = query.replace("\\", " ").replace('"', " ")[:60]
-        data = await self._twitch_gql(
-            '{ searchFor(userQuery: "%s", platform: "web", target: {index: CHANNEL}) '
-            "{ channels { items { id login displayName profileImageURL(width: 300) "
-            "stream { viewersCount previewImageURL(width: 440, height: 248) game { name } } "
-            "} } } }" % safe
-        )
-        items = []
-        channels = ((data.get("searchFor") or {}).get("channels") or {}).get("items") or []
-        for channel in channels[:limit]:
-            stream = channel.get("stream") or {}
-            items.append(
-                {
-                    "provider": "twitch",
-                    "kind": "channel",
-                    "id": channel.get("login"),
-                    "title": channel.get("displayName") or channel.get("login") or "",
-                    "author": channel.get("displayName") or "",
-                    "channelId": channel.get("login"),
-                    "duration": None,
-                    "live": bool(stream),
-                    "viewers": stream.get("viewersCount"),
-                    "views": None,
-                    "category": (stream.get("game") or {}).get("name"),
-                    "poster": self.image(
-                        stream.get("previewImageURL") or channel.get("profileImageURL") or ""
-                    ),
-                }
-            )
-        # Живые каналы выше: список, где эфир вперемешку с молчащими, читается хуже.
-        items.sort(key=lambda item: (not item["live"], -(item.get("viewers") or 0)))
-        return items
-
-    async def _twitch_channel_page(self, login: str, tab: Tab, offset: int) -> dict[str, Any]:
-        """
-        Страница канала Twitch порциями.
-
-        Порция режется по уже полученному списку, а не спрашивается заново: продолжение
-        Twitch анонимному клиенту не отдаёт, зато сотню записей отдаёт одним ответом. Идущий
-        эфир стоит первым и только в первой порции — ниже по ленте ему не место.
-        """
-        found = await self.catalog.get(
-            f"twitch:channel:{login.lower()}", lambda: self._twitch_channel(login), 60
-        )
-        if tab == "about":
-            return {"channel": found["channel"], "items": [], "next": None}
-        live = [item for item in found["items"] if item["live"]]
-        records = [item for item in found["items"] if not item["live"]]
-        if tab == "streams":
-            return {"channel": found["channel"], **page(live, offset)}
-        return {
-            "channel": found["channel"],
-            "items": (live if offset == 0 else []) + records[offset : offset + PAGE],
-            "next": str(offset + PAGE) if len(records) > offset + PAGE else None,
-        }
-
-    async def _twitch_channel(self, login: str) -> dict[str, Any]:
-        data = await self._twitch_gql(TWITCH_CHANNEL % (login.replace('"', "")[:40], TWITCH_DEPTH))
-        user = data.get("user")
-        if not user:
-            raise HTTPException(404, "Такого канала на Twitch нет")
-        stream = user.get("stream") or {}
-        items: list[dict[str, Any]] = []
-        if stream:
-            items.append(
-                {
-                    "provider": "twitch",
-                    "kind": "channel",
-                    "id": user["login"],
-                    "title": stream.get("title") or user.get("displayName") or "",
-                    "author": user.get("displayName") or user["login"],
-                    "channelId": user["login"],
-                    "duration": None,
-                    "live": True,
-                    "viewers": stream.get("viewersCount"),
-                    "views": None,
-                    "category": (stream.get("game") or {}).get("name"),
-                    "poster": self.image(stream.get("previewImageURL") or ""),
-                }
-            )
-        for edge in (user.get("videos") or {}).get("edges", []) or []:
-            node = edge.get("node") or {}
-            if not node.get("id"):
-                continue
-            items.append(
-                {
-                    "provider": "twitch",
-                    # Запись эфира — это ролик с позицией, а не живой канал: её можно ставить
-                    # на паузу и перематывать, и комната смотрит её с одной секунды.
-                    "kind": "video",
-                    "id": node["id"],
-                    "title": node.get("title") or "Прошлая трансляция",
-                    "author": user.get("displayName") or user["login"],
-                    "channelId": user["login"],
-                    "duration": node.get("lengthSeconds"),
-                    "live": False,
-                    "viewers": None,
-                    "views": node.get("viewCount"),
-                    "category": (node.get("game") or {}).get("name"),
-                    "published": (node.get("publishedAt") or "")[:10],
-                    "poster": self.image(node.get("previewThumbnailURL") or ""),
-                }
-            )
-        return {
-            "channel": {
-                "provider": "twitch",
-                "id": user["login"],
-                "title": user.get("displayName") or user["login"],
-                "handle": user["login"],
-                "description": (user.get("description") or "")[:1200],
-                "followers": (user.get("followers") or {}).get("totalCount"),
-                "viewers": stream.get("viewersCount"),
-                "live": bool(stream),
-                "category": (stream.get("game") or {}).get("name"),
-                "avatar": self.image(user.get("profileImageURL") or ""),
-                "banner": self.image(user.get("bannerImageURL") or ""),
-            },
-            "items": items,
-        }
-
-    async def _twitch_details(self, content_id: str, kind: Kind) -> dict[str, Any]:
-        if kind == "channel":
-            page = await self._twitch_channel(content_id)
-            channel = page["channel"]
-            live = next((item for item in page["items"] if item["live"]), None)
-            return {
-                **channel,
-                "kind": "channel",
-                "title": (live or {}).get("title") or channel["title"],
-                "author": channel["title"],
-                "channelId": channel["id"],
-                "channelAvatar": channel["avatar"],
-                "duration": None,
-                "views": None,
-                "published": None,
-                "poster": (live or {}).get("poster") or channel["banner"],
-            }
-        data = await self._twitch_gql(TWITCH_VIDEO % content_id.replace('"', "")[:40])
-        video = data.get("video")
-        if not video:
-            raise HTTPException(404, "Такой записи на Twitch нет")
-        owner = video.get("owner") or {}
-        return {
-            "provider": "twitch",
-            "kind": "video",
-            "id": content_id,
-            "title": video.get("title") or "Прошлая трансляция",
-            "author": owner.get("displayName") or owner.get("login") or "",
-            "channelId": owner.get("login"),
-            "channelAvatar": self.image(owner.get("profileImageURL") or ""),
-            "duration": video.get("lengthSeconds"),
-            "live": False,
-            "views": video.get("viewCount"),
-            "viewers": None,
-            "followers": (owner.get("followers") or {}).get("totalCount"),
-            "published": (video.get("publishedAt") or "")[:10],
-            "category": (video.get("game") or {}).get("name"),
-            "description": (video.get("description") or "")[:4000],
-            "poster": self.image(video.get("previewThumbnailURL") or ""),
-        }
 
     def image(self, url: str) -> str | None:
         """Обложка у нас, а не у площадки. Адрес без схемы получает её здесь — иначе он
@@ -758,235 +196,31 @@ class Cinema:
 
     # --- разрешение ссылки в поток ---------------------------------------------------
 
-    async def resolve(self, request: Resolve) -> dict[str, Any]:
+    async def resolve(self, request: Resolve, *, room: str = "") -> dict[str, Any]:
         # Один разбор на всю комнату: пятеро зрителей открывают одно и то же видео в одну и ту
         # же минуту, и пять запросов к площадке ради одного ответа — это просто пять ожиданий.
         # Живой эфир держится меньше: его адреса обновляются чаще, чем меняется афиша.
+        source = self.registry.get(request.provider)
         key = f"{request.provider}:{request.kind}:{request.contentId}:{request.adaptive}"
         if request.refresh:
             self.sources._items.pop(key, None)
+        ctx = self._ctx(room)
         return await self.sources.get(
             key,
-            lambda: self._resolve(request),
-            lambda source: min(
-                45 if source["live"] else 1800,
-                max(0, source["expiresAt"] / 1000 - time.time() - 60),
+            lambda: self._resolve(source, ctx, request),
+            lambda found: min(
+                45 if found["live"] else 1800,
+                max(0, found["expiresAt"] / 1000 - time.time() - 60),
             ),
         )
 
-    async def _resolve(self, request: Resolve) -> dict[str, Any]:
-        if request.provider == "youtube":
-            source = f"https://www.youtube.com/watch?v={request.contentId}"
-        elif request.kind == "video":
-            source = f"https://www.twitch.tv/videos/{request.contentId}"
-        else:
-            source = f"https://www.twitch.tv/{request.contentId}"
-        info = await asyncio.to_thread(self._probe, source)
-        stream, kind = self._stream(info)
-        dash = None
-        if (
-            request.adaptive
-            and request.provider == "youtube"
-            and not info.get("is_live")
-            and kind != "hls"
-        ):
-            dash = await self._dash(info)
-        if dash:
-            stream, expires = dash
-            kind = "dash"
-        else:
-            expires = self._expiry([stream] if stream else [])
-        if not stream:
-            raise HTTPException(502, "Площадка не отдала поток для этого видео. Попробуйте другое")
-        poster = info.get("thumbnail") or ""
-        return {
-            "provider": request.provider,
-            "contentId": request.contentId,
-            "title": info.get("title") or request.contentId,
-            "author": info.get("uploader") or info.get("channel") or "",
-            "duration": None if info.get("is_live") else info.get("duration"),
-            "live": bool(info.get("is_live")),
-            "kind": kind,
-            "url": stream
-            if kind == "dash"
-            else proxied(
-                self.signer,
-                stream,
-                "playlist" if kind == "hls" else "fetch",
-                max(1, int(expires - time.time())),
-            ),
-            "expiresAt": int(expires * 1000),
-            "notice": "Доступен только готовый файл: качество ограничено источником"
-            if kind == "file"
-            else None,
-            # На каком языке ролик говорит сам. Ни одна дорожка в мастере YouTube не помечена
-            # как основная (`DEFAULT=NO` у всех), и плеер без подсказки берёт первую по
-            # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
-            # язык»: выбора не было, был порядок строк.
-            "language": info.get("language") or "",
-            "captions": self._captions(info, kind == "hls"),
-            "poster": self.image(poster),
-        }
-
-    @staticmethod
-    def _expiry(urls: list[str]) -> float:
-        expires = time.time() + SIGNATURE_TTL
-        for url in urls:
-            for value in parse_qs(urlsplit(url).query).get("expire", []):
-                if value.isdigit():
-                    expires = min(expires, int(value))
-        return expires
-
-    async def _dash(self, info: dict[str, Any]) -> tuple[str, float] | None:
-        duration = number(info.get("duration"))
-        if not duration:
-            return None
-        formats = [item for item in candidates(info.get("formats") or []) if allowed(item["url"])]
-
-        async def inspect(item):
-            try:
-                ranges = await read_ranges(self.client, item["url"], self.index_reads)
-                return item, ranges
-            except (ValueError, httpx.HTTPError):
-                return None
-
-        try:
-            async with asyncio.timeout(20):
-                found = [
-                    item
-                    for item in await asyncio.gather(*(inspect(item) for item in formats))
-                    if item
-                ]
-        except TimeoutError:
-            return None
-        expires = self._expiry([item[0]["url"] for item in found])
-        if expires - time.time() < 60:
-            return None
-        ttl = max(1, int(expires - time.time()))
-        try:
-            body = dash_manifest(
-                [
-                    (item, ranges, proxied(self.signer, item["url"], "fetch", ttl))
-                    for item, ranges in found
-                ],
-                duration,
-            )
-        except ValueError:
-            return None
-        key = self.signer.name(body)
-        self.dash_manifests[key] = (expires, body)
-        while len(self.dash_manifests) > 64:
-            self.dash_manifests.pop(next(iter(self.dash_manifests)))
-        return f"{PREFIX}/dash/{key}", expires
+    async def _resolve(self, source: Provider, ctx: Ctx, request: Resolve) -> dict[str, Any]:
+        """Площадка говорит, откуда брать поток, а разбирает его общий `Resolver`."""
+        plan = await source.source(ctx, request.kind, request.contentId, {})
+        return await self.resolver.resolve(plan, ctx.net, source.id, request.contentId, request.adaptive)
 
     def dash(self, key: str) -> Response:
-        found = self.dash_manifests.get(key)
-        if not found or found[0] <= time.time():
-            self.dash_manifests.pop(key, None)
-            raise HTTPException(410, "Ссылка устарела, откройте видео заново")
-        return Response(
-            found[1],
-            media_type="application/dash+xml",
-            headers={"Cache-Control": "no-store"},
-        )
-
-    def _probe(self, source: str) -> dict[str, Any]:
-        import yt_dlp
-
-        options = {
-            "quiet": True,
-            "no_warnings": True,
-            "skip_download": True,
-            "noplaylist": True,
-            "cachedir": False,
-            "socket_timeout": 20,
-        }
-        try:
-            with yt_dlp.YoutubeDL(options) as ydl:
-                return ydl.extract_info(source, download=False) or {}
-        except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
-            raise HTTPException(502, f"Не удалось открыть видео: {error}"[:300]) from None
-
-    def _captions(self, info: dict[str, Any], embedded: bool) -> list[dict[str, Any]]:
-        """
-        Дорожки текста, которых нет в самом потоке.
-
-        В мастере HLS у YouTube лежат **только написанные руками** субтитры — те, что автор
-        приложил к ролику. Распознанных речью (`kind=asr`) там нет ни одной, а именно они и
-        есть у большинства роликов: у «Gangnam Style» сто пятьдесят семь автоматических и ни
-        одной ручной. Поэтому их адрес берётся у yt-dlp и отдаётся отдельным списком.
-        Плеер складывает оба списка в одно меню — для человека разницы между ними нет.
-
-        Автоперевод (`tlang=` в адресе) сюда не попадает намеренно: на него площадка отвечает
-        нам «429 Too Many Requests» — с адреса сервера переводить она не даёт. Распознанная
-        речь на своём языке при этом отдаётся без единой жалобы.
-
-        `embedded` — поток уже несёт субтитры сам (мастер HLS). Тогда ручные не дублируются:
-        их покажет плеер из плейлиста, а отсюда приезжает только распознанное. И то, что
-        площадка написала руками, автоматическое не вытесняет — как и у самого YouTube.
-        """
-        manual = info.get("subtitles") or {}
-        written = {_base_language(language) for language in manual}
-        tracks: list[dict[str, Any]] = []
-        seen: set[str] = set()
-
-        def offer(language: str, entries: list[dict[str, Any]], generated: bool) -> None:
-            base = _base_language(language)
-            found = _vtt(entries)
-            if not found or base in seen or (generated and base in written):
-                return
-            seen.add(base)
-            tracks.append(
-                {
-                    # `ko-orig` — выдумка yt-dlp, а не код языка: так помечена та же
-                    # распознанная речь, к которой не приложили перевод. Наружу уходит язык.
-                    "lang": language.removesuffix("-orig"),
-                    # Имя от площадки — на английском («Korean»), и оно запасное: плеер
-                    # называет язык сам, на языке смотрящего.
-                    "label": found.get("name") or language,
-                    "auto": generated,
-                    "url": proxied(self.signer, found["url"], "fetch"),
-                }
-            )
-
-        if not embedded:
-            for language, entries in manual.items():
-                offer(language, entries, False)
-        for language, entries in (info.get("automatic_captions") or {}).items():
-            found = _vtt(entries)
-            # Все нетронутые переводом дорожки — это одна и та же распознанная речь под
-            # разными ключами (`ko` и `ko-orig`); лишние отсеивает общий отбор по языку.
-            if found and "tlang=" not in found["url"]:
-                offer(language, entries, True)
-        return tracks[:CAPTIONS_LIMIT]
-
-    @staticmethod
-    def _stream(info: dict[str, Any]) -> tuple[str | None, str]:
-        """
-        Что отдать плееру: мастер HLS — если площадка его предлагает, иначе готовый файл.
-
-        HLS предпочтительнее не из красоты: в нём лежат **все** уровни качества сразу, и выбор
-        между ними делает наш плеер, а не площадка. Обычный файл остаётся запасным ходом для
-        тех роликов, которым YouTube плейлиста не даёт; там качество одно.
-        """
-        formats = info.get("formats") or []
-        for item in formats:
-            if str(item.get("protocol", "")).startswith("m3u8") and item.get("manifest_url"):
-                return item["manifest_url"], "hls"
-        if info.get("manifest_url"):
-            return info["manifest_url"], "hls"
-        progressive = [
-            item
-            for item in formats
-            if item.get("acodec") not in (None, "none")
-            and item.get("vcodec") not in (None, "none")
-            and item.get("url")
-            and str(item.get("protocol", "")).startswith("http")
-        ]
-        progressive.sort(key=lambda item: (item.get("height") or 0, item.get("tbr") or 0))
-        if progressive:
-            return progressive[-1]["url"], "file"
-        return (info.get("url"), "file") if info.get("url") else (None, "file")
+        return self.resolver.dash(key)
 
     # --- прокси ------------------------------------------------------------------------
 

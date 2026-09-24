@@ -3,9 +3,16 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Header, Query
 
-from .facade import PREFIX, Cinema, Kind, Provider, Resolve, Tab
+from .facade import Cinema, Kind, Resolve, Tab
+from .transport.signer import PREFIX
+
+# Площадка — строка, а не перечень в схеме: её проверяет реестр. Незнакомая или выключенная
+# получает 400 с человеческим текстом, а не 422 со схемой валидации.
+ProviderId = Annotated[str, Query(max_length=32)]
 
 
 def routes(cinema: Cinema, core) -> APIRouter:
@@ -14,74 +21,74 @@ def routes(cinema: Cinema, core) -> APIRouter:
     @router.get("/api/v1/services/rooms/{room_id}/cinema/search")
     async def search(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         query: str = Query(default="", max_length=120),
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.search(provider, query, cursor)
+        return await cinema.search(provider, query, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/channel")
     async def channel(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         id: str = Query(max_length=80),
         tab: Tab = "videos",
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.channel(provider, id, tab, cursor)
+        return await cinema.channel(provider, id, tab, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/playlist")
     async def playlist_page(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         id: str = Query(max_length=80),
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.playlist(provider, id, cursor)
+        return await cinema.playlist(provider, id, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/categories")
     async def categories(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         query: str = Query(default="", max_length=120),
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.categories(provider, query, cursor)
+        return await cinema.categories(provider, query, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/category")
     async def category(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         id: str = Query(max_length=20),
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.category(provider, id, cursor)
+        return await cinema.category(provider, id, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/details")
     async def details(
         room_id: str,
-        provider: Provider,
+        provider: ProviderId,
         id: str = Query(max_length=80),
         kind: Kind = "video",
         authorization: str = Header(),
     ):
         await core.member(room_id, authorization)
-        return await cinema.details(provider, id, kind)
+        return await cinema.details(provider, id, kind, room=room_id)
 
     @router.post("/api/v1/services/rooms/{room_id}/cinema/resolve")
     async def resolve(room_id: str, request: Resolve, authorization: str = Header()):
         await core.member(room_id, authorization)
-        return await cinema.resolve(request)
+        return await cinema.resolve(request, room=room_id)
 
     # Эти открыты по подписи, а не по заголовку: их дёргает сам плеер, десятками запросов
     # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь.

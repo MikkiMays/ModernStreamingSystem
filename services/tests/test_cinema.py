@@ -18,6 +18,7 @@ from cord_services.cinema import (
     page,
     rewrite,
 )
+from cord_services.cinema.resolve import Resolver
 
 MASTER = """#EXTM3U
 #EXT-X-INDEPENDENT-SEGMENTS
@@ -253,7 +254,7 @@ class StreamChoiceTests(unittest.TestCase):
                 {"protocol": "m3u8_native", "manifest_url": "https://m/master.m3u8"},
             ]
         }
-        self.assertEqual(Cinema._stream(info), ("https://m/master.m3u8", "hls"))
+        self.assertEqual(Resolver._stream(info), ("https://m/master.m3u8", "hls"))
 
     def test_without_a_playlist_the_best_complete_file_is_taken(self):
         info = {
@@ -263,10 +264,10 @@ class StreamChoiceTests(unittest.TestCase):
                 {"protocol": "https", "url": "https://x/1080.mp4", "acodec": "none", "vcodec": "h264", "height": 1080},
             ]
         }
-        self.assertEqual(Cinema._stream(info), ("https://x/720.mp4", "file"))
+        self.assertEqual(Resolver._stream(info), ("https://x/720.mp4", "file"))
 
     def test_nothing_playable_is_an_honest_nothing(self):
-        self.assertEqual(Cinema._stream({"formats": []}), (None, "file"))
+        self.assertEqual(Resolver._stream({"formats": []}), (None, "file"))
 
 
 class CaptionTests(unittest.TestCase):
@@ -300,7 +301,7 @@ class CaptionTests(unittest.TestCase):
                 ],
             },
         }
-        tracks = self.cinema._captions(info, embedded=True)
+        tracks = self.cinema.resolver._captions(info, embedded=True)
         # Один язык — одна строка: `ko` и `ko-orig` это одна и та же распознанная речь.
         self.assertEqual([track["lang"] for track in tracks], ["ko"])
         self.assertTrue(tracks[0]["auto"])
@@ -314,9 +315,9 @@ class CaptionTests(unittest.TestCase):
             },
         }
         # Поток несёт ручные сам — отсюда не едет ничего, в том числе распознанное на том же языке.
-        self.assertEqual(self.cinema._captions(info, embedded=True), [])
+        self.assertEqual(self.cinema.resolver._captions(info, embedded=True), [])
         # Потока с субтитрами нет — ручные едут, распознанное на том же языке по-прежнему нет.
-        alone = self.cinema._captions(info, embedded=False)
+        alone = self.cinema.resolver._captions(info, embedded=False)
         self.assertEqual([(track["lang"], track["auto"]) for track in alone], [("ru", False)])
 
     def test_a_playlist_of_pieces_is_not_a_file_for_the_tag(self):
@@ -331,7 +332,7 @@ class CaptionTests(unittest.TestCase):
                 ]
             },
         }
-        self.assertEqual(self.cinema._captions(info, embedded=True), [])
+        self.assertEqual(self.cinema.resolver._captions(info, embedded=True), [])
 
 
 
@@ -387,7 +388,7 @@ class TwitchChannelPageTests(unittest.TestCase):
         )
 
     def ask(self, tab="videos", offset=0):
-        return asyncio.run(self.cinema._twitch_channel_page("someone", tab, offset))
+        return asyncio.run(self.cinema.channel("twitch", "someone", tab, str(offset)))
 
     def test_the_live_stream_leads_the_first_portion_only(self):
         first = self.ask()
