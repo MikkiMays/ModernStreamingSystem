@@ -81,6 +81,10 @@ SERIES_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 SEASON_ID = SERIES_ID
 # Больше субтитров не бывает: реплики трёхчасового фильма — пара сотен килобайт.
 SUBTITLES_LIMIT = 2 * 1024 * 1024
+# Срок на весь ответ субтитров, от запроса до последнего байта. Сроки httpx — на каждое чтение
+# отдельно, и площадка, отдающая по байту раз в несколько секунд, держала бы запрос сколько
+# угодно; файл в сотню килобайт за пятнадцать секунд приезжает с любой связью.
+SUBTITLES_DEADLINE = 15.0
 
 
 def _room(room: str) -> str:
@@ -407,13 +411,24 @@ class Cinema:
         Файл субтитров площадки — в WebVTT, как его читает `<track>`.
 
         Файл читается целиком (он маленький) и не больше предела: что больше двух мегабайт, то
-        не субтитры, и держать это в памяти ради перевода незачем.
+        не субтитры, и держать это в памяти ради перевода незачем. Спрашивается он несжатым: сжатое
+        тело httpx распаковывает кусками, и кусок сжатой «бомбы» — это десятки мегабайт в памяти
+        ещё до проверки предела. Сжатый ответ вопреки просьбе — отказ: это не то, что спросили.
+        Срок у всего ответа один (`SUBTITLES_DEADLINE`).
         """
-        upstream = await self._open(self.net.client_for(provider), url, {})
         try:
-            body = await self._read(upstream, SUBTITLES_LIMIT)
-        finally:
-            await upstream.aclose()
+            async with asyncio.timeout(SUBTITLES_DEADLINE):
+                upstream = await self._open(
+                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}
+                )
+                try:
+                    if not _plain(upstream):
+                        raise HTTPException(502, "Площадка не отдала данные")
+                    body = await self._read(upstream, SUBTITLES_LIMIT)
+                finally:
+                    await upstream.aclose()
+        except TimeoutError:
+            raise HTTPException(504, "Площадка не отдала субтитры вовремя") from None
         return Response(
             webvtt(body),
             media_type="text/vtt; charset=utf-8",
@@ -475,15 +490,14 @@ class Cinema:
         а распакованные могут оказаться в тысячу раз больше.
         """
         length = upstream.headers.get("content-length", "")
-        encoding = upstream.headers.get("content-encoding", "identity").strip().lower()
-        return length.isdigit() and int(length) <= self.segments.largest and encoding in ("", "identity")
+        return length.isdigit() and int(length) <= self.segments.largest and _plain(upstream)
 
     async def _read(self, upstream: httpx.Response, limit: int | None = None) -> bytes:
         """Тело целиком — но не больше предела памяти, что бы площадка ни объявила.
 
-        Кусочек видео здесь не сжат (`_storable`), и байты те же, что пришли по сети. Субтитры
-        бывают сжатыми — предел считается по распакованным байтам, пока они идут, так что и
-        сжатая «бомба» дальше него не распакуется."""
+        Сжатое тело сюда не попадает: кусочек видео — по `_storable`, субтитры спрашиваются
+        несжатыми и сжатые отвергаются (`subtitles`), — поэтому байты те же, что пришли по сети, и
+        предел — это ровно столько памяти, сколько занято."""
         largest = self.segments.largest if limit is None else limit
         body = bytearray()
         try:
@@ -515,6 +529,11 @@ class Cinema:
             passed["Content-Type"] = kind
         passed["Cache-Control"] = "private, max-age=600"
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
+
+
+def _plain(upstream: httpx.Response) -> bool:
+    """Тело не сжато: его байты — ровно те, что придут по сети."""
+    return upstream.headers.get("content-encoding", "identity").strip().lower() in ("", "identity")
 
 
 def _kept(body: bytes, kind: str) -> Response:

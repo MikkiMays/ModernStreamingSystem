@@ -11,7 +11,9 @@ Rutube в кинозале: что служба отдаёт по настоящ
 не знает, какой метод какой класс зовёт. Часы стоят: подпись адреса зависит от времени.
 """
 
+import asyncio
 import copy
+import gzip
 import json
 import os
 import tempfile
@@ -994,6 +996,65 @@ class SubtitleRouteTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(HTTPException) as refusal:
             await cinema.subtitles("https://pic.rtbcdn.ru/subtitle/x.srt", "rutube")
         self.assertEqual(refusal.exception.status_code, 502)
+
+    async def test_subtitles_are_asked_uncompressed_and_a_compressed_answer_is_refused(self):
+        # Сжатое тело httpx распаковывает кусками по 64 КиБ, и кусок сжатой «бомбы» — это десятки
+        # мегабайт в памяти ещё до проверки предела. Поэтому просим несжатое (`identity`), а сжатый
+        # ответ вопреки просьбе — отказ: его площадка прислала не то, что у неё спросили.
+        asked = []
+
+        def serve(request):
+            asked.append(request.headers.get("accept-encoding"))
+            return httpx.Response(200, content=recorded("captions.srt").encode())
+
+        cinema = Cinema(SECRET, httpx.AsyncClient(transport=httpx.MockTransport(serve)))
+        self.addAsyncCleanup(cinema.close)
+        await cinema.subtitles("https://pic.rtbcdn.ru/subtitle/x.srt", "rutube")
+        self.assertEqual(asked, ["identity"])
+
+        squeezed = gzip.compress(recorded("captions.srt").encode())
+        packed = Cinema(
+            SECRET,
+            httpx.AsyncClient(
+                transport=httpx.MockTransport(
+                    lambda request: httpx.Response(
+                        200, content=squeezed, headers={"Content-Encoding": "gzip"}
+                    )
+                )
+            ),
+        )
+        self.addAsyncCleanup(packed.close)
+        with self.assertRaises(HTTPException) as refusal:
+            await packed.subtitles("https://pic.rtbcdn.ru/subtitle/x.srt", "rutube")
+        self.assertEqual(
+            (refusal.exception.status_code, refusal.exception.detail), (502, "Площадка не отдала данные")
+        )
+
+    async def test_the_whole_answer_has_one_deadline(self):
+        # Отдельные сроки httpx — на каждое чтение: площадка, отдающая по байту раз в десять
+        # секунд, держала бы запрос вечно. У субтитров срок один на весь ответ.
+        async def trickle():
+            yield b"1\n"
+            await asyncio.sleep(5)
+            yield b"00:00:01,000 --> 00:00:02,000\n"
+
+        async def slow_head(request):
+            await asyncio.sleep(5)
+            return httpx.Response(200, content=b"")
+
+        for transport in (
+            httpx.MockTransport(lambda request: httpx.Response(200, content=trickle())),
+            httpx.MockTransport(slow_head),
+        ):
+            cinema = Cinema(SECRET, httpx.AsyncClient(transport=transport))
+            self.addAsyncCleanup(cinema.close)
+            with patch("cord_services.cinema.facade.SUBTITLES_DEADLINE", 0.05):
+                with self.assertRaises(HTTPException) as refusal:
+                    await cinema.subtitles("https://pic.rtbcdn.ru/subtitle/x.srt", "rutube")
+            self.assertEqual(
+                (refusal.exception.status_code, refusal.exception.detail),
+                (504, "Площадка не отдала субтитры вовремя"),
+            )
 
     def serve(self, request):
         return httpx.Response(200, content=recorded("captions.srt").encode())
