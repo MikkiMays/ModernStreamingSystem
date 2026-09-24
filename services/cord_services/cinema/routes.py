@@ -18,6 +18,11 @@ ProviderId = Annotated[str, Query(max_length=32)]
 def routes(cinema: Cinema, core) -> APIRouter:
     router = APIRouter()
 
+    @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")
+    async def providers(room_id: str, authorization: str = Header()):
+        await core.member(room_id, authorization)
+        return await cinema.providers()
+
     @router.get("/api/v1/services/rooms/{room_id}/cinema/search")
     async def search(
         room_id: str,

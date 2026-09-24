@@ -413,6 +413,76 @@ class RouteTests(unittest.TestCase):
     def ask(self, client, path, **params):
         return client.get(f"/api/v1/services/rooms/{ROOM}/cinema/{path}", params=params)
 
+    def test_the_client_learns_which_platforms_are_on_and_what_they_have(self):
+        client = self.serve()
+        answer = self.ask(client, "providers")
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual(
+            answer.json(),
+            {
+                "providers": [
+                    {
+                        "id": "youtube",
+                        "available": True,
+                        "reason": None,
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": True,
+                            "playlists": True,
+                            "categories": False,
+                            "series": False,
+                            "live": True,
+                        },
+                    },
+                    {
+                        "id": "twitch",
+                        "available": True,
+                        "reason": None,
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": True,
+                            "playlists": False,
+                            "categories": True,
+                            "series": False,
+                            "live": True,
+                        },
+                    },
+                ]
+            },
+        )
+        self.core.member.assert_awaited_once_with(ROOM, "Bearer member.secret")
+
+    def test_the_list_is_for_members_of_the_room_only(self):
+        client = self.serve()
+        self.core.member.side_effect = HTTPException(403, "Сначала войдите во встречу")
+        answer = self.ask(client, "providers")
+        self.assertEqual((answer.status_code, answer.json()), (403, {"detail": "Сначала войдите во встречу"}))
+
+    def test_a_platform_switched_off_disappears_from_the_list_and_is_refused(self):
+        client = self.serve("twitch")
+        self.assertEqual(
+            [entry["id"] for entry in self.ask(client, "providers").json()["providers"]], ["twitch"]
+        )
+        off = {"detail": "Эта площадка выключена на этом сервере"}
+        answer = self.ask(client, "search", provider="youtube", query="big buck bunny")
+        self.assertEqual((answer.status_code, answer.json()), (400, off))
+        answer = client.post(
+            f"/api/v1/services/rooms/{ROOM}/cinema/resolve", json={"provider": "youtube", "contentId": "abc"}
+        )
+        self.assertEqual((answer.status_code, answer.json()), (400, off))
+
+    def test_an_unknown_name_in_the_setting_is_logged_once_at_startup(self):
+        with self.assertLogs("cord_services.cinema.registry", "WARNING") as log:
+            client = self.serve("youtube, vk")
+        self.assertEqual(len(log.records), 1)
+        self.assertEqual(
+            [entry["id"] for entry in self.ask(client, "providers").json()["providers"]], ["youtube"]
+        )
+
     def test_an_unknown_platform_is_a_bad_request_with_a_human_detail(self):
         client = self.serve()
         unknown = {"detail": "Такой площадки в кинозале нет"}
@@ -445,6 +515,42 @@ class RouteTests(unittest.TestCase):
         )
         answer = self.ask(client, "categories", provider="youtube", cursor="not a cursor")
         self.assertEqual((answer.status_code, answer.json()), (200, {"items": [], "next": None}))
+
+    def test_availability_and_accounts_are_the_platform_own_words(self):
+        class Regional(Provider):
+            id = "regional"
+            name = "Regional"
+            features = Features(series=True, account="optional")
+            content_id = re.compile(r"[0-9]{1,12}")
+
+            async def availability(self):
+                return False, "Бесплатное здесь отдают только в России"
+
+        client = self.serve()
+        cinema = self.app.state.cinema
+        cinema.registry = Registry([Regional(kit())])
+        self.assertEqual(
+            self.ask(client, "providers").json(),
+            {
+                "providers": [
+                    {
+                        "id": "regional",
+                        "available": False,
+                        "reason": "Бесплатное здесь отдают только в России",
+                        "account": "optional",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": False,
+                            "playlists": False,
+                            "categories": False,
+                            "series": True,
+                            "live": False,
+                        },
+                    }
+                ]
+            },
+        )
 
 
 if __name__ == "__main__":

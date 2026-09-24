@@ -65,7 +65,8 @@ def create_app(
     )
     public_url = os.environ.get("PUBLIC_URL", "https://meet.nikg.tech").rstrip("/")
     yandex = Yandex(store, music, core.secret)
-    cinema = Cinema(core.secret)
+    # Какие площадки кинозала включены на этой установке: имена через запятую, пусто — все.
+    cinema = Cinema(core.secret, enabled=os.environ.get("CINEMA_PROVIDERS"))
     telegram = None
     background = []
 

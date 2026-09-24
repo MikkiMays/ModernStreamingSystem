@@ -9,9 +9,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import re
 import time
+from dataclasses import asdict
 from typing import Any, Literal
 
 import httpx
@@ -19,6 +21,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from . import wire
 from .memo import Memo
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
@@ -100,6 +103,30 @@ class Cinema:
         if not getattr(source.features, feature):
             raise source.refuse(feature)
         return source
+
+    # --- площадки ----------------------------------------------------------------------
+
+    async def providers(self) -> dict[str, list[wire.ProviderEntry]]:
+        """Какие площадки включены, работают ли они отсюда и что у каждой есть."""
+        listed = list(self.registry)
+        answers = await asyncio.gather(*(source.availability() for source in listed))
+        return {
+            "providers": [
+                {
+                    "id": source.id,
+                    "available": available,
+                    "reason": reason,
+                    "account": source.features.account,
+                    # Входить пока не во что: ни одной площадке аккаунт не нужен, а сейфа
+                    # входов комнаты ещё нет.
+                    "connected": False,
+                    "features": {
+                        name: value for name, value in asdict(source.features).items() if name != "account"
+                    },
+                }
+                for source, (available, reason) in zip(listed, answers)
+            ]
+        }
 
     # --- поиск и каталог -------------------------------------------------------------
 
