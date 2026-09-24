@@ -63,7 +63,7 @@ function mount(panel: Panel | null) {
 }
 
 describe('фильм', () => {
-  it('включённый другим, не закрывает ни чат, ни интеграции', () => {
+  it('включённый другим, не закрывает ничего: ни чат, ни интеграции, ни людей', () => {
     for (const panel of ['chat', 'services', 'people'] as const) {
       const { view, start } = mount(panel);
       start(film('other', 'dQw4w9WgXcQ'));
@@ -71,28 +71,22 @@ describe('фильм', () => {
     }
   });
 
-  it('включённый мной, закрывает панель интеграций', () => {
-    const { view, start } = mount('services');
-    start(film('me', 'dQw4w9WgXcQ'));
-    expect(view.result.current.open).toBeNull();
-  });
-
-  it('включённый мной, не трогает чат и людей: недописанное сообщение живёт в открытом чате', () => {
-    for (const panel of ['chat', 'people'] as const) {
+  it('включённый мной, закрывает любую панель: сцену попросил я', () => {
+    for (const panel of ['chat', 'services', 'people'] as const) {
       const { view, start } = mount(panel);
       start(film('me', 'dQw4w9WgXcQ'));
-      expect(view.result.current.open).toBe(panel);
+      expect(view.result.current.open).toBeNull();
     }
   });
 
   it('следующий мой фильм закрывает панель снова, а пауза и перемотка — нет', () => {
     const { view, start } = mount('services');
     start(film('me', 'dQw4w9WgXcQ'));
-    act(() => view.result.current.setOpen('services'));
+    act(() => view.result.current.setOpen('chat'));
     // Пауза, перемотка — та же площадка и тот же ролик, только новая ревизия.
     start(film('me', 'dQw4w9WgXcQ', 2));
     start(film('me', 'dQw4w9WgXcQ', 3));
-    expect(view.result.current.open).toBe('services');
+    expect(view.result.current.open).toBe('chat');
 
     start(film('me', 'aqz-KE-bpKQ', 4));
     expect(view.result.current.open).toBeNull();
@@ -101,66 +95,68 @@ describe('фильм', () => {
   it('чужой фильм между моими не считается моим, а мой после него — считается', () => {
     const { view, start } = mount('services');
     start(film('me', 'dQw4w9WgXcQ'));
-    act(() => view.result.current.setOpen('services'));
+    act(() => view.result.current.setOpen('chat'));
     start(film('other', 'aqz-KE-bpKQ'));
-    expect(view.result.current.open).toBe('services');
+    expect(view.result.current.open).toBe('chat');
     start(film('me', 'dQw4w9WgXcQ'));
     expect(view.result.current.open).toBeNull();
   });
 
   it('на широком экране не закрывает ничего: кинозал отодвигается от полосы сам', () => {
     width = 1100;
-    const { view, start } = mount('services');
-    start(film('me', 'dQw4w9WgXcQ'));
-    expect(view.result.current.open).toBe('services');
+    for (const panel of ['chat', 'services'] as const) {
+      const { view, start } = mount(panel);
+      start(film('me', 'dQw4w9WgXcQ'));
+      expect(view.result.current.open).toBe(panel);
+    }
   });
 
   it('смена ширины — не действие: панель, открытая во время моего фильма, остаётся', () => {
     width = 1100;
-    const { view, start } = mount('services');
+    const { view, start } = mount('chat');
     start(film('me', 'dQw4w9WgXcQ'));
     act(() => resize(900));
-    act(() => resize(700));
-    expect(view.result.current.open).toBe('services');
+    act(() => resize(390));
+    expect(view.result.current.open).toBe('chat');
   });
 });
 
 describe('каталог', () => {
-  it('открытый мной, закрывает панель интеграций на телефоне и на планшете', () => {
-    for (const screen of [390, 720, 768, 900, 959]) {
-      width = screen;
-      const { view, browse } = mount('services');
-      browse('youtube');
-      expect(view.result.current.open).toBeNull();
-    }
+  it('открытый мной, закрывает любую панель на телефоне и на планшете', () => {
+    for (const screen of [390, 720, 760, 768, 900, 959])
+      for (const panel of ['chat', 'services', 'people'] as const) {
+        width = screen;
+        const { view, browse } = mount(panel);
+        browse('youtube');
+        expect(view.result.current.open).toBeNull();
+      }
   });
 
   it('с 960 px панель остаётся: кинозал встаёт рядом с ней', () => {
     for (const screen of [960, 1100, 1440]) {
       width = screen;
-      const { view, browse } = mount('services');
+      const { view, browse } = mount('chat');
       browse('youtube');
-      expect(view.result.current.open).toBe('services');
-    }
-  });
-
-  it('чат и людей не закрывает никогда', () => {
-    for (const panel of ['chat', 'people'] as const) {
-      const { view, browse } = mount(panel);
-      browse('youtube');
-      browse('twitch');
-      expect(view.result.current.open).toBe(panel);
+      expect(view.result.current.open).toBe('chat');
     }
   });
 
   it('открытый каталог не закрывает панель, открытую после него, пока его не откроют снова', () => {
     const { view, browse } = mount('services');
     browse('youtube');
-    act(() => view.result.current.setOpen('services'));
+    act(() => view.result.current.setOpen('chat'));
     act(() => resize(760));
-    expect(view.result.current.open).toBe('services');
-    // Другая площадка из той же панели — снова своё действие.
+    expect(view.result.current.open).toBe('chat');
+    // Другая площадка — снова своё действие.
     browse('twitch');
     expect(view.result.current.open).toBeNull();
+  });
+
+  it('закрытие каталога — не открытие: панель после него остаётся', () => {
+    const { view, browse } = mount('services');
+    browse('youtube');
+    act(() => view.result.current.setOpen('chat'));
+    browse(null);
+    expect(view.result.current.open).toBe('chat');
   });
 });

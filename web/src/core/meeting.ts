@@ -26,6 +26,14 @@ export class Meeting {
    * Комната узнаёт об этом только в момент «включить», и это обычная команда.
    */
   readonly cinema = new Store<WatchProvider | null>(null);
+  /**
+   * Недописанное сообщение чата.
+   *
+   * Живёт у встречи, а не у панели: панель закрывается и сама — кинозал, открытый своим
+   * нажатием, убирает её со сцены, — а вместе с панелью пропадала бы и разметка с набранным
+   * текстом. Здесь текст ждёт, пока чат откроют снова, и уходит вместе со встречей.
+   */
+  readonly draft = new Store('');
   private viewChange: Promise<unknown> = Promise.resolve();
   private viewRevision = 0;
   private played = new Set<string>();

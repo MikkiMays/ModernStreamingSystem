@@ -46,7 +46,9 @@ export function Sidebar({
   const tracks = useStore(meeting.media.tracks);
   const speaking = useStore(meeting.media.speaking);
   const [now, setNow] = useState(Date.now);
-  const [draft, setDraft] = useState('');
+  // Недописанное хранит встреча, а не панель: закрытая панель его не уносит (`Meeting.draft`).
+  const draft = useStore(meeting.draft);
+  const setDraft = (text: string) => meeting.draft.set(text);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
