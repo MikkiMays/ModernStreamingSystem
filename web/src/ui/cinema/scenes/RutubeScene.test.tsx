@@ -57,6 +57,7 @@ const EPISODE = {
   poster: null,
 };
 const FILM = { ...EPISODE, id: '2fe4663300000000000000000000abcd', title: 'Фильм раздела', badge: undefined };
+const NEWER = { ...EPISODE, id: '79c0b79f00000000000000000000abcd', title: 'Свежее видео', badge: undefined };
 const FACE = {
   provider: 'rutube',
   kind: 'channel',
@@ -76,6 +77,11 @@ const FACE = {
 function answer(url: URL) {
   const endpoint = url.pathname.split('/cinema/')[1];
   const params = url.searchParams;
+  if (endpoint === 'search' && params.get('query') === 'сдвиг')
+    // Лента «сначала новое» сдвинулась между порциями: фильм раздела приезжает второй раз.
+    return params.get('cursor')
+      ? { items: [FILM, NEWER], channels: [], categories: [], series: [], next: null }
+      : { items: [EPISODE, FILM], channels: [], categories: [], series: [], next: '30' };
   if (endpoint === 'search')
     return params.get('query')
       ? { items: [EPISODE], channels: [FACE], categories: [], series: [SHOW], next: null }
@@ -100,6 +106,21 @@ function answer(url: URL) {
       },
       items: [FILM],
       next: null,
+    };
+  if (endpoint === 'series' && params.get('season') === '2')
+    return {
+      series: {
+        id: '891161',
+        title: 'Универ | PREMIER',
+        poster: null,
+        description: '',
+        year: null,
+        seasons: [],
+      },
+      season: '2',
+      // Вторая порция сезона начинается с того, чем кончилась первая: сдвиг ленты между порциями.
+      items: params.get('cursor') ? [NEWER, FILM] : [EPISODE, NEWER],
+      next: params.get('cursor') ? null : '20',
     };
   if (endpoint === 'series')
     return {
@@ -245,5 +266,48 @@ it('поиск — каналы и сериалы полками над роли
   );
   await waitFor(() => expect(asked).toContain('channel 23463954'));
   expect(screen.getByRole('tab', { name: 'О канале' })).toBeInTheDocument();
+  client.clear();
+});
+
+it('ряд разделов — одна остановка Tab; стрелки ведут по разделам, не спрашивая площадку', async () => {
+  const { client } = mount();
+  const home = await screen.findByRole('tab', { name: 'Главная' });
+  await screen.findByRole('tab', { name: 'Фильмы' });
+  const tabs = within(screen.getByRole('tablist', { name: 'Разделы Rutube' })).getAllByRole('tab');
+  expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
+  home.focus();
+  fireEvent.keyDown(home, { key: 'ArrowRight' });
+  expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Фильмы' }));
+  expect(asked.filter((line) => line.startsWith('category'))).toEqual([]);
+  // Выбирает нажатие — и остановка Tab переезжает на выбранный раздел.
+  fireEvent.click(document.activeElement as HTMLElement);
+  await waitFor(() => expect(asked).toContain('category 4'));
+  expect(screen.getByRole('tab', { name: 'Фильмы' }).tabIndex).toBe(0);
+  expect(screen.getByRole('tab', { name: 'Главная' }).tabIndex).toBe(-1);
+  client.clear();
+});
+
+it('карточка, приехавшая во второй порции снова, стоит в ленте один раз', async () => {
+  const { client } = mount();
+  fireEvent.change(screen.getByPlaceholderText('Видео, каналы и ТВ'), { target: { value: 'сдвиг' } });
+  await screen.findByText('Фильм раздела');
+  fireEvent.click(screen.getByRole('button', { name: 'Показать ещё' }));
+  await screen.findByText('Свежее видео');
+  expect(screen.getAllByText('Фильм раздела')).toHaveLength(1);
+  expect(
+    screen.getAllByRole('button', { name: /^Подробнее: / }).map((node) => node.textContent),
+  ).toHaveLength(3);
+  client.clear();
+});
+
+it('страница сериала тоже ставит повторившуюся серию один раз (общая лента страниц)', async () => {
+  const { client } = mount();
+  fireEvent.click(await screen.findByRole('button', { name: 'Открыть: Универ | PREMIER' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Сезон 2' }));
+  await screen.findByText('Свежее видео');
+  fireEvent.click(screen.getByRole('button', { name: 'Показать ещё' }));
+  await screen.findByText('Фильм раздела');
+  expect(screen.getAllByText('Свежее видео')).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: /^Подробнее: / })).toHaveLength(3);
   client.clear();
 });

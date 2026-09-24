@@ -7,8 +7,10 @@ import { Empty, Failure, Loading } from '../catalog/notes';
 import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
 import { ItemPage } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
+import { cardsOf } from '../catalog/cards';
 import { Shell } from '../catalog/Shell';
 import { Shelf } from '../catalog/Shelf';
+import { Tabs, type TabSpec } from '../catalog/Tabs';
 import { ChannelTile, Grid, PosterTile, Tile } from '../catalog/tiles';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
@@ -20,6 +22,9 @@ const TABS: readonly ChannelTabSpec[] = [
   { id: 'videos', name: 'Видео' },
   { id: 'about', name: 'О канале' },
 ];
+
+/** Первая вкладка ряда разделов — витрина: полки вместо ленты раздела. */
+const SHOWCASE: TabSpec = { id: '', name: 'Главная' };
 
 /** Смотрится ли это вместе прямо отсюда: ролик или идущий эфир ТВ. Канал автора — дверь. */
 function playable(item: CinemaItem): boolean {
@@ -89,9 +94,13 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
   const page = usePage(api, provider, view);
 
   const first = results.data?.pages[0];
-  const found = results.data?.pages.flatMap((portion) => portion.items) ?? [];
+  const found = cardsOf(results.data?.pages);
   const shows = first?.series ?? [];
-  const inSection = feed.data?.pages.flatMap((portion) => portion.items) ?? [];
+  const inSection = cardsOf(feed.data?.pages);
+  const chips = [
+    SHOWCASE,
+    ...(sections.data?.items ?? []).map((entry) => ({ id: entry.id, name: entry.title })),
+  ];
 
   /** Куда ведёт карточка: сериал — на его страницу, канал автора — на канал, остальное — на страницу ролика. */
   const enter = (item: CinemaItem) => {
@@ -143,29 +152,18 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
         <>
           {/* Разделы — вкладками в один ряд над витриной: выбранный раздел заменяет полки своей
               лентой, «Главная» возвращает их, и с витрины при этом никто не уходит. Ряд лежит в
-              полосе (`cinema-strip`), а не прямо в ленте: см. `cinema.css`. */}
+              полосе (`cinema-strip`), а не прямо в ленте: см. `cinema.css`. Остановка Tab у ряда
+              одна, по разделам ходят стрелками (`Tabs`). */}
           <div className="cinema-strip">
-            <nav className="cinema-chips" role="tablist" aria-label="Разделы Rutube" style={accent}>
-              <button
-                role="tab"
-                aria-selected={!section}
-                className="cinema-chip-button"
-                onClick={() => setSection('')}
-              >
-                Главная
-              </button>
-              {(sections.data?.items ?? []).map((entry) => (
-                <button
-                  key={entry.id}
-                  role="tab"
-                  aria-selected={section === entry.id}
-                  className="cinema-chip-button"
-                  onClick={() => setSection(entry.id)}
-                >
-                  {entry.title}
-                </button>
-              ))}
-            </nav>
+            <Tabs
+              label="Разделы Rutube"
+              items={chips}
+              selected={section}
+              onSelect={setSection}
+              className="cinema-chips"
+              tabClassName="cinema-chip-button"
+              style={accent}
+            />
           </div>
 
           {section ? (

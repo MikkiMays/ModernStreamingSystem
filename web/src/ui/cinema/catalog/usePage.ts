@@ -11,6 +11,7 @@ import type {
   CinemaSeriesPage,
   ProviderId,
 } from '../../../core/cinema';
+import { cardsOf } from './cards';
 import type { View } from './useStack';
 
 /**
@@ -85,7 +86,8 @@ export function usePage(api: CinemaApi, provider: ProviderId, view: View) {
   });
 
   const pages = opened.data?.pages ?? [];
-  const items = pages.flatMap((page) => page.items);
+  // Каждая карточка — один раз: ленты «сначала новое» между порциями сдвигаются (`cardsOf`).
+  const items = cardsOf(pages);
   const playlist = pages.find((page) => page.playlist)?.playlist ?? null;
   const category = pages.find((page) => page.category)?.category ?? null;
   /** Какой сезон открыт на самом деле: не выбранный руками — тот, что открыла площадка. */

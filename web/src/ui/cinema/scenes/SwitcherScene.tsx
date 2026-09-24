@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
 import { CinemaApi, PROVIDERS, SWITCHER_TABS, type CinemaItem, type ProviderId } from '../../../core/cinema';
 import { useStore } from '../../primitives';
+import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
 import { Empty, Failure, Loading } from '../catalog/notes';
 import { CategoryPage } from '../catalog/pages/CategoryPage';
@@ -186,9 +187,7 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
             <>
               <h4 className="cinema-heading">{settled ? 'Найденные разделы' : 'Популярные разделы'}</h4>
               {categories.isError && <Failure problem={categories.error} />}
-              {categories.data && (
-                <Grid kind="boxes">{categories.data.pages.flatMap((p) => p.items).map(card)}</Grid>
-              )}
+              {categories.data && <Grid kind="boxes">{cardsOf(categories.data.pages).map(card)}</Grid>}
               {categories.isFetching && !categories.isFetchingNextPage && <Loading />}
               <More
                 shown={!!categories.hasNextPage}
@@ -238,7 +237,7 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
                 </>
               )}
               {results.isError && <Failure problem={results.error} />}
-              {results.data && <Grid>{results.data.pages.flatMap((p) => p.items).map(card)}</Grid>}
+              {results.data && <Grid>{cardsOf(results.data.pages).map(card)}</Grid>}
               {results.isFetching && !results.isFetchingNextPage && <Loading />}
               <More
                 shown={!!results.hasNextPage}

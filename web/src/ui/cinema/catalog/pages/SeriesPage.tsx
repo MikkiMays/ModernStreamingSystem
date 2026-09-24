@@ -3,6 +3,7 @@ import { Clapperboard } from 'lucide-react';
 import { plural, type CinemaItem, type CinemaSeriesInfo } from '../../../../core/cinema';
 import { More } from '../More';
 import { Empty, Failure, Loading } from '../notes';
+import { Tabs } from '../Tabs';
 import { Grid } from '../tiles';
 import type { Feed } from '../usePage';
 
@@ -12,7 +13,8 @@ import type { Feed } from '../usePage';
  * Общая для всех площадок, у которых сериал — это отдельная страница (Rutube, ivi, своя
  * медиатека): чем площадка отличается, решает её сцена — какую плитку взять для серии и что
  * сказать, если показать нечего. Сезоны переключаются вкладками, как вкладки канала: это одно
- * и то же движение и одно и то же место на экране.
+ * и то же движение и одно и то же место на экране. Сезонов бывает и три десятка, поэтому ряд —
+ * с одной остановкой Tab и стрелками (`Tabs`).
  */
 export function SeriesPage({
   series,
@@ -64,19 +66,14 @@ export function SeriesPage({
       </header>
       {/* Вкладка одна — выбирать не из чего: такой ряд был бы подписью, а не выбором. */}
       {seasons.length > 1 ? (
-        <nav className="cinema-tabs" role="tablist" aria-label="Сезоны">
-          {seasons.map((entry) => (
-            <button
-              key={entry.id}
-              role="tab"
-              aria-selected={season === entry.id}
-              className="cinema-tab"
-              onClick={() => onSeason(entry.id)}
-            >
-              {entry.title}
-            </button>
-          ))}
-        </nav>
+        <Tabs
+          label="Сезоны"
+          items={seasons.map((entry) => ({ id: entry.id, name: entry.title }))}
+          selected={season ?? ''}
+          onSelect={onSeason}
+          className="cinema-tabs"
+          tabClassName="cinema-tab"
+        />
       ) : null}
       {feed.isError ? <Failure problem={feed.error} /> : null}
       <Grid>{items.map(card)}</Grid>
