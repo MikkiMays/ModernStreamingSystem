@@ -244,17 +244,17 @@ test('the player speaks the original language and can be subtitled', async ({
       timeout: 40000,
     });
 
-    // Меню качества и озвучки: у ролика с дорожками выбранной обязана быть оригинальная.
+    // Меню качества и озвучки: у ролика с дорожками выбранной обязана быть оригинальная. Меню
+    // двухуровневое: на первой странице только разделы, и отмеченного там нет — выбранная
+    // озвучка отмечена на странице «Язык озвучки».
     await page.locator('.watch-theater').hover();
     await page.getByRole('button', { name: 'Качество картинки и язык звука' }).click();
     const menu = page.locator('.watch-quality-menu');
     await expect(menu).toBeVisible();
-    if (
-      await menu
-        .getByText('Язык озвучки')
-        .isVisible()
-        .catch(() => false)
-    ) {
+    const voices = menu.getByRole('menuitem', { name: /Язык озвучки/ });
+    if (await voices.isVisible().catch(() => false)) {
+      await voices.click();
+      await expect(menu.getByRole('button', { name: 'Язык озвучки' })).toBeVisible();
       await expect(menu.locator('[role="menuitem"][data-selected="true"]').first()).toContainText('оригинал');
     }
     await page.keyboard.press('Escape');
