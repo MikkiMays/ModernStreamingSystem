@@ -595,6 +595,15 @@ class SeriesTests(Stage):
         self.assertEqual(found["items"][0]["badge"], "21 серия")
         self.assertEqual(found["next"], "40")
 
+    async def test_an_episode_of_a_show_is_an_issue_not_an_episode(self):
+        # У телешоу серии зовутся выпусками — и площадка, и зрители говорят «3 выпуск».
+        self.serve_series()
+        show = recorded("tv-891161.json")
+        show["type"] = {"id": 2, "name": "tvshow", "title": "Телепередача"}
+        self.answer("/api/metainfo/tv/891161/", show)
+        found = await self.cinema.series("rutube", "891161")
+        self.assertEqual(found["items"][0]["badge"], "1 выпуск")
+
     async def test_a_page_of_episodes_all_sold_by_subscription_is_empty_but_goes_on(self):
         self.serve_series()
         found = await self.cinema.series("rutube", "891161", "1", "20")
@@ -681,7 +690,9 @@ class DetailsTests(Stage):
 
     async def test_a_live_channel_page_has_no_length_and_no_count_of_views(self):
         video = "c58f502c7bb34a8fcdd976b221fca292"
-        self.answer(f"/api/video/{video}/", recorded(f"video-{video}.json"))
+        # У эфира «Звезды» площадка тоже держит `tv_show_id` — но «все серии» у идущего эфира
+        # ничего не значат, и двери к ним у страницы эфира нет.
+        self.answer(f"/api/video/{video}/", {**recorded(f"video-{video}.json"), "tv_show_id": 24022})
         found = await self.cinema.details("rutube", video, "channel")
         self.assertEqual(
             (found["kind"], found["live"], found["duration"], found["views"]), ("channel", True, None, None)

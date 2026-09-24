@@ -73,6 +73,8 @@ LAST = ("Региональные", "Радиостанции")
 SHOWCASE = (("movies-serials", "serials"), ("live", "main"))
 # Значок на постере: что это за дверь. Вид, которого здесь нет, остаётся без значка.
 KINDS = {"series": "Сериал", "playlist_series": "Сериал", "tvshow": "Шоу", "movie": "Фильм"}
+# Как зовётся одна серия: у телешоу это выпуск — так говорят и площадка, и зрители.
+EPISODES = {"tvshow": "выпуск"}
 
 SILENT = "Rutube не ответил на запрос каталога"
 ADULT = "Видео Rutube с пометкой «для взрослых» в кинозал не попадает"
@@ -238,13 +240,14 @@ class Rutube(Provider):
             season = next((number for number in numbers if number != "0"), numbers[0])
         elif season is not None and season not in numbers:
             raise HTTPException(404, "Такого сезона у сериала нет")
+        word = EPISODES.get((show.get("type") or {}).get("name"), "серия")
         found = await self._portion(
             ctx,
             f"metainfo/tv/{series_id}/video",
             {"season": season} if season is not None else {},
             EPISODES_PAGE,
             offset,
-            lambda item: self._video(item, series=series_id),
+            lambda item: self._video(item, series=series_id, episode=word),
         )
         return {
             "series": wire.series_head(
@@ -264,7 +267,9 @@ class Rutube(Provider):
         self._allow(info)
         live = bool(info.get("is_livestream")) and bool(info.get("is_on_air"))
         author = info.get("author") or {}
-        extra = {"series": str(info["tv_show_id"])} if info.get("tv_show_id") else {}
+        # Дверь ко всем сериям — только у серии: у идущего эфира `tv_show_id` площадка тоже
+        # держит, но «все серии» эфира ничего не значат.
+        extra = {"series": str(info["tv_show_id"])} if info.get("tv_show_id") and not live else {}
         return wire.details(
             self.id,
             kind,
@@ -534,7 +539,9 @@ class Rutube(Provider):
             or item.get("is_deleted")
         )
 
-    def _video(self, item: dict[str, Any], *, series: str | None = None) -> wire.Card | None:
+    def _video(
+        self, item: dict[str, Any], *, series: str | None = None, episode: str = "серия"
+    ) -> wire.Card | None:
         """
         Ролик или эфир как карточка каталога.
 
@@ -560,10 +567,10 @@ class Rutube(Provider):
         extra: dict[str, Any] = {}
         if series:
             extra["series"] = series
-            episode = item.get("episode")
+            number = item.get("episode")
             # Серия без номера (`0`) — без значка: «0 серия» ничего не говорит.
-            if isinstance(episode, int) and episode > 0:
-                extra["badge"] = f"{episode} серия"
+            if isinstance(number, int) and number > 0:
+                extra["badge"] = f"{number} {episode}"
         return wire.card(
             self.id,
             "video",
