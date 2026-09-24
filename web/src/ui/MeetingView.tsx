@@ -43,6 +43,8 @@ import { useFavorites } from './useFavorites';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { notifyDesktop, onDesktopCommand } from '../core/desktop';
 import { useFullscreen } from '../core/fullscreen';
+import { COMPACT } from './breakpoints';
+import { useYieldToCinema } from './cinema/useYieldToCinema';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -108,12 +110,7 @@ export function MeetingView({
   const media = useStore(meeting.media.state);
   const tracks = useStore(meeting.media.tracks);
   /** Телефон: часть кнопок не прячется, а переезжает в меню, и это решает разметка. */
-  const compact = useMediaQuery('(max-width: 700px)');
-  /**
-   * Панель — нижний лист во всю сцену, а не полоса сбоку (`styles.css`, `max-width: 767px`).
-   * Это не `compact`: между 701 и 767 пульт ещё настольный, а панель уже лист.
-   */
-  const sheet = useMediaQuery('(max-width: 767px)');
+  const compact = useMediaQuery(COMPACT);
   const outbound = useStore(meeting.media.outbound);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
@@ -122,35 +119,11 @@ export function MeetingView({
   }, [ended]);
   const [panel, setPanel] = useState<Panel | null>(null);
   /*
-    Каталог кинозала открывается на сцене, а на узком экране сцена лежит **под** панелью:
-    панель там не полоса сбоку, а лист во весь низ экрана. Получалось, что выбор фильма честно
-    открывался — и был не виден, потому что его закрывал тот же список интеграций, из
-    которого его и открыли. Панель уступает место ровно тому, что сама же позвала.
-
-    Правило стояло на `compact` (до 700 px), а листом панель становится до 767 px: между ними
-    каталог открывался под листом и оставался полоской над ним. Граница теперь та же, что у
-    самого листа.
+    Каталог и фильм, открытые самим человеком, не остаются под панелью интеграций, из которой их
+    и открыли: на экране уже 960 px она лежит поверх сцены. Чат и люди при этом не закрываются
+    никогда, а чужой фильм и смена ширины панель не трогают — подробности в самом правиле.
   */
-  const browsing = useStore(meeting.cinema);
-  useEffect(() => {
-    if (sheet && browsing) setPanel(null);
-  }, [sheet, browsing]);
-  /*
-    Кино началось — и полоса панели уступает ему место там, где встать рядом с плеером ей негде.
-
-    От 768 до 1199 px панель — полоса поверх сцены. С 960 px кинозал просто отодвигается от неё
-    (`room-layout.css`), а уже этого плеер рядом с ней вышел бы в 350–540 px, и правый край
-    пульта — качество и полный экран — обрезался бы. Поэтому здесь, как лист на телефоне перед
-    каталогом, панель закрывается, когда в комнате начинается просмотр; открыть её снова во
-    время кино можно, и тогда это полоса поверх, которую позвали сами.
-  */
-  // Границы — ровно те, где кончается лист (767 px) и начинается место рядом (960 px): без щели
-  // в долю пикселя, в которую при масштабе страницы проваливались бы оба правила.
-  const cramped = useMediaQuery('(767px < width < 960px)');
-  const theater = !!snapshot.watch && !viewing;
-  useEffect(() => {
-    if (cramped && theater) setPanel(null);
-  }, [cramped, theater]);
+  useYieldToCinema(meeting, setPanel);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);

@@ -2052,6 +2052,8 @@ progress {
     transform: rotate(360deg);
   }
 }
+/* 1199 px и ширина полосы 360 px — `DRAWER` и `DRAWER_WIDTH` из `ui/breakpoints.ts`: код и
+   `room-layout.css` считают по ним же, а `breakpoints.test.ts` сверяет, что здесь стоят они. */
 @media (max-width: 1199px) {
   .meeting-body.panel-open {
     grid-template-columns: minmax(0, 1fr);
@@ -2096,6 +2098,8 @@ progress {
     margin-top: 50px;
   }
 }
+/* 767 px — `SHEET` из `ui/breakpoints.ts`: здесь панель встречи становится нижним листом, и код
+   решает, когда ей уступить место, по той же строке (сверяет `breakpoints.test.ts`). */
 @media (max-width: 767px) {
   .app-header {
     height: 80px;

@@ -38,5 +38,12 @@ export default defineConfig({
       '/uploads': { target: process.env.CORD_DEV_UPLOADS ?? 'http://127.0.0.1:1081' },
     },
   },
-  test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'], include: ['src/**/*.test.{ts,tsx}'] },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    // CSS в тестах выключен целиком, и `import … from '*.css?raw'` получал бы пустую строку. Текстом
+    // CSS читает только сверка границ раскладки (`ui/breakpoints.test.ts`) — ей текст и отдаётся.
+    css: { include: [/\.css\?raw$/] },
+  },
 });
