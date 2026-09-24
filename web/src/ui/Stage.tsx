@@ -3,14 +3,15 @@ import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
+import { PROVIDERS } from '../core/cinema';
 import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
 import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
+import { SCENES } from './cinema/scenes';
 
 const WatchTheater = lazy(() => import('./WatchTheater'));
-const CinemaBrowser = lazy(() => import('./CinemaBrowser'));
 const PokerTable = lazy(() => import('./PokerTable'));
 const DurakTable = lazy(() => import('./DurakTable'));
 const ChessTable = lazy(() => import('./ChessTable'));
@@ -439,7 +440,14 @@ export function Stage({
     продолжить, комната продолжает смотреть — и разбирать плеер ради чужого выбора значило бы
     остановить фильм всем.
   */
-  if (snapshot.watch || cinema)
+  if (snapshot.watch || cinema) {
+    /*
+      Каталог — сцена площадки из реестра. Ключ — сама сцена, а не площадка: вкладки внутри
+      одной сцены (YouTube ↔ Twitch) переключаются без пересоздания, а другая сцена — это
+      другой каталог и начинается заново.
+    */
+    const scene = cinema ? PROVIDERS[cinema].scene : null;
+    const Scene = scene ? SCENES[scene] : null;
     return (
       <div className="stage watch-together-stage">
         <div className="watch-main">
@@ -452,12 +460,12 @@ export function Stage({
               />
             </Suspense>
           )}
-          {cinema && (
+          {cinema && Scene && (
             <Suspense fallback={<div className="cinema-browser" />}>
-              <CinemaBrowser
+              <Scene
+                key={scene}
                 meeting={meeting}
                 provider={cinema}
-                watching={!!snapshot.watch}
                 onProvider={(next) => meeting.openCinema(next)}
                 onClose={() => meeting.openCinema(null)}
               />
@@ -469,6 +477,7 @@ export function Stage({
         </div>
       </div>
     );
+  }
   return (
     <div
       className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
