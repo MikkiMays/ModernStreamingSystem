@@ -1,0 +1,28 @@
+{
+ "id": "7b84c8b4-2e38-4a8d-a567-d91935b1f97f",
+ "title": "Doom The Dark Ages",
+ "isOnline": false,
+ "isEnded": true,
+ "previewUrl": "",
+ "channelCoverImageUrl": "https://images.live.vkvideo.ru/channel/31577807/cover?change_time=1772894950",
+ "startTime": null,
+ "hasAccess": true,
+ "isPlaybackDisabled": false,
+ "user": {
+  "id": 31577807,
+  "nick": "Ужасы на ночь",
+  "displayName": "Ужасы на ночь",
+  "avatarUrl": "https://images.live.vkvideo.ru/user/31577807/avatar?change_time=1772894608",
+  "isVerifiedStreamer": false
+ },
+ "category": {
+  "id": "d3cda1b8-158c-4601-ba10-014856a2cb7e",
+  "title": "Другое",
+  "coverUrl": "https://images.live.vkvideo.ru/public_video_stream/category/d3cda1b8-158c-4601-ba10-014856a2cb7e?change_time=1732279147"
+ },
+ "count": {
+  "viewers": 0,
+  "views": 0,
+  "likes": 0
+ }
+}

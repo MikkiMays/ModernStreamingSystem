@@ -1,0 +1,69 @@
+{
+ "response": {
+  "catalog": {
+   "default_section": "",
+   "sections": [
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw",
+     "title": "Все",
+     "url": "https://vkvideo.ru"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkCBwJQRh0PIxxLWhcNSVx3Fg",
+     "title": "Интервью и шоу",
+     "url": "https://vkvideo.ru/interview"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkbBhpcQAIFNUlFVAwWUVc7",
+     "title": "Политика",
+     "url": "https://vkvideo.ru/politic"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkGHAVcV0lKZFJLTARJ",
+     "title": "Музыка",
+     "url": "https://vkvideo.ru/music"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkODQNWVR8PKQVLWhcNSVx3Fg",
+     "title": "Образование",
+     "url": "https://vkvideo.ru/education"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkfBgNHXRgLI0lFVAwWUVc7",
+     "title": "Путешествия",
+     "url": "https://vkvideo.ru/tourisme"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkKHAJaWQQSLx0MVBkWUkR8WhQ",
+     "title": "Авто",
+     "url": "https://vkvideo.ru/automotive"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkfDBVdWgQKKQwQVBkWUkR8WhQ",
+     "title": "Технологии",
+     "url": "https://vkvideo.ru/technology"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkIBhleXQUBZEdLTxcOWhs",
+     "title": "Еда",
+     "url": "https://vkvideo.ru/cooking"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkHABBQRx8fKg5LWhcNSVx3Fg",
+     "title": "Мода и красота",
+     "url": "https://vkvideo.ru/lifestyle"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkNAAJbURgVZEdLTxcOWhs",
+     "title": "Здоровье",
+     "url": "https://vkvideo.ru/fitness"
+    },
+    {
+     "id": "PUldVA8AR0RzSVNUWFUCCBkIHBpBQRkDZEdLTxcOWhs",
+     "title": "Культура",
+     "url": "https://vkvideo.ru/culture"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,99 @@
+{
+ "response": {
+  "count": 3,
+  "items": [
+   {
+    "owner_id": -211232966,
+    "id": 456241474,
+    "title": "Натальная карта #63 Люся Чеботина | Чеботина, Журавлев, Иванченко",
+    "duration": 8661,
+    "views": 6704876,
+    "date": 1785488400,
+    "image": [
+     {
+      "height": 34,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/hGt09ARQMug2m2faxoTa2DZsThaTloU0mZNQEHc2bVsdyKgcJWHxcchjNdV_E0K4Z_aUpdieQXSjSjQwtfOqNBFh.jpg?quality=96&size=60x34",
+      "width": 60,
+      "with_padding": 1
+     },
+     {
+      "height": 73,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/J8aZbZeg_xIIma9cKa5msrmf18keF2aZ9yaV_Lz6wjkuV61sqOj4p1PBADPrwAqPP0zR_IkW0nhk1kPOioZQ9UIF.jpg?quality=96&size=130x73",
+      "width": 130,
+      "with_padding": 1
+     },
+     {
+      "height": 180,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/_ox5Csufo8x-gP7QvQvGhhm4T4Y4bpWI3NfEagkaSMqpoAixWR1-mNDTignvOYxVXIezVV2wiLPkbDbkeqjT18Oa.jpg?quality=96&size=320x180",
+      "width": 320
+     },
+     {
+      "height": 405,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/_2z3VY5STg9dPmAAs4ViyIMO6Ogvl-4Tioz4L2VFl2DLjxfZhD8mr54Mn5NICuLSJV2_-igOzrg2nW9DbK0PNVYk.jpg?quality=96&size=720x405",
+      "width": 720
+     },
+     {
+      "height": 576,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/O8yOdzoSOF_b_z36PhJ4FgQzec45zyYQOuJaumZ9_v8yGUWNgFHZK0oz3nMgVae0f-6AyLCXSDh3L5CXhjGBmgkJ.jpg?quality=96&size=1024x576",
+      "width": 1024
+     },
+     {
+      "height": 720,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/rQr0FNCnTstjnT-JMilXQcJH8x4eTTRKYpnDbwkvA1rKXst8lRSIQ20epGNxy3jCqqUBBsla35lW48vUZgVGAJ09.jpg?quality=96&size=1280x720",
+      "width": 1280
+     },
+     {
+      "height": 1152,
+      "url": "https://sun9-88.vkuserphoto.ru/s/v1/ig2/5bBzOvuLkGhc569wQO1bMl3EQ1LKGtq5n-JrJSXFkNYAGax7UdX5S2Ivv-8aUPnQfdQ8Px3agTDvxsxoxPjIylTK.jpg?quality=96&size=2048x1152",
+      "width": 2048
+     }
+    ],
+    "description": "Натальная карта — шоу, в котором ведущие разбирают натальную карту гостя. Олеся в это очень сильно верит, а Дима очень с",
+    "type": "video"
+   },
+   {
+    "owner_id": -22277933,
+    "id": 456241677,
+    "title": "Маша и Медведь. Серия 147. Летучий корабль",
+    "duration": 449,
+    "views": 9206160,
+    "date": 1744879911,
+    "description": "Что делать, если ты Медведица и ты случайно разбила мотоцикл Медведя? \n\nХватать в охапку Машу и Панду и обещать за ними ",
+    "restriction": {
+     "title": "Недоступно в вашем регионе",
+     "text": "Если у вас включён VPN — попробуйте отключить его и обновить страницу",
+     "can_play": 0,
+     "can_preview": 1,
+     "icon_name": "block_outline"
+    },
+    "type": ""
+   }
+  ],
+  "groups": [
+   {
+    "id": 211232966,
+    "name": "Натальная карта",
+    "screen_name": "natalnaya_karta_show",
+    "members_count": 2097846,
+    "photo_50": "https://sun9-57.vkuserphoto.ru/s/v1/ig2/3rf39C5k-zYaTf6Pqs5lxTXlAzCuzMbdE3Zf2LLl06Ekch8cY6OLxy1tfPj9oVJdUIrMcMLxLImvKG0mIhUuetbh.jpg?as=50x50%2C32x32%2C48x48&crop=0%2C0%2C1080%2C1080&quality=95&size=50x50",
+    "photo_100": "https://sun9-57.vkuserphoto.ru/s/v1/ig2/hmt-s_UD1vrbAagNwWb9_cN8OM5UTNB7bjOgOTwwuvoqOOXtsix7GW9nT46YMuOwaN3ZKnwMyCTHPquJWi2mqkcF.jpg?as=100x100%2C32x32%2C48x48%2C72x72&crop=0%2C0%2C1080%2C1080&quality=95&size=100x100",
+    "photo_200": "https://sun9-57.vkuserphoto.ru/s/v1/ig2/MVU1x0LetnRRB0ZkNLNuT5U_ZMEg7vU03YUlak9G34AiBz0zxMaZhHUnALNyG3w4brBSd2Vmh9CFdRtr1KqJ5d87.jpg?as=200x200%2C32x32%2C48x48%2C72x72%2C108x108%2C160x160&crop=0%2C0%2C1080%2C1080&quality=95&size=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page"
+   },
+   {
+    "id": 22277933,
+    "name": "Маша и Медведь",
+    "screen_name": "mashaimedvedtv",
+    "members_count": 817250,
+    "photo_50": "https://sun9-29.vkuserphoto.ru/s/v1/ig2/Hj6rlbylfYirtBJc2cUJMSqkmfBMLJAla3rXohVSOqEu7UiLfVSpWfQMT33xHq7EZewcPQyCqYm97SiRXssaWLnv.jpg?as=50x50%2C32x32%2C48x48&crop=0%2C0%2C1080%2C1080&quality=95&size=50x50",
+    "photo_100": "https://sun9-29.vkuserphoto.ru/s/v1/ig2/eTZ0jSSfI3zl5Bq-sBctZvclxH57IPWNGTgG1ASpy1_oGki6n4nXb61RTpepQz8T385nAmRzWi5-e2_i7Pr7XqN-.jpg?as=100x100%2C32x32%2C48x48%2C72x72&crop=0%2C0%2C1080%2C1080&quality=95&size=100x100",
+    "photo_200": "https://sun9-29.vkuserphoto.ru/s/v1/ig2/TvLtwE4_HfWU287v3rVPPZnxqS-uYQqWc8KbtKntZPOsuS3QIKILZry5iqUxRan4SthSDjb8y18VA92ad38i3nzk.jpg?as=200x200%2C32x32%2C48x48%2C72x72%2C108x108%2C160x160&crop=0%2C0%2C1080%2C1080&quality=95&size=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group"
+   }
+  ]
+ }
+}

@@ -1,0 +1,398 @@
+{
+ "response": {
+  "block": {
+   "id": "PUlQVA8GR0R3W0tMF0AZAygPGilDXQ8DKRg2F1lYSUpkXktMF1kKDyg0CBpZFkdEcklTQhkWWlNkUVhaFwdbRHxJKDp5FhY",
+   "data_type": "videos",
+   "next_from": "PUlYVA8AW0pkWF5UDwZdU3NSUEIGAVwb",
+   "videos_ids": [
+    "-1959_456261405",
+    "-205805412_456275327",
+    "-158352267_456253017",
+    "-162096641_456239765",
+    "-212508059_456245003",
+    "-110135406_456244286"
+   ]
+  },
+  "videos": [
+   {
+    "owner_id": -1959,
+    "id": 456261405,
+    "title": "FEEL | Trancemission Show | Roman Messer & AV | 22.09.2026",
+    "duration": 7245,
+    "views": 8821,
+    "date": 1790024421,
+    "live_status": "postlive",
+    "image": [
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=8eac4e7ff024efea261adc5445c0a06f&c_uniq_tag=cbkhzD1jFtOsusfIa5pewE0kMwZ1eEOHF0o07sLkUD8&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=bea8687507772ff531614b526cc594e3&c_uniq_tag=NvVeoCJL5CHfCM0Io3LdJd3S6y2skivAS6QuJ8EpHyg&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=960x540&quality=95&sign=9afe9c7693d298a59080e152292c4e30&c_uniq_tag=sCv-Hrke-MEBZPohD0deBLEf8lYT0CIRWTMVgbMFgeI&type=video_thumb",
+      "width": 960,
+      "height": 540
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=320x180&quality=95&sign=0ded3293bf28d3c55e3cf354508c976f&c_uniq_tag=tK-YWlZ2IOvdlrheTBRwyKEc87cf2gPAvu5SFrTHhgM&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=720x405&quality=95&sign=5ffe1457a72477e2571bba25a98854e6&c_uniq_tag=BEi2xsmO5E4vWfv1tzNpg6RcDu5DuazlN9e1O7JAmWU&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?size=960x540&quality=95&sign=9afe9c7693d298a59080e152292c4e30&c_uniq_tag=sCv-Hrke-MEBZPohD0deBLEf8lYT0CIRWTMVgbMFgeI&type=video_thumb",
+      "width": 960,
+      "height": 540
+     },
+     {
+      "url": "https://sun1-29.vkuserphoto.ru/impg/ECimdgn-E1lWebxt8QXYsZMKBlChg3k6M8hnlg/G6LmZ86ywic.jpg?quality=90&proxy=1&sign=72b0cdd1f0a937999d48327fa176ddb6&c_uniq_tag=QQ-TkZidki2cufzPAenfHqFkLQFTk1I9J_uajGerDHI&type=video_thumb",
+      "width": 960,
+      "height": 540
+     }
+    ],
+    "description": "",
+    "type": "video"
+   },
+   {
+    "owner_id": -205805412,
+    "id": 456275327,
+    "title": "Яшин* пародирует Пашиняна, Кукушкин** выжимает слезу, Борис Джонсон стал семейным психотерапевтом",
+    "duration": 7453,
+    "views": 18447,
+    "date": 1789966728,
+    "live_status": "postlive",
+    "image": [
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=8b954b107befd6c7db42a8ccd78e7890&c_uniq_tag=9UsAIyuilsWUD_s1Lit8y0V4ZNttzGYarC35lbZdN74&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=d7c211b530ab8acd7b78256e4e757505&c_uniq_tag=bUsShdxTepu633cUeYk7Dwu5x8t4Tfsxh9sYvms_hsI&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=1280x720&quality=95&sign=9b037268629522b4a9caebf7fb2356cb&c_uniq_tag=5TZgGSEh-fAzw_u48r_GbkgViONsAj0PeK6hhlmBkfY&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=320x180&quality=95&sign=f46399ce8797b86c6dfe91c79a1cffa0&c_uniq_tag=Am0XRve4dmvzPbW6sF_Nodt3kgtptYoIhe8_4Nee5kE&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=720x405&quality=95&sign=b4a4ce96024795d246a160cf7df448dd&c_uniq_tag=fjds7dSGC9Zc9JGyj1Btt3f8DLlYcZIlbND-mYmKK7U&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?size=1024x576&quality=95&sign=114b2730003c813483332b60d0b9452b&c_uniq_tag=fIlIQ89G0cbEO2A9d4QadX7bRexEk0hiBJXPdXITfXw&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/impg/_NaOnyDV6kQa1E0mmWJzAt9JmCwZpcbEq1Q0Qw/NS4fKdkOkTE.jpg?quality=90&proxy=1&sign=8ad2f5f2ae5f2824abe15567f8c9a411&c_uniq_tag=8vcoZKzBnh9kN4K7iGobrJcL3bhgLVuftcGL3C6h-s0&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     }
+    ],
+    "description": "Концерты Михаила Шахназарова:\nhttps://shahkoncert.ru/\n\nСыктывкар, 26 сентября\nКиров, 27 сентября\nНовосибирск, 3 октября\n",
+    "type": "video",
+    "vk_live_channel_url": "https://vkvideo.ru/live-205805412_456275327",
+    "vk_live_slot_url": "sl_282186"
+   },
+   {
+    "owner_id": -158352267,
+    "id": 456253017,
+    "title": "Цены в ЭСТОНИИ! Квартиры, зарплаты, продукты, автомобили!",
+    "duration": 4031,
+    "views": 185875,
+    "date": 1789737397,
+    "image": [
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=15ad5e3253a79cb44007f32c14fc4956&c_uniq_tag=x7xGmM2KpCe_dg3cFZoC7L5ufx2LKhwoZ5L3xMr2TYo&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=7a2a1b626e8c3eff8926868a18c96581&c_uniq_tag=I0vHoDYferv9sJ53BEFXkbF5a3BGMpjAhzlc_VOYNQI&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=1280x720&quality=95&sign=ce98eda342cb814e12c2c858079f2a94&c_uniq_tag=kaw4VTtBlIMIoCo06fWf3T58IIe4ejk5DHshwdw4cvo&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=320x180&quality=95&sign=4f92e41869c430c5026afa86906262f9&c_uniq_tag=qXwmWzrpo22-n0NqgcKuiAENkfmmUyZT0NreSm-VEi4&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=720x405&quality=95&sign=018e1267fae5720b63f673a119c2528d&c_uniq_tag=aQWc4l2Gmd1km6XTRzfm-xDVooCc-3F9FMVBMrC8958&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?size=1024x576&quality=95&sign=1f027637cd375e7cc40f12643eeaef3b&c_uniq_tag=VkgGrUA4aPxJ1eXqPh65RImh_cD12OSnm9ArZbihqkM&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun1-57.vkuserphoto.ru/impg/q1qr8NWZ2az6vbfhsPmyN--wjryEUChQE1E1PQ/Ystj0gRe9vo.jpg?quality=90&proxy=1&sign=032f4e8a71254b6e6c598ed68dfd9e83&c_uniq_tag=IKdOWDLvFGfZkm6B9EEriVkyI1OHPish6Is_E3TtNS8&type=video_thumb",
+      "width": 2560,
+      "height": 1440
+     }
+    ],
+    "description": "HUAWEI nova 16s Pro — стильный смартфон с продвинутой камерой и AI-инструментами для ярких снимков. Подробнее: https://v",
+    "type": "video"
+   },
+   {
+    "owner_id": -162096641,
+    "id": 456239765,
+    "title": "Купили невероятные товары из интернета!",
+    "duration": 3601,
+    "views": 824346,
+    "date": 1786179601,
+    "image": [
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=b38d3ea5b5225f917a0c263dac49bc31&c_uniq_tag=mLjEVoXm-KU-X4MriXfXGfDf_dnRWW97V3BgQlxkmVg&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=4037af98efef53e2fc3ad656b1025f9b&c_uniq_tag=Dl5eVBReflJ8-yUCOpdy_9b2tqPnsm45_C5zyI4mwvA&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=1280x720&quality=95&sign=f823944fe4c644664fb5dcc46f22f891&c_uniq_tag=CMBaxnZjxllzEyhd64BpKcXY5RI4lMi8-SmZAmrBF3Y&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=320x180&quality=95&sign=b57bee4a8d8bb365e325f73f8aea7666&c_uniq_tag=YSaN9JQfGYB60-YDS_vp4wDdvmbk0jQiTgt2cfhbOtQ&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=720x405&quality=95&sign=4b782431e5c45625bad39782b96d84a4&c_uniq_tag=HFRTQTWwrEzyKwD6B2PBxnJwoHjCLOqizxyKYErQIWo&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?size=1024x576&quality=95&sign=fc3b6212c9788103b0171b56a237ffef&c_uniq_tag=j0sKK3jTLNPkwf8HgwsAPti89JrISM0OZJ43CSTy39M&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-15.vkuserphoto.ru/impg/sgl8kEufug1NHowoztHvnCVtLQrlV5IfgRQ0Hw/VkdHh8gWpYc.jpg?quality=90&proxy=1&sign=1fa12b16159d2ece85e6c7a1a9934eb7&c_uniq_tag=k_0jiKiOcbdTHK2rD08mecSBZ479Lok3akwQXZG_InU&type=video_thumb",
+      "width": 1920,
+      "height": 1080
+     }
+    ],
+    "description": "►ТГК ДЮШЕСА на РАДМИРЕ - https://t.me/dushesradmir \n► НАЧНИ ИГРАТЬ ВМЕСТЕ С НАМИ ПРЯМО СЕЙЧАС ПО ССЫЛКЕ ► https://hassle",
+    "type": "video"
+   },
+   {
+    "owner_id": -212508059,
+    "id": 456245003,
+    "title": "Амкал х 2DROTS | 4 тур | WINLINE Кубок Медиалиги 2026",
+    "duration": 10667,
+    "views": 330565,
+    "date": 1789821455,
+    "live_status": "postlive",
+    "image": [
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=b8e049449b82f06eabe3763a39c40f1b&c_uniq_tag=oly7z4J0xGdffeSZDurlaVPq9NAgkLoJWsrFzugkm0w&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=ab31f12acb739647d62fc8b1c59c0e58&c_uniq_tag=RHQwhjk7jxH4vtEtvEF4RhNIaMDYSM-TDrTh8XHuNDQ&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=1280x716&quality=95&sign=e9f283dce3521e6bac55eb5a92d6a2c2&c_uniq_tag=Cdi6Vk7gCJmZ4HFCT-dslG1y76u_qaZ1NziWgrBRCCk&type=video_thumb",
+      "width": 1280,
+      "height": 716
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=320x179&quality=95&sign=ba964fb3761dadcc860a2bfceac8940e&c_uniq_tag=eof61PobwahnW7fjG0fEKcqEG-no9VVaG9Uwjbz-L7w&type=video_thumb",
+      "width": 320,
+      "height": 179
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=720x403&quality=95&sign=b54a91f614d9935bc9d468a70372e5df&c_uniq_tag=sCxPWDCSQ6Xt4FrdE7qQm0q1FOOCiwldHxyAC9f3IvI&type=video_thumb",
+      "width": 720,
+      "height": 403
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?size=1024x573&quality=95&sign=bdac5640d7c7c78fc55c517c2fcc47b5&c_uniq_tag=7kglmJjy5mTv6oXX0hd8Pf_9vM5jUzEEPC4M3zctDns&type=video_thumb",
+      "width": 1024,
+      "height": 573
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/impg/r6V1HXit_HU3Py1-xv8328XtKR39ut5mpWriVg/b6HrECHfBtM.jpg?quality=90&proxy=1&sign=411297e57a615f32f811be6554f60f6c&c_uniq_tag=7aGd40pxzyK57V1cRPyCVrSO0yLoVZSR6T_BibgTQrM&type=video_thumb",
+      "width": 1851,
+      "height": 1036
+     }
+    ],
+    "description": "Амкал х 2DROTS\nНачало: 19 cентября, 16:00\n\nЗабирай бонус от нашего генерального партнера WINLINE: \n\nЗакажи бесплатную Ал",
+    "type": "video"
+   },
+   {
+    "owner_id": -110135406,
+    "id": 456244286,
+    "title": "Большое шоу 17 сезон. Шестая серия. Финал.",
+    "duration": 2510,
+    "views": 2883175,
+    "date": 1789290000,
+    "image": [
+     {
+      "url": "https://sun1-28.vkuserphoto.ru/Uwii-jgXvvB1iZjn_j4hBPSdCWpSfyyKyyNykA/UsOBWRmI0dw.jpg",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-46.vkuserphoto.ru/69yYfcGsW_T0aSo1_gWMmpZanDMqLutPI_eycQ/6OIZb5UdqsI.jpg",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-85.vkuserphoto.ru/a0mFY5VJPPDAILM7H2J_1zgR0juZe6ll_doeug/IvesV2zz3uY.jpg",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun1-83.vkuserphoto.ru/VePUmQBqKEgT7N4eMxZflVJvPxf1EF_jpJSJ-w/amMsBvbAdC4.jpg",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun1-95.vkuserphoto.ru/SrR5gJ0pzoLrf9kwOa8VjF1P0ZzQ2odbpTrdjA/hjd0PL2L9M0.jpg",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-23.vkuserphoto.ru/orN6n8PlbKsLbc_xusvUBAvC5xedTtFmrYS54Q/BVTb-L4QqUg.jpg",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun1-19.vkuserphoto.ru/YHz738NQyGSjxO1nThM-11OkAEuUG89laA1S9Q/bw5Kj_erUq8.jpg",
+      "width": 4096,
+      "height": 2304
+     }
+    ],
+    "description": "Всем привет! Я Азамат Мусагалиев.\nДобро пожаловать на «Большое шоу»!\nДесять участников, один приз и бесконечное давление",
+    "type": "video"
+   }
+  ],
+  "groups": [
+   {
+    "id": 1959,
+    "name": "RECORD",
+    "screen_name": "record",
+    "members_count": 2958864,
+    "photo_50": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/ANULWE0pGkXDS6qGbgvgs4QAKUJSVWJi_qtjoIUngXbXOk4mu-IdYcPcr6755R1LDRNTo4csCNVWSHnXlUAVFpT3.jpg?quality=95&crop=0,1,749,749&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=mFJhY_Dr1vYDV2uOZ3EFD2C_iMTyOzExKp3tgOc15O4&cs=50x50",
+    "photo_100": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/ANULWE0pGkXDS6qGbgvgs4QAKUJSVWJi_qtjoIUngXbXOk4mu-IdYcPcr6755R1LDRNTo4csCNVWSHnXlUAVFpT3.jpg?quality=95&crop=0,1,749,749&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=mFJhY_Dr1vYDV2uOZ3EFD2C_iMTyOzExKp3tgOc15O4&cs=100x100",
+    "photo_200": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/ANULWE0pGkXDS6qGbgvgs4QAKUJSVWJi_qtjoIUngXbXOk4mu-IdYcPcr6755R1LDRNTo4csCNVWSHnXlUAVFpT3.jpg?quality=95&crop=0,1,749,749&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=mFJhY_Dr1vYDV2uOZ3EFD2C_iMTyOzExKp3tgOc15O4&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Танцевальная музыка"
+   },
+   {
+    "id": 110135406,
+    "name": "Азамат Мусагалиев",
+    "screen_name": "azamatmusagaliev",
+    "members_count": 2131534,
+    "photo_50": "https://sun1-88.vkuserphoto.ru/s/v1/ig2/KchuSe7d32thITjCDtH6YTE7qlRgJI3O5VoL8I392i1YnTutLzfeeL2fGSR_3ogtT8_fL6dFK-coAr_GikQY9i2a.jpg?quality=95&crop=161,1,1627,1627&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=tj20TCVXlu4SEh30Rv1KWr6k7ob_65uEmnweiyW9bzs&cs=50x50",
+    "photo_100": "https://sun1-88.vkuserphoto.ru/s/v1/ig2/KchuSe7d32thITjCDtH6YTE7qlRgJI3O5VoL8I392i1YnTutLzfeeL2fGSR_3ogtT8_fL6dFK-coAr_GikQY9i2a.jpg?quality=95&crop=161,1,1627,1627&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=tj20TCVXlu4SEh30Rv1KWr6k7ob_65uEmnweiyW9bzs&cs=100x100",
+    "photo_200": "https://sun1-88.vkuserphoto.ru/s/v1/ig2/KchuSe7d32thITjCDtH6YTE7qlRgJI3O5VoL8I392i1YnTutLzfeeL2fGSR_3ogtT8_fL6dFK-coAr_GikQY9i2a.jpg?quality=95&crop=161,1,1627,1627&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=tj20TCVXlu4SEh30Rv1KWr6k7ob_65uEmnweiyW9bzs&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Комик"
+   },
+   {
+    "id": 158352267,
+    "name": "808.media",
+    "screen_name": "rbtshki",
+    "members_count": 440399,
+    "photo_50": "https://sun1-22.vkuserphoto.ru/s/v1/ig2/uzAJRNZr9RtmHHoqSlFn-mH9fqVu7o-5ALUWUNbRb5QYpvP_E-5bvti2chw3CqN8vLQOGzUxg0eh51K5mG4nbP9x.jpg?quality=95&crop=225,225,1800,1800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=G1sJ-v_DDiGqjuUMIsFoPwEZM3DKTz-vEjpjUeDbfK0&cs=50x50",
+    "photo_100": "https://sun1-22.vkuserphoto.ru/s/v1/ig2/uzAJRNZr9RtmHHoqSlFn-mH9fqVu7o-5ALUWUNbRb5QYpvP_E-5bvti2chw3CqN8vLQOGzUxg0eh51K5mG4nbP9x.jpg?quality=95&crop=225,225,1800,1800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=G1sJ-v_DDiGqjuUMIsFoPwEZM3DKTz-vEjpjUeDbfK0&cs=100x100",
+    "photo_200": "https://sun1-22.vkuserphoto.ru/s/v1/ig2/uzAJRNZr9RtmHHoqSlFn-mH9fqVu7o-5ALUWUNbRb5QYpvP_E-5bvti2chw3CqN8vLQOGzUxg0eh51K5mG4nbP9x.jpg?quality=95&crop=225,225,1800,1800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=G1sJ-v_DDiGqjuUMIsFoPwEZM3DKTz-vEjpjUeDbfK0&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Техника, электроника"
+   },
+   {
+    "id": 162096641,
+    "name": "Дюшес",
+    "screen_name": "duchessofficial",
+    "members_count": 376287,
+    "photo_50": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/CSOMpL98sgOGt5AgfRZSTUv5uOdhGfzliTrKtgWf12K35_TKByF8Jvb_7zZ4ld2XbQ7JcRvZBgos-RDjzHZIHjMi.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=vUaQE4zKdPlo26cNdp4Jq1jlYIbBmLcLADVKmkPMJSM&cs=50x50",
+    "photo_100": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/CSOMpL98sgOGt5AgfRZSTUv5uOdhGfzliTrKtgWf12K35_TKByF8Jvb_7zZ4ld2XbQ7JcRvZBgos-RDjzHZIHjMi.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=vUaQE4zKdPlo26cNdp4Jq1jlYIbBmLcLADVKmkPMJSM&cs=100x100",
+    "photo_200": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/CSOMpL98sgOGt5AgfRZSTUv5uOdhGfzliTrKtgWf12K35_TKByF8Jvb_7zZ4ld2XbQ7JcRvZBgos-RDjzHZIHjMi.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=vUaQE4zKdPlo26cNdp4Jq1jlYIbBmLcLADVKmkPMJSM&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Блогер"
+   },
+   {
+    "id": 205805412,
+    "name": "Абзац",
+    "screen_name": "absatzmedia",
+    "members_count": 139845,
+    "photo_50": "https://sun1-15.vkuserphoto.ru/s/v1/ig2/0d4MXM8oKohiFijzB53KYJC1kESmzlO9zSCvinODBFwBFtDdcTVNd3TcQM1S4RWrqSEDK1aoyiOIiTEc6Wlv0b0y.jpg?quality=95&crop=0,0,2160,2160&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=m9muiuqfCwrF08tAVlyRgtnePZVlAzMpefBFcoQYmso&cs=50x50",
+    "photo_100": "https://sun1-15.vkuserphoto.ru/s/v1/ig2/0d4MXM8oKohiFijzB53KYJC1kESmzlO9zSCvinODBFwBFtDdcTVNd3TcQM1S4RWrqSEDK1aoyiOIiTEc6Wlv0b0y.jpg?quality=95&crop=0,0,2160,2160&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=m9muiuqfCwrF08tAVlyRgtnePZVlAzMpefBFcoQYmso&cs=100x100",
+    "photo_200": "https://sun1-15.vkuserphoto.ru/s/v1/ig2/0d4MXM8oKohiFijzB53KYJC1kESmzlO9zSCvinODBFwBFtDdcTVNd3TcQM1S4RWrqSEDK1aoyiOIiTEc6Wlv0b0y.jpg?quality=95&crop=0,0,2160,2160&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=m9muiuqfCwrF08tAVlyRgtnePZVlAzMpefBFcoQYmso&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Интернет-СМИ"
+   },
+   {
+    "id": 212508059,
+    "name": "WINLINE Media League | Медиалига",
+    "screen_name": "media.league",
+    "members_count": 258667,
+    "photo_50": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1qJizJFasvAKW-1mjUOrGy_Gon4Pkn5iUvK5i8RMG5txS5feXWhdM37GeBOs7C5MviL7bEa-yXfpCHNIlcZKjSBf.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=VH0tKCQDJasEt5qx0SVZzqrKywp10PollN1FuyKR4n8&cs=50x50",
+    "photo_100": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1qJizJFasvAKW-1mjUOrGy_Gon4Pkn5iUvK5i8RMG5txS5feXWhdM37GeBOs7C5MviL7bEa-yXfpCHNIlcZKjSBf.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=VH0tKCQDJasEt5qx0SVZzqrKywp10PollN1FuyKR4n8&cs=100x100",
+    "photo_200": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1qJizJFasvAKW-1mjUOrGy_Gon4Pkn5iUvK5i8RMG5txS5feXWhdM37GeBOs7C5MviL7bEa-yXfpCHNIlcZKjSBf.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=VH0tKCQDJasEt5qx0SVZzqrKywp10PollN1FuyKR4n8&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Спортивная организация"
+   }
+  ]
+ }
+}

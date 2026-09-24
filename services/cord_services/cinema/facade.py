@@ -72,8 +72,8 @@ Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
 # Плейлист (`PL…`, `UU…`, `OLAK5uy_…`) проверяется тем же правилом, что и имя канала: строка
 # уходит в чужой адрес, и всё, что не буква, цифра или знак из списка, до него не доходит.
 CATALOG_ID = CHANNEL_ID
-# Идентификатор категории Twitch — только цифры.
-CATEGORY_ID = re.compile(r"[0-9]{1,20}")
+# Номер раздела проверяет площадка (`Provider.category_id`): у Twitch и Rutube это число, у VK
+# Видео — её строка.
 # Сериал и его сезон: у Rutube это числа, у медиатеки — GUID. Общая форма здесь только
 # отсекает то, чему в чужом адресе не место (слэши, точки, пробелы); свою форму площадка
 # проверяет сама.
@@ -134,9 +134,9 @@ class Cinema:
         self.resolves = Window(
             RESOLVES_PER_MINUTE, 60.0, "Комната слишком часто открывает видео, подождите минуту"
         )
-        # Каждая площадка ходит наружу своим клиентом: своим прокси и под общей защитой
-        # «только наружу» (`net.py`).
-        self.net = Net(config, self._hosts, client=client)
+        # Каждая площадка ходит наружу своим клиентом: своим прокси, под общей защитой «только
+        # наружу» и тем браузером, какой она назвала (`net.py`).
+        self.net = Net(config, self._hosts, client=client, agents=self._agent)
         # Кому cookies — только запасной ход, решает не эта строка, а сама площадка
         # (`Provider.cookies_fallback`, см. `providers/youtube.py`): здесь его просто собирают.
         self.ytdlp = YtDlp(
@@ -171,6 +171,10 @@ class Cinema:
     def _hosts(self, provider: str) -> HostPolicy | None:
         found = self.registry.find(provider)
         return found.hosts if found else None
+
+    def _agent(self, provider: str) -> str | None:
+        found = self.registry.find(provider)
+        return found.user_agent if found else None
 
     def _ctx(self, room: str, source: Provider) -> Ctx:
         return Ctx(room=_room(room), net=self.net.client_for(source.id))
@@ -302,7 +306,7 @@ class Cinema:
     ) -> dict[str, Any]:
         """Один раздел: его карточка и эфиры, которые идут в нём сейчас."""
         source = self._able(provider, "categories")
-        if not CATEGORY_ID.fullmatch(category_id):
+        if not source.category_id.fullmatch(category_id):
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
         return await source.category(self._ctx(room, source), category_id, offset)

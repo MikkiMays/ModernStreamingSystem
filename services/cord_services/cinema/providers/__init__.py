@@ -2,6 +2,7 @@
 
 from .rutube import Rutube
 from .twitch import Twitch
+from .vk import Vk
 from .youtube import YouTube
 
-PROVIDERS = (YouTube, Twitch, Rutube)
+PROVIDERS = (YouTube, Twitch, Rutube, Vk)

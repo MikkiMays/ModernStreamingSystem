@@ -1,0 +1,390 @@
+{
+ "response": {
+  "section": {
+   "id": "PUldVA8AR0RzSVNUWFUCCBkGHAVcV0lKZFJLTARJ",
+   "title": "Музыка",
+   "next_from": "PUlYVA8GW0pkWF5UDwdcVXFbWUcAAV4b PUlQVA8GR0R3W0tMF0AZAygPGilDXQ8DKRg2G0BHAgVkR0tDFw5JCycCBylYQRgPJUlFVAEWUVJqSVhDFw5aSmRYWVQPFgYTNQIKVEg",
+   "blocks": [
+    {
+     "id": "PUlQVA8GR0R3W0tMF0AZAygPGilDXQ8DKRg2G0BHAgVkR0tDFw5JCycCBylYQRgPJUlFVAEWUVJqSVhDFw5aSmRYWVQPFgYTNQIKVEg",
+     "data_type": "videos",
+     "next_from": "PUlYVA8GW0pkWF5UDwdcVXFbWUcAAV4b",
+     "videos_ids": [
+      "-86586923_456240639",
+      "-222362561_456239506",
+      "-6246566_456261379",
+      "-189825198_456241883",
+      "-86586923_456240637",
+      "-220743412_456243608"
+     ],
+     "layout": {
+      "name": "grid"
+     }
+    }
+   ]
+  },
+  "videos": [
+   {
+    "owner_id": -86586923,
+    "id": 456240639,
+    "title": "Юра Музыченко в Зацени мне трек — выпуск 48 | КЕНТЫ СКВАД слушают Morandi, Moby и Павел Воля",
+    "duration": 3946,
+    "views": 4462,
+    "date": 1790251200,
+    "image": [
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=1bf2bc207c2b0725e6151c8305e36082&c_uniq_tag=rKAQOvIb8UA9P7PYaxL5QyWn2U1zPKHtp2IMNF-HIEY&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=6f403ed0fd77940518d4391eb0556033&c_uniq_tag=ZDXHVz7IAVqjn58qq15oL97Mm_LW6QMIyREoC3j0uLk&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=1280x720&quality=95&sign=a745bf79c0936b72b1c946547cc767fc&c_uniq_tag=9_h2RzE1aoQ15JIxpHnsTAJ0Kpo7utvM7u9haIzPSyc&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=320x180&quality=95&sign=ace7c9886bdcdf304d4d9fc96dea8903&c_uniq_tag=ptvRinijuwSlPNT4nv5Raew7JkCzSAY8d6N8QjSB8ac&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=720x405&quality=95&sign=bc73dd778e2b73ffc873a0a3fb95933c&c_uniq_tag=BH3e_i3lDIXuo9YUqsGHwpzMPAArf1w-VWxR29PgckQ&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?size=1024x576&quality=95&sign=23f474b5d378015de531f9bfb5077d56&c_uniq_tag=wfxT_8ZLSIN5T3F109kRXtOeipAoBV7amoL8K1YGcbE&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-55.vkuserphoto.ru/impg/wPX3u2dEgaS8lDtuxveRwdpLVPsfRwr7K7ESWg/dX3LOyqvEr8.jpg?quality=90&proxy=1&sign=cdc8bfade71939eb71043082561e0e10&c_uniq_tag=IKSOiLqsHqMxnMEqwQG1SWuqkjAFmpcKA59LpKR8XgE&type=video_thumb",
+      "width": 1920,
+      "height": 1080
+     }
+    ],
+    "description": "https://bit.ly/46bwjDI  - VK Музыка на 3 месяца за 0 рублей!\n\nHUAWEI MatePad Air помогает справляться с насыщенным ритмо",
+    "type": "video"
+   },
+   {
+    "owner_id": -222362561,
+    "id": 456239506,
+    "title": "ТБШ | ДИМА БИЛАН | СНОВА ПЕРЕПЛЮНУЛ ВСЕХ?",
+    "duration": 2964,
+    "views": 4545,
+    "date": 1790173005,
+    "image": [
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=434864c5d3051f7117e2ace7d02f93e8&c_uniq_tag=WYaizD2XGhy8UX4xjqh1RLM6f-C4uTcY64EH6gmiUUc&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=9042dbd941ac03f83b145dc8de5ea8b9&c_uniq_tag=aAUaEPNK9JfDvkBfjB6i1PYtKIe6QMuWqH3Wo7YIXZc&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=1280x720&quality=95&sign=06e2f7bb37f0012d53120fa22ecb09f2&c_uniq_tag=OBDJn8XtPI4N0aCaY0XS_DXKpKGQMwWb8GHH2grqzgU&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=320x180&quality=95&sign=f74f53eb1cb9b8c0108c699743c42eb1&c_uniq_tag=62RWeF6kk3gUnkdlXG2NoEo_fbnPMuKByUqV_lowP00&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=720x405&quality=95&sign=2f0936c4abe65cfeb06b8f4fabdd0495&c_uniq_tag=_GBWgC4-phseaP0ib82AM-jCpBn5vBINvRdhKctH9Uc&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?size=1024x576&quality=95&sign=150472efea241f2a82d83a37f2f002e1&c_uniq_tag=Y8_Gt8GRnsYaZ02blS8kp-olPTPbo5ll8UqnwFWxobM&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/baruxgAwWG_fOJgo1uP--xyZL37prD9boQEIdw/YsLpJDW05_c.jpg?quality=90&proxy=1&sign=c7ec738a1ec9c6a09f220f9c1b5c8aa4&c_uniq_tag=tlhprNvXh3XQxvRsvmp8k2qToFeBNaIe0668K9IfFeo&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     }
+    ],
+    "description": "Дима Билан снова поднимает планку стадионного шоу — а мы разбираем, за счёт чего оно работает.\n\nВ новом выпуске ТБШ-разб",
+    "type": "video"
+   },
+   {
+    "owner_id": -6246566,
+    "id": 456261379,
+    "title": "НОВАЯ ВОЛНА ХИТОВ 2026: ЛЮСЯ ЧЕБОТИНА, КОМНАТА КУЛЬТУРЫ, ANNA ASTI, НИКОЛАЙ БАСКОВ, МАРИ КРАЙМБРЕРИ",
+    "duration": 2298,
+    "views": 2921,
+    "date": 1790164800,
+    "image": [
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=68eb04853e9fec46a3155ad594a7b012&c_uniq_tag=1zgmghWfG6X9uSyqp9VemPS8Nb_ZnxrzWx-eVUmxmJc&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=f532f4a50fb7c178563ce27961e4c5d0&c_uniq_tag=o6ndRCFZmcQD9sqazb7k1Z5-4vu91Da-0DUf7_OZIrM&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=1280x720&quality=95&sign=ad456bd4338e2757ae215def84da054f&c_uniq_tag=GBnMWI3NlV6WQJtMUcUqnxC-5bpyeeN_law9TS2oba4&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=320x180&quality=95&sign=c146826dfd98b8503b1ae1be5cd3d8ed&c_uniq_tag=yS5fefBD0Wfrc1WuNseAnyLQU7UrgTBMJfK3wEEyZJk&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=720x405&quality=95&sign=c57a749f13f310b3fcda4e7f2ffe4b61&c_uniq_tag=OaZXiHYQwUYIJfxR1yxXN4FYQmWUcyNRb8jVmNAZr8k&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?size=1024x576&quality=95&sign=0681f1eb9f575e9ff49dd86c2be90e01&c_uniq_tag=qrmk2PIqMd9FcFzFITTQBnaBvOtFgmmUjSrQhRMifxI&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-37.vkuserphoto.ru/impg/IvcNxjYVAk_8glbo0H_ba-c7D5NDxgSQsc_FAw/vlOhR74a4kQ.jpg?quality=90&proxy=1&sign=8ff27567a40d67697de8fee6bdfc5e4f&c_uniq_tag=L2-xHBzZDgSP4L1jyEFFvmOXAzUKOXl3qbG2NNdoDzs&type=video_thumb",
+      "width": 2560,
+      "height": 1440
+     }
+    ],
+    "description": "Вы на канале МУЗ, и сегодня вас ждёт новая волна хитов 2026 года, где собраны самые яркие и запоминающиеся песни этого г",
+    "type": "video"
+   },
+   {
+    "owner_id": -189825198,
+    "id": 456241883,
+    "title": "Мартин - про создание саундтрека к фильму, клип на «Ты случилась» и трек с FEDUK | ПО КАВЕРОЧКУ | NANSI & SIDOROV",
+    "duration": 4304,
+    "views": 27068,
+    "date": 1790089200,
+    "image": [
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=e9fea144b341892bd5b38464cab05be4&c_uniq_tag=Uxk9mSbJUaTfyFf1wkJUKVEiVmu6uMTSLljaIPpA3Ko&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=4d232f4323429cc97b14a32c7b2e5afa&c_uniq_tag=BYQftD0Vg97qNigkT9fd6IoFG4e4UNCOiSfjd2skRVA&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=1280x720&quality=95&sign=ebedbdd32735f109e6aa0c05438b3e95&c_uniq_tag=tb8o3l5vpbIdUFuJp5r77SgnElu28BQ1kxAaJzE9zzU&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=320x180&quality=95&sign=0a5a7712930121eb97c0f7b38fe74982&c_uniq_tag=8kQvTgBS-JN5ZbNo-uqPqLW-Td7CDAgcOCRzQmiraQA&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=720x405&quality=95&sign=f65426a37ab969da9c822d8c8e696e64&c_uniq_tag=esldD_EaXmmWejq88pZsbkuTMqcQIyq-BODN4uGkGQ4&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?size=1024x576&quality=95&sign=e3d54b5d95fdbb6b08dceb6be1c3480b&c_uniq_tag=pDLD8o7wARFPbfUnZIVYD8IzaePcsnWqycB-4FlRhvM&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-7.vkuserphoto.ru/impg/hFSupwkfizozq0SLp4_3tEQXi0HOTg9FGwQdyw/TLNviRl4czg.jpg?quality=90&proxy=1&sign=1239166b15521436c2a517d1bc4b84bf&c_uniq_tag=5uyT1qKXOWxQ-5nUgO9Pvdari979PKIZXTcd-cNmnNo&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     }
+    ],
+    "description": "Новый выпуск шоу «По каверочку»\nШоу, в котором мы не только говорим с гостями об инсайтах индустрии и жизни, но и поём н",
+    "type": "video"
+   },
+   {
+    "owner_id": -86586923,
+    "id": 456240637,
+    "title": "Дима Коваль и КЕНТЫ СКВАД слушают треки от подписчиков – Зацени мне трек: Турнир подписчиков Этап 5",
+    "duration": 13140,
+    "views": 7825,
+    "date": 1790183700,
+    "image": [
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=24f3563d1cefff8401443fe9fbe71230&c_uniq_tag=9T-O9HiQML8CSyp5DXA_8jvC8CImFYlZGA2IOyMZK9U&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=14ba11a1e423121864a30575accb201a&c_uniq_tag=fLvQOfs63nzE_kthqjswyFuAel_EDS104aJV0Z9nGgc&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=1280x720&quality=95&sign=abeab96f8d49ad6f252d0a023c4c4451&c_uniq_tag=WdTqb7AdXs9yrlLVbi_jbtGsBor5ShbzsyTVdB3Gco0&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=320x180&quality=95&sign=d8079d795c10267ea45278f79be21ab9&c_uniq_tag=NXm740FSyJvtva-UsPol1dro04p76sO5hhhFrPPsZzI&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=720x405&quality=95&sign=624cc71d2fda2fa41d8d9fe0c56add7c&c_uniq_tag=eJXnlUSULUjI-VGftCJw1vG58mFBxzsLtEybJJAXBzg&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?size=1024x576&quality=95&sign=38835378451acea60a8ac3cc30f08131&c_uniq_tag=3ZsXGw7RO_z6p_34mtjlHascilH357N1mZdkQ9Cuxjw&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-69.vkuserphoto.ru/impg/--ANX6aZ3r6bvL6cqCr_a63E0UlNeE7_CeV1vQ/LN8QhlkVmas.jpg?quality=90&proxy=1&sign=ffd7501501ee37458603efcfcfb164bb&c_uniq_tag=vVgDhZqPAPvZgOPWdnMgehptFBU3MzmyGiZBnvkO_Fo&type=video_thumb",
+      "width": 1920,
+      "height": 1080
+     }
+    ],
+    "description": "Отправь свой трек в ТУРНИР ПОДПИСЧИКОВ и забери главный приз — место за столом ЗМТ! Подробности в боте: https://t.me/ken",
+    "type": "video"
+   },
+   {
+    "owner_id": -220743412,
+    "id": 456243608,
+    "title": "ГДЗ (Премьера клипа 2026) — Марьяна Локель, Вау Вероника",
+    "duration": 129,
+    "views": 145017,
+    "date": 1789808429,
+    "image": [
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=e675ec7cd3db9aa26b18f38ce686f745&c_uniq_tag=gX-BHq7cx6dXFpuwjEQaJcL3HBBEafl1KP_AqCrFgCg&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=b91d0fc915b60aabb56be69343c729ec&c_uniq_tag=HJLEn7CzZH5_E8scNVIwhaoOlpAAYnbwr2L89j9GyTg&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=1280x720&quality=95&sign=f8ecc1eab13cc58e8393ff7ec3735722&c_uniq_tag=DiObuyyQDm5nRHYTXnBg5_j5M7nSJNjE5Xm4M3N-6yk&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=320x180&quality=95&sign=73ccc1af061918c394420eb0f0e3d7d1&c_uniq_tag=iuNfoyG932Idgy29P033LTkqKGh3SoqboA3-q38lBHY&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=720x405&quality=95&sign=a24692911188c80769d068cae1db41a1&c_uniq_tag=HHnnVRKxiKD6doa4aApQKTwfF_MiL3VdQ5YjGNw1CrE&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?size=1024x576&quality=95&sign=a54ca5b1c5db5ebd6b9a5aa729492917&c_uniq_tag=STYvsoHnFhchAAqk0sbDwPY6kg5_JCH5L8eMdecv-pg&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-39.vkuserphoto.ru/impg/PqZ5vC7UjdI1zUJZdIwP1WV8uiIKSQNosTBpCA/Kw3d7ztJI1c.jpg?quality=90&proxy=1&sign=626d2e0c195e8c0390eaf868748ab1c8&c_uniq_tag=FD56j6fYyj20IMWiaDUDVNknKqIFq2caF_hKWDU_UCo&type=video_thumb",
+      "width": 1920,
+      "height": 1080
+     }
+    ],
+    "description": "",
+    "type": "video"
+   }
+  ],
+  "groups": [
+   {
+    "id": 6246566,
+    "name": "МУЗ-ТВ",
+    "screen_name": "muztv",
+    "members_count": 1436678,
+    "photo_50": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/hFJGw8N412kIh6cBrFoJYgYxfWWzJ7dI--fPNcqSBf3eiPGGjRxlsB1Tb_JmmIbzWKbpMloU5r5NQhHEKEmJLkDL.jpg?quality=95&crop=54,45,541,541&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=8CTlh_E9_7CrFmtTwYl84U_8fjnFZz8Br82ArxAu7Xs&cs=50x50",
+    "photo_100": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/hFJGw8N412kIh6cBrFoJYgYxfWWzJ7dI--fPNcqSBf3eiPGGjRxlsB1Tb_JmmIbzWKbpMloU5r5NQhHEKEmJLkDL.jpg?quality=95&crop=54,45,541,541&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=8CTlh_E9_7CrFmtTwYl84U_8fjnFZz8Br82ArxAu7Xs&cs=100x100",
+    "photo_200": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/hFJGw8N412kIh6cBrFoJYgYxfWWzJ7dI--fPNcqSBf3eiPGGjRxlsB1Tb_JmmIbzWKbpMloU5r5NQhHEKEmJLkDL.jpg?quality=95&crop=54,45,541,541&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=8CTlh_E9_7CrFmtTwYl84U_8fjnFZz8Br82ArxAu7Xs&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Телеканал"
+   },
+   {
+    "id": 86586923,
+    "name": "DISTRICT 23 | КЕНТЫ СКВАД",
+    "screen_name": "district23music",
+    "members_count": 134284,
+    "photo_50": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/2OvIWMvB_-f9sgMPYLVvjwfV-qZ1pImVwWp5_Pioarpfit5dr-jzcn6eqekk61IyS1OZrtE5PEmqXFQ1kkhJQDot.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=8yghGeK_qAvPBUeIa7ucSVVIG5mZrQPruIJ4sKPa08s&cs=50x50",
+    "photo_100": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/2OvIWMvB_-f9sgMPYLVvjwfV-qZ1pImVwWp5_Pioarpfit5dr-jzcn6eqekk61IyS1OZrtE5PEmqXFQ1kkhJQDot.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=8yghGeK_qAvPBUeIa7ucSVVIG5mZrQPruIJ4sKPa08s&cs=100x100",
+    "photo_200": "https://sun9-19.vkuserphoto.ru/s/v1/ig2/2OvIWMvB_-f9sgMPYLVvjwfV-qZ1pImVwWp5_Pioarpfit5dr-jzcn6eqekk61IyS1OZrtE5PEmqXFQ1kkhJQDot.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=8yghGeK_qAvPBUeIa7ucSVVIG5mZrQPruIJ4sKPa08s&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Музыкант"
+   },
+   {
+    "id": 189825198,
+    "name": "Nansi & Sidorov",
+    "screen_name": "nancysidorov",
+    "members_count": 278085,
+    "photo_50": "https://sun9-24.vkuserphoto.ru/s/v1/ig2/IxVggAxQHZviEwIo2Xdtm2oichtjF3eQFOZmuxEGavI7dJSTplUmTEXh7sO5vQFsV2SVhn4UDGkP1fZAQhWJ13wr.jpg?quality=95&crop=184,0,1628,1628&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=A9EFZxj93Y14daUTJL-LB7_ovXrxCDwL7nM1W6tpd9Y&cs=50x50",
+    "photo_100": "https://sun9-24.vkuserphoto.ru/s/v1/ig2/IxVggAxQHZviEwIo2Xdtm2oichtjF3eQFOZmuxEGavI7dJSTplUmTEXh7sO5vQFsV2SVhn4UDGkP1fZAQhWJ13wr.jpg?quality=95&crop=184,0,1628,1628&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=A9EFZxj93Y14daUTJL-LB7_ovXrxCDwL7nM1W6tpd9Y&cs=100x100",
+    "photo_200": "https://sun9-24.vkuserphoto.ru/s/v1/ig2/IxVggAxQHZviEwIo2Xdtm2oichtjF3eQFOZmuxEGavI7dJSTplUmTEXh7sO5vQFsV2SVhn4UDGkP1fZAQhWJ13wr.jpg?quality=95&crop=184,0,1628,1628&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=A9EFZxj93Y14daUTJL-LB7_ovXrxCDwL7nM1W6tpd9Y&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Музыкальная группа"
+   },
+   {
+    "id": 220743412,
+    "name": "Марьяна Локель",
+    "screen_name": "mari_llokel",
+    "members_count": 686234,
+    "photo_50": "https://sun9-34.vkuserphoto.ru/s/v1/ig2/AV6WDyYV1284GLpZofa1rOSb9nH5dyPEa9Aew_MnNFyArD_RnwqnmEvXVFArsA05OK7I7hEYYkjj_udK6_nJna1C.jpg?quality=95&crop=53,31,1422,1422&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=wA5qzdvl8GBwvH2F2zwONBggNoTpxAus3FV8Nf6bWvw&cs=50x50",
+    "photo_100": "https://sun9-34.vkuserphoto.ru/s/v1/ig2/AV6WDyYV1284GLpZofa1rOSb9nH5dyPEa9Aew_MnNFyArD_RnwqnmEvXVFArsA05OK7I7hEYYkjj_udK6_nJna1C.jpg?quality=95&crop=53,31,1422,1422&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=wA5qzdvl8GBwvH2F2zwONBggNoTpxAus3FV8Nf6bWvw&cs=100x100",
+    "photo_200": "https://sun9-34.vkuserphoto.ru/s/v1/ig2/AV6WDyYV1284GLpZofa1rOSb9nH5dyPEa9Aew_MnNFyArD_RnwqnmEvXVFArsA05OK7I7hEYYkjj_udK6_nJna1C.jpg?quality=95&crop=53,31,1422,1422&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=wA5qzdvl8GBwvH2F2zwONBggNoTpxAus3FV8Nf6bWvw&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Блогер"
+   },
+   {
+    "id": 222362561,
+    "name": "ТЕОРИЯ БОЛЬШОГО ШОУ | ТБШ",
+    "screen_name": "thebigshowtheory",
+    "members_count": 1817,
+    "photo_50": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/rOLsKKnvSZMtBdvlWjWvOR_kIovDpXqLDh3PxbRyZ23erk8n1hNCYA4fcV6GJS8hEx-M1mvR3Q8mCaoNtMPsuAUD.jpg?quality=95&crop=94,82,910,910&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=5mPsRz6RMQq3ON3mrpIh7ykz3Bz9f5hiJYawQbSg-ZI&cs=50x50",
+    "photo_100": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/rOLsKKnvSZMtBdvlWjWvOR_kIovDpXqLDh3PxbRyZ23erk8n1hNCYA4fcV6GJS8hEx-M1mvR3Q8mCaoNtMPsuAUD.jpg?quality=95&crop=94,82,910,910&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=5mPsRz6RMQq3ON3mrpIh7ykz3Bz9f5hiJYawQbSg-ZI&cs=100x100",
+    "photo_200": "https://sun9-27.vkuserphoto.ru/s/v1/ig2/rOLsKKnvSZMtBdvlWjWvOR_kIovDpXqLDh3PxbRyZ23erk8n1hNCYA4fcV6GJS8hEx-M1mvR3Q8mCaoNtMPsuAUD.jpg?quality=95&crop=94,82,910,910&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=5mPsRz6RMQq3ON3mrpIh7ykz3Bz9f5hiJYawQbSg-ZI&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Шоу, передача"
+   }
+  ]
+ }
+}

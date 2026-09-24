@@ -125,6 +125,13 @@ class Provider:
     # площадки, а не развилка по имени в `resolve.py` — `Cinema.__init__` просто собирает его
     # у всех включённых площадок разом (см. `providers/youtube.py`).
     cookies_fallback: ClassVar[bool] = False
+    # Каким браузером клиент площадки представляется (`net.py`); `None` — общим именем кинозала.
+    # Нужно площадке, чей CDN отдаёт поток только тому браузеру, для которого выдан адрес: у VK
+    # Видео в адресе стоит `srcAg=CHROME`, и тот же плейлист с другим именем браузера — 400.
+    user_agent: ClassVar[str | None] = None
+    # Форма номера раздела (`fullmatch`): у Twitch и Rutube это число, у VK Видео — строка самой
+    # площадки в полсотни знаков. Число здесь по умолчанию — прежняя общая проверка фасада.
+    category_id: ClassVar[re.Pattern[str]] = re.compile(r"[0-9]{1,20}")
 
     def __init_subclass__(cls, abstract: bool = False, **kwargs: Any):
         """

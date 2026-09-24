@@ -1,0 +1,13 @@
+{
+ "response": [
+  {
+   "id": 1,
+   "first_name": "Павел",
+   "last_name": "Дуров",
+   "screen_name": "durov",
+   "photo_200": "https://sun9-20.vkuserphoto.ru/s/v1/ig1/xlCOvrlveDwYITME4iAWlYf4_jNBernRJnvEWh6hAF-OuonQdtLXW4zSwfC55ZaBP4y5t0jh.jpg?quality=96&crop=514,119,337,337&as=32x32,48x48,72x72,108x108,160x160,240x240&ava=1&u=ZbAU54eywlhSsx1U31AiBfjIJ9ZZ5Q41g4l8_I6ne5c&cs=200x200",
+   "followers_count": 0,
+   "verified": 1
+  }
+ ]
+}

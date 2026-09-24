@@ -1,0 +1,14 @@
+{
+ "response": {
+  "groups": [
+   {
+    "id": 999999999,
+    "name": "DELETED",
+    "screen_name": "club999999999",
+    "is_closed": 0,
+    "type": "group",
+    "photo_200": "https://sun9-46.vkuserphoto.ru/impg/_nb2NhfE_jv_qxgCOx2FOjBdyXDTRZoApoB7ow/mLrG7mi-98Y.jpg?quality=96&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&sign=027f3a6ab46c06112aaff21998198fb8&u=Gsgve_JGBJIKsdpKeqSEdgzA8QnKETeW3ILhU4seZNI&cs=200x200"
+   }
+  ]
+ }
+}

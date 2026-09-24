@@ -1,0 +1,113 @@
+{
+ "response": {
+  "catalog": {
+   "sections": [
+    {
+     "id": "PUldVA8HW0pkXktMF0cOBzQIASlHURoTIxgdKVNd",
+     "blocks": [
+      {
+       "id": "PUlQVA8GR0R3W0tMF0cOBzQIASlDXQ8DKTQIA0Fc",
+       "data_type": "search_authors",
+       "title": "Каналы",
+       "search_author_items": [
+        {
+         "id": -22277933,
+         "content_type": "videos",
+         "description": "1607 видео • 817K подписчиков"
+        },
+        {
+         "id": -219298128,
+         "content_type": "videos",
+         "description": "742 видео • 51K подписчиков"
+        },
+        {
+         "id": -226817765,
+         "content_type": "videos",
+         "description": "23 видео • 447 подписчиков"
+        },
+        {
+         "id": -236528555,
+         "content_type": "videos",
+         "description": "9 видео • 830 подписчиков"
+        },
+        {
+         "id": -232216287,
+         "content_type": "videos",
+         "description": "8 видео • 4197 подписчиков"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "groups": [
+   {
+    "id": 22277933,
+    "name": "Маша и Медведь",
+    "screen_name": "mashaimedvedtv",
+    "members_count": 817250,
+    "photo_50": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=50x50",
+    "photo_100": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=100x100",
+    "photo_200": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Мультфильм"
+   },
+   {
+    "id": 219298128,
+    "name": "МАША БЕЗ МЕДВЕДЯ",
+    "screen_name": "mashaa51",
+    "members_count": 51804,
+    "photo_50": "https://sun1-17.userapi.com/s/v1/ig2/93IKHD-hDE4eOQXe11s5t7vWtsJBo-V1MAC0SZrN3u4Pd0ifGSSwXToEL5ZzY3LPoUfACvfSMpWN7s-R6LBJwU6m.jpg?quality=95&crop=218,1243,619,619&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=bV6LiiP1iiN7aykINTsu1cBnezOl_bJGe8pK-v372PM&cs=50x50",
+    "photo_100": "https://sun1-17.userapi.com/s/v1/ig2/93IKHD-hDE4eOQXe11s5t7vWtsJBo-V1MAC0SZrN3u4Pd0ifGSSwXToEL5ZzY3LPoUfACvfSMpWN7s-R6LBJwU6m.jpg?quality=95&crop=218,1243,619,619&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=bV6LiiP1iiN7aykINTsu1cBnezOl_bJGe8pK-v372PM&cs=100x100",
+    "photo_200": "https://sun1-17.userapi.com/s/v1/ig2/93IKHD-hDE4eOQXe11s5t7vWtsJBo-V1MAC0SZrN3u4Pd0ifGSSwXToEL5ZzY3LPoUfACvfSMpWN7s-R6LBJwU6m.jpg?quality=95&crop=218,1243,619,619&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=bV6LiiP1iiN7aykINTsu1cBnezOl_bJGe8pK-v372PM&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Блогер"
+   },
+   {
+    "id": 226817765,
+    "name": "Маша и Медведь",
+    "screen_name": "club226817765",
+    "members_count": 447,
+    "photo_50": "https://sun9-57.userapi.com/s/v1/ig2/lH5RmrkVtN33_JIx13Y0sFQcqq07G2iv1m2d281hTWAOuezcA5r_2zjddV8GJzjMv5zmFpBc6toI_LBZhsNzqawV.jpg?quality=95&crop=512,0,523,523&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=PFz5yzqm7JFYJ_lAzU6Y3K5djgO1Jhj1w8HUD7lcwFE&cs=50x50",
+    "photo_100": "https://sun9-57.userapi.com/s/v1/ig2/lH5RmrkVtN33_JIx13Y0sFQcqq07G2iv1m2d281hTWAOuezcA5r_2zjddV8GJzjMv5zmFpBc6toI_LBZhsNzqawV.jpg?quality=95&crop=512,0,523,523&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=PFz5yzqm7JFYJ_lAzU6Y3K5djgO1Jhj1w8HUD7lcwFE&cs=100x100",
+    "photo_200": "https://sun9-57.userapi.com/s/v1/ig2/lH5RmrkVtN33_JIx13Y0sFQcqq07G2iv1m2d281hTWAOuezcA5r_2zjddV8GJzjMv5zmFpBc6toI_LBZhsNzqawV.jpg?quality=95&crop=512,0,523,523&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=PFz5yzqm7JFYJ_lAzU6Y3K5djgO1Jhj1w8HUD7lcwFE&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Родители и дети"
+   },
+   {
+    "id": 236528555,
+    "name": "Маша и Медведь",
+    "screen_name": "club236528555",
+    "members_count": 830,
+    "photo_50": "https://sun1-25.userapi.com/s/v1/ig2/QZhwgJjYUYM-T26uGU5SV_XyBo0pCiIPsX-Q4SzXXUWt2IuzR_R3dfiKpsp_lth4G-krIGSJoJiV3VKgdn2vcZ88.jpg?quality=95&crop=1,0,987,987&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=59q1LDw6W607kJ0A1_z7eusuR0ER1xyv-GXt2p8pi4g&cs=50x50",
+    "photo_100": "https://sun1-25.userapi.com/s/v1/ig2/QZhwgJjYUYM-T26uGU5SV_XyBo0pCiIPsX-Q4SzXXUWt2IuzR_R3dfiKpsp_lth4G-krIGSJoJiV3VKgdn2vcZ88.jpg?quality=95&crop=1,0,987,987&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=59q1LDw6W607kJ0A1_z7eusuR0ER1xyv-GXt2p8pi4g&cs=100x100",
+    "photo_200": "https://sun1-25.userapi.com/s/v1/ig2/QZhwgJjYUYM-T26uGU5SV_XyBo0pCiIPsX-Q4SzXXUWt2IuzR_R3dfiKpsp_lth4G-krIGSJoJiV3VKgdn2vcZ88.jpg?quality=95&crop=1,0,987,987&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=59q1LDw6W607kJ0A1_z7eusuR0ER1xyv-GXt2p8pi4g&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Кино и мультфильмы"
+   },
+   {
+    "id": 232216287,
+    "name": "Три кота / Маша и Медведь / Мультфильмы",
+    "screen_name": "club232216287",
+    "members_count": 4197,
+    "photo_50": "https://sun1-18.userapi.com/s/v1/ig2/N7ugT0ChHMsiMyN9WAHmi5blUsbPoTmPy6xrBHEKQ7un1chkov_-80FbCB6-ELeEJOpja2cnyjoMwkU-JdF0CvJA.jpg?quality=95&crop=27,32,494,494&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=nNSeQCVR1JiWJTs2_CMTwAygeP3Wz-dPYwftJE2JNAs&cs=50x50",
+    "photo_100": "https://sun1-18.userapi.com/s/v1/ig2/N7ugT0ChHMsiMyN9WAHmi5blUsbPoTmPy6xrBHEKQ7un1chkov_-80FbCB6-ELeEJOpja2cnyjoMwkU-JdF0CvJA.jpg?quality=95&crop=27,32,494,494&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=nNSeQCVR1JiWJTs2_CMTwAygeP3Wz-dPYwftJE2JNAs&cs=100x100",
+    "photo_200": "https://sun1-18.userapi.com/s/v1/ig2/N7ugT0ChHMsiMyN9WAHmi5blUsbPoTmPy6xrBHEKQ7un1chkov_-80FbCB6-ELeEJOpja2cnyjoMwkU-JdF0CvJA.jpg?quality=95&crop=27,32,494,494&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=nNSeQCVR1JiWJTs2_CMTwAygeP3Wz-dPYwftJE2JNAs&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Семья и дети"
+   }
+  ],
+  "profiles": []
+ }
+}

@@ -1,0 +1,7 @@
+{
+ "status": 404,
+ "body": {
+  "error_description": "Blog not found",
+  "error": "blog_not_found"
+ }
+}

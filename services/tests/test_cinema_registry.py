@@ -155,7 +155,9 @@ def everyone():
 class RegistryTests(unittest.TestCase):
     def test_every_platform_the_cinema_knows_is_on_by_default(self):
         for enabled in (None, "", " , "):
-            self.assertEqual([p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube"])
+            self.assertEqual(
+                [p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube", "vk"]
+            )
 
     def test_the_setting_chooses_platforms_but_not_their_order(self):
         registry = Registry(everyone(), " Twitch ,youtube")
@@ -175,17 +177,19 @@ class RegistryTests(unittest.TestCase):
             self.assertEqual((refusal.exception.status_code, refusal.exception.detail), (400, detail))
 
     def test_an_unknown_name_is_one_line_in_the_log_not_a_crash(self):
+        # Незнакомые — площадки, которых в плане нет вовсе: «vk» и «ivi» здесь стояли раньше, и
+        # каждая новая площадка делала бы этот тест неправдой.
         with self.assertLogs("cord_services.cinema.registry", "WARNING") as log:
-            registry = Registry(everyone(), "twitch, vk, ivi")
+            registry = Registry(everyone(), "twitch, vimeo, dailymotion")
         self.assertEqual([p.id for p in registry], ["twitch"])
         self.assertEqual(len(log.records), 1)
-        self.assertIn("vk, ivi", log.output[0])
+        self.assertIn("vimeo, dailymotion", log.output[0])
 
     def test_only_unknown_names_leave_the_cinema_without_platforms(self):
         # Просили только то, чего нет, — значит, и включать нечего: «все» здесь было бы
         # догадкой против прямо написанной настройки.
         with self.assertLogs("cord_services.cinema.registry", "WARNING"):
-            registry = Registry(everyone(), "vk")
+            registry = Registry(everyone(), "vimeo")
         self.assertEqual(list(registry), [])
 
     def test_a_setting_of_known_names_is_silent(self):
@@ -486,6 +490,21 @@ class RouteTests(unittest.TestCase):
                             "live": True,
                         },
                     },
+                    {
+                        "id": "vk",
+                        "available": True,
+                        "reason": None,
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": True,
+                            "playlists": True,
+                            "categories": True,
+                            "series": False,
+                            "live": True,
+                        },
+                    },
                 ]
             },
         )
@@ -511,8 +530,9 @@ class RouteTests(unittest.TestCase):
         self.assertEqual((answer.status_code, answer.json()), (400, off))
 
     def test_an_unknown_name_in_the_setting_is_logged_once_at_startup(self):
+        # Незнакомым здесь раньше был «vk»; с задачи 10 он знаком, а незнакомым остаётся Vimeo.
         with self.assertLogs("cord_services.cinema.registry", "WARNING") as log:
-            client = self.serve("youtube, vk")
+            client = self.serve("youtube, vimeo")
         self.assertEqual(len(log.records), 1)
         self.assertEqual(
             [entry["id"] for entry in self.ask(client, "providers").json()["providers"]], ["youtube"]

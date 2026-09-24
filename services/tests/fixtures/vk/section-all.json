@@ -1,0 +1,396 @@
+{
+ "response": {
+  "section": {
+   "id": "PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw",
+   "title": "Все",
+   "next_from": "PUlYVA8GW0pkWF5UDwZdU3NSUEIGAVwb PUlQVA8GR0R3W0tMF0AZAygPGilDXQ8DKRg2F1lYSUpkXktMF1kKDyg0CBpZFkdEcklTQhkWWlNkUVhaFwdbRHxJKDp5FhY",
+   "blocks": [
+    {
+     "id": "PUlQVA8GR0R3W0tMF0AZAygPGilDXQ8DKRg2F1lYSUpkXktMF1kKDyg0CBpZFkdEcklTQhkWWlNkUVhaFwdbRHxJKDp5FhY",
+     "data_type": "videos",
+     "next_from": "PUlYVA8GW0pkWF5UDwZdU3NSUEIGAVwb",
+     "videos_ids": [
+      "-59135674_456241759",
+      "-131099725_456244454",
+      "-52129473_456249667",
+      "-220675925_456250453",
+      "-211523079_456239500",
+      "-222462427_456241598"
+     ],
+     "layout": {
+      "name": "grid"
+     }
+    }
+   ]
+  },
+  "videos": [
+   {
+    "owner_id": -59135674,
+    "id": 456241759,
+    "title": "Ну-ка, все вместе ! 8 сезон. 1 выпуск (11.09.2026)",
+    "duration": 8438,
+    "views": 340326,
+    "date": 1789144749,
+    "image": [
+     {
+      "url": "https://iv.okcdn.ru/getVideoPreview?id=19293304326727&idx=3&type=39&tkn=vShN_OYRSExIwH1_aTd2Li_-4jo&fn=vid_s",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://iv.okcdn.ru/getVideoPreview?id=19293304326727&idx=3&type=39&tkn=vShN_OYRSExIwH1_aTd2Li_-4jo&fn=vid_m",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://iv.okcdn.ru/getVideoPreview?id=19293304326727&idx=3&type=39&tkn=vShN_OYRSExIwH1_aTd2Li_-4jo&fn=vid_w",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://iv.okcdn.ru/getVideoPreview?id=19293304326727&idx=3&type=39&tkn=vShN_OYRSExIwH1_aTd2Li_-4jo&fn=vid_t",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://iv.okcdn.ru/getVideoPreview?id=19293304326727&idx=3&type=39&tkn=vShN_OYRSExIwH1_aTd2Li_-4jo&fn=vid_u",
+      "width": 720,
+      "height": 405
+     }
+    ],
+    "description": "",
+    "type": "video"
+   },
+   {
+    "owner_id": -131099725,
+    "id": 456244454,
+    "title": "Миньоны и монстры 2026 4К Дубляж",
+    "duration": 5071,
+    "views": 1009479,
+    "date": 1787550560,
+    "image": [
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=3a39788c360c86dfa23bcf0512d92bfe&c_uniq_tag=rcJH4gaw-xGVESotphzZo9cBWNAFxajcath0Od2P9rY&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=41d5b18a5d3a6733b133dde8dad50b9a&c_uniq_tag=Ar1tk7ZvS87qgtBIFmcytMawEu7d_ec4AO9Z0YDSSgo&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=1200x900&quality=95&sign=fff7b1eba434fbd8009e01811efe1fe3&c_uniq_tag=1QC9IbmynxNwDbNO2g7wBOgm__M-hzS4NbTmvLN4AiY&type=video_thumb",
+      "width": 1200,
+      "height": 900
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=320x240&quality=95&sign=cdc0c0a95e878dca00056a76ee0d1b96&c_uniq_tag=vM-wP9qHCtEYmTetd8aQrqUA4sWiNDXz3YRLXIfFgAA&type=video_thumb",
+      "width": 320,
+      "height": 240
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=720x540&quality=95&sign=7b6cf862aa2b1ca5dccbaa0ff2e5f870&c_uniq_tag=FgHzwgxcbdoFd_QS5WjBjCD1uU1XYGSRHrQ91piVb9Y&type=video_thumb",
+      "width": 720,
+      "height": 540
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?size=1024x768&quality=95&sign=a198723db9db6d6ec2983d8df9ceba85&c_uniq_tag=V1YuG7bsQXS2t-p3FveI4bSt-GKQhJlLoSFlwAk65-k&type=video_thumb",
+      "width": 1024,
+      "height": 768
+     },
+     {
+      "url": "https://sun9-51.vkuserphoto.ru/impg/QqosP7ykLrrCPZ_d9GQruG7ApBur1qGoPB7_4Q/HwYznuqufj8.jpg?quality=90&proxy=1&sign=6352c3b4a1ae42d74e7d125cf62a911f&c_uniq_tag=Lz9AyV34UO1BmgeEcOTqHIUASs32o8fE6YWTEvpOXGs&type=video_thumb",
+      "width": 1200,
+      "height": 900
+     }
+    ],
+    "description": "❶ [club131099725|★ НОВИНКИ КИНО ► ПОДПИШИСЬ ★ ] 💥\n\n❸ [club131099725|👉🏻| ПОДПИСЫВАЙТЕСЬ ДРУЗЬЯ |] 💥　　　　　　[club131099725|🔥",
+    "type": "video"
+   },
+   {
+    "owner_id": -52129473,
+    "id": 456249667,
+    "title": "КВН 2026 Летний кубок",
+    "duration": 6602,
+    "views": 43765,
+    "date": 1789895424,
+    "image": [
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=d5341a53f8b2e98e797829a5e5772ecf&c_uniq_tag=Z5qb-nxgB-LHEVl5z9ZqAK8tfzYlDDEqZ_drPgDcaMA&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=abf55c18cc6ab1c881ae5f40d33fa989&c_uniq_tag=C_a1r8frbZk82w30DebzZ2m3Knkf8Uh2gNNUNa3KFco&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=1280x720&quality=95&sign=d0f607feed99e05085e2273a34ebb207&c_uniq_tag=AWT3pnaTS3qI7vqNFZltPnX8UAsH9JDmRUDreK2p3sM&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=320x180&quality=95&sign=80235c187e09656abac3f8ad01497a50&c_uniq_tag=F0QsLTwi5yd99QzXKad6NzjkJMzbvZ2RKmiITJGtWf0&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=720x405&quality=95&sign=b08ed101fb97bc11a56e756e437d207d&c_uniq_tag=NVIIlEz4Jarx11_QSNOKqPdreVQphDoHGbsyBNDogkw&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?size=1024x576&quality=95&sign=0adbf27785269d52e6bbd9a6b9bc78be&c_uniq_tag=Joi9sJ0_4gPYu7dSGoiXxzle8NckYMFsxg5JD4HQHag&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-45.vkuserphoto.ru/impg/eLg0iT9Dgm5AT9CPzvASkzxg3hBSNx8UBcNR1g/LKHnexRn_C8.jpg?quality=90&proxy=1&sign=6e0aaa652a3ef44fe72f6fb2b268736d&c_uniq_tag=1v52Th1qqlXOo5HyvoqtKNt6Ja1Luxr4QjKkMz_1lNk&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     }
+    ],
+    "description": "Играют:\n«Титаны» (Санкт-Петербург)«Близкие» (Белгородская область)«Юрикен» (Владикавказ)«Ровеньки» (Орел)\n\nВ жюри: Вадим",
+    "type": "video"
+   },
+   {
+    "owner_id": -220675925,
+    "id": 456250453,
+    "title": "ЧТО БУДЕТ ОСЕНЬЮ на ВОЙНЕ? ДИСКРЕДИТАЦИЯ и ВСКРЫТИЕ ПАКЕТОВ с Romanov Lite!",
+    "duration": 10994,
+    "views": 115325,
+    "date": 1789928308,
+    "live_status": "postlive",
+    "image": [
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=cf56463f5c4e0605795483254541535b&c_uniq_tag=OJH1gBXjFvg7RTUVt5Isux0puQSREBfH4YXLc1Z_Q64&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=11d99516be312053de3622859c2bb4ae&c_uniq_tag=pGayoRgf0tdbzOWMidNwfMWzjpNgLRgVFV4tHqVdrKc&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=1280x714&quality=95&sign=61f264262f6ea5f87d750e4186850cff&c_uniq_tag=LEl1vwkbp_5XWwYjUU4DJyID2m5uRWUixz4HyIFpO5c&type=video_thumb",
+      "width": 1280,
+      "height": 714
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=320x178&quality=95&sign=65cbd84930f45f0758664335c1de95fa&c_uniq_tag=PjtPLPozOZpQjvSqv-mn_P8tYCSIwTnkKxEVoYhSDA4&type=video_thumb",
+      "width": 320,
+      "height": 178
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=720x402&quality=95&sign=d17b781a8c0f8c0462853bd8c43c4d7b&c_uniq_tag=ZZB88dgafzyN1skh5A-y3Jn06rrM9DeZj-Gbj3z_-bM&type=video_thumb",
+      "width": 720,
+      "height": 402
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?size=1024x571&quality=95&sign=a6fdbdc082bff50a7547f3413507ce0f&c_uniq_tag=RTjWw-mjBFaTg7ovsBORioGeWdSb3tBtXnCI7F2PBEM&type=video_thumb",
+      "width": 1024,
+      "height": 571
+     },
+     {
+      "url": "https://sun9-12.vkuserphoto.ru/impg/MnG230VzGell08LAjk7gjjlX57h4rOZoOHeaEg/mZ_-Km2y6Fk.jpg?quality=90&proxy=1&sign=e02cc63a55319a4186b465f744293377&c_uniq_tag=B7eY-nHXckwPRcLyuuf2HyD8EP6P1zhWMS9nCYyTeqY&type=video_thumb",
+      "width": 1280,
+      "height": 714
+     }
+    ],
+    "description": "ЧТО БУДЕТ ОСЕНЬЮ на ВОЙНЕ? ДИСКРЕДИТАЦИЯ и ВСКРЫТИЕ ПАКЕТОВ с Romanov Lite!",
+    "type": "video",
+    "vk_live_channel_url": "https://vkvideo.ru/live-220675925_456250453",
+    "vk_live_slot_url": "sl_281637"
+   },
+   {
+    "owner_id": -211523079,
+    "id": 456239500,
+    "title": "Мария Ивакова - о разочаровании в эзотерике, разводе и новых отношениях",
+    "duration": 9229,
+    "views": 150947,
+    "date": 1788858490,
+    "image": [
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=7c8c56cd4a1ed577f3342008f75159bc&c_uniq_tag=K2H5WAY9dRV7pvMsBjifSNI8QixpvILEsc2uNdjEmqQ&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=2c64a8b055d91917a7f03b3b9a0f188c&c_uniq_tag=emP_Yxs-ATomZtJ8LPZuo1bd0M9Ou1x1PM1VHYlT598&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=1280x720&quality=95&sign=84895cb9c68e2eca5983b898b6fbc5bf&c_uniq_tag=RlcMt8YcQW_Q_-nEBMmKVIxK3ilyIcQsQn_W3dHfJi0&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=320x180&quality=95&sign=bb287ab6e069f2d77b7d5a20c003b0a9&c_uniq_tag=wyQKok-NjcwsoPyrGv8BNWX7w53XaE-OPON4zRkVPkg&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=720x405&quality=95&sign=55a169456e2e166efb1705ebdf9ab5e7&c_uniq_tag=W488Ll-PJydpXNdio3kwFTGfF7N_vVHLCyBCs8ENaa8&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?size=1024x576&quality=95&sign=4146f05713787e54aa9061c342344919&c_uniq_tag=78zLUEQfcXXUWPJF6VXX2PHaT3zAWvmigsgM7sg23a4&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-71.vkuserphoto.ru/impg/1vKC4Zv4W3LybH6kn8nStiBCbL06Ud4-kPJ1aQ/cGbWqhncHho.jpg?quality=90&proxy=1&sign=2f47cc2d1ef5e76e1aa59d54fe1fdc1c&c_uniq_tag=GfGhnPU39GmZEavIig4B_vQQ2WGd73UmSiOAcUeMtHA&type=video_thumb",
+      "width": 1920,
+      "height": 1080
+     }
+    ],
+    "description": "Это знак для свежего старта вашего дела с Т-Бизнесом — https://t.tb.ru/fametimevkseptem\n\nЕсли вы, как и я, не готовы тра",
+    "type": "video"
+   },
+   {
+    "owner_id": -222462427,
+    "id": 456241598,
+    "title": "Гope oт Ума 4 серии из 4 (2026)",
+    "duration": 10465,
+    "views": 95886,
+    "date": 1789818085,
+    "image": [
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=04202377c841ca87ed08423809a2b4b1&c_uniq_tag=aqslb7L_4NOBXBvYsJR9tpKaDU0m44Kjl7zRfWhB190&type=video_thumb",
+      "width": 130,
+      "height": 96,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=233c6adfcb663e19745817675d1c0745&c_uniq_tag=z-FFsvKNWdkXc4JqjqSBIzQV5NB91jvrQD5M41HjTIQ&type=video_thumb",
+      "width": 160,
+      "height": 120,
+      "with_padding": 1
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=1280x720&quality=95&sign=15aaac723ac3e366a742e618a5cd1a5e&c_uniq_tag=7qxbX9X4iciUwLdvtrTRe-YGSsgcwg5Y5CTLtnKhyOQ&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=320x180&quality=95&sign=8c3d4b1fca90f9d7d9d5b6a8a150a845&c_uniq_tag=tb9spGLv8JShT32G44wzCWln2RVQg2Q35gRH-g83eMc&type=video_thumb",
+      "width": 320,
+      "height": 180
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=720x405&quality=95&sign=132049a05cf1f55e012025577a2bed84&c_uniq_tag=O821sejzrUzTWrO3NFaK8q6pWTL2Iz4MPdzryP0aNBA&type=video_thumb",
+      "width": 720,
+      "height": 405
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?size=1024x576&quality=95&sign=f06334f960673fac07f4cf865ec1a2d1&c_uniq_tag=pNUfowLD9N9sTd6jutsRGgLlGhiZ55crosxpgbCeDKA&type=video_thumb",
+      "width": 1024,
+      "height": 576
+     },
+     {
+      "url": "https://sun9-20.vkuserphoto.ru/impg/6G_suPQCqVoX8QnAbIFeOibgBSglIVRmZ5AsNQ/NTCpTFW9a3Q.jpg?quality=90&proxy=1&sign=c343859a70469f79db2ef63c6c8cca3b&c_uniq_tag=MBNqeXEWRrCvKRiSikUTbz0E49X7UIkyJFGtrC2k6h4&type=video_thumb",
+      "width": 1280,
+      "height": 720
+     }
+    ],
+    "description": "",
+    "type": "video"
+   }
+  ],
+  "groups": [
+   {
+    "id": 52129473,
+    "name": "Возрождение КВН",
+    "screen_name": "kvn_one",
+    "members_count": 86522,
+    "photo_50": "https://sun1-28.vkuserphoto.ru/s/v1/ig2/BXAvheJYuQVPIRTOh-1GSoYOf-X6tj9V4zX-ZC4OCzv38lMXggIvmqwWIKa4j_pSRbeuu7SY7CtzT1Pqlzo0lAo7.jpg?quality=95&crop=160,160,1280,1280&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=AYQtjQCNW8ZzQ1BfD2BgtclBxO4CLBf5mNGd2Om0mn4&cs=50x50",
+    "photo_100": "https://sun1-28.vkuserphoto.ru/s/v1/ig2/BXAvheJYuQVPIRTOh-1GSoYOf-X6tj9V4zX-ZC4OCzv38lMXggIvmqwWIKa4j_pSRbeuu7SY7CtzT1Pqlzo0lAo7.jpg?quality=95&crop=160,160,1280,1280&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=AYQtjQCNW8ZzQ1BfD2BgtclBxO4CLBf5mNGd2Om0mn4&cs=100x100",
+    "photo_200": "https://sun1-28.vkuserphoto.ru/s/v1/ig2/BXAvheJYuQVPIRTOh-1GSoYOf-X6tj9V4zX-ZC4OCzv38lMXggIvmqwWIKa4j_pSRbeuu7SY7CtzT1Pqlzo0lAo7.jpg?quality=95&crop=160,160,1280,1280&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280&ava=1&u=AYQtjQCNW8ZzQ1BfD2BgtclBxO4CLBf5mNGd2Om0mn4&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Юмор"
+   },
+   {
+    "id": 59135674,
+    "name": "НУ-КА, ВСЕ ВМЕСТЕ !",
+    "screen_name": "nykavsevmeste",
+    "members_count": 109594,
+    "photo_50": "https://sun9-69.vkuserphoto.ru/s/v1/ig2/G78D6TJXDsU48otAcUHv3lWwa9Ys085YeCJN1pNfVsXG1L_nrPUBNb9mTSRGE6NuNvVlSux74WjwP9v_oun9vGd4.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=v6-49l2vyi7BvIXWY5-D40hKATWimcv3WgsQvQvTxX4&cs=50x50",
+    "photo_100": "https://sun9-69.vkuserphoto.ru/s/v1/ig2/G78D6TJXDsU48otAcUHv3lWwa9Ys085YeCJN1pNfVsXG1L_nrPUBNb9mTSRGE6NuNvVlSux74WjwP9v_oun9vGd4.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=v6-49l2vyi7BvIXWY5-D40hKATWimcv3WgsQvQvTxX4&cs=100x100",
+    "photo_200": "https://sun9-69.vkuserphoto.ru/s/v1/ig2/G78D6TJXDsU48otAcUHv3lWwa9Ys085YeCJN1pNfVsXG1L_nrPUBNb9mTSRGE6NuNvVlSux74WjwP9v_oun9vGd4.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=v6-49l2vyi7BvIXWY5-D40hKATWimcv3WgsQvQvTxX4&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Шоу, передача"
+   },
+   {
+    "id": 131099725,
+    "name": "KinoPix | Фильмы онлайн | Новинки кино 2026",
+    "screen_name": "kinopix",
+    "members_count": 1009878,
+    "photo_50": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1mfj53wZhp4ZNV2_VXEZZwKZD3ce42yt4rztNJDG-2i7UzMl_Q5Fs_9NulSwLrzLM7WIR5zf5vtEPDdh_KWaujGU.jpg?quality=95&crop=100,100,800,800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=uGBKBNPyCi1d2A_8laIkackPex-C65VkPGfHstRJYSU&cs=50x50",
+    "photo_100": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1mfj53wZhp4ZNV2_VXEZZwKZD3ce42yt4rztNJDG-2i7UzMl_Q5Fs_9NulSwLrzLM7WIR5zf5vtEPDdh_KWaujGU.jpg?quality=95&crop=100,100,800,800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=uGBKBNPyCi1d2A_8laIkackPex-C65VkPGfHstRJYSU&cs=100x100",
+    "photo_200": "https://sun1-17.vkuserphoto.ru/s/v1/ig2/1mfj53wZhp4ZNV2_VXEZZwKZD3ce42yt4rztNJDG-2i7UzMl_Q5Fs_9NulSwLrzLM7WIR5zf5vtEPDdh_KWaujGU.jpg?quality=95&crop=100,100,800,800&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=uGBKBNPyCi1d2A_8laIkackPex-C65VkPGfHstRJYSU&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Кино"
+   },
+   {
+    "id": 211523079,
+    "name": "FAMETIME TV",
+    "screen_name": "fametimetv",
+    "members_count": 142398,
+    "photo_50": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/gHchYtHvkzUCLwMVYZvU19iQLY0PZwSj6t2N5c81v3IRWMgqYhBgAMTsdyBTBrGuoZ2pQy6WKKiSYR-9w61AEj3q.jpg?quality=95&crop=64,48,799,799&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=rLuLltejOWv61nS85TKWZRlwsmsTVuUcDOrrpr_bEZI&cs=50x50",
+    "photo_100": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/gHchYtHvkzUCLwMVYZvU19iQLY0PZwSj6t2N5c81v3IRWMgqYhBgAMTsdyBTBrGuoZ2pQy6WKKiSYR-9w61AEj3q.jpg?quality=95&crop=64,48,799,799&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=rLuLltejOWv61nS85TKWZRlwsmsTVuUcDOrrpr_bEZI&cs=100x100",
+    "photo_200": "https://sun1-94.vkuserphoto.ru/s/v1/ig2/gHchYtHvkzUCLwMVYZvU19iQLY0PZwSj6t2N5c81v3IRWMgqYhBgAMTsdyBTBrGuoZ2pQy6WKKiSYR-9w61AEj3q.jpg?quality=95&crop=64,48,799,799&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=rLuLltejOWv61nS85TKWZRlwsmsTVuUcDOrrpr_bEZI&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Шоу, передача"
+   },
+   {
+    "id": 220675925,
+    "name": "Кирилл Фёдоров | ВОЙНА ИСТОРИЯ ОРУЖИЕ",
+    "screen_name": "club220675925",
+    "members_count": 78260,
+    "photo_50": "https://sun9-75.vkuserphoto.ru/s/v1/ig2/E2zCQoY0XrstCO2TuFUWrrVzEihm2VWCW04TxkKP2_hqMS8NToACYmd4EvZBuXkKQk8i1d558-U5k-wMQ8Q3CBgW.jpg?quality=95&crop=64,64,512,512&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=b-nO184_jk7MrN7Ys8KO_BB7EMuV5r5vEMg5m3G55sg&cs=50x50",
+    "photo_100": "https://sun9-75.vkuserphoto.ru/s/v1/ig2/E2zCQoY0XrstCO2TuFUWrrVzEihm2VWCW04TxkKP2_hqMS8NToACYmd4EvZBuXkKQk8i1d558-U5k-wMQ8Q3CBgW.jpg?quality=95&crop=64,64,512,512&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=b-nO184_jk7MrN7Ys8KO_BB7EMuV5r5vEMg5m3G55sg&cs=100x100",
+    "photo_200": "https://sun9-75.vkuserphoto.ru/s/v1/ig2/E2zCQoY0XrstCO2TuFUWrrVzEihm2VWCW04TxkKP2_hqMS8NToACYmd4EvZBuXkKQk8i1d558-U5k-wMQ8Q3CBgW.jpg?quality=95&crop=64,64,512,512&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480&ava=1&u=b-nO184_jk7MrN7Ys8KO_BB7EMuV5r5vEMg5m3G55sg&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Военное дело"
+   },
+   {
+    "id": 222462427,
+    "name": "Фильмы и сериалы",
+    "screen_name": "club222462427",
+    "members_count": 161093,
+    "photo_50": "https://sun1-89.vkuserphoto.ru/s/v1/ig2/1zNzOA87exzHRVLGfGyZ3BfS1b5_l74jKdPDRGf5k5s-tNsuaRXIayFjQpQ6oNhusBsaCJAuBef5dcDbrYlzLmMC.jpg?quality=95&crop=606,24,561,561&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=MriAyCridatLrKZcVRf4Xwts11ycGFtdvOsJH6VbZKc&cs=50x50",
+    "photo_100": "https://sun1-89.vkuserphoto.ru/s/v1/ig2/1zNzOA87exzHRVLGfGyZ3BfS1b5_l74jKdPDRGf5k5s-tNsuaRXIayFjQpQ6oNhusBsaCJAuBef5dcDbrYlzLmMC.jpg?quality=95&crop=606,24,561,561&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=MriAyCridatLrKZcVRf4Xwts11ycGFtdvOsJH6VbZKc&cs=100x100",
+    "photo_200": "https://sun1-89.vkuserphoto.ru/s/v1/ig2/1zNzOA87exzHRVLGfGyZ3BfS1b5_l74jKdPDRGf5k5s-tNsuaRXIayFjQpQ6oNhusBsaCJAuBef5dcDbrYlzLmMC.jpg?quality=95&crop=606,24,561,561&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540&ava=1&u=MriAyCridatLrKZcVRf4Xwts11ycGFtdvOsJH6VbZKc&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Кино"
+   }
+  ]
+ }
+}

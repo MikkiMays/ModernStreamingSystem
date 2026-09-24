@@ -241,6 +241,10 @@ class SourcePlan:
     # ytdlp: опции yt-dlp сверх общих и можно ли собирать DASH из отдельных дорожек.
     options: Mapping[str, Any] = field(default_factory=dict)
     dash: bool = False
+    # ytdlp: несёт ли мастер HLS площадки её субтитры сам. У YouTube — да (ручные лежат в
+    # мастере), у VK — нет: без флага его субтитры, которые yt-dlp отдаёт отдельным списком,
+    # пропадали бы.
+    hls_subtitles: bool = True
     # direct: всё, что площадка знает о потоке сама.
     kind: Literal["hls", "file"] = "hls"
     live: bool = False
@@ -255,15 +259,16 @@ class SourcePlan:
     variants: tuple[Mapping[str, Any], ...] | None = None
 
 
-def ytdlp(url: str, *, dash: bool = False, **options: Any) -> SourcePlan:
+def ytdlp(url: str, *, dash: bool = False, hls_subtitles: bool = True, **options: Any) -> SourcePlan:
     """
     Страница площадки для yt-dlp.
 
     `dash` — можно ли собрать DASH из отдельных дорожек, если браузер его играет. Решает
     площадка: это знание о её хранилище, а не о плеере (у YouTube дорожки проиндексированы и
-    отдаются по диапазонам, у Twitch — нет).
+    отдаются по диапазонам, у Twitch — нет). `hls_subtitles` — несёт ли её мастер HLS субтитры
+    сам; если нет, субтитры yt-dlp приезжают отдельным списком и при HLS.
     """
-    return SourcePlan("ytdlp", url, options=options, dash=dash)
+    return SourcePlan("ytdlp", url, options=options, dash=dash, hls_subtitles=hls_subtitles)
 
 
 def direct(
@@ -359,7 +364,7 @@ class Resolver:
             # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
             # язык»: выбора не было, был порядок строк.
             "language": info.get("language") or "",
-            "captions": self._captions(info, kind == "hls", provider),
+            "captions": self._captions(info, kind == "hls" and plan.hls_subtitles, provider),
             "poster": self.image(poster, provider),
         }
 

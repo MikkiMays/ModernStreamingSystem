@@ -70,11 +70,13 @@ def routes(cinema: Cinema, core) -> APIRouter:
         await core.member(room_id, authorization)
         return await cinema.categories(provider, query, cursor, room=room_id)
 
+    # Номер раздела длиннее прежних двадцати знаков только у VK Видео (её строка — полсотни);
+    # форму номера проверяет сама площадка (`Provider.category_id`).
     @router.get("/api/v1/services/rooms/{room_id}/cinema/category")
     async def category(
         room_id: str,
         provider: ProviderId,
-        id: str = Query(max_length=20),
+        id: str = Query(max_length=128),
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):

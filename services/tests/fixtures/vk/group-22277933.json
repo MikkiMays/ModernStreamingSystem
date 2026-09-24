@@ -1,0 +1,33 @@
+{
+ "response": {
+  "groups": [
+   {
+    "id": 22277933,
+    "name": "Маша и Медведь",
+    "screen_name": "mashaimedvedtv",
+    "members_count": 817250,
+    "photo_200": "https://sun1-29.vkuserphoto.ru/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=96NzHOrTtvStu3dhxwKdxhWbqMNx2GPrLy6uPSdw2NE&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Мультфильм",
+    "description": "Единственная официальная группа ВК «Маша и Медведь». \nТолько здесь вы первыми узнаете новости о любимом мультсериале, по",
+    "cover": {
+     "enabled": 1,
+     "images": [
+      {
+       "url": "https://sun9-49.vkuserphoto.ru/impf/5FlLACcZYmhDDESrAvimG2SlE5nTZTO4zE389w/aq3S9aCYRTI.jpg?size=1080x432&quality=95&crop=0,0,2560,1022&sign=da95302773fa5c6249b5d2078bc3277d&c_uniq_tag=4D4hyXeviDZXEd_GnJ2ayQLNzsSfR7NVrk9N-sDrZxY&type=cover_group",
+       "width": 1080,
+       "height": 432
+      },
+      {
+       "url": "https://sun9-49.vkuserphoto.ru/impf/5FlLACcZYmhDDESrAvimG2SlE5nTZTO4zE389w/aq3S9aCYRTI.jpg?size=1920x768&quality=95&crop=0,0,2560,1022&sign=883474372d7ee30c8c4d38a4d18a74fb&c_uniq_tag=npWKat_qRqn3QYhsKufTt1M8SUlO-ChIFhJb_S4gFZU&type=cover_group",
+       "width": 1920,
+       "height": 768
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

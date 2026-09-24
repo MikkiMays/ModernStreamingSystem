@@ -1,0 +1,176 @@
+{
+ "response": {
+  "section": {
+   "id": "PUldVA8HW0pkXktMF0cOBzQIASlHURoTIxgdKVNdBxIjGRopRlEIEi8EB1QZFlJEfFpFVAIWUUQaHllCBlc3E3ZfWkZpQVtSclM1AwUAWFZmNxxGAQdTRhoeWUIGVzcTdl9aQ2lBW1J1XzUDBQBYVBoeWUIGATcTdl9aQmlBW1JyCEtaFwdaRHxeRVQGDUlcflxfRw0BWF91XlFEDQVfX35cX1oXBVhEfBBLQgcWUURkR0tCABZRACcHGhMZFl9VZFFYCxkWX1dkUVAL",
+   "next_from": "PUkaE1RGCA4ZChoPW1c0FicMABhUQAIJKElTREg PUlaRBcOWldqSVpHFw5eSmRcS0wXaB5WclgKKkAEX1V2NxxGAQBTOjNbXUUFFDcTdl9aThVoHlZyWAoqQARfVXM3HEYBB186M1tdRQdoHlZyWFwqQARfVXI3HEYBAAhEaklaTxcOSV5xXVhOAAdSVXNTW04EAFJecV1LWhcFWER8EEtCABZRACcHGhMZFl9VZFFYWhcAWUR8SUsLGRZeRHxJGhNURggOGRkMB0BRGBIZDQAaQVEZFRkYDBVBXQQIZEdLQhcOWFY7",
+   "blocks": [
+    {
+     "id": "PUlQVA8GR0R3W0tMF0cOBzQIASlDXQ8DKRhYVBkW",
+     "data_type": "catalog_videos",
+     "title": "Все видео",
+     "videos_ids": [
+      "-22277933_456242380",
+      "-22277933_456241361",
+      "-22277933_456242369",
+      "-22277933_456241663"
+     ]
+    }
+   ]
+  },
+  "catalog_videos": [
+   {
+    "video": {
+     "owner_id": -22277933,
+     "id": 456242380,
+     "title": "Маша и Медведь. Сезон 8. Серия 13. Вишенка на торте",
+     "duration": 456,
+     "views": 3271516,
+     "date": 1777456268,
+     "image": [
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=541a721179f83af311777d7ccb41ef46&c_uniq_tag=cXHY7dJpwLwzjY7iUx7_ISP6nXARugp25iYdhJ2Os6s&type=video_thumb",
+       "width": 130,
+       "height": 96,
+       "with_padding": 1
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=a540f5114d0ceb8d0e7be26926c5bd05&c_uniq_tag=VckoEIspowjueQkD7ziD-mupKJ5fVfwZQ_nyZkwEIDI&type=video_thumb",
+       "width": 160,
+       "height": 120,
+       "with_padding": 1
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=1280x720&quality=95&sign=ae27b173ad29a8e4f01a700b69f7c038&c_uniq_tag=vDYKOC8AQF3c5hla1sXgmVDLFS3QRnZ-GaWwg1UvUCQ&type=video_thumb",
+       "width": 1280,
+       "height": 720
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=320x180&quality=95&sign=cde2a89955d7fd35d16290ec5db3d5b7&c_uniq_tag=SH9TMj1RXOndIe_1cWOBfk8Aib9IAHCl0No1AT9344Y&type=video_thumb",
+       "width": 320,
+       "height": 180
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=720x405&quality=95&sign=aa135ebeaa8d696076a27c5714eb45ba&c_uniq_tag=GySaLsDcAM4WbXT1d3Cu4m6wi7Bk_pui7_8YljrF0UA&type=video_thumb",
+       "width": 720,
+       "height": 405
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?size=1024x576&quality=95&sign=fa963745f32f59b35c2a7a88c82f51b7&c_uniq_tag=XXxWcGRCfa6I_JbS0yDb-z3bwJioUFtFwk1YrtyGfdw&type=video_thumb",
+       "width": 1024,
+       "height": 576
+      },
+      {
+       "url": "https://sun9-82.userapi.com/impg/i5YZrcGQiDwuQtGVxydxGQNEOdEpxdXPd7yNgg/kkazIJudvSU.jpg?quality=90&proxy=1&sign=cd632ff261188a65138d1d887e90498f&c_uniq_tag=SiGehjbaAdebAWT565GN2QeEnvNpL77Z3QuRbaSIbgA&type=video_thumb",
+       "width": 1280,
+       "height": 720
+      }
+     ],
+     "description": "В городе столько соблазнов: вот и Маша не смогла устоять перед выставленным на витрине кондитерской огромным – и наверня",
+     "type": "video"
+    }
+   },
+   {
+    "video": {
+     "owner_id": -22277933,
+     "id": 456241361,
+     "title": "Маша и Медведь. Серия 125. Это не Рио-де-Жанейро",
+     "views": 3100563,
+     "date": 1725963019,
+     "description": "Маша учится показывать фокусы. Взмах руками, секретное заклинание, и… вместо милой голубки из волшебного цилиндра вылета",
+     "restriction": {
+      "title": "Недоступно в вашем регионе",
+      "text": "Если у вас включён VPN — попробуйте отключить его и обновить страницу",
+      "can_play": 0,
+      "can_preview": 1,
+      "icon_name": "block_outline"
+     },
+     "type": "video"
+    }
+   },
+   {
+    "video": {
+     "owner_id": -22277933,
+     "id": 456242369,
+     "title": "Маша и Медведь. Сезон 8. Серия 3. Байки-бабайки",
+     "duration": 447,
+     "views": 3176047,
+     "date": 1777391531,
+     "image": [
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=130x96&quality=95&keep_aspect_ratio=1&background=000000&sign=2c8b55cb8c7e3f0cd7399f8ee3443ed7&c_uniq_tag=cMb8KXE-tDBKK6r3eEvkSDlsJRdpvBONhzGifZ8fHSA&type=video_thumb",
+       "width": 130,
+       "height": 96,
+       "with_padding": 1
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=160x120&quality=95&keep_aspect_ratio=1&background=000000&sign=eba1ff3c4aad161ddc9d5e63bc51704d&c_uniq_tag=vdpoFQoMAtknIvs6MV1pSNdQ3XHgVoAE1aLzO21LweE&type=video_thumb",
+       "width": 160,
+       "height": 120,
+       "with_padding": 1
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=1280x720&quality=95&sign=37d086c9eea4a7d740774b8d169b64dc&c_uniq_tag=ODpMoG2XwOo8V-9XAo01gv9MfndeAR7GBCvoWgJ8oCQ&type=video_thumb",
+       "width": 1280,
+       "height": 720
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=320x180&quality=95&sign=b934a32b5ecaf8b64e8e4b19b5015e0f&c_uniq_tag=0Lip9G6kmOriWFqt-0c-XlUOLVantb1DMy7lfzDRLAY&type=video_thumb",
+       "width": 320,
+       "height": 180
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=720x405&quality=95&sign=97be499848544ce7365f3b5099fb2b13&c_uniq_tag=YTieZaiyos7SrYsAX0quc6LVerokrTYrkF4jDaJTcRI&type=video_thumb",
+       "width": 720,
+       "height": 405
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?size=1024x576&quality=95&sign=1765ec2b276a77cceb5b8c894f69ca63&c_uniq_tag=k0oKHrSBgThmniW_hairITYKZel8zDGogzl90ec-iK0&type=video_thumb",
+       "width": 1024,
+       "height": 576
+      },
+      {
+       "url": "https://sun9-20.userapi.com/impg/UQuJFHZuAH6ftQptFvR-PWhv3gwgc9n7sivgYA/tg2nWBXDJos.jpg?quality=90&proxy=1&sign=0ef20ce1e2bd3e5d96a8d8227d3b5c49&c_uniq_tag=Py-eolvycYqzlxWVlmqCtOM6epPHC_TgnU9yiCz8XUQ&type=video_thumb",
+       "width": 1280,
+       "height": 720
+      }
+     ],
+     "description": "Кто самый лучший в мире специалист по укладыванию детей спать? Ну конечно, Маша! Она такую сказку на ночь может рассказа",
+     "type": "video"
+    }
+   },
+   {
+    "video": {
+     "owner_id": -22277933,
+     "id": 456241663,
+     "title": "Маша и Медведь. Серия 143. 1 апреля – никому не верю!",
+     "views": 5556178,
+     "date": 1743690714,
+     "description": "Есть такой день в году, когда все друг над другом шутят. 1 апреля называется. Маша с Пандой сначала друг на друге тренир",
+     "restriction": {
+      "title": "Недоступно в вашем регионе",
+      "text": "Если у вас включён VPN — попробуйте отключить его и обновить страницу",
+      "can_play": 0,
+      "can_preview": 1,
+      "icon_name": "block_outline"
+     },
+     "type": "video"
+    }
+   }
+  ],
+  "groups": [
+   {
+    "id": 22277933,
+    "name": "Маша и Медведь",
+    "screen_name": "mashaimedvedtv",
+    "members_count": 817250,
+    "photo_50": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=50x50",
+    "photo_100": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=100x100",
+    "photo_200": "https://sun1-29.userapi.com/s/v1/ig2/89OjKlyTmCw3Ukr9hCNYocU5l9IAvSay-6QskInU2OR1lpGhGAOxpTYeCD4wFS4gkjgXt5W4cm4nZIXV57dRqemH.jpg?quality=95&crop=0,0,1080,1080&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&ava=1&u=HLPjflxHZhk9SdlxcIjr4m4yCywA_-vzTKUZM0aevUk&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Мультфильм"
+   }
+  ]
+ }
+}

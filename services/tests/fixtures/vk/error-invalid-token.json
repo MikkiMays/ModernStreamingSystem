@@ -1,0 +1,6 @@
+{
+ "error": {
+  "error_code": 1116,
+  "error_msg": "Anonymous token is invalid"
+ }
+}

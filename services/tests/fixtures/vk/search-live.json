@@ -1,0 +1,175 @@
+{
+ "response": {
+  "catalog": {
+   "sections": [
+    {
+     "id": "PUldVA8HW0pkXktMF0cOBzQIASlHURoTIxgdKVNd",
+     "next_from": null,
+     "blocks": [
+      {
+       "id": "live",
+       "data_type": "catalog_videos",
+       "title": "Все видео",
+       "videos_ids": [
+        "-28658784_456349482",
+        "-88298195_456260712",
+        "-165617900_456240161"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "catalog_videos": [
+   {
+    "video": {
+     "owner_id": -28658784,
+     "id": 456349482,
+     "title": "Прямой эфир НТВ",
+     "views": 16093955,
+     "date": 1773752157,
+     "live_status": "started",
+     "spectators": 727,
+     "description": "Смотрите онлайн Прямой эфир НТВ",
+     "restriction": {
+      "title": "Недоступно в вашем регионе",
+      "text": "Если у вас включён VPN — попробуйте отключить его и обновить страницу",
+      "can_play": 0,
+      "can_preview": 1,
+      "icon_name": "block_outline"
+     },
+     "type": "tv_channel"
+    }
+   },
+   {
+    "video": {
+     "owner_id": -88298195,
+     "id": 456260712,
+     "title": "Прямой эфир ТРК \"Ариг Ус\"",
+     "duration": 0,
+     "views": 134882,
+     "date": 1761873554,
+     "live_status": "started",
+     "spectators": 10,
+     "image": [
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?id=9339372309171&idx=8&type=39&tkn=4TCc231E7mf2Ks9hnuQJccS09IQ&fn=vid_s",
+       "width": 130,
+       "height": 96,
+       "with_padding": 1
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?id=9339372309171&idx=8&type=39&tkn=4TCc231E7mf2Ks9hnuQJccS09IQ&fn=vid_m",
+       "width": 160,
+       "height": 120,
+       "with_padding": 1
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?id=9339372309171&idx=8&type=39&tkn=4TCc231E7mf2Ks9hnuQJccS09IQ&fn=vid_w",
+       "width": 1280,
+       "height": 720
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?id=9339372309171&idx=8&type=39&tkn=4TCc231E7mf2Ks9hnuQJccS09IQ&fn=vid_t",
+       "width": 320,
+       "height": 180
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?id=9339372309171&idx=8&type=39&tkn=4TCc231E7mf2Ks9hnuQJccS09IQ&fn=vid_u",
+       "width": 720,
+       "height": 405
+      }
+     ],
+     "description": "Прямой эфир ТРК \"Ариг Ус\"",
+     "type": "live"
+    }
+   },
+   {
+    "video": {
+     "owner_id": -165617900,
+     "id": 456240161,
+     "title": "Прямой эфир \"Ветеран СВО Яппаров Фанис: пчеловодство\"",
+     "duration": 0,
+     "views": 0,
+     "date": 1790262838,
+     "live_status": "upcoming",
+     "spectators": 0,
+     "image": [
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?mid=1&type=32&tkn=eV3j7nSQVsFidmwI5anOhZWmOlU&fn=vid_s",
+       "width": 130,
+       "height": 96,
+       "with_padding": 1
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?mid=1&type=32&tkn=eV3j7nSQVsFidmwI5anOhZWmOlU&fn=vid_m",
+       "width": 160,
+       "height": 120,
+       "with_padding": 1
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?mid=1&type=32&tkn=eV3j7nSQVsFidmwI5anOhZWmOlU&fn=vid_w",
+       "width": 1280,
+       "height": 720
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?mid=1&type=32&tkn=eV3j7nSQVsFidmwI5anOhZWmOlU&fn=vid_t",
+       "width": 320,
+       "height": 180
+      },
+      {
+       "url": "https://iv.okcdn.ru/getVideoPreview?mid=1&type=32&tkn=eV3j7nSQVsFidmwI5anOhZWmOlU&fn=vid_u",
+       "width": 720,
+       "height": 405
+      }
+     ],
+     "description": "Прямой эфир \"Ветеран СВО Яппаров Фанис: пчеловодство\"",
+     "type": "live",
+     "vk_live_channel_url": "https://vkvideo.ru/live-165617900_456240161",
+     "vk_live_slot_url": "sl_293514"
+    }
+   }
+  ],
+  "groups": [
+   {
+    "id": 28658784,
+    "name": "НТВ",
+    "screen_name": "ntv",
+    "members_count": 999487,
+    "photo_50": "https://sun1-14.userapi.com/s/v1/ig2/C6n-wa9Z6LuIHJ4V23M_wxHxxgxg5q_T69kcITIAiZqwgw7h9CEsBMxi5VHXAdrp9cY9QMNhK8EXyhVph5cqRzfe.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=nwOlfBUZTXFYMS8IyiO6N6VmKVjYgFsMw-4pL_b9clA&cs=50x50",
+    "photo_100": "https://sun1-14.userapi.com/s/v1/ig2/C6n-wa9Z6LuIHJ4V23M_wxHxxgxg5q_T69kcITIAiZqwgw7h9CEsBMxi5VHXAdrp9cY9QMNhK8EXyhVph5cqRzfe.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=nwOlfBUZTXFYMS8IyiO6N6VmKVjYgFsMw-4pL_b9clA&cs=100x100",
+    "photo_200": "https://sun1-14.userapi.com/s/v1/ig2/C6n-wa9Z6LuIHJ4V23M_wxHxxgxg5q_T69kcITIAiZqwgw7h9CEsBMxi5VHXAdrp9cY9QMNhK8EXyhVph5cqRzfe.jpg?quality=95&crop=0,0,1000,1000&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720&ava=1&u=nwOlfBUZTXFYMS8IyiO6N6VmKVjYgFsMw-4pL_b9clA&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Интернет-СМИ"
+   },
+   {
+    "id": 88298195,
+    "name": "Ариг Ус",
+    "screen_name": "arigus",
+    "members_count": 145523,
+    "photo_50": "https://sun9-48.userapi.com/s/v1/ig2/0dos9iskxZKgecvyZAXaJnYIWLc5hrNKJNF4JFA9Af_PU7ryKoOXnjzR2cDvaVsXEtlL7u9d9ZC8-bQ6xd_5kjxx.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=r605tYkKqGqOt0c-VujeWKlCsROx9lq_xe5m_k4hdl0&cs=50x50",
+    "photo_100": "https://sun9-48.userapi.com/s/v1/ig2/0dos9iskxZKgecvyZAXaJnYIWLc5hrNKJNF4JFA9Af_PU7ryKoOXnjzR2cDvaVsXEtlL7u9d9ZC8-bQ6xd_5kjxx.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=r605tYkKqGqOt0c-VujeWKlCsROx9lq_xe5m_k4hdl0&cs=100x100",
+    "photo_200": "https://sun9-48.userapi.com/s/v1/ig2/0dos9iskxZKgecvyZAXaJnYIWLc5hrNKJNF4JFA9Af_PU7ryKoOXnjzR2cDvaVsXEtlL7u9d9ZC8-bQ6xd_5kjxx.jpg?quality=95&crop=0,0,1920,1920&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080,1280x1280,1440x1440&ava=1&u=r605tYkKqGqOt0c-VujeWKlCsROx9lq_xe5m_k4hdl0&cs=200x200",
+    "verified": 1,
+    "is_closed": 0,
+    "type": "page",
+    "activity": "Телеканал"
+   },
+   {
+    "id": 165617900,
+    "name": "Мой бизнес| Башкортостан",
+    "screen_name": "cmbrb",
+    "members_count": 9017,
+    "photo_50": "https://sun9-76.userapi.com/s/v1/ig2/YGA-W2TQQxb4Vf_kFJ22QtW7PSZsKyg4pKyFwOfyeub-_t2AAbMJ9fn1J4JY3dYcybagGNiGD3cxryNGZpkPIwxN.jpg?quality=95&crop=0,0,400,400&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&ava=1&u=mS8gt8urPHBMFD-6hW09uU6CXDh3_50nPy-v1Ucajaw&cs=50x50",
+    "photo_100": "https://sun9-76.userapi.com/s/v1/ig2/YGA-W2TQQxb4Vf_kFJ22QtW7PSZsKyg4pKyFwOfyeub-_t2AAbMJ9fn1J4JY3dYcybagGNiGD3cxryNGZpkPIwxN.jpg?quality=95&crop=0,0,400,400&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&ava=1&u=mS8gt8urPHBMFD-6hW09uU6CXDh3_50nPy-v1Ucajaw&cs=100x100",
+    "photo_200": "https://sun9-76.userapi.com/s/v1/ig2/YGA-W2TQQxb4Vf_kFJ22QtW7PSZsKyg4pKyFwOfyeub-_t2AAbMJ9fn1J4JY3dYcybagGNiGD3cxryNGZpkPIwxN.jpg?quality=95&crop=0,0,400,400&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360&ava=1&u=mS8gt8urPHBMFD-6hW09uU6CXDh3_50nPy-v1Ucajaw&cs=200x200",
+    "verified": 0,
+    "is_closed": 0,
+    "type": "group",
+    "activity": "Бизнес"
+   }
+  ]
+ }
+}

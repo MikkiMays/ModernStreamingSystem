@@ -22,6 +22,10 @@ YouTube «Sign in to confirm you're not a bot» по адресу сервера
 все площадки нет нарочно: служба живёт в сети хоста, и `127.0.0.1` для всех значил бы, что
 ссылка любого участника дотянется до базы, ядра и Redis на той же машине.
 
+БРАУЗЕР. Клиент площадки представляется общим именем кинозала (`USER_AGENT`), если площадка не
+назвала своё (`Provider.user_agent`): CDN VK Видео отдаёт поток только браузеру того класса, для
+которого выдан адрес, и на имя кинозала отвечает 400.
+
 Настройки читает `NetConfig.from_env` один раз, при сборке приложения; тесты передают
 `NetConfig` сами и от окружения процесса не зависят.
 """
@@ -629,6 +633,7 @@ class Net:
 
     Клиент площадки создаётся при первом обращении и живёт до закрытия службы — пул соединений
     у каждой свой. `client` — один клиент на всех вместо своих (так тесты подменяют сеть).
+    `agents` — имя браузера площадки (`Provider.user_agent`) или `None`, если ей годится общее.
     """
 
     def __init__(
@@ -639,11 +644,13 @@ class Net:
         client: httpx.AsyncClient | None = None,
         resolve: Resolve | None = None,
         backend: httpcore.AsyncNetworkBackend | None = None,
+        agents: Callable[[str], str | None] | None = None,
     ):
         check_seam()
         self.config = config
         self._resolve = resolve or system_resolve
         self._hosts = hosts
+        self._agents = agents or (lambda provider: None)
         self._shared = client
         self._backend = backend
         self._guards: dict[str, Guard] = {}
@@ -673,7 +680,7 @@ class Net:
                 transport=transport,
                 timeout=TIMEOUT,
                 follow_redirects=True,
-                headers={"User-Agent": USER_AGENT},
+                headers={"User-Agent": self._agents(provider) or USER_AGENT},
             )
             self._clients[provider] = found
         return found

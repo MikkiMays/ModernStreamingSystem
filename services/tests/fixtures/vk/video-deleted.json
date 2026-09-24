@@ -1,0 +1,25 @@
+{
+ "response": {
+  "count": 1,
+  "items": [
+   {
+    "owner_id": -22277933,
+    "id": 1,
+    "duration": 0,
+    "views": 0,
+    "date": 0,
+    "content_restricted": 1,
+    "content_restricted_message": "Это видео удалено",
+    "restriction": {
+     "title": "Видео удалено",
+     "text": "Это видео удалено",
+     "can_play": 0,
+     "can_preview": 0,
+     "icon_name": "delete_outline"
+    },
+    "type": ""
+   }
+  ],
+  "groups": []
+ }
+}
