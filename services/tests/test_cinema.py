@@ -1,6 +1,7 @@
 import asyncio
 import time
 import unittest
+from unittest.mock import patch
 
 from fastapi import HTTPException
 
@@ -180,8 +181,11 @@ class NumberedPlaylistTests(unittest.TestCase):
 
     def test_the_same_playlist_is_one_list_for_the_whole_room(self):
         base = "https://rr5.googlevideo.com/videoplayback/"
-        first = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
-        second = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
+        # Часы стоят: строка карты инициализации подписана со сроком, и два разбора на границе
+        # секунды иначе отличались бы сроком подписи — тест изредка падал сам по себе.
+        with patch("time.time", return_value=1_800_000_000.0):
+            first = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
+            second = rewrite(MEDIA, base, self.signer, self.reels, provider="youtube")
         self.assertEqual(first, second)
 
     def test_a_forgotten_list_is_gone_rather_than_wrong(self):
