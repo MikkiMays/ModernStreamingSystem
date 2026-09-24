@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Mapping
@@ -44,10 +45,17 @@ class YtDlp:
     """
 
     def extract(self, address: str, options: Mapping[str, Any]) -> dict[str, Any]:
-        """Разбор как есть: исключение yt-dlp уходит к спросившему нетронутым."""
+        """
+        Разбор как есть: исключение yt-dlp уходит к спросившему нетронутым.
+
+        yt-dlp получает **копию** опций, и глубокую. `YoutubeDL` хранит переданный словарь как
+        есть и дописывает в него своё (`http_headers`, `compat_opts`, `outtmpl`…): с общим
+        `YT_FLAT` это значило, что после первого поиска его ключи ехали в каждый следующий
+        вызов — одним объектом на все потоки `to_thread`.
+        """
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
-        with yt_dlp.YoutubeDL(options) as ydl:
+        with yt_dlp.YoutubeDL(copy.deepcopy(dict(options))) as ydl:
             return ydl.extract_info(address, download=False) or {}
 
     def probe(self, source: str, **options: Any) -> dict[str, Any]:

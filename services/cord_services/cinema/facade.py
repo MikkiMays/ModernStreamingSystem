@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import gzip
+import logging
 import re
 import time
 from dataclasses import asdict
@@ -31,6 +32,7 @@ from .transport.playlists import Reels, rewrite
 from .transport.segments import Segments
 from .transport.signer import Signer, allowed, proxied
 
+logger = logging.getLogger(__name__)
 
 # Обложки живут дольше: они не меняются и ничего не стоят.
 IMAGE_TTL = 24 * 3600
@@ -64,7 +66,18 @@ CATALOG_ID = CHANNEL_ID
 CATEGORY_ID = re.compile(r"[0-9]{1,20}")
 
 
+def _checked(answer: Any) -> tuple[bool, str | None]:
+    """Ответ `gather` с `return_exceptions`: исключение мимо `_availability` — тоже «недоступна»."""
+    if isinstance(answer, BaseException):
+        return False, "Не удалось проверить площадку"
+    return answer
+
+
 class Cinema:
+    # Сколько ждать ответа площадки на «работаешь ли ты отсюда». Список площадок — первое, что
+    # видит открывший кинозал, и дольше трёх секунд он ждать не должен.
+    AVAILABILITY_TIMEOUT = 3.0
+
     def __init__(
         self,
         secret: str,
@@ -115,7 +128,9 @@ class Cinema:
     async def providers(self) -> dict[str, list[wire.ProviderEntry]]:
         """Какие площадки включены, работают ли они отсюда и что у каждой есть."""
         listed = list(self.registry)
-        answers = await asyncio.gather(*(source.availability() for source in listed))
+        answers = await asyncio.gather(
+            *(self._availability(source) for source in listed), return_exceptions=True
+        )
         return {
             "providers": [
                 {
@@ -130,9 +145,28 @@ class Cinema:
                         name: value for name, value in asdict(source.features).items() if name != "account"
                     },
                 }
-                for source, (available, reason) in zip(listed, answers)
+                for source, (available, reason) in zip(listed, map(_checked, answers))
             ]
         }
+
+    async def _availability(self, source: Provider) -> tuple[bool, str | None]:
+        """
+        Проверка одной площадки — под своим сроком и своей защитой.
+
+        Список площадок — первое, что видит открывший кинозал, и он не должен зависеть от
+        самой медленной или самой сломанной из них: упавшая проверка — это «недоступна» у одной
+        карточки, а не 500 на весь список, зависшая — «не ответила» через три секунды.
+        """
+        try:
+            async with asyncio.timeout(self.AVAILABILITY_TIMEOUT):
+                available, reason = await source.availability()
+        except TimeoutError:
+            return False, "Площадка не ответила вовремя"
+        except Exception as error:
+            # Текст исключения в журнал не идёт: в нём бывают адреса с ключами доступа.
+            logger.warning("кинозал: проверка площадки %s упала: %s", source.id, type(error).__name__)
+            return False, "Не удалось проверить площадку"
+        return bool(available), reason
 
     # --- поиск и каталог -------------------------------------------------------------
 
@@ -263,7 +297,11 @@ class Cinema:
     # --- прокси ------------------------------------------------------------------------
 
     async def manifest(self, url: str, encodings: str | None = None) -> Response:
-        response = await self.client.get(url, follow_redirects=False)
+        try:
+            response = await self.client.get(url, follow_redirects=False)
+        except httpx.HTTPError:
+            # Обрыв по дороге к площадке — её отказ (502), а не наша ошибка (500).
+            raise HTTPException(502, "Площадка не отдала плейлист") from None
         if response.status_code >= 300:
             raise HTTPException(502, "Площадка не отдала плейлист")
         body = rewrite(response.text, str(response.url), self.signer, self.reels)
@@ -305,7 +343,10 @@ class Cinema:
                         media_type=kind,
                         headers={"Cache-Control": "private, max-age=600"},
                     )
-                answer = await self.client.get(url, follow_redirects=False)
+                try:
+                    answer = await self.client.get(url, follow_redirects=False)
+                except httpx.HTTPError:
+                    raise HTTPException(502, "Площадка не отдала данные") from None
                 if answer.status_code >= 300:
                     raise HTTPException(502, "Площадка не отдала данные")
                 kind = answer.headers.get("content-type", "video/mp2t")
@@ -317,7 +358,10 @@ class Cinema:
                 )
         headers = {"Range": range_header}
         request = self.client.build_request("GET", url, headers=headers)
-        upstream = await self.client.send(request, stream=True, follow_redirects=False)
+        try:
+            upstream = await self.client.send(request, stream=True, follow_redirects=False)
+        except httpx.HTTPError:
+            raise HTTPException(502, "Площадка не отдала данные") from None
         if upstream.status_code >= 300:
             await upstream.aclose()
             raise HTTPException(502, "Площадка не отдала данные")

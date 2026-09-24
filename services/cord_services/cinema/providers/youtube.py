@@ -86,7 +86,10 @@ class YouTube(Provider):
         return ytdlp(_watch(item_id), dash=True)
 
     def _videos(self, query: str, limit: int) -> list[wire.Card]:
-        found = self.ytdlp.extract(f"ytsearch{limit}:{query}", YT_FLAT)
+        try:
+            found = self.ytdlp.extract(f"ytsearch{limit}:{query}", YT_FLAT)
+        except Exception as error:  # yt_dlp поднимает свои типы; наружу — отказ площадки, не 500
+            raise HTTPException(502, f"Поиск не удался: {error}"[:200]) from None
         return [self._item(entry) for entry in found.get("entries", []) or [] if entry and entry.get("id")]
 
     def _channels(self, query: str, limit: int) -> list[wire.Card]:

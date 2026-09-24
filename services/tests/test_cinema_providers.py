@@ -445,9 +445,10 @@ class YouTubeSearchTests(Stage):
         self.assertEqual(found["items"], self.videos())
 
     async def test_a_broken_search_is_not_swallowed(self):
+        # Задача 4: сырое исключение yt-dlp (было 500) стало отказом площадки 502 с его текстом.
         self.library.answers[self.SEARCH] = RuntimeError("HTTP Error 429")
-        with self.assertRaises(RuntimeError):
-            await self.cinema.search("youtube", "Big Buck", "")
+        refusal = "Поиск не удался: HTTP Error 429"
+        await self.refused(self.cinema.search("youtube", "Big Buck", ""), 502, refusal)
 
     async def test_one_letter_is_not_a_search(self):
         found = await self.cinema.search("youtube", " a ", "")

@@ -7,13 +7,48 @@
 подменённый yt-dlp и сеть, которая знает только свои ответы.
 """
 
+import asyncio
+import copy
 import json
+import re
+import time
 import unittest
+from unittest.mock import patch
 
 import httpx
 from test_cinema_providers import Stage
 
-from cord_services.cinema import Resolve
+from cord_services.cinema import Cinema, Memo, Resolve
+from cord_services.cinema.providers.youtube import YT_FLAT, YouTube
+from cord_services.cinema.registry import Kit, Provider, Registry
+from cord_services.cinema.resolve import YtDlp
+
+
+def kit():
+    return Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp())
+
+
+class MutatingYoutubeDL:
+    """
+    Как настоящий `yt_dlp.YoutubeDL`: хранит переданный словарь опций как есть и дописывает в
+    него своё (`http_headers`, `compat_opts`, …) — в том числе внутрь вложенных словарей.
+    """
+
+    def __init__(self, params):
+        params["http_headers"] = {"User-Agent": "yt-dlp"}
+        params["compat_opts"] = set()
+        for value in params.values():
+            if isinstance(value, dict):
+                value["touched"] = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *failure):
+        return False
+
+    def extract_info(self, address, download=True):
+        return {"entries": []}
 
 
 class IdentifierTests(Stage):
@@ -47,9 +82,8 @@ class IdentifierTests(Stage):
             ("twitch", "someone/videos"),
             ("twitch", "some one"),
         ):
-            await self.refused(
-                self.cinema.resolve(Resolve(provider=provider, contentId=content)), 400, "Непонятный адрес видео"
-            )
+            request = Resolve(provider=provider, contentId=content)
+            await self.refused(self.cinema.resolve(request), 400, "Непонятный адрес видео")
         self.assertEqual(self.library.calls, [])
         self.assertEqual(self.kept(self.cinema.sources), {})
 
@@ -136,6 +170,154 @@ class MemoryKeyTests(Stage):
         self.assertTrue(self.cinema.catalog._items)
         for key in self.cinema.catalog._items:
             self.assertTrue(key.startswith("youtube:"), key)
+
+
+class UpstreamFailureTests(Stage):
+    """Сбой по дороге к площадке — это «площадка не ответила» (502), а не ошибка сервера (500)."""
+
+    URL = "https://rr1.googlevideo.com/videoplayback?id=1"
+
+    def serve(self, request):
+        self.seen.append(request)
+        if isinstance(self.failure, Exception):
+            raise self.failure
+        return self.failure
+
+    async def test_twitch_that_cannot_be_reached_or_answers_garbage_is_a_bad_gateway(self):
+        for failure in (
+            httpx.ConnectError("нет сети"),
+            httpx.ReadTimeout("молчит"),
+            httpx.Response(200, content=b"<html>not json</html>"),
+            httpx.Response(200, json=["not", "an", "object"]),
+        ):
+            self.failure = failure
+            refusal = "Twitch не ответил на запрос каталога"
+            await self.refused(self.cinema.search("twitch", "", ""), 502, refusal)
+        self.assertEqual(self.kept(self.cinema.catalog), {})
+
+    async def test_a_search_yt_dlp_could_not_do_is_a_bad_gateway_cut_short(self):
+        self.library.answers["ytsearch60:big buck"] = RuntimeError("HTTP Error 429: " + "x" * 300)
+        await self.refused(
+            self.cinema.search("youtube", "big buck", "30"),
+            502,
+            ("Поиск не удался: HTTP Error 429: " + "x" * 300)[:200],
+        )
+
+    async def test_a_playlist_or_a_piece_that_cannot_be_reached_is_a_bad_gateway(self):
+        self.failure = httpx.ConnectError("нет сети")
+        await self.refused(self.cinema.manifest(self.URL), 502, "Площадка не отдала плейлист")
+        for range_header in (None, "bytes=0-100"):
+            await self.refused(self.cinema.fetch(self.URL, range_header), 502, "Площадка не отдала данные")
+
+
+class YtDlpOptionTests(unittest.TestCase):
+    """yt-dlp получает свою копию опций: общий словарь места вызова он испортить не может."""
+
+    def test_the_shared_search_options_stay_as_written(self):
+        # Настоящий YoutubeDL дописывал `http_headers` и прочее прямо в модульный `YT_FLAT`, и
+        # после первого поиска эти ключи уезжали в каждый следующий вызов — одним объектом на
+        # все потоки `to_thread`.
+        before = copy.deepcopy(YT_FLAT)
+        with patch("yt_dlp.YoutubeDL", MutatingYoutubeDL):
+            YouTube(kit())._videos("big buck", 1)
+        self.assertEqual(YT_FLAT, before)
+
+    def test_nested_options_are_copied_too(self):
+        options = {"quiet": True, "extractor_args": {"youtube": {"player_client": ["web"]}}}
+        before = copy.deepcopy(options)
+        with patch("yt_dlp.YoutubeDL", MutatingYoutubeDL):
+            YtDlp().extract("ytsearch1:x", options)
+        self.assertEqual(options, before)
+
+
+class DeclarationTests(unittest.TestCase):
+    """Площадка без обязательного объявления падает при импорте, а не отказом 500 на запросе."""
+
+    def test_a_platform_without_a_name_id_or_form_does_not_load(self):
+        form = re.compile(r"[0-9]{1,12}")
+        for missing, body in (
+            ("name", {"id": "nameless", "content_id": form}),
+            ("id", {"name": "Без id", "content_id": form}),
+            ("content_id", {"id": "formless", "name": "Без формы"}),
+        ):
+            with self.assertRaises(TypeError) as failure:
+                type("Broken", (Provider,), body)
+            self.assertIn(missing, str(failure.exception))
+
+    def test_an_id_must_be_a_short_lowercase_word(self):
+        # Имя площадки становится префиксом ключей памяти, частью подписи и именем переменной
+        # `CINEMA_PROXY_<ID>` — в нём не место пробелам, двоеточиям и заглавным.
+        for bad in ("You Tube", "YouTube", "you:tube", "", "x" * 33, 7):
+            with self.assertRaises(TypeError):
+                type("Broken", (Provider,), {"id": bad, "name": "X", "content_id": re.compile(r"x")})
+
+    def test_a_form_must_be_a_compiled_pattern(self):
+        with self.assertRaises(TypeError):
+            type("Broken", (Provider,), {"id": "stringy", "name": "X", "content_id": r"[0-9]+"})
+
+    def test_a_shared_base_may_leave_the_declaration_to_its_heirs(self):
+        class Base(Provider, abstract=True):
+            pass
+
+        class Heir(Base):
+            id = "heir"
+            name = "Наследник"
+            content_id = re.compile(r"[0-9]+")
+
+        self.assertEqual(Heir(kit()).refuse("search").detail, "У площадки Наследник такого нет")
+        with self.assertRaises(TypeError):
+            type("Orphan", (Base,), {"id": "orphan"})
+
+
+class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
+    """
+    Одна площадка, чья проверка упала или замолчала, не роняет весь список.
+
+    Раньше `providers` собирал ответы `asyncio.gather` без защиты: исключение одной площадки
+    превращало ответ в 500 для всех, а зависшая проверка держала список, пока не ответит.
+    """
+
+    async def test_a_broken_or_silent_check_marks_only_its_platform_unavailable(self):
+        def platform(key, check=None):
+            body = {"id": key, "name": key.title(), "content_id": re.compile(r"x")}
+            if check:
+                body["availability"] = check
+            return type(key.title(), (Provider,), body)(kit())
+
+        async def broken(self):
+            raise RuntimeError("ключ в логе не нужен")
+
+        async def silent(self):
+            await asyncio.sleep(3600)
+
+        cinema = Cinema("secret")
+        self.addAsyncCleanup(cinema.close)
+        cinema.registry = Registry(
+            [
+                platform("broken", broken),
+                platform("silent", silent),
+                platform("quiet", silent),
+                platform("fine"),
+            ]
+        )
+        started = time.monotonic()
+        with patch.object(Cinema, "AVAILABILITY_TIMEOUT", 0.05, create=True):
+            with self.assertLogs("cord_services.cinema.facade", "WARNING") as log:
+                answer = await asyncio.wait_for(cinema.providers(), 1)
+        self.assertLess(time.monotonic() - started, 0.5)
+        self.assertEqual(
+            [(entry["id"], entry["available"], entry["reason"]) for entry in answer["providers"]],
+            [
+                ("broken", False, "Не удалось проверить площадку"),
+                ("silent", False, "Площадка не ответила вовремя"),
+                ("quiet", False, "Площадка не ответила вовремя"),
+                ("fine", True, None),
+            ],
+        )
+        # В журнал — чья проверка и чем упала, но не текст исключения: в нём бывают адреса с ключами.
+        self.assertEqual(len(log.records), 1)
+        self.assertIn("broken", log.output[0])
+        self.assertNotIn("ключ в логе", log.output[0])
 
 
 if __name__ == "__main__":

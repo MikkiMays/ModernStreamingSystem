@@ -7,6 +7,7 @@ import json
 import re
 from typing import Any
 
+import httpx
 from fastapi import HTTPException
 
 from .. import wire
@@ -156,17 +157,24 @@ class Twitch(Provider):
         return ytdlp(f"https://www.twitch.tv/{item_id}")
 
     async def _gql(self, ctx: Ctx, query: str) -> dict[str, Any]:
-        response = await ctx.net.post(
-            TWITCH_GQL,
-            json={"query": query},
-            headers={"Client-ID": TWITCH_CLIENT},
-        )
-        if response.status_code != 200:
-            raise HTTPException(502, "Twitch не ответил на запрос каталога")
-        body = response.json()
+        # Сеть, молчание и мусор вместо JSON — это тоже «не ответил», а не ошибка сервера: раньше
+        # обрыв связи с Twitch отдавал комнате 500 с трассировкой в журнале.
+        silent = HTTPException(502, "Twitch не ответил на запрос каталога")
+        try:
+            response = await ctx.net.post(
+                TWITCH_GQL,
+                json={"query": query},
+                headers={"Client-ID": TWITCH_CLIENT},
+            )
+            body = response.json() if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            raise silent from None
+        if not isinstance(body, dict):
+            raise silent
         if body.get("errors"):
             raise HTTPException(502, "Twitch отказал в запросе каталога")
-        return body.get("data") or {}
+        data = body.get("data")
+        return data if isinstance(data, dict) else {}
 
     def _live(self, node: dict[str, Any]) -> wire.Card | None:
         """Идущий эфир как карточка каталога. Смотрится он по имени канала, а не по номеру эфира."""

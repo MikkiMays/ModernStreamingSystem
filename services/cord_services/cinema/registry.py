@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Имя площадки: короткое слово строчными латинскими буквами.
+PROVIDER_ID = re.compile(r"[a-z][a-z0-9_]{0,31}")
+
 
 class Unsupported(HTTPException):
     """
@@ -117,6 +120,29 @@ class Provider:
     content_id: ClassVar[re.Pattern[str]]
     # Что ответить человеку, если такого у площадки нет, — по имени возможности из `features`.
     refusals: ClassVar[Mapping[str, str]] = {}
+
+    def __init_subclass__(cls, abstract: bool = False, **kwargs: Any):
+        """
+        Площадка без обязательного объявления падает при импорте — а не отказом 500 на каждом
+        запросе, как было с забытым `name` в тексте отказа.
+
+        `abstract=True` — общая основа для нескольких площадок: объявлять себя ей не нужно,
+        это сделают наследники.
+        """
+        super().__init_subclass__(**kwargs)
+        if abstract:
+            return
+        missing = [name for name in ("id", "name", "content_id") if not hasattr(cls, name)]
+        if missing:
+            raise TypeError(f"Площадка {cls.__name__}: не объявлены {', '.join(missing)}")
+        # `id` — префикс ключей памяти, часть подписи адреса и имя в `CINEMA_PROXY_<ID>`:
+        # короткое слово строчными буквами, без пробелов и двоеточий.
+        if not isinstance(cls.id, str) or not PROVIDER_ID.fullmatch(cls.id):
+            raise TypeError(f"Площадка {cls.__name__}: id {cls.id!r} не по форме {PROVIDER_ID.pattern}")
+        if not isinstance(cls.name, str) or not cls.name:
+            raise TypeError(f"Площадка {cls.__name__}: name должно быть непустой строкой")
+        if not isinstance(cls.content_id, re.Pattern):
+            raise TypeError(f"Площадка {cls.__name__}: content_id должен быть re.compile(...)")
 
     def __init__(self, kit: Kit):
         self.memo = kit.memo
