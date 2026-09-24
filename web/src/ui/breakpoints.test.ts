@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import styles from '../styles.css?raw';
 import layout from '../room-layout.css?raw';
-import { COMPACT, DRAWER, DRAWER_WIDTH, ROOMY, SHEET } from './breakpoints';
+import { COMPACT, DOCK, DRAWER, DRAWER_WIDTH, ROOMY, SHEET } from './breakpoints';
 
 /*
   Границы раскладки записаны дважды — в CSS и в `breakpoints.ts`, откуда их берёт код, — и
@@ -50,6 +50,15 @@ describe('границы раскладки: CSS и код считают по �
     const sheet = rule(media(styles, SHEET), '.side-panel');
     expect(sheet).toContain('left: 8px;');
     expect(sheet).toContain('width: auto;');
+  });
+
+  it('настольный пульт сжимается, чтобы поместиться в сцену, сразу за границей листа', () => {
+    // Граница пульта — следующий пиксель после листа: между ними не должно быть ширины ни того,
+    // ни другого.
+    expect(Number(/\d+/.exec(DOCK)![0])).toBe(Number(/\d+/.exec(SHEET)![0]) + 1);
+    expect(rule(media(layout, DOCK), '.stage-wrap > .call-footer .call-dock .icon-button')).toContain(
+      'min-width: 44px;',
+    );
   });
 
   it('полоса: панель поверх сцены на границе `DRAWER` и шириной `DRAWER_WIDTH`', () => {
