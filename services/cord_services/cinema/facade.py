@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 from . import wire
 from .limits import Window
 from .memo import Memo
+from .net import Net, NetConfig
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
@@ -90,8 +91,14 @@ class Cinema:
         client: httpx.AsyncClient | None = None,
         *,
         enabled: str | None = None,
+        net: NetConfig | None = None,
     ):
-        """`enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все."""
+        """
+        `enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все.
+        `net` — выход наружу (`NetConfig.from_env`): прокси, cookies и разрешённые частные сети.
+        `client` — один клиент httpx на все площадки вместо своих (так тесты подменяют сеть).
+        """
+        config = net or NetConfig()
         # Подпись открывает адрес только по политике хостов своей площадки — и только
         # включённой: выключенная площадка не отдаёт через прокси ничего, даже по старой ссылке.
         self.signer = Signer(secret, self._hosts)
@@ -102,17 +109,24 @@ class Cinema:
         self.resolves = Window(
             RESOLVES_PER_MINUTE, 60.0, "Комната слишком часто открывает видео, подождите минуту"
         )
-        self.client = client or httpx.AsyncClient(
-            timeout=httpx.Timeout(20.0, read=60.0),
-            follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Cord/1.0"},
-        )
-        self.ytdlp = YtDlp()
+        # Каждая площадка ходит наружу своим клиентом: своим прокси и под общей защитой
+        # «только наружу» (`net.py`).
+        self.net = Net(config, self._hosts, client=client)
+        self.ytdlp = YtDlp(config)
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
         self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
+        known = {kind.id for kind in PROVIDERS}
+        strangers = sorted((set(config.proxies) | set(config.cookies)) - known)
+        if strangers:
+            # Опечатка в имени площадки не гасит кинозал, но и молча не проглатывается.
+            logger.warning(
+                "CINEMA_PROXY_*/CINEMA_COOKIES_*: незнакомые площадки пропущены: %s (кинозал знает: %s)",
+                ", ".join(strangers),
+                ", ".join(sorted(known)),
+            )
 
     async def close(self):
-        await self.client.aclose()
+        await self.net.close()
 
     def _kit(self, kind: type[Provider]) -> Kit:
         # Память площадки — общая память под её именем: ключ одной площадки не может ни
@@ -128,8 +142,8 @@ class Cinema:
         found = self.registry.find(provider)
         return found.hosts if found else None
 
-    def _ctx(self, room: str) -> Ctx:
-        return Ctx(room=room, net=self.client)
+    def _ctx(self, room: str, source: Provider) -> Ctx:
+        return Ctx(room=room, net=self.net.client_for(source.id))
 
     def _able(self, provider: str, feature: str) -> Provider:
         """
@@ -200,7 +214,7 @@ class Cinema:
         """
         source = self._able(provider, "search")
         offset = offset_of(cursor)
-        return await source.search(self._ctx(room), query.strip(), offset)
+        return await source.search(self._ctx(room, source), query.strip(), offset)
 
     async def channel(
         self, provider: str, channel_id: str, tab: Tab = "videos", cursor: str = "", *, room: str = ""
@@ -216,7 +230,7 @@ class Cinema:
         if not CATALOG_ID.fullmatch(channel_id):
             raise HTTPException(400, "Непонятное имя канала")
         offset = offset_of(cursor)
-        ctx = self._ctx(room)
+        ctx = self._ctx(room, source)
         # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
         return await self.catalog.scope(source.id).get(
             f"channel:{channel_id}:{tab}:{offset}",
@@ -234,7 +248,7 @@ class Cinema:
         if not CATALOG_ID.fullmatch(playlist_id):
             raise HTTPException(400, "Непонятный адрес плейлиста")
         offset = offset_of(cursor)
-        ctx = self._ctx(room)
+        ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"playlist:{playlist_id}:{offset}",
             lambda: source.playlist(ctx, playlist_id, offset),
@@ -251,7 +265,7 @@ class Cinema:
             # разбирается курсор: так кинозал отвечал всегда.
             return {"items": [], "next": None}
         offset = offset_of(cursor)
-        return await source.categories(self._ctx(room), query.strip(), offset)
+        return await source.categories(self._ctx(room, source), query.strip(), offset)
 
     async def category(
         self, provider: str, category_id: str, cursor: str = "", *, room: str = ""
@@ -261,14 +275,14 @@ class Cinema:
         if not CATEGORY_ID.fullmatch(category_id):
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
-        return await source.category(self._ctx(room), category_id, offset)
+        return await source.category(self._ctx(room, source), category_id, offset)
 
     async def details(self, provider: str, content_id: str, kind: Kind, *, room: str = "") -> dict[str, Any]:
         source = self.registry.get(provider)
         # Форма адреса — площадки: она знает, какие id у неё бывают (`Provider.content_id`).
         if not source.content_id.fullmatch(content_id):
             raise HTTPException(400, "Непонятный адрес видео")
-        ctx = self._ctx(room)
+        ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"details:{kind}:{content_id}",
             lambda: source.details(ctx, kind, content_id),
@@ -304,7 +318,7 @@ class Cinema:
         # в предел за три ролика, а злоумышленник с `refresh` — нет.
         if not self.sources.known(key):
             self.resolves.take(room)
-        ctx = self._ctx(room)
+        ctx = self._ctx(room, source)
         return await self.sources.get(
             key,
             lambda: self._resolve(source, ctx, request),
@@ -326,7 +340,7 @@ class Cinema:
 
     async def manifest(self, url: str, encodings: str | None, provider: str) -> Response:
         try:
-            response = await self.client.get(url, follow_redirects=False)
+            response = await self.net.client_for(provider).get(url, follow_redirects=False)
         except httpx.HTTPError:
             # Обрыв по дороге к площадке — её отказ (502), а не наша ошибка (500).
             raise HTTPException(502, "Площадка не отдала плейлист") from None
@@ -342,7 +356,7 @@ class Cinema:
             headers["Content-Encoding"] = "gzip"
         return Response(payload, media_type="application/vnd.apple.mpegurl", headers=headers)
 
-    async def fetch(self, url: str, range_header: str | None) -> Response:
+    async def fetch(self, url: str, range_header: str | None, provider: str) -> Response:
         if range_header and not re.fullmatch(r"bytes=(?:\d+-\d*|-\d+)", range_header):
             raise HTTPException(416, "Неверный диапазон байтов")
         if (
@@ -352,8 +366,9 @@ class Cinema:
         ):
             raise HTTPException(416, "Неверный диапазон байтов")
         # Частичный запрос (перемотка в готовом файле) обслуживается напрямую, потоком.
+        client = self.net.client_for(provider)
         if range_header:
-            return self._stream(await self._open(url, {"Range": range_header}))
+            return self._stream(await self._open(client, url, {"Range": range_header}))
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
         cached = self.segments.get(url)
         if cached:
@@ -362,7 +377,7 @@ class Cinema:
             cached = self.segments.get(url)
             if cached:
                 return _kept(*cached)
-            upstream = await self._open(url, {})
+            upstream = await self._open(client, url, {})
             if not self._storable(upstream):
                 # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
                 # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
@@ -376,11 +391,11 @@ class Cinema:
             self.segments.put(url, body, kind)
             return _kept(body, kind)
 
-    async def _open(self, url: str, headers: dict[str, str]) -> httpx.Response:
+    async def _open(self, client: httpx.AsyncClient, url: str, headers: dict[str, str]) -> httpx.Response:
         """Ответ площадки с непрочитанным телом. Переадресацию прокси не выполняет никогда."""
-        request = self.client.build_request("GET", url, headers=headers)
+        request = client.build_request("GET", url, headers=headers)
         try:
-            upstream = await self.client.send(request, stream=True, follow_redirects=False)
+            upstream = await client.send(request, stream=True, follow_redirects=False)
         except httpx.HTTPError:
             raise HTTPException(502, "Площадка не отдала данные") from None
         if upstream.status_code >= 300:

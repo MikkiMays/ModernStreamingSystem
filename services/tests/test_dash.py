@@ -164,8 +164,8 @@ class RangeTests(unittest.IsolatedAsyncioTestCase):
         ) as client:
             cinema = Cinema("secret", client)
             for action in [
-                lambda: cinema.fetch("https://r.googlevideo.com/a", "bytes=0-100"),
-                lambda: cinema.fetch("https://r.googlevideo.com/a", None),
+                lambda: cinema.fetch("https://r.googlevideo.com/a", "bytes=0-100", "youtube"),
+                lambda: cinema.fetch("https://r.googlevideo.com/a", None, "youtube"),
                 lambda: cinema.manifest("https://r.googlevideo.com/a", None, "youtube"),
             ]:
                 with self.assertRaises(Exception) as failure:
@@ -292,6 +292,6 @@ class RangeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(failure.exception.status_code, 410)
         for value in ["bytes=4-1", "bytes=0-2,4-6", "x", "bytes=--"]:
             with self.assertRaises(Exception) as failure:
-                await cinema.fetch("https://r.googlevideo.com/a", value)
+                await cinema.fetch("https://r.googlevideo.com/a", value, "youtube")
             self.assertEqual(failure.exception.status_code, 416)
         await cinema.close()

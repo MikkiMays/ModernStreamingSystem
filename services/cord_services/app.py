@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .cinema import Cinema
 from .cinema import routes as cinema_routes
+from .cinema.net import NetConfig
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
@@ -66,7 +67,13 @@ def create_app(
     public_url = os.environ.get("PUBLIC_URL", "https://meet.nikg.tech").rstrip("/")
     yandex = Yandex(store, music, core.secret)
     # Какие площадки кинозала включены на этой установке: имена через запятую, пусто — все.
-    cinema = Cinema(core.secret, enabled=os.environ.get("CINEMA_PROVIDERS"))
+    # Выход наружу — CINEMA_PROXY, CINEMA_PROXY_<ID>, CINEMA_COOKIES_<ID> и
+    # CINEMA_PRIVATE_HOSTS — читается здесь же и один раз (`cinema/net.py`).
+    cinema = Cinema(
+        core.secret,
+        enabled=os.environ.get("CINEMA_PROVIDERS"),
+        net=NetConfig.from_env(os.environ),
+    )
     telegram = None
     background = []
 

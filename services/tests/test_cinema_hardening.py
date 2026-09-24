@@ -402,7 +402,9 @@ class UpstreamFailureTests(Stage):
             self.cinema.manifest(self.URL, None, "youtube"), 502, "Площадка не отдала плейлист"
         )
         for range_header in (None, "bytes=0-100"):
-            await self.refused(self.cinema.fetch(self.URL, range_header), 502, "Площадка не отдала данные")
+            await self.refused(
+                self.cinema.fetch(self.URL, range_header, "youtube"), 502, "Площадка не отдала данные"
+            )
 
 
 class Tap(httpx.AsyncByteStream):
@@ -447,7 +449,7 @@ class WholePieceTests(Stage):
         self.answer = httpx.Response(
             200, headers={"content-length": declared, "content-type": "video/mp4"}, stream=tap
         )
-        response = await self.cinema.fetch(self.URL, None)
+        response = await self.cinema.fetch(self.URL, None, "youtube")
         self.assertIsInstance(response, StreamingResponse)
         # Ни байта не прочитано, пока ответ не пошёл к зрителю.
         self.assertEqual(tap.read, 0)
@@ -461,7 +463,7 @@ class WholePieceTests(Stage):
     async def test_a_piece_of_unknown_size_goes_through_as_a_stream(self):
         tap = Tap([b"y" * 10])
         self.answer = httpx.Response(200, headers={"content-type": "video/mp2t"}, stream=tap)
-        response = await self.cinema.fetch(self.URL, None)
+        response = await self.cinema.fetch(self.URL, None, "youtube")
         self.assertIsInstance(response, StreamingResponse)
         self.assertEqual(tap.read, 0)
         self.assertEqual(await self.body(response), b"y" * 10)
@@ -480,7 +482,7 @@ class WholePieceTests(Stage):
             },
             stream=Tap([packed]),
         )
-        response = await self.cinema.fetch(self.URL, None)
+        response = await self.cinema.fetch(self.URL, None, "youtube")
         self.assertIsInstance(response, StreamingResponse)
         self.assertEqual(response.headers["content-encoding"], "gzip")
         self.assertEqual(await self.body(response), packed)
@@ -488,8 +490,8 @@ class WholePieceTests(Stage):
 
     async def test_a_small_piece_is_still_remembered_for_the_room(self):
         self.answer = httpx.Response(200, headers={"content-type": "video/mp2t"}, content=b"z" * 100)
-        first = await self.cinema.fetch(self.URL, None)
-        second = await self.cinema.fetch(self.URL, None)
+        first = await self.cinema.fetch(self.URL, None, "youtube")
+        second = await self.cinema.fetch(self.URL, None, "youtube")
         self.assertEqual((first.body, second.body), (b"z" * 100, b"z" * 100))
         self.assertEqual(len(self.seen), 1)
         self.assertEqual(self.cinema.segments.get(self.URL), (b"z" * 100, "video/mp2t"))
@@ -498,7 +500,7 @@ class WholePieceTests(Stage):
         # Площадка обещала сто байт, а шлёт больше предела памяти: читать дальше предела нельзя.
         big = self.cinema.segments.largest + 1
         self.answer = httpx.Response(200, headers={"content-length": "100"}, stream=Tap([b"w" * big]))
-        await self.refused(self.cinema.fetch(self.URL, None), 502, "Площадка не отдала данные")
+        await self.refused(self.cinema.fetch(self.URL, None, "youtube"), 502, "Площадка не отдала данные")
         self.assertIsNone(self.cinema.segments.get(self.URL))
 
 
@@ -518,7 +520,7 @@ class YtDlpOptionTests(unittest.TestCase):
         options = {"quiet": True, "extractor_args": {"youtube": {"player_client": ["web"]}}}
         before = copy.deepcopy(options)
         with patch("yt_dlp.YoutubeDL", MutatingYoutubeDL):
-            YtDlp().extract("ytsearch1:x", options)
+            YtDlp().extract("ytsearch1:x", options, "youtube")
         self.assertEqual(options, before)
 
 

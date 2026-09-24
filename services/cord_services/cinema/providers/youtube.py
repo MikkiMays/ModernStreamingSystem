@@ -87,9 +87,9 @@ class YouTube(Provider):
 
     def _videos(self, query: str, limit: int) -> list[wire.Card]:
         try:
-            found = self.ytdlp.extract(f"ytsearch{limit}:{query}", YT_FLAT)
+            found = self.ytdlp.extract(f"ytsearch{limit}:{query}", YT_FLAT, self.id)
         except Exception as error:  # yt_dlp поднимает свои типы; наружу — отказ площадки, не 500
-            raise HTTPException(502, f"Поиск не удался: {error}"[:200]) from None
+            raise HTTPException(502, f"Поиск не удался: {self.ytdlp.explain(error)}"[:200]) from None
         return [self._item(entry) for entry in found.get("entries", []) or [] if entry and entry.get("id")]
 
     def _channels(self, query: str, limit: int) -> list[wire.Card]:
@@ -102,7 +102,7 @@ class YouTube(Provider):
         """
         address = "https://www.youtube.com/results?" + urlencode({"search_query": query, "sp": "EgIQAg=="})
         try:
-            found = self.ytdlp.extract(address, {**YT_FLAT, "playlistend": limit})
+            found = self.ytdlp.extract(address, {**YT_FLAT, "playlistend": limit}, self.id)
         except Exception:
             return []
         cards = []
@@ -180,11 +180,11 @@ class YouTube(Provider):
             "playlistend": offset + (1 if tab == "about" else PAGE),
         }
         try:
-            found = self.ytdlp.extract(f"{_address(channel_id)}/{listing}", options)
+            found = self.ytdlp.extract(f"{_address(channel_id)}/{listing}", options, self.id)
         except Exception as error:
             if "does not have a" in str(error):
                 return {"channel": None, "items": [], "next": None}
-            raise HTTPException(502, f"Канал не открылся: {error}"[:200]) from None
+            raise HTTPException(502, f"Канал не открылся: {self.ytdlp.explain(error)}"[:200]) from None
         pictures = found.get("thumbnails") or []
         identity = {
             "id": found.get("channel_id") or channel_id,
@@ -220,9 +220,10 @@ class YouTube(Provider):
             "playlistend": offset + PAGE,
         }
         try:
-            found = self.ytdlp.extract(f"https://www.youtube.com/playlist?list={playlist_id}", options)
+            address = f"https://www.youtube.com/playlist?list={playlist_id}"
+            found = self.ytdlp.extract(address, options, self.id)
         except Exception as error:
-            raise HTTPException(502, f"Плейлист не открылся: {error}"[:200]) from None
+            raise HTTPException(502, f"Плейлист не открылся: {self.ytdlp.explain(error)}"[:200]) from None
         pictures = found.get("thumbnails") or []
         identity = {
             "id": found.get("channel_id") or "",
@@ -247,7 +248,7 @@ class YouTube(Provider):
         }
 
     def _details(self, content_id: str) -> wire.Details:
-        info = self.ytdlp.probe(_watch(content_id))
+        info = self.ytdlp.probe(_watch(content_id), self.id)
         return wire.details(
             self.id,
             "video",

@@ -21,6 +21,7 @@ from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
 from .captions import CAPTIONS_LIMIT, _base_language, _vtt
+from .net import NetConfig, cookie_file
 from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
 
 # Ролик целиком и без плейлиста вокруг: так его открывают и страница ролика, и сам поток.
@@ -42,9 +43,15 @@ class YtDlp:
     Судьба осталась разной (её решает спросивший: у полки каналов ошибка — это пустая полка,
     у ролика — отказ с текстом), а дверь одна, и всё, что понадобится каждому вызову, ставится
     здесь, а не в двух местах. Опции каждый вызов приносит свои — здесь они не смешиваются.
+
+    Выход наружу — площадки, чей это вызов: её прокси (`CINEMA_PROXY_<ID>` или общий) и её
+    cookies (`CINEMA_COOKIES_<ID>`); ни то, ни другое не достаётся чужой площадке.
     """
 
-    def extract(self, address: str, options: Mapping[str, Any]) -> dict[str, Any]:
+    def __init__(self, network: NetConfig | None = None):
+        self.network = network or NetConfig()
+
+    def extract(self, address: str, options: Mapping[str, Any], provider: str) -> dict[str, Any]:
         """
         Разбор как есть: исключение yt-dlp уходит к спросившему нетронутым.
 
@@ -55,15 +62,29 @@ class YtDlp:
         """
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
-        with yt_dlp.YoutubeDL(copy.deepcopy(dict(options))) as ydl:
-            return ydl.extract_info(address, download=False) or {}
+        params = copy.deepcopy(dict(options))
+        proxy = self.network.proxy_for(provider)
+        if proxy:
+            params["proxy"] = proxy
+        with cookie_file(self.network.cookies_for(provider)) as cookies:
+            if cookies:
+                params["cookiefile"] = cookies
+            with yt_dlp.YoutubeDL(params) as ydl:
+                return ydl.extract_info(address, download=False) or {}
 
-    def probe(self, source: str, **options: Any) -> dict[str, Any]:
+    def probe(self, source: str, provider: str, **options: Any) -> dict[str, Any]:
         """Один ролик целиком. Отказ площадки превращается в человеческий текст."""
         try:
-            return self.extract(source, {**PROBE, **options})
+            return self.extract(source, {**PROBE, **options}, provider)
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
-            raise HTTPException(502, f"Не удалось открыть видео: {error}"[:300]) from None
+            raise HTTPException(502, f"Не удалось открыть видео: {self.explain(error)}"[:300]) from None
+
+    def explain(self, error: BaseException) -> str:
+        """Текст отказа yt-dlp для комнаты — без входа в прокси, если yt-dlp его назвал."""
+        text = str(error)
+        for secret in self.network.secrets():
+            text = text.replace(secret, "***@" if secret.endswith("@") else "***")
+        return text
 
 
 @dataclass(frozen=True)
@@ -160,7 +181,7 @@ class Resolver:
     ) -> dict[str, Any]:
         if plan.via == "direct":
             return self._direct(plan, provider, content_id)
-        info = await asyncio.to_thread(self.ytdlp.probe, plan.url, **plan.options)
+        info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
         stream, kind = self._stream(info)
         dash = None
         if adaptive and plan.dash and not info.get("is_live") and kind != "hls":

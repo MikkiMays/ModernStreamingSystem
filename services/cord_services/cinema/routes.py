@@ -109,7 +109,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
 
     @router.get(PREFIX + "/fetch")
     async def fetch(u: str, e: str, s: str, p: Signed = "", range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p), range)
+        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p), range, p)
 
     @router.get(PREFIX + "/dash/{key}")
     async def dash(key: str):
@@ -119,10 +119,11 @@ def routes(cinema: Cinema, core) -> APIRouter:
     # ключом, а сам список составлен нами и содержит только адреса, разрешённые его площадке.
     @router.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.reels.find(key, index).url, range)
+        reel = cinema.reels.find(key, index)
+        return await cinema.fetch(reel.url, range, reel.provider)
 
     @router.get(PREFIX + "/image")
     async def image(u: str, e: str, s: str, p: Signed = ""):
-        return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None)
+        return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None, p)
 
     return router
