@@ -187,6 +187,62 @@ describe('useSource: адрес потока', () => {
     });
   });
 
+  /*
+    Решение задачи 8: подпись адреса поменялась вместе со службой, и уже открытый файл отвечал
+    403 — плеер стоял на «Поток не открылся» до перезагрузки. Теперь файл получает одну попытку.
+  */
+  it('файл: первая ошибка — одна попытка с новой подписью того же вида, вторая — честный отказ', async () => {
+    const { hook, resolve, renewed } = setup(source({ kind: 'file', url: '/cinema/fetch?sig=old' }));
+    await flush();
+    const fresh = source({ kind: 'file', url: '/cinema/fetch?sig=new' });
+    resolve.mockResolvedValueOnce(fresh);
+    let taken = false;
+    await act(async () => {
+      taken = hook.result.current.fileFailed();
+    });
+    expect(taken).toBe(true);
+    expect(resolve).toHaveBeenLastCalledWith('youtube', 'dQw4w9WgXcQ', 'video', {
+      adaptive: false,
+      refresh: true,
+    });
+    expect(renewed).toHaveBeenCalledOnce();
+    expect(hook.result.current.source).toBe(fresh);
+    expect(hook.result.current.fileFailed()).toBe(false);
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it('файл после отказов DASH подписан только что — его ошибка не обновляется ещё раз', async () => {
+    const { hook, resolve } = setup(source({ kind: 'dash' }));
+    await flush();
+    resolve.mockResolvedValueOnce(source({ kind: 'file' }));
+    await act(async () => hook.result.current.dashFailed());
+    expect(hook.result.current.fileFailed()).toBe(false);
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it('новое видео начинает счёт попыток заново, а опоздавший ответ о прежнем пропадает', async () => {
+    const { hook, resolve, renewed } = setup(source({ kind: 'file' }));
+    await flush();
+    const late = pending<CinemaSource>();
+    resolve.mockReturnValueOnce(late.promise);
+    act(() => void hook.result.current.fileFailed());
+    const other = source({ contentId: 'aqz-KE-bpKQ', kind: 'file', url: '/cinema/fetch?other' });
+    resolve.mockResolvedValueOnce(other);
+    hook.rerender({ current: watch({ contentId: 'aqz-KE-bpKQ' }) });
+    expect(hook.result.current.source).toBeNull();
+    await flush();
+    expect(hook.result.current.source).toBe(other);
+    await act(async () => late.settle(source({ url: '/cinema/fetch?late' })));
+    expect(hook.result.current.source).toBe(other);
+    expect(renewed).not.toHaveBeenCalled();
+    resolve.mockResolvedValueOnce(source({ contentId: 'aqz-KE-bpKQ', kind: 'file' }));
+    let taken = false;
+    await act(async () => {
+      taken = hook.result.current.fileFailed();
+    });
+    expect(taken).toBe(true);
+  });
+
   it('обновление не удалось — отказ его словами или общим текстом', async () => {
     const { hook, resolve } = setup();
     await flush();

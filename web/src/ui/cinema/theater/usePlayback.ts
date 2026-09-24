@@ -145,9 +145,13 @@ export function usePlayback({
     if (video.current) video.current.volume = Math.max(0, Math.min(1, preferences.watchVolume / 100));
   }, [preferences.watchVolume]);
 
-  /** `<video>` сообщил об ошибке. У HLS и DASH отказ приходит от движка, а у файла — только отсюда. */
+  /**
+   * `<video>` сообщил об ошибке. У HLS и DASH отказ приходит от движка, а у файла — только
+   * отсюда: сначала одна попытка с новой подписью, потом честный отказ.
+   */
   const mediaError = () => {
     if (player.status !== 'failed' && source?.kind === 'file') {
+      if (player.fileFailed()) return;
       setStatus('failed');
       setError('Поток не открылся. Попробуйте другое видео');
     }
