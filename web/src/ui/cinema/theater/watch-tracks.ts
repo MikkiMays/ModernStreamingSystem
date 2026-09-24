@@ -15,7 +15,7 @@
  * Названия языков здесь **не** берутся у площадки. Она пишет их по-своему («Français»,
  * «日本語», «Korean (Original)»), а меню должно читаться на языке того, кто в него смотрит.
  */
-import type { CinemaCaption } from '../core/cinema';
+import type { CinemaCaption } from '../../../core/cinema';
 
 /** Столько от дорожки HLS нужно для выбора; остальное у `hls.js` своё. */
 export interface MediaTrack {

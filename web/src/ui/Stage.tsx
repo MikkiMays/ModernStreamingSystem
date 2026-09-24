@@ -11,7 +11,7 @@ import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
 import { SCENES } from './cinema/scenes';
 
-const WatchTheater = lazy(() => import('./WatchTheater'));
+const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
 const PokerTable = lazy(() => import('./PokerTable'));
 const DurakTable = lazy(() => import('./DurakTable'));
 const ChessTable = lazy(() => import('./ChessTable'));

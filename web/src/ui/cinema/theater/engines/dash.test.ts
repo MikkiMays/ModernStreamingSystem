@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { attachDash } from './watch-dash';
+import { attachDash } from './dash';
 
 const mock = vi.hoisted(() => {
   const listeners = new Map<string, () => void>();

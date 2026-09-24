@@ -1,12 +1,7 @@
 import type { MediaInfo, MediaPlayerClass, Representation } from 'dashjs';
-import type { Level } from './watch-levels';
-import { audioChoices, type AudioChoice, type MediaTrack } from './watch-tracks';
-
-export interface DashPlayback {
-  quality(index: number): void;
-  voice(index: number): string;
-  destroy(): void;
-}
+import type { Level } from '../watch-levels';
+import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
+import type { Playback } from './playback';
 
 export async function attachDash(
   video: HTMLVideoElement,
@@ -18,11 +13,12 @@ export async function attachDash(
     voices: (voices: AudioChoice[], current: number) => void;
     error: () => void;
   },
-): Promise<DashPlayback | null> {
+): Promise<Playback | null> {
   const { MediaPlayer } = await import('dashjs');
   if (!callbacks.alive()) return null;
   const player: MediaPlayerClass = MediaPlayer().create();
   let representations: Representation[] = [];
+  let levels: Level[] = [];
   let tracks: MediaInfo[] = [];
   let disposed = false;
   const active = () => !disposed && callbacks.alive();
@@ -30,13 +26,14 @@ export async function attachDash(
     if (!active()) return;
     representations = player.getRepresentationsByTypeUnfiltered('video');
     const current = player.getCurrentRepresentationForType('video');
+    levels = representations.map((r) => ({
+      height: r.height,
+      bitrate: r.bandwidth,
+      videoCodec: r.codecs ?? undefined,
+      attrs: { 'FRAME-RATE': String(r.frameRate) },
+    }));
     callbacks.levels(
-      representations.map((r) => ({
-        height: r.height,
-        bitrate: r.bandwidth,
-        videoCodec: r.codecs ?? undefined,
-        attrs: { 'FRAME-RATE': String(r.frameRate) },
-      })),
+      levels,
       representations.findIndex((r) => r.id === current?.id),
     );
     tracks = player.getTracksFor('audio');
@@ -82,6 +79,9 @@ export async function attachDash(
   });
   player.initialize(video, url, false);
   return {
+    get levels() {
+      return levels;
+    },
     quality(index) {
       player.updateSettings({ streaming: { abr: { autoSwitchBitrate: { video: index < 0 } } } });
       const representation = representations[index];
