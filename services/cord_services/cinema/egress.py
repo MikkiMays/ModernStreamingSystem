@@ -45,7 +45,6 @@ from ipaddress import ip_address
 from typing import Awaitable, Callable, Iterator
 from urllib.parse import urlsplit
 
-import httpcore
 import httpx
 
 from .net import ATTEMPT_TIMEOUT, BAD_PORTS, Guard, NotPublic
@@ -147,6 +146,9 @@ class Lease:
     url: str = field(repr=False)
     deadline: float
     refused: str | None = None
+    # Первый сбой сети: имя не разрешилось или ни один адрес не ответил. По нему «502 Bad Gateway»
+    # прокси становится «сайт не отвечает или такого адреса нет».
+    failed: str | None = None
     received: int = 0
     # Соединений от yt-dlp сейчас — для предела `PER_LEASE`; `streams` — они же и их пары к сайтам.
     active: int = 0
@@ -159,6 +161,10 @@ class Lease:
     def refuse(self, reason: str) -> None:
         if self.refused is None:
             self.refused = reason
+
+    def fail(self, reason: str) -> None:
+        if self.failed is None:
+            self.failed = reason
 
 
 @dataclass
@@ -426,7 +432,8 @@ class Egress:
         except NotPublic as error:
             lease.refuse(str(error))
             raise _Refusal(403) from None
-        except (httpcore.ConnectError, TimeoutError):
+        except Exception:  # имя не разрешилось (или разрешитель упал) — адреса нет, соединять не с чем
+            lease.fail(f"{host}: имя не разрешилось")
             raise _Refusal(502) from None
         ordered = sorted(addresses, key=lambda text: ip_address(text).version)
         clock = time.monotonic
@@ -440,6 +447,7 @@ class Egress:
                 return await self._dial(address, port, attempt)
             except (OSError, TimeoutError, EOFError, ValueError, asyncio.IncompleteReadError):
                 continue
+        lease.fail(f"{host}:{port} не ответил")
         raise _Refusal(502)
 
     async def _splice(

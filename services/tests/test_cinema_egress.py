@@ -289,6 +289,19 @@ class WhereItConnects(EgressCase):
         self.assertEqual(status, "HTTP/1.1 200 Connection established")
         self.assertEqual(self.wires.dialed, [(SIX, 443)])
 
+    async def test_a_name_that_does_not_resolve_or_does_not_answer_is_a_gateway_failure(self):
+        lease = self.open_lease()
+        status, _, writer = await self.connect(lease, "nowhere.test:443")
+        writer.close()
+        self.assertEqual(status, "HTTP/1.1 502 Bad Gateway")
+        self.assertEqual(lease.failed, "nowhere.test: имя не разрешилось")
+        # Имя есть, а сайт молчит (сеть теста не знает этого адреса).
+        status, _, writer = await self.connect(lease, "cdn.test:443")
+        writer.close()
+        self.assertEqual(status, "HTTP/1.1 502 Bad Gateway")
+        self.assertEqual(self.wires.dialed, [(CDN, 443)])
+        self.assertIsNone(lease.refused)
+
     async def test_ports_no_browser_would_open_are_closed(self):
         lease = self.open_lease()
         for target in ("public.test:25", "public.test:22", "public.test:6667", f"{PUBLIC}:465"):

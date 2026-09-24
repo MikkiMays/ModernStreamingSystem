@@ -661,15 +661,21 @@ class Refusals(LinkCase):
         from yt_dlp.utils import ExtractorError
 
         url = "https://site.example/v"
-        # Сетевой отказ yt-dlp помечает ожидаемым (`expected`): без «please report this issue» в тексте.
-        timed_out = ExtractorError("Unable to download webpage: timed out", expected=True)
+        # Так 25.09.2026 отвечал ok.ru: сетевой отказ yt-dlp помечен ожидаемым (`expected`).
+        timed_out = ExtractorError(
+            "Unable to download webpage: HTTPSConnectionPool(host='ok.ru', port=443): Read timed out. "
+            "(read timeout=15.0)",
+            expected=True,
+        )
         door = Door({url: self.download_error(timed_out)})
         cinema = self.make(door)
         for _ in range(2):
             with self.assertRaises(HTTPException) as failed:
                 await cinema.link(url, room=ROOM)
-            self.assertEqual(failed.exception.status_code, 502)
-            self.assertIn("Сайт не отдал видео", failed.exception.detail)
+            self.assertEqual(
+                (failed.exception.status_code, failed.exception.detail),
+                (502, "Сайт не ответил вовремя или оборвал связь — попробуйте ещё раз"),
+            )
         # Сбой не запомнен: второй раз страницу спросили снова.
         self.assertEqual(door.asked, [url, url])
 
@@ -1166,6 +1172,16 @@ class ThroughTheRealWay(LinkCase):
             },
         )
         self.assertEqual(self.wires.dialed, [(PUBLIC, 80)])
+
+    async def test_a_site_that_does_not_exist_is_said_so_and_can_be_asked_again(self):
+        cinema = self.real(playlists({}))
+        with self.assertRaises(HTTPException) as missing:
+            await cinema.link("http://nowhere.test/film", room=ROOM)
+        self.assertEqual(
+            (missing.exception.status_code, missing.exception.detail),
+            (502, "Сайт не отвечает или такого адреса нет — проверьте ссылку"),
+        )
+        self.assertEqual(self.wires.dialed, [])
 
     async def test_a_site_that_takes_too_long_is_cut_at_the_deadline_with_words(self):
         async def never():

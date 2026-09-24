@@ -41,6 +41,7 @@ INSIDE = "Ссылка ведёт во внутреннюю сеть или на
 EXPIRED = "Сайт не отдал видео за 30 секунд — попробуйте ещё раз или другую ссылку"
 BUSY = "Сервер сейчас разбирает много ссылок — попробуйте через минуту"
 CLOSED = "Разбор ссылок сейчас недоступен — попробуйте через минуту"
+UNREACHABLE = "Сайт не отвечает или такого адреса нет — проверьте ссылку"
 # Видео есть, но только кусочками DASH из манифеста сайта: такой поток наш плеер пока не собирает.
 DASH_ONLY = "Сайт отдаёт это видео только потоком DASH — такой кинозал пока не показывает"
 # Видео есть, но только файлами, которые браузер не играет (`.mpg`, `.avi`, `.wmv`, …).
@@ -65,6 +66,10 @@ class Expired(Exception):
 
 class Protected(Exception):
     """yt-dlp нашёл только форматы под DRM и отказал сам («This video is DRM protected»)."""
+
+
+class Unreachable(Exception):
+    """Сайта нет: имя не разрешилось или ни один его адрес не ответил выходу."""
 
 
 # Так yt-dlp отказывает, когда все форматы ролика под DRM (`YoutubeDL.raise_no_formats`).
@@ -301,6 +306,9 @@ def _egress_error(lease: Lease, error: Exception) -> Exception | None:
         return Expired()
     if DRM_REFUSAL in str(error):
         return Protected()
+    # Выход ответил yt-dlp «502»: сам сайт не нашёлся или молчит. Сбой, а не свойство страницы.
+    if lease.failed and ("Bad Gateway" in str(error) or "502" in str(error)):
+        return Unreachable(lease.failed)
     return None
 
 
@@ -316,6 +324,8 @@ def refusal(error: BaseException) -> HTTPException | None:
         return HTTPException(503, CLOSED)
     if isinstance(error, Protected):
         return HTTPException(403, drm.DRM)
+    if isinstance(error, Unreachable):
+        return HTTPException(502, UNREACHABLE)
     return None
 
 

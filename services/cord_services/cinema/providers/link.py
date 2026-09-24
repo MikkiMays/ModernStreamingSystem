@@ -107,6 +107,7 @@ MISSING = "Страница не найдена: сайт ответил, что
 # честно, своим именем, и чужим браузером не притворяется (см. `AGENT`).
 FORBIDDEN = "Сайт не пустил кинозал к этой странице (403) — откройте видео на самом сайте"
 BROKEN = "Разборщик этого сайта не справился со страницей — попробуйте позже или другую ссылку"
+SILENT = "Сайт не ответил вовремя или оборвал связь — попробуйте ещё раз"
 OFF = "Разбор ссылок на этом сервере выключен"
 BUSY_ROOM = "Комната уже разбирает ссылку — дождитесь ответа"
 TOO_OFTEN = "Комната слишком часто разбирает ссылки, подождите минуту"
@@ -118,6 +119,12 @@ LOGIN_WORDS = re.compile(
     re.IGNORECASE,
 )
 ROBOT_WORDS = re.compile(r"captcha|cloudflare|anti-bot|not a bot|verify you are human", re.IGNORECASE)
+# Так urllib3 и сокеты говорят о молчании и обрыве сети — английским текстом с адресом внутри.
+NETWORK_WORDS = re.compile(
+    r"timed out|connection (?:refused|reset|aborted)|remote ?disconnected|name resolution|"
+    r"name or service not known|failed to resolve|network is unreachable",
+    re.IGNORECASE,
+)
 # Так yt-dlp говорит, что его разборщик не понял страницу сайта, которую знает: сайт поменялся.
 BROKEN_WORDS = re.compile(r"please report this issue|unable to extract", re.IGNORECASE)
 # Дата и время, которые yt-dlp дописывает к имени идущего эфира (`YoutubeDL.process_video_result`).
@@ -324,6 +331,9 @@ class Link(Provider):
             return {"item": None, "reason": MISSING}
         if "HTTP Error 403" in text:
             return {"item": None, "reason": FORBIDDEN}
+        if NETWORK_WORDS.search(text):
+            # Молчание и обрыв — не свойство страницы, а сбой: ответ не запоминается, и повтор возможен.
+            raise HTTPException(502, SILENT) from None
         if not _from_yt_dlp(original) or BROKEN_WORDS.search(text):
             # Не отказ сайта, а поломка разборщика (`TypeError` в его коде, «Unable to extract…»): сайт
             # поменялся быстрее, чем yt-dlp. Сказать об этом можно, а показать трассировку — нечего.
