@@ -2,6 +2,7 @@ package dev.mikki.stream.room;
 
 import jakarta.validation.constraints.*;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public final class Contracts {
@@ -64,6 +65,26 @@ public final class Contracts {
   }
 
   /**
+   * Какие площадки понимает совместный просмотр — одной строкой, для {@code @Pattern} у {@link
+   * Command#provider()}.
+   *
+   * <p>Список живёт здесь и нигде больше. Служба просмотра ({@code cinema/registry.py}) знает те же
+   * семь площадок под своей схемой {@code GET providers} — ядру же содержимое площадки не важно,
+   * ему важно лишь пропустить команду или отказать ей до того, как она дойдёт до службы.
+   */
+  public static final String WATCH_PROVIDERS = "youtube|twitch|vk|rutube|ivi|jellyfin|link";
+
+  /**
+   * У кого из площадок {@code watch.open} с {@code kind=channel} означает настоящий прямой эфир.
+   *
+   * <p>Ivi и Jellyfin отдают только запись — канала с живым краем у них нет. Открыть для них {@code
+   * channel} — не «эфир без начала», а нечего открывать, и {@code RoomService} отвечает на это тем
+   * же отказом, что и на пустые поля.
+   */
+  public static final Set<String> WATCH_LIVE_PROVIDERS =
+      Set.of("youtube", "twitch", "vk", "rutube", "link");
+
+  /**
    * Команда участника комнате.
    *
    * <p>Поля совместного просмотра пришли последними и необязательны: у команды одна форма на все
@@ -76,7 +97,7 @@ public final class Contracts {
       @Size(max = 4000) String text,
       @Size(max = 36) String targetId,
       long generation,
-      @Pattern(regexp = "youtube|twitch") String provider,
+      @Pattern(regexp = WATCH_PROVIDERS) String provider,
       @Pattern(regexp = "video|channel") String kind,
       @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]*") String contentId,
       @Min(0) @Max(86400000) Long positionMs,

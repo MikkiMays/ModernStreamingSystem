@@ -10,6 +10,7 @@ import dev.mikki.stream.shared.Problem;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -354,9 +355,7 @@ public class RoomService {
               .anyMatch(m -> "music".equals(m.service) && m.occupiesSeat()))
             throw Problem.conflict("SERVICE_EXISTS", "Музыкальный сервис уже подключён");
           // Та же граница с другой стороны: пока комната смотрит кино, музыке в ней места нет.
-          if (room.watch != null)
-            throw Problem.conflict(
-                "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
+          stageBusy(room, Occupant.CINEMA);
           checkSeat(room);
           var member = newMember(room, "Музыка", false, commandId);
           member.service = "music";
@@ -727,25 +726,25 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
-              newGamesAbsent(room);
               // Активная интеграция в комнате одна. Музыка и кинозал спорят за одно и то же —
               // за уши участников, — и «добавились обе» означает два звука разом, из которых
               // не выключить ни один.
-              if (room.members.values().stream()
-                  .anyMatch(m -> m.service != null && m.occupiesSeat()))
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY",
-                    "Во встрече уже есть другая интеграция. Сначала уберите её");
-              if (room.poker != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт покерный стол. Сначала закройте его");
-              if (room.durak != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт стол дурака. Сначала закройте его");
+              stageBusy(
+                  room,
+                  Occupant.NEW_GAME,
+                  Occupant.OTHER_SERVICE,
+                  Occupant.POKER_TABLE,
+                  Occupant.DURAK_TABLE);
               if (command.provider() == null
                   || command.kind() == null
                   || command.contentId() == null
                   || command.contentId().isBlank())
+                throw new Problem(400, "WATCH_INVALID", "Нечего открывать");
+              // Эфир есть не у всех площадок: Ivi и Jellyfin отдают только запись, и «channel»
+              // для них — не эфир без начала, а нечего открывать. Отказ тот же, что у пустых
+              // полей: площадке, куда нечего заходить, не важно, чего именно не хватило.
+              if (command.kind().equals("channel")
+                  && !WATCH_LIVE_PROVIDERS.contains(command.provider()))
                 throw new Problem(400, "WATCH_INVALID", "Нечего открывать");
               var watch = new RoomState.Watch();
               watch.provider = command.provider();
@@ -807,13 +806,7 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
-              newGamesAbsent(room);
-              if (room.watch != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
-              if (room.durak != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт стол дурака. Сначала закройте его");
+              stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.DURAK_TABLE);
               if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
               room.poker =
                   dev.mikki.stream.game.Table.open(
@@ -873,13 +866,7 @@ public class RoomService {
               requireActive(room, member);
               requireOpen(room);
               integrations(room, member);
-              newGamesAbsent(room);
-              if (room.watch != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт кинозал. Сначала закройте его");
-              if (room.poker != null)
-                throw Problem.conflict(
-                    "INTEGRATION_BUSY", "Во встрече открыт покерный стол. Сначала закройте его");
+              stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.POKER_TABLE);
               if (room.durak != null) throw Problem.conflict("DURAK_OPEN", "Стол уже открыт");
               room.durak =
                   dev.mikki.stream.game.Durak.open(
@@ -1194,14 +1181,47 @@ public class RoomService {
         .orElse(0);
   }
 
-  private static void newGamesAbsent(RoomState room) {
-    if (room.chess != null || room.gartic != null)
-      throw Problem.conflict(
-          "INTEGRATION_BUSY", "Во встрече уже открыта игра. Сначала закройте её");
+  /**
+   * Кто в комнате занимает то место, которое не делят вдвоём.
+   *
+   * <p>Кинозал, покерный стол, стол дурака и новая игра (шахматы или рисовалки) — это одна и та же
+   * «сцена» комнаты: она одна, и они конкурируют за неё все со всеми. Музыка на сцену не выходит,
+   * зато вместе с кинозалом спорит за отдельный ресурс — «уши»: звук иначе звучал бы дважды разом,
+   * и ни один было бы не выключить.
+   *
+   * <p>Раньше у каждой пары был свой рукописный {@code if}, и один и тот же текст ошибки
+   * копировался в них заново — «кинозал» трижды, «покерный стол» и «стол дурака» по два раза. Здесь
+   * у каждого занятого места один код и один текст, а «открыть» лишь перечисляет, с кем оно делит
+   * сцену или уши.
+   */
+  private enum Occupant {
+    CINEMA(r -> r.watch != null, "Во встрече открыт кинозал. Сначала закройте его"),
+    POKER_TABLE(r -> r.poker != null, "Во встрече открыт покерный стол. Сначала закройте его"),
+    DURAK_TABLE(r -> r.durak != null, "Во встрече открыт стол дурака. Сначала закройте его"),
+    NEW_GAME(
+        r -> r.chess != null || r.gartic != null,
+        "Во встрече уже открыта игра. Сначала закройте её"),
+    OTHER_SERVICE(
+        r -> r.members.values().stream().anyMatch(m -> m.service != null && m.occupiesSeat()),
+        "Во встрече уже есть другая интеграция. Сначала уберите её");
+
+    private final Predicate<RoomState> present;
+    private final String message;
+
+    Occupant(Predicate<RoomState> present, String message) {
+      this.present = present;
+      this.message = message;
+    }
+  }
+
+  /** Бросает {@code INTEGRATION_BUSY} на первом занятом месте из перечисленных — в этом порядке. */
+  private static void stageBusy(RoomState room, Occupant... occupants) {
+    for (var occupant : occupants)
+      if (occupant.present.test(room)) throw Problem.conflict("INTEGRATION_BUSY", occupant.message);
   }
 
   private static void gameStageAvailable(RoomState room) {
-    newGamesAbsent(room);
+    stageBusy(room, Occupant.NEW_GAME);
     if (room.watch != null || room.poker != null || room.durak != null)
       throw Problem.conflict("INTEGRATION_BUSY", "Сначала закройте текущую игру или кинозал");
   }

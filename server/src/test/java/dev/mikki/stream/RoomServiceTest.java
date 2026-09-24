@@ -952,6 +952,43 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
   }
 
+  /**
+   * Семь площадок, один и тот же путь: ролик открывается им всем одинаково, без исключений для
+   * новеньких.
+   */
+  @Test
+  void allSevenPlatformsOpenAVideoTheSameWay() {
+    var host = host();
+    for (String provider :
+        new String[] {"youtube", "twitch", "vk", "rutube", "ivi", "jellyfin", "link"}) {
+      watch(host, "watch.open", provider, "video", "abc", null);
+      assertThat(rooms.read(host.roomId()).watch.provider).isEqualTo(provider);
+    }
+  }
+
+  /**
+   * Эфир есть не у всех площадок. Ivi и Jellyfin отдают только запись — {@code channel} для них не
+   * начало трансляции, а нечего открывать, и отказ ровно тот же, что у пустых полей.
+   */
+  @Test
+  void onlyPlatformsWithARealBroadcastOpenAChannel() {
+    var host = host();
+    for (String provider : new String[] {"youtube", "twitch", "vk", "rutube", "link"}) {
+      watch(host, "watch.open", provider, "channel", "some_channel", null);
+      assertThat(rooms.read(host.roomId()).watch.provider).isEqualTo(provider);
+    }
+    for (String provider : new String[] {"ivi", "jellyfin"})
+      assertThatThrownBy(() -> watch(host, "watch.open", provider, "channel", "some_channel", null))
+          .isInstanceOf(Problem.class)
+          .satisfies(
+              error -> {
+                var problem = (Problem) error;
+                assertThat(problem.status()).isEqualTo(400);
+                assertThat(problem.code()).isEqualTo("WATCH_INVALID");
+                assertThat(problem).hasMessage("Нечего открывать");
+              });
+  }
+
   @Test
   void watchingTogetherObeysTheIntegrationPermission() {
     var host = host();
@@ -1162,6 +1199,25 @@ class RoomServiceTest {
     poker(host, "poker.close", null, null, null);
     watch(host, "watch.open", "youtube", "video", "abc", null);
     assertThatThrownBy(() -> poker(host, "poker.open", "friendly", null, null))
+        .isInstanceOf(Problem.class);
+  }
+
+  /** Та же единственная сцена — и для дурака: ни с кинозалом, ни с покером её не поделить. */
+  @Test
+  void theDurakTableAlsoCannotShareTheStageWithTheCinemaOrPoker() {
+    var host = host();
+    watch(host, "watch.open", "youtube", "video", "abc", null);
+    assertThatThrownBy(() -> poker(host, "durak.open", "podkidnoy", null, null))
+        .isInstanceOf(Problem.class);
+    watch(host, "watch.close", null, null, null, null);
+    poker(host, "durak.open", "podkidnoy", null, null);
+    assertThatThrownBy(() -> watch(host, "watch.open", "youtube", "video", "abc", null))
+        .isInstanceOf(Problem.class);
+    assertThatThrownBy(() -> poker(host, "poker.open", "friendly", null, null))
+        .isInstanceOf(Problem.class);
+    poker(host, "durak.close", null, null, null);
+    poker(host, "poker.open", "friendly", null, null);
+    assertThatThrownBy(() -> poker(host, "durak.open", "podkidnoy", null, null))
         .isInstanceOf(Problem.class);
   }
 

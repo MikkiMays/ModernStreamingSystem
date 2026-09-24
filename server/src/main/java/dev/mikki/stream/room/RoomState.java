@@ -191,7 +191,9 @@ public class RoomState {
    * собственный край трансляции — догонять там нечего.
    */
   public static class Watch {
-    /** {@code youtube} или {@code twitch}. */
+    /**
+     * Одна из {@link Contracts#WATCH_PROVIDERS}: youtube, twitch, vk, rutube, ivi, jellyfin, link.
+     */
     public String provider;
 
     /** {@code video} — ролик с позицией, {@code channel} — живой эфир. */
