@@ -1,6 +1,23 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { ArrowLeft, Clapperboard, Search, X } from 'lucide-react';
 import { IconButton } from '../../primitives';
+
+/**
+ * Как браузер называет вставку целиком (`InputEvent.inputType`): из буфера, перетаскиванием, выбором
+ * подсказки клавиатуры. Набор по букве — `insertText`.
+ */
+const WHOLE = new Set([
+  'insertFromPaste',
+  'insertFromPasteAsQuotation',
+  'insertFromDrop',
+  'insertFromYank',
+  'insertReplacementText',
+]);
+/**
+ * Столько знаков одним изменением поля по букве не набрать: это вставка, даже если браузер (или
+ * клавиатура телефона с буфером в подсказках) назвал её набором (`insertText` с длинным `data`).
+ */
+const INSERTED_AT_ONCE = 5;
 
 /**
  * Кинотеатр: каталог площадки на сцене встречи, а не строчка в боковой панели.
@@ -29,6 +46,7 @@ export function Shell({
   query,
   placeholder,
   onSearch,
+  onSubmit,
   onClear,
   watching,
   onClose,
@@ -42,8 +60,13 @@ export function Shell({
   tabs?: ReactNode;
   query: string;
   placeholder: string;
-  /** Набор текста в поле поиска. */
-  onSearch: (query: string) => void;
+  /**
+   * Поле поиска изменилось. `whole` — в него вставили целиком (буфер, перетаскивание, подсказка), а не
+   * набрали по букве: вставленную ссылку спрашивают сразу, набранную — только по Enter (`onSubmit`).
+   */
+  onSearch: (query: string, whole: boolean) => void;
+  /** Enter в поле поиска: набранное — целиком и сейчас. */
+  onSubmit?: (query: string) => void;
   /** Крестик в поле поиска. */
   onClear: () => void;
   /** Комната уже что-то смотрит: значит, закрытие каталога возвращает к плееру, а не в разговор. */
@@ -55,6 +78,8 @@ export function Shell({
   error: string;
   children: ReactNode;
 }) {
+  /** Следующее изменение поля — вставка: перед ним было `paste` или `drop`. */
+  const pasted = useRef(false);
   return (
     <section className="cinema-browser" aria-label="Кинотеатр">
       <header className="cinema-bar">
@@ -74,7 +99,33 @@ export function Shell({
             value={query}
             autoFocus
             placeholder={placeholder}
-            onChange={(event) => onSearch(event.target.value)}
+            onPaste={() => {
+              pasted.current = true;
+            }}
+            onDrop={() => {
+              pasted.current = true;
+            }}
+            onKeyDown={(event) => {
+              // Вставка, которая ничего не изменила, не делает вставкой следующую букву.
+              pasted.current = false;
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing)
+                onSubmit?.(event.currentTarget.value);
+            }}
+            onChange={(event) => {
+              const value = event.target.value;
+              const input = event.nativeEvent as Partial<InputEvent>;
+              // Сколько вставлено разом: `data` у набора, а без него — насколько поле выросло. Слово,
+              // которое клавиатура телефона ещё составляет по букве (composition), — набор, а не вставка.
+              const inserted =
+                typeof input.data === 'string' ? input.data.length : value.length - query.length;
+              const composing = !!input.isComposing || input.inputType === 'insertCompositionText';
+              const whole =
+                pasted.current ||
+                WHOLE.has(input.inputType ?? '') ||
+                (!composing && inserted >= INSERTED_AT_ONCE);
+              pasted.current = false;
+              onSearch(value, whole);
+            }}
           />
           {query && (
             <button className="icon-button" aria-label="Очистить поиск" onClick={() => onClear()}>

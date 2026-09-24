@@ -184,6 +184,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Вставить в поле из буфера: `paste`, и поле изменилось целиком. */
+function paste(field: HTMLElement, text: string) {
+  fireEvent.paste(field);
+  fireEvent.change(field, { target: { value: text } });
+}
+
 function mount() {
   const meeting = {
     admission: { roomId: 'room', participantId: 'self', credential: 'token' },
@@ -360,9 +366,7 @@ it('сцена, открытая по ссылке на сериал, начин
 
 it('ссылка на эфир ТВ, вставленная в поиск, — страница эфира, и комнате уходит канал с номером ролика', async () => {
   const { client, meeting } = host();
-  fireEvent.change(screen.getByPlaceholderText('Видео, каналы и ТВ'), {
-    target: { value: `https://rutube.ru/live/video/${LIVE.id}/` },
-  });
+  paste(screen.getByPlaceholderText('Видео, каналы и ТВ'), `https://rutube.ru/live/video/${LIVE.id}/`);
   expect(await screen.findByRole('heading', { name: 'Прямой эфир Первый канал' })).toBeInTheDocument();
   expect(meeting.openCinema).toHaveBeenCalledWith('rutube', { page: 'item', kind: 'channel', id: LIVE.id });
   expect(screen.getByPlaceholderText('Видео, каналы и ТВ')).toHaveValue('');

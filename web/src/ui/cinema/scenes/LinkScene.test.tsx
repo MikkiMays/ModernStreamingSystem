@@ -95,6 +95,8 @@ const ANSWERS: Record<string, unknown> = {
 
 /** Какие ссылки спросили у службы. */
 const asked: string[] = [];
+/** Сигналы этих вопросов: оборванный вопрос — `aborted`. */
+const signals: (AbortSignal | null | undefined)[] = [];
 /** Какие ещё страницы каталога спросили: `series`, `details`. */
 const pages: string[] = [];
 let gate: Promise<void> = Promise.resolve();
@@ -103,6 +105,7 @@ let offline = false;
 
 beforeEach(() => {
   asked.length = 0;
+  signals.length = 0;
   pages.length = 0;
   gate = Promise.resolve();
   offline = false;
@@ -122,6 +125,7 @@ beforeEach(() => {
       expect(address.pathname).toBe('/api/v1/services/rooms/room/cinema/link');
       const url = (JSON.parse(String(init?.body)) as { url: string }).url;
       asked.push(url);
+      signals.push(init?.signal);
       await gate;
       return json(ANSWERS[url] ?? { item: null, reason: REASON });
     }),
@@ -156,8 +160,20 @@ function fresh() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function type(text: string) {
-  fireEvent.change(screen.getByPlaceholderText('Вставьте ссылку на видео'), { target: { value: text } });
+function field() {
+  return screen.getByPlaceholderText('Вставьте ссылку на видео');
+}
+
+/** Вставить в поле из буфера: `paste`, и поле изменилось целиком. */
+function paste(text: string) {
+  fireEvent.paste(field());
+  fireEvent.change(field(), { target: { value: text } });
+}
+
+/** Набрать руками — по букве, как с клавиатуры. */
+function typeByHand(text: string) {
+  for (let length = 1; length <= text.length; length += 1)
+    fireEvent.change(field(), { target: { value: text.slice(0, length) } });
 }
 
 it('пустое поле — подсказка, кнопка буфера и недавние ссылки; недавняя открывается в сцене своей площадки', async () => {
@@ -190,7 +206,7 @@ it('незнакомая ссылка — «Ищем видео…», потом
   let release = () => {};
   gate = new Promise((done) => (release = done));
   const { client, meeting } = mount();
-  type(UNKNOWN);
+  paste(UNKNOWN);
   expect(await screen.findByText('Ищем видео…')).toBeInTheDocument();
   act(() => release());
   expect(await screen.findByText(REASON)).toBeInTheDocument();
@@ -214,7 +230,7 @@ it('ссылку без своей площадки из поиска друго
 
 it('в поле годится и ссылка без схемы, а не ссылка так и называется', async () => {
   const { client, meeting } = mount();
-  type('youtu.be/dQw4w9WgXcQ');
+  paste('youtu.be/dQw4w9WgXcQ');
   await waitFor(() =>
     expect(meeting.openCinema).toHaveBeenCalledWith('youtube', {
       page: 'item',
@@ -225,7 +241,7 @@ it('в поле годится и ссылка без схемы, а не ссы
   expect(asked).toEqual(['https://youtu.be/dQw4w9WgXcQ']);
   cleanup();
   mount({ client });
-  type('маша и медведь');
+  typeByHand('маша и медведь');
   expect(await screen.findByText(/Это не похоже на ссылку/)).toBeInTheDocument();
   expect(asked).toEqual(['https://youtu.be/dQw4w9WgXcQ']);
   client.clear();
@@ -257,7 +273,7 @@ it('кнопка буфера вставляет ссылку сразу — а 
 
 it('что нашлось по ссылке: страница с сайтом, ступенями качества, звуком и субтитрами — и «Смотреть вместе»', async () => {
   const { client, meeting } = mount();
-  type('https://ok.ru/video/1');
+  paste('https://ok.ru/video/1');
   expect(await screen.findByRole('heading', { name: 'Фильм с ok.ru' })).toBeInTheDocument();
   expect(screen.getByText('ok.ru')).toBeInTheDocument();
   // Ступени — метками, лучшая первой.
@@ -285,7 +301,7 @@ it('что нашлось по ссылке: страница с сайтом, �
 
 it('плейлист по ссылке — страница сериала с сериями плитками: серию включают прямо с плитки или с её страницы', async () => {
   const { client, meeting } = mount();
-  type('https://archive.org/details/show');
+  paste('https://archive.org/details/show');
   expect(await screen.findByRole('heading', { name: SHOW.title })).toBeInTheDocument();
   expect(await screen.findAllByRole('article')).toHaveLength(3);
   expect(pages).toEqual([`series:link:${SHOW.id}`]);
@@ -314,7 +330,7 @@ it('плейлист по ссылке — страница сериала с с
   // Серию по ссылке включают прямо с плитки — её номером, а не адресом.
   cleanup();
   const again = mount({ client });
-  type('https://archive.org/details/show');
+  paste('https://archive.org/details/show');
   fireEvent.click(await screen.findByRole('button', { name: 'Смотреть вместе: Серия 2' }));
   await waitFor(() =>
     expect(again.meeting.command).toHaveBeenCalledWith('watch.open', 'Серия 2', undefined, {
@@ -329,7 +345,7 @@ it('плейлист по ссылке — страница сериала с с
 it('обрыв сети — словами по-русски, а не «Failed to fetch» браузера', async () => {
   offline = true;
   const { client } = mount();
-  type('https://ok.ru/video/1');
+  paste('https://ok.ru/video/1');
   expect(await screen.findByRole('alert')).toHaveTextContent('Нет связи с сервером — попробуйте ещё раз');
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   client.clear();
@@ -337,7 +353,7 @@ it('обрыв сети — словами по-русски, а не «Failed t
 
 it('площадку, которой этот клиент не знает, не открывает — просит обновить страницу', async () => {
   const { client, meeting } = mount();
-  type('https://ivi.ru/watch/1');
+  paste('https://ivi.ru/watch/1');
   expect(await screen.findByText(/обновите страницу/)).toBeInTheDocument();
   expect(meeting.openCinema).not.toHaveBeenCalled();
   client.clear();
@@ -347,7 +363,7 @@ it('ссылка своей площадки, набранная здесь ещ
   const client = fresh();
   client.setQueryData(['cinema', 'link', RUTUBE], ANSWERS[RUTUBE]);
   const { meeting } = mount({ client });
-  type(RUTUBE);
+  paste(RUTUBE);
   await waitFor(() =>
     expect(meeting.openCinema).toHaveBeenCalledWith('rutube', {
       page: 'item',
@@ -357,5 +373,51 @@ it('ссылка своей площадки, набранная здесь ещ
   );
   // Ответ был в памяти — к службе не ходили.
   expect(asked).toEqual([]);
+  client.clear();
+});
+
+it('набранную по букве ссылку не спрашивают на паузах — только по Enter или кнопкой «Открыть ссылку»', async () => {
+  const { client } = mount();
+  typeByHand('https://ok.ru/video/1');
+  await new Promise((done) => setTimeout(done, 600));
+  expect(asked).toEqual([]);
+  expect(screen.getByText('Открыть эту ссылку?')).toBeInTheDocument();
+  fireEvent.keyDown(field(), { key: 'Enter' });
+  expect(await screen.findByRole('heading', { name: 'Фильм с ok.ru' })).toBeInTheDocument();
+  expect(asked).toEqual(['https://ok.ru/video/1']);
+
+  // Дописали другую руками — снова ни одного вопроса, пока не нажали кнопку.
+  fireEvent.change(field(), { target: { value: '' } });
+  typeByHand('https://archive.org/details/show');
+  await new Promise((done) => setTimeout(done, 600));
+  expect(asked).toEqual(['https://ok.ru/video/1']);
+  fireEvent.click(screen.getByRole('button', { name: /Открыть ссылку/ }));
+  expect(await screen.findByRole('heading', { name: SHOW.title })).toBeInTheDocument();
+  expect(asked).toEqual(['https://ok.ru/video/1', 'https://archive.org/details/show']);
+  client.clear();
+});
+
+it('новая ссылка обрывает вопрос о прежней: ответ на неё уже никому не нужен', async () => {
+  let release = () => {};
+  gate = new Promise((done) => (release = done));
+  const { client } = mount();
+  paste(UNKNOWN);
+  await waitFor(() => expect(asked).toEqual([UNKNOWN]));
+  paste('https://ok.ru/video/1');
+  await waitFor(() => expect(asked).toEqual([UNKNOWN, 'https://ok.ru/video/1']));
+  expect(signals[0]?.aborted).toBe(true);
+  expect(signals[1]?.aborted).toBe(false);
+  act(() => release());
+  expect(await screen.findByRole('heading', { name: 'Фильм с ok.ru' })).toBeInTheDocument();
+  expect(screen.queryByText(REASON)).toBeNull();
+
+  // Стёрли набранное — вопрос в пути тоже обрывается.
+  gate = new Promise((done) => (release = done));
+  paste('https://archive.org/details/show');
+  await waitFor(() => expect(asked).toHaveLength(3));
+  fireEvent.click(screen.getByRole('button', { name: 'Очистить поиск' }));
+  expect(signals[2]?.aborted).toBe(true);
+  act(() => release());
+  expect(screen.getByText('Вставьте ссылку на видео')).toBeInTheDocument();
   client.clear();
 });

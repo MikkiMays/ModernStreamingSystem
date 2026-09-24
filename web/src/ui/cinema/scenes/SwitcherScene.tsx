@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
 import { CinemaApi, PROVIDERS, SWITCHER_TABS, type CinemaItem, type ProviderId } from '../../../core/cinema';
@@ -74,16 +74,18 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
   /** Ищем не на каждую букву: поиск уходит на сервер, а тот — к площадке. */
   const [settled, setSettled] = useKeyed(provider, '');
   const link = useLink(meeting, api);
-  /** Ссылку спрашивают тогда же, когда искали бы слова: вставленная ссылка — одно изменение поля. */
-  const follow = useEffectEvent((url: string) => {
+  /**
+   * Ссылку спрашивают, когда её вставили целиком или открыли Enter, — не на паузу в наборе: каждая
+   * пауза была бы разбором чужой страницы. Вставленная — сразу, без паузы поиска.
+   */
+  const follow = (text: string) => {
+    const url = linkOf(text);
+    if (!url) return;
+    setSettled(text.trim());
     void link.follow(url).then((opened) => opened && setQuery(''));
-  });
+  };
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSettled(query.trim());
-      const url = linkOf(query);
-      if (url) follow(url);
-    }, 420);
+    const timer = setTimeout(() => setSettled(query.trim()), 420);
     return () => clearTimeout(timer);
   }, [query, setSettled]);
 
@@ -165,18 +167,26 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
       }
       query={query}
       placeholder={PROVIDERS[provider].searchPlaceholder}
-      onSearch={(value) => {
+      onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();
         if (view.at !== 'home') toHome();
+        if (whole) follow(value);
       }}
+      onSubmit={follow}
       onClear={() => setQuery('')}
       watching={watching}
       onClose={onClose}
       locked={!canUse}
       error={error}
     >
-      {home && linked && <Following checking={!!link.checking} problem={link.problem} />}
+      {home && linked && (
+        <Following
+          checking={!!link.checking}
+          problem={link.problem}
+          waiting={link.asked !== linkOf(settled)}
+        />
+      )}
 
       {home && !linked && (
         <>

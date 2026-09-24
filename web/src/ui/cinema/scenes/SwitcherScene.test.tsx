@@ -81,6 +81,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Вставить в поле из буфера: `paste`, и поле изменилось целиком. */
+function paste(field: HTMLElement, text: string) {
+  fireEvent.paste(field);
+  fireEvent.change(field, { target: { value: text } });
+}
+
 function Harness({ meeting }: { meeting: Meeting }) {
   const [provider, setProvider] = useState<ProviderId>('youtube');
   return <SwitcherScene meeting={meeting} provider={provider} onProvider={setProvider} onClose={() => {}} />;
@@ -215,9 +221,7 @@ it('«Назад» со страницы по ссылке ведёт на ви�
 
 it('ссылка на Twitch, вставленная в поиск YouTube, открывает эфир на вкладке Twitch — без поиска', async () => {
   const { client, meeting } = host();
-  fireEvent.change(screen.getByPlaceholderText('Ролик, канал или плейлист'), {
-    target: { value: 'https://www.twitch.tv/pesh' },
-  });
+  paste(screen.getByPlaceholderText('Ролик, канал или плейлист'), 'https://www.twitch.tv/pesh');
   expect(await screen.findByRole('heading', { name: 'Эфир pesh' })).toBeInTheDocument();
   expect(meeting.openCinema).toHaveBeenCalledWith('twitch', { page: 'item', kind: 'channel', id: 'pesh' });
   expect(screen.getByRole('tab', { name: 'Twitch' })).toHaveAttribute('aria-selected', 'true');
@@ -236,9 +240,7 @@ it('пока служба отвечает о ссылке — «Открыва�
   });
   const { client } = host();
   await screen.findByText('Что включим комнате?');
-  fireEvent.change(screen.getByPlaceholderText('Ролик, канал или плейлист'), {
-    target: { value: 'https://youtu.be/aqz-KE-bpKQ' },
-  });
+  paste(screen.getByPlaceholderText('Ролик, канал или плейлист'), 'https://youtu.be/aqz-KE-bpKQ');
   expect(await screen.findByText('Открываем ссылку…')).toBeInTheDocument();
   expect(screen.queryByText('Что включим комнате?')).toBeNull();
   release();
@@ -261,7 +263,7 @@ it('ответ о ссылке, которую уже стёрли, никуда
   });
   const { client, meeting } = host();
   const field = screen.getByPlaceholderText('Ролик, канал или плейлист');
-  fireEvent.change(field, { target: { value: 'https://www.twitch.tv/pesh' } });
+  paste(field, 'https://www.twitch.tv/pesh');
   await screen.findByText('Открываем ссылку…');
   fireEvent.change(field, { target: { value: 'big buck bunny' } });
   await waitFor(() => expect(asked).toContain('youtube search big buck bunny'));
@@ -270,5 +272,38 @@ it('ответ о ссылке, которую уже стёрли, никуда
   await new Promise((done) => setTimeout(done, 100));
   expect(meeting.openCinema).not.toHaveBeenCalled();
   expect(screen.getByRole('tab', { name: 'YouTube' })).toHaveAttribute('aria-selected', 'true');
+  client.clear();
+});
+
+it('ссылку, набранную по букве, не спрашивают на паузах: подсказка Enter, и только Enter её открывает', async () => {
+  const { client, meeting } = host();
+  await screen.findByText('Что включим комнате?');
+  const field = screen.getByPlaceholderText('Ролик, канал или плейлист');
+  const text = 'https://www.twitch.tv/pesh';
+  for (let length = 1; length <= text.length; length += 1)
+    fireEvent.change(field, { target: { value: text.slice(0, length) } });
+  expect(await screen.findByText('Нажмите Enter — и кинозал откроет эту ссылку.')).toBeInTheDocument();
+  await new Promise((done) => setTimeout(done, 100));
+  expect(asked.filter((line) => line.includes(' link '))).toEqual([]);
+  expect(meeting.openCinema).not.toHaveBeenCalled();
+  fireEvent.keyDown(field, { key: 'Enter' });
+  expect(await screen.findByRole('heading', { name: 'Эфир pesh' })).toBeInTheDocument();
+  expect(meeting.openCinema).toHaveBeenCalledWith('twitch', { page: 'item', kind: 'channel', id: 'pesh' });
+  expect(asked.filter((line) => line.includes(' link '))).toHaveLength(1);
+  client.clear();
+});
+
+it('ссылка, вставленная целиком без события вставки (подсказка клавиатуры телефона), — тоже вставка', async () => {
+  const { client, meeting } = host();
+  fireEvent.change(screen.getByPlaceholderText('Ролик, канал или плейлист'), {
+    target: { value: 'https://youtu.be/aqz-KE-bpKQ' },
+  });
+  await waitFor(() =>
+    expect(meeting.openCinema).toHaveBeenCalledWith('youtube', {
+      page: 'item',
+      kind: 'video',
+      id: 'aqz-KE-bpKQ',
+    }),
+  );
   client.clear();
 });

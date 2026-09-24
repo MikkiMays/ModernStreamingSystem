@@ -222,6 +222,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Вставить в поле из буфера: `paste`, и поле изменилось целиком. */
+function paste(field: HTMLElement, text: string) {
+  fireEvent.paste(field);
+  fireEvent.change(field, { target: { value: text } });
+}
+
 /** Сцена, как её держит сцена встречи: страница — из `Meeting.cinemaAt`, чужая площадка — не здесь. */
 function Host({ meeting }: { meeting: Meeting }) {
   const cinema = useStore(meeting.cinema);
@@ -322,9 +328,7 @@ it('поиск — сообщества полкой над роликами; с
 
 it('вставленная ссылка открывает страницу ролика без поиска — куда скажет служба — и включается с его именем', async () => {
   const { client, meeting } = mount();
-  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
-    target: { value: 'https://vkvideo.ru/video-22277933_456242578' },
-  });
+  paste(screen.getByPlaceholderText('Видео и сообщества'), 'https://vkvideo.ru/video-22277933_456242578');
   expect(await screen.findByRole('heading', { name: 'Серия по ссылке' })).toBeInTheDocument();
   expect(meeting.openCinema).toHaveBeenCalledWith('vk', {
     page: 'item',
@@ -360,9 +364,7 @@ it('каталог VK молчит — сцена так и говорит, а �
     screen.getByText(/анонимный вход не принят\. Ролик или эфир VK всё равно откроется по ссылке/),
   ).toBeInTheDocument();
 
-  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
-    target: { value: 'https://live.vkvideo.ru/near_you' },
-  });
+  paste(screen.getByPlaceholderText('Видео и сообщества'), 'https://live.vkvideo.ru/near_you');
   expect(await screen.findByRole('heading', { name: 'Эфир VK Видео Live: near_you' })).toBeInTheDocument();
   // Страница эфира тоже не ответила — отказ виден, а включить эфир комнате можно всё равно.
   expect(await screen.findByText('VK Видео не пустил каталог: анонимный вход не принят')).toBeInTheDocument();
@@ -380,9 +382,7 @@ it('каталог VK молчит — сцена так и говорит, а �
 it('«Назад» со страницы ролика по ссылке возвращает туда, где ссылку вставили: разделы и пустое поле', async () => {
   const { client } = mount();
   await screen.findByRole('tab', { name: 'Все' });
-  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
-    target: { value: 'https://vk.com/video-22277933_456242578' },
-  });
+  paste(screen.getByPlaceholderText('Видео и сообщества'), 'https://vk.com/video-22277933_456242578');
   await screen.findByRole('heading', { name: 'Серия по ссылке' });
   fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
   expect(await screen.findByRole('tab', { name: 'Все' })).toHaveAttribute('aria-selected', 'true');
@@ -393,9 +393,7 @@ it('«Назад» со страницы ролика по ссылке возв
 
 it('ссылка на другую площадку уходит в её сцену, а незнакомая — в «По ссылке»', async () => {
   const { client, meeting } = mount();
-  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
-    target: { value: 'https://youtu.be/dQw4w9WgXcQ' },
-  });
+  paste(screen.getByPlaceholderText('Видео и сообщества'), 'https://youtu.be/dQw4w9WgXcQ');
   await waitFor(() =>
     expect(meeting.openCinema).toHaveBeenCalledWith('youtube', {
       page: 'item',
@@ -404,9 +402,7 @@ it('ссылка на другую площадку уходит в её сце�
     }),
   );
   act(() => meeting.openCinema('vk'));
-  fireEvent.change(await screen.findByPlaceholderText('Видео и сообщества'), {
-    target: { value: 'https://example.com/film.mp4' },
-  });
+  paste(await screen.findByPlaceholderText('Видео и сообщества'), 'https://example.com/film.mp4');
   await waitFor(() =>
     expect(meeting.openCinema).toHaveBeenCalledWith('link', {
       page: 'link',

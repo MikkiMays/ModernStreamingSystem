@@ -277,3 +277,31 @@ test('a playlist link lists its episodes and the one picked plays for the room',
     await room.close();
   }
 });
+
+test('a link typed by hand is asked only on Enter — pauses in typing ask the service nothing', async ({
+  browser,
+}) => {
+  const room = await context(browser);
+  const page = await room.newPage();
+  const cinema = await routeCinema(page, general());
+  try {
+    await startMeeting(page);
+    const browse = await openCinema(page, 'По ссылке');
+    const field = browse.locator('.cinema-search input');
+    // Набор с паузами длиннее прежней паузы поиска (420 мс): каждая была бы разбором чужой страницы.
+    await field.pressSequentially(FILM_URL.slice(0, 20), { delay: 20 });
+    await page.waitForTimeout(700);
+    await field.pressSequentially(FILM_URL.slice(20), { delay: 20 });
+    await page.waitForTimeout(700);
+    await expect(browse.getByRole('button', { name: 'Открыть ссылку' })).toBeVisible();
+    expect(cinema.calls.filter((call) => call.endpoint === 'link')).toEqual([]);
+
+    await field.press('Enter');
+    await expect(browse.locator('.cinema-detail h3')).toHaveText(FILM.title);
+    expect(cinema.calls.filter((call) => call.endpoint === 'link').map((call) => call.body?.url)).toEqual([
+      FILM_URL,
+    ]);
+  } finally {
+    await room.close();
+  }
+});

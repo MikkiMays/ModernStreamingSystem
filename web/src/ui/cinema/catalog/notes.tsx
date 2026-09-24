@@ -46,10 +46,27 @@ export function Empty({ text }: { text: string }) {
 
 /**
  * В поиск вставили ссылку, и служба ещё говорит, куда она ведёт, — или не смогла сказать. Витрины и
- * поиска в это время нет: ссылка — не слова для поиска.
+ * поиска в это время нет: ссылка — не слова для поиска. Ссылку, набранную по букве, службу не
+ * спрашивают, пока её не открыли Enter (`waiting`): каждая пауза в наборе была бы разбором чужой
+ * страницы.
  */
-export function Following({ checking, problem }: { checking: boolean; problem: unknown }) {
+export function Following({
+  checking,
+  problem,
+  waiting,
+}: {
+  checking: boolean;
+  problem: unknown;
+  /** Набрана ссылка, о которой ещё не спросили. */
+  waiting?: boolean;
+}) {
   if (problem) return <Failure problem={problem} />;
+  if (waiting)
+    return (
+      <p className="muted" role="status">
+        Нажмите Enter — и кинозал откроет эту ссылку.
+      </p>
+    );
   if (!checking) return null;
   return (
     <p className="cinema-waiting" role="status">

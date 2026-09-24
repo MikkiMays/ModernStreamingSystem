@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { CinemaApi, PROVIDERS, type CinemaItem } from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
@@ -64,15 +64,18 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
   /** Открытый раздел площадки; пусто — витрина. */
   const [section, setSection] = useKeyed(provider, '');
   const link = useLink(meeting, api);
-  const follow = useEffectEvent((url: string) => {
+  /**
+   * Ссылку спрашивают, когда её вставили целиком или открыли Enter, — не на паузу в наборе: каждая
+   * пауза была бы разбором чужой страницы. Вставленная — сразу, без паузы поиска.
+   */
+  const follow = (text: string) => {
+    const url = linkOf(text);
+    if (!url) return;
+    setSettled(text.trim());
     void link.follow(url).then((opened) => opened && setQuery(''));
-  });
+  };
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSettled(query.trim());
-      const url = linkOf(query);
-      if (url) follow(url);
-    }, 420);
+    const timer = setTimeout(() => setSettled(query.trim()), 420);
     return () => clearTimeout(timer);
   }, [query, setSettled]);
 
@@ -153,18 +156,26 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
       }
       query={query}
       placeholder={spec.searchPlaceholder}
-      onSearch={(value) => {
+      onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();
         if (view.at !== 'home') toHome();
+        if (whole) follow(value);
       }}
+      onSubmit={follow}
       onClear={() => setQuery('')}
       watching={watching}
       onClose={onClose}
       locked={!canUse}
       error={error}
     >
-      {home && linked ? <Following checking={!!link.checking} problem={link.problem} /> : null}
+      {home && linked ? (
+        <Following
+          checking={!!link.checking}
+          problem={link.problem}
+          waiting={link.asked !== linkOf(settled)}
+        />
+      ) : null}
 
       {home && !settled ? (
         <>

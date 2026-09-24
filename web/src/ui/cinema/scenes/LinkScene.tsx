@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AudioLines,
@@ -66,6 +66,11 @@ const LISTED = KNOWN.length > 1 ? `${KNOWN.slice(0, -1).join(', ')} и ${KNOWN.a
  * ОТКУДА ССЫЛКА. Из буфера обмена одной кнопкой, из поля руками, из недавних (профиль помнит десять
  * последних, что куда-то привели) — или из поиска другой сцены: ссылку без своей площадки та
  * передаёт сюда (`at`), и ответ службы к этому времени уже у неё в памяти — второй раз не спрашивают.
+ *
+ * КОГДА СПРАШИВАЮТ. Вставленную в поле ссылку — сразу; набранную руками — только по Enter или кнопке
+ * «Открыть ссылку»: каждая пауза в наборе была бы разбором недописанной страницы, а их у комнаты
+ * десять в минуту. Новая ссылка сменяет прежнюю — и в браузере (вопрос в пути обрывается), и на
+ * сервере (её разбор отменяется).
  */
 export default function LinkScene({ provider, at, meeting, onClose }: SceneProps) {
   const spec = PROVIDERS[provider];
@@ -79,7 +84,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
   const { stack, view, go, back, home } = useStack(provider);
   const page = usePage(api, provider, view);
   const [query, setQuery] = useState('');
-  /** Ссылку спрашивают не на каждую букву: поле успокоилось — значит, её вставили или дописали. */
+  /** О каком тексте поля спросили (вставили, Enter, кнопка); набранное после — ещё не вопрос. */
   const [settled, setSettled] = useState('');
   /** Почему кнопка буфера не вставила ссылку. */
   const [clipboard, setClipboard] = useState('');
@@ -94,22 +99,19 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
     }
   }
   const client = useQueryClient();
-  const follow = useEffectEvent((url: string) => {
+  /** Спросить о том, что в поле: его вставили, нажали Enter или «Открыть ссылку». */
+  const ask = (text: string) => {
+    setSettled(text.trim());
+    const url = linkOf(text, true);
+    if (!url) return;
     // Ответ, который оставляет здесь (ссылка без своей площадки), уже в памяти — её передала другая
     // сцена или её только что выбрали: второй раз не спрашивают. Ссылка своей площадки ведёт в её
     // сцену всегда — и когда её набрали здесь во второй раз.
     const known = client.getQueryData<CinemaLinkAnswer>(linkQuery(url));
     if (!known || known.route) void link.follow(url);
-  });
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const url = linkOf(query, true);
-      if (url) follow(url);
-      setSettled(query.trim());
-    }, 420);
-    return () => clearTimeout(timer);
-  }, [query]);
+  };
 
+  const typed = query.trim();
   const current = linkOf(settled, true);
   // Ответ о ссылке — из общей памяти ответов (`useLink` кладёт его туда сам); сюда он не спрашивается
   // второй раз, а только читается.
@@ -195,12 +197,21 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       }
       query={query}
       placeholder={spec.searchPlaceholder}
-      onSearch={(value) => {
+      onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();
         if (view.at !== 'home') home();
+        if (whole) ask(value);
       }}
-      onClear={() => setQuery('')}
+      onSubmit={(value) => {
+        if (view.at !== 'home') home();
+        ask(value);
+      }}
+      onClear={() => {
+        setQuery('');
+        setSettled('');
+        link.cancel();
+      }}
       watching={watching}
       onClose={onClose}
       locked={!canUse}
@@ -217,7 +228,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
           onChannel={() => {}}
           onSeries={() => back()}
         />
-      ) : !settled ? (
+      ) : !typed ? (
         <>
           <div className="cinema-empty">
             <Link2 size={40} />
@@ -252,9 +263,19 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             </section>
           ) : null}
         </>
-      ) : !current ? (
+      ) : typed !== settled && linkOf(typed, true) ? (
+        // Набрана руками и ещё не спрошена: спрашивают по Enter или кнопкой, а не на паузу в наборе.
+        <div className="cinema-empty">
+          <Link2 size={40} />
+          <b>Открыть эту ссылку?</b>
+          <small>Нажмите Enter или кнопку — кинозал посмотрит, что на этой странице.</small>
+          <button className="button primary" onClick={() => ask(query)}>
+            <Link2 size={17} /> Открыть ссылку
+          </button>
+        </div>
+      ) : !linkOf(typed, true) ? (
         <Empty text="Это не похоже на ссылку: нужен адрес страницы с видео — например, https://rutube.ru/video/…" />
-      ) : link.checking === current ? (
+      ) : !current ? null : link.checking === current ? (
         <p className="cinema-waiting" role="status">
           <LoaderCircle size={22} /> Ищем видео…
         </p>

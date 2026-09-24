@@ -22,24 +22,40 @@ export const linkQuery = (url: string) => ['cinema', 'link', url] as const;
  * встаёт первой в недавние (`cinemaLinks` профиля).
  *
  * Ответ на прежнюю ссылку никуда не ведёт: пока служба отвечала, человек мог набрать другое
- * (`cancel`), вставить новую ссылку или уйти из кинозала — тогда ответ просто забывается.
+ * (`cancel`), вставить новую ссылку или уйти из кинозала — тогда ответ просто забывается, а вопрос,
+ * который ещё в пути, обрывается: ждать его незачем. Спрашивают службу только о ссылке, которую
+ * вставили, открыли Enter или кнопкой, — не о каждой паузе в наборе: разбор чужой страницы дорог, и у
+ * комнаты их десять в минуту. Новая ссылка комнаты сменяет прежнюю и на сервере (`providers/link.py`).
  */
 export function useLink(meeting: Meeting, api: CinemaApi) {
   const client = useQueryClient();
   /** Какую ссылку спрашивают прямо сейчас; пусто — никакую. */
   const [checking, setChecking] = useState('');
+  /** О какой ссылке спросили последней; пусто — ни о какой с тех пор, как набранное сменилось. */
+  const [asked, setAsked] = useState('');
   const [problem, setProblem] = useState<unknown>(null);
   /** Номер последнего вопроса: ответ на любой прежний уже никуда не ведёт. */
   const latest = useRef(0);
+  /** Вопрос, который ещё в пути: его обрывает следующая ссылка или новый набор. */
+  const inFlight = useRef('');
 
   const remember = (url: string) => {
     const recent = meeting.media.preferences.get().cinemaLinks;
     meeting.media.saveSettings({ cinemaLinks: rememberLink(recent, url) });
   };
 
+  /** Оборвать вопрос в пути: его ответ уже никуда не ведёт, а запрос не должен висеть до ответа. */
+  const abort = () => {
+    const url = inFlight.current;
+    inFlight.current = '';
+    if (url) void client.cancelQueries({ queryKey: linkQuery(url), exact: true });
+  };
+
   /** Набранное сменилось — ответа на прежнюю ссылку больше не ждут. */
   const cancel = () => {
     latest.current += 1;
+    abort();
+    setAsked('');
     setChecking('');
     setProblem(null);
   };
@@ -51,6 +67,9 @@ export function useLink(meeting: Meeting, api: CinemaApi) {
   const follow = async (url: string): Promise<boolean> => {
     latest.current += 1;
     const turn = latest.current;
+    // Та же ссылка ещё раз (Enter после вставки) — к тому же вопросу, а другая обрывает прежний.
+    if (inFlight.current !== url) abort();
+    inFlight.current = url;
     const from = meeting.cinema.get();
     const options = {
       queryKey: linkQuery(url),
@@ -59,6 +78,7 @@ export function useLink(meeting: Meeting, api: CinemaApi) {
       retry: false,
     };
     setChecking(url);
+    setAsked(url);
     setProblem(null);
     let answer: CinemaLinkAnswer | null = null;
     let failure: unknown = null;
@@ -68,6 +88,7 @@ export function useLink(meeting: Meeting, api: CinemaApi) {
     } catch (error) {
       failure = error;
     }
+    if (inFlight.current === url) inFlight.current = '';
     if (turn !== latest.current || meeting.cinema.get() !== from) return false;
     setChecking('');
     if (!answer) {
@@ -86,5 +107,5 @@ export function useLink(meeting: Meeting, api: CinemaApi) {
     return false;
   };
 
-  return { follow, cancel, checking, problem };
+  return { follow, cancel, checking, asked, problem };
 }
