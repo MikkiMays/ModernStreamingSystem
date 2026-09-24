@@ -11,10 +11,11 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import re
 import time
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Mapping
+from typing import Any, Callable, Iterable, Literal, Mapping
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
@@ -32,6 +33,11 @@ logger = logging.getLogger(__name__)
 # yt-dlp повторяет строку файла целиком, вместе со значением cookie.
 COOKIES_REFUSED = "не подошёл файл cookies"
 
+# Тем, что площадка отвечает вместо ролика, когда не поверила ни движку без JS, ни клиенту без
+# cookies (см. https://github.com/yt-dlp/yt-dlp/wiki/EJS). Текст приходит от самой площадки, в
+# её ответе, а не константой из yt-dlp — и апостроф в нём бывает то обычным, то типографским.
+BOT_CHECK = re.compile(r"confirm you[’']re not a bot")
+
 # Ролик целиком и без плейлиста вокруг: так его открывают и страница ролика, и сам поток.
 PROBE = {
     "quiet": True,
@@ -41,6 +47,27 @@ PROBE = {
     "cachedir": False,
     "socket_timeout": 20,
 }
+
+# Общий на процесс: `.info` внутри сам кэширует ответ (`functools.cached_property`), и с ним
+# `deno --version` спрашивается только у первого `YtDlp`, а не у каждого — их несколько за один
+# прогон тестов, и это тот же самый deno на той же машине.
+_deno_runtime: Any = None
+
+
+def _deno_info() -> Any:
+    """
+    Версия deno, которую нашёл бы сам yt-dlp (та же проверка, что у него внутри), — или `None`.
+
+    Импорт `yt_dlp.utils._jsruntime` тянет за собой весь пакет yt-dlp: он не входит в число
+    вопросов, ради которых модуль держат лёгким (`YtDlp.extract` грузит его так же, отдельно),
+    но здесь это одноразовая плата при старте службы — за неё и берётся строка в журнал.
+    """
+    global _deno_runtime
+    if _deno_runtime is None:
+        from yt_dlp.utils._jsruntime import DenoJsRuntime
+
+        _deno_runtime = DenoJsRuntime()
+    return _deno_runtime.info
 
 
 class YtDlp:
@@ -53,11 +80,17 @@ class YtDlp:
     здесь, а не в двух местах. Опции каждый вызов приносит свои — здесь они не смешиваются.
 
     Выход наружу — площадки, чей это вызов: её прокси (`CINEMA_PROXY_<ID>` или общий) и её
-    cookies (`CINEMA_COOKIES_<ID>`); ни то, ни другое не достаётся чужой площадке.
+    cookies (`CINEMA_COOKIES_<ID>`); ни то, ни другое не достаётся чужой площадке. У площадки
+    из `cookies_fallback` cookies в первый разбор не идут вовсе — только запасным, вторым
+    (см. `extract`).
     """
 
-    def __init__(self, network: NetConfig | None = None):
+    def __init__(self, network: NetConfig | None = None, *, cookies_fallback: Iterable[str] = ()):
         self.network = network or NetConfig()
+        # Площадки, у которых cookiefile входит в разбор только запасным ходом. Список решает
+        # не этот класс, а сами площадки (`Provider.cookies_fallback`); `Cinema.__init__`
+        # собирает его у всех включённых разом — здесь ни одного имени площадки по имени нет.
+        self.cookies_fallback = frozenset(cookies_fallback)
         # До yt-dlp доходят только cookies, которые его загрузчик берёт молча: на строке, где он
         # падает, он повторяет её целиком — со значением — и в ошибке, и в stderr. `from_env`
         # это уже проверил (с именем файла и номером строки); здесь — для любого `NetConfig`.
@@ -71,6 +104,7 @@ class YtDlp:
             # Если загрузчик всё же упадёт, http.cookiejar кладёт трассировку в предупреждение
             # Python — а в трассировке бывает и ошибка yt-dlp со строкой файла. Такое не печатаем.
             warnings.filterwarnings("ignore", message="http.cookiejar bug!", category=UserWarning)
+        self._log_js_runtime()
 
     def extract(self, address: str, options: Mapping[str, Any], provider: str) -> dict[str, Any]:
         """
@@ -80,23 +114,70 @@ class YtDlp:
         есть и дописывает в него своё (`http_headers`, `compat_opts`, `outtmpl`…): с общим
         `YT_FLAT` это значило, что после первого поиска его ключи ехали в каждый следующий
         вызов — одним объектом на все потоки `to_thread`.
+
+        COOKIES ЗАПАСНЫМ ХОДОМ. У площадки из `cookies_fallback` первая попытка идёт совсем
+        без cookiefile: у YouTube с cookies приходит SABR и ни одного мастера HLS — без них
+        лестница качества жива, пока её же проверку решает движок с JS. Второй, последний раз
+        — с тем же cookiefile, что и всегда, — только если yt-dlp отказал именно проверкой на
+        человека (`BOT_CHECK`); у отказа бывают и другие причины, и повтор их не лечит.
         """
+        cookies = self.cookies.get(provider)
+        if cookies and provider in self.cookies_fallback:
+            try:
+                return self._call(address, options, provider, cookies=None)
+            except Exception as error:  # yt_dlp поднимает свои типы — ловим широко, решает текст
+                if not BOT_CHECK.search(str(error)):
+                    raise
+            return self._call(address, options, provider, cookies=cookies)
+        return self._call(address, options, provider, cookies=cookies)
+
+    def _call(
+        self, address: str, options: Mapping[str, Any], provider: str, *, cookies: str | None
+    ) -> dict[str, Any]:
+        """Один настоящий вызов yt-dlp — с этим cookiefile или совсем без него."""
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
         params = copy.deepcopy(dict(options))
         proxy = self.network.proxy_for(provider)
-        cookies = self.cookies.get(provider)
         if proxy:
             params["proxy"] = proxy
-        if proxy or cookies:
+        if proxy or self.cookies.get(provider):
             # Когда у площадки есть что прятать, yt-dlp пишет не в stderr, а сюда: его ошибки
             # идут в журнал службы тем же текстом, что и комнате, — без входа в прокси и cookies.
+            # Проверяем, что площадке вообще положены cookies, а не что этот вызов их послал:
+            # прятать нужно и на самом первом, ещё бескукийном разборе.
             params["logger"] = _Quiet(self.explain)
         with cookie_file(cookies) as copy_path:
             if copy_path:
                 params["cookiefile"] = copy_path
             with yt_dlp.YoutubeDL(params) as ydl:
                 return ydl.extract_info(address, download=False) or {}
+
+    def _log_js_runtime(self) -> None:
+        """
+        Одна строка в журнал при старте: каким движком yt-dlp решит EJS-проверку YouTube.
+
+        24.09.2026 причиной отказа YouTube на проде был именно движок: без него yt-dlp пишет
+        `JS runtimes: none`, не решает `n`-задачу и уходит на клиента, которого площадка
+        проверяет строже прочих. Эта строка — не `verbose` yt-dlp (его на проде никто не
+        включает), а обычный журнал службы, и только при старте: дальше движок не меняется.
+        """
+        try:
+            info = _deno_info()
+        except Exception as error:  # своя проверка не должна ронять службу — только предупредить
+            logger.warning("кинозал: проверка JS-движка yt-dlp упала: %s", type(error).__name__)
+            return
+        if info is None:
+            logger.warning(
+                "кинозал: yt-dlp не нашёл JS-движок (deno) — YouTube без cookies будет чаще "
+                "отвечать проверкой на бота"
+            )
+        elif not info.supported:
+            logger.warning(
+                "кинозал: yt-dlp нашёл deno %s — версия слишком старая, движок не в счёт", info.version
+            )
+        else:
+            logger.info("кинозал: yt-dlp решает JS-проверки YouTube движком deno %s", info.version)
 
     def probe(self, source: str, provider: str, **options: Any) -> dict[str, Any]:
         """Один ролик целиком. Отказ площадки превращается в человеческий текст."""

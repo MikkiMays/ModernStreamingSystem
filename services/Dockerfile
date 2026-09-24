@@ -11,7 +11,11 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o /cord-publisher .
 FROM python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 cord && useradd --uid 10001 --gid cord --no-create-home cord
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 XDG_CONFIG_HOME=/tmp/cord-config
+# DENO_DIR — свой кэш deno вместо домашнего каталога, которого у пользователя без домашнего
+# каталога и на read-only корне нет: без него deno (решает EJS-проверку YouTube за yt-dlp) не
+# запускается. DENO_NO_UPDATE_CHECK — не спрашивать новую версию себя у сети на каждый запуск.
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 XDG_CONFIG_HOME=/tmp/cord-config \
+    DENO_DIR=/tmp/deno DENO_NO_UPDATE_CHECK=1
 WORKDIR /app
 COPY services/requirements.lock ./requirements.lock
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock

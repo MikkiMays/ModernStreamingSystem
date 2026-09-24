@@ -4,4 +4,6 @@ httpx==0.28.1
 yandex-music[async]==3.0.0
 cryptography==46.0.5
 yt-dlp==2026.8.19
+deno==2.9.7
+yt-dlp-ejs==0.8.0
 socksio==1.0.0

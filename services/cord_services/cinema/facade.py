@@ -137,7 +137,11 @@ class Cinema:
         # Каждая площадка ходит наружу своим клиентом: своим прокси и под общей защитой
         # «только наружу» (`net.py`).
         self.net = Net(config, self._hosts, client=client)
-        self.ytdlp = YtDlp(config)
+        # Кому cookies — только запасной ход, решает не эта строка, а сама площадка
+        # (`Provider.cookies_fallback`, см. `providers/youtube.py`): здесь его просто собирают.
+        self.ytdlp = YtDlp(
+            config, cookies_fallback=(kind.id for kind in PROVIDERS if kind.cookies_fallback)
+        )
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
         self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
         known = {kind.id for kind in PROVIDERS}

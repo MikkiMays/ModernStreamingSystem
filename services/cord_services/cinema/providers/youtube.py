@@ -40,6 +40,11 @@ class YouTube(Provider):
     # Отказ — о себе, а не о соседях: «разделы есть только у Twitch» перестало быть правдой, когда
     # разделы появились у Rutube, и перестало бы снова с каждой следующей площадкой.
     refusals = {"categories": "У YouTube разделов нет"}
+    # Cookies шлём только вторым, запасным разбором: с ними YouTube отдаёт SABR и ни одного
+    # мастера HLS (проверено 24.09.2026) — без них лестница качества жива, пока движок с JS
+    # решает её же проверку. cookiefile входит в игру, только если первый разбор отказал
+    # именно проверкой на человека (см. `resolve.YtDlp.extract`).
+    cookies_fallback = True
 
     async def search(self, ctx: Ctx, query: str, offset: int) -> wire.SearchPage:
         """

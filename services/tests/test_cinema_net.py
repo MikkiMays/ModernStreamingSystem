@@ -18,6 +18,7 @@ import time
 import unittest
 import warnings as pywarnings
 from ipaddress import ip_address, ip_network
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpcore
@@ -627,6 +628,154 @@ class YtDlpNetworkTests(unittest.TestCase):
         self.assertIn("proxy.example", refusal.exception.detail)
 
 
+class ScriptedYoutubeDL:
+    """Как настоящий yt-dlp, но отвечает по очереди тем, что велел тест: отказом или ответом."""
+
+    seen: list = []
+    queue: list = []
+
+    def __init__(self, params):
+        self.params = params
+        path = params.get("cookiefile")
+        ScriptedYoutubeDL.seen.append((dict(params), pathlib.Path(path).read_text() if path else None))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *failure):
+        return False
+
+    def extract_info(self, address, download=True):
+        step = ScriptedYoutubeDL.queue.pop(0)
+        if isinstance(step, BaseException):
+            raise step
+        return step
+
+
+class CookiesFallbackTests(unittest.TestCase):
+    """
+    У площадки из `cookies_fallback` cookies — запасной ход: первый разбор без них, второй —
+    только на отказ проверкой на человека, и ровно один раз.
+
+    `cookies_fallback` приходит в `YtDlp` так же, как его собрал бы `Cinema.__init__` —
+    множеством имён площадок, а не веткой по имени внутри `resolve.py`.
+    """
+
+    def setUp(self):
+        ScriptedYoutubeDL.seen = []
+        ScriptedYoutubeDL.queue = []
+        library = patch("yt_dlp.YoutubeDL", ScriptedYoutubeDL)
+        library.start()
+        self.addCleanup(library.stop)
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.path = pathlib.Path(folder.name) / "cookies.txt"
+        self.path.write_text(COOKIES)
+        self.config = NetConfig.from_env({"CINEMA_COOKIES_YOUTUBE": str(self.path)})
+
+    def door(self, fallback=("youtube",)):
+        return YtDlp(self.config, cookies_fallback=fallback)
+
+    def test_the_first_try_carries_no_cookies(self):
+        ScriptedYoutubeDL.queue = [{"id": "x"}]
+        result = self.door().extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(result, {"id": "x"})
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 1)
+        params, cookies = ScriptedYoutubeDL.seen[0]
+        self.assertNotIn("cookiefile", params)
+        self.assertIsNone(cookies)
+
+    def test_a_bot_check_retries_exactly_once_with_cookies(self):
+        # Апостроф площадка пишет типографским («…you’re…») — ответ ей, не наша строка.
+        ScriptedYoutubeDL.queue = [
+            RuntimeError("ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies"),
+            {"id": "x"},
+        ]
+        result = self.door().extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(result, {"id": "x"})
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 2)
+        first, second = ScriptedYoutubeDL.seen
+        self.assertNotIn("cookiefile", first[0])
+        self.assertIsNone(first[1])
+        self.assertIn("cookiefile", second[0])
+        self.assertEqual(second[1], COOKIES)
+
+    def test_the_straight_apostrophe_spelling_retries_too(self):
+        ScriptedYoutubeDL.queue = [RuntimeError("confirm you're not a bot"), {"id": "x"}]
+        result = self.door().extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(result, {"id": "x"})
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 2)
+
+    def test_a_different_refusal_is_not_retried(self):
+        ScriptedYoutubeDL.queue = [RuntimeError("HTTP Error 404: Not Found")]
+        with self.assertRaises(RuntimeError):
+            self.door().extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 1)
+        self.assertNotIn("cookiefile", ScriptedYoutubeDL.seen[0][0])
+
+    def test_a_bot_check_on_the_retry_itself_is_not_retried_again(self):
+        ScriptedYoutubeDL.queue = [
+            RuntimeError("Sign in to confirm you’re not a bot"),
+            RuntimeError("Sign in to confirm you’re not a bot"),
+        ]
+        with self.assertRaises(RuntimeError):
+            self.door().extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 2)
+
+    def test_without_cookies_configured_there_is_nothing_to_fall_back_to(self):
+        door = YtDlp(NetConfig(), cookies_fallback={"youtube"})
+        ScriptedYoutubeDL.queue = [RuntimeError("Sign in to confirm you’re not a bot")]
+        with self.assertRaises(RuntimeError):
+            door.extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(len(ScriptedYoutubeDL.seen), 1)
+
+    def test_a_platform_outside_the_flag_still_gets_cookies_on_the_first_try(self):
+        # Как и раньше (Task 4): CINEMA_COOKIES_<ID> без cookies_fallback шлётся сразу.
+        door = self.door(fallback=("someone-else",))
+        ScriptedYoutubeDL.queue = [{"id": "x"}]
+        door.extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertEqual(ScriptedYoutubeDL.seen[0][1], COOKIES)
+
+    def test_the_retry_never_leaks_the_cookie_value(self):
+        door = self.door()
+        ScriptedYoutubeDL.queue = [
+            RuntimeError("Sign in to confirm you’re not a bot"),
+            RuntimeError("HTTP Error 400: SID=secret-session-value; HSID=another-secret"),
+        ]
+        with self.assertRaises(HTTPException) as refusal:
+            door.probe("https://www.youtube.com/watch?v=x", "youtube")
+        self.assertEqual(refusal.exception.status_code, 502)
+        self.assertNotIn("secret-session-value", refusal.exception.detail)
+        self.assertNotIn("another-secret", refusal.exception.detail)
+        self.assertIn("HTTP Error 400", refusal.exception.detail)
+
+
+class JsRuntimeLogTests(unittest.TestCase):
+    """При старте службы — одна строка в журнал о движке, которым yt-dlp решает EJS YouTube."""
+
+    def test_a_found_runtime_is_one_info_line(self):
+        info = SimpleNamespace(name="deno", version="2.9.7", supported=True)
+        with patch("cord_services.cinema.resolve._deno_info", return_value=info):
+            with self.assertLogs("cord_services.cinema.resolve", "INFO") as log:
+                YtDlp(NetConfig())
+        self.assertEqual(len(log.records), 1)
+        self.assertIn("deno 2.9.7", log.output[0])
+
+    def test_a_missing_runtime_is_one_warning_line(self):
+        with patch("cord_services.cinema.resolve._deno_info", return_value=None):
+            with self.assertLogs("cord_services.cinema.resolve", "WARNING") as log:
+                YtDlp(NetConfig())
+        self.assertEqual(len(log.records), 1)
+        self.assertIn("не нашёл", log.output[0])
+
+    def test_an_unsupported_version_is_one_warning_line(self):
+        info = SimpleNamespace(name="deno", version="1.0.0", supported=False)
+        with patch("cord_services.cinema.resolve._deno_info", return_value=info):
+            with self.assertLogs("cord_services.cinema.resolve", "WARNING") as log:
+                YtDlp(NetConfig())
+        self.assertEqual(len(log.records), 1)
+
+
 class CookieLeakTests(unittest.TestCase):
     """
     Значение cookie не доходит ни до комнаты, ни до журнала, ни до stderr.
@@ -784,6 +933,9 @@ class AppConfigTests(unittest.TestCase):
         )
         self.assertEqual(cinema.net.config.proxy_for("twitch"), "socks5h://proxy.example:1080")
         self.assertEqual(cinema.ytdlp.network.cookies_for("youtube"), COOKIES)
+        # Флаг — свойство площадки (`YouTube.cookies_fallback`); `Cinema.__init__` лишь собирает
+        # его у включённых площадок, ни разу не назвав «youtube» в самой фасадной строке.
+        self.assertEqual(cinema.ytdlp.cookies_fallback, {"youtube"})
         self.assertEqual(
             cinema.net.guard_for("twitch").allowances,
             (Allowance(network=ip_network("127.0.0.1/32"), port=8097),),

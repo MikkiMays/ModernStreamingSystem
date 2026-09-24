@@ -120,6 +120,11 @@ class Provider:
     content_id: ClassVar[re.Pattern[str]]
     # Что ответить человеку, если такого у площадки нет, — по имени возможности из `features`.
     refusals: ClassVar[Mapping[str, str]] = {}
+    # Cookies — запасной ход, а не первый: `YtDlp.extract` идёт без них, и только отказ
+    # площадки проверкой на человека посылает второй, последний разбор с cookiefile. Флаг
+    # площадки, а не развилка по имени в `resolve.py` — `Cinema.__init__` просто собирает его
+    # у всех включённых площадок разом (см. `providers/youtube.py`).
+    cookies_fallback: ClassVar[bool] = False
 
     def __init_subclass__(cls, abstract: bool = False, **kwargs: Any):
         """
