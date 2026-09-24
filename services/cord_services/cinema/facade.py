@@ -1,65 +1,31 @@
-"""Кинозал: комната смотрит YouTube или Twitch, а видео берёт **сервер**, не браузер.
-
-ПОЧЕМУ НЕ ВСТРАИВАЕМЫЙ ПЛЕЕР. Он был, и с машины сервера работал. У человека — нет: из его
-сети `youtube.com` и `twitch.tv` попросту недоступны, и встраивание в этом случае не лечится
-ничем — рамка чужая, ходит она из браузера. Поэтому источник переехал на сервер: он достаёт
-плейлист и сегменты, а комнате отдаёт их со своего адреса. Заодно исчезли и чужие скрипты на
-странице, и послабления в CSP, и «выберите качество в шестерёнке YouTube» — качество теперь
-настоящий список уровней HLS, которым управляет наш собственный плеер.
-
-ЧТО ИМЕННО ПРОКСИРУЕТСЯ. Только то, на что мы сами выдали подпись: адрес, срок и HMAC на
-`INTERNAL_SECRET`, да ещё и хост из белого списка. Без этого открытый прокси чужого трафика
-на своей машине — вопрос одного любопытного, а не времени. У длинных плейлистов подпись
-заменена нумерацией — см. {@link Reels}, — но правило то же: наружу уходит только то, что мы
-сами туда записали.
-
-Поиск и каталог не требуют ни ключей, ни аккаунтов: YouTube — через yt-dlp (`ytsearch` и
-вкладка `/videos` канала), Twitch — через их публичный GraphQL с тем же клиентским
-идентификатором, которым пользуются streamlink и twitch-dl.
-"""
+"""Класс Cinema целиком: поиск и каталог YouTube и Twitch, разбор ссылки в поток
+и сам прокси поверх подписанных адресов."""
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import gzip
-import hmac
-import os
 import re
 import time
-from hashlib import sha256
-from typing import Any, Awaitable, Callable, Literal
-from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
+from typing import Any, Literal
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .dash import candidates, manifest as dash_manifest, number, read_ranges
+from ..dash import candidates, manifest as dash_manifest, number, read_ranges
+from .captions import CAPTIONS_LIMIT, _base_language, _vtt
+from .memo import Memo
+from .paging import PAGE, SEARCH_DEPTH, absolute, offset_of, page
+from .transport.playlists import Reels, rewrite
+from .transport.segments import Segments
+from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, allowed, proxied
 
-PREFIX = "/api/v1/services/cinema"
 
-# Сколько живёт выданная подпись. Ссылки YouTube сами протухают за шесть часов, Twitch
-# обновляет свои чаще; пять часов — меньше обоих сроков, и переоткрытие всё равно дешёвое.
-SIGNATURE_TTL = 5 * 3600
 # Обложки живут дольше: они не меняются и ничего не стоят.
 IMAGE_TTL = 24 * 3600
-
-ALLOWED_HOSTS = (
-    "googlevideo.com",
-    "youtube.com",
-    "ytimg.com",
-    "ggpht.com",
-    # Картинки каналов YouTube лежат здесь, а не на `ytimg`. Пускать сюда можно только с нашей
-    # подписью — как и всё остальное; без этого хоста страница канала была бы без лица.
-    "googleusercontent.com",
-    "ttvnw.net",
-    "jtvnw.net",
-    "twitchcdn.net",
-    "twitch.tv",
-    "akamaized.net",
-)
 
 TWITCH_GQL = "https://gql.twitch.tv/gql"
 # Открытый идентификатор веб-клиента Twitch. Не секрет и не наш: его отдаёт их же страница,
@@ -80,288 +46,6 @@ class Resolve(BaseModel):
     kind: Kind = "video"
     adaptive: bool = False
     refresh: bool = False
-
-
-def allowed(url: str) -> bool:
-    host = (urlsplit(url).hostname or "").lower()
-    return urlsplit(url).scheme == "https" and any(
-        host == name or host.endswith("." + name) for name in ALLOWED_HOSTS
-    )
-
-
-class Signer:
-    """Подпись адреса и срока. Ключ тот же, которым служба доказывает ядру, что она своя."""
-
-    def __init__(self, secret: str):
-        self._secret = (secret or "cord-cinema").encode()
-
-    def sign(self, url: str, ttl: int = SIGNATURE_TTL) -> dict[str, str]:
-        expires = str(int(time.time()) + ttl)
-        packed = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
-        return {"u": packed, "e": expires, "s": self._digest(packed, expires)}
-
-    def open(self, packed: str, expires: str, signature: str) -> str:
-        if not hmac.compare_digest(signature, self._digest(packed, expires)):
-            raise HTTPException(403, "Ссылка не подписана этим сервером")
-        if not expires.isdigit() or int(expires) < time.time():
-            raise HTTPException(410, "Ссылка устарела, откройте видео заново")
-        try:
-            url = base64.urlsafe_b64decode(packed + "=" * (-len(packed) % 4)).decode()
-        except Exception:
-            raise HTTPException(400, "Неразборчивая ссылка") from None
-        if not allowed(url):
-            raise HTTPException(403, "Этот адрес не обслуживается")
-        return url
-
-    def name(self, url: str) -> str:
-        """Короткое имя адреса: то же самое доказательство, что и подпись, но без адреса внутри."""
-        return self._digest(url, "reel")[:24]
-
-    def _digest(self, packed: str, expires: str) -> str:
-        return hmac.new(self._secret, f"{packed}|{expires}".encode(), sha256).hexdigest()[:32]
-
-
-def proxied(signer: Signer, url: str, route: str, ttl: int = SIGNATURE_TTL) -> str:
-    return f"{PREFIX}/{route}?" + urlencode(signer.sign(url, ttl))
-
-
-def master_playlist(body: str) -> bool:
-    """Мастер это или уже список сегментов. От ответа зависит, чем считать ссылки внутри."""
-    return "#EXT-X-STREAM-INF" in body or "#EXT-X-MEDIA:" in body
-
-
-def finished_playlist(body: str) -> bool:
-    """Целое произведение или край живого эфира: у первого список сегментов больше не меняется."""
-    return "#EXT-X-ENDLIST" in body or "#EXT-X-PLAYLIST-TYPE:VOD" in body
-
-
-class Reels:
-    """
-    Сегменты досмотренного до конца плейлиста — под номером, а не под подписью.
-
-    ПОЧЕМУ. Плейлист VOD перечисляет **все** сегменты до последнего, а один адрес сегмента у
-    YouTube — тысяча двести символов, из которых тысяча сто шестьдесят девять одинаковые.
-    Тринадцатичасовой ролик — это 9370 строк и 11 МБ, а после подписи каждой строки 16 МБ, и
-    всё это браузер обязан скачать **до первого кадра**. Отсюда и жалоба: короткое открывается
-    сразу, фильм — «висит».
-
-    Поэтому в плейлисте стоит `seg/<имя>/<номер>` — сорок байт вместо тысячи с лишним, и те же
-    9370 строк весят уже около трёхсот килобайт. Сам список живёт здесь, у нас, и хранится
-    общим началом плюс хвосты: различаются адреса только байтовым диапазоном и номером.
-
-    Имя считается от адреса плейлиста тем же ключом, что и подпись: угадать его нельзя, а
-    комната, смотрящая одно и то же, получает одно имя на всех — и один разбор вместо пяти.
-
-    Живой эфир сюда не попадает: у него номера сегментов уезжают вперёд каждые несколько
-    секунд, а плейлист и без того короткий.
-    """
-
-    def __init__(self, signer: Signer, ttl: float = SIGNATURE_TTL, capacity: int = 24):
-        self.signer = signer
-        self.ttl = ttl
-        self.capacity = capacity
-        self._items: dict[str, tuple[float, str, list[str]]] = {}
-
-    def remember(self, playlist_url: str, targets: list[str]) -> str:
-        key = self.signer.name(playlist_url)
-        shared = os.path.commonprefix(targets) if targets else ""
-        self._items.pop(key, None)
-        self._items[key] = (time.time(), shared, [target[len(shared) :] for target in targets])
-        while len(self._items) > self.capacity:
-            self._items.pop(next(iter(self._items)))
-        return key
-
-    def find(self, key: str, index: int) -> str:
-        found = self._items.get(key)
-        if not found or time.time() - found[0] > self.ttl:
-            raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
-        _, shared, tails = found
-        if index < 0 or index >= len(tails):
-            raise HTTPException(404, "Такого кусочка в этом видео нет")
-        # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
-        # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
-        # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
-        self._items.pop(key)
-        self._items[key] = (time.time(), shared, tails)
-        return shared + tails[index]
-
-
-def _attribute(line: str, base: str, signer: Signer) -> str:
-    """Ссылка внутри тега: дорожка звука в мастере, карта инициализации и ключи в сегментах."""
-    if 'URI="' not in line:
-        return line
-    head, _, rest = line.partition('URI="')
-    inner, _, tail = rest.partition('"')
-    target = urljoin(base, inner)
-    if not allowed(target):
-        return line
-    kind = "playlist" if line.startswith("#EXT-X-MEDIA") else "fetch"
-    return f'{head}URI="{proxied(signer, target, kind)}"{tail}'
-
-
-def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None) -> str:
-    """
-    Переписывает плейлист на свои адреса.
-
-    Внутри мастера все ссылки — плейлисты, внутри списка сегментов — сегменты и ключи. Поэтому
-    вид плейлиста определяется один раз для всего тела, а не угадывается по каждой ссылке:
-    у YouTube вариант выглядит как `/api/manifest/hls_playlist/...` без всякого `.m3u8`, и любая
-    догадка по расширению ошиблась бы на нём первой же строкой.
-
-    Досмотренному до конца списку сегментов достаётся нумерация вместо подписи, если есть куда
-    её записать ({@link Reels}); живому эфиру и мастеру — подпись, как и раньше.
-    """
-    if reels is not None and not master_playlist(body) and finished_playlist(body):
-        return _numbered(body, base, signer, reels)
-    route = "playlist" if master_playlist(body) else "fetch"
-    lines = []
-    for line in body.splitlines():
-        if not line:
-            lines.append(line)
-        elif line.startswith("#"):
-            lines.append(_attribute(line, base, signer))
-        else:
-            target = urljoin(base, line.strip())
-            lines.append(proxied(signer, target, route) if allowed(target) else line)
-    return "\n".join(lines) + "\n"
-
-
-def _numbered(body: str, base: str, signer: Signer, reels: Reels) -> str:
-    """
-    То же самое, но сегменты нумеруются.
-
-    Номер относительный — `seg/<имя>/<номер>`, — и это не экономия ради экономии: плейлист
-    лежит по адресу `…/cinema/playlist?u=…`, и относительная ссылка разворачивается браузером
-    в `…/cinema/seg/<имя>/<номер>` сама. Абсолютный путь стоил бы двадцати шести лишних байт
-    на каждой из десяти тысяч строк.
-    """
-    targets: list[str] = []
-    shape: list[str | None] = []
-    for line in body.splitlines():
-        if not line:
-            shape.append(line)
-        elif line.startswith("#"):
-            shape.append(_attribute(line, base, signer))
-        else:
-            target = urljoin(base, line.strip())
-            if allowed(target):
-                shape.append(None)
-                targets.append(target)
-            else:
-                shape.append(line)
-    key = reels.remember(base, targets)
-    lines = []
-    number = 0
-    for line in shape:
-        if line is None:
-            lines.append(f"seg/{key}/{number}")
-            number += 1
-        else:
-            lines.append(line)
-    return "\n".join(lines) + "\n"
-
-
-class Segments:
-    """
-    Общая память на кусочки видео.
-
-    Комната смотрит одно и то же и примерно в одном месте, поэтому пятеро зрителей просят у нас
-    одни и те же сегменты в течение нескольких секунд. Без этой памяти каждый такой кусок
-    качался бы с площадки заново — пятикратный входящий трафик ради одного и того же байта.
-
-    Здесь же и защита от лавины: первый запрос идёт наружу, остальные ждут его результата, а не
-    открывают собственные соединения.
-    """
-
-    def __init__(
-        self, capacity: int = 192 * 1024 * 1024, ttl: float = 120.0, largest: int = 12 * 1024 * 1024
-    ):
-        self.capacity = capacity
-        self.ttl = ttl
-        self.largest = largest
-        self._items: dict[str, tuple[float, bytes, str]] = {}
-        self._size = 0
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    def get(self, url: str) -> tuple[bytes, str] | None:
-        found = self._items.get(url)
-        if not found:
-            return None
-        born, body, kind = found
-        if time.time() - born > self.ttl:
-            self.drop(url)
-            return None
-        return body, kind
-
-    def put(self, url: str, body: bytes, kind: str) -> None:
-        if len(body) > self.largest:
-            return
-        self.drop(url)
-        self._items[url] = (time.time(), body, kind)
-        self._size += len(body)
-        # Выселяем самое старое: очередь просмотра движется вперёд, и назад почти не ходят.
-        while self._size > self.capacity and self._items:
-            self.drop(next(iter(self._items)))
-
-    def drop(self, url: str) -> None:
-        found = self._items.pop(url, None)
-        if found:
-            self._size -= len(found[1])
-
-    def lock(self, url: str) -> asyncio.Lock:
-        if url not in self._locks:
-            if len(self._locks) > 512:
-                self._locks.clear()
-            self._locks[url] = asyncio.Lock()
-        return self._locks[url]
-
-
-class Memo:
-    """
-    Ответ площадки, который стоит секунд, — один на всех.
-
-    ЗАЧЕМ. `resolve` у YouTube это две секунды работы yt-dlp, и просит его **каждый** зритель
-    отдельно: пятеро в комнате — пять одинаковых запросов наружу и пять раз по две секунды
-    ожидания. Здесь же и защита от лавины: первый считает, остальные ждут его ответ.
-    """
-
-    def __init__(self, capacity: int = 256):
-        self.capacity = capacity
-        self._items: dict[str, tuple[float, Any]] = {}
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    async def get(
-        self,
-        key: str,
-        produce: Callable[[], Awaitable[Any]],
-        ttl: float | Callable[[Any], float],
-    ) -> Any:
-        fresh = self._fresh(key)
-        if fresh is not None:
-            return fresh
-        if key not in self._locks:
-            if len(self._locks) > 512:
-                self._locks.clear()
-            self._locks[key] = asyncio.Lock()
-        async with self._locks[key]:
-            fresh = self._fresh(key)
-            if fresh is not None:
-                return fresh
-            value = await produce()
-            seconds = ttl(value) if callable(ttl) else ttl
-            self._items.pop(key, None)
-            self._items[key] = (time.time() + seconds, value)
-            while len(self._items) > self.capacity:
-                self._items.pop(next(iter(self._items)))
-            return value
-
-    def _fresh(self, key: str) -> Any:
-        found = self._items.get(key)
-        if found and found[0] > time.time():
-            return found[1]
-        if found:
-            self._items.pop(key, None)
-        return None
 
 
 TWITCH_CHANNEL = """{ user(login: "%s") { id login displayName description
@@ -393,17 +77,8 @@ YT_FLAT = {
     "socket_timeout": 20,
 }
 
-# Сколько карточек отдаётся за один раз. Столько же YouTube кладёт в одно продолжение своей
-# ленты, поэтому страница каталога и порция площадки совпадают — лишних запросов не бывает.
-PAGE = 30
-# Сколько роликов ищется в глубину: поиск площадка отдаёт целиком, и листание по нему уже
-# ничего наружу не стоит. Два-три экрана — ровно столько, сколько долистывают.
-SEARCH_DEPTH = 60
 # Сколько живых эфиров и записей просить у Twitch за один раз.
 TWITCH_DEPTH = 100
-# Верхняя граница листания. Не защита от человека, а защита от заблудившегося запроса:
-# `playliststart` в десять тысяч заставил бы yt-dlp пройти триста продолжений подряд.
-MAX_OFFSET = 600
 
 # Что показывает страница канала. `about` — единственная без ленты: она про сам канал.
 Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
@@ -413,65 +88,6 @@ Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
 CATALOG_ID = CHANNEL_ID
 # Идентификатор категории Twitch — только цифры.
 CATEGORY_ID = re.compile(r"^[0-9]{1,20}$")
-
-
-def offset_of(cursor: str | None) -> int:
-    """
-    Курсор — это место в ленте, и наружу он уходит строкой.
-
-    Клиент передаёт его обратно, не разбирая: сегодня это номер карточки, и обеим площадкам
-    этого хватает. У YouTube листание настоящее (`playliststart` у продолжения ленты), у
-    Twitch — по уже полученному списку: их GraphQL отвечает на продолжение отказом
-    `failed integrity check`, если спрашивать анонимно, а `first: 100` отдаёт честно.
-    """
-    if not cursor:
-        return 0
-    if not cursor.isdigit() or int(cursor) > MAX_OFFSET:
-        raise HTTPException(400, "Дальше листать нечего")
-    return int(cursor)
-
-
-def page(items: list[Any], offset: int, limit: int = PAGE) -> dict[str, Any]:
-    """Порция уже полученного списка и место, с которого продолжать."""
-    chunk = items[offset : offset + limit]
-    return {"items": chunk, "next": str(offset + limit) if offset + limit < len(items) else None}
-
-
-def absolute(url: str | None) -> str:
-    """Адреса картинок у YouTube бывают без схемы (`//yt3.ggpht.com/…`) — с ней они в белом списке."""
-    if not url:
-        return ""
-    return "https:" + url if url.startswith("//") else url
-
-
-# Сколько дорожек текста отдавать одному ролику. Двух десятков хватает даже тем, кого
-# переводили всем светом: длиннее этого списка бывает только автоперевод, а его площадка
-# нам всё равно не отдаёт.
-CAPTIONS_LIMIT = 24
-
-
-def _base_language(language: str) -> str:
-    """`ko-orig`, `zh-Hans`, `en-US` — всё это один язык на выбор в меню."""
-    return (language or "").split("-")[0].lower()
-
-
-def _vtt(entries: list[dict[str, Any]] | None) -> dict[str, Any] | None:
-    """
-    Готовый файл субтитров, а не плейлист из кусочков.
-
-    yt-dlp перечисляет один и тот же текст в нескольких видах (`json3`, `srv3`, `ttml`,
-    `vtt`), а иногда — плейлистом HLS. Браузеру в `<track>` нужен ровно WebVTT одним файлом;
-    то, что пришло плейлистом, лежит в мастере и достаётся плеером без нашей помощи.
-    """
-    for entry in entries or []:
-        if (
-            entry.get("ext") == "vtt"
-            and entry.get("url")
-            and not str(entry.get("protocol") or "").startswith("m3u8")
-            and allowed(entry["url"])
-        ):
-            return entry
-    return None
 
 
 class Cinema:
@@ -1448,105 +1064,3 @@ class Cinema:
         }
         passed["Cache-Control"] = "private, max-age=600"
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
-
-
-def routes(cinema: Cinema, core) -> APIRouter:
-    router = APIRouter()
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/search")
-    async def search(
-        room_id: str,
-        provider: Provider,
-        query: str = Query(default="", max_length=120),
-        cursor: str = Query(default="", max_length=12),
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.search(provider, query, cursor)
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/channel")
-    async def channel(
-        room_id: str,
-        provider: Provider,
-        id: str = Query(max_length=80),
-        tab: Tab = "videos",
-        cursor: str = Query(default="", max_length=12),
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.channel(provider, id, tab, cursor)
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/playlist")
-    async def playlist_page(
-        room_id: str,
-        provider: Provider,
-        id: str = Query(max_length=80),
-        cursor: str = Query(default="", max_length=12),
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.playlist(provider, id, cursor)
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/categories")
-    async def categories(
-        room_id: str,
-        provider: Provider,
-        query: str = Query(default="", max_length=120),
-        cursor: str = Query(default="", max_length=12),
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.categories(provider, query, cursor)
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/category")
-    async def category(
-        room_id: str,
-        provider: Provider,
-        id: str = Query(max_length=20),
-        cursor: str = Query(default="", max_length=12),
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.category(provider, id, cursor)
-
-    @router.get("/api/v1/services/rooms/{room_id}/cinema/details")
-    async def details(
-        room_id: str,
-        provider: Provider,
-        id: str = Query(max_length=80),
-        kind: Kind = "video",
-        authorization: str = Header(),
-    ):
-        await core.member(room_id, authorization)
-        return await cinema.details(provider, id, kind)
-
-    @router.post("/api/v1/services/rooms/{room_id}/cinema/resolve")
-    async def resolve(room_id: str, request: Resolve, authorization: str = Header()):
-        await core.member(room_id, authorization)
-        return await cinema.resolve(request)
-
-    # Эти открыты по подписи, а не по заголовку: их дёргает сам плеер, десятками запросов
-    # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь.
-    @router.get(PREFIX + "/playlist")
-    async def playlist(u: str, e: str, s: str, accept_encoding: str | None = Header(default=None)):
-        return await cinema.manifest(cinema.signer.open(u, e, s), accept_encoding)
-
-    @router.get(PREFIX + "/fetch")
-    async def fetch(u: str, e: str, s: str, range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.signer.open(u, e, s), range)
-
-    @router.get(PREFIX + "/dash/{key}")
-    async def dash(key: str):
-        return cinema.dash(key)
-
-    # Сегмент фильма — по номеру в уже разобранном плейлисте. Имя плейлиста подписано тем же
-    # ключом, а сам список составлен нами и содержит только разрешённые адреса.
-    @router.get(PREFIX + "/seg/{key}/{index}")
-    async def segment(key: str, index: int, range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.reels.find(key, index), range)
-
-    @router.get(PREFIX + "/image")
-    async def image(u: str, e: str, s: str):
-        return await cinema.fetch(cinema.signer.open(u, e, s), None)
-
-    return router
