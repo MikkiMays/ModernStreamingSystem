@@ -1628,6 +1628,41 @@ class ResolveTests(Stage):
         self.assertEqual(self.ranges_read(), [])
         self.assertEqual(self.kept(self.cinema.sources), {"youtube:video:aqz-KE-bpKQ:True": 45})
 
+    async def test_a_youtube_live_opened_as_a_channel_is_its_watch_page(self):
+        # Эфир YouTube приходит видом `channel`, а смотрится по адресу ролика: вид площадка не
+        # различает. Поток — мастер HLS эфира, и DASH не собирается даже там, где браузер его
+        # сыграл бы, — отдельных дорожек у эфира нет, есть только край.
+        master = "https://manifest.googlevideo.com/api/manifest/hls_variant/live/index.m3u8?id=live"
+        self.library.answers[self.WATCH] = self.youtube(
+            is_live=True,
+            duration=None,
+            formats=[{"protocol": "m3u8_native", "manifest_url": master}, *self.separate_tracks()],
+        )
+        found = await self.cinema.resolve(
+            Resolve(provider="youtube", contentId="aqz-KE-bpKQ", kind="channel", adaptive=True)
+        )
+        self.assertEqual(
+            found,
+            {
+                "provider": "youtube",
+                "contentId": "aqz-KE-bpKQ",
+                "title": "Big Buck Bunny",
+                "author": "Blender Foundation",
+                "duration": None,
+                "live": True,
+                "kind": "hls",
+                "url": signed(master, "playlist", FIVE_HOURS),
+                "expiresAt": int((NOW + FIVE_HOURS) * 1000),
+                "notice": None,
+                "language": "en",
+                "captions": [],
+                "poster": img("https://i.ytimg.com/vi/aqz-KE-bpKQ/maxresdefault.jpg"),
+            },
+        )
+        self.assertEqual(self.library.calls, [(self.WATCH, PROBE, False)])
+        self.assertEqual(self.ranges_read(), [])
+        self.assertEqual(self.kept(self.cinema.sources), {"youtube:channel:aqz-KE-bpKQ:True": 45})
+
     async def test_a_twitch_record_is_never_dash_even_when_it_could_be(self):
         address = "https://www.twitch.tv/videos/2000000001"
         self.library.answers[address] = {
