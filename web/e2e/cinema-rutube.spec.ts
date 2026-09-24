@@ -1,6 +1,6 @@
 import { expect, test, type Browser } from '@playwright/test';
 import { fixture, inviteLink, joinMeeting, openCinema, routeCinema, startMeeting } from './support/cinema';
-import { RUTUBE, type Card, type Feed } from './support/rutube';
+import { RUTUBE, type Caption, type Card, type Feed } from './support/rutube';
 
 /*
   Кинозал Rutube на записанных ответах службы: витрина, раздел, сериал с сезонами, поиск и канал,
@@ -177,6 +177,42 @@ test('a live TV channel is opened to the room as a live stream, by the number of
     await expect(page.locator('.watch-title small')).toContainText('Эфир');
     const resolved = cinema.calls.find((call) => call.endpoint === 'resolve');
     expect(resolved?.body).toMatchObject({ provider: 'rutube', contentId: channel.id, kind: 'channel' });
+  } finally {
+    await room.close();
+  }
+});
+
+test('a Rutube episode can be subtitled: the SRT of the platform reaches the player as WebVTT', async ({
+  browser,
+}) => {
+  const room = await context(browser, 1440, 960);
+  const page = await room.newPage();
+  await routeCinema(page, RUTUBE);
+  try {
+    await startMeeting(page);
+    const browse = await openCinema(page, 'Rutube');
+    const series = fixture<Feed & { series: { title: string } }>('rutube-series');
+    const episode = series.items[0]!;
+    await browse.getByRole('button', { name: `Открыть: ${series.series.title}` }).click();
+    await browse.getByRole('button', { name: `Подробнее: ${episode.title}`, exact: true }).click();
+    await browse.getByRole('button', { name: /Смотреть вместе/ }).click();
+    await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех');
+
+    // Субтитры серии — из ответа `resolve`: файл Rutube (SRT), который служба отдаёт WebVTT.
+    const [caption] = fixture<{ captions: Caption[] }>('rutube-resolve').captions;
+    await page.locator('.watch-theater').hover();
+    await page.getByRole('button', { name: 'Субтитры', exact: true }).click();
+    const menu = page.locator('.watch-quality-menu');
+    await expect(menu.getByRole('menuitem')).toHaveText(['Выключены', caption!.label]);
+    const track = page.waitForResponse((response) => response.url().endsWith(caption!.url));
+    await menu.getByRole('menuitem', { name: caption!.label }).click();
+    expect((await track).headers()['content-type']).toBe('text/vtt; charset=utf-8');
+    // Реплику рисует сам плеер, над пультом; какая из двух — зависит от того, где сейчас кадр.
+    await expect(page.locator('.watch-captions')).toHaveText(/ШУМ ВЕРТОЛЁТА|-Шестой, посылка из Москвы\./, {
+      timeout: 10000,
+    });
+    await page.locator('.watch-theater').hover();
+    await expect(page.getByRole('button', { name: `Субтитры: ${caption!.label}` })).toBeVisible();
   } finally {
     await room.close();
   }

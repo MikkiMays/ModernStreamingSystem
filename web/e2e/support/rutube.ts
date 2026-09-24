@@ -10,6 +10,13 @@ import { fixture, type CinemaOverrides } from './cinema';
  * страница и поток незнакомого ролика — записанные, но с лицом нажатой карточки; листание
  * дальше записанного — пустая лента, как у службы на конце списка.
  */
+export interface Caption {
+  lang: string;
+  label: string;
+  auto: boolean;
+  url: string;
+}
+
 export interface Card {
   id: string;
   kind: string;
@@ -85,7 +92,7 @@ export const RUTUBE: CinemaOverrides = {
     if (body?.provider !== 'rutube') return undefined;
     const contentId = String(body.contentId ?? '');
     const live = body.kind === 'channel';
-    const recorded = fixture<Card>('rutube-resolve');
+    const recorded = fixture<Card & { captions: Caption[] }>('rutube-resolve');
     const card = face(contentId);
     return {
       ...recorded,
@@ -94,6 +101,8 @@ export const RUTUBE: CinemaOverrides = {
       author: card?.author ?? recorded.author,
       live,
       duration: live ? null : 12,
+      // У эфира субтитров площадка не отдаёт (`captions: []` в ответе плеера на эфир).
+      captions: live ? [] : recorded.captions,
       expiresAt: Date.now() + SIGNATURE_MS,
     };
   },

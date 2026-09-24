@@ -10,6 +10,8 @@
   "expiresAt": 0,
   "notice": null,
   "language": "",
-  "captions": [],
+  "captions": [
+    { "lang": "ru", "label": "Русский", "auto": false, "url": "/fixtures/cinema/rutube-captions.srt" }
+  ],
   "poster": "/fixtures/poster.png"
 }

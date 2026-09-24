@@ -45,6 +45,34 @@ const TYPES: Record<string, string> = {
 
 type Json = Record<string, unknown>;
 
+/** Строка времени реплики SRT: `00:00:07,120 --> 00:00:17,240` и, может быть, положение реплики. */
+const TIMING =
+  /^\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})(.*)$/;
+
+/**
+ * Субтитры площадки в SRT — WebVTT по дороге, как их отдаёт браузеру маршрут службы `subtitles`.
+ *
+ * Служба в сценарии не участвует, и её перевод здесь играет перехват — тем же правилом, что
+ * `cord_services/cinema/captions.py` (`webvtt`): первая строка `WEBVTT`, точка вместо запятой в
+ * долях секунды и две цифры часов — только в строках времени; запятая в самой реплике остаётся
+ * запятой. Сам перевод проверяют тесты службы; здесь — что плеер показывает то, что она отдаёт.
+ */
+function webvtt(text: string): string {
+  const stamp = (hours: string, minutes: string, seconds: string, fraction: string) =>
+    `${hours.padStart(2, '0')}:${minutes}:${seconds}.${fraction.padEnd(3, '0')}`;
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => {
+      const found = TIMING.exec(line);
+      if (!found) return line;
+      const [, h1, m1, s1, f1, h2, m2, s2, f2, rest] = found as unknown as string[];
+      return `${stamp(h1!, m1!, s1!, f1!)} --> ${stamp(h2!, m2!, s2!, f2!)}${rest}`;
+    });
+  return 'WEBVTT\n\n' + lines.join('\n').replace(/^\n+/, '');
+}
+
 /** Записанный ответ службы по имени файла из `fixtures/cinema/`. Каждый раз — свежая копия. */
 export function fixture<T = Json>(name: string): T {
   return JSON.parse(readFileSync(path.join(FIXTURES, 'cinema', `${name}.json`), 'utf8')) as T;
@@ -264,7 +292,8 @@ async function answer(route: Route, endpoint: string, overrides: CinemaOverrides
  *
  * Перехватываются `…/services/rooms/{комната}/cinema/…` и `…/services/catalog` (без каталога
  * панель интеграций не предлагает кинозал), а ещё `/fixtures/…` — серая обложка, HLS и
- * субтитры. Возвращает журнал запросов: по нему видно, что каталог действительно спросил.
+ * субтитры (SRT — переведёнными в WebVTT, как у службы). Возвращает журнал запросов: по нему
+ * видно, что каталог действительно спросил.
  */
 export async function routeCinema(page: Page, overrides: CinemaOverrides = {}) {
   const calls: CinemaCall[] = [];
@@ -285,6 +314,13 @@ export async function routeCinema(page: Page, overrides: CinemaOverrides = {}) {
       const wanted = new URL(route.request().url()).pathname.slice('/fixtures/'.length);
       const file = path.resolve(FIXTURES, decodeURIComponent(wanted));
       if (!file.startsWith(FIXTURES) || !existsSync(file)) return route.fulfill({ status: 404 });
+      // Субтитры площадки приходят SRT, а `<track>` читает только WebVTT: служба переводит их
+      // маршрутом `subtitles`, здесь — перехват (`webvtt`).
+      if (path.extname(file) === '.srt')
+        return route.fulfill({
+          contentType: 'text/vtt; charset=utf-8',
+          body: webvtt(readFileSync(file, 'utf8')),
+        });
       await route.fulfill({
         path: file,
         contentType: TYPES[path.extname(file)] ?? 'application/octet-stream',
