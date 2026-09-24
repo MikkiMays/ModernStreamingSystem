@@ -65,4 +65,11 @@ describe('границы раскладки: CSS и код считают по �
     );
     expect(beside).toContain(`padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`);
   });
+
+  it('панель поверх сцены кончается над пультом звонка — там же, где кончается сцена', () => {
+    expect(rule(media(layout, DRAWER), '.meeting-page:not(.meeting-fullscreen) .side-panel')).toContain(
+      'bottom: var(--dock-space);',
+    );
+    expect(rule(layout, '.stage-wrap')).toContain('padding-bottom: var(--dock-space);');
+  });
 });

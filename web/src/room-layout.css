@@ -88,9 +88,19 @@
 }
 
 /* Conversation, one screen and pinned camera share the same persistent media session. */
+.meeting-page {
+  /*
+    Место у низа сцены под пульт звонка — вместе с его отступом снизу и зазором над ним. Его
+    оставляет сцена, и ровно там же кончается панель встречи, пока она лежит поверх сцены: пульт
+    выше неё по слою (`z-index: 20` против 12), и всё, что панель тянула до самого низа, — поле
+    чата, «Прикрепить файл», «Отправить» — оказывалось под ним. На телефоне число своё, от
+    `--dock` (ниже).
+  */
+  --dock-space: 92px;
+}
 .stage-wrap {
   position: relative;
-  padding-bottom: 92px;
+  padding-bottom: var(--dock-space);
 }
 .stage-wrap > .call-footer {
   position: absolute;
@@ -398,9 +408,7 @@ button.watch-stream:hover {
 @media (max-width: 700px) {
   .meeting-page {
     --dock: 64px;
-  }
-  .stage-wrap {
-    padding-bottom: calc(var(--dock) + 24px);
+    --dock-space: calc(var(--dock) + 24px);
   }
   .stage-wrap > .call-footer {
     flex-wrap: nowrap;
@@ -425,8 +433,12 @@ button.watch-stream:hover {
     min-width: 4px;
     max-width: 18px;
   }
+}
+/* Панель поверх сцены — листом до 767 px и полосой до 1199 (`DRAWER` в `ui/breakpoints.ts`) —
+   кончается над пультом звонка, а не под ним. */
+@media (max-width: 1199px) {
   .meeting-page:not(.meeting-fullscreen) .side-panel {
-    bottom: calc(var(--dock) + 24px);
+    bottom: var(--dock-space);
   }
 }
 
