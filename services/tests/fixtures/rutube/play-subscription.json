@@ -1,0 +1,30 @@
+{
+ "detail": {
+  "id": 39,
+  "name": "subscription: RUTUBE_START",
+  "type": "common_subscription",
+  "url": "",
+  "url_stat": "",
+  "image": "https://pic.rtbcdn.ru/playerstub/2024-10-16/82/3f/823fa9eb41a21d76d761fbd828075357.png",
+  "languages": [
+   {
+    "lang": "rus",
+    "title": "Смотрите по подписке RUTUBE x START",
+    "description": null,
+    "url_title": null,
+    "subtitle": null
+   }
+  ],
+  "stat": [],
+  "referer": "https://rutube.ru",
+  "access_url": null,
+  "appearance": {
+   "advert_skin_type": null
+  },
+  "product_codes": [
+   "RUTUBE_START",
+   "PREMIER_RUTUBE_START"
+  ],
+  "subscription_stub": "client: wdp, id: 39"
+ }
+}

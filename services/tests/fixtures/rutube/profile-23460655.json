@@ -1,0 +1,29 @@
+{
+ "id": 23460655,
+ "name": "Первый канал",
+ "description": "Владелец канала ОА «Первый канал»\r\nНомер заявления в РКН № 5055923245",
+ "is_official": true,
+ "video_count": 299266,
+ "hits": 1143026782,
+ "appearance": {
+  "bgcolor": "",
+  "image": "https://pic.rtbcdn.ru/userappearance/2024-12-28/1d/8a/1d8ac6a453fb1a1c84fe817ab99f93a5.jpeg",
+  "default_image": "https://pic.rtbcdn.ru/genericimage/2d/94/2d941779dc18515bb180787702955f3c.jpg",
+  "cover_image": "https://pic.rtbcdn.ru/userappearance/2024-12-28/1d/8a/1d8ac6a453fb1a1c84fe817ab99f93a5.jpeg",
+  "avatar_image": "https://pic.rtbcdn.ru/user/63/a2/63a2eb1886a45be2b1da64729397230c.jpg",
+  "donations": [],
+  "kind_sign_for_user": false,
+  "is_reborn_channel": true,
+  "default_video_description": "",
+  "is_ten_thousand": true,
+  "is_ten_thousand_url": "https://www.gosuslugi.ru/snet",
+  "is_channel_donate_allowed": false,
+  "is_livestream_donate_allowed": false,
+  "short_url": "",
+  "channel_type": "user"
+ },
+ "subscribers_count": 1023289,
+ "avatar_url": "https://pic.rtbcdn.ru/user/63/a2/63a2eb1886a45be2b1da64729397230c.jpg",
+ "date_joined": "2021-03-12T14:15:22",
+ "last_update_ts": "2026-01-29T15:13:38.457557"
+}

@@ -1,0 +1,124 @@
+{
+ "has_next": true,
+ "next": "https://rutube.ru/api/video/category/4/?format=json&page=3",
+ "previous": "https://rutube.ru/api/video/category/4/?format=json",
+ "page": 2,
+ "per_page": 100,
+ "results": [
+  {
+   "id": "da9b179de28d3f122f2aee313fa113ab",
+   "title": "Перевозчик _ The Transporter",
+   "description": "",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-24/30/19/3019a9c6eedf44cb6fe2bc8f4156e5c2.jpg",
+   "video_url": "https://rutube.ru/video/da9b179de28d3f122f2aee313fa113ab/",
+   "duration": 6140,
+   "is_audio": false,
+   "created_ts": "2026-09-24T11:01:56",
+   "track_id": 469778013,
+   "is_livestream": false,
+   "is_on_air": false,
+   "last_update_ts": "2026-09-24T12:18:56",
+   "stream_type": null,
+   "picture_url": "",
+   "author": {
+    "id": 50078736,
+    "name": "Фильмы",
+    "avatar_url": "https://static.rutubelist.ru/static/img/_thumb_default_00.png",
+    "site_url": "https://rutube.ru/video/person/50078736/?format=json",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rtb",
+   "preview_url": "https://preview.rutube.ru/preview/da9b179de28d3f122f2aee313fa113ab.webp?exp=1790335241&s=lYCfUJ4OWKXM2o2NCA6INQ",
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-09-24T11:31:57",
+   "hits": 0,
+   "embed_url": "https://rutube.ru/play/embed/da9b179de28d3f122f2aee313fa113ab",
+   "category": {
+    "id": 4,
+    "category_url": "https://rutube.ru/video/category/4/?format=json",
+    "name": "Фильмы"
+   },
+   "feed_url": "https://rutube.ru/video/person/50078736/",
+   "feed_name": "Фильмы",
+   "is_official": false,
+   "is_licensed": false,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_hidden": false,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "is_sportevent": false
+  },
+  {
+   "id": "79c0b79f49049359a80fbc1ea23507a0",
+   "title": "Якушина Мария Шоурил  Агентство DAR Talent radcast@bk.ru",
+   "description": "",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-24/42/24/4224a88e3c720480ae41df267bbba2c8.jpg",
+   "video_url": "https://rutube.ru/video/79c0b79f49049359a80fbc1ea23507a0/",
+   "duration": 20,
+   "is_audio": false,
+   "created_ts": "2026-09-24T11:12:32",
+   "track_id": 469779001,
+   "is_livestream": false,
+   "is_on_air": false,
+   "last_update_ts": "2026-09-24T11:31:34",
+   "stream_type": null,
+   "picture_url": "",
+   "author": {
+    "id": 69528444,
+    "name": "DARtalent",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-10-03/01/31/01313561be7cc8cdf56f2d1b6103b8de.jpg",
+    "site_url": "https://rutube.ru/video/person/69528444/?format=json",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rtb",
+   "preview_url": "https://preview.rutube.ru/preview/79c0b79f49049359a80fbc1ea23507a0.webp?exp=1790335241&s=xrgfrmmx6KelcUdBUsQbHQ",
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-09-24T11:31:34",
+   "hits": 1,
+   "embed_url": "https://rutube.ru/play/embed/79c0b79f49049359a80fbc1ea23507a0",
+   "category": {
+    "id": 4,
+    "category_url": "https://rutube.ru/video/category/4/?format=json",
+    "name": "Фильмы"
+   },
+   "feed_url": "https://rutube.ru/video/person/69528444/",
+   "feed_name": "DARtalent",
+   "is_official": false,
+   "is_licensed": false,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_hidden": false,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "is_sportevent": false
+  }
+ ],
+ "num_pages": 3
+}

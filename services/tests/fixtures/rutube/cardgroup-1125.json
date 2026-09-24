@@ -1,0 +1,173 @@
+{
+ "has_next": true,
+ "next": "https://rutube.ru/api/feeds/cardgroup/1125?limit=20&page=2&show_hidden_videos=False",
+ "previous": null,
+ "page": 1,
+ "per_page": 20,
+ "results": [
+  {
+   "id": 55071,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 356362,
+   "object": {
+    "id": 356362,
+    "name": "Экстрасенсы. Реванш",
+    "description": "Экстрасенсы. Реванш - новое мистическое шоу, где участники «Битвы экстрасенсов», которые так и не смогли одержать победу",
+    "can_subscribe": true,
+    "type": {
+     "id": 2,
+     "name": "tvshow",
+     "title": "Телепередача"
+    },
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-16/d5/a1/d5a124f0458f562b98547f5b8ff146b0.jpg",
+    "absolute_url": "https://rutube.ru/metainfo/tv/356362/",
+    "icon": "https://pic.rtbcdn.ru/tv/2026-09-16/23/da/23da6bdf647a522953f33c4b5a461442.jpg",
+    "content": "https://rutube.ru/api/metainfo/tv/356362/video/",
+    "view_url": "https://rutube.ru/api/feeds/17279",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/356362",
+    "user_channel_image": "https://pic.rtbcdn.ru/tv/2026-09-16/56/1f/561ffa7989a52940b823d0a9cc17636b.jpg?size=w306",
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 28,
+    "general_trailer": null,
+    "countries": [
+     {
+      "two_letter": "RU",
+      "name": "Россия"
+     }
+    ],
+    "genres": [
+     {
+      "id": 140,
+      "name": "Реалити-шоу"
+     }
+    ],
+    "subscribers_count": 265161,
+    "is_official": null,
+    "original_title": "",
+    "age": "16+",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": "https://pic.rtbcdn.ru/tv/2026-09-16/42/b8/42b8446d44c78088d58d766a645a6e2d.jpg",
+    "year_start": "2024",
+    "last_updated_ts": "2026-09-19T21:00:11",
+    "product": 22
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-09-19T21:00:11"
+  },
+  {
+   "id": 75662,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 1805629,
+   "object": {
+    "id": 1805629,
+    "name": "Правда или хайп?",
+    "description": "Тележурнал о здоровом образе жизни, в котором скептик Екатерина Конасова и экспериментатор Александр Молочко разоблачают",
+    "can_subscribe": true,
+    "type": null,
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-23/f7/7f/f77ffbe60749c8f1af3a4c3afce91284.jpg",
+    "absolute_url": "https://rutube.ru/plst/1805629",
+    "icon": "",
+    "content": "https://rutube.ru/api/metainfo/tv/1805629/video/",
+    "view_url": "https://rutube.ru/api/metainfo/tv/1805629/video/",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/1805629",
+    "user_channel_image": null,
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 2,
+    "general_trailer": null,
+    "countries": [],
+    "genres": [],
+    "subscribers_count": 0,
+    "is_official": null,
+    "original_title": "",
+    "age": "",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": null,
+    "year_start": "",
+    "last_updated_ts": "2026-09-22T15:33:47",
+    "product": null
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-09-22T15:33:47"
+  },
+  {
+   "id": 56421,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 405933,
+   "object": {
+    "id": 405933,
+    "name": "Титаны",
+    "description": "Самые сильные снова в деле. В новом сезоне шоу «Титаны» на арену выходят лучшие участники прошлых лет — чтобы выяснить, ",
+    "can_subscribe": true,
+    "type": {
+     "id": 2,
+     "name": "tvshow",
+     "title": "Телепередача"
+    },
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-10/b8/40/b8406aa1d5691308bed39de986f758df.jpg",
+    "absolute_url": "https://rutube.ru/metainfo/tv/405933/",
+    "icon": "https://pic.rtbcdn.ru/tv/2026-09-10/d1/b3/d1b38713c696dbc7b3e7b1118cc9041c.jpg",
+    "content": "https://rutube.ru/api/metainfo/tv/405933/video/",
+    "view_url": "https://rutube.ru/api/feeds/17666",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/405933",
+    "user_channel_image": "https://pic.rtbcdn.ru/tv/2026-09-10/f1/59/f1594fbddf0a52d677143bcc4e09d831.jpg?size=w306",
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 156,
+    "general_trailer": null,
+    "countries": [
+     {
+      "two_letter": "RU",
+      "name": "Россия"
+     }
+    ],
+    "genres": [
+     {
+      "id": 218,
+      "name": "Спортивный"
+     },
+     {
+      "id": 100,
+      "name": "Развлекательный"
+     }
+    ],
+    "subscribers_count": 242323,
+    "is_official": null,
+    "original_title": "",
+    "age": "16+",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": "https://pic.rtbcdn.ru/tv/2026-09-10/3b/9b/3b9bfd35fc959a08ef2f34617b1c102b.jpg",
+    "year_start": "2024",
+    "last_updated_ts": "2026-04-27T00:59:06",
+    "product": 22
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-04-27T00:59:06"
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "id": 891161,
+ "content": "https://rutube.ru/api/metainfo/tv/891161/video?format=json",
+ "type": {
+  "id": 3,
+  "name": "series",
+  "title": "Сериал"
+ },
+ "original_title": "",
+ "countries": [
+  {
+   "two_letter": "RU",
+   "name": "Россия"
+  }
+ ],
+ "genres": [
+  {
+   "id": 78,
+   "name": "Комедия",
+   "link": "/feeds/moviesgenres/"
+  }
+ ],
+ "year": "",
+ "year_start": "2008",
+ "year_end": "",
+ "status": 1,
+ "is_active": true,
+ "related_showcase": "https://rutube.ru/api/feeds/tv891161/?format=json",
+ "related_showcase_id": 19900,
+ "age_restriction": null,
+ "slogan": "",
+ "poster_url": "https://pic.rtbcdn.ru/tv/2025-03-21/1f/83/1f83ae1c76cb573c43f7936c51e1cd79.jpg",
+ "vertical_poster_url": null,
+ "studios": [],
+ "external_ids": [],
+ "persons": [],
+ "age": {
+  "age": 16,
+  "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+ },
+ "persons_url": "https://rutube.ru/api/metainfo/tv/891161/person?format=json",
+ "product": null,
+ "seasons_count": 4,
+ "absolute_url": "https://rutube.ru/metainfo/tv/891161/",
+ "subscribers_count": 3956,
+ "name": "Универ | PREMIER",
+ "can_subscribe": true,
+ "description": "Их пятеро. Они живут в соседних комнатах университетской общаги, у них общая кухня, туалет и ванная. Им ничего не остает",
+ "picture": "https://pic.rtbcdn.ru/tv/2025-03-21/60/81/60818d5aa841607bb143c9c364d04fb2.jpg",
+ "appearance": {
+  "cover_image": "https://pic.rtbcdn.ru/tv/2025-03-21/19/a2/19a2ede06a87e7d1f4a73bb92541f2f1.jpg",
+  "avatar_image": "https://pic.rtbcdn.ru/tv/2025-03-21/90/b8/90b81fe0cdd0b65f75ecd3dd2774262d.jpg",
+  "bgcolor": ""
+ },
+ "persons_info": {},
+ "channel": {
+  "channel_id": 5518074,
+  "name": "PREMIER онлайн-кинотеатр",
+  "link": "https://rutube.ru/channel/5518074/",
+  "avatar_image": "https://pic.rtbcdn.ru/user/2026-01-12/2c/e1/2ce11a60a2918f0d80a1d79dc966f2ae.jpg"
+ }
+}

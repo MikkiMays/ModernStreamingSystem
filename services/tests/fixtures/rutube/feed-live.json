@@ -1,0 +1,380 @@
+{
+ "id": 1943,
+ "slug": "live",
+ "name": "ТВ онлайн",
+ "name_displayed": true,
+ "description": "",
+ "is_published": true,
+ "counter_label": "",
+ "ab_test_code": "",
+ "created_ts": "2017-05-24T13:08:35",
+ "allow_popup": false,
+ "show_sharing_card": false,
+ "url": "https://rutube.ru/feeds/live/",
+ "tabs": [
+  {
+   "id": 26685,
+   "name": "Главная",
+   "sort": "original",
+   "order_number": 1,
+   "resources": [
+    {
+     "id": 75883,
+     "created_ts": "2025-12-15T12:30:55",
+     "content_type": {
+      "id": 135,
+      "app_label": "showcase",
+      "model": "feedsource"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "tvfavorites",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/video/tvfavorites/?authorized=true&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "authorized": "true",
+      "unauthorized_stub": null,
+      "empty_stub": null,
+      "name": "Избранное",
+      "link": "/feeds/tvfavorites/"
+     },
+     "name": "Избранное",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/feeds/tvfavorites/",
+     "playlist_name": "Избранные ТВ",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 54414,
+     "created_ts": "2023-04-12T12:24:34",
+     "content_type": {
+      "id": 410,
+      "app_label": "showcase",
+      "model": "automaticwidget"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "4",
+     "order_number": 2,
+     "url": "https://rutube.ru/api/video/history/tv_broadcast/?limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Вы смотрели",
+      "link": 0,
+      "widget_type": "continue_watch",
+      "display_type": "live-video-preview"
+     },
+     "name": "Вы смотрели",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Продолжить просмотр",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52806,
+     "created_ts": "2022-12-21T17:01:40",
+     "content_type": {
+      "id": 410,
+      "app_label": "showcase",
+      "model": "automaticwidget"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1",
+     "order_number": 3,
+     "url": "https://rutube.ru/api/video/topic/1/?limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Популярные эфиры",
+      "link": 0,
+      "widget_type": "popular_in_live",
+      "display_type": "live-video-preview"
+     },
+     "name": "Популярные эфиры",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Популярное в эфире",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 66743,
+     "created_ts": "2025-05-07T17:56:47",
+     "content_type": {
+      "id": 135,
+      "app_label": "showcase",
+      "model": "feedsource"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "banner-premier",
+     "order_number": 4,
+     "url": "https://rutube.ru?widget_type=banner-premier&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "authorized": false,
+      "unauthorized_stub": null,
+      "empty_stub": null,
+      "widget_type": "banner-premier",
+      "name": "Баннер Премьер",
+      "link": 0
+     },
+     "name": "Баннер Премьер",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Баннер Премьер",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 59554,
+     "created_ts": "2024-06-28T13:30:56",
+     "content_type": {
+      "id": 42,
+      "app_label": "metainfo",
+      "model": "tv"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "157124",
+     "order_number": 5,
+     "url": "https://rutube.ru/api/metainfo/tv/157124/video/?clients=wdp&sort=tagged_d&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Наше всё"
+     },
+     "name": "Наше всё",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/metainfo/tv/157124/",
+     "playlist_name": "НАШЕ ВСЕ",
+     "can_subscribe": true,
+     "subscribers_count": 6713,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52804,
+     "created_ts": "2022-12-21T16:53:52",
+     "content_type": {
+      "id": 410,
+      "app_label": "showcase",
+      "model": "automaticwidget"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "2",
+     "order_number": 6,
+     "url": "https://rutube.ru/api/feeds/autowidget/2",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Все эфиры",
+      "link": 0,
+      "widget_type": "live_by_topic",
+      "display_type": "live-popup-video-preview"
+     },
+     "name": "Все эфиры",
+     "inline_widget": false,
+     "site_url": null,
+     "playlist_name": "ТВ-эфиры по тематикам",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 61623,
+     "created_ts": "2024-11-29T17:38:39",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "8275",
+     "order_number": 7,
+     "url": "https://rutube.ru/api/tags/video/8275/?clients=wdp&sort=tagged_d&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Эфиры на языке оригинала"
+     },
+     "name": "Эфиры на языке оригинала",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/tags/video/8275/",
+     "playlist_name": "Эфиры на языке оригинала",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52807,
+     "created_ts": "2022-12-21T17:01:40",
+     "content_type": {
+      "id": 345,
+      "app_label": "showcase",
+      "model": "subscriptiontvseries"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1125",
+     "order_number": 8,
+     "url": "https://rutube.ru/api/feeds/cardgroup/1125?clients=wdp&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Телешоу",
+      "link": "/feeds/tv/"
+     },
+     "name": "Телешоу",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/feeds/tv/",
+     "playlist_name": "Рекомендуем телешоу",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52805,
+     "created_ts": "2022-12-21T16:53:52",
+     "content_type": {
+      "id": 410,
+      "app_label": "showcase",
+      "model": "automaticwidget"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "3",
+     "order_number": 9,
+     "url": "https://rutube.ru/api/feeds/autowidget/3?limit=20",
+     "extra_params": {
+      "clients": "wdp",
+      "name": "Телеканалы",
+      "link": 0,
+      "widget_type": "tv_channel_cards",
+      "display_type": "circle-compact"
+     },
+     "name": "Телеканалы",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Карточки ТВ-каналов",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": null,
+   "slug": "main",
+   "hide_tags": false,
+   "hide_authors": false,
+   "url": "https://rutube.ru/feeds/live/main/",
+   "brandings": [],
+   "images": []
+  },
+  {
+   "id": 19911,
+   "name": "Платные каналы",
+   "sort": "original",
+   "order_number": 4,
+   "resources": [
+    {
+     "id": 33957,
+     "created_ts": "2021-01-19T17:13:08",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1990829",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/tags/video/1990829/?noSubs=true&compact=1&sort=created_d&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "noSubs": "true",
+      "compact": "1",
+      "name": "Прямой эфир МАТЧ ПРЕМЬЕР",
+      "link": 0
+     },
+     "name": "Прямой эфир МАТЧ ПРЕМЬЕР",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Подписка МАТЧ ПРЕМЬЕР",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 53498,
+     "created_ts": "2023-02-17T12:15:20",
+     "content_type": {
+      "id": 42,
+      "app_label": "metainfo",
+      "model": "tv"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "157124",
+     "order_number": 2,
+     "url": "https://rutube.ru/api/metainfo/tv/157124/video/?compact=1&sort=publication_d&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "compact": "1",
+      "name": "НАШЕ ВСЕ",
+      "link": "/feeds/nashevse/"
+     },
+     "name": "НАШЕ ВСЕ",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/feeds/nashevse/",
+     "playlist_name": "НАШЕ ВСЕ",
+     "can_subscribe": true,
+     "subscribers_count": 6713,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": null,
+   "slug": "channel",
+   "hide_tags": false,
+   "hide_authors": true,
+   "url": "https://rutube.ru/feeds/live/channel/",
+   "brandings": [],
+   "images": []
+  }
+ ],
+ "related_tv": null,
+ "related_person": null,
+ "product": null,
+ "main_trailer": null,
+ "poster_picture": "",
+ "image": "",
+ "site_part": 2,
+ "logo": null,
+ "logo_light": null,
+ "additional_info": "",
+ "additional_info_link": {
+  "name": "",
+  "url": ""
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "id": 1799942,
+ "content": "https://rutube.ru/api/metainfo/tv/1799942/video?format=json",
+ "type": {
+  "id": 3,
+  "name": "series",
+  "title": "Сериал"
+ },
+ "original_title": "",
+ "countries": [],
+ "genres": [],
+ "year": "",
+ "year_start": "",
+ "year_end": "",
+ "status": 1,
+ "is_active": true,
+ "related_showcase": "https://rutube.ru/api/feeds/tv1799942/?format=json",
+ "related_showcase_id": 26648,
+ "age_restriction": null,
+ "slogan": "",
+ "poster_url": null,
+ "vertical_poster_url": null,
+ "studios": [],
+ "external_ids": [],
+ "persons": [],
+ "age": null,
+ "persons_url": "https://rutube.ru/api/metainfo/tv/1799942/person?format=json",
+ "product": null,
+ "seasons_count": 0,
+ "absolute_url": "https://rutube.ru/plst/1799942",
+ "subscribers_count": 485,
+ "name": "Марик",
+ "can_subscribe": true,
+ "description": "Врач Марк Аксёнов, для друзей просто Марик, возвращается с фронта в родной Мариуполь. Но прежней жизни больше нет: жена,",
+ "picture": "https://pic.rtbcdn.ru/playlist/2026-09-11/f7/e7/f7e75fe337add50ef9fe42683ceb7005.jpg",
+ "appearance": {
+  "cover_image": "",
+  "avatar_image": "",
+  "bgcolor": ""
+ },
+ "persons_info": {},
+ "channel": {
+  "channel_id": 25841652,
+  "name": "КИОН",
+  "link": "https://rutube.ru/channel/25841652/",
+  "avatar_image": "https://pic.rtbcdn.ru/user/2025-12-04/1c/be/1cbee878c1dd79275a5d63153b1ed98e.jpg"
+ }
+}

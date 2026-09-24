@@ -1,0 +1,198 @@
+{
+ "id": 14010,
+ "slug": "tvchannels",
+ "name": "Телеканалы",
+ "name_displayed": true,
+ "description": "",
+ "is_published": false,
+ "counter_label": "",
+ "ab_test_code": "",
+ "created_ts": "2021-06-30T17:42:15",
+ "allow_popup": false,
+ "show_sharing_card": false,
+ "url": "https://rutube.ru/feeds/tvchannels/",
+ "tabs": [
+  {
+   "id": 23884,
+   "name": "Главная",
+   "sort": "original",
+   "order_number": 1,
+   "resources": [
+    {
+     "id": 42020,
+     "created_ts": "2021-06-30T17:42:15",
+     "content_type": {
+      "id": 30,
+      "app_label": "showcase",
+      "model": "promogroup"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "342",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/v1/feeds/promogroup/342?limit=1000&show_hidden_videos=False",
+     "extra_params": {
+      "limit": 1000,
+      "name": "Федеральные телеканалы"
+     },
+     "name": "Федеральные телеканалы",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Федеральные телеканалы",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": null,
+   "slug": "all",
+   "hide_tags": false,
+   "hide_authors": false,
+   "url": "https://rutube.ru/feeds/tvchannels/all/",
+   "brandings": [],
+   "images": []
+  },
+  {
+   "id": 23933,
+   "name": "ТВ онлайн",
+   "sort": "original",
+   "order_number": 2,
+   "resources": [
+    {
+     "id": 42185,
+     "created_ts": "2021-07-02T12:32:14",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "6264",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/tags/video/6264/?limit=1000&sort=tagged_d&show_hidden_videos=False",
+     "extra_params": {
+      "limit": 1000,
+      "name": "Федеральные"
+     },
+     "name": "Федеральные",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/tags/video/6264/",
+     "playlist_name": "Федеральные прямые эфиры",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52455,
+     "created_ts": "2022-11-23T13:01:08",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "6208",
+     "order_number": 2,
+     "url": "https://rutube.ru/api/tags/video/6208/?limit=1000&sort=tagged_d&show_hidden_videos=False",
+     "extra_params": {
+      "limit": 1000,
+      "name": "Региональные"
+     },
+     "name": "Региональные",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/tags/video/6208/",
+     "playlist_name": "Прямые эфиры региональных ТВ",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52456,
+     "created_ts": "2022-11-23T13:01:08",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "5979",
+     "order_number": 4,
+     "url": "https://rutube.ru/api/tags/video/5979/?limit=1000&sort=tagged_d&show_hidden_videos=False",
+     "extra_params": {
+      "limit": 1000,
+      "name": "Новостные"
+     },
+     "name": "Новостные",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/tags/video/5979/",
+     "playlist_name": "Прямые эфиры новостей",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 52460,
+     "created_ts": "2022-11-23T13:01:08",
+     "content_type": {
+      "id": 18,
+      "app_label": "tags",
+      "model": "tag"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "6238",
+     "order_number": 6,
+     "url": "https://rutube.ru/api/tags/video/6238/?limit=1000&sort=tagged_d&show_hidden_videos=False",
+     "extra_params": {
+      "limit": 1000,
+      "name": "Радиостанции"
+     },
+     "name": "Радиостанции",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/tags/video/6238/",
+     "playlist_name": "Радиоэфиры",
+     "can_subscribe": true,
+     "subscribers_count": 0,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": {
+    "url": "/feeds/live/",
+    "target_blank": false
+   },
+   "slug": "live",
+   "hide_tags": false,
+   "hide_authors": false,
+   "url": "https://rutube.ru/feeds/live/",
+   "brandings": [],
+   "images": []
+  }
+ ],
+ "related_tv": null,
+ "related_person": null,
+ "product": null,
+ "main_trailer": null,
+ "poster_picture": "",
+ "image": "",
+ "site_part": 2,
+ "logo": null,
+ "logo_light": null,
+ "additional_info": null,
+ "additional_info_link": {
+  "name": null,
+  "url": null
+ }
+}

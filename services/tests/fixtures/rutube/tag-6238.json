@@ -1,0 +1,66 @@
+{
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "page": 1,
+ "per_page": 100,
+ "results": [
+  {
+   "id": "11597f31f003ea26b95319f784685fe4",
+   "title": "Мурка FM - Прямой Эфир",
+   "description": "В эфире нон-стоп звучат композиции преимущественно направления шансон. Также в ротации есть треки в стиле городского ром",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-02-03/98/4d/984d30914406ad45288fec2baf934100.jpg",
+   "video_url": "https://rutube.ru/video/11597f31f003ea26b95319f784685fe4/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2025-02-03T14:40:26",
+   "track_id": 356928602,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2025-07-13T17:57:27",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 24575848,
+    "name": "AMG Radio",
+    "avatar_url": "https://pic.rtbcdn.ru/user/b3/33/b333f9d95f1aecc9c325fe888ea91e32.jpg",
+    "site_url": "https://rutube.ru/video/person/24575848/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2025-02-03T14:41:16",
+   "hits": 260454,
+   "embed_url": "https://rutube.ru/play/embed/11597f31f003ea26b95319f784685fe4",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/24575848/",
+   "feed_name": "AMG Radio",
+   "is_official": true,
+   "is_licensed": false,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  }
+ ]
+}

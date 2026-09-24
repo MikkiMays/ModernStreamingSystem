@@ -1,0 +1,123 @@
+{
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "page": 1,
+ "per_page": 100,
+ "results": [
+  {
+   "id": "58406cad9cc435f48a62209e076e8a9b",
+   "title": "Телеканал \"Сейм\" | Курская область",
+   "description": "Курский областной телеканал «Сейм» вещает на собственных эфирных ТВ-частотах. С 1 февраля 2017 года – обязательный общед",
+   "thumbnail_url": "https://pic.rtbcdn.ru/genericimage/2026-03-30/34/de/34de4aca823936fb43d067da7b1baedf.jpeg",
+   "video_url": "https://rutube.ru/video/58406cad9cc435f48a62209e076e8a9b/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2026-09-21T10:56:09",
+   "track_id": 469446156,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2026-09-21T11:32:14",
+   "stream_type": "broadcast",
+   "picture_url": "https://pic.rtbcdn.ru/video/2026-09-21/e8/69/e869d40aef6b1946a3ba950121a296d6.jpg?size=w306",
+   "author": {
+    "id": 69406047,
+    "name": "«Сейм» | Курская область",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-09-08/38/27/3827b38ade91df82d37f23a5b35293af.jpg",
+    "site_url": "https://rutube.ru/video/person/69406047/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-09-21T11:32:14",
+   "hits": 3042,
+   "embed_url": "https://rutube.ru/play/embed/58406cad9cc435f48a62209e076e8a9b",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/69406047/",
+   "feed_name": "«Сейм» | Курская область",
+   "is_official": true,
+   "is_licensed": false,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": true,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  },
+  {
+   "id": "42ed85b003d36b28cd2da077e7ab0ed4",
+   "title": "Прямой эфир «TV Губерния» Воронеж",
+   "description": "Круглосуточная трансляция без перерывов и выходных. Телеканал ориентирован на жителей Воронежской области и всего Центра",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-16/20/54/20546ff46b0e2c87ea3e4c37f9bbcd7f.jpg",
+   "video_url": "https://rutube.ru/video/42ed85b003d36b28cd2da077e7ab0ed4/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2026-09-16T11:43:50",
+   "track_id": 468081797,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2026-09-16T11:53:05",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 33540664,
+    "name": "TV Губерния Воронеж",
+    "avatar_url": "https://pic.rtbcdn.ru/user/16/4d/164dbbbcf834b83f3e22841cf36c1670.jpg",
+    "site_url": "https://rutube.ru/video/person/33540664/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-09-16T11:53:05",
+   "hits": 10107,
+   "embed_url": "https://rutube.ru/play/embed/42ed85b003d36b28cd2da077e7ab0ed4",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/33540664/",
+   "feed_name": "TV Губерния Воронеж",
+   "is_official": true,
+   "is_licensed": false,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": true,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+{
+ "detail": {
+  "id": 19132810,
+  "name": "blocking_rule_19132810",
+  "type": "blocking_rule",
+  "url": "",
+  "url_stat": "",
+  "image": "https://pic.rtbcdn.ru/playerstub/2025-02-19/6a/40/6a40adac813ebf937a4d5a3b0e41de26.png",
+  "languages": [
+   {
+    "lang": "rus",
+    "title": "Видео недоступно из-за ограничений в вашей стране, VPN или окончания прав на его показ",
+    "description": "",
+    "url_title": null
+   }
+  ],
+  "stat": [],
+  "referer": "https://rutube.ru",
+  "access_url": "",
+  "appearance": {
+   "advert_skin_type": null
+  }
+ }
+}

@@ -81,6 +81,18 @@ def routes(cinema: Cinema, core) -> APIRouter:
         await core.member(room_id, authorization)
         return await cinema.category(provider, id, cursor, room=room_id)
 
+    @router.get("/api/v1/services/rooms/{room_id}/cinema/series")
+    async def series(
+        room_id: str,
+        provider: ProviderId,
+        id: str = Query(max_length=64),
+        season: str = Query(default="", max_length=64),
+        cursor: str = Query(default="", max_length=12),
+        authorization: str = Header(),
+    ):
+        await core.member(room_id, authorization)
+        return await cinema.series(provider, id, season, cursor, room=room_id)
+
     @router.get("/api/v1/services/rooms/{room_id}/cinema/details")
     async def details(
         room_id: str,
@@ -125,5 +137,10 @@ def routes(cinema: Cinema, core) -> APIRouter:
     @router.get(PREFIX + "/image")
     async def image(u: str, e: str, s: str, p: Signed = ""):
         return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None, p)
+
+    # Субтитры площадки, переведённые в WebVTT: `<track>` другого вида не читает.
+    @router.get(PREFIX + "/subtitles")
+    async def subtitles(u: str, e: str, s: str, p: Signed = ""):
+        return await cinema.subtitles(cinema.signer.open("subtitles", u, e, s, p), p)
 
     return router

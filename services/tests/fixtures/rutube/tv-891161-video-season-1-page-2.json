@@ -1,0 +1,145 @@
+{
+ "results": [
+  {
+   "id": "cbc3bbb5ec53827738c21dce7a784da7",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-03-19/35/16/3516149ab204f4857d59a85f8e04ed3a.jpg",
+   "video_url": "https://rutube.ru/video/cbc3bbb5ec53827738c21dce7a784da7/",
+   "duration": 1448,
+   "common_subscription_product_codes": [
+    "PREMIER_RUTUBE_GAZPROM_BONUS",
+    "PREMIER_RUTUBE_START",
+    "premier-rutube-gazprom-bonus-lite",
+    "PREMIER_RUTUBE_YAPPY"
+   ],
+   "picture_url": "",
+   "author": {
+    "id": 41030503,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+    "name": "PREMIER",
+    "site_url": "https://rutube.ru/video/person/41030503/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "uma",
+   "preview_url": null,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2025-09-08T12:53:21",
+   "created_ts": "2025-03-19T15:21:17",
+   "track_id": 396716873,
+   "title": "21 серия",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 3379,
+   "publication_ts": "2025-03-19T15:22:07",
+   "description": "Возмутившись Сашиной скрытностью, папа устанавливает в общаге камеры, чтобы быть в курсе всех перипетий студенческой жиз",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/891161/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Универ | PREMIER",
+   "season": 1,
+   "episode": 21,
+   "fts": 0,
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  },
+  {
+   "id": "650849fc47750a8bfc77f1b66206f70b",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-03-19/a2/34/a234a07144becc40ee291784a36624bd.jpg",
+   "video_url": "https://rutube.ru/video/650849fc47750a8bfc77f1b66206f70b/",
+   "duration": 1439,
+   "common_subscription_product_codes": [
+    "PREMIER_RUTUBE_START",
+    "PREMIER_RUTUBE_GAZPROM_BONUS",
+    "premier-rutube-gazprom-bonus-lite",
+    "PREMIER_RUTUBE_YAPPY"
+   ],
+   "picture_url": "",
+   "author": {
+    "id": 41030503,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+    "name": "PREMIER",
+    "site_url": "https://rutube.ru/video/person/41030503/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "uma",
+   "preview_url": null,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2025-09-08T12:53:21",
+   "created_ts": "2025-03-19T15:21:32",
+   "track_id": 396716928,
+   "title": "22 серия",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 3356,
+   "publication_ts": "2025-03-19T15:22:07",
+   "description": "Саша отращивает усы, а Алла вынуждена ехать к черту на кулички на юбилей любимой бабули. Таня внезапно увлекается индийс",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/891161/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Универ | PREMIER",
+   "season": 1,
+   "episode": 22,
+   "fts": 0,
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  }
+ ],
+ "has_next": true,
+ "next": "https://rutube.ru/api/metainfo/tv/891161/video?season=1&format=json&page=3",
+ "previous": "https://rutube.ru/api/metainfo/tv/891161/video?season=1&format=json&page=1",
+ "page": 2,
+ "per_page": 20
+}

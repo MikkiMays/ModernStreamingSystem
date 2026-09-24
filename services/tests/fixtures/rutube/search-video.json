@@ -1,0 +1,264 @@
+{
+ "count": 93,
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "current_page": 1,
+ "results": [
+  {
+   "id": "c9c2bcdb48578805ae6292a593e11b73",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "title": "\"Я знаю, что он знает\". Усольцевы на связи. Пусть говорят. Выпуск от 23.09.2026",
+   "description": "В таинственном деле о сгинувшей в сибирской тайге семье Усольцевых появились новые детали. Человек, назвавший себя друго",
+   "author": {
+    "id": 23460655,
+    "name": "Первый канал",
+    "avatar_url": "https://pic.rtbcdn.ru/user/63/a2/63a2eb1886a45be2b1da64729397230c.jpg",
+    "site_url": "https://rutube.ru/video/person/23460655/"
+   },
+   "category": {
+    "id": 43,
+    "short_name": "",
+    "name": "Телепередачи",
+    "category_url": "https://rutube.ru/video/category/43/",
+    "for_kids": false
+   },
+   "hits": 13043,
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-23/4b/24/4b24c70c94a0a747aeed111b94e60b83.jpg",
+   "created_ts": "2026-09-23T21:13:54",
+   "publication_ts": "2026-09-23T21:13:55",
+   "last_update_ts": "2026-09-23T21:23:06",
+   "duration": 3606,
+   "feed_name": "Пусть говорят",
+   "feed_url": "https://rutube.ru/metainfo/tv/24003/",
+   "video_url": "https://rutube.ru/video/c9c2bcdb48578805ae6292a593e11b73/",
+   "embed_url": "https://rutube.ru/play/embed/c9c2bcdb48578805ae6292a593e11b73",
+   "is_hidden": false,
+   "is_deleted": false,
+   "is_adult": false,
+   "is_locked": false,
+   "is_audio": false,
+   "is_paid": false,
+   "is_reborn_channel": true,
+   "is_official": true,
+   "is_livestream": false,
+   "is_on_air": false,
+   "origin_type": "rtb",
+   "stream_type": null,
+   "product_id": null,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "pg_rating": {
+    "age": 0,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/b2/17/b217abba67899def0ea3c7f29a2d0cd1.png"
+   }
+  },
+  {
+   "id": "b9ad9473c8b68546ae61733fef040c95",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "title": "Малахов. Прямой эфир 11.06.2026 | Следователь вышла замуж за зэка",
+   "description": "Малахов. Прямой эфир 11.06.2026 | Следователь вышла замуж за зэка",
+   "author": {
+    "id": 64804786,
+    "name": "Технический ассистент",
+    "avatar_url": "https://static.rutubelist.ru/static/img/_thumb_default_02.png",
+    "site_url": "https://rutube.ru/video/person/64804786/"
+   },
+   "category": {
+    "id": 13,
+    "short_name": "",
+    "name": "Разное",
+    "category_url": "https://rutube.ru/video/category/13/",
+    "for_kids": false
+   },
+   "hits": 36101,
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-06-26/22/99/22993465f5fad07c84c49444293eff9a.jpg",
+   "created_ts": "2026-06-26T09:59:18",
+   "publication_ts": "2026-06-26T10:01:55",
+   "last_update_ts": "2026-06-26T10:02:09",
+   "duration": 3874,
+   "feed_name": "Технический ассистент",
+   "feed_url": "https://rutube.ru/video/person/64804786/",
+   "video_url": "https://rutube.ru/video/b9ad9473c8b68546ae61733fef040c95/",
+   "embed_url": "https://rutube.ru/play/embed/b9ad9473c8b68546ae61733fef040c95",
+   "is_hidden": false,
+   "is_deleted": false,
+   "is_adult": false,
+   "is_locked": false,
+   "is_audio": false,
+   "is_paid": false,
+   "is_reborn_channel": false,
+   "is_official": false,
+   "is_livestream": false,
+   "is_on_air": false,
+   "origin_type": "rtb",
+   "stream_type": null,
+   "product_id": null,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   }
+  },
+  {
+   "id": "aff0a2b356d2e1eef55bdb868be4dcc3",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "title": "Прямой эфир телеканала 41 РЕГИОН",
+   "description": "Новости Камчатки, оперативная информация, аналитика",
+   "author": {
+    "id": 23499883,
+    "name": "Прямой эфир телеканала 41 РЕГИОН",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-09-03/a3/3c/a33cd3c9ae10333ee84e6eebd1d5cd8f.jpg",
+    "site_url": "https://rutube.ru/video/person/23499883/"
+   },
+   "category": {
+    "id": 43,
+    "short_name": "",
+    "name": "Телепередачи",
+    "category_url": "https://rutube.ru/video/category/43/",
+    "for_kids": false
+   },
+   "hits": 1195325,
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-09-03/23/74/2374465fa8b6e0bc1f9fc4301b77d709.jpg",
+   "created_ts": "2021-04-27T10:23:08",
+   "publication_ts": "2021-04-27T11:03:00",
+   "last_update_ts": "2025-09-03T10:31:06",
+   "duration": 0,
+   "feed_name": "Прямой эфир телеканала 41 РЕГИОН",
+   "feed_url": "https://rutube.ru/video/person/23499883/",
+   "video_url": "https://rutube.ru/video/aff0a2b356d2e1eef55bdb868be4dcc3/",
+   "embed_url": "https://rutube.ru/play/embed/aff0a2b356d2e1eef55bdb868be4dcc3",
+   "is_hidden": false,
+   "is_deleted": false,
+   "is_adult": false,
+   "is_locked": false,
+   "is_audio": false,
+   "is_paid": false,
+   "is_reborn_channel": false,
+   "is_official": false,
+   "is_livestream": true,
+   "is_on_air": true,
+   "origin_type": "rst",
+   "stream_type": "broadcast",
+   "product_id": null,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   }
+  },
+  {
+   "id": "1d0d9328688aa6a40396f1f8f8fca5a4",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "title": "Салли Райски прямой эфир 22.09.2026",
+   "description": "",
+   "author": {
+    "id": 76463849,
+    "name": "Салли Райски - Борьба Zа ПраVду",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2026-06-14/72/ff/72ffcbcb4d9758b8189b4e992a0d082a.jpg",
+    "site_url": "https://rutube.ru/video/person/76463849/"
+   },
+   "category": {
+    "id": 8,
+    "short_name": "",
+    "name": "Новости и СМИ",
+    "category_url": "https://rutube.ru/video/category/8/",
+    "for_kids": false
+   },
+   "hits": 79,
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-23/ea/b5/eab544970107d5cbec7cb844a52b2ec4.jpg",
+   "created_ts": "2026-09-23T10:34:21",
+   "publication_ts": "2026-09-23T11:18:19",
+   "last_update_ts": "2026-09-23T12:21:46",
+   "duration": 17996,
+   "feed_name": "Салли Райски - Борьба Zа ПраVду",
+   "feed_url": "https://rutube.ru/video/person/76463849/",
+   "video_url": "https://rutube.ru/video/1d0d9328688aa6a40396f1f8f8fca5a4/",
+   "embed_url": "https://rutube.ru/play/embed/1d0d9328688aa6a40396f1f8f8fca5a4",
+   "is_hidden": false,
+   "is_deleted": false,
+   "is_adult": true,
+   "is_locked": false,
+   "is_audio": false,
+   "is_paid": false,
+   "is_reborn_channel": false,
+   "is_official": false,
+   "is_livestream": false,
+   "is_on_air": false,
+   "origin_type": "rtb",
+   "stream_type": null,
+   "product_id": null,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "pg_rating": {
+    "age": 18,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/8c/37/8c37c740367ef785ae1693da1fa4e449.png"
+   }
+  },
+  {
+   "id": "c58f502c7bb34a8fcdd976b221fca292",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "title": "Прямой эфир Первый канал",
+   "description": "",
+   "author": {
+    "id": 23460655,
+    "name": "Первый канал",
+    "avatar_url": "https://pic.rtbcdn.ru/user/63/a2/63a2eb1886a45be2b1da64729397230c.jpg",
+    "site_url": "https://rutube.ru/video/person/23460655/"
+   },
+   "category": {
+    "id": 43,
+    "short_name": "",
+    "name": "Телепередачи",
+    "category_url": "https://rutube.ru/video/category/43/",
+    "for_kids": false
+   },
+   "hits": 165305722,
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-09-21/24/95/2495f5c3038d85c003c2c5a69f874407.jpg",
+   "created_ts": "2022-05-19T15:09:28",
+   "publication_ts": "2022-05-19T15:11:57",
+   "last_update_ts": "2026-07-08T14:26:56",
+   "duration": 0,
+   "feed_name": "Первый канал",
+   "feed_url": "https://rutube.ru/video/person/23460655/",
+   "video_url": "https://rutube.ru/video/c58f502c7bb34a8fcdd976b221fca292/",
+   "embed_url": "https://rutube.ru/play/embed/c58f502c7bb34a8fcdd976b221fca292",
+   "is_hidden": false,
+   "is_deleted": false,
+   "is_adult": false,
+   "is_locked": false,
+   "is_audio": false,
+   "is_paid": false,
+   "is_reborn_channel": true,
+   "is_official": true,
+   "is_livestream": true,
+   "is_on_air": true,
+   "origin_type": "rst",
+   "stream_type": "broadcast",
+   "product_id": null,
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   }
+  }
+ ]
+}

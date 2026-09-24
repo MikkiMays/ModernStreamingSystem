@@ -1,0 +1,81 @@
+{
+ "count": 3,
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "current_page": 1,
+ "results": [
+  {
+   "id": 891161,
+   "name": "Универ | PREMIER",
+   "description": "Их пятеро. Они живут в соседних комнатах университетской общаги, у них общая кухня, туалет и ванная. Им ничего не остает",
+   "can_subscribe": true,
+   "type": {
+    "id": 3,
+    "name": "series",
+    "title": "Сериал"
+   },
+   "picture": "https://pic.rtbcdn.ru/tv/2025-03-21/60/81/60818d5aa841607bb143c9c364d04fb2.jpg",
+   "absolute_url": "https://rutube.ru/metainfo/tv/891161/",
+   "icon": "https://pic.rtbcdn.ru/tv/2025-03-21/90/b8/90b81fe0cdd0b65f75ecd3dd2774262d.jpg",
+   "content": "https://rutube.ru/api/metainfo/tv/891161/video",
+   "view_url": "https://rutube.ru/api/feeds/19900",
+   "subscription_url": "https://rutube.ru/api/subscription/card/tv/891161",
+   "video_count": 255,
+   "subscribers_count": 3956,
+   "user_channel_image": "https://pic.rtbcdn.ru/tv/2025-03-21/19/a2/19a2ede06a87e7d1f4a73bb92541f2f1.jpg?size=w306",
+   "is_official": false,
+   "is_original_content": false,
+   "is_reborn_channel": false,
+   "is_original_sticker_2x2": false
+  },
+  {
+   "id": 891163,
+   "name": "Универ. Новая общага | PREMIER",
+   "description": "Ребята стали старше и романтичнее. Теперь им хочется не только секса и тусовок, но и настоящих чувств. Однако вызвать вз",
+   "can_subscribe": true,
+   "type": {
+    "id": 3,
+    "name": "series",
+    "title": "Сериал"
+   },
+   "picture": "https://pic.rtbcdn.ru/tv/2025-03-21/d3/c5/d3c5612a0908f9ff59e588f6b3b40491.jpg",
+   "absolute_url": "https://rutube.ru/metainfo/tv/891163/",
+   "icon": "https://pic.rtbcdn.ru/tv/2025-03-21/13/e6/13e6ef6579e9562c6ffaef9b2b940700.jpg",
+   "content": "https://rutube.ru/api/metainfo/tv/891163/video",
+   "view_url": "https://rutube.ru/api/feeds/19901",
+   "subscription_url": "https://rutube.ru/api/subscription/card/tv/891163",
+   "video_count": 298,
+   "subscribers_count": 14323,
+   "user_channel_image": "https://pic.rtbcdn.ru/tv/2025-03-21/2a/f7/2af7e88b3eec0c297ca92611d9ee5d4e.jpg?size=w306",
+   "is_official": false,
+   "is_original_content": false,
+   "is_reborn_channel": false,
+   "is_original_sticker_2x2": false
+  },
+  {
+   "id": 23463954,
+   "name": "Телеканал ТНТ",
+   "description": "Официальный аккаунт телеканала ТНТ\nРегистрация в РКН: https://www.gosuslugi.ru/snet/67ad40513687544fb531d928",
+   "can_subscribe": true,
+   "type": {
+    "id": 145,
+    "name": "userchannel",
+    "title": "Канал пользователя"
+   },
+   "picture": "https://pic.rtbcdn.ru/userappearance/83/eb/83ebda9550c5e0b00531e50f1c15b597.jpg",
+   "absolute_url": "https://rutube.ru/video/person/23463954/",
+   "icon": "https://pic.rtbcdn.ru/user/7b/0e/7b0eff0bb0664dd72c544191a27bc615.jpg",
+   "content": "https://rutube.ru/api/video/person/23463954/",
+   "view_url": "https://rutube.ru/api/video/person/23463954/",
+   "subscription_url": "https://rutube.ru/api/subscription/card/userchannel/23463954",
+   "video_count": 64191,
+   "subscribers_count": 1483976,
+   "user_channel_image": "https://pic.rtbcdn.ru/userappearance/ab/ed/abedb24aa75ff3828f6f6a3808774e25.jpeg?size=w306",
+   "is_official": true,
+   "is_original_content": false,
+   "is_reborn_channel": false,
+   "is_original_sticker_2x2": false
+  }
+ ]
+}

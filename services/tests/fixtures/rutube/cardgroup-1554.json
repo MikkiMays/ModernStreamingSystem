@@ -1,0 +1,153 @@
+{
+ "has_next": true,
+ "next": "https://rutube.ru/api/feeds/cardgroup/1554?limit=20&page=2&show_hidden_videos=False",
+ "previous": null,
+ "page": 1,
+ "per_page": 20,
+ "results": [
+  {
+   "id": 75659,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 1790591,
+   "object": {
+    "id": 1790591,
+    "name": "Уравнение с неизвестными. Химия убийства (ТВ, 2020)",
+    "description": "Герои наших историй - учительница математики, Кира Успенская и опер, Игорь Болдин (по кличке Марадона). Так уж получилос",
+    "can_subscribe": true,
+    "type": {
+     "id": 9,
+     "name": "playlist_series",
+     "title": "Сериал из плейлиста"
+    },
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-23/d6/20/d620528cd7da782c669357c00741fa21.jpg",
+    "absolute_url": "https://rutube.ru/plst/1790591",
+    "icon": "",
+    "content": "https://rutube.ru/api/metainfo/tv/1790591/video/",
+    "view_url": "https://rutube.ru/api/feeds/26598",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/1790591",
+    "user_channel_image": "https://pic.rtbcdn.ru/playlist/2026/09/07/43/c9/73365347-aac0-11f1-b5cd-8efd68317f8c.jpg?size=w306",
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 2,
+    "general_trailer": null,
+    "countries": [],
+    "genres": [],
+    "subscribers_count": 4,
+    "is_official": null,
+    "original_title": "",
+    "age": "16+",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": null,
+    "year_start": "",
+    "last_updated_ts": "2026-09-04T17:34:19",
+    "product": null
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-09-04T17:34:19"
+  },
+  {
+   "id": 75655,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 1610795,
+   "object": {
+    "id": 1610795,
+    "name": "Типа счастье (сериал 2015) - все серии подряд / HAPPYish",
+    "description": "В культуре, которая чтит молодое поколение, Тому необходимо выяснить, что же является его целью теперь, когда он находит",
+    "can_subscribe": true,
+    "type": {
+     "id": 9,
+     "name": "playlist_series",
+     "title": "Сериал из плейлиста"
+    },
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-22/ba/ca/baca3c612978a558a74959a3a149bea7.jpg",
+    "absolute_url": "https://rutube.ru/plst/1610795",
+    "icon": "",
+    "content": "https://rutube.ru/api/metainfo/tv/1610795/video/",
+    "view_url": "https://rutube.ru/api/feeds/26819",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/1610795",
+    "user_channel_image": "https://pic.rtbcdn.ru/playlist/2026/04/29/b8/4b/e962ba92-437e-11f1-a0b4-aab074df4c18.jpg?size=w306",
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 10,
+    "general_trailer": null,
+    "countries": [],
+    "genres": [],
+    "subscribers_count": 1,
+    "is_official": null,
+    "original_title": "",
+    "age": "",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": null,
+    "year_start": "",
+    "last_updated_ts": "2026-04-29T12:38:28",
+    "product": null
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-04-29T12:38:28"
+  },
+  {
+   "id": 75658,
+   "content_type": {
+    "id": 42,
+    "app_label": "metainfo",
+    "model": "tv"
+   },
+   "object_id": 1777502,
+   "object": {
+    "id": 1777502,
+    "name": "Я убила своего мужа / J'ai tué mon mari",
+    "description": "Анна признается в убийстве своего жестокого мужа, впрочем, тело так нигде и не смогли найти. В день суда женщина узнает,",
+    "can_subscribe": true,
+    "type": {
+     "id": 9,
+     "name": "playlist_series",
+     "title": "Сериал из плейлиста"
+    },
+    "picture": "https://pic.rtbcdn.ru/tv/2026-09-23/8b/71/8b71674cdbb1f4da3932195ed1468a65.jpg",
+    "absolute_url": "https://rutube.ru/plst/1777502",
+    "icon": "",
+    "content": "https://rutube.ru/api/metainfo/tv/1777502/video/",
+    "view_url": "https://rutube.ru/api/feeds/26841",
+    "subscription_url": "https://rutube.ru/api/subscription/card/tv/1777502",
+    "user_channel_image": null,
+    "is_original_content": false,
+    "is_original_sticker_2x2": false,
+    "is_reborn_channel": false,
+    "common_subscription_product_codes": [],
+    "video_count": 6,
+    "general_trailer": null,
+    "countries": [],
+    "genres": [],
+    "subscribers_count": 3,
+    "is_official": null,
+    "original_title": "",
+    "age": "",
+    "show_age": true,
+    "is_paid": false,
+    "images": [],
+    "poster_url": null,
+    "year_start": "",
+    "last_updated_ts": "2026-08-25T15:31:57",
+    "product": null
+   },
+   "is_adult": false,
+   "last_updated_ts": "2026-08-25T15:31:57"
+  }
+ ]
+}

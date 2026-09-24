@@ -1,0 +1,180 @@
+{
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "page": 1,
+ "per_page": 100,
+ "results": [
+  {
+   "id": "5ab908fccfac5bb43ef2b1e4182256b0",
+   "title": "Прямой эфир Звезда",
+   "description": "Телеканал «Звезда» - это самые актуальные новости в России и в мире, документальные фильмы о самых заметных событиях сов",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/6b/6b/6b6be08b028b7698add5ded5887bda22.jpg",
+   "video_url": "https://rutube.ru/video/5ab908fccfac5bb43ef2b1e4182256b0/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2020-10-27T15:47:28",
+   "track_id": 13238554,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2025-09-01T19:17:28",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 12050,
+    "name": "ТЕЛЕКАНАЛ ЗВЕЗДА",
+    "avatar_url": "https://pic.rtbcdn.ru/user/b1/98/b1983851416b1ac8d09cb5f82fd0e0cc.jpeg",
+    "site_url": "https://rutube.ru/video/person/12050/",
+    "is_allowed_offline": false
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2025-08-31T23:42:17",
+   "hits": 99139776,
+   "embed_url": "https://rutube.ru/play/embed/5ab908fccfac5bb43ef2b1e4182256b0",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/metainfo/tv/24022/",
+   "feed_name": "Прямой эфир Звезда",
+   "is_official": true,
+   "is_licensed": true,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  },
+  {
+   "id": "2bbfa9ebf9d79ade480d7281fcef1008",
+   "title": "Прямой эфир СПАС",
+   "description": "СПАС. Просто о главном. \r\n\r\nМы ищем Бога. В истории и в сегодняшних новостях. В судьбах святых и простых людей. В многод",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/bf/51/bf513262303215470fac8c043a8f2008.jpg",
+   "video_url": "https://rutube.ru/video/2bbfa9ebf9d79ade480d7281fcef1008/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2022-03-03T18:20:57",
+   "track_id": 14846667,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2026-07-08T14:28:16",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 23868813,
+    "name": "Телеканал СПАС",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-08-26/9b/d9/9bd9372e6d0f3a93cc41df3660133ad2.jpg",
+    "site_url": "https://rutube.ru/video/person/23868813/",
+    "is_allowed_offline": false
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2022-03-03T18:22:16",
+   "hits": 15428304,
+   "embed_url": "https://rutube.ru/play/embed/2bbfa9ebf9d79ade480d7281fcef1008",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/23868813/",
+   "feed_name": "Телеканал СПАС",
+   "is_official": true,
+   "is_licensed": true,
+   "is_reborn_channel": true,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  },
+  {
+   "id": "67938d3536450ae8d10f12acee7ffde6",
+   "title": "Прямой эфир РЕН ТВ",
+   "description": "",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-07-07/32/87/3287686195a6bb3e0f0308ef4f84148e.jpg",
+   "video_url": "https://rutube.ru/video/67938d3536450ae8d10f12acee7ffde6/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2026-07-07T12:01:47",
+   "track_id": 460583464,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2026-07-17T12:03:38",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 23460736,
+    "name": "РЕН ТВ",
+    "avatar_url": "https://pic.rtbcdn.ru/user/a4/58/a458f9df89993ec2b63b91c1b36dad14.png",
+    "site_url": "https://rutube.ru/video/person/23460736/",
+    "is_allowed_offline": false
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-07-07T13:26:42",
+   "hits": 6405646,
+   "embed_url": "https://rutube.ru/play/embed/67938d3536450ae8d10f12acee7ffde6",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/23460736/",
+   "feed_name": "РЕН ТВ",
+   "is_official": true,
+   "is_licensed": true,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  }
+ ]
+}

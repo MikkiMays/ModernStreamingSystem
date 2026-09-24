@@ -1,0 +1,22 @@
+[
+ {
+  "number": 1,
+  "url": "https://rutube.ru/api/metainfo/tv/891161/video?season=1&show_all=1",
+  "lightweight_url": "https://rutube.ru/api/playlist/tv/891161/season/1"
+ },
+ {
+  "number": 2,
+  "url": "https://rutube.ru/api/metainfo/tv/891161/video?season=2&show_all=1",
+  "lightweight_url": "https://rutube.ru/api/playlist/tv/891161/season/2"
+ },
+ {
+  "number": 3,
+  "url": "https://rutube.ru/api/metainfo/tv/891161/video?season=3&show_all=1",
+  "lightweight_url": "https://rutube.ru/api/playlist/tv/891161/season/3"
+ },
+ {
+  "number": 4,
+  "url": "https://rutube.ru/api/metainfo/tv/891161/video?season=4&show_all=1",
+  "lightweight_url": "https://rutube.ru/api/playlist/tv/891161/season/4"
+ }
+]

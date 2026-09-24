@@ -25,7 +25,8 @@ SIGNATURE_TTL = 5 * 3600
 
 # Маршруты, на которые выдаётся подпись. У каждого своя: ссылка картинки живёт сутки, и если бы
 # её подпись годилась для `/fetch`, любой участник получал бы суточный пропуск к потоку.
-ROUTES = frozenset({"playlist", "fetch", "image"})
+# `subtitles` — файл субтитров, который по дороге становится WebVTT (`captions.webvtt`).
+ROUTES = frozenset({"playlist", "fetch", "image", "subtitles"})
 
 
 def allowed(url: str, hosts: HostPolicy | None) -> bool:

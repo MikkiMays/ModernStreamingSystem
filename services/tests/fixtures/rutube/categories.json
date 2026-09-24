@@ -1,0 +1,422 @@
+[
+ {
+  "id": 78,
+  "category_url": "https://rutube.ru/video/category/78/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:06.685739",
+  "name": "Обзоры и распаковки товаров",
+  "short_name": "goods",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 73,
+  "category_url": "https://rutube.ru/video/category/73/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:11.508822",
+  "name": "Лайфстайл",
+  "short_name": "lifestyle",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 72,
+  "category_url": "https://rutube.ru/video/category/72/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:15.510937",
+  "name": "Недвижимость",
+  "short_name": "property",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 71,
+  "category_url": "https://rutube.ru/video/category/71/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:19.406172",
+  "name": "Здоровье",
+  "short_name": "health",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 70,
+  "category_url": "https://rutube.ru/video/category/70/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:22.929321",
+  "name": "Природа",
+  "short_name": "nature",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 69,
+  "category_url": "https://rutube.ru/video/category/69/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:28.475036",
+  "name": "Дизайн",
+  "short_name": "design",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 68,
+  "category_url": "https://rutube.ru/video/category/68/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:31.288553",
+  "name": "Техника и оборудование",
+  "short_name": "technics",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 67,
+  "category_url": "https://rutube.ru/video/category/67/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:36.064816",
+  "name": "Бизнес и предпринимательство",
+  "short_name": "business",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 64,
+  "category_url": "https://rutube.ru/video/category/64/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:39.485679",
+  "name": "Культура",
+  "short_name": "art",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 63,
+  "category_url": "https://rutube.ru/video/category/63/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:02:58.757142",
+  "name": "Религия",
+  "short_name": "religion",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 62,
+  "category_url": "https://rutube.ru/video/category/62/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:03:04.319711",
+  "name": "Строительство и ремонт",
+  "short_name": "repairs",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 61,
+  "category_url": "https://rutube.ru/video/category/61/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:03:07.385881",
+  "name": "Сад и огород",
+  "short_name": "garden",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 60,
+  "category_url": "https://rutube.ru/video/category/60/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:03:15.644488",
+  "name": "Аудиокниги",
+  "short_name": "audiobooks",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 59,
+  "category_url": "https://rutube.ru/video/category/59/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-10-06T09:24:05.271653",
+  "name": "Еда",
+  "short_name": "recipe",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 58,
+  "category_url": "https://rutube.ru/video/category/58/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:03:23.933756",
+  "name": "Интервью",
+  "short_name": "interview",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 57,
+  "category_url": "https://rutube.ru/video/category/57/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-06-21T21:55:22.997650",
+  "name": "Развлечения",
+  "short_name": "entertainment",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 55,
+  "category_url": "https://rutube.ru/video/category/55/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:03:45.324851",
+  "name": "Лайфхаки",
+  "short_name": "lifehack",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 54,
+  "category_url": "https://rutube.ru/video/category/54/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:10.860008",
+  "name": "Эзотерика",
+  "short_name": "esoterics",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 53,
+  "category_url": "https://rutube.ru/video/category/53/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:18.697747",
+  "name": "Охота и рыбалка",
+  "short_name": "fishing",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 52,
+  "category_url": "https://rutube.ru/video/category/52/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:23.387142",
+  "name": "Наука",
+  "short_name": "science",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 51,
+  "category_url": "https://rutube.ru/video/category/51/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-06-26T16:50:33.482390",
+  "name": "Политика",
+  "short_name": "politics",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 50,
+  "category_url": "https://rutube.ru/video/category/50/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-06-26T16:50:40.607245",
+  "name": "Психология",
+  "short_name": "psychology",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 48,
+  "category_url": "https://rutube.ru/video/category/48/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:51.957281",
+  "name": "Аудио",
+  "short_name": "audio",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 45,
+  "category_url": "https://rutube.ru/video/category/45/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:54.791632",
+  "name": "Технологии и интернет",
+  "short_name": "technologies",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 44,
+  "category_url": "https://rutube.ru/video/category/44/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:04:57.452691",
+  "name": "Красота",
+  "short_name": "beauty",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 43,
+  "category_url": "https://rutube.ru/video/category/43/?format=json",
+  "related_showcase": "https://rutube.ru/api/feeds/tv/?format=json",
+  "update_ts": "2026-03-11T17:22:14.693236",
+  "name": "Телепередачи",
+  "short_name": "tv",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 42,
+  "category_url": "https://rutube.ru/video/category/42/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:05:11.439090",
+  "name": "Детям",
+  "short_name": "cartoons-kids",
+  "for_kids": true,
+  "for_import": true
+ },
+ {
+  "id": 41,
+  "category_url": "https://rutube.ru/video/category/41/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:05:15.493837",
+  "name": "Аниме",
+  "short_name": "cartoons-anime",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 35,
+  "category_url": "https://rutube.ru/video/category/35/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:05:24.220017",
+  "name": "Хобби",
+  "short_name": "hobby",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 22,
+  "category_url": "https://rutube.ru/video/category/22/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-10-05T22:47:57.898878",
+  "name": "Видеоигры",
+  "short_name": "games",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 19,
+  "category_url": "https://rutube.ru/video/category/19/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:05:31.630022",
+  "name": "Юмор",
+  "short_name": "umor",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 17,
+  "category_url": "https://rutube.ru/video/category/17/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-10-05T10:30:05.681169",
+  "name": "Обучение",
+  "short_name": "education",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 16,
+  "category_url": "https://rutube.ru/video/category/16/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:10.714911",
+  "name": "Спорт",
+  "short_name": "sport",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 13,
+  "category_url": "https://rutube.ru/video/category/13/?format=json",
+  "related_showcase": null,
+  "update_ts": "2026-02-18T12:55:19.560455",
+  "name": "Разное",
+  "short_name": "different",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 11,
+  "category_url": "https://rutube.ru/video/category/11/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:16.903168",
+  "name": "Путешествия",
+  "short_name": "travel",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 10,
+  "category_url": "https://rutube.ru/video/category/10/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:26.306898",
+  "name": "Животные",
+  "short_name": "animals",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 8,
+  "category_url": "https://rutube.ru/video/category/8/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:31.089947",
+  "name": "Новости и СМИ",
+  "short_name": "news",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 7,
+  "category_url": "https://rutube.ru/video/category/7/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:34.491551",
+  "name": "Мультфильмы",
+  "short_name": "cartoons",
+  "for_kids": true,
+  "for_import": true
+ },
+ {
+  "id": 6,
+  "category_url": "https://rutube.ru/video/category/6/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:37.561777",
+  "name": "Музыка",
+  "short_name": "music",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 5,
+  "category_url": "https://rutube.ru/video/category/5/?format=json",
+  "related_showcase": null,
+  "update_ts": "2025-05-05T00:06:41.335876",
+  "name": "Сериалы",
+  "short_name": "series",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 4,
+  "category_url": "https://rutube.ru/video/category/4/?format=json",
+  "related_showcase": null,
+  "update_ts": "2026-01-23T13:30:53.431324",
+  "name": "Фильмы",
+  "short_name": "kino",
+  "for_kids": false,
+  "for_import": true
+ },
+ {
+  "id": 2,
+  "category_url": "https://rutube.ru/video/category/2/?format=json",
+  "related_showcase": null,
+  "update_ts": "2026-01-21T16:38:58.013027",
+  "name": "Авто-мото",
+  "short_name": "auto",
+  "for_kids": false,
+  "for_import": true
+ }
+]

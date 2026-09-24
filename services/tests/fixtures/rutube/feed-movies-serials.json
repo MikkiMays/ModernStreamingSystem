@@ -1,0 +1,305 @@
+{
+ "id": 21818,
+ "slug": "movies-serials",
+ "name": "Кино и сериалы",
+ "name_displayed": true,
+ "description": "",
+ "is_published": true,
+ "counter_label": "",
+ "ab_test_code": "",
+ "created_ts": "2025-06-17T14:54:13",
+ "allow_popup": false,
+ "show_sharing_card": false,
+ "url": "https://rutube.ru/feeds/movies-serials/",
+ "tabs": [
+  {
+   "id": 36141,
+   "name": "Главная",
+   "sort": "original",
+   "order_number": 1,
+   "resources": [
+    {
+     "id": 82743,
+     "created_ts": "2026-07-15T14:42:18",
+     "content_type": {
+      "id": 135,
+      "app_label": "showcase",
+      "model": "feedsource"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "for-you-movies",
+     "order_number": 2,
+     "url": "https://rutube.ru/api/v2/video/recommendation/main/kino?type=tag&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "authorized": false,
+      "unauthorized_stub": null,
+      "empty_stub": null,
+      "type": "tag",
+      "name": "Для вас",
+      "link": 0
+     },
+     "name": "Для вас",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Для вас - кино и сериалы",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 82744,
+     "created_ts": "2026-07-15T14:42:18",
+     "content_type": {
+      "id": 575,
+      "app_label": "showcase",
+      "model": "brandselection"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "6",
+     "order_number": 3,
+     "url": "https://rutube.ru/api/v2/video/recommendation/main/top_serial?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "name": "Топ сериалов",
+      "link": "/feeds/top-serials/"
+     },
+     "name": "Топ сериалов",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/feeds/top-serials/",
+     "playlist_name": null,
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": true,
+     "branding_selection": {
+      "title": "Топ сериалов",
+      "title_color": "#FFFFFF",
+      "logo": null,
+      "image": null,
+      "widget_type": "top",
+      "meta_color": "#FFFFFF",
+      "videos_title_color": "#FFFFFF",
+      "title_icon_url": "https://pic.rtbcdn.ru/brandselection/2026-07-10/60/0b/600b167e7aa8ce7bab565d286e579304.png"
+     }
+    },
+    {
+     "id": 85174,
+     "created_ts": "2026-09-10T13:15:37",
+     "content_type": {
+      "id": 135,
+      "app_label": "showcase",
+      "model": "feedsource"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "top_serials",
+     "order_number": 3,
+     "url": "https://rutube.ru/api/v2/video/recommendation/main/top_serial?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "authorized": false,
+      "unauthorized_stub": null,
+      "empty_stub": null,
+      "name": "Топ сериалов",
+      "link": "/feeds/top-serials/"
+     },
+     "name": "Топ сериалов",
+     "inline_widget": true,
+     "site_url": "https://rutube.ru/feeds/top-serials/",
+     "playlist_name": "Рекомы топ сериалы",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 79189,
+     "created_ts": "2026-03-12T15:02:41",
+     "content_type": {
+      "id": 345,
+      "app_label": "showcase",
+      "model": "subscriptiontvseries"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1872",
+     "order_number": 4,
+     "url": "https://rutube.ru/api/feeds/cardgroup/1872?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "name": "Премьеры и продолжения",
+      "link": 0
+     },
+     "name": "Премьеры и продолжения",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Сериалы новинки 2026",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": null,
+   "slug": "main",
+   "hide_tags": false,
+   "hide_authors": false,
+   "url": "https://rutube.ru/feeds/movies-serials/main/",
+   "brandings": [],
+   "images": []
+  },
+  {
+   "id": 41886,
+   "name": "Сериалы",
+   "sort": "original",
+   "order_number": 8,
+   "resources": [
+    {
+     "id": 82726,
+     "created_ts": "2026-07-15T14:10:56",
+     "content_type": {
+      "id": 575,
+      "app_label": "showcase",
+      "model": "brandselection"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "6",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/v2/video/recommendation/main/top_serial?type=tag&show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "type": "tag",
+      "name": "Топ сериалов",
+      "link": 0
+     },
+     "name": "Топ сериалов",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": null,
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": {
+      "title": "Топ сериалов",
+      "title_color": "#FFFFFF",
+      "logo": null,
+      "image": null,
+      "widget_type": "top",
+      "meta_color": "#FFFFFF",
+      "videos_title_color": "#FFFFFF",
+      "title_icon_url": "https://pic.rtbcdn.ru/brandselection/2026-07-10/60/0b/600b167e7aa8ce7bab565d286e579304.png"
+     }
+    },
+    {
+     "id": 85179,
+     "created_ts": "2026-09-10T13:22:59",
+     "content_type": {
+      "id": 135,
+      "app_label": "showcase",
+      "model": "feedsource"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "top_serials",
+     "order_number": 1,
+     "url": "https://rutube.ru/api/v2/video/recommendation/main/top_serial?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "authorized": false,
+      "unauthorized_stub": null,
+      "empty_stub": null,
+      "name": "Топ сериалов",
+      "link": 0
+     },
+     "name": "Топ сериалов",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Рекомы топ сериалы",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 79227,
+     "created_ts": "2026-03-13T11:32:37",
+     "content_type": {
+      "id": 345,
+      "app_label": "showcase",
+      "model": "subscriptiontvseries"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1554",
+     "order_number": 5,
+     "url": "https://rutube.ru/api/feeds/cardgroup/1554?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "name": "Рекомендуем",
+      "link": 0
+     },
+     "name": "Рекомендуем",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "РЕКОМЕНДУЕМ СЕРИАЛЫ (с тортугой)",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    },
+    {
+     "id": 79228,
+     "created_ts": "2026-03-13T11:32:37",
+     "content_type": {
+      "id": 345,
+      "app_label": "showcase",
+      "model": "subscriptiontvseries"
+     },
+     "description": "",
+     "images": [],
+     "object_id": "1872",
+     "order_number": 10,
+     "url": "https://rutube.ru/api/feeds/cardgroup/1872?show_hidden_videos=False&limit=20",
+     "extra_params": {
+      "name": "Премьеры и продолжения",
+      "link": 0
+     },
+     "name": "Премьеры и продолжения",
+     "inline_widget": true,
+     "site_url": null,
+     "playlist_name": "Сериалы новинки 2026",
+     "can_subscribe": false,
+     "subscribers_count": null,
+     "is_hiddable": false,
+     "movie_check": false,
+     "branding_selection": null
+    }
+   ],
+   "link": null,
+   "slug": "serials",
+   "hide_tags": false,
+   "hide_authors": false,
+   "url": "https://rutube.ru/feeds/movies-serials/serials/",
+   "brandings": [],
+   "images": []
+  }
+ ],
+ "related_tv": null,
+ "related_person": null,
+ "product": null,
+ "main_trailer": null,
+ "poster_picture": "",
+ "image": "",
+ "site_part": 2,
+ "logo": null,
+ "logo_light": null,
+ "additional_info": "",
+ "additional_info_link": {
+  "name": "",
+  "url": ""
+ }
+}

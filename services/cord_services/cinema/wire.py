@@ -101,6 +101,8 @@ class Details(TypedDict):
     category: str | None
     description: str
     poster: str | None
+    # Сериал, к которому относится серия, — только у площадок, которые это знают (Rutube).
+    series: NotRequired[str]
 
 
 class ChannelDetails(ChannelHead):
@@ -126,6 +128,8 @@ class Page(TypedDict):
 class SearchPage(Page):
     channels: list[Card]
     categories: list[CategoryCard]
+    # Полка сериалов и шоу над лентой — только у площадок, где сериал есть отдельной страницей.
+    series: NotRequired[list[Card]]
 
 
 class ChannelPage(Page):
@@ -138,6 +142,31 @@ class PlaylistPage(Page):
 
 class CategoryPage(Page):
     category: CategoryCard
+
+
+class Season(TypedDict):
+    """Сезон сериала: чем его спросить (`id`) и как его назвать на вкладке."""
+
+    id: str
+    title: str
+
+
+class SeriesHead(TypedDict):
+    """Шапка страницы сериала: постер, имя, год, описание и сезоны."""
+
+    id: str
+    title: str
+    poster: str | None
+    description: str
+    year: int | None
+    seasons: list[Season]
+
+
+class SeriesPage(Page):
+    """Страница сериала: шапка и серии открытого сезона (`None` — сезонов у сериала нет)."""
+
+    series: SeriesHead
+    season: str | None
 
 
 class Caption(TypedDict):
@@ -328,8 +357,9 @@ def details(
     category: str | None = None,
     description: str = "",
     poster: str | None = None,
+    series: str = _ABSENT,
 ) -> Details:
-    return {
+    built: dict[str, Any] = {
         "provider": provider,
         "kind": kind,
         "id": id,
@@ -346,6 +376,30 @@ def details(
         "category": category,
         "description": description,
         "poster": poster,
+    }
+    # Ключ новый и есть не у всех: у YouTube и Twitch страница ролика — прежние шестнадцать.
+    if series is not _ABSENT:
+        built["series"] = series
+    return cast(Details, built)
+
+
+def series_head(
+    id: str,
+    title: str,
+    /,
+    *,
+    poster: str | None = None,
+    description: str = "",
+    year: int | None = None,
+    seasons: list[Season] | None = None,
+) -> SeriesHead:
+    return {
+        "id": id,
+        "title": title,
+        "poster": poster,
+        "description": description,
+        "year": year,
+        "seasons": list(seasons or []),
     }
 
 

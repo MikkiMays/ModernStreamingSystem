@@ -1,0 +1,10 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:RESOLUTION=640x360,CODECS="avc1.64001f,mp4a.40.2",BANDWIDTH=1000000
+https://salam-de-rasc-87.rtbcdn.ru/dive/river-6-604.rtbcdn.ru/1imECGfmZvBEm6Ser6jLuA/stream/genetta-319.m9.rutube.ru/nvxk58U6UNhrEwme9E9LtQ/1790853655/c58f502c7bb34a8fcdd976b221fca292/360p_stream.m3u8
+#EXT-X-STREAM-INF:RESOLUTION=640x360,CODECS="avc1.64001f,mp4a.40.2",BANDWIDTH=1000000
+https://river-1.rutube.ru/stream/genetta-319.m9.rutube.ru/1imECGfmZvBEm6Ser6jLuA/1790853655/c58f502c7bb34a8fcdd976b221fca292/360p_stream.m3u8
+#EXT-X-STREAM-INF:RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2",BANDWIDTH=4000000
+https://salam-de-rasc-87.rtbcdn.ru/dive/river-6-604.rtbcdn.ru/1imECGfmZvBEm6Ser6jLuA/stream/genetta-319.m9.rutube.ru/nvxk58U6UNhrEwme9E9LtQ/1790853655/c58f502c7bb34a8fcdd976b221fca292/720p_stream.m3u8
+#EXT-X-STREAM-INF:RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2",BANDWIDTH=4000000
+https://river-1.rutube.ru/stream/genetta-319.m9.rutube.ru/1imECGfmZvBEm6Ser6jLuA/1790853655/c58f502c7bb34a8fcdd976b221fca292/720p_stream.m3u8

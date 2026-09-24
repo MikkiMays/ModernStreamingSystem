@@ -155,7 +155,7 @@ def everyone():
 class RegistryTests(unittest.TestCase):
     def test_every_platform_the_cinema_knows_is_on_by_default(self):
         for enabled in (None, "", " , "):
-            self.assertEqual([p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch"])
+            self.assertEqual([p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube"])
 
     def test_the_setting_chooses_platforms_but_not_their_order(self):
         registry = Registry(everyone(), " Twitch ,youtube")
@@ -206,8 +206,9 @@ class PlatformTests(unittest.IsolatedAsyncioTestCase):
 
     def test_the_hosts_of_the_platforms_are_exactly_the_former_shared_list(self):
         # Проверка хоста переехала с общего списка на площадку — и не потеряла при этом и не
-        # приобрела ни одного хоста.
-        owned = [suffix for kind in PROVIDERS for suffix in kind.hosts.suffixes]
+        # приобрела ни одного хоста. Список был общим для YouTube и Twitch; хосты площадок,
+        # пришедших позже (Rutube), проверяют их собственные тесты.
+        owned = [suffix for kind in (YouTube, Twitch) for suffix in kind.hosts.suffixes]
         self.assertEqual(sorted(owned), sorted(FORMER_ALLOWED_HOSTS))
 
     def test_a_host_belongs_to_a_platform_by_suffix_not_by_substring(self):
@@ -233,7 +234,9 @@ class PlatformTests(unittest.IsolatedAsyncioTestCase):
             "2000000001",
             "743",
         ]
-        for kind in PROVIDERS:
+        # Адреса, которые открываются сегодня, — адреса YouTube и Twitch; у Rutube своя форма
+        # (32 шестнадцатеричных знака), её проверяет `test_cinema_rutube.py`.
+        for kind in (YouTube, Twitch):
             for address in today:
                 self.assertTrue(CHANNEL_ID.match(address), address)
                 self.assertTrue(kind.content_id.fullmatch(address), (kind.id, address))
@@ -392,7 +395,7 @@ class DirectSourceTests(unittest.IsolatedAsyncioTestCase):
                         "lang": "ru",
                         "label": "Русский",
                         "auto": False,
-                        "url": proxied(signer, caption, "fetch", provider="rutube"),
+                        "url": proxied(signer, caption, "subtitles", provider="rutube"),
                     }
                 ],
                 "poster": "poster:rutube:https://pic.rtbcdn.ru/x.jpg",
@@ -465,6 +468,21 @@ class RouteTests(unittest.TestCase):
                             "playlists": False,
                             "categories": True,
                             "series": False,
+                            "live": True,
+                        },
+                    },
+                    {
+                        "id": "rutube",
+                        "available": True,
+                        "reason": None,
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": True,
+                            "playlists": False,
+                            "categories": True,
+                            "series": True,
                             "live": True,
                         },
                     },

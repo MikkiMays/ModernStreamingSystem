@@ -1,0 +1,135 @@
+{
+ "results": [
+  {
+   "id": "2be773ecd1505252684c17570b0ed064",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-11/cc/c5/ccc5ac23374f4532d7479e6597575d1e.jpg",
+   "video_url": "https://rutube.ru/video/2be773ecd1505252684c17570b0ed064/",
+   "duration": 60,
+   "common_subscription_product_codes": [],
+   "picture_url": "",
+   "author": {
+    "id": 25841652,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-12-04/1c/be/1cbee878c1dd79275a5d63153b1ed98e.jpg",
+    "name": "КИОН",
+    "site_url": "https://rutube.ru/video/person/25841652/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 18,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/8c/37/8c37c740367ef785ae1693da1fa4e449.png"
+   },
+   "origin_type": "rtb",
+   "preview_url": "https://preview.rutube.ru/preview/2be773ecd1505252684c17570b0ed064.webp?exp=1790335250&s=aHR0cHM6Ly9wcmV2aWV3LnJ1dHViZS5ydS9wcmV2aWV3LzJiZTc3M2VjZDE1MDUyNTI2ODRjMTc1NzBiMGVkMDY0LndlYnAvMTc5MDMzNTI1MC96bmdJdTA5MVVRRDY5bjNE",
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2026-09-11T16:57:29",
+   "created_ts": "2026-07-07T10:31:54",
+   "track_id": 460562740,
+   "title": "«Марик» | Вторая серия | КИОН",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 78314,
+   "publication_ts": "2026-09-11T16:57:29",
+   "description": "",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/1799942/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Марик",
+   "season": 0,
+   "episode": 0,
+   "fts": 0,
+   "category": {
+    "id": 5,
+    "category_url": "https://rutube.ru/video/category/5/",
+    "name": "Сериалы"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  },
+  {
+   "id": "94ad5211cee9ea5b47a8cd42c5a59faa",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-09-03/86/d7/86d75adc2f82563b3c98b56fba7ba6f6.jpg",
+   "video_url": "https://rutube.ru/video/94ad5211cee9ea5b47a8cd42c5a59faa/",
+   "duration": 2566,
+   "common_subscription_product_codes": [],
+   "picture_url": "",
+   "author": {
+    "id": 25841652,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2025-12-04/1c/be/1cbee878c1dd79275a5d63153b1ed98e.jpg",
+    "name": "КИОН",
+    "site_url": "https://rutube.ru/video/person/25841652/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 18,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/8c/37/8c37c740367ef785ae1693da1fa4e449.png"
+   },
+   "origin_type": "rtb",
+   "preview_url": "https://preview.rutube.ru/preview/94ad5211cee9ea5b47a8cd42c5a59faa.webp?exp=1790335250&s=aHR0cHM6Ly9wcmV2aWV3LnJ1dHViZS5ydS9wcmV2aWV3Lzk0YWQ1MjExY2VlOWVhNWI0N2E4Y2Q0MmM1YTU5ZmFhLndlYnAvMTc5MDMzNTI1MC96bmdJdTA5MVVRRDY5bjNE",
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2026-09-07T10:00:29",
+   "created_ts": "2026-09-03T15:27:31",
+   "track_id": 466183520,
+   "title": "«Марик» | Первая серия | Уже на КИОН",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 112922,
+   "publication_ts": "2026-09-07T10:00:29",
+   "description": "Первая серия драматического сериала «Марик» с Василием Копейкиным — уже на «КИОН»: https://clck.ru/3VBw5Q\n\nВоенный врач ",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/1799942/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Марик",
+   "season": 0,
+   "episode": 0,
+   "fts": 0,
+   "category": {
+    "id": 4,
+    "category_url": "https://rutube.ru/video/category/4/",
+    "name": "Фильмы"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  }
+ ],
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "page": 1,
+ "per_page": 20
+}

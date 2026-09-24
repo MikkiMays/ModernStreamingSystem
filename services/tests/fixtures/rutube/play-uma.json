@@ -1,0 +1,70 @@
+{
+ "acl_access": {
+  "allowed": true,
+  "err_code": null,
+  "err_text": ""
+ },
+ "author": {
+  "id": 41030503,
+  "url": "https://rutube.ru/video/person/41030503/",
+  "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+  "logo": null,
+  "update_ts": "2026-09-22T13:18:58.118098",
+  "name": "PREMIER"
+ },
+ "audiotracks": [],
+ "captions": [],
+ "category": {
+  "id": 43,
+  "category_url": "/video/category/43/",
+  "update_ts": "2026-03-11T17:22:14.693236",
+  "name": "Телепередачи",
+  "short_name": "tv",
+  "for_kids": false
+ },
+ "description": "Никита, Денис и Артемий должны продать свое приложение TWIN на крупном IT-форуме. Парни уже в предвкушении успешной сдел",
+ "drm_token": null,
+ "duration": 1506000,
+ "effective_video": "2ef6c76f797a803f88980667635aa3db",
+ "episode": 1,
+ "fts": 0,
+ "has_video": true,
+ "iframe_url": null,
+ "id": 396985151,
+ "is_adult": false,
+ "is_harm_health": false,
+ "is_hidden": false,
+ "is_licensed": false,
+ "is_spatial": false,
+ "limits": [],
+ "live_streams": {},
+ "origin_type": "uma",
+ "pg_rating": {
+  "age": 16,
+  "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+ },
+ "purchase_ttl": null,
+ "referer": "https://rutube.ru",
+ "remove_unseekable_blocks": true,
+ "season": 1,
+ "stream_type": null,
+ "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-02-25/73/6a/736af48420b62c217e44b94dd3291bfb.jpg",
+ "title": "ЖУКИ, 1 сезон, 1 серия",
+ "tv_show_id": 891097,
+ "tv": {
+  "id": 891097,
+  "type_id": 3,
+  "name": "ЖУКИ | PREMIER",
+  "appearance": {
+   "avatar_image": "https://pic.rtbcdn.ru/tv/2025-03-21/db/d3/dbd35fc7170abf26e1bfe043abbe654b.jpg"
+  }
+ },
+ "video_balancer": {
+  "m3u8": "https://vb-rtb.uma.media/1790335128/aAHoN-XRJZ65cGhNS6u6TA/vod/uma/85a1730ddbf642539c8e697b598a7876.m3u8?streams=aa042b0a-b43e-4ff0-9904-4fd365d8d88d:w:1920:h:1072:vb:4499968:ab:192000:d:1506207:vc:avc1.640028:ac:mp4a.40.2,28346fad-6b5c-48ee-a500-c7b51f6e9cb1:w:1280:h:720:vb:3000000:ab:128000:d:1506207:vc:avc1.64001f:ac:mp4a.40.2,faa1df78-5eed-447a-b3b0-0ce8c6cf4019:w:856:h:480:vb:1499968:ab:128000:d:1506207:vc:avc1.4d401e:ac:mp4a.40.2,3e11ddab-e569-470b-854c-85c44b968f22:w:640:h:360:vb:1299968:ab:64000:d:1506207:vc:avc1.42c01e:ac:mp4a.40.2"
+ },
+ "video_id": "2ef6c76f797a803f88980667635aa3db",
+ "video_url": "https://rutube.ru/video/2ef6c76f797a803f88980667635aa3db/",
+ "view_id": "80740ec3538dcaf3aa82415cbf723791",
+ "viewer": null,
+ "allow_p2p": false
+}

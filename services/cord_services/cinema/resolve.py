@@ -303,8 +303,10 @@ class Resolver:
             "expiresAt": int(expires * 1000),
             "notice": None,
             "language": plan.language,
+            # Файл субтитров площадки бывает не WebVTT (у Rutube это SRT), а `<track>` читает
+            # только его: такие файлы идут через маршрут, который переводит их по дороге.
             "captions": [
-                {**track, "url": proxied(self.signer, track["url"], "fetch", provider=provider)}
+                {**track, "url": proxied(self.signer, track["url"], "subtitles", provider=provider)}
                 for track in plan.captions[:CAPTIONS_LIMIT]
             ],
             "poster": self.image(plan.poster or "", provider),

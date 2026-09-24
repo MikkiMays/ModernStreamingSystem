@@ -1,0 +1,208 @@
+{
+ "results": [
+  {
+   "id": "488c6ae440cd6584dce912e1eaf1d927",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-03-19/80/25/8025a0ee9c7821479af4867bbf1dc062.jpg",
+   "video_url": "https://rutube.ru/video/488c6ae440cd6584dce912e1eaf1d927/",
+   "duration": 1449,
+   "common_subscription_product_codes": [],
+   "picture_url": "",
+   "author": {
+    "id": 41030503,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+    "name": "PREMIER",
+    "site_url": "https://rutube.ru/video/person/41030503/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "uma",
+   "preview_url": null,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2025-09-08T12:53:21",
+   "created_ts": "2025-03-19T15:03:33",
+   "track_id": 396714427,
+   "title": "1 серия",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 120942,
+   "publication_ts": "2025-03-19T15:04:05",
+   "description": "Сын олигарха Саша Сергеев решает всего в жизни добиться сам. С этой целью он сбегает из особняка на Рублевке, поступает ",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/891161/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Универ | PREMIER",
+   "season": 1,
+   "episode": 1,
+   "fts": 0,
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  },
+  {
+   "id": "ecc1d49266177371c27c428a922adfa4",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-03-19/46/aa/46aa825752b9a5f3f351ff32e9241953.jpg",
+   "video_url": "https://rutube.ru/video/ecc1d49266177371c27c428a922adfa4/",
+   "duration": 1449,
+   "common_subscription_product_codes": [
+    "PREMIER_RUTUBE_GAZPROM_BONUS",
+    "PREMIER_RUTUBE_START",
+    "premier-rutube-gazprom-bonus-lite",
+    "PREMIER_RUTUBE_YAPPY"
+   ],
+   "picture_url": "",
+   "author": {
+    "id": 41030503,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+    "name": "PREMIER",
+    "site_url": "https://rutube.ru/video/person/41030503/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "uma",
+   "preview_url": null,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2025-09-08T12:53:21",
+   "created_ts": "2025-03-19T15:03:48",
+   "track_id": 396714460,
+   "title": "2 серия",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 5417,
+   "publication_ts": "2025-03-19T15:04:06",
+   "description": "Саша устраивается официантом в кафе быстрого обслуживания, где разносит бутерброды в костюме цыпленка. Естественно, прес",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/891161/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Универ | PREMIER",
+   "season": 1,
+   "episode": 2,
+   "fts": 0,
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  },
+  {
+   "id": "700342f532e4b4abfd5f8b5965eb3483",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-03-19/b3/1a/b31a984a639267224bc122ce71c16266.jpg",
+   "video_url": "https://rutube.ru/video/700342f532e4b4abfd5f8b5965eb3483/",
+   "duration": 1489,
+   "common_subscription_product_codes": [
+    "PREMIER_RUTUBE_YAPPY",
+    "PREMIER_RUTUBE_START",
+    "PREMIER_RUTUBE_GAZPROM_BONUS",
+    "premier-rutube-gazprom-bonus-lite"
+   ],
+   "picture_url": "",
+   "author": {
+    "id": 41030503,
+    "avatar_url": "https://pic.rtbcdn.ru/user/2024-10-24/9f/b9/9fb91b813567b61ddf616d5a5dbf97b2.png",
+    "name": "PREMIER",
+    "site_url": "https://rutube.ru/video/person/41030503/",
+    "is_allowed_offline": true
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "uma",
+   "preview_url": null,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "last_update_ts": "2025-09-08T12:53:21",
+   "created_ts": "2025-03-19T15:04:03",
+   "track_id": 396714490,
+   "title": "3 серия",
+   "is_livestream": false,
+   "stream_type": null,
+   "extra_params": {},
+   "hits": 4586,
+   "publication_ts": "2025-03-19T15:05:06",
+   "description": "Узнав, что в день первокурсника Саша накурился марихуаны, папа собирается забрать его из общаги и посадить под домашний ",
+   "future_publication": null,
+   "is_adult": false,
+   "is_audio": false,
+   "feed_url": "https://rutube.ru/metainfo/tv/891161/",
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_deleted": false,
+   "is_original_content": false,
+   "is_original_sticker_2x2": false,
+   "is_reborn_channel": false,
+   "kind_sign_for_user": false,
+   "feed_name": "Универ | PREMIER",
+   "season": 1,
+   "episode": 3,
+   "fts": 0,
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "type": {
+    "id": 2,
+    "name": "episode",
+    "title": "Эпизод/серия/выпуск (полный)",
+    "update_ts": null
+   }
+  }
+ ],
+ "has_next": true,
+ "next": "https://rutube.ru/api/metainfo/tv/891161/video?season=1&format=json&page=2",
+ "previous": null,
+ "page": 1,
+ "per_page": 20
+}

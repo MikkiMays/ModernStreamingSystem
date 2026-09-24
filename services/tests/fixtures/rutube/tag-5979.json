@@ -1,0 +1,123 @@
+{
+ "has_next": false,
+ "next": null,
+ "previous": null,
+ "page": 1,
+ "per_page": 100,
+ "results": [
+  {
+   "id": "d14fcf59cb7d07a26c48ebc8c6565f44",
+   "title": "Прямой эфир Телеканал 360 Новости",
+   "description": "360° Новости — круглосуточный информационный телеканал. Новости Московской области, России и мира каждый час. Прямые тра",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/2026-03-27/9d/b0/9db0b76e2e943e6e862e26e93600fb59.jpg",
+   "video_url": "https://rutube.ru/video/d14fcf59cb7d07a26c48ebc8c6565f44/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2021-04-13T13:51:09",
+   "track_id": 13656067,
+   "is_livestream": true,
+   "is_on_air": true,
+   "last_update_ts": "2026-03-27T16:24:00",
+   "stream_type": "broadcast",
+   "picture_url": "",
+   "author": {
+    "id": 23501555,
+    "name": "Телеканал 360",
+    "avatar_url": "https://pic.rtbcdn.ru/user/2026-05-12/9a/c5/9ac56bc4d78e1e0686ab531c51ee07ed.jpg",
+    "site_url": "https://rutube.ru/video/person/23501555/",
+    "is_allowed_offline": false
+   },
+   "pg_rating": {
+    "age": 16,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+   },
+   "origin_type": "rst",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-03-02T17:04:12",
+   "hits": 4780222,
+   "embed_url": "https://rutube.ru/play/embed/d14fcf59cb7d07a26c48ebc8c6565f44",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/23501555/",
+   "feed_name": "Телеканал 360",
+   "is_official": true,
+   "is_licensed": true,
+   "is_reborn_channel": true,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  },
+  {
+   "id": "b2b32a7d6f2323f3a113ff44b0404bf2",
+   "title": "Прямой эфир Пятый канал",
+   "description": "Прямой эфир телеканала Пятый канал.",
+   "thumbnail_url": "https://pic.rtbcdn.ru/video/9e/b6/9eb6d209665f8f8222fb1bd73987e1e5.jpg",
+   "video_url": "https://rutube.ru/video/b2b32a7d6f2323f3a113ff44b0404bf2/",
+   "duration": 0,
+   "is_audio": false,
+   "created_ts": "2021-02-17T13:01:48",
+   "track_id": 13330991,
+   "is_livestream": false,
+   "is_on_air": false,
+   "last_update_ts": "2026-07-07T18:59:58",
+   "stream_type": null,
+   "picture_url": "",
+   "author": {
+    "id": 23874664,
+    "name": "Пятый канал НОВОСТИ",
+    "avatar_url": "https://pic.rtbcdn.ru/user/ff/64/ff64a51d68312512bfbf77c06c28d23b.jpg",
+    "site_url": "https://rutube.ru/video/person/23874664/",
+    "is_allowed_offline": false
+   },
+   "pg_rating": {
+    "age": 12,
+    "logo": "https://pic.rtbcdn.ru/agerestriction/99/0e/990e87f25d8689833de24c0eb7eaec81.png"
+   },
+   "origin_type": "ifrm",
+   "preview_url": null,
+   "is_adult": false,
+   "is_club": false,
+   "is_classic": true,
+   "is_paid": false,
+   "product_id": null,
+   "common_subscription_product_codes": [],
+   "publication_ts": "2026-07-07T18:59:58",
+   "hits": 4174,
+   "embed_url": "https://rutube.ru/play/embed/b2b32a7d6f2323f3a113ff44b0404bf2",
+   "category": {
+    "id": 43,
+    "category_url": "https://rutube.ru/video/category/43/",
+    "name": "Телепередачи"
+   },
+   "feed_url": "https://rutube.ru/video/person/23874664/",
+   "feed_name": "Пятый канал НОВОСТИ",
+   "is_official": true,
+   "is_licensed": true,
+   "is_reborn_channel": false,
+   "action_reason": {
+    "id": 0,
+    "name": ""
+   },
+   "is_original_content": false,
+   "kind_sign_for_user": false,
+   "is_original_sticker_2x2": false,
+   "position": 0,
+   "is_sportevent": false
+  }
+ ]
+}

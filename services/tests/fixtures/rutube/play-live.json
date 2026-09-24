@@ -1,0 +1,71 @@
+{
+ "acl_access": {
+  "allowed": true,
+  "err_code": null,
+  "err_text": ""
+ },
+ "author": {
+  "id": 23460655,
+  "url": "https://rutube.ru/video/person/23460655/",
+  "avatar_url": "https://pic.rtbcdn.ru/user/63/a2/63a2eb1886a45be2b1da64729397230c.jpg",
+  "logo": null,
+  "update_ts": "2026-01-29T15:13:38.457557",
+  "name": "Первый канал"
+ },
+ "audiotracks": [],
+ "captions": [],
+ "category": {
+  "id": 43,
+  "category_url": "/video/category/43/",
+  "update_ts": "2026-03-11T17:22:14.693236",
+  "name": "Телепередачи",
+  "short_name": "tv",
+  "for_kids": false
+ },
+ "description": "",
+ "drm_token": null,
+ "duration": 0,
+ "effective_video": "c58f502c7bb34a8fcdd976b221fca292",
+ "episode": null,
+ "fts": 0,
+ "has_video": true,
+ "iframe_url": null,
+ "id": 19589408,
+ "is_adult": false,
+ "is_harm_health": false,
+ "is_hidden": false,
+ "is_licensed": true,
+ "is_spatial": false,
+ "limits": [],
+ "live_streams": {
+  "hls": [
+   {
+    "GeoIP_TZ": "+3",
+    "is_audio": true,
+    "is_video": true,
+    "is_dvr": false,
+    "url": "https://bl.rutube.ru/livestream/c58f502c7bb34a8fcdd976b221fca292/index.m3u8?s=NZLbbRDpl-0RoKq0CY563Q&e=2090248852&scheme=https"
+   }
+  ]
+ },
+ "origin_type": "rst",
+ "pg_rating": {
+  "age": 16,
+  "logo": "https://pic.rtbcdn.ru/agerestriction/cd/11/cd11b4032ef20a16fac6177c6f1e4bed.png"
+ },
+ "purchase_ttl": null,
+ "referer": "https://rutube.ru",
+ "remove_unseekable_blocks": true,
+ "season": null,
+ "stream_type": "broadcast",
+ "thumbnail_url": "https://pic.rtbcdn.ru/video/2025-09-21/24/95/2495f5c3038d85c003c2c5a69f874407.jpg",
+ "title": "Прямой эфир Первый канал",
+ "tv_show_id": null,
+ "tv": {},
+ "video_balancer": {},
+ "video_id": "c58f502c7bb34a8fcdd976b221fca292",
+ "video_url": "https://rutube.ru/video/c58f502c7bb34a8fcdd976b221fca292/",
+ "view_id": "33e34d9c2f63eab0a060ae1afb477940",
+ "viewer": null,
+ "allow_p2p": false
+}

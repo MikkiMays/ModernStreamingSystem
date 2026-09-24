@@ -26,6 +26,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import wire
+from .captions import webvtt
 from .limits import Window
 from .memo import Memo
 from .net import Net, NetConfig
@@ -73,6 +74,13 @@ Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
 CATALOG_ID = CHANNEL_ID
 # Идентификатор категории Twitch — только цифры.
 CATEGORY_ID = re.compile(r"[0-9]{1,20}")
+# Сериал и его сезон: у Rutube это числа, у медиатеки — GUID. Общая форма здесь только
+# отсекает то, чему в чужом адресе не место (слэши, точки, пробелы); свою форму площадка
+# проверяет сама.
+SERIES_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+SEASON_ID = SERIES_ID
+# Больше субтитров не бывает: реплики трёхчасового фильма — пара сотен килобайт.
+SUBTITLES_LIMIT = 2 * 1024 * 1024
 
 
 def _room(room: str) -> str:
@@ -291,6 +299,28 @@ class Cinema:
         offset = offset_of(cursor)
         return await source.category(self._ctx(room, source), category_id, offset)
 
+    async def series(
+        self, provider: str, series_id: str, season: str = "", cursor: str = "", *, room: str = ""
+    ) -> dict[str, Any]:
+        """
+        Страница сериала: шапка, сезоны и серии открытого сезона порциями.
+
+        Сезон не выбран — площадка открывает свой первый. Память — как у страниц канала, но
+        длиннее: серии у сериала появляются раз в неделю, а не раз в минуту.
+        """
+        source = self._able(provider, "series")
+        if not SERIES_ID.fullmatch(series_id):
+            raise HTTPException(400, "Непонятный адрес сериала")
+        if season and not SEASON_ID.fullmatch(season):
+            raise HTTPException(400, "Непонятный сезон")
+        offset = offset_of(cursor)
+        ctx = self._ctx(room, source)
+        return await self.catalog.scope(source.id).get(
+            f"series:{series_id}:{season}:{offset}",
+            lambda: source.series(ctx, series_id, season or None, offset),
+            300,
+        )
+
     async def details(self, provider: str, content_id: str, kind: Kind, *, room: str = "") -> dict[str, Any]:
         source = self.registry.get(provider)
         # Форма адреса — площадки: она знает, какие id у неё бывают (`Provider.content_id`).
@@ -372,6 +402,24 @@ class Cinema:
             headers["Content-Encoding"] = "gzip"
         return Response(payload, media_type="application/vnd.apple.mpegurl", headers=headers)
 
+    async def subtitles(self, url: str, provider: str) -> Response:
+        """
+        Файл субтитров площадки — в WebVTT, как его читает `<track>`.
+
+        Файл читается целиком (он маленький) и не больше предела: что больше двух мегабайт, то
+        не субтитры, и держать это в памяти ради перевода незачем.
+        """
+        upstream = await self._open(self.net.client_for(provider), url, {})
+        try:
+            body = await self._read(upstream, SUBTITLES_LIMIT)
+        finally:
+            await upstream.aclose()
+        return Response(
+            webvtt(body),
+            media_type="text/vtt; charset=utf-8",
+            headers={"Cache-Control": "private, max-age=600"},
+        )
+
     async def fetch(self, url: str, range_header: str | None, provider: str) -> Response:
         if range_header and not re.fullmatch(r"bytes=(?:\d+-\d*|-\d+)", range_header):
             raise HTTPException(416, "Неверный диапазон байтов")
@@ -430,15 +478,18 @@ class Cinema:
         encoding = upstream.headers.get("content-encoding", "identity").strip().lower()
         return length.isdigit() and int(length) <= self.segments.largest and encoding in ("", "identity")
 
-    async def _read(self, upstream: httpx.Response) -> bytes:
+    async def _read(self, upstream: httpx.Response, limit: int | None = None) -> bytes:
         """Тело целиком — но не больше предела памяти, что бы площадка ни объявила.
 
-        Тело здесь не сжато (`_storable`), поэтому байты те же, что пришли по сети."""
+        Кусочек видео здесь не сжат (`_storable`), и байты те же, что пришли по сети. Субтитры
+        бывают сжатыми — предел считается по распакованным байтам, пока они идут, так что и
+        сжатая «бомба» дальше него не распакуется."""
+        largest = self.segments.largest if limit is None else limit
         body = bytearray()
         try:
             async for chunk in upstream.aiter_bytes():
                 body.extend(chunk)
-                if len(body) > self.segments.largest:
+                if len(body) > largest:
                     raise HTTPException(502, "Площадка не отдала данные")
         except httpx.HTTPError:
             raise HTTPException(502, "Площадка не отдала данные") from None
