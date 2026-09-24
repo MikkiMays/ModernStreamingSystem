@@ -27,8 +27,15 @@ describe('реестр площадок', () => {
 
   it('плитка панели и вкладка переключателя не делят один и тот же цвет вручную', () => {
     // Разные оттенки — исторический факт, а не опечатка: два места когда-то выбрали цвет
-    // порознь. Тест защищает именно это несовпадение, а не совпадение.
-    for (const id of PROVIDER_IDS) expect(PROVIDERS[id].tile).not.toBe(PROVIDERS[id].accent);
+    // порознь. Тест защищает именно это несовпадение, а не совпадение. Вкладка есть только у
+    // площадок переключателя; у площадки со своей сценой цвет один.
+    for (const id of SWITCHER_TABS) expect(PROVIDERS[id].tile).not.toBe(PROVIDERS[id].accent);
+  });
+
+  it('у Rutube своя сцена и цвет из их CSS', () => {
+    expect(PROVIDERS.rutube.scene).toBe('rutube');
+    expect(PROVIDERS.rutube.accent).toBe('#1c80e3');
+    expect(PROVIDERS.rutube.searchPlaceholder).toBe('Видео, каналы и ТВ');
   });
 
   it('вкладки переключателя — площадки сцены switcher, тем же порядком, что в реестре', () => {

@@ -4,9 +4,11 @@ import type { ProviderId } from './providers';
  * Что бывает в каталоге.
  *
  * `video` смотрят, `channel` у Twitch — это идущий эфир (его тоже смотрят), а `channel` у
- * YouTube, `playlist` и `category` — двери: в них заходят, а не включают их комнате.
+ * YouTube, `playlist`, `category` и `series` — двери: в них заходят, а не включают их комнате.
+ * У Rutube `channel` бывает и тем и другим: идущий эфир ТВ (`live`) смотрят, канал автора —
+ * открывают.
  */
-export type CinemaKind = 'video' | 'channel' | 'playlist' | 'category';
+export type CinemaKind = 'video' | 'channel' | 'playlist' | 'category' | 'series';
 
 /** Вкладки страницы канала — те же, что у самой площадки. */
 export type ChannelTab = 'videos' | 'streams' | 'shorts' | 'playlists' | 'about';
@@ -32,6 +34,12 @@ export interface CinemaItem {
   description?: string | null;
   category?: string | null;
   published?: string | null;
+  /** Короткая подпись на плитке: «3 серия», «Сериал», «Шоу». Есть не у всех площадок. */
+  badge?: string;
+  /** Форма обложки: кадр 16:9 (по умолчанию) или постер 2:3 — у сериалов и фильмов. */
+  shape?: 'wide' | 'tall';
+  /** У серии — сериал, из которого она: с ним страница серии становится дверью ко всем сериям. */
+  series?: string;
   /** Адрес обложки **у нас**, уже подписанный. */
   poster: string | null;
 }
@@ -76,10 +84,12 @@ export interface CinemaPage {
   next: string | null;
 }
 
-/** Поиск: лента находок и полки над ней — каналы у YouTube, разделы у Twitch. */
+/** Поиск: лента находок и полки над ней — каналы у YouTube, разделы у Twitch, сериалы у Rutube. */
 export interface CinemaResults extends CinemaPage {
   channels: CinemaItem[];
   categories: CinemaItem[];
+  /** Сериалы и шоу постерами — только у площадок, где у сериала своя страница. */
+  series?: CinemaItem[];
 }
 
 /** Страница канала. `channel` пуст, когда такой вкладки у канала нет вовсе. */
@@ -95,8 +105,7 @@ export interface CinemaCategoryPage extends CinemaPage {
 
 /**
  * Сериал: обложка, описание и список сезонов. Серии самого открытого сезона приезжают тем же
- * конвертом, что и любая другая страница каталога (`items`/`next`) — маршрут появится отдельной
- * задачей, здесь только форма ответа, которую уже можно набирать типами.
+ * конвертом, что и любая другая страница каталога (`items`/`next`).
  */
 export interface CinemaSeasonRef {
   id: string;

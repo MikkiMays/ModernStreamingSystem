@@ -1,0 +1,17 @@
+{
+  "channel": {
+    "provider": "rutube",
+    "id": "23460655",
+    "title": "Первый канал",
+    "handle": "",
+    "description": "Владелец канала ОА «Первый канал»\r\nНомер заявления в РКН № 5055923245",
+    "followers": 1023295,
+    "viewers": null,
+    "live": false,
+    "category": null,
+    "avatar": "/fixtures/poster.png",
+    "banner": "/fixtures/poster.png"
+  },
+  "items": [],
+  "next": null
+}

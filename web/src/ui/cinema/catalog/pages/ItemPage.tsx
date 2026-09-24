@@ -1,4 +1,4 @@
-import { Eye, Play, Tv, Users } from 'lucide-react';
+import { Eye, ListVideo, Play, Tv, Users } from 'lucide-react';
 import { clock, published, viewers, type CinemaDetails, type CinemaItem } from '../../../../core/cinema';
 import { Failure, Loading } from '../notes';
 
@@ -24,6 +24,7 @@ export function ItemPage({
   busy,
   onWatch,
   onChannel,
+  onSeries,
 }: {
   /** Карточка, по которой вошли: включается комнате именно она, а не её подробности. */
   item: CinemaItem;
@@ -32,6 +33,8 @@ export function ItemPage({
   busy: string;
   onWatch: (item: CinemaItem) => void;
   onChannel: (id: string) => void;
+  /** Дверь ко всем сериям сериала — у площадок, которые знают, из какого сериала серия. */
+  onSeries?: (id: string) => void;
 }) {
   const shown = merge(item, details.data);
   return (
@@ -68,6 +71,11 @@ export function ItemPage({
               <Tv size={17} /> Открыть канал
             </button>
           )}
+          {shown.series && onSeries ? (
+            <button className="button secondary" onClick={() => onSeries(String(shown.series))}>
+              <ListVideo size={17} /> Все серии
+            </button>
+          ) : null}
         </div>
         {details.isLoading && <Loading />}
         {details.isError && <Failure problem={details.error} />}

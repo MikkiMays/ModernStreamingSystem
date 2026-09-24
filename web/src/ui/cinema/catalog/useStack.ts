@@ -1,13 +1,21 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 import type { ChannelTab, CinemaItem } from '../../../core/cinema';
 
-/** Что открыто прямо сейчас. Всё, кроме `home`, — это страница, на которую зашли. */
+/**
+ * Что открыто прямо сейчас. Всё, кроме `home`, — это страница, на которую зашли.
+ *
+ * `series` — сериал с открытым сезоном (пусто — тот, что площадка открывает первым), `title` и
+ * `poster` — с карточки, по которой вошли: шапка сериала не ждёт ответа, чтобы назваться.
+ * `shelf` — полка витрины, открытая целиком («Все эфиры»).
+ */
 export type View =
   | { at: 'home' }
   | { at: 'channel'; id: string; tab: ChannelTab }
   | { at: 'playlist'; id: string }
   | { at: 'category'; id: string; title: string }
-  | { at: 'item'; item: CinemaItem };
+  | { at: 'item'; item: CinemaItem }
+  | { at: 'series'; id: string; season: string; title: string; poster: string | null }
+  | { at: 'shelf'; id: string; title: string };
 
 const HOME: View[] = [{ at: 'home' }];
 
@@ -68,7 +76,14 @@ export function useStack(owner: string) {
       ),
     );
   const toChannel = (id: string) => setStack((current) => [...current, { at: 'channel', id, tab: 'videos' }]);
+  /** Сезон сериала — как вкладка канала: меняет открытое, а не кладётся сверху. */
+  const switchSeason = (season: string) =>
+    setStack((current) =>
+      current.map((entry, index) =>
+        index === current.length - 1 && entry.at === 'series' ? { ...entry, season } : entry,
+      ),
+    );
   /** Набранный поиск уводит на главную: результаты поиска живут там. */
   const home = () => setStack(HOME);
-  return { stack, view, go, back, switchTab, toChannel, home };
+  return { stack, view, go, back, switchTab, switchSeason, toChannel, home };
 }

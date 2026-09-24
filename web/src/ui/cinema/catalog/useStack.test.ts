@@ -60,6 +60,23 @@ describe('useStack: как ходят по каталогу', () => {
     expect(result.current.view).toEqual({ at: 'playlist', id: 'PL1' });
   });
 
+  it('сезоны сериала меняют верхнее, как вкладки канала: три сезона — одно «назад»', () => {
+    const { result } = renderHook(() => useStack('rutube'));
+    act(() => result.current.go({ at: 'series', id: '891161', season: '', title: 'Универ', poster: null }));
+    for (const season of ['2', '3', '1']) act(() => result.current.switchSeason(season));
+    expect(at(result.current.stack)).toEqual(['home', 'series']);
+    expect(result.current.view).toMatchObject({ at: 'series', id: '891161', season: '1' });
+    act(() => result.current.back());
+    expect(at(result.current.stack)).toEqual(['home']);
+  });
+
+  it('сезон не трогает страницу, которая не сериал', () => {
+    const { result } = renderHook(() => useStack('rutube'));
+    act(() => result.current.toChannel('23460655'));
+    act(() => result.current.switchSeason('2'));
+    expect(result.current.view).toEqual({ at: 'channel', id: '23460655', tab: 'videos' });
+  });
+
   it('набранный поиск возвращает на главную, откуда бы его ни набрали', () => {
     const { result } = renderHook(() => useStack('youtube'));
     act(() => result.current.toChannel('UC1'));

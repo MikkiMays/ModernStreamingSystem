@@ -67,12 +67,7 @@ export class CinemaApi {
       `/category?provider=${provider}&id=${encodeURIComponent(id)}&cursor=${encodeURIComponent(cursor)}`,
       signal,
     );
-  /**
-   * Страница сериала: сезоны и серии открытого сезона.
-   *
-   * Маршрут службы приезжает отдельной задачей — метод существует уже сейчас, чтобы карточка
-   * серии (задача каталога) могла на него ссылаться, не дожидаясь его первой реализации.
-   */
+  /** Страница сериала: сезоны и серии открытого сезона (пустой сезон — площадка выберет сама). */
   series = (provider: ProviderId, id: string, season = '', cursor = '', signal?: AbortSignal) =>
     this.ask<CinemaSeriesPage>(
       `/series?provider=${provider}&id=${encodeURIComponent(id)}&season=${encodeURIComponent(season)}` +

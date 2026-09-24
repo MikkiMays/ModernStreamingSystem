@@ -123,9 +123,11 @@ function exists(name: string) {
 }
 
 /**
- * Обе площадки включены и отвечают — тем же набором возможностей, что называет служба
- * (`cord_services/cinema/providers/{youtube,twitch}.py`). Не запись: сама проверка доступности
- * бьёт наружу, а здесь площадки нет вовсе, — поэтому ответ собран руками, а не снят с прода.
+ * Площадки включены и отвечают — тем же набором возможностей, что называет служба
+ * (`cord_services/cinema/providers/{youtube,twitch,rutube}.py`). Не запись: сама проверка
+ * доступности бьёт наружу, а здесь площадки нет вовсе, — поэтому ответ собран руками, а не снят
+ * с прода. Каталогу Rutube по записям отвечает сам сценарий `cinema-rutube.spec.ts` — своими
+ * `overrides`.
  */
 const PROVIDERS_ANSWER = {
   providers: [
@@ -156,6 +158,21 @@ const PROVIDERS_ANSWER = {
         playlists: false,
         categories: true,
         series: false,
+        live: true,
+      },
+    },
+    {
+      id: 'rutube',
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: true,
+        channels: true,
+        playlists: false,
+        categories: true,
+        series: true,
         live: true,
       },
     },

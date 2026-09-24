@@ -1,0 +1,15 @@
+{
+  "provider": "rutube",
+  "contentId": "d8061eab5d7ed2bad058162bc5762842",
+  "title": "Экстрасенсы. Реванш, 1 сезон, 1 выпуск",
+  "author": "Телеканал ТНТ",
+  "duration": 12,
+  "live": false,
+  "kind": "hls",
+  "url": "/fixtures/hls/master.m3u8",
+  "expiresAt": 0,
+  "notice": null,
+  "language": "",
+  "captions": [],
+  "poster": "/fixtures/poster.png"
+}

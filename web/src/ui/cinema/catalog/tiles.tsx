@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Eye, Gamepad2, ListVideo, LoaderCircle, Play, Tv, Users } from 'lucide-react';
+import { Clapperboard, Eye, Gamepad2, ListVideo, LoaderCircle, Play, Tv, Users } from 'lucide-react';
 import { clock, viewers, type CinemaItem } from '../../../core/cinema';
 
 /*
@@ -9,8 +9,11 @@ import { clock, viewers, type CinemaItem } from '../../../core/cinema';
   карточку прямо отсюда (`playable`) и куда вести.
 */
 
-/** Как лежат плитки: широкими кадрами, вертикальными обложками разделов или лицами каналов. */
-export type GridKind = 'wide' | 'boxes' | 'faces';
+/**
+ * Как лежат плитки: широкими кадрами, вертикальными обложками разделов, лицами каналов или
+ * постерами 2:3 (сериалы и фильмы).
+ */
+export type GridKind = 'wide' | 'boxes' | 'faces' | 'tall';
 
 /** Широкими кадрами — по умолчанию; значение по умолчанию не в разборе параметров: такой разбор
  *  React Compiler пропускает целиком. */
@@ -83,8 +86,32 @@ export function Tile({
             <Eye size={11} /> {viewers(item.views)}
           </span>
         )}
+        {/* Подпись площадки («3 серия») — только там, где она её дала: у YouTube и Twitch её нет,
+            и плитка у них та же, что была. */}
+        {item.badge ? <span className="cinema-chip">{item.badge}</span> : null}
         {item.category && <span className="cinema-chip">{item.category}</span>}
       </span>
+    </article>
+  );
+}
+
+/**
+ * Сериал, шоу или фильм: постер 2:3, как на афише, и что это такое. В него заходят — сезоны и
+ * серии живут на его странице.
+ */
+export function PosterTile({ item, onEnter }: { item: CinemaItem; onEnter: (item: CinemaItem) => void }) {
+  return (
+    <article className="cinema-tile cinema-tile-tall">
+      <span className="cinema-cover">
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Clapperboard size={26} />}
+      </span>
+      <button className="cinema-open" aria-label={`Открыть: ${item.title}`} onClick={() => onEnter(item)} />
+      <b className="cinema-tile-title">{item.title}</b>
+      {item.badge ? (
+        <span className="cinema-tile-meta">
+          <span className="cinema-chip">{item.badge}</span>
+        </span>
+      ) : null}
     </article>
   );
 }

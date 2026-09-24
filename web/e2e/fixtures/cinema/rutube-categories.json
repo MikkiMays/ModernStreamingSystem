@@ -1,0 +1,101 @@
+{
+  "items": [
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "4",
+      "title": "Фильмы",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "5",
+      "title": "Сериалы",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "7",
+      "title": "Мультфильмы",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "43",
+      "title": "Телепередачи",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "42",
+      "title": "Детям",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "41",
+      "title": "Аниме",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "19",
+      "title": "Юмор",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "6",
+      "title": "Музыка",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "16",
+      "title": "Спорт",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "22",
+      "title": "Видеоигры",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "8",
+      "title": "Новости и СМИ",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "rutube",
+      "kind": "category",
+      "id": "78",
+      "title": "Обзоры и распаковки товаров",
+      "viewers": null,
+      "poster": null
+    }
+  ],
+  "next": null
+}

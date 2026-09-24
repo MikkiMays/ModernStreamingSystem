@@ -1,0 +1,18 @@
+{
+  "provider": "rutube",
+  "kind": "channel",
+  "id": "5ab908fccfac5bb43ef2b1e4182256b0",
+  "title": "Прямой эфир Звезда",
+  "author": "ТЕЛЕКАНАЛ ЗВЕЗДА",
+  "channelId": "12050",
+  "channelAvatar": "/fixtures/poster.png",
+  "duration": null,
+  "live": true,
+  "views": null,
+  "viewers": null,
+  "followers": null,
+  "published": "2025-08-31",
+  "category": "Телепередачи",
+  "description": "Телеканал «Звезда» - это самые актуальные новости в России и в мире, документальные фильмы о самых заметных событиях современности и прошлого, эксклюзивные видео военной тематики.",
+  "poster": "/fixtures/poster.png"
+}

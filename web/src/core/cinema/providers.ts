@@ -1,4 +1,4 @@
-import { Radio, Tv, type LucideIcon } from 'lucide-react';
+import { Radio, SquarePlay, Tv, type LucideIcon } from 'lucide-react';
 
 /**
  * Реестр площадок кинозала.
@@ -13,25 +13,28 @@ import { Radio, Tv, type LucideIcon } from 'lucide-react';
  * `tile` — цвет плитки-выключателя в панели интеграций. У YouTube и Twitch они и раньше не
  * совпадали (`#e33b3b`/`#ff3d3d`, `#8250e6`/`#9147ff`) — два разных места однажды выбрали цвет
  * порознь, и переучивать людей заново не входит в эту задачу. Реестр не стирает расхождение, а
- * просто перестаёт хранить его дважды по всему коду: то же самое хранится один раз.
+ * просто перестаёт хранить его дважды по всему коду: то же самое хранится один раз. У площадок
+ * со своей сценой (Rutube и следующие) вкладки-переключателя нет, и `accent` у них — цвет самой
+ * площадки в её сцене: плашка с именем в полосе и выбранный раздел.
  */
-export const PROVIDER_IDS = ['youtube', 'twitch'] as const;
+export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
  * На какой сцене открывается площадка.
  *
- * Пока сцена одна — `'switcher'`, вкладки внутри одного каталога (тот же каталог, что и был).
- * Площадки с другим устройством каталога (плеер библиотеки, разбор ссылки) получат
- * собственные сцены в задачах, которые их приносят — отсюда и союзный тип, а не одна строка.
+ * `'switcher'` — вкладки YouTube и Twitch внутри одного каталога (тот же каталог, что и был).
+ * Площадка с другим устройством каталога получает свою сцену: у Rutube это эфиры ТВ, сериалы с
+ * сезонами и разделы площадки. Следующие площадки дописывают сюда свои.
  */
-export type SceneId = 'switcher';
+export type SceneId = 'switcher' | 'rutube';
 
 export interface ProviderSpec {
   id: ProviderId;
   name: string;
   hint: string;
-  /** Цвет вкладки-переключателя (`.cinema-service`) — тот же, что задавала CSS раньше. */
+  /** Цвет вкладки-переключателя (`.cinema-service`) — тот же, что задавала CSS раньше; у площадки
+   *  со своей сценой — её цвет в этой сцене. */
   accent: string;
   /** Цвет плитки в панели интеграций (`.service-tile-icon`) — исторически другой оттенок. */
   tile: string;
@@ -62,6 +65,22 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     icon: Radio,
     scene: 'switcher',
     searchPlaceholder: 'Канал или игра на Twitch',
+  },
+  /*
+    Цвет — из их же CSS: `--rt-colors-base-brand-rutube-primary: #1c80e3` в дизайн-токенах сайта
+    (`static.rtbcdn.ru/woodpecker/…/web/3680.8cb244615ddfc9f7.css`, правила `[data-themeid=dark]`
+    и `[data-themeid=light]`, 24.09.2026). Вкладки-переключателя, с которой исторически разошёлся
+    бы цвет плитки, у Rutube нет — поэтому цвет один на обоих местах.
+  */
+  rutube: {
+    id: 'rutube',
+    name: 'Rutube',
+    hint: 'Эфиры ТВ, сериалы и шоу',
+    accent: '#1c80e3',
+    tile: '#1c80e3',
+    icon: SquarePlay,
+    scene: 'rutube',
+    searchPlaceholder: 'Видео, каналы и ТВ',
   },
 };
 

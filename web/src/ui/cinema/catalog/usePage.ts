@@ -7,6 +7,8 @@ import type {
   CinemaChannelPage,
   CinemaPage,
   CinemaPlaylistPage,
+  CinemaSeriesInfo,
+  CinemaSeriesPage,
   ProviderId,
 } from '../../../core/cinema';
 import type { View } from './useStack';
@@ -20,7 +22,8 @@ import type { View } from './useStack';
 type Opened = CinemaPage &
   Partial<Pick<CinemaChannelPage, 'channel'>> &
   Partial<Pick<CinemaPlaylistPage, 'playlist'>> &
-  Partial<Pick<CinemaCategoryPage, 'category'>>;
+  Partial<Pick<CinemaCategoryPage, 'category'>> &
+  Partial<Pick<CinemaSeriesPage, 'series' | 'season'>>;
 
 /** Лента с продолжением, как её отдаёт `useInfiniteQuery`: ровно то, что рисует страница. */
 export interface Feed {
@@ -33,7 +36,7 @@ export interface Feed {
 }
 
 /**
- * Данные открытой страницы каталога: канала, плейлиста, раздела или ролика.
+ * Данные открытой страницы каталога: канала, плейлиста, раздела, сериала или ролика.
  *
  * Зовётся сценой на каждом рендере, а не страницей при входе на неё: память о шапке канала
  * должна пережить уход в плейлист и возвращение назад — а страница при уходе исчезает.
@@ -42,6 +45,7 @@ export function usePage(api: CinemaApi, provider: ProviderId, view: View) {
   // Что именно открыто, вынуто из разбора один раз: внутри обработчиков нажатий разбор
   // размеченного типа уже не виден, и каждая кнопка иначе просила бы его заново.
   const channelId = view.at === 'channel' ? view.id : '';
+  const seriesId = view.at === 'series' ? view.id : '';
   const item = view.at === 'item' ? view.item : null;
   /** Адрес открытой страницы одной строкой: он же и ключ её запроса. */
   const address =
@@ -51,13 +55,16 @@ export function usePage(api: CinemaApi, provider: ProviderId, view: View) {
         ? `playlist:${view.id}`
         : view.at === 'category'
           ? `category:${view.id}`
-          : '';
+          : view.at === 'series'
+            ? `series:${view.id}:${view.season}`
+            : '';
   const opened = useInfiniteQuery({
     queryKey: ['cinema', 'page', provider, address],
     queryFn: ({ pageParam, signal }): Promise<Opened> => {
       if (view.at === 'channel') return api.channel(provider, view.id, view.tab, pageParam, signal);
       if (view.at === 'playlist') return api.playlist(provider, view.id, pageParam, signal);
       if (view.at === 'category') return api.category(provider, view.id, pageParam, signal);
+      if (view.at === 'series') return api.series(provider, view.id, view.season, pageParam, signal);
       return Promise.resolve({ items: [], next: null });
     },
     initialPageParam: '',
@@ -81,6 +88,8 @@ export function usePage(api: CinemaApi, provider: ProviderId, view: View) {
   const items = pages.flatMap((page) => page.items);
   const playlist = pages.find((page) => page.playlist)?.playlist ?? null;
   const category = pages.find((page) => page.category)?.category ?? null;
+  /** Какой сезон открыт на самом деле: не выбранный руками — тот, что открыла площадка. */
+  const season = pages[0]?.season ?? null;
   /**
    * Шапка канала переживает вкладку, на которой её не отдали.
    *
@@ -95,5 +104,16 @@ export function usePage(api: CinemaApi, provider: ProviderId, view: View) {
   }, [fresh, channelId]);
   const person = fresh ?? (known?.id === channelId ? known.channel : null);
 
-  return { opened, details, items, playlist, category, person };
+  /**
+   * Шапка сериала переживает смену сезона — по той же причине, что и шапка канала: новый сезон
+   * — это новый запрос, и без памяти вкладки сезонов пропадали бы на время, пока он едет.
+   */
+  const [knownSeries, setKnownSeries] = useState<{ id: string; series: CinemaSeriesInfo } | null>(null);
+  const freshSeries = pages.find((page) => page.series)?.series ?? null;
+  useEffect(() => {
+    if (freshSeries) setKnownSeries({ id: seriesId, series: freshSeries });
+  }, [freshSeries, seriesId]);
+  const series = freshSeries ?? (knownSeries?.id === seriesId ? knownSeries.series : null);
+
+  return { opened, details, items, playlist, category, series, season, person };
 }

@@ -752,3 +752,134 @@
     font-size: 12.5px;
   }
 }
+
+/*
+  Сцены площадок со своей витриной (Rutube и следующие): плашка площадки в полосе, ряд разделов,
+  полки, постеры 2:3 и страница сериала.
+
+  Всё это стоит ниже прежних правил и не трогает ни одного прежнего класса: у YouTube и Twitch
+  этих элементов нет, и их вид остаётся тем же до пикселя. Цвет площадки приходит переменной
+  `--accent` с самого элемента (реестр площадок, `core/cinema/providers.ts`), как у вкладок
+  переключателя.
+*/
+/* Где мы: имя площадки в полосе, того же вида, что выбранная вкладка переключателя. Вкладок у
+   сцены со своей витриной нет, а знать, чей это каталог, человеку всё равно нужно. */
+.cinema-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: white;
+  background: var(--accent, #4674f3);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/*
+  Разделы площадки — одной строкой, листаются вбок. Сорок кнопок в четыре строки отобрали бы у
+  витрины весь первый экран. Отступ вокруг ряда — место для кольца фокуса, которое иначе
+  обрезала бы прокрутка.
+*/
+.cinema-chips {
+  display: flex;
+  gap: 6px;
+  padding: 3px;
+  margin: -3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.cinema-chips .cinema-chip-button {
+  flex: none;
+}
+.cinema-chip-button[aria-selected='true'] {
+  color: white;
+  border-color: transparent;
+  background: var(--accent, #4674f3);
+}
+/* Полка: заголовок слева, дверь на полку целиком справа, на одной строке. */
+.cinema-shelf-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.cinema-shelf-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cinema-shelf-head .text-button {
+  padding: 2px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/*
+  Ряд полки листается вбок, а не переносится. Поля ряда — ровно те шесть пикселей, на которые
+  плитка выступает за свой край ради подсветки: без них прокрутка срезала бы и подсветку, и кольцо
+  фокуса у крайних плиток.
+*/
+.cinema-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 240px;
+  gap: 12px;
+  padding: 6px;
+  margin: -6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.cinema-row > .cinema-tile {
+  scroll-snap-align: start;
+}
+.cinema-row-tall {
+  grid-auto-columns: 150px;
+}
+/* Постер сериала и фильма — 2:3, как на афише: в ряд их встаёт больше, чем кадров. */
+.cinema-cover {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: 11px;
+  overflow: hidden;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.cinema-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cinema-grid-tall {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+/* Шапка сериала: постер узкой колонкой, а не на полстраницы, как кадр ролика. */
+.cinema-detail-tall {
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
+}
+.cinema-detail-tall .cinema-detail-art {
+  aspect-ratio: 2 / 3;
+}
+/* Ниже 860 px страница ролика встаёт в одну колонку; постер сериала во всю ширину телефона был
+   бы выше экрана — он остаётся колонкой, только уже. */
+@media (max-width: 860px) {
+  .cinema-detail-tall {
+    grid-template-columns: minmax(0, 112px) minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .cinema-row {
+    grid-auto-columns: 200px;
+  }
+  .cinema-row-tall {
+    grid-auto-columns: 124px;
+  }
+  .cinema-grid-tall {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+}

@@ -29,3 +29,16 @@ export function published(value: string | null | undefined): string | null {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+/**
+ * Число со словом по русскому счёту: «1 сезон», «3 сезона», «11 сезонов». То же правило, что в
+ * `core/durak.ts` и `core/poker.ts`; своя копия здесь — чтобы каталог не тянул в свой чанк игры.
+ */
+export function plural(count: number, one: string, few: string, many: string): string {
+  const tail = count % 10;
+  const teen = count % 100;
+  if (teen >= 11 && teen <= 14) return `${count} ${many}`;
+  if (tail === 1) return `${count} ${one}`;
+  if (tail >= 2 && tail <= 4) return `${count} ${few}`;
+  return `${count} ${many}`;
+}
