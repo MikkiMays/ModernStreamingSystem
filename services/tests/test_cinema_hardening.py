@@ -2,9 +2,11 @@
 Укрепление кинозала без видимых изменений (задача 4): то, что раньше проходило молча, а теперь
 отказывает, — и то, что раньше путалось, а теперь различается.
 
-Каждый тест здесь падал на коде до задачи: он называет дыру и доказывает, что она закрыта.
-Сцена та же, что у характеристики (`test_cinema_providers.Stage`): остановленные часы,
-подменённый yt-dlp и сеть, которая знает только свои ответы.
+Тест здесь называет дыру и доказывает, что она закрыта: на коде до задачи он падал (или не
+находил нового API). Те немногие, что проходили и тогда, стерегут прежнее поведение рядом с
+новым — например, мелкий кусочек по-прежнему один на комнату. Сцена та же, что у
+характеристики (`test_cinema_providers.Stage`): остановленные часы, подменённый yt-dlp и сеть,
+которая знает только свои ответы.
 """
 
 import asyncio
@@ -17,12 +19,12 @@ import time
 import unittest
 from hashlib import sha256
 from unittest.mock import patch
-
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+
 import test_cinema_providers as characterization
 from test_cinema_providers import USER, Stage, indexed_mp4, twitch_user
 

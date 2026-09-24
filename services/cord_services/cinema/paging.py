@@ -41,7 +41,8 @@ def page(items: list[Any], offset: int, limit: int = PAGE) -> dict[str, Any]:
 
 
 def absolute(url: str | None) -> str:
-    """Адреса картинок у YouTube бывают без схемы (`//yt3.ggpht.com/…`) — с ней они в белом списке."""
+    """Адреса картинок у YouTube бывают без схемы (`//yt3.ggpht.com/…`) — со схемой их пропускает
+    политика хостов площадки."""
     if not url:
         return ""
     return "https:" + url if url.startswith("//") else url
