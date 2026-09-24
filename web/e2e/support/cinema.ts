@@ -122,8 +122,49 @@ function exists(name: string) {
   return existsSync(path.join(FIXTURES, 'cinema', `${name}.json`));
 }
 
+/**
+ * Обе площадки включены и отвечают — тем же набором возможностей, что называет служба
+ * (`cord_services/cinema/providers/{youtube,twitch}.py`). Не запись: сама проверка доступности
+ * бьёт наружу, а здесь площадки нет вовсе, — поэтому ответ собран руками, а не снят с прода.
+ */
+const PROVIDERS_ANSWER = {
+  providers: [
+    {
+      id: 'youtube',
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: true,
+        channels: true,
+        playlists: true,
+        categories: false,
+        series: false,
+        live: true,
+      },
+    },
+    {
+      id: 'twitch',
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: true,
+        channels: true,
+        playlists: false,
+        categories: true,
+        series: false,
+        live: true,
+      },
+    },
+  ],
+};
+
 const DEFAULTS: Record<string, CinemaHandler> = {
   catalog: () => fixture('catalog'),
+  providers: () => PROVIDERS_ANSWER,
   search: ({ params }) => {
     const query = (params.get('query') ?? '').trim().toLowerCase();
     if (params.get('cursor')) return { ...END, channels: [], categories: [] };

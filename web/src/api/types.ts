@@ -1,4 +1,5 @@
 import type { components } from './generated';
+import type { ProviderId } from '../core/cinema/providers';
 
 export type Participant = components['schemas']['Participant'];
 export type Status = Participant['status'];
@@ -26,7 +27,7 @@ export type Replay = Omit<components['schemas']['Replay'], 'snapshot'> & { snaps
  * заново, а забытая ветка молча ничего не показывала бы.
  */
 export type Watch = Omit<components['schemas']['Watch'], 'provider' | 'kind' | 'title'> & {
-  provider: 'youtube' | 'twitch';
+  provider: ProviderId;
   kind: 'video' | 'channel';
   title: string | null;
 };

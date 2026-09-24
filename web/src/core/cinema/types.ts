@@ -1,16 +1,5 @@
-import { request } from '../api/client';
-import type { Admission } from '../api/types';
-import type { WatchProvider } from './watch';
+import type { ProviderId } from './providers';
 
-/**
- * Кинотеатр со стороны браузера: каталог, страницы каналов и адрес потока.
- *
- * Ни одного запроса к YouTube или Twitch отсюда не уходит. Поиск, обложки, описания и сам
- * поток идут через `/api/v1/services/rooms/{id}/cinema/...` — то есть через наш сервер,
- * который единственный и ходит наружу. Так это работает и там, где до площадок из браузера не
- * достучаться, и поэтому же строгий CSP остаётся нетронутым: ни чужих скриптов, ни чужих
- * картинок на странице нет.
- */
 /**
  * Что бывает в каталоге.
  *
@@ -23,7 +12,7 @@ export type CinemaKind = 'video' | 'channel' | 'playlist' | 'category';
 export type ChannelTab = 'videos' | 'streams' | 'shorts' | 'playlists' | 'about';
 
 export interface CinemaItem {
-  provider: WatchProvider;
+  provider: ProviderId;
   kind: CinemaKind;
   id: string;
   title: string;
@@ -48,7 +37,7 @@ export interface CinemaItem {
 }
 
 export interface CinemaChannel {
-  provider: WatchProvider;
+  provider: ProviderId;
   id: string;
   title: string;
   /** `@псевдоним` у YouTube, логин у Twitch — то, по чему канал узнают. */
@@ -63,7 +52,7 @@ export interface CinemaChannel {
 }
 
 export interface CinemaPlaylist {
-  provider: WatchProvider;
+  provider: ProviderId;
   kind: 'playlist';
   id: string;
   title: string;
@@ -104,6 +93,29 @@ export interface CinemaCategoryPage extends CinemaPage {
   category: CinemaItem;
 }
 
+/**
+ * Сериал: обложка, описание и список сезонов. Серии самого открытого сезона приезжают тем же
+ * конвертом, что и любая другая страница каталога (`items`/`next`) — маршрут появится отдельной
+ * задачей, здесь только форма ответа, которую уже можно набирать типами.
+ */
+export interface CinemaSeasonRef {
+  id: string;
+  title: string;
+}
+export interface CinemaSeriesInfo {
+  id: string;
+  title: string;
+  poster: string | null;
+  description: string | null;
+  year: number | null;
+  seasons: CinemaSeasonRef[];
+}
+export interface CinemaSeriesPage extends CinemaPage {
+  series: CinemaSeriesInfo;
+  /** Какой сезон отдан в `items`; `null`, если у сериала сезонов нет вовсе. */
+  season: string | null;
+}
+
 export interface CinemaDetails extends CinemaItem {
   description: string;
   followers?: number | null;
@@ -129,7 +141,7 @@ export interface CinemaCaption {
 }
 
 export interface CinemaSource {
-  provider: WatchProvider;
+  provider: ProviderId;
   contentId: string;
   title: string;
   author: string;
@@ -151,101 +163,28 @@ export interface CinemaSource {
   poster: string | null;
 }
 
-export class CinemaApi {
-  private base: string;
-  constructor(private admission: Admission) {
-    this.base = `/services/rooms/${admission.roomId}/cinema`;
-  }
-  private ask = <T>(path: string, signal?: AbortSignal) =>
-    request<T>(`${this.base}${path}`, { signal }, this.admission.credential);
-  /** Пустой запрос — это витрина: у Twitch популярные эфиры, у YouTube ничего. */
-  search = (provider: WatchProvider, query: string, cursor = '', signal?: AbortSignal) =>
-    this.ask<CinemaResults>(
-      `/search?provider=${provider}&query=${encodeURIComponent(query)}&cursor=${cursor}`,
-      signal,
-    );
-  channel = (
-    provider: WatchProvider,
-    id: string,
-    tab: ChannelTab = 'videos',
-    cursor = '',
-    signal?: AbortSignal,
-  ) =>
-    this.ask<CinemaChannelPage>(
-      `/channel?provider=${provider}&id=${encodeURIComponent(id)}&tab=${tab}&cursor=${cursor}`,
-      signal,
-    );
-  playlist = (provider: WatchProvider, id: string, cursor = '', signal?: AbortSignal) =>
-    this.ask<CinemaPlaylistPage>(
-      `/playlist?provider=${provider}&id=${encodeURIComponent(id)}&cursor=${cursor}`,
-      signal,
-    );
-  /** Разделы площадки: у Twitch это игры и рубрики, у YouTube их нет. */
-  categories = (provider: WatchProvider, query = '', cursor = '', signal?: AbortSignal) =>
-    this.ask<CinemaPage>(
-      `/categories?provider=${provider}&query=${encodeURIComponent(query)}&cursor=${cursor}`,
-      signal,
-    );
-  category = (provider: WatchProvider, id: string, cursor = '', signal?: AbortSignal) =>
-    this.ask<CinemaCategoryPage>(
-      `/category?provider=${provider}&id=${encodeURIComponent(id)}&cursor=${cursor}`,
-      signal,
-    );
-  details = (provider: WatchProvider, id: string, kind: 'video' | 'channel', signal?: AbortSignal) =>
-    this.ask<CinemaDetails>(
-      `/details?provider=${provider}&kind=${kind}&id=${encodeURIComponent(id)}`,
-      signal,
-    );
-  resolve = (
-    provider: WatchProvider,
-    contentId: string,
-    kind: 'video' | 'channel',
-    options: { adaptive?: boolean; refresh?: boolean } = {},
-  ) =>
-    request<CinemaSource>(
-      `${this.base}/resolve`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          provider,
-          contentId,
-          kind,
-          adaptive: typeof MediaSource !== 'undefined',
-          ...options,
-        }),
-      },
-      this.admission.credential,
-    );
+/** Что умеет площадка — тем же набором ключей, что и сервис-реестр на стороне службы. */
+export interface CinemaProviderFeatures {
+  search: boolean;
+  channels: boolean;
+  playlists: boolean;
+  categories: boolean;
+  series: boolean;
+  live: boolean;
 }
 
-/** `1:04:12` для часа с лишним, `4:12` для остального. Ноль и пустота — это прочерк. */
-export function clock(seconds: number | null | undefined): string {
-  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return '—';
-  const whole = Math.floor(seconds);
-  const parts = [Math.floor(whole / 3600), Math.floor((whole % 3600) / 60), whole % 60];
-  return parts[0]
-    ? `${parts[0]}:${String(parts[1]).padStart(2, '0')}:${String(parts[2]).padStart(2, '0')}`
-    : `${parts[1]}:${String(parts[2]).padStart(2, '0')}`;
-}
+/** Нужен ли площадке аккаунт, чтобы отвечать вообще (`none`) или отвечать полнее (`optional`). */
+export type CinemaAccountLevel = 'none' | 'optional' | 'required';
 
-/** «12 тыс.» вместо 12 345: точное число зрителей никому не нужно, а место занимает. */
-export function viewers(count: number | null | undefined): string | null {
-  if (!count || count < 0) return null;
-  if (count < 1000) return `${count}`;
-  if (count < 1_000_000) return `${Math.round(count / 100) / 10} тыс.`;
-  return `${Math.round(count / 100_000) / 10} млн`;
+/** Строка ответа `GET .../cinema/providers`: включена ли площадка и что у неё есть. */
+export interface CinemaProviderStatus {
+  id: ProviderId;
+  available: boolean;
+  reason: string | null;
+  account: CinemaAccountLevel;
+  connected: boolean;
+  features: CinemaProviderFeatures;
 }
-
-/** `20141110` от YouTube и `2026-09-19` от Twitch — одной строкой для человека. */
-export function published(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const digits = value.replace(/\D/g, '');
-  if (digits.length < 8) return null;
-  const date = new Date(
-    Number(digits.slice(0, 4)),
-    Number(digits.slice(4, 6)) - 1,
-    Number(digits.slice(6, 8)),
-  );
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+export interface CinemaProvidersResponse {
+  providers: CinemaProviderStatus[];
 }

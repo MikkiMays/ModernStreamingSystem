@@ -1492,16 +1492,14 @@ button.watch-stream:hover {
 .cinema-service:hover {
   color: var(--text);
 }
-/* Выбранная площадка узнаётся цветом самой площадки, а не одной общей обводкой. */
+/*
+  Выбранная площадка узнаётся цветом самой площадки, а не одной общей обводкой. Цвет приходит
+  переменной `--accent` с самой кнопки (реестр площадок, `core/cinema/providers.ts`) — раньше
+  тут было по правилу на `[data-id]` с тем же hex-ом внутри, второй копией того же числа.
+*/
 .cinema-service[aria-selected='true'] {
   color: white;
-  background: #4674f3;
-}
-.cinema-service[aria-selected='true'][data-id='youtube'] {
-  background: #e33b3b;
-}
-.cinema-service[aria-selected='true'][data-id='twitch'] {
-  background: #8250e6;
+  background: var(--accent, #4674f3);
 }
 .cinema-bar .cinema-search {
   flex: 1 1 auto;

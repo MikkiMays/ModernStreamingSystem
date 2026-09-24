@@ -16,8 +16,9 @@ import { YandexIntegration } from './YandexIntegration';
 import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
 import { MusicUpload } from './MusicUpload';
-import { CinemaGroup } from './CinemaGroup';
+import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
+import { PROVIDERS, SWITCHER_TABS } from '../core/cinema';
 import {
   foresee,
   foresightSpent,
@@ -46,11 +47,14 @@ type GroupCard = {
   accent: string;
   ready: boolean;
 };
+// Подсказка группы называет площадки переключателя из реестра, а не хранит их имена сама:
+// сейчас их ровно две, и «А и Б» — то же самое предложение, которое было записано вручную.
+const CINEMA_HINT = `${SWITCHER_TABS.map((id) => PROVIDERS[id].name).join(' и ')} на всю комнату`;
 const GROUPS: GroupCard[] = [
   {
     id: 'cinema',
     name: 'Кинозал',
-    hint: 'YouTube и Twitch на всю комнату',
+    hint: CINEMA_HINT,
     icon: Tv,
     accent: '#4674f3',
     ready: true,

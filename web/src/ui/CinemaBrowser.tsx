@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import type { Meeting } from '../core/meeting';
 import {
   CinemaApi,
   clock,
+  PROVIDERS,
   published,
   viewers,
   type ChannelTab,
@@ -489,6 +490,9 @@ export function CinemaBrowser({
               className="cinema-service"
               data-id={service.id}
               title={service.hint}
+              // Цвет выбранной вкладки — из реестра площадок, той же карточки, что красит и
+              // плитку в панели интеграций: CSS больше не хранит вторую копию этих hex-ов.
+              style={{ '--accent': PROVIDERS[service.id].accent } as CSSProperties}
               onClick={() => onProvider(service.id)}
             >
               {service.id === 'twitch' ? <Radio size={15} /> : <Tv size={15} />}
