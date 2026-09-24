@@ -12,9 +12,12 @@ import { clock, viewers, type CinemaItem } from '../../../core/cinema';
 /** Как лежат плитки: широкими кадрами, вертикальными обложками разделов или лицами каналов. */
 export type GridKind = 'wide' | 'boxes' | 'faces';
 
-export function Grid({ kind = 'wide', children }: { kind?: GridKind; children: ReactNode }) {
+/** Широкими кадрами — по умолчанию; значение по умолчанию не в разборе параметров: такой разбор
+ *  React Compiler пропускает целиком. */
+export function Grid({ kind, children }: { kind?: GridKind; children: ReactNode }) {
+  const shape = kind ?? 'wide';
   return (
-    <div className={kind === 'wide' ? 'cinema-grid' : `cinema-grid cinema-grid-${kind}`}>{children}</div>
+    <div className={shape === 'wide' ? 'cinema-grid' : `cinema-grid cinema-grid-${shape}`}>{children}</div>
   );
 }
 

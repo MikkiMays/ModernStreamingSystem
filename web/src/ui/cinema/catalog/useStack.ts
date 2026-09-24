@@ -23,21 +23,28 @@ const HOME: View[] = [{ at: 'home' }];
  *
  * Чужое переписывается прямо в рендере, а не эффектом: React тут же повторяет рендер, не
  * показывая промежуточного, — и возврат на прежнюю площадку тоже начинается с чистого листа.
+ *
+ * Сеттер принадлежит одному визиту ключа (`visit`), а не ключу: запоздавший вызов — таймер, ответ
+ * сети — от прежней площадки не пишет ни в новую, ни в следующий визит той же самой. Визит, а не
+ * сам ключ, — потому что YouTube → Twitch → YouTube снова даёт ключ `youtube`, а открытое на
+ * первом заходе ко второму не относится.
  */
 export function useKeyed<T>(key: string, initial: T): [T, Dispatch<SetStateAction<T>>] {
-  const [state, setState] = useState({ key, value: initial });
-  if (state.key !== key) setState({ key, value: initial });
-  const value = state.key === key ? state.value : initial;
+  const [state, setState] = useState({ key, visit: 0, value: initial });
+  const fresh = state.key === key ? state : { key, visit: state.visit + 1, value: initial };
+  if (fresh !== state) setState(fresh);
+  const { visit } = fresh;
   const set = useCallback<Dispatch<SetStateAction<T>>>(
     (next) =>
       setState((current) => {
+        if (current.visit !== visit) return current;
         const value = typeof next === 'function' ? (next as (value: T) => T)(current.value) : next;
         // То же значение — то же состояние: React тогда не рисует заново, как и с обычным useState.
-        return Object.is(value, current.value) ? current : { key: current.key, value };
+        return Object.is(value, current.value) ? current : { ...current, value };
       }),
-    [],
+    [visit],
   );
-  return [value, set];
+  return [fresh.value, set];
 }
 
 /**

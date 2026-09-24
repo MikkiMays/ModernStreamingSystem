@@ -129,4 +129,42 @@ describe('useKeyed: состояние площадки', () => {
     act(() => result.current[1]('пятничный стрим'));
     expect(result.current[0]).toBe('пятничный стрим');
   });
+
+  it('запоздавший вызов прежней площадки в новую не пишет', () => {
+    const { result, rerender } = renderHook(({ key }) => useKeyed(key, ''), {
+      initialProps: { key: 'youtube' },
+    });
+    const late = result.current[1];
+    rerender({ key: 'twitch' });
+    // Таймер или ответ, заведённые ещё на YouTube, срабатывают уже на Twitch.
+    act(() => late('big buck bunny'));
+    act(() => late((value) => `${value}!`));
+    expect(result.current[0]).toBe('');
+    act(() => result.current[1]('пятничный стрим'));
+    expect(result.current[0]).toBe('пятничный стрим');
+  });
+
+  it('и в следующий заход на ту же площадку тоже: YouTube → Twitch → YouTube', () => {
+    const { result, rerender } = renderHook(({ key }) => useKeyed(key, ''), {
+      initialProps: { key: 'youtube' },
+    });
+    act(() => result.current[1]('big buck bunny'));
+    const late = result.current[1];
+    rerender({ key: 'twitch' });
+    rerender({ key: 'youtube' });
+    expect(result.current[0]).toBe('');
+    act(() => late('never gonna give you up'));
+    expect(result.current[0]).toBe('');
+  });
+
+  it('стопка: запоздавший переход со старой площадки на новую не попадает', () => {
+    const { result, rerender } = renderHook(({ owner }) => useStack(owner), {
+      initialProps: { owner: 'youtube' },
+    });
+    const { toChannel, go } = result.current;
+    rerender({ owner: 'twitch' });
+    act(() => toChannel('UC1'));
+    act(() => go({ at: 'item', item: VIDEO }));
+    expect(at(result.current.stack)).toEqual(['home']);
+  });
 });
