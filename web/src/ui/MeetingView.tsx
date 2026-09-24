@@ -109,6 +109,11 @@ export function MeetingView({
   const tracks = useStore(meeting.media.tracks);
   /** Телефон: часть кнопок не прячется, а переезжает в меню, и это решает разметка. */
   const compact = useMediaQuery('(max-width: 700px)');
+  /**
+   * Панель — нижний лист во всю сцену, а не полоса сбоку (`styles.css`, `max-width: 767px`).
+   * Это не `compact`: между 701 и 767 пульт ещё настольный, а панель уже лист.
+   */
+  const sheet = useMediaQuery('(max-width: 767px)');
   const outbound = useStore(meeting.media.outbound);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
@@ -117,15 +122,19 @@ export function MeetingView({
   }, [ended]);
   const [panel, setPanel] = useState<Panel | null>(null);
   /*
-    Каталог кинозала открывается на сцене, а на телефоне сцена лежит **под** панелью: панель
-    там не полоса сбоку, а лист во весь низ экрана. Получалось, что выбор фильма честно
+    Каталог кинозала открывается на сцене, а на узком экране сцена лежит **под** панелью:
+    панель там не полоса сбоку, а лист во весь низ экрана. Получалось, что выбор фильма честно
     открывался — и был не виден, потому что его закрывал тот же список интеграций, из
     которого его и открыли. Панель уступает место ровно тому, что сама же позвала.
+
+    Правило стояло на `compact` (до 700 px), а листом панель становится до 767 px: между ними
+    каталог открывался под листом и оставался полоской над ним. Граница теперь та же, что у
+    самого листа.
   */
   const browsing = useStore(meeting.cinema);
   useEffect(() => {
-    if (compact && browsing) setPanel(null);
-  }, [compact, browsing]);
+    if (sheet && browsing) setPanel(null);
+  }, [sheet, browsing]);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
