@@ -1,17 +1,19 @@
-import { useEffect, useMemo, type CSSProperties } from 'react';
+import { useEffect, useEffectEvent, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
 import { CinemaApi, PROVIDERS, SWITCHER_TABS, type CinemaItem, type ProviderId } from '../../../core/cinema';
+import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
-import { Empty, Failure, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading } from '../catalog/notes';
 import { CategoryPage } from '../catalog/pages/CategoryPage';
 import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
-import { ItemPage } from '../catalog/pages/ItemPage';
+import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
 import { Shell } from '../catalog/Shell';
 import { CategoryTile, ChannelTile, Grid, PlaylistTile, Tile } from '../catalog/tiles';
+import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
@@ -56,29 +58,44 @@ function playable(item: CinemaItem): boolean {
  * Переключение площадки не пересоздаёт сцену: вкладки, поле поиска и фокус на нажатой вкладке
  * остаются теми же элементами, а открытое (стопка, поиск, витрина) принадлежит площадке и в том
  * же кадре начинается с чистого листа (`useKeyed`).
+ *
+ * Ссылка, вставленная в поиск, — не слова для поиска: её разбирает служба (`useLink`), и она
+ * открывает страницу своей площадки — этой, соседней или сцену «По ссылке». Сцена, открытая по
+ * ссылке (`at`), начинается сразу с её страницы.
  */
-export default function SwitcherScene({ provider, meeting, onProvider, onClose }: SceneProps) {
+export default function SwitcherScene({ provider, at, meeting, onProvider, onClose }: SceneProps) {
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const watching = !!useStore(meeting.snapshot).watch;
   const { canUse, busy, error, open } = useTogether(meeting);
-  const { stack, view, go, back, switchTab, toChannel, home: toHome } = useStack(provider);
+  const { stack, view, go, back, switchTab, toChannel, home: toHome } = useStack(provider, at);
   /** Что показывает витрина площадки: живые эфиры или разделы. Только у Twitch. */
   const [shelf, setShelf] = useKeyed<'live' | 'categories'>(provider, 'live');
   const [query, setQuery] = useKeyed(provider, '');
   /** Ищем не на каждую букву: поиск уходит на сервер, а тот — к площадке. */
   const [settled, setSettled] = useKeyed(provider, '');
+  const link = useLink(meeting, api);
+  /** Ссылку спрашивают тогда же, когда искали бы слова: вставленная ссылка — одно изменение поля. */
+  const follow = useEffectEvent((url: string) => {
+    void link.follow(url).then((opened) => opened && setQuery(''));
+  });
   useEffect(() => {
-    const timer = setTimeout(() => setSettled(query.trim()), 420);
+    const timer = setTimeout(() => {
+      setSettled(query.trim());
+      const url = linkOf(query);
+      if (url) follow(url);
+    }, 420);
     return () => clearTimeout(timer);
   }, [query, setSettled]);
 
   const home = view.at === 'home';
+  /** Набрана ссылка — это не поиск: витрина и поиск молчат, пока служба не скажет, куда она ведёт. */
+  const linked = !!linkOf(settled);
   const results = useInfiniteQuery({
     queryKey: ['cinema', 'search', provider, settled],
     queryFn: ({ pageParam, signal }) => api.search(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && shelf === 'live' && (provider === 'twitch' || settled.length > 1),
+    enabled: home && !linked && shelf === 'live' && (provider === 'twitch' || settled.length > 1),
     staleTime: 60000,
   });
   const categories = useInfiniteQuery({
@@ -86,7 +103,7 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
     queryFn: ({ pageParam, signal }) => api.categories(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && shelf === 'categories' && provider === 'twitch',
+    enabled: home && !linked && shelf === 'categories' && provider === 'twitch',
     staleTime: 60000,
   });
   const page = usePage(api, provider, view);
@@ -150,6 +167,7 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
       placeholder={PROVIDERS[provider].searchPlaceholder}
       onSearch={(value) => {
         setQuery(value);
+        link.cancel();
         if (view.at !== 'home') toHome();
       }}
       onClear={() => setQuery('')}
@@ -158,7 +176,9 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
       locked={!canUse}
       error={error}
     >
-      {home && (
+      {home && linked && <Following checking={!!link.checking} problem={link.problem} />}
+
+      {home && !linked && (
         <>
           {/* У Twitch каталог начинается не с поиска: там сначала выбирают, что смотрят,
               и только потом — кого. Поэтому разделы стоят рядом с эфирами, а не прячутся. */}
@@ -293,7 +313,8 @@ export default function SwitcherScene({ provider, meeting, onProvider, onClose }
           details={page.details}
           canUse={canUse}
           busy={busy}
-          onWatch={open}
+          // Страница по ссылке знает только номер: комнате уходит имя со страницы ролика.
+          onWatch={view.linked ? (item) => open(named(item, page.details.data)) : open}
           onChannel={toChannel}
         />
       )}

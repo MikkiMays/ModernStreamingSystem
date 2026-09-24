@@ -78,6 +78,13 @@ export interface Preferences {
    */
   watchAudio: string;
   watchSubtitles: string;
+  /**
+   * Недавние ссылки кинозала — последние десять, новая первой.
+   *
+   * Свои у каждого профиля, как громкость: кто что открывал по ссылке, комнате знать незачем, а
+   * вставить ту же ссылку ещё раз — частое дело (серия за серией, эфир после перерыва).
+   */
+  cinemaLinks: string[];
   /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
   reception: Reception;
   name: string;
@@ -153,6 +160,14 @@ export function readPreferences(): Preferences {
         : 70,
     watchAudio: typeof data.watchAudio === 'string' ? data.watchAudio.slice(0, 24) : '',
     watchSubtitles: typeof data.watchSubtitles === 'string' ? data.watchSubtitles.slice(0, 32) : '',
+    cinemaLinks: Array.isArray(data.cinemaLinks)
+      ? data.cinemaLinks
+          .filter(
+            (url): url is string =>
+              typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url),
+          )
+          .slice(0, 10)
+      : [],
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,

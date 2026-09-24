@@ -17,6 +17,7 @@ vi.mock('../media/session', async () => {
       });
       setServiceParticipants = vi.fn();
       rememberPeople = vi.fn();
+      watchScreen = vi.fn();
       dispose = vi.fn();
     },
   };
@@ -279,4 +280,23 @@ it('resolves a room deletion when the SFU disconnect arrives before its control 
   await vi.advanceTimersByTimeAsync(0);
   expect(meeting.ended.get()).toBe('Встреча завершена');
   expect(meeting.snapshot.get().closedAt).toBeTruthy();
+});
+
+it('кинозал по ссылке: страница меняется раньше площадки, а без страницы и при закрытии её нет', () => {
+  const order: string[] = [];
+  meeting.cinemaAt.subscribe(() => order.push(`at:${JSON.stringify(meeting.cinemaAt.get())}`));
+  meeting.cinema.subscribe(() => order.push(`cinema:${meeting.cinema.get()}`));
+  const page = { page: 'item', kind: 'video', id: 'dQw4w9WgXcQ' } as const;
+  meeting.openCinema('youtube', page);
+  // Сцена, которую откроет смена площадки, видит свою страницу с первого же кадра.
+  expect(order).toEqual([`at:${JSON.stringify(page)}`, 'cinema:youtube']);
+  expect(meeting.cinemaAt.get()).toBe(page);
+  // Та же страница ещё раз — новый объект: вставить ту же ссылку снова — тоже просьба её открыть.
+  meeting.openCinema('youtube', { ...page });
+  expect(meeting.cinemaAt.get()).not.toBe(page);
+  meeting.openCinema('twitch');
+  expect(meeting.cinemaAt.get()).toBeNull();
+  meeting.openCinema('rutube', { page: 'series', kind: 'series', id: '356362' });
+  meeting.openCinema(null, page);
+  expect([meeting.cinema.get(), meeting.cinemaAt.get()]).toEqual([null, null]);
 });

@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Meeting } from '../../../core/meeting';
 import { Store } from '../../../core/store';
+import { sceneMeeting } from '../../../test/cinemaMeeting';
+import { useStore } from '../../primitives';
 import RutubeScene from './RutubeScene';
 
 /*
@@ -74,9 +76,19 @@ const FACE = {
   poster: null,
 };
 
-function answer(url: URL) {
+/** Что ответила бы служба на ссылку: её грамматику здесь играет таблица. */
+const ROUTES: Record<string, unknown> = {
+  [`https://rutube.ru/live/video/${LIVE.id}/`]: {
+    route: { provider: 'rutube', kind: 'channel', id: LIVE.id, page: 'item' },
+  },
+};
+
+function answer(url: URL, body?: string) {
   const endpoint = url.pathname.split('/cinema/')[1];
   const params = url.searchParams;
+  if (endpoint === 'link') return ROUTES[(JSON.parse(body ?? '{}') as { url: string }).url];
+  if (endpoint === 'details')
+    return { ...LIVE, id: params.get('id'), description: 'Первый канал в прямом эфире' };
   if (endpoint === 'search' && params.get('query') === 'сдвиг')
     // Лента «сначала новое» сдвинулась между порциями: фильм раздела приезжает второй раз.
     return params.get('cursor')
@@ -150,15 +162,16 @@ beforeEach(() => {
   asked.length = 0;
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: string) => {
+    vi.fn((input: string, init?: RequestInit) => {
       const url = new URL(input, 'http://test');
       const params = url.searchParams;
       const endpoint = url.pathname.split('/cinema/')[1];
-      expect(params.get('provider')).toBe('rutube');
+      const body = typeof init?.body === 'string' ? init.body : undefined;
+      if (endpoint !== 'link') expect(params.get('provider')).toBe('rutube');
       const season = params.get('season');
       asked.push(`${endpoint} ${params.get('query') ?? params.get('id') ?? ''}${season ? ` ${season}` : ''}`);
       return Promise.resolve(
-        new Response(JSON.stringify(answer(url)), {
+        new Response(JSON.stringify(answer(url, body)), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
@@ -309,5 +322,58 @@ it('страница сериала тоже ставит повторившую
   await screen.findByText('Фильм раздела');
   expect(screen.getAllByText('Свежее видео')).toHaveLength(1);
   expect(screen.getAllByRole('button', { name: /^Подробнее: / })).toHaveLength(3);
+  client.clear();
+});
+
+/** Сцена, как её держит сцена встречи: страница — из `Meeting.cinemaAt`. */
+function Host({ meeting }: { meeting: Meeting }) {
+  const cinema = useStore(meeting.cinema);
+  const at = useStore(meeting.cinemaAt);
+  return cinema === 'rutube' ? (
+    <RutubeScene meeting={meeting} provider="rutube" at={at} onProvider={() => {}} onClose={() => {}} />
+  ) : null;
+}
+
+function host(prepare?: (meeting: ReturnType<typeof sceneMeeting>) => void) {
+  const meeting = sceneMeeting('rutube');
+  prepare?.(meeting);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <Host meeting={meeting} />
+    </QueryClientProvider>,
+  );
+  return { client, meeting };
+}
+
+it('сцена, открытая по ссылке на сериал, начинается с его страницы: сезоны и серии, «назад» — на витрину', async () => {
+  const { client } = host((meeting) =>
+    meeting.openCinema('rutube', { page: 'series', kind: 'series', id: '891161' }),
+  );
+  expect(await screen.findByRole('heading', { name: 'Универ | PREMIER' })).toBeInTheDocument();
+  expect(await screen.findByText('Универ, 1 сезон, 1 серия')).toBeInTheDocument();
+  expect(asked[0]).toBe('series 891161');
+  fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
+  expect(await screen.findByRole('region', { name: 'Прямой эфир' })).toBeInTheDocument();
+  client.clear();
+});
+
+it('ссылка на эфир ТВ, вставленная в поиск, — страница эфира, и комнате уходит канал с номером ролика', async () => {
+  const { client, meeting } = host();
+  fireEvent.change(screen.getByPlaceholderText('Видео, каналы и ТВ'), {
+    target: { value: `https://rutube.ru/live/video/${LIVE.id}/` },
+  });
+  expect(await screen.findByRole('heading', { name: 'Прямой эфир Первый канал' })).toBeInTheDocument();
+  expect(meeting.openCinema).toHaveBeenCalledWith('rutube', { page: 'item', kind: 'channel', id: LIVE.id });
+  expect(screen.getByPlaceholderText('Видео, каналы и ТВ')).toHaveValue('');
+  expect(asked.filter((line) => line.startsWith('search ') && line !== 'search ')).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: /Смотреть вместе/ }));
+  await waitFor(() =>
+    expect(meeting.command).toHaveBeenCalledWith('watch.open', 'Прямой эфир Первый канал', undefined, {
+      provider: 'rutube',
+      kind: 'channel',
+      contentId: LIVE.id,
+    }),
+  );
   client.clear();
 });

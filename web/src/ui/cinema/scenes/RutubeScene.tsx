@@ -1,17 +1,19 @@
-import { useEffect, useMemo, type CSSProperties } from 'react';
+import { useEffect, useEffectEvent, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { CinemaApi, PROVIDERS, type CinemaItem } from '../../../core/cinema';
+import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
-import { Empty, Failure, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading } from '../catalog/notes';
 import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
-import { ItemPage } from '../catalog/pages/ItemPage';
+import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
 import { cardsOf } from '../catalog/cards';
 import { Shell } from '../catalog/Shell';
 import { Shelf } from '../catalog/Shelf';
 import { Tabs, type TabSpec } from '../catalog/Tabs';
 import { ChannelTile, Grid, PosterTile, Tile } from '../catalog/tiles';
+import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
@@ -45,25 +47,38 @@ function playable(item: CinemaItem): boolean {
  * Цвет площадки — только в двух местах: плашка с её именем в полосе и выбранный раздел.
  * Остальное — тот же тёмный каталог, что у YouTube и Twitch: переходя между площадками, человек
  * узнаёт кинозал, а не попадает в чужой сайт.
+ *
+ * Ссылка в поиске открывает страницу своей площадки (`useLink`): ролик, эфир, канал или сериал
+ * Rutube — здесь же, ссылку другой площадки — в её сцене.
  */
-export default function RutubeScene({ provider, meeting, onClose }: SceneProps) {
+export default function RutubeScene({ provider, at, meeting, onClose }: SceneProps) {
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const watching = !!useStore(meeting.snapshot).watch;
   const { canUse, busy, error, open } = useTogether(meeting);
-  const { stack, view, go, back, switchTab, switchSeason, toChannel, home: toHome } = useStack(provider);
+  const { stack, view, go, back, switchTab, switchSeason, toChannel, home: toHome } = useStack(provider, at);
   const [query, setQuery] = useKeyed(provider, '');
   /** Ищем не на каждую букву: поиск уходит на сервер, а тот — к площадке. */
   const [settled, setSettled] = useKeyed(provider, '');
   /** Открытый раздел площадки; пусто — витрина. */
   const [section, setSection] = useKeyed(provider, '');
+  const link = useLink(meeting, api);
+  const follow = useEffectEvent((url: string) => {
+    void link.follow(url).then((opened) => opened && setQuery(''));
+  });
   useEffect(() => {
-    const timer = setTimeout(() => setSettled(query.trim()), 420);
+    const timer = setTimeout(() => {
+      setSettled(query.trim());
+      const url = linkOf(query);
+      if (url) follow(url);
+    }, 420);
     return () => clearTimeout(timer);
   }, [query, setSettled]);
 
   const home = view.at === 'home';
+  /** Набрана ссылка — не поиск: витрина и поиск молчат, пока служба не скажет, куда она ведёт. */
+  const linked = !!linkOf(settled);
   const showcase = home && !settled && !section;
   // Пустой запрос у Rutube — это витрина: эфиры лентой и полка «Сериалы и шоу». Она же
   // открывается целиком («Все эфиры»), поэтому запрос один на обе страницы.
@@ -72,7 +87,7 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
     queryFn: ({ pageParam, signal }) => api.search(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: showcase || (home && !!settled) || view.at === 'shelf',
+    enabled: showcase || (home && !!settled && !linked) || view.at === 'shelf',
     staleTime: 60000,
   });
   // Разделы — ряд кнопок, а не лента: их четыре десятка, и площадка отдаёт их разом. Спрашиваются
@@ -140,6 +155,7 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
       placeholder={spec.searchPlaceholder}
       onSearch={(value) => {
         setQuery(value);
+        link.cancel();
         if (view.at !== 'home') toHome();
       }}
       onClear={() => setQuery('')}
@@ -148,6 +164,8 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
       locked={!canUse}
       error={error}
     >
+      {home && linked ? <Following checking={!!link.checking} problem={link.problem} /> : null}
+
       {home && !settled ? (
         <>
           {/* Разделы — вкладками в один ряд над витриной: выбранный раздел заменяет полки своей
@@ -208,7 +226,7 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
         </>
       ) : null}
 
-      {home && settled ? (
+      {home && settled && !linked ? (
         <>
           {/* Полки над лентой: набрав имя канала или сериала, ищут сам канал или сериал, а не
               ролики про него, — и находят его первым. */}
@@ -290,7 +308,8 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
           details={page.details}
           canUse={canUse}
           busy={busy}
-          onWatch={open}
+          // Страница по ссылке знает только номер: комнате уходит имя со страницы ролика.
+          onWatch={view.linked ? (item) => open(named(item, page.details.data)) : open}
           onChannel={toChannel}
           onSeries={(id) => go({ at: 'series', id, season: '', title: '', poster: null })}
         />

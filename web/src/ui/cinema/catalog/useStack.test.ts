@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { CinemaItem } from '../../../core/cinema';
+import type { CinemaAt, CinemaItem, ProviderId } from '../../../core/cinema';
 import { useKeyed, useStack, type View } from './useStack';
 
 const VIDEO = { provider: 'youtube', kind: 'video', id: 'v1', title: 'Ролик' } as CinemaItem;
@@ -94,7 +94,7 @@ describe('useStack: как ходят по каталогу', () => {
         seen.push(`${owner}:${at(stack.stack).join('>')}`);
         return stack;
       },
-      { initialProps: { owner: 'youtube' } },
+      { initialProps: { owner: 'youtube' as ProviderId } },
     );
     act(() => result.current.toChannel('UC1'));
     seen.length = 0;
@@ -108,7 +108,7 @@ describe('useStack: как ходят по каталогу', () => {
 
   it('возврат на прежнюю площадку тоже начинается с главной, а не с брошенной там стопки', () => {
     const { result, rerender } = renderHook(({ owner }) => useStack(owner), {
-      initialProps: { owner: 'youtube' },
+      initialProps: { owner: 'youtube' as ProviderId },
     });
     act(() => result.current.toChannel('UC1'));
     rerender({ owner: 'twitch' });
@@ -176,12 +176,85 @@ describe('useKeyed: состояние площадки', () => {
 
   it('стопка: запоздавший переход со старой площадки на новую не попадает', () => {
     const { result, rerender } = renderHook(({ owner }) => useStack(owner), {
-      initialProps: { owner: 'youtube' },
+      initialProps: { owner: 'youtube' as ProviderId },
     });
     const { toChannel, go } = result.current;
     rerender({ owner: 'twitch' });
     act(() => toChannel('UC1'));
     act(() => go({ at: 'item', item: VIDEO }));
     expect(at(result.current.stack)).toEqual(['home']);
+  });
+});
+
+describe('useStack: страница по ссылке', () => {
+  const ROLL: CinemaAt = { page: 'item', kind: 'video', id: 'dQw4w9WgXcQ' };
+
+  it('сцена, открытая по ссылке, начинается с её страницы, а «назад» ведёт на главную', () => {
+    const seen: string[] = [];
+    const { result } = renderHook(() => {
+      const stack = useStack('youtube', ROLL);
+      seen.push(at(stack.stack).join('>'));
+      return stack;
+    });
+    // Витрины не было ни одного кадра: страница по ссылке — с первого же.
+    expect(seen.every((line) => line === 'home>item')).toBe(true);
+    expect(result.current.view).toEqual({
+      at: 'item',
+      linked: true,
+      item: expect.objectContaining({
+        provider: 'youtube',
+        kind: 'video',
+        id: 'dQw4w9WgXcQ',
+        title: 'Видео YouTube по ссылке',
+      }),
+    });
+    act(() => result.current.back());
+    expect(result.current.view).toEqual({ at: 'home' });
+  });
+
+  it('ссылка, вставленная в открытую сцену, кладётся сверху; та же страница второй раз — нет', () => {
+    const { result, rerender } = renderHook(({ link }) => useStack('rutube', link), {
+      initialProps: { link: null as CinemaAt | null },
+    });
+    act(() => result.current.toChannel('23460655'));
+    rerender({ link: { page: 'series', kind: 'series', id: '356362' } });
+    expect(at(result.current.stack)).toEqual(['home', 'channel:videos', 'series']);
+    expect(result.current.view).toEqual({ at: 'series', id: '356362', season: '', title: '', poster: null });
+    // Та же ссылка ещё раз — новый объект, но та же страница: «назад» не должен ходить по дублям.
+    rerender({ link: { page: 'series', kind: 'series', id: '356362' } });
+    expect(at(result.current.stack)).toEqual(['home', 'channel:videos', 'series']);
+    rerender({ link: { page: 'channel', kind: 'channel', id: '23463954' } });
+    expect(result.current.view).toEqual({ at: 'channel', id: '23463954', tab: 'videos' });
+    rerender({ link: { page: 'playlist', kind: 'playlist', id: 'PL1' } });
+    expect(at(result.current.stack)).toEqual([
+      'home',
+      'channel:videos',
+      'series',
+      'channel:videos',
+      'playlist',
+    ]);
+    // Закрытая ссылка (`null`) и «По ссылке» (`link`) стопку не трогают.
+    rerender({ link: null });
+    rerender({ link: { page: 'link', url: 'https://example.com/' } });
+    expect(at(result.current.stack)).toEqual([
+      'home',
+      'channel:videos',
+      'series',
+      'channel:videos',
+      'playlist',
+    ]);
+  });
+
+  it('ссылка на соседнюю площадку той же сцены: стопка новой площадки — главная и страница ссылки', () => {
+    const { result, rerender } = renderHook(({ owner, link }) => useStack(owner, link), {
+      initialProps: { owner: 'youtube' as ProviderId, link: null as CinemaAt | null },
+    });
+    act(() => result.current.toChannel('UC1'));
+    rerender({ owner: 'twitch', link: { page: 'item', kind: 'channel', id: 'pesh' } });
+    expect(at(result.current.stack)).toEqual(['home', 'item']);
+    expect(result.current.view).toMatchObject({
+      at: 'item',
+      item: { provider: 'twitch', kind: 'channel', id: 'pesh', title: 'Эфир Twitch: pesh', live: true },
+    });
   });
 });

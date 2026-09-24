@@ -1,11 +1,16 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
-import type { ProviderId, SceneId } from '../../../core/cinema';
+import type { CinemaAt, ProviderId, SceneId } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 
 /** Что сцена кинозала получает от сцены встречи. */
 export interface SceneProps {
   /** Открытая площадка. У сцены с несколькими площадками она меняется без пересоздания сцены. */
   provider: ProviderId;
+  /**
+   * На какой странице открыться: ссылка, вставленная где угодно, ведёт сразу на ролик, канал,
+   * плейлист или сериал (`Meeting.cinemaAt`). Пусто — сцена открывается как обычно, с витрины.
+   */
+  at?: CinemaAt | null;
   meeting: Meeting;
   /** Перейти на другую площадку, не закрывая каталог. */
   onProvider: (provider: ProviderId) => void;
@@ -23,4 +28,5 @@ export const SCENES: Record<SceneId, LazyExoticComponent<ComponentType<SceneProp
   switcher: lazy(() => import('./SwitcherScene')),
   rutube: lazy(() => import('./RutubeScene')),
   vk: lazy(() => import('./VkScene')),
+  link: lazy(() => import('./LinkScene')),
 };

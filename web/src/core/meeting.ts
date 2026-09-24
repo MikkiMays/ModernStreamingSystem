@@ -9,6 +9,7 @@ import { rememberMeeting } from './recent';
 import { NotificationSounds, type Cue } from './sounds';
 import { readPreferences } from './preferences';
 import { volumeKey } from './volumes';
+import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 
 const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
@@ -26,6 +27,13 @@ export class Meeting {
    * Комната узнаёт об этом только в момент «включить», и это обычная команда.
    */
   readonly cinema = new Store<WatchProvider | null>(null);
+  /**
+   * На какой странице открыть сцену площадки: ссылка, вставленная где угодно в кинозале, ведёт
+   * сразу на ролик, канал, плейлист или сериал (`CinemaAt`), а не на витрину. Каждое открытие по
+   * ссылке — новый объект, даже для той же страницы: сцена кладёт страницу в стопку по смене, а
+   * вставить ту же ссылку ещё раз — тоже просьба её открыть.
+   */
+  readonly cinemaAt = new Store<CinemaAt | null>(null);
   /**
    * Недописанное сообщение чата.
    *
@@ -358,8 +366,10 @@ export class Meeting {
    * Открыть или закрыть каталог кинотеатра. Чужую демонстрацию он закрывает: сцена одна, и
    * «я листаю каталог поверх чужого экрана» — это не два дела сразу, а потерянный экран.
    */
-  openCinema(provider: WatchProvider | null) {
+  openCinema(provider: WatchProvider | null, at?: CinemaAt) {
     if (provider) this.returnToConversation();
+    // Страница — раньше площадки: сцена, которую откроет смена площадки, должна увидеть её сразу.
+    this.cinemaAt.set(provider && at ? at : null);
     this.cinema.set(provider);
   }
   async leave() {
@@ -374,6 +384,7 @@ export class Meeting {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
     if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
+    this.cinemaAt.set(null);
     this.cinema.set(null);
     this.cue('self-leave');
     this.sounds.dispose();

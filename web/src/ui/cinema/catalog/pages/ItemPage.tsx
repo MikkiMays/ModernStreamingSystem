@@ -16,6 +16,16 @@ export function merge(item: CinemaItem, extra: CinemaDetails | null | undefined)
   return { ...item, ...filled, description: String(filled.description ?? item.description ?? '') };
 }
 
+/**
+ * Карточка с именем со страницы ролика — если страница уже приехала и она про тот же ролик.
+ *
+ * Карточка по ссылке знает только номер, и комната иначе увидела бы в «Сейчас смотрим» заглушку
+ * «Видео YouTube по ссылке» вместо названия, которое уже стоит на странице.
+ */
+export function named(item: CinemaItem, details: CinemaDetails | null | undefined): CinemaItem {
+  return details && details.id === item.id && details.title ? { ...item, title: details.title } : item;
+}
+
 /** Страница ролика или эфира: кадр, всё, что о нём известно, и «Смотреть вместе». */
 export function ItemPage({
   item,

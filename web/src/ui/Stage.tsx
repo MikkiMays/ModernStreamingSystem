@@ -156,6 +156,7 @@ export function Stage({
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
   const cinema = useStore(meeting.cinema);
+  const cinemaAt = useStore(meeting.cinemaAt);
   const layout = useStore(meeting.media.preferences).layout;
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -466,6 +467,7 @@ export function Stage({
                 key={scene}
                 meeting={meeting}
                 provider={cinema}
+                at={cinemaAt}
                 onProvider={(next) => meeting.openCinema(next)}
                 onClose={() => meeting.openCinema(null)}
               />

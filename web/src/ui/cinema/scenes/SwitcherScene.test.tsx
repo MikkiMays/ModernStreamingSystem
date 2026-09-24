@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Meeting } from '../../../core/meeting';
 import type { ProviderId } from '../../../core/cinema';
 import { Store } from '../../../core/store';
+import { sceneMeeting } from '../../../test/cinemaMeeting';
+import { useStore } from '../../primitives';
 import SwitcherScene from './SwitcherScene';
 
 /*
@@ -28,8 +30,21 @@ const VIDEO = {
   poster: null,
 };
 
-function answer(url: URL) {
+/** Что ответила бы служба на ссылку: её грамматику здесь играет таблица. */
+const ROUTES: Record<string, unknown> = {
+  'https://youtu.be/aqz-KE-bpKQ': {
+    route: { provider: 'youtube', kind: 'video', id: 'aqz-KE-bpKQ', page: 'item' },
+  },
+  'https://www.twitch.tv/pesh': { route: { provider: 'twitch', kind: 'channel', id: 'pesh', page: 'item' } },
+};
+
+function answer(url: URL, body?: string) {
   const endpoint = url.pathname.split('/cinema/')[1];
+  if (endpoint === 'link') return ROUTES[(JSON.parse(body ?? '{}') as { url: string }).url];
+  if (endpoint === 'details')
+    return url.searchParams.get('provider') === 'twitch'
+      ? { ...VIDEO, provider: 'twitch', kind: 'channel', id: 'pesh', title: 'Эфир pesh', live: true }
+      : { ...VIDEO, title: 'Big Buck Bunny — страница ролика', description: '' };
   if (endpoint === 'search')
     return url.searchParams.get('provider') === 'youtube' && url.searchParams.get('query')
       ? { items: [VIDEO], channels: [], categories: [], next: null }
@@ -45,14 +60,15 @@ beforeEach(() => {
   asked.length = 0;
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: string) => {
+    vi.fn((input: string, init?: RequestInit) => {
       const url = new URL(input, 'http://test');
       const params = url.searchParams;
+      const body = typeof init?.body === 'string' ? init.body : undefined;
       asked.push(
         `${params.get('provider')} ${url.pathname.split('/cinema/')[1]} ${params.get('query') ?? params.get('id')}`,
       );
       return Promise.resolve(
-        new Response(JSON.stringify(answer(url)), {
+        new Response(JSON.stringify(answer(url, body)), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
@@ -129,5 +145,130 @@ it('новая площадка не наследует стопку: канал
   expect(asked.filter((line) => line.startsWith('twitch '))).toEqual(['twitch search ']);
   expect(screen.queryByRole('button', { name: 'Назад' })).toBeNull();
   expect(document.activeElement).toBe(twitch);
+  client.clear();
+});
+
+/** Сцена, как её держит сцена встречи: площадка и страница — из хранилищ встречи. */
+function Host({ meeting }: { meeting: Meeting }) {
+  const cinema = useStore(meeting.cinema);
+  const at = useStore(meeting.cinemaAt);
+  return cinema === 'youtube' || cinema === 'twitch' ? (
+    <SwitcherScene
+      meeting={meeting}
+      provider={cinema}
+      at={at}
+      onProvider={(next) => meeting.openCinema(next)}
+      onClose={() => {}}
+    />
+  ) : null;
+}
+
+function host(prepare?: (meeting: ReturnType<typeof sceneMeeting>) => void) {
+  const meeting = sceneMeeting('youtube');
+  prepare?.(meeting);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <Host meeting={meeting} />
+    </QueryClientProvider>,
+  );
+  return { client, meeting };
+}
+
+it('сцена, открытая по ссылке на ролик, начинается с его страницы и включает его под именем со страницы', async () => {
+  const { client, meeting } = host((meeting) =>
+    meeting.openCinema('youtube', { page: 'item', kind: 'video', id: 'aqz-KE-bpKQ' }),
+  );
+  expect(
+    await screen.findByRole('heading', { name: 'Big Buck Bunny — страница ролика' }),
+  ).toBeInTheDocument();
+  // Витрины YouTube не спрашивали: страница ролика — с первого же кадра.
+  expect(asked).toEqual(['youtube details aqz-KE-bpKQ']);
+  fireEvent.click(screen.getByRole('button', { name: /Смотреть вместе/ }));
+  await waitFor(() =>
+    expect(meeting.command).toHaveBeenCalledWith(
+      'watch.open',
+      'Big Buck Bunny — страница ролика',
+      undefined,
+      {
+        provider: 'youtube',
+        kind: 'video',
+        contentId: 'aqz-KE-bpKQ',
+      },
+    ),
+  );
+  // Включили — каталог уходит, как и из витрины.
+  await waitFor(() => expect(meeting.openCinema).toHaveBeenLastCalledWith(null));
+  client.clear();
+});
+
+it('«Назад» со страницы по ссылке ведёт на витрину площадки', async () => {
+  const { client } = host((meeting) =>
+    meeting.openCinema('youtube', { page: 'item', kind: 'video', id: 'aqz-KE-bpKQ' }),
+  );
+  await screen.findByRole('heading', { name: 'Big Buck Bunny — страница ролика' });
+  fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
+  expect(await screen.findByText('Что включим комнате?')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Назад' })).toBeNull();
+  client.clear();
+});
+
+it('ссылка на Twitch, вставленная в поиск YouTube, открывает эфир на вкладке Twitch — без поиска', async () => {
+  const { client, meeting } = host();
+  fireEvent.change(screen.getByPlaceholderText('Ролик, канал или плейлист'), {
+    target: { value: 'https://www.twitch.tv/pesh' },
+  });
+  expect(await screen.findByRole('heading', { name: 'Эфир pesh' })).toBeInTheDocument();
+  expect(meeting.openCinema).toHaveBeenCalledWith('twitch', { page: 'item', kind: 'channel', id: 'pesh' });
+  expect(screen.getByRole('tab', { name: 'Twitch' })).toHaveAttribute('aria-selected', 'true');
+  expect(asked.filter((line) => line.includes(' search '))).toEqual([]);
+  expect(asked).toContain('twitch details pesh');
+  client.clear();
+});
+
+it('пока служба отвечает о ссылке — «Открываем ссылку…»: витрины нет, поиск по адресу не уходит', async () => {
+  let release = () => {};
+  const gate = new Promise<void>((done) => (release = done));
+  const plain = vi.mocked(globalThis.fetch).getMockImplementation()!;
+  vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+    if (String(input).includes('/cinema/link')) await gate;
+    return plain(input, init);
+  });
+  const { client } = host();
+  await screen.findByText('Что включим комнате?');
+  fireEvent.change(screen.getByPlaceholderText('Ролик, канал или плейлист'), {
+    target: { value: 'https://youtu.be/aqz-KE-bpKQ' },
+  });
+  expect(await screen.findByText('Открываем ссылку…')).toBeInTheDocument();
+  expect(screen.queryByText('Что включим комнате?')).toBeNull();
+  release();
+  expect(
+    await screen.findByRole('heading', { name: 'Big Buck Bunny — страница ролика' }),
+  ).toBeInTheDocument();
+  expect(asked.filter((line) => line.includes(' search '))).toEqual([]);
+  // Ссылка сделала своё: поле снова пустое, и «назад» вернёт витрину, а не поиск по адресу.
+  expect(screen.getByPlaceholderText('Ролик, канал или плейлист')).toHaveValue('');
+  client.clear();
+});
+
+it('ответ о ссылке, которую уже стёрли, никуда не ведёт: набрали другое — ищут другое', async () => {
+  let release = () => {};
+  const gate = new Promise<void>((done) => (release = done));
+  const plain = vi.mocked(globalThis.fetch).getMockImplementation()!;
+  vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+    if (String(input).includes('/cinema/link')) await gate;
+    return plain(input, init);
+  });
+  const { client, meeting } = host();
+  const field = screen.getByPlaceholderText('Ролик, канал или плейлист');
+  fireEvent.change(field, { target: { value: 'https://www.twitch.tv/pesh' } });
+  await screen.findByText('Открываем ссылку…');
+  fireEvent.change(field, { target: { value: 'big buck bunny' } });
+  await waitFor(() => expect(asked).toContain('youtube search big buck bunny'));
+  release();
+  await screen.findByRole('button', { name: 'Blender' });
+  await new Promise((done) => setTimeout(done, 100));
+  expect(meeting.openCinema).not.toHaveBeenCalled();
+  expect(screen.getByRole('tab', { name: 'YouTube' })).toHaveAttribute('aria-selected', 'true');
   client.clear();
 });

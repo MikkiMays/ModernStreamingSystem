@@ -1,19 +1,20 @@
-import { useEffect, useMemo, type CSSProperties } from 'react';
+import { useEffect, useEffectEvent, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link2 } from 'lucide-react';
 import { CinemaApi, PROVIDERS, type CinemaItem } from '../../../core/cinema';
-import { linkCard, vkLink } from '../../../core/cinema/vk';
+import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
-import { Empty, Failure, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading } from '../catalog/notes';
 import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
-import { ItemPage, merge } from '../catalog/pages/ItemPage';
+import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
 import { Shell } from '../catalog/Shell';
 import { Shelf } from '../catalog/Shelf';
 import { Tabs } from '../catalog/Tabs';
 import { ChannelTile, Grid, PlaylistTile, Tile } from '../catalog/tiles';
+import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
@@ -40,32 +41,41 @@ function playable(item: CinemaItem): boolean {
  *
  * ССЫЛКА — ТОЖЕ ПОИСК. Каталог VK отвечает только с анонимным токеном, и когда вход или каталог
  * лежат, сцена говорит об этом прямо — а вставленная в поиск ссылка на ролик или эфир всё равно
- * открывает его страницу: поток разбирает служба без всякого токена (`core/cinema/vk.ts`).
+ * открывает его страницу: ссылку служба узнаёт по самому адресу (`useLink`), а поток разбирает без
+ * всякого токена.
  *
  * Плитки, страницы и стопка — общие (`catalog/`); своё у VK — сообщество (в него заходят, в нём
  * вкладки «Видео» и «Плейлисты») и идущий эфир (его включают). Цвет площадки — только на плашке с
  * её именем в полосе и на выбранном разделе, как у Rutube.
  */
-export default function VkScene({ provider, meeting, onClose }: SceneProps) {
+export default function VkScene({ provider, at, meeting, onClose }: SceneProps) {
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const watching = !!useStore(meeting.snapshot).watch;
   const { canUse, busy, error, open } = useTogether(meeting);
-  const { stack, view, go, back, switchTab, toChannel, home: toHome } = useStack(provider);
+  const { stack, view, go, back, switchTab, toChannel, home: toHome } = useStack(provider, at);
   const [query, setQuery] = useKeyed(provider, '');
   /** Ищем не на каждую букву: поиск уходит на сервер, а тот — к площадке. */
   const [settled, setSettled] = useKeyed(provider, '');
   /** Выбранный раздел; пусто — первый, что отдала площадка («Все»). */
   const [section, setSection] = useKeyed(provider, '');
+  const link = useLink(meeting, api);
+  const follow = useEffectEvent((url: string) => {
+    void link.follow(url).then((opened) => opened && setQuery(''));
+  });
   useEffect(() => {
-    const timer = setTimeout(() => setSettled(query.trim()), 420);
+    const timer = setTimeout(() => {
+      setSettled(query.trim());
+      const url = linkOf(query);
+      if (url) follow(url);
+    }, 420);
     return () => clearTimeout(timer);
   }, [query, setSettled]);
 
   const home = view.at === 'home';
-  /** Набрана ссылка на ролик VK — это не поиск: такой ролик открывается по адресу. */
-  const link = vkLink(settled);
+  /** Набрана ссылка — не поиск: такой ролик открывается по адресу, куда скажет служба. */
+  const linked = !!linkOf(settled);
   const sections = useQuery({
     queryKey: ['cinema', 'sections', provider],
     queryFn: ({ signal }) => api.categories(provider, '', '', signal),
@@ -87,16 +97,8 @@ export default function VkScene({ provider, meeting, onClose }: SceneProps) {
     queryFn: ({ pageParam, signal }) => api.search(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && !!settled && !link,
+    enabled: home && !!settled && !linked,
     staleTime: 60000,
-  });
-  // Страница ролика по ссылке — тем же вопросом, что задаст его страница (`usePage`): плитка
-  // ссылки показывает имя и кадр, а на странице они уже есть, без второго запроса.
-  const linked = useQuery({
-    queryKey: ['cinema', 'item', provider, link ? `${link.kind}:${link.id}` : ''],
-    queryFn: ({ signal }) => (link ? api.details(provider, link.id, link.kind, signal) : null),
-    enabled: home && !!link,
-    staleTime: 300000,
   });
   const page = usePage(api, provider, view);
 
@@ -112,12 +114,9 @@ export default function VkScene({ provider, meeting, onClose }: SceneProps) {
   };
   /**
    * «Смотреть вместе» — с именем со страницы ролика, если она уже приехала: карточка по ссылке
-   * знает только адрес, а комната должна увидеть название, а не «Видео VK по ссылке».
+   * знает только номер, а комната должна увидеть название, а не «Видео VK по ссылке».
    */
-  const watch = (item: CinemaItem) => {
-    const known = page.details.data ?? linked.data;
-    return open(known && known.id === item.id && known.title ? { ...item, title: known.title } : item);
-  };
+  const watch = (item: CinemaItem) => open(named(item, page.details.data));
   const card = (item: CinemaItem) =>
     item.kind === 'playlist' ? (
       <PlaylistTile key={`playlist:${item.id}`} item={item} onEnter={enter} />
@@ -149,13 +148,8 @@ export default function VkScene({ provider, meeting, onClose }: SceneProps) {
       placeholder={spec.searchPlaceholder}
       onSearch={(value) => {
         setQuery(value);
-        const pasted = vkLink(value);
-        // Вставили ссылку на ролик — сразу его страница, не дожидаясь паузы в наборе: это адрес,
-        // а не слова для поиска. «Назад» с неё возвращает к плитке этой ссылки.
-        if (pasted) {
-          toHome();
-          go({ at: 'item', item: linkCard(pasted) });
-        } else if (view.at !== 'home') toHome();
+        link.cancel();
+        if (view.at !== 'home') toHome();
       }}
       onClear={() => setQuery('')}
       watching={watching}
@@ -163,6 +157,8 @@ export default function VkScene({ provider, meeting, onClose }: SceneProps) {
       locked={!canUse}
       error={error}
     >
+      {home && linked ? <Following checking={!!link.checking} problem={link.problem} /> : null}
+
       {home && !settled ? (
         <>
           {/* Разделы — вкладками в один ряд над сеткой, одна остановка Tab на ряд (`Tabs`). Ряд
@@ -206,15 +202,7 @@ export default function VkScene({ provider, meeting, onClose }: SceneProps) {
         </>
       ) : null}
 
-      {home && link ? (
-        <>
-          <h4 className="cinema-heading">По ссылке</h4>
-          {linked.isError ? <Failure problem={linked.error} /> : null}
-          <Grid>{card(merge(linkCard(link), linked.data))}</Grid>
-        </>
-      ) : null}
-
-      {home && settled && !link ? (
+      {home && settled && !linked ? (
         <>
           {/* Сообщества — полкой над роликами: набрав имя сообщества, ищут его само, а не ролики
               про него, — и находят первым. */}

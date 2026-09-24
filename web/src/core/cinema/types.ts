@@ -172,6 +172,57 @@ export interface CinemaSource {
   poster: string | null;
 }
 
+/**
+ * На какой странице сцены открывается ссылка: ролик или эфир, канал, плейлист, сериал. Те же
+ * страницы, на которые заходят из каталога, — у ссылки своих нет.
+ */
+export type CinemaPageKind = 'item' | 'channel' | 'playlist' | 'series';
+
+/**
+ * Где открыть сцену: страница площадки — по ссылке, вставленной где угодно в кинозале, — или сама
+ * ссылка (`page: 'link'`), если своей площадки у неё нет: такую показывает сцена «По ссылке».
+ */
+export type CinemaAt = { page: CinemaPageKind; kind: CinemaKind; id: string } | { page: 'link'; url: string };
+
+/** Ответ службы на ссылку своей площадки: чья она, что это, номер в её форме и страница сцены. */
+export interface CinemaRoute {
+  provider: ProviderId;
+  kind: CinemaKind;
+  id: string;
+  page: CinemaPageKind;
+}
+
+/** Дорожка звука или субтитров у видео по ссылке — язык и как её назвал сайт. */
+export interface CinemaLinkTrack {
+  lang: string;
+  label: string;
+  /** Субтитры распознаны речью, а не написаны автором. */
+  auto?: boolean;
+}
+
+/**
+ * Что нашлось по ссылке без своей площадки (общий путь, задачи 15b и 15c): та же карточка каталога
+ * и то, по чему решают, включать ли, — лучшее качество, дорожки звука, субтитры и, если по ссылке
+ * плейлист, его серии. Необязательное — потому что не каждый сайт это называет.
+ */
+export interface CinemaLinkItem extends CinemaItem {
+  /** Сайт, откуда видео: `ok.ru`, `dzen.ru`. */
+  site?: string | null;
+  /** Лучшее качество, как его называют: `1080p`, `4K`. */
+  quality?: string | null;
+  audio?: CinemaLinkTrack[];
+  captions?: CinemaLinkTrack[];
+  /** Серии плейлиста — каждая своей карточкой: включают их по одной. */
+  episodes?: CinemaItem[];
+}
+
+/**
+ * Ответ `POST …/cinema/link`: ссылку узнала площадка (`route`) — или нет, и тогда это карточка
+ * общего пути либо `null` с причиной словами.
+ */
+export type CinemaLinkAnswer =
+  { route: CinemaRoute } | { route?: undefined; item: CinemaLinkItem | null; reason?: string | null };
+
 /** Что умеет площадка — тем же набором ключей, что и сервис-реестр на стороне службы. */
 export interface CinemaProviderFeatures {
   search: boolean;

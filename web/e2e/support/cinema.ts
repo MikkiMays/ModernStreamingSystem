@@ -29,6 +29,10 @@ import { expect, type Locator, type Page, type Route } from '@playwright/test';
  * Листание дальше записанного и поиск по Twitch отвечают пустой лентой, как служба на конце
  * списка. Неизвестный маршрут — 404, как у FastAPI: новый маршрут сценарий обязан ответить
  * сам, через `overrides`.
+ *
+ * ССЫЛКА (`POST …/cinema/link`). Чья ссылка, решает грамматика площадок в службе, и её держат тесты
+ * службы (`services/tests/test_cinema_links.py`); здесь — только формы, которыми пользуются
+ * сценарии, с тем же ответом, что дала бы служба: своя площадка — `route`, чужая — причина словами.
  */
 const FIXTURES = fileURLToPath(new URL('../fixtures/', import.meta.url));
 const CINEMA = /^\/api\/v1\/services\/rooms\/[^/]+\/cinema\/(.+)$/;
@@ -222,8 +226,60 @@ const PROVIDERS_ANSWER = {
   ],
 };
 
+/** Ответ службы на ссылку своей площадки. */
+interface LinkRoute {
+  provider: string;
+  kind: string;
+  id: string;
+  page: string;
+}
+const route = (provider: string, kind: string, page: string) => (found: RegExpExecArray) => ({
+  route: { provider, kind, id: found[1]!, page } satisfies LinkRoute,
+});
+/** Формы ссылок из сценариев — ровно как их узнаёт служба (`Provider.match`). */
+const LINKS: [RegExp, (found: RegExpExecArray) => { route: LinkRoute }][] = [
+  [/^https:\/\/youtu\.be\/([\w-]{11})$/, route('youtube', 'video', 'item')],
+  [/^https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})$/, route('youtube', 'video', 'item')],
+  [/^https:\/\/www\.twitch\.tv\/(\w{3,25})$/, route('twitch', 'channel', 'item')],
+  [/^https:\/\/rutube\.ru\/video\/([0-9a-f]{32})\/$/, route('rutube', 'video', 'item')],
+  [/^https:\/\/rutube\.ru\/live\/video\/([0-9a-f]{32})\/$/, route('rutube', 'channel', 'item')],
+  [/^https:\/\/rutube\.ru\/metainfo\/tv\/([0-9]+)\/$/, route('rutube', 'series', 'series')],
+  [/^https:\/\/(?:vk\.com|vkvideo\.ru)\/video(-?[0-9]+_[0-9]+)$/, route('vk', 'video', 'item')],
+  [/^https:\/\/live\.vkvideo\.ru\/(\w+)$/, route('vk', 'channel', 'item')],
+];
+export const UNKNOWN_LINK =
+  'Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube и VK Видео';
+
+/**
+ * Несколько наборов своих ответов разом: на каждый вопрос отвечает первый, кто ответил не
+ * `undefined` (так наборы площадок и написаны: чужую площадку они пропускают).
+ */
+export function combine(...sets: CinemaOverrides[]): CinemaOverrides {
+  const endpoints = new Set(sets.flatMap((set) => Object.keys(set)));
+  return Object.fromEntries(
+    [...endpoints].map((endpoint) => [
+      endpoint,
+      async (call: CinemaCall) => {
+        for (const set of sets) {
+          const found = await set[endpoint]?.(call);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      },
+    ]),
+  );
+}
+
 const DEFAULTS: Record<string, CinemaHandler> = {
   catalog: () => fixture('catalog'),
+  link: ({ body }) => {
+    const url = String(body?.url ?? '').trim();
+    for (const [form, answer] of LINKS) {
+      const found = form.exec(url);
+      if (found) return answer(found);
+    }
+    return { item: null, reason: UNKNOWN_LINK };
+  },
   providers: () => PROVIDERS_ANSWER,
   search: ({ params }) => {
     const query = (params.get('query') ?? '').trim().toLowerCase();
@@ -386,10 +442,12 @@ export async function openCinema(page: Page, providerName: string): Promise<Loca
       await page.getByRole('menuitem', { name: 'Интеграции' }).click();
     }
   }
-  await panel
-    .locator('.service-group')
-    .filter({ has: page.getByText('Кинозал', { exact: true }) })
-    .click();
+  // Группа «Кинозал» могла остаться открытой с прошлого раза — тогда её плитки уже на месте.
+  if (!(await panel.locator('.cinema-group').isVisible()))
+    await panel
+      .locator('.service-group')
+      .filter({ has: page.getByText('Кинозал', { exact: true }) })
+      .click();
   await panel
     .locator('.service-tile')
     .filter({ has: page.getByText(providerName, { exact: true }) })

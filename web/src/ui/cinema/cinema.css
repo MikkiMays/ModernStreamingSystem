@@ -915,3 +915,138 @@
     grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   }
 }
+
+/*
+  Сцена «По ссылке»: недавние ссылки, что нашлось по ссылке и серии плейлиста.
+
+  Всё ниже — новые классы, прежних правил они не трогают: у YouTube, Twitch, Rutube и VK этих
+  элементов нет. Ссылка бывает в пару сотен знаков, поэтому везде, где она видна, она не
+  расталкивает сцену: хост — целиком, остальное — многоточием (в строке недавних) или переносом.
+
+  Колонки списков — `minmax(0, 1fr)`, а не `auto`: наименьшая ширина колонки `auto` — ширина самого
+  длинного неразрывного содержимого, и строка недавних со ссылкой в триста знаков одной строкой
+  (многоточие здесь не помогает — оно режет уже внутри колонки) уводила ленту каталога вбок на
+  сотни пикселей (на 390 px — на 808, проверка перекрытий). Так же у серий и у списка фактов.
+*/
+.cinema-link-recent,
+.cinema-link-recent ul,
+.cinema-link-facts,
+.cinema-link-episodes,
+.cinema-link-episodes ol {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cinema-link-recent {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.cinema-link-recent .cinema-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cinema-link-recent ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cinema-link-recent button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.cinema-link-recent button:hover {
+  background: var(--surface-2);
+}
+.cinema-link-recent button svg {
+  flex: none;
+  color: var(--muted);
+}
+.cinema-link-recent button b {
+  flex: none;
+  font-weight: 600;
+}
+.cinema-link-recent button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.cinema-link-address {
+  overflow-wrap: anywhere;
+}
+/* Что известно о найденном: сайт, качество, звук, субтитры — строками «что — какое». */
+.cinema-link-facts {
+  display: grid;
+  gap: 7px;
+  max-width: 900px;
+  margin: 0;
+  font-size: 13px;
+}
+.cinema-link-facts div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px;
+}
+.cinema-link-facts dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.cinema-link-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+/* Серии плейлиста — списком по порядку: номер, имя, длительность и «Смотреть вместе» у каждой. */
+.cinema-link-episodes {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.cinema-link-episodes ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: episode;
+}
+.cinema-link-episodes li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+  counter-increment: episode;
+}
+.cinema-link-episodes li::before {
+  content: counter(episode);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cinema-link-episodes li > span:not(.cinema-link-episode-title) {
+  color: var(--muted);
+  font-size: 12px;
+}
+.cinema-link-episode-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Meeting } from '../../../core/meeting';
-import { Store } from '../../../core/store';
+import { sceneMeeting } from '../../../test/cinemaMeeting';
+import { useStore } from '../../primitives';
 import VkScene from './VkScene';
 
 /*
@@ -10,8 +11,9 @@ import VkScene from './VkScene';
 
   Здесь поведение, а не вид: разделы площадки — ряд вкладок с одной остановкой Tab, первый раздел
   открыт сразу; поиск ставит сообщества полкой над роликами; сообщество — две вкладки и плейлисты;
-  вставленная ссылка открывает страницу ролика без поиска — и тогда, когда каталог VK молчит.
-  Вид держат e2e и эталон.
+  вставленная ссылка открывает страницу ролика без поиска — и тогда, когда каталог VK молчит. Чья
+  ссылка, говорит служба (`POST …/link`): здесь она отвечает записанной таблицей, как ответила бы
+  грамматика VK. Вид держат e2e и эталон.
 */
 
 const ALL = 'PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw';
@@ -91,9 +93,29 @@ const HEAD = {
 
 let catalogDown = false;
 
-function answer(url: URL): [number, unknown] {
+/** Что ответила бы служба на ссылку: её грамматику здесь играет таблица. */
+const ROUTES: Record<string, unknown> = {
+  'https://vkvideo.ru/video-22277933_456242578': {
+    route: { provider: 'vk', kind: 'video', id: '-22277933_456242578', page: 'item' },
+  },
+  'https://vk.com/video-22277933_456242578': {
+    route: { provider: 'vk', kind: 'video', id: '-22277933_456242578', page: 'item' },
+  },
+  'https://live.vkvideo.ru/near_you': {
+    route: { provider: 'vk', kind: 'channel', id: 'near_you', page: 'item' },
+  },
+  'https://youtu.be/dQw4w9WgXcQ': {
+    route: { provider: 'youtube', kind: 'video', id: 'dQw4w9WgXcQ', page: 'item' },
+  },
+};
+
+function answer(url: URL, body: string | undefined): [number, unknown] {
   const endpoint = url.pathname.split('/cinema/')[1];
   const params = url.searchParams;
+  if (endpoint === 'link') {
+    const link = (JSON.parse(body ?? '{}') as { url: string }).url;
+    return [200, ROUTES[link] ?? { item: null, reason: 'Эту ссылку пока не открыть' }];
+  }
   if (endpoint === 'categories')
     return catalogDown
       ? [502, { detail: 'VK Видео не пустил каталог: анонимный вход не принят' }]
@@ -177,14 +199,18 @@ beforeEach(() => {
   catalogDown = false;
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: string) => {
+    vi.fn((input: string, init?: RequestInit) => {
       const url = new URL(input, 'http://test');
       const params = url.searchParams;
       const endpoint = url.pathname.split('/cinema/')[1];
-      expect(params.get('provider')).toBe('vk');
-      const extra = [params.get('tab'), params.get('cursor')].filter(Boolean).join(' ');
-      asked.push(`${endpoint} ${params.get('query') ?? params.get('id') ?? ''}${extra ? ` ${extra}` : ''}`);
-      const [status, body] = answer(url);
+      const sent = typeof init?.body === 'string' ? init.body : undefined;
+      if (endpoint === 'link') asked.push(`link ${(JSON.parse(sent ?? '{}') as { url: string }).url}`);
+      else {
+        expect(params.get('provider')).toBe('vk');
+        const extra = [params.get('tab'), params.get('cursor')].filter(Boolean).join(' ');
+        asked.push(`${endpoint} ${params.get('query') ?? params.get('id') ?? ''}${extra ? ` ${extra}` : ''}`);
+      }
+      const [status, body] = answer(url, sent);
       return Promise.resolve(
         new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
       );
@@ -196,21 +222,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Сцена, как её держит сцена встречи: страница — из `Meeting.cinemaAt`, чужая площадка — не здесь. */
+function Host({ meeting }: { meeting: Meeting }) {
+  const cinema = useStore(meeting.cinema);
+  const at = useStore(meeting.cinemaAt);
+  return cinema === 'vk' ? (
+    <VkScene meeting={meeting} provider="vk" at={at} onProvider={() => {}} onClose={() => {}} />
+  ) : null;
+}
+
 function mount() {
-  const meeting = {
-    admission: { roomId: 'room', participantId: 'self', credential: 'token' },
-    snapshot: new Store({
-      participants: [{ id: 'self', owner: true }],
-      integrationsAllowed: true,
-      watch: null,
-    }),
-    command: vi.fn(() => Promise.resolve()),
-    openCinema: vi.fn(),
-  } as unknown as Meeting & { command: ReturnType<typeof vi.fn> };
+  const meeting = sceneMeeting('vk');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <VkScene meeting={meeting} provider="vk" onProvider={() => {}} onClose={() => {}} />
+      <Host meeting={meeting} />
     </QueryClientProvider>,
   );
   return { client, meeting };
@@ -294,13 +320,24 @@ it('поиск — сообщества полкой над роликами; с
   client.clear();
 });
 
-it('вставленная ссылка открывает страницу ролика сразу, без поиска, и включается с его именем', async () => {
+it('вставленная ссылка открывает страницу ролика без поиска — куда скажет служба — и включается с его именем', async () => {
   const { client, meeting } = mount();
   fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
     target: { value: 'https://vkvideo.ru/video-22277933_456242578' },
   });
   expect(await screen.findByRole('heading', { name: 'Серия по ссылке' })).toBeInTheDocument();
+  expect(meeting.openCinema).toHaveBeenCalledWith('vk', {
+    page: 'item',
+    kind: 'video',
+    id: '-22277933_456242578',
+  });
+  expect(asked).toContain('link https://vkvideo.ru/video-22277933_456242578');
   expect(asked).toContain('details -22277933_456242578');
+  // Ссылка, которая куда-то привела, — первой в недавних профиля; поле поиска снова пустое.
+  expect(meeting.media.saveSettings).toHaveBeenCalledWith({
+    cinemaLinks: ['https://vkvideo.ru/video-22277933_456242578'],
+  });
+  expect(screen.getByPlaceholderText('Видео и сообщества')).toHaveValue('');
   fireEvent.click(screen.getByRole('button', { name: /Смотреть вместе/ }));
   await waitFor(() =>
     expect(meeting.command).toHaveBeenCalledWith('watch.open', 'Серия по ссылке', undefined, {
@@ -340,15 +377,43 @@ it('каталог VK молчит — сцена так и говорит, а �
   client.clear();
 });
 
-it('«Назад» со страницы ролика по ссылке возвращает к его плитке, а не к поиску по адресу', async () => {
+it('«Назад» со страницы ролика по ссылке возвращает туда, где ссылку вставили: разделы и пустое поле', async () => {
   const { client } = mount();
+  await screen.findByRole('tab', { name: 'Все' });
   fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
     target: { value: 'https://vk.com/video-22277933_456242578' },
   });
   await screen.findByRole('heading', { name: 'Серия по ссылке' });
   fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
-  expect(await screen.findByText('По ссылке')).toBeInTheDocument();
-  expect(await screen.findByText('Серия по ссылке')).toBeInTheDocument();
+  expect(await screen.findByRole('tab', { name: 'Все' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByPlaceholderText('Видео и сообщества')).toHaveValue('');
   expect(asked.filter((line) => line.startsWith('search'))).toEqual([]);
+  client.clear();
+});
+
+it('ссылка на другую площадку уходит в её сцену, а незнакомая — в «По ссылке»', async () => {
+  const { client, meeting } = mount();
+  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), {
+    target: { value: 'https://youtu.be/dQw4w9WgXcQ' },
+  });
+  await waitFor(() =>
+    expect(meeting.openCinema).toHaveBeenCalledWith('youtube', {
+      page: 'item',
+      kind: 'video',
+      id: 'dQw4w9WgXcQ',
+    }),
+  );
+  act(() => meeting.openCinema('vk'));
+  fireEvent.change(await screen.findByPlaceholderText('Видео и сообщества'), {
+    target: { value: 'https://example.com/film.mp4' },
+  });
+  await waitFor(() =>
+    expect(meeting.openCinema).toHaveBeenCalledWith('link', {
+      page: 'link',
+      url: 'https://example.com/film.mp4',
+    }),
+  );
+  // Незнакомая ссылка никуда не привела — в недавние она не встаёт.
+  expect(meeting.media.saveSettings).toHaveBeenCalledTimes(1);
   client.clear();
 });

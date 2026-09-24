@@ -1,4 +1,4 @@
-import { Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
+import { Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
 
 /**
  * Реестр площадок кинозала.
@@ -16,8 +16,11 @@ import { Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
  * просто перестаёт хранить его дважды по всему коду: то же самое хранится один раз. У площадок
  * со своей сценой (Rutube, VK Видео и следующие) вкладки-переключателя нет, и `accent` у них — цвет
  * самой площадки в её сцене: плашка с именем в полосе и выбранный раздел.
+ *
+ * «По ссылке» — не площадка, а вход для любой ссылки: своя площадка у ссылки есть — она открывается
+ * в её сцене, нет — остаётся здесь. Своего цвета у неё нет, и цвет её — общий цвет приложения.
  */
-export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk'] as const;
+export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk', 'link'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
@@ -25,17 +28,18 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
  *
  * `'switcher'` — вкладки YouTube и Twitch внутри одного каталога (тот же каталог, что и был).
  * Площадка с другим устройством каталога получает свою сцену: у Rutube это эфиры ТВ, сериалы с
- * сезонами и разделы площадки, у VK Видео — её разделы, сообщества с плейлистами и ссылка на
- * ролик прямо в поиске. Следующие площадки дописывают сюда свои.
+ * сезонами и разделы площадки, у VK Видео — её разделы, сообщества с плейлистами. `'link'` — сцена
+ * «По ссылке»: поле для ссылки, недавние ссылки и то, что по ссылке нашлось. Следующие площадки
+ * дописывают сюда свои.
  */
-export type SceneId = 'switcher' | 'rutube' | 'vk';
+export type SceneId = 'switcher' | 'rutube' | 'vk' | 'link';
 
 export interface ProviderSpec {
   id: ProviderId;
   name: string;
   hint: string;
   /** Цвет вкладки-переключателя (`.cinema-service`) — тот же, что задавала CSS раньше; у площадки
-   *  со своей сценой — её цвет в этой сцене. */
+   *  со своей сценой — её цвет в этой сцене. Значение CSS: hex площадки или переменная темы. */
   accent: string;
   /** Цвет плитки в панели интеграций (`.service-tile-icon`) — исторически другой оттенок. */
   tile: string;
@@ -98,6 +102,21 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     icon: Video,
     scene: 'vk',
     searchPlaceholder: 'Видео и сообщества',
+  },
+  /*
+    Не площадка, а вход для ссылки — и потому нейтральный цвет: общий синий приложения (`--blue`,
+    своё значение у светлой и тёмной темы), а не цвет какой-то одной площадки. Плитка — последняя
+    в «Кинозале»: сначала площадки, по которым ходят каталогом, потом дверь для всего остального.
+  */
+  link: {
+    id: 'link',
+    name: 'По ссылке',
+    hint: 'Ролик, эфир или плейлист по ссылке',
+    accent: 'var(--blue)',
+    tile: 'var(--blue)',
+    icon: Link2,
+    scene: 'link',
+    searchPlaceholder: 'Вставьте ссылку на видео',
   },
 };
 

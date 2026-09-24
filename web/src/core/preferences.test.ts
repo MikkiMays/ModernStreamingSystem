@@ -82,3 +82,19 @@ it('stores the integration roster choice and Yandex token for this browser profi
     yandexMusicToken: 'saved-yandex-token',
   });
 });
+
+it('помнит недавние ссылки кинозала — только ссылки на страницы и не больше десяти', () => {
+  expect(readPreferences().cinemaLinks).toEqual([]);
+  savePreferences({ cinemaLinks: ['https://youtu.be/dQw4w9WgXcQ'] });
+  expect(readPreferences().cinemaLinks).toEqual(['https://youtu.be/dQw4w9WgXcQ']);
+  const many = Array.from({ length: 14 }, (_, index) => `https://example.com/${index}`);
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({
+      cinemaLinks: ['javascript:alert(1)', 42, `https://example.com/${'a'.repeat(2000)}`, ...many],
+    }),
+  );
+  expect(readPreferences().cinemaLinks).toEqual(many.slice(0, 10));
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ cinemaLinks: 'https://youtu.be/x' }));
+  expect(readPreferences().cinemaLinks).toEqual([]);
+});

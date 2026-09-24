@@ -20,8 +20,9 @@ describe('реестр площадок', () => {
       expect(spec.scene).toBeTruthy();
       // У площадки-компонента должен быть render — так отличают настоящую иконку от «забыли».
       expect(typeof spec.icon).toBe('object');
-      expect(spec.accent).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(spec.tile).toMatch(/^#[0-9a-f]{6}$/i);
+      // Цвет площадки — её hex; у «По ссылке» своего цвета нет, у неё общий цвет приложения.
+      expect(spec.accent).toMatch(/^(#[0-9a-f]{6}|var\(--blue\))$/i);
+      expect(spec.tile).toMatch(/^(#[0-9a-f]{6}|var\(--blue\))$/i);
     }
   });
 
@@ -39,11 +40,22 @@ describe('реестр площадок', () => {
   });
 
   it('у VK Видео своя сцена, цвет из их VKUI и поиск по видео и сообществам', () => {
-    expect(PROVIDER_IDS.at(-1)).toBe('vk');
+    expect(PROVIDER_IDS.indexOf('vk')).toBe(3);
     expect(PROVIDERS.vk.scene).toBe('vk');
     expect(PROVIDERS.vk.accent).toBe('#0077FF');
     expect(PROVIDERS.vk.tile).toBe(PROVIDERS.vk.accent);
     expect(PROVIDERS.vk.searchPlaceholder).toBe('Видео и сообщества');
+  });
+
+  it('«По ссылке» — последняя плитка, своя сцена и общий синий приложения, а не цвет площадки', () => {
+    expect(PROVIDER_IDS.at(-1)).toBe('link');
+    expect(PROVIDERS.link).toMatchObject({
+      name: 'По ссылке',
+      scene: 'link',
+      accent: 'var(--blue)',
+      tile: 'var(--blue)',
+      searchPlaceholder: 'Вставьте ссылку на видео',
+    });
   });
 
   it('вкладки переключателя — площадки сцены switcher, тем же порядком, что в реестре', () => {

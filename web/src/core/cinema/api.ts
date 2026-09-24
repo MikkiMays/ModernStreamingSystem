@@ -6,6 +6,7 @@ import type {
   CinemaCategoryPage,
   CinemaChannelPage,
   CinemaDetails,
+  CinemaLinkAnswer,
   CinemaPage,
   CinemaPlaylistPage,
   CinemaProvidersResponse,
@@ -78,6 +79,16 @@ export class CinemaApi {
     this.ask<CinemaDetails>(
       `/details?provider=${provider}&kind=${kind}&id=${encodeURIComponent(id)}`,
       signal,
+    );
+  /**
+   * Чья это ссылка и на какой странице её открыть. Телом, а не в адресе запроса: ссылка — ввод
+   * человека до двух тысяч знаков, и журналам прокси по дороге её знать незачем.
+   */
+  link = (url: string, signal?: AbortSignal) =>
+    request<CinemaLinkAnswer>(
+      `${this.base}/link`,
+      { method: 'POST', body: JSON.stringify({ url }), signal },
+      this.admission.credential,
     );
   /**
    * Адрес потока.
