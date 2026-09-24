@@ -538,16 +538,17 @@ class RouteTests(unittest.TestCase):
         # Без площадки вовсе — это по-прежнему ошибка схемы запроса, а не вопрос к реестру.
         self.assertEqual(self.ask(client, "search", query="x").status_code, 422)
 
-    def test_what_a_platform_lacks_keeps_its_old_answer(self):
+    def test_what_a_platform_lacks_is_said_about_that_platform(self):
+        # Прежние тексты («есть только у YouTube/Twitch») стали неправдой, когда разделы появились
+        # у Rutube, а плейлисты появятся у VK: отказ говорит о той площадке, которую спросили.
         client = self.serve()
-        answer = self.ask(client, "playlist", provider="twitch", id="PLx")
-        self.assertEqual(
-            (answer.status_code, answer.json()), (400, {"detail": "Плейлисты есть только у YouTube"})
-        )
-        answer = self.ask(client, "category", provider="youtube", id="743")
-        self.assertEqual(
-            (answer.status_code, answer.json()), (400, {"detail": "Разделы есть только у Twitch"})
-        )
+        for path, provider, detail in (
+            ("playlist", "twitch", "У Twitch плейлистов нет"),
+            ("playlist", "rutube", "У Rutube плейлистов нет"),
+            ("category", "youtube", "У YouTube разделов нет"),
+        ):
+            answer = self.ask(client, path, provider=provider, id="743")
+            self.assertEqual((answer.status_code, answer.json()), (400, {"detail": detail}), provider)
         answer = self.ask(client, "categories", provider="youtube", cursor="not a cursor")
         self.assertEqual((answer.status_code, answer.json()), (200, {"items": [], "next": None}))
 

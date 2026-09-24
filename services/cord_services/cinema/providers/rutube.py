@@ -137,6 +137,9 @@ class Rutube(Provider):
     features = Features(channels=True, categories=True, series=True, live=True)
     # Ролик и эфир у Rutube — 32 шестнадцатеричных знака строчными.
     content_id = re.compile(r"[0-9a-f]{32}")
+    # Отдельной страницы плейлиста у кинозала для Rutube нет: сериалы, собранные площадкой из
+    # плейлистов, открываются страницей сериала (`series`).
+    refusals = {"playlists": "У Rutube плейлистов нет"}
 
     # --- каталог ------------------------------------------------------------------------
 

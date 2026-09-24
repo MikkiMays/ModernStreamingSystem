@@ -1095,11 +1095,12 @@ class YouTubePlaylistTests(Stage):
             self.cinema.playlist("youtube", self.LIST, ""), 502, ("Плейлист не открылся: " + "z" * 300)[:200]
         )
 
-    async def test_only_youtube_has_playlists_and_says_so_before_checking_anything(self):
+    async def test_a_platform_without_playlists_says_so_before_checking_anything(self):
+        # Текст говорит о той площадке, которую спросили, а не «только у YouTube»: плейлисты
+        # приходят и к другим площадкам (VK), и фраза про единственную площадку стала бы ложью.
         for playlist, cursor in ((self.LIST, ""), ("bad id!", ""), (self.LIST, "x")):
-            await self.refused(
-                self.cinema.playlist("twitch", playlist, cursor), 400, "Плейлисты есть только у YouTube"
-            )
+            await self.refused(self.cinema.playlist("twitch", playlist, cursor), 400, "У Twitch плейлистов нет")
+            await self.refused(self.cinema.playlist("rutube", playlist, cursor), 400, "У Rutube плейлистов нет")
         await self.refused(self.cinema.playlist("youtube", "bad id!", ""), 400, "Непонятный адрес плейлиста")
         await self.refused(self.cinema.playlist("youtube", self.LIST, "x"), 400, "Дальше листать нечего")
         self.assertEqual(self.library.calls, [])
@@ -1238,11 +1239,11 @@ class TwitchCategoryTests(Stage):
         self.gql[GAME % ("999", 100)] = {"game": None}
         await self.refused(self.cinema.category("twitch", "999", ""), 404, "Такого раздела на Twitch нет")
 
-    async def test_only_twitch_has_sections_and_says_so_before_checking_anything(self):
+    async def test_a_platform_without_sections_says_so_before_checking_anything(self):
+        # Разделы есть и у Twitch, и у Rutube: отказ говорит о YouTube, а не о «единственной»
+        # площадке с разделами.
         for category in ("743", "abc"):
-            await self.refused(
-                self.cinema.category("youtube", category, "x"), 400, "Разделы есть только у Twitch"
-            )
+            await self.refused(self.cinema.category("youtube", category, "x"), 400, "У YouTube разделов нет")
         await self.refused(self.cinema.category("twitch", "abc", ""), 400, "Непонятный раздел")
         await self.refused(self.cinema.category("twitch", "743", "x"), 400, "Дальше листать нечего")
         self.assertEqual(self.seen, [])
