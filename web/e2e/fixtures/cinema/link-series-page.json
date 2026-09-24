@@ -1,0 +1,59 @@
+{
+  "series": {
+    "id": "V8sM73hQkVcgeeEclRjZdi",
+    "title": "1960 Presidential Campaign Election Commercials",
+    "poster": "/fixtures/poster.png",
+    "description": "1960 Presidential Campaign Election Commercials John F Kennedy, Richard M Nixon",
+    "year": null,
+    "seasons": []
+  },
+  "season": null,
+  "items": [
+    {
+      "provider": "link",
+      "kind": "video",
+      "id": "awAagIgEaXk-1zdgNroUNP",
+      "title": "Commercial-JFK1960ElectionAdCampaignJingle.mpg",
+      "author": "",
+      "channelId": null,
+      "duration": 59.77,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "1 серия",
+      "series": "V8sM73hQkVcgeeEclRjZdi",
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "link",
+      "kind": "video",
+      "id": "ijz-CgqM6gXRYsEh212ZZ4",
+      "title": "Commercial-JFK1960ElectionAdIkeknocksNixon.mpg",
+      "author": "",
+      "channelId": null,
+      "duration": 60.09,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "2 серия",
+      "series": "V8sM73hQkVcgeeEclRjZdi",
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "link",
+      "kind": "video",
+      "id": "21iSXBGM4rO9X6jjCVHoQI",
+      "title": "Commercial-JFK1960ElectionAdJackiespeakingenEspanol.mpg",
+      "author": "",
+      "channelId": null,
+      "duration": 60.24,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "3 серия",
+      "series": "V8sM73hQkVcgeeEclRjZdi",
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

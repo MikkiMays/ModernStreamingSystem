@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CinemaItem } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import { useStore } from '../../primitives';
+import { problemText } from './notes';
 
 /**
  * «Смотреть вместе» — единственное в каталоге, что касается всей комнаты.
@@ -31,7 +32,7 @@ export function useTogether(meeting: Meeting) {
       // Включили — значит, смотреть, а не листать дальше: каталог уходит, зал остаётся.
       meeting.openCinema(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(problemText(e));
     }
     // Не `finally`: блок с ним React Compiler не берёт и оставляет хук без памяти — тогда `open`
     // новая на каждом рендере, и вслед за ней заново строятся все плитки сетки. `catch` выше

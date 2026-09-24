@@ -1,5 +1,15 @@
 import { expect, test, type Browser } from '@playwright/test';
-import { UNKNOWN_LINK, combine, fixture, openCinema, routeCinema, startMeeting } from './support/cinema';
+import {
+  UNKNOWN_LINK,
+  combine,
+  fixture,
+  inviteLink,
+  joinMeeting,
+  openCinema,
+  routeCinema,
+  startMeeting,
+  type CinemaOverrides,
+} from './support/cinema';
 import { RUTUBE } from './support/rutube';
 import { vkAnswers } from './support/vk';
 
@@ -15,6 +25,46 @@ import { vkAnswers } from './support/vk';
 
 const context = (browser: Browser) =>
   browser.newContext({ permissions: ['camera', 'microphone'], viewport: { width: 1440, height: 960 } });
+
+/*
+  Общий путь (задача 15b): ссылка без своей площадки. Ответы службы — настоящие, сняты со стенда
+  25.09.2026 (Дзен и коллекция роликов archive.org; обложки — серая запись), поток — свой HLS.
+*/
+interface LinkCard {
+  id: string;
+  title: string;
+  author: string;
+}
+const FILM_URL = 'https://dzen.ru/video/watch/6002240ff8b1af50bb2da5e3';
+const SHOW_URL = 'https://archive.org/details/Election_Ads';
+const FILM = fixture<{ item: LinkCard }>('link-video').item;
+const SHOW = fixture<{ item: LinkCard }>('link-series').item;
+const EPISODES = fixture<{ items: LinkCard[] }>('link-series-page').items;
+
+/** Служба для ссылок без своей площадки: карточка, серии плейлиста и поток — по номеру ссылки. */
+const general = (): CinemaOverrides => ({
+  link: ({ body }) => {
+    const url = String(body?.url ?? '').trim();
+    if (url === FILM_URL) return fixture('link-video');
+    if (url === SHOW_URL) return fixture('link-series');
+    return undefined;
+  },
+  series: ({ params }) => (params.get('provider') === 'link' ? fixture('link-series-page') : undefined),
+  resolve: ({ body }) => {
+    if (body?.provider !== 'link') return undefined;
+    const known = [FILM, ...EPISODES].find((card) => card.id === body.contentId);
+    return {
+      ...fixture('youtube-resolve'),
+      provider: 'link',
+      contentId: body.contentId,
+      title: known?.title ?? String(body.contentId),
+      author: known?.author ?? '',
+      language: '',
+      captions: [],
+      expiresAt: Date.now() + 5 * 3600 * 1000,
+    };
+  },
+});
 
 const EPISODE = fixture<{ id: string; title: string }>('rutube-details');
 const SERIES = `https://rutube.ru/video/${EPISODE.id}/`;
@@ -118,6 +168,111 @@ test('recent links are remembered by the profile and open again from «По сс
     await expect(browse.locator('.cinema-detail h3')).toHaveText(EPISODE.title);
     // Ответ о ссылке служба дала один раз: второе открытие — из памяти ответов.
     expect(cinema.calls.filter((call) => call.endpoint === 'link')).toHaveLength(1);
+  } finally {
+    await room.close();
+  }
+});
+
+test('a link without its own platform shows what the page has and plays for both browsers', async ({
+  browser,
+}) => {
+  // Два браузера и два входа во встречу: обычного срока тут мало.
+  test.slow();
+  const first = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1440, height: 960 },
+  });
+  const second = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1280, height: 900 },
+  });
+  const host = await first.newPage();
+  const guest = await second.newPage();
+  const cinema = await routeCinema(host, general());
+  await routeCinema(guest, general());
+  try {
+    await startMeeting(host, 'Майс');
+    await joinMeeting(guest, await inviteLink(host), 'Алекс');
+
+    const browse = await openCinema(host, 'По ссылке');
+    await browse.locator('.cinema-search input').fill(FILM_URL);
+    await expect(browse.locator('.cinema-detail h3')).toHaveText(FILM.title);
+    const facts = browse.locator('.cinema-link-facts');
+    await expect(facts).toContainText('dzen.ru');
+    await expect(facts.locator('.cinema-link-qualities .cinema-chip')).toHaveText([
+      '720p',
+      '480p',
+      '360p',
+      '240p',
+      '144p',
+    ]);
+    await expect(facts).toContainText('Русский');
+    await browse
+      .locator('.cinema-detail-actions')
+      .getByRole('button', { name: /Смотреть вместе/ })
+      .click();
+
+    for (const page of [host, guest]) {
+      await expect(page.locator('.watch-theater')).toBeVisible();
+      await expect(page.locator('.people-strip .person-tile')).toHaveCount(2);
+      await expect(page.locator('.watch-title b')).toHaveText(FILM.title);
+      await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех');
+      await expect
+        .poll(() => page.locator('.watch-video').evaluate((element: HTMLVideoElement) => element.currentTime))
+        .toBeGreaterThan(1);
+    }
+    await expect
+      .poll(() => guest.locator('.watch-video').evaluate((element: HTMLVideoElement) => element.duration))
+      .toBeCloseTo(12, 0);
+    // Пауза общая: гость ставит на паузу — у ведущего тоже пауза.
+    await guest.locator('.watch-theater').hover();
+    await guest.locator('.watch-play').click();
+    await expect(host.locator('.watch-play')).toHaveAttribute('aria-label', 'Включить для всех');
+
+    // Поток спрошен номером ссылки, а не адресом: адрес страницы служба помнит сама.
+    const resolved = cinema.calls.filter((call) => call.endpoint === 'resolve');
+    expect(resolved[0]?.body).toMatchObject({ provider: 'link', contentId: FILM.id, kind: 'video' });
+    expect(JSON.stringify(resolved.map((call) => call.body))).not.toContain('dzen.ru');
+    // В недавние встала ссылка, которая привела к видео.
+    const saved = await host.evaluate(() => JSON.parse(localStorage.getItem('cord:preferences:v1') ?? '{}'));
+    expect(saved.cinemaLinks).toEqual([FILM_URL]);
+  } finally {
+    await first.close();
+    await second.close();
+  }
+});
+
+test('a playlist link lists its episodes and the one picked plays for the room', async ({ browser }) => {
+  const room = await context(browser);
+  const page = await room.newPage();
+  const cinema = await routeCinema(page, general());
+  try {
+    await startMeeting(page);
+    const browse = await openCinema(page, 'По ссылке');
+    await browse.locator('.cinema-search input').fill(SHOW_URL);
+    await expect(browse.locator('.cinema-detail h3')).toHaveText(SHOW.title);
+    const tiles = browse.locator('.cinema-grid > .cinema-tile');
+    await expect(tiles).toHaveCount(EPISODES.length);
+    await expect(tiles.locator('.cinema-tile-title')).toHaveText(EPISODES.map((episode) => episode.title));
+    await expect(browse.locator('.cinema-link-facts')).toContainText('archive.org');
+
+    // Серию включают прямо с плитки — вторую, а не первую попавшуюся.
+    const picked = EPISODES[1]!;
+    const tile = tiles.nth(1);
+    await tile.hover();
+    await tile.getByRole('button', { name: `Смотреть вместе: ${picked.title}` }).click();
+    await expect(page.locator('.watch-theater')).toBeVisible();
+    await expect(page.locator('.watch-title b')).toHaveText(picked.title);
+    await expect
+      .poll(() => page.locator('.watch-video').evaluate((element: HTMLVideoElement) => element.currentTime))
+      .toBeGreaterThan(1);
+
+    const resolved = cinema.calls.find((call) => call.endpoint === 'resolve');
+    expect(resolved?.body).toMatchObject({ provider: 'link', contentId: picked.id, kind: 'video' });
+    // Серии — страницей сериала службы, одним вопросом.
+    expect(
+      cinema.calls.filter((call) => call.endpoint === 'series').map((call) => call.params.get('id')),
+    ).toEqual([SHOW.id]);
   } finally {
     await room.close();
   }

@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useMemo, useState, type CSSProperties } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AudioLines,
   Captions,
@@ -9,29 +9,46 @@ import {
   Link2,
   LoaderCircle,
   MonitorPlay,
-  Play,
 } from 'lucide-react';
 import {
   CinemaApi,
   PROVIDER_IDS,
   PROVIDERS,
-  clock,
   type CinemaAt,
   type CinemaItem,
   type CinemaLinkAnswer,
   type CinemaLinkItem,
+  type CinemaLinkTrack,
+  type CinemaPageKind,
 } from '../../../core/cinema';
 import { atOf, knownProvider, linkOf, linkParts } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
+import { cardsOf } from '../catalog/cards';
 import { Empty, Failure } from '../catalog/notes';
 import { ItemPage } from '../catalog/pages/ItemPage';
+import { SeriesPage } from '../catalog/pages/SeriesPage';
 import { Shell } from '../catalog/Shell';
+import { Tile } from '../catalog/tiles';
 import { LINK_TTL, linkQuery, useLink } from '../catalog/useLink';
+import { usePage } from '../catalog/usePage';
+import { useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
+import { languageName } from '../theater/watch-tracks';
 import type { SceneProps } from '.';
 
 /** Страницы у карточки по ссылке нет: всё, что о ней известно, пришло в самом ответе службы. */
 const NO_DETAILS = { data: null, isLoading: false, isError: false, error: null };
+
+/** Смотрится ли карточка вместе прямо отсюда: ролик или идущий эфир. Остальное — двери. */
+function playable(item: CinemaItem): boolean {
+  return item.kind === 'video' || (item.kind === 'channel' && item.live);
+}
+
+/** Страница сцены своей площадки для карточки из плейлиста по ссылке. */
+function pageOf(item: CinemaItem): CinemaPageKind {
+  if (playable(item)) return 'item';
+  return item.kind === 'channel' ? 'channel' : item.kind === 'playlist' ? 'playlist' : 'series';
+}
 
 /** Площадки, чьи ссылки открываются в их же каталоге, — словами: «YouTube, Twitch и VK Видео». */
 const KNOWN = PROVIDER_IDS.filter((id) => PROVIDERS[id].scene !== 'link').map((id) => PROVIDERS[id].name);
@@ -58,6 +75,9 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
   const recent = useStore(meeting.media.preferences).cinemaLinks;
   const { canUse, busy, error, open } = useTogether(meeting);
   const link = useLink(meeting, api);
+  /** Стопка страниц: ответ о ссылке — главная, серия плейлиста — страница над ней. */
+  const { stack, view, go, back, home } = useStack(provider);
+  const page = usePage(api, provider, view);
   const [query, setQuery] = useState('');
   /** Ссылку спрашивают не на каждую букву: поле успокоилось — значит, её вставили или дописали. */
   const [settled, setSettled] = useState('');
@@ -101,11 +121,46 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
   }).data;
   const route = answer?.route;
   const item = answer && !answer.route ? answer.item : null;
+  /**
+   * Серии плейлиста по ссылке — страницей сериала службы (`series`), тем же запросом, что открыл бы
+   * сериал в стопке: вернувшись с серии, лента уже в памяти.
+   */
+  const seriesId = item?.kind === 'series' ? item.id : '';
+  const episodes = useInfiniteQuery({
+    queryKey: ['cinema', 'page', provider, `series:${seriesId}:`],
+    queryFn: ({ pageParam, signal }) => api.series(provider, seriesId, '', pageParam, signal),
+    initialPageParam: '',
+    getNextPageParam: (last) => last.next ?? undefined,
+    enabled: !!seriesId,
+    staleTime: 60000,
+  });
+  /** Куда ведёт карточка серии: своя площадка — её сцена, серия по ссылке — страница серии здесь. */
+  const enter = (entry: CinemaItem) => {
+    if (entry.provider !== provider) {
+      if (knownProvider(entry.provider))
+        meeting.openCinema(entry.provider, { page: pageOf(entry), kind: entry.kind, id: entry.id });
+      return;
+    }
+    go({ at: 'item', item: entry });
+  };
+  const card = (entry: CinemaItem) => (
+    <Tile
+      key={`${entry.provider}:${entry.kind}:${entry.id}`}
+      item={entry}
+      playable={playable(entry)}
+      canUse={canUse}
+      busy={busy}
+      onWatch={open}
+      onEnter={enter}
+      onChannel={() => {}}
+    />
+  );
 
   /** Ссылка из буфера или из недавних — сразу, без паузы на набор. */
   const choose = (url: string) => {
     setQuery(url);
     setSettled(url);
+    home();
     void link.follow(url);
   };
   const paste = async () => {
@@ -131,6 +186,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
 
   return (
     <Shell
+      onBack={stack.length > 1 ? back : undefined}
       tabs={
         <span className="cinema-platform" style={accent}>
           <spec.icon size={15} />
@@ -142,6 +198,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       onSearch={(value) => {
         setQuery(value);
         link.cancel();
+        if (view.at !== 'home') home();
       }}
       onClear={() => setQuery('')}
       watching={watching}
@@ -149,7 +206,18 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       locked={!canUse}
       error={error}
     >
-      {!settled ? (
+      {view.at === 'item' ? (
+        // Серия плейлиста по ссылке: её страница из того, что служба помнит о ней, и «Все серии» — назад.
+        <ItemPage
+          item={view.item}
+          details={page.details}
+          canUse={canUse}
+          busy={busy}
+          onWatch={open}
+          onChannel={() => {}}
+          onSeries={() => back()}
+        />
+      ) : !settled ? (
         <>
           <div className="cinema-empty">
             <Link2 size={40} />
@@ -203,6 +271,21 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
         </div>
       ) : route ? (
         <Empty text="Эту площадку знает сервер, но ещё не эта версия кинозала — обновите страницу." />
+      ) : item?.kind === 'series' ? (
+        <>
+          <SeriesPage
+            series={episodes.data?.pages[0]?.series ?? null}
+            title={item.title}
+            poster={item.poster}
+            season={null}
+            onSeason={() => {}}
+            feed={episodes}
+            items={cardsOf(episodes.data?.pages)}
+            card={card}
+            empty="В этом плейлисте нечего показать комнате."
+          />
+          <Facts item={item} />
+        </>
       ) : item ? (
         <Result item={item} canUse={canUse} busy={busy} onWatch={(chosen) => void open(chosen)} />
       ) : answer ? (
@@ -218,7 +301,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
 
 /**
  * Что нашлось по ссылке: та же страница ролика, что у площадок из каталога, и под ней — то, по чему
- * решают, включать ли: сайт, качество, звук, субтитры, а у плейлиста — его серии, каждую отдельно.
+ * решают, включать ли: сайт, ступени качества, дорожки звука и субтитры.
  */
 function Result({
   item,
@@ -231,9 +314,6 @@ function Result({
   busy: string;
   onWatch: (item: CinemaItem) => void;
 }) {
-  const audio = item.audio ?? [];
-  const captions = item.captions ?? [];
-  const episodes = item.episodes ?? [];
   return (
     <>
       <ItemPage
@@ -244,65 +324,63 @@ function Result({
         onWatch={onWatch}
         onChannel={() => {}}
       />
-      <dl className="cinema-link-facts">
-        {item.site ? (
-          <div>
-            <dt>
-              <Globe size={14} /> Сайт
-            </dt>
-            <dd>{item.site}</dd>
-          </div>
-        ) : null}
-        {item.quality ? (
-          <div>
-            <dt>
-              <MonitorPlay size={14} /> Качество
-            </dt>
-            <dd>до {item.quality}</dd>
-          </div>
-        ) : null}
-        {audio.length ? (
-          <div>
-            <dt>
-              <AudioLines size={14} /> Звук
-            </dt>
-            <dd>{audio.map((track) => track.label || track.lang).join(', ')}</dd>
-          </div>
-        ) : null}
-        {captions.length ? (
-          <div>
-            <dt>
-              <Captions size={14} /> Субтитры
-            </dt>
-            <dd>
-              {captions
-                .map((track) => `${track.label || track.lang}${track.auto ? ' (распознаны)' : ''}`)
-                .join(', ')}
-            </dd>
-          </div>
-        ) : null}
-      </dl>
-      {episodes.length ? (
-        <section className="cinema-link-episodes" aria-label="Серии">
-          <h4 className="cinema-heading">Серии · {episodes.length}</h4>
-          <ol>
-            {episodes.map((episode) => (
-              <li key={episode.id}>
-                <span className="cinema-link-episode-title">{episode.title}</span>
-                {clock(episode.duration) !== '—' ? <span>{clock(episode.duration)}</span> : null}
-                <button
-                  className="icon-button"
-                  disabled={!canUse || !!busy}
-                  aria-label={`Смотреть вместе: ${episode.title}`}
-                  onClick={() => onWatch(episode)}
-                >
-                  {busy === episode.id ? <LoaderCircle size={17} /> : <Play size={17} />}
-                </button>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
+      <Facts item={item} />
     </>
+  );
+}
+
+/** Дорожка словами: как её назвал сайт, а если никак — язык по-русски (`ru` — «Русский»). */
+function trackName(track: CinemaLinkTrack): string {
+  return track.label || languageName(track.lang) || 'Без названия';
+}
+
+/** Сайт, качество, звук и субтитры — строками «что — какое»; чего сайт не назвал, того и нет. */
+function Facts({ item }: { item: CinemaLinkItem }) {
+  const qualities = item.qualities ?? [];
+  const audio = item.audio ?? [];
+  const captions = item.captions ?? [];
+  return (
+    <dl className="cinema-link-facts">
+      {item.site ? (
+        <div>
+          <dt>
+            <Globe size={14} /> Сайт
+          </dt>
+          <dd>{item.site}</dd>
+        </div>
+      ) : null}
+      {qualities.length ? (
+        <div>
+          <dt>
+            <MonitorPlay size={14} /> Качество
+          </dt>
+          <dd className="cinema-link-qualities">
+            {qualities.map((quality) => (
+              <span key={quality} className="cinema-chip">
+                {quality}
+              </span>
+            ))}
+          </dd>
+        </div>
+      ) : null}
+      {audio.length ? (
+        <div>
+          <dt>
+            <AudioLines size={14} /> Звук
+          </dt>
+          <dd>{audio.map(trackName).join(', ')}</dd>
+        </div>
+      ) : null}
+      {captions.length ? (
+        <div>
+          <dt>
+            <Captions size={14} /> Субтитры
+          </dt>
+          <dd>
+            {captions.map((track) => `${trackName(track)}${track.auto ? ' (распознаны)' : ''}`).join(', ')}
+          </dd>
+        </div>
+      ) : null}
+    </dl>
   );
 }

@@ -5,11 +5,27 @@ import { LoaderCircle } from 'lucide-react';
   страницы каталога они одни и те же — отличается только текст пустоты.
 */
 
-/** Отказ площадки или сети — тем текстом, которым его сказала служба. */
+/** Так `fetch` говорит об обрыве сети: Chrome, Firefox и Safari — каждый своими словами. */
+const OFFLINE = /failed to fetch|networkerror|load failed|network request failed/i;
+
+/**
+ * Отказ — словами для человека. Отказ службы приходит уже её словами. Обрыв сети — это `TypeError`
+ * самого `fetch`, и его текст английский и браузерный («Failed to fetch»): его человек видеть не
+ * должен. Срок запроса, вышедший у браузера, — `TimeoutError`, и он тоже не английский.
+ */
+export function problemText(problem: unknown): string {
+  if (problem instanceof TypeError && OFFLINE.test(problem.message))
+    return 'Нет связи с сервером — попробуйте ещё раз';
+  if (problem instanceof DOMException && problem.name === 'TimeoutError')
+    return 'Сервер не ответил вовремя — попробуйте ещё раз';
+  return (problem as Error | null)?.message || 'Не удалось выполнить запрос';
+}
+
+/** Отказ площадки или сети — словами службы или своими, если это обрыв сети (`problemText`). */
 export function Failure({ problem }: { problem: unknown }) {
   return (
     <p className="form-error" role="alert">
-      {(problem as Error).message}
+      {problemText(problem)}
     </p>
   );
 }

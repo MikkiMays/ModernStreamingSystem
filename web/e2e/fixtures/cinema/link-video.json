@@ -1,0 +1,27 @@
+{
+  "item": {
+    "provider": "link",
+    "kind": "video",
+    "id": "4gTjbZG3YR3k0fVZ33UMmK",
+    "title": "Извержение вулкана из спичек: зрелищный опыт",
+    "author": "TechInsider",
+    "channelId": null,
+    "duration": 243.0,
+    "live": false,
+    "viewers": null,
+    "views": 13561876,
+    "description": "Канал Lavina собрал из сотен спичек внушительную модель вулкана и поджег ее, превратив спичечную гору в огромный столб пламени!",
+    "published": "20210123",
+    "poster": "/fixtures/poster.png",
+    "site": "dzen.ru",
+    "qualities": ["720p", "480p", "360p", "240p", "144p"],
+    "audio": [],
+    "captions": [
+      {
+        "lang": "ru",
+        "label": "",
+        "auto": false
+      }
+    ]
+  }
+}

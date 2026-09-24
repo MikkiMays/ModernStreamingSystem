@@ -12,7 +12,8 @@ import LinkScene from './LinkScene';
 
   Чья ссылка, решает служба (`POST …/link`), здесь её играет таблица: своя площадка — переход в её
   сцену на нужную страницу (`openCinema(площадка, at)`), незнакомая — причина словами, карточка
-  общего пути (задачи 15b/15c) — страница с качеством, звуком, субтитрами и сериями.
+  общего пути (задача 15b) — страница с сайтом, качеством, звуком и субтитрами, а плейлист — страница
+  сериала с сериями плитками (`series` службы).
 */
 
 const RUTUBE = 'https://rutube.ru/video/d8061eab5d7ed2bad058162bc5762842/';
@@ -31,25 +32,54 @@ const FILM = {
   views: null,
   poster: null,
   site: 'ok.ru',
-  quality: '1080p',
+  qualities: ['1080p', '720p', '360p'],
   audio: [
-    { lang: 'ru', label: 'Русский' },
-    { lang: 'en', label: 'English' },
+    { lang: 'ru', label: 'Русский дубляж' },
+    { lang: 'en', label: '' },
   ],
-  captions: [{ lang: 'ru', label: 'Русский', auto: true }],
-  episodes: [1, 2].map((number) => ({
-    provider: 'link',
-    kind: 'video',
-    id: `Qm9vay1lcGlzb2RlLTAw${number}`,
-    title: `Серия ${number}`,
-    author: '',
-    channelId: null,
-    duration: 2400,
-    live: false,
-    viewers: null,
-    views: null,
-    poster: null,
-  })),
+  captions: [{ lang: 'ru', label: '', auto: true }],
+};
+/** Плейлист по ссылке: карточка — сериал, серии — страницей сериала службы. */
+const SHOW = {
+  provider: 'link',
+  kind: 'series',
+  id: 'U2hvdy1ieS1saW5rLTAwMDE',
+  title: 'Сериал с archive.org',
+  author: '',
+  channelId: null,
+  duration: null,
+  live: false,
+  viewers: null,
+  views: null,
+  count: 3,
+  poster: null,
+  site: 'archive.org',
+};
+const episode = (number: number) => ({
+  provider: 'link',
+  kind: 'video',
+  id: `RXBpc29kZS1ieS1saW5rLTA${number}`,
+  title: `Серия ${number}`,
+  author: '',
+  channelId: null,
+  duration: 2400,
+  live: false,
+  viewers: null,
+  views: null,
+  badge: `${number} серия`,
+  series: SHOW.id,
+  poster: null,
+});
+const SERIES_PAGE = {
+  series: { id: SHOW.id, title: SHOW.title, poster: null, description: 'Три серии', year: null, seasons: [] },
+  season: null,
+  items: [
+    episode(1),
+    episode(2),
+    // Серия своей площадки — карточкой той площадки: включает её YouTube, а не общий путь.
+    { ...episode(3), provider: 'youtube', id: 'dQw4w9WgXcQ', title: 'Серия с YouTube', badge: undefined },
+  ],
+  next: null,
 };
 const ANSWERS: Record<string, unknown> = {
   [RUTUBE]: {
@@ -59,20 +89,37 @@ const ANSWERS: Record<string, unknown> = {
     route: { provider: 'youtube', kind: 'video', id: 'dQw4w9WgXcQ', page: 'item' },
   },
   'https://ok.ru/video/1': { item: FILM },
+  'https://archive.org/details/show': { item: SHOW },
   'https://ivi.ru/watch/1': { route: { provider: 'ivi', kind: 'video', id: '1', page: 'item' } },
 };
 
 /** Какие ссылки спросили у службы. */
 const asked: string[] = [];
+/** Какие ещё страницы каталога спросили: `series`, `details`. */
+const pages: string[] = [];
 let gate: Promise<void> = Promise.resolve();
+/** Обрыв сети: `fetch` отказывает сам, как браузер без связи. */
+let offline = false;
 
 beforeEach(() => {
   asked.length = 0;
+  pages.length = 0;
   gate = Promise.resolve();
+  offline = false;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string, init?: RequestInit) => {
-      expect(new URL(input, 'http://test').pathname).toBe('/api/v1/services/rooms/room/cinema/link');
+      const address = new URL(input, 'http://test');
+      if (offline) throw new TypeError('Failed to fetch');
+      if (address.pathname === '/api/v1/services/rooms/room/cinema/series') {
+        pages.push(`series:${address.searchParams.get('provider')}:${address.searchParams.get('id')}`);
+        return json(SERIES_PAGE);
+      }
+      if (address.pathname === '/api/v1/services/rooms/room/cinema/details') {
+        pages.push(`details:${address.searchParams.get('provider')}:${address.searchParams.get('id')}`);
+        return json({ ...episode(1), description: 'Первая серия' });
+      }
+      expect(address.pathname).toBe('/api/v1/services/rooms/room/cinema/link');
       const url = (JSON.parse(String(init?.body)) as { url: string }).url;
       asked.push(url);
       await gate;
@@ -208,27 +255,83 @@ it('кнопка буфера вставляет ссылку сразу — а 
   client.clear();
 });
 
-it('что нашлось по ссылке: страница с качеством, звуком и субтитрами, серии — каждая своей кнопкой', async () => {
+it('что нашлось по ссылке: страница с сайтом, ступенями качества, звуком и субтитрами — и «Смотреть вместе»', async () => {
   const { client, meeting } = mount();
   type('https://ok.ru/video/1');
   expect(await screen.findByRole('heading', { name: 'Фильм с ok.ru' })).toBeInTheDocument();
   expect(screen.getByText('ok.ru')).toBeInTheDocument();
-  expect(screen.getByText('до 1080p')).toBeInTheDocument();
-  expect(screen.getByText('Русский, English')).toBeInTheDocument();
+  // Ступени — метками, лучшая первой.
+  expect(
+    Array.from(document.querySelectorAll('.cinema-link-qualities .cinema-chip')).map(
+      (chip) => chip.textContent,
+    ),
+  ).toEqual(['1080p', '720p', '360p']);
+  // Дорожка без имени называется языком по-русски, распознанные субтитры — с пометкой.
+  expect(screen.getByText('Русский дубляж, Английский')).toBeInTheDocument();
   expect(screen.getByText('Русский (распознаны)')).toBeInTheDocument();
-  const episodes = screen.getByRole('region', { name: 'Серии' });
-  expect(within(episodes).getAllByRole('listitem')).toHaveLength(2);
   // Нашлось — значит, куда-то привело: ссылка встаёт в недавние.
   expect(meeting.media.saveSettings).toHaveBeenCalledWith({ cinemaLinks: ['https://ok.ru/video/1'] });
 
-  fireEvent.click(within(episodes).getByRole('button', { name: 'Смотреть вместе: Серия 2' }));
+  fireEvent.click(screen.getByRole('button', { name: /Смотреть вместе/ }));
   await waitFor(() =>
-    expect(meeting.command).toHaveBeenCalledWith('watch.open', 'Серия 2', undefined, {
+    expect(meeting.command).toHaveBeenCalledWith('watch.open', 'Фильм с ok.ru', undefined, {
       provider: 'link',
       kind: 'video',
-      contentId: 'Qm9vay1lcGlzb2RlLTAw2',
+      contentId: FILM.id,
     }),
   );
+  client.clear();
+});
+
+it('плейлист по ссылке — страница сериала с сериями плитками: серию включают прямо с плитки или с её страницы', async () => {
+  const { client, meeting } = mount();
+  type('https://archive.org/details/show');
+  expect(await screen.findByRole('heading', { name: SHOW.title })).toBeInTheDocument();
+  expect(await screen.findAllByRole('article')).toHaveLength(3);
+  expect(pages).toEqual([`series:link:${SHOW.id}`]);
+  expect(screen.getByText('archive.org')).toBeInTheDocument();
+
+  // Страница серии — из того, что служба помнит о ней; «Назад» и «Все серии» — снова к сериям.
+  fireEvent.click(screen.getByRole('button', { name: 'Подробнее: Серия 1' }));
+  expect(await screen.findByText('Первая серия')).toBeInTheDocument();
+  expect(pages).toContain(`details:link:${episode(1).id}`);
+  fireEvent.click(screen.getByRole('button', { name: 'Все серии' }));
+  expect(await screen.findAllByRole('article')).toHaveLength(3);
+  fireEvent.click(screen.getByRole('button', { name: 'Подробнее: Серия 1' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Назад' }));
+  expect(await screen.findAllByRole('article')).toHaveLength(3);
+  // Серии спрошены один раз: вернувшись со страницы серии, лента уже в памяти.
+  expect(pages.filter((entry) => entry.startsWith('series:'))).toHaveLength(1);
+
+  // Серия своей площадки открывается в её сцене — там, где у неё канал и соседи.
+  fireEvent.click(screen.getByRole('button', { name: 'Подробнее: Серия с YouTube' }));
+  expect(meeting.openCinema).toHaveBeenCalledWith('youtube', {
+    page: 'item',
+    kind: 'video',
+    id: 'dQw4w9WgXcQ',
+  });
+
+  // Серию по ссылке включают прямо с плитки — её номером, а не адресом.
+  cleanup();
+  const again = mount({ client });
+  type('https://archive.org/details/show');
+  fireEvent.click(await screen.findByRole('button', { name: 'Смотреть вместе: Серия 2' }));
+  await waitFor(() =>
+    expect(again.meeting.command).toHaveBeenCalledWith('watch.open', 'Серия 2', undefined, {
+      provider: 'link',
+      kind: 'video',
+      contentId: episode(2).id,
+    }),
+  );
+  client.clear();
+});
+
+it('обрыв сети — словами по-русски, а не «Failed to fetch» браузера', async () => {
+  offline = true;
+  const { client } = mount();
+  type('https://ok.ru/video/1');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Нет связи с сервером — попробуйте ещё раз');
+  expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   client.clear();
 });
 

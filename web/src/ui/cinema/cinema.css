@@ -917,7 +917,8 @@
 }
 
 /*
-  Сцена «По ссылке»: недавние ссылки, что нашлось по ссылке и серии плейлиста.
+  Сцена «По ссылке»: недавние ссылки и что нашлось по ссылке. Серии плейлиста — общей страницей
+  сериала (`SeriesPage`) и плитками каталога: своих правил у них здесь нет.
 
   Всё ниже — новые классы, прежних правил они не трогают: у YouTube, Twitch, Rutube и VK этих
   элементов нет. Ссылка бывает в пару сотен знаков, поэтому везде, где она видна, она не
@@ -926,13 +927,11 @@
   Колонки списков — `minmax(0, 1fr)`, а не `auto`: наименьшая ширина колонки `auto` — ширина самого
   длинного неразрывного содержимого, и строка недавних со ссылкой в триста знаков одной строкой
   (многоточие здесь не помогает — оно режет уже внутри колонки) уводила ленту каталога вбок на
-  сотни пикселей (на 390 px — на 808, проверка перекрытий). Так же у серий и у списка фактов.
+  сотни пикселей (на 390 px — на 808, проверка перекрытий). Так же у списка фактов.
 */
 .cinema-link-recent,
 .cinema-link-recent ul,
-.cinema-link-facts,
-.cinema-link-episodes,
-.cinema-link-episodes ol {
+.cinema-link-facts {
   grid-template-columns: minmax(0, 1fr);
 }
 .cinema-link-recent {
@@ -1010,43 +1009,9 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
-/* Серии плейлиста — списком по порядку: номер, имя, длительность и «Смотреть вместе» у каждой. */
-.cinema-link-episodes {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-.cinema-link-episodes ol {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: episode;
-}
-.cinema-link-episodes li {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px 6px 12px;
-  border-radius: 10px;
-  background: var(--surface);
-  font-size: 13px;
-  counter-increment: episode;
-}
-.cinema-link-episodes li::before {
-  content: counter(episode);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.cinema-link-episodes li > span:not(.cinema-link-episode-title) {
-  color: var(--muted);
-  font-size: 12px;
-}
-.cinema-link-episode-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Ступени качества — метками в ряд, лучшая первой; ряд переносится, а не расталкивает строку. */
+.cinema-link-qualities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
