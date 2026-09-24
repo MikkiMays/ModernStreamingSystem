@@ -17,8 +17,8 @@ export function Shelf({
   children,
 }: {
   title: string;
-  /** Форма карточек ряда: кадры 16:9 (по умолчанию) или постеры 2:3. */
-  kind?: 'wide' | 'tall';
+  /** Форма карточек ряда: кадры 16:9 (по умолчанию), постеры 2:3 или лица сообществ и каналов. */
+  kind?: 'wide' | 'tall' | 'faces';
   /** Подпись двери на полку целиком — и сама дверь; без неё полка без двери. */
   more?: string;
   onMore?: () => void;
@@ -34,7 +34,9 @@ export function Shelf({
           </button>
         ) : null}
       </header>
-      <div className={kind === 'tall' ? 'cinema-row cinema-row-tall' : 'cinema-row'}>{children}</div>
+      <div className={kind === 'tall' || kind === 'faces' ? `cinema-row cinema-row-${kind}` : 'cinema-row'}>
+        {children}
+      </div>
     </section>
   );
 }

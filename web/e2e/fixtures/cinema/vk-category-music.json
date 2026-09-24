@@ -1,0 +1,117 @@
+{
+  "category": {
+    "provider": "vk",
+    "kind": "category",
+    "id": "PUldVA8AR0RzSVNUWFUCCBkGHAVcV0lKZFJLTARJ",
+    "title": "Музыка",
+    "viewers": null,
+    "poster": null
+  },
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-86586923_456240639",
+      "title": "Юра Музыченко в Зацени мне трек — выпуск 48 | КЕНТЫ СКВАД слушают Morandi, Moby и Павел Воля",
+      "author": "DISTRICT 23 | КЕНТЫ СКВАД",
+      "channelId": "-86586923",
+      "duration": 3946,
+      "live": false,
+      "viewers": null,
+      "views": 5202,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-222362561_456239506",
+      "title": "ТБШ | ДИМА БИЛАН | СНОВА ПЕРЕПЛЮНУЛ ВСЕХ?",
+      "author": "ТЕОРИЯ БОЛЬШОГО ШОУ | ТБШ",
+      "channelId": "-222362561",
+      "duration": 2964,
+      "live": false,
+      "viewers": null,
+      "views": 4775,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-6246566_456261379",
+      "title": "НОВАЯ ВОЛНА ХИТОВ 2026: ЛЮСЯ ЧЕБОТИНА, КОМНАТА КУЛЬТУРЫ, ANNA ASTI, НИКОЛАЙ БАСКОВ, МАРИ КРАЙМБРЕРИ",
+      "author": "МУЗ-ТВ",
+      "channelId": "-6246566",
+      "duration": 2298,
+      "live": false,
+      "viewers": null,
+      "views": 3046,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-189825198_456241883",
+      "title": "Мартин - про создание саундтрека к фильму, клип на «Ты случилась» и трек с FEDUK | ПО КАВЕРОЧКУ | NANSI & SIDOROV",
+      "author": "Nansi & Sidorov",
+      "channelId": "-189825198",
+      "duration": 4304,
+      "live": false,
+      "viewers": null,
+      "views": 28583,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-86586923_456240637",
+      "title": "Дима Коваль и КЕНТЫ СКВАД слушают треки от подписчиков – Зацени мне трек: Турнир подписчиков Этап 5",
+      "author": "DISTRICT 23 | КЕНТЫ СКВАД",
+      "channelId": "-86586923",
+      "duration": 13140,
+      "live": false,
+      "viewers": null,
+      "views": 8306,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-220743412_456243608",
+      "title": "ГДЗ (Премьера клипа 2026) — Марьяна Локель, Вау Вероника",
+      "author": "Марьяна Локель",
+      "channelId": "-220743412",
+      "duration": 129,
+      "live": false,
+      "viewers": null,
+      "views": 145654,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-211157933_456240921",
+      "title": "Сочи, море и полный отрыв! \"Без игрушек\" в Сочи. | Часть 1",
+      "author": "Без игрушек",
+      "channelId": "-211157933",
+      "duration": 1129,
+      "live": false,
+      "viewers": null,
+      "views": 5067,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-4829_456240509",
+      "title": "«Теория музыки». Выпуск №8. Музыкальный дайджест с Антоном Беляевым",
+      "author": "Правила жизни",
+      "channelId": "-4829",
+      "duration": 1348,
+      "live": false,
+      "viewers": null,
+      "views": 112599,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

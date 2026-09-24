@@ -1,0 +1,117 @@
+{
+  "category": {
+    "provider": "vk",
+    "kind": "category",
+    "id": "PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw",
+    "title": "Все",
+    "viewers": null,
+    "poster": null
+  },
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-211232966_456241497",
+      "title": "Натальная карта #64 Сатир | Сатир, Журавлев, Иванченко",
+      "author": "Натальная карта",
+      "channelId": "-211232966",
+      "duration": 10900,
+      "live": false,
+      "viewers": null,
+      "views": 7078328,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-220754053_456246638",
+      "title": "КСТАТИ #111 – Тимати и Алиса Юнусова, Илья Exile, Ангелина Мельникова, FLORA, Раф, Харламов, Мусагалиев, Дорохов",
+      "author": "VK Видео",
+      "channelId": "-220754053",
+      "duration": 5965,
+      "live": false,
+      "viewers": null,
+      "views": 3275192,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-211523079_456239499",
+      "title": "Юлия Ахмедова — о мужчинах, стендапе, рпп и завещании",
+      "author": "FAMETIME TV",
+      "channelId": "-211523079",
+      "duration": 6620,
+      "live": false,
+      "viewers": null,
+      "views": 468944,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-59135674_456241759",
+      "title": "Ну-ка, все вместе ! 8 сезон. 1 выпуск (11.09.2026)",
+      "author": "НУ-КА, ВСЕ ВМЕСТЕ !",
+      "channelId": "-59135674",
+      "duration": 8438,
+      "live": false,
+      "viewers": null,
+      "views": 340716,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-29484355_456253211",
+      "title": "«Сочи» – «СКА-Хабаровск» Лига PARI. 12 тур.",
+      "author": "Лига PARI",
+      "channelId": "-29484355",
+      "duration": 8347,
+      "live": false,
+      "viewers": null,
+      "views": 74794,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-213377389_456247746",
+      "title": "Монстр: История Лиззи Борден (сериал 2026) 4K [KM]",
+      "author": "【Кⷦuͧͧнⷩоⷪ Мⷨаⷶхⷯ】",
+      "channelId": "-213377389",
+      "duration": 23794,
+      "live": false,
+      "viewers": null,
+      "views": 187724,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-217878975_456240407",
+      "title": "ПОДРУЖКИ #41 | Амина Tenderlybae",
+      "author": "Мэтч",
+      "channelId": "-217878975",
+      "duration": 5527,
+      "live": false,
+      "viewers": null,
+      "views": 416268,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-131099725_456244454",
+      "title": "Миньоны и монстры 2026 4К Дубляж",
+      "author": "KinoPix | Фильмы онлайн | Новинки кино 2026",
+      "channelId": "-131099725",
+      "duration": 5071,
+      "live": false,
+      "viewers": null,
+      "views": 1010307,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": "1"
+}

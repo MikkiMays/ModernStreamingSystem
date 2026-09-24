@@ -1,4 +1,4 @@
-import { Radio, SquarePlay, Tv, type LucideIcon } from 'lucide-react';
+import { Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
 
 /**
  * Реестр площадок кинозала.
@@ -14,10 +14,10 @@ import { Radio, SquarePlay, Tv, type LucideIcon } from 'lucide-react';
  * совпадали (`#e33b3b`/`#ff3d3d`, `#8250e6`/`#9147ff`) — два разных места однажды выбрали цвет
  * порознь, и переучивать людей заново не входит в эту задачу. Реестр не стирает расхождение, а
  * просто перестаёт хранить его дважды по всему коду: то же самое хранится один раз. У площадок
- * со своей сценой (Rutube и следующие) вкладки-переключателя нет, и `accent` у них — цвет самой
- * площадки в её сцене: плашка с именем в полосе и выбранный раздел.
+ * со своей сценой (Rutube, VK Видео и следующие) вкладки-переключателя нет, и `accent` у них — цвет
+ * самой площадки в её сцене: плашка с именем в полосе и выбранный раздел.
  */
-export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube'] as const;
+export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
@@ -25,9 +25,10 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
  *
  * `'switcher'` — вкладки YouTube и Twitch внутри одного каталога (тот же каталог, что и был).
  * Площадка с другим устройством каталога получает свою сцену: у Rutube это эфиры ТВ, сериалы с
- * сезонами и разделы площадки. Следующие площадки дописывают сюда свои.
+ * сезонами и разделы площадки, у VK Видео — её разделы, сообщества с плейлистами и ссылка на
+ * ролик прямо в поиске. Следующие площадки дописывают сюда свои.
  */
-export type SceneId = 'switcher' | 'rutube';
+export type SceneId = 'switcher' | 'rutube' | 'vk';
 
 export interface ProviderSpec {
   id: ProviderId;
@@ -81,6 +82,22 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     icon: SquarePlay,
     scene: 'rutube',
     searchPlaceholder: 'Видео, каналы и ТВ',
+  },
+  /*
+    Цвет — из их же CSS: `--vkui--vkontakte_color_accent_alternate: #0077ff` в VKUI сайта
+    (`st1-24.vkvideo.ru/css/al/vkui.490dad1c.css` и `…/vkvideo-web/entrypoints/core_spa.6b696ae4.css`,
+    24.09.2026; там же `--azure_a100: #0077ff` в `base.6a12502f.css`). Вкладки-переключателя у VK,
+    как и у Rutube, нет — цвет один на обоих местах.
+  */
+  vk: {
+    id: 'vk',
+    name: 'VK Видео',
+    hint: 'Разделы, сообщества и эфиры',
+    accent: '#0077FF',
+    tile: '#0077FF',
+    icon: Video,
+    scene: 'vk',
+    searchPlaceholder: 'Видео и сообщества',
   },
 };
 

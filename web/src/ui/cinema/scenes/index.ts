@@ -22,4 +22,5 @@ export interface SceneProps {
 export const SCENES: Record<SceneId, LazyExoticComponent<ComponentType<SceneProps>>> = {
   switcher: lazy(() => import('./SwitcherScene')),
   rutube: lazy(() => import('./RutubeScene')),
+  vk: lazy(() => import('./VkScene')),
 };

@@ -1,0 +1,101 @@
+{
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw",
+      "title": "Все",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkCBwJQRh0PIxxLWhcNSVx3Fg",
+      "title": "Интервью и шоу",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkbBhpcQAIFNUlFVAwWUVc7",
+      "title": "Политика",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkGHAVcV0lKZFJLTARJ",
+      "title": "Музыка",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkODQNWVR8PKQVLWhcNSVx3Fg",
+      "title": "Образование",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkfBgNHXRgLI0lFVAwWUVc7",
+      "title": "Путешествия",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkKHAJaWQQSLx0MVBkWUkR8WhQ",
+      "title": "Авто",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkfDBVdWgQKKQwQVBkWUkR8WhQ",
+      "title": "Технологии",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkIBhleXQUBZEdLTxcOWhs",
+      "title": "Еда",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkHABBQRx8fKg5LWhcNSVx3Fg",
+      "title": "Мода и красота",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkNAAJbURgVZEdLTxcOWhs",
+      "title": "Здоровье",
+      "viewers": null,
+      "poster": null
+    },
+    {
+      "provider": "vk",
+      "kind": "category",
+      "id": "PUldVA8AR0RzSVNUWFUCCBkIHBpBQRkDZEdLTxcOWhs",
+      "title": "Культура",
+      "viewers": null,
+      "poster": null
+    }
+  ],
+  "next": null
+}

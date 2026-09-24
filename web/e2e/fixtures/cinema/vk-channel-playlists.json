@@ -1,0 +1,102 @@
+{
+  "channel": {
+    "provider": "vk",
+    "id": "-22277933",
+    "title": "Маша и Медведь",
+    "handle": "",
+    "description": "Единственная официальная группа ВК «Маша и Медведь». \nТолько здесь вы первыми узнаете новости о любимом мультсериале, пообщаетесь с создателями, поучаствуете в конкурсах и получите призы от Маши и Медведя! 😊\n\nРКН: http://masha.place/q.php?pid=3492",
+    "followers": 817269,
+    "viewers": null,
+    "live": false,
+    "category": "Мультфильм",
+    "avatar": "/fixtures/poster.png",
+    "banner": "/fixtures/poster.png"
+  },
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093284",
+      "title": "Маша и Медведь. Сезон 8",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 23,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093271",
+      "title": "Пой с Машей",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 30,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093272",
+      "title": "Караоке с Машей",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 30,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093276",
+      "title": "Маша и Медведь: Скажите «Ой!»",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 1,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093278",
+      "title": "Маша и Медведь: Анимашки",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 26,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "playlist",
+      "id": "-22277933_56093275",
+      "title": "Маша и Медведь. Песенки для малышей",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "count": 26,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

@@ -1,0 +1,18 @@
+{
+  "provider": "vk",
+  "kind": "channel",
+  "id": "near_you",
+  "title": "⚡️BOBR - ЕГО БОБРЕЙШЕСТВО ГРЫЗЕТ ВСЕ ТАНКИ!",
+  "author": "Near_You",
+  "channelId": null,
+  "channelAvatar": "/fixtures/poster.png",
+  "duration": null,
+  "live": true,
+  "views": null,
+  "viewers": 1612,
+  "followers": null,
+  "published": null,
+  "category": "МИР ТАНКОВ",
+  "description": "",
+  "poster": "/fixtures/poster.png"
+}

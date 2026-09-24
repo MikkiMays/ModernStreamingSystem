@@ -1,0 +1,122 @@
+{
+  "playlist": {
+    "provider": "vk",
+    "kind": "playlist",
+    "id": "-22277933_56093284",
+    "title": "Маша и Медведь. Сезон 8",
+    "author": "Маша и Медведь",
+    "channelId": "-22277933",
+    "description": "",
+    "count": 23,
+    "views": null,
+    "published": "2026-09-10",
+    "poster": "/fixtures/poster.png"
+  },
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242578",
+      "title": "Маша и Медведь. Сезон 8. Серия 23. Чего желаете?",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 458,
+      "live": false,
+      "viewers": null,
+      "views": 600862,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242367",
+      "title": "Маша и Медведь. Сезон 8. Серия 1. Лето с Январем",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 450,
+      "live": false,
+      "viewers": null,
+      "views": 5885038,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242368",
+      "title": "Маша и Медведь. Сезон 8. Серия 2. Машина машина",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 431,
+      "live": false,
+      "viewers": null,
+      "views": 3317873,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242369",
+      "title": "Маша и Медведь. Сезон 8. Серия 3. Байки-бабайки",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 447,
+      "live": false,
+      "viewers": null,
+      "views": 3176504,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242370",
+      "title": "Маша и Медведь. Сезон 8. Серия 4. Баозцы и красная шапочка",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 444,
+      "live": false,
+      "viewers": null,
+      "views": 3455592,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242371",
+      "title": "Маша и Медведь. Сезон 8. Серия 5. Грязное дело",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 453,
+      "live": false,
+      "viewers": null,
+      "views": 3066452,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242372",
+      "title": "Маша и Медведь. Сезон 8. Серия 6. Кое-кто в сапогах",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 454,
+      "live": false,
+      "viewers": null,
+      "views": 2897847,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-22277933_456242373",
+      "title": "Маша и Медведь. Сезон 8. Серия 7. Весело, весело склеим Новый год!",
+      "author": "Маша и Медведь",
+      "channelId": "-22277933",
+      "duration": 451,
+      "live": false,
+      "viewers": null,
+      "views": 3485422,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

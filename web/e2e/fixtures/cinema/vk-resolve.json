@@ -1,0 +1,15 @@
+{
+  "provider": "vk",
+  "contentId": "-22277933_456242381",
+  "title": "Маша и Медведь. Сезон 8. Серия 14. Три пятачка",
+  "author": "Маша и Медведь",
+  "duration": 12,
+  "live": false,
+  "kind": "hls",
+  "url": "/fixtures/hls/master.m3u8",
+  "expiresAt": 0,
+  "notice": null,
+  "language": "",
+  "captions": [],
+  "poster": "/fixtures/poster.png"
+}

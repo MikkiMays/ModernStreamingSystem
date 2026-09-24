@@ -38,6 +38,14 @@ describe('реестр площадок', () => {
     expect(PROVIDERS.rutube.searchPlaceholder).toBe('Видео, каналы и ТВ');
   });
 
+  it('у VK Видео своя сцена, цвет из их VKUI и поиск по видео и сообществам', () => {
+    expect(PROVIDER_IDS.at(-1)).toBe('vk');
+    expect(PROVIDERS.vk.scene).toBe('vk');
+    expect(PROVIDERS.vk.accent).toBe('#0077FF');
+    expect(PROVIDERS.vk.tile).toBe(PROVIDERS.vk.accent);
+    expect(PROVIDERS.vk.searchPlaceholder).toBe('Видео и сообщества');
+  });
+
   it('вкладки переключателя — площадки сцены switcher, тем же порядком, что в реестре', () => {
     expect(SWITCHER_TABS).toEqual(PROVIDER_IDS.filter((id) => PROVIDERS[id].scene === 'switcher'));
     expect(SWITCHER_TABS).toEqual(['youtube', 'twitch']);

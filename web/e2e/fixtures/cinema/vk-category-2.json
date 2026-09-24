@@ -1,0 +1,91 @@
+{
+  "category": {
+    "provider": "vk",
+    "kind": "category",
+    "id": "PUldVA8AR0RzSVNUWFUCCBkKBRoXGElfZFFYCw",
+    "title": "Все",
+    "viewers": null,
+    "poster": null
+  },
+  "items": [
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-212451998_456243184",
+      "title": "ДМИТРИЙ ДИБРОВ: о разводе, дружбе с Эрнстом, телевидении 90-х и любви к молодым девушкам",
+      "author": "Осторожно: Собчак",
+      "channelId": "-212451998",
+      "duration": 12666,
+      "live": false,
+      "viewers": null,
+      "views": 775160,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-211869299_456241091",
+      "title": "Святость на продажу! Старейшая в мире секта - агори. Контрасты священного города Варанаси",
+      "author": "Погнали! | Стас Натанзон",
+      "channelId": "-211869299",
+      "duration": 5710,
+      "live": false,
+      "viewers": null,
+      "views": 603880,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-143272425_456242252",
+      "title": "Нам придётся работать до 80 лет? Карьерный эксперт о будущем рынка труда, влиянии зумеров и ИИ",
+      "author": "Александр Соколовский",
+      "channelId": "-143272425",
+      "duration": 7586,
+      "live": false,
+      "viewers": null,
+      "views": 191874,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-214009095_456241910",
+      "title": "СЛОНОВАЯ КОСТЬ 2026 4K",
+      "author": "Кинодрайв - Новинки 2026 онлайн фильмы сериалы",
+      "channelId": "-214009095",
+      "duration": 6287,
+      "live": false,
+      "viewers": null,
+      "views": 195059,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-84143224_456240323",
+      "title": "Стюарт Блум не смог спасти вселенную (2026) 1-7 (НОВЫЕ СЕРИИ) Кураж-Бамбей сбнссв",
+      "author": "Фантастика - фэнтези фильмы",
+      "channelId": "-84143224",
+      "duration": 8760,
+      "live": false,
+      "viewers": null,
+      "views": 67910,
+      "poster": "/fixtures/poster.png"
+    },
+    {
+      "provider": "vk",
+      "kind": "video",
+      "id": "-217986831_456240109",
+      "title": "Дела № 69 СЕКТА ЗЛОГО БОГА / (Костя Савельев, Дима Позов, Ахшар Хох)",
+      "author": "Дела | true crime",
+      "channelId": "-217986831",
+      "duration": 4075,
+      "live": false,
+      "viewers": null,
+      "views": 259578,
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}
