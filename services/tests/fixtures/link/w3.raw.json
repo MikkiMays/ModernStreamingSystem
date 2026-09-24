@@ -1,0 +1,40 @@
+{
+ "_type": "playlist",
+ "id": "html5_video",
+ "title": "HTML Video",
+ "description": "The HTML <video> element is used to show a video on a web page.",
+ "thumbnail": "https://www.w3schools.com/images/og/html/html5_video.png",
+ "webpage_url": "https://www.w3schools.com/html/html5_video.asp",
+ "extractor": "generic",
+ "extractor_key": "Generic",
+ "entries": [
+  {
+   "id": "html5_video-1",
+   "title": "HTML Video (1)",
+   "formats": [
+    {
+     "url": "https://www.w3schools.com/html/mov_bbb.mp4",
+     "ext": "mp4"
+    },
+    {
+     "url": "https://www.w3schools.com/html/mov_bbb.ogg",
+     "ext": "ogv"
+    }
+   ]
+  },
+  {
+   "id": "html5_video-2",
+   "title": "HTML Video (2)",
+   "formats": [
+    {
+     "url": "https://www.w3schools.com/html/mov_bbb.mp4",
+     "ext": "mp4"
+    },
+    {
+     "url": "https://www.w3schools.com/html/mov_bbb.ogg",
+     "ext": "ogv"
+    }
+   ]
+  }
+ ]
+}

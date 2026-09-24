@@ -39,6 +39,28 @@ class Card(TypedDict):
     poster: str | None
 
 
+class LinkTrack(TypedDict):
+    """Дорожка звука или субтитров у видео по ссылке: язык и как её назвал сайт."""
+
+    lang: str
+    label: str
+    # Только у субтитров: распознаны речью, а не написаны автором.
+    auto: NotRequired[bool]
+
+
+class LinkCard(Card):
+    """
+    Карточка «По ссылке»: та же плитка каталога и то, по чему решают, включать ли, — сайт, ступени
+    качества (лучшая первой), дорожки звука и субтитры. У плейлиста (`series`) — только сайт: его
+    серии отдаёт маршрут `series`.
+    """
+
+    site: NotRequired[str]
+    qualities: NotRequired[list[str]]
+    audio: NotRequired[list[LinkTrack]]
+    captions: NotRequired[list[LinkTrack]]
+
+
 class CategoryCard(TypedDict):
     """Раздел площадки (у Twitch — игра или рубрика): только имя, обложка и сколько смотрят."""
 
@@ -264,6 +286,22 @@ def card(
     built.update((key, value) for key, value in optional.items() if value is not _ABSENT)
     built["poster"] = poster
     return cast(Card, built)
+
+
+def link_card(
+    card: Card,
+    /,
+    *,
+    site: str,
+    qualities: list[str] | None = None,
+    audio: list[dict[str, str]] | None = None,
+    captions: list[dict[str, Any]] | None = None,
+) -> LinkCard:
+    """Карточка «По ссылке» поверх плитки: новые ключи — только те, что переданы."""
+    built: dict[str, Any] = {**card, "site": site}
+    extra = {"qualities": qualities, "audio": audio, "captions": captions}
+    built.update((key, list(value)) for key, value in extra.items() if value is not None)
+    return cast(LinkCard, built)
 
 
 def category_card(

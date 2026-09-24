@@ -20,6 +20,7 @@ from fastapi import HTTPException
 from .memo import Memo, Scope
 
 if TYPE_CHECKING:
+    from .egress import Egress
     from .resolve import SourcePlan, YtDlp
 
 logger = logging.getLogger(__name__)
@@ -126,6 +127,11 @@ class Kit:
     # Обложка у нас: подписанный адрес или `None`, если хост чужой.
     image: Callable[[str], str | None]
     ytdlp: YtDlp
+    # Площадке «По ссылке»: где помнить номер ссылки (`store.Links`: сутки и переживает перезапуск;
+    # `None` — память процесса), ключ, которым номер считается от адреса, и охраняемый выход yt-dlp.
+    links: Any = None
+    key: bytes = b""
+    egress: Egress | None = None
 
 
 class Provider:
@@ -156,6 +162,13 @@ class Provider:
     # Форма номера раздела (`fullmatch`): у Twitch и Rutube это число, у VK Видео — строка самой
     # площадки в полсотни знаков. Число здесь по умолчанию — прежняя общая проверка фасада.
     category_id: ClassVar[re.Pattern[str]] = re.compile(r"[0-9]{1,20}")
+    # Проходит ли прокси переадресацию сайта сам — каждым шагом по политике хостов площадки. Площадкам
+    # каталога это не нужно (их адреса отвечают сразу), а чужие страницы отдают видео через
+    # переадресацию сплошь и рядом: archive.org — на свой узел хранения.
+    follows_redirects: ClassVar[bool] = False
+    # Отказывает ли прокси плейлисту с ключом DRM (`drm.hls`). У площадок каталога DRM узнаётся в
+    # их API; у чужих страниц — только в самом потоке.
+    refuses_drm: ClassVar[bool] = False
 
     def __init_subclass__(cls, abstract: bool = False, **kwargs: Any):
         """

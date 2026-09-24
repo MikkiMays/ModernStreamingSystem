@@ -163,8 +163,9 @@ def live_card(item):
 
 class PlatformTests(unittest.TestCase):
     def test_rutube_is_the_third_platform_and_says_what_it_has(self):
-        # Rutube — третья; четвёртой после неё встала VK Видео (задача 10).
-        self.assertEqual([kind.id for kind in PROVIDERS], ["youtube", "twitch", "rutube", "vk"])
+        # Rutube — третья; четвёртой после неё встала VK Видео (задача 10), последним — общий путь
+        # «По ссылке» (задача 15b).
+        self.assertEqual([kind.id for kind in PROVIDERS], ["youtube", "twitch", "rutube", "vk", "link"])
         self.assertEqual(Rutube.name, "Rutube")
         self.assertEqual(
             Rutube.features, Features(search=True, channels=True, categories=True, series=True, live=True)
@@ -1188,7 +1189,7 @@ class RouteTests(unittest.TestCase):
     def test_the_platforms_list_now_names_rutube_with_series_and_live(self):
         client = self.serve()
         entries = client.get(f"/api/v1/services/rooms/{ROOM}/cinema/providers").json()["providers"]
-        self.assertEqual([entry["id"] for entry in entries], ["youtube", "twitch", "rutube", "vk"])
+        self.assertEqual([entry["id"] for entry in entries], ["youtube", "twitch", "rutube", "vk", "link"])
         self.assertEqual(
             entries[2]["features"],
             {

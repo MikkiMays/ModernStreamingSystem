@@ -156,7 +156,7 @@ class RegistryTests(unittest.TestCase):
     def test_every_platform_the_cinema_knows_is_on_by_default(self):
         for enabled in (None, "", " , "):
             self.assertEqual(
-                [p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube", "vk"]
+                [p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube", "vk", "link"]
             )
 
     def test_the_setting_chooses_platforms_but_not_their_order(self):
@@ -502,6 +502,22 @@ class RouteTests(unittest.TestCase):
                             "playlists": True,
                             "categories": True,
                             "series": False,
+                            "live": True,
+                        },
+                    },
+                    # «По ссылке»: поиска нет, серии плейлиста — есть, эфир по ссылке — тоже.
+                    {
+                        "id": "link",
+                        "available": True,
+                        "reason": None,
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": False,
+                            "channels": False,
+                            "playlists": False,
+                            "categories": False,
+                            "series": True,
                             "live": True,
                         },
                     },

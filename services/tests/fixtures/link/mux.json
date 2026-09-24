@@ -1,0 +1,82 @@
+{
+ "id": "x36xhzz",
+ "title": "x36xhzz",
+ "duration": 634,
+ "upload_date": "20200415",
+ "timestamp": 1586919196,
+ "webpage_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+ "extractor": "generic",
+ "extractor_key": "Generic",
+ "formats": [
+  {
+   "format_id": "240",
+   "url": "https://test-streams.mux.dev/x36xhzz/url_2/193039199_mp4_h264_aac_ld_7.m3u8",
+   "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "vcodec": "avc1.42000d",
+   "acodec": "mp4a.40.5",
+   "height": 184,
+   "width": 320,
+   "tbr": 246.44,
+   "has_drm": false
+  },
+  {
+   "format_id": "380",
+   "url": "https://test-streams.mux.dev/x36xhzz/url_4/193039199_mp4_h264_aac_7.m3u8",
+   "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "vcodec": "avc1.420016",
+   "acodec": "mp4a.40.5",
+   "height": 288,
+   "width": 512,
+   "tbr": 460.56,
+   "has_drm": false
+  },
+  {
+   "format_id": "480",
+   "url": "https://test-streams.mux.dev/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8",
+   "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "vcodec": "avc1.64001f",
+   "acodec": "mp4a.40.2",
+   "height": 480,
+   "width": 848,
+   "tbr": 836.28,
+   "has_drm": false
+  },
+  {
+   "format_id": "720",
+   "url": "https://test-streams.mux.dev/x36xhzz/url_0/193039199_mp4_h264_aac_hd_7.m3u8",
+   "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "vcodec": "avc1.64001f",
+   "acodec": "mp4a.40.2",
+   "height": 720,
+   "width": 1280,
+   "tbr": 2149.28,
+   "has_drm": false
+  },
+  {
+   "format_id": "1080",
+   "url": "https://test-streams.mux.dev/x36xhzz/url_8/193039199_mp4_h264_aac_fhd_7.m3u8",
+   "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "vcodec": "avc1.640028",
+   "acodec": "mp4a.40.2",
+   "height": 1080,
+   "width": 1920,
+   "tbr": 6221.6,
+   "has_drm": false
+  }
+ ],
+ "format_id": "1080",
+ "protocol": "m3u8_native",
+ "url": "https://test-streams.mux.dev/x36xhzz/url_8/193039199_mp4_h264_aac_fhd_7.m3u8",
+ "ext": "mp4",
+ "manifest_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+}

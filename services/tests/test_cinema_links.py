@@ -22,6 +22,7 @@ from cord_services.app import create_app
 from cord_services.cinema import Memo, address
 from cord_services.cinema.facade import CATALOG_ID, SERIES_ID, Cinema
 from cord_services.cinema.providers import PROVIDERS
+from cord_services.cinema.providers.link import Link
 from cord_services.cinema.providers.rutube import Rutube
 from cord_services.cinema.providers.twitch import Twitch
 from cord_services.cinema.providers.vk import OWNER, Vk
@@ -300,10 +301,12 @@ class GrammarTests(unittest.TestCase):
 
     def test_every_platform_that_has_a_scene_has_a_grammar(self):
         # Площадки из реестра — все со своей грамматикой: новая площадка без неё отдавала бы свои
-        # ссылки общему пути, и это стоит заметить сразу, а не по жалобе.
-        self.assertEqual([kind for kind in PROVIDERS], [YouTube, Twitch, Rutube, Vk])
-        for kind in PROVIDERS:
+        # ссылки общему пути, и это стоит заметить сразу, а не по жалобе. Сам общий путь («По ссылке»)
+        # грамматики не имеет нарочно: к нему приходит то, чего не узнал никто.
+        self.assertEqual([kind for kind in PROVIDERS], [YouTube, Twitch, Rutube, Vk, Link])
+        for kind in PROVIDERS[:-1]:
             self.assertIsNot(kind.match, Provider.match, kind.id)
+        self.assertIs(Link.match, Provider.match)
 
 
 class RouteTests(unittest.TestCase):
@@ -370,8 +373,22 @@ class RouteTests(unittest.TestCase):
             self.assertEqual((answer.status_code, answer.json()), (200, {"route": route}), url)
         self.core.member.assert_awaited_with(ROOM, "Bearer member.secret")
 
-    def test_an_unknown_link_is_no_card_yet_and_says_why(self):
+    def test_an_unknown_link_goes_to_the_general_path_and_its_answer_is_the_answer(self):
+        # Что нашлось на чужой странице, решает общий путь (`test_cinema_link.py`); маршрут отдаёт его
+        # ответ как есть, а грамматику площадок спрашивает до него.
         client = self.serve()
+        found = {"item": None, "reason": "На этой странице не нашлось видео, которое можно показать комнате"}
+        # Клиент общего пути заводится (он нужен разбору потока), но наружу здесь не ходит никто.
+        with (
+            patch.object(self.cinema.net, "client_for", return_value=None),
+            patch.object(Link, "inspect", AsyncMock(return_value=found)) as inspect,
+        ):
+            answer = self.ask(client, "https://example.com/films/1/video.mp4")
+        self.assertEqual((answer.status_code, answer.json()), (200, found))
+        self.assertEqual(inspect.await_args.args[1], "https://example.com/films/1/video.mp4")
+
+    def test_without_the_general_path_an_unknown_link_says_why(self):
+        client = self.serve("youtube,twitch,rutube,vk")
         answer = self.ask(client, "https://example.com/films/1/video.mp4")
         reason = "Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube и VK Видео"
         self.assertEqual((answer.status_code, answer.json()), (200, {"item": None, "reason": reason}))

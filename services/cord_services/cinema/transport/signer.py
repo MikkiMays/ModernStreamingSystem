@@ -13,6 +13,8 @@ from urllib.parse import urlencode, urlsplit
 
 from fastapi import HTTPException
 
+from ..net import BAD_PORTS
+
 if TYPE_CHECKING:
     from ..registry import HostPolicy
 
@@ -30,10 +32,25 @@ ROUTES = frozenset({"playlist", "fetch", "image", "subtitles"})
 
 
 def allowed(url: str, hosts: HostPolicy | None) -> bool:
-    """Адрес, который прокси вправе открыть для площадки с этой политикой хостов."""
+    """
+    Адрес, который прокси вправе открыть для площадки с этой политикой хостов.
+
+    Площадкам со списком хостов — только https, как было всегда. Площадке с любыми хостами
+    («По ссылке») — и http: у чужих страниц видео бывает и без TLS, а до зрителя оно всё равно
+    едет от нас по https; публичность адреса проверяется при соединении (`net.py`). Но не на порт,
+    куда не ходит и браузер (`net.BAD_PORTS`): иначе ссылка любого участника стучалась бы нашим
+    сервером в чужую почту.
+    """
     if hosts is None:
         return False
     parts = urlsplit(url)
+    if hosts.public_any:
+        try:
+            port = parts.port or (443 if parts.scheme == "https" else 80)
+        except ValueError:
+            return False
+        plain = parts.scheme in ("https", "http") and port not in BAD_PORTS
+        return plain and hosts.allows(parts.hostname or "")
     return parts.scheme == "https" and hosts.allows(parts.hostname or "")
 
 

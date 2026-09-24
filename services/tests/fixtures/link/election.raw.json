@@ -1,0 +1,96 @@
+{
+ "_type": "playlist",
+ "id": "Election_Ads",
+ "title": "1960 Presidential Campaign Election Commercials",
+ "description": "1960 Presidential Campaign Election Commercials John F Kennedy, Richard M Nixon",
+ "uploader": "mikedavisstripmaster@yahoo.com",
+ "webpage_url": "https://archive.org/details/Election_Ads",
+ "extractor": "archive.org",
+ "extractor_key": "ArchiveOrg",
+ "entries": [
+  {
+   "id": "Election_Ads/Commercial-JFK1960ElectionAdCampaignJingle.mpg",
+   "title": "Commercial-JFK1960ElectionAdCampaignJingle.mpg",
+   "duration": 59.77,
+   "formats": [
+    {
+     "format_note": "original",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdCampaignJingle.mpg",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdCampaignJingle.ogv",
+     "protocol": "https",
+     "height": 304,
+     "width": 400
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdCampaignJingle_512kb.mp4",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    }
+   ]
+  },
+  {
+   "id": "Election_Ads/Commercial-JFK1960ElectionAdIkeknocksNixon.mpg",
+   "title": "Commercial-JFK1960ElectionAdIkeknocksNixon.mpg",
+   "duration": 60.09,
+   "formats": [
+    {
+     "format_note": "original",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdIkeknocksNixon.mpg",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdIkeknocksNixon.ogv",
+     "protocol": "https",
+     "height": 304,
+     "width": 400
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdIkeknocksNixon_512kb.mp4",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    }
+   ]
+  },
+  {
+   "id": "Election_Ads/Commercial-JFK1960ElectionAdJackiespeakingenEspanol.mpg",
+   "title": "Commercial-JFK1960ElectionAdJackiespeakingenEspanol.mpg",
+   "duration": 60.24,
+   "formats": [
+    {
+     "format_note": "original",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdJackiespeakingenEspanol.mpg",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdJackiespeakingenEspanol.ogv",
+     "protocol": "https",
+     "height": 304,
+     "width": 400
+    },
+    {
+     "format_note": "derivative",
+     "url": "https://archive.org/download/Election_Ads/Commercial-JFK1960ElectionAdJackiespeakingenEspanol_512kb.mp4",
+     "protocol": "https",
+     "height": 240,
+     "width": 321
+    }
+   ]
+  }
+ ]
+}

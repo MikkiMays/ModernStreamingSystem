@@ -56,7 +56,11 @@ class Store:
             CREATE TABLE IF NOT EXISTS claims(token TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS receipts(scope TEXT NOT NULL, command_id TEXT NOT NULL, body TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY(scope, command_id));
             CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS cinema_links(
+                id TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL
+            );
         """)
+        self.links = Links(self.db)
 
         self.cache = {
             room_id: json.loads(body)
@@ -217,6 +221,7 @@ class Store:
                 self.forget(room["roomId"])
         self.db.execute("DELETE FROM claims WHERE expires_at<=?", (now(),))
         self.db.execute("DELETE FROM receipts WHERE expires_at<=?", (now(),))
+        self.links.sweep()
         referenced = {track["file"] for room in self.rooms() for track in room["queue"]}
         for path in self.files.iterdir():
             if (
@@ -224,3 +229,47 @@ class Store:
                 and path.stat().st_mtime < time.time() - 3600
             ):
                 path.unlink(missing_ok=True)
+
+
+class Links:
+    """
+    Ссылки кинозала «По ссылке»: непрозрачный номер → адрес страницы и что на ней нашлось.
+
+    Номер уходит в комнату и в ядро (`watch.open`), а адрес остаётся здесь: по номеру поток
+    разбирается снова — у каждого зрителя, через сутки после вставки, после перезапуска службы, —
+    и адрес, присланный браузером, служба не берёт никогда. Поэтому таблица на диске, а не память
+    процесса. Срок — сутки от последней записи: столько живёт и всё остальное, что принесли в
+    комнату.
+    """
+
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
+
+    def get(self, key: str) -> dict | None:
+        row = self.db.execute(
+            "SELECT body FROM cinema_links WHERE id=? AND expires_at>?", (key, now())
+        ).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def put(self, key: str, value: dict, ttl: float) -> None:
+        self.put_many({key: value}, ttl)
+
+    def put_many(self, values: dict[str, dict], ttl: float) -> None:
+        """Сразу несколько — одной записью на диск: серии плейлиста приезжают порцией по тридцать."""
+        expires = now() + int(ttl * 1000)
+        rows = [(key, json.dumps(value, ensure_ascii=False), expires) for key, value in values.items()]
+        # Соединение без неявных транзакций (`isolation_level=None`): порцию объединяет своя.
+        self.db.execute("BEGIN")
+        try:
+            self.db.executemany(
+                "INSERT INTO cinema_links VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET "
+                "body=excluded.body, expires_at=excluded.expires_at",
+                rows,
+            )
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            raise
+        self.db.execute("COMMIT")
+
+    def sweep(self) -> None:
+        self.db.execute("DELETE FROM cinema_links WHERE expires_at<=?", (now(),))

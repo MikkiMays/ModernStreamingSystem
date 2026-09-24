@@ -19,21 +19,24 @@ import time
 import uuid
 from dataclasses import asdict
 from typing import Any, Literal
+from urllib.parse import urljoin
 
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import address, wire
+from . import address, drm, wire
 from .captions import webvtt
+from .egress import Egress
 from .limits import Window
 from .memo import Memo
 from .net import Net, NetConfig
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
+from .providers.link import Link as General
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
-from .resolve import Resolver, YtDlp
+from .resolve import Resolver, SourcePlan, YtDlp
 from .transport.playlists import Reels, rewrite
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
@@ -48,8 +51,12 @@ IMAGE_TTL = 24 * 3600
 RESOLVES_PER_MINUTE = 30
 # Сколько вставленных ссылок комната может спросить за минуту. Узнать ссылку своей площадки ничего
 # не стоит, но за ней встанет общий путь — разбор чужой страницы, — и предел у маршрута один на
-# оба: вставляют ссылки руками, по одной, и двадцать в минуту — это уже не человек.
+# оба: вставляют ссылки руками, по одной, и двадцать в минуту — это уже не человек. У самого разбора
+# чужой страницы предел свой и строже (`providers/link.py`).
 LINKS_PER_MINUTE = 20
+# Сколько переадресаций подряд прокси проходит сам — у площадок, которым это нужно
+# (`Provider.follows_redirects`). Каждый шаг — снова по политике хостов площадки.
+REDIRECTS = 5
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 
 Kind = Literal["video", "channel"]
@@ -133,11 +140,13 @@ class Cinema:
         *,
         enabled: str | None = None,
         net: NetConfig | None = None,
+        links: Any = None,
     ):
         """
         `enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все.
         `net` — выход наружу (`NetConfig.from_env`): прокси, cookies и разрешённые частные сети.
         `client` — один клиент httpx на все площадки вместо своих (так тесты подменяют сеть).
+        `links` — где помнить номера ссылок «По ссылке» (`store.Links`); пусто — память процесса.
         """
         config = net or NetConfig()
         # Подпись открывает адрес только по политике хостов своей площадки — и только
@@ -156,10 +165,22 @@ class Cinema:
         # Каждая площадка ходит наружу своим клиентом: своим прокси, под общей защитой «только
         # наружу» и тем браузером, какой она назвала (`net.py`).
         self.net = Net(config, self._hosts, client=client, agents=self._agent)
+        # yt-dlp площадки с любыми хостами («По ссылке») ходит наружу только через охраняемый выход:
+        # её защита — та же, что у её клиента httpx, её прокси — тот же (`egress.py`). Поднимается
+        # выход лениво, на первом разборе.
+        self.egress = {
+            kind.id: Egress(self.net.guard_for(kind.id), upstream=config.proxy_for(kind.id))
+            for kind in PROVIDERS
+            if kind.hosts.public_any
+        }
+        self.book = links
+        self.key = (secret or "cord-cinema").encode()
         # Кому cookies — только запасной ход, решает не эта строка, а сама площадка
         # (`Provider.cookies_fallback`, см. `providers/youtube.py`): здесь его просто собирают.
         self.ytdlp = YtDlp(
-            config, cookies_fallback=(kind.id for kind in PROVIDERS if kind.cookies_fallback)
+            config,
+            cookies_fallback=(kind.id for kind in PROVIDERS if kind.cookies_fallback),
+            egress=self.egress,
         )
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
         self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
@@ -175,6 +196,7 @@ class Cinema:
             )
 
     async def close(self):
+        await asyncio.gather(*(gate.close() for gate in self.egress.values()), return_exceptions=True)
         await self.net.close()
 
     def _kit(self, kind: type[Provider]) -> Kit:
@@ -185,6 +207,9 @@ class Cinema:
             memo=self.catalog.scope(kind.id),
             image=functools.partial(self.image, provider=kind.id),
             ytdlp=self.ytdlp,
+            links=self.book,
+            key=self.key,
+            egress=self.egress.get(kind.id),
         )
 
     def _hosts(self, provider: str) -> HostPolicy | None:
@@ -385,14 +410,32 @@ class Cinema:
         словами (`reason`). Ссылку на выключенную площадку узнают, но не открывают: настройку
         сервера ссылка не обходит.
 
-        Здесь ни одного запроса наружу: площадки узнают ссылку по самому адресу (`match`), и
-        ответ не зависит ни от их каталога, ни от их настроения. Предел — на каждую ссылку
-        (`LINKS_PER_MINUTE`), раньше разбора: за ним встанет и общий путь, а он уже дорогой.
+        Свою ссылку площадки узнают по самому адресу (`match`), без запроса наружу. Чужую разбирает
+        общий путь — площадка «По ссылке» (`providers/link.py`): yt-dlp через охраняемый выход, и на
+        каждом шаге разбора тот же `match` — встроенный плеер своей площадки уходит в её сцену.
+        Предел — на каждую ссылку (`LINKS_PER_MINUTE`), раньше разбора; у разбора — свой, строже.
         """
         url = url.strip()
         if not address.web(url):
             raise HTTPException(400, NOT_A_LINK)
         self.links.take(_room(room))
+        found = self._route(url)
+        if found is not None:
+            return found
+        general = self.registry.find(General.id)
+        if not isinstance(general, General):
+            names = [source.name for source in self.registry]
+            known = f": кинозал узнаёт ссылки {_listed(names)}" if names else ""
+            return {"item": None, "reason": f"Эту ссылку пока не открыть{known}"}
+        return await general.inspect(
+            self._ctx(room, general), url, self._route, functools.partial(self._settle, general)
+        )
+
+    def _route(self, url: str) -> dict[str, Any] | None:
+        """
+        Чья это ссылка: `route` в сцену своей площадки, отказ словами, если площадка выключена, или
+        `None` — своей площадки у ссылки нет. Только разбор адреса: зовётся и из потока yt-dlp.
+        """
         for source in self.registry.known():
             found = source.match(url)
             if found is None:
@@ -402,9 +445,24 @@ class Cinema:
                 return {"item": None, "reason": off}
             route = {"provider": source.id, "kind": found.kind, "id": found.id, "page": found.page}
             return {"route": route}
-        names = [source.name for source in self.registry]
-        known = f": кинозал узнаёт ссылки {_listed(names)}" if names else ""
-        return {"item": None, "reason": f"Эту ссылку пока не открыть{known}"}
+        return None
+
+    async def _settle(
+        self, source: Provider, plan: SourcePlan, info: dict[str, Any], item_id: str
+    ) -> dict[str, Any]:
+        """
+        Поток по уже разобранной странице — сразу в общую память `resolve`: «Смотреть вместе» после
+        карточки не ждёт второго разбора той же страницы, и адрес у всей комнаты один. Эфир это или
+        запись, знает только разбор потока (`Resolver.settle`) — под этим видом ответ и запоминается.
+        """
+        net = self.net.client_for(source.id)
+        found = await self.resolver.settle(plan, info, net, source.id, item_id, True)
+        kind = "channel" if found["live"] else "video"
+        for adaptive in (True, False):
+            await self.sources.get(
+                f"{source.id}:{kind}:{item_id}:{adaptive}", functools.partial(_ready, found), _kept_for
+            )
+        return found
 
     # --- разрешение ссылки в поток ---------------------------------------------------
 
@@ -429,14 +487,7 @@ class Cinema:
         if request.refresh:
             self.sources.forget(key)
         ctx = self._ctx(room, source)
-        return await self.sources.get(
-            key,
-            lambda: self._resolve(source, ctx, request),
-            lambda found: min(
-                45 if found["live"] else 1800,
-                max(0, found["expiresAt"] / 1000 - time.time() - 60),
-            ),
-        )
+        return await self.sources.get(key, lambda: self._resolve(source, ctx, request), _kept_for)
 
     async def _resolve(self, source: Provider, ctx: Ctx, request: Resolve) -> dict[str, Any]:
         """Площадка говорит, откуда брать поток, а разбирает его общий `Resolver`."""
@@ -449,13 +500,17 @@ class Cinema:
     # --- прокси ------------------------------------------------------------------------
 
     async def manifest(self, url: str, encodings: str | None, provider: str) -> Response:
+        source = self.registry.find(provider)
         try:
-            response = await self.net.client_for(provider).get(url, follow_redirects=False)
+            response = await self._send(self.net.client_for(provider), url, {}, provider, stream=False)
         except httpx.HTTPError:
             # Обрыв по дороге к площадке — её отказ (502), а не наша ошибка (500).
             raise HTTPException(502, "Площадка не отдала плейлист") from None
         if response.status_code >= 300:
             raise HTTPException(502, "Площадка не отдала плейлист")
+        # Список кусочков с ключом DRM (обычно он не в мастере, а здесь) — отказ, а не попытка.
+        if source is not None and source.refuses_drm and drm.hls(response.text):
+            raise HTTPException(403, drm.DRM)
         body = rewrite(response.text, str(response.url), self.signer, self.reels, provider=provider)
         headers = {"Cache-Control": "no-store"}
         payload = body.encode()
@@ -479,7 +534,7 @@ class Cinema:
         try:
             async with asyncio.timeout(SUBTITLES_DEADLINE):
                 upstream = await self._open(
-                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}
+                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider
                 )
                 try:
                     if not _plain(upstream):
@@ -507,7 +562,7 @@ class Cinema:
         # Частичный запрос (перемотка в готовом файле) обслуживается напрямую, потоком.
         client = self.net.client_for(provider)
         if range_header:
-            return self._stream(await self._open(client, url, {"Range": range_header}))
+            return self._stream(await self._open(client, url, {"Range": range_header}, provider))
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
         cached = self.segments.get(url)
         if cached:
@@ -516,7 +571,7 @@ class Cinema:
             cached = self.segments.get(url)
             if cached:
                 return _kept(*cached)
-            upstream = await self._open(client, url, {})
+            upstream = await self._open(client, url, {}, provider)
             if not self._storable(upstream):
                 # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
                 # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
@@ -530,17 +585,43 @@ class Cinema:
             self.segments.put(url, body, kind)
             return _kept(body, kind)
 
-    async def _open(self, client: httpx.AsyncClient, url: str, headers: dict[str, str]) -> httpx.Response:
-        """Ответ площадки с непрочитанным телом. Переадресацию прокси не выполняет никогда."""
-        request = client.build_request("GET", url, headers=headers)
+    async def _open(
+        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str = ""
+    ) -> httpx.Response:
+        """
+        Ответ площадки с непрочитанным телом. Переадресацию прокси проходит сам и только у площадок,
+        которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов.
+        """
         try:
-            upstream = await client.send(request, stream=True, follow_redirects=False)
+            upstream = await self._send(client, url, headers, provider, stream=True)
         except httpx.HTTPError:
             raise HTTPException(502, "Площадка не отдала данные") from None
         if upstream.status_code >= 300:
             await upstream.aclose()
             raise HTTPException(502, "Площадка не отдала данные")
         return upstream
+
+    async def _send(
+        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str, *, stream: bool
+    ) -> httpx.Response:
+        """
+        Запрос к площадке. Сам httpx переадресацию не проходит никогда: у площадки, которой она нужна,
+        её проходит этот цикл — и шаг на хост не из её политики (или на закрытый порт) не делает.
+        У остальных ответ 3xx так и остаётся ответом — и прокси его не отдаёт.
+        """
+        source = self.registry.find(provider) if provider else None
+        follow = source is not None and source.follows_redirects
+        for _ in range(REDIRECTS + 1):
+            request = client.build_request("GET", url, headers=headers)
+            response = await client.send(request, stream=stream, follow_redirects=False)
+            location = response.headers.get("location")
+            if not (follow and response.is_redirect and location):
+                return response
+            await response.aclose()
+            url = urljoin(str(response.url), location)
+            if not self.signer.allows(url, provider):
+                raise httpx.RequestError("Переадресация на адрес вне политики площадки", request=request)
+        return response
 
     def _storable(self, upstream: httpx.Response) -> bool:
         """
@@ -589,6 +670,16 @@ class Cinema:
             passed["Content-Type"] = kind
         passed["Cache-Control"] = "private, max-age=600"
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
+
+
+def _kept_for(found: dict[str, Any]) -> float:
+    """Сколько помнить ответ `resolve`: эфир — меньше минуты, запись — до получаса и не дольше подписи."""
+    return min(45 if found["live"] else 1800, max(0, found["expiresAt"] / 1000 - time.time() - 60))
+
+
+async def _ready(value: Any) -> Any:
+    """Готовое значение для общей памяти: считать нечего, оно уже есть."""
+    return value
 
 
 def _plain(upstream: httpx.Response) -> bool:

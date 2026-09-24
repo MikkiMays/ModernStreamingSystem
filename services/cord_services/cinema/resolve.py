@@ -23,7 +23,9 @@ from fastapi import HTTPException
 from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
-from .captions import CAPTIONS_LIMIT, _base_language, _vtt
+from . import drm
+from .captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language, _pick
+from .egress import Busy, Closed, Egress, Lease
 from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
 from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
 
@@ -32,6 +34,42 @@ logger = logging.getLogger(__name__)
 # Что сказать вместо ошибки yt-dlp, в которой названа копия файла cookies: рядом с этим именем
 # yt-dlp повторяет строку файла целиком, вместе со значением cookie.
 COOKIES_REFUSED = "не подошёл файл cookies"
+
+# Что сказать вместо ошибки yt-dlp, когда разбор площадки с охраняемым выходом (`egress.py`) упёрся в
+# его пределы: адрес внутри сети, срок разбора, занятые места.
+INSIDE = "Ссылка ведёт во внутреннюю сеть или на закрытый порт — такие адреса кинозал не открывает"
+EXPIRED = "Сайт не отдал видео за 30 секунд — попробуйте ещё раз или другую ссылку"
+BUSY = "Сервер сейчас разбирает много ссылок — попробуйте через минуту"
+CLOSED = "Разбор ссылок сейчас недоступен — попробуйте через минуту"
+# Видео есть, но только кусочками DASH из манифеста сайта: такой поток наш плеер пока не собирает.
+DASH_ONLY = "Сайт отдаёт это видео только потоком DASH — такой кинозал пока не показывает"
+# Видео есть, но только файлами, которые браузер не играет (`.mpg`, `.avi`, `.wmv`, …).
+UNPLAYABLE = "Сайт отдаёт видео только в виде, который браузер не играет"
+# Аудио без картинки — тоже годится: плеер играет его с постером. Виды — те, что играют браузеры.
+AUDIO_FILES = ("m4a", "mp3", "aac", "opus", "ogg", "oga", "wav", "flac")
+# Кодеки картинки, которые играют браузеры; `mp4v`, Theora, WMV и прочие — нет.
+BROWSER_CODECS = ("avc", "h264", "vp8", "vp9", "vp09", "av01", "hev1", "hvc1", "h265")
+# Выше этой стороны кадра готовый файл не берётся, если есть ниже (см. `ranked_files`).
+FILE_SIDE = 1080
+# Ни один из готовых файлов страницы сайт не отдал (404, 403, обрыв).
+NO_FILE = "Сайт не отдал файл видео — ссылка на него не открывается"
+
+
+class Inside(Exception):
+    """Разбор упёрся в защиту выхода: сайт повёл yt-dlp внутрь сети или на закрытый порт."""
+
+
+class Expired(Exception):
+    """Срок разбора вышел: выход закрыл его соединения, и yt-dlp остановился на обрыве."""
+
+
+class Protected(Exception):
+    """yt-dlp нашёл только форматы под DRM и отказал сам («This video is DRM protected»)."""
+
+
+# Так yt-dlp отказывает, когда все форматы ролика под DRM (`YoutubeDL.raise_no_formats`).
+DRM_REFUSAL = "DRM protected"
+
 
 # Тем, что площадка отвечает вместо ролика, когда не поверила ни движку без JS, ни клиенту без
 # cookies (см. https://github.com/yt-dlp/yt-dlp/wiki/EJS). Текст приходит от самой площадки, в
@@ -85,8 +123,17 @@ class YtDlp:
     (см. `extract`).
     """
 
-    def __init__(self, network: NetConfig | None = None, *, cookies_fallback: Iterable[str] = ()):
+    def __init__(
+        self,
+        network: NetConfig | None = None,
+        *,
+        cookies_fallback: Iterable[str] = (),
+        egress: Mapping[str, Egress] | None = None,
+    ):
         self.network = network or NetConfig()
+        # Площадки, чей yt-dlp ходит наружу только через охраняемый выход (`egress.py`): у них ни
+        # прокси администратора, ни прямого соединения — всё через вход разбора, и только через него.
+        self.egress = dict(egress or {})
         # Площадки, у которых cookiefile входит в разбор только запасным ходом. Список решает
         # не этот класс, а сами площадки (`Provider.cookies_fallback`); `Cinema.__init__`
         # собирает его у всех включённых разом — здесь ни одного имени площадки по имени нет.
@@ -135,9 +182,42 @@ class YtDlp:
         self, address: str, options: Mapping[str, Any], provider: str, *, cookies: str | None
     ) -> dict[str, Any]:
         """Один настоящий вызов yt-dlp — с этим cookiefile или совсем без него."""
+        return self.run(
+            provider, options, lambda ydl: ydl.extract_info(address, download=False) or {}, cookies=cookies
+        )
+
+    def run(
+        self,
+        provider: str,
+        options: Mapping[str, Any],
+        work: Callable[[Any], Any],
+        *,
+        cookies: str | None = None,
+    ) -> Any:
+        """
+        Открытый `YoutubeDL` площадки — со всем, что ей положено снаружи, — и одна работа с ним.
+
+        Через это место идёт любой вызов yt-dlp: и обычный разбор (`_call`), и разбор ссылки по
+        шагам, которому мало одного `extract_info` (`providers/link.py`). Поэтому выход наружу
+        решается здесь, а не у спросившего: у площадки с охраняемым выходом `proxy` из опций
+        заменяется входом разбора, что бы в опциях ни стояло.
+        """
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
         params = copy.deepcopy(dict(options))
+        gate = self.egress.get(provider)
+        if gate is not None:
+            # Cookies здесь не идут никогда: страница чужая, и вход администратора на ней не нужен.
+            with gate.lease() as lease:
+                params["proxy"] = lease.url
+                # Ни ошибок yt-dlp, ни его предупреждений в журнал: в них адрес страницы, которую
+                # вставил участник, а в адресе бывают его ключи и метки.
+                params["logger"] = _Quiet(self.explain, silent=True)
+                try:
+                    with yt_dlp.YoutubeDL(params) as ydl:
+                        return work(ydl)
+                except Exception as error:
+                    raise _egress_error(lease, error) or error
         proxy = self.network.proxy_for(provider)
         if proxy:
             params["proxy"] = proxy
@@ -151,7 +231,7 @@ class YtDlp:
             if copy_path:
                 params["cookiefile"] = copy_path
             with yt_dlp.YoutubeDL(params) as ydl:
-                return ydl.extract_info(address, download=False) or {}
+                return work(ydl)
 
     def _log_js_runtime(self) -> None:
         """
@@ -183,8 +263,12 @@ class YtDlp:
         """Один ролик целиком. Отказ площадки превращается в человеческий текст."""
         try:
             return self.extract(source, {**PROBE, **options}, provider)
+        except HTTPException:
+            raise
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
-            raise HTTPException(502, f"Не удалось открыть видео: {self.explain(error)}"[:300]) from None
+            raise refusal(error) or HTTPException(
+                502, f"Не удалось открыть видео: {self.explain(error)}"[:300]
+            ) from None
 
     def explain(self, error: BaseException | str) -> str:
         """
@@ -199,7 +283,51 @@ class YtDlp:
             return COOKIES_REFUSED
         for secret in self.network.secrets():
             text = text.replace(secret, "***@" if secret.endswith("@") else "***")
+        # Пароль входа в охраняемый выход стоит в адресе прокси, а yt-dlp называет прокси в
+        # ошибках соединения.
+        for gate in self.egress.values():
+            text = text.replace(gate.secret, "***")
         return text
+
+
+def _egress_error(lease: Lease, error: Exception) -> Exception | None:
+    """
+    Ошибка yt-dlp, за которой на самом деле стоит выход (отказ проверки, вышедший срок) или DRM:
+    у площадки с чужими страницами это отказы словами, а не «не удалось открыть» с текстом yt-dlp.
+    """
+    if lease.refused:
+        return Inside(lease.refused)
+    if lease.expired:
+        return Expired()
+    if DRM_REFUSAL in str(error):
+        return Protected()
+    return None
+
+
+def refusal(error: BaseException) -> HTTPException | None:
+    """Отказ охраняемого выхода — человеческим текстом и своим кодом; остальное решает спросивший."""
+    if isinstance(error, Inside):
+        return HTTPException(403, INSIDE)
+    if isinstance(error, Expired):
+        return HTTPException(504, EXPIRED)
+    if isinstance(error, Busy):
+        return HTTPException(503, BUSY)
+    if isinstance(error, Closed):
+        return HTTPException(503, CLOSED)
+    if isinstance(error, Protected):
+        return HTTPException(403, drm.DRM)
+    return None
+
+
+def _single(info: dict[str, Any]) -> dict[str, Any]:
+    """
+    Плейлист из одного видео — это видео. Так приходит одна серия страницы, на которой их несколько
+    (`playlist_items`): у площадок каталога разбор отдаёт ролик всегда, и для них здесь ничего нет.
+    """
+    if info.get("_type") in ("playlist", "multi_video"):
+        entries = [entry for entry in info.get("entries") or [] if entry]
+        return entries[0] if entries else {}
+    return info
 
 
 class _Quiet:
@@ -207,11 +335,13 @@ class _Quiet:
     Журнал для yt-dlp (`logger`): только ошибки, в журнал службы и сказанные через `explain`.
 
     Отладка и сведения — шум; предупреждения yt-dlp и без журнала молчат (`no_warnings`), и с
-    ним молчат так же.
+    ним молчат так же. `silent` — не писать и ошибок: у площадки со ссылками откуда угодно в тексте
+    ошибки yt-dlp стоит вставленный адрес, а он не наш, чтобы его хранить.
     """
 
-    def __init__(self, explain: Callable[[str], str]):
+    def __init__(self, explain: Callable[[str], str], *, silent: bool = False):
         self._explain = explain
+        self._silent = silent
 
     def debug(self, message: str) -> None:
         pass
@@ -223,7 +353,8 @@ class _Quiet:
         pass
 
     def error(self, message: str) -> None:
-        logger.warning("yt-dlp: %s", self._explain(message))
+        if not self._silent:
+            logger.warning("yt-dlp: %s", self._explain(message))
 
 
 @dataclass(frozen=True)
@@ -245,6 +376,17 @@ class SourcePlan:
     # мастере), у VK — нет: без флага его субтитры, которые yt-dlp отдаёт отдельным списком,
     # пропадали бы.
     hls_subtitles: bool = True
+    # ytdlp: проверять ли поток на DRM до ответа (плейлисты HLS читаются по-настоящему, см.
+    # `drm.py`). Нужно площадке, чьи страницы чужие («По ссылке»): у своих площадок DRM узнают по
+    # их API, а здесь его видно только в самом плейлисте.
+    drm: bool = False
+    # ytdlp: какие субтитры брать у yt-dlp. `vtt` — только готовый WebVTT, отдаётся как есть; `any` —
+    # и SRT, и TTML: такой файл идёт через маршрут `subtitles`, который переводит его в WebVTT.
+    subtitles: Literal["vtt", "any"] = "vtt"
+    # ytdlp: готовые файлы каких видов браузер играет — в порядке предпочтения (`None` — прежний выбор
+    # по кодекам). Чужие страницы кодеков не называют, зато отдают и `.mpg`, и `.avi`, и `.ogv`, и
+    # yt-dlp зовёт «лучшим» исходник, который браузер не откроет (archive.org: `.mpg` против `.mp4`).
+    files: tuple[str, ...] | None = None
     # direct: всё, что площадка знает о потоке сама.
     kind: Literal["hls", "file"] = "hls"
     live: bool = False
@@ -259,16 +401,35 @@ class SourcePlan:
     variants: tuple[Mapping[str, Any], ...] | None = None
 
 
-def ytdlp(url: str, *, dash: bool = False, hls_subtitles: bool = True, **options: Any) -> SourcePlan:
+def ytdlp(
+    url: str,
+    *,
+    dash: bool = False,
+    hls_subtitles: bool = True,
+    drm: bool = False,
+    subtitles: Literal["vtt", "any"] = "vtt",
+    files: tuple[str, ...] | None = None,
+    **options: Any,
+) -> SourcePlan:
     """
     Страница площадки для yt-dlp.
 
     `dash` — можно ли собрать DASH из отдельных дорожек, если браузер его играет. Решает
     площадка: это знание о её хранилище, а не о плеере (у YouTube дорожки проиндексированы и
     отдаются по диапазонам, у Twitch — нет). `hls_subtitles` — несёт ли её мастер HLS субтитры
-    сам; если нет, субтитры yt-dlp приезжают отдельным списком и при HLS.
+    сам; если нет, субтитры yt-dlp приезжают отдельным списком и при HLS. `drm`, `subtitles` и
+    `files` — см. `SourcePlan`.
     """
-    return SourcePlan("ytdlp", url, options=options, dash=dash, hls_subtitles=hls_subtitles)
+    return SourcePlan(
+        "ytdlp",
+        url,
+        options=options,
+        dash=dash,
+        hls_subtitles=hls_subtitles,
+        drm=drm,
+        subtitles=subtitles,
+        files=files,
+    )
 
 
 def direct(
@@ -326,7 +487,23 @@ class Resolver:
         if plan.via == "direct":
             return self._direct(plan, provider, content_id)
         info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
-        stream, kind = self._stream(info)
+        return await self.settle(plan, info, net, provider, content_id, adaptive)
+
+    async def settle(
+        self,
+        plan: SourcePlan,
+        info: dict[str, Any],
+        net: httpx.AsyncClient,
+        provider: str,
+        content_id: str,
+        adaptive: bool,
+    ) -> dict[str, Any]:
+        """
+        Разобранное yt-dlp → ответ `resolve`. Отдельно от разбора: площадка «По ссылке» разбирает
+        страницу сама, по шагам, и отдаёт сюда уже готовый ответ yt-dlp — второй раз не спрашивая.
+        """
+        info = _single(info)
+        stream, kind = self._stream(info, plan.files)
         dash = None
         if adaptive and plan.dash and not info.get("is_live") and kind != "hls":
             dash = await self._dash(info, net, provider)
@@ -336,15 +513,34 @@ class Resolver:
         else:
             expires = self._expiry([stream] if stream else [])
         if not stream:
+            if plan.drm and info.get("_has_drm"):
+                raise HTTPException(403, drm.DRM)
+            formats = info.get("formats") or []
+            if any(str(item.get("protocol", "")).startswith("http_dash") for item in formats):
+                raise HTTPException(502, DASH_ONLY)
+            if plan.files and formats:
+                kinds = sorted({str(item.get("ext")) for item in formats if item.get("ext")})
+                raise HTTPException(502, f"{UNPLAYABLE}: {', '.join(kinds)}"[:300])
             raise HTTPException(502, "Площадка не отдала поток для этого видео. Попробуйте другое")
+        live = bool(info.get("is_live"))
+        if plan.drm and kind == "hls":
+            # Эфир виден по самому списку: yt-dlp у чужой страницы его не узнаёт (`drm.inspect_hls`).
+            found = await drm.inspect_hls(net, stream, lambda url: self.signer.allows(url, provider))
+            live = live or bool(found)
+        if plan.files and kind == "file":
+            stream = await self._answering(info, plan.files, net, provider)
+            if not stream:
+                raise HTTPException(502, NO_FILE)
+            # Срок подписи — у того файла, что выбран на деле, а не у первого по списку.
+            expires = self._expiry([stream])
         poster = info.get("thumbnail") or ""
         return {
             "provider": provider,
             "contentId": content_id,
             "title": info.get("title") or content_id,
             "author": info.get("uploader") or info.get("channel") or "",
-            "duration": None if info.get("is_live") else info.get("duration"),
-            "live": bool(info.get("is_live")),
+            "duration": None if live else info.get("duration"),
+            "live": live,
             "kind": kind,
             "url": stream
             if kind == "dash"
@@ -364,7 +560,9 @@ class Resolver:
             # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
             # язык»: выбора не было, был порядок строк.
             "language": info.get("language") or "",
-            "captions": self._captions(info, kind == "hls" and plan.hls_subtitles, provider),
+            "captions": self._captions(
+                info, kind == "hls" and plan.hls_subtitles, provider, converted=plan.subtitles == "any"
+            ),
             "poster": self.image(poster, provider),
         }
 
@@ -415,7 +613,10 @@ class Resolver:
         expires = time.time() + SIGNATURE_TTL
         for url in urls:
             for value in parse_qs(urlsplit(url).query).get("expire", []):
-                if value.isdigit():
+                # Срок адреса — время Unix в секундах (так его пишет YouTube). У чужих сайтов параметр
+                # с тем же именем бывает чем угодно, и «expire=1» не должно превращать подпись в
+                # секундную: число, которое не похоже на время после 2001 года, не срок.
+                if value.isdigit() and int(value) >= 1_000_000_000:
                     expires = min(expires, int(value))
         return expires
 
@@ -478,7 +679,9 @@ class Resolver:
             headers={"Cache-Control": "no-store"},
         )
 
-    def _captions(self, info: dict[str, Any], embedded: bool, provider: str) -> list[dict[str, Any]]:
+    def _captions(
+        self, info: dict[str, Any], embedded: bool, provider: str, *, converted: bool = False
+    ) -> list[dict[str, Any]]:
         """
         Дорожки текста, которых нет в самом потоке.
 
@@ -495,8 +698,14 @@ class Resolver:
         `embedded` — поток уже несёт субтитры сам (мастер HLS). Тогда ручные не дублируются:
         их покажет плеер из плейлиста, а отсюда приезжает только распознанное. И то, что
         площадка написала руками, автоматическое не вытесняет — как и у самого YouTube.
+
+        `converted` — брать и SRT, и TTML, а не только WebVTT: такие файлы идут через маршрут
+        `subtitles`, который переводит их по дороге. Туда же идёт и WebVTT — у чужих страниц
+        («По ссылке») это ещё и предел по размеру и времени, которого у `fetch` нет.
         """
         manual = info.get("subtitles") or {}
+        formats = SUBTITLE_FORMATS if converted else ("vtt",)
+        route = "subtitles" if converted else "fetch"
         written = {_base_language(language) for language in manual}
         tracks: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -506,7 +715,7 @@ class Resolver:
 
         def offer(language: str, entries: list[dict[str, Any]], generated: bool) -> None:
             base = _base_language(language)
-            found = _vtt(entries, allows)
+            found = _pick(entries, allows, formats)
             if not found or base in seen or (generated and base in written):
                 return
             seen.add(base)
@@ -519,7 +728,7 @@ class Resolver:
                     # называет язык сам, на языке смотрящего.
                     "label": found.get("name") or language,
                     "auto": generated,
-                    "url": proxied(self.signer, found["url"], "fetch", provider=provider),
+                    "url": proxied(self.signer, found["url"], route, provider=provider),
                 }
             )
 
@@ -527,7 +736,7 @@ class Resolver:
             for language, entries in manual.items():
                 offer(language, entries, False)
         for language, entries in (info.get("automatic_captions") or {}).items():
-            found = _vtt(entries, allows)
+            found = _pick(entries, allows, formats)
             # Все нетронутые переводом дорожки — это одна и та же распознанная речь под
             # разными ключами (`ko` и `ko-orig`); лишние отсеивает общий отбор по языку.
             if found and "tlang=" not in found["url"]:
@@ -535,29 +744,115 @@ class Resolver:
         return tracks[:CAPTIONS_LIMIT]
 
     @staticmethod
-    def _stream(info: dict[str, Any]) -> tuple[str | None, str]:
+    def _stream(info: dict[str, Any], files: tuple[str, ...] | None = None) -> tuple[str | None, str]:
         """
         Что отдать плееру: мастер HLS — если площадка его предлагает, иначе готовый файл.
 
         HLS предпочтительнее не из красоты: в нём лежат **все** уровни качества сразу, и выбор
         между ними делает наш плеер, а не площадка. Обычный файл остаётся запасным ходом для
-        тех роликов, которым YouTube плейлиста не даёт; там качество одно.
+        тех роликов, которым YouTube плейлиста не даёт; там качество одно. `files` — какие файлы
+        браузер играет (`SourcePlan.files`): тогда файл выбирается по виду, а не по кодекам.
         """
         formats = info.get("formats") or []
         for item in formats:
             if str(item.get("protocol", "")).startswith("m3u8") and item.get("manifest_url"):
                 return item["manifest_url"], "hls"
-        if info.get("manifest_url"):
+        # Адрес манифеста у выбранного формата — HLS, только если сам формат HLS: у формата DASH там
+        # манифест DASH, и плеер HLS его не прочтёт.
+        if info.get("manifest_url") and str(info.get("protocol", "")).startswith("m3u8"):
             return info["manifest_url"], "hls"
+        # Сайт отдал не мастер, а сразу список кусочков одного качества: это тоже HLS, и отдать его
+        # «готовым файлом» значило бы дать плееру плейлист вместо видео. У площадок каталога такого
+        # не бывает — у них мастер есть всегда, и выбор для них тот же, что был.
+        for item in formats:
+            if str(item.get("protocol", "")).startswith("m3u8") and item.get("url"):
+                return item["url"], "hls"
+        if files is not None:
+            return Resolver._file(formats, files), "file"
         progressive = [
             item
             for item in formats
             if item.get("acodec") not in (None, "none")
             and item.get("vcodec") not in (None, "none")
             and item.get("url")
-            and str(item.get("protocol", "")).startswith("http")
+            and item.get("protocol") in (None, "http", "https")
         ]
         progressive.sort(key=lambda item: (item.get("height") or 0, item.get("tbr") or 0))
         if progressive:
             return progressive[-1]["url"], "file"
-        return (info.get("url"), "file") if info.get("url") else (None, "file")
+        # Кусочки DASH (`http_dash_segments`) — не файл: адрес у них — сам манифест или первый кусок.
+        if info.get("url") and info.get("protocol") in (None, "http", "https"):
+            return info["url"], "file"
+        return None, "file"
+
+    @staticmethod
+    def _file(formats: list[dict[str, Any]], files: tuple[str, ...]) -> str | None:
+        found = playable_file(formats, files)
+        return found["url"] if found else None
+
+    async def _answering(
+        self, info: dict[str, Any], files: tuple[str, ...], net: httpx.AsyncClient, provider: str
+    ) -> str | None:
+        """Первый по порядку `ranked_files` файл, который сайт действительно отдаёт (не больше трёх)."""
+        for item in ranked_files(info.get("formats") or [], files)[:3]:
+            if await drm.answers(net, item["url"], lambda url: self.signer.allows(url, provider)):
+                return item["url"]
+        return None
+
+
+def playable_file(formats: list[dict[str, Any]], files: tuple[str, ...]) -> dict[str, Any] | None:
+    """Лучший из `ranked_files` — или `None`, если браузеру играть нечего."""
+    found = ranked_files(formats, files)
+    return found[0] if found else None
+
+
+def ranked_files(formats: list[dict[str, Any]], files: tuple[str, ...]) -> list[dict[str, Any]]:
+    """
+    Готовые файлы, которые комната может смотреть, лучший первым: из тех, что браузер играет (`files` —
+    лучший вид первым), с картинкой и кодеком, который браузер знает (или не названным вовсе — чужие
+    страницы кодек называют редко). Выше `FILE_SIDE` — только если ниже нет ничего: у файла нет лестницы
+    качества, и каждый зритель тянет его целиком через наш сервер (Wikimedia отдаёт исходник 4K в три
+    гигабайта рядом с 1080p). Нет ни одного — звук без картинки, если он есть.
+    """
+
+    def plain(item: dict[str, Any]) -> bool:
+        return bool(item.get("url")) and item.get("protocol") in ("http", "https")
+
+    def known(item: dict[str, Any]) -> bool:
+        codec = str(item.get("vcodec") or "").lower()
+        return not codec or codec.startswith(BROWSER_CODECS)
+
+    videos = [
+        item
+        for item in formats
+        if plain(item)
+        and item.get("ext") in files
+        and item.get("vcodec") != "none"
+        and item.get("acodec") != "none"
+        and known(item)
+    ]
+
+    def rank(item: dict[str, Any]) -> tuple[bool, float, int, float]:
+        side = frame_side(item) or 0
+        fits = side <= FILE_SIDE
+        return (fits, side if fits else -side, -files.index(item["ext"]), item.get("tbr") or 0)
+
+    if videos:
+        return sorted(videos, key=rank, reverse=True)
+    sounds = [
+        item
+        for item in formats
+        if plain(item)
+        and item.get("vcodec") == "none"
+        and item.get("acodec") != "none"
+        and item.get("ext") in AUDIO_FILES
+    ]
+    return sorted(sounds, key=lambda item: item.get("abr") or item.get("tbr") or 0, reverse=True)
+
+
+def frame_side(item: dict[str, Any]) -> float | None:
+    """Меньшая сторона кадра: вертикальное видео 1080×1920 — это «1080p», а не «1920p»."""
+    height, width = item.get("height"), item.get("width")
+    height = height if isinstance(height, (int, float)) and height > 0 else None
+    width = width if isinstance(width, (int, float)) and width > 0 else None
+    return min(height, width) if height and width else height

@@ -1,0 +1,111 @@
+{
+ "id": "6002240ff8b1af50bb2da5e3",
+ "title": "Извержение вулкана из спичек: зрелищный опыт",
+ "description": "Канал Lavina собрал из сотен спичек внушительную модель вулкана и поджег ее, превратив спичечную гору в огромный столб пламени!",
+ "duration": 243,
+ "thumbnail": "https://avatars.dzeninfra.ru/get-zen_doc/3006682/pub_6002240ff8b1af50bb2da5e3_6002249b0d877f38ab8536b2/smart_crop_516x290",
+ "uploader": "TechInsider",
+ "upload_date": "20210123",
+ "timestamp": 1611378221,
+ "view_count": 13561876,
+ "webpage_url": "https://dzen.ru/video/watch/6002240ff8b1af50bb2da5e3",
+ "extractor": "dzen.ru",
+ "extractor_key": "ZenYandex",
+ "subtitles": {
+  "ru": [
+   {
+    "ext": "vtt",
+    "manifest_url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1336333768&ms=176.112.172.49&mid=8582448694977&type=1&subId=7315980946113&sig=mZgntZB2jsY&ct=6&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+    "filesize": null,
+    "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&mid=8582448694977&type=2&ix=0&subId=7315980946113&sig=W57DCFvitV8&ct=13&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113"
+   }
+  ]
+ },
+ "formats": [
+  {
+   "format_id": "dash-6",
+   "format_note": "DASH audio",
+   "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&mid=8582448694977&type=4&subId=7315980946113&sig=jBseI9LmhQk&ct=12&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+   "manifest_url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1336333768&ms=176.112.172.49&mid=8582448694977&type=1&subId=7315980946113&sig=mZgntZB2jsY&ct=6&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+   "protocol": "https",
+   "ext": "m4a",
+   "vcodec": "none",
+   "acodec": "mp4a.40.2",
+   "tbr": 36.668,
+   "abr": 36.668,
+   "vbr": 0
+  },
+  {
+   "format_id": "hls-287",
+   "url": "https://vd2.okcdn.ru/expires/1790541764604/srcIp/203.0.113.7/pr/70/srcAg/CHROME/ch/1676822812/ms/176.112.172.49/mid/8582448694977/type/4/subId/7315980946113/sig/zs1V8KqEsfY/ct/8/du/243855/urls/95.163.35.45/clientType/33/asubs/y/zs/43/id/7315980946113/video/",
+   "manifest_url": "https://vd2.okcdn.ru/video.m3u8?cmd=videoPlayerCdn&expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1676822812&ms=176.112.172.49&mid=8582448694977&type=2&subId=7315980946113&sig=idzf6a2s0U4&ct=8&du=243855&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "height": 144,
+   "width": 256,
+   "tbr": 287.502,
+   "fps": 25.0,
+   "has_drm": false
+  },
+  {
+   "format_id": "dash-1",
+   "format_note": "DASH video",
+   "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&mid=8582448694977&type=4&subId=7315980946113&sig=jBseI9LmhQk&ct=11&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+   "manifest_url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1336333768&ms=176.112.172.49&mid=8582448694977&type=1&subId=7315980946113&sig=mZgntZB2jsY&ct=6&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+   "protocol": "https",
+   "ext": "mp4",
+   "vcodec": "avc1.4D400C",
+   "acodec": "none",
+   "height": 144,
+   "width": 256,
+   "tbr": 280.6,
+   "fps": 25,
+   "abr": 0,
+   "vbr": 280.6
+  },
+  {
+   "format_id": "hls-2444",
+   "url": "https://vd2.okcdn.ru/expires/1790541764604/srcIp/203.0.113.7/pr/70/srcAg/CHROME/ch/1676822812/ms/176.112.172.49/mid/8582448694977/type/3/subId/7315980946113/sig/Hj78rM35IZ4/ct/8/du/243855/urls/95.163.35.45/clientType/33/asubs/y/zs/43/id/7315980946113/video/",
+   "manifest_url": "https://vd2.okcdn.ru/video.m3u8?cmd=videoPlayerCdn&expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1676822812&ms=176.112.172.49&mid=8582448694977&type=2&subId=7315980946113&sig=idzf6a2s0U4&ct=8&du=243855&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+   "protocol": "m3u8_native",
+   "ext": "mp4",
+   "height": 720,
+   "width": 1280,
+   "tbr": 2444.907,
+   "fps": 25.0,
+   "has_drm": false
+  },
+  {
+   "format_id": "dash-5",
+   "format_note": "DASH video",
+   "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&mid=8582448694977&type=3&subId=7315980946113&sig=b7gzwsUk2-c&ct=11&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+   "manifest_url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ch=1336333768&ms=176.112.172.49&mid=8582448694977&type=1&subId=7315980946113&sig=mZgntZB2jsY&ct=6&urls=95.163.35.45&clientType=33&asubs=y&zs=43&id=7315980946113",
+   "protocol": "https",
+   "ext": "mp4",
+   "vcodec": "avc1.64001F",
+   "acodec": "none",
+   "height": 720,
+   "width": 1280,
+   "tbr": 3058.06,
+   "fps": 25,
+   "abr": 0,
+   "vbr": 3058.06
+  },
+  {
+   "format_id": "0",
+   "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&type=0&subId=7315980946113&sig=iaStnQmQ51w&ct=0&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+   "protocol": "https",
+   "ext": "mp4"
+  },
+  {
+   "format_id": "3",
+   "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&type=3&subId=7315980946113&sig=4KNZmgxpwhA&ct=0&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+   "protocol": "https",
+   "ext": "mp4"
+  }
+ ],
+ "format_id": "3",
+ "protocol": "https",
+ "url": "https://vd2.okcdn.ru/?expires=1790541764604&srcIp=203.0.113.7&pr=70&srcAg=CHROME&ms=176.112.172.49&type=3&subId=7315980946113&sig=4KNZmgxpwhA&ct=0&urls=95.163.35.45&clientType=33&zs=43&id=7315980946113",
+ "ext": "mp4"
+}

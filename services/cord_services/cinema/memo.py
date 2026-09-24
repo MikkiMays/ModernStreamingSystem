@@ -111,3 +111,7 @@ class Scope:
         ttl: float | Callable[[Any], float],
     ) -> Any:
         return await self._memo.get(self._prefix + key, produce, ttl)
+
+    def known(self, key: str) -> bool:
+        """Есть ли свежий ответ или его уже считают — вопрос наружу ничего не стоит (`Memo.known`)."""
+        return self._memo.known(self._prefix + key)

@@ -73,6 +73,9 @@ def create_app(
         core.secret,
         enabled=os.environ.get("CINEMA_PROVIDERS"),
         net=NetConfig.from_env(os.environ),
+        # Номера ссылок «По ссылке» переживают перезапуск: комната, открывшая фильм по ссылке,
+        # досматривает его и после выкатки.
+        links=store.links,
     )
     telegram = None
     background = []
