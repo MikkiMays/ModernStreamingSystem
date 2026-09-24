@@ -351,40 +351,33 @@ class Cinema:
             and int(match[1]) > int(match[2])
         ):
             raise HTTPException(416, "Неверный диапазон байтов")
+        # Частичный запрос (перемотка в готовом файле) обслуживается напрямую, потоком.
+        if range_header:
+            return self._stream(await self._open(url, {"Range": range_header}))
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
-        # Частичный запрос (перемотка в готовом файле) обслуживается напрямую.
-        if not range_header:
+        cached = self.segments.get(url)
+        if cached:
+            return _kept(*cached)
+        async with self.segments.lock(url):
             cached = self.segments.get(url)
             if cached:
-                body, kind = cached
-                return Response(
-                    body,
-                    media_type=kind,
-                    headers={"Cache-Control": "private, max-age=600"},
-                )
-            async with self.segments.lock(url):
-                cached = self.segments.get(url)
-                if cached:
-                    body, kind = cached
-                    return Response(
-                        body,
-                        media_type=kind,
-                        headers={"Cache-Control": "private, max-age=600"},
-                    )
-                try:
-                    answer = await self.client.get(url, follow_redirects=False)
-                except httpx.HTTPError:
-                    raise HTTPException(502, "Площадка не отдала данные") from None
-                if answer.status_code >= 300:
-                    raise HTTPException(502, "Площадка не отдала данные")
-                kind = answer.headers.get("content-type", "video/mp2t")
-                self.segments.put(url, answer.content, kind)
-                return Response(
-                    answer.content,
-                    media_type=kind,
-                    headers={"Cache-Control": "private, max-age=600"},
-                )
-        headers = {"Range": range_header}
+                return _kept(*cached)
+            upstream = await self._open(url, {})
+            if not self._storable(upstream):
+                # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
+                # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
+                # своими потоками — держать гигабайт ради них в памяти нельзя.
+                return self._stream(upstream, "video/mp2t")
+            try:
+                body = await self._read(upstream)
+            finally:
+                await upstream.aclose()
+            kind = upstream.headers.get("content-type", "video/mp2t")
+            self.segments.put(url, body, kind)
+            return _kept(body, kind)
+
+    async def _open(self, url: str, headers: dict[str, str]) -> httpx.Response:
+        """Ответ площадки с непрочитанным телом. Переадресацию прокси не выполняет никогда."""
         request = self.client.build_request("GET", url, headers=headers)
         try:
             upstream = await self.client.send(request, stream=True, follow_redirects=False)
@@ -393,6 +386,35 @@ class Cinema:
         if upstream.status_code >= 300:
             await upstream.aclose()
             raise HTTPException(502, "Площадка не отдала данные")
+        return upstream
+
+    def _storable(self, upstream: httpx.Response) -> bool:
+        """
+        Поместится ли ответ в общую память: размер объявлен, не больше предела, тело не сжато.
+
+        Сжатое тело не распаковывается у нас вовсе — объявленный размер у него про сжатые байты,
+        а распакованные могут оказаться в тысячу раз больше.
+        """
+        length = upstream.headers.get("content-length", "")
+        encoding = upstream.headers.get("content-encoding", "identity").strip().lower()
+        return length.isdigit() and int(length) <= self.segments.largest and encoding in ("", "identity")
+
+    async def _read(self, upstream: httpx.Response) -> bytes:
+        """Тело целиком — но не больше предела памяти, что бы площадка ни объявила.
+
+        Тело здесь не сжато (`_storable`), поэтому байты те же, что пришли по сети."""
+        body = bytearray()
+        try:
+            async for chunk in upstream.aiter_bytes():
+                body.extend(chunk)
+                if len(body) > self.segments.largest:
+                    raise HTTPException(502, "Площадка не отдала данные")
+        except httpx.HTTPError:
+            raise HTTPException(502, "Площадка не отдала данные") from None
+        return bytes(body)
+
+    def _stream(self, upstream: httpx.Response, kind: str | None = None) -> StreamingResponse:
+        """Ответ площадки к зрителю как есть: байты без распаковки и заголовки, которые их описывают."""
 
         async def body():
             try:
@@ -404,7 +426,15 @@ class Cinema:
         passed = {
             name: value
             for name, value in upstream.headers.items()
-            if name.lower() in ("content-length", "content-range", "accept-ranges", "content-type")
+            if name.lower()
+            in ("content-length", "content-range", "accept-ranges", "content-type", "content-encoding")
         }
+        if kind and "content-type" not in upstream.headers:
+            passed["Content-Type"] = kind
         passed["Cache-Control"] = "private, max-age=600"
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
+
+
+def _kept(body: bytes, kind: str) -> Response:
+    """Кусочек из общей памяти: браузер держит его у себя, и отмотка назад не качает его снова."""
+    return Response(body, media_type=kind, headers={"Cache-Control": "private, max-age=600"})

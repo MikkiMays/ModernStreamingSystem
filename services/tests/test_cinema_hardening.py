@@ -9,6 +9,7 @@
 
 import asyncio
 import copy
+import gzip
 import hmac
 import json
 import re
@@ -21,6 +22,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 import test_cinema_providers as characterization
 from test_cinema_providers import USER, Stage, indexed_mp4, twitch_user
 
@@ -401,6 +403,103 @@ class UpstreamFailureTests(Stage):
         )
         for range_header in (None, "bytes=0-100"):
             await self.refused(self.cinema.fetch(self.URL, range_header), 502, "Площадка не отдала данные")
+
+
+class Tap(httpx.AsyncByteStream):
+    """Тело ответа площадки, которое помнит, сколько из него прочитали и закрыли ли его."""
+
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.read = 0
+        self.closed = False
+
+    async def __aiter__(self):
+        for chunk in self.chunks:
+            self.read += len(chunk)
+            yield chunk
+
+    async def aclose(self):
+        self.closed = True
+
+
+class WholePieceTests(Stage):
+    """
+    Кусочек без `Range` идёт в общую память, только если он в неё помещается.
+
+    Раньше целый ответ читался в память всегда, а в общую память клался только если не больше
+    12 МБ: готовый файл на гигабайт (ролик без HLS) держался в памяти службы целиком, пока не
+    уйдёт к зрителю, — и так у каждого зрителя. Теперь неизвестный или больший размер идёт
+    потоком, как ответ на запрос с `Range`.
+    """
+
+    URL = "https://rr1.googlevideo.com/videoplayback?itag=18"
+
+    def serve(self, request):
+        self.seen.append(request)
+        return self.answer
+
+    async def body(self, response):
+        return b"".join([chunk async for chunk in response.body_iterator])
+
+    async def test_a_big_file_goes_through_as_a_stream_not_into_memory(self):
+        tap = Tap([b"x" * 1024] * 4)
+        declared = str(64 * 1024 * 1024)
+        self.answer = httpx.Response(
+            200, headers={"content-length": declared, "content-type": "video/mp4"}, stream=tap
+        )
+        response = await self.cinema.fetch(self.URL, None)
+        self.assertIsInstance(response, StreamingResponse)
+        # Ни байта не прочитано, пока ответ не пошёл к зрителю.
+        self.assertEqual(tap.read, 0)
+        self.assertEqual(response.headers["content-length"], declared)
+        self.assertEqual(response.headers["content-type"], "video/mp4")
+        self.assertEqual(response.headers["cache-control"], "private, max-age=600")
+        self.assertEqual(await self.body(response), b"x" * 4096)
+        self.assertTrue(tap.closed)
+        self.assertIsNone(self.cinema.segments.get(self.URL))
+
+    async def test_a_piece_of_unknown_size_goes_through_as_a_stream(self):
+        tap = Tap([b"y" * 10])
+        self.answer = httpx.Response(200, headers={"content-type": "video/mp2t"}, stream=tap)
+        response = await self.cinema.fetch(self.URL, None)
+        self.assertIsInstance(response, StreamingResponse)
+        self.assertEqual(tap.read, 0)
+        self.assertEqual(await self.body(response), b"y" * 10)
+        self.assertIsNone(self.cinema.segments.get(self.URL))
+
+    async def test_a_compressed_piece_is_passed_on_as_it_came(self):
+        # Сжатое тело не распаковывается в память: оно уходит как пришло, вместе со своим
+        # `Content-Encoding`, и браузер распакует его сам.
+        packed = gzip.compress(b"WEBVTT\n\n" * 100)
+        self.answer = httpx.Response(
+            200,
+            headers={
+                "content-length": str(len(packed)),
+                "content-encoding": "gzip",
+                "content-type": "text/vtt",
+            },
+            stream=Tap([packed]),
+        )
+        response = await self.cinema.fetch(self.URL, None)
+        self.assertIsInstance(response, StreamingResponse)
+        self.assertEqual(response.headers["content-encoding"], "gzip")
+        self.assertEqual(await self.body(response), packed)
+        self.assertIsNone(self.cinema.segments.get(self.URL))
+
+    async def test_a_small_piece_is_still_remembered_for_the_room(self):
+        self.answer = httpx.Response(200, headers={"content-type": "video/mp2t"}, content=b"z" * 100)
+        first = await self.cinema.fetch(self.URL, None)
+        second = await self.cinema.fetch(self.URL, None)
+        self.assertEqual((first.body, second.body), (b"z" * 100, b"z" * 100))
+        self.assertEqual(len(self.seen), 1)
+        self.assertEqual(self.cinema.segments.get(self.URL), (b"z" * 100, "video/mp2t"))
+
+    async def test_a_piece_longer_than_it_said_is_not_kept(self):
+        # Площадка обещала сто байт, а шлёт больше предела памяти: читать дальше предела нельзя.
+        big = self.cinema.segments.largest + 1
+        self.answer = httpx.Response(200, headers={"content-length": "100"}, stream=Tap([b"w" * big]))
+        await self.refused(self.cinema.fetch(self.URL, None), 502, "Площадка не отдала данные")
+        self.assertIsNone(self.cinema.segments.get(self.URL))
 
 
 class YtDlpOptionTests(unittest.TestCase):
