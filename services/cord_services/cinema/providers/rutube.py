@@ -27,9 +27,9 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import HTTPException
 
-from .. import wire
+from .. import address, wire
 from ..paging import MAX_OFFSET, PAGE, page
-from ..registry import Ctx, Features, HostPolicy, Provider
+from ..registry import Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, direct
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,13 @@ READ_AHEAD = 3
 # Номер канала, сериала и сезона у Rutube — просто число. `[0-9]`, а не `\d`: `\d` пропустил бы и
 # арабско-индийские цифры, а в адрес площадки уходит строка.
 NUMBER = re.compile(r"[0-9]{1,12}")
+
+# Ссылки Rutube — точным списком хостов: сайт и его мобильная версия.
+LINK_HOSTS = frozenset({"rutube.ru", "www.rutube.ru", "m.rutube.ru"})
+# Страница ролика под своими адресами: обычная, короткий ролик и встраиваемый плеер (`play/embed`).
+VIDEO_PATHS = (("video",), ("shorts",), ("play", "embed"))
+# Вкладки канала в его адресе: ссылка на любую из них — это ссылка на канал.
+CHANNEL_TABS = frozenset({"videos", "about", "playlists", "shorts"})
 
 # Разделы, ради которых в кинозал и приходят, — первыми: фильмы, сериалы, мультфильмы,
 # телепередачи, детское, аниме, юмор, музыка, спорт, игры, новости. Остальные — в порядке
@@ -125,6 +132,16 @@ def year(show: dict[str, Any]) -> int | None:
     return None
 
 
+def _number_link(kind: str, value: str) -> Match | None:
+    """Канал и сериал из ссылки — по их числу; страница та же, что у их карточки в каталоге."""
+    return Match(kind, value, kind) if NUMBER.fullmatch(value) else None
+
+
+def _tab(rest: tuple[str, ...]) -> bool:
+    """После канала в ссылке — ничего или одна его вкладка; всё прочее — уже не ссылка на канал."""
+    return not rest or (len(rest) == 1 and rest[0] in CHANNEL_TABS)
+
+
 def season_title(number: str) -> str:
     # Сезон «0» у площадки — всё, что к сезонам не отнесли: нарезки, анонсы, выпуски без номера.
     return "Другое" if number == "0" else f"Сезон {number}"
@@ -146,6 +163,36 @@ class Rutube(Provider):
     # Отдельной страницы плейлиста у кинозала для Rutube нет: сериалы, собранные площадкой из
     # плейлистов, открываются страницей сериала (`series`).
     refusals = {"playlists": "У Rutube плейлистов нет"}
+
+    # --- ссылка -------------------------------------------------------------------------
+
+    def match(self, url: str) -> Match | None:
+        """
+        Ролик (`video/<номер>`, `shorts/<номер>`, `play/embed/<номер>`), эфир ТВ (`live/video/<номер>`
+        — это `channel` под номером ролика, как у карточки идущего эфира в витрине), канал
+        (`channel/<число>` и старый `video/person/<число>`) и сериал (`metainfo/tv/<число>`).
+        Закрытый ролик (`video/private/…?p=ключ`) по ссылке не открыть: ключ — у того, кто
+        поделился, и площадка отдаёт такой ролик только ему.
+        """
+        found = address.parse(url)
+        if found is None or found.host not in LINK_HOSTS:
+            return None
+        path = found.path
+        for prefix in VIDEO_PATHS:
+            if path[: len(prefix)] == prefix and len(path) == len(prefix) + 1:
+                return self._video_link(path[-1], "video")
+        if path[:2] == ("live", "video") and len(path) == 3:
+            return self._video_link(path[2], "channel")
+        if path[:1] == ("channel",) and len(path) >= 2 and _tab(path[2:]):
+            return _number_link("channel", path[1])
+        if path[:2] == ("video", "person") and len(path) == 3:
+            return _number_link("channel", path[2])
+        if path[:2] == ("metainfo", "tv") and len(path) >= 3 and path[3:] in ((), ("video",)):
+            return _number_link("series", path[2])
+        return None
+
+    def _video_link(self, value: str, kind: str) -> Match | None:
+        return Match(kind, value, "item") if self.content_id.fullmatch(value) else None
 
     # --- каталог ------------------------------------------------------------------------
 

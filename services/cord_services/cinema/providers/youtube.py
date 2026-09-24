@@ -9,9 +9,9 @@ from urllib.parse import urlencode
 
 from fastapi import HTTPException
 
-from .. import wire
+from .. import address, wire
 from ..paging import PAGE, SEARCH_DEPTH, page
-from ..registry import Ctx, Features, HostPolicy, Provider
+from ..registry import Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
 
 YT_FLAT = {
@@ -22,6 +22,33 @@ YT_FLAT = {
     "cachedir": False,
     "socket_timeout": 20,
 }
+
+# Ссылки YouTube — точным списком хостов, а не суффиксом: `m.` и `music.` показывают тот же ролик
+# и тот же плейлист, а `studio.youtube.com` и `accounts.youtube.com` — это вовсе не ролики.
+LINK_HOSTS = frozenset(
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+    }
+)
+SHORT_HOSTS = frozenset({"youtu.be", "www.youtu.be"})
+# Номер ролика — ровно одиннадцать знаков; канал — `UC` и ещё двадцать два; псевдоним — `@` и от трёх
+# до тридцати; плейлист (`PL…`, `UU…`, `OLAK5uy_…`) — от дюжины знаков. Всё это уже формы
+# `content_id` площадки: ссылка открывает только то, что открыл бы и её каталог.
+VIDEO_LINK = re.compile(r"[A-Za-z0-9_-]{11}")
+CHANNEL_LINK = re.compile(r"UC[A-Za-z0-9_-]{22}")
+HANDLE_LINK = re.compile(r"@[A-Za-z0-9_.-]{3,30}")
+PLAYLIST_LINK = re.compile(r"[A-Za-z0-9_-]{12,64}")
+# Ролик под другими адресами: короткий, эфир, встраиваемый плеер и старый `/v/`.
+PLAYERS = frozenset({"shorts", "live", "embed", "v"})
+# Вкладки канала в его адресе: ссылка на любую из них — это ссылка на канал.
+CHANNEL_TABS = frozenset(
+    {"featured", "videos", "streams", "shorts", "playlists", "about", "live", "community", "podcasts"}
+)
 
 
 class YouTube(Provider):
@@ -45,6 +72,35 @@ class YouTube(Provider):
     # решает её же проверку. cookiefile входит в игру, только если первый разбор отказал
     # именно проверкой на человека (см. `resolve.YtDlp.extract`).
     cookies_fallback = True
+
+    def match(self, url: str) -> Match | None:
+        """
+        Ролик (`watch?v=`, `youtu.be/`, `shorts/`, `live/`, `embed/`, `v/` — и на `m.`, `music.`,
+        `youtube-nocookie.com`), плейлист (`playlist?list=`, `embed/videoseries?list=`) и канал
+        (`@псевдоним` или `channel/UC…`, с вкладкой или без). Ролик из плейлиста (`watch?v=…&list=…`)
+        — это ролик: его и видно по ссылке. Старые адреса каналов (`/c/…`, `/user/…`) по самой
+        ссылке не узнать — площадка по ним переадресует, а по ссылке служба не ходит.
+        """
+        found = address.parse(url)
+        if found is None:
+            return None
+        if found.host in SHORT_HOSTS:
+            return _video_link(found.path[0]) if len(found.path) == 1 else None
+        if found.host not in LINK_HOSTS or not found.path:
+            return None
+        head, rest = found.path[0], found.path[1:]
+        if head == "watch" and not rest:
+            return _video_link(found.query.get("v", ""))
+        if (head == "playlist" and not rest) or (head == "embed" and rest == ("videoseries",)):
+            list_id = found.query.get("list", "")
+            return Match("playlist", list_id, "playlist") if PLAYLIST_LINK.fullmatch(list_id) else None
+        if head in PLAYERS and len(rest) == 1:
+            return _video_link(rest[0])
+        if head == "channel" and rest and CHANNEL_LINK.fullmatch(rest[0]) and _tab(rest[1:]):
+            return Match("channel", rest[0], "channel")
+        if HANDLE_LINK.fullmatch(head) and _tab(rest):
+            return Match("channel", head, "channel")
+        return None
 
     async def search(self, ctx: Ctx, query: str, offset: int) -> wire.SearchPage:
         """
@@ -272,6 +328,15 @@ class YouTube(Provider):
             description=(info.get("description") or "")[:4000],
             poster=self.image(info.get("thumbnail") or ""),
         )
+
+
+def _video_link(value: str) -> Match | None:
+    return Match("video", value, "item") if VIDEO_LINK.fullmatch(value) else None
+
+
+def _tab(rest: tuple[str, ...]) -> bool:
+    """После канала в ссылке — ничего или одна его вкладка; всё прочее — уже не ссылка на канал."""
+    return not rest or (len(rest) == 1 and rest[0] in CHANNEL_TABS)
 
 
 def _watch(content_id: str) -> str:

@@ -25,7 +25,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import wire
+from . import address, wire
 from .captions import webvtt
 from .limits import Window
 from .memo import Memo
@@ -46,6 +46,11 @@ IMAGE_TTL = 24 * 3600
 # Сколько разборов ссылок (yt-dlp, секунды работы и запросы к площадке) комната может начать
 # за минуту. Ответ из общей памяти в счёт не идёт — он ничего не стоит.
 RESOLVES_PER_MINUTE = 30
+# Сколько вставленных ссылок комната может спросить за минуту. Узнать ссылку своей площадки ничего
+# не стоит, но за ней встанет общий путь — разбор чужой страницы, — и предел у маршрута один на
+# оба: вставляют ссылки руками, по одной, и двадцать в минуту — это уже не человек.
+LINKS_PER_MINUTE = 20
+NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 
 Kind = Literal["video", "channel"]
 
@@ -64,6 +69,12 @@ class Resolve(BaseModel):
     kind: Kind = "video"
     adaptive: bool = False
     refresh: bool = False
+
+
+class Link(BaseModel):
+    # Длиннее двух тысяч знаков ссылок не бывает (`address.LONGEST`); что это вообще ссылка,
+    # проверяет фасад — человеческим отказом, а не ошибкой схемы.
+    url: str = Field(min_length=1, max_length=address.LONGEST)
 
 
 # Что показывает страница канала. `about` — единственная без ленты: она про сам канал.
@@ -96,6 +107,11 @@ def _room(room: str) -> str:
         return str(uuid.UUID(room))
     except ValueError:
         return room
+
+
+def _listed(names: list[str]) -> str:
+    """«YouTube, Twitch и Rutube» — перечень словами, как его говорят, а не через запятую до конца."""
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} и {names[-1]}"
 
 
 def _checked(answer: Any) -> tuple[bool, str | None]:
@@ -133,6 +149,9 @@ class Cinema:
         self.sources = Memo(capacity=64)
         self.resolves = Window(
             RESOLVES_PER_MINUTE, 60.0, "Комната слишком часто открывает видео, подождите минуту"
+        )
+        self.links = Window(
+            LINKS_PER_MINUTE, 60.0, "Комната слишком часто открывает ссылки, подождите минуту"
         )
         # Каждая площадка ходит наружу своим клиентом: своим прокси, под общей защитой «только
         # наружу» и тем браузером, какой она назвала (`net.py`).
@@ -353,6 +372,39 @@ class Cinema:
         if not full or not self.signer.allows(full, provider):
             return None
         return proxied(self.signer, full, "image", IMAGE_TTL, provider=provider)
+
+    # --- вставленная ссылка -----------------------------------------------------------
+
+    async def link(self, url: str, *, room: str = "") -> dict[str, Any]:
+        """
+        Куда ведёт ссылка, которую вставили в кинозал.
+
+        Узнала её площадка — ответ `route`: какая площадка, что это (`kind`), номер в её форме и
+        страница её сцены (`page`), — и клиент открывает сцену площадки сразу там. Не узнала ни
+        одна — ответ `item`: карточка общего пути по ссылке и, пока его нет, `null` с причиной
+        словами (`reason`). Ссылку на выключенную площадку узнают, но не открывают: настройку
+        сервера ссылка не обходит.
+
+        Здесь ни одного запроса наружу: площадки узнают ссылку по самому адресу (`match`), и
+        ответ не зависит ни от их каталога, ни от их настроения. Предел — на каждую ссылку
+        (`LINKS_PER_MINUTE`), раньше разбора: за ним встанет и общий путь, а он уже дорогой.
+        """
+        url = url.strip()
+        if not address.web(url):
+            raise HTTPException(400, NOT_A_LINK)
+        self.links.take(_room(room))
+        for source in self.registry.known():
+            found = source.match(url)
+            if found is None:
+                continue
+            if self.registry.find(source.id) is None:
+                off = f"Это ссылка на {source.name}, а эта площадка выключена на этом сервере"
+                return {"item": None, "reason": off}
+            route = {"provider": source.id, "kind": found.kind, "id": found.id, "page": found.page}
+            return {"route": route}
+        names = [source.name for source in self.registry]
+        known = f": кинозал узнаёт ссылки {_listed(names)}" if names else ""
+        return {"item": None, "reason": f"Эту ссылку пока не открыть{known}"}
 
     # --- разрешение ссылки в поток ---------------------------------------------------
 

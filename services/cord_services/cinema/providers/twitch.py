@@ -10,10 +10,56 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from .. import wire
+from .. import address, wire
 from ..paging import PAGE, page
-from ..registry import Ctx, Features, HostPolicy, Provider
+from ..registry import Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
+
+# Ссылки Twitch — точным списком хостов: страницы сайта и встраиваемый плеер. `clips.twitch.tv` —
+# клипы, а их кинозал не показывает; такая ссылка идёт общим путём, а не в сцену Twitch.
+LINK_HOSTS = frozenset({"twitch.tv", "www.twitch.tv", "m.twitch.tv", "go.twitch.tv"})
+PLAYER_HOST = "player.twitch.tv"
+# Логин канала: латиница, цифры и подчёркивание; регистр Twitch не различает.
+LOGIN_LINK = re.compile(r"[a-z0-9_]{3,25}")
+RECORD_LINK = re.compile(r"[0-9]{1,12}")
+# Первые части пути, которые у Twitch не каналы, а разделы самого сайта: `twitch.tv/directory` —
+# это каталог, а не канал по имени «directory».
+SECTIONS = frozenset(
+    {
+        "directory",
+        "videos",
+        "search",
+        "settings",
+        "downloads",
+        "subscriptions",
+        "inventory",
+        "wallet",
+        "drops",
+        "friends",
+        "messages",
+        "payments",
+        "prime",
+        "turbo",
+        "store",
+        "jobs",
+        "p",
+        "u",
+        "moderator",
+        "popout",
+        "embed",
+        "team",
+        "login",
+        "signup",
+        "logout",
+        "following",
+        "broadcast",
+        "clip",
+        "clips",
+        "collections",
+    }
+)
+# Вкладки канала: ссылка на них — это страница канала с его записями, а не сам эфир.
+CHANNEL_TABS = frozenset({"videos", "about", "schedule"})
 
 TWITCH_GQL = "https://gql.twitch.tv/gql"
 # Открытый идентификатор веб-клиента Twitch. Не секрет и не наш: его отдаёт их же страница,
@@ -44,6 +90,17 @@ TWITCH_CATEGORY = """{ game(id: %s) { id name displayName viewersCount
 TWITCH_DEPTH = 100
 
 
+def _login_link(value: str, page: str) -> Match | None:
+    """Канал по логину из ссылки. Логин строчными: Twitch регистр не различает, а ключ памяти — да."""
+    login = value.lower()
+    return Match("channel", login, page) if LOGIN_LINK.fullmatch(login) and login not in SECTIONS else None
+
+
+def _record_link(value: str) -> Match | None:
+    """Запись эфира — ролик с позицией: её ставят на паузу и перематывают, как и в каталоге."""
+    return Match("video", value, "item") if RECORD_LINK.fullmatch(value) else None
+
+
 def literal(value: str) -> str:
     r"""
     Строка для запроса GraphQL — настоящий строковый литерал, а не текст между кавычками.
@@ -68,6 +125,37 @@ class Twitch(Provider):
     # Отказ — о себе, а не о соседях: «только у YouTube» стало бы неправдой с первой же площадкой,
     # у которой плейлисты есть (VK Видео).
     refusals = {"playlists": "У Twitch плейлистов нет"}
+
+    def match(self, url: str) -> Match | None:
+        """
+        Канал (`twitch.tv/<логин>`) — это его эфир: страница ролика с «Смотреть вместе», как у
+        карточки канала в витрине; вкладка канала (`/<логин>/videos`, `/about`, `/schedule`) — его
+        страница с записями. Запись — `videos/<номер>` (и старые `/<логин>/v/<номер>`,
+        `/<логин>/video/<номер>`), встраиваемый плеер — `player.twitch.tv/?channel=` или `?video=`.
+        Клипы кинозал не показывает — их ссылка площадке чужая.
+        """
+        found = address.parse(url)
+        if found is None:
+            return None
+        if found.host == PLAYER_HOST:
+            if found.path:
+                return None
+            record = found.query.get("video", "")
+            if record:
+                return _record_link(record.removeprefix("v"))
+            return _login_link(found.query.get("channel", ""), "item")
+        if found.host not in LINK_HOSTS or not found.path:
+            return None
+        head, rest = found.path[0], found.path[1:]
+        if head == "videos":
+            return _record_link(rest[0]) if len(rest) == 1 else None
+        if not rest:
+            return _login_link(head, "item")
+        if len(rest) == 1 and rest[0] in CHANNEL_TABS:
+            return _login_link(head, "channel")
+        if len(rest) == 2 and rest[0] in ("v", "video") and _login_link(head, "item"):
+            return _record_link(rest[1])
+        return None
 
     async def search(self, ctx: Ctx, query: str, offset: int) -> wire.SearchPage:
         """Пусто — это витрина живых эфиров; набрано — каналы лентой и категории полкой."""

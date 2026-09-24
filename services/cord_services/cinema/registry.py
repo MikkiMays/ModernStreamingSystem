@@ -78,6 +78,30 @@ class HostPolicy:
         return any(host == suffix or host.endswith("." + suffix) for suffix in self.suffixes)
 
 
+# На какой странице сцены открывается ссылка: ролик или эфир, канал, плейлист, сериал.
+PAGES = ("item", "channel", "playlist", "series")
+
+
+@dataclass(frozen=True)
+class Match:
+    """
+    Что площадка узнала в ссылке: вид карточки, её номер в форме площадки и страница сцены.
+
+    Вид — тот же, что у карточек каталога (`video`, `channel`, `playlist`, `series`), и значит он
+    то же самое: ссылка на канал Twitch — это `channel` на странице ролика, как и карточка идущего
+    эфира в его витрине, а ссылка на сообщество VK — `channel` на странице канала.
+    """
+
+    kind: str
+    id: str
+    page: str
+
+    def __post_init__(self):
+        # Ошибка площадки, а не человека: страницы, которой нет у сцен, быть не может.
+        if self.page not in PAGES or not self.id:
+            raise ValueError(f"Непонятное совпадение ссылки: {self.page!r}, {self.id!r}")
+
+
 @dataclass(frozen=True)
 class Ctx:
     """
@@ -168,6 +192,17 @@ class Provider:
         """Работает ли площадка отсюда, и если нет — почему. Большинству проверять нечего."""
         return True, None
 
+    def match(self, url: str) -> Match | None:
+        """
+        Своя ли это ссылка и что она открывает — или `None`, если ссылка чужая.
+
+        Только разбор адреса (`address.parse`): площадка по ссылке не ходит — ни за страницей,
+        ни за переадресацией, — поэтому узнаёт она лишь то, что видно в самом адресе. Номер из
+        ссылки проходит ту же форму, что и номер из каталога: ссылка не должна открывать того,
+        чего не открыл бы каталог.
+        """
+        return None
+
     async def search(self, ctx: Ctx, query: str, offset: int) -> dict[str, Any]:
         raise self.refuse("search")
 
@@ -229,6 +264,15 @@ class Registry:
     def find(self, provider_id: str) -> Provider | None:
         """Включённая площадка по имени или `None` — без отказа, для проверок внутри службы."""
         return self._enabled.get(provider_id)
+
+    def known(self) -> Iterator[Provider]:
+        """
+        Все площадки кинозала, и выключенные тоже, в порядке регистрации.
+
+        Ссылку узнают все: ссылка на выключенную площадку — это «выключена на этом сервере», а не
+        «ссылка незнакома», и открыть её в обход настройки не должен и общий путь по ссылке.
+        """
+        return iter(self._known.values())
 
     def __iter__(self) -> Iterator[Provider]:
         return iter(self._enabled.values())

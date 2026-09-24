@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query
 
-from .facade import Cinema, Kind, Resolve, Tab
+from .facade import Cinema, Kind, Link, Resolve, Tab
 from .transport.signer import PREFIX
 
 # Площадка — строка, а не перечень в схеме: её проверяет реестр. Незнакомая или выключенная
@@ -110,6 +110,13 @@ def routes(cinema: Cinema, core) -> APIRouter:
     async def resolve(room_id: str, request: Resolve, authorization: str = Header()):
         await core.member(room_id, authorization)
         return await cinema.resolve(request, room=room_id)
+
+    # Вставленная ссылка: чья она и на какой странице её открыть. POST, а не GET: ссылка — это
+    # ввод человека до двух тысяч знаков, и в адресе запроса (а с ним в журналах прокси) ей не место.
+    @router.post("/api/v1/services/rooms/{room_id}/cinema/link")
+    async def link(room_id: str, request: Link, authorization: str = Header()):
+        await core.member(room_id, authorization)
+        return await cinema.link(request.url, room=room_id)
 
     # Эти открыты по подписи, а не по заголовку: их дёргает сам плеер, десятками запросов
     # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь. Подпись

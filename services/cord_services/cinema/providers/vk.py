@@ -38,9 +38,9 @@ from typing import Any, Awaitable, Callable
 import httpx
 from fastapi import HTTPException
 
-from .. import wire
+from .. import address, wire
 from ..paging import MAX_OFFSET, PAGE
-from ..registry import Ctx, Features, HostPolicy, Provider
+from ..registry import Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
 
 logger = logging.getLogger(__name__)
@@ -80,6 +80,25 @@ SITE = {"User-Agent": BROWSER, "Origin": "https://vkvideo.ru", "Referer": "https
 VIDEO = re.compile(r"(-?[0-9]{1,19})_([0-9]{1,19})")
 # Сообщество (с минусом) или человек — владелец роликов и плейлистов.
 OWNER = re.compile(r"-?[1-9][0-9]{0,18}")
+
+# Ссылки VK — точным списком хостов: все домены площадки с их `www.`, `m.`, `new.` и `vksport.`, и
+# отдельно VK Видео Live (с прежними `live.vkplay.ru` и `vkplay.live`).
+SITE_HOSTS = frozenset(
+    prefix + domain
+    for prefix in ("", "www.", "m.", "new.", "vksport.")
+    for domain in ("vk.com", "vk.ru", "vkvideo.ru")
+)
+LIVE_HOSTS = frozenset({"live.vkvideo.ru", "live.vkplay.ru", "vkplay.live"})
+# Страница ролика — часть пути `video-1_2` (и внутри пути плейлиста), клип `clip-1_2` и запись эфира
+# `live-1_2`: идёт ли эфир сейчас, скажет поток, а не адрес. Ролик поверх страницы — `?z=video-1_2…`.
+VIDEO_PAGE = re.compile(r"(?:video|clip|live)(-?[0-9]{1,19}_[0-9]{1,19})")
+LAYER = re.compile(r"(?:video|clip)(-?[0-9]{1,19}_[0-9]{1,19})(?=/|$)")
+# Канал VK Видео Live — его имя; сообщество по номеру — `club…`, `public…` и `event…`; все ролики
+# владельца — `videos<владелец>`, а его плейлист в старом адресе — там же, `?section=album_<номер>`.
+SLUG = re.compile(r"[A-Za-z0-9_]{1,64}")
+COMMUNITY_PAGE = re.compile(r"(?:club|public|event)([1-9][0-9]{0,18})")
+VIDEOS_PAGE = re.compile(r"videos(-?[1-9][0-9]{0,18})")
+ALBUM_SECTION = re.compile(r"album_([0-9]{1,19})")
 
 # Ответ API, после которого токен надо взять заново: 5 — «вход не принят» (так отвечает и
 # запрос без токена), 1116 — «анонимный токен недействителен».
@@ -310,6 +329,55 @@ class Vk(Provider):
     def __init__(self, kit):
         super().__init__(kit)
         self.token = AnonymousToken(self._enter)
+
+    # --- ссылка -------------------------------------------------------------------------
+
+    def match(self, url: str) -> Match | None:
+        """
+        Ролик — на всех доменах площадки: страница (`video-1_2`, `clip-1_2`, `live-1_2`, и внутри
+        пути плейлиста), ролик поверх страницы (`?z=video-1_2…`) и встраиваемый плеер
+        (`video_ext.php?oid=-1&id=2`). Канал VK Видео Live (`live.vkvideo.ru/<канал>`) — это `channel`
+        на странице ролика, как идущий эфир в каталоге. Плейлист — `playlist/-1_2` (и старый
+        `videos-1?section=album_2`), сообщество — `club1`, `public1`, `event1` и все его ролики
+        `videos-1`.
+
+        Ссылка открывает ролик и тогда, когда каталог VK лежит: узнаётся она без токена и без
+        вопроса к площадке. Сообщество по короткому имени (`vkvideo.ru/@имя`) так не узнать — его
+        номер знает только площадка, а служба по ссылке не ходит.
+        """
+        found = address.parse(url)
+        if found is None:
+            return None
+        if found.host in LIVE_HOSTS:
+            slug = found.path[0] if len(found.path) == 1 else ""
+            return Match("channel", slug, "item") if SLUG.fullmatch(slug) else None
+        if found.host not in SITE_HOSTS:
+            return None
+        layer = LAYER.match(found.query.get("z", ""))
+        if layer:
+            return Match("video", layer[1], "item")
+        path = found.path
+        if path[:1] == ("video_ext.php",):
+            identity = f"{found.query.get('oid', '')}_{found.query.get('id', '')}"
+            return Match("video", identity, "item") if VIDEO.fullmatch(identity) else None
+        for part in path:
+            page = VIDEO_PAGE.fullmatch(part)
+            if page:
+                return Match("video", page[1], "item")
+        if len(path) >= 2 and path[-2] == "playlist" and VIDEO.fullmatch(path[-1]):
+            return Match("playlist", path[-1], "playlist")
+        if len(path) != 1:
+            return None
+        community = COMMUNITY_PAGE.fullmatch(path[0])
+        if community:
+            return Match("channel", f"-{community[1]}", "channel")
+        videos = VIDEOS_PAGE.fullmatch(path[0])
+        if not videos:
+            return None
+        album = ALBUM_SECTION.fullmatch(found.query.get("section", ""))
+        if album:
+            return Match("playlist", f"{videos[1]}_{album[1]}", "playlist")
+        return Match("channel", videos[1], "channel")
 
     # --- каталог ------------------------------------------------------------------------
 
