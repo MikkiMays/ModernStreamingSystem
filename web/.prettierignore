@@ -4,3 +4,4 @@ src/api/generated.ts
 playwright-report
 test-results
 package-lock.json
+.local/
