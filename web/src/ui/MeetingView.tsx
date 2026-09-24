@@ -135,6 +135,22 @@ export function MeetingView({
   useEffect(() => {
     if (sheet && browsing) setPanel(null);
   }, [sheet, browsing]);
+  /*
+    Кино началось — и полоса панели уступает ему место там, где встать рядом с плеером ей негде.
+
+    От 768 до 1199 px панель — полоса поверх сцены. С 960 px кинозал просто отодвигается от неё
+    (`room-layout.css`), а уже этого плеер рядом с ней вышел бы в 350–540 px, и правый край
+    пульта — качество и полный экран — обрезался бы. Поэтому здесь, как лист на телефоне перед
+    каталогом, панель закрывается, когда в комнате начинается просмотр; открыть её снова во
+    время кино можно, и тогда это полоса поверх, которую позвали сами.
+  */
+  // Границы — ровно те, где кончается лист (767 px) и начинается место рядом (960 px): без щели
+  // в долю пикселя, в которую при масштабе страницы проваливались бы оба правила.
+  const cramped = useMediaQuery('(767px < width < 960px)');
+  const theater = !!snapshot.watch && !viewing;
+  useEffect(() => {
+    if (cramped && theater) setPanel(null);
+  }, [cramped, theater]);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
