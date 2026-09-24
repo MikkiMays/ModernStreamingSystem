@@ -10,7 +10,9 @@ yt-dlp, поток, — yt-dlp настоящий и ходит через на�
 """
 
 import asyncio
+import concurrent.futures
 import copy
+import gzip
 import json
 import re
 import tempfile
@@ -19,6 +21,7 @@ import time
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
@@ -27,7 +30,7 @@ from fastapi import HTTPException
 from cord_services.cinema import Cinema, Resolve
 from cord_services.cinema import drm as drmmodule
 from cord_services.cinema.captions import webvtt
-from cord_services.cinema.net import Guard
+from cord_services.cinema.net import BROWSER, Guard
 from cord_services.cinema.providers.link import LINK_ID, LOGIN, Link, MemoryLinks
 from cord_services.cinema.resolve import INSIDE, Expired, Inside, Protected, Resolver
 from cord_services.cinema.transport.signer import allowed
@@ -97,6 +100,7 @@ class Door:
         self.processed = processed or {}
         self.asked = []
         self.options = []
+        self.leases = []
 
     def answer(self, url):
         self.asked.append(url)
@@ -122,19 +126,26 @@ class Door:
 
 
 def cinema_with(door, handler=None, links=None):
-    """Кинозал, у которого yt-dlp — `door`, а сеть потока — `handler` (httpx MockTransport)."""
+    """
+    Кинозал, у которого yt-dlp — `door`, а сеть потока — `handler` (httpx MockTransport). Вход в
+    выход (`lease`) yt-dlp теста получает настоящий: без него разбор ссылки наружу не пускают.
+    """
     # Без своей сети потока «интернет» отдаёт на любой адрес один байт: файл видео жив.
     transport = httpx.MockTransport(handler or (lambda request: httpx.Response(206, content=b"x")))
     cinema = Cinema("secret", httpx.AsyncClient(transport=transport), links=links)
 
-    def run(provider, options, work, *, cookies=None):
+    def run(provider, options, work, *, cookies=None, lease=None):
         door.options.append((provider, dict(options)))
+        door.leases.append(lease)
         return work(door)
 
+    def extract(address, options, provider, *, lease=None):
+        door.options.append((provider, dict(options)))
+        door.leases.append(lease)
+        return door.extract_info(address, process=True)
+
     cinema.ytdlp.run = run
-    cinema.ytdlp.extract = lambda address, options, provider: (
-        door.options.append((provider, dict(options))) or door.extract_info(address, process=True)
-    )
+    cinema.ytdlp.extract = extract
     return cinema
 
 
@@ -435,7 +446,7 @@ class EmbeddedPlayers(LinkCase):
         door = Door({blog: {"_type": "url", "url": "https://youtu.be/dQw4w9WgXcQ"}})
         cinema = Cinema("secret", enabled="twitch,link")
         self.cinemas = [cinema]
-        cinema.ytdlp.run = lambda provider, options, work, cookies=None: work(door)
+        cinema.ytdlp.run = lambda provider, options, work, cookies=None, lease=None: work(door)
         self.assertEqual(
             await cinema.link(blog, room=ROOM),
             {"item": None, "reason": "Это ссылка на YouTube, а эта площадка выключена на этом сервере"},
@@ -634,7 +645,7 @@ class Refusals(LinkCase):
             await self.refused(Expired())
         self.assertEqual(
             (late.exception.status_code, late.exception.detail),
-            (504, "Сайт не отдал видео за 30 секунд — попробуйте ещё раз или другую ссылку"),
+            (504, "Сайт не отдал видео вовремя — попробуйте ещё раз или другую ссылку"),
         )
 
     async def test_a_crash_of_the_extractor_is_not_its_traceback(self):
@@ -681,7 +692,7 @@ class Refusals(LinkCase):
 
 
 class Drm(LinkCase):
-    def test_what_is_drm_in_hls_and_dash(self):
+    def test_what_is_drm_in_hls(self):
         for line in (
             SAMPLE_AES,
             WIDEVINE,
@@ -699,16 +710,6 @@ class Drm(LinkCase):
             '#EXT-X-KEY:METHOD=AES-128,URI="k.bin",KEYFORMAT="identity"',
         ):
             self.assertFalse(drmmodule.hls(media(line)), line)
-        self.assertTrue(
-            drmmodule.dash(
-                "<MPD><Period><AdaptationSet>"
-                '<ContentProtection schemeIdUri="urn:mpeg:dash:mp4protection:2011"/>'
-            )
-        )
-        self.assertTrue(drmmodule.dash('<mpd:ContentProtection xmlns:mpd="urn:mpeg:dash:schema:mpd:2011"/>'))
-        self.assertFalse(
-            drmmodule.dash("<MPD><Period><AdaptationSet><Representation/></AdaptationSet></Period></MPD>")
-        )
 
     def page(self, master_url):
         return video(
@@ -860,38 +861,194 @@ class StreamChoice(unittest.TestCase):
         self.assertEqual(Resolver._stream(info), (None, "file"))
 
 
+class Held(Door):
+    """yt-dlp теста, который на медленных адресах держит разбор, пока тест его не отпустит."""
+
+    def __init__(self, pages=None, slow=()):
+        super().__init__(pages)
+        self.slow = set(slow)
+        self.started = {}
+        self.release = threading.Event()
+
+    def extract_info(self, url, download=False, process=True, ie_key=None, **_):
+        if url in self.slow:
+            self.started.setdefault(url, threading.Event()).set()
+            self.release.wait(5)
+        return super().extract_info(url, download, process, ie_key)
+
+    async def reached(self, url):
+        """Дождаться, что разбор этого адреса уже идёт в потоке yt-dlp."""
+        event = self.started.setdefault(url, threading.Event())
+        if not await asyncio.to_thread(event.wait, 5):
+            raise AssertionError(f"разбор {url} так и не начался")
+
+
+def film(url):
+    return video(url, formats=[{"url": url + ".mp4", "ext": "mp4", "protocol": "https"}])
+
+
+class CountingPool(concurrent.futures.ThreadPoolExecutor):
+    """Пул потоков, который считает, сколько работ ему отдали."""
+
+    submitted = 0
+
+    def submit(self, *args, **kwargs):
+        self.submitted += 1
+        return super().submit(*args, **kwargs)
+
+
 class Limits(LinkCase):
-    async def test_a_room_opens_one_link_at_a_time(self):
-        started, release = threading.Event(), threading.Event()
-        slow = "https://slow.example/v"
+    """
+    Предел комнаты — один разбор разом и десять новых в минуту, вставленной ссылки и потока по номеру
+    вместе. Новая ссылка сменяет прежнюю; поток по номеру не сменяет никто — пока он идёт, ждут все.
+    """
 
-        class Slow(Door):
-            def extract_info(self, url, download=False, process=True, ie_key=None, **_):
-                if url == slow:
-                    started.set()
-                    release.wait(5)
-                return super().extract_info(url, download, process, ie_key)
+    SLOW = "https://slow.example/v"
+    FAST = "https://fast.example/v"
+    THIRD = "https://third.example/v"
 
-        page = video(slow, formats=[{"url": "https://slow.example/v.mp4", "ext": "mp4", "protocol": "https"}])
-        other = "https://fast.example/v"
-        door = Slow({slow: page, other: video(other, formats=page["formats"])})
+    def held(self, *slow):
+        door = Held({url: film(url) for url in (self.SLOW, self.FAST, self.THIRD)}, slow)
+        self.addCleanup(door.release.set)
+        return door
+
+    async def test_a_new_link_of_the_room_replaces_the_one_still_being_parsed(self):
+        door = self.held(self.SLOW)
         cinema = self.make(door)
-        first = asyncio.ensure_future(cinema.link(slow, room=ROOM))
-        await asyncio.to_thread(started.wait, 5)
-        with self.assertRaises(HTTPException) as busy:
-            await cinema.link(other, room=ROOM)
+        general, gate = self.general(cinema), cinema.egress["link"]
+        first = asyncio.ensure_future(cinema.link(self.SLOW, room=ROOM))
+        await door.reached(self.SLOW)
+        lease = door.leases[0]
+        self.assertIn(lease.id, gate._leases)
+        # Вставили другую, не дожидаясь первой, — ответ о ней, а не отказ 429.
+        self.assertEqual((await cinema.link(self.FAST, room=ROOM))["item"]["kind"], "video")
+        with self.assertRaises(HTTPException) as replaced:
+            await first
         self.assertEqual(
-            (busy.exception.status_code, busy.exception.detail),
-            (429, "Комната уже разбирает ссылку — дождитесь ответа"),
+            (replaced.exception.status_code, replaced.exception.detail), (409, "Эту ссылку сменила следующая")
         )
-        # Другая комната ждёт не за этой; и ту же ссылку соседи получают даром, из того же разбора.
-        self.assertEqual((await cinema.link(other, room=OTHER))["item"]["kind"], "video")
-        joined = asyncio.ensure_future(cinema.link(slow, room=OTHER))
-        release.set()
-        self.assertEqual((await first)["item"]["id"], (await joined)["item"]["id"])
-        self.assertEqual(door.asked.count(slow), 1)
-        # Разбор кончился — место у комнаты снова есть.
-        self.assertEqual((await cinema.link(other, room=ROOM))["item"]["kind"], "video")
+        # Сменённый разбор отменён, и его вход в выход закрыт сразу, а не когда поток yt-dlp кончится.
+        self.assertNotIn(lease.id, gate._leases)
+        self.assertEqual((general.running, general.flights), ({}, {}))
+        door.release.set()
+        # Отменённый ответ не запомнен: ту же ссылку разберут заново — новым разбором и новым входом.
+        self.assertIsNone(general.memo.peek(f"inspect:{general.identify(self.SLOW)}"))
+        door.slow.clear()
+        self.assertEqual((await cinema.link(self.SLOW, room=ROOM))["item"]["kind"], "video")
+        self.assertEqual(len(door.leases), 3)
+
+    async def test_the_same_link_is_one_parse_for_every_room_that_waits_for_it(self):
+        door = self.held(self.SLOW)
+        cinema = self.make(door)
+        first = asyncio.ensure_future(cinema.link(self.SLOW, room=ROOM))
+        await door.reached(self.SLOW)
+        # Та же ссылка (якорь не в счёт) из той же комнаты и из соседней — к тому же разбору.
+        again = asyncio.ensure_future(cinema.link(self.SLOW + "#t=30", room=ROOM))
+        joined = asyncio.ensure_future(cinema.link(self.SLOW, room=OTHER))
+        await asyncio.sleep(0.05)
+        # Комната сменила ссылку, но соседняя ещё ждёт этот разбор — он не отменяется.
+        self.assertEqual((await cinema.link(self.FAST, room=ROOM))["item"]["kind"], "video")
+        door.release.set()
+        answers = [(await task)["item"]["id"] for task in (first, again, joined)]
+        self.assertEqual(len(set(answers)), 1)
+        self.assertEqual(door.asked.count(self.SLOW), 1)
+
+    async def test_the_room_is_held_until_the_parse_ends_not_until_its_request_leaves(self):
+        door = self.held(self.SLOW)
+        cinema = self.make(door)
+        general = self.general(cinema)
+        first = asyncio.ensure_future(cinema.link(self.SLOW, room=ROOM))
+        await door.reached(self.SLOW)
+        flight = general.flights[self.SLOW]
+        # Браузер ушёл — разбор идёт дальше, и место комнаты занято им, а не запросом.
+        first.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await first
+        self.assertIs(general.running[ROOM], flight)
+        with self.assertRaises(HTTPException) as busy:
+            general.enter(ROOM)
+        self.assertEqual(busy.exception.status_code, 429)
+        door.release.set()
+        await asyncio.wait_for(asyncio.wait([flight.task]), 5)
+        await asyncio.sleep(0)
+        self.assertNotIn(ROOM, general.running)
+        # Ответ разбора запомнен: ту же ссылку отдают из памяти.
+        self.assertEqual((await cinema.link(self.SLOW, room=ROOM))["item"]["kind"], "video")
+        self.assertEqual(door.asked.count(self.SLOW), 1)
+
+    async def ready(self, cinema, *urls):
+        """Ссылки разобраны, а поток их забыт: `resolve` по номеру разбирает страницу заново."""
+        ids = [(await cinema.link(url, room=str(uuid.uuid4())))["item"]["id"] for url in urls]
+        cinema.sources._items.clear()
+        return ids
+
+    async def test_a_room_resolves_one_link_stream_at_a_time_and_a_new_link_waits_for_it(self):
+        door = self.held()
+        cinema = self.make(door)
+        slow, fast = await self.ready(cinema, self.SLOW, self.FAST)
+        door.slow.add(self.SLOW)
+        first = asyncio.ensure_future(cinema.resolve(Resolve(provider="link", contentId=slow), room=ROOM))
+        await door.reached(self.SLOW)
+        for attempt in (
+            cinema.resolve(Resolve(provider="link", contentId=fast), room=ROOM),
+            cinema.resolve(Resolve(provider="link", contentId=fast, refresh=True), room=ROOM),
+            # Новая ссылка поток, который комната уже открывает, не отменяет — ждёт его.
+            cinema.link(self.THIRD, room=ROOM),
+        ):
+            with self.assertRaises(HTTPException) as busy:
+                await attempt
+            self.assertEqual(
+                (busy.exception.status_code, busy.exception.detail),
+                (429, "Комната уже разбирает ссылку — дождитесь ответа"),
+            )
+        # Соседняя комната не ждёт за этой.
+        self.assertEqual(
+            (await cinema.resolve(Resolve(provider="link", contentId=fast), room=OTHER))["kind"], "file"
+        )
+        door.release.set()
+        self.assertEqual((await first)["kind"], "file")
+        # Разбор кончился — место комнаты снова свободно.
+        source = await cinema.resolve(Resolve(provider="link", contentId=fast, refresh=True), room=ROOM)
+        self.assertEqual(source["kind"], "file")
+
+    async def test_waiting_for_a_place_in_the_way_out_takes_no_thread(self):
+        pool = CountingPool(max_workers=4)
+        asyncio.get_running_loop().set_default_executor(pool)
+        door = self.held()
+        cinema = self.make(door)
+        # Одно место в выходе на весь сервер: второй разбор его ждёт.
+        cinema.egress["link"].sessions = 1
+        slow, fast = await self.ready(cinema, self.SLOW, self.FAST)
+        door.slow.add(self.SLOW)
+        first = asyncio.ensure_future(cinema.resolve(Resolve(provider="link", contentId=slow), room=ROOM))
+        await door.reached(self.SLOW)
+        submitted = pool.submitted
+        second = asyncio.ensure_future(cinema.resolve(Resolve(provider="link", contentId=fast), room=OTHER))
+        await asyncio.sleep(0.2)
+        # Второй ждёт места в цикле событий: ни одной работы пулу ни в очередь, ни в поток.
+        self.assertFalse(second.done())
+        self.assertEqual(pool.submitted, submitted)
+        door.release.set()
+        self.assertEqual([(await task)["kind"] for task in (first, second)], ["file", "file"])
+        self.assertTrue(all(lease is not None for lease in door.leases))
+
+    async def test_a_link_stream_that_takes_too_long_is_cut_at_one_deadline(self):
+        door = self.held()
+        cinema = self.make(door)
+        general, gate = self.general(cinema), cinema.egress["link"]
+        (slow,) = await self.ready(cinema, self.SLOW)
+        door.slow.add(self.SLOW)
+        started = time.monotonic()
+        with patch("cord_services.cinema.facade.LINK_RESOLVE_SECONDS", 0.3):
+            with self.assertRaises(HTTPException) as late:
+                await cinema.resolve(Resolve(provider="link", contentId=slow), room=ROOM)
+        self.assertEqual(
+            (late.exception.status_code, late.exception.detail),
+            (504, "Сайт не отдал видео вовремя — попробуйте ещё раз или другую ссылку"),
+        )
+        self.assertLess(time.monotonic() - started, 2)
+        # Вход разбора закрыт, место комнаты свободно.
+        self.assertEqual((gate._leases, general.running), ({}, {}))
 
     async def test_ten_new_links_a_minute_and_what_is_known_is_free(self):
         pages = {
@@ -915,6 +1072,12 @@ class Limits(LinkCase):
             (often.exception.status_code, often.exception.detail, often.exception.headers["Retry-After"]),
             (429, "Комната слишком часто разбирает ссылки, подождите минуту", "60"),
         )
+        # Поток по номеру — под тем же пределом: и он не открывает одиннадцатый разбор за минуту.
+        cinema.sources._items.clear()
+        item = general.identify("https://site.example/0")
+        with self.assertRaises(HTTPException) as also:
+            await cinema.resolve(Resolve(provider="link", contentId=item), room=ROOM)
+        self.assertEqual(also.exception.status_code, 429)
         now[0] += 60
         await cinema.link("https://site.example/10", room=ROOM)
 
@@ -928,6 +1091,8 @@ class Numbers(unittest.TestCase):
         self.assertEqual(number, general.identify("https://site.example/film?x=1"))
         self.assertNotEqual(number, general.identify("https://site.example/film?x=2"))
         self.assertNotEqual(number, general.identify("https://site.example/film?x=1", 2))
+        # Список серий и поток по одному адресу — номера из разных пространств.
+        self.assertNotEqual(number, general.identify("https://site.example/film?x=1", space="series"))
         other = Link.__new__(Link)
         other.key = b"another"
         self.assertNotEqual(number, other.identify("https://site.example/film?x=1"))
@@ -963,6 +1128,271 @@ class Numbers(unittest.TestCase):
             again.cleanup()
             self.assertEqual(again.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0], 3)
             again.db.close()
+
+
+class OneAddress(LinkCase):
+    """
+    Номер, стор и разбор — по одному адресу: нормальному, без якоря. Контрабанда yt-dlp в якоре
+    (`#__youtubedl_smuggle`) — не ссылка, а запись одного рода записью другого не затирается.
+    """
+
+    async def test_the_address_numbered_stored_and_parsed_is_one_and_the_same(self):
+        written = "https://Site.Example:443/film?x=1#t=30"
+        normal = "https://site.example/film?x=1"
+        links = MemoryLinks()
+        door = Door(
+            {
+                normal: video(
+                    normal, formats=[{"url": "https://site.example/f.mp4", "ext": "mp4", "protocol": "https"}]
+                )
+            }
+        )
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(written, room=ROOM))["item"]
+        self.assertEqual(door.asked, [normal])
+        self.assertEqual(links.get(item["id"])["url"], normal)
+        self.assertEqual(item["id"], self.general(cinema).identify(normal))
+        # Поток по номеру разбирает тот же адрес, что и карточку.
+        cinema.sources._items.clear()
+        await cinema.resolve(Resolve(provider="link", contentId=item["id"]), room=ROOM)
+        self.assertEqual(door.asked, [normal, normal])
+
+    async def test_a_smuggled_address_is_not_a_link(self):
+        door = Door()
+        cinema = self.make(door)
+        for url in (
+            "https://site.example/v#__youtubedl_smuggle=%7B%22force_generic_extractor%22%3A+true%7D",
+            "https://site.example/v?a=1#__youtubedl_smuggle=x",
+            "https://site.example/v#%5F%5Fyoutubedl%5Fsmuggle=x",
+            "https://site.example/v?__YOUTUBEDL_SMUGGLE=x",
+        ):
+            with self.assertRaises(HTTPException) as refused:
+                await cinema.link(url, room=ROOM)
+            self.assertEqual(refused.exception.status_code, 400, url)
+        self.assertEqual(door.asked, [])
+
+    async def test_an_episode_keeps_no_smuggled_part_of_its_address(self):
+        page_url = "https://blog.example/list"
+        smuggled = "https://videos.example/1#__youtubedl_smuggle=%7B%22http_headers%22%3A%7B%7D%7D"
+        entries = [
+            {"_type": "url", "url": smuggled, "title": "Первое"},
+            {"_type": "url", "url": "https://videos.example/2", "title": "Второе"},
+        ]
+        links = MemoryLinks()
+        cinema = self.make(
+            Door({page_url: {"_type": "playlist", "title": "Подборка", "entries": entries}}), links=links
+        )
+        item = (await cinema.link(page_url, room=ROOM))["item"]
+        first = (await cinema.series("link", item["id"], room=ROOM))["items"][0]
+        self.assertEqual(links.get(first["id"])["url"], "https://videos.example/1")
+        self.assertEqual(first["id"], self.general(cinema).identify("https://videos.example/1"))
+
+    async def test_a_record_of_one_kind_is_never_overwritten_by_another(self):
+        x, y = "https://list.example/x", "https://list.example/y"
+        door = Door(
+            {
+                x: {
+                    "_type": "playlist",
+                    "title": "X",
+                    "entries": [{"_type": "url", "url": "https://v.example/1"}],
+                },
+                # Чужой плейлист называет список X своей серией.
+                y: {
+                    "_type": "playlist",
+                    "title": "Y",
+                    "entries": [{"_type": "url", "url": x, "title": "это X"}],
+                },
+            }
+        )
+        links = MemoryLinks()
+        cinema = self.make(door, links=links)
+        general = self.general(cinema)
+        series_x = (await cinema.link(x, room=ROOM))["item"]["id"]
+        series_y = (await cinema.link(y, room=OTHER))["item"]["id"]
+        episode = (await cinema.series("link", series_y, room=OTHER))["items"][0]
+        self.assertNotEqual(episode["id"], series_x)
+        self.assertEqual(links.get(series_x)["kind"], "series")
+        self.assertEqual(len((await cinema.series("link", series_x, room=ROOM))["items"]), 1)
+        # Вторая стена: запись другого рода под тем же номером стор не перезаписывает, своего — да.
+        general._keep({series_x: {"kind": "video", "url": "https://evil.example/"}})
+        general._keep({episode["id"]: {"kind": "series", "url": x, "entries": []}})
+        self.assertEqual((links.get(series_x)["kind"], links.get(episode["id"])["kind"]), ("series", "video"))
+        general._keep({series_x: {**links.get(series_x), "title": "X снова"}})
+        self.assertEqual(links.get(series_x)["title"], "X снова")
+
+    def test_a_poster_is_a_web_address_of_sane_length_or_nothing(self):
+        from cord_services.cinema.providers.link import _thumbnail
+
+        long = "https://cdn.example/" + "a" * 2000 + ".jpg"
+        for info, expected in (
+            ({"thumbnail": "https://cdn.example/p.jpg"}, "https://cdn.example/p.jpg"),
+            ({"thumbnail": "//cdn.example/p.jpg"}, "https://cdn.example/p.jpg"),
+            ({"thumbnail": long}, ""),
+            ({"thumbnail": "javascript:alert(1)"}, ""),
+            ({"thumbnail": "data:image/png;base64,AAAA"}, ""),
+            ({"thumbnail": "https://user:pw@cdn.example/p.jpg"}, ""),
+            ({"thumbnail": "https://cdn.example/p\n.jpg"}, ""),
+            # Самая широкая — негодная: берётся самая широкая из годных.
+            (
+                {
+                    "thumbnail": long,
+                    "thumbnails": [
+                        {"url": long, "width": 4000},
+                        {"url": "https://cdn.example/m.jpg", "width": 640},
+                        {"url": "https://cdn.example/s.jpg", "width": 120},
+                    ],
+                },
+                "https://cdn.example/m.jpg",
+            ),
+        ):
+            self.assertEqual(_thumbnail(info), expected, str(info)[:80])
+
+    async def test_a_long_poster_address_does_not_reach_the_store(self):
+        page = "https://site.example/film"
+        long = "https://cdn.example/" + "a" * 2000 + ".jpg"
+        links = MemoryLinks()
+        info = video(
+            page,
+            thumbnail=long,
+            formats=[{"url": "https://site.example/f.mp4", "ext": "mp4", "protocol": "https"}],
+        )
+        cinema = self.make(Door({page: info}), links=links)
+        item = (await cinema.link(page, room=ROOM))["item"]
+        self.assertEqual(links.get(item["id"])["thumbnail"], "")
+        self.assertNotIn("aaaa", item["poster"] or "")
+
+    def test_a_link_speaks_as_the_same_desktop_browser_as_vk_and_rutube(self):
+        from cord_services.cinema import net
+        from cord_services.cinema.providers import link as linkmodule
+        from cord_services.cinema.providers import rutube
+        from cord_services.cinema.providers.vk import Vk
+
+        self.assertEqual(Link.user_agent, net.BROWSER)
+        self.assertEqual(linkmodule.OPTIONS["http_headers"]["User-Agent"], net.BROWSER)
+        self.assertEqual((Vk.user_agent, rutube.HEADERS["User-Agent"]), (net.BROWSER, net.BROWSER))
+        self.assertNotIn("Cord", net.BROWSER)
+
+
+class Trickle(httpx.AsyncByteStream):
+    """Тело ответа сайта: кусками, с паузой, и помнит, сколько из него прочитали и закрыли ли его."""
+
+    def __init__(self, chunks, pause=0.0):
+        self.chunks = chunks
+        self.pause = pause
+        self.read = 0
+        self.closed = False
+
+    async def __aiter__(self):
+        for chunk in self.chunks:
+            if self.pause:
+                await asyncio.sleep(self.pause)
+            self.read += len(chunk)
+            yield chunk
+
+    async def aclose(self):
+        self.closed = True
+
+
+class PlaylistLimits(LinkCase):
+    """
+    Плейлист чужого сайта наш прокси читает в память — поэтому несжатым, не больше предела и за один
+    срок. Подписанный адрес плейлиста живёт часы и открывается без входа: без пределов один такой адрес
+    держал бы в памяти службы сколько угодно.
+    """
+
+    URL = "https://cdn.example/720.m3u8"
+    YOUTUBE = "https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8"
+
+    async def test_a_playlist_bigger_than_the_limit_is_refused_at_the_limit_not_at_its_end(self):
+        taps = []
+
+        def handler(request):
+            taps.append(Trickle([b"#EXTM3U\n"] + [b"#" * 65535 + b"\n"] * 40))
+            return httpx.Response(200, stream=taps[-1])
+
+        cinema = self.make(Door(), handler)
+        with (
+            patch("cord_services.cinema.facade.PLAYLIST_LIMIT", 1024 * 1024),
+            patch("cord_services.cinema.facade.CATALOG_PLAYLIST_LIMIT", 4 * 1024 * 1024),
+        ):
+            with self.assertRaises(HTTPException) as refused:
+                await cinema.manifest(self.URL, None, "link")
+            # У площадки каталога хосты свои, и предел щедрее: тот же список в 2,5 МБ проходит.
+            self.assertEqual((await cinema.manifest(self.YOUTUBE, None, "youtube")).status_code, 200)
+        self.assertEqual(
+            (refused.exception.status_code, refused.exception.detail), (502, "Площадка не отдала плейлист")
+        )
+        self.assertLessEqual(taps[0].read, 1024 * 1024 + 65536)
+        self.assertTrue(taps[0].closed)
+
+    async def test_a_compressed_playlist_is_refused_without_being_unpacked(self):
+        bomb = gzip.compress(b"#EXTM3U\n" + b"\n" * (16 * 1024 * 1024))
+        taps, asked = [], []
+
+        def handler(request):
+            asked.append(request.headers.get("accept-encoding"))
+            taps.append(Trickle([bomb]))
+            return httpx.Response(200, headers={"Content-Encoding": "gzip"}, stream=taps[-1])
+
+        cinema = self.make(Door(), handler)
+        with self.assertRaises(HTTPException) as refused:
+            await cinema.manifest(self.URL, None, "link")
+        self.assertEqual(
+            (refused.exception.status_code, refused.exception.detail), (502, "Площадка не отдала плейлист")
+        )
+        self.assertEqual(asked, ["identity"])
+        self.assertEqual((taps[0].read, taps[0].closed), (0, True))
+
+    async def test_a_playlist_that_trickles_is_cut_at_one_deadline(self):
+        taps = []
+
+        def handler(request):
+            # Байт за байтом: сорок секунд на список, каждый кусок — вовремя.
+            taps.append(Trickle([b"#EXTM3U\n"] + [b"#\n"] * 400, pause=0.1))
+            return httpx.Response(200, stream=taps[-1])
+
+        cinema = self.make(Door(), handler)
+        started = time.monotonic()
+        with patch("cord_services.cinema.facade.PLAYLIST_DEADLINE", 0.5):
+            with self.assertRaises(HTTPException) as late:
+                await cinema.manifest(self.URL, None, "link")
+        self.assertEqual(
+            (late.exception.status_code, late.exception.detail), (504, "Площадка не отдала плейлист вовремя")
+        )
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertTrue(taps[0].closed)
+
+    async def test_the_drm_check_reads_lists_uncompressed_bounded_and_in_time(self):
+        taps, asked = {}, []
+
+        def handler(request):
+            asked.append(request.headers.get("accept-encoding"))
+            name = request.url.path
+            if name == "/bomb.m3u8":
+                taps[name] = Trickle([gzip.compress(b"#EXTM3U\n" + b"\n" * (16 * 1024 * 1024))])
+                return httpx.Response(200, headers={"Content-Encoding": "gzip"}, stream=taps[name])
+            if name == "/huge.m3u8":
+                taps[name] = Trickle([b"#" * 65535 + b"\n"] * 40)
+            else:
+                taps[name] = Trickle([b"#EXTM3U\n"] + [b"#\n"] * 400, pause=0.1)
+            return httpx.Response(200, stream=taps[name])
+
+        net = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        self.addAsyncCleanup(net.aclose)
+        anywhere = lambda url: True  # noqa: E731
+        with (
+            patch.object(drmmodule, "TEXT_LIMIT", 1024 * 1024),
+            patch.object(drmmodule, "CHECK_TIMEOUT", 0.5),
+        ):
+            self.assertIsNone(await drmmodule._text(net, "https://cdn.example/bomb.m3u8", anywhere))
+            self.assertIsNone(await drmmodule._text(net, "https://cdn.example/huge.m3u8", anywhere))
+            started = time.monotonic()
+            self.assertIsNone(await drmmodule.inspect_hls(net, "https://cdn.example/slow.m3u8", anywhere))
+            self.assertLess(time.monotonic() - started, 2)
+        self.assertEqual(set(asked), {"identity"})
+        self.assertEqual(taps["/bomb.m3u8"].read, 0)
+        self.assertLessEqual(taps["/huge.m3u8"].read, 1024 * 1024 + 65536)
+        self.assertTrue(all(tap.closed for tap in taps.values()))
 
 
 class Resolving(LinkCase):
@@ -1099,7 +1529,7 @@ class ThroughTheRealWay(LinkCase):
             b'<video controls><source src="http://cdn.test/film/master.m3u8" type="application/x-mpegURL">'
             b"</video></body></html>"
         )
-        await self.site({"/film": (200, {"Content-Type": "text/html; charset=utf-8"}, page)}, PUBLIC)
+        films = await self.site({"/film": (200, {"Content-Type": "text/html; charset=utf-8"}, page)}, PUBLIC)
         master = MASTER.encode()
         cdn = await self.site(
             {"/film/master.m3u8": (200, {"Content-Type": "application/vnd.apple.mpegurl"}, master)}, CDN
@@ -1122,6 +1552,8 @@ class ThroughTheRealWay(LinkCase):
         self.assertEqual(item["captions"], [])
         self.assertEqual(self.wires.dialed, [(PUBLIC, 80), (CDN, 80)])
         self.assertEqual(cdn.requests[0][1], "/film/master.m3u8")
+        # Страницу yt-dlp спросил настольным Chrome — тем же именем, что и остальные площадки.
+        self.assertEqual(dict(films.requests[0][2])["User-Agent"], BROWSER)
 
         source = await cinema.resolve(
             Resolve(provider="link", contentId=item["id"], adaptive=True), room=ROOM
@@ -1183,6 +1615,21 @@ class ThroughTheRealWay(LinkCase):
         )
         self.assertEqual(self.wires.dialed, [])
 
+    async def test_a_page_that_unpacks_into_too_much_is_refused_in_words(self):
+        # Сжатая «бомба»: 16 КБ по сети, 16 МБ после распаковки — и сжата вопреки `identity`, о котором
+        # просил yt-dlp. Распаковывает он сам, и выход видит только сжатые байты — предел стоит на
+        # распакованных. Начало — HTML: иначе `generic` счёл бы адрес прямой ссылкой на файл.
+        bomb = gzip.compress(b"<html><body>" + b" " * (16 * 1024 * 1024))
+        await self.site(
+            {"/bomb": (200, {"Content-Type": "text/html", "Content-Encoding": "gzip"}, bomb)}, PUBLIC
+        )
+        cinema = self.real(playlists({}))
+        with patch("cord_services.cinema.resolve.DECODED_LIMIT", 1024 * 1024):
+            answer = await cinema.link("http://films.test/bomb", room=ROOM)
+        self.assertEqual(
+            answer, {"item": None, "reason": "Страница слишком большая — такие кинозал не разбирает"}
+        )
+
     async def test_a_site_that_takes_too_long_is_cut_at_the_deadline_with_words(self):
         async def never():
             await asyncio.sleep(30)
@@ -1196,7 +1643,7 @@ class ThroughTheRealWay(LinkCase):
             await cinema.link("http://films.test/slow", room=ROOM)
         self.assertEqual(
             (late.exception.status_code, late.exception.detail),
-            (504, "Сайт не отдал видео за 30 секунд — попробуйте ещё раз или другую ссылку"),
+            (504, "Сайт не отдал видео вовремя — попробуйте ещё раз или другую ссылку"),
         )
         self.assertLess(time.monotonic() - started, 5)
 

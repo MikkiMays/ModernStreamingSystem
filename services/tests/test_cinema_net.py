@@ -328,6 +328,65 @@ class GuardedTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(line.tls, ["media.test"])
         self.assertIn(b"\r\nHost: media.test\r\n", line.written[2])
 
+    async def test_behind_an_http_proxy_the_tunnel_goes_to_the_checked_address(self):
+        # HTTP-прокси получает в CONNECT проверенный адрес, а не имя: своего разрешения имени, которое
+        # успел бы подменить DNS, у него нет. Имя остаётся TLS (SNI и сертификат) и заголовку Host.
+        answers = iter([["93.184.216.34"], ["127.0.0.1"]])
+        guard = Guard(resolve=Directory({"media.test": lambda: next(answers)}))
+        dialer = Dialer(b"HTTP/1.1 200 Connection established\r\n\r\n", OK)
+        transport = GuardedTransport(guard, proxy="http://127.0.0.1:3128", strict=True, backend=dialer)
+        answer = await self.ask(transport, "https://media.test/film.m3u8")
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual(dialer.dialed, [("127.0.0.1", 3128)])
+        line = dialer.lines[0]
+        self.assertTrue(
+            line.written[0].startswith(b"CONNECT 93.184.216.34:443 HTTP/1.1\r\n"), line.written[0]
+        )
+        self.assertEqual(line.tls, ["media.test"])
+        request = next(chunk for chunk in line.written[1:] if chunk)
+        self.assertTrue(request.startswith(b"GET /film.m3u8 HTTP/1.1\r\n"), line.written)
+        self.assertIn(b"\r\nHost: media.test\r\n", request)
+
+    async def test_behind_an_https_proxy_its_own_tls_keeps_its_own_name(self):
+        guard = Guard(resolve=Directory({"media.test": ["93.184.216.34"]}))
+        dialer = Dialer(b"HTTP/1.1 200 Connection established\r\n\r\n", OK)
+        transport = GuardedTransport(guard, proxy="https://proxy.lan:3129", strict=True, backend=dialer)
+        answer = await self.ask(transport, "https://media.test/film.m3u8")
+        self.assertEqual(answer.status_code, 200)
+        line = dialer.lines[0]
+        self.assertTrue(
+            line.written[0].startswith(b"CONNECT 93.184.216.34:443 HTTP/1.1\r\n"), line.written[0]
+        )
+        # TLS до прокси — с именем прокси, TLS до сайта внутри туннеля — с именем сайта.
+        self.assertEqual(line.tls, ["proxy.lan", "media.test"])
+
+    async def test_behind_an_http_proxy_a_plain_request_names_the_checked_address(self):
+        guard = Guard(resolve=Directory({"media.test": ["93.184.216.34"]}))
+        dialer = Dialer()
+        transport = GuardedTransport(guard, proxy="http://127.0.0.1:3128", strict=True, backend=dialer)
+        answer = await self.ask(transport, "http://media.test/film.m3u8")
+        self.assertEqual(answer.status_code, 200)
+        head = dialer.lines[0].written[0]
+        self.assertTrue(head.startswith(b"GET http://93.184.216.34/film.m3u8 HTTP/1.1\r\n"), head)
+        self.assertIn(b"\r\nHost: media.test\r\n", head)
+        self.assertEqual(dialer.lines[0].tls, [])
+
+    async def test_behind_an_http_proxy_a_site_with_only_ipv6_is_refused_not_named(self):
+        # CONNECT httpcore пишет IPv6 без скобок; имя вместо адреса отдало бы разрешение прокси.
+        guard = Guard(resolve=Directory({"six.test": ["2606:2800:220:1:248:1893:25c8:1946"]}))
+        dialer = Dialer()
+        transport = GuardedTransport(guard, proxy="http://127.0.0.1:3128", strict=True, backend=dialer)
+        await self.refused(transport, "https://six.test/")
+        self.assertEqual(dialer.dialed, [])
+        # С IPv4 рядом — идёт по IPv4.
+        both = Guard(
+            resolve=Directory({"both.test": ["2606:2800:220:1:248:1893:25c8:1946", "93.184.216.34"]})
+        )
+        dialer = Dialer(b"HTTP/1.1 200 Connection established\r\n\r\n", OK)
+        transport = GuardedTransport(both, proxy="http://127.0.0.1:3128", strict=True, backend=dialer)
+        self.assertEqual((await self.ask(transport, "https://both.test/")).status_code, 200)
+        self.assertTrue(dialer.lines[0].written[0].startswith(b"CONNECT 93.184.216.34:443 "))
+
 
 class DialTests(unittest.IsolatedAsyncioTestCase):
     """Кому звонить первым и сколько ждать каждого: имя с несколькими адресами."""

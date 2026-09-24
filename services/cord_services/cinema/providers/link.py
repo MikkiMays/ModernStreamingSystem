@@ -21,14 +21,17 @@
 словами (`drm.py`); вход, подписка, капча и запрет по стране — тоже отказ: их кинозал не обходит.
 
 ПРЕДЕЛЫ. Разбор ссылки — дорогое: секунды yt-dlp и запросы к чужому сайту. Поэтому у комнаты — один
-разбор разом и `PER_MINUTE` в минуту, у разбора — `LEASE_SECONDS` (дальше выход закрывает его
-соединения), а одинаковая ссылка, которую уже разобрали, отвечает из памяти и в счёт не идёт.
+разбор разом и `PER_MINUTE` в минуту, и вставленной ссылки, и открытой по номеру (`enter`); у разбора —
+`LEASE_SECONDS` (дальше выход закрывает его соединения), а одинаковая ссылка, которую уже разобрали,
+отвечает из памяти и в счёт не идёт. Новая ссылка той же комнаты сменяет прежнюю: её разбор
+отменяется, и вход в выход закрывается сразу (последняя побеждает, а не ждёт отказа 429).
 """
 
 from __future__ import annotations
 
 import asyncio
 import base64
+import functools
 import hashlib
 import hmac
 import itertools
@@ -43,14 +46,18 @@ from fastapi import HTTPException
 
 from .. import address, wire
 from ..captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language
+from ..drm import DRM
 from ..egress import LEASE_SECONDS
 from ..limits import Window
-from ..paging import PAGE
+from ..net import BROWSER
+from ..paging import PAGE, absolute
 from ..registry import Ctx, Features, HostPolicy, Kit, Provider
 from ..resolve import (
     EXPIRED,
     INSIDE,
+    TOO_BIG,
     Inside,
+    Oversized,
     Protected,
     SourcePlan,
     frame_side,
@@ -58,7 +65,6 @@ from ..resolve import (
     refusal,
     ytdlp,
 )
-from ..drm import DRM
 
 logger = logging.getLogger(__name__)
 
@@ -76,11 +82,11 @@ PER_MINUTE = 10
 INSPECTION_SECONDS = LEASE_SECONDS + 10
 # Сколько помнится ответ о ссылке: её вставляют разом все, кто в комнате.
 ANSWER_TTL = 300
-# Кем представляются и разбор, и прокси потока: своим именем, а не браузером. Проверено 25.09.2026:
-# Wikimedia на «Chrome» с сервера отвечает 403 «Please respect our robot policy», а честное имя
-# пускает; Дзен (CDN okcdn) выдаёт адрес под то имя, которым его спросили (`srcAg=UNKNOWN` вместо
-# `CHROME`), и отдаёт поток тому же имени — важно лишь, чтобы разбор и поток шли одним именем.
-AGENT = "CordCinema/1.0 (+https://github.com/MikkiMays/ModernStreamingSystem)"
+# Кем представляются и разбор, и прокси потока: настольным Chrome, как VK и Rutube (`net.BROWSER`), и
+# одним именем у обоих — CDN выдаёт адрес под то имя, которым его спросили (у Дзена в адресе
+# `srcAg=CHROME`), и отдаёт поток тому же имени. Цена решения (25.09.2026): Wikimedia на «Chrome» с
+# сервера отвечает 403 «Please respect our robot policy» — такая ссылка честно не открывается.
+AGENT = BROWSER
 # Готовые файлы, которые играет браузер, — лучший первым: `mp4` открывают и телефоны.
 PLAYABLE = ("mp4", "m4v", "webm", "mov")
 OPTIONS = {
@@ -103,14 +109,14 @@ GEO = "Сайт не показывает это видео в стране се
 LOGIN = "Видео открывается только после входа или по подписке на самом сайте — такое кинозал не открывает"
 ROBOT = "Сайт просит подтвердить, что вы не робот, — откройте видео на самом сайте"
 MISSING = "Страница не найдена: сайт ответил, что её нет"
-# 403 на саму страницу: сайт не пускает программы (или сервер из его страны) — кинозал представляется
-# честно, своим именем, и чужим браузером не притворяется (см. `AGENT`).
+# 403 на саму страницу: сайт не пускает программы (или сервер из его страны) — обходов нет.
 FORBIDDEN = "Сайт не пустил кинозал к этой странице (403) — откройте видео на самом сайте"
 BROKEN = "Разборщик этого сайта не справился со страницей — попробуйте позже или другую ссылку"
 SILENT = "Сайт не ответил вовремя или оборвал связь — попробуйте ещё раз"
 OFF = "Разбор ссылок на этом сервере выключен"
 BUSY_ROOM = "Комната уже разбирает ссылку — дождитесь ответа"
 TOO_OFTEN = "Комната слишком часто разбирает ссылки, подождите минуту"
+SUPERSEDED = "Эту ссылку сменила следующая"
 
 # Узнаются по тексту yt-dlp — английскому, как его пишут разборщики. Регистр не важен.
 LOGIN_WORDS = re.compile(
@@ -132,6 +138,23 @@ STAMP = re.compile(r" \d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
 
 Route = Callable[[str], "dict[str, Any] | None"]
 Settle = Callable[[SourcePlan, dict[str, Any], str], Awaitable[dict[str, Any]]]
+
+
+@dataclass(eq=False)
+class Flight:
+    """
+    Разбор одной вставленной ссылки. Его ждут комнаты `rooms` — все, кто вставил эту ссылку, пока он
+    шёл, — и отменяется он, только когда его бросили все: у каждой из них уже следующая ссылка.
+    """
+
+    url: str
+    key: str
+    task: asyncio.Future[dict[str, Any]]
+    rooms: set[str] = field(default_factory=set)
+
+
+class Resolving:
+    """Место комнаты под разбор потока по номеру (`Link.enter`): его не отменяет никто."""
 
 
 class Link(Provider):
@@ -156,18 +179,39 @@ class Link(Provider):
         self.key = kit.key or b"cord-cinema"
         self.egress = kit.egress
         self.window = Window(PER_MINUTE, 60.0, TOO_OFTEN)
-        # Комнаты, у которых разбор идёт прямо сейчас: второй разом — отказ, а не очередь.
-        self.busy: set[str] = set()
+        # Разбор, который идёт у комнаты: один разом. Освобождается, когда кончился сам разбор, а не
+        # когда ушёл ждавший его запрос (`_landed`, `leave`).
+        self.running: dict[str, Flight | Resolving] = {}
+        # Идущие разборы вставленных ссылок — по адресу: ту же ссылку другая комната не разбирает
+        # второй раз, а ждёт.
+        self.flights: dict[str, Flight] = {}
 
-    def identify(self, url: str, item: int | None = None) -> str:
+    def identify(self, url: str, item: int | None = None, space: str = "stream") -> str:
         """
         Номер ссылки: HMAC от адреса на ключе службы. Одна страница — один номер у всех комнат (и одна
-        общая память на её разбор); якорь (`#…`), регистр хоста и порт по умолчанию номер не меняют.
-        Серия страницы без своего адреса — это адрес страницы и номер серии в ней.
+        общая память на её разбор); адрес — нормальный (`normal`: без якоря, регистр хоста и порт по
+        умолчанию номер не меняют), тот же, что уходит в стор и в yt-dlp. Серия страницы без своего
+        адреса — это адрес страницы и номер серии в ней. `space` — род записи: у списка серий и у
+        потока номера из разных пространств, и ссылка на чужой сериал серией другого плейлиста его
+        запись не заденет.
         """
-        normal = _normal(url) + (f"\x00{item}" if item else "")
-        digest = hmac.new(self.key, b"link\x00" + normal.encode(), hashlib.sha256).digest()
+        text = f"link\x00{space}\x00{normal(url)}\x00{item or ''}"
+        digest = hmac.new(self.key, text.encode(), hashlib.sha256).digest()
         return base64.urlsafe_b64encode(digest).decode().rstrip("=")[:22]
+
+    def _keep(self, values: dict[str, dict[str, Any]]) -> None:
+        """
+        В стор — не затирая запись другого рода под тем же номером: список серий остаётся списком,
+        поток — потоком, что бы ни прислала чужая страница. Номера родов и так из разных пространств
+        (`identify`), это вторая стена.
+        """
+        kept = {}
+        for key, value in values.items():
+            found = self.links.get(key)
+            if found is None or _family(found) == _family(value):
+                kept[key] = value
+        if kept:
+            self.links.put_many(kept, TTL)
 
     # --- ответ о ссылке -----------------------------------------------------------------
 
@@ -177,35 +221,94 @@ class Link(Provider):
         `{"item": None, "reason": …}` — почему это не показать комнате.
 
         Предел комнаты — только на новый разбор: ответ, который уже есть или уже считается (ссылку
-        вставили соседи по комнате), ничего наружу не стоит.
+        вставили соседи), ничего наружу не стоит. Новая ссылка комнаты, пока идёт разбор прежней,
+        прежнюю сменяет: комната её бросает, и разбор, который больше никто не ждёт, отменяется (его
+        запрос получает 409 — клиент его уже бросил). Разбор потока по номеру (`enter`) не
+        отменяется ничем: это поток, который комната уже смотрит, — пока он идёт, ссылке отказ 429.
         """
         if self.egress is None:
             return {"item": None, "reason": OFF}
+        url = normal(url)
         key = f"inspect:{self.identify(url)}"
-        charged = not self.memo.known(key)
-        if charged:
-            self._admit(ctx.room)
+        cached = self.memo.peek(key)
+        if cached is not None:
+            return cached
+        room = ctx.room
+        held = self.running.get(room)
+        if isinstance(held, Resolving):
+            raise HTTPException(429, BUSY_ROOM, headers={"Retry-After": "5"})
+        flight = self.flights.get(url)
+        if flight is not None and flight.task.cancelled():
+            flight = None
+        if flight is None or held is not flight:
+            if flight is None:
+                self.window.take(room)
+            if held is not None:
+                self._abandon(room, held)
+            if flight is None:
+                flight = self._launch(url, key, self._inspect(url, route, settle))
+            flight.rooms.add(room)
+            self.running[room] = flight
         try:
-            return await self.memo.get(key, lambda: self._inspect(ctx, url, route, settle), ANSWER_TTL)
-        finally:
-            if charged:
-                self.busy.discard(ctx.room)
+            return await asyncio.shield(flight.task)
+        except asyncio.CancelledError:
+            current = asyncio.current_task()
+            if flight.task.cancelled() and not (current is not None and current.cancelling()):
+                raise HTTPException(409, SUPERSEDED) from None
+            raise
 
-    def _admit(self, room: str) -> None:
-        if room in self.busy:
+    def _launch(self, url: str, key: str, work: Awaitable[dict[str, Any]]) -> Flight:
+        flight = Flight(url, key, asyncio.ensure_future(work))
+        self.flights[url] = flight
+        flight.task.add_done_callback(functools.partial(self._landed, flight))
+        return flight
+
+    def _abandon(self, room: str, flight: Flight) -> None:
+        """Комната бросила разбор; не ждёт больше никто — отмена, и вход в выход закрывается сразу."""
+        flight.rooms.discard(room)
+        if self.running.get(room) is flight:
+            del self.running[room]
+        if not flight.rooms:
+            flight.task.cancel()
+
+    def _landed(self, flight: Flight, task: asyncio.Future[dict[str, Any]]) -> None:
+        """Разбор кончился — сам, отказом или отменой: места комнат свободны, ответ — в память."""
+        if self.flights.get(flight.url) is flight:
+            del self.flights[flight.url]
+        for room in flight.rooms:
+            if self.running.get(room) is flight:
+                del self.running[room]
+        if not task.cancelled() and task.exception() is None:
+            self.memo.put(flight.key, task.result(), ANSWER_TTL)
+
+    def enter(self, room: str) -> Resolving:
+        """
+        Разбор потока по номеру (`resolve`) — под тем же пределом комнаты, что и вставленная ссылка:
+        один разбор разом и `PER_MINUTE` в минуту. Идёт другой разбор — отказ 429, а не отмена и не
+        очередь: иначе номера серий с `refresh` держали бы выход сервера сколько угодно.
+        """
+        if room in self.running:
             raise HTTPException(429, BUSY_ROOM, headers={"Retry-After": "5"})
         self.window.take(room)
-        self.busy.add(room)
+        held = Resolving()
+        self.running[room] = held
+        return held
 
-    async def _inspect(self, ctx: Ctx, url: str, route: Route, settle: Settle) -> dict[str, Any]:
+    def leave(self, room: str, held: Resolving) -> None:
+        if self.running.get(room) is held:
+            del self.running[room]
+
+    async def _inspect(self, url: str, route: Route, settle: Settle) -> dict[str, Any]:
         assert self.egress is not None
         started = time.monotonic()
-        await self.egress.start()
         try:
             async with asyncio.timeout(INSPECTION_SECONDS):
-                walk = await asyncio.to_thread(
-                    self.ytdlp.run, self.id, OPTIONS, lambda ydl: _walk(ydl, url, route)
-                )
+                # Место в выходе — здесь, в цикле событий, до потока; отменили разбор (новая ссылка,
+                # срок) — вход закрыт, и yt-dlp в потоке дальше получает только обрывы.
+                async with self.egress.session() as lease:
+                    walk = await asyncio.to_thread(
+                        self.ytdlp.run, self.id, OPTIONS, lambda ydl: _walk(ydl, url, route), lease=lease
+                    )
                 if walk.route is not None:
                     return walk.route
                 if walk.playlist is not None:
@@ -245,7 +348,7 @@ class Link(Provider):
         record["kind"] = kind
         record["title"] = _title(info, url, live)
         record["duration"] = None if live else _number(info.get("duration"))
-        self.links.put(item_id, record, TTL)
+        self._keep({item_id: record})
         card = wire.card(
             self.id,
             kind,
@@ -281,7 +384,7 @@ class Link(Provider):
         ]
         if not entries:
             return {"item": None, "reason": NOTHING}
-        series_id = self.identify(url)
+        series_id = self.identify(url, space="series")
         record = {
             "kind": "series",
             "url": url,
@@ -293,7 +396,7 @@ class Link(Provider):
             "site": site(url),
             "entries": entries,
         }
-        self.links.put(series_id, record, TTL)
+        self._keep({series_id: record})
         card = wire.card(
             self.id,
             "series",
@@ -309,8 +412,9 @@ class Link(Provider):
     def _refused(self, url: str, error: Exception, spent: float) -> dict[str, Any]:
         """Отказ yt-dlp — словами: что это свойство страницы — ответом, что сбой — ошибкой."""
         known = refusal(error)
-        if isinstance(error, (Inside, Protected)):
-            return {"item": None, "reason": INSIDE if isinstance(error, Inside) else DRM}
+        if isinstance(error, (Inside, Protected, Oversized)):
+            reason = INSIDE if isinstance(error, Inside) else DRM if isinstance(error, Protected) else TOO_BIG
+            return {"item": None, "reason": reason}
         if known is not None:
             raise known from None
         cause = getattr(error, "exc_info", None)
@@ -394,7 +498,7 @@ class Link(Provider):
                 )
             )
         if fresh:
-            self.links.put_many(fresh, TTL)
+            self._keep(fresh)
         head = wire.series_head(
             series_id,
             record["title"],
@@ -436,8 +540,7 @@ class Link(Provider):
             raise HTTPException(400, "Это список серий — выберите серию")
         if self.egress is None:
             raise HTTPException(503, OFF)
-        await self.egress.start()
-        self.links.put(item_id, record, TTL)
+        self._keep({item_id: record})
         return self._plan(record)
 
     def _plan(self, record: dict[str, Any]) -> SourcePlan:
@@ -573,12 +676,14 @@ def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] 
         target = entry.get("url") or ""
     else:
         own = entry.get("webpage_url") or ""
-        target = own if own and _normal(own) != _normal(page) else ""
+        target = own if own and normal(own) != page else ""
     if not target:
         return {**found, "url": page, "item": index}
     from yt_dlp.utils import sanitize_url
 
-    target = sanitize_url(target, scheme="https")
+    # Адрес серии — нормальный, как и у вставленной ссылки: номер, стор и разбор — по одному и тому же
+    # адресу, и контрабанда yt-dlp в якоре (`#__youtubedl_smuggle`) в стор не попадает.
+    target = normal(sanitize_url(target, scheme="https"))
     known = route(target)
     if known is not None:
         # Ссылка выключенной площадки серией не становится: настройку сервера ссылка не обходит.
@@ -698,12 +803,26 @@ def _author(info: dict[str, Any]) -> str:
 
 
 def _thumbnail(info: dict[str, Any]) -> str:
-    if info.get("thumbnail"):
-        return str(info["thumbnail"])
-    pictures = [picture for picture in info.get("thumbnails") or [] if picture.get("url")]
-    if not pictures:
-        return ""
-    return str(max(pictures, key=lambda picture: _number(picture.get("width")) or 0)["url"])
+    """Постер: `thumbnail` yt-dlp, а если его нет или он негодный — самая широкая годная картинка."""
+    chosen = _picture(info.get("thumbnail"))
+    if chosen:
+        return chosen
+    pictures = [
+        (_number(picture.get("width")) or 0, url)
+        for picture in info.get("thumbnails") or []
+        if isinstance(picture, dict) and (url := _picture(picture.get("url")))
+    ]
+    return max(pictures, key=lambda found: found[0])[1] if pictures else ""
+
+
+def _picture(url: Any) -> str:
+    """
+    Адрес картинки, который можно хранить и подписывать: обычная ссылка на страницу (`address.web`), не
+    длиннее `address.LONGEST`. Чужая страница может подсунуть в `og:image` что угодно и сколько угодно —
+    такое на карточку не идёт.
+    """
+    full = absolute(str(url or ""))
+    return full if full and len(full) <= address.LONGEST and address.web(full) else ""
 
 
 def _number(value: Any) -> float | None:
@@ -714,8 +833,16 @@ def _count(value: Any) -> int | None:
     return int(value) if isinstance(value, (int, float)) and value >= 0 else None
 
 
-def _normal(url: str) -> str:
-    """Адрес для номера: схема и хост строчными, без порта по умолчанию и без якоря."""
+def _family(record: dict[str, Any]) -> str:
+    return "series" if record.get("kind") == "series" else "stream"
+
+
+def normal(url: str) -> str:
+    """
+    Нормальный адрес ссылки: схема и хост строчными, без порта по умолчанию и без якоря. Его одного
+    хешируют, хранят и отдают yt-dlp: якорь сайту не уходит никогда, а в нём yt-dlp прячет свою
+    контрабанду (`#__youtubedl_smuggle`: чужой Referer, «разбирай как generic»).
+    """
     parts = urlsplit(url.strip())
     scheme = parts.scheme.lower()
     host = (parts.hostname or "").rstrip(".")

@@ -8,9 +8,11 @@ FairPlay, SAMPLE-AES) браузер расшифровывает только �
 по адресу, и плеер берёт его через наш же прокси, как любой другой кусочек (`playlists._attribute`).
 
 У площадок каталога DRM видно в их API (Rutube — `drm_token`); у чужих страниц — только в самом
-потоке: строки `#EXT-X-KEY`/`#EXT-X-SESSION-KEY` в HLS и `ContentProtection` в DASH. yt-dlp помечает
-часть этого сам (`has_drm`), но не всё: `METHOD=SAMPLE-AES` и Widevine в HLS он пропускает, а в
-мастере ключей обычно нет вовсе — они в списках кусочков. Поэтому списки читаются здесь.
+потоке: строки `#EXT-X-KEY`/`#EXT-X-SESSION-KEY` в HLS и `ContentProtection` в DASH. DASH помечает
+сам yt-dlp (`has_drm` у формата с `ContentProtection`, и такие форматы он отбрасывает — отказ
+делает `Resolver.settle` по `_has_drm`), а в HLS он видит не всё: `METHOD=SAMPLE-AES` и Widevine
+пропускает, и в мастере ключей обычно нет вовсе — они в списках кусочков. Поэтому списки HLS
+читаются здесь — несжатыми и не больше `TEXT_LIMIT`: список чужой, и прислать могут что угодно.
 """
 
 from __future__ import annotations
@@ -37,7 +39,6 @@ KEY_SYSTEMS = frozenset(
 )
 KEY_LINE = re.compile(r"^#EXT-X-(?:SESSION-)?KEY:(.*)$", re.MULTILINE)
 ATTRIBUTE = re.compile(r'([A-Z0-9-]+)=("[^"]*"|[^,]*)')
-PROTECTION = re.compile(r"<(?:[A-Za-z0-9_.-]+:)?ContentProtection\b")
 # Столько читается у одного списка ради проверки: список кусочков фильма — единицы мегабайт.
 TEXT_LIMIT = 4 * 1024 * 1024
 CHECK_TIMEOUT = 10.0
@@ -57,11 +58,6 @@ def hls(text: str) -> bool:
         if found.get("URI", "").strip().lower().startswith("skd://"):
             return True
     return False
-
-
-def dash(text: str) -> bool:
-    """Защита в манифесте DASH: любой `ContentProtection` — это ключ из лицензии, а не открытый."""
-    return PROTECTION.search(text) is not None
 
 
 async def inspect_hls(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool]) -> bool | None:
@@ -108,20 +104,25 @@ async def answers(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool
     браузер берёт первый живой — мёртвый первый (у W3C это `www.w3.org/…/trailer.mp4`, 404) не должен
     доставаться комнате, когда рядом живой.
     """
-    for _ in range(4):
-        if not allows(url):
-            return False
-        try:
-            async with asyncio.timeout(CHECK_TIMEOUT):
+    try:
+        # Срок — на весь ответ с переадресацией, а не на каждый шаг: иначе четыре шага по десять
+        # секунд и три источника давали бы две минуты ожидания.
+        async with asyncio.timeout(CHECK_TIMEOUT):
+            for _ in range(4):
+                if not allows(url):
+                    return False
                 async with net.stream(
-                    "GET", url, headers={"Range": "bytes=0-0"}, follow_redirects=False
+                    "GET",
+                    url,
+                    headers={"Range": "bytes=0-0", "Accept-Encoding": "identity"},
+                    follow_redirects=False,
                 ) as response:
                     if response.is_redirect and response.headers.get("location"):
                         url = urljoin(str(response.url), response.headers["location"])
                         continue
                     return response.status_code in (200, 206)
-        except (httpx.HTTPError, TimeoutError):
-            return False
+    except (httpx.HTTPError, TimeoutError):
+        return False
     return False
 
 
@@ -145,16 +146,25 @@ def _children(text: str, base: str) -> list[str]:
 
 
 async def _text(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool]) -> tuple[str, str] | None:
-    """Текст списка и его настоящий адрес — переадресацию проходит сам, каждый шаг по политике площадки."""
+    """
+    Текст списка и его настоящий адрес — переадресацию проходит сам, каждый шаг по политике площадки.
+
+    Список спрашивается несжатым, и сжатый вопреки просьбе не читается вовсе: httpx распаковывает
+    тело кусками, и один кусок сжатой «бомбы» — это десятки мегабайт ещё до проверки предела. Поэтому
+    прочитанные байты — ровно те, что пришли по сети, и их не больше `TEXT_LIMIT`.
+    """
     for _ in range(4):
         if not allows(url):
             return None
         try:
-            async with net.stream("GET", url, follow_redirects=False) as response:
+            async with net.stream(
+                "GET", url, headers={"Accept-Encoding": "identity"}, follow_redirects=False
+            ) as response:
                 if response.is_redirect and response.headers.get("location"):
                     url = urljoin(str(response.url), response.headers["location"])
                     continue
-                if response.status_code != 200:
+                encoding = response.headers.get("content-encoding", "identity").strip().lower()
+                if response.status_code != 200 or encoding not in ("", "identity"):
                     return None
                 body = bytearray()
                 async for chunk in response.aiter_bytes():

@@ -36,7 +36,7 @@ from .paging import absolute, offset_of
 from .providers import PROVIDERS
 from .providers.link import Link as General
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
-from .resolve import Resolver, SourcePlan, YtDlp
+from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp
 from .transport.playlists import Reels, rewrite
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
@@ -57,7 +57,20 @@ LINKS_PER_MINUTE = 20
 # Сколько переадресаций подряд прокси проходит сам — у площадок, которым это нужно
 # (`Provider.follows_redirects`). Каждый шаг — снова по политике хостов площадки.
 REDIRECTS = 5
+# Больше этого плейлист не читается в память. У площадки с любыми хостами («По ссылке») адрес
+# плейлиста может вести на сервер того, кто вставил ссылку, а подписанный адрес живёт часы и
+# открывается без входа: без предела один такой адрес держал бы в памяти службы сколько угодно. У
+# площадок каталога хосты известны, и предел щедрее: тринадцатичасовой ролик YouTube — 11 МБ списка.
+PLAYLIST_LIMIT = 8 * 1024 * 1024
+CATALOG_PLAYLIST_LIMIT = 32 * 1024 * 1024
+# Срок на весь плейлист, от запроса до последнего байта: плейлист, который цедят по байту, держал
+# бы запрос сколько угодно. Настоящий приезжает за секунды.
+PLAYLIST_DEADLINE = 20.0
+# Срок на весь `resolve` площадки «По ссылке»: разбор страницы (30 с у выхода), проверки DRM и
+# файлов — вместе, а не каждая своим сроком (переадресации одних проверок складывались в минуты).
+LINK_RESOLVE_SECONDS = 40.0
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
+NO_PLAYLIST = "Площадка не отдала плейлист"
 
 Kind = Literal["video", "channel"]
 
@@ -482,17 +495,50 @@ class Cinema:
         # в предел за три ролика, а злоумышленник с `refresh` — нет. `refresh` — работа всегда,
         # кроме присоединения к идущему разбору. Предел проверяется раньше, чем `refresh`
         # забывает готовый ответ: отказ 429 не должен стоить комнате того, что у неё уже есть.
+        #
+        # Новый разбор ссылки «По ссылке» — ещё и под пределом комнаты у самой площадки
+        # (`General.enter`): один разбор ссылки разом и десять в минуту на комнату — и вставленной,
+        # и открытой по номеру. Иначе каждый номер серии с `refresh` занимал бы выход сервера сколько
+        # угодно раз.
+        entry = None
         if not (self.sources.pending(key) if request.refresh else self.sources.known(key)):
-            self.resolves.take(_room(room))
+            if isinstance(source, General):
+                entry = source.enter(_room(room))
+            try:
+                self.resolves.take(_room(room))
+            except HTTPException:
+                if entry is not None:
+                    source.leave(_room(room), entry)
+                raise
         if request.refresh:
             self.sources.forget(key)
         ctx = self._ctx(room, source)
-        return await self.sources.get(key, lambda: self._resolve(source, ctx, request), _kept_for)
+        return await self.sources.get(key, lambda: self._resolve(source, ctx, request, entry), _kept_for)
 
-    async def _resolve(self, source: Provider, ctx: Ctx, request: Resolve) -> dict[str, Any]:
-        """Площадка говорит, откуда брать поток, а разбирает его общий `Resolver`."""
-        plan = await source.source(ctx, request.kind, request.contentId, {})
-        return await self.resolver.resolve(plan, ctx.net, source.id, request.contentId, request.adaptive)
+    async def _resolve(
+        self, source: Provider, ctx: Ctx, request: Resolve, entry: Any = None
+    ) -> dict[str, Any]:
+        """
+        Площадка говорит, откуда брать поток, а разбирает его общий `Resolver`. Место комнаты
+        (`entry`) освобождается, когда кончился сам разбор, а не когда ушёл ждавший его запрос.
+        """
+        try:
+            if not isinstance(source, General):
+                plan = await source.source(ctx, request.kind, request.contentId, {})
+                return await self.resolver.resolve(
+                    plan, ctx.net, source.id, request.contentId, request.adaptive
+                )
+            try:
+                async with asyncio.timeout(LINK_RESOLVE_SECONDS):
+                    plan = await source.source(ctx, request.kind, request.contentId, {})
+                    return await self.resolver.resolve(
+                        plan, ctx.net, source.id, request.contentId, request.adaptive
+                    )
+            except TimeoutError:
+                raise HTTPException(504, EXPIRED) from None
+        finally:
+            if entry is not None:
+                source.leave(ctx.room, entry)
 
     def dash(self, key: str) -> Response:
         return self.resolver.dash(key)
@@ -500,18 +546,38 @@ class Cinema:
     # --- прокси ------------------------------------------------------------------------
 
     async def manifest(self, url: str, encodings: str | None, provider: str) -> Response:
+        """
+        Плейлист площадки на наших адресах.
+
+        Спрашивается несжатым, и сжатый вопреки просьбе — отказ: httpx распаковывает тело кусками, и
+        один кусок сжатой «бомбы» — это десятки мегабайт ещё до проверки предела. Читается не больше
+        `PLAYLIST_LIMIT` (у площадок каталога — `CATALOG_PLAYLIST_LIMIT`) и за `PLAYLIST_DEADLINE`.
+        """
         source = self.registry.find(provider)
+        limit = PLAYLIST_LIMIT if source is None or source.hosts.public_any else CATALOG_PLAYLIST_LIMIT
         try:
-            response = await self._send(self.net.client_for(provider), url, {}, provider, stream=False)
-        except httpx.HTTPError:
-            # Обрыв по дороге к площадке — её отказ (502), а не наша ошибка (500).
-            raise HTTPException(502, "Площадка не отдала плейлист") from None
-        if response.status_code >= 300:
-            raise HTTPException(502, "Площадка не отдала плейлист")
+            async with asyncio.timeout(PLAYLIST_DEADLINE):
+                upstream = await self._open(
+                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider
+                )
+                try:
+                    if not _plain(upstream):
+                        raise HTTPException(502, NO_PLAYLIST)
+                    raw = await self._read(upstream, limit)
+                finally:
+                    await upstream.aclose()
+        except TimeoutError:
+            raise HTTPException(504, "Площадка не отдала плейлист вовремя") from None
+        except HTTPException as error:
+            # Обрыв, отказ площадки, сжатый вопреки просьбе и больше предела — плеер слышит одно.
+            if error.status_code != 502:
+                raise
+            raise HTTPException(502, NO_PLAYLIST) from None
+        text = raw.decode("utf-8", errors="replace")
         # Список кусочков с ключом DRM (обычно он не в мастере, а здесь) — отказ, а не попытка.
-        if source is not None and source.refuses_drm and drm.hls(response.text):
+        if source is not None and source.refuses_drm and drm.hls(text):
             raise HTTPException(403, drm.DRM)
-        body = rewrite(response.text, str(response.url), self.signer, self.reels, provider=provider)
+        body = rewrite(text, str(upstream.url), self.signer, self.reels, provider=provider)
         headers = {"Cache-Control": "no-store"}
         payload = body.encode()
         # Плейлист фильма — это тысячи почти одинаковых строк. Сжатие снимает с них ещё
@@ -593,7 +659,7 @@ class Cinema:
         которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов.
         """
         try:
-            upstream = await self._send(client, url, headers, provider, stream=True)
+            upstream = await self._send(client, url, headers, provider)
         except httpx.HTTPError:
             raise HTTPException(502, "Площадка не отдала данные") from None
         if upstream.status_code >= 300:
@@ -602,7 +668,7 @@ class Cinema:
         return upstream
 
     async def _send(
-        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str, *, stream: bool
+        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str
     ) -> httpx.Response:
         """
         Запрос к площадке. Сам httpx переадресацию не проходит никогда: у площадки, которой она нужна,
@@ -613,7 +679,7 @@ class Cinema:
         follow = source is not None and source.follows_redirects
         for _ in range(REDIRECTS + 1):
             request = client.build_request("GET", url, headers=headers)
-            response = await client.send(request, stream=stream, follow_redirects=False)
+            response = await client.send(request, stream=True, follow_redirects=False)
             location = response.headers.get("location")
             if not (follow and response.is_redirect and location):
                 return response

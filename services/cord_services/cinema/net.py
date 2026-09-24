@@ -34,11 +34,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import io
 import logging
 import os
 import re
 import socket
+import ssl
 import tempfile
 import warnings
 from dataclasses import dataclass, field
@@ -76,6 +78,12 @@ ATTEMPT_TIMEOUT = 4.0
 
 TIMEOUT = httpx.Timeout(20.0, read=60.0)
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Cord/1.0"
+# Настольный Chrome — тем же именем VK и Rutube ходят к своим площадкам (`providers/vk.py`,
+# `providers/rutube.py`), а yt-dlp и сам ходит под Chrome.
+BROWSER = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/140.0.0.0 Safari/537.36"
+)
 
 # Порты, на которые браузер не ходит ни за чем (стандарт Fetch, «port blocking»): почта, SSH,
 # IRC, SIP и прочие службы, которые не HTTP. Площадке с любыми хостами («По ссылке») туда нельзя
@@ -520,7 +528,7 @@ class GuardedBackend(httpcore.AsyncNetworkBackend):
         socket_options: Iterable[Any] | None = None,
     ) -> httpcore.AsyncNetworkStream:
         if self.exempt is not None and host == self.exempt:
-            return await self.inner.connect_tcp(host, port, timeout, local_address, socket_options)
+            return _Tunnel(await self.inner.connect_tcp(host, port, timeout, local_address, socket_options))
         clock = asyncio.get_running_loop().time
         deadline = None if timeout is None else clock() + timeout
         try:
@@ -555,6 +563,45 @@ class GuardedBackend(httpcore.AsyncNetworkBackend):
 
     async def sleep(self, seconds: float) -> None:
         await self.inner.sleep(seconds)
+
+
+# Имя сайта, которое проверяет TLS цели вместо её закреплённого адреса, — у запроса через прокси.
+# httpcore (1.0) в туннеле CONNECT отдаёт TLS адрес из URL, а расширение `sni_hostname` не читает; у
+# HTTPS-прокси оно к тому же ушло бы в TLS до самого прокси. Поэтому пара «адрес → имя» едет рядом с
+# запросом, в его задаче (`GuardedTransport.handle_async_request`), а подставляет имя поток до прокси.
+_PINNED: contextvars.ContextVar[tuple[str, str] | None] = contextvars.ContextVar(
+    "cinema_pinned", default=None
+)
+
+
+class _Tunnel(httpcore.AsyncNetworkStream):
+    """
+    Поток до прокси: TLS цели внутри туннеля проверяет имя сайта (SNI и сертификат), хотя CONNECT
+    ушёл на его закреплённый адрес. Остальное — как у потока под ним.
+    """
+
+    def __init__(self, inner: httpcore.AsyncNetworkStream):
+        self.inner = inner
+
+    async def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        return await self.inner.read(max_bytes, timeout)
+
+    async def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        await self.inner.write(buffer, timeout)
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
+
+    async def start_tls(
+        self, ssl_context: ssl.SSLContext, server_hostname: str | None = None, timeout: float | None = None
+    ) -> httpcore.AsyncNetworkStream:
+        pinned = _PINNED.get()
+        if pinned is not None and server_hostname == pinned[0]:
+            server_hostname = pinned[1]
+        return _Tunnel(await self.inner.start_tls(ssl_context, server_hostname, timeout))
+
+    def get_extra_info(self, info: str) -> Any:
+        return self.inner.get_extra_info(info)
 
 
 _seam_checked = False
@@ -592,8 +639,9 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
     только к нему, а имя площадки разрешает он сам (socks5h — ради обхода подменённого DNS).
     Площадке со своим списком хостов этого хватает: её политика стоит на подписи. Площадке с
     любыми хостами (`strict`: ссылка, своя медиатека) — нет: её цель проверяется здесь, до
-    прокси, а SOCKS получает уже проверенный адрес вместо имени (имя остаётся TLS и `Host`).
-    HTTP-прокси так не умеет: у него остаётся промежуток между нашей проверкой и его DNS.
+    прокси, и прокси получает уже проверенный адрес вместо имени — SOCKS в CONNECT, HTTP(S)-прокси
+    в CONNECT и в адресе запроса. Имя остаётся TLS (SNI и сертификат) и заголовку `Host`, а у прокси
+    нет своего разрешения имени, которое успел бы подменить DNS между нашей проверкой и его.
     """
 
     def __init__(
@@ -616,12 +664,20 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
         )
         self.guard = guard
         self.vet_targets = strict and proxied is not None
-        self.pin = self.vet_targets and proxied is not None and proxied.scheme.startswith("socks")
+        # HTTP(S)-прокси, а не SOCKS: адрес цели — в CONNECT и в адресе запроса, а имя для TLS — через
+        # поток до прокси (`_Tunnel`): туннель httpcore расширение `sni_hostname` не читает.
+        self.tunnel = proxied is not None and not proxied.scheme.startswith("socks")
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        if self.vet_targets:
-            request = await self._vetted(request)
-        return await super().handle_async_request(request)
+        if not self.vet_targets:
+            return await super().handle_async_request(request)
+        host = request.url.host
+        request = await self._vetted(request)
+        token = _PINNED.set((request.url.host, host))
+        try:
+            return await super().handle_async_request(request)
+        finally:
+            _PINNED.reset(token)
 
     async def _vetted(self, request: httpx.Request) -> httpx.Request:
         host = request.url.host
@@ -630,14 +686,23 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
             addresses = await self.guard.vet(host, port)
         except httpcore.ConnectError as error:
             raise httpx.ConnectError(str(error), request=request) from error
-        if not self.pin:
-            return request
+        # IPv4 — первым, как у своих соединений (`GuardedBackend`): IPv6 без маршрута молчит.
+        chosen = min(addresses, key=lambda text: ip_address(text).version)
+        if self.tunnel and request.url.scheme == "https" and ip_address(chosen).version == 6:
+            # CONNECT httpcore пишет адрес IPv6 без скобок — такой туннель прокси не поймёт, а имя
+            # вместо адреса прокси разрешил бы сам, уже без нашей проверки.
+            raise httpx.ConnectError(
+                f"{host}: у сайта только IPv6 — через HTTP-прокси его не открыть", request=request
+            )
+        extensions = dict(request.extensions)
+        if not self.tunnel:
+            extensions["sni_hostname"] = host
         return httpx.Request(
             request.method,
-            request.url.copy_with(host=addresses[0]),
+            request.url.copy_with(host=chosen),
             headers=request.headers,
             stream=request.stream,
-            extensions={**request.extensions, "sni_hostname": host},
+            extensions=extensions,
         )
 
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Mapping
-from urllib.parse import SplitResult, parse_qs, urlsplit
+from urllib.parse import SplitResult, parse_qs, unquote, urlsplit
 
 # Ссылки длиннее не бывает: адрес ролика с метками — сотня-другая знаков, а две тысячи — предел,
 # который держат браузеры и прокси по дороге.
@@ -23,6 +23,10 @@ LONGEST = 2000
 # поэтому такой адрес не разбирается вовсе.
 UNSAFE = re.compile(r"[\x00-\x20\x7f]")
 PORTS = {"http": 80, "https": 443}
+# В якоре `#__youtubedl_smuggle=…` yt-dlp передаёт сам себе данные для разборщика: чужой Referer,
+# заголовки, «разбирай как generic». От человека такой адрес — не ссылка на страницу, а команда yt-dlp,
+# и её не берут вовсе (закодированную тоже: знаки процента не делают её ссылкой).
+SMUGGLED = "__youtubedl_smuggle"
 
 
 @dataclass(frozen=True)
@@ -38,8 +42,13 @@ class Address:
 
 
 def _split(url: str) -> tuple[SplitResult, int | None] | None:
-    """Части ссылки на страницу — `http(s)`, хост, без пробелов и без имени с паролем — и её порт."""
+    """
+    Части ссылки на страницу — `http(s)`, хост, без пробелов, без имени с паролем и без контрабанды
+    yt-dlp (`SMUGGLED`) — и её порт.
+    """
     if not isinstance(url, str) or not url or len(url) > LONGEST or UNSAFE.search(url):
+        return None
+    if SMUGGLED in unquote(url).lower():
         return None
     try:
         parts = urlsplit(url)

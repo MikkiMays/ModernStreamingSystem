@@ -60,6 +60,17 @@ class Memo:
         """Забыть готовый ответ: тот, кто просит обновить, получит новый."""
         self._items.pop(key, None)
 
+    def peek(self, key: str) -> Any:
+        """Свежий готовый ответ — или `None`; ничего не считает и ничего не ждёт."""
+        return self._fresh(key)
+
+    def put(self, key: str, value: Any, ttl: float) -> None:
+        """Положить готовый ответ, посчитанный не через `get` (у своей задачи — своя судьба)."""
+        self._items.pop(key, None)
+        self._items[key] = (time.time() + ttl, value)
+        while len(self._items) > self.capacity:
+            self._items.pop(next(iter(self._items)))
+
     def scope(self, namespace: str) -> Scope:
         """Память одной площадки: все её ключи начинаются с её имени."""
         return Scope(self, namespace)
@@ -115,3 +126,9 @@ class Scope:
     def known(self, key: str) -> bool:
         """Есть ли свежий ответ или его уже считают — вопрос наружу ничего не стоит (`Memo.known`)."""
         return self._memo.known(self._prefix + key)
+
+    def peek(self, key: str) -> Any:
+        return self._memo.peek(self._prefix + key)
+
+    def put(self, key: str, value: Any, ttl: float) -> None:
+        self._memo.put(self._prefix + key, value, ttl)

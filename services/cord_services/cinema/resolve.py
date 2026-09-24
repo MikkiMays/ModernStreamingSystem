@@ -38,10 +38,15 @@ COOKIES_REFUSED = "не подошёл файл cookies"
 # Что сказать вместо ошибки yt-dlp, когда разбор площадки с охраняемым выходом (`egress.py`) упёрся в
 # его пределы: адрес внутри сети, срок разбора, занятые места.
 INSIDE = "Ссылка ведёт во внутреннюю сеть или на закрытый порт — такие адреса кинозал не открывает"
-EXPIRED = "Сайт не отдал видео за 30 секунд — попробуйте ещё раз или другую ссылку"
+EXPIRED = "Сайт не отдал видео вовремя — попробуйте ещё раз или другую ссылку"
 BUSY = "Сервер сейчас разбирает много ссылок — попробуйте через минуту"
 CLOSED = "Разбор ссылок сейчас недоступен — попробуйте через минуту"
 UNREACHABLE = "Сайт не отвечает или такого адреса нет — проверьте ссылку"
+TOO_BIG = "Страница слишком большая — такие кинозал не разбирает"
+# Сколько распакованных байт yt-dlp может прочесть из одного ответа сайта у площадки с охраняемым
+# выходом. Выход считает байты по проводу (`egress.BUDGET`), а распаковывает yt-dlp сам: 64 КБ сжатых
+# нулей — это 64 МБ страницы, и «страница» в гигабайт уронила бы службу целиком.
+DECODED_LIMIT = 32 * 1024 * 1024
 # Видео есть, но только кусочками DASH из манифеста сайта: такой поток наш плеер пока не собирает.
 DASH_ONLY = "Сайт отдаёт это видео только потоком DASH — такой кинозал пока не показывает"
 # Видео есть, но только файлами, которые браузер не играет (`.mpg`, `.avi`, `.wmv`, …).
@@ -70,6 +75,10 @@ class Protected(Exception):
 
 class Unreachable(Exception):
     """Сайта нет: имя не разрешилось или ни один его адрес не ответил выходу."""
+
+
+class Oversized(Exception):
+    """Ответ сайта после распаковки больше `DECODED_LIMIT`: разбор остановлен на пределе."""
 
 
 # Так yt-dlp отказывает, когда все форматы ролика под DRM (`YoutubeDL.raise_no_formats`).
@@ -158,7 +167,9 @@ class YtDlp:
             warnings.filterwarnings("ignore", message="http.cookiejar bug!", category=UserWarning)
         self._log_js_runtime()
 
-    def extract(self, address: str, options: Mapping[str, Any], provider: str) -> dict[str, Any]:
+    def extract(
+        self, address: str, options: Mapping[str, Any], provider: str, *, lease: Lease | None = None
+    ) -> dict[str, Any]:
         """
         Разбор как есть: исключение yt-dlp уходит к спросившему нетронутым.
 
@@ -176,19 +187,29 @@ class YtDlp:
         cookies = self.cookies.get(provider)
         if cookies and provider in self.cookies_fallback:
             try:
-                return self._call(address, options, provider, cookies=None)
+                return self._call(address, options, provider, cookies=None, lease=lease)
             except Exception as error:  # yt_dlp поднимает свои типы — ловим широко, решает текст
                 if not BOT_CHECK.search(str(error)):
                     raise
-            return self._call(address, options, provider, cookies=cookies)
-        return self._call(address, options, provider, cookies=cookies)
+            return self._call(address, options, provider, cookies=cookies, lease=lease)
+        return self._call(address, options, provider, cookies=cookies, lease=lease)
 
     def _call(
-        self, address: str, options: Mapping[str, Any], provider: str, *, cookies: str | None
+        self,
+        address: str,
+        options: Mapping[str, Any],
+        provider: str,
+        *,
+        cookies: str | None,
+        lease: Lease | None = None,
     ) -> dict[str, Any]:
         """Один настоящий вызов yt-dlp — с этим cookiefile или совсем без него."""
         return self.run(
-            provider, options, lambda ydl: ydl.extract_info(address, download=False) or {}, cookies=cookies
+            provider,
+            options,
+            lambda ydl: ydl.extract_info(address, download=False) or {},
+            cookies=cookies,
+            lease=lease,
         )
 
     def run(
@@ -198,6 +219,7 @@ class YtDlp:
         work: Callable[[Any], Any],
         *,
         cookies: str | None = None,
+        lease: Lease | None = None,
     ) -> Any:
         """
         Открытый `YoutubeDL` площадки — со всем, что ей положено снаружи, — и одна работа с ним.
@@ -205,24 +227,26 @@ class YtDlp:
         Через это место идёт любой вызов yt-dlp: и обычный разбор (`_call`), и разбор ссылки по
         шагам, которому мало одного `extract_info` (`providers/link.py`). Поэтому выход наружу
         решается здесь, а не у спросившего: у площадки с охраняемым выходом `proxy` из опций
-        заменяется входом разбора, что бы в опциях ни стояло.
+        заменяется входом разбора (`lease` — его берёт в цикле событий тот, кто зовёт yt-dlp,
+        `Egress.session`), что бы в опциях ни стояло; нет входа — нет и выхода наружу.
         """
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
         params = copy.deepcopy(dict(options))
-        gate = self.egress.get(provider)
-        if gate is not None:
+        if provider in self.egress:
+            if lease is None:
+                raise Closed("Разбору не дали входа в охраняемый выход")
             # Cookies здесь не идут никогда: страница чужая, и вход администратора на ней не нужен.
-            with gate.lease() as lease:
-                params["proxy"] = lease.url
-                # Ни ошибок yt-dlp, ни его предупреждений в журнал: в них адрес страницы, которую
-                # вставил участник, а в адресе бывают его ключи и метки.
-                params["logger"] = _Quiet(self.explain, silent=True)
-                try:
-                    with yt_dlp.YoutubeDL(params) as ydl:
-                        return work(ydl)
-                except Exception as error:
-                    raise _egress_error(lease, error) or error
+            params["proxy"] = lease.url
+            # Ни ошибок yt-dlp, ни его предупреждений в журнал: в них адрес страницы, которую
+            # вставил участник, а в адресе бывают его ключи и метки.
+            params["logger"] = _Quiet(self.explain, silent=True)
+            try:
+                with yt_dlp.YoutubeDL(params) as ydl:
+                    ydl.urlopen = _capped(ydl.urlopen)
+                    return work(ydl)
+            except Exception as error:
+                raise _egress_error(lease, error) or error
         proxy = self.network.proxy_for(provider)
         if proxy:
             params["proxy"] = proxy
@@ -264,10 +288,14 @@ class YtDlp:
         else:
             logger.info("кинозал: yt-dlp решает JS-проверки YouTube движком deno %s", info.version)
 
-    def probe(self, source: str, provider: str, **options: Any) -> dict[str, Any]:
+    def probe(
+        self, source: str, provider: str, *, lease: Lease | None = None, **options: Any
+    ) -> dict[str, Any]:
         """Один ролик целиком. Отказ площадки превращается в человеческий текст."""
         try:
-            return self.extract(source, {**PROBE, **options}, provider)
+            if lease is None:
+                return self.extract(source, {**PROBE, **options}, provider)
+            return self.extract(source, {**PROBE, **options}, provider, lease=lease)
         except HTTPException:
             raise
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
@@ -295,11 +323,65 @@ class YtDlp:
         return text
 
 
+class _Capped:
+    """
+    Ответ сайта для yt-dlp с пределом на распакованные байты (`DECODED_LIMIT`).
+
+    yt-dlp читает страницу целиком (`read()` без размера — у него это кусками по мегабайту до конца) и
+    распаковывает gzip, deflate и brotli сам, по заголовку ответа, о чём бы его ни просили. Здесь
+    чтение идёт кусками по `CHUNK` распакованных байт, и на пределе разбор останавливается —
+    исключением, которое становится отказом словами.
+    """
+
+    CHUNK = 64 * 1024
+
+    def __init__(self, response: Any, limit: int):
+        self._response = response
+        self._left = limit
+
+    def read(self, amt: int | None = None) -> bytes:
+        if amt is not None and amt >= 0:
+            return self._take(amt)
+        parts = []
+        while chunk := self._take(self.CHUNK):
+            parts.append(chunk)
+        return b"".join(parts)
+
+    def _take(self, amt: int) -> bytes:
+        if amt == 0:
+            return b""
+        data = self._response.read(min(amt, self.CHUNK))
+        self._left -= len(data)
+        if self._left < 0:
+            raise Oversized()
+        return data
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._response, name)
+
+    def __enter__(self) -> _Capped:
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._response.close()
+
+
+def _capped(urlopen: Callable[..., Any]) -> Callable[..., Any]:
+    """`YoutubeDL.urlopen`, чьи ответы читаются не больше `DECODED_LIMIT` распакованных байт."""
+
+    def opened(request: Any) -> _Capped:
+        return _Capped(urlopen(request), DECODED_LIMIT)
+
+    return opened
+
+
 def _egress_error(lease: Lease, error: Exception) -> Exception | None:
     """
     Ошибка yt-dlp, за которой на самом деле стоит выход (отказ проверки, вышедший срок) или DRM:
     у площадки с чужими страницами это отказы словами, а не «не удалось открыть» с текстом yt-dlp.
     """
+    if isinstance(error, Oversized):
+        return error
     if lease.refused:
         return Inside(lease.refused)
     if lease.expired:
@@ -326,6 +408,8 @@ def refusal(error: BaseException) -> HTTPException | None:
         return HTTPException(403, drm.DRM)
     if isinstance(error, Unreachable):
         return HTTPException(502, UNREACHABLE)
+    if isinstance(error, Oversized):
+        return HTTPException(502, TOO_BIG)
     return None
 
 
@@ -496,7 +580,19 @@ class Resolver:
     ) -> dict[str, Any]:
         if plan.via == "direct":
             return self._direct(plan, provider, content_id)
-        info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
+        gate = self.ytdlp.egress.get(provider)
+        if gate is None:
+            info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
+        else:
+            # Место в выходе берётся здесь, в цикле событий, а не в потоке; отменили разбор — вход
+            # закрыт, и поток yt-dlp дальше получает только обрывы.
+            try:
+                async with gate.session() as lease:
+                    info = await asyncio.to_thread(
+                        self.ytdlp.probe, plan.url, provider, lease=lease, **plan.options
+                    )
+            except Busy:
+                raise HTTPException(503, BUSY) from None
         return await self.settle(plan, info, net, provider, content_id, adaptive)
 
     async def settle(

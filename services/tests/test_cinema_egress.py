@@ -11,15 +11,18 @@
 
 import asyncio
 import base64
+import concurrent.futures
+import contextlib
 import datetime
 import os
 import ssl
 import tempfile
+import threading
 import time
 import unittest
 from ipaddress import ip_network
 
-from cord_services.cinema.egress import Busy, Closed, Egress
+from cord_services.cinema.egress import Busy, Egress
 from cord_services.cinema.net import Allowance, Guard
 
 PUBLIC = "93.184.216.34"
@@ -205,24 +208,27 @@ class EgressCase(unittest.IsolatedAsyncioTestCase):
         return f"Proxy-Authorization: Basic {token}\r\n"
 
     async def connect(self, lease, target):
+        return await self.connect_to(self.egress, lease, target)
+
+    async def connect_to(self, egress, lease, target):
         request = f"CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n{self.auth(lease)}\r\n".encode()
-        status, _, reader, writer = await self.ask(lease, request)
+        status, _, reader, writer = await self.ask(lease, request, egress)
         return status, reader, writer
 
     async def in_thread(self, work):
         return await asyncio.to_thread(work)
 
-    def open_lease(self, seconds=30.0, egress=None):
-        manager = (egress or self.egress).lease(seconds)
-        lease = manager.__enter__()
-        self.addCleanup(manager.__exit__, None, None, None)
+    async def open_lease(self, seconds=30.0, egress=None):
+        manager = (egress or self.egress).session(seconds)
+        lease = await manager.__aenter__()
+        self.addAsyncCleanup(manager.__aexit__, None, None, None)
         return lease
 
 
 class WhereItConnects(EgressCase):
     async def test_a_public_name_is_reached_by_the_address_that_was_checked(self):
         site = await self.site({"/": (200, {}, b"hello")}, port=443)
-        lease = self.open_lease()
+        lease = await self.open_lease()
         status, reader, writer = await self.connect(lease, "public.test:443")
         self.assertEqual(status, "HTTP/1.1 200 Connection established")
         writer.write(b"GET / HTTP/1.1\r\nHost: public.test\r\nConnection: close\r\n\r\n")
@@ -235,7 +241,7 @@ class WhereItConnects(EgressCase):
         self.assertEqual(site.requests[0][:2], ("GET", "/"))
 
     async def test_an_address_inside_is_refused_before_dialling(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for target in (
             "127.0.0.1:18100",
             "10.0.0.1:443",
@@ -252,7 +258,7 @@ class WhereItConnects(EgressCase):
         self.assertIn("не публичный", lease.refused)
 
     async def test_a_name_that_resolves_inside_is_refused(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for target in ("inside.test:443", "metadata.test:80", "INSIDE.test.:443"):
             status, _, writer = await self.connect(lease, target)
             writer.close()
@@ -261,14 +267,14 @@ class WhereItConnects(EgressCase):
 
     async def test_one_inside_address_behind_a_name_is_enough_to_refuse_it(self):
         await self.site({"/": (200, {}, b"hello")}, port=443)
-        lease = self.open_lease()
+        lease = await self.open_lease()
         status, _, writer = await self.connect(lease, "mixed.test:443")
         writer.close()
         self.assertEqual(status, "HTTP/1.1 403 Forbidden")
         self.assertEqual(self.wires.dialed, [])
 
     async def test_ipv4_inside_ipv6_is_checked_as_that_ipv4(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for target in (
             "[::ffff:127.0.0.1]:443",
             "[::ffff:a00:1]:443",
@@ -283,14 +289,14 @@ class WhereItConnects(EgressCase):
 
     async def test_a_public_ipv6_is_dialled_as_itself(self):
         await self.site({"/": (200, {}, b"six")}, address=SIX, port=443)
-        lease = self.open_lease()
+        lease = await self.open_lease()
         status, _, writer = await self.connect(lease, "six.test:443")
         writer.close()
         self.assertEqual(status, "HTTP/1.1 200 Connection established")
         self.assertEqual(self.wires.dialed, [(SIX, 443)])
 
     async def test_a_name_that_does_not_resolve_or_does_not_answer_is_a_gateway_failure(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         status, _, writer = await self.connect(lease, "nowhere.test:443")
         writer.close()
         self.assertEqual(status, "HTTP/1.1 502 Bad Gateway")
@@ -303,7 +309,7 @@ class WhereItConnects(EgressCase):
         self.assertIsNone(lease.refused)
 
     async def test_ports_no_browser_would_open_are_closed(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for target in ("public.test:25", "public.test:22", "public.test:6667", f"{PUBLIC}:465"):
             status, _, writer = await self.connect(lease, target)
             writer.close()
@@ -316,7 +322,7 @@ class WhereItConnects(EgressCase):
         await egress.start()
         self.addAsyncCleanup(egress.close)
         await self.site({"/": (200, {}, b"library")}, address="127.0.0.1", port=8097)
-        lease = self.open_lease(egress=egress)
+        lease = await self.open_lease(egress=egress)
         opened = f"CONNECT inside.test:8097 HTTP/1.1\r\n{self.auth(lease)}\r\n".encode()
         status, _, _, writer = await self.ask(lease, opened, egress)
         writer.close()
@@ -331,7 +337,7 @@ class WhereItConnects(EgressCase):
 class PlainHttp(EgressCase):
     async def test_a_full_address_request_goes_once_to_the_checked_address_and_closes(self):
         site = await self.site({"/watch?v=1": (200, {"Keep-Alive": "timeout=5"}, b"page")})
-        lease = self.open_lease()
+        lease = await self.open_lease()
         request = (
             "GET http://public.test/watch?v=1 HTTP/1.1\r\nHost: evil.test\r\nAccept: */*\r\n"
             f"{self.auth(lease)}Proxy-Connection: keep-alive\r\nConnection: keep-alive, X-Secret\r\n"
@@ -355,7 +361,7 @@ class PlainHttp(EgressCase):
         self.assertEqual(self.wires.dialed, [(PUBLIC, 80)])
 
     async def test_what_is_not_a_plain_http_request_is_refused(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for request, expected in (
             (f"GET https://public.test/ HTTP/1.1\r\n{self.auth(lease)}\r\n", "400"),
             (f"GET / HTTP/1.1\r\n{self.auth(lease)}\r\n", "400"),
@@ -380,7 +386,7 @@ class PlainHttp(EgressCase):
 class Entry(EgressCase):
     async def test_without_the_right_password_or_a_live_lease_nothing_opens(self):
         await self.site({"/": (200, {}, b"hello")}, port=443)
-        lease = self.open_lease()
+        lease = await self.open_lease()
         for header in (
             "",
             self.auth(lease, password="wrong"),
@@ -398,11 +404,11 @@ class Entry(EgressCase):
 
     async def test_a_finished_lease_opens_nothing_and_closes_what_it_had(self):
         site = await self.site({"/": (200, {}, b"hello")}, port=443)
-        manager = self.egress.lease()
-        lease = manager.__enter__()
+        manager = self.egress.session()
+        lease = await manager.__aenter__()
         status, reader, writer = await self.connect(lease, "public.test:443")
         self.assertEqual(status, "HTTP/1.1 200 Connection established")
-        await self.in_thread(lambda: manager.__exit__(None, None, None))
+        await manager.__aexit__(None, None, None)
         # Открытый туннель закрылся вместе с разбором.
         self.assertEqual(await asyncio.wait_for(reader.read(), 5), b"")
         writer.close()
@@ -411,14 +417,50 @@ class Entry(EgressCase):
         self.assertEqual(status, "HTTP/1.1 407 Proxy Authentication Required")
         self.assertEqual(site.connections, 1)
 
-    async def test_a_proxy_that_is_not_started_gives_no_lease(self):
-        idle = self.make()
-        with self.assertRaises(Closed):
-            with idle.lease():
+    async def test_a_cancelled_extraction_hangs_up_its_lease_at_once(self):
+        # Разбор отменили (следующая ссылка комнаты, срок): вход закрыт сразу, а не когда поток
+        # yt-dlp сам заметит, что его ответ больше не нужен.
+        site = await self.site({"/": (200, {}, b"hello")}, port=443)
+        egress = self.make(sessions=1)
+        self.addAsyncCleanup(egress.close)
+        opened = asyncio.Event()
+        held = {}
+
+        async def extraction():
+            async with egress.session() as lease:
+                held["lease"] = lease
+                status, held["reader"], held["writer"] = await self.connect_to(
+                    egress, lease, "public.test:443"
+                )
+                self.assertEqual(status, "HTTP/1.1 200 Connection established")
+                opened.set()
+                await asyncio.sleep(3600)
+
+        task = asyncio.ensure_future(extraction())
+        await asyncio.wait_for(opened.wait(), 5)
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        self.assertEqual(await asyncio.wait_for(held["reader"].read(), 5), b"")
+        held["writer"].close()
+        status, _, again = await self.connect_to(egress, held["lease"], "public.test:443")
+        again.close()
+        self.assertEqual(status, "HTTP/1.1 407 Proxy Authentication Required")
+        self.assertEqual(site.connections, 1)
+        # И место отменённого разбора свободно сразу: следующий входит, не дожидаясь `wait`.
+        async with asyncio.timeout(1):
+            async with egress.session():
                 pass
 
+    async def test_the_proxy_starts_with_the_first_session(self):
+        idle = self.make()
+        self.addAsyncCleanup(idle.close)
+        self.assertIsNone(idle.port)
+        async with idle.session() as lease:
+            self.assertTrue(lease.url.endswith(f"@127.0.0.1:{idle.port}"))
+
     async def test_the_address_of_a_lease_carries_its_name_and_the_process_password(self):
-        lease = self.open_lease()
+        lease = await self.open_lease()
         self.assertTrue(lease.url.startswith(f"http://{lease.id}:{self.egress.secret}@127.0.0.1:"))
         self.assertTrue(lease.url.endswith(f":{self.egress.port}"))
         self.assertNotIn(self.egress.secret, repr(lease))
@@ -428,7 +470,7 @@ class Entry(EgressCase):
 class Limits(EgressCase):
     async def test_the_lease_deadline_cuts_its_tunnels(self):
         await self.site({"/": (200, {}, b"hello")}, port=443)
-        lease = self.open_lease(seconds=0.6)
+        lease = await self.open_lease(seconds=0.6)
         status, reader, writer = await self.connect(lease, "public.test:443")
         self.assertEqual(status, "HTTP/1.1 200 Connection established")
         started = time.monotonic()
@@ -445,7 +487,7 @@ class Limits(EgressCase):
         await egress.start()
         self.addAsyncCleanup(egress.close)
         await self.site({"/big": (200, {}, b"x" * (1024 * 1024))})
-        lease = self.open_lease(egress=egress)
+        lease = await self.open_lease(egress=egress)
         request = f"GET http://public.test/big HTTP/1.1\r\n{self.auth(lease)}\r\n".encode()
         status, _, reader, writer = await self.ask(lease, request, egress)
         body = await asyncio.wait_for(reader.read(), 5)
@@ -459,7 +501,7 @@ class Limits(EgressCase):
         await egress.start()
         self.addAsyncCleanup(egress.close)
         await self.site({"/": (200, {}, b"hello")}, port=443)
-        lease = self.open_lease(egress=egress)
+        lease = await self.open_lease(egress=egress)
         request = f"CONNECT public.test:443 HTTP/1.1\r\n{self.auth(lease)}\r\n".encode()
         answers = [await self.ask(lease, request, egress) for _ in range(3)]
         self.assertEqual(
@@ -473,16 +515,70 @@ class Limits(EgressCase):
         egress = self.make(sessions=1, wait=0.2)
         await egress.start()
         self.addAsyncCleanup(egress.close)
-        self.open_lease(egress=egress)
-
-        def second():
-            with egress.lease():
-                pass
-
+        await self.open_lease(egress=egress)
         started = time.monotonic()
         with self.assertRaises(Busy):
-            await self.in_thread(second)
+            async with egress.session():
+                pass
         self.assertGreaterEqual(time.monotonic() - started, 0.2)
+
+    async def test_waiting_for_a_place_takes_no_thread_of_the_pool(self):
+        # Пул в один поток, и тот занят: место разбора ждётся в цикле событий. Жди его поток пула —
+        # второй вход не получил бы места, пока первый поток не освободится.
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=1))
+        egress = self.make(sessions=1, wait=5)
+        await egress.start()
+        self.addAsyncCleanup(egress.close)
+        release = threading.Event()
+        self.addCleanup(release.set)
+        busy = loop.run_in_executor(None, release.wait)
+        first = egress.session()
+        await first.__aenter__()
+        entered = asyncio.Event()
+
+        async def second():
+            async with egress.session():
+                entered.set()
+
+        waiting = asyncio.ensure_future(second())
+        await asyncio.sleep(0.1)
+        self.assertFalse(entered.is_set())
+        await first.__aexit__(None, None, None)
+        await asyncio.wait_for(waiting, 2)
+        self.assertTrue(entered.is_set())
+        self.assertFalse(busy.done())
+        release.set()
+        await busy
+
+    async def test_silent_connections_do_not_lock_out_a_real_lease(self):
+        # Чужой процесс машины открыл соединений больше, чем мест, и молчит. Предел туннелей считает
+        # только вошедших, а молчащих держится не больше `pending` — новое вытесняет самое старое.
+        egress = self.make(tunnels=2, pending=3)
+        await egress.start()
+        self.addAsyncCleanup(egress.close)
+        await self.site({"/": (200, {}, b"hello")}, port=443)
+        silent = [await asyncio.open_connection("127.0.0.1", egress.port) for _ in range(10)]
+        self.addCleanup(lambda: [writer.close() for _, writer in silent])
+        await asyncio.sleep(0.1)
+        lease = await self.open_lease(egress=egress)
+        request = f"CONNECT public.test:443 HTTP/1.1\r\n{self.auth(lease)}\r\n".encode()
+        answers = [await self.ask(lease, request, egress) for _ in range(3)]
+        self.assertEqual(
+            [status for status, *_ in answers],
+            ["HTTP/1.1 200 Connection established"] * 2 + ["HTTP/1.1 503 Service Unavailable"],
+        )
+        for _, _, _, writer in answers:
+            writer.close()
+        # Самые старые молчащие закрыты прокси; открытыми остались не больше `pending`.
+        self.assertEqual(await asyncio.wait_for(silent[0][0].read(), 2), b"")
+        still = 0
+        for reader, _ in silent:
+            try:
+                await asyncio.wait_for(reader.read(), 0.05)
+            except TimeoutError:
+                still += 1
+        self.assertLessEqual(still, 3)
 
 
 class YtDlpThroughTheProxy(EgressCase):
@@ -490,12 +586,12 @@ class YtDlpThroughTheProxy(EgressCase):
 
     async def test_a_public_page_opens(self):
         await self.site({"/": (200, {"Content-Type": "text/plain"}, b"hello")})
-        manager = self.egress.lease()
-        lease = manager.__enter__()
+        manager = self.egress.session()
+        lease = await manager.__aenter__()
         try:
             status, body = await self.in_thread(lambda: through(lease, "http://public.test/"))
         finally:
-            await self.in_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
         self.assertEqual((status, body), (200, b"hello"))
         self.assertEqual(self.wires.dialed, [(PUBLIC, 80)])
 
@@ -508,8 +604,8 @@ class YtDlpThroughTheProxy(EgressCase):
             }
         )
         await self.site({"/film": (200, {}, b"film")}, address=CDN)
-        manager = self.egress.lease()
-        lease = manager.__enter__()
+        manager = self.egress.session()
+        lease = await manager.__aenter__()
         try:
             # Шаг наружу — идёт: каждый новый хост проверен и открыт заново.
             self.assertEqual(
@@ -519,7 +615,7 @@ class YtDlpThroughTheProxy(EgressCase):
                 with self.assertRaises(Exception):
                     await self.in_thread(lambda: through(lease, f"http://public.test{path}"))
         finally:
-            await self.in_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
         self.assertEqual(self.wires.dialed, [(PUBLIC, 80), (CDN, 80), (PUBLIC, 80), (PUBLIC, 80)])
         self.assertIn("10.0.0.5", lease.refused)
 
@@ -534,8 +630,8 @@ class YtDlpThroughTheProxy(EgressCase):
             port=443,
             tls=tls,
         )
-        manager = self.egress.lease()
-        lease = manager.__enter__()
+        manager = self.egress.session()
+        lease = await manager.__aenter__()
         try:
             self.assertEqual(
                 await self.in_thread(lambda: through(lease, "https://public.test/")), (200, b"secure")
@@ -543,7 +639,7 @@ class YtDlpThroughTheProxy(EgressCase):
             with self.assertRaises(Exception):
                 await self.in_thread(lambda: through(lease, "https://public.test/inside"))
         finally:
-            await self.in_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
         self.assertNotIn(("169.254.169.254", 443), self.wires.dialed)
         self.assertIn("169.254.169.254", lease.refused)
 
@@ -557,8 +653,8 @@ class YtDlpThroughTheProxy(EgressCase):
             b"</video></body></html>"
         )
         await self.site({"/film": (200, {"Content-Type": "text/html; charset=utf-8"}, page)})
-        manager = self.egress.lease()
-        lease = manager.__enter__()
+        manager = self.egress.session()
+        lease = await manager.__aenter__()
 
         def extract():
             import yt_dlp
@@ -570,7 +666,7 @@ class YtDlpThroughTheProxy(EgressCase):
         try:
             info = await self.in_thread(extract)
         finally:
-            await self.in_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
         # Одно видео на странице yt-dlp называет «Имя страницы (1)» — номер снимает площадка.
         self.assertEqual(info["title"], "Film night (1)")
         self.assertEqual([item["url"] for item in info["formats"]], ["http://cdn.test/film-720.mp4"])
@@ -631,12 +727,12 @@ class UpstreamProxy(unittest.IsolatedAsyncioTestCase):
         return egress
 
     async def fetch(self, egress):
-        manager = egress.lease()
-        lease = manager.__enter__()
+        manager = egress.session()
+        lease = await manager.__aenter__()
         try:
             return lease, await asyncio.to_thread(lambda: through(lease, "http://public.test/"))
         finally:
-            await asyncio.to_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
 
     async def test_socks5_is_asked_for_the_checked_address(self):
         egress = await self.proxied(self.socks, "socks5h")
@@ -654,13 +750,13 @@ class UpstreamProxy(unittest.IsolatedAsyncioTestCase):
 
     async def test_the_inside_is_refused_before_the_proxy_is_asked(self):
         egress = await self.proxied(self.http_connect, "http")
-        manager = egress.lease()
-        lease = manager.__enter__()
+        manager = egress.session()
+        lease = await manager.__aenter__()
         try:
             with self.assertRaises(Exception):
                 await asyncio.to_thread(lambda: through(lease, "http://inside.test/"))
         finally:
-            await asyncio.to_thread(lambda: manager.__exit__(None, None, None))
+            await manager.__aexit__(None, None, None)
         self.assertEqual(self.asked, [])
 
 

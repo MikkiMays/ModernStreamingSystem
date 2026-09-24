@@ -15,11 +15,15 @@
 ВХОД. Прокси слушает 127.0.0.1 на случайном порту. Служба живёт в сети хоста, и этот порт видит
 любой процесс машины, поэтому вход — по паролю, придуманному при старте процесса; в журнал он не
 пишется. Имя входа — номер разбора (`Lease`): соединения одного разбора закрываются разом, когда
-разбор кончился или вышел его срок, — и поток yt-dlp, которого снаружи не прервать, кончается сам.
+разбор кончился, отменён или вышел его срок, — и поток yt-dlp, которого снаружи не прервать,
+кончается сам, на обрыве.
 
 ПРЕДЕЛЫ. Разбор — не дольше `LEASE_SECONDS` и не больше `BUDGET` байт от сайтов; разом — не больше
-`SESSIONS` разборов на процесс, `TUNNELS` соединений всего и `PER_LEASE` у одного разбора; порты, на
-которые не ходит и браузер (почта, SSH, …), закрыты (`net.BAD_PORTS`).
+`SESSIONS` разборов на процесс (место ждут в цикле событий, до `to_thread`: поток пула, нужный и
+разрешению имён, ожиданием не занят), `TUNNELS` пропущенных соединений всего и `PER_LEASE` у одного
+разбора. Соединение без головы запроса — ещё не вход: таких держится не больше `PENDING`, и новое
+вытесняет самое старое — чужой процесс машины, открывший их сотню и молчащий, не запрёт выход
+настоящему разбору. Порты, на которые не ходит и браузер (почта, SSH, …), закрыты (`net.BAD_PORTS`).
 
 ПРОКСИ АДМИНИСТРАТОРА. Если у площадки есть выход `CINEMA_PROXY_LINK` (или общий `CINEMA_PROXY`),
 соединение идёт через него — но к уже проверенному адресу, а не к имени: имя прокси
@@ -38,11 +42,10 @@ import re
 import secrets
 import ssl
 import struct
-import threading
 import time
 from dataclasses import dataclass, field
 from ipaddress import ip_address
-from typing import Awaitable, Callable, Iterator
+from typing import AsyncIterator, Awaitable, Callable
 from urllib.parse import urlsplit
 
 import httpx
@@ -65,6 +68,9 @@ SESSIONS = 4
 WAIT = 10.0
 TUNNELS = 32
 PER_LEASE = 8
+# Соединений, которые ещё не прислали голову запроса. yt-dlp присылает её сразу, так что это почти
+# всегда ноль; больше — вытесняется самое старое.
+PENDING = 16
 # Столько байт разбор может получить от сайтов. Страница видео — сотни килобайт, плейлист
 # фильма — единицы мегабайт; гигабайтная «страница» — это уже не страница, а способ занять память.
 BUDGET = 64 * 1024 * 1024
@@ -118,7 +124,7 @@ class Busy(EgressError):
 
 
 class Closed(EgressError):
-    """Выход ещё не открыт или уже закрыт: без него yt-dlp этой площадки наружу не ходит вовсе."""
+    """Разбору не дали входа в выход: без него yt-dlp этой площадки наружу не ходит вовсе."""
 
 
 class _Refusal(Exception):
@@ -139,7 +145,7 @@ class Lease:
     `refused` — первая причина отказа проверкой (адрес внутри сети, закрытый порт): по ней ошибка
     yt-dlp («HTTP Error 403») становится человеческим «ссылка ведёт внутрь сети», а не «сайт не
     отдал». `streams` — открытые соединения разбора; трогает их только цикл событий. Кончился
-    разбор — вход убран из таблицы прокси (`Egress.lease`), и по нему больше не пускают.
+    разбор — вход убран из таблицы прокси (`Egress.session`), и по нему больше не пускают.
     """
 
     id: str
@@ -178,9 +184,9 @@ class Egress:
     """
     Выход наружу одной площадки для yt-dlp (у площадки «По ссылке» — её `Guard`).
 
-    Сервер поднимается в цикле событий (`start`) — лениво, на первом разборе, — а входы (`lease`)
-    берутся из потоков `to_thread`, где работает yt-dlp: таблица входов под замком, а соединения
-    разбора закрываются через `call_soon_threadsafe`.
+    Всё здесь живёт в цикле событий: сервер (`start` — лениво, на первом разборе), места разборов
+    (`asyncio.Semaphore`), таблица входов и соединения. Поток `to_thread`, где работает yt-dlp,
+    получает только готовый вход (`Lease.url`) — и ни ожиданием места, ни замками не занят.
     """
 
     def __init__(
@@ -193,29 +199,34 @@ class Egress:
         wait: float = WAIT,
         tunnels: int = TUNNELS,
         per_lease: int = PER_LEASE,
+        pending: int = PENDING,
         budget: int = BUDGET,
         idle: float = IDLE_TIMEOUT,
     ):
         self.guard = guard
         self._upstream = httpx.URL(upstream) if upstream else None
         self._dial = dial or (self._via if self._upstream is not None else _direct)
+        self.sessions = sessions
         self.wait = wait
         # Срок разбора по умолчанию: тесты укорачивают его, не трогая остальное.
         self.seconds = LEASE_SECONDS
         self.tunnels = tunnels
         self.per_lease = per_lease
+        self.pending = pending
         self.budget = budget
         self.idle = idle
         # Пароль входа — на процесс: только буквы и цифры, чтобы в адресе прокси его не пришлось
         # экранировать (urllib и requests раскодируют вход по-разному).
         self.secret = secrets.token_hex(24)
-        self._slots = threading.BoundedSemaphore(sessions)
-        self._lock = threading.Lock()
         self._leases: dict[str, Lease] = {}
         self._server: asyncio.Server | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._starting: asyncio.Lock | None = None
+        self._slots: asyncio.Semaphore | None = None
+        # Пропущенные соединения (для `TUNNELS`) и те, что ещё не прислали голову (для `PENDING`,
+        # в порядке прихода: вытесняется самое старое).
         self._open = 0
+        self._heads: dict[asyncio.StreamWriter, None] = {}
         self.port: int | None = None
 
     # --- жизнь сервера -----------------------------------------------------------------
@@ -231,6 +242,7 @@ class Egress:
             return
         if self._starting is None or self._loop is not loop:
             self._starting = asyncio.Lock()
+            self._slots = asyncio.Semaphore(self.sessions)
             self._loop, self._server, self.port = loop, None, None
         async with self._starting:
             if self._server is None:
@@ -243,45 +255,43 @@ class Egress:
         if server is None:
             return
         server.close()
-        with self._lock:
-            leases = list(self._leases.values())
-        for lease in leases:
+        for lease in list(self._leases.values()):
             self._hang_up(lease)
+        for writer in list(self._heads):
+            writer.close()
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(server.wait_closed(), 2)
 
-    # --- входы разборов (из потоков yt-dlp) -----------------------------------------------
+    # --- входы разборов --------------------------------------------------------------------
 
-    @contextlib.contextmanager
-    def lease(self, seconds: float | None = None) -> Iterator[Lease]:
+    @contextlib.asynccontextmanager
+    async def session(self, seconds: float | None = None) -> AsyncIterator[Lease]:
         """
-        Вход для одного разбора: адрес прокси с именем и паролем. На выходе из `with` все соединения
-        разбора закрываются, и новых по этому входу прокси не примет.
-
-        Зовётся из потока, а не из цикла событий: иначе yt-dlp ждал бы прокси, которому не дали бы
-        ответить.
+        Вход для одного разбора — в цикле событий, **до** `to_thread`: место ждётся здесь (не больше
+        `wait`, потом `Busy`), а не в потоке пула. На выходе из `async with` — кончился ли разбор,
+        отменили ли его или вышел срок — вход убирается из таблицы, все его соединения закрываются,
+        и место освобождается; поток yt-dlp, если он ещё идёт, дальше получает только обрывы и 407.
         """
-        loop, port = self._loop, self.port
-        if self._server is None or loop is None or port is None or loop.is_closed():
-            raise Closed("Выход наружу для разбора ссылок не открыт")
-        if not self._slots.acquire(timeout=self.wait):
-            raise Busy("Сервер сейчас разбирает много ссылок")
+        await self.start()
+        slots = self._slots
+        assert slots is not None and self.port is not None
+        try:
+            async with asyncio.timeout(self.wait):
+                await slots.acquire()
+        except TimeoutError:
+            raise Busy("Сервер сейчас разбирает много ссылок") from None
         try:
             name = secrets.token_hex(12)
             deadline = time.monotonic() + (seconds or self.seconds)
-            lease = Lease(name, f"http://{name}:{self.secret}@127.0.0.1:{port}", deadline)
-            with self._lock:
-                self._leases[name] = lease
+            lease = Lease(name, f"http://{name}:{self.secret}@127.0.0.1:{self.port}", deadline)
+            self._leases[name] = lease
             try:
                 yield lease
             finally:
-                with self._lock:
-                    self._leases.pop(name, None)
-                # Цикл уже остановлен — значит, и соединений у разбора больше нет.
-                with contextlib.suppress(RuntimeError):
-                    loop.call_soon_threadsafe(self._hang_up, lease)
+                self._leases.pop(name, None)
+                self._hang_up(lease)
         finally:
-            self._slots.release()
+            slots.release()
 
     @staticmethod
     def _hang_up(lease: Lease) -> None:
@@ -292,13 +302,25 @@ class Egress:
 
     async def _serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         lease: Lease | None = None
-        self._open += 1
+        admitted = False
+        # Молчащее соединение без головы запроса — ещё не вход; места ему столько, сколько `pending`,
+        # и новое вытесняет самое старое: держать их, чтобы запереть выход, бесполезно.
+        while len(self._heads) >= self.pending:
+            oldest = next(iter(self._heads))
+            self._heads.pop(oldest)
+            oldest.close()
+        self._heads[writer] = None
         try:
-            request = await _read_request(reader)
+            try:
+                request = await _read_request(reader)
+            finally:
+                self._heads.pop(writer, None)
             found = self._admit(request.headers)
-            if self._open > self.tunnels or found.active >= self.per_lease:
+            if self._open >= self.tunnels or found.active >= self.per_lease:
                 raise _Refusal(503)
             lease = found
+            admitted = True
+            self._open += 1
             lease.active += 1
             lease.streams.add(writer)
             left = lease.deadline - time.monotonic()
@@ -318,7 +340,8 @@ class Egress:
         except (TimeoutError, OSError, EOFError, _Exhausted, asyncio.IncompleteReadError):
             pass
         finally:
-            self._open -= 1
+            if admitted:
+                self._open -= 1
             if lease is not None:
                 lease.active -= 1
                 lease.streams.discard(writer)
@@ -332,8 +355,7 @@ class Egress:
         name, password = found
         if not hmac.compare_digest(password.encode(), self.secret.encode()):
             raise _Refusal(407)
-        with self._lock:
-            lease = self._leases.get(name)
+        lease = self._leases.get(name)
         if lease is None:
             raise _Refusal(407)
         return lease
