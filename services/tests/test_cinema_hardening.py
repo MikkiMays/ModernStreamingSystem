@@ -7,9 +7,76 @@
 подменённый yt-dlp и сеть, которая знает только свои ответы.
 """
 
+import json
 import unittest
 
+import httpx
 from test_cinema_providers import Stage
+
+from cord_services.cinema import Resolve
+
+
+class IdentifierTests(Stage):
+    """
+    Идентификатор из браузера уходит в чужой адрес — поэтому проверяется целиком.
+
+    Прежние проверки стояли на `re.match(r"^…$")`, а `$` в Python совпадает и перед
+    завершающим переводом строки: `UCabc\\n` проходил и уезжал в адрес yt-dlp и в текст запроса
+    GraphQL. `contentId` в `resolve` не проверялся вовсе (у pydantic `pattern` — поиск, а не
+    совпадение целиком): `aqz-KE-bpKQ&list=…` дописывал параметры в адрес страницы YouTube.
+    """
+
+    async def test_a_line_break_after_an_id_is_refused_before_anything_is_asked(self):
+        for action, detail in (
+            (lambda: self.cinema.channel("youtube", "UCabcdefghij\n", "videos", ""), "Непонятное имя канала"),
+            (lambda: self.cinema.channel("twitch", "someone\n", "videos", ""), "Непонятное имя канала"),
+            (lambda: self.cinema.playlist("youtube", "PLabcdefghij\n", ""), "Непонятный адрес плейлиста"),
+            (lambda: self.cinema.category("twitch", "743\n", ""), "Непонятный раздел"),
+            (lambda: self.cinema.details("youtube", "aqz-KE-bpKQ\n", "video"), "Непонятный адрес видео"),
+            (lambda: self.cinema.details("twitch", "2000000001\n", "video"), "Непонятный адрес видео"),
+        ):
+            await self.refused(action(), 400, detail)
+        self.assertEqual(self.library.calls, [])
+        self.assertEqual(self.seen, [])
+
+    async def test_a_content_id_is_the_whole_platform_form_or_nothing(self):
+        for provider, content in (
+            ("youtube", "aqz-KE-bpKQ&list=PLabcdefghij"),
+            ("youtube", "aqz-KE-bpKQ\n"),
+            ("youtube", "../../feed/history"),
+            ("twitch", "someone/videos"),
+            ("twitch", "some one"),
+        ):
+            await self.refused(
+                self.cinema.resolve(Resolve(provider=provider, contentId=content)), 400, "Непонятный адрес видео"
+            )
+        self.assertEqual(self.library.calls, [])
+        self.assertEqual(self.kept(self.cinema.sources), {})
+
+
+class TwitchQueryTests(Stage):
+    """Строка в GraphQL Twitch — настоящий строковый литерал, а не текст между кавычками."""
+
+    def serve(self, request):
+        # Любой поиск отвечает пустым списком: здесь важен сам запрос, а не ответ.
+        self.seen.append(request)
+        empty = {"searchFor": {"channels": {"items": []}, "games": {"items": []}}}
+        return httpx.Response(200, json={"data": empty})
+
+    async def test_quotes_backslashes_and_line_breaks_travel_as_they_were_typed(self):
+        # Раньше кавычки и обратные косые черты заменялись пробелами (искался другой текст), а
+        # перевод строки уходил в литерал как есть — и Twitch отвечал синтаксической ошибкой.
+        typed = 'a"b\\c\nd") { __typename } #'
+        await self.cinema.search("twitch", typed, "")
+        asked = self.gql_asked()
+        self.assertEqual(len(asked), 2)
+        for query in asked:
+            start = query.index("userQuery: ") + len("userQuery: ")
+            # Нестрогий разбор: на старом коде перевод строки стоял в литерале как есть.
+            value, end = json.JSONDecoder(strict=False).raw_decode(query, start)
+            self.assertEqual(value, typed)
+            # После литерала — ровно то, что стояло в шаблоне: ввод из строки не вышел.
+            self.assertTrue(query[end:].startswith(', platform: "web", target: {index: '), query)
 
 
 class MemoryKeyTests(Stage):

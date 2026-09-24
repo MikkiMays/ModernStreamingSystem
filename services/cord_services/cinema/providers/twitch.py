@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from typing import Any
 
@@ -18,21 +19,21 @@ TWITCH_GQL = "https://gql.twitch.tv/gql"
 # и на нём работают streamlink и twitch-dl.
 TWITCH_CLIENT = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
-TWITCH_CHANNEL = """{ user(login: "%s") { id login displayName description
+TWITCH_CHANNEL = """{ user(login: %s) { id login displayName description
   profileImageURL(width: 300) bannerImageURL
   followers { totalCount }
   stream { id title viewersCount previewImageURL(width: 440, height: 248) game { name } }
   videos(first: %d, sort: TIME) { edges { node { id title lengthSeconds viewCount
     publishedAt previewThumbnailURL(width: 440, height: 248) game { name } } } } } }"""
 
-TWITCH_VIDEO = """{ video(id: "%s") { id title lengthSeconds viewCount publishedAt
+TWITCH_VIDEO = """{ video(id: %s) { id title lengthSeconds viewCount publishedAt
   description previewThumbnailURL(width: 440, height: 248) game { name }
   owner { login displayName profileImageURL(width: 300) followers { totalCount } } } }"""
 
 # Категория Twitch — это игра или раздел вроде «Just Chatting». Берётся по числовому
 # идентификатору, а не по названию: имя приходит из браузера, а идентификатор проверяется
 # одной цифровой проверкой и не может стать ничем иным.
-TWITCH_CATEGORY = """{ game(id: "%s") { id name displayName viewersCount
+TWITCH_CATEGORY = """{ game(id: %s) { id name displayName viewersCount
   boxArtURL(width: 285, height: 380)
   streams(first: %d) { edges { node { id title viewersCount
     previewImageURL(width: 440, height: 248) broadcaster { login displayName }
@@ -40,6 +41,19 @@ TWITCH_CATEGORY = """{ game(id: "%s") { id name displayName viewersCount
 
 # Сколько живых эфиров и записей просить у Twitch за один раз.
 TWITCH_DEPTH = 100
+
+
+def literal(value: str) -> str:
+    r"""
+    Строка для запроса GraphQL — настоящий строковый литерал, а не текст между кавычками.
+
+    Экранирование у строк GraphQL то же, что у JSON (`\"`, `\\`, `\n`, `\uXXXX`), поэтому
+    литерал собирает `json.dumps`. Раньше кавычки и обратные черты заменялись пробелами —
+    искался уже другой текст, — а перевод строки уходил в литерал как есть, и Twitch отвечал
+    синтаксической ошибкой. Не-ASCII остаётся как есть (`ensure_ascii=False`): для обычного
+    ввода текст запроса тот же, что и раньше, до буквы.
+    """
+    return json.dumps(value, ensure_ascii=False)
 
 
 class Twitch(Provider):
@@ -112,7 +126,7 @@ class Twitch(Provider):
                 title=(live or {}).get("title") or head["title"],
                 poster=(live or {}).get("poster") or head["banner"],
             )
-        data = await self._gql(ctx, TWITCH_VIDEO % item_id.replace('"', "")[:40])
+        data = await self._gql(ctx, TWITCH_VIDEO % literal(item_id[:40]))
         video = data.get("video")
         if not video:
             raise HTTPException(404, "Такой записи на Twitch нет")
@@ -197,12 +211,11 @@ class Twitch(Provider):
         «кого смотреть».
         """
         if query:
-            safe = query.replace("\\", " ").replace('"', " ")[:60]
             data = await self._gql(
                 ctx,
-                '{ searchFor(userQuery: "%s", platform: "web", target: {index: GAME}) '
+                '{ searchFor(userQuery: %s, platform: "web", target: {index: GAME}) '
                 "{ games { items { id name displayName viewersCount "
-                "boxArtURL(width: 285, height: 380) } } } }" % safe,
+                "boxArtURL(width: 285, height: 380) } } } }" % literal(query[:60]),
             )
             nodes = ((data.get("searchFor") or {}).get("games") or {}).get("items") or []
         else:
@@ -224,7 +237,7 @@ class Twitch(Provider):
         )
 
     async def _category(self, ctx: Ctx, category_id: str) -> dict[str, Any]:
-        data = await self._gql(ctx, TWITCH_CATEGORY % (category_id, TWITCH_DEPTH))
+        data = await self._gql(ctx, TWITCH_CATEGORY % (literal(category_id), TWITCH_DEPTH))
         game = data.get("game")
         if not game:
             raise HTTPException(404, "Такого раздела на Twitch нет")
@@ -236,13 +249,12 @@ class Twitch(Provider):
         return {"category": self._section(game), "items": items}
 
     async def _search(self, ctx: Ctx, query: str, limit: int = TWITCH_DEPTH) -> list[wire.Card]:
-        safe = query.replace("\\", " ").replace('"', " ")[:60]
         data = await self._gql(
             ctx,
-            '{ searchFor(userQuery: "%s", platform: "web", target: {index: CHANNEL}) '
+            '{ searchFor(userQuery: %s, platform: "web", target: {index: CHANNEL}) '
             "{ channels { items { id login displayName profileImageURL(width: 300) "
             "stream { viewersCount previewImageURL(width: 440, height: 248) game { name } } "
-            "} } } }" % safe,
+            "} } } }" % literal(query[:60]),
         )
         items = []
         channels = ((data.get("searchFor") or {}).get("channels") or {}).get("items") or []
@@ -267,7 +279,7 @@ class Twitch(Provider):
         return items
 
     async def _channel(self, ctx: Ctx, login: str) -> dict[str, Any]:
-        data = await self._gql(ctx, TWITCH_CHANNEL % (login.replace('"', "")[:40], TWITCH_DEPTH))
+        data = await self._gql(ctx, TWITCH_CHANNEL % (literal(login[:40]), TWITCH_DEPTH))
         user = data.get("user")
         if not user:
             raise HTTPException(404, "Такого канала на Twitch нет")

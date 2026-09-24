@@ -136,19 +136,21 @@ def twitch_user(live):
 
 
 def channel_search(text):
+    # Строка в запросе — литерал GraphQL с экранированием JSON; у обычного ввода это тот же
+    # текст в кавычках, что и раньше.
     return (
-        '{ searchFor(userQuery: "%s", platform: "web", target: {index: CHANNEL}) '
+        '{ searchFor(userQuery: %s, platform: "web", target: {index: CHANNEL}) '
         "{ channels { items { id login displayName profileImageURL(width: 300) "
         "stream { viewersCount previewImageURL(width: 440, height: 248) game { name } } "
-        "} } } }" % text
+        "} } } }" % json.dumps(text, ensure_ascii=False)
     )
 
 
 def game_search(text):
     return (
-        '{ searchFor(userQuery: "%s", platform: "web", target: {index: GAME}) '
+        '{ searchFor(userQuery: %s, platform: "web", target: {index: GAME}) '
         "{ games { items { id name displayName viewersCount "
-        "boxArtURL(width: 285, height: 380) } } } }" % text
+        "boxArtURL(width: 285, height: 380) } } } }" % json.dumps(text, ensure_ascii=False)
     )
 
 
@@ -659,11 +661,12 @@ class TwitchSearchTests(Stage):
         self.assertEqual(found, {"items": [], "next": None, "channels": [], "categories": []})
         self.assertEqual(len(self.gql_asked()), 2)
 
-    async def test_quotes_and_backslashes_do_not_reach_the_query(self):
+    async def test_quotes_and_backslashes_travel_escaped_and_cut_to_sixty(self):
+        # Задача 4: раньше кавычки и обратные черты заменялись пробелами («Che ss »), теперь
+        # уходят как набраны — экранированными в литерале, после обрезки до шестидесяти знаков.
         typed = 'Che"ss\\' + "x" * 70
-        cleaned = "Che ss " + "x" * 53
-        self.gql[channel_search(cleaned)] = {"searchFor": {"channels": {"items": []}}}
-        self.gql[game_search(cleaned)] = {"searchFor": {"games": {"items": []}}}
+        self.gql[channel_search(typed[:60])] = {"searchFor": {"channels": {"items": []}}}
+        self.gql[game_search(typed[:60])] = {"searchFor": {"games": {"items": []}}}
         found = await self.cinema.search("twitch", typed, "")
         self.assertEqual(found, {"items": [], "next": None, "channels": [], "categories": []})
         low = typed.lower()

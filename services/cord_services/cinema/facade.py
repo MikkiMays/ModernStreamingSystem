@@ -38,8 +38,10 @@ IMAGE_TTL = 24 * 3600
 Kind = Literal["video", "channel"]
 
 # Имя канала приходит от браузера и уходит в чужой адрес, поэтому проверяется здесь, а не
-# «где-нибудь потом»: у YouTube это `UC…` или `@псевдоним`, у Twitch — логин.
-CHANNEL_ID = re.compile(r"^[A-Za-z0-9_.@-]{1,80}$")
+# «где-нибудь потом»: у YouTube это `UC…` или `@псевдоним`, у Twitch — логин. Проверка —
+# `fullmatch`, а не `match` с `$`: `$` совпадает и перед завершающим переводом строки, и
+# `UCabc\n` доезжал до адреса yt-dlp и до текста запроса GraphQL.
+CHANNEL_ID = re.compile(r"[A-Za-z0-9_.@-]{1,80}")
 
 
 class Resolve(BaseModel):
@@ -59,7 +61,7 @@ Tab = Literal["videos", "streams", "shorts", "playlists", "about"]
 # уходит в чужой адрес, и всё, что не буква, цифра или знак из списка, до него не доходит.
 CATALOG_ID = CHANNEL_ID
 # Идентификатор категории Twitch — только цифры.
-CATEGORY_ID = re.compile(r"^[0-9]{1,20}$")
+CATEGORY_ID = re.compile(r"[0-9]{1,20}")
 
 
 class Cinema:
@@ -157,7 +159,7 @@ class Cinema:
         никак. Каждая вкладка листается своей лентой; `about` ленты не имеет вовсе.
         """
         source = self._able(provider, "channels")
-        if not CATALOG_ID.match(channel_id):
+        if not CATALOG_ID.fullmatch(channel_id):
             raise HTTPException(400, "Непонятное имя канала")
         offset = offset_of(cursor)
         ctx = self._ctx(room)
@@ -175,7 +177,7 @@ class Cinema:
     ) -> dict[str, Any]:
         """Плейлист целиком: его описание и ролики в том порядке, в котором их собрали."""
         source = self._able(provider, "playlists")
-        if not CATALOG_ID.match(playlist_id):
+        if not CATALOG_ID.fullmatch(playlist_id):
             raise HTTPException(400, "Непонятный адрес плейлиста")
         offset = offset_of(cursor)
         ctx = self._ctx(room)
@@ -202,14 +204,15 @@ class Cinema:
     ) -> dict[str, Any]:
         """Один раздел: его карточка и эфиры, которые идут в нём сейчас."""
         source = self._able(provider, "categories")
-        if not CATEGORY_ID.match(category_id):
+        if not CATEGORY_ID.fullmatch(category_id):
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
         return await source.category(self._ctx(room), category_id, offset)
 
     async def details(self, provider: str, content_id: str, kind: Kind, *, room: str = "") -> dict[str, Any]:
         source = self.registry.get(provider)
-        if not CHANNEL_ID.match(content_id):
+        # Форма адреса — площадки: она знает, какие id у неё бывают (`Provider.content_id`).
+        if not source.content_id.fullmatch(content_id):
             raise HTTPException(400, "Непонятный адрес видео")
         ctx = self._ctx(room)
         return await self.catalog.scope(source.id).get(
@@ -231,7 +234,12 @@ class Cinema:
         # же минуту, и пять запросов к площадке ради одного ответа — это просто пять ожиданий.
         # Живой эфир держится меньше: его адреса обновляются чаще, чем меняется афиша.
         source = self.registry.get(request.provider)
-        key = f"{request.provider}:{request.kind}:{request.contentId}:{request.adaptive}"
+        # Схема запроса проверяет только общий вид, а `pattern` у pydantic ищет совпадение, а не
+        # сравнивает целиком: `aqz-KE-bpKQ&list=…` дописывал параметры в адрес страницы. Форму
+        # целиком знает площадка — ей и решать, раньше памяти и раньше yt-dlp.
+        if not source.content_id.fullmatch(request.contentId):
+            raise HTTPException(400, "Непонятный адрес видео")
+        key = f"{source.id}:{request.kind}:{request.contentId}:{request.adaptive}"
         if request.refresh:
             self.sources._items.pop(key, None)
         ctx = self._ctx(room)
