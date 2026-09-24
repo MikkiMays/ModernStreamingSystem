@@ -83,11 +83,15 @@ class Cinema:
         )
         self.ytdlp = YtDlp()
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
-        kit = Kit(memo=self.catalog, image=self.image, ytdlp=self.ytdlp)
-        self.registry = Registry((kind(kit) for kind in PROVIDERS), enabled)
+        self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
 
     async def close(self):
         await self.client.aclose()
+
+    def _kit(self, kind: type[Provider]) -> Kit:
+        # Память площадки — общая память под её именем: ключ одной площадки не может ни
+        # прочитать, ни затереть ответ другой, даже при одинаковом номере ролика.
+        return Kit(memo=self.catalog.scope(kind.id), image=self.image, ytdlp=self.ytdlp)
 
     def _ctx(self, room: str) -> Ctx:
         return Ctx(room=room, net=self.client)
@@ -157,8 +161,9 @@ class Cinema:
             raise HTTPException(400, "Непонятное имя канала")
         offset = offset_of(cursor)
         ctx = self._ctx(room)
-        return await self.catalog.get(
-            f"channel:{source.id}:{channel_id.lower()}:{tab}:{offset}",
+        # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
+        return await self.catalog.scope(source.id).get(
+            f"channel:{channel_id}:{tab}:{offset}",
             lambda: source.channel(ctx, channel_id, tab, offset),
             # Память короткая нарочно: сверху у канала лежит самое свежее, и «самое свежее»
             # не должно означать «самое свежее полчаса назад».
@@ -174,10 +179,8 @@ class Cinema:
             raise HTTPException(400, "Непонятный адрес плейлиста")
         offset = offset_of(cursor)
         ctx = self._ctx(room)
-        return await self.catalog.get(
-            # Площадки в ключе нет, как не было и раньше: плейлисты пока есть только у одной.
-            # Вторая площадка с плейлистами должна добавить её сюда.
-            f"playlist:{playlist_id.lower()}:{offset}",
+        return await self.catalog.scope(source.id).get(
+            f"playlist:{playlist_id}:{offset}",
             lambda: source.playlist(ctx, playlist_id, offset),
             60,
         )
@@ -209,8 +212,8 @@ class Cinema:
         if not CHANNEL_ID.match(content_id):
             raise HTTPException(400, "Непонятный адрес видео")
         ctx = self._ctx(room)
-        return await self.catalog.get(
-            f"details:{source.id}:{kind}:{content_id.lower()}",
+        return await self.catalog.scope(source.id).get(
+            f"details:{kind}:{content_id}",
             lambda: source.details(ctx, kind, content_id),
             600,
         )

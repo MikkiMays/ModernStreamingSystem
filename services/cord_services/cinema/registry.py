@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, L
 import httpx
 from fastapi import HTTPException
 
-from .memo import Memo
+from .memo import Memo, Scope
 
 if TYPE_CHECKING:
     from .resolve import SourcePlan, YtDlp
@@ -93,8 +93,9 @@ class Ctx:
 class Kit:
     """Общее хозяйство кинозала, которым площадки пользуются, но не владеют."""
 
-    # Общая память каталога. Ключи и сроки у каждой площадки свои — и прежние, до буквы.
-    memo: Memo
+    # Память каталога этой площадки: общая память под её именем (`Memo.scope`). Ключи и сроки
+    # площадка выбирает сама, но начинаются они всегда с её `id` — чужого ей не достать.
+    memo: Memo | Scope
     # Обложка у нас: подписанный адрес или `None`, если хост чужой.
     image: Callable[[str], str | None]
     ytdlp: YtDlp

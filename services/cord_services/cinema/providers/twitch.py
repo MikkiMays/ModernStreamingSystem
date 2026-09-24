@@ -56,12 +56,12 @@ class Twitch(Provider):
     async def search(self, ctx: Ctx, query: str, offset: int) -> wire.SearchPage:
         """Пусто — это витрина живых эфиров; набрано — каналы лентой и категории полкой."""
         if not query:
-            streams = await self.memo.get("twitch:live", lambda: self._popular(ctx), 60)
+            streams = await self.memo.get("live", lambda: self._popular(ctx), 60)
             return {**page(streams, offset), "channels": [], "categories": []}
         low = query.lower()
         channels, categories = await asyncio.gather(
-            self.memo.get(f"twitch:search:{low}", lambda: self._search(ctx, query), 120),
-            self.memo.get(f"twitch:games:{low}", lambda: self._games(ctx, query), 300),
+            self.memo.get(f"search:{low}", lambda: self._search(ctx, query), 120),
+            self.memo.get(f"games:{low}", lambda: self._games(ctx, query), 300),
         )
         return {**page(channels, offset), "channels": [], "categories": categories[:8] if offset == 0 else []}
 
@@ -73,9 +73,9 @@ class Twitch(Provider):
         Twitch анонимному клиенту не отдаёт, зато сотню записей отдаёт одним ответом. Идущий
         эфир стоит первым и только в первой порции — ниже по ленте ему не место.
         """
-        found = await self.memo.get(
-            f"twitch:channel:{channel_id.lower()}", lambda: self._channel(ctx, channel_id), 60
-        )
+        # Сырые данные канала — под `user:`, а не `channel:`: `channel:` у фасада занят
+        # готовыми страницами. Логин Twitch к регистру безразличен — поэтому ключ строчный.
+        found = await self.memo.get(f"user:{channel_id.lower()}", lambda: self._channel(ctx, channel_id), 60)
         if tab == "about":
             return {"channel": found["channel"], "items": [], "next": None}
         live = [item for item in found["items"] if item["live"]]
@@ -91,7 +91,7 @@ class Twitch(Provider):
     async def categories(self, ctx: Ctx, query: str, offset: int) -> wire.Page:
         """Разделы Twitch: что смотрят прямо сейчас, по играм и рубрикам."""
         items = await self.memo.get(
-            f"twitch:games:{query.lower()}" if query else "twitch:games",
+            f"games:{query.lower()}" if query else "games",
             lambda: self._games(ctx, query),
             300 if query else 120,
         )
@@ -99,9 +99,7 @@ class Twitch(Provider):
 
     async def category(self, ctx: Ctx, category_id: str, offset: int) -> wire.CategoryPage:
         """Один раздел Twitch: его карточка и эфиры, которые идут в нём сейчас."""
-        found = await self.memo.get(
-            f"twitch:category:{category_id}", lambda: self._category(ctx, category_id), 60
-        )
+        found = await self.memo.get(f"category:{category_id}", lambda: self._category(ctx, category_id), 60)
         return {"category": found["category"], **page(found["items"], offset)}
 
     async def details(self, ctx: Ctx, kind: str, item_id: str) -> wire.Details | wire.ChannelDetails:

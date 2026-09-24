@@ -245,6 +245,84 @@ class MemoTests(unittest.TestCase):
         asyncio.run(twice())
         self.assertEqual(calls, 2)
 
+    def test_the_waiters_share_the_failure_instead_of_repeating_it(self):
+        # Пятеро открыли ролик, площадка отказала через две секунды. Раньше каждый следующий
+        # по очереди спрашивал её заново — и пятый ждал отказа десять секунд вместо двух.
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            await asyncio.sleep(0.01)
+            raise RuntimeError("площадка отказала")
+
+        async def room():
+            waiting = (memo.get("k", produce, 60) for _ in range(5))
+            return await asyncio.gather(*waiting, return_exceptions=True)
+
+        answers = asyncio.run(room())
+        self.assertEqual(calls, 1)
+        self.assertEqual([str(answer) for answer in answers], ["площадка отказала"] * 5)
+        self.assertTrue(all(isinstance(answer, RuntimeError) for answer in answers))
+
+    def test_a_failure_is_not_remembered(self):
+        # Отказ делится только с теми, кто ждал его вместе: следующий вопрос — снова к площадке.
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("временно")
+            return "ответ"
+
+        async def twice():
+            with self.assertRaises(RuntimeError):
+                await memo.get("k", produce, 60)
+            return await memo.get("k", produce, 60)
+
+        self.assertEqual(asyncio.run(twice()), "ответ")
+        self.assertEqual(calls, 2)
+
+    def test_a_waiter_that_leaves_does_not_cancel_the_answer_for_the_others(self):
+        # Первый зритель закрыл вкладку, пока площадка думала: остальные всё равно получат ответ,
+        # а не отмену чужого запроса.
+        memo = Memo()
+        calls = 0
+
+        async def produce():
+            nonlocal calls
+            calls += 1
+            await asyncio.sleep(0.02)
+            return "ответ"
+
+        async def room():
+            first = asyncio.ensure_future(memo.get("k", produce, 60))
+            await asyncio.sleep(0)
+            second = asyncio.ensure_future(memo.get("k", produce, 60))
+            await asyncio.sleep(0.005)
+            first.cancel()
+            return await second
+
+        self.assertEqual(asyncio.run(room()), "ответ")
+        self.assertEqual(calls, 1)
+
+    def test_a_platform_keeps_its_answers_under_its_own_name(self):
+        # Площадка не может занять чужой ключ: её память — это общая память с её именем впереди.
+        memo = Memo()
+
+        async def fill():
+            await memo.scope("youtube").get("search:videos:x", lambda: asyncio.sleep(0, "a"), 60)
+            await memo.scope("twitch").get("search:videos:x", lambda: asyncio.sleep(0, "b"), 60)
+
+        asyncio.run(fill())
+        self.assertEqual(
+            {key: value for key, (_, value) in memo._items.items()},
+            {"youtube:search:videos:x": "a", "twitch:search:videos:x": "b"},
+        )
+
 
 class StreamChoiceTests(unittest.TestCase):
     def test_hls_master_wins_because_it_carries_every_quality(self):
@@ -382,7 +460,7 @@ class TwitchChannelPageTests(unittest.TestCase):
         self.cinema = Cinema("secret")
         live = {"id": "one", "live": True}
         records = [{"id": str(number), "live": False} for number in range(PAGE + 4)]
-        self.cinema.catalog._items["twitch:channel:someone"] = (
+        self.cinema.catalog._items["twitch:user:someone"] = (
             time.time() + 60,
             {"channel": {"id": "someone"}, "items": [live, *records]},
         )

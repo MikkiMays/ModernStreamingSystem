@@ -394,7 +394,7 @@ class YouTubeSearchTests(Stage):
         )
         self.assertEqual(
             self.kept(self.cinema.catalog),
-            {"search:youtube:big buck": 120, "search:youtube:channels:big buck": 300},
+            {"youtube:search:videos:big buck": 120, "youtube:search:channels:big buck": 300},
         )
 
     async def test_the_next_portion_does_not_look_for_channels_again(self):
@@ -434,7 +434,7 @@ class YouTubeSearchTests(Stage):
     async def test_a_later_portion_alone_asks_only_for_videos(self):
         await self.cinema.search("youtube", "Big Buck", "30")
         self.assertEqual(self.library.calls, [(self.SEARCH, FLAT, False)])
-        self.assertEqual(self.kept(self.cinema.catalog), {"search:youtube:big buck": 120})
+        self.assertEqual(self.kept(self.cinema.catalog), {"youtube:search:videos:big buck": 120})
 
     async def test_a_broken_shelf_of_channels_leaves_the_videos(self):
         self.library.answers[self.CHANNELS] = RuntimeError("HTTP Error 429")
@@ -757,7 +757,7 @@ class YouTubeChannelTests(Stage):
             self.library.calls,
             [(self.HANDLE, {**LISTING, "playliststart": 1, "playlistend": 30}, False)],
         )
-        self.assertEqual(self.kept(self.cinema.catalog), {"channel:youtube:@blender.official:videos:0": 60})
+        self.assertEqual(self.kept(self.cinema.catalog), {"youtube:channel:@Blender.Official:videos:0": 60})
 
     async def test_playlists_tab_is_doors_signed_by_the_channel(self):
         entries = [
@@ -831,7 +831,7 @@ class YouTubeChannelTests(Stage):
             [(self.PAGE + "/playlists", {**LISTING, "playliststart": 31, "playlistend": 60}, False)],
         )
         self.assertEqual(
-            self.kept(self.cinema.catalog), {"channel:youtube:ucabcdefghijklmnopqrstuv:playlists:30": 60}
+            self.kept(self.cinema.catalog), {"youtube:channel:UCabcdefghijklmnopqrstuv:playlists:30": 60}
         )
 
     async def test_about_tab_is_the_head_of_one_line_of_videos(self):
@@ -858,7 +858,7 @@ class YouTubeChannelTests(Stage):
         found = await self.cinema.channel("youtube", "UCabcdefghijklmnopqrstuv", "streams", "")
         self.assertEqual(found, {"channel": None, "items": [], "next": None})
         self.assertEqual(
-            self.kept(self.cinema.catalog), {"channel:youtube:ucabcdefghijklmnopqrstuv:streams:0": 60}
+            self.kept(self.cinema.catalog), {"youtube:channel:UCabcdefghijklmnopqrstuv:streams:0": 60}
         )
 
     async def test_any_other_failure_is_a_bad_gateway_cut_short(self):
@@ -958,7 +958,7 @@ class TwitchChannelTests(Stage):
         self.assertEqual(self.gql_asked(), [USER % ("SomeOne", 100)])
         self.assertEqual(
             self.kept(self.cinema.catalog),
-            {"channel:twitch:someone:videos:0": 60, "twitch:channel:someone": 60},
+            {"twitch:channel:SomeOne:videos:0": 60, "twitch:user:someone": 60},
         )
 
     async def test_streams_and_about_tabs_come_from_the_same_answer(self):
@@ -1055,7 +1055,7 @@ class YouTubePlaylistTests(Stage):
         self.assertEqual(
             self.library.calls, [(self.ADDRESS, {**LISTING, "playliststart": 1, "playlistend": 30}, False)]
         )
-        self.assertEqual(self.kept(self.cinema.catalog), {f"playlist:{self.LIST.lower()}:0": 60})
+        self.assertEqual(self.kept(self.cinema.catalog), {f"youtube:playlist:{self.LIST}:0": 60})
 
     async def test_a_playlist_without_an_owner_is_still_a_page(self):
         self.library.answers[self.ADDRESS] = {"entries": [{"id": f"v{n:010d}"} for n in range(30)]}
@@ -1281,7 +1281,7 @@ class DetailsTests(Stage):
             },
         )
         self.assertEqual(self.library.calls, [(self.WATCH, PROBE, False)])
-        self.assertEqual(self.kept(self.cinema.catalog), {"details:youtube:video:aqz-ke-bpkq": 600})
+        self.assertEqual(self.kept(self.cinema.catalog), {"youtube:details:video:aqz-KE-bpKQ": 600})
 
     async def test_a_youtube_live_has_no_length_and_asks_by_the_same_address_for_any_kind(self):
         self.library.answers[self.WATCH] = {
@@ -1312,7 +1312,7 @@ class DetailsTests(Stage):
                 "poster": None,
             },
         )
-        self.assertEqual(self.kept(self.cinema.catalog), {"details:youtube:channel:aqz-ke-bpkq": 600})
+        self.assertEqual(self.kept(self.cinema.catalog), {"youtube:details:channel:aqz-KE-bpKQ": 600})
 
     async def test_a_youtube_failure_is_a_bad_gateway_cut_short(self):
         self.library.answers[self.WATCH] = RuntimeError("w" * 400)
@@ -1350,7 +1350,7 @@ class DetailsTests(Stage):
             },
         )
         # Подробности канала не кладут его страницу в память — только сам ответ.
-        self.assertEqual(self.kept(self.cinema.catalog), {"details:twitch:channel:someone": 600})
+        self.assertEqual(self.kept(self.cinema.catalog), {"twitch:details:channel:SomeOne": 600})
 
     async def test_a_quiet_twitch_channel_shows_its_banner(self):
         self.gql[USER % ("SomeOne", 100)] = twitch_user(live=False)

@@ -54,7 +54,7 @@ class YouTube(Provider):
         low = query.lower()
         wanted = [
             self.memo.get(
-                f"search:youtube:{low}",
+                f"search:videos:{low}",
                 lambda: asyncio.to_thread(self._videos, query, SEARCH_DEPTH),
                 120,
             )
@@ -62,7 +62,7 @@ class YouTube(Provider):
         if offset == 0:
             wanted.append(
                 self.memo.get(
-                    f"search:youtube:channels:{low}",
+                    f"search:channels:{low}",
                     lambda: asyncio.to_thread(self._channels, query, 4),
                     300,
                 )
