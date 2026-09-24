@@ -49,10 +49,16 @@ export function SeriesPage({
         </div>
         <div className="cinema-detail-body">
           <h3>{series?.title || title || 'Сериал'}</h3>
-          <p className="cinema-detail-meta">
-            {series?.year ? <span>{series.year}</span> : null}
-            {seasons.length > 0 ? <span>{plural(seasons.length, 'сезон', 'сезона', 'сезонов')}</span> : null}
-          </p>
+          {/* Строка пустой не бывает: у сериала из плейлиста нет ни года, ни сезонов, и пустая
+              строка оставила бы в шапке лишний зазор. */}
+          {series?.year || seasons.length > 0 ? (
+            <p className="cinema-detail-meta">
+              {series?.year ? <span>{series.year}</span> : null}
+              {seasons.length > 0 ? (
+                <span>{plural(seasons.length, 'сезон', 'сезона', 'сезонов')}</span>
+              ) : null}
+            </p>
+          ) : null}
           {series?.description ? <p className="cinema-about">{series.description}</p> : null}
         </div>
       </header>
