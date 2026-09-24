@@ -1,13 +1,6 @@
 import { expect, test, type Browser } from '@playwright/test';
-import {
-  fixture,
-  inviteLink,
-  joinMeeting,
-  openCinema,
-  routeCinema,
-  startMeeting,
-  type CinemaOverrides,
-} from './support/cinema';
+import { fixture, inviteLink, joinMeeting, openCinema, routeCinema, startMeeting } from './support/cinema';
+import { RUTUBE, type Card, type Feed } from './support/rutube';
 
 /*
   Кинозал Rutube на записанных ответах службы: витрина, раздел, сериал с сезонами, поиск и канал,
@@ -18,95 +11,6 @@ import {
   двенадцать секунд. Ни службы, ни площадки сценарию не нужно — он идёт и в CI. Числа карточек
   берутся из тех же записей, что отдаёт перехват: обрезка фикстур не разойдётся с ожиданиями молча.
 */
-
-interface Card {
-  id: string;
-  kind: string;
-  title: string;
-  author: string;
-  live: boolean;
-  badge?: string;
-}
-interface Feed {
-  items: Card[];
-  channels?: Card[];
-  series?: Card[];
-  next: string | null;
-}
-
-/** Столько живёт подпись у настоящей службы; от «сейчас», иначе плеер пошёл бы её обновлять. */
-const SIGNATURE_MS = 5 * 3600 * 1000;
-const END = { items: [], channels: [], categories: [], series: [], next: null };
-
-/** Все карточки записанных ответов — по id: страница и поток показывают то, что нажато. */
-function face(id: string): Card | undefined {
-  for (const name of [
-    'rutube-search-empty',
-    'rutube-search',
-    'rutube-category',
-    'rutube-series',
-    'rutube-series-season-2',
-    'rutube-channel-videos',
-  ]) {
-    const page = fixture<Feed>(name);
-    // У страницы сериала `series` — его шапка, а не полка: карточки берутся только из списков.
-    const shelves = [page.series, page.channels].filter((shelf): shelf is Card[] => Array.isArray(shelf));
-    const found = [...page.items, ...shelves.flat()].find((card) => card.id === id);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-const rutube = (params: URLSearchParams) => params.get('provider') === 'rutube';
-
-/** Rutube отвечает записями; остальные площадки — как всегда, записями `support/cinema.ts`. */
-const RUTUBE: CinemaOverrides = {
-  search: ({ params }) => {
-    if (!rutube(params)) return undefined;
-    if (params.get('cursor')) return END;
-    return fixture(params.get('query') ? 'rutube-search' : 'rutube-search-empty');
-  },
-  categories: ({ params }) => (rutube(params) ? fixture('rutube-categories') : undefined),
-  category: ({ params }) => {
-    if (!rutube(params)) return undefined;
-    const page = fixture<{ category: unknown }>('rutube-category');
-    return params.get('cursor') ? { category: page.category, items: [], next: null } : page;
-  },
-  series: ({ params }) => {
-    const season = params.get('season');
-    if (season === '2') return fixture('rutube-series-season-2');
-    const page = fixture<{ season: string }>('rutube-series');
-    // Третий сезон не снимали: служба ответила бы его сериями, здесь — пустой сезон.
-    return season && season !== page.season ? { ...page, season, items: [] } : page;
-  },
-  channel: ({ params }) =>
-    rutube(params)
-      ? fixture(params.get('tab') === 'about' ? 'rutube-channel-about' : 'rutube-channel-videos')
-      : undefined,
-  details: ({ params }) => {
-    if (!rutube(params)) return undefined;
-    const id = params.get('id') ?? '';
-    const recorded = fixture(params.get('kind') === 'channel' ? 'rutube-details-live' : 'rutube-details');
-    const card = face(id);
-    return { ...recorded, id, ...(card ? { title: card.title, author: card.author, live: card.live } : {}) };
-  },
-  resolve: ({ body }) => {
-    if (body?.provider !== 'rutube') return undefined;
-    const contentId = String(body.contentId ?? '');
-    const live = body.kind === 'channel';
-    const recorded = fixture<Card>('rutube-resolve');
-    const card = face(contentId);
-    return {
-      ...recorded,
-      contentId,
-      title: card?.title ?? recorded.title,
-      author: card?.author ?? recorded.author,
-      live,
-      duration: live ? null : 12,
-      expiresAt: Date.now() + SIGNATURE_MS,
-    };
-  },
-};
 
 const context = (browser: Browser, width: number, height: number) =>
   browser.newContext({ permissions: ['camera', 'microphone'], viewport: { width, height } });
@@ -139,6 +43,11 @@ test('the Rutube catalogue is walked on recorded answers: shelves, a section, a 
     // Раздел — вкладкой над витриной: лента раздела на месте полок, «Главная» возвращает их.
     const sections = browse.getByRole('tablist', { name: 'Разделы Rutube' });
     await expect(sections.getByRole('tab', { name: 'Главная' })).toHaveAttribute('aria-selected', 'true');
+    // Ряд разделов виден целиком, а не полоской: прокручиваемый ряд прямо в сетке ленты сетка
+    // сжимала до трёх пикселей, и нажатие Playwright по такой вкладке всё равно проходило.
+    const tab = await sections.getByRole('tab', { name: 'Главная' }).boundingBox();
+    const row = await sections.boundingBox();
+    expect(row!.height).toBeGreaterThanOrEqual(tab!.height);
     await sections.getByRole('tab', { name: 'Мультфильмы' }).click();
     const section = fixture<Feed>('rutube-category');
     await expect(browse.locator('.cinema-tile')).toHaveCount(section.items.length);

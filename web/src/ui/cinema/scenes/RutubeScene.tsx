@@ -142,28 +142,31 @@ export default function RutubeScene({ provider, meeting, onClose }: SceneProps) 
       {home && !settled ? (
         <>
           {/* Разделы — вкладками в один ряд над витриной: выбранный раздел заменяет полки своей
-              лентой, «Главная» возвращает их, и с витрины при этом никто не уходит. */}
-          <nav className="cinema-chips" role="tablist" aria-label="Разделы Rutube" style={accent}>
-            <button
-              role="tab"
-              aria-selected={!section}
-              className="cinema-chip-button"
-              onClick={() => setSection('')}
-            >
-              Главная
-            </button>
-            {(sections.data?.items ?? []).map((entry) => (
+              лентой, «Главная» возвращает их, и с витрины при этом никто не уходит. Ряд лежит в
+              полосе (`cinema-strip`), а не прямо в ленте: см. `cinema.css`. */}
+          <div className="cinema-strip">
+            <nav className="cinema-chips" role="tablist" aria-label="Разделы Rutube" style={accent}>
               <button
-                key={entry.id}
                 role="tab"
-                aria-selected={section === entry.id}
+                aria-selected={!section}
                 className="cinema-chip-button"
-                onClick={() => setSection(entry.id)}
+                onClick={() => setSection('')}
               >
-                {entry.title}
+                Главная
               </button>
-            ))}
-          </nav>
+              {(sections.data?.items ?? []).map((entry) => (
+                <button
+                  key={entry.id}
+                  role="tab"
+                  aria-selected={section === entry.id}
+                  className="cinema-chip-button"
+                  onClick={() => setSection(entry.id)}
+                >
+                  {entry.title}
+                </button>
+              ))}
+            </nav>
+          </div>
 
           {section ? (
             <>
