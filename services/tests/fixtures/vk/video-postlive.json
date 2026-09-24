@@ -1,0 +1,50 @@
+{
+ "response": {
+  "count": 1,
+  "items": [
+   {
+    "owner_id": -211045618,
+    "id": 456243735,
+    "title": "ПРЯМОЙ ЭФИР | Mini Cooper 3.0 | 24.09.2026",
+    "duration": 2662,
+    "views": 158,
+    "date": 1790262050,
+    "live": 1,
+    "live_status": "postlive",
+    "image": [
+     {
+      "height": 180,
+      "url": "https://sun9-32.vkuserphoto.ru/s/v1/ig2/-IoOlHgrBmOeOEZKE6J-YltqDZXOEJFlf2gYxOxDswtga72BZ81ZIanZ1s08i7lesUaF7k_E8HgI7C2Zf28KrnY4.jpg?quality=95&size=320x180",
+      "width": 320
+     },
+     {
+      "height": 405,
+      "url": "https://sun9-32.vkuserphoto.ru/s/v1/ig2/zhlHWYUmvZwOFswxr0c_UxcldtB3fEVTk73V_kWh3mb4BaiskhKNnGUQgrPH6JHRqurdSUfM4iJzvnN6TdqhIaHA.jpg?quality=95&size=720x405",
+      "width": 720
+     },
+     {
+      "height": 576,
+      "url": "https://sun9-32.vkuserphoto.ru/s/v1/ig2/9gi985wMEBZ1d49R0c6NFEXB71Zckm1qAzIGe7N93R_CKHWQ59u0YfNpL8qXns0B3YTyfXhAqfRfVq23u81ox3M1.jpg?quality=95&size=1024x576",
+      "width": 1024
+     },
+     {
+      "height": 720,
+      "url": "https://sun9-32.vkuserphoto.ru/s/v1/ig2/eYA_68n4PMQAZ9M-1iX9V6P3MN7wdKj3Ln4oOgXYTfQpvkcMrG2YmOSXKVhUM1zGsb_Kktjd7UugX1qnsCYc4WOU.jpg?quality=95&size=1280x720",
+      "width": 1280
+     }
+    ],
+    "description": "УЖЕ В ЭТОТ ЧЕТВЕРГ — 2 ЭТАП РОЗЫГРЫША MINI COOPER! 🚗\n\n24 сентября в 18:00 встречаемся на прямом эфире в нашей группе ВКо",
+    "type": "video"
+   }
+  ],
+  "groups": [
+   {
+    "id": 211045618,
+    "name": "SEPTIVIT",
+    "screen_name": "septivitpremium",
+    "members_count": 56082,
+    "photo_200": "https://sun9-61.userapi.com/s/v1/ig2/PzSITFcI_VhNQ0xjnPsV52ZUf5AmNNAASNOKR9yNASH2IPwOkfXe4dm0OQs-9kGQVdat3iG8pA3EAsZ96afXGweT.jpg?as=200x200%2C32x32%2C48x48%2C72x72%2C108x108%2C160x160&crop=0%2C1%2C532%2C532&quality=95&size=200x200"
+   }
+  ]
+ }
+}

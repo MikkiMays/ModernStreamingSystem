@@ -29,7 +29,7 @@ from cord_services.cinema import Cinema, Reels, Signer, rewrite
 from cord_services.cinema.memo import Memo
 from cord_services.cinema.net import USER_AGENT, NetConfig
 from cord_services.cinema.providers import PROVIDERS
-from cord_services.cinema.providers.vk import BROWSER, Vk
+from cord_services.cinema.providers.vk import BROWSER, People, Vk, _picture
 from cord_services.cinema.registry import Features, Kit
 from cord_services.cinema.resolve import Resolver, YtDlp, ytdlp
 from cord_services.cinema.transport.signer import proxied
@@ -812,6 +812,17 @@ class DetailsTests(Stage):
             self.cinema.details("vk", "-22277933_1", "video", room=ROOM), 404, "Это видео удалено с VK Видео"
         )
 
+    async def test_a_recording_of_a_finished_stream_is_a_video_not_a_live_channel(self):
+        # Флаг `live: 1` площадка ставит и записи прошедшего эфира (`live_status: postlive`): это
+        # ролик с перемоткой, а не эфир, который смотрят с края.
+        recording = recorded("video-postlive.json")
+        self.answer("video.get", recording, videos="-211045618_456243735", extended="1")
+        page = await self.cinema.details("vk", "-211045618_456243735", "video", room=ROOM)
+        self.assertEqual((page["live"], page["duration"], page["views"]), (False, 2662, 158))
+        item = recording["response"]["items"][0]
+        card = self.vk._video(item, People(recording["response"]))
+        self.assertEqual((card["kind"], card["live"], card["duration"]), ("video", False, 2662))
+
     async def test_a_live_channel_page_of_vk_video_live(self):
         stream = recorded("live-near_you.json")
         self.blogs["near_you"] = (200, stream)
@@ -911,6 +922,21 @@ class SourceTests(Stage):
         plan = await self.vk.source(self.ctx(), "channel", "quiet", {})
         self.assertEqual(plan.url, "https://live.vkvideo.ru/quiet")
         await self.refused(self.vk.source(self.ctx(), "video", "near_you", {}), 400, "Непонятный адрес видео")
+
+
+class PictureTests(unittest.TestCase):
+    def test_a_frame_without_padding_wins_over_a_padded_one_of_the_right_width(self):
+        # Кадры с полями (`with_padding`) — вписанные в 4:3 с чёрными полосами; плитке 16:9 они не
+        # годятся, пока есть кадр без полей. Здесь у настоящего кадра с полями (130×96) изменена
+        # одна ширина — на 480: он шире 440, но уже 720 и был бы выбран, если бы поля не учитывались.
+        item = recorded("section-all.json")["response"]["videos"][0]
+        padded = next(entry for entry in item["image"] if entry.get("with_padding"))
+        padded["width"] = 480
+        self.assertEqual(_picture(item["image"], 440), frame(item, 720))
+        # Только кадры с полями — берётся из них (так у обложек плейлистов).
+        album = recorded("albums-22277933.json")["response"]["items"][0]
+        self.assertEqual(_picture(album["image"], 320), album["image"][2]["url"])
+        self.assertEqual(_picture([], 440), "")
 
 
 class ResolveTests(unittest.IsolatedAsyncioTestCase):
