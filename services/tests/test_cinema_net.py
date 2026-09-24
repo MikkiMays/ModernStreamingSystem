@@ -8,11 +8,15 @@
 """
 
 import asyncio
+import contextlib
+import io
 import logging
 import os
 import pathlib
 import tempfile
+import time
 import unittest
+import warnings as pywarnings
 from ipaddress import ip_address, ip_network
 from unittest.mock import patch
 
@@ -22,7 +26,17 @@ from fastapi import HTTPException
 
 from cord_services.app import create_app
 from cord_services.cinema import Cinema
-from cord_services.cinema.net import Guard, GuardedTransport, Net, NetConfig, NotPublic, public
+from cord_services.cinema import net as netmodule
+from cord_services.cinema.net import (
+    Allowance,
+    Guard,
+    GuardedBackend,
+    GuardedTransport,
+    Net,
+    NetConfig,
+    NotPublic,
+    public,
+)
 from cord_services.cinema.providers.twitch import Twitch
 from cord_services.cinema.providers.youtube import YouTube
 from cord_services.cinema.registry import HostPolicy
@@ -39,6 +53,12 @@ COOKIES = (
     "#HttpOnly_.youtube.com\tTRUE\t/\tTRUE\t0\tHSID\tanother-secret\n"
 )
 
+# Флаг «и для поддоменов» (FALSE) спорит с точкой в начале домена: семь полей на месте, а
+# загрузчик cookies (http.cookiejar) на такой строке падает — и yt-dlp повторяет её целиком,
+# вместе со значением, в тексте ошибки.
+SECRET = "SECRET-SESSION-7f3a9c"
+MISMATCHED = f"# Netscape HTTP Cookie File\n.youtube.com\tFALSE\t/\tTRUE\t1893456000\tSID\t{SECRET}\n"
+
 
 class Directory:
     """Справочник имён теста: что ответить на каждое имя (или функция, которая решит)."""
@@ -49,7 +69,8 @@ class Directory:
 
     async def __call__(self, host, port):
         self.asked.append(host)
-        answer = self.answers[host]
+        # Как и настоящий DNS: регистр и точка в конце имени ничего не меняют.
+        answer = self.answers[host.lower().rstrip(".")]
         return answer() if callable(answer) else answer
 
 
@@ -172,18 +193,39 @@ class PublicAddressTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(httpcore.ConnectError):
             await guard.vet("empty.test", 443)
 
-    async def test_networks_from_the_setting_are_let_in_and_nothing_else(self):
-        # Своя медиатека на 127.0.0.1:8097 — только если её сеть названа в CINEMA_PRIVATE_HOSTS.
+    async def test_what_the_setting_opens_is_opened_exactly(self):
+        # Своя медиатека на 127.0.0.1:8097 — только этот адрес и этот порт, а не всё, что
+        # слушает на машине: служба живёт в сети хоста, и там же база, ядро и Redis.
         guard = Guard(
-            private=[ip_network("127.0.0.1/32"), ip_network("10.0.0.0/8")],
-            resolve=Directory({"library.test": ["10.1.2.3"]}),
+            [
+                Allowance(network=ip_network("127.0.0.1/32"), port=8097),
+                Allowance(network=ip_network("10.0.0.0/8")),
+                Allowance(host="media.lan", port=8096),
+            ],
+            resolve=Directory(
+                {"library.test": ["10.1.2.3"], "media.lan": ["192.168.1.5"], "other.lan": ["192.168.1.5"]}
+            ),
         )
         self.assertEqual(await guard.vet("127.0.0.1", 8097), ["127.0.0.1"])
         self.assertEqual(await guard.vet("::ffff:10.9.9.9", 80), ["::ffff:10.9.9.9"])
         self.assertEqual(await guard.vet("library.test", 443), ["10.1.2.3"])
-        for text in ("127.0.0.2", "192.168.1.1", "169.254.169.254"):
+        self.assertEqual(await guard.vet("MEDIA.lan.", 8096), ["192.168.1.5"])
+        for host, port in (
+            ("127.0.0.1", 5432),
+            ("127.0.0.2", 8097),
+            ("192.168.1.1", 443),
+            ("169.254.169.254", 80),
+            ("media.lan", 443),
+            ("other.lan", 8096),
+        ):
             with self.assertRaises(NotPublic):
-                await guard.vet(text, 443)
+                await guard.vet(host, port)
+
+    async def test_ipv4_inside_ipv6_is_matched_as_its_ipv4(self):
+        guard = Guard([Allowance(network=ip_network("10.0.0.0/8"))])
+        self.assertEqual(await guard.vet("::ffff:10.1.2.3", 443), ["::ffff:10.1.2.3"])
+        with self.assertRaises(NotPublic):
+            await guard.vet("::ffff:192.168.1.1", 443)
 
 
 class GuardedTransportTests(unittest.IsolatedAsyncioTestCase):
@@ -286,6 +328,77 @@ class GuardedTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(b"\r\nHost: media.test\r\n", line.written[2])
 
 
+class DialTests(unittest.IsolatedAsyncioTestCase):
+    """Кому звонить первым и сколько ждать каждого: имя с несколькими адресами."""
+
+    class Patience(httpcore.AsyncNetworkBackend):
+        """Сеть, где отвечает один адрес, а остальные молчат, пока их не перестанут ждать."""
+
+        def __init__(self, answering=None):
+            self.answering = answering
+            self.attempts = []
+
+        async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+            self.attempts.append((host, timeout))
+            if host == self.answering:
+                return Line([OK])
+            await asyncio.sleep(3600 if timeout is None else timeout)
+            raise httpcore.ConnectTimeout(f"{host} молчит")
+
+        async def connect_unix_socket(self, path, timeout=None, socket_options=None):
+            raise AssertionError("unix")
+
+        async def sleep(self, seconds):
+            await asyncio.sleep(seconds)
+
+    ADDRESSES = ["2606:4700::1111", "93.184.216.34", "2606:4700::2222", "8.8.8.8"]
+
+    def backend(self, answering=None):
+        patience = self.Patience(answering)
+        guard = Guard(resolve=Directory({"multi.test": list(self.ADDRESSES)}))
+        return patience, GuardedBackend(guard, patience)
+
+    async def test_ipv4_first_and_each_silent_address_waits_its_share_not_the_whole_timeout(self):
+        # IPv6 без маршрута молчит до конца срока: двадцать секунд на каждый адрес по очереди
+        # — это минута ожидания перед тем, как дойти до IPv4, который ответил бы сразу.
+        patience, backend = self.backend(answering="2606:4700::2222")
+        with patch.object(netmodule, "ATTEMPT_TIMEOUT", 0.05):
+            started = time.monotonic()
+            await backend.connect_tcp("multi.test", 443, timeout=2.0)
+        hosts = [host for host, _ in patience.attempts]
+        self.assertEqual(hosts, ["93.184.216.34", "8.8.8.8", "2606:4700::1111", "2606:4700::2222"])
+        self.assertEqual([timeout for _, timeout in patience.attempts[:3]], [0.05, 0.05, 0.05])
+        # Последнему — весь остаток срока, а не доля: один адрес ждут столько же, сколько и раньше.
+        self.assertGreater(patience.attempts[3][1], 1.5)
+        self.assertLess(time.monotonic() - started, 1.0)
+
+    async def test_the_whole_timeout_still_bounds_all_attempts(self):
+        patience, backend = self.backend()
+        with patch.object(netmodule, "ATTEMPT_TIMEOUT", 0.2):
+            started = time.monotonic()
+            with self.assertRaises(httpcore.ConnectTimeout):
+                await backend.connect_tcp("multi.test", 443, timeout=0.3)
+        self.assertLess(time.monotonic() - started, 0.6)
+        self.assertEqual(len(patience.attempts), 2)
+        self.assertLessEqual(patience.attempts[1][1], 0.11)
+
+    def test_a_pool_without_the_seam_is_refused_at_startup(self):
+        # Защита встраивается в закрытый атрибут пула httpcore. Если он пропадёт (обновление
+        # httpcore), служба не должна молча соединяться без проверки — она не должна подняться.
+        def bare(self, **options):
+            self._pool = object()
+
+        with (
+            patch.object(httpx.AsyncHTTPTransport, "__init__", bare),
+            patch.object(netmodule, "_seam_checked", False),
+        ):
+            # При сборке приложения: сеть кинозала создаётся вместе с ним, клиенты — позже.
+            with self.assertRaises(RuntimeError):
+                Net(NetConfig(), {}.get)
+            with self.assertRaises(RuntimeError):
+                GuardedTransport(Guard())
+
+
 class NetConfigTests(unittest.TestCase):
     """Настройки читаются один раз, при сборке приложения, — из словаря, а не из окружения."""
 
@@ -325,21 +438,70 @@ class NetConfigTests(unittest.TestCase):
         self.assertIn("CINEMA_PROXY_YOUTUBE", warnings[0])
         self.assertNotIn("pa55", warnings[0])
 
-    def test_private_networks_come_from_the_setting(self):
+    def test_private_hosts_belong_to_one_platform_and_may_name_a_port(self):
         config, warnings = self.read(
-            {"CINEMA_PRIVATE_HOSTS": " 127.0.0.1/32, 10.0.0.0/8,fd00::/8, 192.168.1.7 ,x/99"}
+            {
+                "CINEMA_PRIVATE_HOSTS_JELLYFIN": " 127.0.0.1/32:8097, 10.0.0.0/8,[fd00::/8]:8096, "
+                "192.168.1.7 ,media.lan:8096, fd12::/16, [::1]:8097, 127.0.0.1:8098"
+            }
         )
         self.assertEqual(
-            config.private,
+            config.private_for("jellyfin"),
             (
-                ip_network("127.0.0.1/32"),
-                ip_network("10.0.0.0/8"),
-                ip_network("fd00::/8"),
-                ip_network("192.168.1.7/32"),
+                Allowance(network=ip_network("127.0.0.1/32"), port=8097),
+                Allowance(network=ip_network("10.0.0.0/8")),
+                Allowance(network=ip_network("fd00::/8"), port=8096),
+                Allowance(network=ip_network("192.168.1.7/32")),
+                Allowance(host="media.lan", port=8096),
+                Allowance(network=ip_network("fd12::/16")),
+                Allowance(network=ip_network("::1/128"), port=8097),
+                Allowance(network=ip_network("127.0.0.1/32"), port=8098),
             ),
         )
+        self.assertEqual(config.private_for("youtube"), ())
+        self.assertEqual(warnings, [])
+
+    def test_a_network_written_with_host_bits_is_understood_with_a_warning(self):
+        config, warnings = self.read({"CINEMA_PRIVATE_HOSTS_JELLYFIN": "10.0.0.1/8:8096"})
+        self.assertEqual(
+            config.private_for("jellyfin"), (Allowance(network=ip_network("10.0.0.0/8"), port=8096),)
+        )
         self.assertEqual(len(warnings), 1)
-        self.assertIn("x/99", warnings[0])
+        self.assertIn("10.0.0.1/8", warnings[0])
+        self.assertIn("10.0.0.0/8", warnings[0])
+
+    def test_an_ipv4_network_written_inside_ipv6_is_that_ipv4_network(self):
+        config, warnings = self.read(
+            {"CINEMA_PRIVATE_HOSTS_JELLYFIN": "::ffff:10.0.0.0/104, [::ffff:127.0.0.1]:8097"}
+        )
+        self.assertEqual(
+            config.private_for("jellyfin"),
+            (
+                Allowance(network=ip_network("10.0.0.0/8")),
+                Allowance(network=ip_network("127.0.0.1/32"), port=8097),
+            ),
+        )
+        self.assertEqual(warnings, [])
+
+    def test_entries_that_are_not_understood_are_one_warning(self):
+        config, warnings = self.read(
+            {
+                "CINEMA_PRIVATE_HOSTS_JELLYFIN": "x/99, media.lan, 10.0.0.0/8:99999, 10.0.0.0/8:http, "
+                "[fd00::1, 127.0.0.1/32"
+            }
+        )
+        self.assertEqual(config.private_for("jellyfin"), (Allowance(network=ip_network("127.0.0.1/32")),))
+        self.assertEqual(len(warnings), 1)
+        for entry in ("x/99", "media.lan", "10.0.0.0/8:99999", "10.0.0.0/8:http", "[fd00::1"):
+            self.assertIn(entry, warnings[0])
+
+    def test_the_old_setting_for_everyone_is_named_as_ignored(self):
+        # Общая строка открывала частные адреса всем площадкам сразу — в том числе ссылке, которую
+        # вставляет любой участник. Её больше нет, и молча это не проходит.
+        config, warnings = self.read({"CINEMA_PRIVATE_HOSTS": "127.0.0.1/32"})
+        self.assertEqual(config.private, {})
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("CINEMA_PRIVATE_HOSTS_", warnings[0])
 
     def test_readable_cookies_are_kept_for_their_platform_only(self):
         config, warnings = self.read({"CINEMA_COOKIES_YOUTUBE": self.cookies()})
@@ -368,6 +530,19 @@ class NetConfigTests(unittest.TestCase):
             self.assertIn("CINEMA_COOKIES_YOUTUBE", warnings[0])
             self.assertIn(reason, warnings[0])
             self.assertNotIn("secret-session-value", warnings[0])
+
+    def test_a_file_the_loader_chokes_on_is_refused_by_line_without_its_values(self):
+        path = self.cookies(MISMATCHED, "mismatched.txt")
+        noise = io.StringIO()
+        with contextlib.redirect_stderr(noise), pywarnings.catch_warnings(record=True) as caught:
+            pywarnings.simplefilter("always")
+            config, warnings = self.read({"CINEMA_COOKIES_YOUTUBE": path})
+        self.assertIsNone(config.cookies_for("youtube"))
+        self.assertEqual(len(warnings), 1)
+        self.assertIn(path, warnings[0])
+        self.assertIn("строка 2", warnings[0])
+        for text in (noise.getvalue(), *warnings, *(str(item.message) for item in caught)):
+            self.assertNotIn(SECRET, text)
 
     def test_the_usual_proxy_variables_are_named_as_ignored(self):
         # httpx кинозала больше не читает HTTP(S)_PROXY сам: выход задаёт CINEMA_PROXY. Молча
@@ -452,6 +627,64 @@ class YtDlpNetworkTests(unittest.TestCase):
         self.assertIn("proxy.example", refusal.exception.detail)
 
 
+class CookieLeakTests(unittest.TestCase):
+    """
+    Значение cookie не доходит ни до комнаты, ни до журнала, ни до stderr.
+
+    Файл, на котором загрузчик cookies падает, до yt-dlp не доходит вовсе. А если проверка
+    когда-нибудь пропустит такой файл (другая версия yt-dlp), настоящий yt-dlp падает на нём
+    раньше любого запроса наружу (адрес к тому же в зоне `.invalid`) — и всё, что он при этом
+    говорит в ошибке, в stderr и в предупреждениях Python, проверяется здесь на значение cookie.
+    """
+
+    def heard(self, action):
+        noise = io.StringIO()
+        with contextlib.redirect_stderr(noise), pywarnings.catch_warnings(record=True) as caught:
+            with self.assertLogs("cord_services", "WARNING") as log:
+                result = action()
+        return result, [noise.getvalue(), *log.output, *(str(item.message) for item in caught)]
+
+    def test_a_file_the_loader_chokes_on_never_reaches_yt_dlp(self):
+        door, heard = self.heard(lambda: YtDlp(NetConfig(cookies={"youtube": MISMATCHED})))
+        self.assertEqual(door.cookies, {})
+        for text in heard:
+            self.assertNotIn(SECRET, text)
+        with patch("yt_dlp.YoutubeDL", ReadingYoutubeDL):
+            ReadingYoutubeDL.seen = []
+            door.extract("https://www.youtube.com/watch?v=x", {}, "youtube")
+        self.assertNotIn("cookiefile", ReadingYoutubeDL.seen[0][0])
+
+    def test_if_yt_dlp_chokes_anyway_nothing_leaks(self):
+        # Проверка «пропустила» файл: теперь его загружает настоящий yt-dlp и падает.
+        def probe():
+            door = YtDlp(NetConfig(cookies={"youtube": MISMATCHED}))
+            with self.assertRaises(HTTPException) as refusal:
+                door.probe("https://cord.invalid/watch?v=x", "youtube")
+            return refusal.exception
+
+        with patch("cord_services.cinema.resolve.cookie_problem", return_value=None):
+            refusal, heard = self.heard(probe)
+        self.assertEqual(refusal.status_code, 502)
+        self.assertEqual(refusal.detail, "Не удалось открыть видео: не подошёл файл cookies")
+        for text in heard:
+            self.assertNotIn(SECRET, text)
+        # В журнал ушло то же, что и комнате, — без значения, но и не молча.
+        self.assertTrue(any("yt-dlp: не подошёл файл cookies" in text for text in heard), heard)
+
+    def test_what_yt_dlp_says_about_cookies_is_told_in_our_words(self):
+        door = YtDlp(NetConfig(cookies={"youtube": COOKIES}))
+        told = door.explain(
+            RuntimeError(
+                "ERROR: invalid Netscape format cookies file '/tmp/cord-cookies-x1y2.txt': 'anything'"
+            )
+        )
+        self.assertEqual(told, "не подошёл файл cookies")
+        told = door.explain(RuntimeError("HTTP Error 400: SID=secret-session-value; HSID=another-secret"))
+        self.assertNotIn("secret-session-value", told)
+        self.assertNotIn("another-secret", told)
+        self.assertIn("HTTP Error 400", told)
+
+
 class ClientTests(unittest.IsolatedAsyncioTestCase):
     """Каждая площадка ходит наружу своим клиентом: своим прокси и под той же защитой."""
 
@@ -488,6 +721,24 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(httpx.ConnectError):
                 await net.client_for(provider).get(url)
         self.assertEqual(dialer.dialed, [])
+
+    async def test_a_private_allowance_opens_only_its_platform_and_port(self):
+        dialer = Dialer()
+        net = self.net(
+            NetConfig(private={"library": (Allowance(network=ip_network("127.0.0.1/32"), port=8097),)}),
+            {"youtube": YouTube.hosts, "library": HostPolicy(public_any=True)},
+            resolve=Directory({}),
+            backend=dialer,
+        )
+        answer = await net.client_for("library").get("http://127.0.0.1:8097/System/Info")
+        self.assertEqual(answer.status_code, 200)
+        for provider, url in (("youtube", "http://127.0.0.1:8097/"), ("library", "http://127.0.0.1:5432/")):
+            with self.assertRaises(httpx.ConnectError):
+                await net.client_for(provider).get(url)
+        self.assertEqual(dialer.dialed, [("127.0.0.1", 8097)])
+        self.assertEqual(await net.guard_public("library", "127.0.0.1", 8097), ["127.0.0.1"])
+        with self.assertRaises(NotPublic):
+            await net.guard_public("youtube", "127.0.0.1", 8097)
 
     async def test_the_cinema_asks_each_platform_through_its_own_client(self):
         cinema = Cinema("secret", net=NetConfig())
@@ -528,19 +779,29 @@ class AppConfigTests(unittest.TestCase):
             {
                 "CINEMA_PROXY": "socks5h://proxy.example:1080",
                 "CINEMA_COOKIES_YOUTUBE": str(cookies),
-                "CINEMA_PRIVATE_HOSTS": "127.0.0.1/32",
+                "CINEMA_PRIVATE_HOSTS_TWITCH": "127.0.0.1/32:8097",
             }
         )
         self.assertEqual(cinema.net.config.proxy_for("twitch"), "socks5h://proxy.example:1080")
         self.assertEqual(cinema.ytdlp.network.cookies_for("youtube"), COOKIES)
-        self.assertEqual(cinema.net.guard.private, (ip_network("127.0.0.1/32"),))
+        self.assertEqual(
+            cinema.net.guard_for("twitch").allowances,
+            (Allowance(network=ip_network("127.0.0.1/32"), port=8097),),
+        )
+        self.assertEqual(cinema.net.guard_for("youtube").allowances, ())
         self.assertIsInstance(cinema.net.client_for("twitch")._transport._pool, httpcore.AsyncSOCKSProxy)
 
     def test_a_platform_the_cinema_does_not_know_is_one_line_in_the_log(self):
         with self.assertLogs("cord_services.cinema.facade", "WARNING") as log:
-            self.build({"CINEMA_PROXY_YOTUBE": "http://proxy.example:3128"})
+            self.build(
+                {
+                    "CINEMA_PROXY_YOTUBE": "http://proxy.example:3128",
+                    "CINEMA_PRIVATE_HOSTS_JELYFIN": "127.0.0.1/32:8097",
+                }
+            )
         self.assertEqual(len(log.records), 1)
         self.assertIn("yotube", log.output[0])
+        self.assertIn("jelyfin", log.output[0])
         self.assertNotIn("proxy.example", log.output[0])
 
 

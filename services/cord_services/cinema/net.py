@@ -16,8 +16,11 @@ YouTube «Sign in to confirm you're not a bot» по адресу сервера
 ТОЛЬКО НАРУЖУ. Соединение идёт только на публичный адрес, и проверка стоит там, где имя уже
 разрешено: транспорт сам разрешает имя, проверяет каждый адрес и соединяется ровно с
 проверенным. Проверка «по имени» заранее ничего не доказывает — имя, которое на проверке
-публичное, на соединении может ответить 127.0.0.1 (DNS rebinding). Частные сети открывает
-только `CINEMA_PRIVATE_HOSTS` (CIDR через запятую) — например, своя медиатека в той же сети.
+публичное, на соединении может ответить 127.0.0.1 (DNS rebinding). Частный адрес открывает
+только `CINEMA_PRIVATE_HOSTS_<ID>` — одной площадке и, если назван порт, только этот порт:
+`127.0.0.1/32:8097` для своей медиатеки, `[fd00::/8]:8096`, `media.lan:8096`. Общей строки на
+все площадки нет нарочно: служба живёт в сети хоста, и `127.0.0.1` для всех значил бы, что
+ссылка любого участника дотянется до базы, ядра и Redis на той же машине.
 
 Настройки читает `NetConfig.from_env` один раз, при сборке приложения; тесты передают
 `NetConfig` сами и от окружения процесса не зависят.
@@ -27,11 +30,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import io
 import logging
 import os
 import re
 import socket
 import tempfile
+import warnings
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address, ip_network
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
@@ -56,9 +61,38 @@ STANDARD_PROXIES = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "htt
 COOKIES_LIMIT = 1024 * 1024
 NETSCAPE_MAGIC = re.compile(r"#( Netscape)? HTTP Cookie File")
 HTTPONLY_PREFIX = "#HttpOnly_"
+# Так начинается имя копии cookies на один вызов yt-dlp. По нему текст ошибки yt-dlp, где эта
+# копия названа (а рядом с ней бывает и строка файла со значением), узнаётся и заменяется.
+COOKIE_COPY = "cord-cookies-"
+# Значения cookie короче этого — флажки согласия и настройки, а не сессия; вычёркивать их из
+# текста ошибки значило бы портить сам текст.
+SECRET_SHORTEST = 8
+# Сколько ждать один адрес, если за именем их несколько: остальным тоже нужен срок.
+ATTEMPT_TIMEOUT = 4.0
 
 TIMEOUT = httpx.Timeout(20.0, read=60.0)
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Cord/1.0"
+
+
+@dataclass(frozen=True)
+class Allowance:
+    """
+    Куда площадке можно, хотя адрес и не публичный: сеть (любой порт или один) или имя с портом.
+
+    Имя разрешает всё, во что оно разрешится, — но только его и только на этом порту: имя своей
+    сети назначает администратор, чужому его не переназначить.
+    """
+
+    network: Network | None = None
+    host: str | None = None
+    port: int | None = None
+
+    def covers(self, host: str, address: Address, port: int) -> bool:
+        if self.port is not None and self.port != port:
+            return False
+        if self.host is not None:
+            return host.lower().rstrip(".") == self.host
+        return self.network is not None and _plain(address) in self.network
 
 
 @dataclass(frozen=True)
@@ -66,13 +100,14 @@ class NetConfig:
     """
     Настройки выхода наружу. Прокси и cookies в `repr` не попадают: в них бывают пароли.
 
-    `cookies` — уже прочитанное и проверенное содержимое файла по имени площадки.
+    `cookies` — уже прочитанное и проверенное содержимое файла по имени площадки, `private` —
+    разрешённые ей частные адреса.
     """
 
     proxy: str | None = field(default=None, repr=False)
     proxies: Mapping[str, str] = field(default_factory=dict, repr=False)
     cookies: Mapping[str, str] = field(default_factory=dict, repr=False)
-    private: tuple[Network, ...] = ()
+    private: Mapping[str, tuple[Allowance, ...]] = field(default_factory=dict)
 
     def proxy_for(self, provider: str) -> str | None:
         return self.proxies.get(provider) or self.proxy
@@ -80,12 +115,16 @@ class NetConfig:
     def cookies_for(self, provider: str) -> str | None:
         return self.cookies.get(provider)
 
+    def private_for(self, provider: str) -> tuple[Allowance, ...]:
+        return tuple(self.private.get(provider, ()))
+
     def secrets(self) -> list[str]:
         """
-        Что из адресов прокси нельзя показывать никому: имя с паролем и сам пароль.
+        Что нельзя показывать никому: вход в прокси (имя с паролем и сам пароль) и значения cookie.
 
         Хост прокси остаётся виден — по нему понятно, какой выход отказал, — а вход в него нет.
-        Пароль короче четырёх знаков отдельно не ищется: замена по нему испортила бы весь текст.
+        Короткое (пароль короче четырёх знаков, флажок cookie) отдельно не ищется: замена по нему
+        испортила бы весь текст, а секретом оно не бывает.
         """
         found: list[str] = []
         for value in (self.proxy, *self.proxies.values()):
@@ -95,13 +134,20 @@ class NetConfig:
             found.append(userinfo + "@")
             password = userinfo.partition(":")[2]
             found.extend(word for word in {password, unquote(password)} if len(word) >= 4)
-        return found
+        for text in self.cookies.values():
+            for line in text.splitlines():
+                fields = line.removeprefix(HTTPONLY_PREFIX).split("\t")
+                if len(fields) == 7 and not fields[0].startswith("#") and len(fields[6]) >= SECRET_SHORTEST:
+                    found.append(fields[6])
+        # Длинное — раньше: пароль бывает частью строки входа, и заменить нужно её целиком.
+        return sorted(set(found), key=len, reverse=True)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> NetConfig:
         proxy = _proxy("CINEMA_PROXY", env.get("CINEMA_PROXY", ""))
         proxies: dict[str, str] = {}
         cookies: dict[str, str] = {}
+        private: dict[str, tuple[Allowance, ...]] = {}
         for name in sorted(env):
             if name.startswith("CINEMA_PROXY_") and len(name) > len("CINEMA_PROXY_"):
                 value = _proxy(name, env[name])
@@ -111,12 +157,21 @@ class NetConfig:
                 text = _cookies(name, env[name])
                 if text is not None:
                     cookies[name.removeprefix("CINEMA_COOKIES_").lower()] = text
+            elif name.startswith("CINEMA_PRIVATE_HOSTS_") and len(name) > len("CINEMA_PRIVATE_HOSTS_"):
+                allowances = _allowances(name, env[name])
+                if allowances:
+                    private[name.removeprefix("CINEMA_PRIVATE_HOSTS_").lower()] = allowances
         if proxy is None and any(env.get(name) for name in STANDARD_PROXIES):
             logger.warning(
                 "кинозал не читает HTTP_PROXY/HTTPS_PROXY/ALL_PROXY: выход наружу задаёт CINEMA_PROXY "
                 "(и CINEMA_PROXY_<ПЛОЩАДКА>)"
             )
-        return cls(proxy, proxies, cookies, _networks(env.get("CINEMA_PRIVATE_HOSTS", "")))
+        if (env.get("CINEMA_PRIVATE_HOSTS") or "").strip():
+            logger.warning(
+                "CINEMA_PRIVATE_HOSTS не действует: частный адрес открывается одной площадке — "
+                "CINEMA_PRIVATE_HOSTS_<ПЛОЩАДКА>, лучше с портом (127.0.0.1/32:8097)"
+            )
+        return cls(proxy, proxies, cookies, private)
 
 
 def _proxy(name: str, value: str) -> str | None:
@@ -138,20 +193,87 @@ def _proxy(name: str, value: str) -> str | None:
     return value
 
 
-def _networks(text: str) -> tuple[Network, ...]:
-    networks: list[Network] = []
+HOSTNAME = re.compile(r"(?=.*[A-Za-z])[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.?")
+
+
+def _allowances(name: str, text: str) -> tuple[Allowance, ...]:
+    """
+    Строка `CINEMA_PRIVATE_HOSTS_<ID>`: через запятую `CIDR`, `CIDR:порт`, `[IPv6/CIDR]:порт` или
+    `имя:порт`. Всё, что не понято, — одной строкой в журнале; сеть с лишними битами хоста
+    (`10.0.0.1/8`) понимается как её сеть (`10.0.0.0/8`) — тоже со строкой в журнале.
+    """
+    found: list[Allowance] = []
     wrong: list[str] = []
+    widened: list[str] = []
     for part in (text or "").split(","):
         part = part.strip()
         if not part:
             continue
         try:
-            networks.append(ip_network(part))
+            allowance, exact = _allowance(part)
         except ValueError:
             wrong.append(part)
+            continue
+        found.append(allowance)
+        if not exact:
+            widened.append(f"{part} → {allowance.network}")
     if wrong:
-        logger.warning("CINEMA_PRIVATE_HOSTS: не сети CIDR, пропущены: %s", ", ".join(wrong))
-    return tuple(networks)
+        logger.warning("%s: не поняты и пропущены: %s", name, ", ".join(wrong))
+    if widened:
+        logger.warning("%s: у сети лишние биты хоста, понята как сеть: %s", name, ", ".join(widened))
+    return tuple(found)
+
+
+def _allowance(part: str) -> tuple[Allowance, bool]:
+    """Одна запись и то, записана ли сеть точно (без битов хоста)."""
+    if part.startswith("["):
+        head, bracket, rest = part[1:].partition("]")
+        if not bracket or (rest and not rest.startswith(":")):
+            raise ValueError(part)
+        port = _port(rest[1:]) if rest else None
+    elif part.count(":") == 1:
+        head, _, tail = part.partition(":")
+        port = _port(tail)
+    else:
+        # Без двоеточия — сеть без порта; с несколькими — IPv6 без порта (порт — только в скобках).
+        head, port = part, None
+    try:
+        network = ip_network(head)
+        exact = True
+    except ValueError:
+        try:
+            network = ip_network(head, strict=False)
+            exact = False
+        except ValueError:
+            # Имя — только с портом: имя своей сети открывает один сервис, а не всю машину.
+            if port is None or not HOSTNAME.fullmatch(head):
+                raise ValueError(part) from None
+            return Allowance(host=head.lower().rstrip("."), port=port), True
+    return Allowance(network=_plain_network(network), port=port), exact
+
+
+def _port(text: str) -> int:
+    if not text.isdigit() or not 0 < int(text) < 65536:
+        raise ValueError(text)
+    return int(text)
+
+
+MAPPED = IPv6Network("::ffff:0:0/96")
+
+
+def _plain_network(network: Network) -> Network:
+    """IPv4 внутри IPv6 (`::ffff:10.0.0.0/104`) — это та же сеть IPv4 (`10.0.0.0/8`)."""
+    if isinstance(network, IPv6Network) and network.prefixlen >= 96 and network.subnet_of(MAPPED):
+        inner = network.network_address.ipv4_mapped
+        assert inner is not None
+        return IPv4Network(f"{inner}/{network.prefixlen - 96}")
+    return network
+
+
+def _plain(address: Address) -> Address:
+    if isinstance(address, IPv6Address) and address.ipv4_mapped is not None:
+        return address.ipv4_mapped
+    return address
 
 
 def _cookies(name: str, path: str) -> str | None:
@@ -175,6 +297,8 @@ def _cookies(name: str, path: str) -> str | None:
         )
         return None
     problem = "файл больше мегабайта" if len(text) > COOKIES_LIMIT else _netscape_problem(text)
+    if problem is None:
+        problem = cookie_problem(text)
     if problem:
         logger.warning(
             "%s: файл cookies %s не в формате Netscape (%s) — площадка ходит без cookies", name, path, problem
@@ -200,6 +324,46 @@ def _netscape_problem(text: str) -> str | None:
     return None
 
 
+def cookie_problem(text: str) -> str | None:
+    """
+    Загружается ли файл тем самым загрузчиком, которым его потом загрузит yt-dlp.
+
+    Проверка по полям не ловит всего: строка с флагом «для поддоменов», который спорит с точкой
+    в начале домена, проходит по полям, а загрузчик на ней падает — и yt-dlp повторяет её
+    целиком, со значением, в тексте ошибки. Поэтому файл загружается по-настоящему, а если нет —
+    по одной строке, чтобы назвать номер той, на которой он падает.
+    """
+    if _loads(text):
+        return None
+    lines = text.splitlines()
+    for number, line in enumerate(lines[1:], 2):
+        bare = line.removeprefix(HTTPONLY_PREFIX)
+        if bare.startswith("#") or not bare.strip():
+            continue
+        if not _loads(f"{lines[0]}\n{line}\n"):
+            return f"строка {number} не загружается"
+    return "файл не загружается"
+
+
+def _loads(text: str) -> bool:
+    """
+    Загружает текст в одноразовую банку cookies yt-dlp — молча.
+
+    Всё, что загрузчик хотел бы сказать (предупреждения Python, строки в stderr — в них бывает
+    значение cookie), остаётся здесь и считается отказом: на запросе он сказал бы это в журнал.
+    """
+    from yt_dlp.cookies import YoutubeDLCookieJar  # тяжёлый модуль: только если cookies заданы
+
+    noise = io.StringIO()
+    try:
+        with warnings.catch_warnings(), contextlib.redirect_stderr(noise):
+            warnings.simplefilter("ignore")
+            YoutubeDLCookieJar().load(io.StringIO(text))
+    except Exception:
+        return False
+    return not noise.getvalue()
+
+
 @contextlib.contextmanager
 def cookie_file(text: str | None) -> Iterator[str | None]:
     """
@@ -212,7 +376,7 @@ def cookie_file(text: str | None) -> Iterator[str | None]:
     if text is None:
         yield None
         return
-    handle, path = tempfile.mkstemp(prefix="cord-cookies-", suffix=".txt")
+    handle, path = tempfile.mkstemp(prefix=COOKIE_COPY, suffix=".txt")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as target:
             target.write(text)
@@ -286,15 +450,14 @@ async def system_resolve(host: str, port: int) -> list[str]:
 
 
 class Guard:
-    """Решает, можно ли соединяться с адресами за именем. Одна на всю сеть кинозала."""
+    """Решает, можно ли соединяться с адресами за именем. У каждой площадки своя."""
 
-    def __init__(self, private: Iterable[Network] = (), resolve: Resolve = system_resolve):
-        self.private = tuple(private)
+    def __init__(self, allowances: Iterable[Allowance] = (), resolve: Resolve = system_resolve):
+        self.allowances = tuple(allowances)
         self.resolve = resolve
 
-    def permits(self, address: Address) -> bool:
-        plain = address.ipv4_mapped if isinstance(address, IPv6Address) and address.ipv4_mapped else address
-        return public(address) or any(plain in network for network in self.private)
+    def permits(self, host: str, address: Address, port: int) -> bool:
+        return public(address) or any(entry.covers(host, address, port) for entry in self.allowances)
 
     async def vet(self, host: str, port: int) -> list[str]:
         """
@@ -311,7 +474,7 @@ class Guard:
         if not addresses:
             raise httpcore.ConnectError(f"{host}: имя не разрешилось")
         for text in addresses:
-            if not self.permits(ip_address(text)):
+            if not self.permits(literal, ip_address(text), port):
                 raise NotPublic(f"{host}: адрес {text} не публичный")
         return addresses
 
@@ -340,19 +503,32 @@ class GuardedBackend(httpcore.AsyncNetworkBackend):
     ) -> httpcore.AsyncNetworkStream:
         if self.exempt is not None and host == self.exempt:
             return await self.inner.connect_tcp(host, port, timeout, local_address, socket_options)
+        clock = asyncio.get_running_loop().time
+        deadline = None if timeout is None else clock() + timeout
         try:
             async with asyncio.timeout(timeout):
                 addresses = await self.guard.vet(host, port)
         except TimeoutError:
             raise httpcore.ConnectTimeout(f"{host}: имя не разрешилось вовремя") from None
+        # IPv4 — первым: IPv6 без маршрута молчит до конца срока, а не отказывает сразу. Каждый
+        # адрес, кроме последнего, ждём не дольше ATTEMPT_TIMEOUT — иначе до адреса, который
+        # ответил бы сразу, очередь доходила бы через минуту. Последнему — весь остаток срока.
+        ordered = sorted(addresses, key=lambda text: ip_address(text).version)
         failure: Exception | None = None
-        for address in addresses:
+        for index, address in enumerate(ordered):
+            left = None if deadline is None else deadline - clock()
+            if left is not None and left <= 0:
+                break
+            last = index == len(ordered) - 1
+            if last:
+                attempt = left
+            else:
+                attempt = ATTEMPT_TIMEOUT if left is None else min(ATTEMPT_TIMEOUT, left)
             try:
-                return await self.inner.connect_tcp(address, port, timeout, local_address, socket_options)
+                return await self.inner.connect_tcp(address, port, attempt, local_address, socket_options)
             except (httpcore.ConnectError, httpcore.ConnectTimeout) as error:
                 failure = error
-        assert failure is not None
-        raise failure
+        raise failure or httpcore.ConnectTimeout(f"{host}: ни один адрес не ответил вовремя")
 
     async def connect_unix_socket(
         self, path: str, timeout: float | None = None, socket_options: Iterable[Any] | None = None
@@ -361,6 +537,33 @@ class GuardedBackend(httpcore.AsyncNetworkBackend):
 
     async def sleep(self, seconds: float) -> None:
         await self.inner.sleep(seconds)
+
+
+_seam_checked = False
+
+
+def check_seam() -> None:
+    """
+    Есть ли у httpx и httpcore место, куда встраивается защита «только наружу».
+
+    Проверяется при сборке приложения (сеть кинозала создаётся вместе с ним, а клиенты площадок
+    — только к первому запросу): если обновление уберёт это место, служба не поднимется, а не
+    будет соединяться без проверки. Один раз на процесс — проверка стоит сборки транспорта.
+    """
+    global _seam_checked
+    if not _seam_checked:
+        _seam(httpx.AsyncHTTPTransport())
+        _seam_checked = True
+
+
+def _seam(transport: httpx.AsyncHTTPTransport) -> Any:
+    pool = getattr(transport, "_pool", None)
+    if pool is None or not hasattr(pool, "_network_backend"):
+        raise RuntimeError(
+            "httpx/httpcore изменились: у транспорта нет пула с _network_backend, и защиту кинозала "
+            "«только наружу» некуда встроить — служба без неё не поднимается"
+        )
+    return pool
 
 
 class GuardedTransport(httpx.AsyncHTTPTransport):
@@ -387,9 +590,9 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
         super().__init__(proxy=proxy, **options)
         proxied = httpx.URL(proxy) if proxy else None
         # Пул httpcore создаёт соединения через свой сетевой слой: подменяем его до первого
-        # соединения. Имя атрибута — httpcore 1.0 (версия закреплена в requirements.lock);
-        # если он переименуется, тесты сети упадут, а не пропустят соединение молча.
-        pool = self._pool
+        # соединения. Имена атрибутов — httpx 0.28 и httpcore 1.0 (версии закреплены в
+        # requirements.lock); пропадут — `_seam` откажет, а не пропустит соединение без проверки.
+        pool = _seam(self)
         pool._network_backend = GuardedBackend(
             guard, backend or pool._network_backend, proxied.host if proxied else None
         )
@@ -437,12 +640,21 @@ class Net:
         resolve: Resolve | None = None,
         backend: httpcore.AsyncNetworkBackend | None = None,
     ):
+        check_seam()
         self.config = config
-        self.guard = Guard(config.private, resolve or system_resolve)
+        self._resolve = resolve or system_resolve
         self._hosts = hosts
         self._shared = client
         self._backend = backend
+        self._guards: dict[str, Guard] = {}
         self._clients: dict[str, httpx.AsyncClient] = {}
+
+    def guard_for(self, provider: str) -> Guard:
+        """Защита площадки: публичные адреса и то, что открыто только ей."""
+        found = self._guards.get(provider)
+        if found is None:
+            found = self._guards[provider] = Guard(self.config.private_for(provider), self._resolve)
+        return found
 
     def client_for(self, provider: str) -> httpx.AsyncClient:
         if self._shared is not None:
@@ -451,7 +663,7 @@ class Net:
         if found is None:
             policy = self._hosts(provider)
             transport = GuardedTransport(
-                self.guard,
+                self.guard_for(provider),
                 proxy=self.config.proxy_for(provider),
                 # Неизвестная площадка — строже всего: как площадка с любыми хостами.
                 strict=policy is None or policy.public_any,
@@ -466,14 +678,14 @@ class Net:
             self._clients[provider] = found
         return found
 
-    async def guard_public(self, host: str, port: int = 443) -> list[str]:
+    async def guard_public(self, provider: str, host: str, port: int = 443) -> list[str]:
         """
         Проверка имени заранее — для тех, кто соединяется не через наш транспорт (yt-dlp).
 
         Это только проверка «сейчас»: соединение потом разрешит имя заново. Для своих
         соединений защита стоит на транспорте, и этой проверки им не нужно.
         """
-        return await self.guard.vet(host, port)
+        return await self.guard_for(provider).vet(host, port)
 
     async def close(self) -> None:
         clients = [*self._clients.values(), *([self._shared] if self._shared is not None else [])]

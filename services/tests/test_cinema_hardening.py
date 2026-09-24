@@ -18,7 +18,8 @@ import re
 import time
 import unittest
 from hashlib import sha256
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 import httpx
@@ -678,6 +679,46 @@ class ResolveLimitTests(Stage):
         self.assertEqual(len(self.library.calls), 1)
         for number in range(1, 30):
             await self.ask(number)
+
+    async def test_spellings_of_one_room_share_one_window(self):
+        # Ядро принимает номер комнаты в любом регистре, а окно считалось по строке из адреса:
+        # каждое новое написание одной и той же комнаты получало свои тридцать разборов.
+        room = "8f3cab1e-dead-beef-cafe-0123456789ab"
+        core = SimpleNamespace(member=AsyncMock(return_value=({"id": room}, {"id": "member"})))
+        app = FastAPI()
+        app.include_router(routes(self.cinema, core))
+        transport = httpx.ASGITransport(app=app)
+        letters = [index for index, char in enumerate(room) if char.isalpha()]
+
+        def spelling(number):
+            flip = {letters[bit] for bit in range(len(letters)) if number >> bit & 1}
+            return "".join(char.upper() if index in flip else char for index, char in enumerate(room))
+
+        async with httpx.AsyncClient(transport=transport, base_url="http://cord.test") as client:
+            answers = []
+            for number in range(31):
+                answer = await client.post(
+                    f"/api/v1/services/rooms/{spelling(number)}/cinema/resolve",
+                    json={"provider": "youtube", "contentId": f"video{number:06d}"},
+                    headers={"Authorization": "Bearer member.secret"},
+                )
+                answers.append(answer.status_code)
+        self.assertEqual(len({spelling(number) for number in range(31)}), 31)
+        self.assertEqual(answers, [200] * 30 + [429])
+
+    async def test_a_refused_refresh_leaves_the_answer_for_the_room(self):
+        # Отказ 429 не должен стоить комнате готового ответа: раньше `refresh` сначала забывал
+        # его, а уже потом упирался в предел — и следующий зритель тоже получал отказ.
+        for number in range(30):
+            await self.ask(number)
+        with self.assertRaises(HTTPException) as refusal:
+            await self.ask(0, refresh=True)
+        self.assertEqual(refusal.exception.status_code, 429)
+        self.assertTrue(
+            "youtube:video:video000000:False" in self.cinema.sources._items, "готовый ответ забыт"
+        )
+        await self.ask(0)
+        self.assertEqual(len(self.library.calls), 30)
 
     async def test_a_refresh_is_real_work_and_counts(self):
         for _ in range(30):

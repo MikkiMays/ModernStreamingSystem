@@ -16,6 +16,7 @@ import gzip
 import logging
 import re
 import time
+import uuid
 from dataclasses import asdict
 from typing import Any, Literal
 
@@ -74,6 +75,17 @@ CATALOG_ID = CHANNEL_ID
 CATEGORY_ID = re.compile(r"[0-9]{1,20}")
 
 
+def _room(room: str) -> str:
+    """
+    Одно написание номера комнаты. Ядро принимает UUID в любом регистре, и счёт по строке из
+    адреса давал бы каждой комнате свой предел на каждое её написание.
+    """
+    try:
+        return str(uuid.UUID(room))
+    except ValueError:
+        return room
+
+
 def _checked(answer: Any) -> tuple[bool, str | None]:
     """Ответ `gather` с `return_exceptions`: исключение мимо `_availability` — тоже «недоступна»."""
     if isinstance(answer, BaseException):
@@ -117,11 +129,12 @@ class Cinema:
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
         self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
         known = {kind.id for kind in PROVIDERS}
-        strangers = sorted((set(config.proxies) | set(config.cookies)) - known)
+        strangers = sorted((set(config.proxies) | set(config.cookies) | set(config.private)) - known)
         if strangers:
             # Опечатка в имени площадки не гасит кинозал, но и молча не проглатывается.
             logger.warning(
-                "CINEMA_PROXY_*/CINEMA_COOKIES_*: незнакомые площадки пропущены: %s (кинозал знает: %s)",
+                "CINEMA_PROXY_*/CINEMA_COOKIES_*/CINEMA_PRIVATE_HOSTS_*: незнакомые площадки пропущены: "
+                "%s (кинозал знает: %s)",
                 ", ".join(strangers),
                 ", ".join(sorted(known)),
             )
@@ -144,7 +157,7 @@ class Cinema:
         return found.hosts if found else None
 
     def _ctx(self, room: str, source: Provider) -> Ctx:
-        return Ctx(room=room, net=self.net.client_for(source.id))
+        return Ctx(room=_room(room), net=self.net.client_for(source.id))
 
     def _able(self, provider: str, feature: str) -> Provider:
         """
@@ -312,13 +325,15 @@ class Cinema:
         if not source.content_id.fullmatch(request.contentId):
             raise HTTPException(400, "Непонятный адрес видео")
         key = f"{source.id}:{request.kind}:{request.contentId}:{request.adaptive}"
-        if request.refresh:
-            self.sources.forget(key)
         # Предел — на работу, а не на вопросы: готовый ответ и разбор, который уже идёт для
         # соседа по комнате, наружу ничего не стоят. Иначе комната из десяти человек упиралась бы
-        # в предел за три ролика, а злоумышленник с `refresh` — нет.
-        if not self.sources.known(key):
-            self.resolves.take(room)
+        # в предел за три ролика, а злоумышленник с `refresh` — нет. `refresh` — работа всегда,
+        # кроме присоединения к идущему разбору. Предел проверяется раньше, чем `refresh`
+        # забывает готовый ответ: отказ 429 не должен стоить комнате того, что у неё уже есть.
+        if not (self.sources.pending(key) if request.refresh else self.sources.known(key)):
+            self.resolves.take(_room(room))
+        if request.refresh:
+            self.sources.forget(key)
         ctx = self._ctx(room, source)
         return await self.sources.get(
             key,

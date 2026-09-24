@@ -50,7 +50,11 @@ class Memo:
 
     def known(self, key: str) -> bool:
         """Есть ли свежий ответ или его уже считают: тогда вопрос ничего наружу не стоит."""
-        return self._fresh(key) is not None or key in self._flights
+        return self._fresh(key) is not None or self.pending(key)
+
+    def pending(self, key: str) -> bool:
+        """Считают ли ответ прямо сейчас: к такому разбору можно присоединиться даром."""
+        return key in self._flights
 
     def forget(self, key: str) -> None:
         """Забыть готовый ответ: тот, кто просит обновить, получит новый."""

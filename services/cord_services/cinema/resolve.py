@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import logging
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Mapping
 from urllib.parse import parse_qs, urlsplit
@@ -21,8 +23,14 @@ from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
 from .captions import CAPTIONS_LIMIT, _base_language, _vtt
-from .net import NetConfig, cookie_file
+from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
 from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
+
+logger = logging.getLogger(__name__)
+
+# Что сказать вместо ошибки yt-dlp, в которой названа копия файла cookies: рядом с этим именем
+# yt-dlp повторяет строку файла целиком, вместе со значением cookie.
+COOKIES_REFUSED = "не подошёл файл cookies"
 
 # Ролик целиком и без плейлиста вокруг: так его открывают и страница ролика, и сам поток.
 PROBE = {
@@ -50,6 +58,19 @@ class YtDlp:
 
     def __init__(self, network: NetConfig | None = None):
         self.network = network or NetConfig()
+        # До yt-dlp доходят только cookies, которые его загрузчик берёт молча: на строке, где он
+        # падает, он повторяет её целиком — со значением — и в ошибке, и в stderr. `from_env`
+        # это уже проверил (с именем файла и номером строки); здесь — для любого `NetConfig`.
+        self.cookies: dict[str, str] = {}
+        for provider, text in self.network.cookies.items():
+            if cookie_problem(text) is None:
+                self.cookies[provider] = text
+            else:
+                logger.warning("кинозал: cookies площадки %s не загружаются — она ходит без них", provider)
+        if self.cookies:
+            # Если загрузчик всё же упадёт, http.cookiejar кладёт трассировку в предупреждение
+            # Python — а в трассировке бывает и ошибка yt-dlp со строкой файла. Такое не печатаем.
+            warnings.filterwarnings("ignore", message="http.cookiejar bug!", category=UserWarning)
 
     def extract(self, address: str, options: Mapping[str, Any], provider: str) -> dict[str, Any]:
         """
@@ -64,11 +85,16 @@ class YtDlp:
 
         params = copy.deepcopy(dict(options))
         proxy = self.network.proxy_for(provider)
+        cookies = self.cookies.get(provider)
         if proxy:
             params["proxy"] = proxy
-        with cookie_file(self.network.cookies_for(provider)) as cookies:
-            if cookies:
-                params["cookiefile"] = cookies
+        if proxy or cookies:
+            # Когда у площадки есть что прятать, yt-dlp пишет не в stderr, а сюда: его ошибки
+            # идут в журнал службы тем же текстом, что и комнате, — без входа в прокси и cookies.
+            params["logger"] = _Quiet(self.explain)
+        with cookie_file(cookies) as copy_path:
+            if copy_path:
+                params["cookiefile"] = copy_path
             with yt_dlp.YoutubeDL(params) as ydl:
                 return ydl.extract_info(address, download=False) or {}
 
@@ -79,12 +105,44 @@ class YtDlp:
         except Exception as error:  # yt_dlp поднимает свои типы; наружу идёт человеческий текст
             raise HTTPException(502, f"Не удалось открыть видео: {self.explain(error)}"[:300]) from None
 
-    def explain(self, error: BaseException) -> str:
-        """Текст отказа yt-dlp для комнаты — без входа в прокси, если yt-dlp его назвал."""
+    def explain(self, error: BaseException | str) -> str:
+        """
+        Текст отказа yt-dlp для комнаты и журнала — без входа в прокси и без значений cookie.
+
+        Ошибку, где yt-dlp называет копию файла cookies, целиком заменяют свои слова: вместе с
+        именем файла он повторяет и его строку, а в ней значение. Значения cookie и вход в
+        прокси вычёркиваются из любого текста — на случай, если yt-dlp назовёт их иначе.
+        """
         text = str(error)
+        if COOKIE_COPY in text:
+            return COOKIES_REFUSED
         for secret in self.network.secrets():
             text = text.replace(secret, "***@" if secret.endswith("@") else "***")
         return text
+
+
+class _Quiet:
+    """
+    Журнал для yt-dlp (`logger`): только ошибки, в журнал службы и сказанные через `explain`.
+
+    Отладка и сведения — шум; предупреждения yt-dlp и без журнала молчат (`no_warnings`), и с
+    ним молчат так же.
+    """
+
+    def __init__(self, explain: Callable[[str], str]):
+        self._explain = explain
+
+    def debug(self, message: str) -> None:
+        pass
+
+    def info(self, message: str) -> None:
+        pass
+
+    def warning(self, message: str) -> None:
+        pass
+
+    def error(self, message: str) -> None:
+        logger.warning("yt-dlp: %s", self._explain(message))
 
 
 @dataclass(frozen=True)
