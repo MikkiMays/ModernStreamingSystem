@@ -1,0 +1,518 @@
+/*
+  Плеер кинозала: кадр, пульт поверх него, меню качества и субтитров, полный экран.
+
+  Подключается из `main.tsx` следом за `cinema.css` — почему оттуда, сказано там. Порядок
+  правил внутри прежний, как в `room-layout.css`: у многих вес одинаковый, и решает, кто ниже.
+*/
+
+.watch-theater {
+  position: relative;
+  min-height: 0;
+  display: grid;
+}
+.watch-screen {
+  position: relative;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #05070c;
+}
+.watch-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #05070c;
+  /* Кадр вписывается целиком: обрезать чужое кино ради красивого прямоугольника нельзя. */
+  object-fit: contain;
+}
+.watch-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+  color: #eef2fb;
+  background: #05070ce0;
+}
+.watch-error {
+  max-width: 460px;
+  line-height: 1.5;
+}
+.watch-loading,
+.watch-buffering {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #eef2fb;
+}
+.watch-buffering {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.watch-loading svg,
+.watch-buffering svg {
+  animation: watch-spin 900ms linear infinite;
+}
+@keyframes watch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .watch-loading svg,
+  .watch-buffering svg {
+    animation-duration: 2.4s;
+  }
+}
+/*
+  Пульт. Прозрачный слой во весь кадр: нажатия пропускает насквозь везде, кроме самих полос, —
+  иначе клик по середине кадра (пауза) упирался бы в невидимую подложку.
+*/
+.watch-chrome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  color: #f2f5fb;
+}
+.watch-chrome[data-shown='true'],
+/* Клавиатурой пульт достаётся и тогда, когда мышь его усыпила: скрытый прозрачностью
+   элемент остаётся в обходе табом, и терять его там нельзя. */
+.watch-chrome:focus-within {
+  opacity: 1;
+}
+.watch-head,
+.watch-foot {
+  pointer-events: auto;
+}
+.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-head,
+.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-foot {
+  pointer-events: none;
+}
+/*
+  Уснувший плеер прячет и курсор.
+
+  Раньше правило стояло только на `<video>`, а поверх кадра лежит прозрачный пульт: стрелка
+  над его невидимой серединой оставалась стрелкой. Пропадает она теперь вместе с пультом — и
+  возвращается от первого же движения, потому что движение будит пульт.
+*/
+.watch-theater[data-idle='true'],
+.watch-theater[data-idle='true'] * {
+  cursor: none;
+}
+/*
+  Середина кадра: пятнадцать секунд назад, пауза, пятнадцать вперёд.
+
+  ЗАЧЕМ. Пальцем паузу ставили нажатием по кадру — то есть случайно, стоило дотронуться до
+  экрана, чтобы посмотреть, сколько осталось. Теперь касание кадра показывает пульт, а
+  останавливает кино вот эта кнопка: её видно, в неё целятся, и промахнуться мимо неё
+  безопасно. Мышь в окне работает как работала — ей наводиться не нужно.
+*/
+.watch-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 7vw, 46px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.watch-center[data-shown='true'] {
+  opacity: 1;
+}
+.watch-center[data-shown='true'] .icon-button {
+  pointer-events: auto;
+}
+.watch-chrome .watch-center .icon-button {
+  width: 54px;
+  min-width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #12151ea8;
+}
+.watch-chrome .watch-center .icon-button:hover:not(:disabled) {
+  background: #2f3342d9;
+}
+.watch-chrome .watch-center .watch-center-play {
+  width: 74px;
+  min-width: 74px;
+  height: 74px;
+}
+/*
+  Число на кнопке перемотки: сколько секунд она отматывает — внутри самой стрелки.
+
+  `inset: 0` обязателен. Без координат абсолютный элемент встаёт туда, где стоял бы в
+  обычном потоке, — то есть рядом со стрелкой, а не в её кольце: на стенде это выглядело
+  как «15», прилипшее к краю кнопки.
+*/
+.watch-skip {
+  position: relative;
+}
+.watch-skip span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+@media (max-width: 700px) {
+  .watch-chrome .watch-center .icon-button {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+  }
+  .watch-chrome .watch-center .watch-center-play {
+    width: 62px;
+    min-width: 62px;
+    height: 62px;
+  }
+}
+.watch-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 26px;
+  background: linear-gradient(to bottom, #05070cd9, #05070c00);
+}
+.watch-foot {
+  display: grid;
+  gap: 2px;
+  padding: 26px 12px 10px;
+  background: linear-gradient(to top, #05070ce6, #05070c00);
+}
+.watch-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.watch-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.watch-gap {
+  flex: 1 1 auto;
+}
+.watch-chrome .icon-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  color: #f2f5fb;
+}
+.watch-chrome .icon-button:hover:not(:disabled) {
+  background: #ffffff1f;
+}
+.watch-chrome .icon-button:disabled {
+  opacity: 0.45;
+}
+.watch-title {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1px 8px;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.watch-title b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.watch-title small {
+  grid-column: 2;
+  font-size: 11px;
+  color: #ffffffa6;
+}
+.watch-browse,
+.watch-live,
+.watch-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #ffffff2e;
+  background: #ffffff14;
+  color: #f2f5fb;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.watch-browse:hover,
+.watch-live:hover,
+.watch-quality:hover {
+  background: #ffffff29;
+}
+/*
+  «LIVE» стоит там, где у ролика пауза. Останавливать эфир нельзя, а вернуться к его краю
+  после затычки в сети — самое частое, чего от него хотят; красная точка означает «мы на краю»,
+  серая с числом — «отстали на столько».
+*/
+.watch-live {
+  letter-spacing: 0.6px;
+}
+.watch-live small {
+  font-weight: 500;
+  color: #ffffffb3;
+  font-variant-numeric: tabular-nums;
+}
+.watch-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff5c;
+}
+.watch-live[data-edge='true'] .watch-live-dot {
+  background: #ef3b53;
+  box-shadow: 0 0 0 4px #ef3b5333;
+}
+.watch-behind {
+  color: #ffd166;
+}
+.watch-volume {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 132px;
+}
+.watch-volume .slider {
+  width: 88px;
+}
+/*
+  Поля в приложении светлые: у `input` есть подложка, рамка и высота в сорок восемь пикселей.
+  Для ползунка на светлой карточке это незаметно, а на тёмном пульте вокруг дорожки появлялась
+  белая таблетка во всю кнопку. Здесь она снимается — и заодно ползунок становится той высоты,
+  которую ему и задавали.
+*/
+.watch-chrome input.slider {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+}
+.watch-chrome .slider::-webkit-slider-thumb,
+.watch-chrome .slider::-moz-range-thumb {
+  border-color: #0b0e15;
+}
+.watch-chrome .slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff3d calc(var(--slider-p) * 100%)
+  );
+}
+.watch-chrome .slider::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff3d calc(var(--slider-p) * 100%)
+  );
+}
+/*
+  Полоса просмотра знает три состояния: просмотрено, загружено, впереди. Загруженное видно не
+  ради красоты — по нему понятно, застрял плеер или просто нечего играть.
+*/
+.watch-progress {
+  --slider-b: 0;
+  flex: 1 1 auto;
+  min-width: 80px;
+}
+.watch-progress::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-b) * 100%),
+    #ffffff26 calc(var(--slider-b) * 100%)
+  );
+}
+.watch-progress::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--blue) calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-p) * 100%),
+    #ffffff5c calc(var(--slider-b) * 100%),
+    #ffffff26 calc(var(--slider-b) * 100%)
+  );
+}
+.watch-time {
+  font-size: 11.5px;
+  color: #ffffffbd;
+  font-variant-numeric: tabular-nums;
+}
+.watch-quality-menu {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.watch-quality-menu [role='menuitem'] {
+  justify-content: space-between;
+  min-height: 40px;
+}
+.watch-quality-menu [role='menuitem'] small {
+  color: var(--muted);
+}
+.watch-quality-menu [data-selected='true'] {
+  color: var(--blue);
+  font-weight: 650;
+}
+/*
+  Возврат к разделам шестерёнки.
+
+  Раздел открыт — первой строкой стоит его название с стрелкой назад, и оно же кнопка.
+  Заголовком его сделать нельзя: без возврата человек в списке из двадцати озвучек не
+  понимает, куда попал и как выйти, а закрывать меню целиком ради этого — терять место.
+*/
+.watch-menu-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.watch-menu-back:hover {
+  color: var(--text);
+}
+/* Включённые субтитры видно по кнопке, а не только по тексту на кадре. */
+.watch-chrome .icon-button.watch-on {
+  color: var(--blue);
+  background: #ffffff1f;
+}
+/*
+  Субтитры рисуем сами, а не отдаём браузеру.
+
+  Браузер кладёт их на нижний край кадра — ровно туда, где лежит пульт с паузой и
+  громкостью, — и подвинуть их оттуда нечем. Здесь они поднимаются над пультом ровно тогда,
+  когда он на экране, и опускаются обратно, когда он уходит.
+*/
+.watch-captions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 5%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: min(92%, 1100px);
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 160ms ease;
+  z-index: 1;
+}
+/* Пульт занимает снизу около ста двадцати пикселей: строка времени и ряд кнопок. Реплики
+   встают над ним целиком, а не касаются его верхнего края. */
+.watch-theater:not([data-idle='true']) .watch-captions {
+  bottom: max(16%, 132px);
+}
+@media (max-width: 700px) {
+  .watch-theater:not([data-idle='true']) .watch-captions {
+    bottom: max(16%, 104px);
+  }
+}
+.watch-captions span {
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: #05070cd1;
+  color: #fff;
+  font-size: clamp(14px, 2.1vw, 24px);
+  line-height: 1.35;
+  font-weight: 500;
+  white-space: pre-line;
+  text-wrap: balance;
+}
+/*
+  Пульт плеера на телефоне.
+
+  Кнопок в нём стало больше, чем помещается в ширину телефона: к паузе, началу, синхронизации,
+  громкости и качеству добавились субтитры. Первым уходит ползунок громкости — на телефоне её
+  и так крутят клавишами сбоку, а кнопка «без звука» остаётся. Остальное просто мельче.
+*/
+@media (max-width: 700px) {
+  .watch-volume .slider {
+    display: none;
+  }
+  .watch-volume {
+    width: 40px;
+  }
+  .watch-time {
+    display: none;
+  }
+  .watch-chrome .icon-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+  }
+  .watch-tools {
+    gap: 2px;
+  }
+  .watch-browse span,
+  .watch-quality span {
+    display: none;
+  }
+  .watch-browse,
+  .watch-live,
+  .watch-quality {
+    height: 32px;
+    padding: 0 10px;
+  }
+  .watch-head {
+    padding: 8px 8px 20px;
+  }
+  .watch-foot {
+    padding: 20px 8px 8px;
+  }
+}
+/* В полном экране лента участников уезжает вместе со сценой: разворачивают плеер, а не встречу. */
+.watch-theater:fullscreen .watch-screen {
+  height: 100%;
+}
+.watch-theater:fullscreen,
+.watch-theater:fullscreen .watch-screen {
+  border-radius: 0;
+}
+/*
+  Полный экран там, где настоящего нет.
+
+  На iPhone развернуть можно только родной плеер `<video>` — а он рисует свои кнопки и свои
+  субтитры вместо наших, то есть теряет и общую паузу, и дорожку текста. Поэтому плеер
+  раскладывается на всё окно сам. Полоса адреса браузера остаётся: убрать её со страницы
+  нельзя ничем.
+*/
+.watch-theater[data-full='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #05070c;
+  padding: 0;
+}
+.watch-theater[data-full='true'] .watch-screen {
+  height: 100%;
+  border-radius: 0;
+}

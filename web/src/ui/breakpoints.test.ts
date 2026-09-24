@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import styles from '../styles.css?raw';
 import layout from '../room-layout.css?raw';
+import cinema from './cinema/cinema.css?raw';
 import { COMPACT, DOCK, DRAWER, DRAWER_WIDTH, ROOMY, SHEET } from './breakpoints';
 
 /*
@@ -69,7 +70,7 @@ describe('границы раскладки: CSS и код считают по �
 
   it('кинозал отодвигается от полосы с `ROOMY` до `DRAWER`, ровно на её ширину', () => {
     const beside = rule(
-      media(layout, `${ROOMY} and ${DRAWER}`),
+      media(cinema, `${ROOMY} and ${DRAWER}`),
       '.meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .watch-together-stage',
     );
     expect(beside).toContain(`padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`);

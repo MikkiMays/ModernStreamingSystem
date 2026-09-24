@@ -3,6 +3,9 @@ import '@fontsource-variable/inter';
 import './styles.css';
 import './accessibility.css';
 import './room-layout.css';
+// Кинозал — сразу за раскладкой встречи, откуда он вынесен: там же он и стоял в каскаде.
+import './ui/cinema/cinema.css';
+import './ui/cinema/theater.css';
 import './room-polish.css';
 import './desktop-home.css';
 import './poker.css';
