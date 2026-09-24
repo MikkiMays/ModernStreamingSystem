@@ -28,7 +28,7 @@ import httpx
 from fastapi import HTTPException
 
 from .. import wire
-from ..paging import PAGE, page
+from ..paging import MAX_OFFSET, PAGE, page
 from ..registry import Ctx, Features, HostPolicy, Provider
 from ..resolve import SourcePlan, direct
 
@@ -51,6 +51,10 @@ PLAY = {"no_404": "true", "referer": "https://rutube.ru", "pver": "v2", "client"
 CATEGORY_PAGE = 100
 PERSON_PAGE = 20
 EPISODES_PAGE = 20
+# Сколько страниц площадки служба просматривает за одну порцию, если на них нечего показать.
+# Сезон по подписке — это страница за страницей пустоты, и листать её должна служба, а не
+# «Показать ещё» у зрителя, мигая «нечего показать» между запросами.
+READ_AHEAD = 3
 
 # Номер канала, сериала и сезона у Rutube — просто число. `[0-9]`, а не `\d`: `\d` пропустил бы и
 # арабско-индийские цифры, а в адрес площадки уходит строка.
@@ -82,6 +86,7 @@ PAID = "Это платное видео Rutube — показать его ко
 SUBSCRIPTION = "Это видео Rutube показывает только по подписке — показать его комнате нельзя"
 DRM = "Видео Rutube защищено DRM — показать его комнате нельзя"
 BLOCKED = "Rutube не показывает это видео с нашего сервера: ограничение страны или прав на показ"
+DENIED = "Rutube не разрешает показать это видео"
 
 
 class Missing(Exception):
@@ -130,10 +135,11 @@ class Rutube(Provider):
     name = "Rutube"
     # Каждый хост — из настоящих ответов: `bl.rutube.ru` (балансер: мастер VOD и эфира),
     # `river-*.rutube.ru` и `*.rtbcdn.ru` (варианты и кусочки, у каждой ступени две копии на
-    # двух CDN), `pic.rtbcdn.ru` (кадры, постеры, лица и субтитры), `vb-rtb.uma.media` (мастер
-    # лицензионных серий, например PREMIER). Заглушки аватаров `static.rutubelist.ru` сюда не
-    # входят: вместо безликой картинки площадки плитка рисует свою.
-    hosts = HostPolicy(("rutube.ru", "rtbcdn.ru", "uma.media"))
+    # двух CDN), `pic.rtbcdn.ru` (кадры, постеры, лица и субтитры). Заглушки аватаров
+    # `static.rutubelist.ru` сюда не входят: вместо безликой картинки площадки плитка рисует свою.
+    # UMA — один хост, а не весь `uma.media`: мастер всех 11 лицензионных (UMA) серий из выборки
+    # в 154 серии 77 сериалов PREMIER/START/КИОН/ТНТ (24.09.2026) — `vb-rtb.uma.media`, других нет.
+    hosts = HostPolicy(("rutube.ru", "rtbcdn.ru", "vb-rtb.uma.media"))
     features = Features(channels=True, categories=True, series=True, live=True)
     # Ролик и эфир у Rutube — 32 шестнадцатеричных знака строчными.
     content_id = re.compile(r"[0-9a-f]{32}")
@@ -312,6 +318,15 @@ class Rutube(Provider):
         if isinstance(options_answer, BaseException):
             raise options_answer
         play = options_answer
+        # Разрешение плеера площадки. У каждого снятого ответа с потоком оно
+        # `{"allowed": true, "err_code": null, "err_text": ""}`, а запрет площадка до сих пор
+        # присылала заглушкой 244; но если «нельзя» придёт прямо здесь — это отказ, и её словами.
+        # Он же — решающий, когда карточка ролика (`api/video`) не ответила и пометки «платное»
+        # взять неоткуда: бесплатного площадка не запрещает, платного не отдаёт.
+        access = play.get("acl_access")
+        if isinstance(access, dict) and access.get("allowed") is False:
+            reason = str(access.get("err_text") or "").strip()
+            raise HTTPException(403, f"{DENIED}: {reason}"[:300] if reason else DENIED)
         if play.get("is_adult"):
             raise HTTPException(403, ADULT)
         if play.get("drm_token"):
@@ -481,24 +496,53 @@ class Rutube(Provider):
         нашей порции; следующая порция начинается или дальше на той же странице, или с первой
         записи следующей. Отобранное бывает короче страницы — поэтому курсор и считает место в
         отобранном, а не в пришедшем: так ни одна запись не пропадает между порциями.
+
+        Страница, на которой показать нечего (всё по подписке), не отдаётся зрителю пустой
+        порцией: служба сама берёт следующую, но не больше `READ_AHEAD` страниц за раз, и если
+        пусто и там — лента кончается. Продолжение дальше `MAX_OFFSET` не обещается: такой курсор
+        служба всё равно не примет.
         """
         number, start = divmod(offset, per_page)
-        params = {**params, "page": str(number + 1)}
-        if memo:
-            key, ttl = memo
-            found = await self.memo.get(
-                f"{key}:{number + 1}", lambda: self._listing(ctx, path, params, card), ttl
-            )
+        items: list[wire.Card] = []
+        following: int | None = None
+        for _ in range(READ_AHEAD):
+            found = await self._page_of(ctx, path, params, number, card, memo)
+            window = found["items"][start : start + PAGE]
+            items.extend(window)
+            end = start + len(window)
+            if end < len(found["items"]):
+                following = number * per_page + end
+                break
+            if not found["more"]:
+                following = None
+                break
+            number, start = number + 1, 0
+            following = number * per_page
+            if items:
+                break
         else:
-            found = await self._listing(ctx, path, params, card)
-        items = found["items"]
-        if start + PAGE < len(items):
-            following: int | None = offset + PAGE
-        elif found["more"]:
-            following = (number + 1) * per_page
-        else:
+            # Столько страниц подряд — и ни одной карточки: продолжение, которое опять окажется
+            # пустым, лента не обещает.
             following = None
-        return {"items": items[start : start + PAGE], "next": None if following is None else str(following)}
+        if following is not None and following > MAX_OFFSET:
+            following = None
+        return {"items": items, "next": None if following is None else str(following)}
+
+    async def _page_of(
+        self,
+        ctx: Ctx,
+        path: str,
+        params: dict[str, str],
+        number: int,
+        card: Callable[[dict[str, Any]], wire.Card | None],
+        memo: tuple[str, float] | None,
+    ) -> dict[str, Any]:
+        """Одна страница площадки, уже отобранная; с памятью, если она у этой ленты есть."""
+        asked = {**params, "page": str(number + 1)}
+        if not memo:
+            return await self._listing(ctx, path, asked, card)
+        key, ttl = memo
+        return await self.memo.get(f"{key}:{number + 1}", lambda: self._listing(ctx, path, asked, card), ttl)
 
     async def _listing(
         self,

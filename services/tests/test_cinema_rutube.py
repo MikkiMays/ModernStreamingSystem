@@ -194,6 +194,9 @@ class PlatformTests(unittest.TestCase):
             self.assertTrue(Rutube.hosts.allows(host), host)
         for host in ("static.rutubelist.ru", "evilrutube.ru", "rutube.ru.evil.com", "googlevideo.com"):
             self.assertFalse(Rutube.hosts.allows(host), host)
+        # У UMA — только хост мастера, который встречался: остальное на `uma.media` — не Rutube.
+        for host in ("uma.media", "other.uma.media", "vb-rtb2.uma.media"):
+            self.assertFalse(Rutube.hosts.allows(host), host)
 
 
 class ShowcaseTests(Stage):
@@ -489,6 +492,19 @@ class CategoryTests(Stage):
         )
         self.assertEqual(second["next"], "200")
 
+    async def test_the_list_ends_where_the_cursor_may_not_go(self):
+        # Курсор дальше 600 служба не примет («Дальше листать нечего»), поэтому и не обещает его:
+        # иначе «Показать ещё» в конце длинной ленты нажимало бы себя в отказ 400.
+        self.answer("/api/video/category/", recorded("categories.json"))
+        last = recorded("category-4-page-1.json")
+        last["results"] = [{**last["results"][0], "id": f"{n:032x}"} for n in range(100)]
+        self.answer("/api/video/category/4/", last, page="6")
+        self.answer("/api/video/category/4/", last, page="7")
+        before = await self.cinema.category("rutube", "4", "590")
+        self.assertEqual(before["next"], "600")
+        found = await self.cinema.category("rutube", "4", "600")
+        self.assertEqual((len(found["items"]), found["next"]), (30, None))
+
     async def test_an_unknown_section_is_not_found(self):
         self.answer("/api/video/category/", recorded("categories.json"))
         await self.refused(self.cinema.category("rutube", "999"), 404, "Такого раздела на Rutube нет")
@@ -606,10 +622,32 @@ class SeriesTests(Stage):
         found = await self.cinema.series("rutube", "891161")
         self.assertEqual(found["items"][0]["badge"], "1 выпуск")
 
-    async def test_a_page_of_episodes_all_sold_by_subscription_is_empty_but_goes_on(self):
+    async def test_a_page_all_sold_by_subscription_is_skipped_on_the_server(self):
+        # Вторая страница сезона — вся по подписке. Пустую порцию клиент не должен листать сам
+        # (кнопка «Показать ещё» нажимала бы себя страница за страницей, мигая «нечего показать»):
+        # служба сама берёт следующую страницу площадки.
         self.serve_series()
+        third = recorded("tv-891161-video-season-1-page-2.json")
+        for item in third["results"]:
+            item["common_subscription_product_codes"] = []
+            item["id"] = item["id"][::-1]
+        third["has_next"] = False
+        self.answer("/api/metainfo/tv/891161/video", third, season="1", page="3")
         found = await self.cinema.series("rutube", "891161", "1", "20")
-        self.assertEqual((found["items"], found["next"]), ([], "40"))
+        self.assertEqual([item["id"] for item in found["items"]], [item["id"] for item in third["results"]])
+        self.assertIsNone(found["next"])
+
+    async def test_empty_pages_are_walked_three_at_most_and_then_the_list_ends(self):
+        self.serve_series()
+        sold = recorded("tv-891161-video-season-1-page-2.json")
+        for page in ("3", "4", "5"):
+            self.answer("/api/metainfo/tv/891161/video", sold, season="1", page=page)
+        found = await self.cinema.series("rutube", "891161", "1", "20")
+        # Страницы 2, 3 и 4 — и хватит: дальше площадку не спрашивают, а лента кончается, а не
+        # обещает продолжение, которое опять окажется пустым.
+        self.assertEqual((found["items"], found["next"]), ([], None))
+        pages = [key for key in self.asked() if key.startswith("/api/metainfo/tv/891161/video")]
+        self.assertEqual(pages, [f"/api/metainfo/tv/891161/video?page={n}&season=1" for n in (2, 3, 4)])
 
     async def test_another_season_is_asked_by_its_number(self):
         self.serve_series()
@@ -868,6 +906,54 @@ class SourceTests(Stage):
             502,
             "Rutube не отдал поток для этого видео. Попробуйте другое",
         )
+
+    async def test_the_player_not_allowing_the_video_is_a_refusal_in_its_words(self):
+        # `acl_access` — разрешение плеера площадки: у каждого снятого ответа с потоком оно
+        # `{"allowed": true, "err_code": null, "err_text": ""}`. Запрет встречался только
+        # заглушкой 244; но если плеер скажет «нельзя» прямо в ответе с потоком, это отказ.
+        video = "eb7cb809ae8917df1ab8fd493dd36d0f"
+        body = recorded("play-vod.json")
+        body["acl_access"] = {"allowed": False, "err_code": 7, "err_text": "Видео доступно по подписке"}
+        self.answer(f"/api/play/options/{video}/", body, **PLAY)
+        self.info(video)
+        await self.refused(
+            self.cinema.resolve(Resolve(provider="rutube", contentId=video), room=ROOM),
+            403,
+            "Rutube не разрешает показать это видео: Видео доступно по подписке",
+        )
+        body["acl_access"] = {"allowed": False, "err_code": None, "err_text": ""}
+        self.answer(f"/api/play/options/{video}/", body, **PLAY)
+        self.cinema.sources = Memo(capacity=64)
+        await self.refused(
+            self.cinema.resolve(Resolve(provider="rutube", contentId=video), room=ROOM),
+            403,
+            "Rutube не разрешает показать это видео",
+        )
+
+    async def test_without_the_video_card_the_player_answer_still_decides(self):
+        # Карточка ролика (`api/video`) не ответила — пометок «платное» и «для взрослых» оттуда
+        # нет. Решает ответ плеера: его разрешение, DRM, пометка «для взрослых» и заглушки.
+        video = "eb7cb809ae8917df1ab8fd493dd36d0f"
+        self.answer(f"/api/video/{video}/", {"detail": "boom"}, status=500)
+        for change, detail in (
+            (
+                {"acl_access": {"allowed": False, "err_code": None, "err_text": ""}},
+                "Rutube не разрешает показать это видео",
+            ),
+            ({"is_adult": True}, "Видео Rutube с пометкой «для взрослых» в кинозал не попадает"),
+            ({"drm_token": "token"}, "Видео Rutube защищено DRM — показать его комнате нельзя"),
+        ):
+            self.answer(f"/api/play/options/{video}/", {**recorded("play-vod.json"), **change}, **PLAY)
+            self.cinema.sources = Memo(capacity=64)
+            await self.refused(
+                self.cinema.resolve(Resolve(provider="rutube", contentId=video), room=ROOM), 403, detail
+            )
+        # А разрешённое плеером открывается и без карточки: закрывать площадке её же бесплатное
+        # из-за сбоя справочного запроса незачем — платное плеер площадки и так не отдаёт.
+        self.answer(f"/api/play/options/{video}/", recorded("play-vod.json"), **PLAY)
+        self.cinema.sources = Memo(capacity=64)
+        found = await self.cinema.resolve(Resolve(provider="rutube", contentId=video), room=ROOM)
+        self.assertEqual((found["kind"], found["live"]), ("hls", False))
 
     async def test_the_platform_failing_is_a_bad_gateway(self):
         video = "eb7cb809ae8917df1ab8fd493dd36d0f"
