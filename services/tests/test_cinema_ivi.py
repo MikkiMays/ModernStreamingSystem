@@ -230,7 +230,8 @@ class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_russia_is_available_elsewhere_is_not_with_the_platforms_own_reason(self):
         ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", self.fake_client(recorded("whoami-de.json"))):
+        de = self.fake_client(recorded("whoami-de.json"))
+        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", de):
             self.assertEqual(await ivi.availability(), (False, "ivi отдаёт бесплатное только в России"))
         ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
         ru = recorded("whoami-de.json")
@@ -310,9 +311,30 @@ class CatalogTests(Stage):
             found,
             {
                 "items": [
-                    {"provider": "ivi", "kind": "category", "id": "14", "title": "Фильмы", "viewers": None, "poster": None},
-                    {"provider": "ivi", "kind": "category", "id": "15", "title": "Сериалы", "viewers": None, "poster": None},
-                    {"provider": "ivi", "kind": "category", "id": "17", "title": "Мультфильмы", "viewers": None, "poster": None},
+                    {
+                        "provider": "ivi",
+                        "kind": "category",
+                        "id": "14",
+                        "title": "Фильмы",
+                        "viewers": None,
+                        "poster": None,
+                    },
+                    {
+                        "provider": "ivi",
+                        "kind": "category",
+                        "id": "15",
+                        "title": "Сериалы",
+                        "viewers": None,
+                        "poster": None,
+                    },
+                    {
+                        "provider": "ivi",
+                        "kind": "category",
+                        "id": "17",
+                        "title": "Мультфильмы",
+                        "viewers": None,
+                        "poster": None,
+                    },
                 ],
                 "next": None,
             },
@@ -341,7 +363,14 @@ class CatalogTests(Stage):
         found = await self.cinema.category("ivi", "14", room=ROOM)
         self.assertEqual(
             found["category"],
-            {"provider": "ivi", "kind": "category", "id": "14", "title": "Фильмы", "viewers": None, "poster": None},
+            {
+                "provider": "ivi",
+                "kind": "category",
+                "id": "14",
+                "title": "Фильмы",
+                "viewers": None,
+                "poster": None,
+            },
         )
         self.assertEqual(len(found["items"]), 2)
         # Первая — сериал (Стеклянный дом, «Детективы · 2025», рейтинг бейджем).
@@ -498,7 +527,9 @@ class DetailsTests(Stage):
             "/mobileapi/videoinfo/v7/", {"error": {"message": "empty answer", "code": 301}},
             id="1", fields=SINGLE_FIELDS,
         )
-        await self.refused(self.cinema.details("ivi", "1", "video", room=ROOM), 404, "Такого видео на ivi нет")
+        await self.refused(
+            self.cinema.details("ivi", "1", "video", room=ROOM), 404, "Такого видео на ivi нет"
+        )
 
 
 class SourceTests(Stage):
@@ -585,11 +616,14 @@ class ResolveRouteTests(Stage):
         # сам, своими словами, не английским текстом yt-dlp: этим и доказано, что `source()`
         # передал план дальше, а не проглотил его.
         self.assertEqual(refusal.exception.status_code, 502)
-        self.assertEqual(refusal.exception.detail, "Площадка не отдала поток для этого видео. Попробуйте другое")
+        self.assertEqual(
+            refusal.exception.detail, "Площадка не отдала поток для этого видео. Попробуйте другое"
+        )
 
 
 class RouteTests(unittest.TestCase):
-    """Кинозал целиком, через настоящий FastAPI — участие в комнате подменено, сеть блокирует MockTransport."""
+    """Кинозал целиком, через настоящий FastAPI — участие в комнате подменено, сеть блокирует
+    MockTransport."""
 
     def serve(self):
         root = tempfile.TemporaryDirectory()

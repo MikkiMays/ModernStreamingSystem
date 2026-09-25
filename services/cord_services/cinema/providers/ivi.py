@@ -70,7 +70,9 @@ EPISODES_PAGE = 20
 TILE_FIELDS = "id,title,object_type,year,years,duration,genres,posters,ivi_rating_10,content_paid_types"
 # Серия сезона: своей длительности у неё нет — она в `localizations[0].duration`; постер — с
 # пометкой «это постер сериала», но плитке всё равно, чей он.
-EPISODE_FIELDS = "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types"
+EPISODE_FIELDS = (
+    "id,title,object_type,episode,season,posters,localizations,genres,ivi_rating_10,content_paid_types"
+)
 # Сериал целиком: то же самое плюс описание и список сезонов (`season_id`, `number`, сколько в нём
 # серий) — по нему и строятся вкладки сезонов.
 COMPILATION_FIELDS = (
@@ -120,7 +122,11 @@ VERSION_MISMATCH = "Не смогли определить версию"
 def _poster_url(posters: Any) -> str:
     """Вертикальный постер 2:3 — тот, что нужен плитке; горизонтальный ей не годится."""
     for item in posters if isinstance(posters, list) else []:
-        if isinstance(item, dict) and item.get("type") == "poster-vertical" and isinstance(item.get("url"), str):
+        if (
+            isinstance(item, dict)
+            and item.get("type") == "poster-vertical"
+            and isinstance(item.get("url"), str)
+        ):
             return item["url"]
     return ""
 
@@ -144,7 +150,11 @@ def _duration(item: dict[str, Any]) -> float | None:
     if isinstance(value, (int, float)) and value > 0:
         return float(value)
     for entry in item.get("localizations") or []:
-        if isinstance(entry, dict) and isinstance(entry.get("duration"), (int, float)) and entry["duration"] > 0:
+        if (
+            isinstance(entry, dict)
+            and isinstance(entry.get("duration"), (int, float))
+            and entry["duration"] > 0
+        ):
             return float(entry["duration"])
     return None
 
@@ -239,7 +249,10 @@ class Ivi(Provider):
         low = query.strip()[:120]
         names, (raw, following) = await asyncio.gather(
             self._genres(ctx),
-            self._raw_page(ctx, SEARCH, {"query": low, "fields": TILE_FIELDS}, PAGE, offset, memo=(f"search:{low.lower()}", 120)),
+            self._raw_page(
+                ctx, SEARCH, {"query": low, "fields": TILE_FIELDS}, PAGE, offset,
+                memo=(f"search:{low.lower()}", 120),
+            ),
         )
         items = [found for item in raw if (found := self._poster(item, names))]
         return {"items": items, "next": following, "channels": [], "categories": []}
@@ -264,11 +277,14 @@ class Ivi(Provider):
             ),
         )
         items = [found for item in raw if (found := self._poster(item, names))]
-        return {"category": wire.category_card(self.id, category_id, title), "items": items, "next": following}
+        head = wire.category_card(self.id, category_id, title)
+        return {"category": head, "items": items, "next": following}
 
     async def series(self, ctx: Ctx, series_id: str, season: str | None, offset: int) -> wire.SeriesPage:
         """Сериал: шапка и сезоны из `compilationinfo`, серии открытого сезона — из `videofromcompilation`."""
-        show = await self.memo.get(f"compilation:{series_id}", lambda: self._compilationinfo(ctx, series_id), 600)
+        show = await self.memo.get(
+            f"compilation:{series_id}", lambda: self._compilationinfo(ctx, series_id), 600
+        )
         numbers = [
             str(entry["number"])
             for entry in show.get("seasons") or []
