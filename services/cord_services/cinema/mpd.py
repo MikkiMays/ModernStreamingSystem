@@ -10,8 +10,8 @@
 ЧУЖОЕ НЕ ПЕРЕПИСЫВАЕТСЯ, А ПЕРЕСОБИРАЕТСЯ. Манифест прислал сайт, которого вставил любой участник: из него
 берутся только проверенные значения (вид, кодеки, размеры, битрейт, язык, диапазоны — формой и числами), и
 манифест строится заново (`manifest`). Ни одного чужого элемента или атрибута в ответе нет: ни ссылок наружу,
-ни событий, ни шаблонов адресов. Читается не больше `LIMIT` (expat Python держит «миллиард смехов» сам, а
-внешних сущностей ElementTree не читает вовсе).
+ни событий, ни шаблонов адресов. Читается не больше `LIMIT`, и текст с объявлением типа (`<!DOCTYPE`, а с
+ним и сущности) не разбирается вовсе: у манифеста их не бывает.
 
 ЧЕГО ЗДЕСЬ НЕТ. Манифест с шаблоном или списком кусочков (`SegmentTemplate`, `SegmentList`), живой
 (`dynamic`) и из нескольких периодов — `NotOnDemand`: такие наш плеер пока не собирает, и это честный отказ.
@@ -104,8 +104,9 @@ def duration(value: str | None) -> float | None:
     found = DURATION.fullmatch((value or "").strip())
     if not found or not any(found.groupdict().values()):
         return None
-    parts = {key: float(number) for key, number in found.groupdict().items() if number}
     try:
+        # `[0-9.]+` пропускает и `1.2.3`: такая длительность — не число, и это отказ, а не падение.
+        parts = {key: float(number) for key, number in found.groupdict().items() if number}
         seconds = (
             parts.get("days", 0) * 86400
             + parts.get("hours", 0) * 3600
@@ -121,6 +122,9 @@ def parse(text: str, url: str) -> tuple[list[Track], float]:
     """Дорожки манифеста по требованию и его длительность — или `NotOnDemand`/`Protected`."""
     if len(text) > LIMIT:
         raise NotOnDemand("манифест больше предела")
+    # Объявлений типа (а с ними и сущностей) у манифеста DASH не бывает: такой текст не разбирается вовсе.
+    if "<!doctype" in text.lower():
+        raise NotOnDemand("в манифесте объявление типа")
     try:
         root = ET.fromstring(text)
     except ET.ParseError:

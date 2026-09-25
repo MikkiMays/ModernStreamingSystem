@@ -725,6 +725,25 @@ class ManifestRules(unittest.TestCase):
         with self.assertRaises(mpd.Protected):
             mpd.parse(PROTECTED, "https://site.example/manifest.mpd")
 
+    def test_a_length_that_is_not_a_number_is_a_refusal_not_a_failure(self):
+        for value in ("PT1.2.3S", "PT.S", "P1.5.1DT1H"):
+            self.assertIsNone(mpd.duration(value), value)
+            text = (
+                TEMPLATE.replace("PT10S", value)
+                .replace("<SegmentTemplate", "<X")
+                .replace('media="chunk-$Number$.m4s" initialization="init.mp4" duration="2" />', "/>")
+            )
+            with self.assertRaises(mpd.NotOnDemand, msg=value):
+                mpd.parse(text, "https://site.example/manifest.mpd")
+
+    def test_a_document_type_declaration_is_refused_before_parsing(self):
+        for head in ("<!DOCTYPE MPD>", '<!doctype MPD SYSTEM "http://site.example/x.dtd">'):
+            text = (
+                '<?xml version="1.0"?>' + head + (FIXTURES / "ok-on-demand.mpd").read_text(encoding="utf-8")
+            )
+            with self.assertRaises(mpd.NotOnDemand):
+                mpd.parse(text, MPD)
+
     def test_an_entity_bomb_is_not_expanded(self):
         bomb = (
             '<?xml version="1.0"?><!DOCTYPE MPD [<!ENTITY a "aaaaaaaaaa">'
