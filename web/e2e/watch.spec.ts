@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Кинотеатр в двух настоящих браузерах.
@@ -8,6 +8,46 @@ import { expect, test } from '@playwright/test';
  * должен падать из-за её настроения. Что видео действительно идёт синхронно, меряется живьём
  * против прода и записано в `docs/INTEGRATIONS.md`.
  */
+
+/**
+ * Площадка изредка отказывает серверу проверкой «Sign in to confirm you're not a bot» — по
+ * адресу или региону сервера, а не по вине Cord (владелец: региональные и IP-блоки — не наша
+ * забота). Текст — тот же, что у `BOT_CHECK` в `services/cord_services/cinema/resolve.py`
+ * (апостроф у площадки бывает и прямым, и типографским).
+ */
+const YOUTUBE_BOT_CHECK = /confirm you[’']re not a bot/i;
+
+/**
+ * Отказ площадки виден в двух местах: `[role="alert"]` — у каталога и поиска (`Failure` в
+ * `catalog/notes.tsx`), `.watch-error` — у самого плеера (`useSource.ts`), когда не открылся
+ * поток. Здесь читается то, что уже отрисовано, без нового ожидания сверх обычного тайм-аута
+ * вызова, который эту проверку и привёл сюда.
+ */
+async function botCheckText(page: Page): Promise<string | null> {
+  return page
+    .locator('[role="alert"], .watch-error')
+    .filter({ hasText: YOUTUBE_BOT_CHECK })
+    .first()
+    .textContent({ timeout: 1000 })
+    .catch(() => null);
+}
+
+/**
+ * Ждёт обычного исхода; если вместо него площадка ответила проверкой на бота — пропускает
+ * сценарий понятной причиной, а не висит до конца тайм-аута и не падает под чужим текстом.
+ * Настоящую поломку (любую другую причину отказа) пропускает не задумываясь: снова кидает то,
+ * что поймала.
+ */
+async function orSkipOnBotCheck<T>(page: Page, attempt: () => Promise<T>): Promise<T> {
+  try {
+    return await attempt();
+  } catch (error) {
+    const text = await botCheckText(page);
+    test.skip(text !== null, `YouTube попросил подтвердить, что мы не робот: ${(text ?? '').trim()}`);
+    throw error;
+  }
+}
+
 test('the cinema opens for the whole room from the catalogue, and anyone may stop it', async ({
   browser,
   request,
@@ -61,11 +101,13 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     await browse.locator('.cinema-search input').fill('big buck bunny');
     // Ролик, а не канал: поиск теперь отвечает и каналами, и они стоят полкой выше сетки.
     const result = browse.locator('.cinema-tile:not(.cinema-tile-face)').first();
-    await expect(result).toBeVisible({ timeout: 30000 });
+    await orSkipOnBotCheck(host, () => expect(result).toBeVisible({ timeout: 30000 }));
     const title = (await result.locator('.cinema-tile-title').textContent())?.trim() ?? '';
     // Сетка ведёт на страницу видео, а оттуда — в комнату.
     await result.locator('.cinema-open').click();
-    await expect(browse.locator('.cinema-detail')).toBeVisible({ timeout: 30000 });
+    await orSkipOnBotCheck(host, () =>
+      expect(browse.locator('.cinema-detail')).toBeVisible({ timeout: 30000 }),
+    );
     await browse.getByRole('button', { name: /Смотреть вместе/ }).click();
 
     // Кинозал открывается у обоих, люди переезжают в ленту под плеером, каталог уходит.
@@ -77,9 +119,11 @@ test('the cinema opens for the whole room from the catalogue, and anyone may sto
     await expect(host.locator('.watch-title b')).toContainText(title.slice(0, 12));
 
     // Ролик открывается на паузе и включается, когда плеер принёсшего готов.
-    await expect(host.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
-      timeout: 30000,
-    });
+    await orSkipOnBotCheck(host, () =>
+      expect(host.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
+        timeout: 30000,
+      }),
+    );
     // Пауза общая: её жмёт и тот, кто ничего не приносил, и видят это все.
     //
     // Пульт уходит с кадра через пару секунд без движения мыши, и «нажать» по нему тогда
@@ -237,12 +281,14 @@ test('the player speaks the original language and can be subtitled', async ({
     const browse = page.locator('.cinema-browser');
     await browse.locator('.cinema-search input').fill('PSY GANGNAM STYLE');
     const start = browse.getByRole('button', { name: /Смотреть вместе: .*GANGNAM STYLE/ }).first();
-    await expect(start).toBeVisible({ timeout: 30000 });
+    await orSkipOnBotCheck(page, () => expect(start).toBeVisible({ timeout: 30000 }));
     await start.click({ force: true });
     await expect(page.locator('.watch-theater')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
-      timeout: 40000,
-    });
+    await orSkipOnBotCheck(page, () =>
+      expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех', {
+        timeout: 40000,
+      }),
+    );
 
     // Меню качества и озвучки: у ролика с дорожками выбранной обязана быть оригинальная. Меню
     // двухуровневое: на первой странице только разделы, и отмеченного там нет — выбранная
