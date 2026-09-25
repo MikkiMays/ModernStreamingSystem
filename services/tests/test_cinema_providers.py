@@ -278,7 +278,7 @@ class CatalogExecutorTests(Stage):
     def test_the_pool_is_a_small_dedicated_one(self):
         pool = self.cinema.ytdlp.pool
         self.assertEqual(pool._thread_name_prefix, "cinema-catalog")
-        self.assertEqual(pool._max_workers, 4)
+        self.assertEqual(pool._max_workers, 8)
 
     async def test_a_search_runs_yt_dlp_on_that_pool(self):
         import threading

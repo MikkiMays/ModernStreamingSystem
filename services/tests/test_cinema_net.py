@@ -916,17 +916,18 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         direct = self.net(NetConfig()).client_for("youtube")
         self.assertIsInstance(direct._transport._pool, httpcore.AsyncConnectionPool)
 
-    async def test_a_link_client_keeps_a_smaller_pool_than_a_catalogue_one(self):
-        # Площадка с любыми хостами («По ссылке», медиатека, неизвестная) — меньший пул: один подписанный
-        # адрес такой ссылки открывает без входа сотню чужих чтений разом (I3), и пул — вторая стена.
+    async def test_a_link_client_holds_as_many_viewers_but_fewer_idle_sockets(self):
+        # Готовый файл держит соединение на зрителя весь фильм, поэтому соединений у «По ссылке» столько же,
+        # сколько у каталога: пул — потолок зрителей таких файлов на весь сервер (N2). Память держат свои
+        # пределы (I3), а у площадки с любыми хостами меньше только простаивающих сокетов к чужим серверам.
         net = self.net(NetConfig(), {"youtube": YouTube.hosts, "link": HostPolicy(public_any=True)})
         link = net.client_for("link")._transport._pool
         catalogue = net.client_for("youtube")._transport._pool
         unknown = net.client_for("gone")._transport._pool
-        self.assertEqual(link._max_connections, 24)
-        self.assertEqual(catalogue._max_connections, 100)
-        # Неизвестная площадка — строже всего: тот же меньший пул, что у «По ссылке».
-        self.assertEqual(unknown._max_connections, 24)
+        self.assertEqual((link._max_connections, catalogue._max_connections), (100, 100))
+        self.assertEqual((link._max_keepalive_connections, catalogue._max_keepalive_connections), (8, 20))
+        # Неизвестная площадка — строже всего: как «По ссылке».
+        self.assertEqual(unknown._max_keepalive_connections, 8)
 
     async def test_every_platform_client_refuses_the_inside(self):
         dialer = Dialer()

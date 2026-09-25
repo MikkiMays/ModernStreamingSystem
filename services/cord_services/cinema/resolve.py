@@ -194,7 +194,9 @@ class YtDlp:
         # пул обслуживает `loop.getaddrinfo` каждого исходящего соединения (`net.py`), и лавина запросов
         # каталога стопорила бы разрешение имён всем площадкам разом (M11). Разбор ссылок с охраняемым выходом
         # идёт своим пулом (`egress.py`); здесь — пул площадок каталога.
-        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="cinema-catalog")
+        # Восемь потоков: работа yt-dlp в каталоге почти вся — ожидание ответа площадки, а поиск YouTube
+        # занимает два, и четырёх не хватало бы уже нескольким комнатам разом.
+        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="cinema-catalog")
         self._log_js_runtime()
 
     async def offload(self, work: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
