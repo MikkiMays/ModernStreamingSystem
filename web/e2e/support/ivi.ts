@@ -45,12 +45,14 @@ export const IVI: CinemaOverrides = {
   categories: ({ params }) => (ivi(params) ? fixture('ivi-tabs') : undefined),
   category: ({ params }) => {
     if (!ivi(params)) return undefined;
-    if (params.get('cursor')) return { category: fixture<Feed & { category: unknown }>('ivi-category-movies').category, ...END };
+    if (params.get('cursor'))
+      return { category: fixture<Feed & { category: unknown }>('ivi-category-movies').category, ...END };
     return fixture(params.get('id') === '15' ? 'ivi-category-shows' : 'ivi-category-movies');
   },
   search: ({ params }) => {
     if (!ivi(params)) return undefined;
-    if (!params.get('query') || params.get('cursor')) return { items: [], channels: [], categories: [], next: null };
+    if (!params.get('query') || params.get('cursor'))
+      return { items: [], channels: [], categories: [], next: null };
     return fixture('ivi-search');
   },
   series: ({ params }) => {

@@ -1,5 +1,12 @@
 {
-  "category": { "provider": "ivi", "kind": "category", "id": "15", "title": "Сериалы", "viewers": null, "poster": null },
+  "category": {
+    "provider": "ivi",
+    "kind": "category",
+    "id": "15",
+    "title": "Сериалы",
+    "viewers": null,
+    "poster": null
+  },
   "items": [
     {
       "provider": "ivi",

@@ -39,7 +39,10 @@ test('the ivi catalogue is walked on recorded answers: tabs, a movie and a serie
     const tile = browse.locator('.cinema-tile-tall').first();
     await expect(tile).toHaveCount(1);
     await expect(tile.locator('.cinema-tile-title')).toHaveText(movies.items[0]!.title);
-    await expect(tile.locator('.cinema-chip')).toHaveText([movies.items[0]!.badge!, movies.items[0]!.category!]);
+    await expect(tile.locator('.cinema-chip')).toHaveText([
+      movies.items[0]!.badge!,
+      movies.items[0]!.category!,
+    ]);
     expect(
       cinema.calls.filter((call) => call.params.get('provider') === 'ivi').map((c) => c.endpoint),
     ).toEqual(expect.arrayContaining(['categories', 'category']));
