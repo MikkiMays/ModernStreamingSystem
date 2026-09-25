@@ -209,6 +209,37 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(meeting.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
   });
 
+  it('досмотрели вместе с комнатой — `over`: пульт зовёт это «Включить», и включение гасит его сразу', async () => {
+    // Комната не на паузе: паузы никто не ставил, её секунда просто ушла за конец ролика.
+    const video = element({ currentTime: 212, paused: true, ended: true });
+    const { hook, meeting } = setup(video, { watch: watch({ positionMs: 211_500 }) });
+    expect(hook.result.current.sync.over).toBe(false);
+    await pass(1000);
+    expect(hook.result.current.sync.over).toBe(true);
+
+    act(() => hook.result.current.sync.command('watch.play'));
+    expect(meeting.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
+    expect(video.currentTime).toBe(0);
+    // Не дожидаясь проверки: ролик уже пошёл заново, и пульт не должен ещё секунду звать его «Включить».
+    expect(hook.result.current.sync.over).toBe(false);
+  });
+
+  it('`over` — только у досмотренного: ни у отставшего с кончившимся роликом, ни у эфира', async () => {
+    // Свой ролик кончился, а комната ещё в середине: это расхождение, а не конец.
+    const behind = setup(element({ currentTime: 212, paused: true, ended: true }), {
+      watch: watch({ positionMs: 100_000, anchorAt: Date.now() }),
+    });
+    await pass(1000);
+    expect(behind.hook.result.current.sync.over).toBe(false);
+
+    const live = setup(element({ currentTime: 212, paused: true, ended: true }), {
+      live: true,
+      watch: watch({ kind: 'channel' }),
+    });
+    await pass(1000);
+    expect(live.hook.result.current.sync.over).toBe(false);
+  });
+
   it('подтяжка, которая не двигает картинку, через пять секунд уступает перемотке', async () => {
     // Задача 9: на 1,05 устройство теряло кадры и шло в 1,003 реального времени — полторы секунды
     // отставания уходили бы так восемь минут. Здесь скорость «стоит», а кадры идут как шли.

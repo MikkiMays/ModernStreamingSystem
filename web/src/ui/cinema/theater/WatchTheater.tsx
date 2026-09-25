@@ -11,7 +11,7 @@ import type { QualityPage } from './menus/QualityMenu';
 import { useCaptions } from './useCaptions';
 import { usePlayback } from './usePlayback';
 import { useEcho, useRoomSync } from './useRoomSync';
-import { controlsShown, framePress } from './watch-controls';
+import { controlsShown, framePress, playToggle } from './watch-controls';
 
 /** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором. */
 const IDLE_MS = 2800;
@@ -165,7 +165,9 @@ export function WatchTheater({
             // экран это «покажи пульт», мышью в окне — привычная пауза.
             const press = framePress({ coarse, fullscreen, live, canControl });
             if (press === 'wake') wake();
-            if (press === 'toggle') command(watch.paused ? 'watch.play' : 'watch.pause');
+            // Как кнопка «играть/пауза»: досмотренный ролик кадр включает заново, а не «ставит на паузу».
+            if (press === 'toggle')
+              command(playToggle({ paused: watch.paused, over: sync.over, playing }).command);
           }}
           onPlay={() => {
             setPlaying(true);

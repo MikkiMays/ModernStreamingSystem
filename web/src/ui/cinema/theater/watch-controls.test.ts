@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { controlsShown, framePress, skipTarget } from './watch-controls';
+import { controlsShown, framePress, playToggle, skipTarget } from './watch-controls';
 
 describe('пульт кинозала', () => {
   /**
@@ -29,6 +29,37 @@ describe('пульт кинозала', () => {
     // Длительность ещё неизвестна: ограничиваем только снизу.
     expect(skipTarget(5000, 15000, 0)).toBe(20000);
     expect(skipTarget(5000, -15000, 0)).toBe(0);
+  });
+
+  it('«играть/пауза»: комната на паузе — включить, играет — пауза, а значок ещё и по своему плееру', () => {
+    expect(playToggle({ paused: true, over: false, playing: false })).toEqual({
+      label: 'Включить для всех',
+      command: 'watch.play',
+      icon: 'play',
+    });
+    expect(playToggle({ paused: false, over: false, playing: true })).toEqual({
+      label: 'Пауза для всех',
+      command: 'watch.pause',
+      icon: 'pause',
+    });
+    // Комната уже играет, свой плеер ещё не пошёл: остановить можно, но на экране — ▶.
+    expect(playToggle({ paused: false, over: false, playing: false })).toEqual({
+      label: 'Пауза для всех',
+      command: 'watch.pause',
+      icon: 'play',
+    });
+  });
+
+  /**
+   * Задача 11a оставила это на потом: после естественного конца комната не на паузе, и кнопка с ▶
+   * звалась «Пауза для всех» и слала `watch.pause` — первое нажатие не делало ничего видимого.
+   */
+  it('досмотрели: кнопка — «Включить для всех» и шлёт watch.play, хотя паузы комната не ставила', () => {
+    expect(playToggle({ paused: false, over: true, playing: false })).toEqual({
+      label: 'Включить для всех',
+      command: 'watch.play',
+      icon: 'play',
+    });
   });
 
   it('пульт уходит по бездействию и на паузе тоже, но не под открытым меню', () => {

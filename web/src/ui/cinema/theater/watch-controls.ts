@@ -59,3 +59,31 @@ export function skipTarget(positionMs: number, deltaMs: number, durationMs: numb
 export function controlsShown(context: { idle: boolean; menuOpen: boolean; ready: boolean }): boolean {
   return !context.idle || context.menuOpen || !context.ready;
 }
+
+/** Кнопка «играть/пауза» пульта: как называется, что шлёт комнате и какой у неё значок. */
+export interface PlayToggle {
+  label: 'Включить для всех' | 'Пауза для всех';
+  command: 'watch.play' | 'watch.pause';
+  icon: 'play' | 'pause';
+}
+
+/**
+ * Что делает кнопка «играть/пауза» — она посреди кадра, она же в полосе пульта, и так же понимается
+ * нажатие мышью по кадру.
+ *
+ * Имя и действие — от комнаты, а не от своего `<video>`: пауза общая. Но досмотренный до конца ролик
+ * (`over`) — тоже «стоит»: паузы комната не ставила, её секунда ушла за конец, а свой плеер на
+ * последнем кадре. Раньше кнопка звалась там «Пауза для всех» и слала `watch.pause`: первое нажатие
+ * не делало ничего видимого, второе начинало заново. Теперь после конца она — «Включить для всех» и
+ * шлёт `watch.play`, а тот у досмотренного начинает ролик заново для всех (`useRoomSync`).
+ *
+ * Значок — ещё и от своего плеера: комната уже играет, а свой ещё не пошёл, — это ▶, а не ❚❚.
+ */
+export function playToggle(context: { paused: boolean; over: boolean; playing: boolean }): PlayToggle {
+  const stopped = context.paused || context.over;
+  return {
+    label: stopped ? 'Включить для всех' : 'Пауза для всех',
+    command: stopped ? 'watch.play' : 'watch.pause',
+    icon: stopped || !context.playing ? 'play' : 'pause',
+  };
+}

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Watch } from '../../../api/types';
 import type { CinemaSource } from '../../../core/cinema';
@@ -133,4 +133,24 @@ it('отказ остаётся своими словами: ошибка `<vide
   fireEvent.error(video);
   expect(screen.getByText(refusal)).toBeVisible();
   expect(screen.queryByText('Поток не открылся. Попробуйте другое видео')).toBeNull();
+});
+
+it('досмотрели: нажатие мышью по кадру включает ролик заново для всех, а не ставит паузу', async () => {
+  answers = [file('/cinema/fetch?sig=old')];
+  const room = meeting();
+  // Комната не на паузе: её секунда давно ушла за конец ролика в 635 с, паузы никто не ставил.
+  const { container } = render(
+    <WatchTheater meeting={room} watch={{ ...WATCH, paused: false, anchorAt: Date.now() - 700_000 }} />,
+  );
+  const video = container.querySelector('video')!;
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
+  // Свой плеер — на последнем кадре.
+  Object.defineProperty(video, 'ended', { configurable: true, value: true });
+  Object.defineProperty(video, 'currentTime', { configurable: true, writable: true, value: 635 });
+  // Проверка раз в секунду замечает конец.
+  await act(() => new Promise((done) => setTimeout(done, 1100)));
+  fireEvent.click(video);
+  expect(room.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
+  expect(room.command).not.toHaveBeenCalledWith('watch.pause', undefined, undefined, expect.anything());
+  expect(video.currentTime).toBe(0);
 });

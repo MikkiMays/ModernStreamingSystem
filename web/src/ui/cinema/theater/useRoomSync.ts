@@ -94,6 +94,12 @@ export function useRoomSync({
   const [buffered, setBuffered] = useState(0);
   const [drift, setDrift] = useState(0);
   const [lag, setLag] = useState(0);
+  /**
+   * Досмотрели вместе с комнатой ({@link finished}): свой ролик кончился, а секунда комнаты ушла за
+   * его конец. Комната при этом не на паузе — паузы никто не ставил, — и пульт по одному `paused`
+   * говорил бы «Пауза для всех» у ролика, который давно стоит на последнем кадре.
+   */
+  const [over, setOver] = useState(false);
   const sending = useRef(false);
   const started = useRef(false);
   const nudge = useRef<CatchUp | null>(null);
@@ -119,6 +125,7 @@ export function useRoomSync({
   useEffect(() => {
     setDrift(0);
     setLag(0);
+    setOver(false);
     started.current = false;
     nudge.current = null;
   }, [meeting, content]);
@@ -140,10 +147,12 @@ export function useRoomSync({
         const here = element.currentTime * 1000;
         setPosition(here);
         setDuration(Number.isFinite(element.duration) ? element.duration * 1000 : 0);
-        const over = finished({ watch: now, serverNow, localMs: here, ended: element.ended });
-        setDrift(now.paused || over ? 0 : here - targetPosition(now, serverNow));
+        const done = finished({ watch: now, serverNow, localMs: here, ended: element.ended });
+        setOver(done);
+        setDrift(now.paused || done ? 0 : here - targetPosition(now, serverNow));
         setLag(0);
       } else {
+        setOver(false);
         setDrift(0);
         const edge = playback.current?.liveSyncPosition;
         const known = edge !== undefined && edge !== null && Number.isFinite(edge);
@@ -218,6 +227,8 @@ export function useRoomSync({
       : (positionMs ??
         Math.round(element ? element.currentTime * 1000 : targetPosition(watch, meeting.serverNow())));
     if (element) element.playbackRate = 1;
+    // Заново с начала — уже не «досмотрели»: пульт перестаёт звать это «Включить», не дожидаясь проверки.
+    if (again) setOver(false);
     if ((type === 'watch.seek' || again) && element) element.currentTime = at / 1000;
     if (type === 'watch.play') void element?.play().catch(() => {});
     if (type === 'watch.pause') element?.pause();
@@ -243,13 +254,13 @@ export function useRoomSync({
     if (!element) return;
     wake();
     // Досмотрели вместе с комнатой — уже на её секунде; `play()` здесь начал бы ролик заново.
-    const over = finished({
+    const done = finished({
       watch: latest.current.watch,
       serverNow: meeting.serverNow(),
       localMs: element.currentTime * 1000,
       ended: element.ended,
     });
-    if (!live && over) return;
+    if (!live && done) return;
     echo.suppress();
     element.playbackRate = 1;
     if (live) {
@@ -301,5 +312,19 @@ export function useRoomSync({
     }
   };
 
-  return { position, duration, buffered, drift, lag, send, command, skip, resync, played, paused, loaded };
+  return {
+    position,
+    duration,
+    buffered,
+    drift,
+    lag,
+    over,
+    send,
+    command,
+    skip,
+    resync,
+    played,
+    paused,
+    loaded,
+  };
 }

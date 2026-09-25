@@ -25,6 +25,7 @@ import { SyncButton } from './SyncButton';
 import type { useCaptions } from './useCaptions';
 import type { usePlayback } from './usePlayback';
 import type { useRoomSync } from './useRoomSync';
+import { playToggle } from './watch-controls';
 import { qualities } from './watch-levels';
 
 /**
@@ -97,7 +98,7 @@ export function Chrome({
   volume: number;
   sync: Pick<
     ReturnType<typeof useRoomSync>,
-    'position' | 'duration' | 'buffered' | 'lag' | 'send' | 'command' | 'skip' | 'resync'
+    'position' | 'duration' | 'buffered' | 'lag' | 'over' | 'send' | 'command' | 'skip' | 'resync'
   >;
   player: Pick<
     ReturnType<typeof usePlayback>,
@@ -115,10 +116,12 @@ export function Chrome({
   fullscreen: boolean;
   onFullscreen: () => void;
 }) {
-  const { position, duration, buffered, lag, send, command, skip, resync } = sync;
+  const { position, duration, buffered, lag, over, send, command, skip, resync } = sync;
   const { levels, voices, texts } = player;
   const choices = useMemo(() => qualities(levels), [levels]);
   const title = source?.title ?? watch.title ?? 'Совместный просмотр';
+  // «Играть/пауза» — одна и та же кнопка посреди кадра и в полосе пульта (`playToggle`).
+  const toggle = playToggle({ paused: watch.paused, over, playing });
   return (
     <div className="watch-chrome" data-shown={shown ? 'true' : undefined}>
       <div className="watch-head">
@@ -167,12 +170,12 @@ export function Chrome({
               <span>15</span>
             </IconButton>
             <IconButton
-              label={watch.paused ? 'Включить для всех' : 'Пауза для всех'}
+              label={toggle.label}
               className="watch-center-play"
               disabled={!canControl}
-              onClick={() => command(watch.paused ? 'watch.play' : 'watch.pause')}
+              onClick={() => command(toggle.command)}
             >
-              {watch.paused || !playing ? <Play size={30} /> : <Pause size={30} />}
+              {toggle.icon === 'play' ? <Play size={30} /> : <Pause size={30} />}
             </IconButton>
             <IconButton
               label="Вперёд на 15 секунд для всех"
@@ -229,12 +232,12 @@ export function Chrome({
           ) : (
             <>
               <IconButton
-                label={watch.paused ? 'Включить для всех' : 'Пауза для всех'}
+                label={toggle.label}
                 className="watch-play"
                 disabled={!canControl}
-                onClick={() => command(watch.paused ? 'watch.play' : 'watch.pause')}
+                onClick={() => command(toggle.command)}
               >
-                {watch.paused || !playing ? <Play size={21} /> : <Pause size={21} />}
+                {toggle.icon === 'play' ? <Play size={21} /> : <Pause size={21} />}
               </IconButton>
               <IconButton
                 label="В начало для всех"
