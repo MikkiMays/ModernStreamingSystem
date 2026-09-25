@@ -89,7 +89,7 @@ export type Correction =
   | { action: 'seek'; positionMs: number }
   | { action: 'rate'; rate: number };
 
-/** Окно наблюдения за подтяжкой: с какого момента (свои часы, мс) и с какого расхождения, мс. */
+/** Окно наблюдения за подтяжкой: с какого момента (монотонные часы) и расхождения, мс. */
 export interface CatchUp {
   since: number;
   driftMs: number;

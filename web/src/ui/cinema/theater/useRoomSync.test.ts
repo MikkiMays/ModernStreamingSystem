@@ -229,6 +229,24 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(hook.result.current.echo.quiet()).toBe(true);
   });
 
+  it('перевод своих часов назад посреди подтяжки не снимает её с присмотра', async () => {
+    // Часы сервера здесь верные (поправку перемерили), а свои переводят на час назад.
+    const video = element({ currentTime: 60 });
+    const { meeting } = setup(video);
+    const origin = performance.now();
+    meeting.serverNow = () => T0 + (performance.now() - origin);
+    await pass(1000);
+    video.currentTime += 1;
+    await pass(1000);
+    vi.setSystemTime(Date.now() - 3_600_000);
+    for (let second = 0; second < 5; second++) {
+      video.currentTime += 1;
+      await pass(1000);
+    }
+    expect(video.currentTime).toBeCloseTo(67.4, 6);
+    expect(video.playbackRate).toBe(1);
+  });
+
   it('подтяжка, которая тянет, так и доводит до цели — без единой перемотки', async () => {
     const video = element({ currentTime: 60 });
     setup(video);

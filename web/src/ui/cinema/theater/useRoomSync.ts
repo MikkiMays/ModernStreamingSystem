@@ -158,9 +158,10 @@ export function useRoomSync({
       if (echo.quiet() || element.readyState < 2) return;
       const localMs = element.currentTime * 1000;
       const playing = !element.paused && !element.ended;
-      // Подтяжка под присмотром (`catchUp`): её окно помнится между проверками, а не в плеере.
+      // Подтяжка под присмотром (`catchUp`): её окно помнится между проверками, а не в плеере, и
+      // меряется монотонными часами — перевод своих часов назад растянул бы его на весь перевод.
       const watched = catchUp(nudge.current, {
-        now: Date.now(),
+        now: performance.now(),
         driftMs: localMs - targetPosition(now, serverNow),
         nudging: !latest.current.live && !now.paused && playing && element.playbackRate !== 1,
       });
