@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "provider": "ivi",
+      "kind": "video",
+      "id": "53141",
+      "title": "Иван Васильевич меняет профессию",
+      "author": "",
+      "channelId": null,
+      "duration": 5514,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "★ 8.8",
+      "category": "Комедии · 1973",
+      "shape": "tall",
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "channels": [],
+  "categories": [],
+  "next": null
+}

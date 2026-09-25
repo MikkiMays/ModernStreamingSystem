@@ -1,0 +1,22 @@
+{
+  "category": { "provider": "ivi", "kind": "category", "id": "15", "title": "Сериалы", "viewers": null, "poster": null },
+  "items": [
+    {
+      "provider": "ivi",
+      "kind": "series",
+      "id": "18701",
+      "title": "Стеклянный дом",
+      "author": "",
+      "channelId": null,
+      "duration": null,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "★ 7.5",
+      "category": "Детективы · 2025",
+      "shape": "tall",
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}

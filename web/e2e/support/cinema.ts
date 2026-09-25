@@ -223,6 +223,21 @@ const PROVIDERS_ANSWER = {
         live: true,
       },
     },
+    {
+      id: 'ivi',
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: true,
+        channels: false,
+        playlists: false,
+        categories: true,
+        series: true,
+        live: false,
+      },
+    },
   ],
 };
 
@@ -246,9 +261,10 @@ const LINKS: [RegExp, (found: RegExpExecArray) => { route: LinkRoute }][] = [
   [/^https:\/\/rutube\.ru\/metainfo\/tv\/([0-9]+)\/$/, route('rutube', 'series', 'series')],
   [/^https:\/\/(?:vk\.com|vkvideo\.ru)\/video(-?[0-9]+_[0-9]+)$/, route('vk', 'video', 'item')],
   [/^https:\/\/live\.vkvideo\.ru\/(\w+)$/, route('vk', 'channel', 'item')],
+  [/^https:\/\/(?:www\.)?ivi\.ru\/watch\/([0-9]{1,12})$/, route('ivi', 'video', 'item')],
 ];
 export const UNKNOWN_LINK =
-  'Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube и VK Видео';
+  'Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube, VK Видео и ivi';
 
 /**
  * Несколько наборов своих ответов разом: на каждый вопрос отвечает первый, кто ответил не

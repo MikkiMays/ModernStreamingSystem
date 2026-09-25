@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "provider": "ivi", "kind": "category", "id": "14", "title": "Фильмы", "viewers": null, "poster": null },
+    { "provider": "ivi", "kind": "category", "id": "15", "title": "Сериалы", "viewers": null, "poster": null },
+    { "provider": "ivi", "kind": "category", "id": "17", "title": "Мультфильмы", "viewers": null, "poster": null }
+  ],
+  "next": null
+}

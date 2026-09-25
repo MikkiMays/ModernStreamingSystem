@@ -1,0 +1,29 @@
+{
+  "series": {
+    "id": "18701",
+    "title": "Стеклянный дом",
+    "poster": "/fixtures/poster.png",
+    "description": "Детский психолог Оля приезжает к овдовевшему отцу-одиночке и попадает в загадочную ловушку его «умного дома».",
+    "year": 2025,
+    "seasons": [{ "id": "1", "title": "Сезон 1" }]
+  },
+  "season": "1",
+  "items": [
+    {
+      "provider": "ivi",
+      "kind": "video",
+      "id": "567680",
+      "title": "Серия 1",
+      "author": "",
+      "channelId": null,
+      "duration": 2663,
+      "live": false,
+      "viewers": null,
+      "views": null,
+      "badge": "1 серия",
+      "series": "18701",
+      "poster": "/fixtures/poster.png"
+    }
+  ],
+  "next": null
+}
