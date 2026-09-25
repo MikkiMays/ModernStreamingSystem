@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import contextlib
 import functools
 import gzip
 import logging
@@ -19,7 +20,7 @@ import re
 import time
 import uuid
 from dataclasses import asdict
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from urllib.parse import urljoin
 
 import httpx
@@ -72,10 +73,15 @@ PLAYLIST_DEADLINE = 20.0
 # Срок на весь `resolve` площадки «По ссылке»: разбор страницы (30 с у выхода), проверки DRM и
 # файлов — вместе, а не каждая своим сроком (переадресации одних проверок складывались в минуты).
 LINK_RESOLVE_SECONDS = 40.0
-# Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`), и сколько плейлистов
-# ждут их сверх того: дальше — отказ 503, а не очередь без конца.
+# Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`) и переводятся чужие
+# субтитры (`Cinema.subtitles`), и сколько работ ждут их сверх того: дальше — отказ 503, а не очередь без
+# конца. Место занимается раньше, чем прочитан первый байт чужого тела: чтение плейлиста — это до 8 МБ в
+# памяти, и сотня подписанных адресов одной ссылки не должна читать их разом.
 REWRITE_THREADS = 2
 REWRITE_WAITING = 8
+# Сколько чужих ответов подходящего размера (`Segments.largest`, 12 МБ) читается в общую память разом: каждый
+# — до двух своих размеров в памяти, пока читается. Остальные в этот миг идут к зрителю потоком, мимо памяти.
+FOREIGN_READS = 8
 REWRITES_BUSY = "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 NO_PLAYLIST = "Площадка не отдала плейлист"
@@ -188,8 +194,11 @@ class Cinema:
         self.rewrites = concurrent.futures.ThreadPoolExecutor(
             max_workers=REWRITE_THREADS, thread_name_prefix="cinema-rewrite"
         )
-        # Сколько чужих плейлистов сейчас в этих потоках или в очереди к ним (считает цикл событий).
+        # Сколько чужих плейлистов и субтитров сейчас читается, в этих потоках или в очереди к ним (считает
+        # цикл событий; место занимает `_admit`).
         self.rewriting = 0
+        # Чтения чужих ответов в общую память (`fetch`): не больше `FOREIGN_READS` разом.
+        self.foreign_reads = asyncio.Semaphore(FOREIGN_READS)
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
         self.resolves = Window(
@@ -621,48 +630,71 @@ class Cinema:
         внутри.
         """
         source = self.registry.find(provider)
-        limit = PLAYLIST_LIMIT if source is None or source.hosts.public_any else CATALOG_PLAYLIST_LIMIT
+        foreign = self._foreign(provider)
+        limit = PLAYLIST_LIMIT if foreign else CATALOG_PLAYLIST_LIMIT
         profile = self._profile(profile_id)
+        # Чужой плейлист: место в переписывании — раньше первого прочитанного байта (`_admit`), мера, проверка
+        # DRM, подписи и сжатие — в своих потоках, не в цикле событий.
+        if foreign:
+            self._admit()
+        submitted = False
         try:
-            async with asyncio.timeout(PLAYLIST_DEADLINE):
-                upstream = await self._open(
-                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
-                )
-                try:
-                    if not _plain(upstream):
-                        raise HTTPException(502, NO_PLAYLIST)
-                    raw = await self._read(upstream, limit)
-                finally:
-                    await upstream.aclose()
-        except TimeoutError:
-            raise HTTPException(504, "Площадка не отдала плейлист вовремя") from None
-        except HTTPException as error:
-            # Обрыв, отказ площадки, сжатый вопреки просьбе и больше предела — плеер слышит одно.
-            if error.status_code != 502:
-                raise
-            raise HTTPException(502, NO_PLAYLIST) from None
-        text = raw.decode("utf-8", errors="replace")
-        base = str(upstream.url)
-        mark = profile.id if profile is not None else None
-        if source is None or source.hosts.public_any:
-            # Чужой плейлист: мера, проверка DRM, подписи и сжатие — в своих потоках, не в цикле событий,
-            # и очередь к ним — не больше `REWRITE_WAITING`: место освобождается, когда кончилась работа,
-            # а не когда ушёл ждавший её запрос.
-            if self.rewriting >= REWRITE_THREADS + REWRITE_WAITING:
-                raise HTTPException(503, REWRITES_BUSY, headers={"Retry-After": "2"})
-            loop = asyncio.get_running_loop()
-            job = self.rewrites.submit(self._render, text, base, source, provider, encodings, True, mark)
-            self.rewriting += 1
-            job.add_done_callback(lambda _: in_loop(loop, self._rewritten))
-            return await asyncio.wrap_future(job)
-        return self._render(text, base, source, provider, encodings, False, mark)
+            try:
+                async with asyncio.timeout(PLAYLIST_DEADLINE):
+                    upstream = await self._open(
+                        self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
+                    )
+                    try:
+                        if not _plain(upstream):
+                            raise HTTPException(502, NO_PLAYLIST)
+                        raw = await self._read(upstream, limit)
+                    finally:
+                        await upstream.aclose()
+            except TimeoutError:
+                raise HTTPException(504, "Площадка не отдала плейлист вовремя") from None
+            except HTTPException as error:
+                # Обрыв, отказ площадки, сжатый вопреки просьбе и больше предела — плеер слышит одно.
+                if error.status_code != 502:
+                    raise
+                raise HTTPException(502, NO_PLAYLIST) from None
+            base = str(upstream.url)
+            mark = profile.id if profile is not None else None
+            if not foreign:
+                return self._render(raw, base, source, provider, encodings, False, mark)
+            waiting = self._offload(self._render, raw, base, source, provider, encodings, True, mark)
+            submitted = True
+            return await waiting
+        finally:
+            if foreign and not submitted:
+                self._rewritten()
+
+    def _admit(self) -> None:
+        """
+        Место для чужого плейлиста или чужих субтитров: чтение, работа в потоках переписывания и очередь к
+        ним — не больше `REWRITE_THREADS + REWRITE_WAITING` разом; дальше — отказ 503, а не очередь без конца.
+        Занимается до первого байта чужого тела, освобождает его `_offload` (когда кончилась работа) или сам
+        занявший, если до работы дело не дошло.
+        """
+        if self.rewriting >= REWRITE_THREADS + REWRITE_WAITING:
+            raise HTTPException(503, REWRITES_BUSY, headers={"Retry-After": "2"})
+        self.rewriting += 1
+
+    def _offload(self, work: Callable[..., Any], *args: Any) -> asyncio.Future[Any]:
+        """
+        Работа с чужим телом — в потоки переписывания. Её место (`_admit`) освобождается, когда кончилась
+        сама работа, а не когда ушёл ждавший её запрос: ушедший запрос не отменяет того, что уже в потоке.
+        """
+        loop = asyncio.get_running_loop()
+        job = self.rewrites.submit(work, *args)
+        job.add_done_callback(lambda _: in_loop(loop, self._rewritten))
+        return asyncio.wrap_future(job)
 
     def _rewritten(self) -> None:
         self.rewriting -= 1
 
     def _render(
         self,
-        text: str,
+        raw: bytes,
         base: str,
         source: Provider | None,
         provider: str,
@@ -673,8 +705,10 @@ class Cinema:
         """
         Плейлист на наших адресах. Чужой (`foreign`) — сначала мерой (`playlists.unwieldy`): восемь
         мегабайт однобуквенных строк стоили минут процессора и гигабайтов памяти, и отказ — раньше
-        всякой подписи.
+        всякой подписи. Текстом байты становятся здесь, у чужого — уже в потоке переписывания: работа в
+        очереди держит в памяти только свои байты, а не их текст (до четырёх байт на знак).
         """
+        text = raw.decode("utf-8", errors="replace")
         if foreign and (refused := unwieldy(text, base)):
             raise HTTPException(502, f"Плейлист площадки не открыть: {refused}")
         # Список кусочков с ключом DRM (обычно он не в мастере, а здесь) — отказ, а не попытка.
@@ -699,23 +733,40 @@ class Cinema:
         тело httpx распаковывает кусками, и кусок сжатой «бомбы» — это десятки мегабайт в памяти
         ещё до проверки предела. Сжатый ответ вопреки просьбе — отказ: это не то, что спросили.
         Срок у всего ответа один (`SUBTITLES_DEADLINE`).
+
+        Чужие субтитры («По ссылке») читаются под тем же местом, что и чужие плейлисты (`_admit`), и
+        переводятся в тех же потоках, а не в цикле событий: TTML — это разбор XML в два мегабайта.
         """
         profile = self._profile(profile_id)
+        foreign = self._foreign(provider)
+        if foreign:
+            self._admit()
+        submitted = False
         try:
-            async with asyncio.timeout(SUBTITLES_DEADLINE):
-                upstream = await self._open(
-                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
-                )
-                try:
-                    if not _plain(upstream):
-                        raise HTTPException(502, "Площадка не отдала данные")
-                    body = await self._read(upstream, SUBTITLES_LIMIT)
-                finally:
-                    await upstream.aclose()
-        except TimeoutError:
-            raise HTTPException(504, "Площадка не отдала субтитры вовремя") from None
+            try:
+                async with asyncio.timeout(SUBTITLES_DEADLINE):
+                    upstream = await self._open(
+                        self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
+                    )
+                    try:
+                        if not _plain(upstream):
+                            raise HTTPException(502, "Площадка не отдала данные")
+                        body = await self._read(upstream, SUBTITLES_LIMIT)
+                    finally:
+                        await upstream.aclose()
+            except TimeoutError:
+                raise HTTPException(504, "Площадка не отдала субтитры вовремя") from None
+            if foreign:
+                waiting = self._offload(webvtt, body)
+                submitted = True
+                text = await waiting
+            else:
+                text = webvtt(body)
+        finally:
+            if foreign and not submitted:
+                self._rewritten()
         return Response(
-            webvtt(body),
+            text,
             media_type="text/vtt; charset=utf-8",
             headers={"Cache-Control": "private, max-age=600", **SEALED},
         )
@@ -745,15 +796,19 @@ class Cinema:
             if cached:
                 return _kept(*cached)
             upstream = await self._open(client, url, {}, provider, profile)
-            if not self._storable(upstream):
+            foreign = self._foreign(provider)
+            if not self._storable(upstream) or (foreign and self.foreign_reads.locked()):
                 # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
                 # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
-                # своими потоками — держать гигабайт ради них в памяти нельзя.
+                # своими потоками — держать гигабайт ради них в памяти нельзя. Так же — чужой ответ,
+                # пока `FOREIGN_READS` других уже читаются: сотня подписанных адресов одной ссылки
+                # не должна держать в памяти сотню тел разом.
                 return self._stream(upstream, "video/mp2t")
-            try:
-                body = await self._read(upstream)
-            finally:
-                await upstream.aclose()
+            async with self.foreign_reads if foreign else contextlib.nullcontext():
+                try:
+                    body = await self._read(upstream)
+                finally:
+                    await upstream.aclose()
             # В общую память — уже вид для зрителя (`relay.media_type`): чужой `text/html` не должен
             # дождаться там второго зрителя.
             kind = media_type(upstream.headers.get("content-type"), "video/mp2t")

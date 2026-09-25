@@ -35,6 +35,7 @@ from cord_services.cinema.net import BROWSER, Guard
 from cord_services.cinema.providers.link import LINK_ID, LOGIN, Link, MemoryLinks
 from cord_services.cinema.resolve import INSIDE, Expired, Inside, Protected, Resolver
 from cord_services.cinema.transport.playlists import Reels, rewrite, unwieldy
+from cord_services.cinema.transport.relay import Relay
 from cord_services.cinema.transport.signer import Signer, allowed
 from cord_services.cinema.registry import HostPolicy
 from cord_services.store import Store
@@ -1872,6 +1873,151 @@ class PlaylistLimits(LinkCase):
         self.assertEqual(taps["/bomb.m3u8"].read, 0)
         self.assertLessEqual(taps["/huge.m3u8"].read, 1024 * 1024 + 65536)
         self.assertTrue(all(tap.closed for tap in taps.values()))
+
+
+class Gated(httpx.AsyncByteStream):
+    """Тело, которое сайт отдаёт, только когда его отпустят (`gate`)."""
+
+    def __init__(self, gate: asyncio.Event, body: bytes):
+        self.gate = gate
+        self.body = body
+
+    async def __aiter__(self):
+        await self.gate.wait()
+        yield self.body
+
+
+class ForeignReads(LinkCase):
+    """
+    Сколько чужих тел служба читает в память разом (I3 финального ревью). `/playlist`, `/fetch` и `/seg`
+    открываются по подписи, без входа: один подписанный адрес подстроенной ссылки — это сотня чтений разом
+    (пул клиента площадки), по 8 МБ плейлиста или 12 МБ кусочка каждое, а место в переписывании
+    проверялось только после чтения.
+    """
+
+    URL = "https://cdn.example/720.m3u8"
+
+    async def test_foreign_playlists_take_their_place_before_their_first_byte(self):
+        from cord_services.cinema import facade
+
+        gate = asyncio.Event()
+        asked = []
+
+        async def site(request):
+            asked.append(str(request.url))
+            await gate.wait()
+            return httpx.Response(200, text=media())
+
+        cinema = self.make(Door(), site)
+        admitted = facade.REWRITE_THREADS + facade.REWRITE_WAITING
+        waiting = [
+            asyncio.ensure_future(cinema.manifest(f"https://cdn.example/{n}.m3u8", None, "link"))
+            for n in range(admitted)
+        ]
+        await asyncio.sleep(0.05)
+        # Ни один не прочитал ещё ни байта — а места уже заняты все.
+        self.assertEqual((cinema.rewriting, len(asked)), (admitted, admitted))
+        with self.assertRaises(HTTPException) as busy:
+            await cinema.manifest(self.URL, None, "link")
+        self.assertEqual((busy.exception.status_code, busy.exception.headers), (503, {"Retry-After": "2"}))
+        self.assertEqual(len(asked), admitted)  # одиннадцатый до сайта не дошёл
+        gate.set()
+        answers = await asyncio.gather(*waiting)
+        self.assertEqual({answer.status_code for answer in answers}, {200})
+        await asyncio.sleep(0.05)
+        self.assertEqual(cinema.rewriting, 0)
+
+    async def test_a_place_is_given_back_whatever_happened_to_the_read(self):
+        def site(request):
+            name = request.url.path
+            if name == "/gone.m3u8":
+                return httpx.Response(404)
+            if name == "/packed.m3u8":
+                return httpx.Response(200, headers={"Content-Encoding": "gzip"}, content=gzip.compress(b"#"))
+            if name == "/huge.m3u8":
+                return httpx.Response(200, content=b"#" * (1024 * 1024 + 1))
+            if name == "/broken.m3u8":
+                raise httpx.ConnectError("обрыв")
+            return httpx.Response(200, text="#EXTM3U\n" + "x\n" * 100_001)
+
+        cinema = self.make(Door(), site)
+        with patch("cord_services.cinema.facade.PLAYLIST_LIMIT", 1024 * 1024):
+            for name, status in (
+                ("gone", 502),
+                ("packed", 502),
+                ("huge", 502),
+                ("broken", 502),
+                ("lines", 502),
+            ):
+                with self.assertRaises(HTTPException) as refused:
+                    await cinema.manifest(f"https://cdn.example/{name}.m3u8", None, "link")
+                self.assertEqual(refused.exception.status_code, status, name)
+                await asyncio.sleep(0.02)
+                self.assertEqual(cinema.rewriting, 0, name)
+        # Профиля потока нет — отказ раньше места: ничего не занято и нечего отдавать.
+        with self.assertRaises(HTTPException) as stale:
+            await cinema.manifest(self.URL, None, "link", profile_id="gone")
+        self.assertEqual((stale.exception.status_code, cinema.rewriting), (410, 0))
+
+    async def test_foreign_subtitles_take_the_same_places_and_are_converted_off_the_loop(self):
+        from cord_services.cinema import facade
+
+        threads = []
+        real = facade.webvtt
+
+        def webvtt_in(body):
+            threads.append(threading.current_thread().name)
+            return real(body)
+
+        srt = b"1\n00:00:01,000 --> 00:00:02,000\n\xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82\n"
+        cinema = self.make(Door(), lambda request: httpx.Response(200, content=srt))
+        with patch.object(facade, "webvtt", webvtt_in):
+            foreign = await cinema.subtitles("https://cdn.example/ru.srt", "link")
+            catalogue = await cinema.subtitles("https://pic.rtbcdn.ru/ru.srt", "rutube")
+        self.assertEqual(foreign.body, catalogue.body)
+        self.assertIn("00:00:01.000 --> 00:00:02.000", foreign.body.decode())
+        self.assertTrue(threads[0].startswith("cinema-rewrite"), threads)
+        self.assertEqual(threads[1], threading.current_thread().name)
+        self.assertEqual(cinema.rewriting, 0)
+        cinema.rewriting = facade.REWRITE_THREADS + facade.REWRITE_WAITING
+        with self.assertRaises(HTTPException) as busy:
+            await cinema.subtitles("https://cdn.example/en.srt", "link")
+        self.assertEqual(busy.exception.status_code, 503)
+        # Субтитры каталога этого места не занимают.
+        self.assertEqual((await cinema.subtitles("https://pic.rtbcdn.ru/en.srt", "rutube")).status_code, 200)
+
+    async def test_foreign_bodies_are_read_into_memory_eight_at_a_time_and_the_rest_streams(self):
+        from cord_services.cinema import facade
+
+        gate = asyncio.Event()
+
+        def site(request):
+            headers = {"content-length": "1000", "content-type": "video/mp2t"}
+            return httpx.Response(200, headers=headers, stream=Gated(gate, b"x" * 1000))
+
+        cinema = self.make(Door(), site)
+        urls = [f"https://cdn.example/s{number}.ts" for number in range(12)]
+        reads = [asyncio.ensure_future(cinema.fetch(url, None, "link")) for url in urls]
+        youtube = [
+            asyncio.ensure_future(cinema.fetch(f"https://rr5.googlevideo.com/v{n}.ts", None, "youtube"))
+            for n in range(12)
+        ]
+        await asyncio.sleep(0.05)
+        streamed = [read.result() for read in reads if read.done()]
+        # Восемь читаются в память, остальные уже идут к зрителю потоком — не ждут очереди.
+        self.assertEqual(len(streamed), len(urls) - facade.FOREIGN_READS)
+        self.assertTrue(all(isinstance(answer, Relay) for answer in streamed))
+        self.assertTrue(cinema.foreign_reads.locked())
+        # Площадки каталога этим пределом не считаются: все двенадцать читаются в память.
+        self.assertFalse(any(read.done() for read in youtube))
+        gate.set()
+        answers = await asyncio.gather(*reads, *youtube)
+        kept = [answer for answer in answers if not isinstance(answer, Relay)]
+        self.assertEqual(len(kept), facade.FOREIGN_READS + 12)
+        self.assertFalse(cinema.foreign_reads.locked())
+        self.assertEqual(sum(cinema.segments.get(url) is not None for url in urls), facade.FOREIGN_READS)
+        for answer in streamed:
+            await answer.upstream.aclose()
 
 
 class Resolving(LinkCase):

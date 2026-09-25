@@ -77,6 +77,13 @@ SECRET_SHORTEST = 8
 ATTEMPT_TIMEOUT = 4.0
 
 TIMEOUT = httpx.Timeout(20.0, read=60.0)
+# Соединений в пуле клиента. У площадки каталога хосты известны и адреса свои — как у httpx по умолчанию.
+# У площадки с любыми хостами («По ссылке») адрес плейлиста и кусочков ведёт на сервер того, кто вставил
+# ссылку, а подписанный адрес открывается без входа: сотня соединений одной такой ссылки — это сотня чужих
+# чтений разом. Их и так держит предел чтения в память (`facade.FOREIGN_READS`) и очередь переписывания, но
+# пул поменьше — вторая стена и меньше сокетов зря.
+POOL = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+FOREIGN_POOL = httpx.Limits(max_connections=24, max_keepalive_connections=8)
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Cord/1.0"
 # Настольный Chrome — тем же именем VK и Rutube ходят к своим площадкам (`providers/vk.py`,
 # `providers/rutube.py`), а yt-dlp и сам ходит под Chrome.
@@ -748,12 +755,14 @@ class Net:
         found = self._clients.get(provider)
         if found is None:
             policy = self._hosts(provider)
+            # Неизвестная площадка — строже всего: как площадка с любыми хостами.
+            strict = policy is None or policy.public_any
             transport = GuardedTransport(
                 self.guard_for(provider),
                 proxy=self.config.proxy_for(provider),
-                # Неизвестная площадка — строже всего: как площадка с любыми хостами.
-                strict=policy is None or policy.public_any,
+                strict=strict,
                 backend=self._backend,
+                limits=FOREIGN_POOL if strict else POOL,
             )
             found = httpx.AsyncClient(
                 transport=transport,
