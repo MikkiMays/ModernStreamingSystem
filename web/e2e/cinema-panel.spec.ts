@@ -1,5 +1,13 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
-import { fixture, inviteLink, joinMeeting, openCinema, routeCinema, startMeeting } from './support/cinema';
+import {
+  fixture,
+  inviteLink,
+  joinMeeting,
+  openCinema,
+  providersAnswer,
+  routeCinema,
+  startMeeting,
+} from './support/cinema';
 
 /*
   Панель встречи и кинозал там, где панель лежит поверх сцены: листом на телефоне (390, 760 px)
@@ -138,6 +146,44 @@ test('my own catalogue and each of my films move the integrations panel aside', 
     await watch(browse, 'big buck bunny', BUNNY.title);
     await expect(page.locator('.watch-title b')).toHaveText(BUNNY.title);
     await expect(panel).toHaveCount(0);
+  } finally {
+    await room.close();
+  }
+});
+
+/*
+  Установка, где часть площадок выключена (`CINEMA_PROVIDERS`), и площадка, которая отсюда не работает.
+
+  Выключенная стояла обычной плиткой и вкладкой, и каждая её кнопка отвечала «Эта площадка выключена
+  на этом сервере»; причина недоступной жила только во всплывающей подсказке, которую палец не
+  показывает. Поэтому ширина — телефонная.
+*/
+test('a platform switched off on the server has no tile and no tab, and an unavailable one says why on its tile', async ({
+  browser,
+}) => {
+  const room = await context(browser, 390);
+  const page = await room.newPage();
+  const reason = 'ivi отдаёт бесплатное только в России';
+  await routeCinema(page, { providers: () => providersAnswer(['twitch'], { ivi: reason }) });
+  try {
+    await startMeeting(page);
+    await page.getByRole('button', { name: 'Настройки и действия' }).click();
+    await page.getByRole('menuitem', { name: 'Интеграции' }).click();
+    await page
+      .locator('.service-group')
+      .filter({ has: page.getByText('Кинозал', { exact: true }) })
+      .click();
+    const tiles = page.locator('.cinema-group .service-tile');
+    await expect(tiles.locator('b')).toHaveText(['YouTube', 'Rutube', 'VK Видео', 'ivi', 'По ссылке']);
+    const ivi = tiles.filter({ has: page.getByText('ivi', { exact: true }) });
+    await expect(ivi).toBeDisabled();
+    await expect(ivi.locator('small')).toHaveText(reason);
+    await expect(ivi.locator('small')).toBeVisible();
+    await expect(ivi).not.toHaveAttribute('title');
+
+    // В каталоге YouTube вкладки Twitch нет: там её кнопка тоже отвечала бы только отказом.
+    const browse = await openCinema(page, 'YouTube');
+    await expect(browse.getByRole('tablist', { name: 'Площадка' }).getByRole('tab')).toHaveText(['YouTube']);
   } finally {
     await room.close();
   }

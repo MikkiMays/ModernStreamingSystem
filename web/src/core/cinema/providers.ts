@@ -1,4 +1,5 @@
 import { Clapperboard, Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
+import type { CinemaProvidersResponse } from './types';
 
 /**
  * Реестр площадок кинозала.
@@ -145,3 +146,18 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
 export const SWITCHER_TABS: readonly ProviderId[] = PROVIDER_IDS.filter(
   (id) => PROVIDERS[id].scene === 'switcher',
 );
+
+/**
+ * Какие площадки показывать — по ответу службы `GET …/cinema/providers`, в порядке реестра.
+ *
+ * Служба называет только площадки, включённые на этой установке (`CINEMA_PROVIDERS`): выключенной в
+ * ответе нет, и каждый вопрос к ней получил бы «Эта площадка выключена на этом сервере». Поэтому с
+ * ответом на руках показывается реестр ∩ ответ — а площадку, которую служба знает, а эта сборка нет,
+ * показать всё равно нечем. Ответа нет (служба молчит, ещё не ответила или ответила не тем) — весь
+ * реестр, как было до этой проверки: сбой одного вопроса не должен запирать весь кинозал.
+ */
+export function listedProviders(answer: CinemaProvidersResponse | undefined): readonly ProviderId[] {
+  if (!Array.isArray(answer?.providers)) return PROVIDER_IDS;
+  const listed = new Set<string>(answer.providers.map((entry) => entry.id));
+  return PROVIDER_IDS.filter((id) => listed.has(id));
+}

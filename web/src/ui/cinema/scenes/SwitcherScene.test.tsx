@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Meeting } from '../../../core/meeting';
 import type { ProviderId } from '../../../core/cinema';
@@ -38,8 +38,31 @@ const ROUTES: Record<string, unknown> = {
   'https://www.twitch.tv/pesh': { route: { provider: 'twitch', kind: 'channel', id: 'pesh', page: 'item' } },
 };
 
+/** Какие площадки служба назовёт включёнными (`GET providers`); по умолчанию — все. */
+const EVERY = ['youtube', 'twitch', 'rutube', 'vk', 'ivi', 'link'];
+let listed = EVERY;
+const FEATURES = {
+  search: true,
+  channels: true,
+  playlists: true,
+  categories: true,
+  series: false,
+  live: true,
+};
+
 function answer(url: URL, body?: string) {
   const endpoint = url.pathname.split('/cinema/')[1];
+  if (endpoint === 'providers')
+    return {
+      providers: listed.map((id) => ({
+        id,
+        available: true,
+        reason: null,
+        account: 'none',
+        connected: false,
+        features: FEATURES,
+      })),
+    };
   if (endpoint === 'link') return ROUTES[(JSON.parse(body ?? '{}') as { url: string }).url];
   if (endpoint === 'details')
     return url.searchParams.get('provider') === 'twitch'
@@ -58,15 +81,18 @@ const asked: string[] = [];
 
 beforeEach(() => {
   asked.length = 0;
+  listed = EVERY;
   vi.stubGlobal(
     'fetch',
     vi.fn((input: string, init?: RequestInit) => {
       const url = new URL(input, 'http://test');
       const params = url.searchParams;
       const body = typeof init?.body === 'string' ? init.body : undefined;
-      asked.push(
-        `${params.get('provider')} ${url.pathname.split('/cinema/')[1]} ${params.get('query') ?? params.get('id')}`,
-      );
+      // Какие площадки включены, сцена спрашивает сама; это не вопрос каталога площадки.
+      if (!url.pathname.endsWith('/cinema/providers'))
+        asked.push(
+          `${params.get('provider')} ${url.pathname.split('/cinema/')[1]} ${params.get('query') ?? params.get('id')}`,
+        );
       return Promise.resolve(
         new Response(JSON.stringify(answer(url, body)), {
           status: 200,
@@ -305,5 +331,32 @@ it('ссылка, вставленная целиком без события в
       id: 'aqz-KE-bpKQ',
     }),
   );
+  client.clear();
+});
+
+/** Вкладки площадок в шапке сцены — по порядку. */
+const platformTabs = () =>
+  within(screen.getByRole('tablist', { name: 'Площадка' }))
+    .getAllByRole('tab')
+    .map((tab) => tab.textContent);
+
+it('площадка, выключенная на сервере, не получает вкладки — как и плитки в панели', async () => {
+  listed = ['youtube', 'rutube', 'vk', 'ivi', 'link'];
+  const client = mount();
+  await waitFor(() => expect(platformTabs()).toEqual(['YouTube']));
+  client.clear();
+});
+
+it('открытая площадка своей вкладки не теряет, даже если на сервере её выключили', async () => {
+  listed = ['youtube', 'link'];
+  const { client } = host((meeting) => meeting.openCinema('twitch'));
+  await waitFor(() =>
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input).includes('/cinema/providers'))).toBe(
+      true,
+    ),
+  );
+  await new Promise((done) => setTimeout(done, 50));
+  expect(platformTabs()).toEqual(['YouTube', 'Twitch']);
+  expect(screen.getByRole('tab', { name: 'Twitch' })).toHaveAttribute('aria-selected', 'true');
   client.clear();
 });

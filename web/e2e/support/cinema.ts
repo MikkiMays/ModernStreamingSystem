@@ -155,13 +155,17 @@ function exists(name: string) {
 }
 
 /**
- * Площадки включены и отвечают — тем же набором возможностей, что называет служба
- * (`cord_services/cinema/providers/{youtube,twitch,rutube,vk}.py`). Не запись: сама проверка
+ * Площадки включены и отвечают — все шесть, тем же набором возможностей, что называет служба
+ * (`cord_services/cinema/providers/{youtube,twitch,rutube,vk,ivi,link}.py`). Не запись: сама проверка
  * доступности бьёт наружу, а здесь площадки нет вовсе, — поэтому ответ собран руками, а не снят
  * с прода. Каталогу Rutube и VK по записям отвечают сами сценарии `cinema-rutube.spec.ts` и
  * `cinema-vk.spec.ts` — своими `overrides`.
+ *
+ * Панель показывает только площадки из этого ответа: какой здесь нет, той нет и на экране (так
+ * выглядит установка с `CINEMA_PROVIDERS`). Сценарий с выключенной площадкой берёт этот список и
+ * убирает из него лишнее сам ({@link providersAnswer}).
  */
-const PROVIDERS_ANSWER = {
+export const PROVIDERS_ANSWER = {
   providers: [
     {
       id: 'youtube',
@@ -238,8 +242,37 @@ const PROVIDERS_ANSWER = {
         live: false,
       },
     },
+    {
+      id: 'link',
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: false,
+        channels: false,
+        playlists: false,
+        categories: false,
+        series: true,
+        live: true,
+      },
+    },
   ],
 };
+
+/**
+ * Ответ `GET providers` установки, где площадки `off` выключены (`CINEMA_PROVIDERS`), а у площадок из
+ * `down` проверка доступности ответила «нет» с этой причиной.
+ */
+export function providersAnswer(off: string[] = [], down: Record<string, string> = {}) {
+  return {
+    providers: PROVIDERS_ANSWER.providers
+      .filter((entry) => !off.includes(entry.id))
+      .map((entry) =>
+        entry.id in down ? { ...entry, available: false, reason: down[entry.id] ?? null } : entry,
+      ),
+  };
+}
 
 /** Ответ службы на ссылку своей площадки. */
 interface LinkRoute {

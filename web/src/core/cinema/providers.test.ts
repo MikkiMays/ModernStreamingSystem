@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PROVIDER_IDS, PROVIDERS, SWITCHER_TABS } from './providers';
+import { listedProviders, PROVIDER_IDS, PROVIDERS, SWITCHER_TABS } from './providers';
+import type { CinemaProvidersResponse } from './types';
 
 describe('реестр площадок', () => {
   it('идентификаторы не повторяются', () => {
@@ -61,5 +62,53 @@ describe('реестр площадок', () => {
   it('вкладки переключателя — площадки сцены switcher, тем же порядком, что в реестре', () => {
     expect(SWITCHER_TABS).toEqual(PROVIDER_IDS.filter((id) => PROVIDERS[id].scene === 'switcher'));
     expect(SWITCHER_TABS).toEqual(['youtube', 'twitch']);
+  });
+});
+
+/** Ответ `GET …/cinema/providers` с этими площадками — в том порядке, в каком их назвала служба. */
+const answer = (...ids: string[]) =>
+  ({
+    providers: ids.map((id) => ({
+      id,
+      available: true,
+      reason: null,
+      account: 'none',
+      connected: false,
+      features: {
+        search: true,
+        channels: false,
+        playlists: false,
+        categories: false,
+        series: false,
+        live: false,
+      },
+    })),
+  }) as unknown as CinemaProvidersResponse;
+
+describe('какие площадки показывать по ответу службы', () => {
+  it('ответа нет — весь реестр, как до этой проверки', () => {
+    expect(listedProviders(undefined)).toEqual(PROVIDER_IDS);
+  });
+
+  it('выключенной на сервере площадки нет — порядок реестра, а не ответа', () => {
+    // `CINEMA_PROVIDERS=link,youtube,rutube,vk` на проде: Twitch и ivi выключены.
+    expect(listedProviders(answer('link', 'youtube', 'rutube', 'vk'))).toEqual([
+      'youtube',
+      'rutube',
+      'vk',
+      'link',
+    ]);
+  });
+
+  it('площадку, которой эта сборка не знает, показать нечем', () => {
+    expect(listedProviders(answer('youtube', 'jellyfin'))).toEqual(['youtube']);
+  });
+
+  it('служба назвала пустой список — не показывается ничего; ответила не тем — весь реестр', () => {
+    expect(listedProviders(answer())).toEqual([]);
+    expect(listedProviders({} as CinemaProvidersResponse)).toEqual(PROVIDER_IDS);
+    expect(listedProviders({ items: [], next: null } as unknown as CinemaProvidersResponse)).toEqual(
+      PROVIDER_IDS,
+    );
   });
 });

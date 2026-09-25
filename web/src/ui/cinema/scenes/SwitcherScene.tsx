@@ -17,6 +17,7 @@ import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
 import { useKeyed, useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
+import { useProviders } from '../useProviders';
 import type { SceneProps } from '.';
 
 /**
@@ -74,6 +75,13 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
   /** Ищем не на каждую букву: поиск уходит на сервер, а тот — к площадке. */
   const [settled, setSettled] = useKeyed(provider, '');
   const link = useLink(meeting, api);
+  /**
+   * Вкладки — площадки переключателя, которые служба назвала: выключенная на этой установке не
+   * рисуется, как и её плитка в панели. Открытая остаётся всегда — сцена без своей же вкладки
+   * выглядела бы потерянной, а отказ службы о ней и так говорит, что с ней.
+   */
+  const { listed } = useProviders(api);
+  const tabs = SWITCHER_TABS.filter((id) => id === provider || listed.includes(id));
   /**
    * Ссылку спрашивают, когда её вставили целиком или открыли Enter, — не на паузу в наборе: каждая
    * пауза была бы разбором чужой страницы. Вставленная — сразу, без паузы поиска.
@@ -143,7 +151,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
       onBack={stack.length > 1 ? back : undefined}
       tabs={
         <div className="cinema-services" role="tablist" aria-label="Площадка">
-          {SWITCHER_TABS.map((id) => {
+          {tabs.map((id) => {
             const service = PROVIDERS[id];
             return (
               <button
