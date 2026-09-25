@@ -8,12 +8,15 @@
 """
 
 import asyncio
+import contextlib
 import os
 import time
 import unittest
 from ipaddress import ip_network
 from pathlib import Path
 from unittest.mock import patch
+
+from playwright.async_api import BrowserContext
 
 from cord_services.cinema.egress import Busy, Egress
 from cord_services.cinema.net import Allowance, Guard
@@ -23,18 +26,21 @@ from sniffer.page import TEARDOWN, Pages, kill_browsers
 from sites import Site, Trap
 
 
-def headless() -> list[int]:
-    """Процессы headless shell в контейнере теста."""
-    found = []
+def chromium() -> dict[int, bytes]:
+    """
+    Процессы headless shell в контейнере теста и их командные строки. Имя ищется во всей строке: зиготы, GPU,
+    сеть и рендереры переписывают свой заголовок одной строкой, и первым словом оно есть только у браузера.
+    """
+    found = {}
     for entry in Path("/proc").iterdir():
         if not entry.name.isdigit():
             continue
         try:
-            name = (entry / "cmdline").read_bytes().split(b"\0", 1)[0]
+            command = (entry / "cmdline").read_bytes()
         except OSError:
             continue
-        if name.endswith(b"chrome-headless-shell"):
-            found.append(int(entry.name))
+        if b"chrome-headless-shell" in command:
+            found[int(entry.name)] = command
     return found
 
 
@@ -209,6 +215,8 @@ class Budget(PageCase):
 
     async def test_the_tab_and_its_connections_are_gone_after_the_page(self):
         await self.sniff("/pages/hls.html")
+        # Ответ отдаётся раньше закрытия вкладки; закрытие — сразу за ним.
+        await self.pages.settled()
         browser = self.pages._browser
         self.assertIsNotNone(browser)
         self.assertEqual(browser.contexts, [])
@@ -239,20 +247,19 @@ class TheBrowserItself(PageCase):
     async def test_it_runs_only_through_the_way_out_without_the_keys_and_goes_first_on_oom(self):
         await self.sniff("/pages/empty.html")
         processes = []
-        for entry in Path("/proc").iterdir():
-            if not entry.name.isdigit():
-                continue
+        for pid in chromium():
+            entry = Path("/proc") / str(pid)
             try:
                 arguments = (entry / "cmdline").read_bytes().split(b"\0")
                 environ = (entry / "environ").read_bytes()
                 score = (entry / "oom_score_adj").read_text().strip()
             except OSError:
                 continue
-            if arguments and arguments[0].endswith(b"chrome-headless-shell"):
-                processes.append((arguments, environ, score))
-        self.assertTrue(processes)
+            processes.append((arguments, environ, score))
+        # Браузер, зиготы, сеть, рендерер: не один процесс.
+        self.assertGreater(len(processes), 2)
         main = next(
-            arguments for arguments, _, _ in processes if not any(a.startswith(b"--type=") for a in arguments)
+            arguments for arguments, _, _ in processes if arguments[0].endswith(b"chrome-headless-shell")
         )
         for flag in (
             f"--proxy-server=http://127.0.0.1:{self.egress.port}".encode(),
@@ -265,10 +272,15 @@ class TheBrowserItself(PageCase):
             b"--js-flags=--jitless --max-old-space-size=384",
         ):
             self.assertIn(flag, main)
-        for _, environ, score in processes:
+        server = int(Path("/proc/self/oom_score_adj").read_text())
+        for arguments, environ, score in processes:
             self.assertNotIn(b"CINEMA_SNIFFER_KEY", environ)
             self.assertNotIn(b"INTERNAL_SECRET", environ)
-            self.assertEqual(score, "1000")
+            # Браузер — 1000 (`chrome.sh`); GPU и рендереры Chromium опускает по своему правилу (200 и 300),
+            # но ниже сервера — никого: память первой отнимут у браузера.
+            if arguments is main:
+                self.assertEqual(score, "1000")
+            self.assertGreater(int(score), server)
         self.assertNotIn("CINEMA_SNIFFER_KEY", os.environ)
 
 
@@ -309,7 +321,8 @@ class Wall(PageCase):
 
     async def test_a_browser_that_does_not_close_in_time_is_killed(self):
         await self.sniff("/pages/empty.html")
-        self.assertTrue(headless())
+        await self.pages.settled()
+        self.assertTrue(chromium())
         browser = self.pages._browser
 
         async def stuck():
@@ -318,17 +331,63 @@ class Wall(PageCase):
         with patch.object(browser, "close", stuck), patch.object(page_module, "TEARDOWN", 0.5):
             await page_module._shut(browser)
         for _ in range(40):
-            if not headless():
+            if not chromium():
                 break
             await asyncio.sleep(0.1)
-        self.assertEqual(headless(), [])
+        self.assertEqual(chromium(), {})
         self.pages._browser = None
+        again = await self.sniff("/pages/hls.html")
+        self.assertEqual(again["streams"][0]["type"], "hls")
+
+    async def test_every_process_of_a_browser_with_a_stuck_renderer_is_killed(self):
+        visit = asyncio.ensure_future(self.pages.sniff(self.a.url("/pages/busy.html")))
+        try:
+            # Страница заняла свой поток навсегда через секунду после загрузки: рендерер крутится.
+            await asyncio.sleep(2.5)
+            before = chromium()
+            self.assertTrue(any(b"--type=renderer" in command for command in before.values()))
+            # По первому слову нашёлся бы один браузер: остальные переписали свой заголовок.
+            first_word = [
+                c for c in before.values() if c.split(b"\0", 1)[0].endswith(b"chrome-headless-shell")
+            ]
+            self.assertLess(len(first_word), len(before))
+            self.assertGreaterEqual(kill_browsers(), len(before))
+            for _ in range(40):
+                if not chromium():
+                    break
+                await asyncio.sleep(0.1)
+            self.assertEqual(chromium(), {})
+        finally:
+            with contextlib.suppress(Exception):
+                await visit
+        await self.pages.settled()
         again = await self.sniff("/pages/hls.html")
         self.assertEqual(again["streams"][0]["type"], "hls")
 
     def test_killing_finds_only_the_browser(self):
         # Без браузера убивать нечего — и сам процесс теста цел.
         self.assertEqual(kill_browsers(), 0)
+
+
+class Answer(PageCase):
+    async def test_the_answer_does_not_wait_for_a_tab_that_will_not_close(self):
+        async def stuck(context, *args, **kwargs):
+            await asyncio.sleep(3600)
+
+        with patch.object(BrowserContext, "close", stuck), patch.object(page_module, "TEARDOWN", 2.0):
+            found = await self.sniff("/pages/hls.html")
+            self.assertEqual(found["streams"][0]["type"], "hls")
+            # Ответ — сразу за страницей; вкладку ещё закрывают, и место в выходе ещё занято.
+            self.assertLess(found["took"], found["seconds"] + 1.0)
+            self.assertTrue(self.pages._visits)
+            self.assertNotEqual(self.egress._leases, {})
+            started = time.monotonic()
+            await self.pages.settled()
+        # Вкладка не закрылась за срок — браузер закрыт (или убит), место в выходе свободно.
+        self.assertGreaterEqual(time.monotonic() - started, 1.0)
+        self.assertEqual(self.egress._leases, {})
+        again = await self.sniff("/pages/hls.html")
+        self.assertEqual(again["streams"][0]["type"], "hls")
 
 
 if __name__ == "__main__":

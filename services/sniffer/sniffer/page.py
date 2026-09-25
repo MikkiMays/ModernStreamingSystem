@@ -213,6 +213,10 @@ class Pages:
     Один Chromium на процесс (запускается к первой странице, закрывается после `IDLE` без работы) и свой
     контекст на каждую страницу. Сколько страниц разом, решает выход (`Egress.sessions`): место ждётся не
     дольше `Egress.wait`, потом `Busy`.
+
+    Ответ отдаётся, как только готов, а вкладка закрывается уже после него (`_visit`): место в выходе
+    держится до конца закрытия, но зависшее закрытие (до `TEARDOWN`, а с перезапуском браузера — вдвое) не
+    съедает срок, в который служба ждёт ответа. Срок ответа — срок страницы, считая ожидание места.
     """
 
     def __init__(
@@ -234,38 +238,33 @@ class Pages:
         self._launching = asyncio.Lock()
         self._active = 0
         self._resting: asyncio.Task[None] | None = None
+        self._visits: set[asyncio.Task[None]] = set()
 
     async def sniff(self, url: str) -> dict[str, Any]:
         """Что на странице: потоки с заголовками, cookies по хостам, признаки DRM, капчи и входа."""
-        started = time.monotonic()
-        async with self.egress.session(self.seconds + TEARDOWN) as lease:
-            self._active += 1
-            if self._resting is not None:
-                self._resting.cancel()
-                self._resting = None
-            try:
-                browser = await self._browser_ready()
-                context = await browser.new_context(
-                    proxy={
-                        "server": f"http://127.0.0.1:{self.egress.port}",
-                        "username": lease.id,
-                        "password": self.egress.secret,
-                    },
-                    viewport=VIEWPORT,
-                    locale="ru-RU",
-                    service_workers="block",
-                    accept_downloads=False,
-                )
-                try:
-                    return await Watch(context, lease, url, started, self).run()
-                finally:
-                    await self._dispose(context)
-            finally:
-                self._active -= 1
-                if not self._active:
-                    self._resting = asyncio.ensure_future(self._rest())
+        answer: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
+        visit = asyncio.ensure_future(self._visit(url, answer))
+        self._visits.add(visit)
+        visit.add_done_callback(self._visits.discard)
+        try:
+            return await answer
+        except asyncio.CancelledError:
+            # Страницу бросили: вкладка закрывается сразу — дождаться этого, но не дольше закрытия.
+            visit.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.wait({visit}, timeout=2 * TEARDOWN)
+            raise
+
+    async def settled(self) -> None:
+        """Дождаться, пока закроются вкладки уже отданных ответов."""
+        while self._visits:
+            await asyncio.wait(set(self._visits))
 
     async def close(self) -> None:
+        for visit in list(self._visits):
+            visit.cancel()
+        if self._visits:
+            await asyncio.wait(set(self._visits), timeout=2 * TEARDOWN + 1)
         if self._resting is not None:
             self._resting.cancel()
         await self._restart()
@@ -291,6 +290,51 @@ class Pages:
                 timeout=30_000,
             )
             return self._browser
+
+    async def _visit(self, url: str, answer: asyncio.Future[dict[str, Any]]) -> None:
+        """Одна страница: место в выходе, вкладка, ответ в `answer`, как только готов, и закрытие вкладки."""
+        started = time.monotonic()
+        try:
+            async with self.egress.session(self.seconds + TEARDOWN) as lease:
+                self._active += 1
+                if self._resting is not None:
+                    self._resting.cancel()
+                    self._resting = None
+                try:
+                    browser = await self._browser_ready()
+                    context = await browser.new_context(
+                        proxy={
+                            "server": f"http://127.0.0.1:{self.egress.port}",
+                            "username": lease.id,
+                            "password": self.egress.secret,
+                        },
+                        viewport=VIEWPORT,
+                        locale="ru-RU",
+                        service_workers="block",
+                        accept_downloads=False,
+                    )
+                    try:
+                        found = await Watch(context, lease, url, started, self).run()
+                        if not answer.done():
+                            answer.set_result(found)
+                    finally:
+                        await self._dispose(context)
+                finally:
+                    self._active -= 1
+                    if not self._active:
+                        self._resting = asyncio.ensure_future(self._rest())
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            if not answer.done():
+                answer.set_exception(error)
+            else:
+                logger.warning(
+                    "плеер страниц: вкладка закрылась с ошибкой уже после ответа (%s)", type(error).__name__
+                )
+        finally:
+            if not answer.done():
+                answer.cancel()
 
     async def _dispose(self, context: BrowserContext) -> None:
         """Вкладка закрывается целиком; не закрылась вовремя — закрывается весь браузер."""
@@ -637,7 +681,7 @@ def _frame_url(request: Request) -> str:
 
 
 async def _shut(browser: Browser) -> None:
-    """Браузер закрывается сам — а не успел за `TEARDOWN`, убивается: SIGKILL каждому его процессу."""
+    """Браузер закрывается сам — а не успел за `TEARDOWN`, убивается: SIGKILL всем его процессам."""
     try:
         async with asyncio.timeout(TEARDOWN):
             await browser.close()
@@ -649,23 +693,30 @@ async def _shut(browser: Browser) -> None:
 
 def kill_browsers() -> int:
     """
-    SIGKILL всем процессам headless shell в контейнере: их запускает только этот сервер, один браузер разом
-    (новый не запускается, пока уходит старый, — `Pages._restart`), и каждый его процесс называется этим
-    именем (сам браузер — через `chrome.sh`, остальные — его же исполняемым файлом).
+    SIGKILL всем процессам headless shell в контейнере — их запускает только этот сервер, один браузер разом
+    (новый не запускается, пока уходит старый, — `Pages._restart`). Узнаются они по имени исполняемого файла
+    где угодно в командной строке: у самого браузера это первое слово, а зиготы, GPU, сеть и рендереры
+    переписывают свой заголовок одной строкой, где имя — внутри. Браузер Playwright запускает главой своей
+    группы процессов, и все его процессы в ней: группа убивается целиком, а каждый найденный — ещё и сам, если
+    ушёл из группы. Своя группа сервера не трогается. Возвращает, сколько процессов нашлось.
     """
-    killed = 0
+    own = os.getpgrp()
+    found: dict[int, int] = {}
     for entry in Path("/proc").iterdir():
         if not entry.name.isdigit():
             continue
         try:
-            name = (entry / "cmdline").read_bytes().split(b"\0", 1)[0]
+            if b"chrome-headless-shell" in (entry / "cmdline").read_bytes():
+                found[int(entry.name)] = os.getpgid(int(entry.name))
         except OSError:
             continue
-        if name.endswith(b"chrome-headless-shell"):
-            with contextlib.suppress(ProcessLookupError, PermissionError):
-                os.kill(int(entry.name), signal.SIGKILL)
-                killed += 1
-    return killed
+    for group in set(found.values()) - {own}:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(group, signal.SIGKILL)
+    for pid in found:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.kill(pid, signal.SIGKILL)
+    return len(found)
 
 
 def _authority(url: str) -> tuple[str, int]:
