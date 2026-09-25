@@ -14,6 +14,7 @@ import copy
 import gzip
 import json
 import re
+import sqlite3
 import tempfile
 import threading
 import time
@@ -1343,18 +1344,90 @@ class Numbers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             store = Store(Path(root))
             store.links.cap = 5
+            store.links.check_rows = 1
             for number in range(12):
                 store.links.put(f"{number:022d}", {"kind": "video", "url": f"https://s/{number}"}, 3600)
-            count = store.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0]
-            self.assertEqual(count, 5)
-            # Остались пять последних (у них дальше срок = их писали позже); первые ушли.
+                self.assertLessEqual(self.rows(store), 5)
+            # Остались последние (у них дальше срок = их писали позже); первые ушли.
             self.assertIsNone(store.links.get(f"{0:022d}"))
             self.assertIsNotNone(store.links.get(f"{11:022d}"))
-            # Порция сразу больше потолка тоже подрезается.
+            # Порция сразу больше потолка тоже подрезается — до девяти десятых потолка, с запасом.
             batch = {f"b{n:021d}": {"kind": "video", "url": f"https://b/{n}"} for n in range(9)}
             store.links.put_many(batch, 3600)
-            self.assertEqual(store.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0], 5)
+            self.assertEqual(self.rows(store), 4)
             store.db.close()
+
+    def test_the_table_never_holds_more_bytes_than_its_byte_cap(self):
+        # Номер ≤ 256 КБ и одного потолка числа мало: 50 000 таких — 12 ГиБ файла, который не сжимается.
+        with tempfile.TemporaryDirectory() as root:
+            store = Store(Path(root))
+            store.links.byte_cap = 2000
+            store.links.check_rows = 1
+            for number in range(20):
+                record = {"kind": "video", "url": f"https://s/{number}", "title": "т" * 150}
+                store.links.put(f"{number:022d}", record, 3600)
+                held = store.db.execute("SELECT total(size) FROM cinema_links").fetchone()[0]
+                self.assertLessEqual(held, 2000)
+            self.assertIsNotNone(store.links.get(f"{19:022d}"))
+            self.assertIsNone(store.links.get(f"{0:022d}"))
+            # Размер — в байтах записи, а не в знаках: кириллица — по два.
+            size, body = store.db.execute(
+                "SELECT size, body FROM cinema_links WHERE id=?", (f"{19:022d}",)
+            ).fetchone()
+            self.assertEqual(size, len(body.encode()))
+            store.db.close()
+
+    def test_writes_between_checks_do_not_scan_the_table(self):
+        # N1: проверка потолков — проход по всей таблице, а пишут в неё из цикла событий. Она идёт раз в
+        # порцию записей, а не на каждой; и считает по индексу, мимо самих записей.
+        with tempfile.TemporaryDirectory() as root:
+            store = Store(Path(root))
+            store.links.cap = 5
+            for number in range(12):
+                store.links.put(f"{number:022d}", {"kind": "video", "url": f"https://s/{number}"}, 3600)
+            self.assertEqual(self.rows(store), 12)
+            store.links.check_rows = 13
+            store.links.put("x" * 22, {"kind": "video", "url": "https://x"}, 3600)
+            self.assertEqual(self.rows(store), 4)
+            for query in (
+                "SELECT count(*), total(size) FROM cinema_links",
+                "SELECT id, row_number() OVER w, sum(size) OVER w FROM cinema_links "
+                "WINDOW w AS (ORDER BY expires_at DESC, id DESC ROWS UNBOUNDED PRECEDING)",
+            ):
+                # Каждый проход по самой таблице — по индексу, мимо записей (подзапросы окна — не таблица).
+                scans = [
+                    row[-1]
+                    for row in store.db.execute("EXPLAIN QUERY PLAN " + query)
+                    if "cinema_links" in row[-1]
+                ]
+                self.assertTrue(scans, query)
+                self.assertTrue(all("USING COVERING INDEX cinema_links_age" in scan for scan in scans), scans)
+            store.db.close()
+
+    def test_a_table_of_the_previous_release_gets_sizes_and_its_index(self):
+        with tempfile.TemporaryDirectory() as root:
+            db = sqlite3.connect(Path(root) / "services.sqlite")
+            db.execute(
+                "CREATE TABLE cinema_links("
+                "id TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL)"
+            )
+            body = json.dumps({"kind": "video", "url": "https://было/фильм"}, ensure_ascii=False)
+            db.execute("INSERT INTO cinema_links VALUES (?,?,?)", ("A" * 22, body, 2**62))
+            db.commit()
+            db.close()
+            store = Store(Path(root))
+            self.assertEqual(store.links.get("A" * 22)["url"], "https://было/фильм")
+            size = store.db.execute("SELECT size FROM cinema_links").fetchone()[0]
+            self.assertEqual(size, len(body.encode()))
+            indexes = [row[1] for row in store.db.execute("PRAGMA index_list(cinema_links)")]
+            self.assertIn("cinema_links_age", indexes)
+            store.links.put("B" * 22, {"kind": "video", "url": "https://b"}, 3600)
+            self.assertEqual(self.rows(store), 2)
+            store.db.close()
+
+    @staticmethod
+    def rows(store):
+        return store.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0]
 
 
 class OneAddress(LinkCase):

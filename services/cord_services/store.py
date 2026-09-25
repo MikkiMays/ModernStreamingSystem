@@ -57,7 +57,8 @@ class Store:
             CREATE TABLE IF NOT EXISTS receipts(scope TEXT NOT NULL, command_id TEXT NOT NULL, body TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY(scope, command_id));
             CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS cinema_links(
-                id TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL
+                id TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL,
+                size INTEGER NOT NULL DEFAULT 0
             );
         """)
         self.links = Links(self.db)
@@ -231,12 +232,19 @@ class Store:
                 path.unlink(missing_ok=True)
 
 
-# Больше этого номеров ссылок в таблице не держится (M12). Уборка по сроку идёт раз в сутки, а флудить
-# вставками можно куда чаще: без потолка таблица растёт весь день. Когда номеров больше, самые давние по
-# сроку (у всех срок — сутки от последней записи, поэтому «давний срок» = «давно не трогали) уходят. При
-# записи каждого номера ≤ 256 КБ (`providers/link.RECORD_LIMIT`) потолок ограничивает файл, а сутки и
-# суточная уборка держат его далеко ниже.
+# Потолки таблицы номеров ссылок (M12). Уборка по сроку идёт раз в сутки, а флудить вставками можно куда
+# чаще: без потолков таблица растёт весь день, а файл SQLite не сжимается никогда. Номеров — не больше
+# `LINKS_ROW_CAP`, байт в них — не больше `LINKS_BYTE_CAP` (запись одного номера ≤ 256 КБ,
+# `providers/link.RECORD_LIMIT`, и один потолок числа пускал бы в файл до 12 ГиБ). Сверх — уходят самые
+# давние по сроку: у всех срок — сутки от последней записи, поэтому «давний срок» = «давно не трогали».
 LINKS_ROW_CAP = 50_000
+LINKS_BYTE_CAP = 256 * 1024 * 1024
+# Потолки проверяются не на каждой записи, а раз в столько записанных номеров или байт (N1): проверка —
+# проход по индексу всей таблицы, а пишут в неё из цикла событий службы — прямо во время разбора ссылки.
+# Сверх потолка таблица успевает вырасти не больше чем на эту порцию, а подрезается до девяти десятых
+# потолка — следующая подрезка через десятую его часть, а не на следующей же записи.
+LINKS_CHECK_ROWS = 500
+LINKS_CHECK_BYTES = 4 * 1024 * 1024
 
 
 class Links:
@@ -247,12 +255,29 @@ class Links:
     разбирается снова — у каждого зрителя, через сутки после вставки, после перезапуска службы, —
     и адрес, присланный браузером, служба не берёт никогда. Поэтому таблица на диске, а не память
     процесса. Срок — сутки от последней записи: столько живёт и всё остальное, что принесли в
-    комнату. Номеров не больше `LINKS_ROW_CAP`; лишние — самые давние — уходят (M12).
+    комнату. Номеров не больше `LINKS_ROW_CAP`, а байт в них — `LINKS_BYTE_CAP`; лишние — самые
+    давние — уходят (M12).
     """
 
-    def __init__(self, db: sqlite3.Connection, cap: int = LINKS_ROW_CAP):
+    def __init__(
+        self, db: sqlite3.Connection, cap: int = LINKS_ROW_CAP, byte_cap: int = LINKS_BYTE_CAP
+    ):
         self.db = db
         self.cap = cap
+        self.byte_cap = byte_cap
+        self.check_rows = LINKS_CHECK_ROWS
+        self.check_bytes = LINKS_CHECK_BYTES
+        self._rows = 0
+        self._bytes = 0
+        columns = {row[1] for row in db.execute("PRAGMA table_info(cinema_links)")}
+        if "size" not in columns:
+            # Таблица прежнего выпуска — без размера записи: он дописывается один раз, при первом запуске.
+            db.execute("ALTER TABLE cinema_links ADD COLUMN size INTEGER NOT NULL DEFAULT 0")
+            db.execute("UPDATE cinema_links SET size=length(CAST(body AS BLOB))")
+        # Срок, номер и размер — в индексе: подсчёт и подрезка ходят только по нему, мимо самих записей
+        # (они лежат в страницах переполнения, и путь через них стоил полмиллисекунды на мегабайт таблицы).
+        db.execute("CREATE INDEX IF NOT EXISTS cinema_links_age ON cinema_links(expires_at, id, size)")
+        self._trim()
 
     def get(self, key: str) -> dict | None:
         row = self.db.execute(
@@ -266,26 +291,41 @@ class Links:
     def put_many(self, values: dict[str, dict], ttl: float) -> None:
         """Сразу несколько — одной записью на диск: серии плейлиста приезжают порцией по тридцать."""
         expires = now() + int(ttl * 1000)
-        rows = [(key, json.dumps(value, ensure_ascii=False), expires) for key, value in values.items()]
+        rows = []
+        for key, value in values.items():
+            body = json.dumps(value, ensure_ascii=False)
+            rows.append((key, body, expires, len(body.encode())))
         # Соединение без неявных транзакций (`isolation_level=None`): порцию объединяет своя.
         self.db.execute("BEGIN")
         try:
             self.db.executemany(
-                "INSERT INTO cinema_links VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET "
-                "body=excluded.body, expires_at=excluded.expires_at",
+                "INSERT INTO cinema_links(id, body, expires_at, size) VALUES (?,?,?,?) "
+                "ON CONFLICT(id) DO UPDATE SET "
+                "body=excluded.body, expires_at=excluded.expires_at, size=excluded.size",
                 rows,
-            )
-            # Потолок числа номеров: лишние сверх `cap` — самые давние по сроку (то же, что «давно не
-            # трогали»). Пусто, пока номеров меньше потолка.
-            self.db.execute(
-                "DELETE FROM cinema_links WHERE id IN ("
-                "SELECT id FROM cinema_links ORDER BY expires_at DESC, id LIMIT -1 OFFSET ?)",
-                (self.cap,),
             )
         except BaseException:
             self.db.execute("ROLLBACK")
             raise
         self.db.execute("COMMIT")
+        self._rows += len(rows)
+        self._bytes += sum(row[3] for row in rows)
+        if self._rows >= self.check_rows or self._bytes >= self.check_bytes:
+            self._trim()
+
+    def _trim(self) -> None:
+        """Потолки числа и байт: сверх любого — до девяти десятых обоих, самые давние по сроку уходят."""
+        self._rows = self._bytes = 0
+        rows, size = self.db.execute("SELECT count(*), total(size) FROM cinema_links").fetchone()
+        if rows <= self.cap and size <= self.byte_cap:
+            return
+        self.db.execute(
+            "DELETE FROM cinema_links WHERE id IN (SELECT id FROM ("
+            "SELECT id, row_number() OVER newest AS place, sum(size) OVER newest AS held FROM cinema_links "
+            "WINDOW newest AS (ORDER BY expires_at DESC, id DESC ROWS UNBOUNDED PRECEDING)"
+            ") WHERE place > ? OR held > ?)",
+            (self.cap * 9 // 10, self.byte_cap * 9 // 10),
+        )
 
     def sweep(self) -> None:
         self.db.execute("DELETE FROM cinema_links WHERE expires_at<=?", (now(),))
