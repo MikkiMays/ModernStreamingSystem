@@ -35,7 +35,7 @@ describe('ссылка в кинозале со стороны браузера'
     });
     expect(knownProvider('rutube')).toBe(true);
     expect(knownProvider('link')).toBe(true);
-    expect(knownProvider('ivi')).toBe(false);
+    expect(knownProvider('kinopoisk')).toBe(false);
   });
 
   it('карточка по ссылке — только номер; имя до приезда страницы говорит, что это и откуда', () => {

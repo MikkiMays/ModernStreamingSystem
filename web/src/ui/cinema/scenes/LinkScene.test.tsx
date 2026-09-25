@@ -18,7 +18,7 @@ import LinkScene from './LinkScene';
 
 const RUTUBE = 'https://rutube.ru/video/d8061eab5d7ed2bad058162bc5762842/';
 const UNKNOWN = 'https://example.com/films/1';
-const REASON = 'Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube и VK Видео';
+const REASON = 'Эту ссылку пока не открыть: кинозал узнаёт ссылки YouTube, Twitch, Rutube, VK Видео и ivi';
 const FILM = {
   provider: 'link',
   kind: 'video',
@@ -90,7 +90,10 @@ const ANSWERS: Record<string, unknown> = {
   },
   'https://ok.ru/video/1': { item: FILM },
   'https://archive.org/details/show': { item: SHOW },
-  'https://ivi.ru/watch/1': { route: { provider: 'ivi', kind: 'video', id: '1', page: 'item' } },
+  // Площадка, которую сервер уже узнал, а этот клиент — ещё нет (следующий релиз кинозала).
+  'https://www.kinopoisk.ru/film/1/': {
+    route: { provider: 'kinopoisk', kind: 'video', id: '1', page: 'item' },
+  },
 };
 
 /** Какие ссылки спросили у службы. */
@@ -179,7 +182,9 @@ function typeByHand(text: string) {
 it('пустое поле — подсказка, кнопка буфера и недавние ссылки; недавняя открывается в сцене своей площадки', async () => {
   const { client, meeting } = mount({ links: [RUTUBE, UNKNOWN] });
   expect(screen.getByText('Вставьте ссылку на видео')).toBeInTheDocument();
-  expect(screen.getByText(/YouTube, Twitch, Rutube и VK Видео откроется в их каталоге/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/YouTube, Twitch, Rutube, VK Видео и ivi откроется в их каталоге/),
+  ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Вставить из буфера/ })).toBeInTheDocument();
   const recent = screen.getByRole('region', { name: 'Недавние ссылки' });
   expect(
@@ -353,7 +358,7 @@ it('обрыв сети — словами по-русски, а не «Failed t
 
 it('площадку, которой этот клиент не знает, не открывает — просит обновить страницу', async () => {
   const { client, meeting } = mount();
-  paste('https://ivi.ru/watch/1');
+  paste('https://www.kinopoisk.ru/film/1/');
   expect(await screen.findByText(/обновите страницу/)).toBeInTheDocument();
   expect(meeting.openCinema).not.toHaveBeenCalled();
   client.clear();

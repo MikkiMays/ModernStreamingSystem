@@ -1,4 +1,4 @@
-import { Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
+import { Clapperboard, Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
 
 /**
  * Реестр площадок кинозала.
@@ -20,7 +20,7 @@ import { Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-rea
  * «По ссылке» — не площадка, а вход для любой ссылки: своя площадка у ссылки есть — она открывается
  * в её сцене, нет — остаётся здесь. Своего цвета у неё нет, и цвет её — общий цвет приложения.
  */
-export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk', 'link'] as const;
+export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk', 'ivi', 'link'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**
@@ -32,7 +32,7 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
  * «По ссылке»: поле для ссылки, недавние ссылки и то, что по ссылке нашлось. Следующие площадки
  * дописывают сюда свои.
  */
-export type SceneId = 'switcher' | 'rutube' | 'vk' | 'link';
+export type SceneId = 'switcher' | 'rutube' | 'vk' | 'ivi' | 'link';
 
 export interface ProviderSpec {
   id: ProviderId;
@@ -102,6 +102,21 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     icon: Video,
     scene: 'vk',
     searchPlaceholder: 'Видео и сообщества',
+  },
+  /*
+    Цвет — из их же CSS: `#ea003d` в `linear-gradient(270deg,#ea003d 0%,#c447ff 100%)`, живом
+    бандле сайта (`storm.bundle.0951df.css`, релиз `26.09.10`, проверено 25.09.2026). У ivi нет
+    вкладок-переключателя — цвет один на обоих местах, как у Rutube и VK Видео.
+  */
+  ivi: {
+    id: 'ivi',
+    name: 'ivi',
+    hint: 'Фильмы, сериалы и мультфильмы — бесплатное',
+    accent: '#EA003D',
+    tile: '#EA003D',
+    icon: Clapperboard,
+    scene: 'ivi',
+    searchPlaceholder: 'Фильм, сериал или мультфильм',
   },
   /*
     Не площадка, а вход для ссылки — и потому нейтральный цвет: общий синий приложения (`--blue`,

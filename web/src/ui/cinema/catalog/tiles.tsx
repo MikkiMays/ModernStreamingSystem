@@ -107,9 +107,12 @@ export function PosterTile({ item, onEnter }: { item: CinemaItem; onEnter: (item
       </span>
       <button className="cinema-open" aria-label={`Открыть: ${item.title}`} onClick={() => onEnter(item)} />
       <b className="cinema-tile-title">{item.title}</b>
-      {item.badge ? (
+      {/* Бейдж и подпись — те же два чипа, что и у широкой плитки (`Tile`): у Rutube здесь всегда
+          только бейдж («Сериал»/«Шоу»), у ivi — ещё и жанр с годом, вторым чипом. */}
+      {item.badge || item.category ? (
         <span className="cinema-tile-meta">
-          <span className="cinema-chip">{item.badge}</span>
+          {item.badge ? <span className="cinema-chip">{item.badge}</span> : null}
+          {item.category ? <span className="cinema-chip">{item.category}</span> : null}
         </span>
       ) : null}
     </article>

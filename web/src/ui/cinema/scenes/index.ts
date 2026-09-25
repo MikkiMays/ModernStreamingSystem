@@ -28,5 +28,6 @@ export const SCENES: Record<SceneId, LazyExoticComponent<ComponentType<SceneProp
   switcher: lazy(() => import('./SwitcherScene')),
   rutube: lazy(() => import('./RutubeScene')),
   vk: lazy(() => import('./VkScene')),
+  ivi: lazy(() => import('./IviScene')),
   link: lazy(() => import('./LinkScene')),
 };
