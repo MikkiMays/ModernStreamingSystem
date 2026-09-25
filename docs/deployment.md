@@ -235,6 +235,12 @@ for s in services gateway; do docker tag $ROLLBACK-$s:latest modern-streaming-$s
 docker compose up -d --no-deps services gateway
 ```
 
+Откат службы на образ старше 25.09.2026 — только с выключенной «По ссылке» (`CINEMA_PROVIDERS` без `link`):
+прокси такого образа отдаёт чужой ответ с его видом, и страница злоумышленника исполнялась бы на адресе
+сервера. Таблица номеров ссылок тогда не пишется; её новый столбец `size` старому коду помешал бы только
+при записи. Если старый образ остаётся надолго и ссылки на нём всё же нужны — сначала
+`DROP INDEX cinema_links_age; ALTER TABLE cinema_links DROP COLUMN size;` в `/data/services.sqlite`.
+
 Дальше обычный `./update.sh` (от root: стену проверяет iptables, а единицы ставит systemd) пересобирает
 `sniffer` вместе со `services`, сам ставит метки отката, ставит единицы стены заново, если их нет или в
 обновлении изменились `infra/sniffer-firewall.sh` или `infra/cord-sniffer-*` (их копии лежат в
