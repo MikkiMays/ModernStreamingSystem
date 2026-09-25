@@ -7,6 +7,7 @@
 #   sudo bash infra/sniffer-firewall.sh remove [подсеть]   убрать стену этой подсети
 #   sudo bash infra/sniffer-firewall.sh quarantine         остановить плеер страниц: стена не встала
 #   sudo bash infra/sniffer-firewall.sh --install          поставить единицы systemd и стену сейчас
+#        bash infra/sniffer-firewall.sh validate [подсеть] годится ли подсеть этому хосту; правил не трогает
 #
 # ЗАЧЕМ. Плеер страниц исполняет код страниц, которые вставил любой участник, в Chromium без его
 # песочницы (в контейнере без привилегий она не поднимается). Сам браузер ходит наружу только через
@@ -32,6 +33,20 @@
 #     чтение) и без метки своей подсети страниц не открывает. /run живёт в памяти: после перезагрузки меток
 #     нет, пока единица не поставит стену заново.
 #
+# КАКАЯ ПОДСЕТЬ ГОДИТСЯ (`validate`; apply и check без неё стену не ставят и метку снимают). Подсеть — это и
+# исключение «своя подсеть» первым правилом, и запрет INPUT: слишком широкая открыла бы из неё всё, что внутри
+# (0.0.0.0/0 — вообще всё), а INPUT запер бы хост от того, кто в неё попал, — например, от SSH администратора.
+#   - IPv4 без ведущих нулей: iptables читает «010» восьмеричным 8, docker такую строку не принимает, и стена
+#     встала бы не вокруг той сети; октеты — не больше 255;
+#   - маска /16–/29: шире — чужие сети внутри своей, уже /29 — плееру страниц и шлюзу моста не хватит адресов;
+#   - адрес сети: младшие биты — нули (10.231.0.5/24 — не сеть);
+#   - не 172.16.0.0/12 — ей UFW этой машины доверяет порты соседних служб (8090/8091), и из неё docker раздаёт
+#     свои сети; не служебные 0.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 224.0.0.0/4, 240.0.0.0/4;
+#   - в ней нет ни шлюза по умолчанию, ни адреса самого хоста, и она не пересекается ни с одним маршрутом
+#     хоста (`ip -4 route show table all`) — кроме моста самой этой сети: маршрута docker (`br-` и двенадцать
+#     шестнадцатеричных знаков) ровно на эту подсеть. Он появляется, когда сеть уже поднята, и без этого
+#     исключения повторный apply на работающем хосте (update.sh, --install) отказал бы сам себе.
+#
 # ЕСЛИ СТЕНА НЕ ВСТАЛА. `cord-sniffer-firewall.service` упала — systemd запускает
 # `cord-sniffer-quarantine.service`: как только поднят docker, он останавливает контейнер `sniffer`
 # (`restart: unless-stopped` его после этого сам не поднимет). update.sh и setup.sh без прошедшего check
@@ -53,18 +68,162 @@ MARKS="/run/cord-sniffer"
 # Чужой держит блокировку xtables — подождать её, а не упасть: упавшая стена останавливает плеер страниц.
 IPT=(iptables -w 10)
 
+# Подсеть из аргумента, окружения или .env — строкой, как задана; не задана — 10.231.0.0/24.
 subnet() {
   local found="${1:-${CINEMA_SNIFFER_SUBNET:-}}"
   if [[ -z "$found" && -f .env ]]; then
     found="$(sed -n 's/^CINEMA_SNIFFER_SUBNET=//p' .env | tail -1)"
   fi
-  found="${found:-10.231.0.0/24}"
-  # Только IPv4 с маской: подсеть уходит в аргументы iptables и в имя метки, и ничего другого там быть не должно.
-  if [[ ! "$found" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$ ]]; then
-    echo "Непонятная подсеть: $found (нужна вида 10.231.0.0/24)" >&2
-    exit 2
+  printf '%s' "${found:-10.231.0.0/24}"
+}
+
+# Похоже ли на подсеть IPv4 по форме: четыре октета без ведущих нулей, каждый ≤ 255, и маска ≤ 32. Подсеть
+# уходит в аргументы iptables и в имя метки, и ничего другого там быть не должно.
+OCTET='(0|[1-9][0-9]{0,2})'
+shaped() {
+  local octet
+  [[ "$1" =~ ^$OCTET\.$OCTET\.$OCTET\.$OCTET/(0|[1-9][0-9]?)$ ]] || return 1
+  for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
+    ((octet <= 255)) || return 1
+  done
+  ((BASH_REMATCH[5] <= 32))
+}
+
+# Адрес IPv4 строкой → число и обратно (форма уже проверена).
+number() {
+  local IFS=. a b c d
+  read -r a b c d <<<"$1"
+  printf '%d' $(((a << 24) | (b << 16) | (c << 8) | d))
+}
+dotted() { printf '%d.%d.%d.%d' $(($1 >> 24 & 255)) $(($1 >> 16 & 255)) $(($1 >> 8 & 255)) $(($1 & 255)); }
+
+# Пересекаются ли два диапазона — адрес (числом) и длина маски каждого.
+crosses() { (($1 < $3 + (1 << (32 - $4)) && $3 < $1 + (1 << (32 - $2)))); }
+
+# Слово после ключа в строке `ip`: `after dev default via 10.0.0.1 dev ens3` → ens3.
+after() {
+  local key="$1"
+  shift
+  while (($#)); do
+    if [[ "$1" == "$key" ]]; then
+      printf '%s' "${2:-}"
+      return 0
+    fi
+    shift
+  done
+}
+
+# Годится ли подсеть этому хосту (правила — в шапке, «КАКАЯ ПОДСЕТЬ ГОДИТСЯ»). Что не так — строкой на каждое;
+# код 1, если хоть что-то не так. Ничего не меняет: только читает маршруты и адреса хоста.
+suitable() {
+  local net="$1" base mask size range kind dest dev gateway previous="" routes="" addresses="" words
+  local own=() gateways=() problems=()
+  if ! shaped "$net"; then
+    echo "  не подсеть IPv4: «$net» (нужна вида 10.231.0.0/24: октеты 0–255 без ведущих нулей и маска)"
+    return 1
   fi
-  printf '%s' "$found"
+  base="$(number "${net%/*}")"
+  mask="${net#*/}"
+  size=$((1 << (32 - mask)))
+  if ((mask < 16 || mask > 29)); then
+    echo "  маска /$mask: годится /16–/29 (шире — чужие сети внутри своей, уже — не хватит адресов)"
+    return 1
+  fi
+  if ((base % size)); then
+    echo "  $net — не адрес сети: у /$mask младшие $((32 - mask)) бит — нули" \
+      "(сеть здесь — $(dotted $((base - base % size)))/$mask)"
+    return 1
+  fi
+  for range in 172.16.0.0/12 0.0.0.0/8 127.0.0.0/8 169.254.0.0/16 224.0.0.0/4 240.0.0.0/4; do
+    crosses "$base" "$mask" "$(number "${range%/*}")" "${range#*/}" || continue
+    if [[ "$range" == 172.16.0.0/12 ]]; then
+      problems+=("пересекается с 172.16.0.0/12: ей доверяет UFW этой машины, и из неё раздаёт сети docker")
+    else
+      problems+=("пересекается со служебным диапазоном $range")
+    fi
+  done
+  # Не прочитали маршруты или адреса — это не «пересечений нет»: без них подсеть не годится.
+  if ! command -v ip >/dev/null; then
+    problems+=("нет команды ip (iproute2): маршрутов и адресов хоста не проверить")
+  elif ! routes="$(ip -4 route show table all 2>&1)" || ! addresses="$(ip -4 -o addr show 2>&1)"; then
+    problems+=("маршруты или адреса хоста не читаются: ${routes}${addresses}")
+  else
+    # Маршруты всех таблиц. local и broadcast — это адреса самого хоста (они ниже, отдельно), `nexthop` —
+    # продолжение многопутевого маршрута: шлюз по умолчанию бывает и там.
+    while read -r -a words; do
+      ((${#words[@]})) || continue
+      if [[ "${words[0]}" == nexthop ]]; then
+        gateway="$(after via "${words[@]}")"
+        [[ "$previous" == default && -n "$gateway" ]] && gateways+=("$gateway")
+        continue
+      fi
+      kind="${words[0]}"
+      case "$kind" in
+        local | broadcast | multicast | anycast | nat)
+          previous=""
+          continue
+          ;;
+        unicast | unreachable | blackhole | prohibit | throw) words=("${words[@]:1}") ;;
+      esac
+      dest="${words[0]:-}"
+      previous="$dest"
+      if [[ "$dest" == default || "$dest" == 0.0.0.0/0 ]]; then
+        previous=default
+        gateway="$(after via "${words[@]}")"
+        [[ -n "$gateway" ]] && gateways+=("$gateway")
+        continue
+      fi
+      [[ "$dest" == */* ]] || dest="$dest/32"
+      shaped "$dest" || continue
+      dev="$(after dev "${words[@]}")"
+      if [[ "$dest" == "$net" && "$dev" =~ ^br-[0-9a-f]{12}$ ]]; then
+        own+=("$dev")
+        continue
+      fi
+      if crosses "$base" "$mask" "$(number "${dest%/*}")" "${dest#*/}"; then
+        problems+=("пересекается с маршрутом хоста: ${words[*]}")
+      fi
+    done <<<"$routes"
+    for gateway in "${gateways[@]}"; do
+      shaped "$gateway/32" || continue
+      if crosses "$base" "$mask" "$(number "$gateway")" 32; then
+        problems+=("в ней шлюз по умолчанию этого хоста: $gateway")
+      fi
+    done
+    # Адреса самого хоста; адрес моста этой же сети (его шлюз) — свой.
+    while read -r -a words; do
+      ((${#words[@]} >= 4)) || continue
+      dev="${words[1]%%@*}"
+      dest="${words[3]%/*}"
+      [[ " ${own[*]} " == *" $dev "* ]] && continue
+      shaped "$dest/32" || continue
+      if crosses "$base" "$mask" "$(number "$dest")" 32; then
+        problems+=("в ней адрес этого хоста: $dest ($dev)")
+      fi
+    done <<<"$addresses"
+  fi
+  ((${#problems[@]})) || return 0
+  printf '  %s\n' "${problems[@]}"
+  return 1
+}
+
+# Подсеть, для которой стену можно ставить и проверять. Не годится — причины и код 2, а метка её (если имя
+# вообще похоже на подсеть) снимается: стены для такой подсети нет, что бы ни стояло раньше.
+wanted() {
+  local net="$1" problems
+  if problems="$(suitable "$net")"; then
+    return 0
+  fi
+  if shaped "$net"; then unmark "$net"; fi
+  printf 'Подсеть плеера страниц %s не годится этому хосту — стена не ставится:\n%s\n' "$net" "$problems" >&2
+  exit 2
+}
+
+# Убрать можно и стену подсети, которая сейчас не годится (поставленную до проверки): нужна только форма.
+formed() {
+  shaped "$1" && return 0
+  echo "Непонятная подсеть: «$1» (нужна вида 10.231.0.0/24)" >&2
+  exit 2
 }
 
 own() { printf '%s\n' -s "$1" -d "$1" -m comment --comment "$TAG" -j RETURN; }
@@ -193,9 +352,10 @@ remove() {
   echo "стена плеера страниц для $net убрана"
 }
 
+# Карантин останавливает плеер страниц при любой подсети — и при той, что не годится (это тоже «стены нет»).
 quarantine() {
   local net="$1"
-  unmark "$net"
+  if shaped "$net"; then unmark "$net"; fi
   # docker зовётся, только если он уже работает: иначе его сокет поднял бы docker ради одной остановки.
   if systemctl is-active --quiet docker.service 2>/dev/null; then
     docker compose stop sniffer || true
@@ -203,16 +363,30 @@ quarantine() {
   echo "Плеер страниц остановлен: стены сети для $net нет. Журнал: journalctl -u cord-sniffer-firewall" >&2
 }
 
+validate() {
+  local net="$1" problems
+  if problems="$(suitable "$net")"; then
+    echo "подсеть плеера страниц $net годится этому хосту"
+    return 0
+  fi
+  printf 'подсеть плеера страниц %s НЕ годится этому хосту:\n%s\n' "$net" "$problems" >&2
+  exit 2
+}
+
 install() {
-  local root unit
+  local root unit net
   root="$(pwd)"
   if [[ "$(id -u)" != 0 ]]; then
     echo "Стена плеера страниц ставится от root: sudo bash infra/sniffer-firewall.sh --install" >&2
     exit 1
   fi
+  # Подсеть, которая не годится, не ставится ни сейчас, ни при загрузке: отказ — сразу и с причинами, а не
+  # в журнале упавшей единицы.
+  net="$(subnet "")"
+  wanted "$net"
   if ! command -v systemctl >/dev/null; then
     echo "systemd здесь нет: поставьте стену сейчас (apply) и после каждой перезагрузки — до docker." >&2
-    apply "$(subnet "")"
+    apply "$net"
     exit 0
   fi
   for unit in cord-sniffer-firewall.service cord-sniffer-quarantine.service; do
@@ -227,13 +401,26 @@ install() {
 }
 
 case "${1:-}" in
-  apply) apply "$(subnet "${2:-}")" ;;
-  check) check "$(subnet "${2:-}")" ;;
-  remove) remove "$(subnet "${2:-}")" ;;
+  apply)
+    net="$(subnet "${2:-}")"
+    wanted "$net"
+    apply "$net"
+    ;;
+  check)
+    net="$(subnet "${2:-}")"
+    wanted "$net"
+    check "$net"
+    ;;
+  remove)
+    net="$(subnet "${2:-}")"
+    formed "$net"
+    remove "$net"
+    ;;
   quarantine) quarantine "$(subnet "${2:-}")" ;;
+  validate) validate "$(subnet "${2:-}")" ;;
   --install) install ;;
   *)
-    sed -n '3,9p' "$0" | sed 's/^# \?//' >&2
+    sed -n '3,10p' "$0" | sed 's/^# \?//' >&2
     exit 2
     ;;
 esac

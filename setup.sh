@@ -149,7 +149,16 @@ bash infra/tidy.sh --install || note "Cleanup timer not installed; run it by han
 # The cinema page player opens pages anyone pasted, in a browser that cannot use its own sandbox inside
 # the container. Its subnet gets a network wall before the first container starts, and again on every
 # boot before Docker starts (cord-sniffer-firewall.service). Details in infra/sniffer-firewall.sh.
+#
+# The subnet is checked first, and a bad one stops the install: Docker creates the player's network on
+# `compose up` even when the player itself is not started, and a range that overlaps this host's own
+# networks, holds its default gateway or one of its addresses would take that traffic over.
 step "Installing the network wall for the cinema page player"
+if ! SUBNET_REPORT="$(bash infra/sniffer-firewall.sh validate 2>&1)"; then
+  printf '%s\n' "$SUBNET_REPORT" | sed 's/^/    /'
+  die "Choose a free range for CINEMA_SNIFFER_SUBNET in .env (/16 to /29, outside 172.16.0.0/12) and re-run."
+fi
+note "$SUBNET_REPORT"
 WALL=0
 if bash infra/sniffer-firewall.sh --install && bash infra/sniffer-firewall.sh check >/dev/null; then
   WALL=1
