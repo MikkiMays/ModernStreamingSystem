@@ -904,6 +904,14 @@ class SourceTests(Stage):
         self.assertEqual(plan.url, "https://vkvideo.ru/video-22277933_456242578")
         self.assertEqual(self.calls, [])
 
+    async def test_a_closed_video_is_refused_in_russian_not_swallowed(self):
+        # T10: «доступ закрыт» (код 15 → 403) — это ответ площадки про сам ролик, и он должен дойти до
+        # человека по-русски, а не проглотиться, чтобы yt-dlp ответил английской ошибкой.
+        self.answer("video.get", {"error": {"error_code": 15, "error_msg": "Access denied"}}, videos="-1_1")
+        await self.refused(
+            self.vk.source(self.ctx(), "video", "-1_1", {}), 403, "VK Видео не показывает это: доступ закрыт"
+        )
+
     async def test_a_vk_video_live_channel_is_parsed_only_while_on_air(self):
         self.blogs["near_you"] = (200, recorded("live-near_you.json"))
         plan = await self.vk.source(self.ctx(), "channel", "near_you", {})

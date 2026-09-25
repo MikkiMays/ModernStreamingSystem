@@ -115,14 +115,33 @@ def _live(text: str) -> bool:
     return "#EXT-X-ENDLIST" not in text and "#EXT-X-PLAYLIST-TYPE:VOD" not in text
 
 
+def _media(content_type: str) -> bool:
+    """
+    Вид ответа годится готовому файлу видео (шаг 9 спецификации): видео, звук, `application/mp4`,
+    `application/octet-stream` — или вид не назван вовсе. Страница HTML, отданная «файлом», сюда не проходит:
+    после C1 прокси её всё равно не исполнит, но и слот комнаты она занимать не должна.
+    """
+    essence = (content_type or "").partition(";")[0].strip().lower()
+    if not essence:
+        return True
+    files = ("application/octet-stream", "application/mp4")
+    return essence.startswith(("video/", "audio/")) or essence in files
+
+
 async def answers(
-    net: httpx.AsyncClient, url: str, allows: Callable[[str], bool], *, extra: Extra | None = None
+    net: httpx.AsyncClient,
+    url: str,
+    allows: Callable[[str], bool],
+    *,
+    extra: Extra | None = None,
+    media_only: bool = False,
 ) -> bool:
     """
     Отдаёт ли сайт этот файл вообще: один байт (`Range: bytes=0-0`), переадресация — каждым шагом по
     политике площадки, тело не читается. Страница с `<video>` перечисляет источники на выбор, и
     браузер берёт первый живой — мёртвый первый (у W3C это `www.w3.org/…/trailer.mp4`, 404) не должен
     доставаться комнате, когда рядом живой. `extra` — заголовки профиля потока, как у `inspect_hls`.
+    `media_only` — годится только вид видеофайла (`_media`): для готовых файлов, не для мастера HLS.
     """
     try:
         # Срок — на весь ответ с переадресацией, а не на каждый шаг: иначе четыре шага по десять
@@ -137,7 +156,9 @@ async def answers(
                     if response.is_redirect and response.headers.get("location"):
                         url = urljoin(str(response.url), response.headers["location"])
                         continue
-                    return response.status_code in (200, 206)
+                    if response.status_code not in (200, 206):
+                        return False
+                    return not media_only or _media(response.headers.get("content-type", ""))
     except (httpx.HTTPError, TimeoutError):
         return False
     return False

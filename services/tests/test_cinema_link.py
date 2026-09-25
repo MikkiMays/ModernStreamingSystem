@@ -359,7 +359,8 @@ class WhatALinkOpens(LinkCase):
             {"url": "https://www.w3.org/2010/05/sintel/trailer.webm", "ext": "webm", "protocol": "https"},
             {"url": "https://media.w3.org/2010/05/sintel/trailer.mp4", "ext": "mp4", "protocol": "https"},
         ]
-        routes = {"https://media.w3.org/2010/05/sintel/trailer.mp4": (206, "x")}
+        alive = "https://media.w3.org/2010/05/sintel/trailer.mp4"
+        routes = {alive: (206, "x", {"content-type": "video/mp4"})}
         cinema = self.make(Door({page: video(page, formats=sources)}), playlists(routes))
         item = (await cinema.link(page, room=ROOM))["item"]
         source = await cinema.resolve(Resolve(provider="link", contentId=item["id"]), room=ROOM)
@@ -374,6 +375,35 @@ class WhatALinkOpens(LinkCase):
             await dead.link(page, room=ROOM),
             {"item": None, "reason": "Сайт не отдал файл видео — ссылка на него не открывается"},
         )
+
+    async def test_a_file_offered_as_html_is_not_taken_but_a_media_type_is(self):
+        # M4 (шаг 9 спецификации): готовый файл берётся только с видом видеофайла. HTML, отданная «файлом»,
+        # не занимает слот комнаты; видео, звук, `octet-stream` и ответ без вида — берутся.
+        page = "https://blog.example/watch"
+        file = "https://cdn.example/movie.mp4"
+        formats = [{"url": file, "ext": "mp4", "protocol": "https"}]
+        for content_type, taken in (
+            ("text/html; charset=utf-8", False),
+            ("application/xhtml+xml", False),
+            ("video/mp4", True),
+            ("audio/mpeg", True),
+            ("application/octet-stream", True),
+        ):
+            routes = {file: (206, "x", {"content-type": content_type})}
+            cinema = self.make(Door({page: video(page, formats=formats)}), playlists(routes))
+            answer = await cinema.link(page, room=str(uuid.uuid4()))
+            if taken:
+                self.assertIsNotNone(answer["item"], content_type)
+            else:
+                self.assertEqual(answer["item"], None, content_type)
+                self.assertEqual(answer["reason"], "Сайт не отдал файл видео — ссылка на него не открывается")
+        # Вид не назван вовсе — тоже берётся (`drm._media`): у настоящих файлов так бывает.
+        from cord_services.cinema.drm import _media
+
+        self.assertTrue(_media(""))
+        self.assertTrue(_media("video/webm"))
+        self.assertFalse(_media("text/plain"))
+        self.assertFalse(_media("image/svg+xml"))
 
     async def test_a_hls_without_an_end_is_a_live_stream_even_if_yt_dlp_did_not_say_so(self):
         page = "https://tv.example/stream.m3u8"
@@ -458,6 +488,40 @@ class EmbeddedPlayers(LinkCase):
             await cinema.link(blog, room=ROOM),
             {"item": None, "reason": "Это ссылка на YouTube, а эта площадка выключена на этом сервере"},
         )
+
+    async def test_a_form_the_grammar_missed_is_routed_by_the_resolved_address(self):
+        # yt-dlp сам разобрал форму, которую грамматика не узнала: её итоговый адрес (`webpage_url`) ведёт на
+        # YouTube — уводим туда, в её сцену (M9), а не открываем поток общим путём.
+        embed = "https://www.youtube.com/e/dQw4w9WgXcQ"
+        watch = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        door = Door({embed: video(watch, "Ролик")})  # webpage_url — канонический адрес watch
+        cinema = self.make(door)
+        self.assertEqual(
+            await cinema.link(embed, room=ROOM),
+            {"route": {"provider": "youtube", "kind": "video", "id": "dQw4w9WgXcQ", "page": "item"}},
+        )
+
+    async def test_a_missed_form_of_a_switched_off_platform_is_not_reached_through_link(self):
+        embed = "https://www.youtube.com/e/dQw4w9WgXcQ"
+        watch = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        door = Door({embed: video(watch, "Ролик")})
+        cinema = Cinema("secret", enabled="twitch,link")
+        self.cinemas = [cinema]
+        cinema.ytdlp.run = lambda provider, options, work, cookies=None, lease=None: work(door)
+        self.assertEqual(
+            await cinema.link(embed, room=ROOM),
+            {"item": None, "reason": "Это ссылка на YouTube, а эта площадка выключена на этом сервере"},
+        )
+
+    async def test_a_generic_page_is_not_routed_by_its_own_address(self):
+        # Обычная страница с `<video>`: её `webpage_url` — она сама, ничьей площадкой не становится.
+        url = "https://blog.example/watch"
+        formats = [{"url": "https://cdn.example/a.mp4", "ext": "mp4", "protocol": "https"}]
+        door = Door({url: video(url, "Ролик", formats=formats)})
+        cinema = self.make(door)
+        answer = await cinema.link(url, room=ROOM)
+        self.assertIsNotNone(answer["item"])
+        self.assertEqual(answer["item"]["provider"], "link")
 
     async def test_a_player_of_another_site_is_followed_with_the_page_name_on_top(self):
         blog = "https://blog.example/post"
@@ -2435,7 +2499,7 @@ class ThroughTheRealWay(LinkCase):
             "Content-Encoding": "gzip",
         }
         site = await self.site({"/go": (302, moved, endless), "/film": film}, PUBLIC)
-        cinema = self.real(playlists({"http://cdn.test/film.mp4": (206, "x")}))
+        cinema = self.real(playlists({"http://cdn.test/film.mp4": (206, "x", {"content-type": "video/mp4"})}))
         cinema.egress["link"].seconds = 8.0
         started = time.monotonic()
         answer = await cinema.link("http://films.test/go", room=ROOM)

@@ -260,6 +260,46 @@ class Stage(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((refusal.exception.status_code, refusal.exception.detail), (status, detail))
 
 
+class CatalogExecutorTests(Stage):
+    """
+    Каталог yt-dlp идёт своим небольшим пулом (`cinema-catalog`), а не общим пулом `to_thread` цикла событий
+    (M11): тот же общий пул обслуживает `loop.getaddrinfo` каждого соединения, и лавина запросов каталога
+    стопорила бы разрешение имён всем площадкам.
+    """
+
+    def setUp(self):
+        # Проверка встраивания предела (`check_reading`) требует настоящего yt-dlp; здесь он подменён, как во
+        # всех тестах каталога, — считаем её пройденной (в полном прогоне её проходит настоящая сборка).
+        checked = patch("cord_services.cinema.resolve._reading_checked", True)
+        checked.start()
+        self.addCleanup(checked.stop)
+        super().setUp()
+
+    def test_the_pool_is_a_small_dedicated_one(self):
+        pool = self.cinema.ytdlp.pool
+        self.assertEqual(pool._thread_name_prefix, "cinema-catalog")
+        self.assertEqual(pool._max_workers, 4)
+
+    async def test_a_search_runs_yt_dlp_on_that_pool(self):
+        import threading
+
+        threads: list[str] = []
+        youtube = self.cinema.registry.get("youtube")
+        inner = youtube._videos
+
+        def record(query, limit):
+            threads.append(threading.current_thread().name)
+            return inner(query, limit)
+
+        youtube._videos = record
+        self.library.answers["ytsearch60:test"] = {"entries": []}
+        self.library.answers["https://www.youtube.com/results?search_query=test&sp=EgIQAg%3D%3D"] = {
+            "entries": []
+        }
+        await self.cinema.search("youtube", "test", "")
+        self.assertTrue(threads and all(name.startswith("cinema-catalog") for name in threads), threads)
+
+
 class YouTubeSearchTests(Stage):
     SEARCH = "ytsearch60:Big Buck"
     CHANNELS = "https://www.youtube.com/results?search_query=Big+Buck&sp=EgIQAg%3D%3D"

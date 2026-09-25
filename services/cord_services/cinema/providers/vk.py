@@ -530,6 +530,11 @@ class Vk(Provider):
         try:
             data = self._object(await self._call(ctx, "video.get", {"videos": item_id}))
         except HTTPException as failure:
+            # Молчание, флуд и непринятый вход (502) — не свойство ролика: разбираем так, ролик по ссылке
+            # должен открываться и при лёгшем каталоге. А отказ площадки про сам ролик (403 «доступ закрыт»,
+            # 404) — это ответ ей и звучит по-русски (T10), а не английским текстом yt-dlp через пару секунд.
+            if failure.status_code != 502:
+                raise
             logger.info(
                 "кинозал: VK не ответил о ролике перед разбором (%s) — разбираем так", failure.status_code
             )

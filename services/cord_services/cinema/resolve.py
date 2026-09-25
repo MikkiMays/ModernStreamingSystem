@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextlib
 import copy
+import functools
 import logging
 import re
 import time
@@ -188,7 +190,20 @@ class YtDlp:
             # Если загрузчик всё же упадёт, http.cookiejar кладёт трассировку в предупреждение
             # Python — а в трассировке бывает и ошибка yt-dlp со строкой файла. Такое не печатаем.
             warnings.filterwarnings("ignore", message="http.cookiejar bug!", category=UserWarning)
+        # Каталог yt-dlp — в своём небольшом пуле, а не в общем пуле `to_thread` цикла событий: тот же общий
+        # пул обслуживает `loop.getaddrinfo` каждого исходящего соединения (`net.py`), и лавина запросов
+        # каталога стопорила бы разрешение имён всем площадкам разом (M11). Разбор ссылок с охраняемым выходом
+        # идёт своим пулом (`egress.py`); здесь — пул площадок каталога.
+        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="cinema-catalog")
         self._log_js_runtime()
+
+    async def offload(self, work: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        """Работа yt-dlp каталога — в выделенном пуле, а не в общем пуле цикла событий (см. `__init__`)."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self.pool, functools.partial(work, *args, **kwargs))
+
+    def close(self) -> None:
+        self.pool.shutdown(wait=False, cancel_futures=True)
 
     def extract(
         self, address: str, options: Mapping[str, Any], provider: str, *, lease: Lease | None = None
@@ -713,7 +728,7 @@ class Resolver:
             return await self.settle(plan, dict(plan.info), net, provider, content_id, adaptive)
         gate = self.ytdlp.egress.get(provider)
         if gate is None:
-            info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
+            info = await self.ytdlp.offload(self.ytdlp.probe, plan.url, provider, **plan.options)
         else:
             # Место в выходе ждётся в цикле событий, разбор идёт в пуле выхода (`Egress.run`);
             # отменили разбор — вход закрыт сразу, а место — когда кончится поток.
@@ -1106,7 +1121,8 @@ class Resolver:
             return self.signer.allows(url, provider)
 
         for item in ranked_files(info.get("formats") or [], files)[:3]:
-            if await drm.answers(net, item["url"], allows, extra=extra):
+            # Готовый файл — только с видом видеофайла (M4): не HTML, отданная «файлом».
+            if await drm.answers(net, item["url"], allows, extra=extra, media_only=True):
                 return item["url"]
         return None
 

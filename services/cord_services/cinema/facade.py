@@ -263,6 +263,7 @@ class Cinema:
     async def close(self):
         await asyncio.gather(*(gate.close() for gate in self.egress.values()), return_exceptions=True)
         self.rewrites.shutdown(wait=False, cancel_futures=True)
+        self.ytdlp.close()
         if self.sniffer is not None:
             await self.sniffer.close()
         await self.net.close()

@@ -356,7 +356,7 @@ class Ivi(Provider):
         self._allow(info)
         url = f"https://www.ivi.ru/watch/{item_id}"
         try:
-            found = await asyncio.to_thread(self.ytdlp.extract, url, PROBE, self.id)
+            found = await self.ytdlp.offload(self.ytdlp.extract, url, PROBE, self.id)
         except HTTPException:
             raise
         except Exception as error:  # yt_dlp поднимает свои типы — ловим широко, решает текст/вид

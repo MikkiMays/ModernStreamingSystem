@@ -117,7 +117,7 @@ class YouTube(Provider):
         wanted = [
             self.memo.get(
                 f"search:videos:{low}",
-                lambda: asyncio.to_thread(self._videos, query, SEARCH_DEPTH),
+                lambda: self.ytdlp.offload(self._videos, query, SEARCH_DEPTH),
                 120,
             )
         ]
@@ -125,7 +125,7 @@ class YouTube(Provider):
             wanted.append(
                 self.memo.get(
                     f"search:channels:{low}",
-                    lambda: asyncio.to_thread(self._channels, query, 4),
+                    lambda: self.ytdlp.offload(self._channels, query, 4),
                     300,
                 )
             )
@@ -133,14 +133,14 @@ class YouTube(Provider):
         return {**page(found[0], offset), "channels": found[1] if offset == 0 else [], "categories": []}
 
     async def channel(self, ctx: Ctx, channel_id: str, tab: str, offset: int) -> wire.ChannelPage:
-        return await asyncio.to_thread(self._channel, channel_id, tab, offset)
+        return await self.ytdlp.offload(self._channel, channel_id, tab, offset)
 
     async def playlist(self, ctx: Ctx, playlist_id: str, offset: int) -> wire.PlaylistPage:
-        return await asyncio.to_thread(self._playlist, playlist_id, offset)
+        return await self.ytdlp.offload(self._playlist, playlist_id, offset)
 
     async def details(self, ctx: Ctx, kind: str, item_id: str) -> wire.Details:
         # Эфир YouTube — тоже ролик по своему адресу: вид страницу не меняет.
-        return await asyncio.to_thread(self._details, item_id)
+        return await self.ytdlp.offload(self._details, item_id)
 
     async def source(self, ctx: Ctx, kind: str, item_id: str, options: dict[str, Any]) -> SourcePlan:
         # DASH из отдельных дорожек — только у YouTube: они проиндексированы и отдаются по

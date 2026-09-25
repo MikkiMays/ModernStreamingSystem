@@ -875,8 +875,24 @@ def _walk(ydl: Any, url: str, route: Route) -> Walk:
             continue
         if kind in ("playlist", "multi_video"):
             return Walk(playlist=result, entries=_first(result.get("entries"), EPISODES))
-        return Walk(info=ydl.process_ie_result(result, download=False))
+        info = ydl.process_ie_result(result, download=False)
+        # yt-dlp сам разобрал форму, которую наша грамматика не узнала (`youtube.com/e/<id>`,
+        # `ivi.ru/video/player_rutube?videoId=`): её итоговый адрес (`webpage_url`) ведёт на свою площадку —
+        # уводим туда, в её сцену (M9). Так ссылка не обходит `CINEMA_PROVIDERS`: выключенная площадка через
+        # общий путь отвечает «выключена», а не отдаёт поток.
+        landed = _landing(info)
+        if landed and landed != page and (known := route(landed)) is not None:
+            return Walk(route=known)
+        return Walk(info=info)
     raise _Unsupported("No video formats found")
+
+
+def _landing(info: dict[str, Any]) -> str:
+    """Итоговый адрес разбора — нормальный, как у вставленной ссылки; пусто, если его нет."""
+    from yt_dlp.utils import sanitize_url
+
+    raw = info.get("webpage_url") or info.get("original_url") or ""
+    return normal(sanitize_url(raw, scheme="https")) if raw else ""
 
 
 def _step(raw: str, page: str) -> tuple[str, str | None]:
