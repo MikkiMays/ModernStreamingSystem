@@ -68,6 +68,21 @@ NO_STREAM = "Площадка не отдала поток для этого в�
 # этот отказ.
 LOCKED = "Сайт отдаёт этот поток только своему плееру — открыть его для комнаты не вышло"
 
+# Пределы на строки, которые приходят из чужого ответа (yt-dlp у страницы «По ссылке») и оседают в общей
+# памяти, на диске и в каждом ответе `resolve`. Чужая страница вправе прислать заголовок в мегабайты: без
+# обрезки один разбор держал бы десятки мегабайт названия в памяти службы (64 записи по получасу — гигабайт).
+# Числа — как у карточки каталога и как их показывает плеер: длиннее их всё равно не видно.
+TITLE_LIMIT = 300
+AUTHOR_LIMIT = 200
+LANGUAGE_LIMIT = 35
+CAPTION_LANG_LIMIT = 35
+CAPTION_LABEL_LIMIT = 80
+
+
+def _clip(value: Any, limit: int) -> str:
+    """Строка из чужого ответа — не длиннее предела. Не строка — пусто."""
+    return value[:limit] if isinstance(value, str) else ""
+
 
 class Inside(Exception):
     """Разбор упёрся в защиту выхода: сайт повёл yt-dlp внутрь сети или на закрытый порт."""
@@ -770,11 +785,13 @@ class Resolver:
             # Срок подписи — у того файла, что выбран на деле, а не у первого по списку.
             expires = self._expiry([stream])
         poster = info.get("thumbnail") or ""
+        # Название, автор и язык — из чужого ответа: обрезаются здесь, на границе, где чужое становится нашим
+        # (ключами общей памяти, строкой на диске, полями каждого ответа `resolve`).
         return {
             "provider": provider,
             "contentId": content_id,
-            "title": info.get("title") or content_id,
-            "author": info.get("uploader") or info.get("channel") or "",
+            "title": _clip(info.get("title"), TITLE_LIMIT) or content_id,
+            "author": _clip(info.get("uploader") or info.get("channel"), AUTHOR_LIMIT),
             "duration": None if live else info.get("duration"),
             "live": live,
             "kind": kind,
@@ -796,7 +813,7 @@ class Resolver:
             # как основная (`DEFAULT=NO` у всех), и плеер без подсказки берёт первую по
             # алфавиту — арабскую, французскую, какую придётся. Это и есть «включился чужой
             # язык»: выбора не было, был порядок строк.
-            "language": info.get("language") or "",
+            "language": _clip(info.get("language"), LANGUAGE_LIMIT),
             "captions": self._captions(
                 info, kind == "hls" and plan.hls_subtitles, provider, converted=plan.subtitles == "any"
             ),
@@ -1007,10 +1024,11 @@ class Resolver:
                 {
                     # `ko-orig` — выдумка yt-dlp, а не код языка: так помечена та же
                     # распознанная речь, к которой не приложили перевод. Наружу уходит язык.
-                    "lang": language.removesuffix("-orig"),
+                    # Язык и имя — из чужого ответа: обрезаются здесь, как и заголовок.
+                    "lang": _clip(language.removesuffix("-orig"), CAPTION_LANG_LIMIT),
                     # Имя от площадки — на английском («Korean»), и оно запасное: плеер
                     # называет язык сам, на языке смотрящего.
-                    "label": found.get("name") or language,
+                    "label": _clip(found.get("name") or language, CAPTION_LABEL_LIMIT),
                     "auto": generated,
                     "url": proxied(self.signer, found["url"], route, provider=provider),
                 }

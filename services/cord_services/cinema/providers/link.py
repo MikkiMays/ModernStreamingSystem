@@ -45,6 +45,7 @@ import functools
 import hashlib
 import hmac
 import itertools
+import json
 import logging
 import re
 import time
@@ -66,17 +67,21 @@ from ..registry import Ctx, Features, HostPolicy, Kit, Provider
 from ..resolve import (
     AUDIO_FILES,
     BUSY,
+    CAPTION_LABEL_LIMIT,
+    CAPTION_LANG_LIMIT,
     DASH_ONLY,
     EXPIRED,
     INSIDE,
     LOCKED,
     NO_FILE,
     NO_STREAM,
+    TITLE_LIMIT,
     TOO_BIG,
     Inside,
     Oversized,
     Protected,
     SourcePlan,
+    _clip,
     frame_side,
     page,
     playable_file,
@@ -95,6 +100,12 @@ TTL = 24 * 3600
 # Больше серий из одного плейлиста не берётся: на странице их листают порциями, а тысяча серий —
 # это уже не сериал, а архив канала, и у него есть своя площадка.
 EPISODES = 200
+# Больше этого одна запись `cinema_links` в стор не пишется (M12): чужой плейлист с двумя сотнями серий, у
+# каждой имя, постер и адрес, — это под мегабайт на одну вставку, а у стора нет уборки по размеру, только по
+# сроку. Лишние серии с конца отбрасываются (`_capped`): начало плейлиста — то, что смотрят, а конец
+# двухсотсерийного архива и так за пределом порции. Адрес страницы у серий на ней не повторяется — он в
+# записи один раз (`_episode`), иначе двести повторов адреса в две тысячи знаков и были бы этим мегабайтом.
+RECORD_LIMIT = 256 * 1024
 # Сколько шагов «страница → встроенный плеер → его страница» проходит разбор.
 HOPS = 5
 # Якорь, в котором yt-dlp передаёт себе данные для разборщика.
@@ -439,14 +450,17 @@ class Link(Provider):
         record = {
             "kind": "series",
             "url": url,
-            "title": playlist.get("title") or f"Видео с {site(url)}",
+            "title": _clip(playlist.get("title"), TITLE_LIMIT) or f"Видео с {site(url)}",
             "thumbnail": _thumbnail(playlist)
             or next((e["thumbnail"] for e in entries if e["thumbnail"]), ""),
             "description": (playlist.get("description") or "")[:1200],
             "author": _author(playlist),
             "site": site(url),
-            "entries": entries,
+            "entries": [],
         }
+        # Байтовый потолок — на всю запись: серии обрезаются под то, что от него осталось после шапки.
+        overhead = len(json.dumps(record, ensure_ascii=False).encode())
+        record["entries"] = _capped(entries, overhead)
         self._keep({series_id: record})
         card = wire.card(
             self.id,
@@ -455,7 +469,7 @@ class Link(Provider):
             record["title"],
             author=record["author"],
             poster=self.image(record["thumbnail"] or ""),
-            count=len(entries),
+            count=len(record["entries"]),
             description=record["description"],
         )
         return {"item": wire.link_card(card, site=record["site"])}
@@ -697,11 +711,14 @@ class Link(Provider):
                     )
                 )
                 continue
-            episode_id = self.identify(entry["url"], entry.get("item"))
+            # Серия на самой странице плейлиста своего адреса не хранит (M12) — он у записи один раз; здесь
+            # он восстанавливается из адреса записи. Своя страница у серии — её собственный адрес.
+            episode_url = entry.get("url") or record["url"]
+            episode_id = self.identify(episode_url, entry.get("item"))
             if self.links.get(episode_id) is None:
                 fresh[episode_id] = {
                     "kind": "video",
-                    "url": entry["url"],
+                    "url": episode_url,
                     "item": entry.get("item"),
                     "title": entry["title"],
                     "author": record.get("author") or "",
@@ -910,6 +927,25 @@ def _first(entries: Any, limit: int) -> list[Any]:
     return list(itertools.islice(entries, limit))
 
 
+def _capped(entries: list[dict[str, Any]], overhead: int) -> list[dict[str, Any]]:
+    """
+    Серии, которые влезают в одну запись стора (M12): вся запись — не больше `RECORD_LIMIT` байт JSON.
+    `overhead` — вес самой записи без серий (адрес, имя, постер, описание).
+
+    Лишние отбрасываются с конца — начало плейлиста и есть то, что смотрят, а конец двухсотсерийного архива
+    и так за первой порцией. Пустой список не возвращается: хотя бы первая серия остаётся, что бы ни весило
+    её имя (само имя уже обрезано в `_episode`).
+    """
+    kept: list[dict[str, Any]] = []
+    size = overhead
+    for entry in entries:
+        size += len(json.dumps(entry, ensure_ascii=False).encode()) + 1
+        if kept and size > RECORD_LIMIT:
+            break
+        kept.append(entry)
+    return kept
+
+
 def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] | None:
     """
     Серия плейлиста как её помнит стор: своя площадка — её `route`; своя страница — её адрес; серия
@@ -922,7 +958,7 @@ def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] 
         return None
     title = entry.get("title") or f"Видео {index}"
     found = {
-        "title": str(title)[:300],
+        "title": _clip(title, TITLE_LIMIT) or f"Видео {index}",
         "duration": _number(entry.get("duration")),
         "thumbnail": _thumbnail(entry),
     }
@@ -932,7 +968,8 @@ def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] 
         own = entry.get("webpage_url") or ""
         target = own if own and normal(own) != page else ""
     if not target:
-        return {**found, "url": page, "item": index}
+        # Серия на самой странице: адрес не хранится (он у записи один раз, M12), только номер на ней.
+        return {**found, "item": index}
     from yt_dlp.utils import sanitize_url
 
     # Адрес серии — нормальный, как и у вставленной ссылки: номер, стор и разбор — по одному и тому же
@@ -1002,8 +1039,8 @@ def audio_tracks(formats: list[dict[str, Any]]) -> list[dict[str, str]]:
         hls = str(item.get("protocol") or "").startswith("m3u8")
         if not hls or item.get("vcodec") != "none" or item.get("acodec") == "none":
             continue
-        language = str(item.get("language") or "")
-        label = str(item.get("format_note") or "")
+        language = _clip(item.get("language"), CAPTION_LANG_LIMIT)
+        label = _clip(item.get("format_note"), CAPTION_LABEL_LIMIT)
         key = (language.lower(), label.lower())
         if not (language or label) or key in seen:
             continue
@@ -1031,7 +1068,8 @@ def caption_tracks(info: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             seen.add(base)
             label = next((entry["name"] for entry in usable if entry.get("name")), "")
-            tracks.append({"lang": language.removesuffix("-orig"), "label": label, "auto": generated})
+            lang = _clip(language.removesuffix("-orig"), CAPTION_LANG_LIMIT)
+            tracks.append({"lang": lang, "label": _clip(label, CAPTION_LABEL_LIMIT), "auto": generated})
     return tracks[:CAPTIONS_LIMIT]
 
 

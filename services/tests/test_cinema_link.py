@@ -1274,6 +1274,24 @@ class Numbers(unittest.TestCase):
             self.assertEqual(again.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0], 3)
             again.db.close()
 
+    def test_the_table_never_holds_more_than_its_row_cap(self):
+        # M12: уборка по сроку — раз в сутки, а вставлять можно чаще; без потолка таблица растёт весь день.
+        with tempfile.TemporaryDirectory() as root:
+            store = Store(Path(root))
+            store.links.cap = 5
+            for number in range(12):
+                store.links.put(f"{number:022d}", {"kind": "video", "url": f"https://s/{number}"}, 3600)
+            count = store.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0]
+            self.assertEqual(count, 5)
+            # Остались пять последних (у них дальше срок = их писали позже); первые ушли.
+            self.assertIsNone(store.links.get(f"{0:022d}"))
+            self.assertIsNotNone(store.links.get(f"{11:022d}"))
+            # Порция сразу больше потолка тоже подрезается.
+            batch = {f"b{n:021d}": {"kind": "video", "url": f"https://b/{n}"} for n in range(9)}
+            store.links.put_many(batch, 3600)
+            self.assertEqual(store.db.execute("SELECT count(*) FROM cinema_links").fetchone()[0], 5)
+            store.db.close()
+
 
 class OneAddress(LinkCase):
     """
@@ -1449,6 +1467,125 @@ class OneAddress(LinkCase):
         self.assertEqual(linkmodule.OPTIONS["http_headers"]["User-Agent"], net.BROWSER)
         self.assertEqual((Vk.user_agent, rutube.HEADERS["User-Agent"]), (net.BROWSER, net.BROWSER))
         self.assertNotIn("Cord", net.BROWSER)
+
+
+class ForeignStrings(LinkCase):
+    """
+    Строки из чужой страницы обрезаются там, где чужое становится нашим (I2): чужой заголовок в мегабайты
+    оседал в общей памяти (64 записи по получасу), на диске и в каждом ответе `resolve`.
+    """
+
+    async def test_a_five_megabyte_title_is_clipped_everywhere_it_lands(self):
+        # Тот же случай, что у зонда финального ревью: одно видео и плейлист с заголовком в 5 МБ.
+        huge = "T" * 5_000_000
+        url = "https://site.example/film"
+        formats = [{"url": "https://site.example/f.mp4", "ext": "mp4", "protocol": "https"}]
+        links = MemoryLinks()
+        door = Door(
+            {
+                url: video(
+                    url,
+                    title=huge,
+                    uploader="A" * 5_000_000,
+                    language="ru" * 5_000_000,
+                    formats=formats,
+                    subtitles={"x" * 5_000_000: [{"ext": "vtt", "url": "https://site.example/s.vtt"}]},
+                )
+            }
+        )
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(url, room=ROOM))["item"]
+        self.assertEqual(len(item["title"]), 300)
+        self.assertEqual(len(links.get(item["id"])["title"]), 300)
+        source = await cinema.resolve(Resolve(provider="link", contentId=item["id"]), room=ROOM)
+        self.assertEqual(len(source["title"]), 300)
+        self.assertEqual(len(source["author"]), 200)
+        self.assertEqual(len(source["language"]), 35)
+        for track in source["captions"]:
+            self.assertLessEqual(len(track["lang"]), 35)
+            self.assertLessEqual(len(track["label"]), 80)
+
+    async def test_a_playlist_title_and_track_names_are_clipped(self):
+        url = "https://site.example/list"
+        entries = [
+            {"_type": "url", "url": f"https://site.example/{n}", "title": "E" * 5_000_000} for n in range(3)
+        ]
+        door = Door({url: {"_type": "playlist", "title": "P" * 5_000_000, "entries": entries}})
+        links = MemoryLinks()
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(url, room=ROOM))["item"]
+        self.assertEqual(len(item["title"]), 300)
+        record = links.get(item["id"])
+        self.assertEqual(len(record["title"]), 300)
+        self.assertTrue(all(len(entry["title"]) <= 300 for entry in record["entries"]))
+
+    async def test_hls_audio_and_caption_labels_from_a_page_are_clipped(self):
+        formats = [
+            {"protocol": "m3u8_native", "url": "https://site.example/m.m3u8", "manifest_url": "x"},
+            {
+                "protocol": "m3u8_native",
+                "vcodec": "none",
+                "acodec": "mp4a",
+                "language": "l" * 5_000_000,
+                "format_note": "n" * 5_000_000,
+            },
+        ]
+        info = video("https://site.example/v", formats=formats)
+        from cord_services.cinema.providers.link import audio_tracks, caption_tracks
+
+        audio = audio_tracks(formats)
+        self.assertTrue(audio and all(len(t["lang"]) <= 35 and len(t["label"]) <= 80 for t in audio))
+        info["subtitles"] = {"z" * 99: [{"ext": "vtt", "url": "u", "name": "N" * 5_000_000}]}
+        caps = caption_tracks(info)
+        self.assertTrue(caps and all(len(t["lang"]) <= 35 and len(t["label"]) <= 80 for t in caps))
+
+
+class RecordSize(LinkCase):
+    """Одна запись `cinema_links` не растёт без предела (M12): байтовый потолок и без повтора адреса."""
+
+    async def test_a_same_page_playlist_does_not_repeat_the_page_url_per_entry(self):
+        url = "https://site.example/" + "d" * 200 + "/watch"
+        # Двадцать роликов на одной странице без своих адресов: `<video>`-ы, серии одной страницы.
+        entries = [{"id": f"v-{n}", "title": f"Часть {n}"} for n in range(20)]
+        door = Door({url: {"_type": "playlist", "title": "Сборник", "entries": entries}})
+        links = MemoryLinks()
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(url, room=ROOM))["item"]
+        record = links.get(item["id"])
+        # Адрес страницы — в записи один раз, у серий его нет вовсе.
+        self.assertEqual(record["url"], url)
+        self.assertTrue(all("url" not in entry for entry in record["entries"]))
+        self.assertTrue(all(entry.get("item") for entry in record["entries"]))
+        # Серия открывается по восстановленному адресу — тому же, что и вся страница.
+        page = await cinema.series("link", item["id"], room=ROOM)
+        episode = links.get(page["items"][0]["id"])
+        self.assertEqual(episode["url"], url)
+
+    async def test_a_record_heavier_than_the_cap_trims_its_entries(self):
+        from cord_services.cinema.providers.link import RECORD_LIMIT
+
+        url = "https://site.example/big"
+        # У каждой серии свой адрес и постер под килобайт — так двести серий давно за 256 КБ.
+        entries = [
+            {
+                "_type": "url",
+                "url": f"https://site.example/e{n}",
+                "title": f"Серия {n}",
+                "thumbnails": [{"url": "https://site.example/" + "p" * 1500, "width": 1}],
+            }
+            for n in range(200)
+        ]
+        door = Door({url: {"_type": "playlist", "title": "Архив", "entries": entries}})
+        links = MemoryLinks()
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(url, room=ROOM))["item"]
+        record = links.get(item["id"])
+        self.assertLess(len(record["entries"]), 200)
+        self.assertGreaterEqual(len(record["entries"]), 1)
+        self.assertLessEqual(len(json.dumps(record, ensure_ascii=False).encode()), RECORD_LIMIT)
+        # Обрезаны с конца: первые серии — на месте, и счётчик карточки отражает обрезанное.
+        self.assertEqual(item["count"], len(record["entries"]))
+        self.assertEqual(record["entries"][0]["title"], "Серия 0")
 
 
 class ReelsBudget(unittest.TestCase):

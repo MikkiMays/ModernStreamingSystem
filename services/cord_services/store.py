@@ -231,6 +231,14 @@ class Store:
                 path.unlink(missing_ok=True)
 
 
+# Больше этого номеров ссылок в таблице не держится (M12). Уборка по сроку идёт раз в сутки, а флудить
+# вставками можно куда чаще: без потолка таблица растёт весь день. Когда номеров больше, самые давние по
+# сроку (у всех срок — сутки от последней записи, поэтому «давний срок» = «давно не трогали) уходят. При
+# записи каждого номера ≤ 256 КБ (`providers/link.RECORD_LIMIT`) потолок ограничивает файл, а сутки и
+# суточная уборка держат его далеко ниже.
+LINKS_ROW_CAP = 50_000
+
+
 class Links:
     """
     Ссылки кинозала «По ссылке»: непрозрачный номер → адрес страницы и что на ней нашлось.
@@ -239,11 +247,12 @@ class Links:
     разбирается снова — у каждого зрителя, через сутки после вставки, после перезапуска службы, —
     и адрес, присланный браузером, служба не берёт никогда. Поэтому таблица на диске, а не память
     процесса. Срок — сутки от последней записи: столько живёт и всё остальное, что принесли в
-    комнату.
+    комнату. Номеров не больше `LINKS_ROW_CAP`; лишние — самые давние — уходят (M12).
     """
 
-    def __init__(self, db: sqlite3.Connection):
+    def __init__(self, db: sqlite3.Connection, cap: int = LINKS_ROW_CAP):
         self.db = db
+        self.cap = cap
 
     def get(self, key: str) -> dict | None:
         row = self.db.execute(
@@ -265,6 +274,13 @@ class Links:
                 "INSERT INTO cinema_links VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET "
                 "body=excluded.body, expires_at=excluded.expires_at",
                 rows,
+            )
+            # Потолок числа номеров: лишние сверх `cap` — самые давние по сроку (то же, что «давно не
+            # трогали»). Пусто, пока номеров меньше потолка.
+            self.db.execute(
+                "DELETE FROM cinema_links WHERE id IN ("
+                "SELECT id FROM cinema_links ORDER BY expires_at DESC, id LIMIT -1 OFFSET ?)",
+                (self.cap,),
             )
         except BaseException:
             self.db.execute("ROLLBACK")
