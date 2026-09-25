@@ -124,7 +124,8 @@ def _media(content_type: str) -> bool:
     essence = (content_type or "").partition(";")[0].strip().lower()
     if not essence:
         return True
-    files = ("application/octet-stream", "application/mp4")
+    # `binary/octet-stream` — вид, которым S3 отдаёт файл, загруженный без вида: такие MP4 играли и до M4.
+    files = ("application/octet-stream", "binary/octet-stream", "application/mp4")
     return essence.startswith(("video/", "audio/")) or essence in files
 
 

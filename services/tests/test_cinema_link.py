@@ -403,6 +403,8 @@ class WhatALinkOpens(LinkCase):
 
         self.assertTrue(_media(""))
         self.assertTrue(_media("video/webm"))
+        # Так S3 отдаёт файл, загруженный без вида: MP4 с таким видом играли и до проверки (N3).
+        self.assertTrue(_media("binary/octet-stream"))
         self.assertFalse(_media("text/plain"))
         self.assertFalse(_media("image/svg+xml"))
 
