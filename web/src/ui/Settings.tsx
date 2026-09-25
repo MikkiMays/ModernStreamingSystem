@@ -13,6 +13,7 @@ import {
   Palette,
   Waves,
   Info,
+  KeyRound,
 } from 'lucide-react';
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
@@ -39,6 +40,7 @@ import { NotificationSounds, ensureNotificationAudio } from '../core/sounds';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { disconnect, session } from '../core/session';
 import { AboutFields } from './AboutFields';
+import { AccountsTab } from './settings/AccountsTab';
 
 /**
  * Картинка профиля: выбрать, обрезать, заменить или убрать.
@@ -756,6 +758,9 @@ export function Settings({
           <Tabs.Tab value="profile">
             <User size={17} /> Профиль
           </Tabs.Tab>
+          <Tabs.Tab value="accounts">
+            <KeyRound size={17} /> Аккаунты
+          </Tabs.Tab>
           <Tabs.Tab value="connection">
             <Server size={17} /> Подключение
           </Tabs.Tab>
@@ -834,21 +839,10 @@ export function Settings({
             />
             <span>Показывать активных ботов справа от встречи</span>
           </label>
-          <label>
-            Токен Яндекс Музыки
-            <input
-              type="password"
-              autoComplete="off"
-              maxLength={1000}
-              value={preferences.yandexMusicToken}
-              onChange={(e) => change({ yandexMusicToken: e.target.value })}
-              placeholder="Сохранить токен для автоподключения"
-            />
-          </label>
-          <p className="form-footnote">
-            Токен хранится на этом устройстве и подставляется, когда вы добавляете Яндекс Музыку во встречу.
-          </p>
           {theme && setTheme && <AppearanceFields theme={theme} setTheme={setTheme} />}
+        </Tabs.Panel>
+        <Tabs.Panel value="accounts" className="settings-form">
+          <AccountsTab preferences={preferences} change={change} />
         </Tabs.Panel>
         <Tabs.Panel value="connection" className="settings-form">
           <ConnectionFields

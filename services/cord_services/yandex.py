@@ -7,8 +7,6 @@ is accepted; previews and DRM containers are never promoted to full tracks.
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
 import json
 import logging
 import re
@@ -17,12 +15,13 @@ import uuid
 from urllib.parse import urlparse
 
 import httpx
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import InvalidToken
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 from yandex_music import ClientAsync
 from yandex_music.exceptions import DeviceAuthError, UnauthorizedError, YandexMusicError
 
+from .accounts import Vault
 from .media import MAX_FILE, probe
 from .store import now
 
@@ -30,36 +29,20 @@ from .store import now
 class Yandex:
     def __init__(self, store, music, secret: str):
         self.store, self.music = store, music
-        self.vault = Fernet(
-            base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
-        )
+        # Сейф общий для всех сохранённых входов (`cord_services.accounts.Vault`); Яндекс —
+        # первый его жилец, под своим именем провайдера в общей таблице `integrations`.
+        self.vault = Vault(store.db, secret)
         self.client_factory = ClientAsync
         self.http = httpx.AsyncClient(
             timeout=httpx.Timeout(30, connect=8), follow_redirects=False
         )
-        store.db.execute(
-            "CREATE TABLE IF NOT EXISTS integrations(provider TEXT, scope TEXT, body TEXT NOT NULL, PRIMARY KEY(provider,scope))"
-        )
         logging.getLogger("yandex_music").setLevel(logging.ERROR)
 
     def account(self, scope):
-        row = self.store.db.execute(
-            "SELECT body FROM integrations WHERE provider=? AND scope=?",
-            ("yandex", scope),
-        ).fetchone()
-        if not row:
-            return None
-        try:
-            return json.loads(self.vault.decrypt(row[0].encode()))
-        except (InvalidToken, ValueError):
-            return None
+        return self.vault.get("yandex", scope)
 
     def save(self, scope, value):
-        encrypted = self.vault.encrypt(json.dumps(value).encode()).decode()
-        self.store.db.execute(
-            "INSERT INTO integrations VALUES (?,?,?) ON CONFLICT(provider,scope) DO UPDATE SET body=excluded.body",
-            ("yandex", scope, encrypted),
-        )
+        self.vault.put("yandex", scope, value)
 
     def status(self, scope):
         account = self.account(scope)
@@ -69,9 +52,7 @@ class Yandex:
         return {"connected": active, "name": account.get("name") if active else None}
 
     def disconnect(self, scope):
-        self.store.db.execute(
-            "DELETE FROM integrations WHERE provider=? AND scope=?", ("yandex", scope)
-        )
+        self.vault.delete("yandex", scope)
         pending = self.store.state("yandex-pending:" + scope)
         if pending:
             self.store.delete_claim(pending)
@@ -117,7 +98,10 @@ class Yandex:
             value = {
                 "kind": "yandex-device",
                 "scope": scope,
-                "device": self.vault.encrypt(code.device_code.encode()).decode(),
+                # Сырой Fernet, а не `vault.seal`: код устройства должен падать `InvalidToken`
+                # при порче, а не тихо становиться `None`, — ровно как отвечало на это место
+                # до выноса сейфа в отдельный модуль.
+                "device": self.vault.fernet.encrypt(code.device_code.encode()).decode(),
                 "userCode": code.user_code,
                 "verificationUrl": code.verification_url,
                 "interval": max(5, code.interval),
@@ -158,7 +142,7 @@ class Yandex:
             if now() < value["nextPoll"]:
                 return self.auth_public(token, value)
             try:
-                code = self.vault.decrypt(value["device"].encode()).decode()
+                code = self.vault.fernet.decrypt(value["device"].encode()).decode()
                 authorization = await asyncio.wait_for(
                     self.client_factory().poll_device_token(code), 15
                 )
