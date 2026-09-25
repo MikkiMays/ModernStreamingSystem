@@ -296,7 +296,7 @@ class Egress:
             self._leave(lease)
             release()
             raise
-        future.add_done_callback(lambda _: _soon(loop, release))
+        future.add_done_callback(lambda _: in_loop(loop, release))
         try:
             return await asyncio.wrap_future(future, loop=loop)
         finally:
@@ -607,7 +607,7 @@ class Egress:
             return reader, writer
 
 
-def _soon(loop: asyncio.AbstractEventLoop, callback: Callable[[], None]) -> None:
+def in_loop(loop: asyncio.AbstractEventLoop, callback: Callable[[], None]) -> None:
     """Сделать в цикле событий из любого потока; цикл уже закрыт — делать нечего."""
     with contextlib.suppress(RuntimeError):
         loop.call_soon_threadsafe(callback)

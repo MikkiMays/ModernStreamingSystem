@@ -77,6 +77,8 @@ TTL = 24 * 3600
 EPISODES = 200
 # Сколько шагов «страница → встроенный плеер → его страница» проходит разбор.
 HOPS = 5
+# Якорь, в котором yt-dlp передаёт себе данные для разборщика.
+SMUGGLE = "#__youtubedl_smuggle"
 PER_MINUTE = 10
 # Весь ответ о ссылке: разбор (`LEASE_SECONDS`) и проверка потока на DRM после него.
 INSPECTION_SECONDS = LEASE_SECONDS + 10
@@ -637,16 +639,20 @@ def _step(raw: str, page: str) -> tuple[str, str | None]:
     """
     Адрес следующего шага — без контрабанды yt-dlp в якоре (`#__youtubedl_smuggle`): её может подложить
     сама страница, в `src` своего плеера, а `smuggle_url` разборщика чужие ключи не перебивает
-    (`http_headers`, `to_generic`, …). Остаётся только Referer, равный адресу страницы, — его разборщик
-    и кладёт встроенным плеерам, которым он нужен (Vimeo). Своя площадка узнаётся по чистому адресу.
+    (`http_headers`, `to_generic`, …). Из верхнего слоя (его и кладёт разборщик) берётся только
+    Referer, равный адресу страницы, — встроенным плеерам вроде Vimeo он нужен. Всё, что лежит под ним,
+    отрезается целиком: `unsmuggle_url` снимает только последний якорь, и вложенная контрабанда
+    пережила бы шаг. Своя площадка узнаётся по чистому адресу.
     """
     from yt_dlp.utils import sanitize_url, unsmuggle_url
 
-    clean = sanitize_url(raw, scheme="https")
-    try:
-        target, data = unsmuggle_url(clean, {})
-    except Exception:  # чужой якорь, который yt-dlp не разберёт, — просто отрезается
-        target, data = clean.split("#__youtubedl_smuggle", 1)[0], {}
+    target, data = sanitize_url(raw, scheme="https"), {}
+    if SMUGGLE in target:
+        try:
+            target, data = unsmuggle_url(target, {})
+        except Exception:  # чужой якорь, который yt-dlp не разберёт, — просто отрезается
+            data = {}
+        target = target.split(SMUGGLE, 1)[0]
     referer = page if isinstance(data, dict) and data.get("referer") == page else None
     return target, referer
 

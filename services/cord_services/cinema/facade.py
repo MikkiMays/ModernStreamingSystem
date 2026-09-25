@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from . import address, drm, wire
 from .captions import webvtt
-from .egress import Egress
+from .egress import Egress, in_loop
 from .limits import Window
 from .memo import Memo
 from .net import Net, NetConfig
@@ -70,8 +70,11 @@ PLAYLIST_DEADLINE = 20.0
 # Срок на весь `resolve` площадки «По ссылке»: разбор страницы (30 с у выхода), проверки DRM и
 # файлов — вместе, а не каждая своим сроком (переадресации одних проверок складывались в минуты).
 LINK_RESOLVE_SECONDS = 40.0
-# Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`).
+# Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`), и сколько плейлистов
+# ждут их сверх того: дальше — отказ 503, а не очередь без конца.
 REWRITE_THREADS = 2
+REWRITE_WAITING = 8
+REWRITES_BUSY = "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 NO_PLAYLIST = "Площадка не отдала плейлист"
 
@@ -175,6 +178,8 @@ class Cinema:
         self.rewrites = concurrent.futures.ThreadPoolExecutor(
             max_workers=REWRITE_THREADS, thread_name_prefix="cinema-rewrite"
         )
+        # Сколько чужих плейлистов сейчас в этих потоках или в очереди к ним (считает цикл событий).
+        self.rewriting = 0
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
         self.resolves = Window(
@@ -589,10 +594,20 @@ class Cinema:
         text = raw.decode("utf-8", errors="replace")
         base = str(upstream.url)
         if source is None or source.hosts.public_any:
-            # Чужой плейлист: мера, проверка DRM, подписи и сжатие — в своих потоках, не в цикле событий.
+            # Чужой плейлист: мера, проверка DRM, подписи и сжатие — в своих потоках, не в цикле событий,
+            # и очередь к ним — не больше `REWRITE_WAITING`: место освобождается, когда кончилась работа,
+            # а не когда ушёл ждавший её запрос.
+            if self.rewriting >= REWRITE_THREADS + REWRITE_WAITING:
+                raise HTTPException(503, REWRITES_BUSY, headers={"Retry-After": "2"})
+            loop = asyncio.get_running_loop()
             job = self.rewrites.submit(self._render, text, base, source, provider, encodings, True)
+            self.rewriting += 1
+            job.add_done_callback(lambda _: in_loop(loop, self._rewritten))
             return await asyncio.wrap_future(job)
         return self._render(text, base, source, provider, encodings, False)
+
+    def _rewritten(self) -> None:
+        self.rewriting -= 1
 
     def _render(
         self,

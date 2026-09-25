@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import threading
 import time
 from typing import NamedTuple
@@ -24,6 +25,9 @@ from .signer import SIGNATURE_TTL, Signer, proxied
 URIS = 20_000
 LONGEST_URI = 2_000
 LINES = 5 * URIS
+# Сколько байт держат вместе все списки кусочков (`Reels`): тринадцатичасовой ролик YouTube — около
+# мегабайта, чужой плейлист в пределах `unwieldy` — до сорока.
+REELS_BUDGET = 96 * 1024 * 1024
 # Чем делит строки `str.splitlines` — тем же и считаются строки до деления: иначе `\r` вместо `\n`
 # пронёс бы четыре миллиона строк мимо счёта.
 BREAKS = re.compile(r"\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]")
@@ -101,13 +105,27 @@ class Reels:
     Список помнит свою площадку: за кусочком прокси идёт её выходом наружу, а в имя списка
     она входит, чтобы один и тот же адрес у двух площадок (у «ссылки» он может совпасть с
     YouTube) не давал один список, отобранный разными политиками хостов.
+
+    ПАМЯТЬ. Списков — не больше `capacity`, и весят они вместе не больше `budget` байт: считается то,
+    что держится на самом деле, — общее начало, хвосты и сам список (`_weight`). Одного счёта мало:
+    чужой плейлист в 253 КБ (двадцать тысяч однобуквенных адресов у длинного адреса списка и один
+    адрес другого сайта первым — общее начало тогда `https://`) держал бы 38 МБ хвостов пять часов, и
+    двадцать четыре таких — гигабайт, больше, чем есть у службы. Место уходит тем, кого дольше всех не
+    смотрели; список тяжелее всего бюджета не запоминается вовсе — отказ словами.
     """
 
-    def __init__(self, signer: Signer, ttl: float = SIGNATURE_TTL, capacity: int = 24):
+    def __init__(
+        self, signer: Signer, ttl: float = SIGNATURE_TTL, capacity: int = 24, budget: int = REELS_BUDGET
+    ):
         self.signer = signer
         self.ttl = ttl
         self.capacity = capacity
-        self._items: dict[str, tuple[float, str, list[str], str]] = {}
+        self.budget = budget
+        # Ключ → (последнее обращение, общее начало, хвосты, площадка, вес в байтах); порядок — от давно
+        # не смотренных к только что смотренным.
+        self._items: dict[str, tuple[float, str, list[str], str, int]] = {}
+        # Сколько байт держат все списки вместе.
+        self.retained = 0
         # Чужие плейлисты переписываются в потоке (`Cinema.manifest`), а кусочки ищутся в цикле событий.
         self._lock = threading.Lock()
 
@@ -115,11 +133,18 @@ class Reels:
         key = self.signer.name(f"{provider}|{playlist_url}")
         shared = os.path.commonprefix(targets) if targets else ""
         tails = [target[len(shared) :] for target in targets]
+        weight = _weight(shared, tails)
+        if weight > self.budget:
+            raise HTTPException(
+                502,
+                f"Плейлист площадки не открыть: его кусочки заняли бы больше {self.budget >> 20} МБ памяти",
+            )
         with self._lock:
-            self._items.pop(key, None)
-            self._items[key] = (time.time(), shared, tails, provider)
-            while len(self._items) > self.capacity:
-                self._items.pop(next(iter(self._items)))
+            self._forget(key)
+            self._items[key] = (time.time(), shared, tails, provider, weight)
+            self.retained += weight
+            while len(self._items) > self.capacity or self.retained > self.budget:
+                self._forget(next(iter(self._items)))
         return key
 
     def find(self, key: str, index: int) -> Reel:
@@ -127,15 +152,25 @@ class Reels:
             found = self._items.get(key)
             if not found or time.time() - found[0] > self.ttl:
                 raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
-            _, shared, tails, provider = found
+            _, shared, tails, provider, weight = found
             if index < 0 or index >= len(tails):
                 raise HTTPException(404, "Такого кусочка в этом видео нет")
             # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
             # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
             # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
             self._items.pop(key)
-            self._items[key] = (time.time(), shared, tails, provider)
+            self._items[key] = (time.time(), shared, tails, provider, weight)
         return Reel(shared + tails[index], provider)
+
+    def _forget(self, key: str) -> None:
+        found = self._items.pop(key, None)
+        if found is not None:
+            self.retained -= found[4]
+
+
+def _weight(shared: str, tails: list[str]) -> int:
+    """Сколько памяти держит список кусочков: строки с их заголовками и сам список."""
+    return sys.getsizeof(shared) + sys.getsizeof(tails) + sum(map(sys.getsizeof, tails))
 
 
 def _attribute(line: str, base: str, signer: Signer, provider: str) -> str:

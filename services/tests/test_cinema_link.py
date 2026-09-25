@@ -22,7 +22,7 @@ import uuid
 import zlib
 from pathlib import Path
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 from fastapi import HTTPException
@@ -34,7 +34,8 @@ from cord_services.cinema.facade import PLAYLIST_LIMIT as PLAYLIST_BYTES
 from cord_services.cinema.net import BROWSER, Guard
 from cord_services.cinema.providers.link import LINK_ID, LOGIN, Link, MemoryLinks
 from cord_services.cinema.resolve import INSIDE, Expired, Inside, Protected, Resolver
-from cord_services.cinema.transport.signer import allowed
+from cord_services.cinema.transport.playlists import Reels, rewrite, unwieldy
+from cord_services.cinema.transport.signer import Signer, allowed
 from cord_services.cinema.registry import HostPolicy
 from cord_services.store import Store
 
@@ -527,6 +528,43 @@ class SmuggledSteps(LinkCase):
             cinema = self.make(door)
             self.assertEqual((await cinema.link(blog, room=str(uuid.uuid4())))["item"]["title"], "Пост")
             self.assertEqual(unsmuggle_url(door.raw[1])[1], expected, planted)
+
+    async def test_nested_smuggling_is_stripped_to_the_last_layer(self):
+        # `unsmuggle_url` снимает только последний якорь: вложенная контрабанда пережила бы шаг
+        # (scratchpad/sec/smuggle_route.py). Снимается слоями — до чистого адреса.
+        blog = "https://blog.example/post"
+        player = "https://player.example/v/42"
+        planted = "#" + urlencode(
+            {"__youtubedl_smuggle": json.dumps({"http_headers": {"Authorization": "x"}})}
+        )
+        referer = "#" + urlencode({"__youtubedl_smuggle": json.dumps({"referer": blog})})
+        formats = [{"url": "https://cdn.example/42.mp4", "ext": "mp4", "protocol": "https", "height": 720}]
+        for raw, expected in (
+            (player + planted + referer, {"referer": blog}),
+            (player + planted + planted + referer, {"referer": blog}),
+            (player + referer + planted, None),
+            (player + planted * 7, None),
+        ):
+            door = self.Door(
+                {
+                    blog: {"_type": "url_transparent", "url": raw, "title": "Пост"},
+                    player: video(player, "player 42", formats=formats),
+                }
+            )
+            cinema = self.make(door)
+            self.assertEqual((await cinema.link(blog, room=str(uuid.uuid4())))["item"]["title"], "Пост")
+            asked = door.raw[1]
+            self.assertEqual(asked.count("__youtubedl_smuggle"), 1 if expected else 0, raw)
+            from yt_dlp.utils import unsmuggle_url
+
+            self.assertEqual(unsmuggle_url(asked)[1], expected, raw)
+        # Своя площадка за вложенной контрабандой узнаётся так же.
+        embed = "https://www.youtube.com/embed/dQw4w9WgXcQ" + planted + referer
+        cinema = self.make(self.Door({blog: {"_type": "url", "url": embed}}))
+        self.assertEqual(
+            await cinema.link(blog, room=ROOM),
+            {"route": {"provider": "youtube", "kind": "video", "id": "dQw4w9WgXcQ", "page": "item"}},
+        )
 
     async def test_a_smuggled_player_of_a_known_platform_is_still_known(self):
         from yt_dlp.utils import smuggle_url
@@ -1412,6 +1450,100 @@ class OneAddress(LinkCase):
         self.assertNotIn("Cord", net.BROWSER)
 
 
+class ReelsBudget(unittest.TestCase):
+    """
+    Списки кусочков (`Reels`) держатся в памяти часами, и чужой плейлист в пределах меры весит в них до
+    сорока мегабайт: вместе они держат не больше бюджета, место уходит давно не смотренным.
+    """
+
+    def setUp(self):
+        from cord_services.cinema.providers.youtube import YouTube
+
+        policies = {"link": HostPolicy(public_any=True), "youtube": YouTube.hosts}
+        self.signer = Signer("k" * 32, policies.get)
+
+    @staticmethod
+    def crafted(number):
+        # Форма ревью (scratchpad/sec/reels_oom.py): 253 КБ по проводу, 20 000 однобуквенных адресов у
+        # адреса списка в ~2 КБ и один адрес другого сайта первым — общее начало только `https://`.
+        base = f"https://cdn{number}.example.com/" + "a" * 1960 + "/index.m3u8"
+        body = "#EXTM3U\n#EXTINF:1,\nhttps://z.example/y\n" + "#EXTINF:1,\nx\n" * 19_999 + "#EXT-X-ENDLIST\n"
+        return body, base
+
+    def test_crafted_lists_never_hold_more_than_the_budget(self):
+        reels = Reels(self.signer)
+        for number in range(reels.capacity):
+            body, base = self.crafted(number)
+            self.assertIsNone(unwieldy(body, base))
+            rewrite(body, base, self.signer, reels, provider="link")
+            self.assertLessEqual(reels.retained, reels.budget)
+        # Такой список весит ~38 МБ: в 96 МБ их помещается два, а не двадцать четыре.
+        weights = [item[4] for item in reels._items.values()]
+        self.assertTrue(all(30 << 20 < weight < 45 << 20 for weight in weights), weights)
+        self.assertEqual(len(weights), 2)
+        self.assertEqual(reels.retained, sum(weights))
+
+    def test_a_long_youtube_film_that_is_watched_stays_among_them(self):
+        # Тринадцатичасовой ролик YouTube: 9 370 кусочков по ~1 200 знаков — около мегабайта в памяти.
+        reels = Reels(self.signer)
+        prefix = "https://rr5---sn-abc.googlevideo.com/videoplayback/" + "q" * 1120
+        film = (
+            "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n"
+            + "".join(
+                f"#EXTINF:5.0,\n{prefix}/range/{number * 5000}-{number * 5000 + 4999}/seg{number}.ts\n"
+                for number in range(9_370)
+            )
+            + "#EXT-X-ENDLIST\n"
+        )
+        body = rewrite(film, prefix + "/index.m3u8", self.signer, reels, provider="youtube")
+        key = next(line for line in body.splitlines() if line.startswith("seg/")).split("/")[1]
+        self.assertLess(reels._items[key][4], 2 << 20)
+        for number in range(6):
+            reels.find(key, number)  # фильм смотрят — он недавний
+            crafted, base = self.crafted(number)
+            rewrite(crafted, base, self.signer, reels, provider="link")
+            self.assertLessEqual(reels.retained, reels.budget)
+        self.assertTrue(reels.find(key, 9_369).url.endswith("/seg9369.ts"))
+
+    def test_a_list_heavier_than_the_whole_budget_is_refused_in_words(self):
+        reels = Reels(self.signer, budget=1 << 20)
+        small = reels.remember("https://cdn.example/a.m3u8", ["https://cdn.example/a.ts"], "link")
+        targets = [f"https://cdn{number}.example/" + "t" * 100 for number in range(20_000)]
+        with self.assertRaises(HTTPException) as refused:
+            reels.remember("https://cdn.example/b.m3u8", targets, "link")
+        self.assertEqual(
+            (refused.exception.status_code, refused.exception.detail),
+            (502, "Плейлист площадки не открыть: его кусочки заняли бы больше 1 МБ памяти"),
+        )
+        # Отказ ничего не вытеснил и не посчитал дважды.
+        self.assertEqual(reels.find(small, 0).url, "https://cdn.example/a.ts")
+        self.assertEqual(reels.retained, reels._items[small][4])
+
+    def test_the_least_recently_watched_goes_first_and_nothing_is_counted_twice(self):
+        def targets(host):
+            return [f"https://{host}/" + "a" * 200 + f"/{number}.ts" for number in range(2_000)]
+
+        reels = Reels(self.signer)
+        keys = [
+            reels.remember(f"https://cdn{n}.example/list.m3u8", targets(f"cdn{n}.example"), "link")
+            for n in range(3)
+        ]
+        each = reels._items[keys[0]][4]
+        self.assertEqual(reels.retained, 3 * each)
+        # Тот же список ещё раз — тот же вес, а не вдвое (и он теперь самый свежий).
+        reels.remember("https://cdn0.example/list.m3u8", targets("cdn0.example"), "link")
+        self.assertEqual(reels.retained, 3 * each)
+        reels.find(keys[1], 0)  # второй смотрят прямо сейчас
+        reels.budget = 3 * each - 1
+        fourth = reels.remember("https://cdn9.example/list.m3u8", targets("cdn9.example"), "link")
+        # Ушли давно не смотренные — третий, потом первый; смотренный и новый остались.
+        for gone in (keys[2], keys[0]):
+            with self.assertRaises(HTTPException):
+                reels.find(gone, 0)
+        self.assertTrue(reels.find(keys[1], 1) and reels.find(fourth, 1))
+        self.assertEqual(reels.retained, 2 * each)
+
+
 class Trickle(httpx.AsyncByteStream):
     """Тело ответа сайта: кусками, с паузой, и помнит, сколько из него прочитали и закрыли ли его."""
 
@@ -1595,6 +1727,43 @@ class PlaylistLimits(LinkCase):
         self.assertTrue(threads[0].startswith("cinema-rewrite"), threads)
         # Плейлист площадки каталога — как был: её хосты известны, и меры у него нет.
         self.assertEqual(threads[1], threading.current_thread().name)
+
+    async def test_the_queue_to_the_rewrite_threads_is_bounded(self):
+        # Два потока и восемь в очереди: одиннадцатый чужой плейлист — отказ 503, а не очередь без конца.
+        from cord_services.cinema import facade
+
+        release = threading.Event()
+        self.addCleanup(release.set)
+        cinema = self.make(Door(), lambda request: httpx.Response(200, text=media()))
+        render = cinema._render
+
+        def slow(*args):
+            release.wait(5)
+            return render(*args)
+
+        cinema._render = slow
+        admitted = facade.REWRITE_THREADS + facade.REWRITE_WAITING
+        waiting = [asyncio.ensure_future(cinema.manifest(self.URL, None, "link")) for _ in range(admitted)]
+        await asyncio.sleep(0.1)
+        self.assertEqual(cinema.rewriting, admitted)
+        with self.assertRaises(HTTPException) as busy:
+            await cinema.manifest(self.URL, None, "link")
+        self.assertEqual(
+            (busy.exception.status_code, busy.exception.detail),
+            (503, "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"),
+        )
+        # Ушёл запрос, чья работа уже в потоке, — место её, пока поток не кончит; ушёл запрос из
+        # очереди — его работа снята, и место свободно сразу.
+        waiting[0].cancel()
+        waiting[-1].cancel()
+        await asyncio.sleep(0.1)
+        self.assertEqual(cinema.rewriting, admitted - 1)
+        release.set()
+        answers = await asyncio.gather(*waiting[1:-1])
+        self.assertEqual({answer.status_code for answer in answers}, {200})
+        await asyncio.sleep(0.1)
+        self.assertEqual(cinema.rewriting, 0)
+        self.assertEqual((await cinema.manifest(self.URL, None, "link")).status_code, 200)
 
     async def test_a_catalogue_playlist_is_not_measured(self):
         body = "#EXTM3U\n" + "".join(f"#EXTINF:2.0,\ns{number}.ts\n" for number in range(25_000))
