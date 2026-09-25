@@ -18,7 +18,6 @@ import { MusicQueue } from './MusicQueue';
 import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
-import { PROVIDERS, SWITCHER_TABS } from '../core/cinema';
 import {
   foresee,
   foresightSpent,
@@ -47,14 +46,17 @@ type GroupCard = {
   accent: string;
   ready: boolean;
 };
-// Подсказка группы называет площадки переключателя из реестра, а не хранит их имена сама:
-// сейчас их ровно две, и «А и Б» — то же самое предложение, которое было записано вручную.
-const CINEMA_HINT = `${SWITCHER_TABS.map((id) => PROVIDERS[id].name).join(' и ')} на всю комнату`;
 const GROUPS: GroupCard[] = [
   {
     id: 'cinema',
     name: 'Кинозал',
-    hint: CINEMA_HINT,
+    /*
+      Что в группе, а не чьё: раньше здесь стояли имена площадок переключателя («YouTube и Twitch на
+      всю комнату»), а плиток внутри теперь шесть — и на установке с `CINEMA_PROVIDERS` часть из них
+      выключена. Список всех шести в одну строку не влез бы и на широкой панели, а эта строка
+      помещается в одну и на самом узком экране — как и подсказки соседних групп.
+    */
+    hint: 'Видео и эфиры на всю комнату',
     icon: Tv,
     accent: '#4674f3',
     ready: true,
