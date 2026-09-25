@@ -78,6 +78,13 @@ else
   touched '^services/' && REBUILD+=(services sniffer)
 fi
 REGENERATE=0; touched '^scripts/(configure|edge-config)\.mjs' && REGENERATE=1
+# Стена сети плеера страниц: скрипт и его единицы systemd. Скрипт единицы зовут по пути, и его правка доходит
+# сама, а вот файлы единиц (и новая единица — таймер) лежат копией в /etc/systemd/system, и раньше их ставили,
+# только если стены не было вовсе: правка единицы до работающего сервера не доезжала никогда. `--install`
+# повторяем — переписывает единицы своими файлами и ставит стену заново, — поэтому правка любого из них — повод
+# поставить заново.
+WALL=0; touched '^infra/(cord-sniffer-|sniffer-firewall\.sh)' && WALL=1
+(( FORCE )) && WALL=1
 # compose.yaml: пересоздаётся ровно то, у чего поменялась конфигурация. Меряем тем же хешем, по которому
 # compose сам решает, пересоздавать ли контейнер (`config --hash '*'`), — до и после, у каждой службы.
 # Медиа и базы (INFRA_SERVICES) идут прежним путём — с обрывом звонков, если поменялись они сами; свои
@@ -122,6 +129,7 @@ fi
 if (( ${#REBUILD[@]} )); then note "Пересобрать: ${REBUILD[*]}"; else note "Пересобирать нечего."; fi
 (( ${#RECREATE[@]} )) && note "Пересоздать по новой конфигурации: ${RECREATE[*]}"
 (( REGENERATE )) && note "Перевыпустить конфигурацию: да (генератор изменился)"
+(( WALL )) && note "Поставить заново стену сети плеера страниц: да (скрипт или единицы изменились)"
 (( INFRA )) && note "Обновить образы БД/SFU/tusd: да"
 
 # Медиа трогается, если меняли конфигурацию SFU или его образ.
@@ -142,13 +150,14 @@ if (( CHECK )); then
 fi
 
 NOTHING_TO_DO=0
-(( ! ${#REBUILD[@]} )) && (( ! ${#RECREATE[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && NOTHING_TO_DO=1
+(( ! ${#REBUILD[@]} )) && (( ! ${#RECREATE[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && (( ! WALL )) \
+  && NOTHING_TO_DO=1
 
-# Стену сети плеера страниц проверяет iptables, а это root. Без root проверка «не прошла» бы, и работающий
-# плеер страниц остановился бы зря — поэтому отказ сразу, пока ничего не тронуто.
+# Стену сети плеера страниц проверяет iptables, а ставит systemd — это root. Без root проверка «не прошла» бы,
+# и работающий плеер страниц остановился бы зря, — поэтому отказ сразу, пока ничего не тронуто.
 if (( ! NOTHING_TO_DO )) && (( EUID != 0 )) \
-  && [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
-  die "Плеер страниц работает только за стеной сети, а её проверяет iptables — нужен root: sudo ./update.sh. Ничего не изменено."
+  && [[ WALL -eq 1 || " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
+  die "Плеер страниц работает только за стеной сети, а её проверяет iptables и ставит systemd — нужен root: sudo ./update.sh. Ничего не изменено."
 fi
 
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
@@ -243,11 +252,13 @@ if (( INFRA )) && (( ! KEEP_CALLS )); then
 fi
 
 # Плеер страниц открывает чужие страницы в браузере без его песочницы: работает он только за стеной сети
-# (`infra/sniffer-firewall.sh`). Её нет (правила сняли, единица не поставилась) — ставим; не вышло —
-# остальное обновляется, а плеер страниц останавливается и не запускается.
-if [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
+# (`infra/sniffer-firewall.sh`). Её нет (правила сняли, единица не поставилась) или изменились сам скрипт стены
+# и её единицы (WALL) — ставим заново; не вышло — остальное обновляется, а плеер страниц останавливается и не
+# запускается.
+if (( WALL )) || [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
   step "Стена сети плеера страниц"
-  if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1; then
+  if (( WALL )) || ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1 \
+    || ! systemctl is-enabled cord-sniffer-wall.timer >/dev/null 2>&1; then
     bash infra/sniffer-firewall.sh --install || true
   fi
   if ! bash infra/sniffer-firewall.sh check >/dev/null 2>&1; then
@@ -333,8 +344,9 @@ if ! systemctl is-enabled cord-tidy.timer >/dev/null 2>&1; then
   step "Ставим суточную уборку диска"
   bash infra/tidy.sh --install || warn "Не удалось. Поставить руками: sudo bash infra/tidy.sh --install"
 fi
-# Стена сети плеера страниц появилась позже самого сервера — так же, как уборка.
-if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1; then
+# Стена сети плеера страниц появилась позже самого сервера — так же, как уборка; её таймер — ещё позже.
+if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1 \
+  || ! systemctl is-enabled cord-sniffer-wall.timer >/dev/null 2>&1; then
   step "Ставим стену сети плеера страниц"
   bash infra/sniffer-firewall.sh --install \
     || warn "Не удалось. Поставить руками: sudo bash infra/sniffer-firewall.sh --install"

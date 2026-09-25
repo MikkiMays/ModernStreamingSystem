@@ -45,12 +45,19 @@
 #   - в ней нет ни шлюза по умолчанию, ни адреса самого хоста, и она не пересекается ни с одним маршрутом
 #     хоста (`ip -4 route show table all`) — кроме моста самой этой сети: маршрута docker (`br-` и двенадцать
 #     шестнадцатеричных знаков) ровно на эту подсеть. Он появляется, когда сеть уже поднята, и без этого
-#     исключения повторный apply на работающем хосте (update.sh, --install) отказал бы сам себе.
+#     исключения повторный apply на работающем хосте — периодический или из update.sh — отказал бы сам себе.
 #
 # ЕСЛИ СТЕНА НЕ ВСТАЛА. `cord-sniffer-firewall.service` упала — systemd запускает
 # `cord-sniffer-quarantine.service`: как только поднят docker, он останавливает контейнер `sniffer`
 # (`restart: unless-stopped` его после этого сам не поднимет). update.sh и setup.sh без прошедшего check
 # плеер страниц не запускают.
+#
+# ЗАНОВО КАЖДЫЕ ПЯТЬ МИНУТ. Правила iptables переписывают и другие — `ufw reload`, чужой `iptables-restore`,
+# перезапуск docker, — а единица загрузки ставит стену один раз. `cord-sniffer-wall.timer` раз в пять минут
+# запускает `cord-sniffer-wall.service`: тот же apply (не check — недостающее правило ставится на место, метка
+# пишется заново), блокировку xtables ждёт дольше (`CORD_SNIFFER_XTABLES_WAIT`), а не вышло — тот же карантин.
+# Снять стену насовсем — сначала таймер, иначе он вернёт её через пять минут:
+#   sudo systemctl disable --now cord-sniffer-wall.timer && sudo bash infra/sniffer-firewall.sh remove
 #
 # IPv6 у этой сети нет (compose не включает его), поэтому правил ip6tables нет тоже.
 set -euo pipefail
@@ -66,7 +73,13 @@ BLOCKED=(10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 0.
 # Каталог меток; плееру страниц он смонтирован только для чтения (compose.yaml).
 MARKS="/run/cord-sniffer"
 # Чужой держит блокировку xtables — подождать её, а не упасть: упавшая стена останавливает плеер страниц.
-IPT=(iptables -w 10)
+# Сколько ждать, секунд: при загрузке — десять (docker ждёт стену), периодической единице — дольше.
+XTABLES_WAIT="${CORD_SNIFFER_XTABLES_WAIT:-10}"
+[[ "$XTABLES_WAIT" =~ ^[1-9][0-9]{0,2}$ ]] || XTABLES_WAIT=10
+IPT=(iptables -w "$XTABLES_WAIT")
+# Единицы systemd стены: при загрузке, карантин, каждые пять минут.
+UNITS=(cord-sniffer-firewall.service cord-sniffer-quarantine.service cord-sniffer-wall.service
+  cord-sniffer-wall.timer)
 
 # Подсеть из аргумента, окружения или .env — строкой, как задана; не задана — 10.231.0.0/24.
 subnet() {
@@ -389,7 +402,7 @@ install() {
     apply "$net"
     exit 0
   fi
-  for unit in cord-sniffer-firewall.service cord-sniffer-quarantine.service; do
+  for unit in "${UNITS[@]}"; do
     sed "s#@CORD_ROOT@#${root}#g" "infra/$unit" >"/etc/systemd/system/$unit"
   done
   systemctl daemon-reload
@@ -397,7 +410,11 @@ install() {
   # Стена — сейчас, а не при следующей загрузке: единица oneshot с RemainAfterExit, restart её повторит.
   # Не встала — единица упала, и карантин уже останавливает плеер страниц.
   systemctl restart cord-sniffer-firewall.service
-  echo "Стена плеера страниц: cord-sniffer-firewall.service включена. Проверить — sudo bash infra/sniffer-firewall.sh check"
+  # И заново каждые пять минут. Уже включённый таймер `enable --now` не трогает, а новые файлы единиц он
+  # подхватывает после daemon-reload сам.
+  systemctl enable --now cord-sniffer-wall.timer >/dev/null
+  echo "Стена плеера страниц: cord-sniffer-firewall.service и cord-sniffer-wall.timer включены." \
+    "Проверить — sudo bash infra/sniffer-firewall.sh check"
 }
 
 case "${1:-}" in

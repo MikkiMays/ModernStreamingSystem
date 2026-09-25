@@ -1,0 +1,20 @@
+[Unit]
+# Стена сети плеера страниц — заново, раз в пять минут (`cord-sniffer-wall.timer`).
+#
+# Правила iptables переписывают и другие: `ufw reload`, чужой `iptables-restore`, перезапуск docker. Единица
+# загрузки (`cord-sniffer-firewall.service`) ставит стену один раз, и снятое после этого правило не вернулось
+# бы до перезагрузки, а метка стены — её плеер страниц читает каждые пять секунд — так и говорила бы «на
+# месте». Здесь `apply`, а не `check`: недостающее правило встаёт обратно, исключение своей подсети — снова
+# первым, метка пишется заново. Занятая блокировка xtables — не поломка: `iptables -w` ждёт её дольше, чем при
+# загрузке (там docker ждёт стену, здесь спешить некуда). Не вышло — тот же карантин, что при загрузке.
+Description=Cord page player — re-apply the network wall of the sniffer subnet
+Documentation=file:@CORD_ROOT@/infra/sniffer-firewall.sh
+After=cord-sniffer-firewall.service
+OnFailure=cord-sniffer-quarantine.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@CORD_ROOT@
+Environment=CORD_SNIFFER_XTABLES_WAIT=60
+ExecStart=/usr/bin/env bash @CORD_ROOT@/infra/sniffer-firewall.sh apply
+TimeoutStartSec=5min

@@ -147,8 +147,9 @@ step "Installing the daily disk cleanup"
 bash infra/tidy.sh --install || note "Cleanup timer not installed; run it by hand: bash infra/tidy.sh"
 
 # The cinema page player opens pages anyone pasted, in a browser that cannot use its own sandbox inside
-# the container. Its subnet gets a network wall before the first container starts, and again on every
-# boot before Docker starts (cord-sniffer-firewall.service). Details in infra/sniffer-firewall.sh.
+# the container. Its subnet gets a network wall before the first container starts, again on every boot
+# before Docker starts (cord-sniffer-firewall.service) and every five minutes after that
+# (cord-sniffer-wall.timer). Details in infra/sniffer-firewall.sh.
 #
 # The subnet is checked first, and a bad one stops the install: Docker creates the player's network on
 # `compose up` even when the player itself is not started, and a range that overlaps this host's own

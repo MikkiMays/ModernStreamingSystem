@@ -1,8 +1,9 @@
 [Unit]
-# Карантин плеера страниц: стена его сети не встала (`cord-sniffer-firewall.service` упала и позвала эту
-# единицу через OnFailure=). Метка стены снимается, контейнер `sniffer` останавливается — после этого
-# `restart: unless-stopped` сам его не поднимет; вернуть — update.sh или `docker compose up -d --no-deps
-# sniffer`, когда `sniffer-firewall.sh check` проходит.
+# Карантин плеера страниц: стена его сети не встала — при загрузке (`cord-sniffer-firewall.service`) или при
+# проверке раз в пять минут (`cord-sniffer-wall.service`): упавшая единица зовёт эту через OnFailure=. Метка
+# стены снимается, контейнер `sniffer` останавливается — после этого `restart: unless-stopped` сам его не
+# поднимет; вернуть — update.sh или `docker compose up -d --no-deps sniffer`, когда `sniffer-firewall.sh
+# check` проходит.
 #
 # После docker (After=): при загрузке стена ставится раньше него, а остановить контейнер можно, только когда
 # docker поднят. Сам docker эта единица не тянет (ни Wants=, ни Requires=): не запущен он — останавливать

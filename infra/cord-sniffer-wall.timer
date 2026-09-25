@@ -1,0 +1,15 @@
+[Unit]
+# Раз в пять минут — стена плеера страниц заново (`cord-sniffer-wall.service`, там — почему).
+#
+# Отсчёт от включения таймера, а не от загрузки: при загрузке стену ставит своя единица раньше docker, а
+# `--install` ставит её сразу сам — повторять её тут же незачем. Дальше — через пять минут после каждого
+# прошлого раза: тот же шаг, каким плеер страниц сам пробует дотянуться до соседей (`isolation.PERIOD`).
+Description=Cord page player — network wall every five minutes
+
+[Timer]
+OnActiveSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
