@@ -83,6 +83,12 @@ REGENERATE=0; touched '^scripts/(configure|edge-config)\.mjs' && REGENERATE=1
 # Медиа и базы (INFRA_SERVICES) идут прежним путём — с обрывом звонков, если поменялись они сами; свои
 # службы — `up -d --no-deps` по одной (сборка — у тех, у кого она есть; `volume-init` — только пересоздание,
 # раньше его изменения доезжали вместе с перезапуском баз). Посчитать не вышло — как раньше: всё сразу.
+#
+# ЧЕГО ХЕШ НЕ ВИДИТ: блок `build:` (context, dockerfile, target, args). Правка только его — без правки
+# исходников службы — пересборку сама не вызовет; обычно вместе с ним меняются и исходники (services/, web/,
+# server/, infra/Dockerfile.*), и тогда служба пересобирается по ним. Если нет — руками:
+# `docker compose build <служба> && docker compose up -d --no-deps <служба>` (или `./update.sh --force`,
+# но он пересобирает всё и перезапускает SFU).
 INFRA_SERVICES=' edge livekit postgres redis tusd '
 APP_BUILT=' gateway core services sniffer '
 config_hashes() {
@@ -138,6 +144,13 @@ fi
 NOTHING_TO_DO=0
 (( ! ${#REBUILD[@]} )) && (( ! ${#RECREATE[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && NOTHING_TO_DO=1
 
+# Стену сети плеера страниц проверяет iptables, а это root. Без root проверка «не прошла» бы, и работающий
+# плеер страниц остановился бы зря — поэтому отказ сразу, пока ничего не тронуто.
+if (( ! NOTHING_TO_DO )) && (( EUID != 0 )) \
+  && [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
+  die "Плеер страниц работает только за стеной сети, а её проверяет iptables — нужен root: sudo ./update.sh. Ничего не изменено."
+fi
+
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   warn "В отслеживаемых файлах есть свои правки:"
   git status --short --untracked-files=no | sed 's/^/      /'
@@ -188,6 +201,11 @@ rollback() {
   printf '\n\033[31m==>\033[0m \033[1mВозвращаем прежние образы\033[0m\n'
   for service in "${TAGGED[@]}"; do
     docker tag "$ROLLBACK_TAG-$service:latest" "modern-streaming-$service:latest" || true
+    # Плеер страниц и при откате запускается только за стеной сети.
+    if [[ "$service" == sniffer ]] && ! bash infra/sniffer-firewall.sh check >/dev/null 2>&1; then
+      warn "sniffer: образ возвращён, но стены сети нет — не запускается"
+      continue
+    fi
     docker compose up -d --no-deps "$service" || true
     note "$service возвращён"
   done
@@ -242,15 +260,24 @@ if [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2
     kept=()
     for service in "${REBUILD[@]}"; do [[ "$service" == sniffer ]] || kept+=("$service"); done
     REBUILD=("${kept[@]}")
+    # И откат его не поднимет: без стены прежний образ не лучше нового.
+    kept=()
+    for service in "${TAGGED[@]}"; do [[ "$service" == sniffer ]] || kept+=("$service"); done
+    TAGGED=("${kept[@]}")
     docker compose stop sniffer >/dev/null 2>&1 || true
   fi
 fi
 
 step "Перезапускаем"
 trap 'rollback; exit 1' ERR
-# Одноразовые службы (`volume-init`) — первыми: остальные ждут того, что они делают с томами.
+# Одноразовые службы (`volume-init`) — первыми, и дождаться, пока доделают: остальные ждут того, что они
+# делают с томами (раньше их так же дожидался `depends_on` при перезапуске баз). Код не 0 — откат.
+ONESHOT_SERVICES=' volume-init '
 for service in "${RECREATE[@]}"; do
   docker compose up -d --no-deps "$service"
+  if [[ "$ONESHOT_SERVICES" == *" $service "* ]]; then
+    docker compose wait "$service" >/dev/null
+  fi
   note "$service"
 done
 for service in "${REBUILD[@]}"; do

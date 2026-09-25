@@ -1,14 +1,16 @@
 """
-Самопроверка изоляции плеера страниц (`sniffer/isolation.py`): шлюз подсети, цели, «дотянулся — отказ» и
-ожидание первой проверки. Сеть — своя, на 127.0.0.1 контейнера теста.
+Самопроверка изоляции плеера страниц (`sniffer/isolation.py`): шлюз подсети, цели, «дотянулся — отказ»,
+ожидание первой проверки и метка стены хоста. Сеть — своя, на 127.0.0.1 контейнера теста.
 """
 
 import asyncio
 import socket
 import tempfile
 import unittest
+from ipaddress import ip_address
+from pathlib import Path
 
-from sniffer.isolation import CANARIES, Isolation, gateway, targets
+from sniffer.isolation import CANARIES, Isolation, gateway, own_address, targets
 
 ROUTES = """Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT
 eth0\t00000000\t0100E70A\t0003\t0\t0\t0\t00000000\t0\t0\t0
@@ -90,6 +92,88 @@ class Check(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(isolation.isolated)
         # Проверки нет и не будет — ожидание кончается отказом, а не страницей.
         self.assertFalse(await isolation.ready())
+
+
+class Mark(unittest.IsolatedAsyncioTestCase):
+    """Метка стены: `/run/cord-sniffer/<подсеть>` на хосте — «правила этой подсети на месте»."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.walls = Path(self.folder.name)
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def isolation(self, **extra) -> Isolation:
+        # Цель, которая отказывает: пробы молчат, и решает одна метка.
+        options = {"attempt": 0.5, "walls": self.walls, "address": lambda: "10.231.0.2"}
+        options.update(extra)
+        return Isolation([("127.0.0.1", closed_port())], **options)
+
+    def put(self, subnet: str) -> Path:
+        mark = self.walls / subnet.replace("/", "_")
+        mark.write_text(subnet + "\n")
+        return mark
+
+    async def test_without_the_mark_of_its_own_subnet_no_page_opens(self):
+        isolation = self.isolation()
+        self.assertFalse(await isolation.check())
+        self.assertFalse(isolation.walled)
+        self.assertEqual(isolation.reached, [])
+        self.assertFalse(await isolation.ready())
+        self.assertEqual(isolation.state()["walled"], False)
+
+    async def test_the_mark_of_another_subnet_does_not_count(self):
+        self.put("10.231.1.0/24")
+        (self.walls / "10.231.0.0_24").write_bytes(b"\xff" * 100)
+        self.assertFalse(await self.isolation().check())
+
+    async def test_only_a_file_named_as_its_subnet_with_the_subnet_inside_is_a_mark(self):
+        # Недописанная и переименованная метки, чужое содержимое под верным именем — не метки.
+        (self.walls / ".10.231.0.0_24.new").write_text("10.231.0.0/24\n")
+        (self.walls / ".held").write_text("10.231.0.0/24\n")
+        (self.walls / "10.231.0.0_24").write_text("10.0.0.0/8\n")
+        self.assertFalse(await self.isolation().check())
+        (self.walls / "10.231.0.0_24").write_text("10.231.0.0/24\n")
+        self.assertTrue(await self.isolation().check())
+
+    async def test_with_the_mark_and_silent_neighbours_pages_open(self):
+        self.put("10.231.0.0/24")
+        isolation = self.isolation()
+        self.assertTrue(await isolation.check())
+        self.assertTrue(isolation.walled)
+        self.assertTrue(await isolation.ready())
+
+    async def test_without_its_own_address_there_is_no_mark_to_find(self):
+        self.put("10.231.0.0/24")
+        self.assertFalse(await self.isolation(address=lambda: None).check())
+        # Каталога меток нет вовсе (не смонтирован) — тоже нет.
+        self.assertFalse(await self.isolation(walls=self.walls / "absent").check())
+
+    async def test_a_mark_taken_away_closes_pages_at_once_and_a_new_one_opens_them_soon(self):
+        mark = self.put("10.231.0.0/24")
+        isolation = self.isolation(period=3600.0, mark=0.05)
+        watching = asyncio.ensure_future(isolation.watch())
+        try:
+            self.assertTrue(await isolation.ready())
+            mark.unlink()
+            # Страница не ждёт следующей проверки: метки нет — отказ сразу.
+            self.assertFalse(await isolation.ready())
+            self.put("10.231.0.0/24")
+            for _ in range(40):
+                if await isolation.ready():
+                    break
+                await asyncio.sleep(0.05)
+            # Появилась — проверено заново через доли секунды, а не через час.
+            self.assertTrue(await isolation.ready())
+        finally:
+            watching.cancel()
+
+    def test_its_own_address_is_where_a_packet_out_would_leave_from(self):
+        # В контейнере теста сети нет (`--network none`): маршрута наружу нет — и адреса нет; с сетью — IPv4.
+        found = own_address()
+        if found is not None:
+            self.assertEqual(ip_address(found).version, 4)
 
 
 if __name__ == "__main__":

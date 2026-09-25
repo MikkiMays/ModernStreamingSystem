@@ -1,19 +1,29 @@
 [Unit]
-# Стена сети плеера страниц кинозала: из подсети контейнера `sniffer` нельзя открыть новое соединение в
-# частные сети хоста. Что именно и почему — в шапке скрипта. Правила iptables живут до перезагрузки, и
-# после неё их ставит эта единица — сразу за docker, который создаёт цепочку DOCKER-USER.
+# Стена сети плеера страниц кинозала: из подсети контейнера `sniffer` нельзя открыть новое соединение ни в
+# частные сети, ни к самому хосту. Что именно и почему — в шапке скрипта.
+#
+# Правила iptables живут до перезагрузки, и после неё их ставит эта единица — РАНЬШЕ docker (Before=):
+# docker поднимает контейнеры с `restart: unless-stopped` сразу при старте, и плеер страниц не должен
+# оказаться в сети без стены ни на секунду. Цепочку DOCKER-USER скрипт при нужде создаёт сам; docker
+# существующую не трогает. `WantedBy=docker.service`: стену тянет за собой любой запуск docker, в том числе
+# через его сокет. Не встала стена — `cord-sniffer-quarantine.service` останавливает плеер страниц, как
+# только поднимется docker, а сам плеер страниц без метки стены страниц не открывает и раньше.
 Description=Cord page player — network wall for the sniffer subnet
 Documentation=file:@CORD_ROOT@/infra/sniffer-firewall.sh
-Requires=docker.service
-After=docker.service
+Before=docker.service
+# UFW и firewalld при старте переписывают iptables: стена ставится после них.
+After=ufw.service firewalld.service
+OnFailure=cord-sniffer-quarantine.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=@CORD_ROOT@
 ExecStart=/usr/bin/env bash @CORD_ROOT@/infra/sniffer-firewall.sh apply
-# Остановка единицы правил не снимает нарочно: без них плеер страниц был бы в сети хоста без стены.
+# docker ждёт эту единицу: зависшая стена не должна держать его дольше минуты (тогда — неудача и карантин).
+TimeoutStartSec=60
+# Остановка единицы стену не снимает нарочно: без неё плеер страниц был бы в сети хоста без стены.
 # Снять — только руками: sudo bash infra/sniffer-firewall.sh remove
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=docker.service multi-user.target

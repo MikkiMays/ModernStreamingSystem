@@ -147,16 +147,26 @@ step "Installing the daily disk cleanup"
 bash infra/tidy.sh --install || note "Cleanup timer not installed; run it by hand: bash infra/tidy.sh"
 
 # The cinema page player opens pages anyone pasted, in a browser that cannot use its own sandbox inside
-# the container. Its subnet gets a network wall before the first container starts, and again after every
-# boot (cord-sniffer-firewall.service). Details in infra/sniffer-firewall.sh.
+# the container. Its subnet gets a network wall before the first container starts, and again on every
+# boot before Docker starts (cord-sniffer-firewall.service). Details in infra/sniffer-firewall.sh.
 step "Installing the network wall for the cinema page player"
-bash infra/sniffer-firewall.sh --install \
-  || note "Page player wall not installed; the page player refuses pages it can reach the host from. Run: bash infra/sniffer-firewall.sh --install"
+WALL=0
+if bash infra/sniffer-firewall.sh --install && bash infra/sniffer-firewall.sh check >/dev/null; then
+  WALL=1
+else
+  note "The wall is not in place, so the page player is not started (links fall back to yt-dlp)."
+  note "Fix it, then: sudo bash infra/sniffer-firewall.sh --install && docker compose up -d --no-deps sniffer"
+fi
 
 step "Building and starting the stack"
 note "The first build compiles the server and the web client; expect several minutes."
 docker compose build
-docker compose up -d
+if [[ $WALL -eq 1 ]]; then
+  docker compose up -d
+else
+  # Everything but the page player: it runs only behind its network wall.
+  docker compose up -d --scale sniffer=0
+fi
 
 step "Waiting for the service to come up"
 READY=0

@@ -1,0 +1,17 @@
+[Unit]
+# Карантин плеера страниц: стена его сети не встала (`cord-sniffer-firewall.service` упала и позвала эту
+# единицу через OnFailure=). Метка стены снимается, контейнер `sniffer` останавливается — после этого
+# `restart: unless-stopped` сам его не поднимет; вернуть — update.sh или `docker compose up -d --no-deps
+# sniffer`, когда `sniffer-firewall.sh check` проходит.
+#
+# После docker (After=): при загрузке стена ставится раньше него, а остановить контейнер можно, только когда
+# docker поднят. Сам docker эта единица не тянет (ни Wants=, ни Requires=): не запущен он — останавливать
+# нечего, и скрипт его не зовёт.
+Description=Cord page player — stop the sniffer, its network wall is not in place
+Documentation=file:@CORD_ROOT@/infra/sniffer-firewall.sh
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@CORD_ROOT@
+ExecStart=/usr/bin/env bash @CORD_ROOT@/infra/sniffer-firewall.sh quarantine

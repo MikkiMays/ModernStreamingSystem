@@ -6,13 +6,15 @@
 наружу — площадки «По ссылке»: её прокси администратора (`CINEMA_PROXY_LINK` или общий `CINEMA_PROXY` —
 чтобы страница и поток выходили в сеть с одного адреса: адрес потока у CDN бывает привязан к адресу, с
 которого его выдали) и её частные адреса (`CINEMA_PRIVATE_HOSTS_LINK`; в этом контейнере `127.0.0.1` — он
-сам, а не машина). Цели самопроверки — `CINEMA_SNIFFER_CANARIES` (`isolation.py`).
+сам, а не машина). Цели самопроверки — `CINEMA_SNIFFER_CANARIES`, метки стены хоста — `/run/cord-sniffer`
+(`isolation.py`).
 """
 
 from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
 import uvicorn
 
@@ -20,7 +22,7 @@ from cord_services.cinema.egress import Egress
 from cord_services.cinema.net import Guard, NetConfig
 
 from .app import create_app
-from .isolation import CANARIES, Isolation, gateway, targets
+from .isolation import CANARIES, WALLS, Isolation, gateway, targets
 from .page import SECONDS, TEARDOWN, Pages
 
 # Страниц разом на контейнер — и мест в выходе. Каждая — вкладка Chromium, сотни мегабайт.
@@ -60,7 +62,9 @@ def main() -> None:
         await pages.close()
         await egress.close()
 
-    isolation = Isolation(targets(os.environ.get("CINEMA_SNIFFER_CANARIES") or CANARIES, gateway()))
+    isolation = Isolation(
+        targets(os.environ.get("CINEMA_SNIFFER_CANARIES") or CANARIES, gateway()), walls=Path(WALLS)
+    )
     app = create_app(key, pages.sniff, isolation=isolation, close=close)
     uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="warning", access_log=False)
 
