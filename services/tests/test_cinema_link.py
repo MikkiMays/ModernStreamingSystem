@@ -1662,7 +1662,10 @@ class PlaylistLimits(LinkCase):
 
     async def test_twenty_thousand_addresses_of_2000_characters_are_the_limits(self):
         url = "https://cdn.example/live/index.m3u8"
-        segments = lambda count: "".join(f"#EXTINF:2.0,\ns{number}.ts\n" for number in range(count))  # noqa: E731
+
+        def segments(count: int) -> str:
+            return "".join(f"#EXTINF:2.0,\ns{number}.ts\n" for number in range(count))
+
         cinema, signed = self.serve("#EXTM3U\n" + segments(20_000))
         answer = await cinema.manifest(url, None, "link")
         self.assertEqual(answer.body.count(b"/api/v1/services/cinema/fetch?"), 20_000)

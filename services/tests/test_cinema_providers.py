@@ -1099,8 +1099,12 @@ class YouTubePlaylistTests(Stage):
         # Текст говорит о той площадке, которую спросили, а не «только у YouTube»: плейлисты
         # приходят и к другим площадкам (VK), и фраза про единственную площадку стала бы ложью.
         for playlist, cursor in ((self.LIST, ""), ("bad id!", ""), (self.LIST, "x")):
-            await self.refused(self.cinema.playlist("twitch", playlist, cursor), 400, "У Twitch плейлистов нет")
-            await self.refused(self.cinema.playlist("rutube", playlist, cursor), 400, "У Rutube плейлистов нет")
+            await self.refused(
+                self.cinema.playlist("twitch", playlist, cursor), 400, "У Twitch плейлистов нет"
+            )
+            await self.refused(
+                self.cinema.playlist("rutube", playlist, cursor), 400, "У Rutube плейлистов нет"
+            )
         await self.refused(self.cinema.playlist("youtube", "bad id!", ""), 400, "Непонятный адрес плейлиста")
         await self.refused(self.cinema.playlist("youtube", self.LIST, "x"), 400, "Дальше листать нечего")
         self.assertEqual(self.library.calls, [])

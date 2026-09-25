@@ -28,14 +28,19 @@ from cord_services.cinema.transport.signer import SIGNATURE_TTL
 # Политики хостов площадок, как их видит подпись: адрес открывается только своей площадкой.
 HOSTS = {"youtube": YouTube.hosts, "twitch": Twitch.hosts}
 
-MASTER = """#EXTM3U
-#EXT-X-INDEPENDENT-SEGMENTS
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="English",URI="https://manifest.googlevideo.com/api/manifest/hls_playlist/audio"
-#EXT-X-STREAM-INF:BANDWIDTH=310801,RESOLUTION=426x240
-https://manifest.googlevideo.com/api/manifest/hls_playlist/itag/229/file/index.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=7417746,RESOLUTION=1920x1080
-../other/index.m3u8
-"""
+# Строка EXT-X-MEDIA — один токен без пробелов длиннее 110 знаков; переносить внутри `"""` нельзя
+# (это вставило бы настоящий перевод строки в середину тега), поэтому здесь — склейка кусков,
+# байт в байт то же самое, чем была одна строка.
+MASTER = (
+    "#EXTM3U\n"
+    "#EXT-X-INDEPENDENT-SEGMENTS\n"
+    '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="English",'
+    'URI="https://manifest.googlevideo.com/api/manifest/hls_playlist/audio"\n'
+    "#EXT-X-STREAM-INF:BANDWIDTH=310801,RESOLUTION=426x240\n"
+    "https://manifest.googlevideo.com/api/manifest/hls_playlist/itag/229/file/index.m3u8\n"
+    "#EXT-X-STREAM-INF:BANDWIDTH=7417746,RESOLUTION=1920x1080\n"
+    "../other/index.m3u8\n"
+)
 
 MEDIA = """#EXTM3U
 #EXT-X-PLAYLIST-TYPE:VOD
@@ -373,7 +378,13 @@ class StreamChoiceTests(unittest.TestCase):
     def test_hls_master_wins_because_it_carries_every_quality(self):
         info = {
             "formats": [
-                {"protocol": "https", "url": "https://x/file.mp4", "acodec": "aac", "vcodec": "h264", "height": 360},
+                {
+                    "protocol": "https",
+                    "url": "https://x/file.mp4",
+                    "acodec": "aac",
+                    "vcodec": "h264",
+                    "height": 360,
+                },
                 {"protocol": "m3u8_native", "manifest_url": "https://m/master.m3u8"},
             ]
         }
@@ -382,9 +393,27 @@ class StreamChoiceTests(unittest.TestCase):
     def test_without_a_playlist_the_best_complete_file_is_taken(self):
         info = {
             "formats": [
-                {"protocol": "https", "url": "https://x/360.mp4", "acodec": "aac", "vcodec": "h264", "height": 360},
-                {"protocol": "https", "url": "https://x/720.mp4", "acodec": "aac", "vcodec": "h264", "height": 720},
-                {"protocol": "https", "url": "https://x/1080.mp4", "acodec": "none", "vcodec": "h264", "height": 1080},
+                {
+                    "protocol": "https",
+                    "url": "https://x/360.mp4",
+                    "acodec": "aac",
+                    "vcodec": "h264",
+                    "height": 360,
+                },
+                {
+                    "protocol": "https",
+                    "url": "https://x/720.mp4",
+                    "acodec": "aac",
+                    "vcodec": "h264",
+                    "height": 720,
+                },
+                {
+                    "protocol": "https",
+                    "url": "https://x/1080.mp4",
+                    "acodec": "none",
+                    "vcodec": "h264",
+                    "height": 1080,
+                },
             ]
         }
         self.assertEqual(Resolver._stream(info), ("https://x/720.mp4", "file"))
@@ -521,7 +550,10 @@ class TwitchChannelPageTests(unittest.TestCase):
         second = self.ask(offset=PAGE)
         self.assertFalse(any(item["live"] for item in second["items"]))
         # Ни один ролик не пропал между порциями: эфир не занимает место записи.
-        self.assertEqual([item["id"] for item in second["items"]], [str(PAGE), str(PAGE + 1), str(PAGE + 2), str(PAGE + 3)])
+        self.assertEqual(
+            [item["id"] for item in second["items"]],
+            [str(PAGE), str(PAGE + 1), str(PAGE + 2), str(PAGE + 3)],
+        )
         self.assertIsNone(second["next"])
 
     def test_the_about_tab_is_the_channel_without_a_feed(self):

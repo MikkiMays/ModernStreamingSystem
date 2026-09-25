@@ -119,6 +119,15 @@ jobs:
             --pids-limit 256 --cap-drop ALL --security-opt no-new-privileges:true cord-sniffer-test
       - name: Verify integrations, bot commands and audio queue
         run: docker compose run --rm --no-deps --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests -v
+      # Пакет кинозала и его плеер страниц (`services/sniffer`) держат черту в 110 знаков строже, чем
+      # правило `ruff check` по умолчанию, — ему нужен `--extend-select E501`. Образ закреплён по
+      # digest: тег `0.13.2` может смениться содержимым, а сборка не должна из-за этого поплыть.
+      - name: Verify the cinema package and the page player with ruff
+        run: |
+          files=$(cd services && printf '%s\n' tests/test_cinema*.py)
+          docker run --rm -v "$PWD/services":/s -w /s \
+            ghcr.io/astral-sh/ruff:0.13.2@sha256:bc3a48877dafeac6d765670d5abb7cd17288febe7de15b85412e00f3606c82b1 \
+            check cord_services/cinema sniffer $files --line-length 110 --extend-select E501
       - name: Validate gateway and L4 modules without obtaining certificates
         run: |
           docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
