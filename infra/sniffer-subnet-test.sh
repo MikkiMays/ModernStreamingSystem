@@ -99,6 +99,11 @@ if [[ "$MODE" == twin ]]; then
   expect bad validate 192.168.0.0/16
   expect bad validate 192.168.50.128/25
   expect ok validate 192.168.51.0/24
+  # Только частные 10/8 и 192.168/16: публичные и 100.64/10 провайдера — чьи-то настоящие адреса.
+  expect bad validate 203.0.113.0/24
+  expect bad validate 8.8.0.0/16
+  expect bad validate 100.64.0.0/16
+  expect ok validate 192.168.77.0/24
   expect bad validate 108.165.32.0/24
   expect bad validate 127.0.0.0/16
   expect bad validate 169.254.0.0/16
