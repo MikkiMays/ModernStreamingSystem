@@ -39,7 +39,7 @@ from .providers.link import Link as General
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
 from .sniffer import Profile, Profiles, Sniffer
-from .transport.playlists import Reels, rewrite, unwieldy
+from .transport.playlists import Shelves, rewrite, unwieldy
 from .transport.relay import OCTET, SEALED, Relay, media_type
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
@@ -181,7 +181,8 @@ class Cinema:
         # включённой: выключенная площадка не отдаёт через прокси ничего, даже по старой ссылке.
         self.signer = Signer(secret, self._hosts)
         self.segments = Segments()
-        self.reels = Reels(self.signer)
+        # Списки кусочков чужих страниц — на своей полке: выселить список каталога они не могут (`Shelves`).
+        self.reels = Shelves(self.signer, self._foreign)
         # Чужие плейлисты («По ссылке») меряются и переписываются здесь, а не в цикле событий и не в
         # общем пуле `to_thread`: даже в пределах это до двадцати тысяч подписей (`Cinema.manifest`).
         self.rewrites = concurrent.futures.ThreadPoolExecutor(
@@ -262,6 +263,11 @@ class Cinema:
     def _hosts(self, provider: str) -> HostPolicy | None:
         found = self.registry.find(provider)
         return found.hosts if found else None
+
+    def _foreign(self, provider: str) -> bool:
+        """Чужие страницы: площадка с любыми хостами — или площадки нет вовсе (тогда строже всего)."""
+        found = self.registry.find(provider)
+        return found is None or found.hosts.public_any
 
     def _agent(self, provider: str) -> str | None:
         found = self.registry.find(provider)

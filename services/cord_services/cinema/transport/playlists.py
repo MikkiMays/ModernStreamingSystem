@@ -8,7 +8,7 @@ import re
 import sys
 import threading
 import time
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 from urllib.parse import urljoin
 
 from fastapi import HTTPException
@@ -25,9 +25,15 @@ from .signer import SIGNATURE_TTL, Signer, proxied
 URIS = 20_000
 LONGEST_URI = 2_000
 LINES = 5 * URIS
-# Сколько байт держат вместе все списки кусочков (`Reels`): тринадцатичасовой ролик YouTube — около
-# мегабайта, чужой плейлист в пределах `unwieldy` — до сорока.
+# Сколько байт держат вместе все списки кусочков площадок каталога (`Reels`): тринадцатичасовой ролик
+# YouTube — около мегабайта.
 REELS_BUDGET = 96 * 1024 * 1024
+# Списки чужих страниц («По ссылке») — на своей полке (`Shelves`), со своим счётом и своим бюджетом. Чужой
+# плейлист в пределах `unwieldy` весит в памяти до сорока мегабайт — такой не запоминается вовсе (отказ
+# словами), настоящий фильм по ссылке — единицы мегабайт. Списков больше, чем у каталога: крошечный список
+# ничего не стоит, а выселяет чей-то фильм.
+FOREIGN_REELS = 64
+FOREIGN_REELS_BUDGET = 32 * 1024 * 1024
 # Чем делит строки `str.splitlines` — тем же и считаются строки до деления: иначе `\r` вместо `\n`
 # пронёс бы четыре миллиона строк мимо счёта.
 BREAKS = re.compile(r"\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]")
@@ -171,10 +177,44 @@ class Reels:
             self._items[key] = (time.time(), shared, tails, provider, weight, profile)
         return Reel(shared + tails[index], provider, profile)
 
+    def __contains__(self, key: str) -> bool:
+        with self._lock:
+            return key in self._items
+
     def _forget(self, key: str) -> None:
         found = self._items.pop(key, None)
         if found is not None:
             self.retained -= found[4]
+
+
+class Shelves:
+    """
+    Списки кусочков — на двух полках: площадок каталога и площадок с любыми хостами («По ссылке»).
+
+    ПОЧЕМУ ДВЕ. Одна общая полка на двадцать четыре списка отдавала чужим страницам место каталога. Мастер
+    чужого сайта перечисляет сколько угодно крошечных готовых вариантов, каждый подписанный GET варианта —
+    новый список, и двадцать четыре списка по одной строке выселяли каждый список YouTube на сервере: 410 у
+    всех комнат, и каждая переоткрывает поток за счёт своего предела `resolve`. Теперь у чужих страниц своя
+    полка со своим счётом и своим бюджетом байт (`FOREIGN_REELS`, `FOREIGN_REELS_BUDGET`): выселить они
+    могут только друг друга.
+
+    Полку выбирает площадка списка (`foreign` — её политика хостов `public_any`; площадки нет — тоже чужая).
+    Имя списка считается и от площадки (`Reels.remember`), поэтому `find` просто ищет его на обеих.
+    """
+
+    def __init__(self, signer: Signer, foreign: Callable[[str], bool]):
+        self.catalog = Reels(signer)
+        self.foreign = Reels(signer, capacity=FOREIGN_REELS, budget=FOREIGN_REELS_BUDGET)
+        self._foreign = foreign
+
+    def remember(
+        self, playlist_url: str, targets: list[str], provider: str, profile: str | None = None
+    ) -> str:
+        shelf = self.foreign if self._foreign(provider) else self.catalog
+        return shelf.remember(playlist_url, targets, provider, profile)
+
+    def find(self, key: str, index: int) -> Reel:
+        return (self.catalog if key in self.catalog else self.foreign).find(key, index)
 
 
 def _weight(shared: str, tails: list[str]) -> int:
@@ -199,7 +239,7 @@ def rewrite(
     body: str,
     base: str,
     signer: Signer,
-    reels: Reels | None = None,
+    reels: Reels | Shelves | None = None,
     *,
     provider: str,
     profile: str | None = None,
@@ -238,7 +278,7 @@ def rewrite(
 
 
 def _numbered(
-    body: str, base: str, signer: Signer, reels: Reels, provider: str, profile: str | None = None
+    body: str, base: str, signer: Signer, reels: Reels | Shelves, provider: str, profile: str | None = None
 ) -> str:
     """
     То же самое, но сегменты нумеруются.

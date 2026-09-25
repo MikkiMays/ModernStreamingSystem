@@ -1544,6 +1544,73 @@ class ReelsBudget(unittest.TestCase):
         self.assertEqual(reels.retained, 2 * each)
 
 
+class TwoShelves(LinkCase):
+    """
+    Списки кусочков каталога и чужих страниц — на разных полках (I4 финального ревью): мастер чужого сайта
+    с тысячей крошечных готовых вариантов выселял каждый список YouTube на сервере — двадцати четырёх
+    строк хватало, и все комнаты получали 410.
+    """
+
+    YOUTUBE = "https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8"
+
+    def serve(self):
+        cdn = "https://rr5.googlevideo.com/videoplayback"
+        segments = "".join(f"#EXTINF:5.0,\n{cdn}/seg{n}.ts\n" for n in range(9))
+        film = "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n" + segments + "#EXT-X-ENDLIST\n"
+        tiny = "#EXTM3U\n#EXTINF:1,\nhttps://evil.example/s.ts\n#EXT-X-ENDLIST\n"
+
+        def handler(request):
+            return httpx.Response(200, text=film if request.url.host.endswith("googlevideo.com") else tiny)
+
+        return self.make(Door(), handler)
+
+    @staticmethod
+    def key(answer):
+        numbered = next(line for line in answer.body.decode().splitlines() if line.startswith("seg/"))
+        return numbered.split("/")[1]
+
+    async def test_any_number_of_link_lists_never_evicts_a_catalogue_list(self):
+        cinema = self.serve()
+        film = self.key(await cinema.manifest(self.YOUTUBE, None, "youtube"))
+        # Сто двадцать восемь крошечных списков — через тот же путь, что и настоящие варианты: вдвое больше,
+        # чем помещается на полке чужих страниц, и впятеро больше, чем было мест на общей.
+        for number in range(128):
+            await cinema.manifest(f"https://evil.example/v{number}.m3u8", None, "link")
+        self.assertTrue(cinema.reels.find(film, 8).url.endswith("/seg8.ts"))
+        self.assertEqual(len(cinema.reels.catalog._items), 1)
+        self.assertEqual(len(cinema.reels.foreign._items), cinema.reels.foreign.capacity)
+
+    async def test_each_shelf_counts_and_weighs_its_own(self):
+        cinema = self.serve()
+        catalog, foreign = cinema.reels.catalog, cinema.reels.foreign
+        self.assertEqual((catalog.capacity, catalog.budget), (24, 96 << 20))
+        self.assertEqual((foreign.capacity, foreign.budget), (64, 32 << 20))
+        youtube = cinema.reels.remember(self.YOUTUBE, ["https://rr5.googlevideo.com/a.ts"], "youtube")
+        link = cinema.reels.remember("https://evil.example/l.m3u8", ["https://evil.example/a.ts"], "link")
+        self.assertIn(youtube, catalog)
+        self.assertIn(link, foreign)
+        self.assertEqual(catalog.retained, catalog._items[youtube][4])
+        self.assertEqual(foreign.retained, foreign._items[link][4])
+        # Площадка, которой на сервере нет (выключили), — строже всего: полка чужих страниц.
+        gone = cinema.reels.remember("https://evil.example/g.m3u8", ["https://evil.example/g.ts"], "jellyfin")
+        self.assertIn(gone, foreign)
+        with self.assertRaises(HTTPException) as stale:
+            cinema.reels.find("0" * 24, 0)
+        self.assertEqual(stale.exception.status_code, 410)
+
+    async def test_a_link_list_heavier_than_its_shelf_is_refused_without_touching_the_catalogue(self):
+        cinema = self.serve()
+        film = self.key(await cinema.manifest(self.YOUTUBE, None, "youtube"))
+        targets = [f"https://cdn{number}.example/" + "t" * 1900 for number in range(20_000)]
+        with self.assertRaises(HTTPException) as refused:
+            cinema.reels.remember("https://evil.example/huge.m3u8", targets, "link")
+        self.assertEqual(
+            refused.exception.detail,
+            "Плейлист площадки не открыть: его кусочки заняли бы больше 32 МБ памяти",
+        )
+        self.assertTrue(cinema.reels.find(film, 0).url.endswith("/seg0.ts"))
+
+
 class Trickle(httpx.AsyncByteStream):
     """Тело ответа сайта: кусками, с паузой, и помнит, сколько из него прочитали и закрыли ли его."""
 
@@ -1657,7 +1724,7 @@ class PlaylistLimits(LinkCase):
                 (502, "Плейлист площадки не открыть: в нём больше 100000 строк"),
             )
             self.assertEqual(signed, [])
-            self.assertEqual(cinema.reels._items, {})
+            self.assertEqual((cinema.reels.catalog._items, cinema.reels.foreign._items), ({}, {}))
             self.assertLess(time.process_time() - started, 2)
 
     async def test_twenty_thousand_addresses_of_2000_characters_are_the_limits(self):
