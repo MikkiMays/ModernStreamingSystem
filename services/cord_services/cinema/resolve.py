@@ -26,7 +26,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
-from . import drm, mpd
+from . import address, drm, mpd
 from .captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language, _pick
 from .egress import Busy, Closed, Egress, Lease
 from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
@@ -1027,7 +1027,9 @@ class Resolver:
         seen: set[str] = set()
 
         def allows(url: str) -> bool:
-            return self.signer.allows(url, provider)
+            # Адрес дорожки — из чужого ответа, и подписанный он уходит в каждый ответ `resolve`: длиннее
+            # `address.LONGEST` не берём, как и обложку (I2).
+            return len(url) <= address.LONGEST and self.signer.allows(url, provider)
 
         def offer(language: str, entries: list[dict[str, Any]], generated: bool) -> None:
             base = _base_language(language)

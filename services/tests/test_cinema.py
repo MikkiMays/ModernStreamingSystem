@@ -12,6 +12,7 @@ from cord_services.cinema import (
     Reels,
     Signer,
     absolute,
+    address,
     allowed,
     finished_playlist,
     master_playlist,
@@ -472,6 +473,19 @@ class CaptionTests(unittest.TestCase):
         alone = self.cinema.resolver._captions(info, embedded=False, provider="youtube")
         self.assertEqual([(track["lang"], track["auto"]) for track in alone], [("ru", False)])
 
+    def test_a_track_address_longer_than_any_link_is_not_offered(self):
+        # Адрес дорожки называет чужой ответ, а подписанный он уходит в каждый ответ `resolve` (I2).
+        base = "https://www.youtube.com/api/timedtext?fmt=vtt&v="
+        info = {
+            "subtitles": {
+                "ru": [self._entry("Русский", base + "r" * (address.LONGEST - len(base)))],
+                "en": [self._entry("English", base + "e" * (address.LONGEST - len(base) + 1))],
+            },
+            "automatic_captions": {},
+        }
+        tracks = self.cinema.resolver._captions(info, embedded=False, provider="youtube")
+        self.assertEqual([track["lang"] for track in tracks], ["ru"])
+
     def test_a_playlist_of_pieces_is_not_a_file_for_the_tag(self):
         info = {
             "subtitles": {},
@@ -525,6 +539,14 @@ class PagingTests(unittest.TestCase):
         self.assertEqual(absolute("https://i.ytimg.com/x"), "https://i.ytimg.com/x")
         self.assertEqual(absolute(""), "")
         self.assertTrue(Cinema("s").image("//yt3.ggpht.com/x", "youtube"))
+
+    def test_a_picture_address_longer_than_any_link_is_not_signed(self):
+        # Обложку называет чужой ответ, а подписанная она лежит в общей памяти и в каждом ответе `resolve`
+        # (I2): адрес длиннее `address.LONGEST` не подписывается вовсе — как и на карточке ссылки.
+        cinema = Cinema("s")
+        longest = "https://i.ytimg.com/" + "x" * (address.LONGEST - len("https://i.ytimg.com/"))
+        self.assertTrue(cinema.image(longest, "youtube"))
+        self.assertIsNone(cinema.image(longest + "x", "youtube"))
 
 
 class TwitchChannelPageTests(unittest.TestCase):

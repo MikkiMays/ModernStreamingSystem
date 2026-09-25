@@ -468,9 +468,11 @@ class Cinema:
     def image(self, url: str, provider: str) -> str | None:
         """Обложка у нас, а не у площадки. Адрес без схемы получает её здесь — иначе он
         не прошёл бы политику хостов и картинка тихо пропала бы с карточки. Картинка с хоста
-        чужой площадки не подписывается вовсе: её подпись всё равно ничего бы не открыла."""
+        чужой площадки не подписывается вовсе: её подпись всё равно ничего бы не открыла. Длиннее
+        `address.LONGEST` — тоже нет: адрес обложки приходит из чужого ответа, а подписанный он лежит в общей
+        памяти (`sources`) и уходит в каждый ответ `resolve` (I2)."""
         full = absolute(url)
-        if not full or not self.signer.allows(full, provider):
+        if not full or len(full) > address.LONGEST or not self.signer.allows(full, provider):
             return None
         return proxied(self.signer, full, "image", IMAGE_TTL, provider=provider)
 
