@@ -4,6 +4,7 @@ import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
+import { knownProvider } from '../core/cinema/link';
 import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
@@ -433,6 +434,20 @@ export function Stage({
     );
   }
   /*
+    Каталог — сцена площадки из реестра. Ключ — сама сцена, а не площадка: вкладки внутри
+    одной сцены (YouTube ↔ Twitch) переключаются без пересоздания, а другая сцена — это
+    другой каталог и начинается заново.
+
+    Площадку называет и комната («Каталог» на плеере открывает ту, что смотрят), а комната знает
+    столько площадок, сколько её ядро, а не эта сборка: вкладка, открытая до выкатки новой площадки,
+    или имя, которое ядро ещё пропускает. У незнакомой площадки нет ни сцены, ни «Каталога»:
+    `PROVIDERS[…]` без проверки дал бы `undefined`, отрисовка упала бы, а с ней — вся встреча
+    (границы ошибок у приложения нет). Плеер при этом остаётся и говорит отказ службы сам.
+  */
+  const scene = cinema && knownProvider(cinema) ? PROVIDERS[cinema].scene : null;
+  const Scene = scene ? SCENES[scene] : null;
+  const watch = snapshot.watch;
+  /*
     Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
     занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но
     главное на экране теперь не они.
@@ -441,23 +456,18 @@ export function Stage({
     продолжить, комната продолжает смотреть — и разбирать плеер ради чужого выбора значило бы
     остановить фильм всем.
   */
-  if (snapshot.watch || cinema) {
-    /*
-      Каталог — сцена площадки из реестра. Ключ — сама сцена, а не площадка: вкладки внутри
-      одной сцены (YouTube ↔ Twitch) переключаются без пересоздания, а другая сцена — это
-      другой каталог и начинается заново.
-    */
-    const scene = cinema ? PROVIDERS[cinema].scene : null;
-    const Scene = scene ? SCENES[scene] : null;
+  if (watch || Scene) {
     return (
       <div className="stage watch-together-stage">
         <div className="watch-main">
-          {snapshot.watch && (
+          {watch && (
             <Suspense fallback={<div className="watch-screen" />}>
               <WatchTheater
                 meeting={meeting}
-                watch={snapshot.watch}
-                onBrowse={() => meeting.openCinema(snapshot.watch!.provider)}
+                watch={watch}
+                onBrowse={
+                  knownProvider(watch.provider) ? () => meeting.openCinema(watch.provider) : undefined
+                }
               />
             </Suspense>
           )}
