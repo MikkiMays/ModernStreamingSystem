@@ -34,7 +34,7 @@ from fastapi import HTTPException
 
 from .. import address, wire
 from ..paging import MAX_OFFSET, PAGE
-from ..registry import Ctx, Features, HostPolicy, Match, Provider
+from ..registry import CATALOG_TIMEOUT, Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import PROBE, SourcePlan
 
 API = "https://api.ivi.ru/mobileapi/"
@@ -382,7 +382,9 @@ class Ivi(Provider):
         поводы под одним же кодом), и что это значит здесь, решает каждый вызывающий сам.
         """
         try:
-            response = await ctx.net.get(url, params={**params, "app_version": APP_VERSION})
+            response = await ctx.net.get(
+                url, params={**params, "app_version": APP_VERSION}, timeout=CATALOG_TIMEOUT
+            )
         except httpx.HTTPError:
             raise HTTPException(502, SILENT) from None
         if response.status_code != 200:

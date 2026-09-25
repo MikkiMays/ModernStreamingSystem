@@ -40,7 +40,7 @@ from fastapi import HTTPException
 
 from .. import address, wire
 from ..paging import MAX_OFFSET, PAGE
-from ..registry import Ctx, Features, HostPolicy, Match, Provider
+from ..registry import CATALOG_TIMEOUT, Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
 
 logger = logging.getLogger(__name__)
@@ -583,7 +583,7 @@ class Vk(Provider):
     async def _enter(self, net: httpx.AsyncClient) -> tuple[str, float]:
         """Анонимный токен и его срок. Ни токен, ни ответ входа в журнал не идут."""
         try:
-            response = await net.post(LOGIN, data=ENTRY, headers=SITE)
+            response = await net.post(LOGIN, data=ENTRY, headers=SITE, timeout=CATALOG_TIMEOUT)
             body = response.json()
         except (httpx.HTTPError, ValueError):
             raise HTTPException(502, NO_ENTRY) from None
@@ -629,7 +629,11 @@ class Vk(Provider):
         """Один запрос к API. Токен — только в теле: в адресе он попал бы в журналы прокси."""
         try:
             response = await ctx.net.post(
-                API + method, params=QUERY, data={**params, "access_token": token}, headers=SITE
+                API + method,
+                params=QUERY,
+                data={**params, "access_token": token},
+                headers=SITE,
+                timeout=CATALOG_TIMEOUT,
             )
             body = response.json()
         except (httpx.HTTPError, ValueError):
@@ -642,7 +646,9 @@ class Vk(Provider):
     async def _blog(self, ctx: Ctx, slug: str) -> dict[str, Any]:
         """Эфир канала VK Видео Live и его хозяин — открытым API, без токена."""
         try:
-            response = await ctx.net.get(f"{LIVE}{slug}/public_video_stream", headers={"User-Agent": BROWSER})
+            response = await ctx.net.get(
+                f"{LIVE}{slug}/public_video_stream", headers={"User-Agent": BROWSER}, timeout=CATALOG_TIMEOUT
+            )
             body = response.json()
         except (httpx.HTTPError, ValueError):
             raise HTTPException(502, SILENT) from None

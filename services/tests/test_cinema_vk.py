@@ -252,6 +252,18 @@ class TokenTests(Stage):
         await self.cinema.category("vk", SECTIONS[3]["id"], room=ROOM)
         self.assertEqual(len(self.logins), 2)
 
+    async def test_the_entry_and_every_catalog_question_wait_ten_seconds_not_a_minute(self):
+        # Шестьдесят секунд чтения у клиента площадки — для тел видео; вопрос каталога и вход — десять.
+        self.sections()
+        await self.cinema.categories("vk", room=ROOM)
+        self.assertTrue(self.seen)
+        for request in self.seen:
+            self.assertEqual(
+                request.extensions["timeout"],
+                {"connect": 5.0, "read": 10.0, "write": 10.0, "pool": 10.0},
+                request.url,
+            )
+
     async def test_questions_that_arrive_together_share_one_entry(self):
         details = recorded("video-details.json")
         for number in range(5):

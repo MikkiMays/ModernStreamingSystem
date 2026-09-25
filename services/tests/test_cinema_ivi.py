@@ -325,6 +325,26 @@ class CatalogTests(Stage):
     async def test_an_unknown_tab_is_refused_by_number(self):
         await self.refused(self.cinema.category("ivi", "99", room=ROOM), 404, "Такого раздела на ivi нет")
 
+    async def test_every_catalog_question_waits_ten_seconds_not_a_minute(self):
+        # Шестьдесят секунд чтения у клиента площадки — для тел видео; вопрос каталога — десять.
+        self.answer("/mobileapi/categories/v7/", recorded("categories.json"))
+        self.answer(
+            "/mobileapi/catalogue/v7/",
+            recorded("catalogue-movies.json"),
+            category="14",
+            fields=TILE_FIELDS,
+            paid_type="AVOD",
+            **{"from": "0", "to": "29", "app_version": "870"},
+        )
+        await self.cinema.category("ivi", "14", room=ROOM)
+        self.assertTrue(self.seen)
+        for request in self.seen:
+            self.assertEqual(
+                request.extensions["timeout"],
+                {"connect": 5.0, "read": 10.0, "write": 10.0, "pool": 10.0},
+                request.url,
+            )
+
     async def test_a_tab_shows_only_what_the_platform_marked_free_even_if_it_also_sent_paid(self):
         """`paid_type=AVOD` — своей строкой у площадки; поверх неё — свой же отбор по
         `content_paid_types`, на случай, если фильтр площадки промолчит. Проверено обоими путями

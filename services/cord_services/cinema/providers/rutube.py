@@ -29,7 +29,7 @@ from fastapi import HTTPException
 
 from .. import address, wire
 from ..paging import MAX_OFFSET, PAGE, page
-from ..registry import Ctx, Features, HostPolicy, Match, Provider
+from ..registry import CATALOG_TIMEOUT, Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, direct
 
 logger = logging.getLogger(__name__)
@@ -423,7 +423,9 @@ class Rutube(Provider):
     async def _play(self, ctx: Ctx, item_id: str) -> dict[str, Any]:
         """Ответ плеера площадки. Её «заглушка» (код 244 и `detail`) — это отказ, и сказан он словами."""
         try:
-            response = await ctx.net.get(f"{API}play/options/{item_id}/", params=PLAY, headers=HEADERS)
+            response = await ctx.net.get(
+                f"{API}play/options/{item_id}/", params=PLAY, headers=HEADERS, timeout=CATALOG_TIMEOUT
+            )
             body = response.json()
         except (httpx.HTTPError, ValueError):
             raise HTTPException(502, "Rutube не отдал видео") from None
@@ -503,7 +505,7 @@ class Rutube(Provider):
         ответила» (502), а не ошибка нашего сервера: так же, как у Twitch.
         """
         try:
-            response = await ctx.net.get(url, params=params, headers=HEADERS)
+            response = await ctx.net.get(url, params=params, headers=HEADERS, timeout=CATALOG_TIMEOUT)
         except httpx.HTTPError:
             raise HTTPException(502, SILENT) from None
         if response.status_code == 404 and missing:

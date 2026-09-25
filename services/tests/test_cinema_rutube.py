@@ -221,6 +221,19 @@ class ShowcaseTests(Stage):
             recorded("cardgroup-1125.json"),
         )
 
+    async def test_every_catalog_question_waits_ten_seconds_not_a_minute(self):
+        # Шестьдесят секунд чтения у клиента площадки — для тел видео. Полка, на которую Rutube не ответил,
+        # держала бы витрину минуту: вопрос каталога ждёт десять (`CATALOG_TIMEOUT`), и полка — пустая.
+        self.serve_showcase()
+        await self.cinema.search("rutube", "")
+        self.assertTrue(self.seen)
+        for request in self.seen:
+            self.assertEqual(
+                request.extensions["timeout"],
+                {"connect": 5.0, "read": 10.0, "write": 10.0, "pool": 10.0},
+                request.url,
+            )
+
     async def test_the_live_shelf_is_what_is_on_air_on_tv_national_first(self):
         self.serve_showcase()
         found = await self.cinema.search("rutube", "")

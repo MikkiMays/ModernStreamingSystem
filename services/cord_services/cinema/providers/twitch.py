@@ -12,7 +12,7 @@ from fastapi import HTTPException
 
 from .. import address, wire
 from ..paging import PAGE, page
-from ..registry import Ctx, Features, HostPolicy, Match, Provider
+from ..registry import CATALOG_TIMEOUT, Ctx, Features, HostPolicy, Match, Provider
 from ..resolve import SourcePlan, ytdlp
 
 # Ссылки Twitch — точным списком хостов: страницы сайта и встраиваемый плеер. `clips.twitch.tv` —
@@ -254,6 +254,7 @@ class Twitch(Provider):
                 TWITCH_GQL,
                 json={"query": query},
                 headers={"Client-ID": TWITCH_CLIENT},
+                timeout=CATALOG_TIMEOUT,
             )
             body = response.json() if response.status_code == 200 else None
         except (httpx.HTTPError, ValueError):

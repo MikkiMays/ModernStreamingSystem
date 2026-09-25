@@ -597,6 +597,16 @@ class TwitchSearchTests(Stage):
             for number in range(count)
         ]
 
+    async def test_a_catalog_question_waits_ten_seconds_not_a_minute(self):
+        # Шестьдесят секунд чтения у клиента площадки — для тел видео; вопрос каталога — десять.
+        await self.cinema.search("twitch", "")
+        asked = [request for request in self.seen if request.url.host == "gql.twitch.tv"]
+        self.assertTrue(asked)
+        for request in asked:
+            self.assertEqual(
+                request.extensions["timeout"], {"connect": 5.0, "read": 10.0, "write": 10.0, "pool": 10.0}
+            )
+
     async def test_nothing_typed_is_the_showcase_of_live_streams(self):
         found = await self.cinema.search("twitch", "", "")
         self.assertEqual(
