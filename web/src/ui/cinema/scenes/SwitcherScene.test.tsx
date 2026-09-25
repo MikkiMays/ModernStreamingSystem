@@ -360,3 +360,9 @@ it('открытая площадка своей вкладки не теряе�
   expect(screen.getByRole('tab', { name: 'Twitch' })).toHaveAttribute('aria-selected', 'true');
   client.clear();
 });
+
+it('поиск не набирается длиннее, чем служба принимает (120 знаков), — вместо её 422', () => {
+  const client = mount();
+  expect(screen.getByPlaceholderText('Ролик, канал или плейлист')).toHaveAttribute('maxLength', '120');
+  client.clear();
+});

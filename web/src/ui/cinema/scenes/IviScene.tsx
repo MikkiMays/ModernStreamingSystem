@@ -1,6 +1,6 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { CinemaApi, PROVIDERS, type CinemaItem } from '../../../core/cinema';
+import { CinemaApi, PROVIDERS, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
@@ -137,6 +137,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
       }
       query={query}
       placeholder={spec.searchPlaceholder}
+      maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();

@@ -13,15 +13,18 @@ afterEach(cleanup);
 function Field({
   onSearch,
   onSubmit,
+  maxLength,
 }: {
   onSearch: (query: string, whole: boolean) => void;
   onSubmit: (query: string) => void;
+  maxLength?: number;
 }) {
   const [query, setQuery] = useState('');
   return (
     <Shell
       query={query}
       placeholder="Поиск"
+      maxLength={maxLength}
       onSearch={(value, whole) => {
         setQuery(value);
         onSearch(value, whole);
@@ -73,4 +76,42 @@ it('вставку целиком отличает от набора по бук
   expect(onSubmit).not.toHaveBeenCalled();
   fireEvent.keyDown(input, { key: 'Enter' });
   expect(onSubmit).toHaveBeenCalledWith('https://exampl');
+});
+
+/*
+  Предел поиска: служба не принимает запрос длиннее 120 знаков и отвечала на такой 422, а интерфейс
+  показывал «[object Object]». Поле длиннее не набирается — но ссылка в поиске не слова, и обрезать
+  её браузеру нельзя: обрезанная, она вела бы на другую страницу.
+*/
+it('поле поиска с пределом не набирается длиннее, а поле без предела — ограничено только ссылкой', () => {
+  render(<Field onSearch={vi.fn()} onSubmit={vi.fn()} maxLength={120} />);
+  expect(screen.getByPlaceholderText('Поиск')).toHaveAttribute('maxLength', '120');
+  cleanup();
+  render(<Field onSearch={vi.fn()} onSubmit={vi.fn()} />);
+  expect(screen.getByPlaceholderText('Поиск')).not.toHaveAttribute('maxLength');
+});
+
+it('ссылку длиннее предела вставка отдаёт целиком, а длинные слова — нет', () => {
+  const onSearch = vi.fn();
+  render(<Field onSearch={onSearch} onSubmit={vi.fn()} maxLength={120} />);
+  const input = screen.getByPlaceholderText('Поиск') as HTMLInputElement;
+  const link = `https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=${'P'.repeat(60)}&index=12&pp=${'x'.repeat(30)}`;
+  expect(link.length).toBeGreaterThan(120);
+
+  const pasted = fireEvent.paste(input, { clipboardData: { getData: () => link } });
+  // Вставку сделало само поле: браузер её не делает (иначе обрезал бы), а сцена получает всю ссылку.
+  expect(pasted).toBe(false);
+  expect(onSearch).toHaveBeenLastCalledWith(link, true);
+  expect(input.value).toBe(link);
+
+  // Слова длиннее предела поле не перехватывает — их обрежет сам браузер.
+  onSearch.mockClear();
+  fireEvent.change(input, { target: { value: '' } });
+  onSearch.mockClear();
+  expect(fireEvent.paste(input, { clipboardData: { getData: () => 'слово '.repeat(30) } })).toBe(true);
+  expect(onSearch).not.toHaveBeenCalled();
+  // И короткую ссылку тоже: она влезает, и её вставляет браузер, как раньше.
+  expect(fireEvent.paste(input, { clipboardData: { getData: () => 'https://youtu.be/dQw4w9WgXcQ' } })).toBe(
+    true,
+  );
 });

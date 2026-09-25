@@ -41,6 +41,20 @@ export function useSession(token?: string) {
   bearer = token;
 }
 
+/**
+ * Отказ сервера словами для человека.
+ *
+ * Строку `detail` пишут ядро и служба сами — её и показываем. Но FastAPI на неверный ввод (запрос
+ * длиннее разрешённого, не то число) отвечает 422 со списком ошибок проверки в том же `detail`, и
+ * `new Error(массив)` показывал человеку «[object Object]». Такой список — про форму запроса, а не про
+ * смысл отказа, поэтому вместо него одна фраза.
+ */
+function detailOf(detail: unknown): string {
+  if (typeof detail === 'string') return detail;
+  if (detail === undefined || detail === null) return 'Не удалось выполнить запрос';
+  return 'Проверьте данные запроса';
+}
+
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
   const send = () =>
     fetch(`/api/v1${path}`, {
@@ -66,12 +80,8 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
       response = await send();
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: string };
-    throw new ApiError(
-      response.status,
-      body.code ?? 'REQUEST_FAILED',
-      body.detail ?? 'Не удалось выполнить запрос',
-    );
+    const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: unknown };
+    throw new ApiError(response.status, body.code ?? 'REQUEST_FAILED', detailOf(body.detail));
   }
   const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;

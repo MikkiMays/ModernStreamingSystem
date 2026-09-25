@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { ArrowLeft, Clapperboard, Search, X } from 'lucide-react';
+import { linkOf } from '../../../core/cinema/link';
 import { IconButton } from '../../primitives';
 
 /**
@@ -45,6 +46,7 @@ export function Shell({
   tabs,
   query,
   placeholder,
+  maxLength,
   onSearch,
   onSubmit,
   onClear,
@@ -60,6 +62,12 @@ export function Shell({
   tabs?: ReactNode;
   query: string;
   placeholder: string;
+  /**
+   * Сколько знаков можно набрать: у поиска площадки — сколько принимает служба (`QUERY_LONGEST`), у
+   * поля «По ссылке» предела нет. Ссылку длиннее предела, вставленную целиком, поле всё равно берёт
+   * целиком: это не слова для поиска, и обрезанная браузером она вела бы на другую страницу.
+   */
+  maxLength?: number;
   /**
    * Поле поиска изменилось. `whole` — в него вставили целиком (буфер, перетаскивание, подсказка), а не
    * набрали по букве: вставленную ссылку спрашивают сразу, набранную — только по Enter (`onSubmit`).
@@ -99,8 +107,22 @@ export function Shell({
             value={query}
             autoFocus
             placeholder={placeholder}
-            onPaste={() => {
+            maxLength={maxLength}
+            onPaste={(event) => {
               pasted.current = true;
+              if (!maxLength) return;
+              // Предел поля — для слов. Ссылку длиннее него браузер обрезал бы по `maxLength`, поэтому
+              // такую вставку поле берёт само, целиком (значение из кода пределу не подчиняется).
+              const field = event.currentTarget;
+              const text = event.clipboardData?.getData('text') ?? '';
+              const next =
+                field.value.slice(0, field.selectionStart ?? field.value.length) +
+                text +
+                field.value.slice(field.selectionEnd ?? field.value.length);
+              if (next.length <= maxLength || !linkOf(next)) return;
+              event.preventDefault();
+              pasted.current = false;
+              onSearch(next, true);
             }}
             onDrop={() => {
               pasted.current = true;

@@ -426,3 +426,9 @@ it('новая ссылка обрывает вопрос о прежней: о�
   expect(screen.getByText('Вставьте ссылку на видео')).toBeInTheDocument();
   client.clear();
 });
+
+it('поле ссылки без предела поиска: ссылка длиннее 120 знаков — обычная ссылка', () => {
+  const { client } = mount();
+  expect(field()).not.toHaveAttribute('maxLength');
+  client.clear();
+});

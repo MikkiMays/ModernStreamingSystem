@@ -1,7 +1,14 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
-import { CinemaApi, PROVIDERS, SWITCHER_TABS, type CinemaItem, type ProviderId } from '../../../core/cinema';
+import {
+  CinemaApi,
+  PROVIDERS,
+  QUERY_LONGEST,
+  SWITCHER_TABS,
+  type CinemaItem,
+  type ProviderId,
+} from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
@@ -175,6 +182,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
       }
       query={query}
       placeholder={PROVIDERS[provider].searchPlaceholder}
+      maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();
