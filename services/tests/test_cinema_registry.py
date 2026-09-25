@@ -7,6 +7,7 @@
 прежними слово в слово, проверяет `test_cinema_providers.py`.
 """
 
+import asyncio
 import os
 import re
 import tempfile
@@ -15,6 +16,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import httpx
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -256,7 +258,7 @@ class PlatformTests(unittest.IsolatedAsyncioTestCase):
 
         bare = Bare(kit())
         ctx = Ctx(room=ROOM, net=None)
-        self.assertEqual(await bare.availability(), (True, None))
+        self.assertEqual(await bare.availability(None), (True, None))
         for call in (
             bare.search(ctx, "q", 0),
             bare.channel(ctx, "c", "videos", 0),
@@ -433,7 +435,22 @@ class RouteTests(unittest.TestCase):
             app = create_app(Path(root.name), self.core, telegram_enabled=False)
         self.addCleanup(app.state.store.db.close)
         self.app = app
+        # Проверка страны ivi спрашивает клиентом самой площадки (`Net.client_for("ivi")`). В тестах сети
+        # нет (`--network none`), а в CI контейнер службы её имеет: без подмены проверка ходила бы в
+        # api.ivi.ru и красила бы `main` (I1). Подменяем клиент ivi ответом «Германия» — тем самым путём,
+        # каким его подменяют и остальные тесты ivi.
+        cinema = app.state.cinema
+        cinema.net._clients["ivi"] = self._whoami(country="DE")
         return TestClient(app, headers={"Authorization": "Bearer member.secret"})
+
+    def _whoami(self, country):
+        def handler(request):
+            assert request.url.host == "api.ivi.ru", request.url
+            return httpx.Response(200, json={"result": {"country_code": country}})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        self.addCleanup(lambda: asyncio.run(client.aclose()))
+        return client
 
     def ask(self, client, path, **params):
         return client.get(f"/api/v1/services/rooms/{ROOM}/cinema/{path}", params=params)
@@ -507,12 +524,12 @@ class RouteTests(unittest.TestCase):
                         },
                     },
                     {
-                        # Сеть здесь не поднята (`--network none` у прогона тестов): проверка
-                        # страны у ivi не отвечает, и это тот же общий отказ, что и у любой другой
-                        # упавшей площадки (`Cinema._availability`), а не что-то своё.
+                        # Клиент ivi подменён ответом «Германия» (`serve`): проверка страны отвечает её
+                        # собственными словами, а не общим отказом упавшей площадки. Так же и в CI, где
+                        # сеть есть: без подмены проверка ходила бы в api.ivi.ru и красила бы main (I1).
                         "id": "ivi",
                         "available": False,
-                        "reason": "Не удалось проверить площадку",
+                        "reason": "ivi отдаёт бесплатное только в России",
                         "account": "none",
                         "connected": False,
                         "features": {
@@ -614,7 +631,7 @@ class RouteTests(unittest.TestCase):
             features = Features(series=True, account="optional")
             content_id = re.compile(r"[0-9]{1,12}")
 
-            async def availability(self):
+            async def availability(self, net):
                 return False, "Бесплатное здесь отдают только в России"
 
         client = self.serve()

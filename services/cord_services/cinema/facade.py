@@ -333,7 +333,7 @@ class Cinema:
         """
         try:
             async with asyncio.timeout(self.AVAILABILITY_TIMEOUT):
-                available, reason = await source.availability()
+                available, reason = await source.availability(self.net.client_for(source.id))
         except TimeoutError:
             return False, "Площадка не ответила вовремя"
         except Exception as error:

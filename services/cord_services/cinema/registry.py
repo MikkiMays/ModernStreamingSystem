@@ -206,8 +206,13 @@ class Provider:
     def refuse(self, feature: str) -> Unsupported:
         return Unsupported(self.refusals.get(feature) or f"У площадки {self.name} такого нет")
 
-    async def availability(self) -> tuple[bool, str | None]:
-        """Работает ли площадка отсюда, и если нет — почему. Большинству проверять нечего."""
+    async def availability(self, net: httpx.AsyncClient) -> tuple[bool, str | None]:
+        """
+        Работает ли площадка отсюда, и если нет — почему. Большинству проверять нечего.
+
+        `net` — клиент самой площадки (`Net.client_for`): её прокси и её защита. Проверка страны у ivi
+        должна уходить тем же выходом, что каталог и yt-dlp (`CINEMA_PROXY_IVI`), а не мимо него.
+        """
         return True, None
 
     def match(self, url: str) -> Match | None:

@@ -35,7 +35,7 @@ from cord_services.app import create_app
 from cord_services.cinema import Cinema, Resolve, Signer
 from cord_services.cinema.memo import Memo
 from cord_services.cinema.providers import PROVIDERS
-from cord_services.cinema.providers.ivi import Ivi
+from cord_services.cinema.providers.ivi import NOT_RU, Ivi
 from cord_services.cinema.registry import Ctx, Features, Kit, Match
 from cord_services.cinema.resolve import PROBE, YtDlp
 from cord_services.cinema.transport.signer import proxied
@@ -205,67 +205,57 @@ class LinkTests(unittest.TestCase):
 
 
 class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
-    """`availability` не берёт `ctx` — сеть у неё своя, и подменяется отдельно от `ctx.net`."""
+    """
+    `availability(net)` спрашивает клиентом самой площадки (I5): её выходом наружу, а не мимо него. Тесты
+    подменяют этот клиент — тем же способом, что и `ctx.net` в остальных тестах ivi (MockTransport).
+    """
 
     @staticmethod
-    def fake_client(body):
-        class FakeResponse:
-            def json(self_inner):
-                return body
+    def ivi():
+        return Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
 
-        class FakeClient:
-            def __init__(self_inner, *args, **kwargs):
-                pass
+    def client(self, handler):
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        self.addAsyncCleanup(client.aclose)
+        return client
 
-            async def __aenter__(self_inner):
-                return self_inner
+    def whoami(self, body):
+        seen = []
 
-            async def __aexit__(self_inner, *args):
-                return False
+        def handler(request):
+            seen.append(request)
+            assert request.url.host == "api.ivi.ru", request.url
+            return httpx.Response(200, json=body)
 
-            async def get(self_inner, url, params=None):
-                return FakeResponse()
-
-        return FakeClient
+        client = self.client(handler)
+        return client, seen
 
     async def test_russia_is_available_elsewhere_is_not_with_the_platforms_own_reason(self):
-        ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
-        de = self.fake_client(recorded("whoami-de.json"))
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", de):
-            self.assertEqual(await ivi.availability(), (False, "ivi отдаёт бесплатное только в России"))
-        ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
+        client, seen = self.whoami(recorded("whoami-de.json"))
+        self.assertEqual(await self.ivi().availability(client), (False, NOT_RU))
+        # Спросили тем клиентом, что дали, и именно geocheck/whoami.
+        self.assertEqual(len(seen), 1)
+        self.assertTrue(seen[0].url.path.endswith("/geocheck/whoami/v6/"))
         ru = recorded("whoami-de.json")
         ru["result"]["country_code"] = "RU"
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", self.fake_client(ru)):
-            self.assertEqual(await ivi.availability(), (True, None))
+        client, _ = self.whoami(ru)
+        self.assertEqual(await self.ivi().availability(client), (True, None))
+
+    async def test_it_asks_through_the_platforms_own_client_not_a_client_of_its_own(self):
+        # I5: раньше проверка открывала свой `httpx.AsyncClient` мимо CINEMA_PROXY_IVI. Теперь — тот
+        # клиент, что дал фасад; своего она не заводит вовсе.
+        client, seen = self.whoami(recorded("whoami-de.json"))
+        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient") as own:
+            await self.ivi().availability(client)
+        own.assert_not_called()
+        self.assertEqual(len(seen), 1)
 
     async def test_the_answer_is_cached_for_an_hour_and_not_asked_again(self):
-        calls = 0
-        de = recorded("whoami-de.json")
-
-        class CountingClient:
-            def __init__(self_inner, *a, **kw):
-                nonlocal calls
-                calls += 1
-
-            async def __aenter__(self_inner):
-                return self_inner
-
-            async def __aexit__(self_inner, *a):
-                return False
-
-            async def get(self_inner, url, params=None):
-                class R:
-                    def json(self_r):
-                        return de
-
-                return R()
-
-        ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", CountingClient):
-            await ivi.availability()
-            await ivi.availability()
-        self.assertEqual(calls, 1)
+        client, seen = self.whoami(recorded("whoami-de.json"))
+        ivi = self.ivi()
+        await ivi.availability(client)
+        await ivi.availability(client)
+        self.assertEqual(len(seen), 1)
 
     async def test_a_network_failure_is_not_cached_and_becomes_the_facades_own_words(self):
         """`_whoami` поднимает исключение (ничего не подменяет мягкой заглушкой) — `Memo` не
@@ -273,32 +263,22 @@ class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
         другой упавшей площадки (см. `test_availability_and_accounts_are_the_platform_own_words`
         в `test_cinema_registry.py`, где этот же путь проверен и на выдуманной площадке)."""
 
-        class BrokenClient:
-            def __init__(self_inner, *a, **kw):
-                pass
+        def broken(request):
+            raise httpx.ConnectError("no route")
 
-            async def __aenter__(self_inner):
-                return self_inner
+        client = self.client(broken)
+        ivi = self.ivi()
+        with self.assertRaises(httpx.ConnectError):
+            await ivi._whoami(client)
+        # `availability()` идёт через ту же память: отказ наружу — тот же, и второй вопрос
+        # снова бьётся в сеть, а не отвечает из кэша пустой заглушкой.
+        with self.assertRaises(httpx.ConnectError):
+            await ivi.availability(client)
 
-            async def __aexit__(self_inner, *a):
-                return False
-
-            async def get(self_inner, url, params=None):
-                raise httpx.ConnectError("no route")
-
-        ivi = Ivi(Kit(memo=Memo(), image=lambda url: None, ytdlp=YtDlp()))
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", BrokenClient):
-            with self.assertRaises(httpx.ConnectError):
-                await ivi._whoami()
-            # `availability()` идёт через ту же память: отказ наружу — тот же, и второй вопрос
-            # снова бьётся в сеть, а не отвечает из кэша пустой заглушкой.
-            with self.assertRaises(httpx.ConnectError):
-                await ivi.availability()
-
-        cinema = Cinema(SECRET)
-        with patch("cord_services.cinema.providers.ivi.httpx.AsyncClient", BrokenClient):
-            found = await cinema._availability(cinema.registry.get("ivi"))
+        cinema = Cinema(SECRET, client)
+        found = await cinema._availability(cinema.registry.get("ivi"))
         self.assertEqual(found, (False, "Не удалось проверить площадку"))
+        await cinema.close()
         await cinema.close()
 
 

@@ -581,10 +581,10 @@ class AvailabilityTests(unittest.IsolatedAsyncioTestCase):
                 body["availability"] = check
             return type(key.title(), (Provider,), body)(kit())
 
-        async def broken(self):
+        async def broken(self, net):
             raise RuntimeError("ключ в логе не нужен")
 
-        async def silent(self):
+        async def silent(self, net):
             await asyncio.sleep(3600)
 
         cinema = Cinema("secret")

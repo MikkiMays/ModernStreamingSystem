@@ -199,20 +199,20 @@ class Ivi(Provider):
 
     # --- доступность ----------------------------------------------------------------------
 
-    async def availability(self) -> tuple[bool, str | None]:
+    async def availability(self, net: httpx.AsyncClient) -> tuple[bool, str | None]:
         """
         Работает ли ivi отсюда: единственная площадка кинозала, у которой это не всегда «да».
 
-        Спрашивается не через `ctx.net` — у `availability` нет `ctx` (проверяют раньше, чем
-        комната вообще открыла кинозал), — а обычным клиентом; час в памяти, чтобы не спрашивать
-        площадку на каждое открытие панели. Отказ сети в память не попадает (`Memo.get` кэширует
-        только значение) — так минутный сбой не гасит карточку на час.
+        Спрашивается клиентом самой площадки (`net` = `Net.client_for("ivi")`): её выходом наружу —
+        `CINEMA_PROXY_IVI` или общий, — тем же, что каталог и yt-dlp. Раньше проверка шла мимо него, своим
+        клиентом, и сервер за границей с российским прокси всё равно видел ivi выключенной. Ответ час в
+        памяти, чтобы не спрашивать площадку на каждое открытие панели; отказ сети в память не попадает
+        (`Memo.get` кэширует только значение) — так минутный сбой не гасит карточку на час.
         """
-        return await self.memo.get("availability", self._whoami, AVAILABILITY_TTL)
+        return await self.memo.get("availability", lambda: self._whoami(net), AVAILABILITY_TTL)
 
-    async def _whoami(self) -> tuple[bool, str | None]:
-        async with httpx.AsyncClient(timeout=WHOAMI_TIMEOUT) as client:
-            response = await client.get(WHOAMI, params={"app_version": APP_VERSION})
+    async def _whoami(self, net: httpx.AsyncClient) -> tuple[bool, str | None]:
+        response = await net.get(WHOAMI, params={"app_version": APP_VERSION}, timeout=WHOAMI_TIMEOUT)
         result = response.json()["result"]
         country = result["country_code"]
         if not isinstance(country, str) or not country:
