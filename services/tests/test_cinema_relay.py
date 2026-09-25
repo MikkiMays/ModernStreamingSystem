@@ -9,11 +9,13 @@
 Сеть — подменённый транспорт httpx, маршруты — настоящий FastAPI.
 """
 
+import asyncio
 import unittest
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import FastAPI
+from starlette.requests import ClientDisconnect
 
 from cord_services.cinema import PREFIX, Cinema, routes
 from cord_services.cinema.transport.relay import OCTET, SEALED, media_type
@@ -224,6 +226,96 @@ class EveryAnswerOfTheProxy(Proxy):
         self.assertEqual(answer.status_code, 200)
         self.assertNotIn("content-disposition", answer.headers)
         self.assertNotIn("content-security-policy", answer.headers)
+
+
+class Tap(httpx.AsyncByteStream):
+    """Тело ответа площадки: помнит, сколько из него прочитали и закрыли ли его (вернули ли соединение)."""
+
+    def __init__(self, chunks: list[bytes]):
+        self.chunks = chunks
+        self.read = 0
+        self.closed = False
+
+    async def __aiter__(self):
+        for chunk in self.chunks:
+            self.read += len(chunk)
+            yield chunk
+
+    async def aclose(self):
+        self.closed = True
+
+
+class ViewerLeaves(unittest.IsolatedAsyncioTestCase):
+    """
+    Зритель ушёл, а соединение с площадкой — нет (M10). Тело потока закрывал `finally` генератора, а
+    генератор, которого не начали (плеер бросил запрос раньше первого байта), `finally` не исполняет: сотня
+    таких — и пул площадки занят навсегда. Здесь ответ прокси зовут так, как его зовёт сервер ASGI.
+    """
+
+    async def asyncSetUp(self):
+        self.taps: list[Tap] = []
+
+        def film(request: httpx.Request) -> httpx.Response:
+            self.taps.append(Tap([b"x" * 1024] * 4))
+            headers = {
+                "content-type": "video/mp4",
+                "content-range": "bytes 0-4095/4096",
+                "content-length": "4096",
+            }
+            return httpx.Response(206, headers=headers, stream=self.taps[-1])
+
+        self.cinema = Cinema("secret", httpx.AsyncClient(transport=httpx.MockTransport(film)))
+
+    async def asyncTearDown(self):
+        await self.cinema.close()
+
+    async def streamed(self):
+        answer = await self.cinema.fetch(f"{EVIL}/film.mp4", "bytes=0-", "link")
+        self.assertEqual(answer.status_code, 206)
+        return answer
+
+    async def test_a_viewer_gone_before_the_first_byte_still_frees_the_connection(self):
+        # ASGI 2.3, как у uvicorn: отключение пришло сразу, а голова ответа ещё не ушла — отдачу отменили.
+        answer = await self.streamed()
+
+        async def receive():
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            await asyncio.Event().wait()
+
+        await asyncio.wait_for(answer({"type": "http", "asgi": {"spec_version": "2.3"}}, receive, send), 5)
+        self.assertEqual(self.taps[0].read, 0)
+        self.assertTrue(self.taps[0].closed)
+
+    async def test_a_viewer_whose_socket_is_gone_frees_it_too(self):
+        # ASGI 2.4: сервер сообщает об ушедшем зрителе ошибкой на первой же отправке.
+        answer = await self.streamed()
+
+        async def receive():
+            await asyncio.Event().wait()
+
+        async def send(message):
+            raise OSError("зритель ушёл")
+
+        with self.assertRaises(ClientDisconnect):
+            await answer({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send)
+        self.assertEqual(self.taps[0].read, 0)
+        self.assertTrue(self.taps[0].closed)
+
+    async def test_a_body_sent_to_its_end_frees_it_as_before(self):
+        answer = await self.streamed()
+        sent = []
+
+        async def receive():
+            await asyncio.Event().wait()
+
+        async def send(message):
+            sent.append(message)
+
+        await answer({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send)
+        self.assertEqual(b"".join(message.get("body", b"") for message in sent[1:]), b"x" * 4096)
+        self.assertTrue(self.taps[0].closed)
 
 
 class Kinds(unittest.TestCase):

@@ -10,12 +10,20 @@
 ответ подписанных маршрутов несёт три заголовка (`SEALED`): открыть его вкладкой — значит скачать файл,
 исполнить — нельзя, угадать вид по содержимому — тоже. `<video>`, `<img>`, `<track>`, hls.js и dash.js
 ни на один из трёх не смотрят.
+
+ПОТОК (`Relay`). Ответ площадки, который идёт к зрителю не из памяти, а потоком, закрывает соединение с
+площадкой всегда — и когда зритель ушёл раньше первого байта.
 """
 
 from __future__ import annotations
 
 import re
 from typing import Mapping
+
+import anyio
+import httpx
+from fastapi.responses import StreamingResponse
+from starlette.types import Receive, Scope, Send
 
 OCTET = "application/octet-stream"
 
@@ -63,3 +71,26 @@ def media_type(value: str | None, default: str = OCTET) -> str:
     if essence in KINDS or essence.startswith(FAMILIES):
         return essence
     return OCTET
+
+
+class Relay(StreamingResponse):
+    """
+    Ответ площадки к зрителю потоком: байты как пришли — и соединение, которое закрывается всегда.
+
+    Раньше его закрывал `finally` тела-генератора. Но зритель, ушедший раньше первого байта (плеер перемотал
+    и бросил запрос, пока площадка думала), оставлял генератор неначатым, а у неначатого генератора `finally`
+    не исполняется никогда — и соединение оставалось занятым в пуле площадки: сотня таких, и площадка молчит
+    у всех комнат. Здесь соединение закрывается после отдачи, чем бы она ни кончилась, и под щитом: отмена
+    задачи отдачи не должна оборвать само закрытие.
+    """
+
+    def __init__(self, upstream: httpx.Response, *, status_code: int, headers: Mapping[str, str]):
+        super().__init__(upstream.aiter_raw(), status_code=status_code, headers=headers)
+        self.upstream = upstream
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            with anyio.CancelScope(shield=True):
+                await self.upstream.aclose()

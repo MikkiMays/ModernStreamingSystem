@@ -24,7 +24,7 @@ from urllib.parse import urljoin
 
 import httpx
 from fastapi import HTTPException
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from . import address, drm, wire
@@ -40,7 +40,7 @@ from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
 from .sniffer import Profile, Profiles, Sniffer
 from .transport.playlists import Reels, rewrite, unwieldy
-from .transport.relay import OCTET, SEALED, media_type
+from .transport.relay import OCTET, SEALED, Relay, media_type
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
 
@@ -835,19 +835,12 @@ class Cinema:
             raise HTTPException(502, "Площадка не отдала данные") from None
         return bytes(body)
 
-    def _stream(self, upstream: httpx.Response, kind: str = OCTET) -> StreamingResponse:
+    def _stream(self, upstream: httpx.Response, kind: str = OCTET) -> Relay:
         """
         Ответ площадки к зрителю: байты без распаковки и заголовки, которые их описывают, — кроме вида: он
-        из белого списка (`relay.media_type`), а если площадка его не назвала — `kind`.
+        из белого списка (`relay.media_type`), а если площадка его не назвала — `kind`. Соединение с
+        площадкой закрывает `Relay` — и тогда, когда зритель ушёл раньше первого байта.
         """
-
-        async def body():
-            try:
-                async for chunk in upstream.aiter_raw():
-                    yield chunk
-            finally:
-                await upstream.aclose()
-
         passed = {
             name: value
             for name, value in upstream.headers.items()
@@ -856,7 +849,7 @@ class Cinema:
         passed["Content-Type"] = media_type(upstream.headers.get("content-type"), kind)
         passed["Cache-Control"] = "private, max-age=600"
         passed.update(SEALED)
-        return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
+        return Relay(upstream, status_code=upstream.status_code, headers=passed)
 
 
 def _kept_for(found: dict[str, Any]) -> float:
