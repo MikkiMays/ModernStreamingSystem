@@ -13,13 +13,32 @@ import time
 import unittest
 from ipaddress import ip_network
 from pathlib import Path
+from unittest.mock import patch
 
 from cord_services.cinema.egress import Busy, Egress
 from cord_services.cinema.net import Allowance, Guard
-from sniffer.page import TEARDOWN, Pages
+from sniffer import page as page_module
+from sniffer.capture import STREAMS, SYSTEMS
+from sniffer.page import TEARDOWN, Pages, kill_browsers
 from sites import Site, Trap
 
-SECONDS = 8.0
+
+def headless() -> list[int]:
+    """Процессы headless shell в контейнере теста."""
+    found = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            name = (entry / "cmdline").read_bytes().split(b"\0", 1)[0]
+        except OSError:
+            continue
+        if name.endswith(b"chrome-headless-shell"):
+            found.append(int(entry.name))
+    return found
+
+
+SECONDS = 10.0
 LOOK = 2.5
 LOOPBACK = ip_network("127.0.0.0/8")
 
@@ -178,11 +197,14 @@ class Budget(PageCase):
     async def test_a_page_without_video_ends_at_its_budget(self):
         found = await self.sniff("/pages/empty.html")
         self.assertEqual(found["streams"], [])
-        self.assertLess(found["took"], SECONDS + 1.5)
+        # Ответ — в срок страницы, с последними вопросами к ней; закрыть вкладку — сверх него.
+        self.assertLessEqual(found["seconds"], SECONDS + 0.5)
+        self.assertLess(found["took"], SECONDS + TEARDOWN)
 
     async def test_a_page_that_never_loads_still_ends_at_its_budget(self):
         found = await self.sniff("/pages/hang.html")
         self.assertEqual(found["streams"], [])
+        self.assertLessEqual(found["seconds"], SECONDS + 0.5)
         self.assertLess(found["took"], SECONDS + TEARDOWN)
 
     async def test_the_tab_and_its_connections_are_gone_after_the_page(self):
@@ -239,6 +261,8 @@ class TheBrowserItself(PageCase):
             b"--disable-quic",
             b"--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
             b"--block-new-web-contents",
+            # Без JIT: меньше поверхность для эксплойта рендерера, которому песочница не мешает.
+            b"--js-flags=--jitless --max-old-space-size=384",
         ):
             self.assertIn(flag, main)
         for _, environ, score in processes:
@@ -246,6 +270,65 @@ class TheBrowserItself(PageCase):
             self.assertNotIn(b"INTERNAL_SECRET", environ)
             self.assertEqual(score, "1000")
         self.assertNotIn("CINEMA_SNIFFER_KEY", os.environ)
+
+
+class Bounds(PageCase):
+    async def test_a_flood_of_playlists_reads_at_most_as_many_bodies_as_streams_are_kept(self):
+        reads = []
+        original = page_module.Watch._playlist
+
+        async def counted(response):
+            reads.append(response.url)
+            return await original(response)
+
+        # Ждать после первого плейлиста дольше обычного: пусть придут все двести ответов страницы.
+        with (
+            patch.object(page_module.Watch, "_playlist", staticmethod(counted)),
+            patch.object(page_module, "SETTLE_STREAM", 5.0),
+        ):
+            found = await self.sniff("/pages/many.html")
+        self.assertEqual(len(found["streams"]), STREAMS)
+        self.assertLessEqual(len(reads), STREAMS)
+        # Один и тот же адрес шестьдесят раз — одно тело, не шестьдесят.
+        self.assertLessEqual(sum(1 for url in reads if "same.m3u8" in url), 1)
+
+    async def test_what_the_page_tells_the_binding_is_counted_first_and_kept_short(self):
+        found = await self.sniff("/pages/signals.html")
+        self.assertLessEqual(len(found["systems"]), SYSTEMS)
+        self.assertTrue(all(len(system) <= 64 for system in found["systems"]))
+
+
+class Wall(PageCase):
+    async def test_a_page_that_hangs_its_own_thread_is_answered_within_the_budget(self):
+        found = await self.sniff("/pages/busy.html")
+        self.assertLessEqual(found["seconds"], SECONDS + 0.5)
+        # Вкладку с занятым потоком закрыли — или убили браузер; следующая страница открывается.
+        self.assertLess(found["took"], SECONDS + 2 * TEARDOWN + 1)
+        again = await self.sniff("/pages/hls.html")
+        self.assertEqual(again["streams"][0]["type"], "hls")
+
+    async def test_a_browser_that_does_not_close_in_time_is_killed(self):
+        await self.sniff("/pages/empty.html")
+        self.assertTrue(headless())
+        browser = self.pages._browser
+
+        async def stuck():
+            await asyncio.sleep(3600)
+
+        with patch.object(browser, "close", stuck), patch.object(page_module, "TEARDOWN", 0.5):
+            await page_module._shut(browser)
+        for _ in range(40):
+            if not headless():
+                break
+            await asyncio.sleep(0.1)
+        self.assertEqual(headless(), [])
+        self.pages._browser = None
+        again = await self.sniff("/pages/hls.html")
+        self.assertEqual(again["streams"][0]["type"], "hls")
+
+    def test_killing_finds_only_the_browser(self):
+        # Без браузера убивать нечего — и сам процесс теста цел.
+        self.assertEqual(kill_browsers(), 0)
 
 
 if __name__ == "__main__":

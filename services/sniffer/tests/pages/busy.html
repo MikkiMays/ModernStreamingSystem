@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: страница, которая занимает поток навсегда</title>
+  </head>
+  <body>
+    <iframe src="/pages/empty.html" width="200" height="100"></iframe>
+    <script>
+      // Через секунду главный поток страницы занят навсегда: ни один вопрос к ней не получит ответа.
+      setTimeout(() => {
+        for (;;) {}
+      }, 1000);
+    </script>
+  </body>
+</html>

@@ -240,6 +240,13 @@ class Catch:
     counter: int = 0
     closed: bool = False
 
+    def wants(self, url: str, reading: int = 0) -> bool:
+        """
+        Нужен ли улову этот поток: страница не ушла, адрес новый, и место есть — считая потоки, которые ещё
+        читаются (`reading`): ответы приходят разом, и без этого прочитали бы все, прежде чем записать первый.
+        """
+        return not self.closed and url not in self.streams and len(self.streams) + reading < STREAMS
+
     def ticket(self) -> int:
         """Номер запроса — в момент, когда браузер о нём сказал, а не когда мы дочитали его заголовки."""
         self.counter += 1

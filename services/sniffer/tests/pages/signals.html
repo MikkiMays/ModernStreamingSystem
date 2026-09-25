@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: болтливая страница</title>
+  </head>
+  <body>
+    <script>
+      // Страница зовёт привязку плеера страниц сама: огромными строками, не строками и без конца.
+      const huge = 'x'.repeat(2 * 1024 * 1024);
+      for (let i = 0; i < 400; i++) {
+        try {
+          window.__cordSniff('system', i % 2 ? huge : 'com.example.' + i);
+          window.__cordSniff({ signal: 'keys' }, [1, 2, 3]);
+        } catch (e) {}
+      }
+    </script>
+  </body>
+</html>

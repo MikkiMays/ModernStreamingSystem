@@ -146,6 +146,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             if "/" in name or not file.is_file():
                 return self._send(404, b"", "text/plain")
             return self._send(200, file.read_bytes(), TYPES.get(file.suffix, "application/octet-stream"))
+        if path.startswith("/many/"):
+            body = b"#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\na.ts\n#EXT-X-ENDLIST\n"
+            return self._send(200, body, "application/vnd.apple.mpegurl")
         if path == "/film.mp4":
             return self._send(200, (FIXTURES / "hls" / "180p_0.m2ts").read_bytes(), "video/mp4")
         if path == "/go-inside":

@@ -18,8 +18,14 @@
 ПЕСОЧНИЦА CHROMIUM. В контейнере без привилегий (`cap_drop: ALL`, `no-new-privileges`, seccomp Docker)
 пространства имён пользователя закрыты (`unshare --user`: «Operation not permitted»), а у headless shell нет
 setuid-помощника, — песочница Chromium здесь не поднимается, и Playwright запускает его с `--no-sandbox`.
-Держит контейнер: только чтение, свой пользователь, пределы памяти и процессов, ни секрета службы, ни сети
-хоста; браузер к тому же первым уходит при нехватке памяти (`chrome.sh`).
+Держит контейнер: только чтение, свой пользователь, пределы памяти и процессов, ни секрета установки, своя
+подсеть за стеной DOCKER-USER (`infra/sniffer-firewall.sh`) и самопроверка изоляции (`isolation.py`); JIT у
+V8 выключен (`--jitless`: меньше поверхность для эксплойта рендерера, WebAssembly при этом не работает);
+браузер к тому же первым уходит при нехватке памяти (`chrome.sh`), а не закрывшийся вовремя — убивается.
+
+ПАМЯТЬ И СРОК. Страница может спросить тысячи «плейлистов»: тело читается только у нового адреса, пока в улове
+есть место, не больше `BODIES` разом, заголовки запроса — не больше `HEADERS` раз за страницу; сигналы EME —
+короткой строкой и не больше `SIGNALS`. Весь ответ, с последними вопросами к странице, — за `SECONDS`.
 """
 
 from __future__ import annotations
@@ -27,7 +33,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import signal
 import time
+from pathlib import Path
 from typing import Any, Awaitable
 from urllib.parse import urlsplit
 
@@ -60,6 +69,13 @@ IDLE = 300.0
 PLAYLIST_BYTES = 256 * 1024
 # Сколько раз страница может сказать о своём EME: дальше её не слушаем.
 SIGNALS = 200
+# Сколько тел плейлистов читается разом, сколько ждать одно (тело, которое страница сама не читает,
+# Chromium не отдаёт вовсе — ждать его дольше незачем) и сколько раз за страницу спрашиваются заголовки.
+BODIES = 2
+BODY_WAIT = 1.0
+HEADERS = 400
+# Сколько срока страницы оставлено на последние вопросы к ней (имя, постер, что играет).
+FINISH = 3.0
 VIEWPORT = {"width": 1280, "height": 720}
 # Обёртка браузера (`chrome.sh`): поднимает ему `oom_score_adj` и запускает headless shell Playwright.
 CHROME = "/app/chrome.sh"
@@ -75,8 +91,9 @@ ARGS = (
     # Плеер страницы начинает сам — как у человека, который пришёл смотреть.
     "--autoplay-policy=no-user-gesture-required",
     "--disable-gpu",
-    # Куча JS одной вкладки — не больше этого: прожорливая страница падает сама, а не весь контейнер.
-    "--js-flags=--max-old-space-size=384",
+    # Без JIT (меньше поверхность для эксплойта рендерера: песочницы нет) и куча JS одной вкладки — не больше
+    # этого: прожорливая страница падает сама, а не весь контейнер.
+    "--js-flags=--jitless --max-old-space-size=384",
 )
 # Окружение браузера — своё и короткое: ключа службы в нём нет.
 BROWSER_ENV = {
@@ -251,11 +268,7 @@ class Pages:
     async def close(self) -> None:
         if self._resting is not None:
             self._resting.cancel()
-        browser, self._browser = self._browser, None
-        if browser is not None:
-            with contextlib.suppress(Exception):
-                async with asyncio.timeout(TEARDOWN):
-                    await browser.close()
+        await self._restart()
         playwright, self._playwright = self._playwright, None
         if playwright is not None:
             with contextlib.suppress(Exception):
@@ -286,21 +299,22 @@ class Pages:
                 await context.close()
         except Exception:
             logger.warning("плеер страниц: вкладка не закрылась вовремя — браузер перезапускается")
-            browser, self._browser = self._browser, None
-            if browser is not None:
-                with contextlib.suppress(Exception):
-                    async with asyncio.timeout(TEARDOWN):
-                        await browser.close()
+            await self._restart()
 
     async def _rest(self) -> None:
         await asyncio.sleep(self.idle)
-        if self._active:
-            return
-        browser, self._browser = self._browser, None
-        if browser is not None:
-            with contextlib.suppress(Exception):
-                async with asyncio.timeout(TEARDOWN):
-                    await browser.close()
+        if not self._active:
+            await self._restart()
+
+    async def _restart(self) -> None:
+        """
+        Браузер закрывается (не закрылся — убивается) под замком запуска: новый не поднимется, пока уходит
+        старый, и убийство по имени процесса (`kill_browsers`) не заденет ничего, кроме старого.
+        """
+        async with self._launching:
+            browser, self._browser = self._browser, None
+            if browser is not None:
+                await _shut(browser)
 
 
 class Watch:
@@ -317,6 +331,11 @@ class Watch:
         self.changed = asyncio.Event()
         self.tasks: set[asyncio.Task[Any]] = set()
         self.signals = 0
+        # Тела плейлистов — не больше `BODIES` разом; адрес, который читается сейчас, второй раз не читается.
+        self.bodies = asyncio.Semaphore(BODIES)
+        self.reading: set[str] = set()
+        self.asked = 0
+        self.cookie_seen: dict[str, float] = {}
         # Когда пришёл первый манифест и первый файл — от них считается, сколько ещё ждать.
         self.first_manifest: float | None = None
         self.first_file: float | None = None
@@ -339,19 +358,28 @@ class Watch:
         failed = False
         try:
             response = await page.goto(
-                self.url, wait_until="domcontentloaded", timeout=self._ms(min(NAVIGATION, self._left()))
+                self.url,
+                wait_until="domcontentloaded",
+                timeout=self._ms(min(NAVIGATION, self._left() - FINISH)),
             )
             status = response.status if response is not None else None
         except PlaywrightError:
             # Текст ошибки не пишется: в нём адрес страницы, а в адресе бывают ключи.
             failed = True
-        await self._wait(min(self.deadline, time.monotonic() + self.look))
-        if not self.catch.streams and not self.catch.used and not self.crashed and self._left() > 1:
-            self.clicked = await self._click(page)
-            await self._wait(self.deadline)
-        await self._drain()
-        facts = await self._facts(page)
-        playing = await self._playing(page)
+        await self._wait(min(self.deadline - FINISH, time.monotonic() + self.look))
+        if not self.catch.streams and not self.catch.used and not self.crashed and self._left() > FINISH + 1:
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(self._left() - FINISH):
+                    await self._click(page)
+            await self._wait(self.deadline - FINISH)
+        # Последние вопросы к странице — в остатке срока, сколько бы кадров и ответов у неё ни было.
+        facts: dict[str, Any] = {}
+        playing: list[dict[str, Any]] = []
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(max(0.1, self._left())):
+                await self._drain()
+                facts = await self._facts(page)
+                playing = await self._playing(page)
         return self._answer(status, failed, facts, playing)
 
     # --- что говорит браузер -------------------------------------------------------------
@@ -382,25 +410,39 @@ class Watch:
                 return
             if not 200 <= response.status < 300 or not capture.web(url):
                 return
-            headers = await request.all_headers()
-            self.catch.cookie(url, headers.get("cookie"))
-            if kind is None:
+            # Новый ли это поток — до всякого чтения: знакомый адрес, уже читаемый, полный улов или страница
+            # ушла — ни заголовков ради него, ни тела.
+            wanted = kind is not None and url not in self.reading and self.catch.wants(url, len(self.reading))
+            if not wanted and not self._cookie_due(url):
                 return
-            master: bool | None = None
-            heights: tuple[int, ...] = ()
-            if kind == "hls":
-                master, heights = await self._playlist(response)
-            ext = capture.file_extension(url, kind_header) if kind == "file" else ""
-            fresh = self.catch.stream(
-                url,
-                kind,
-                headers,
-                order=order,
-                frame=_frame_url(request),
-                master=master,
-                heights=heights,
-                ext=ext,
-            )
+            if self.asked >= HEADERS:
+                return
+            self.asked += 1
+            if wanted:
+                self.reading.add(url)
+            try:
+                headers = await request.all_headers()
+                self.catch.cookie(url, headers.get("cookie"))
+                if not wanted or kind is None:
+                    return
+                master: bool | None = None
+                heights: tuple[int, ...] = ()
+                if kind == "hls":
+                    async with self.bodies:
+                        master, heights = await self._playlist(response)
+                ext = capture.file_extension(url, kind_header) if kind == "file" else ""
+                fresh = self.catch.stream(
+                    url,
+                    kind,
+                    headers,
+                    order=order,
+                    frame=_frame_url(request),
+                    master=master,
+                    heights=heights,
+                    ext=ext,
+                )
+            finally:
+                self.reading.discard(url)
             if fresh:
                 now = time.monotonic()
                 if kind == "file":
@@ -419,19 +461,36 @@ class Watch:
         if not length.isdigit() or int(length) > PLAYLIST_BYTES:
             return None, ()
         try:
-            async with asyncio.timeout(QUESTION):
+            async with asyncio.timeout(BODY_WAIT):
                 body = await response.body()
         except (PlaywrightError, TimeoutError):
             return None, ()
         return capture.playlist_facts(body[:PLAYLIST_BYTES].decode("utf-8", errors="replace"))
 
+    def _cookie_due(self, url: str) -> bool:
+        """Спросить ли cookie этого хоста снова: новый хост — да, знакомый — не чаще раза в секунду."""
+        host = (urlsplit(url).hostname or "").lower()
+        now = time.monotonic()
+        if now - self.cookie_seen.get(host, -1.0) < 1.0:
+            return False
+        if host not in self.cookie_seen and len(self.cookie_seen) >= capture.HOSTS * 4:
+            return False
+        self.cookie_seen[host] = now
+        return True
+
     def _signal(self, source: Any, signal: Any = "", detail: Any = "") -> None:
-        """Признак EME из скрипта кадра (`HOOKS`). Страница может звать это сама — ей же хуже."""
-        self.signals += 1
-        if self.signals > SIGNALS:
+        """
+        Признак EME из скрипта кадра (`HOOKS`). Страница может звать это сама — ей же хуже: считается до
+        разбора, и принимается только короткая строка, ничего не превращая в строку.
+        """
+        if self.signals >= SIGNALS:
             return
+        self.signals += 1
+        if not isinstance(signal, str) or len(signal) > 16:
+            return
+        detail = detail if isinstance(detail, str) and len(detail) <= 64 else ""
         before = self.catch.used
-        self.catch.eme(str(signal), str(detail))
+        self.catch.eme(signal, detail)
         if self.catch.used and not before:
             self.changed.set()
 
@@ -474,28 +533,27 @@ class Watch:
                 async with asyncio.timeout(left):
                     await self.changed.wait()
 
-    async def _click(self, page: Page) -> bool:
+    async def _click(self, page: Page) -> None:
         """
         Одно нажатие — по центру самого большого `<video>`, рамки или кнопки «смотреть». По самому `<video>` —
-        ещё и его кнопкой «играть» (`NATIVE`), если нажатие по кадру его не включило.
+        ещё и его кнопкой «играть» (`NATIVE`), если нажатие по кадру его не включило. Что нажатие было,
+        помнится сразу (`clicked`): навигация после него — уже уход со страницы, а срок кончается и раньше.
         """
-        clicked = False
         try:
             async with asyncio.timeout(QUESTION):
                 point = await page.evaluate(TARGET)
             if not point:
-                return False
+                return
             async with asyncio.timeout(QUESTION):
                 await page.mouse.click(float(point["x"]), float(point["y"]))
-            clicked = True
+            self.clicked = True
             media = int(point.get("media", -1))
             if media >= 0:
                 await asyncio.sleep(0.3)
                 async with asyncio.timeout(QUESTION):
                     await page.evaluate(NATIVE, media)
         except (PlaywrightError, TimeoutError, KeyError, TypeError, ValueError):
-            return clicked
-        return True
+            return
 
     async def _drain(self) -> None:
         """Ответы, которые ещё читаются, — дочитать коротко: срок страницы уже вышел."""
@@ -576,6 +634,38 @@ def _frame_url(request: Request) -> str:
     except PlaywrightError:
         return ""
     return url if capture.web(url) else ""
+
+
+async def _shut(browser: Browser) -> None:
+    """Браузер закрывается сам — а не успел за `TEARDOWN`, убивается: SIGKILL каждому его процессу."""
+    try:
+        async with asyncio.timeout(TEARDOWN):
+            await browser.close()
+    except Exception:
+        logger.warning(
+            "плеер страниц: браузер не закрылся за %s с — убит (%s процессов)", TEARDOWN, kill_browsers()
+        )
+
+
+def kill_browsers() -> int:
+    """
+    SIGKILL всем процессам headless shell в контейнере: их запускает только этот сервер, один браузер разом
+    (новый не запускается, пока уходит старый, — `Pages._restart`), и каждый его процесс называется этим
+    именем (сам браузер — через `chrome.sh`, остальные — его же исполняемым файлом).
+    """
+    killed = 0
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            name = (entry / "cmdline").read_bytes().split(b"\0", 1)[0]
+        except OSError:
+            continue
+        if name.endswith(b"chrome-headless-shell"):
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.kill(int(entry.name), signal.SIGKILL)
+                killed += 1
+    return killed
 
 
 def _authority(url: str) -> tuple[str, int]:
