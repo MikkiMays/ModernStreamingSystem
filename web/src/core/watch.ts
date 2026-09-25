@@ -28,6 +28,23 @@ export function targetPosition(watch: Watch, serverNow: number): number {
 }
 
 /**
+ * Свой ролик кончился, и комната тоже дошла до конца: последний кадр — это и есть её секунда.
+ *
+ * Длины ролика комната не знает, и её цель идёт дальше конца. Раньше это читалось как отставание:
+ * `play()` начинал досмотренный ролик заново (так его понимает браузер), проверка отправляла его
+ * в конец — и так по кругу, а подпись всё это время говорила «Догоняем комнату…».
+ */
+export function finished(input: {
+  watch: Watch;
+  serverNow: number;
+  localMs: number;
+  ended: boolean;
+}): boolean {
+  const { watch, serverNow, localMs, ended } = input;
+  return ended && !watch.paused && targetPosition(watch, serverNow) >= localMs - DRIFT_LIMIT;
+}
+
+/**
  * Три порога вместо одного — и это главное про синхронность.
  *
  * Раньше был один: разошлись больше чем на полторы секунды — перемотать. Перемотка стоит
@@ -81,6 +98,14 @@ export function correction(input: {
   /** Позиция своего плеера, мс. `null` — плеер ещё не отвечает. */
   localMs: number | null;
   playing: boolean;
+  /**
+   * Свой ролик кончился (`<video>.ended`).
+   *
+   * Отдельно от `playing`, потому что «не играет» тут не значит «пора включить»: `play()` у
+   * кончившегося ролика по стандарту — перемотка в начало ({@link finished}). На стенде так оба
+   * браузера и крутили «первые две секунды — конец» каждые четыре секунды.
+   */
+  ended?: boolean;
   /** Своя скорость воспроизведения: подтяжка помнится между проверками, а не начинается с нуля. */
   rate?: number;
 }): Correction {
@@ -106,6 +131,7 @@ export function correction(input: {
       return { action: 'seek', positionMs: target };
     return ordinary();
   }
+  if (localMs !== null && finished({ watch, serverNow, localMs, ended: !!input.ended })) return ordinary();
   if (!playing) {
     /*
       Включаемся с секунды комнаты, а не с места, где стояли.

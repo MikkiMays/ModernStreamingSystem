@@ -175,6 +175,40 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(hook.result.current.echo.quiet()).toBe(true);
   });
 
+  it('досмотрели: последний кадр стоит, пока комната сама не вернётся назад', async () => {
+    // Раньше `play()` у кончившегося ролика начинал его заново, а проверка тут же отправляла в
+    // конец: на стенде оба браузера крутили «первые две секунды — конец» каждые четыре секунды.
+    const video = element({ currentTime: 212, paused: true, ended: true });
+    const { hook } = setup(video, { watch: watch({ positionMs: 211_500 }) });
+    await pass(3000);
+    expect(video.play).not.toHaveBeenCalled();
+    expect(video.currentTime).toBe(212);
+    // Комната «ушла» за конец ролика, но это не отставание: ни «Догоняем комнату…», ни жёлтой
+    // кнопки, а сама кнопка не запускает ролик заново.
+    expect(hook.result.current.sync.drift).toBe(0);
+    act(() => hook.result.current.sync.resync());
+    expect(video.play).not.toHaveBeenCalled();
+    expect(video.currentTime).toBe(212);
+
+    hook.rerender({
+      watch: watch({ positionMs: 100_000, anchorAt: Date.now(), revision: 2 }),
+      live: false,
+      canControl: true,
+    });
+    await pass(1000);
+    expect(video.currentTime).toBeCloseTo(101, 6);
+    expect(video.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('«включить» после конца — заново с начала, и так же для всех', async () => {
+    const video = element({ currentTime: 212, paused: true, ended: true });
+    const { hook, meeting } = setup(video, { watch: watch({ paused: true, positionMs: 212_000 }) });
+    act(() => hook.result.current.sync.command('watch.play'));
+    expect(video.currentTime).toBe(0);
+    expect(video.play).toHaveBeenCalledTimes(1);
+    expect(meeting.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
+  });
+
   it('комната на паузе, а мы играем — пауза ровно в её секунде', async () => {
     const { hook, video } = setup(element({ currentTime: 29, playbackRate: 1.05 }), {
       watch: watch({ paused: true, positionMs: 30_000 }),

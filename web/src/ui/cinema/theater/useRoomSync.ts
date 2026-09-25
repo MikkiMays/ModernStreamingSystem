@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
-import { correction, targetPosition } from '../../../core/watch';
+import { correction, finished, targetPosition } from '../../../core/watch';
 import type { Playback } from './engines/playback';
 import { contentOf, type Status } from './useSource';
 import { skipTarget } from './watch-controls';
@@ -135,9 +135,11 @@ export function useRoomSync({
         позиции, ни конца нет; у него считается другое — насколько мы отстали от края.
       */
       if (!latest.current.live) {
-        setPosition(element.currentTime * 1000);
+        const here = element.currentTime * 1000;
+        setPosition(here);
         setDuration(Number.isFinite(element.duration) ? element.duration * 1000 : 0);
-        setDrift(now.paused ? 0 : element.currentTime * 1000 - targetPosition(now, serverNow));
+        const over = finished({ watch: now, serverNow, localMs: here, ended: element.ended });
+        setDrift(now.paused || over ? 0 : here - targetPosition(now, serverNow));
         setLag(0);
       } else {
         setDrift(0);
@@ -158,6 +160,7 @@ export function useRoomSync({
         serverNow,
         localMs: element.currentTime * 1000,
         playing: !element.paused && !element.ended,
+        ended: element.ended,
         rate: element.playbackRate,
       });
       if (fix.action === 'none') return;
@@ -194,11 +197,15 @@ export function useRoomSync({
     wake();
     echo.suppress();
     const element = video.current;
-    const at =
-      positionMs ??
-      Math.round(element ? element.currentTime * 1000 : targetPosition(watch, meeting.serverNow()));
+    // «Включить» у досмотренного — это «ещё раз с начала»: так понимает `play()` сам браузер, и
+    // комната должна услышать то же самое, а не «играй с последнего кадра».
+    const again = type === 'watch.play' && positionMs === undefined && !!element?.ended;
+    const at = again
+      ? 0
+      : (positionMs ??
+        Math.round(element ? element.currentTime * 1000 : targetPosition(watch, meeting.serverNow())));
     if (element) element.playbackRate = 1;
-    if (type === 'watch.seek' && element) element.currentTime = at / 1000;
+    if ((type === 'watch.seek' || again) && element) element.currentTime = at / 1000;
     if (type === 'watch.play') void element?.play().catch(() => {});
     if (type === 'watch.pause') element?.pause();
     send(type, Math.max(0, at));
@@ -222,6 +229,14 @@ export function useRoomSync({
     const element = video.current;
     if (!element) return;
     wake();
+    // Досмотрели вместе с комнатой — уже на её секунде; `play()` здесь начал бы ролик заново.
+    const over = finished({
+      watch: latest.current.watch,
+      serverNow: meeting.serverNow(),
+      localMs: element.currentTime * 1000,
+      ended: element.ended,
+    });
+    if (!live && over) return;
     echo.suppress();
     element.playbackRate = 1;
     if (live) {

@@ -102,6 +102,14 @@ describe('поправка своего плеера', () => {
     });
   });
 
+  it('досмотренный ролик не начинается заново: `play()` после конца — это перемотка в начало', () => {
+    const over = { watch: video(), serverNow, localMs: 65000, playing: false, ended: true };
+    expect(correction(over)).toEqual({ action: 'none' });
+    expect(correction({ ...over, rate: 1 + NUDGE })).toEqual({ action: 'rate', rate: 1 });
+    // А если комната ещё до конца не дошла (или её отмотали назад) — включиться с её места.
+    expect(correction({ ...over, localMs: 90000 })).toEqual({ action: 'play', positionMs: 70000 });
+  });
+
   it('на паузе возвращает обычную скорость, чтобы включиться ровно', () => {
     expect(
       correction({
