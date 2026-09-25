@@ -141,6 +141,14 @@ class Walls(PageCase):
         self.assertEqual(found["streams"][0]["url"], self.a.url("/media/master.m3u8?token=t1"))
         self.assertEqual(self.a.seen("/popup"), [])
 
+    async def test_a_click_that_leads_away_ends_the_page_and_takes_nothing_from_the_next_one(self):
+        found = await self.sniff("/pages/away.html")
+        self.assertTrue(found["clicked"])
+        # Страница, куда увело нажатие, свой файл спросила — но это уже не та страница.
+        self.assertTrue(self.a.seen("/pages/file.html"))
+        self.assertEqual(found["streams"], [])
+        self.assertLess(found["took"], SECONDS)
+
     async def test_nothing_leaves_the_browser_but_through_the_guarded_way_out(self):
         found = await self.sniff("/pages/inside.html")
         # Дать WebRTC и маякам время: ловушка должна остаться пустой и после страницы.

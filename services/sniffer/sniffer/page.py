@@ -368,6 +368,7 @@ class Watch:
         with contextlib.suppress(PlaywrightError):
             if request.is_navigation_request() and request.frame == self.page.main_frame:
                 self.catch.closed = True
+                self.changed.set()
 
     async def _response(self, response: Response) -> None:
         order = self.catch.ticket()
@@ -453,9 +454,12 @@ class Watch:
         return max(1.0, seconds) * 1000
 
     async def _wait(self, until: float) -> None:
-        """До `until` — или раньше: поток пойман и прошло время `SETTLE_*`, EME в деле, вкладка упала."""
+        """
+        До `until` — или раньше: поток пойман и прошло время `SETTLE_*`, EME в деле, вкладка упала или
+        после нажатия ушла на другой документ (там уже не то видео, что вставили).
+        """
         while True:
-            if self.catch.used or self.crashed:
+            if self.catch.used or self.crashed or self.catch.closed:
                 return
             limit = until
             if self.first_manifest is not None:
