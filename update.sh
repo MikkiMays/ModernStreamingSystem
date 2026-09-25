@@ -70,14 +70,31 @@ CHANGED="$(git diff --name-only "$BEFORE" "$TARGET" 2>/dev/null || true)"
 touched() { grep -Eq "$1" <<<"$CHANGED"; }
 REBUILD=()
 if (( FORCE )); then
-  REBUILD=(gateway core services)
+  REBUILD=(gateway core services sniffer)
 else
   touched '^(web/|infra/Dockerfile\.web|infra/Caddyfile)' && REBUILD+=(gateway)
   touched '^(server/|pom\.xml|infra/Dockerfile\.server)' && REBUILD+=(core)
-  touched '^services/' && REBUILD+=(services)
+  # Плеер страниц кинозала собирается из services/ (охраняемый выход у него общий со службой).
+  touched '^services/' && REBUILD+=(services sniffer)
 fi
 REGENERATE=0; touched '^scripts/(configure|edge-config)\.mjs' && REGENERATE=1
-INFRA=0; touched '^compose\.yaml$' && INFRA=1
+# compose.yaml трогает медиа и базы, только если поменялось что-то у них самих: плеер страниц и свои
+# службы живут в том же файле, и новая строка у них — не повод обрывать звонки. Меряем тем же хешем
+# конфигурации, по которому compose сам решает, пересоздавать ли контейнер; посчитать не вышло — считаем,
+# что поменялось, как раньше.
+INFRA_SERVICES='edge,livekit,postgres,redis,tusd'
+infra_hash() {
+  git show "$1:compose.yaml" 2>/dev/null \
+    | docker compose -f - --project-directory . config --hash "$INFRA_SERVICES" 2>/dev/null
+}
+INFRA=0
+if touched '^compose\.yaml$'; then
+  before_hash="$(infra_hash "$BEFORE" || true)"
+  after_hash="$(infra_hash "$TARGET" || true)"
+  [[ -n "$before_hash" && "$before_hash" == "$after_hash" ]] || INFRA=1
+  # Плеер страниц описан только в compose.yaml: новая его конфигурация — пересоздать и его.
+  [[ " ${REBUILD[*]} " == *" sniffer "* ]] || REBUILD+=(sniffer)
+fi
 (( FORCE )) && INFRA=1
 
 if (( ${#REBUILD[@]} )); then note "Пересобрать: ${REBUILD[*]}"; else note "Пересобирать нечего."; fi
@@ -180,7 +197,7 @@ fi
 
 if (( ${#REBUILD[@]} )); then
   step "Собираем: ${REBUILD[*]}"
-  note "Сборка services идёт 5–10 минут в первый раз; дальше слои берутся из кэша."
+  note "Сборка services и sniffer идёт 5–10 минут в первый раз; дальше слои берутся из кэша."
   CORD_BUILD="$(git rev-parse --short HEAD)" docker compose build "${REBUILD[@]}" \
     || { warn "Сборка не удалась. Работающий сервер не тронут."; exit 1; }
 fi

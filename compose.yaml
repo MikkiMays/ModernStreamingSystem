@@ -75,6 +75,9 @@ services:
       - path: .env
       - path: .local/telegram.env
         required: false
+    # Плеер страниц кинозала — соседний контейнер `sniffer` на своём порту хоста.
+    environment:
+      CINEMA_SNIFFER_URL: http://127.0.0.1:18103
     restart: unless-stopped
     read_only: true
     init: true
@@ -97,6 +100,36 @@ services:
       interval: 10s
       timeout: 3s
       start_period: 20s
+      retries: 5
+  # Плеер страниц кинозала (`services/sniffer`): headless Chromium открывает страницу, которую не понял
+  # yt-dlp, и записывает, какой поток спросил её плеер. Страницы чужие, поэтому контейнер — не в сети хоста:
+  # свой мост, наружу — только через охраняемый выход внутри него, служба ходит к нему на 127.0.0.1:18103.
+  # Секрет установки нужен только затем, чтобы первый процесс (`entry.py`) посчитал из него ключ входа
+  # службы и убрал сам секрет из окружения; других переменных из .env у браузера нет. Прокси и частные адреса
+  # — те же, что у площадки «По ссылке» в службе: страница и поток выходят в сеть одним путём.
+  # `init` не нужен: tini запускает `entry.py` сам, уже без секрета.
+  sniffer:
+    logging: *default-logging
+    build: { context: ., dockerfile: services/sniffer/Dockerfile, target: sniffer }
+    ports: ['127.0.0.1:18103:8080']
+    environment:
+      INTERNAL_SECRET: ${INTERNAL_SECRET:?Run scripts/configure.mjs}
+      CINEMA_PROXY: ${CINEMA_PROXY:-}
+      CINEMA_PROXY_LINK: ${CINEMA_PROXY_LINK:-}
+      CINEMA_PRIVATE_HOSTS_LINK: ${CINEMA_PRIVATE_HOSTS_LINK:-}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    shm_size: 1g
+    mem_limit: 1536m
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
       retries: 5
   postgres:
     logging: *default-logging
