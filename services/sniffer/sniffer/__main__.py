@@ -1,10 +1,12 @@
 """
-Сервер плеера страниц: охраняемый выход, браузер и вход для службы — на порту 8080 контейнера.
+Сервер плеера страниц: охраняемый выход, браузер, самопроверка изоляции и вход для службы — на порту 8080
+контейнера.
 
-Порт опубликован в compose только на `127.0.0.1:18103` хоста. Выход наружу — площадки «По ссылке»: её
-прокси администратора (`CINEMA_PROXY_LINK` или общий `CINEMA_PROXY` — чтобы страница и поток выходили в
-сеть с одного адреса: адрес потока у CDN бывает привязан к адресу, с которого его выдали) и её частные
-адреса (`CINEMA_PRIVATE_HOSTS_LINK`; в этом контейнере `127.0.0.1` — он сам, а не машина).
+Порт опубликован в compose только на `127.0.0.1:18103` хоста (у стенда разработчика — `18113`). Выход
+наружу — площадки «По ссылке»: её прокси администратора (`CINEMA_PROXY_LINK` или общий `CINEMA_PROXY` —
+чтобы страница и поток выходили в сеть с одного адреса: адрес потока у CDN бывает привязан к адресу, с
+которого его выдали) и её частные адреса (`CINEMA_PRIVATE_HOSTS_LINK`; в этом контейнере `127.0.0.1` — он
+сам, а не машина). Цели самопроверки — `CINEMA_SNIFFER_CANARIES` (`isolation.py`).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from cord_services.cinema.egress import Egress
 from cord_services.cinema.net import Guard, NetConfig
 
 from .app import create_app
+from .isolation import CANARIES, Isolation, gateway, targets
 from .page import SECONDS, TEARDOWN, Pages
 
 # Страниц разом на контейнер — и мест в выходе. Каждая — вкладка Chromium, сотни мегабайт.
@@ -35,7 +38,9 @@ PORT = 8080
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    # Ключ — в память процесса, а из окружения — вон: окружение наследуют драйвер Playwright и браузер.
+    # Ключ — в память процесса, а из `os.environ` — вон: его наследовали бы драйвер Playwright и браузер. В
+    # `/proc/<pid>/environ` этого процесса и tini он остаётся — их окружение при запуске, — и там его прочтёт
+    # любой процесс того же пользователя, браузер тоже. Этим ключом открывается только сам плеер страниц.
     key = os.environ.pop("CINEMA_SNIFFER_KEY", "")
     config = NetConfig.from_env(os.environ)
     egress = Egress(
@@ -55,7 +60,8 @@ def main() -> None:
         await pages.close()
         await egress.close()
 
-    app = create_app(key, pages.sniff, close=close)
+    isolation = Isolation(targets(os.environ.get("CINEMA_SNIFFER_CANARIES") or CANARIES, gateway()))
+    app = create_app(key, pages.sniff, isolation=isolation, close=close)
     uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="warning", access_log=False)
 
 

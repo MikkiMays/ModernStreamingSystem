@@ -78,26 +78,43 @@ else
   touched '^services/' && REBUILD+=(services sniffer)
 fi
 REGENERATE=0; touched '^scripts/(configure|edge-config)\.mjs' && REGENERATE=1
-# compose.yaml трогает медиа и базы, только если поменялось что-то у них самих: плеер страниц и свои
-# службы живут в том же файле, и новая строка у них — не повод обрывать звонки. Меряем тем же хешем
-# конфигурации, по которому compose сам решает, пересоздавать ли контейнер; посчитать не вышло — считаем,
-# что поменялось, как раньше.
-INFRA_SERVICES='edge,livekit,postgres,redis,tusd'
-infra_hash() {
+# compose.yaml: пересоздаётся ровно то, у чего поменялась конфигурация. Меряем тем же хешем, по которому
+# compose сам решает, пересоздавать ли контейнер (`config --hash '*'`), — до и после, у каждой службы.
+# Медиа и базы (INFRA_SERVICES) идут прежним путём — с обрывом звонков, если поменялись они сами; свои
+# службы — `up -d --no-deps` по одной (сборка — у тех, у кого она есть; `volume-init` — только пересоздание,
+# раньше его изменения доезжали вместе с перезапуском баз). Посчитать не вышло — как раньше: всё сразу.
+INFRA_SERVICES=' edge livekit postgres redis tusd '
+APP_BUILT=' gateway core services sniffer '
+config_hashes() {
   git show "$1:compose.yaml" 2>/dev/null \
-    | docker compose -f - --project-directory . config --hash "$INFRA_SERVICES" 2>/dev/null
+    | docker compose -f - --project-directory . config --hash '*' 2>/dev/null
 }
 INFRA=0
+RECREATE=()
 if touched '^compose\.yaml$'; then
-  before_hash="$(infra_hash "$BEFORE" || true)"
-  after_hash="$(infra_hash "$TARGET" || true)"
-  [[ -n "$before_hash" && "$before_hash" == "$after_hash" ]] || INFRA=1
-  # Плеер страниц описан только в compose.yaml: новая его конфигурация — пересоздать и его.
-  [[ " ${REBUILD[*]} " == *" sniffer "* ]] || REBUILD+=(sniffer)
+  before_hash="$(config_hashes "$BEFORE" || true)"
+  after_hash="$(config_hashes "$TARGET" || true)"
+  if [[ -z "$before_hash" || -z "$after_hash" ]]; then
+    warn "Не удалось сравнить compose.yaml по службам — обновляется всё, как раньше."
+    changed_services="edge livekit postgres redis tusd gateway core services sniffer volume-init"
+  else
+    # Строки «служба хеш», которых не было до: изменённые и новые службы. Убранные — не трогаются.
+    changed_services="$(comm -13 <(sort <<<"$before_hash") <(sort <<<"$after_hash") | awk '{print $1}')"
+  fi
+  for service in $changed_services; do
+    if [[ "$INFRA_SERVICES" == *" $service "* ]]; then
+      INFRA=1
+    elif [[ "$APP_BUILT" == *" $service "* ]]; then
+      [[ " ${REBUILD[*]} " == *" $service "* ]] || REBUILD+=("$service")
+    else
+      RECREATE+=("$service")
+    fi
+  done
 fi
 (( FORCE )) && INFRA=1
 
 if (( ${#REBUILD[@]} )); then note "Пересобрать: ${REBUILD[*]}"; else note "Пересобирать нечего."; fi
+(( ${#RECREATE[@]} )) && note "Пересоздать по новой конфигурации: ${RECREATE[*]}"
 (( REGENERATE )) && note "Перевыпустить конфигурацию: да (генератор изменился)"
 (( INFRA )) && note "Обновить образы БД/SFU/tusd: да"
 
@@ -119,7 +136,7 @@ if (( CHECK )); then
 fi
 
 NOTHING_TO_DO=0
-(( ! ${#REBUILD[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && NOTHING_TO_DO=1
+(( ! ${#REBUILD[@]} )) && (( ! ${#RECREATE[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && NOTHING_TO_DO=1
 
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   warn "В отслеживаемых файлах есть свои правки:"
@@ -207,8 +224,35 @@ if (( INFRA )) && (( ! KEEP_CALLS )); then
   docker compose pull --quiet postgres redis livekit tusd edge || true
 fi
 
+# Плеер страниц открывает чужие страницы в браузере без его песочницы: работает он только за стеной сети
+# (`infra/sniffer-firewall.sh`). Её нет (правила сняли, единица не поставилась) — ставим; не вышло —
+# остальное обновляется, а плеер страниц останавливается и не запускается.
+if [[ " ${REBUILD[*]} " == *" sniffer "* || -n "$(docker compose ps -q sniffer 2>/dev/null)" ]]; then
+  step "Стена сети плеера страниц"
+  if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1; then
+    bash infra/sniffer-firewall.sh --install || true
+  fi
+  if ! bash infra/sniffer-firewall.sh check >/dev/null 2>&1; then
+    bash infra/sniffer-firewall.sh apply >/dev/null 2>&1 || true
+  fi
+  if bash infra/sniffer-firewall.sh check >/dev/null 2>&1; then
+    note "на месте (sudo bash infra/sniffer-firewall.sh check)"
+  else
+    warn "Стены нет — плеер страниц остановлен и не запускается. Поставить: sudo bash infra/sniffer-firewall.sh --install"
+    kept=()
+    for service in "${REBUILD[@]}"; do [[ "$service" == sniffer ]] || kept+=("$service"); done
+    REBUILD=("${kept[@]}")
+    docker compose stop sniffer >/dev/null 2>&1 || true
+  fi
+fi
+
 step "Перезапускаем"
 trap 'rollback; exit 1' ERR
+# Одноразовые службы (`volume-init`) — первыми: остальные ждут того, что они делают с томами.
+for service in "${RECREATE[@]}"; do
+  docker compose up -d --no-deps "$service"
+  note "$service"
+done
 for service in "${REBUILD[@]}"; do
   docker compose up -d --no-deps "$service"
   note "$service"
@@ -261,6 +305,12 @@ fi
 if ! systemctl is-enabled cord-tidy.timer >/dev/null 2>&1; then
   step "Ставим суточную уборку диска"
   bash infra/tidy.sh --install || warn "Не удалось. Поставить руками: sudo bash infra/tidy.sh --install"
+fi
+# Стена сети плеера страниц появилась позже самого сервера — так же, как уборка.
+if ! systemctl is-enabled cord-sniffer-firewall.service >/dev/null 2>&1; then
+  step "Ставим стену сети плеера страниц"
+  bash infra/sniffer-firewall.sh --install \
+    || warn "Не удалось. Поставить руками: sudo bash infra/sniffer-firewall.sh --install"
 fi
 
 step "Готово"

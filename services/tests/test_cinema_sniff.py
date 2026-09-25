@@ -101,6 +101,8 @@ class FakePages:
             raise found
         if isinstance(found, int):
             return httpx.Response(found)
+        if isinstance(found, httpx.Response):
+            return found
         if isinstance(found, bytes):
             return httpx.Response(200, content=found)
         return httpx.Response(200, json=found)
@@ -256,6 +258,20 @@ class WhenThePagePlayerIsAsked(SniffCase):
                 await cinema.link(PAGE, room=str(uuid.uuid4())), {"item": None, "reason": NOTHING}
             )
             self.assertEqual(pages.asked, [PAGE])
+
+    async def test_a_page_player_without_isolation_leaves_the_answer_of_yt_dlp(self):
+        # Самопроверка плеера страниц дотянулась до сети хоста: он отказывает, а служба отвечает тем, что
+        # сказал yt-dlp, — не «занято» и не ошибкой.
+        broken = httpx.Response(
+            503,
+            json={"detail": "Плеер страниц: изоляция не настроена"},
+            headers={"X-Cord-Isolation": "broken"},
+        )
+        cinema, pages = self.make_cinema(Door(), Stream(), FakePages({PAGE: broken}))
+        with self.assertLogs("cord_services.cinema.sniffer", level=logging.ERROR):
+            answer = await cinema.link(PAGE, room=ROOM)
+        self.assertEqual(answer, {"item": None, "reason": NOTHING})
+        self.assertEqual(pages.asked, [PAGE])
 
     async def test_a_busy_page_player_says_so(self):
         cinema, _ = self.make_cinema(Door(), Stream(), FakePages({PAGE: 503}))

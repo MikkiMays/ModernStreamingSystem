@@ -265,7 +265,10 @@ class SnifferError(Exception):
 
 
 class Down(SnifferError):
-    """Плеер страниц недоступен или настроен не так: тогда остаётся ответ yt-dlp."""
+    """
+    Плеер страниц недоступен, настроен не так или не изолирован (его самопроверка дотянулась до сети хоста):
+    тогда остаётся ответ yt-dlp.
+    """
 
 
 class Crowded(SnifferError):
@@ -336,6 +339,9 @@ class Sniffer:
                     headers={"Authorization": f"Bearer {self.key}", "Accept-Encoding": "identity"},
                 ) as response:
                     if response.status_code == 503:
+                        if response.headers.get("x-cord-isolation") == "broken":
+                            logger.error("кинозал: плеер страниц не изолирован от сети хоста — страниц нет")
+                            raise Down()
                         raise Crowded()
                     if response.status_code == 409:
                         raise Replaced()

@@ -68,6 +68,7 @@ Java Properties могут переопределяться переменным
 | TCP 5349                | зависит от режима     | `strict` — внутренний, после L4 TLS; `simple`/`ip` — внешний TURN/TLS |
 | TCP 8080/8090/8091/1080 | loopback              | core, hooks, gateway, tusd                 |
 | TCP 5432/6379           | loopback              | PostgreSQL/Redis                           |
+| TCP 18103               | loopback              | плеер страниц кинозала (`sniffer`)         |
 
 Compose использует host networking, как VM-вариант LiveKit. Обычного `ports:` здесь нет; это осознанное требование Linux. `livekit` слушает адреса media node, поэтому firewall обязателен для его внутренних портов. До первого запуска:
 
@@ -84,6 +85,63 @@ docker compose up -d
 L4 Caddy завершает TLS на 443 и направляет `turn.*` к 5349, HTTP-хосты — к внутреннему Caddy на 8091 с PROXY v2. Внешний HTTP advertising ограничен HTTP/1.1 для корректной передачи к gateway; WebSocket upgrades поддерживаются. Встроенный TURN получает `external_tls: true` и рекламирует внешний TLS 443. Сертификаты ACME сохраняются в отдельном томе. [Официальная VM-архитектура](https://docs.livekit.io/transport/self-hosting/vm/) и [порты](https://docs.livekit.io/transport/self-hosting/ports-firewall/).
 
 Первый запуск получает сертификаты после готовности DNS. `gateway` не выдаёт сертификаты самостоятельно. Не направляйте signaling напрямую на 7880 и не размещайте API-ключ SFU в веб-сборке. Веб не содержит `VITE_*` секретов.
+
+## Плеер страниц кинозала (`sniffer`)
+
+Страницу, которую не понял yt-dlp, открывает headless Chromium в отдельном контейнере `sniffer` и
+записывает, какой поток спросил её собственный плеер (`services/sniffer`). Страницы вставляет любой
+участник, а Chromium в контейнере без привилегий работает без своей песочницы, поэтому изоляция — сетевая
+и в три слоя:
+
+1. **Своя подсеть.** Контейнер — только в сети `sniffer` из `compose.yaml`, подсеть
+   `CINEMA_SNIFFER_SUBNET` (по умолчанию `10.231.0.0/24`): не сеть хоста и не общая сеть docker, и вне
+   `172.16.0.0/12`, которой UFW этой машины доверяет порты соседних служб (8090/8091). Адреса самого хоста
+   (шлюз подсети, docker0, внешний) — это его INPUT, и его держит UFW (политика DROP).
+2. **Стена DOCKER-USER.** `infra/sniffer-firewall.sh` запрещает из этой подсети новые соединения в
+   `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10`, `0.0.0.0/8` и
+   `224.0.0.0/4` (ответы — conntrack ESTABLISHED/RELATED — не трогаются; своя подсеть — исключением).
+   Правила живут до перезагрузки, после неё их ставит `cord-sniffer-firewall.service` (oneshot, после
+   `docker.service`). Ставят единицу `setup.sh` и `update.sh`; UFW скрипт не трогает.
+3. **Самопроверка.** Плеер страниц при старте и раз в пять минут пробует соединиться со шлюзом своей
+   подсети на 8090 и 8091 и с `169.254.169.254:80` (`CINEMA_SNIFFER_CANARIES`). Соединилось хоть одно —
+   `/sniff` отвечает 503 «изоляция не настроена», страницы не открываются, а служба отвечает тем, что сказал
+   yt-dlp. Состояние — `GET /isolation` (200 — изолирован, 503 — нет).
+
+Наружу браузер ходит только через охраняемый выход внутри контейнера (публичные адреса, проверка на
+соединении). Служба ходит к плееру страниц на `127.0.0.1:18103`; ключ входа — HMAC от `INTERNAL_SECRET`,
+самого секрета в контейнере нет (производный ключ в нём есть и читается его процессами). У стенда
+разработчика (`web/.local/stack.sh up --services`) плеер страниц — на `127.0.0.1:18113` и в подсети
+`10.231.1.0/24`, чтобы не спорить с продом.
+
+```bash
+sudo bash infra/sniffer-firewall.sh check      # все правила на месте и исключение подсети выше запретов? (код 1 — нет)
+curl -s http://127.0.0.1:18103/isolation       # {"isolated": true, ...}
+```
+
+### Первая выкатка плеера страниц (руками)
+
+Порядок важен: стена — раньше контейнера, и ни edge, ни SFU не перезапускаются.
+
+```bash
+git pull --ff-only
+docker compose build sniffer services gateway
+sudo bash infra/sniffer-firewall.sh --install            # единица + правила сейчас
+sudo bash infra/sniffer-firewall.sh check                # «на месте», код 0
+docker compose up -d --no-deps sniffer services gateway  # сеть modern-streaming_sniffer создаётся здесь
+curl -s http://127.0.0.1:18103/isolation                 # 200 {"isolated": true, ...}; 503 — стоп, см. выше
+curl -s http://127.0.0.1:18103/health                    # {"status": "UP", "isolated": true}
+curl -s http://127.0.0.1:18100/health                    # служба
+# Одна страница через сам плеер страниц. Ключ — HMAC от INTERNAL_SECRET; секрет читается из .env внутри
+# python и в командную строку не попадает (у curl в ней — только производный ключ, открывающий один /sniff):
+KEY=$(python3 -c "import hmac,hashlib;s=[l.split('=',1)[1].strip() for l in open('.env') if l.startswith('INTERNAL_SECRET=')][-1];print(hmac.new(s.encode(),b'cord-cinema-sniffer',hashlib.sha256).hexdigest())")
+curl -s -X POST http://127.0.0.1:18103/sniff -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"url": "https://www.w3.org/2010/05/video/mediaevents.html", "room": "rollout"}'   # streams: file trailer.mp4
+docker compose logs --tail 20 sniffer                    # строка «плеер страниц: www.w3.org — потоки file, …»
+```
+
+Дальше обычный `./update.sh` пересобирает `sniffer` вместе со `services`, ставит единицу стены, если её
+нет, и возвращает снятые правила (`apply`); если `sniffer-firewall.sh check` и после этого не проходит, плеер
+страниц не запускается, а работающий — останавливается (служба тогда отвечает тем, что сказал yt-dlp).
 
 ## Проверка размещения
 
