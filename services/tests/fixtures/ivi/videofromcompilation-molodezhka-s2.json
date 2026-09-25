@@ -1,0 +1,142 @@
+{
+ "result": [
+  {
+   "episode": 1,
+   "id": 598764,
+   "object_type": "video",
+   "title": "Серия 1",
+   "genres": [
+    234,
+    188,
+    110,
+    213
+   ],
+   "ivi_rating_10": 7.4,
+   "localizations": [
+    {
+     "duration": 2838
+    }
+   ],
+   "posters": [
+    {
+     "height": 1200,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/8/c2c808fb504df6ac1ed0f0378f5dd9.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-vertical",
+     "id": 29537749,
+     "blurhash": "TED9YWIV0LTIay$%Rhs:kV={adJ8",
+     "content_format": "Posters-782x1200",
+     "dominant_color": "#505453",
+     "width": 782
+    },
+    {
+     "height": 2160,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/c/3/3c8ac0e6dc4ad3b1727b91a493580a.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-horizontal",
+     "id": 29537769,
+     "blurhash": "LHCsBcv}MxT0elNINIs:0eI:t7xF",
+     "content_format": "Posters-3840x2160",
+     "dominant_color": "#53524E",
+     "width": 3840
+    }
+   ],
+   "season": 2,
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "episode": 2,
+   "id": 598765,
+   "object_type": "video",
+   "title": "Серия 2",
+   "genres": [
+    234,
+    188,
+    110,
+    213
+   ],
+   "ivi_rating_10": 4,
+   "localizations": [
+    {
+     "duration": 2827
+    }
+   ],
+   "posters": [
+    {
+     "height": 1200,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/8/c2c808fb504df6ac1ed0f0378f5dd9.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-vertical",
+     "id": 29537749,
+     "blurhash": "TED9YWIV0LTIay$%Rhs:kV={adJ8",
+     "content_format": "Posters-782x1200",
+     "dominant_color": "#505453",
+     "width": 782
+    },
+    {
+     "height": 2160,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/c/3/3c8ac0e6dc4ad3b1727b91a493580a.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-horizontal",
+     "id": 29537769,
+     "blurhash": "LHCsBcv}MxT0elNINIs:0eI:t7xF",
+     "content_format": "Posters-3840x2160",
+     "dominant_color": "#53524E",
+     "width": 3840
+    }
+   ],
+   "season": 2,
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "episode": 3,
+   "id": 598766,
+   "object_type": "video",
+   "title": "Серия 3",
+   "genres": [
+    234,
+    188,
+    110,
+    213
+   ],
+   "ivi_rating_10": 7.4,
+   "localizations": [
+    {
+     "duration": 2828
+    }
+   ],
+   "posters": [
+    {
+     "height": 1200,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/8/c2c808fb504df6ac1ed0f0378f5dd9.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-vertical",
+     "id": 29537749,
+     "blurhash": "TED9YWIV0LTIay$%Rhs:kV={adJ8",
+     "content_format": "Posters-782x1200",
+     "dominant_color": "#505453",
+     "width": 782
+    },
+    {
+     "height": 2160,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/c/3/3c8ac0e6dc4ad3b1727b91a493580a.jpg",
+     "is_compilation_poster": true,
+     "type": "poster-horizontal",
+     "id": 29537769,
+     "blurhash": "LHCsBcv}MxT0elNINIs:0eI:t7xF",
+     "content_format": "Posters-3840x2160",
+     "dominant_color": "#53524E",
+     "width": 3840
+    }
+   ],
+   "season": 2,
+   "content_paid_types": [
+    "SVOD"
+   ]
+  }
+ ]
+}

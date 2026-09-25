@@ -156,7 +156,8 @@ class RegistryTests(unittest.TestCase):
     def test_every_platform_the_cinema_knows_is_on_by_default(self):
         for enabled in (None, "", " , "):
             self.assertEqual(
-                [p.id for p in Registry(everyone(), enabled)], ["youtube", "twitch", "rutube", "vk", "link"]
+                [p.id for p in Registry(everyone(), enabled)],
+                ["youtube", "twitch", "rutube", "vk", "ivi", "link"],
             )
 
     def test_the_setting_chooses_platforms_but_not_their_order(self):
@@ -503,6 +504,24 @@ class RouteTests(unittest.TestCase):
                             "categories": True,
                             "series": False,
                             "live": True,
+                        },
+                    },
+                    {
+                        # Сеть здесь не поднята (`--network none` у прогона тестов): проверка
+                        # страны у ivi не отвечает, и это тот же общий отказ, что и у любой другой
+                        # упавшей площадки (`Cinema._availability`), а не что-то своё.
+                        "id": "ivi",
+                        "available": False,
+                        "reason": "Не удалось проверить площадку",
+                        "account": "none",
+                        "connected": False,
+                        "features": {
+                            "search": True,
+                            "channels": False,
+                            "playlists": False,
+                            "categories": True,
+                            "series": True,
+                            "live": False,
                         },
                     },
                     # «По ссылке»: поиска нет, серии плейлиста — есть, эфир по ссылке — тоже.

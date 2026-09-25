@@ -1,0 +1,125 @@
+{
+ "result": [
+  {
+   "year": 1973,
+   "id": 53141,
+   "object_type": "video",
+   "title": "Иван Васильевич меняет профессию",
+   "genres": [
+    95,
+    166,
+    101,
+    168
+   ],
+   "ivi_rating_10": 8.76,
+   "posters": [
+    {
+     "height": 1200,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/1/beece8a9814a17a1b6ae7010c68830.jpg",
+     "type": "poster-vertical",
+     "blurhash": "TICY:dadSi0Kofj]xuRPWBR:ofxZ",
+     "dominant_color": "#534238",
+     "id": 24154091,
+     "width": 782,
+     "content_format": "Posters-782x1200"
+    },
+    {
+     "height": 2160,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/b/a/fa4908bfb3466f87e09f327f9d6b2a.jpg",
+     "type": "poster-horizontal",
+     "blurhash": "LDB{op0JR,xa4:-ps+NG9wIrt7n#",
+     "dominant_color": "#4F3D31",
+     "id": 24154086,
+     "width": 3840,
+     "content_format": "Posters-3840x2160"
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "years": [
+    2006,
+    2007
+   ],
+   "duration": 73767,
+   "id": 7132,
+   "object_type": "compilation",
+   "title": "Иван Подушкин. Джентльмен сыска",
+   "genres": [
+    110,
+    217,
+    96,
+    100,
+    213
+   ],
+   "ivi_rating_10": 7.81,
+   "posters": [
+    {
+     "height": 1200,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/9/c/da353517fe4925a9bcef5806c71a64.jpg",
+     "type": "poster-vertical",
+     "blurhash": "TgJj;#s:FyDNn$My%gWB-VIUoebv",
+     "dominant_color": "#8C866E",
+     "id": 18366923,
+     "width": 782,
+     "content_format": "Posters-782x1200"
+    },
+    {
+     "height": 2160,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/a/3/ba4c1312864e74925238fef4fda0b4.jpg",
+     "type": "poster-horizontal",
+     "blurhash": "LJFO=TTI0e^*#%Nwtm?GozWAt6x[",
+     "dominant_color": "#71695E",
+     "id": 19815710,
+     "width": 3840,
+     "content_format": "Posters-3840x2160"
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "years": [
+    2025
+   ],
+   "duration": 11623,
+   "id": 19806,
+   "object_type": "compilation",
+   "title": "Иван да Мадина",
+   "genres": [
+    217,
+    196,
+    213
+   ],
+   "ivi_rating_10": 7.94,
+   "posters": [
+    {
+     "width": 782,
+     "blurhash": "TYK,gbIqOs^bM|%1IrNIr?~9WCNH",
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/4/d935b527364023a41af73df23922a7.jpg",
+     "dominant_color": "#A18488",
+     "content_format": "Posters-782x1200",
+     "id": 27678800,
+     "height": 1200,
+     "type": "poster-vertical"
+    },
+    {
+     "width": 3840,
+     "blurhash": "LcJaKD0:EkoM?EE5xtf4t8IpobxZ",
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/b/2/e0b65e8172472b9613896eff240817.jpg",
+     "dominant_color": "#988490",
+     "content_format": "Posters-3840x2160",
+     "id": 27678838,
+     "height": 2160,
+     "type": "poster-horizontal"
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  }
+ ]
+}

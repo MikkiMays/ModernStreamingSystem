@@ -1,0 +1,18 @@
+{
+ "result": {
+  "ip": "108.165.32.23",
+  "is_anonymous": false,
+  "actual_app_version": 870,
+  "country_place_id": 131640,
+  "country_name": "Германия",
+  "country_code": "DE",
+  "kids_app_version": 18019,
+  "user_ab_tests": [],
+  "user_ab_bucket": "6839",
+  "timestamp": 1790319763714,
+  "tz": "Europe/Berlin",
+  "signed_timestamp": "cE4KX22Kotk",
+  "show_teleportation_notice": false,
+  "you_shall_not_pass": false
+ }
+}

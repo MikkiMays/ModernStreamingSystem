@@ -22,6 +22,7 @@ from cord_services.app import create_app
 from cord_services.cinema import Memo, address
 from cord_services.cinema.facade import CATALOG_ID, SERIES_ID, Cinema
 from cord_services.cinema.providers import PROVIDERS
+from cord_services.cinema.providers.ivi import Ivi
 from cord_services.cinema.providers.link import Link
 from cord_services.cinema.providers.rutube import Rutube
 from cord_services.cinema.providers.twitch import Twitch
@@ -303,7 +304,7 @@ class GrammarTests(unittest.TestCase):
         # Площадки из реестра — все со своей грамматикой: новая площадка без неё отдавала бы свои
         # ссылки общему пути, и это стоит заметить сразу, а не по жалобе. Сам общий путь («По ссылке»)
         # грамматики не имеет нарочно: к нему приходит то, чего не узнал никто.
-        self.assertEqual([kind for kind in PROVIDERS], [YouTube, Twitch, Rutube, Vk, Link])
+        self.assertEqual([kind for kind in PROVIDERS], [YouTube, Twitch, Rutube, Vk, Ivi, Link])
         for kind in PROVIDERS[:-1]:
             self.assertIsNot(kind.match, Provider.match, kind.id)
         self.assertIs(Link.match, Provider.match)

@@ -1,0 +1,50 @@
+{
+ "result": {
+  "description": "Когда научные эксперименты срываются – начинается самое интересное! Комедийная фантазия режиссера и сценариста Леонида Гайдая «Иван Васильевич меняет профессию»…",
+  "year": 1973,
+  "id": 53141,
+  "object_type": "video",
+  "title": "Иван Васильевич меняет профессию",
+  "genres": [
+   95,
+   166,
+   101,
+   168
+  ],
+  "ivi_release_date": "2011-10-01",
+  "ivi_rating_10": 8.76,
+  "localizations": [
+   {
+    "duration": 5514
+   },
+   {
+    "duration": 5514
+   }
+  ],
+  "posters": [
+   {
+    "height": 1200,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/1/beece8a9814a17a1b6ae7010c68830.jpg",
+    "type": "poster-vertical",
+    "blurhash": "TICY:dadSi0Kofj]xuRPWBR:ofxZ",
+    "dominant_color": "#534238",
+    "id": 24154091,
+    "width": 782,
+    "content_format": "Posters-782x1200"
+   },
+   {
+    "height": 2160,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/b/a/fa4908bfb3466f87e09f327f9d6b2a.jpg",
+    "type": "poster-horizontal",
+    "blurhash": "LDB{op0JR,xa4:-ps+NG9wIrt7n#",
+    "dominant_color": "#4F3D31",
+    "id": 24154086,
+    "width": 3840,
+    "content_format": "Posters-3840x2160"
+   }
+  ],
+  "content_paid_types": [
+   "SVOD"
+  ]
+ }
+}

@@ -1,0 +1,55 @@
+{
+ "result": {
+  "description": "После трагической гибели жены Илья один воспитывает сына Даника. Однажды он замечает, что ребенок начал ходить во сне и просит психолога Ольгу о помощи.",
+  "year": 2025,
+  "episode": 1,
+  "compilation": {
+   "id": 18701,
+   "title": "Стеклянный дом",
+   "hru": "steklyannyij-dom",
+   "extra_properties": null
+  },
+  "id": 567680,
+  "object_type": "video",
+  "title": "Серия 1",
+  "genres": [
+   97,
+   205
+  ],
+  "ivi_release_date": "2025-05-16",
+  "ivi_rating_10": 5.8,
+  "localizations": [
+   {
+    "duration": 2663
+   }
+  ],
+  "posters": [
+   {
+    "is_compilation_poster": true,
+    "height": 1200,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/4/8/3aff4ff75043b8856c1fa73d8f46f8.jpg",
+    "width": 782,
+    "id": 24761250,
+    "dominant_color": "#574D44",
+    "type": "poster-vertical",
+    "content_format": "Posters-782x1200",
+    "blurhash": "TOELZ^}qRPFfELWBo~S#NvRjn%s:"
+   },
+   {
+    "is_compilation_poster": true,
+    "height": 2160,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/2/c/52a16aa4aa481eae53b2430f9717db.jpg",
+    "width": 3840,
+    "id": 24761255,
+    "dominant_color": "#57534A",
+    "type": "poster-horizontal",
+    "content_format": "Posters-3840x2160",
+    "blurhash": "LVELgA}WwIxZrqw^%Mt6EjEMNbR+"
+   }
+  ],
+  "season": 1,
+  "content_paid_types": [
+   "SVOD"
+  ]
+ }
+}

@@ -173,7 +173,9 @@ class Stage(unittest.IsolatedAsyncioTestCase):
 class PlatformTests(unittest.TestCase):
     def test_vk_is_the_fourth_platform_and_says_what_it_has(self):
         # После VK — только общий путь «По ссылке» (задача 15b): он не площадка каталога.
-        self.assertEqual([kind.id for kind in PROVIDERS], ["youtube", "twitch", "rutube", "vk", "link"])
+        self.assertEqual(
+            [kind.id for kind in PROVIDERS], ["youtube", "twitch", "rutube", "vk", "ivi", "link"]
+        )
         self.assertEqual(Vk.name, "VK Видео")
         self.assertEqual(Vk.features, Features(channels=True, playlists=True, categories=True, live=True))
 

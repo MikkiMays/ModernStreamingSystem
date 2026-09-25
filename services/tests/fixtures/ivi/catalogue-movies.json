@@ -1,0 +1,119 @@
+{
+ "result": [
+  {
+   "years": [
+    2025
+   ],
+   "duration": 5306,
+   "id": 18701,
+   "object_type": "compilation",
+   "title": "Стеклянный дом",
+   "genres": [
+    97,
+    205
+   ],
+   "ivi_rating_10": 7.47,
+   "posters": [
+    {
+     "id": 24761250,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/4/8/3aff4ff75043b8856c1fa73d8f46f8.jpg",
+     "dominant_color": "#574D44",
+     "height": 1200,
+     "blurhash": "TOELZ^}qRPFfELWBo~S#NvRjn%s:",
+     "content_format": "Posters-782x1200",
+     "type": "poster-vertical",
+     "width": 782
+    },
+    {
+     "id": 24761255,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/2/c/52a16aa4aa481eae53b2430f9717db.jpg",
+     "dominant_color": "#57534A",
+     "height": 2160,
+     "blurhash": "LVELgA}WwIxZrqw^%Mt6EjEMNbR+",
+     "content_format": "Posters-3840x2160",
+     "type": "poster-horizontal",
+     "width": 3840
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "years": [
+    2024
+   ],
+   "duration": 5352,
+   "id": 7811,
+   "object_type": "compilation",
+   "title": "Если он меня узнает",
+   "genres": [
+    107,
+    205
+   ],
+   "ivi_rating_10": 7.25,
+   "posters": [
+    {
+     "type": "poster-vertical",
+     "blurhash": "TEELvoI;0f4:xZngFzayxGHqWVX9",
+     "content_format": "Posters-782x1200",
+     "dominant_color": "#6A5748",
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/d/0/41acb0b4a84a8c9cc70c773027217c.jpg",
+     "height": 1200,
+     "width": 782,
+     "id": 23619823
+    },
+    {
+     "type": "poster-horizontal",
+     "blurhash": "LFCigh58RjxC9F%MWXWA0LMwoftR",
+     "content_format": "Posters-3840x2160",
+     "dominant_color": "#56453B",
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/2/d/757f2e79474c65ab3e4d05b0b1ef90.jpg",
+     "height": 2160,
+     "width": 3840,
+     "id": 23619827
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  },
+  {
+   "year": 2026,
+   "id": 659082,
+   "object_type": "video",
+   "title": "Беглецы (2021)",
+   "genres": [
+    107,
+    95,
+    205
+   ],
+   "ivi_rating_10": 7.48,
+   "posters": [
+    {
+     "content_format": "Posters-782x1200",
+     "blurhash": "T=M7Mlofx[?wafR-tRaeRjM|a|s,",
+     "height": 1200,
+     "type": "poster-vertical",
+     "width": 782,
+     "dominant_color": "#B19977",
+     "id": 32542261,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/1/7/e22514a03043589b02db33a6b0f194.jpeg"
+    },
+    {
+     "content_format": "Posters-3840x2160",
+     "blurhash": "L*M%oy.7WERn.TWEaej?tlM|j?s,",
+     "height": 2160,
+     "type": "poster-horizontal",
+     "width": 3840,
+     "dominant_color": "#BCA885",
+     "id": 32542307,
+     "url": "https://thumbs.dfs.ivi.ru/storage0/contents/0/3/9fbc885ef44894b9973e289777211c.jpg"
+    }
+   ],
+   "content_paid_types": [
+    "SVOD"
+   ]
+  }
+ ]
+}

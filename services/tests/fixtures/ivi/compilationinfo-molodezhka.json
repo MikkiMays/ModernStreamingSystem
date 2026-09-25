@@ -1,0 +1,55 @@
+{
+ "result": {
+  "description": "В центре истории – студенческая хоккейная команда «Акулы», выступающая за Политехнический институт. Дела у неё идут не лучшим образом, и она оказывается на гран…",
+  "years": [
+   2024,
+   2026
+  ],
+  "duration": 91843,
+  "id": 17830,
+  "object_type": "compilation",
+  "title": "Молодёжка. Новая смена",
+  "genres": [
+   234,
+   188,
+   110,
+   213
+  ],
+  "ivi_rating_10": 9.14,
+  "posters": [
+   {
+    "id": 29537749,
+    "blurhash": "TED9YWIV0LTIay$%Rhs:kV={adJ8",
+    "content_format": "Posters-782x1200",
+    "width": 782,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/7/8/c2c808fb504df6ac1ed0f0378f5dd9.jpg",
+    "dominant_color": "#505453",
+    "type": "poster-vertical",
+    "height": 1200
+   },
+   {
+    "id": 29537769,
+    "blurhash": "LHCsBcv}MxT0elNINIs:0eI:t7xF",
+    "content_format": "Posters-3840x2160",
+    "width": 3840,
+    "url": "https://thumbs.dfs.ivi.ru/storage0/contents/c/3/3c8ac0e6dc4ad3b1727b91a493580a.jpg",
+    "dominant_color": "#53524E",
+    "type": "poster-horizontal",
+    "height": 2160
+   }
+  ],
+  "content_paid_types": [
+   "SVOD"
+  ],
+  "seasons": [
+   {
+    "season_id": 13296,
+    "number": 1
+   },
+   {
+    "season_id": 15809,
+    "number": 2
+   }
+  ]
+ }
+}
