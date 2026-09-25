@@ -13,6 +13,12 @@ import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 
 const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
+/** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
+const CLOCK_MEMORY = 10 * 60_000;
+/** Столько замеров держится: хватает на любой разумный поток событий комнаты за это время. */
+const CLOCK_SAMPLES = 32;
+/** Скачок своих часов (сон, синхронизация времени), после которого прежние замеры неверны. */
+const CLOCK_JUMP = 1000;
 
 export class Meeting {
   readonly api: RoomApi;
@@ -242,9 +248,11 @@ export class Meeting {
     }
     this.refreshing = true;
     try {
-      const asked = Date.now();
+      // Время ответа — по монотонным часам: скачок обычных посреди запроса дал бы ответ длиной
+      // в час или отрицательный.
+      const asked = performance.now();
       const snapshot = await this.api.snapshot();
-      this.accept(snapshot, Date.now() - asked);
+      this.accept(snapshot, performance.now() - asked);
     } catch (error) {
       if (error instanceof ApiError && [403, 404, 410].includes(error.status)) this.end(error.message);
     } finally {
@@ -268,16 +276,42 @@ export class Meeting {
    * разницу своих задержек: у кого-то полсекунды, и это уже слышно. Поправка меряется только
    * там, где время запроса известно; снимок, пришедший каналом событий, часы не двигает — про
    * его дорогу мы не знаем ничего.
+   *
+   * ПОЧЕМУ БЫСТРЕЙШИЙ ИЗ НЕДАВНИХ, А НЕ ПОСЛЕДНИЙ. Половина времени ответа верна, только если
+   * дорога туда и обратно одинакова. А снимок спрашивают как раз в момент нажатия — когда плееры
+   * тянут кусочки видео, и ответ стоит в очереди за ними: у застрявшего ответа почти вся задержка
+   * на обратном пути, и поправка ошибается на её половину (полторы секунды в очереди — три
+   * четверти секунды у этого зрителя). Ошибка замера не больше половины его же времени ответа,
+   * поэтому из замеров последних {@link CLOCK_MEMORY} верен самый быстрый.
+   *
+   * ЧАСЫ УСТРОЙСТВА ПРЫГАЮТ. Сон ноутбука и синхронизация времени двигают `Date.now()` скачком,
+   * и прежние замеры становятся неверны ровно на этот скачок. Монотонные часы (`performance.now()`)
+   * его не делают — по их расхождению с обычными скачок и виден: больше {@link CLOCK_JUMP} — старые
+   * замеры забываются, и верен следующий ответ, каким бы медленным он ни был.
    */
   private clockOffset = 0;
   private clockMeasured = false;
+  private clockSamples: { offset: number; roundTrip: number; at: number; base: number }[] = [];
   private tellTime(serverTime: number, roundTrip?: number) {
+    const now = Date.now();
     if (roundTrip === undefined) {
-      if (!this.clockMeasured) this.clockOffset = serverTime - Date.now();
+      if (!this.clockMeasured) this.clockOffset = serverTime - now;
       return;
     }
+    const base = now - performance.now();
+    const trip = Math.min(roundTrip, 2000);
+    this.clockSamples = [
+      ...this.clockSamples.filter(
+        (sample) => Math.abs(sample.base - base) < CLOCK_JUMP && now - sample.at < CLOCK_MEMORY,
+      ),
+      { offset: serverTime + trip / 2 - now, roundTrip: trip, at: now, base },
+    ].slice(-CLOCK_SAMPLES);
+    // Равный по скорости — свежий: он ближе к тому, как часы идут сейчас.
+    const best = this.clockSamples.reduce((found, sample) =>
+      sample.roundTrip <= found.roundTrip ? sample : found,
+    );
     this.clockMeasured = true;
-    this.clockOffset = serverTime + Math.min(roundTrip, 2000) / 2 - Date.now();
+    this.clockOffset = best.offset;
   }
   serverNow(): number {
     return Date.now() + this.clockOffset;

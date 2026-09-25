@@ -300,3 +300,45 @@ it('кинозал по ссылке: страница меняется рань
   meeting.openCinema(null, page);
   expect([meeting.cinema.get(), meeting.cinemaAt.get()]).toEqual([null, null]);
 });
+
+/**
+ * Часы сервера на пять секунд впереди своих. Ответ идёт `up` мс туда и `down` мс обратно;
+ * `serverTime` сервер ставит в момент, когда запрос до него дошёл, — как настоящий.
+ */
+const SKEW = 5000;
+async function answer(up: number, down: number, skew = SKEW) {
+  fetchMock.mockImplementationOnce(() => {
+    const serverTime = Date.now() + up + skew;
+    return new Promise((resolve) =>
+      setTimeout(
+        () => resolve(new Response(JSON.stringify({ ...snapshot, serverTime }), { status: 200 })),
+        up + down,
+      ),
+    );
+  });
+  const pending = meeting.refresh();
+  await vi.advanceTimersByTimeAsync(up + down);
+  await pending;
+  return meeting.serverNow() - Date.now();
+}
+
+it('часы — по самому быстрому из недавних ответов: один застрявший ответ комнату не сдвигает', async () => {
+  expect(await answer(20, 20)).toBe(SKEW);
+  // Снимок спрашивают в момент нажатия, когда плеер тянет кусочки видео: ответ простоял в очереди
+  // полторы секунды, и вся задержка — на обратном пути. Половина времени ответа ошиблась бы здесь
+  // на 780 мс, и этот зритель встал бы от остальных на три четверти секунды.
+  expect(await answer(20, 1580)).toBe(SKEW);
+  // Ответ не хуже прежнего лучшего — берётся он: он свежее.
+  expect(await answer(15, 25)).toBe(SKEW - 5);
+});
+
+it('часы устройства прыгнули (сон, синхронизация времени) — прежние замеры забыты, верен следующий', async () => {
+  expect(await answer(20, 20)).toBe(SKEW);
+  // Время устройства перевели на три секунды вперёд: Date прыгнул, монотонные часы — нет.
+  vi.setSystemTime(Date.now() + 3000);
+  expect(await answer(150, 150, SKEW - 3000)).toBe(SKEW - 3000);
+  // Быстрый замер старше десяти минут уже не лучший: часы за это время могли уйти.
+  expect(await answer(20, 20, SKEW - 3000)).toBe(SKEW - 3000);
+  await vi.advanceTimersByTimeAsync(11 * 60_000);
+  expect(await answer(100, 100, SKEW - 3100)).toBe(SKEW - 3100);
+});
