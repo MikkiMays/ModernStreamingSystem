@@ -117,6 +117,10 @@ jobs:
           docker build -f services/sniffer/Dockerfile --target test -t cord-sniffer-test .
           docker run --rm --network none --read-only --tmpfs /tmp --shm-size 1g --memory 1536m \
             --pids-limit 256 --cap-drop ALL --security-opt no-new-privileges:true cord-sniffer-test
+      # Подсеть плеера страниц: `sniffer-firewall.sh validate` на двойнике сети прода в своём пространстве
+      # имён контейнера (NET_ADMIN — только внутри него, вместо iptables — ловушка). Хост не меняется.
+      - name: Verify the page player's subnet rules
+        run: bash infra/sniffer-subnet-test.sh
       - name: Verify integrations, bot commands and audio queue
         run: docker compose run --rm --no-deps --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests -v
       # Пакет кинозала и его плеер страниц (`services/sniffer`) держат черту в 110 знаков строже, чем
