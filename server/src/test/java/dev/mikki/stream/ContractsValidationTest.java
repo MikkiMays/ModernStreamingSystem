@@ -33,25 +33,28 @@ class ContractsValidationTest {
   }
 
   /**
-   * Семь площадок — списком в самом тесте, а не {@code WATCH_PROVIDERS.split(...)}: список из
+   * Шесть площадок — списком в самом тесте, а не {@code WATCH_PROVIDERS.split(...)}: список из
    * константы всегда совпадёт сам с собой, что бы в нём ни было, и ни разу не заметит пропажи.
    */
   @Test
   void everyDeclaredProviderPassesValidation() {
     try (var factory = Validation.buildDefaultValidatorFactory()) {
       var validator = factory.getValidator();
-      for (var provider :
-          new String[] {"youtube", "twitch", "vk", "rutube", "ivi", "jellyfin", "link"})
+      for (var provider : new String[] {"youtube", "twitch", "vk", "rutube", "ivi", "link"})
         assertThat(validator.validate(watchOpen(provider))).as("площадка %s", provider).isEmpty();
     }
   }
 
-  /** Незнакомое имя и почти угаданное — регистр, лишний пробел — не проходят вовсе. */
+  /**
+   * Незнакомое имя и почти угаданное — регистр, лишний пробел — не проходят вовсе. {@code jellyfin}
+   * тоже: площадку отменили раньше, чем у неё появилась служба, и открыть её комнате значило бы
+   * показать всем только отказ плеера.
+   */
   @Test
   void unknownAndNearMissProvidersAreRejected() {
     try (var factory = Validation.buildDefaultValidatorFactory()) {
       var validator = factory.getValidator();
-      for (var provider : new String[] {"netflix", "YouTube", "youtube "}) {
+      for (var provider : new String[] {"netflix", "YouTube", "youtube ", "jellyfin"}) {
         var violations = validator.validate(watchOpen(provider));
         assertThat(violations).as("площадка %s", provider).isNotEmpty();
         assertThat(violations)

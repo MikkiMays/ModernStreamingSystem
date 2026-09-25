@@ -953,22 +953,21 @@ class RoomServiceTest {
   }
 
   /**
-   * Семь площадок, один и тот же путь: ролик открывается им всем одинаково, без исключений для
+   * Шесть площадок, один и тот же путь: ролик открывается им всем одинаково, без исключений для
    * новеньких.
    */
   @Test
-  void allSevenPlatformsOpenAVideoTheSameWay() {
+  void allSixPlatformsOpenAVideoTheSameWay() {
     var host = host();
-    for (String provider :
-        new String[] {"youtube", "twitch", "vk", "rutube", "ivi", "jellyfin", "link"}) {
+    for (String provider : new String[] {"youtube", "twitch", "vk", "rutube", "ivi", "link"}) {
       watch(host, "watch.open", provider, "video", "abc", null);
       assertThat(rooms.read(host.roomId()).watch.provider).isEqualTo(provider);
     }
   }
 
   /**
-   * Эфир есть не у всех площадок. Ivi и Jellyfin отдают только запись — {@code channel} для них не
-   * начало трансляции, а нечего открывать, и отказ ровно тот же, что у пустых полей.
+   * Эфир есть не у всех площадок. ivi отдаёт только запись — {@code channel} для него не начало
+   * трансляции, а нечего открывать, и отказ ровно тот же, что у пустых полей.
    */
   @Test
   void onlyPlatformsWithARealBroadcastOpenAChannel() {
@@ -977,16 +976,15 @@ class RoomServiceTest {
       watch(host, "watch.open", provider, "channel", "some_channel", null);
       assertThat(rooms.read(host.roomId()).watch.provider).isEqualTo(provider);
     }
-    for (String provider : new String[] {"ivi", "jellyfin"})
-      assertThatThrownBy(() -> watch(host, "watch.open", provider, "channel", "some_channel", null))
-          .isInstanceOf(Problem.class)
-          .satisfies(
-              error -> {
-                var problem = (Problem) error;
-                assertThat(problem.status()).isEqualTo(400);
-                assertThat(problem.code()).isEqualTo("WATCH_INVALID");
-                assertThat(problem).hasMessage("Нечего открывать");
-              });
+    assertThatThrownBy(() -> watch(host, "watch.open", "ivi", "channel", "some_channel", null))
+        .isInstanceOf(Problem.class)
+        .satisfies(
+            error -> {
+              var problem = (Problem) error;
+              assertThat(problem.status()).isEqualTo(400);
+              assertThat(problem.code()).isEqualTo("WATCH_INVALID");
+              assertThat(problem).hasMessage("Нечего открывать");
+            });
   }
 
   @Test

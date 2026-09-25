@@ -526,7 +526,7 @@
             "type": "integer"
           },
           "provider": {
-            "pattern": "youtube|twitch|vk|rutube|ivi|jellyfin|link",
+            "pattern": "youtube|twitch|vk|rutube|ivi|link",
             "type": "string"
           },
           "seat": {

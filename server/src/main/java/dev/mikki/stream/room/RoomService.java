@@ -740,9 +740,9 @@ public class RoomService {
                   || command.contentId() == null
                   || command.contentId().isBlank())
                 throw new Problem(400, "WATCH_INVALID", "Нечего открывать");
-              // Эфир есть не у всех площадок: Ivi и Jellyfin отдают только запись, и «channel»
-              // для них — не эфир без начала, а нечего открывать. Отказ тот же, что у пустых
-              // полей: площадке, куда нечего заходить, не важно, чего именно не хватило.
+              // Эфир есть не у всех площадок: ivi отдаёт только запись, и «channel» для него —
+              // не эфир без начала, а нечего открывать. Отказ тот же, что у пустых полей:
+              // площадке, куда нечего заходить, не важно, чего именно не хватило.
               if (command.kind().equals("channel")
                   && !WATCH_LIVE_PROVIDERS.contains(command.provider()))
                 throw new Problem(400, "WATCH_INVALID", "Нечего открывать");

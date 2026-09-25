@@ -69,17 +69,19 @@ public final class Contracts {
    * Command#provider()}.
    *
    * <p>Список живёт здесь и нигде больше. Служба просмотра ({@code cinema/registry.py}) знает те же
-   * семь площадок под своей схемой {@code GET providers} — ядру же содержимое площадки не важно,
-   * ему важно лишь пропустить команду или отказать ей до того, как она дойдёт до службы.
+   * шесть площадок под своей схемой {@code GET providers} — ядру же содержимое площадки не важно,
+   * ему важно лишь пропустить команду или отказать ей до того, как она дойдёт до службы. Имени,
+   * которого нет в реестре службы, здесь нет тоже: комната, открывшая такую площадку, получала бы
+   * только отказ плеера у каждого зрителя.
    */
-  public static final String WATCH_PROVIDERS = "youtube|twitch|vk|rutube|ivi|jellyfin|link";
+  public static final String WATCH_PROVIDERS = "youtube|twitch|vk|rutube|ivi|link";
 
   /**
    * У кого из площадок {@code watch.open} с {@code kind=channel} означает настоящий прямой эфир.
    *
-   * <p>Ivi и Jellyfin отдают только запись — канала с живым краем у них нет. Открыть для них {@code
-   * channel} — не «эфир без начала», а нечего открывать, и {@code RoomService} отвечает на это тем
-   * же отказом, что и на пустые поля.
+   * <p>ivi отдаёт только запись — канала с живым краем у него нет. Открыть для него {@code channel}
+   * — не «эфир без начала», а нечего открывать, и {@code RoomService} отвечает на это тем же
+   * отказом, что и на пустые поля.
    */
   public static final Set<String> WATCH_LIVE_PROVIDERS =
       Set.of("youtube", "twitch", "vk", "rutube", "link");
