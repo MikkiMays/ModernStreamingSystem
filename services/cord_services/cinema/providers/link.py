@@ -303,12 +303,13 @@ class Link(Provider):
         started = time.monotonic()
         try:
             async with asyncio.timeout(INSPECTION_SECONDS):
-                # Место в выходе — здесь, в цикле событий, до потока; отменили разбор (новая ссылка,
-                # срок) — вход закрыт, и yt-dlp в потоке дальше получает только обрывы.
-                async with self.egress.session() as lease:
-                    walk = await asyncio.to_thread(
-                        self.ytdlp.run, self.id, OPTIONS, lambda ydl: _walk(ydl, url, route), lease=lease
+                # Место в выходе ждётся в цикле событий, yt-dlp работает в пуле выхода; отменили разбор
+                # (новая ссылка, срок) — вход закрыт сразу, а место занято, пока не кончится поток.
+                walk = await self.egress.run(
+                    lambda lease: self.ytdlp.run(
+                        self.id, OPTIONS, lambda ydl: _walk(ydl, url, route), lease=lease
                     )
+                )
                 if walk.route is not None:
                     return walk.route
                 if walk.playlist is not None:
@@ -447,7 +448,14 @@ class Link(Provider):
     # --- страницы сцены -----------------------------------------------------------------
 
     async def series(self, ctx: Ctx, series_id: str, season: str | None, offset: int) -> wire.SeriesPage:
-        """Серии плейлиста порцией. Каждая серия без своей площадки получает номер здесь — и на сутки."""
+        """
+        Серии плейлиста порцией. Каждая серия без своей площадки получает номер здесь — и на сутки.
+
+        Номер серии со своей страницей — номер этой страницы (`identify` по её адресу), и её запись
+        могла уже завести другая комната, вставив ту же ссылку. Такую запись серия не переписывает:
+        имя, постер и описание серии пишет чужой плейлист, и страницу ролика чужой комнаты он бы
+        переименовал.
+        """
         record = self.links.get(series_id)
         if not record or record.get("kind") != "series":
             raise HTTPException(410, GONE)
@@ -472,18 +480,19 @@ class Link(Provider):
                 )
                 continue
             episode_id = self.identify(entry["url"], entry.get("item"))
-            fresh[episode_id] = {
-                "kind": "video",
-                "url": entry["url"],
-                "item": entry.get("item"),
-                "title": entry["title"],
-                "author": record.get("author") or "",
-                "duration": entry.get("duration"),
-                "thumbnail": entry.get("thumbnail") or "",
-                "description": "",
-                "site": record.get("site") or "",
-                "series": series_id,
-            }
+            if self.links.get(episode_id) is None:
+                fresh[episode_id] = {
+                    "kind": "video",
+                    "url": entry["url"],
+                    "item": entry.get("item"),
+                    "title": entry["title"],
+                    "author": record.get("author") or "",
+                    "duration": entry.get("duration"),
+                    "thumbnail": entry.get("thumbnail") or "",
+                    "description": "",
+                    "site": record.get("site") or "",
+                    "series": series_id,
+                }
             cards.append(
                 wire.card(
                     self.id,
@@ -600,25 +609,46 @@ def _walk(ydl: Any, url: str, route: Route) -> Walk:
     каждом переходе: страница, которая встраивает плеер своей площадки, отдаёт `route` раньше, чем
     yt-dlp пошёл бы разбирать ту площадку через наш выход.
     """
-    from yt_dlp.utils import sanitize_url
+    from yt_dlp.utils import smuggle_url
 
+    page = url
     result = ydl.extract_info(url, download=False, process=False)
     for _ in range(HOPS):
         if not result:
             break
         kind = result.get("_type", "video")
         if kind in ("url", "url_transparent"):
-            target = sanitize_url(result.get("url") or "", scheme="https")
+            target, referer = _step(result.get("url") or "", page)
             known = route(target)
             if known is not None:
                 return Walk(route=known)
-            inner = ydl.extract_info(target, download=False, process=False, ie_key=result.get("ie_key"))
+            asked = smuggle_url(target, {"referer": referer}) if referer else target
+            inner = ydl.extract_info(asked, download=False, process=False, ie_key=result.get("ie_key"))
             result = _transparent(result, inner) if kind == "url_transparent" else inner
+            page = target
             continue
         if kind in ("playlist", "multi_video"):
             return Walk(playlist=result, entries=_first(result.get("entries"), EPISODES))
         return Walk(info=ydl.process_ie_result(result, download=False))
     raise _Unsupported("No video formats found")
+
+
+def _step(raw: str, page: str) -> tuple[str, str | None]:
+    """
+    Адрес следующего шага — без контрабанды yt-dlp в якоре (`#__youtubedl_smuggle`): её может подложить
+    сама страница, в `src` своего плеера, а `smuggle_url` разборщика чужие ключи не перебивает
+    (`http_headers`, `to_generic`, …). Остаётся только Referer, равный адресу страницы, — его разборщик
+    и кладёт встроенным плеерам, которым он нужен (Vimeo). Своя площадка узнаётся по чистому адресу.
+    """
+    from yt_dlp.utils import sanitize_url, unsmuggle_url
+
+    clean = sanitize_url(raw, scheme="https")
+    try:
+        target, data = unsmuggle_url(clean, {})
+    except Exception:  # чужой якорь, который yt-dlp не разберёт, — просто отрезается
+        target, data = clean.split("#__youtubedl_smuggle", 1)[0], {}
+    referer = page if isinstance(data, dict) and data.get("referer") == page else None
+    return target, referer
 
 
 class _Unsupported(Exception):

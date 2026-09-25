@@ -30,6 +30,16 @@ CDN = "151.101.1.69"
 SIX = "2606:2800:220:1:248:1893:25c8:1946"
 
 
+class CountingPool(concurrent.futures.ThreadPoolExecutor):
+    """Пул потоков, который считает, сколько работ ему отдали."""
+
+    submitted = 0
+
+    def submit(self, *args, **kwargs):
+        self.submitted += 1
+        return super().submit(*args, **kwargs)
+
+
 class Directory:
     """Справочник имён теста: что ответить на каждое имя."""
 
@@ -69,6 +79,8 @@ class Site:
         self.tls = tls
         self.requests = []
         self.connections = 0
+        # Сколько байт тела кусками сайт успел отдать, пока его читали.
+        self.sent = 0
 
     async def start(self):
         self.server = await asyncio.start_server(self.handle, "127.0.0.1", 0, ssl=self.tls)
@@ -88,6 +100,15 @@ class Site:
                 if callable(answer):
                     answer = await answer()
                 status, extra, body = answer
+                if not isinstance(body, bytes):
+                    # Тело кусками, сколько сайт захочет: без длины, до закрытия соединения.
+                    out = [f"HTTP/1.1 {status} X"] + [f"{name}: {value}" for name, value in extra.items()]
+                    writer.write(("\r\n".join(out + ["Connection: close"]) + "\r\n\r\n").encode())
+                    async for chunk in body():
+                        self.sent += len(chunk)
+                        writer.write(chunk)
+                        await writer.drain()
+                    break
                 out = [f"HTTP/1.1 {status} X"]
                 out += [f"{name}: {value}" for name, value in {"Content-Length": len(body), **extra}.items()]
                 writer.write(("\r\n".join(out) + "\r\n\r\n").encode() + (b"" if method == "HEAD" else body))
@@ -550,6 +571,53 @@ class Limits(EgressCase):
         self.assertFalse(busy.done())
         release.set()
         await busy
+
+    async def test_a_cancelled_parse_keeps_its_place_until_its_thread_ends_in_its_own_pool(self):
+        # Отменённый разбор: вход закрыт сразу, а место — у потока, пока тот не кончится; и поток —
+        # из пула выхода, не из общего пула цикла событий (там разрешение имён и прочие `to_thread`).
+        common = CountingPool(max_workers=2)
+        asyncio.get_running_loop().set_default_executor(common)
+        egress = self.make(sessions=1, wait=0.2)
+        self.addAsyncCleanup(egress.close)
+        release, started = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        seen = []
+
+        def work(lease):
+            seen.append((lease, threading.current_thread().name))
+            started.set()
+            release.wait(5)
+            return "разобрано"
+
+        parse = asyncio.ensure_future(egress.run(work))
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+        lease, thread = seen[0]
+        self.assertIn(lease.id, egress._leases)
+        parse.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await parse
+        self.assertNotIn(lease.id, egress._leases)
+        # Поток ещё считает — место его, и следующий ждёт, а не берёт второй поток.
+        with self.assertRaises(Busy):
+            await egress.run(lambda lease: "второй")
+        release.set()
+        egress.wait = 5
+        self.assertEqual(await egress.run(lambda lease: threading.current_thread().name), thread)
+        self.assertTrue(thread.startswith("cinema-link"), thread)
+        self.assertEqual(common.submitted, 0)
+
+    async def test_a_parse_that_fails_gives_its_place_back_and_says_why(self):
+        egress = self.make(sessions=1, wait=0.2)
+        self.addAsyncCleanup(egress.close)
+
+        def broken(lease):
+            raise ValueError("разборщик упал")
+
+        with self.assertRaises(ValueError):
+            await egress.run(broken)
+        self.assertEqual(await egress.run(lambda lease: "снова"), "снова")
+        self.assertEqual(egress._leases, {})
 
     async def test_silent_connections_do_not_lock_out_a_real_lease(self):
         # Чужой процесс машины открыл соединений больше, чем мест, и молчит. Предел туннелей считает

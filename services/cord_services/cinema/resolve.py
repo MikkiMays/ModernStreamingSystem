@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import copy
 import logging
 import re
@@ -227,8 +228,8 @@ class YtDlp:
         Через это место идёт любой вызов yt-dlp: и обычный разбор (`_call`), и разбор ссылки по
         шагам, которому мало одного `extract_info` (`providers/link.py`). Поэтому выход наружу
         решается здесь, а не у спросившего: у площадки с охраняемым выходом `proxy` из опций
-        заменяется входом разбора (`lease` — его берёт в цикле событий тот, кто зовёт yt-dlp,
-        `Egress.session`), что бы в опциях ни стояло; нет входа — нет и выхода наружу.
+        заменяется входом разбора (`lease` — его выдаёт `Egress.run`, в чьём потоке и идёт этот
+        вызов), что бы в опциях ни стояло; нет входа — нет и выхода наружу.
         """
         import yt_dlp  # тяжёлый модуль: грузится при первом вопросе, а не при старте службы
 
@@ -243,6 +244,7 @@ class YtDlp:
             params["logger"] = _Quiet(self.explain, silent=True)
             try:
                 with yt_dlp.YoutubeDL(params) as ydl:
+                    _requests_only(ydl)
                     ydl.urlopen = _capped(ydl.urlopen)
                     return work(ydl)
             except Exception as error:
@@ -367,12 +369,102 @@ class _Capped:
 
 
 def _capped(urlopen: Callable[..., Any]) -> Callable[..., Any]:
-    """`YoutubeDL.urlopen`, чьи ответы читаются не больше `DECODED_LIMIT` распакованных байт."""
+    """
+    `YoutubeDL.urlopen`, чьи ответы читаются не больше `DECODED_LIMIT` распакованных байт, — и ответы
+    с ошибкой тоже: их тело yt-dlp читает так же целиком (`generic` на каждом 403 ищет в нём страницу
+    Cloudflare, разборщики с `expected_status` разбирают его как страницу), и оно так же чужое.
+    """
+    from yt_dlp.networking.exceptions import HTTPError
 
     def opened(request: Any) -> _Capped:
-        return _Capped(urlopen(request), DECODED_LIMIT)
+        try:
+            response = urlopen(request)
+        except HTTPError as error:
+            error.response = _Capped(error.response, DECODED_LIMIT)
+            raise
+        return _Capped(response, DECODED_LIMIT)
 
     return opened
+
+
+def _requests_only(ydl: Any) -> None:
+    """
+    yt-dlp площадки с выходом ходит только через `requests`, и тела переадресаций не читает.
+
+    Предел `_Capped` держится, только пока тело читают после `urlopen`, кусками: обработчик `urllib` у
+    yt-dlp распаковывает тело ещё внутри `urlopen`, а сам `requests` на каждой переадресации читает её
+    тело целиком (`Session.resolve_redirects` → `resp.content`) — 95 КБ сжатого по проводу там
+    становились двумя сотнями мегабайт памяти. Поэтому прочие обработчики из разбора уходят совсем
+    (нет `requests` — нет и разбора, а не разбор без предела), а сессия `requests` получает крючок,
+    который закрывает тело переадресации непрочитанным (`_redirect_unread`). Имена внутри yt-dlp
+    (`_request_director`, `_create_instance`) проверяет при старте службы `check_reading`.
+    """
+    director = ydl._request_director
+    handler = director.handlers.get("Requests")
+    if handler is None:
+        raise Closed("У yt-dlp нет обработчика requests — разбор ссылок не пускается")
+    for key in [key for key in director.handlers if key != "Requests"]:
+        director.handlers.pop(key).close()
+    create = handler._create_instance
+
+    def created(*args: Any, **kwargs: Any) -> Any:
+        session = create(*args, **kwargs)
+        session.hooks["response"].append(_redirect_unread)
+        return session
+
+    handler._create_instance = created
+
+
+def _redirect_unread(response: Any, *args: Any, **kwargs: Any) -> Any:
+    """
+    Крючок `requests`: тело переадресации не нужно никому — соединение закрывается непрочитанным, и
+    `resp.content` у `resolve_redirects` читает из закрытого пустоту. Сам ответ остаётся: из его
+    заголовков `requests` ещё берёт cookies (`extract_cookies_to_jar`), а без них Дзен, ставящий cookie
+    переадресацией, отдаёт вместо ролика пустую страницу.
+    """
+    if response.is_redirect:
+        with contextlib.suppress(Exception):
+            response.raw.close()
+    return response
+
+
+_reading_checked = False
+
+
+def check_reading() -> None:
+    """
+    Держится ли предел `_Capped` на этой сборке. urllib3 — 2.6 или новее: раньше `read(n)` распаковывал
+    весь пришедший кусок «бомбы», сколько бы ни просили. У yt-dlp — обработчик `requests` и места, куда
+    встаёт `_requests_only`. Проверяется при сборке службы с площадкой «По ссылке»: не держится —
+    служба не поднимается, а не разбирает чужие страницы без предела. Один раз на процесс.
+    """
+    global _reading_checked
+    if _reading_checked:
+        return
+    import urllib3
+    import yt_dlp
+
+    version = tuple(int(part) for part in re.findall(r"\d+", urllib3.__version__)[:2])
+    if version < (2, 6):
+        raise RuntimeError(
+            f"urllib3 {urllib3.__version__} распаковывает ответ сайта целиком, сколько бы из него ни "
+            "читали: разбор ссылок без предела не поднимается — нужен urllib3 2.6 или новее"
+        )
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "cachedir": False}) as ydl:
+            _requests_only(ydl)
+            handlers = list(ydl._request_director.handlers)
+            session = ydl._request_director.handlers["Requests"]._create_instance(cookiejar=ydl.cookiejar)
+            hooked = _redirect_unread in session.hooks["response"]
+            session.close()
+    except (Closed, AttributeError, KeyError, TypeError) as error:
+        raise RuntimeError(
+            f"yt-dlp изменился: предел на тело ответа сайта некуда встроить ({error}) — разбор ссылок "
+            "без него не поднимается"
+        ) from None
+    if handlers != ["Requests"] or not hooked:
+        raise RuntimeError("yt-dlp изменился: разбор ссылок ходил бы не через requests с пределом")
+    _reading_checked = True
 
 
 def _egress_error(lease: Lease, error: Exception) -> Exception | None:
@@ -584,13 +676,12 @@ class Resolver:
         if gate is None:
             info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
         else:
-            # Место в выходе берётся здесь, в цикле событий, а не в потоке; отменили разбор — вход
-            # закрыт, и поток yt-dlp дальше получает только обрывы.
+            # Место в выходе ждётся в цикле событий, разбор идёт в пуле выхода (`Egress.run`);
+            # отменили разбор — вход закрыт сразу, а место — когда кончится поток.
             try:
-                async with gate.session() as lease:
-                    info = await asyncio.to_thread(
-                        self.ytdlp.probe, plan.url, provider, lease=lease, **plan.options
-                    )
+                info = await gate.run(
+                    lambda lease: self.ytdlp.probe(plan.url, provider, lease=lease, **plan.options)
+                )
             except Busy:
                 raise HTTPException(503, BUSY) from None
         return await self.settle(plan, info, net, provider, content_id, adaptive)

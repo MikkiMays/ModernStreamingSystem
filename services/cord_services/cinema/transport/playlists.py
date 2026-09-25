@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import os
+import re
+import threading
 import time
 from typing import NamedTuple
 from urllib.parse import urljoin
@@ -11,6 +13,52 @@ from urllib.parse import urljoin
 from fastapi import HTTPException
 
 from .signer import SIGNATURE_TTL, Signer, proxied
+
+
+# Чужой плейлист (площадка с любыми хостами — «По ссылке») переписывается строка за строкой: подпись
+# или номер на каждый адрес, и адрес после подписи — сотни байт на каждый байт строки. Восемь мегабайт
+# однобуквенных строк стоили минут процессора в цикле событий и гигабайтов памяти. Поэтому такой
+# плейлист сначала меряется (`unwieldy`), до всякой работы: адресов — не больше `URIS` (у
+# тринадцатичасового ролика YouTube их 9 370), каждый — не длиннее `LONGEST_URI`, а строк всех видов —
+# не больше `LINES` (у сегмента их до пяти: длительность, время, диапазон, сам адрес).
+URIS = 20_000
+LONGEST_URI = 2_000
+LINES = 5 * URIS
+# Чем делит строки `str.splitlines` — тем же и считаются строки до деления: иначе `\r` вместо `\n`
+# пронёс бы четыре миллиона строк мимо счёта.
+BREAKS = re.compile(r"\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]")
+
+
+def unwieldy(body: str, base: str) -> str | None:
+    """
+    Почему этот чужой плейлист не переписывать — словами, или `None`. Строки считаются, не деля текст
+    (дальше предела счёт не идёт), адреса — ровно те, что подписал бы `rewrite`, и с его `urljoin`.
+    """
+    for count, _ in enumerate(BREAKS.finditer(body), 1):
+        if count > LINES:
+            return f"в нём больше {LINES} строк"
+    uris = 0
+    for line in body.splitlines():
+        inner = _uri(line)
+        if inner is None:
+            continue
+        uris += 1
+        if uris > URIS:
+            return f"в нём больше {URIS} адресов"
+        if len(urljoin(base, inner)) > LONGEST_URI:
+            return f"адрес в нём длиннее {LONGEST_URI} знаков"
+    return None
+
+
+def _uri(line: str) -> str | None:
+    """Адрес в строке плейлиста: сама строка (вариант, сегмент) или `URI="…"` тега; `None` — адреса нет."""
+    if not line:
+        return None
+    if line.startswith("#"):
+        if 'URI="' not in line:
+            return None
+        return line.partition('URI="')[2].partition('"')[0]
+    return line.strip()
 
 
 def master_playlist(body: str) -> bool:
@@ -60,28 +108,33 @@ class Reels:
         self.ttl = ttl
         self.capacity = capacity
         self._items: dict[str, tuple[float, str, list[str], str]] = {}
+        # Чужие плейлисты переписываются в потоке (`Cinema.manifest`), а кусочки ищутся в цикле событий.
+        self._lock = threading.Lock()
 
     def remember(self, playlist_url: str, targets: list[str], provider: str) -> str:
         key = self.signer.name(f"{provider}|{playlist_url}")
         shared = os.path.commonprefix(targets) if targets else ""
-        self._items.pop(key, None)
-        self._items[key] = (time.time(), shared, [target[len(shared) :] for target in targets], provider)
-        while len(self._items) > self.capacity:
-            self._items.pop(next(iter(self._items)))
+        tails = [target[len(shared) :] for target in targets]
+        with self._lock:
+            self._items.pop(key, None)
+            self._items[key] = (time.time(), shared, tails, provider)
+            while len(self._items) > self.capacity:
+                self._items.pop(next(iter(self._items)))
         return key
 
     def find(self, key: str, index: int) -> Reel:
-        found = self._items.get(key)
-        if not found or time.time() - found[0] > self.ttl:
-            raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
-        _, shared, tails, provider = found
-        if index < 0 or index >= len(tails):
-            raise HTTPException(404, "Такого кусочка в этом видео нет")
-        # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
-        # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
-        # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
-        self._items.pop(key)
-        self._items[key] = (time.time(), shared, tails, provider)
+        with self._lock:
+            found = self._items.get(key)
+            if not found or time.time() - found[0] > self.ttl:
+                raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
+            _, shared, tails, provider = found
+            if index < 0 or index >= len(tails):
+                raise HTTPException(404, "Такого кусочка в этом видео нет")
+            # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
+            # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
+            # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
+            self._items.pop(key)
+            self._items[key] = (time.time(), shared, tails, provider)
         return Reel(shared + tails[index], provider)
 
 

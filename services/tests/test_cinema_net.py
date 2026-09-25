@@ -372,11 +372,13 @@ class GuardedTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(dialer.lines[0].tls, [])
 
     async def test_behind_an_http_proxy_a_site_with_only_ipv6_is_refused_not_named(self):
-        # CONNECT httpcore пишет IPv6 без скобок; имя вместо адреса отдало бы разрешение прокси.
+        # httpcore пишет прокси IPv6 без скобок — и в CONNECT, и в полном адресе запроса http; имя
+        # вместо адреса отдало бы разрешение прокси.
         guard = Guard(resolve=Directory({"six.test": ["2606:2800:220:1:248:1893:25c8:1946"]}))
         dialer = Dialer()
         transport = GuardedTransport(guard, proxy="http://127.0.0.1:3128", strict=True, backend=dialer)
         await self.refused(transport, "https://six.test/")
+        await self.refused(transport, "http://six.test/film.m3u8")
         self.assertEqual(dialer.dialed, [])
         # С IPv4 рядом — идёт по IPv4.
         both = Guard(

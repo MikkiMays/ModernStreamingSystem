@@ -688,9 +688,9 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
             raise httpx.ConnectError(str(error), request=request) from error
         # IPv4 — первым, как у своих соединений (`GuardedBackend`): IPv6 без маршрута молчит.
         chosen = min(addresses, key=lambda text: ip_address(text).version)
-        if self.tunnel and request.url.scheme == "https" and ip_address(chosen).version == 6:
-            # CONNECT httpcore пишет адрес IPv6 без скобок — такой туннель прокси не поймёт, а имя
-            # вместо адреса прокси разрешил бы сам, уже без нашей проверки.
+        if self.tunnel and ip_address(chosen).version == 6:
+            # Адрес IPv6 httpcore пишет прокси без скобок — и в CONNECT, и в полном адресе запроса http:
+            # такого прокси не поймёт, а имя вместо адреса он разрешил бы сам, уже без нашей проверки.
             raise httpx.ConnectError(
                 f"{host}: у сайта только IPv6 — через HTTP-прокси его не открыть", request=request
             )

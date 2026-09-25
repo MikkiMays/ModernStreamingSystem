@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import functools
 import gzip
 import logging
@@ -36,8 +37,8 @@ from .paging import absolute, offset_of
 from .providers import PROVIDERS
 from .providers.link import Link as General
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
-from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp
-from .transport.playlists import Reels, rewrite
+from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
+from .transport.playlists import Reels, rewrite, unwieldy
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
 
@@ -69,6 +70,8 @@ PLAYLIST_DEADLINE = 20.0
 # Срок на весь `resolve` площадки «По ссылке»: разбор страницы (30 с у выхода), проверки DRM и
 # файлов — вместе, а не каждая своим сроком (переадресации одних проверок складывались в минуты).
 LINK_RESOLVE_SECONDS = 40.0
+# Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`).
+REWRITE_THREADS = 2
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 NO_PLAYLIST = "Площадка не отдала плейлист"
 
@@ -167,6 +170,11 @@ class Cinema:
         self.signer = Signer(secret, self._hosts)
         self.segments = Segments()
         self.reels = Reels(self.signer)
+        # Чужие плейлисты («По ссылке») меряются и переписываются здесь, а не в цикле событий и не в
+        # общем пуле `to_thread`: даже в пределах это до двадцати тысяч подписей (`Cinema.manifest`).
+        self.rewrites = concurrent.futures.ThreadPoolExecutor(
+            max_workers=REWRITE_THREADS, thread_name_prefix="cinema-rewrite"
+        )
         self.catalog = Memo()
         self.sources = Memo(capacity=64)
         self.resolves = Window(
@@ -197,6 +205,10 @@ class Cinema:
         )
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
         self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
+        if any(self.registry.find(provider) is not None for provider in self.egress):
+            # Площадка с чужими страницами включена — предел на тело ответа сайта должен держаться на
+            # этой сборке, иначе служба не поднимается (`resolve.check_reading`).
+            check_reading()
         known = {kind.id for kind in PROVIDERS}
         strangers = sorted((set(config.proxies) | set(config.cookies) | set(config.private)) - known)
         if strangers:
@@ -210,6 +222,7 @@ class Cinema:
 
     async def close(self):
         await asyncio.gather(*(gate.close() for gate in self.egress.values()), return_exceptions=True)
+        self.rewrites.shutdown(wait=False, cancel_futures=True)
         await self.net.close()
 
     def _kit(self, kind: type[Provider]) -> Kit:
@@ -574,10 +587,33 @@ class Cinema:
                 raise
             raise HTTPException(502, NO_PLAYLIST) from None
         text = raw.decode("utf-8", errors="replace")
+        base = str(upstream.url)
+        if source is None or source.hosts.public_any:
+            # Чужой плейлист: мера, проверка DRM, подписи и сжатие — в своих потоках, не в цикле событий.
+            job = self.rewrites.submit(self._render, text, base, source, provider, encodings, True)
+            return await asyncio.wrap_future(job)
+        return self._render(text, base, source, provider, encodings, False)
+
+    def _render(
+        self,
+        text: str,
+        base: str,
+        source: Provider | None,
+        provider: str,
+        encodings: str | None,
+        foreign: bool,
+    ) -> Response:
+        """
+        Плейлист на наших адресах. Чужой (`foreign`) — сначала мерой (`playlists.unwieldy`): восемь
+        мегабайт однобуквенных строк стоили минут процессора и гигабайтов памяти, и отказ — раньше
+        всякой подписи.
+        """
+        if foreign and (refused := unwieldy(text, base)):
+            raise HTTPException(502, f"Плейлист площадки не открыть: {refused}")
         # Список кусочков с ключом DRM (обычно он не в мастере, а здесь) — отказ, а не попытка.
         if source is not None and source.refuses_drm and drm.hls(text):
             raise HTTPException(403, drm.DRM)
-        body = rewrite(text, str(upstream.url), self.signer, self.reels, provider=provider)
+        body = rewrite(text, base, self.signer, self.reels, provider=provider)
         headers = {"Cache-Control": "no-store"}
         payload = body.encode()
         # Плейлист фильма — это тысячи почти одинаковых строк. Сжатие снимает с них ещё
