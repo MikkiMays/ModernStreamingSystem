@@ -28,6 +28,7 @@ from . import drm, mpd
 from .captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language, _pick
 from .egress import Busy, Closed, Egress, Lease
 from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
+from .transport.relay import SEALED
 from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
 
 logger = logging.getLogger(__name__)
@@ -955,10 +956,11 @@ class Resolver:
         if not found or found[0] <= time.time():
             self.dash_manifests.pop(key, None)
             raise HTTPException(410, "Ссылка устарела, откройте видео заново")
+        # Манифест собран нами, но он XML с чужими адресами внутри: открыть его вкладкой — скачать (`SEALED`).
         return Response(
             found[1],
             media_type="application/dash+xml",
-            headers={"Cache-Control": "no-store"},
+            headers={"Cache-Control": "no-store", **SEALED},
         )
 
     def _captions(

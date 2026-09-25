@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any, Callable, Coroutine
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .facade import Cinema, Kind, Link, Resolve, Tab
+from .transport.relay import SEALED
 from .transport.signer import PREFIX
 
 # Площадка — строка, а не перечень в схеме: её проверяет реестр. Незнакомая или выключенная
@@ -19,8 +24,35 @@ Signed = Annotated[str, Query(max_length=32)]
 Profile = Annotated[str, Query(max_length=22, pattern=r"^[A-Za-z0-9_-]*$")]
 
 
+class Sealed(APIRoute):
+    """
+    Маршрут прокси: каждый его ответ — и отказ тоже — несёт `relay.SEALED`.
+
+    Ответы прокси собирает фасад, и заголовки у них есть и там; здесь — граница, которую не обойти ни новым
+    путём ответа, ни отказом: адрес прокси открывается вкладкой так же, как тегом `<video>`.
+    """
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handler = super().get_route_handler()
+
+        async def sealed(request: Request) -> Response:
+            try:
+                response = await handler(request)
+            except StarletteHTTPException as refusal:
+                headers = {**(refusal.headers or {}), **SEALED}
+                raise HTTPException(refusal.status_code, refusal.detail, headers=headers) from None
+            except RequestValidationError as invalid:
+                response = await request_validation_exception_handler(request, invalid)
+            response.headers.update(SEALED)
+            return response
+
+        return sealed
+
+
 def routes(cinema: Cinema, core) -> APIRouter:
     router = APIRouter()
+    # Маршруты прокси — отдельной группой: их ответы и отказы запечатаны (`Sealed`).
+    signed = APIRouter(route_class=Sealed)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")
     async def providers(room_id: str, authorization: str = Header()):
@@ -124,7 +156,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
     # в минуту, и заголовок авторизации в теги `<video>` и сегменты HLS не поставишь. Подпись
     # знает свой маршрут и свою площадку (`p`): ссылка без `p` — выданная до этого — получит
     # 403, и плеер переоткроет источник сам.
-    @router.get(PREFIX + "/playlist")
+    @signed.get(PREFIX + "/playlist")
     async def playlist(
         u: str,
         e: str,
@@ -136,30 +168,31 @@ def routes(cinema: Cinema, core) -> APIRouter:
         url = cinema.signer.open("playlist", u, e, s, p, h)
         return await cinema.manifest(url, accept_encoding, p, profile_id=h)
 
-    @router.get(PREFIX + "/fetch")
+    @signed.get(PREFIX + "/fetch")
     async def fetch(
         u: str, e: str, s: str, p: Signed = "", h: Profile = "", range: str | None = Header(default=None)
     ):
         return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p, h), range, p, profile_id=h)
 
-    @router.get(PREFIX + "/dash/{key}")
+    @signed.get(PREFIX + "/dash/{key}")
     async def dash(key: str):
         return cinema.dash(key)
 
     # Сегмент фильма — по номеру в уже разобранном плейлисте. Имя плейлиста подписано тем же
     # ключом, а сам список составлен нами и содержит только адреса, разрешённые его площадке.
-    @router.get(PREFIX + "/seg/{key}/{index}")
+    @signed.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
         reel = cinema.reels.find(key, index)
         return await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or "")
 
-    @router.get(PREFIX + "/image")
+    @signed.get(PREFIX + "/image")
     async def image(u: str, e: str, s: str, p: Signed = ""):
         return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None, p)
 
     # Субтитры площадки, переведённые в WebVTT: `<track>` другого вида не читает.
-    @router.get(PREFIX + "/subtitles")
+    @signed.get(PREFIX + "/subtitles")
     async def subtitles(u: str, e: str, s: str, p: Signed = "", h: Profile = ""):
         return await cinema.subtitles(cinema.signer.open("subtitles", u, e, s, p, h), p, profile_id=h)
 
+    router.include_router(signed)
     return router

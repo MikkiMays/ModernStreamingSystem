@@ -40,6 +40,7 @@ from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
 from .sniffer import Profile, Profiles, Sniffer
 from .transport.playlists import Reels, rewrite, unwieldy
+from .transport.relay import OCTET, SEALED, media_type
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
 
@@ -674,7 +675,7 @@ class Cinema:
         if source is not None and source.refuses_drm and drm.hls(text):
             raise HTTPException(403, drm.DRM)
         body = rewrite(text, base, self.signer, self.reels, provider=provider, profile=profile)
-        headers = {"Cache-Control": "no-store"}
+        headers = {"Cache-Control": "no-store", **SEALED}
         payload = body.encode()
         # Плейлист фильма — это тысячи почти одинаковых строк. Сжатие снимает с них ещё
         # порядок, и делать это стоит именно здесь: у сегментов сжимать нечего, они уже видео.
@@ -710,7 +711,7 @@ class Cinema:
         return Response(
             webvtt(body),
             media_type="text/vtt; charset=utf-8",
-            headers={"Cache-Control": "private, max-age=600"},
+            headers={"Cache-Control": "private, max-age=600", **SEALED},
         )
 
     async def fetch(
@@ -747,7 +748,9 @@ class Cinema:
                 body = await self._read(upstream)
             finally:
                 await upstream.aclose()
-            kind = upstream.headers.get("content-type", "video/mp2t")
+            # В общую память — уже вид для зрителя (`relay.media_type`): чужой `text/html` не должен
+            # дождаться там второго зрителя.
+            kind = media_type(upstream.headers.get("content-type"), "video/mp2t")
             self.segments.put(url, body, kind)
             return _kept(body, kind)
 
@@ -832,8 +835,11 @@ class Cinema:
             raise HTTPException(502, "Площадка не отдала данные") from None
         return bytes(body)
 
-    def _stream(self, upstream: httpx.Response, kind: str | None = None) -> StreamingResponse:
-        """Ответ площадки к зрителю как есть: байты без распаковки и заголовки, которые их описывают."""
+    def _stream(self, upstream: httpx.Response, kind: str = OCTET) -> StreamingResponse:
+        """
+        Ответ площадки к зрителю: байты без распаковки и заголовки, которые их описывают, — кроме вида: он
+        из белого списка (`relay.media_type`), а если площадка его не назвала — `kind`.
+        """
 
         async def body():
             try:
@@ -845,12 +851,11 @@ class Cinema:
         passed = {
             name: value
             for name, value in upstream.headers.items()
-            if name.lower()
-            in ("content-length", "content-range", "accept-ranges", "content-type", "content-encoding")
+            if name.lower() in ("content-length", "content-range", "accept-ranges", "content-encoding")
         }
-        if kind and "content-type" not in upstream.headers:
-            passed["Content-Type"] = kind
+        passed["Content-Type"] = media_type(upstream.headers.get("content-type"), kind)
         passed["Cache-Control"] = "private, max-age=600"
+        passed.update(SEALED)
         return StreamingResponse(body(), status_code=upstream.status_code, headers=passed)
 
 
@@ -871,4 +876,6 @@ def _plain(upstream: httpx.Response) -> bool:
 
 def _kept(body: bytes, kind: str) -> Response:
     """Кусочек из общей памяти: браузер держит его у себя, и отмотка назад не качает его снова."""
-    return Response(body, media_type=kind, headers={"Cache-Control": "private, max-age=600"})
+    return Response(
+        body, media_type=media_type(kind), headers={"Cache-Control": "private, max-age=600", **SEALED}
+    )
