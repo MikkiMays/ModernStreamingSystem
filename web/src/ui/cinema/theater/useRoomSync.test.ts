@@ -153,6 +153,28 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(update('loading')).toBe('loading');
   });
 
+  it('пуск после паузы: отставший включается с секунды комнаты, а не с места, где стоял', async () => {
+    // Замер на стенде (задача 11a): пуск доходил до второго за 0,1–1 с, проверка случалась ещё
+    // до секунды спустя, и он включался с кадра паузы, отставая на 1,9 с; скорость отыгрывала
+    // это 41–43 с.
+    const video = element({ currentTime: 30, paused: true });
+    const { hook } = setup(video, { watch: watch({ paused: true, positionMs: 30_000 }) });
+    await pass(1000);
+    expect(video.currentTime).toBe(30);
+    // Комнату пустили 900 мс назад: снимок пришёл только сейчас, ближайшая проверка — через секунду.
+    hook.rerender({
+      watch: watch({ paused: false, positionMs: 30_000, anchorAt: Date.now() - 900, revision: 2 }),
+      live: false,
+      canControl: true,
+    });
+    await pass(1000);
+    expect(video.play).toHaveBeenCalledTimes(1);
+    // Цель — 31 900 мс, и встаём с тем же запасом в 400 мс, что и при перемотке отставшего.
+    expect(video.currentTime).toBeCloseTo(32.3, 6);
+    expect(video.playbackRate).toBe(1);
+    expect(hook.result.current.echo.quiet()).toBe(true);
+  });
+
   it('комната на паузе, а мы играем — пауза ровно в её секунде', async () => {
     const { hook, video } = setup(element({ currentTime: 29, playbackRate: 1.05 }), {
       watch: watch({ paused: true, positionMs: 30_000 }),

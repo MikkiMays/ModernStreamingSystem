@@ -56,7 +56,8 @@ const CATCH_UP_LEAD = 400;
 
 export type Correction =
   | { action: 'none' }
-  | { action: 'play' }
+  /** Включиться; с `positionMs` — сперва встать туда: на паузе перемотка ничего не рвёт. */
+  | { action: 'play'; positionMs?: number }
   | { action: 'pause'; positionMs: number }
   | { action: 'seek'; positionMs: number }
   | { action: 'rate'; rate: number };
@@ -97,17 +98,30 @@ export function correction(input: {
   */
   if (input.live || watch.kind !== 'video') return playing ? ordinary() : { action: 'play' };
   const target = targetPosition(watch, serverNow);
+  // Отставшего догоняем с запасом: пока перемотка доедет, комната уйдёт ещё немного вперёд.
+  const reach = (drift: number) => (drift < 0 ? target + CATCH_UP_LEAD : target);
   if (watch.paused) {
     if (playing) return { action: 'pause', positionMs: target };
     if (localMs !== null && Math.abs(localMs - target) > JUMP_LIMIT)
       return { action: 'seek', positionMs: target };
     return ordinary();
   }
-  if (!playing) return { action: 'play' };
+  if (!playing) {
+    /*
+      Включаемся с секунды комнаты, а не с места, где стояли.
+
+      Пуск доходит до зрителя не сразу: сеть, затем ближайшая проверка — на стенде второй
+      включался на 1,9 с позже комнаты и дальше минуту догонял её скоростью. Перемотка перед
+      пуском ничего не рвёт — кадр и так стоит, а звука ещё нет, — поэтому здесь встаём точно.
+      Разницу в пределах «не трогать» не трогаем и здесь: прыжок ради неё дороже её самой.
+    */
+    if (localMs !== null && Math.abs(localMs - target) > DRIFT_LIMIT)
+      return { action: 'play', positionMs: reach(localMs - target) };
+    return { action: 'play' };
+  }
   if (localMs === null) return { action: 'none' };
   const drift = localMs - target;
-  if (Math.abs(drift) > JUMP_LIMIT)
-    return { action: 'seek', positionMs: drift < 0 ? target + CATCH_UP_LEAD : target };
+  if (Math.abs(drift) > JUMP_LIMIT) return { action: 'seek', positionMs: reach(drift) };
   if (Math.abs(drift) > DRIFT_LIMIT) {
     const wanted = Number((drift < 0 ? 1 + NUDGE : 1 - NUDGE).toFixed(3));
     return rate === wanted ? { action: 'none' } : { action: 'rate', rate: wanted };

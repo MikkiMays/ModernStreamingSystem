@@ -85,6 +85,23 @@ describe('поправка своего плеера', () => {
     });
   });
 
+  it('включаясь вслед за комнатой, встаёт туда, где она сейчас, а не где стоял на паузе', () => {
+    // Пуск доходит до зрителя через сеть и ближайшую проверку — к этому времени комната ушла вперёд
+    // на секунду-другую. Включиться с места паузы значило бы потом минуту догонять скоростью.
+    expect(correction({ watch: video(), serverNow, localMs: 68100, playing: false })).toEqual({
+      action: 'play',
+      positionMs: 70400,
+    });
+    // Убежавший вперёд встаёт ровно в цель, а разница в пределах «не трогать» — не повод прыгать.
+    expect(correction({ watch: video(), serverNow, localMs: 71000, playing: false })).toEqual({
+      action: 'play',
+      positionMs: 70000,
+    });
+    expect(correction({ watch: video(), serverNow, localMs: 69800, playing: false })).toEqual({
+      action: 'play',
+    });
+  });
+
   it('на паузе возвращает обычную скорость, чтобы включиться ровно', () => {
     expect(
       correction({

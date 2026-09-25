@@ -168,8 +168,13 @@ export function useRoomSync({
         return;
       }
       echo.suppress();
-      if (fix.action === 'play')
+      if (fix.action === 'play') {
+        if (fix.positionMs !== undefined) {
+          element.playbackRate = 1;
+          element.currentTime = fix.positionMs / 1000;
+        }
         void element.play().catch(() => setStatus((current) => (current === 'ready' ? 'blocked' : current)));
+      }
       if (fix.action === 'pause') {
         element.pause();
         element.playbackRate = 1;
