@@ -16,6 +16,7 @@ import hmac
 import json
 import re
 import time
+import uuid
 import unittest
 from hashlib import sha256
 from types import SimpleNamespace
@@ -726,6 +727,32 @@ class ResolveLimitTests(Stage):
         with self.assertRaises(HTTPException) as refusal:
             await self.ask(0, refresh=True)
         self.assertEqual(refusal.exception.status_code, 429)
+
+
+class FailClosedTests(unittest.IsolatedAsyncioTestCase):
+    """
+    Без секрета площадки с любыми хостами не поднимаются (M14): их подпись держалась бы на запасном
+    «cord-cinema», который знает кто угодно, и «По ссылке» стала бы открытым прокси к любому адресу.
+    """
+
+    async def test_without_a_secret_public_any_platforms_are_not_registered(self):
+        with self.assertLogs("cord_services.cinema.facade", "WARNING") as logs:
+            cinema = Cinema("")
+        self.addAsyncCleanup(cinema.close)
+        # «По ссылке» (единственная public_any) выключена; площадки каталога — на месте.
+        self.assertIsNone(cinema.registry.find("link"))
+        self.assertIsNotNone(cinema.registry.find("youtube"))
+        self.assertNotIn("link", cinema.egress)
+        self.assertTrue(any("любыми хостами" in line and "link" in line for line in logs.output))
+        # Вставленную ссылку разбирать некому — честный отказ, а не открытый прокси.
+        answer = await cinema.link("https://site.example/film", room=str(uuid.uuid4()))
+        self.assertIsNone(answer["item"])
+
+    async def test_with_a_secret_public_any_platforms_are_registered_as_before(self):
+        cinema = Cinema("secret")
+        self.addAsyncCleanup(cinema.close)
+        self.assertIsNotNone(cinema.registry.find("link"))
+        self.assertIn("link", cinema.egress)
 
 
 class WindowTests(unittest.TestCase):

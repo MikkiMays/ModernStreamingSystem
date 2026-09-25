@@ -183,6 +183,19 @@ class Cinema:
         понял yt-dlp, кинозал не открывает.
         """
         config = net or NetConfig()
+        # Площадки с любыми хостами («По ссылке», медиатека) без секрета не регистрируются вовсе (M14).
+        # Их подпись держится на `INTERNAL_SECRET`; пустой — все подписи считаются на запасном «cord-cinema»,
+        # который знает кто угодно, и `public_any` превращается в открытый прокси к любому публичному адресу.
+        # У compose секрет обязателен (`:?`), но dev и запуск без compose этим не прикрыты — поэтому отказ
+        # здесь, у самого кинозала: без секрета такие площадки просто выключены, с ясной строкой в журнале.
+        self._providers = tuple(kind for kind in PROVIDERS if secret or not kind.hosts.public_any)
+        closed = [kind.id for kind in PROVIDERS if kind not in self._providers]
+        if closed:
+            logger.warning(
+                "кинозал: без INTERNAL_SECRET площадки с любыми хостами выключены (иначе открытый прокси): "
+                "%s",
+                ", ".join(closed),
+            )
         # Подпись открывает адрес только по политике хостов своей площадки — и только
         # включённой: выключенная площадка не отдаёт через прокси ничего, даже по старой ссылке.
         self.signer = Signer(secret, self._hosts)
@@ -215,7 +228,7 @@ class Cinema:
         # выход лениво, на первом разборе.
         self.egress = {
             kind.id: Egress(self.net.guard_for(kind.id), upstream=config.proxy_for(kind.id))
-            for kind in PROVIDERS
+            for kind in self._providers
             if kind.hosts.public_any
         }
         self.book = links
@@ -227,11 +240,11 @@ class Cinema:
         # (`Provider.cookies_fallback`, см. `providers/youtube.py`): здесь его просто собирают.
         self.ytdlp = YtDlp(
             config,
-            cookies_fallback=(kind.id for kind in PROVIDERS if kind.cookies_fallback),
+            cookies_fallback=(kind.id for kind in self._providers if kind.cookies_fallback),
             egress=self.egress,
         )
         self.resolver = Resolver(self.signer, self.ytdlp, self.image)
-        self.registry = Registry((kind(self._kit(kind)) for kind in PROVIDERS), enabled)
+        self.registry = Registry((kind(self._kit(kind)) for kind in self._providers), enabled)
         if any(self.registry.find(provider) is not None for provider in self.egress):
             # Площадка с чужими страницами включена — предел на тело ответа сайта должен держаться на
             # этой сборке, иначе служба не поднимается (`resolve.check_reading`).

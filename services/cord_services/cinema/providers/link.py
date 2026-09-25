@@ -661,12 +661,21 @@ class Link(Provider):
         return self._page_plan(record, profile)
 
     def _known_profile(self, item_id: str, record: dict[str, Any]) -> Profile | None:
-        """Профиль потока из памяти; без cookies его можно восстановить из записи и после перезапуска."""
+        """
+        Профиль потока из памяти; без cookies его можно восстановить из записи и после перезапуска.
+
+        Найденный профиль продлевается при каждом использовании (M15). Иначе фильм, поставленный на паузу
+        под конец шестичасовой жизни профиля (`sniffer.PROFILE_TTL`), получал бы пятичасовую подпись на
+        поток, а профиль к тому часу уже умер бы — один 410 и пересниф посреди фильма.
+        """
         if item_id in self.stale:
             return None
         found = self.profiles.get(item_id)
-        if found is not None or record.get("cookied") or not record.get("stream"):
+        if found is not None:
+            self.profiles.put(found)
             return found
+        if record.get("cookied") or not record.get("stream"):
+            return None
         restored = Profile.restored(item_id, record.get("headers"))
         self.profiles.put(restored)
         return restored

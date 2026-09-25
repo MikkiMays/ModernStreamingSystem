@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import tempfile
+import time
 import unittest
 import uuid
 from pathlib import Path
@@ -547,6 +548,20 @@ class Parts(SniffCase):
         stale = Profiles(ttl=-1)
         stale.put(Profile("x"))
         self.assertIsNone(stale.get("x"))
+
+    def test_a_reused_profile_is_extended_so_it_outlives_the_signature(self):
+        # M15: профиль, найденный в памяти, продлевается при использовании — иначе фильм, открытый под конец
+        # его жизни, получил бы подпись на поток, а профиль умер бы раньше (один 410 посреди фильма).
+        cinema, _ = self.make_cinema(Door(), Stream())
+        general = self.general(cinema)
+        general.profiles.put(Profile("film7", referer=PAGE, agent=AGENT))
+        # Профиль ещё жив, но вот-вот истечёт (секунда) — как под конец шестичасовой жизни.
+        profile = general.profiles.get("film7")
+        general.profiles._items["film7"] = (time.monotonic() + 1, profile)
+        found = general._known_profile("film7", {"stream": {"url": f"{CDN}/a.m3u8"}})
+        self.assertIs(found, profile)
+        # Срок сдвинут далеко вперёд (на полный `PROFILE_TTL`): переживёт пятичасовую подпись потока.
+        self.assertGreater(general.profiles._items["film7"][0], time.monotonic() + 3600)
 
     async def test_the_page_player_is_asked_at_most_two_pages_at_once(self):
         release = asyncio.Event()
