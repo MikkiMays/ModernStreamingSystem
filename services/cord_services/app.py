@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from .cinema import Cinema
 from .cinema import routes as cinema_routes
 from .cinema.net import NetConfig
+from .cinema.sniffer import Sniffer, key_for
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
@@ -69,6 +70,9 @@ def create_app(
     # Какие площадки кинозала включены на этой установке: имена через запятую, пусто — все.
     # Выход наружу — CINEMA_PROXY, CINEMA_PROXY_<ID>, CINEMA_COOKIES_<ID> и
     # CINEMA_PRIVATE_HOSTS — читается здесь же и один раз (`cinema/net.py`).
+    # Плеер страниц — контейнер `sniffer` (`CINEMA_SNIFFER_URL`, у compose — 127.0.0.1:18103); ключ входа в
+    # него — из внутреннего секрета, сам секрет туда не уходит (`cinema/sniffer.py`).
+    sniffer_url = os.environ.get("CINEMA_SNIFFER_URL", "").strip()
     cinema = Cinema(
         core.secret,
         enabled=os.environ.get("CINEMA_PROVIDERS"),
@@ -76,6 +80,7 @@ def create_app(
         # Номера ссылок «По ссылке» переживают перезапуск: комната, открывшая фильм по ссылке,
         # досматривает его и после выкатки.
         links=store.links,
+        sniffer=Sniffer(sniffer_url, key_for(core.secret)) if sniffer_url and core.secret else None,
     )
     telegram = None
     background = []

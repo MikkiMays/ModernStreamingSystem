@@ -66,6 +66,11 @@ class Signer:
     источник сам — одна заминка.
 
     `hosts` — политика площадки по её имени (`None` — площадки нет или она выключена).
+
+    ПРОФИЛЬ ПОТОКА (`h`). У потока, который спросил плеер страницы (`cinema/sniffer.py`), в подписи есть и
+    номер его профиля заголовков: по нему прокси подставляет Referer, Origin, имя браузера и cookies.
+    Номер — часть подписи: приписать чужой профиль к своему адресу (и увести его cookies) нельзя. Подписи
+    без профиля — прежние, байт в байт: выданные раньше ссылки открываются как открывались.
     """
 
     def __init__(self, secret: str, hosts: Callable[[str], HostPolicy | None] | None = None):
@@ -76,17 +81,25 @@ class Signer:
         """Вправе ли прокси открыть этот адрес от имени площадки."""
         return allowed(url, self._hosts(provider))
 
-    def sign(self, url: str, ttl: int, route: str, provider: str) -> dict[str, str]:
+    def sign(
+        self, url: str, ttl: int, route: str, provider: str, profile: str | None = None
+    ) -> dict[str, str]:
         if route not in ROUTES:
             raise ValueError(f"Подпись для незнакомого маршрута: {route}")
         expires = str(int(time.time()) + ttl)
         packed = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
-        return {"u": packed, "e": expires, "p": provider, "s": self._seal(route, provider, packed, expires)}
+        seal = self._seal(route, provider, packed, expires, profile)
+        signed = {"u": packed, "e": expires, "p": provider, "s": seal}
+        if profile:
+            signed["h"] = profile
+        return signed
 
-    def open(self, route: str, packed: str, expires: str, signature: str, provider: str) -> str:
+    def open(
+        self, route: str, packed: str, expires: str, signature: str, provider: str, profile: str = ""
+    ) -> str:
         # Сравнение байтами: у `compare_digest` строки с не-ASCII вызывают TypeError, и чужая
         # подпись кириллицей отвечала бы 500 вместо отказа.
-        expected = self._seal(route, provider, packed, expires)
+        expected = self._seal(route, provider, packed, expires, profile)
         if not hmac.compare_digest(signature.encode(), expected.encode()):
             raise HTTPException(403, "Ссылка не подписана этим сервером")
         if not expires.isdigit() or int(expires) < time.time():
@@ -104,14 +117,24 @@ class Signer:
         """Короткое имя: то же самое доказательство, что и подпись, но без адреса внутри."""
         return self._mac(f"{value}|reel")[:24]
 
-    def _seal(self, route: str, provider: str, packed: str, expires: str) -> str:
+    def _seal(self, route: str, provider: str, packed: str, expires: str, profile: str | None = None) -> str:
         # Поля — списком JSON, а не через разделитель: имя площадки приходит из запроса, и
-        # никакая его строка не должна склеиться с соседним полем в чужую подпись.
-        return self._mac(json.dumps(["sign", route, provider, packed, expires], separators=(",", ":")))[:32]
+        # никакая его строка не должна склеиться с соседним полем в чужую подпись. Профиль — последним и
+        # только если он есть: подпись без него та же, что была всегда.
+        fields = ["sign", route, provider, packed, expires, *([profile] if profile else [])]
+        return self._mac(json.dumps(fields, separators=(",", ":")))[:32]
 
     def _mac(self, message: str) -> str:
         return hmac.new(self._secret, message.encode(), sha256).hexdigest()
 
 
-def proxied(signer: Signer, url: str, route: str, ttl: int = SIGNATURE_TTL, *, provider: str) -> str:
-    return f"{PREFIX}/{route}?" + urlencode(signer.sign(url, ttl, route, provider))
+def proxied(
+    signer: Signer,
+    url: str,
+    route: str,
+    ttl: int = SIGNATURE_TTL,
+    *,
+    provider: str,
+    profile: str | None = None,
+) -> str:
+    return f"{PREFIX}/{route}?" + urlencode(signer.sign(url, ttl, route, provider, profile))

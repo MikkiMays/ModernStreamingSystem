@@ -38,6 +38,7 @@ from .providers import PROVIDERS
 from .providers.link import Link as General
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
+from .sniffer import Profile, Profiles, Sniffer
 from .transport.playlists import Reels, rewrite, unwieldy
 from .transport.segments import Segments
 from .transport.signer import Signer, proxied
@@ -77,6 +78,10 @@ REWRITE_WAITING = 8
 REWRITES_BUSY = "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
 NO_PLAYLIST = "Площадка не отдала плейлист"
+# Поток плеера страниц (`sniffer.py`) не отдаётся с его профилем — или профиля уже нет (служба
+# перезапустилась). 410 плеер комнаты понимает как «подпись устарела» и просит поток заново (`refresh`).
+STALE = "Поток устарел — плеер откроет его заново"
+REFUSING = (401, 403, 410)
 
 Kind = Literal["video", "channel"]
 
@@ -160,12 +165,15 @@ class Cinema:
         enabled: str | None = None,
         net: NetConfig | None = None,
         links: Any = None,
+        sniffer: Sniffer | None = None,
     ):
         """
         `enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все.
         `net` — выход наружу (`NetConfig.from_env`): прокси, cookies и разрешённые частные сети.
         `client` — один клиент httpx на все площадки вместо своих (так тесты подменяют сеть).
         `links` — где помнить номера ссылок «По ссылке» (`store.Links`); пусто — память процесса.
+        `sniffer` — плеер страниц (`CINEMA_SNIFFER_URL`, контейнер `sniffer`); без него страницу, которую не
+        понял yt-dlp, кинозал не открывает.
         """
         config = net or NetConfig()
         # Подпись открывает адрес только по политике хостов своей площадки — и только
@@ -201,6 +209,9 @@ class Cinema:
         }
         self.book = links
         self.key = (secret or "cord-cinema").encode()
+        # Плеер страниц и профили заголовков его потоков: пишет их площадка «По ссылке», читает прокси.
+        self.sniffer = sniffer
+        self.profiles = Profiles()
         # Кому cookies — только запасной ход, решает не эта строка, а сама площадка
         # (`Provider.cookies_fallback`, см. `providers/youtube.py`): здесь его просто собирают.
         self.ytdlp = YtDlp(
@@ -228,6 +239,8 @@ class Cinema:
     async def close(self):
         await asyncio.gather(*(gate.close() for gate in self.egress.values()), return_exceptions=True)
         self.rewrites.shutdown(wait=False, cancel_futures=True)
+        if self.sniffer is not None:
+            await self.sniffer.close()
         await self.net.close()
 
     def _kit(self, kind: type[Provider]) -> Kit:
@@ -241,6 +254,8 @@ class Cinema:
             links=self.book,
             key=self.key,
             egress=self.egress.get(kind.id),
+            sniffer=self.sniffer if kind.hosts.public_any else None,
+            profiles=self.profiles,
         )
 
     def _hosts(self, provider: str) -> HostPolicy | None:
@@ -489,7 +504,9 @@ class Cinema:
         net = self.net.client_for(source.id)
         found = await self.resolver.settle(plan, info, net, source.id, item_id, True)
         kind = "channel" if found["live"] else "video"
-        for adaptive in (True, False):
+        # DASH играет только браузер с MSE: браузеру без него (`adaptive` ложно) такой ответ не годится, и его
+        # `resolve` разберёт поток сам.
+        for adaptive in (True,) if found["kind"] == "dash" else (True, False):
             await self.sources.get(
                 f"{source.id}:{kind}:{item_id}:{adaptive}", functools.partial(_ready, found), _kept_for
             )
@@ -508,6 +525,11 @@ class Cinema:
         if not source.content_id.fullmatch(request.contentId):
             raise HTTPException(400, "Непонятный адрес видео")
         key = f"{source.id}:{request.kind}:{request.contentId}:{request.adaptive}"
+        refresh = request.refresh
+        if refresh and isinstance(source, General) and source.fresh(request.contentId):
+            # Поток плеера страниц только что вытянут заново — по просьбе соседа по комнате: второй раз за
+            # те же секунды страницу не открывают, ответ — тот, что уже есть.
+            refresh = False
         # Предел — на работу, а не на вопросы: готовый ответ и разбор, который уже идёт для
         # соседа по комнате, наружу ничего не стоят. Иначе комната из десяти человек упиралась бы
         # в предел за три ролика, а злоумышленник с `refresh` — нет. `refresh` — работа всегда,
@@ -519,7 +541,7 @@ class Cinema:
         # и открытой по номеру. Иначе каждый номер серии с `refresh` занимал бы выход сервера сколько
         # угодно раз.
         entry = None
-        if not (self.sources.pending(key) if request.refresh else self.sources.known(key)):
+        if not (self.sources.pending(key) if refresh else self.sources.known(key)):
             if isinstance(source, General):
                 entry = source.enter(_room(room))
             try:
@@ -528,8 +550,12 @@ class Cinema:
                 if entry is not None:
                     source.leave(_room(room), entry)
                 raise
-        if request.refresh:
+        if refresh:
             self.sources.forget(key)
+            # Поток плеера страниц — вытянуть заново; кто присоединился к обновлению, которое уже идёт, его
+            # не просит второй раз.
+            if isinstance(source, General) and not self.sources.pending(key):
+                source.renew(request.contentId)
         ctx = self._ctx(room, source)
         return await self.sources.get(key, lambda: self._resolve(source, ctx, request, entry), _kept_for)
 
@@ -563,20 +589,37 @@ class Cinema:
 
     # --- прокси ------------------------------------------------------------------------
 
-    async def manifest(self, url: str, encodings: str | None, provider: str) -> Response:
+    def _profile(self, profile_id: str) -> Profile | None:
+        """
+        Профиль потока по номеру из подписи (`h`). Номер есть, а профиля нет (служба перезапустилась, срок
+        вышел) — 410: плеер комнаты попросит поток заново, и плеер страниц его вытянет.
+        """
+        if not profile_id:
+            return None
+        found = self.profiles.get(profile_id)
+        if found is None:
+            raise HTTPException(410, STALE)
+        return found
+
+    async def manifest(
+        self, url: str, encodings: str | None, provider: str, profile_id: str = ""
+    ) -> Response:
         """
         Плейлист площадки на наших адресах.
 
         Спрашивается несжатым, и сжатый вопреки просьбе — отказ: httpx распаковывает тело кусками, и
         один кусок сжатой «бомбы» — это десятки мегабайт ещё до проверки предела. Читается не больше
-        `PLAYLIST_LIMIT` (у площадок каталога — `CATALOG_PLAYLIST_LIMIT`) и за `PLAYLIST_DEADLINE`.
+        `PLAYLIST_LIMIT` (у площадок каталога — `CATALOG_PLAYLIST_LIMIT`) и за `PLAYLIST_DEADLINE`. У потока
+        плеера страниц — с заголовками его профиля (`profile_id`), и номер профиля уходит во все адреса
+        внутри.
         """
         source = self.registry.find(provider)
         limit = PLAYLIST_LIMIT if source is None or source.hosts.public_any else CATALOG_PLAYLIST_LIMIT
+        profile = self._profile(profile_id)
         try:
             async with asyncio.timeout(PLAYLIST_DEADLINE):
                 upstream = await self._open(
-                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider
+                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
                 )
                 try:
                     if not _plain(upstream):
@@ -593,6 +636,7 @@ class Cinema:
             raise HTTPException(502, NO_PLAYLIST) from None
         text = raw.decode("utf-8", errors="replace")
         base = str(upstream.url)
+        mark = profile.id if profile is not None else None
         if source is None or source.hosts.public_any:
             # Чужой плейлист: мера, проверка DRM, подписи и сжатие — в своих потоках, не в цикле событий,
             # и очередь к ним — не больше `REWRITE_WAITING`: место освобождается, когда кончилась работа,
@@ -600,11 +644,11 @@ class Cinema:
             if self.rewriting >= REWRITE_THREADS + REWRITE_WAITING:
                 raise HTTPException(503, REWRITES_BUSY, headers={"Retry-After": "2"})
             loop = asyncio.get_running_loop()
-            job = self.rewrites.submit(self._render, text, base, source, provider, encodings, True)
+            job = self.rewrites.submit(self._render, text, base, source, provider, encodings, True, mark)
             self.rewriting += 1
             job.add_done_callback(lambda _: in_loop(loop, self._rewritten))
             return await asyncio.wrap_future(job)
-        return self._render(text, base, source, provider, encodings, False)
+        return self._render(text, base, source, provider, encodings, False, mark)
 
     def _rewritten(self) -> None:
         self.rewriting -= 1
@@ -617,6 +661,7 @@ class Cinema:
         provider: str,
         encodings: str | None,
         foreign: bool,
+        profile: str | None = None,
     ) -> Response:
         """
         Плейлист на наших адресах. Чужой (`foreign`) — сначала мерой (`playlists.unwieldy`): восемь
@@ -628,7 +673,7 @@ class Cinema:
         # Список кусочков с ключом DRM (обычно он не в мастере, а здесь) — отказ, а не попытка.
         if source is not None and source.refuses_drm and drm.hls(text):
             raise HTTPException(403, drm.DRM)
-        body = rewrite(text, base, self.signer, self.reels, provider=provider)
+        body = rewrite(text, base, self.signer, self.reels, provider=provider, profile=profile)
         headers = {"Cache-Control": "no-store"}
         payload = body.encode()
         # Плейлист фильма — это тысячи почти одинаковых строк. Сжатие снимает с них ещё
@@ -638,7 +683,7 @@ class Cinema:
             headers["Content-Encoding"] = "gzip"
         return Response(payload, media_type="application/vnd.apple.mpegurl", headers=headers)
 
-    async def subtitles(self, url: str, provider: str) -> Response:
+    async def subtitles(self, url: str, provider: str, profile_id: str = "") -> Response:
         """
         Файл субтитров площадки — в WebVTT, как его читает `<track>`.
 
@@ -648,10 +693,11 @@ class Cinema:
         ещё до проверки предела. Сжатый ответ вопреки просьбе — отказ: это не то, что спросили.
         Срок у всего ответа один (`SUBTITLES_DEADLINE`).
         """
+        profile = self._profile(profile_id)
         try:
             async with asyncio.timeout(SUBTITLES_DEADLINE):
                 upstream = await self._open(
-                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider
+                    self.net.client_for(provider), url, {"Accept-Encoding": "identity"}, provider, profile
                 )
                 try:
                     if not _plain(upstream):
@@ -667,7 +713,9 @@ class Cinema:
             headers={"Cache-Control": "private, max-age=600"},
         )
 
-    async def fetch(self, url: str, range_header: str | None, provider: str) -> Response:
+    async def fetch(
+        self, url: str, range_header: str | None, provider: str, profile_id: str = ""
+    ) -> Response:
         if range_header and not re.fullmatch(r"bytes=(?:\d+-\d*|-\d+)", range_header):
             raise HTTPException(416, "Неверный диапазон байтов")
         if (
@@ -676,10 +724,11 @@ class Cinema:
             and int(match[1]) > int(match[2])
         ):
             raise HTTPException(416, "Неверный диапазон байтов")
+        profile = self._profile(profile_id)
         # Частичный запрос (перемотка в готовом файле) обслуживается напрямую, потоком.
         client = self.net.client_for(provider)
         if range_header:
-            return self._stream(await self._open(client, url, {"Range": range_header}, provider))
+            return self._stream(await self._open(client, url, {"Range": range_header}, provider, profile))
         # Целый сегмент — то, что просят все и одинаково: он идёт через общую память.
         cached = self.segments.get(url)
         if cached:
@@ -688,7 +737,7 @@ class Cinema:
             cached = self.segments.get(url)
             if cached:
                 return _kept(*cached)
-            upstream = await self._open(client, url, {}, provider)
+            upstream = await self._open(client, url, {}, provider, profile)
             if not self._storable(upstream):
                 # В общую память такой ответ не ляжет, поэтому и в нашу целиком не читается: он
                 # идёт к зрителю потоком, как ответ на `Range`. Ждущие за этим замком пойдут
@@ -703,33 +752,49 @@ class Cinema:
             return _kept(body, kind)
 
     async def _open(
-        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str = ""
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        headers: dict[str, str],
+        provider: str = "",
+        profile: Profile | None = None,
     ) -> httpx.Response:
         """
         Ответ площадки с непрочитанным телом. Переадресацию прокси проходит сам и только у площадок,
-        которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов.
+        которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов. Поток плеера
+        страниц, которому сайт отказал (`REFUSING`), — 410: его профиль устарел, и плеер комнаты попросит
+        поток заново.
         """
         try:
-            upstream = await self._send(client, url, headers, provider)
+            upstream = await self._send(client, url, headers, provider, profile)
         except httpx.HTTPError:
             raise HTTPException(502, "Площадка не отдала данные") from None
         if upstream.status_code >= 300:
             await upstream.aclose()
+            if profile is not None and upstream.status_code in REFUSING:
+                raise HTTPException(410, STALE)
             raise HTTPException(502, "Площадка не отдала данные")
         return upstream
 
     async def _send(
-        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], provider: str
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        headers: dict[str, str],
+        provider: str,
+        profile: Profile | None = None,
     ) -> httpx.Response:
         """
         Запрос к площадке. Сам httpx переадресацию не проходит никогда: у площадки, которой она нужна,
         её проходит этот цикл — и шаг на хост не из её политики (или на закрытый порт) не делает.
-        У остальных ответ 3xx так и остаётся ответом — и прокси его не отдаёт.
+        У остальных ответ 3xx так и остаётся ответом — и прокси его не отдаёт. Заголовки профиля потока
+        считаются на каждом шаге заново: cookie уходит только своему хосту.
         """
         source = self.registry.find(provider) if provider else None
         follow = source is not None and source.follows_redirects
         for _ in range(REDIRECTS + 1):
-            request = client.build_request("GET", url, headers=headers)
+            extra = profile.headers_for(url) if profile is not None else {}
+            request = client.build_request("GET", url, headers={**extra, **headers})
             response = await client.send(request, stream=True, follow_redirects=False)
             location = response.headers.get("location")
             if not (follow and response.is_redirect and location):

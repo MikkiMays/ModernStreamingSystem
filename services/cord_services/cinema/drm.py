@@ -42,6 +42,14 @@ ATTRIBUTE = re.compile(r'([A-Z0-9-]+)=("[^"]*"|[^,]*)')
 # Столько читается у одного списка ради проверки: список кусочков фильма — единицы мегабайт.
 TEXT_LIMIT = 4 * 1024 * 1024
 CHECK_TIMEOUT = 10.0
+# Заголовки запроса к этому адресу — профиль потока, который спросил плеер страницы (`sniffer.Profile`).
+Extra = Callable[[str], dict[str, str]]
+# Так сайт отказывает не «этого нет», а «не вам»: без своих cookie, Referer или адреса запроса.
+REFUSING = (401, 403, 410)
+
+
+class Locked(Exception):
+    """Мастер HLS нам не отдали (401/403/410): поток держится на том, чего у нашего запроса нет."""
 
 
 def hls(text: str) -> bool:
@@ -60,7 +68,14 @@ def hls(text: str) -> bool:
     return False
 
 
-async def inspect_hls(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool]) -> bool | None:
+async def inspect_hls(
+    net: httpx.AsyncClient,
+    url: str,
+    allows: Callable[[str], bool],
+    *,
+    extra: Extra | None = None,
+    locked: bool = False,
+) -> bool | None:
     """
     Мастер и первые из его списков — вариант качества и дорожка звука. Ключ DRM в них — отказ; кроме
     того, по ним видно, запись это или эфир: у эфира в списке кусочков нет конца (`#EXT-X-ENDLIST`)
@@ -68,12 +83,15 @@ async def inspect_hls(net: httpx.AsyncClient, url: str, allows: Callable[[str], 
     комнате это важно: эфир не ставят на паузу и не перематывают.
 
     Не прочиталось — не отказ и не ответ (`None`): проверка не должна запирать поток, который играл
-    бы; такой список всё равно проверит прокси, когда его спросит плеер (`Cinema.manifest`).
+    бы; такой список всё равно проверит прокси, когда его спросит плеер (`Cinema.manifest`). Кроме
+    одного случая, если о нём спросили (`locked`): мастер сайт отдать отказался (`REFUSING`) — тогда
+    `Locked`: тем же запросом его спросит и прокси, и плееру отдать будет нечего. `extra` — заголовки
+    профиля потока (`sniffer.Profile.headers_for`), с которыми его спрашивает и прокси.
     """
     live: bool | None = None
     try:
         async with asyncio.timeout(CHECK_TIMEOUT):
-            master = await _text(net, url, allows)
+            master = await _text(net, url, allows, extra, locked=locked)
             if master is None:
                 return None
             if hls(master[0]):
@@ -81,7 +99,7 @@ async def inspect_hls(net: httpx.AsyncClient, url: str, allows: Callable[[str], 
             if "#EXTINF" in master[0]:
                 live = _live(master[0])
             for child in _children(*master)[:2]:
-                found = await _text(net, child, allows)
+                found = await _text(net, child, allows, extra)
                 if found is None:
                     continue
                 if hls(found[0]):
@@ -97,12 +115,14 @@ def _live(text: str) -> bool:
     return "#EXT-X-ENDLIST" not in text and "#EXT-X-PLAYLIST-TYPE:VOD" not in text
 
 
-async def answers(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool]) -> bool:
+async def answers(
+    net: httpx.AsyncClient, url: str, allows: Callable[[str], bool], *, extra: Extra | None = None
+) -> bool:
     """
     Отдаёт ли сайт этот файл вообще: один байт (`Range: bytes=0-0`), переадресация — каждым шагом по
     политике площадки, тело не читается. Страница с `<video>` перечисляет источники на выбор, и
     браузер берёт первый живой — мёртвый первый (у W3C это `www.w3.org/…/trailer.mp4`, 404) не должен
-    доставаться комнате, когда рядом живой.
+    доставаться комнате, когда рядом живой. `extra` — заголовки профиля потока, как у `inspect_hls`.
     """
     try:
         # Срок — на весь ответ с переадресацией, а не на каждый шаг: иначе четыре шага по десять
@@ -111,12 +131,9 @@ async def answers(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool
             for _ in range(4):
                 if not allows(url):
                     return False
-                async with net.stream(
-                    "GET",
-                    url,
-                    headers={"Range": "bytes=0-0", "Accept-Encoding": "identity"},
-                    follow_redirects=False,
-                ) as response:
+                headers = {**(extra(url) if extra else {}), "Range": "bytes=0-0"}
+                headers["Accept-Encoding"] = "identity"
+                async with net.stream("GET", url, headers=headers, follow_redirects=False) as response:
                     if response.is_redirect and response.headers.get("location"):
                         url = urljoin(str(response.url), response.headers["location"])
                         continue
@@ -124,6 +141,18 @@ async def answers(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool
     except (httpx.HTTPError, TimeoutError):
         return False
     return False
+
+
+async def text(
+    net: httpx.AsyncClient,
+    url: str,
+    allows: Callable[[str], bool],
+    extra: Extra | None = None,
+    *,
+    locked: bool = False,
+) -> tuple[str, str] | None:
+    """Текст чужого списка или манифеста и его настоящий адрес — несжатым и с пределом (см. `_text`)."""
+    return await _text(net, url, allows, extra, locked=locked)
 
 
 def _children(text: str, base: str) -> list[str]:
@@ -145,24 +174,33 @@ def _children(text: str, base: str) -> list[str]:
     return found
 
 
-async def _text(net: httpx.AsyncClient, url: str, allows: Callable[[str], bool]) -> tuple[str, str] | None:
+async def _text(
+    net: httpx.AsyncClient,
+    url: str,
+    allows: Callable[[str], bool],
+    extra: Extra | None = None,
+    *,
+    locked: bool = False,
+) -> tuple[str, str] | None:
     """
     Текст списка и его настоящий адрес — переадресацию проходит сам, каждый шаг по политике площадки.
 
     Список спрашивается несжатым, и сжатый вопреки просьбе не читается вовсе: httpx распаковывает
     тело кусками, и один кусок сжатой «бомбы» — это десятки мегабайт ещё до проверки предела. Поэтому
-    прочитанные байты — ровно те, что пришли по сети, и их не больше `TEXT_LIMIT`.
+    прочитанные байты — ровно те, что пришли по сети, и их не больше `TEXT_LIMIT`. `locked` — отказ
+    сайта (`REFUSING`) — не «не прочиталось», а `Locked`.
     """
     for _ in range(4):
         if not allows(url):
             return None
         try:
-            async with net.stream(
-                "GET", url, headers={"Accept-Encoding": "identity"}, follow_redirects=False
-            ) as response:
+            headers = {**(extra(url) if extra else {}), "Accept-Encoding": "identity"}
+            async with net.stream("GET", url, headers=headers, follow_redirects=False) as response:
                 if response.is_redirect and response.headers.get("location"):
                     url = urljoin(str(response.url), response.headers["location"])
                     continue
+                if locked and response.status_code in REFUSING:
+                    raise Locked()
                 encoding = response.headers.get("content-encoding", "identity").strip().lower()
                 if response.status_code != 200 or encoding not in ("", "identity"):
                     return None

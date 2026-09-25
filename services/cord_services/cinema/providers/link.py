@@ -25,6 +25,16 @@
 `LEASE_SECONDS` (дальше выход закрывает его соединения), а одинаковая ссылка, которую уже разобрали,
 отвечает из памяти и в счёт не идёт. Новая ссылка той же комнаты сменяет прежнюю: её разбор
 отменяется, и вход в выход закрывается сразу (последняя побеждает, а не ждёт отказа 429).
+
+ПЛЕЕР СТРАНИЦЫ. yt-dlp не нашёл видео, сайт ответил ему 403, его разборщик не понял страницу или упал,
+отказал словами, которых мы не знаем, или файл и мастер страницы не отдались нам без её cookies
+(`PAGE_REASONS`) — тогда страницу открывает настоящий браузер (`sniffer.py`, контейнер `sniffer`), и мы
+берём поток, который спросил её собственный плеер, вместе с заголовками его запроса (профиль потока).
+Отказы, которые yt-dlp понял, — DRM, вход, капча, страна, «страницы нет», — остаются отказами: обходить их
+кинозал не станет. Запись такой ссылки помнит, что поток нашёл плеер страницы (`via: page`), его адрес и
+заголовки без cookies; сами cookies — только в памяти процесса. Поток по номеру берётся из записи, пока он
+отвечает с профилем, иначе плеер страницы спрашивается снова — и когда плеер комнаты попросил обновить поток
+(403/410 у кусочка): тогда один раз на `RENEW_GRACE`, сколько бы зрителей ни попросило разом.
 """
 
 from __future__ import annotations
@@ -45,6 +55,7 @@ from urllib.parse import urlsplit, urlunsplit
 from fastapi import HTTPException
 
 from .. import address, wire
+from .. import drm as drm_checks
 from ..captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language
 from ..drm import DRM
 from ..egress import LEASE_SECONDS
@@ -53,18 +64,27 @@ from ..net import BROWSER
 from ..paging import PAGE, absolute
 from ..registry import Ctx, Features, HostPolicy, Kit, Provider
 from ..resolve import (
+    AUDIO_FILES,
+    BUSY,
+    DASH_ONLY,
     EXPIRED,
     INSIDE,
+    LOCKED,
+    NO_FILE,
+    NO_STREAM,
     TOO_BIG,
     Inside,
     Oversized,
     Protected,
     SourcePlan,
     frame_side,
+    page,
     playable_file,
     refusal,
     ytdlp,
 )
+from ..sniffer import SNIFF_SECONDS, Crowded, Down, Profile, Profiles, Replaced, Seen, Sight
+from ..transport.signer import allowed
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +104,11 @@ PER_MINUTE = 10
 INSPECTION_SECONDS = LEASE_SECONDS + 10
 # Сколько помнится ответ о ссылке: её вставляют разом все, кто в комнате.
 ANSWER_TTL = 300
+# Весь ответ плеера страницы о ссылке — страница у контейнера и проверка потока на DRM после неё.
+PAGE_SECONDS = SNIFF_SECONDS + 15
+# Поток плеера страницы вытянут заново — и ещё столько секунд просьбы обновить его отвечает он же: когда у
+# кусочка 403, просят разом все зрители комнаты, а вытягивать страницу пять раз подряд незачем.
+RENEW_GRACE = 20.0
 # Кем представляются и разбор, и прокси потока: настольным Chrome, как VK и Rutube (`net.BROWSER`), и
 # одним именем у обоих — CDN выдаёт адрес под то имя, которым его спросили (у Дзена в адресе
 # `srcAg=CHROME`), и отдаёт поток тому же имени. Цена решения (25.09.2026): Wikimedia на «Chrome» с
@@ -116,6 +141,7 @@ FORBIDDEN = "Сайт не пустил кинозал к этой страни�
 BROKEN = "Разборщик этого сайта не справился со страницей — попробуйте позже или другую ссылку"
 SILENT = "Сайт не ответил вовремя или оборвал связь — попробуйте ещё раз"
 OFF = "Разбор ссылок на этом сервере выключен"
+PAGES_DOWN = "Плеер страниц сейчас недоступен — попробуйте через минуту"
 BUSY_ROOM = "Комната уже разбирает ссылку — дождитесь ответа"
 TOO_OFTEN = "Комната слишком часто разбирает ссылки, подождите минуту"
 SUPERSEDED = "Эту ссылку сменила следующая"
@@ -137,6 +163,11 @@ NETWORK_WORDS = re.compile(
 BROKEN_WORDS = re.compile(r"please report this issue|unable to extract", re.IGNORECASE)
 # Дата и время, которые yt-dlp дописывает к имени идущего эфира (`YoutubeDL.process_video_result`).
 STAMP = re.compile(r" \d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+# С этими ответами yt-dlp страницу дальше открывает плеер страниц (`_page`): видео он не нашёл, сайт ему
+# отказал, разборщик не справился, или поток не отдался нам без того, что знает только плеер страницы.
+PAGE_REASONS = frozenset({NOTHING, FORBIDDEN, BROKEN, NO_FILE, NO_STREAM, LOCKED})
+# Так начинается отказ yt-dlp, который мы не узнали по словам (`_verdict`): его тоже пробует плеер страниц.
+UNKNOWN = "Сайт не отдал видео: "
 
 Route = Callable[[str], "dict[str, Any] | None"]
 Settle = Callable[[SourcePlan, dict[str, Any], str], Awaitable[dict[str, Any]]]
@@ -180,6 +211,12 @@ class Link(Provider):
         self.links = kit.links if kit.links is not None else MemoryLinks()
         self.key = kit.key or b"cord-cinema"
         self.egress = kit.egress
+        # Плеер страниц и профили заголовков его потоков (их же читает прокси: `Cinema._profile`).
+        self.sniffer = kit.sniffer
+        self.profiles = kit.profiles if kit.profiles is not None else Profiles()
+        # Когда поток ссылки плеер страниц вытянул последний раз, и чей поток просили обновить.
+        self.renewed: dict[str, float] = {}
+        self.stale: dict[str, None] = {}
         self.window = Window(PER_MINUTE, 60.0, TOO_OFTEN)
         # Разбор, который идёт у комнаты: один разом. Освобождается, когда кончился сам разбор, а не
         # когда ушёл ждавший его запрос (`_landed`, `leave`).
@@ -248,7 +285,7 @@ class Link(Provider):
             if held is not None:
                 self._abandon(room, held)
             if flight is None:
-                flight = self._launch(url, key, self._inspect(url, route, settle))
+                flight = self._launch(url, key, self._inspect(url, route, settle, room))
             flight.rooms.add(room)
             self.running[room] = flight
         try:
@@ -300,9 +337,14 @@ class Link(Provider):
         if self.running.get(room) is held:
             del self.running[room]
 
-    async def _inspect(self, url: str, route: Route, settle: Settle) -> dict[str, Any]:
+    async def _inspect(self, url: str, route: Route, settle: Settle, room: str = "") -> dict[str, Any]:
+        """
+        yt-dlp, а за ним, если он не справился так, что может помочь браузер (`PAGE_REASONS`), — плеер
+        страницы. Недоступен плеер страниц — остаётся ответ yt-dlp, как было до него.
+        """
         assert self.egress is not None
         started = time.monotonic()
+        answer: dict[str, Any] | HTTPException
         try:
             async with asyncio.timeout(INSPECTION_SECONDS):
                 # Место в выходе ждётся в цикле событий, yt-dlp работает в пуле выхода; отменили разбор
@@ -317,13 +359,19 @@ class Link(Provider):
                 if walk.playlist is not None:
                     return self._series(url, walk, route)
                 assert walk.info is not None
-                return await self._video(url, walk.info, settle)
+                answer = await self._video(url, walk.info, settle)
+                paged = answer.get("item") is None and answer.get("reason") in PAGE_REASONS
         except TimeoutError:
             raise HTTPException(504, EXPIRED) from None
         except HTTPException:
             raise
         except Exception as error:  # yt-dlp поднимает свои типы; наружу — слова, а не трассировка
-            return self._refused(url, error, time.monotonic() - started)
+            answer, paged = self._verdict(url, error, time.monotonic() - started)
+        if paged and self.sniffer is not None:
+            return await self._page(url, room, settle, answer)
+        if isinstance(answer, HTTPException):
+            raise answer
+        return answer
 
     async def _video(self, url: str, info: dict[str, Any], settle: Settle) -> dict[str, Any]:
         """Одно видео: разобрать поток в общую память, запомнить номер — и только тогда карточка."""
@@ -412,14 +460,20 @@ class Link(Provider):
         )
         return {"item": wire.link_card(card, site=record["site"])}
 
-    def _refused(self, url: str, error: Exception, spent: float) -> dict[str, Any]:
-        """Отказ yt-dlp — словами: что это свойство страницы — ответом, что сбой — ошибкой."""
+    def _verdict(
+        self, url: str, error: Exception, spent: float
+    ) -> tuple[dict[str, Any] | HTTPException, bool]:
+        """
+        Отказ yt-dlp — словами: что это свойство страницы — ответом, что сбой — ошибкой (её поднимут). И
+        может ли тут помочь плеер страницы: да — видео не нашлось, сайт ответил 403, разборщик не справился
+        или отказ не узнан по словам; нет — DRM, вход, капча, страна, «страницы нет», сеть и выход.
+        """
         known = refusal(error)
         if isinstance(error, (Inside, Protected, Oversized)):
             reason = INSIDE if isinstance(error, Inside) else DRM if isinstance(error, Protected) else TOO_BIG
-            return {"item": None, "reason": reason}
+            return {"item": None, "reason": reason}, False
         if known is not None:
-            raise known from None
+            return known, False
         cause = getattr(error, "exc_info", None)
         original = cause[1] if cause and len(cause) > 1 and cause[1] is not None else error
         kind = type(original).__name__
@@ -427,25 +481,187 @@ class Link(Provider):
         # Имя сайта и вид отказа — без адреса и текста yt-dlp: в них бывают ключи из ссылки.
         logger.info("кинозал: ссылка с %s не разобрана: %s (%.1f с)", site(url), kind, spent)
         if kind == "UnsupportedError" or "No video formats found" in text or "Unsupported URL" in text:
-            return {"item": None, "reason": NOTHING}
+            return {"item": None, "reason": NOTHING}, True
         if kind == "GeoRestrictedError" or "not available in your country" in text.lower():
-            return {"item": None, "reason": GEO}
+            return {"item": None, "reason": GEO}, False
         if ROBOT_WORDS.search(text):
-            return {"item": None, "reason": ROBOT}
+            return {"item": None, "reason": ROBOT}, False
         if LOGIN_WORDS.search(text):
-            return {"item": None, "reason": LOGIN}
+            return {"item": None, "reason": LOGIN}, False
         if "HTTP Error 404" in text or "HTTP Error 410" in text:
-            return {"item": None, "reason": MISSING}
+            return {"item": None, "reason": MISSING}, False
         if "HTTP Error 403" in text:
-            return {"item": None, "reason": FORBIDDEN}
+            return {"item": None, "reason": FORBIDDEN}, True
         if NETWORK_WORDS.search(text):
             # Молчание и обрыв — не свойство страницы, а сбой: ответ не запоминается, и повтор возможен.
-            raise HTTPException(502, SILENT) from None
+            return HTTPException(502, SILENT), False
         if not _from_yt_dlp(original) or BROKEN_WORDS.search(text):
             # Не отказ сайта, а поломка разборщика (`TypeError` в его коде, «Unable to extract…»): сайт
             # поменялся быстрее, чем yt-dlp. Сказать об этом можно, а показать трассировку — нечего.
-            raise HTTPException(502, BROKEN) from None
-        raise HTTPException(502, f"Сайт не отдал видео: {self.ytdlp.explain(text)}"[:300]) from None
+            return HTTPException(502, BROKEN), True
+        return HTTPException(502, f"{UNKNOWN}{self.ytdlp.explain(text)}"[:300]), True
+
+    # --- плеер страницы -------------------------------------------------------------------
+
+    async def _page(
+        self, url: str, room: str, settle: Settle, fallback: dict[str, Any] | HTTPException
+    ) -> dict[str, Any]:
+        """
+        Страница в настоящем браузере (`sniffer.py`): поток, который спросил её плеер, — карточкой, как у
+        страницы, которую понял yt-dlp. Плеер страниц недоступен — ответ yt-dlp (`fallback`), как было.
+        """
+        assert self.sniffer is not None
+        try:
+            async with asyncio.timeout(PAGE_SECONDS):
+                sight = await self.sniffer.look(url, room)
+                return await self._sighted(url, sight, settle)
+        except TimeoutError:
+            raise HTTPException(504, EXPIRED) from None
+        except Crowded:
+            raise HTTPException(503, BUSY) from None
+        except Replaced:
+            raise HTTPException(409, SUPERSEDED) from None
+        except Down:
+            logger.warning("кинозал: плеер страниц не ответил — ссылка с %s остаётся за yt-dlp", site(url))
+            if isinstance(fallback, HTTPException):
+                raise fallback from None
+            return fallback
+
+    async def _sighted(self, url: str, sight: Sight, settle: Settle) -> dict[str, Any]:
+        """Что увидел плеер страницы — отказом словами или карточкой с потоком в общей памяти `resolve`."""
+        if sight.inside:
+            return {"item": None, "reason": INSIDE}
+        if sight.drm:
+            return {"item": None, "reason": DRM}
+        candidates = _candidates(sight)
+        if not candidates:
+            return {"item": None, "reason": _nothing(sight)}
+        item_id = self.identify(url)
+        for number, chosen in enumerate(candidates, 1):
+            profile = _profile(item_id, chosen, sight)
+            record: dict[str, Any] = {
+                "url": url,
+                "via": "page",
+                "author": "",
+                "thumbnail": _picture(sight.poster),
+                "description": "",
+                "site": site(url),
+                "title": sight.title,
+                "duration": sight.duration if chosen.kind == "file" else None,
+                **_stream_record(chosen, profile),
+            }
+            try:
+                source = await settle(self._page_plan(record, profile), _page_info(record), item_id)
+                break
+            except HTTPException as error:
+                # DASH не по требованию наш плеер не собирает — тогда следующий поток страницы, если он есть.
+                if error.detail == DASH_ONLY and number < len(candidates):
+                    continue
+                if error.status_code in (403, 502):
+                    return {"item": None, "reason": error.detail}
+                raise
+        self._renewed(item_id, profile)
+        live = bool(source["live"])
+        kind = "channel" if live else "video"
+        record["kind"] = kind
+        record["title"] = _title({"title": sight.title}, url, live)
+        # Длительность файла знает `<video>` страницы, манифеста — сам манифест (`Resolver.settle`).
+        record["duration"] = None if live else record["duration"] or _number(source.get("duration"))
+        self._keep({item_id: record})
+        card = wire.card(
+            self.id,
+            kind,
+            item_id,
+            record["title"],
+            author="",
+            duration=record["duration"],
+            live=live,
+            poster=self.image(record["thumbnail"] or ""),
+            description="",
+        )
+        heights = [_quality(side) for side in chosen.heights][:6]
+        return {"item": wire.link_card(card, site=record["site"], qualities=heights, audio=[], captions=[])}
+
+    def _page_plan(self, record: dict[str, Any], profile: Profile) -> SourcePlan:
+        return page(record["url"], _page_info(record), profile, files=PLAYABLE + AUDIO_FILES)
+
+    def _renewed(self, item_id: str, profile: Profile) -> None:
+        """Поток вытянут: профиль — прокси, отметка «только что» — просьбам обновить его разом."""
+        self.profiles.put(profile)
+        self.stale.pop(item_id, None)
+        self.renewed.pop(item_id, None)
+        self.renewed[item_id] = time.monotonic()
+        while len(self.renewed) > 1024:
+            self.renewed.pop(next(iter(self.renewed)))
+
+    def fresh(self, item_id: str) -> bool:
+        """Поток этой ссылки плеер страниц вытянул только что: ещё одна просьба обновить его — не работа."""
+        at = self.renewed.get(item_id)
+        return at is not None and time.monotonic() - at < RENEW_GRACE
+
+    def renew(self, item_id: str) -> None:
+        """
+        Поток по номеру просят обновить (у плеера комнаты 403/410 или срок подписи). Поток плеера страниц
+        тогда вытягивается заново, а не берётся из записи; прежний профиль живёт, пока его не сменил новый.
+        """
+        self.stale[item_id] = None
+        while len(self.stale) > 1024:
+            self.stale.pop(next(iter(self.stale)))
+
+    async def _page_source(self, ctx: Ctx, item_id: str, record: dict[str, Any]) -> SourcePlan:
+        """
+        Поток ссылки, которую открыл плеер страницы: из записи, если он отвечает с профилем, — иначе плеер
+        страницы открывает её снова (под тем же пределом комнаты, что и разбор: `Cinema.resolve`).
+        """
+        profile = self._known_profile(item_id, record)
+        stream = record.get("stream") or {}
+        if profile is not None and stream.get("url") and await self._alive(ctx.net, stream["url"], profile):
+            return self._page_plan(record, profile)
+        if self.sniffer is None:
+            raise HTTPException(503, OFF)
+        try:
+            async with asyncio.timeout(SNIFF_SECONDS + 5):
+                sight = await self.sniffer.look(record["url"], ctx.room)
+        except TimeoutError:
+            raise HTTPException(504, EXPIRED) from None
+        except Crowded:
+            raise HTTPException(503, BUSY) from None
+        except Replaced:
+            raise HTTPException(409, SUPERSEDED) from None
+        except Down:
+            raise HTTPException(503, PAGES_DOWN) from None
+        if sight.inside:
+            raise HTTPException(403, INSIDE)
+        if sight.drm:
+            raise HTTPException(403, DRM)
+        candidates = _candidates(sight)
+        if not candidates:
+            raise HTTPException(502, _nothing(sight))
+        # Тот же вид потока, что был найден при разборе ссылки (он и прошёл проверки), — если он снова есть.
+        kind = stream.get("type")
+        chosen = next((seen for seen in candidates if seen.kind == kind), candidates[0])
+        profile = _profile(item_id, chosen, sight)
+        record = {**record, **_stream_record(chosen, profile)}
+        self._renewed(item_id, profile)
+        self._keep({item_id: record})
+        return self._page_plan(record, profile)
+
+    def _known_profile(self, item_id: str, record: dict[str, Any]) -> Profile | None:
+        """Профиль потока из памяти; без cookies его можно восстановить из записи и после перезапуска."""
+        if item_id in self.stale:
+            return None
+        found = self.profiles.get(item_id)
+        if found is not None or record.get("cookied") or not record.get("stream"):
+            return found
+        restored = Profile.restored(item_id, record.get("headers"))
+        self.profiles.put(restored)
+        return restored
+
+    async def _alive(self, net: Any, url: str, profile: Profile) -> bool:
+        """Отвечает ли поток с профилем: один байт, переадресация — по политике площадки."""
+        return await drm_checks.answers(
+            net, url, lambda target: allowed(target, self.hosts), extra=profile.headers_for
+        )
 
     # --- страницы сцены -----------------------------------------------------------------
 
@@ -552,6 +768,8 @@ class Link(Provider):
         if self.egress is None:
             raise HTTPException(503, OFF)
         self._keep({item_id: record})
+        if record.get("via") == "page":
+            return await self._page_source(ctx, item_id, record)
         return self._plan(record)
 
     def _plan(self, record: dict[str, Any]) -> SourcePlan:
@@ -859,6 +1077,81 @@ def _picture(url: Any) -> str:
     """
     full = absolute(str(url or ""))
     return full if full and len(full) <= address.LONGEST and address.web(full) else ""
+
+
+def _candidates(sight: Sight) -> list[Seen]:
+    """
+    Что пробовать играть из увиденного плеером страницы, лучшим первым: HLS (мастер — первым, так их
+    упорядочил плеер страниц), DASH (наш плеер соберёт его, если он «по требованию», — `mpd.py`), готовый
+    файл того вида, что играет браузер. По одному каждого вида: остальные того же вида — варианты первого
+    или реклама.
+    """
+    found: list[Seen] = []
+    for kind in ("hls", "dash", "file"):
+        seen = next(
+            (
+                seen
+                for seen in sight.streams
+                if seen.kind == kind and (kind != "file" or seen.ext in PLAYABLE + AUDIO_FILES)
+            ),
+            None,
+        )
+        if seen is not None:
+            found.append(seen)
+    return found
+
+
+def _nothing(sight: Sight) -> str:
+    """Почему у страницы нечего играть — тем, что видел браузер."""
+    if sight.robot:
+        return ROBOT
+    if sight.login:
+        return LOGIN
+    if sight.status in (401, 403):
+        return FORBIDDEN
+    if sight.status in (404, 410):
+        return MISSING
+    return NOTHING
+
+
+def _profile(item_id: str, seen: Seen, sight: Sight) -> Profile:
+    cookies = dict(sight.cookies)
+    return Profile(item_id, referer=seen.referer, origin=seen.origin, agent=seen.agent, cookies=cookies)
+
+
+def _stream_record(seen: Seen, profile: Profile) -> dict[str, Any]:
+    """Поток в записи ссылки: адрес, вид и заголовки — без cookies (они только в памяти)."""
+    return {
+        "stream": {"url": seen.url, "type": seen.kind, "ext": seen.ext, "heights": list(seen.heights)},
+        "headers": profile.public(),
+        "cookied": bool(profile.cookies),
+    }
+
+
+def _page_info(record: dict[str, Any]) -> dict[str, Any]:
+    """Поток плеера страницы в форме ответа yt-dlp: дальше его разбирает общий `Resolver.settle`."""
+    stream = record.get("stream") or {}
+    url = str(stream.get("url") or "")
+    extra: dict[str, Any] = {}
+    if stream.get("type") == "hls":
+        formats = [{"protocol": "m3u8_native", "url": url, "manifest_url": url, "ext": "mp4"}]
+    elif stream.get("type") == "dash":
+        # Манифест DASH разбирает общий `Resolver.settle` (`mpd.py`): форматов, как у yt-dlp, у него нет.
+        formats = []
+        extra["dash_manifest"] = url
+    else:
+        ext = str(stream.get("ext") or "mp4")
+        # Звук без картинки — дорожкой звука: `ranked_files` берёт его, только если картинок нет вовсе.
+        sound = {"vcodec": "none"} if ext in AUDIO_FILES else {}
+        formats = [{"protocol": urlsplit(url).scheme, "url": url, "ext": ext, **sound}]
+    return {
+        "title": record.get("title") or "",
+        "thumbnail": record.get("thumbnail") or "",
+        "duration": record.get("duration"),
+        "webpage_url": record.get("url") or "",
+        "formats": formats,
+        **extra,
+    }
 
 
 def _number(value: Any) -> float | None:

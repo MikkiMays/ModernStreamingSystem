@@ -15,6 +15,8 @@ from .transport.signer import PREFIX
 ProviderId = Annotated[str, Query(max_length=32)]
 # Площадка в подписанной ссылке: её проверяет подпись, а не схема запроса.
 Signed = Annotated[str, Query(max_length=32)]
+# Номер профиля заголовков потока плеера страниц — тоже под подписью; форма — номер ссылки.
+Profile = Annotated[str, Query(max_length=22, pattern=r"^[A-Za-z0-9_-]*$")]
 
 
 def routes(cinema: Cinema, core) -> APIRouter:
@@ -124,13 +126,21 @@ def routes(cinema: Cinema, core) -> APIRouter:
     # 403, и плеер переоткроет источник сам.
     @router.get(PREFIX + "/playlist")
     async def playlist(
-        u: str, e: str, s: str, p: Signed = "", accept_encoding: str | None = Header(default=None)
+        u: str,
+        e: str,
+        s: str,
+        p: Signed = "",
+        h: Profile = "",
+        accept_encoding: str | None = Header(default=None),
     ):
-        return await cinema.manifest(cinema.signer.open("playlist", u, e, s, p), accept_encoding, p)
+        url = cinema.signer.open("playlist", u, e, s, p, h)
+        return await cinema.manifest(url, accept_encoding, p, profile_id=h)
 
     @router.get(PREFIX + "/fetch")
-    async def fetch(u: str, e: str, s: str, p: Signed = "", range: str | None = Header(default=None)):
-        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p), range, p)
+    async def fetch(
+        u: str, e: str, s: str, p: Signed = "", h: Profile = "", range: str | None = Header(default=None)
+    ):
+        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p, h), range, p, profile_id=h)
 
     @router.get(PREFIX + "/dash/{key}")
     async def dash(key: str):
@@ -141,7 +151,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
     @router.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
         reel = cinema.reels.find(key, index)
-        return await cinema.fetch(reel.url, range, reel.provider)
+        return await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or "")
 
     @router.get(PREFIX + "/image")
     async def image(u: str, e: str, s: str, p: Signed = ""):
@@ -149,7 +159,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
 
     # Субтитры площадки, переведённые в WebVTT: `<track>` другого вида не читает.
     @router.get(PREFIX + "/subtitles")
-    async def subtitles(u: str, e: str, s: str, p: Signed = ""):
-        return await cinema.subtitles(cinema.signer.open("subtitles", u, e, s, p), p)
+    async def subtitles(u: str, e: str, s: str, p: Signed = "", h: Profile = ""):
+        return await cinema.subtitles(cinema.signer.open("subtitles", u, e, s, p, h), p, profile_id=h)
 
     return router

@@ -76,10 +76,14 @@ def finished_playlist(body: str) -> bool:
 
 
 class Reel(NamedTuple):
-    """Кусочек фильма по номеру: его адрес и площадка, от имени которой он открывается."""
+    """
+    Кусочек фильма по номеру: его адрес, площадка, от имени которой он открывается, и профиль заголовков
+    потока, если его спросил плеер страницы (`cinema/sniffer.py`).
+    """
 
     url: str
     provider: str
+    profile: str | None = None
 
 
 class Reels:
@@ -104,7 +108,8 @@ class Reels:
 
     Список помнит свою площадку: за кусочком прокси идёт её выходом наружу, а в имя списка
     она входит, чтобы один и тот же адрес у двух площадок (у «ссылки» он может совпасть с
-    YouTube) не давал один список, отобранный разными политиками хостов.
+    YouTube) не давал один список, отобранный разными политиками хостов. Так же — и профиль заголовков
+    потока (`Reel.profile`): кусочки спрашиваются с теми же заголовками, что и сам список.
 
     ПАМЯТЬ. Списков — не больше `capacity`, и весят они вместе не больше `budget` байт: считается то,
     что держится на самом деле, — общее начало, хвосты и сам список (`_weight`). Одного счёта мало:
@@ -121,16 +126,20 @@ class Reels:
         self.ttl = ttl
         self.capacity = capacity
         self.budget = budget
-        # Ключ → (последнее обращение, общее начало, хвосты, площадка, вес в байтах); порядок — от давно
-        # не смотренных к только что смотренным.
-        self._items: dict[str, tuple[float, str, list[str], str, int]] = {}
+        # Ключ → (последнее обращение, общее начало, хвосты, площадка, вес в байтах, профиль); порядок — от
+        # давно не смотренных к только что смотренным.
+        self._items: dict[str, tuple[float, str, list[str], str, int, str | None]] = {}
         # Сколько байт держат все списки вместе.
         self.retained = 0
         # Чужие плейлисты переписываются в потоке (`Cinema.manifest`), а кусочки ищутся в цикле событий.
         self._lock = threading.Lock()
 
-    def remember(self, playlist_url: str, targets: list[str], provider: str) -> str:
-        key = self.signer.name(f"{provider}|{playlist_url}")
+    def remember(
+        self, playlist_url: str, targets: list[str], provider: str, profile: str | None = None
+    ) -> str:
+        # Профиль — в имени, только если он есть: имена прежних списков не меняются.
+        named = f"{provider}|{profile}|{playlist_url}" if profile else f"{provider}|{playlist_url}"
+        key = self.signer.name(named)
         shared = os.path.commonprefix(targets) if targets else ""
         tails = [target[len(shared) :] for target in targets]
         weight = _weight(shared, tails)
@@ -141,7 +150,7 @@ class Reels:
             )
         with self._lock:
             self._forget(key)
-            self._items[key] = (time.time(), shared, tails, provider, weight)
+            self._items[key] = (time.time(), shared, tails, provider, weight, profile)
             self.retained += weight
             while len(self._items) > self.capacity or self.retained > self.budget:
                 self._forget(next(iter(self._items)))
@@ -152,15 +161,15 @@ class Reels:
             found = self._items.get(key)
             if not found or time.time() - found[0] > self.ttl:
                 raise HTTPException(410, "Список кусочков устарел, откройте видео заново")
-            _, shared, tails, provider, weight = found
+            _, shared, tails, provider, weight, profile = found
             if index < 0 or index >= len(tails):
                 raise HTTPException(404, "Такого кусочка в этом видео нет")
             # Срок считается от последнего обращения, а не от разбора: трёхчасовой фильм иначе
             # разваливался бы на середине. Заодно список переезжает в конец очереди на выселение —
             # то, что смотрят прямо сейчас, не должно уходить ради того, что открыли и бросили.
             self._items.pop(key)
-            self._items[key] = (time.time(), shared, tails, provider, weight)
-        return Reel(shared + tails[index], provider)
+            self._items[key] = (time.time(), shared, tails, provider, weight, profile)
+        return Reel(shared + tails[index], provider, profile)
 
     def _forget(self, key: str) -> None:
         found = self._items.pop(key, None)
@@ -173,7 +182,7 @@ def _weight(shared: str, tails: list[str]) -> int:
     return sys.getsizeof(shared) + sys.getsizeof(tails) + sum(map(sys.getsizeof, tails))
 
 
-def _attribute(line: str, base: str, signer: Signer, provider: str) -> str:
+def _attribute(line: str, base: str, signer: Signer, provider: str, profile: str | None = None) -> str:
     """Ссылка внутри тега: дорожка звука в мастере, карта инициализации и ключи в сегментах."""
     if 'URI="' not in line:
         return line
@@ -183,10 +192,18 @@ def _attribute(line: str, base: str, signer: Signer, provider: str) -> str:
     if not signer.allows(target, provider):
         return line
     kind = "playlist" if line.startswith("#EXT-X-MEDIA") else "fetch"
-    return f'{head}URI="{proxied(signer, target, kind, provider=provider)}"{tail}'
+    return f'{head}URI="{proxied(signer, target, kind, provider=provider, profile=profile)}"{tail}'
 
 
-def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None, *, provider: str) -> str:
+def rewrite(
+    body: str,
+    base: str,
+    signer: Signer,
+    reels: Reels | None = None,
+    *,
+    provider: str,
+    profile: str | None = None,
+) -> str:
     """
     Переписывает плейлист на свои адреса.
 
@@ -199,27 +216,30 @@ def rewrite(body: str, base: str, signer: Signer, reels: Reels | None = None, *,
     её записать ({@link Reels}); живому эфиру и мастеру — подпись, как и раньше.
 
     Какие ссылки проксировать, решает политика хостов площадки, чей это плейлист: чужой хост
-    остаётся в строке как был, и через наш прокси за ним никто не пойдёт.
+    остаётся в строке как был, и через наш прокси за ним никто не пойдёт. `profile` — номер профиля
+    заголовков потока: он уходит в подпись каждого адреса внутри, и дальше списка его не потерять.
     """
     if reels is not None and not master_playlist(body) and finished_playlist(body):
-        return _numbered(body, base, signer, reels, provider)
+        return _numbered(body, base, signer, reels, provider, profile)
     route = "playlist" if master_playlist(body) else "fetch"
     lines = []
     for line in body.splitlines():
         if not line:
             lines.append(line)
         elif line.startswith("#"):
-            lines.append(_attribute(line, base, signer, provider))
+            lines.append(_attribute(line, base, signer, provider, profile))
         else:
             target = urljoin(base, line.strip())
             if signer.allows(target, provider):
-                lines.append(proxied(signer, target, route, provider=provider))
+                lines.append(proxied(signer, target, route, provider=provider, profile=profile))
             else:
                 lines.append(line)
     return "\n".join(lines) + "\n"
 
 
-def _numbered(body: str, base: str, signer: Signer, reels: Reels, provider: str) -> str:
+def _numbered(
+    body: str, base: str, signer: Signer, reels: Reels, provider: str, profile: str | None = None
+) -> str:
     """
     То же самое, но сегменты нумеруются.
 
@@ -234,7 +254,7 @@ def _numbered(body: str, base: str, signer: Signer, reels: Reels, provider: str)
         if not line:
             shape.append(line)
         elif line.startswith("#"):
-            shape.append(_attribute(line, base, signer, provider))
+            shape.append(_attribute(line, base, signer, provider, profile))
         else:
             target = urljoin(base, line.strip())
             if signer.allows(target, provider):
@@ -242,7 +262,7 @@ def _numbered(body: str, base: str, signer: Signer, reels: Reels, provider: str)
                 targets.append(target)
             else:
                 shape.append(line)
-    key = reels.remember(base, targets, provider)
+    key = reels.remember(base, targets, provider, profile)
     lines = []
     number = 0
     for line in shape:

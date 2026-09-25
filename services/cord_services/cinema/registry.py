@@ -22,6 +22,7 @@ from .memo import Memo, Scope
 if TYPE_CHECKING:
     from .egress import Egress
     from .resolve import SourcePlan, YtDlp
+    from .sniffer import Profiles, Sniffer
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,10 @@ class Kit:
     links: Any = None
     key: bytes = b""
     egress: Egress | None = None
+    # И плеер страниц (`sniffer.py`: страница, которую не понял yt-dlp, — в настоящем браузере) с профилями
+    # заголовков его потоков — их же читает прокси.
+    sniffer: Sniffer | None = None
+    profiles: Profiles | None = None
 
 
 class Provider:

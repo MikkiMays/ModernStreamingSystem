@@ -24,7 +24,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response
 
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
-from . import drm
+from . import drm, mpd
 from .captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language, _pick
 from .egress import Busy, Closed, Egress, Lease
 from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
@@ -60,6 +60,12 @@ BROWSER_CODECS = ("avc", "h264", "vp8", "vp9", "vp09", "av01", "hev1", "hvc1", "
 FILE_SIDE = 1080
 # Ни один из готовых файлов страницы сайт не отдал (404, 403, обрыв).
 NO_FILE = "Сайт не отдал файл видео — ссылка на него не открывается"
+# Потока у разобранной страницы нет вовсе.
+NO_STREAM = "Площадка не отдала поток для этого видео. Попробуйте другое"
+# Мастер HLS сайт отдать нам отказался (401/403/410): поток держится на cookies, Referer или адресе своего
+# плеера (`drm.Locked`). У ссылки дальше пробует плеер страниц (`providers/link.py`); не вышло и у него —
+# этот отказ.
+LOCKED = "Сайт отдаёт этот поток только своему плееру — открыть его для комнаты не вышло"
 
 
 class Inside(Exception):
@@ -585,6 +591,11 @@ class SourcePlan:
     liveDelayMs: int | None = None
     audioChoices: tuple[Mapping[str, Any], ...] | None = None
     variants: tuple[Mapping[str, Any], ...] | None = None
+    # page: поток, который спросил плеер страницы (`cinema/sniffer.py`). Страницу разбирать нечего — yt-dlp
+    # её не понял; `info` — найденное в форме ответа yt-dlp, дальше всё как у разобранной страницы.
+    # `profile` — профиль заголовков потока (`sniffer.Profile`): с ним поток спрашивают проверки и прокси.
+    info: Mapping[str, Any] | None = None
+    profile: Any = None
 
 
 def ytdlp(
@@ -616,6 +627,15 @@ def ytdlp(
         subtitles=subtitles,
         files=files,
     )
+
+
+def page(url: str, info: Mapping[str, Any], profile: Any, *, files: tuple[str, ...]) -> SourcePlan:
+    """
+    Поток, который спросил плеер страницы: адрес страницы, найденное в форме ответа yt-dlp (`info`) и профиль
+    заголовков. Проверки — как у чужой страницы: DRM и эфир по плейлисту, файл — только живой и того вида,
+    что играет браузер (`files`).
+    """
+    return SourcePlan("ytdlp", url, drm=True, subtitles="any", files=files, info=info, profile=profile)
 
 
 def direct(
@@ -672,6 +692,9 @@ class Resolver:
     ) -> dict[str, Any]:
         if plan.via == "direct":
             return self._direct(plan, provider, content_id)
+        if plan.info is not None:
+            # Поток уже нашёл плеер страницы: разбирать её снова незачем, да yt-dlp и не смог бы.
+            return await self.settle(plan, dict(plan.info), net, provider, content_id, adaptive)
         gate = self.ytdlp.egress.get(provider)
         if gate is None:
             info = await asyncio.to_thread(self.ytdlp.probe, plan.url, provider, **plan.options)
@@ -700,9 +723,18 @@ class Resolver:
         страницу сама, по шагам, и отдаёт сюда уже готовый ответ yt-dlp — второй раз не спрашивая.
         """
         info = _single(info)
+        # Профиль заголовков потока плеера страниц: с ним поток спрашивают и проверки ниже, и прокси.
+        extra = plan.profile.headers_for if plan.profile is not None else None
+        profile = plan.profile.id if plan.profile is not None else None
         stream, kind = self._stream(info, plan.files)
         dash = None
-        if adaptive and plan.dash and not info.get("is_live") and kind != "hls":
+        if info.get("dash_manifest") and plan.profile is not None:
+            # Манифест DASH, который спросил плеер страницы: наш манифест из его дорожек (`mpd.py`).
+            dash, length = await self._foreign_dash(
+                str(info["dash_manifest"]), net, provider, plan.profile, adaptive
+            )
+            info = {**info, "duration": info.get("duration") or length}
+        elif adaptive and plan.dash and not info.get("is_live") and kind != "hls":
             dash = await self._dash(info, net, provider)
         if dash:
             stream, expires = dash
@@ -718,14 +750,20 @@ class Resolver:
             if plan.files and formats:
                 kinds = sorted({str(item.get("ext")) for item in formats if item.get("ext")})
                 raise HTTPException(502, f"{UNPLAYABLE}: {', '.join(kinds)}"[:300])
-            raise HTTPException(502, "Площадка не отдала поток для этого видео. Попробуйте другое")
+            raise HTTPException(502, NO_STREAM)
         live = bool(info.get("is_live"))
         if plan.drm and kind == "hls":
-            # Эфир виден по самому списку: yt-dlp у чужой страницы его не узнаёт (`drm.inspect_hls`).
-            found = await drm.inspect_hls(net, stream, lambda url: self.signer.allows(url, provider))
+            # Эфир виден по самому списку: yt-dlp у чужой страницы его не узнаёт (`drm.inspect_hls`). Мастер,
+            # который сайт нам не отдал, — не поток, а отказ: так же его не отдали бы и плееру.
+            try:
+                found = await drm.inspect_hls(
+                    net, stream, lambda url: self.signer.allows(url, provider), extra=extra, locked=True
+                )
+            except drm.Locked:
+                raise HTTPException(502, LOCKED) from None
             live = live or bool(found)
         if plan.files and kind == "file":
-            stream = await self._answering(info, plan.files, net, provider)
+            stream = await self._answering(info, plan.files, net, provider, extra)
             if not stream:
                 raise HTTPException(502, NO_FILE)
             # Срок подписи — у того файла, что выбран на деле, а не у первого по списку.
@@ -747,6 +785,7 @@ class Resolver:
                 "playlist" if kind == "hls" else "fetch",
                 max(1, int(expires - time.time())),
                 provider=provider,
+                profile=profile,
             ),
             "expiresAt": int(expires * 1000),
             "notice": "Доступен только готовый файл: качество ограничено источником"
@@ -864,6 +903,52 @@ class Resolver:
         while len(self.dash_manifests) > 64:
             self.dash_manifests.pop(next(iter(self.dash_manifests)))
         return f"{PREFIX}/dash/{key}", expires
+
+    async def _foreign_dash(
+        self, url: str, net: httpx.AsyncClient, provider: str, profile: Any, adaptive: bool
+    ) -> tuple[tuple[str, float], float]:
+        """
+        Чужой манифест DASH по требованию — нашим (`mpd.manifest`): каждая дорожка — подписанный адрес `fetch`
+        с профилем потока, диапазоны — те же. Манифест читается как чужой список (`drm.text`: несжатым, с
+        пределом, переадресация — по политике площадки). Шаблоны и эфир — отказ `DASH_ONLY`, защита — DRM.
+        Без MSE (`adaptive` ложно) DASH не играет вовсе — тоже `DASH_ONLY`.
+        """
+        if not adaptive:
+            raise HTTPException(502, DASH_ONLY)
+
+        def allows(target: str) -> bool:
+            return self.signer.allows(target, provider)
+
+        try:
+            async with asyncio.timeout(drm.CHECK_TIMEOUT):
+                found = await drm.text(net, url, allows, profile.headers_for, locked=True)
+        except drm.Locked:
+            raise HTTPException(502, LOCKED) from None
+        except TimeoutError:
+            found = None
+        if found is None:
+            raise HTTPException(502, NO_STREAM)
+        try:
+            tracks, seconds = mpd.parse(*found)
+        except mpd.Protected:
+            raise HTTPException(403, drm.DRM) from None
+        except mpd.NotOnDemand:
+            raise HTTPException(502, DASH_ONLY) from None
+        tracks = [track for track in tracks if allows(track.url)]
+        if not tracks:
+            raise HTTPException(502, DASH_ONLY)
+        expires = self._expiry([track.url for track in tracks])
+        ttl = max(1, int(expires - time.time()))
+        body = mpd.manifest(
+            tracks,
+            seconds,
+            lambda target: proxied(self.signer, target, "fetch", ttl, provider=provider, profile=profile.id),
+        )
+        key = self.signer.name(body)
+        self.dash_manifests[key] = (expires, body)
+        while len(self.dash_manifests) > 64:
+            self.dash_manifests.pop(next(iter(self.dash_manifests)))
+        return (f"{PREFIX}/dash/{key}", expires), seconds
 
     def dash(self, key: str) -> Response:
         found = self.dash_manifests.get(key)
@@ -988,11 +1073,20 @@ class Resolver:
         return found["url"] if found else None
 
     async def _answering(
-        self, info: dict[str, Any], files: tuple[str, ...], net: httpx.AsyncClient, provider: str
+        self,
+        info: dict[str, Any],
+        files: tuple[str, ...],
+        net: httpx.AsyncClient,
+        provider: str,
+        extra: drm.Extra | None = None,
     ) -> str | None:
         """Первый по порядку `ranked_files` файл, который сайт действительно отдаёт (не больше трёх)."""
+
+        def allows(url: str) -> bool:
+            return self.signer.allows(url, provider)
+
         for item in ranked_files(info.get("formats") or [], files)[:3]:
-            if await drm.answers(net, item["url"], lambda url: self.signer.allows(url, provider)):
+            if await drm.answers(net, item["url"], allows, extra=extra):
                 return item["url"]
         return None
 

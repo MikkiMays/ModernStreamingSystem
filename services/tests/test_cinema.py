@@ -22,6 +22,7 @@ from cord_services.cinema import (
 from cord_services.cinema.providers.twitch import Twitch
 from cord_services.cinema.providers.youtube import YouTube
 from cord_services.cinema.resolve import Resolver
+from cord_services.cinema.transport.playlists import Reel
 from cord_services.cinema.transport.signer import SIGNATURE_TTL
 
 # Политики хостов площадок, как их видит подпись: адрес открывается только своей площадкой.
@@ -216,8 +217,8 @@ class NumberedPlaylistTests(unittest.TestCase):
         both = ["https://example.org/b.ts", "https://rr5.googlevideo.com/a.ts"]
         other = self.reels.remember(url, both, "link")
         self.assertNotEqual(youtube, other)
-        self.assertEqual(self.reels.find(youtube, 0), ("https://rr5.googlevideo.com/a.ts", "youtube"))
-        self.assertEqual(self.reels.find(other, 0), ("https://example.org/b.ts", "link"))
+        self.assertEqual(self.reels.find(youtube, 0), Reel("https://rr5.googlevideo.com/a.ts", "youtube"))
+        self.assertEqual(self.reels.find(other, 0), Reel("https://example.org/b.ts", "link"))
         with self.assertRaises(HTTPException):
             self.reels.find(youtube, 1)
 
