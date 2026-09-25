@@ -17,6 +17,7 @@ ivi в кинозале: что служба отдаёт по настоящи�
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import tempfile
@@ -612,7 +613,19 @@ class RouteTests(unittest.TestCase):
         self.core.member = AsyncMock(return_value=({"id": ROOM}, {"id": "member"}))
         app = create_app(Path(root.name), self.core, telegram_enabled=False)
         self.addCleanup(app.state.store.db.close)
+        app.state.cinema.net._clients["ivi"] = self._whoami()
         return TestClient(app, headers={"Authorization": "Bearer member.secret"})
+
+    def _whoami(self):
+        # Проверка страны ivi спрашивает клиентом самой площадки (`Net.client_for("ivi")`). В CI у контейнера
+        # службы есть сеть: без подмены список площадок ходил бы в api.ivi.ru (I1). Ответ — «Германия».
+        def handler(request):
+            assert request.url.host == "api.ivi.ru", request.url
+            return httpx.Response(200, json={"result": {"country_code": "DE"}})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        self.addCleanup(lambda: asyncio.run(client.aclose()))
+        return client
 
     def test_ivi_is_listed_between_vk_and_link_with_its_own_accent_features(self):
         client = self.serve()
