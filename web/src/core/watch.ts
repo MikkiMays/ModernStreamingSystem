@@ -70,6 +70,16 @@ const SETTLED = 120;
  * ещё несколько долей секунды, и приземление ровно в цель означает снова отставать.
  */
 const CATCH_UP_LEAD = 400;
+/**
+ * Сколько подтяжке дают, чтобы показать, что она тянет.
+ *
+ * Скорость — это просьба, а не гарантия: устройство, которому 1080p на 1,05 не по силам, теряет
+ * кадры и идёт почти в реальном времени (задача 9: 1,003 при 5 % — полторы секунды отставания
+ * ушли бы так за восемь минут). Поэтому подтяжка под присмотром: если за это время расхождение не
+ * сократилось хотя бы на половину обещанного (5 % — это 250 мс за пять секунд), её сменяет
+ * перемотка. Одна перемотка у одного отставшего дешевле минут рассинхрона и рваной картинки.
+ */
+export const NUDGE_PATIENCE = 5000;
 
 export type Correction =
   | { action: 'none' }
@@ -78,6 +88,34 @@ export type Correction =
   | { action: 'pause'; positionMs: number }
   | { action: 'seek'; positionMs: number }
   | { action: 'rate'; rate: number };
+
+/** Окно наблюдения за подтяжкой: с какого момента (свои часы, мс) и с какого расхождения, мс. */
+export interface CatchUp {
+  since: number;
+  driftMs: number;
+}
+
+/**
+ * Тянет ли подтяжка ({@link NUDGE_PATIENCE}): следующее окно наблюдения и вердикт.
+ *
+ * `nudging` — скорость сейчас не обычная, и играем и мы, и комната. Окно открывается с первой
+ * такой проверки и каждые {@link NUDGE_PATIENCE} мс сдаёт отчёт: отыграно не меньше половины
+ * обещанного — открывается заново с нового места, меньше — `stalled`. Проскочили цель — это не
+ * застревание, окно начинается заново уже с другой стороны.
+ */
+export function catchUp(
+  previous: CatchUp | null,
+  input: { now: number; driftMs: number; nudging: boolean },
+): { next: CatchUp | null; stalled: boolean } {
+  const { now, driftMs, nudging } = input;
+  if (!nudging) return { next: null, stalled: false };
+  const fresh = { next: { since: now, driftMs }, stalled: false };
+  if (!previous || Math.sign(previous.driftMs) !== Math.sign(driftMs)) return fresh;
+  const elapsed = now - previous.since;
+  if (elapsed < NUDGE_PATIENCE) return { next: previous, stalled: false };
+  const gained = Math.abs(previous.driftMs) - Math.abs(driftMs);
+  return gained < (NUDGE * elapsed) / 2 ? { next: null, stalled: true } : fresh;
+}
 
 /**
  * Что сделать со своим плеером, чтобы оказаться там же, где комната. Ответ считается от
@@ -108,6 +146,8 @@ export function correction(input: {
   ended?: boolean;
   /** Своя скорость воспроизведения: подтяжка помнится между проверками, а не начинается с нуля. */
   rate?: number;
+  /** Подтяжка не тянет ({@link catchUp}): вместо неё — перемотка. */
+  stalled?: boolean;
 }): Correction {
   const { watch, serverNow, localMs, playing } = input;
   const rate = input.rate ?? 1;
@@ -147,7 +187,10 @@ export function correction(input: {
   }
   if (localMs === null) return { action: 'none' };
   const drift = localMs - target;
-  if (Math.abs(drift) > JUMP_LIMIT) return { action: 'seek', positionMs: reach(drift) };
+  if (Math.abs(drift) > JUMP_LIMIT || (input.stalled && Math.abs(drift) > DRIFT_LIMIT))
+    return { action: 'seek', positionMs: reach(drift) };
+  // Подтяжка не тянет, но и расхождение уже в пределах «не трогать»: без толку разгонять дальше.
+  if (input.stalled) return ordinary();
   if (Math.abs(drift) > DRIFT_LIMIT) {
     const wanted = Number((drift < 0 ? 1 + NUDGE : 1 - NUDGE).toFixed(3));
     return rate === wanted ? { action: 'none' } : { action: 'rate', rate: wanted };

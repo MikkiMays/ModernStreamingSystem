@@ -209,6 +209,42 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     expect(meeting.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
   });
 
+  it('подтяжка, которая не двигает картинку, через пять секунд уступает перемотке', async () => {
+    // Задача 9: на 1,05 устройство теряло кадры и шло в 1,003 реального времени — полторы секунды
+    // отставания уходили бы так восемь минут. Здесь скорость «стоит», а кадры идут как шли.
+    const video = element({ currentTime: 60 });
+    const { hook } = setup(video);
+    await pass(1000);
+    expect(video.playbackRate).toBe(1.05);
+    for (let second = 0; second < 5; second++) {
+      video.currentTime += 1;
+      await pass(1000);
+    }
+    expect(video.playbackRate).toBe(1.05);
+    video.currentTime += 1;
+    await pass(1000);
+    // Цель 67 000, мы на 66 000: перемотка с тем же запасом, что и у большого разрыва.
+    expect(video.currentTime).toBeCloseTo(67.4, 6);
+    expect(video.playbackRate).toBe(1);
+    expect(hook.result.current.echo.quiet()).toBe(true);
+  });
+
+  it('подтяжка, которая тянет, так и доводит до цели — без единой перемотки', async () => {
+    const video = element({ currentTime: 60 });
+    setup(video);
+    await pass(1000);
+    expect(video.playbackRate).toBe(1.05);
+    let expected = 60;
+    for (let second = 0; second < 25; second++) {
+      const step = video.playbackRate;
+      video.currentTime += step;
+      expected += step;
+      await pass(1000);
+    }
+    expect(video.currentTime).toBeCloseTo(expected, 6);
+    expect(video.playbackRate).toBe(1);
+  });
+
   it('комната на паузе, а мы играем — пауза ровно в её секунде', async () => {
     const { hook, video } = setup(element({ currentTime: 29, playbackRate: 1.05 }), {
       watch: watch({ paused: true, positionMs: 30_000 }),

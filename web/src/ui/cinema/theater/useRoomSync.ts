@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
-import { correction, finished, targetPosition } from '../../../core/watch';
+import { catchUp, correction, finished, targetPosition, type CatchUp } from '../../../core/watch';
 import type { Playback } from './engines/playback';
 import { contentOf, type Status } from './useSource';
 import { skipTarget } from './watch-controls';
@@ -96,6 +96,7 @@ export function useRoomSync({
   const [lag, setLag] = useState(0);
   const sending = useRef(false);
   const started = useRef(false);
+  const nudge = useRef<CatchUp | null>(null);
   const latest = useRef({ watch, canControl, live });
   latest.current = { watch, canControl, live };
 
@@ -119,6 +120,7 @@ export function useRoomSync({
     setDrift(0);
     setLag(0);
     started.current = false;
+    nudge.current = null;
   }, [meeting, content]);
 
   // Раз в секунду: где мы, где комната, и что из этого следует.
@@ -154,14 +156,24 @@ export function useRoomSync({
         }
       }
       if (echo.quiet() || element.readyState < 2) return;
+      const localMs = element.currentTime * 1000;
+      const playing = !element.paused && !element.ended;
+      // Подтяжка под присмотром (`catchUp`): её окно помнится между проверками, а не в плеере.
+      const watched = catchUp(nudge.current, {
+        now: Date.now(),
+        driftMs: localMs - targetPosition(now, serverNow),
+        nudging: !latest.current.live && !now.paused && playing && element.playbackRate !== 1,
+      });
+      nudge.current = watched.next;
       const fix = correction({
         watch: now,
         live: latest.current.live,
         serverNow,
-        localMs: element.currentTime * 1000,
-        playing: !element.paused && !element.ended,
+        localMs,
+        playing,
         ended: element.ended,
         rate: element.playbackRate,
+        stalled: watched.stalled,
       });
       if (fix.action === 'none') return;
       // Подтяжка скоростью — не команда плееру, а наклон: своё эхо от неё не рождается, и

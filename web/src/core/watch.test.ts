@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Watch } from '../api/types';
-import { correction, JUMP_LIMIT, NUDGE, targetPosition } from './watch';
+import { catchUp, correction, JUMP_LIMIT, NUDGE, NUDGE_PATIENCE, targetPosition } from './watch';
 
 const video = (patch: Partial<Watch> = {}): Watch => ({
   provider: 'youtube',
@@ -110,6 +110,39 @@ describe('поправка своего плеера', () => {
     expect(correction({ ...over, localMs: 90000 })).toEqual({ action: 'play', positionMs: 70000 });
   });
 
+  it('подтяжка, которая не тянет, уступает перемотке; в пределах «не трогать» — просто гаснет', () => {
+    expect(
+      correction({
+        watch: video(),
+        serverNow,
+        localMs: 69000,
+        playing: true,
+        rate: 1 + NUDGE,
+        stalled: true,
+      }),
+    ).toEqual({ action: 'seek', positionMs: 70400 });
+    expect(
+      correction({
+        watch: video(),
+        serverNow,
+        localMs: 70700,
+        playing: true,
+        rate: 1 - NUDGE,
+        stalled: true,
+      }),
+    ).toEqual({ action: 'seek', positionMs: 70000 });
+    expect(
+      correction({
+        watch: video(),
+        serverNow,
+        localMs: 69800,
+        playing: true,
+        rate: 1 + NUDGE,
+        stalled: true,
+      }),
+    ).toEqual({ action: 'rate', rate: 1 });
+  });
+
   it('на паузе возвращает обычную скорость, чтобы включиться ровно', () => {
     expect(
       correction({
@@ -138,6 +171,47 @@ describe('поправка своего плеера', () => {
     // в потоке ещё нет: перемотка превращается в бесконечную буферизацию.
     expect(correction({ watch: video(), live: true, serverNow, localMs: 0, playing: true })).toEqual({
       action: 'none',
+    });
+  });
+});
+
+describe('подтяжка под присмотром', () => {
+  const T = 5_000_000;
+
+  it('окно открывается с первой проверкой подтяжки и закрывается, когда она кончилась', () => {
+    expect(catchUp(null, { now: T, driftMs: -1000, nudging: false })).toEqual({ next: null, stalled: false });
+    const opened = catchUp(null, { now: T, driftMs: -1000, nudging: true });
+    expect(opened).toEqual({ next: { since: T, driftMs: -1000 }, stalled: false });
+    expect(catchUp(opened.next, { now: T + 2000, driftMs: -990, nudging: true })).toEqual(opened);
+    expect(catchUp(opened.next, { now: T + 2000, driftMs: -990, nudging: false })).toEqual({
+      next: null,
+      stalled: false,
+    });
+  });
+
+  it('тянет хотя бы вполовину обещанного — ждём дальше с нового места', () => {
+    // Пять секунд на 5 % обещают 250 мс; отыграно 150 — медленно, но работает.
+    const window = { since: T, driftMs: -1000 };
+    expect(catchUp(window, { now: T + NUDGE_PATIENCE, driftMs: -850, nudging: true })).toEqual({
+      next: { since: T + NUDGE_PATIENCE, driftMs: -850 },
+      stalled: false,
+    });
+    // Проскочили цель — это не застревание: окно с нуля, уже в другую сторону.
+    expect(catchUp(window, { now: T + 3000, driftMs: 200, nudging: true })).toEqual({
+      next: { since: T + 3000, driftMs: 200 },
+      stalled: false,
+    });
+  });
+
+  it('за пять секунд отыграно меньше половины обещанного — подтяжка не тянет', () => {
+    // Устройство, теряющее кадры на 1,05, шло в 1,003 реального времени: 15 мс за пять секунд.
+    expect(
+      catchUp({ since: T, driftMs: -1000 }, { now: T + NUDGE_PATIENCE, driftMs: -985, nudging: true }),
+    ).toEqual({ next: null, stalled: true });
+    // Разошлись ещё сильнее (буферизация на подтяжке) — тем более.
+    expect(catchUp({ since: T, driftMs: 800 }, { now: T + 6000, driftMs: 900, nudging: true })).toEqual({
+      next: null,
+      stalled: true,
     });
   });
 });
