@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: ключи на элементе</title>
+  </head>
+  <body>
+    <video id="player" width="640" height="360"></video>
+    <script>
+      const config = [{ initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }] }];
+      navigator
+        .requestMediaKeySystemAccess('org.w3.clearkey', config)
+        .then((access) => access.createMediaKeys())
+        .then((keys) => document.getElementById('player').setMediaKeys(keys))
+        .then(() => (document.title = 'keys set'));
+    </script>
+  </body>
+</html>

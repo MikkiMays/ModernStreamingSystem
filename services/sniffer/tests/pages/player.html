@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Плеер</title>
+    <script src="/hls.js"></script>
+  </head>
+  <body>
+    <video id="player" width="900" height="500" muted autoplay></video>
+    <script>
+      const hls = new Hls();
+      hls.loadSource('/media/' + ['mas', 'ter.m', '3u8'].join(''));
+      hls.attachMedia(document.getElementById('player'));
+    </script>
+  </body>
+</html>

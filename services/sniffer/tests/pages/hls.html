@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: плеер hls.js</title>
+    <meta property="og:title" content="Фильм страницы" />
+    <meta property="og:image" content="/poster.png" />
+    <script src="/hls.js"></script>
+  </head>
+  <body>
+    <video id="player" width="640" height="360" muted autoplay></video>
+    <script>
+      // Адрес потока страница спрашивает у своего API, со своей cookie: в разметке его нет,
+      // как у настоящих плееров, и yt-dlp его здесь не найдёт.
+      fetch('/api/source', { credentials: 'include' })
+        .then((response) => response.json())
+        .then(({ src }) => {
+          const video = document.getElementById('player');
+          const hls = new Hls();
+          hls.loadSource(src);
+          hls.attachMedia(video);
+        });
+    </script>
+  </body>
+</html>

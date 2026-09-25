@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: страница ведёт внутрь</title>
+    <link rel="preconnect" href="{{C}}" />
+    <link rel="stylesheet" href="{{C}}/style.css" />
+  </head>
+  <body>
+    <img src="{{C}}/pixel.png" />
+    <img src="http://localhost:{{CPORT}}/pixel.png" />
+    <img src="http://[::ffff:127.0.0.1]:{{CPORT}}/pixel.png" />
+    <img src="http://169.254.169.254/latest/meta-data/" />
+    <video src="{{C}}/film.mp4" width="320" height="180" muted autoplay></video>
+    <iframe src="{{C}}/frame" width="320" height="180"></iframe>
+    <form id="form" method="post" action="{{C}}/form" target="sink"><input name="a" value="b" /></form>
+    <iframe name="sink" width="10" height="10"></iframe>
+    <script>
+      fetch('{{C}}/fetch').catch(() => null);
+      fetch('http://localhost:{{CPORT}}/fetch').catch(() => null);
+      navigator.sendBeacon('{{C}}/beacon', 'x');
+      try { new EventSource('{{C}}/events'); } catch (e) {}
+      try { new WebSocket('ws://127.0.0.1:{{CPORT}}/socket'); } catch (e) {}
+      document.getElementById('form').submit();
+      // WebRTC: STUN по UDP и TURN по TCP к ловушке — мимо прокси ни то, ни другое не должно уйти.
+      const peer = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:127.0.0.1:{{CPORT}}' },
+          { urls: 'turn:127.0.0.1:{{CPORT}}?transport=tcp', username: 'u', credential: 'p' },
+        ],
+      });
+      peer.createDataChannel('probe');
+      peer.createOffer().then((offer) => peer.setLocalDescription(offer));
+    </script>
+  </body>
+</html>

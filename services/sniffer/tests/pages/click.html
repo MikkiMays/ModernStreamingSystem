@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: смотреть по нажатию</title>
+    <script src="/hls.js"></script>
+    <style>
+      #go { position: absolute; left: 100px; top: 120px; width: 640px; height: 360px; font-size: 40px; }
+    </style>
+  </head>
+  <body>
+    <a href="/pages/empty.html">О сайте</a>
+    <video id="player" width="200" height="112" muted></video>
+    <button id="go">▶ Смотреть</button>
+    <script>
+      document.getElementById('go').addEventListener('click', () => {
+        fetch('/api/source', { credentials: 'include' })
+          .then((response) => response.json())
+          .then(({ src }) => {
+            const hls = new Hls();
+            hls.loadSource(src);
+            hls.attachMedia(document.getElementById('player'));
+          });
+      });
+    </script>
+  </body>
+</html>

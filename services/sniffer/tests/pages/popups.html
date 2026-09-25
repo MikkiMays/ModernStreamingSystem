@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: всплывающие окна</title>
+    <script src="/hls.js"></script>
+    <style>
+      #go { position: absolute; left: 60px; top: 80px; width: 700px; height: 400px; }
+    </style>
+  </head>
+  <body>
+    <video id="player" width="160" height="90" muted></video>
+    <button id="go">▶</button>
+    <script>
+      for (let i = 0; i < 20; i++) window.open('/popup?burst=' + i);
+      setInterval(() => window.open('/popup?interval'), 200);
+      const link = document.createElement('a');
+      link.href = '/popup?anchor';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.addEventListener('click', () => window.open('/popup?click'), true);
+      document.getElementById('go').addEventListener('click', () => {
+        fetch('/api/source', { credentials: 'include' })
+          .then((response) => response.json())
+          .then(({ src }) => {
+            const hls = new Hls();
+            hls.loadSource(src);
+            hls.attachMedia(document.getElementById('player'));
+          });
+      });
+    </script>
+  </body>
+</html>

@@ -77,6 +77,8 @@ PENDING = 16
 # Столько байт разбор может получить от сайтов. Страница видео — сотни килобайт, плейлист
 # фильма — единицы мегабайт; гигабайтная «страница» — это уже не страница, а способ занять память.
 BUDGET = 64 * 1024 * 1024
+# Сколько отказанных адресов помнит один вход (`Lease.blocked`).
+BLOCKED = 64
 HEAD_LIMIT = 16 * 1024
 RESPONSE_HEAD_LIMIT = 64 * 1024
 BODY_LIMIT = 1024 * 1024
@@ -162,14 +164,19 @@ class Lease:
     # Соединений от yt-dlp сейчас — для предела `PER_LEASE`; `streams` — они же и их пары к сайтам.
     active: int = 0
     streams: set[asyncio.StreamWriter] = field(default_factory=set, repr=False)
+    # Куда выход не пустил (хост и порт), не больше `BLOCKED`: плеер страниц по ним отличает отказ самой
+    # странице (переадресация внутрь сети) от отказа её картинке.
+    blocked: set[tuple[str, int]] = field(default_factory=set, repr=False)
 
     @property
     def expired(self) -> bool:
         return time.monotonic() >= self.deadline
 
-    def refuse(self, reason: str) -> None:
+    def refuse(self, reason: str, host: str = "", port: int = 0) -> None:
         if self.refused is None:
             self.refused = reason
+        if host and len(self.blocked) < BLOCKED:
+            self.blocked.add((host.lower(), port))
 
     def fail(self, reason: str) -> None:
         if self.failed is None:
@@ -305,8 +312,9 @@ class Egress:
     @contextlib.asynccontextmanager
     async def session(self, seconds: float | None = None) -> AsyncIterator[Lease]:
         """
-        Место и вход на время `async with`, без потока, — для проверок самого выхода. Разбор идёт через
-        `run`: с `to_thread` место отдавалось бы раньше, чем кончится поток.
+        Место и вход на время `async with`, без потока: у работы, которая сама живёт в цикле событий, —
+        плеера страниц (`services/sniffer`, прокси вкладки браузера), — и у проверок самого выхода. Разбор
+        yt-dlp идёт через `run`: с `to_thread` место отдавалось бы раньше, чем кончится поток.
         """
         release = await self._place()
         try:
@@ -511,13 +519,13 @@ class Egress:
         быть разрешены, и звонок идёт по проверенному — IPv4 первым, как у `GuardedBackend`.
         """
         if port in BAD_PORTS:
-            lease.refuse(f"{host}:{port} — этот порт закрыт для кинозала")
+            lease.refuse(f"{host}:{port} — этот порт закрыт для кинозала", host, port)
             raise _Refusal(403)
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 addresses = await self.guard.vet(host, port)
         except NotPublic as error:
-            lease.refuse(str(error))
+            lease.refuse(str(error), host, port)
             raise _Refusal(403) from None
         except Exception:  # имя не разрешилось (или разрешитель упал) — адреса нет, соединять не с чем
             lease.fail(f"{host}: имя не разрешилось")

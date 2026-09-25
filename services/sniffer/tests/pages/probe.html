@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: вопрос о Widevine у открытого видео</title>
+    <script src="/hls.js"></script>
+  </head>
+  <body>
+    <video id="player" width="640" height="360" muted autoplay></video>
+    <script>
+      // Так плееры узнают, что умеет браузер, и у открытого видео: вопрос — не DRM.
+      const config = [{ initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }] }];
+      navigator
+        .requestMediaKeySystemAccess('com.widevine.alpha', config)
+        .catch(() => null)
+        .then(() => fetch('/api/source', { credentials: 'include' }))
+        .then((response) => response.json())
+        .then(({ src }) => {
+          const hls = new Hls();
+          hls.loadSource(src);
+          hls.attachMedia(document.getElementById('player'));
+        });
+    </script>
+  </body>
+</html>

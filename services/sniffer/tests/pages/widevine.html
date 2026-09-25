@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Фикстура: фильм под Widevine</title>
+  </head>
+  <body>
+    <video id="player" width="640" height="360"></video>
+    <script>
+      // Плеер под DRM сначала спрашивает систему ключей; без Widevine он дальше не идёт.
+      const config = [{ initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }] }];
+      navigator
+        .requestMediaKeySystemAccess('com.widevine.alpha', config)
+        .then(() => (document.title = 'widevine'))
+        .catch(() => (document.title = 'Ваш браузер не поддерживает защищённое видео'));
+    </script>
+  </body>
+</html>
