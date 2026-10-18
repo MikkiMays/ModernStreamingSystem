@@ -2,10 +2,7 @@
 name: cord-watch-together
 description: "Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: a466d3e5-7e35-4331-a68e-fc91e5275bb6
-  modified: 2026-09-19T09:36:14.477Z
 ---
 
 В [[meet-cord-system]] с 19.09.2026 есть **кинозал**: поиск на YouTube и витрина живых эфиров

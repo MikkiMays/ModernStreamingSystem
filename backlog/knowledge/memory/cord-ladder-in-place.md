@@ -2,10 +2,7 @@
 name: cord-ladder-in-place
 description: Почему камера в Cord «моргала» каждые полминуты и как лестница качества теперь шагает без переопубликации
 metadata:
-  node_type: memory
   type: project
-  originSessionId: 085c9b2d-c685-4752-9428-7c0ebe9bb98f
-  modified: 2026-09-23T15:39:53.737Z
 ---
 
 Жалоба владельца 23.09.2026: «камера часто моргает — на полсекунды качество хуже и сразу

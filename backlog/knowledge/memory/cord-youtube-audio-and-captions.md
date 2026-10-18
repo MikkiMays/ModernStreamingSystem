@@ -2,10 +2,7 @@
 name: cord-youtube-audio-and-captions
 description: "Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 7a3439a5-ee28-4ccb-98b6-d891c7ccd339
-  modified: 2026-09-19T23:10:07.272Z
 ---
 
 Жалоба «при просмотре на ютубе выставляется какой-то другой язык» (19.09.2026, [[cord-watch-together]])

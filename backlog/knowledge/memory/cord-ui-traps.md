@@ -2,10 +2,7 @@
 name: cord-ui-traps
 description: "Три ловушки интерфейса Cord, которые выглядели как сломанные ручки, а не как неверные значения"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 2e891725-89ca-47a4-8bdc-0dd08879f242
-  modified: 2026-09-19T16:12:27.941Z
 ---
 
 Три случая в [[meet-cord-system]], где жалоба звучала как «не работает кнопка», а причина была

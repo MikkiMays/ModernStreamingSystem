@@ -29,9 +29,9 @@
 
 ## Что уже есть (прочитать до правок)
 
-Память: `cord-quality-ladder-and-reception`, `cord-video-quality-levers`, `cord-ladder-in-place`,
-`cord-playout-buffer`, `cord-call-in-pocket`, `cord-capacity-numbers`, `cord-music-silence-and-encode`,
-`vm-host-stalls`. Доки: `docs/frontend.md` → «Качество», `docs/resilience.md`, `docs/capacity.md`,
+Заметки (`knowledge/memory/`): `cord-quality-ladder-and-reception`, `cord-video-quality-levers`,
+`cord-ladder-in-place`, `cord-playout-buffer`, `cord-call-in-pocket`, `cord-capacity-numbers`,
+`cord-music-silence-and-encode`, `vm-host-stalls`. Доки: `docs/frontend.md` → «Качество», `docs/resilience.md`, `docs/capacity.md`,
 `docs/architecture.md` → «Восстановление и поколения».
 
 - Профили — `media/profiles.ts` (720/1080/1440 × 15/30/60 + «Авто»), лестница —
@@ -78,8 +78,8 @@
    зрителя; ни одного кадра 640×360 у зрителя при выбранном 1080p в хорошем канале; запись
    в журнале.
 
-4. **T50 — VPN и переподключение.** Сценарии на стенде с netem/сменой маршрута (память
-   `cord-ladder-in-place`: SFU в своей сети, `nsenter`): включение и выключение VPN = смена
+4. **T50 — VPN и переподключение.** Сценарии на стенде с netem/сменой маршрута (SFU стенда — в
+   своей сети, netem вешается через `nsenter` на его интерфейс): включение и выключение VPN = смена
    IP и интерфейса; кратковременный обрыв; смена Wi-Fi ↔ мобильная. Измерить время до
    возврата медиа и чата; найти, где ждём зря (ICE restart LiveKit, `online`/`network.changed`,
    окно 20 с). Улучшить — ICE restart сразу по смене сети, без полного `connect`, если SDK

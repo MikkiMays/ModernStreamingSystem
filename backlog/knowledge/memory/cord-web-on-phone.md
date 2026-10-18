@@ -2,10 +2,7 @@
 name: cord-web-on-phone
 description: "Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 7a3439a5-ee28-4ccb-98b6-d891c7ccd339
-  modified: 2026-09-19T23:10:20.728Z
 ---
 
 Жалобы про веб [[meet-cord-system]] с телефона (19.09.2026) оказались тремя разными вещами.

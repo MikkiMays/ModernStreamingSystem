@@ -2,10 +2,7 @@
 name: pricing-from-official-sources
 description: "Владелец требует официальные прайсы и первоисточники, а не пересказы из статей — особенно когда решение стоит денег"
 metadata: 
-  node_type: memory
   type: feedback
-  originSessionId: fd7a1dd3-05ad-490b-b927-d10735267638
-  modified: 2026-08-29T09:14:50.144Z
 ---
 
 Когда речь о ценах, лимитах или возможностях платного сервиса — брать **официальную
@@ -36,5 +33,3 @@ https://prices.azure.com/api/retail/prices?$filter=serviceName eq 'Trusted Signi
 подписи кода: Basic $9.99/мес, Premium $99.99/мес, сверх квоты $0.005 за подпись.
 **Не подставлять вместо этого число из выдачи поиска** — выдача была права, но проверить её
 было нечем, а API проверяем.
-
-Связано с [[kiki-owner-and-constraints]].

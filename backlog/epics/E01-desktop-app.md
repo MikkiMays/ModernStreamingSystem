@@ -44,9 +44,8 @@
 - Шапка: `MainWindow.xaml:8–13` — `PaneToggle` и логотип **текстом** `TextBlock Text="cord"`.
 - Захват — браузерный `getDisplayMedia` внутри WebView2; `CaptureAdapter` в вебе оставлен
   под нативную замену (`docs/architecture.md` Windows → «Развитие»).
-- Ограничения: XAML здесь не собирается (`knowledge/memory/windows-client-checks-on-linux.md`);
-  релиз выкладывает CI на пуше в `main`; помощник обновления обязан быть ASCII
-  (`cord-windows-update-helper.md`).
+- Ограничения: XAML на Linux не собирается (`Cord.Core` и тесты — да); релиз выкладывает CI
+  на пуше в `main`; помощник обновления обязан быть ASCII (`docs/updating.md`).
 - **Готовые патчи T56** — `backlog/patches/` (см. этап B0).
 
 Референсы владельца (`refs/README.md`): звонок Discord (своя шапка окна, рейл слева, звонок
@@ -126,7 +125,7 @@
 
 1. **Каркас:** окно со своей шапкой (`titleBarOverlay`) и маркой, трей, автозапуск по
    желанию, одиночный экземпляр, deep links `cord://` (открыть комнату), обновление только с
-   серверов Cord с проверкой версии на диске (уроки `cord-windows-update-helper`), перенос
+   серверов Cord с проверкой версии на диске (`docs/updating.md`), перенос
    профилей и избранного со старого клиента без потерь. Старт — полноэкранная загрузка из E16
    (T55, П14), пока грузится интерфейс.
 2. **Мягкое взаимодействие с Windows (T53).** Каждое — по-настоящему полезное в звонке, без
@@ -187,6 +186,5 @@ Windows-раннере e2e: установка, вход, звонок двух 
   `/download` обновляется `scripts/publish-windows-release.py` после каждого релиза — без
   этого клиенты новую версию не увидят.
 - Подпись кода — у владельца (`OWNER-ACTIONS.md`); без неё остаётся SmartScreen.
-- Скиллы: `winui-app`, `cord-windows-bridge` (`knowledge/codex-skills/`), документация
-  Electron и WebView2 — через context7. Повторяющуюся сборку/проверку на Windows-CI
+- Документация Electron и WebView2 — через context7. Повторяющуюся сборку/проверку на Windows-CI
   оформить своим скиллом.

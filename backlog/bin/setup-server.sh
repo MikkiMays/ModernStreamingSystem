@@ -42,7 +42,7 @@ cat <<NEXT
 
 Дальше руками (один раз):
   1. claude → /login (план Max); затем /mcp → figma и context7 → авторизоваться в браузере.
-  2. Где прод — OWNER-ACTIONS.md → «Перед запуском на новом сервере».
+  2. Для переезда прода — OWNER-ACTIONS.md → «Перед запуском на новом сервере».
   3. Запуск: $BACKLOG/bin/run.sh master
 NEXT
 exit $missing

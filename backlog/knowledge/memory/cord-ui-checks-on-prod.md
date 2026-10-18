@@ -2,10 +2,7 @@
 name: cord-ui-checks-on-prod
 description: "Как проверять вёрстку и медиа Cord настоящим браузером на этой машине, включая обход origin-проверки ядра"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: 96ca8505-2bba-48d5-ae8d-384880ef13bd
-  modified: 2026-09-20T07:59:12.321Z
 ---
 
 Вёрстку и медиа [[meet-cord-system]] на этой машине можно проверять по-настоящему —

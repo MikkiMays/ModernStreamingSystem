@@ -2,10 +2,7 @@
 name: cord-windows-update-helper
 description: Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 metadata:
-  node_type: memory
   type: project
-  originSessionId: 085c9b2d-c685-4752-9428-7c0ebe9bb98f
-  modified: 2026-09-23T15:40:01.913Z
 ---
 
 Жалоба 23.09.2026: «нажимаешь обновить, полоска идёт, приложение перезапускается — версия

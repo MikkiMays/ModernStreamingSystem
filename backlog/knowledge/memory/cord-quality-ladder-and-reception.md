@@ -2,10 +2,7 @@
 name: cord-quality-ladder-and-reception
 description: Почему показ в Cord стартовал в 15 fps и как сделан режим приёма «всегда максимум»
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 0281e58f-8a0b-4244-b256-bf44ff7d8801
-  modified: 2026-09-18T17:41:22.390Z
 ---
 
 Разобрано 18.09.2026 в [[meet-cord-system]], по жалобе владельца «начинаю трансляцию — она

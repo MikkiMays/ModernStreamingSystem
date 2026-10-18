@@ -2,10 +2,7 @@
 name: cord-call-in-pocket
 description: Почему встреча Cord рвалась у телефона с погашенным экраном и на каких двух сторонах это лечится
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 67917ba5-fd1a-4996-bd19-890ac74538c5
-  modified: 2026-09-21T15:11:39.385Z
 ---
 
 В [[meet-cord-system]] телефон с погашенным экраном **выпадал из встречи**, хотя связь у него

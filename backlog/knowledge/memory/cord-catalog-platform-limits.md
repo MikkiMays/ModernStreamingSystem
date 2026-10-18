@@ -2,10 +2,7 @@
 name: cord-catalog-platform-limits
 description: "Что YouTube и Twitch отдают каталогу Cord анонимно, и где у них стоят стены"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 5778afe2-537e-4a1f-af74-a766b4fd4d69
-  modified: 2026-09-19T18:08:44.150Z
 ---
 
 Каталог кинозала [[cord-watch-together]] ходит к площадкам **без ключей и аккаунтов**. Что

@@ -2,10 +2,7 @@
 name: windows-client-checks-on-linux
 description: "Как проверить C# клиента Cord на этой машине, хотя WinUI здесь не собирается"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: 461b2d0c-780b-4d03-b83a-b02615a994e3
-  modified: 2026-09-15T13:12:19.969Z
 ---
 
 `ModernStreamingSystem.Windows` на этой машине **не собирается целиком**: `global.json` требует

@@ -14,9 +14,9 @@
 
 ## Что уже есть (прочитать до правок)
 
-Память: `cord-watch-together`, `cord-cinema-providers`, `cord-cinema-playlists-and-sync`,
-`cord-catalog-platform-limits`, `cord-youtube-audio-and-captions`. Доки — `docs/INTEGRATIONS.md`
-→ «Кинозал». Код: служба `services/cord_services/cinema/` (реестр, `resolve.py`, `facade.py`,
+Заметки (`knowledge/memory/`): `cord-watch-together`, `cord-cinema-providers`,
+`cord-cinema-playlists-and-sync`, `cord-catalog-platform-limits`, `cord-youtube-audio-and-captions`.
+Доки — `docs/INTEGRATIONS.md` → «Кинозал». Код: служба `services/cord_services/cinema/` (реестр, `resolve.py`, `facade.py`,
 `net.py`, `egress.py`, `sniffer.py`, `drm.py`, `mpd.py`), контейнер `services/sniffer`, веб
 `web/src/core/cinema/`, `web/src/ui/cinema/` (`catalog/`, `scenes/`, `theater/`), стенд
 `web/.local/stack.sh up --services`.
@@ -56,7 +56,7 @@
 2. T19 и T20 — сначала, они маленькие и видны сразу.
 3. История (T17) — ядро/служба/веб, миграция, если нужна, без переписывания применённых.
 4. Сезоны и серии, затем пропуск рекламы — каждый с фикстурами из `web/.local/recorded/`
-   (запросы площадок записаны, тесты в сеть не ходят — память `cord-ci-and-release-traps`).
+   (запросы площадок записаны, тесты в сеть не ходят — CI, в отличие от локального прогона, сеть имеет).
 
 ## Проверка
 

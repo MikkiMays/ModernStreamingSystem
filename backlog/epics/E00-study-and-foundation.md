@@ -8,20 +8,19 @@
 
 ## Шаги
 
-0. **Окружение.** `CONTEXT.md` → «Окружение»: `$CORD_ROOT`, инструменты, доступ к GitHub,
-   где прод и как туда выкатывать. Итог — `journal/ENV-<hostname>.md`. Если прод на этой
-   машине недоступен — всё, что требует выкатки, копится до решения владельца
-   (`OWNER-ACTIONS.md` → «Перед запуском на новом сервере»), остальная работа идёт.
+0. **Сервер.** `CONTEXT.md` → «Сервер — это прод»: `$CORD_ROOT`, инструменты, доступ к
+   GitHub, ресурсы, поднят ли здесь прод. Итог — `journal/ENV-<hostname>.md`. Переезд прода
+   на эту машину — эпик E17, следующий после E00.
 
 1. **Исходный уровень.** Обе репы: ветки, `origin` против локального `main`, незакоммиченное,
-   старые worktree (на первом сервере `/opt/meet/.worktrees/room-polish` — позади `main`).
+   старые worktree, если есть.
    CI: последние прогоны `main` обеих реп. Прод: `docker compose ps` против HEAD, «О программе»
    на https://meet.nikg.tech, `curl` к `/api/v1/ping`. Последний релиз Windows и зеркало
    `/download`.
    **Готово:** таблица «что где лежит и чем отличается» в `journal/<дата>-E00.md`.
 
 2. **Чтение.** Всё из «Обязательного чтения» `CONTEXT.md`: доки обеих реп, прошлые
-   спецификации и планы, память `backlog/knowledge/memory/`. Затем пройти код по слоям: ядро (`room`, `game`,
+   спецификации и планы. Затем пройти код по слоям: ядро (`room`, `game`,
    `api`, `access`, `media`), веб (`core`, `media`, `ui`), службы, Windows. Где удобнее
    субагенты (`Explore`, `feature-dev:code-explorer`) — дай им непересекающиеся слои.
    **Готово:** `CONTEXT.md` сверен с кодом, неверное исправлено. Для каждого эпика в
@@ -40,7 +39,6 @@
      на проде.
    - `deploy.sh <служба…>` — `active-meetings` → `flock .deploy.lock` → `compose build` →
      `up -d --no-deps` → ожидание healthy → сверка образа с HEAD. Без `down`, без `-v`.
-     Если прод не на этой машине — те же шаги через `CORD_DEPLOY_SSH`.
    - `ci-status.sh` — последние прогоны CI обеих реп (`gh` или REST с токеном из окружения).
    - В `.github/workflows/verify.yml` — `paths-ignore: ['backlog/**']` для `push` и
      `pull_request`: коммит, меняющий только бэклог, не гоняет весь CI.
@@ -48,8 +46,7 @@
    **Готово:** каждый скрипт один раз прогнан, вывод — в журнале.
 
 5. **Скиллы для Claude** в `ModernStreamingSystem/.claude/skills/`, по
-   `superpowers:writing-skills` и `mattpocock-skills:writing-for-agents`. Перенеси смысл
-   `backlog/knowledge/codex-skills/cord-*` в формат Claude, без копирования под Codex. Минимальный набор:
+   `superpowers:writing-skills` и `mattpocock-skills:writing-for-agents`. Минимальный набор:
    `cord-deploy` (выкатка и проверка), `cord-verify-ui` (скриншоты, ширины, темы,
    переполнение), `cord-live-call` (два браузера против прода/стенда, getStats),
    `cord-server-tests` (maven в контейнере, fmt, fork). Существующий `web/.claude/skills/verify`

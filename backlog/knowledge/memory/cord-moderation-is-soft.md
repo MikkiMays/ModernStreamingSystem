@@ -2,10 +2,7 @@
 name: cord-moderation-is-soft
 description: "Решение владельца Cord: исключение и выключенный микрофон — не запрет, а конец встречи"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 7a3439a5-ee28-4ccb-98b6-d891c7ccd339
-  modified: 2026-09-19T23:10:29.524Z
 ---
 
 Владелец [[meet-cord-system]] прямо попросил (19.09.2026): «просто выкидывать пользователя, но

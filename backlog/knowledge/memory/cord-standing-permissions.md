@@ -2,10 +2,7 @@
 name: cord-standing-permissions
 description: "Владелец Cord дал все разрешения: в конце каждой сессии разработки — выкатка в прод и актуальный main обеих реп, без вопросов"
 metadata:
-  node_type: memory
   type: feedback
-  originSessionId: 7d93cfb7-e19b-4237-9de5-f0fff2336931
-  modified: 2026-09-23T22:23:38.071Z
 ---
 
 24.09.2026 владелец [[meet-cord-system]] сказал прямо: «все разрешения я даю, в конце каждой
@@ -16,9 +13,9 @@ metadata:
   (`ModernStreamingSystem`, `ModernStreamingSystem.Windows`) локально и на GitHub, выкатка на
   meet.nikg.tech (и релиз Windows, если менялся его код), проверка здоровья после выкатки.
 - Разрешение на это **не спрашивать** — ни на пуш, ни на `docker compose build/up`, ни на
-  действия, требующие его взгляда. То же записано в `/opt/meet/AGENTS.md` (22.09.2026).
-- Токен GitHub (`GITHUB_KEY`) лежит в `/opt/kiki/infra/.env` — для REST API (статус CI,
-  перезапуск упавших заданий, релизы); `gh` на машине нет.
+  действия, требующие его взгляда.
+- Статус CI, перезапуск упавших заданий и релизы — через `gh` или GitHub REST с токеном из
+  окружения машины.
 
 **Why:** он устал повторять одно и то же в каждой сессии, а работа, оставшаяся в worktree или
 незапушенной, для него не существует — см. [[codex-handoff-review]].

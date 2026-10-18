@@ -2,10 +2,7 @@
 name: cord-playout-buffer
 description: "Почему в Cord звук «то ускорялся, то ломался», и почему нулевой буфер приёма больше не просят"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 1f5feccc-33da-4929-928e-eca50a9d754a
-  modified: 2026-09-16T05:59:18.984Z
 ---
 
 Владелец жаловался (16.09.2026): музыка в комнате то ускоряется, то резко рвётся и играет

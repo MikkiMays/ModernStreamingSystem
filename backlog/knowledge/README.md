@@ -1,12 +1,12 @@
-# Знания о Cord из прошлых сессий
+# Знания о Cord
 
-Копия памяти Claude с первого сервера (18.10.2026) и скиллов Codex по Cord. Пути `/opt/meet/...`
-в заметках — пути первого сервера, читай как `$CORD_ROOT`. Новое добавляй сюда же: одна заметка —
-один факт, строка в этот список.
+Заметки о том, как устроен Cord и на чём уже спотыкались, плюс справочные скиллы по частям
+системы. Пути `/opt/meet/...` в заметках — пути первого сервера, читай как `$CORD_ROOT`. Новое
+добавляй сюда же: одна заметка — один факт, строка в этот список.
 
-## Память (`memory/`)
+## Заметки (`memory/`)
 
-- [`codex-handoff-review`](memory/codex-handoff-review.md) — Где лежат сессии Codex и что он ломает в Cord чаще всего — проверять при каждом приёме его работы
+- [`codex-handoff-review`](memory/codex-handoff-review.md) — Что чаще всего оказывается сломанным в Cord под отчётом «всё прошло» — проверять при каждом приёме чужой работы
 - [`cord-audio-verification`](memory/cord-audio-verification.md) — Как на этой машине послушать, что на самом деле приходит в комнату Cord
 - [`cord-call-in-pocket`](memory/cord-call-in-pocket.md) — Почему встреча Cord рвалась у телефона с погашенным экраном и на каких двух сторонах это лечится
 - [`cord-capacity-numbers`](memory/cord-capacity-numbers.md) — Чем меряется ёмкость сервера Cord и три числа, которые решают спор про железо
@@ -34,16 +34,15 @@
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
 - [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
-- [`handoff-checkmarks-lie`](memory/handoff-checkmarks-lie.md) — «✅ есть» в HANDOFF означало «написано в задаче», а не «работает»: три ненаписанные ручки держали трубу к компьютеру владельца закрытой месяц
 - [`livekit-stereo-only-via-go`](memory/livekit-stereo-only-via-go.md) — Почему музыка в Cord приходила в моно и почему стерео возможно только через Go-SDK
 - [`livekit-turn-and-secure-context`](memory/livekit-turn-and-secure-context.md) — Два ограничения, которые определяют топологию Cord: LiveKit жёстко объявляет TURN на 443, а захват камеры требует secure context
 - [`meet-cord-system`](memory/meet-cord-system.md) — Что такое /opt/meet (Cord), из чего состоит, три режима установки и как выкатывать
 - [`pricing-from-official-sources`](memory/pricing-from-official-sources.md) — Владелец требует официальные прайсы и первоисточники, а не пересказы из статей — особенно когда решение стоит денег
 - [`use-all-skills-and-mcp`](memory/use-all-skills-and-mcp.md) — Владелец требует максимально задействовать все доступные скиллы, MCP и плагины и разрешает ставить новые самостоятельно
-- [`vm-host-stalls`](memory/vm-host-stalls.md) — С 14.10.2026 вся ВМ замирает на 20–55 с пачками; виноват хост провайдера, а сторож Kiki зовёт это «Контейнеры не поднимаются»
+- [`vm-host-stalls`](memory/vm-host-stalls.md) — С 14.10.2026 ВМ старого прода замирала на 20–55 с пачками; виноват хост провайдера, не код Cord
 - [`windows-client-checks-on-linux`](memory/windows-client-checks-on-linux.md) — Как проверить C# клиента Cord на этой машине, хотя WinUI здесь не собирается
 
-## Скиллы Codex (`codex-skills/`)
+## Скиллы (`codex-skills/`, написаны для Codex — читать как справку)
 
 - [`cord-contracts`](codex-skills/cord-contracts/SKILL.md) — Cord API and WebSocket contract changes: schemas, generated clients and compatibility.
 - [`cord-deployment-review`](codex-skills/cord-deployment-review/SKILL.md) — Cord deployment review: Docker Compose, Caddy, TURN/TLS, networking, health and release readiness.
@@ -53,5 +52,3 @@
 - [`cord-verification`](codex-skills/cord-verification/SKILL.md) — Cord verification: choose the real project checks and report evidence without overstating coverage.
 - [`cord-web-client`](codex-skills/cord-web-client/SKILL.md) — Cord React/Vite web client: TypeScript, Base UI, accessibility and client-side performance.
 - [`cord-windows-bridge`](codex-skills/cord-windows-bridge/SKILL.md) — Cord Windows client: WinUI, the WebView2 bridge, deep links and installer compatibility.
-
-`AGENTS-workspace.md` — инструкции рабочего каталога первого сервера (`/opt/meet/AGENTS.md`), написаны для Codex.

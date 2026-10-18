@@ -2,10 +2,7 @@
 name: cord-ci-and-release-traps
 description: Чем CI в Cord строже локальных команд и как пуш подряд ломает выкладку релиза Windows
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 96ca8505-2bba-48d5-ae8d-384880ef13bd
-  modified: 2026-09-17T19:54:22.331Z
 ---
 
 В [[meet-cord-system]] «локально всё зелёное» не значит «CI зелёный»: проверок там больше, и
@@ -36,8 +33,8 @@ API, `DELETE`), после чего идущий прогон публикует
 Windows, и иногда SFU там не встаёт: падают разом все сценарии с «В эфире» (13 штук), хотя код
 тот же, что минутой раньше прошёл. Признак — одинаковая ошибка ожидания «В эфире» во всех
 медийных спеках. `gh` на машине нет; перезапуск упавших заданий — REST:
-`POST /repos/MikkiMays/ModernStreamingSystem/actions/runs/<id>/rerun-failed-jobs` с токеном
-`GITHUB_KEY` из `/opt/kiki/infra/.env`. Логи задания — `GET .../actions/jobs/<job>/logs`.
+`POST /repos/<владелец>/ModernStreamingSystem/actions/runs/<id>/rerun-failed-jobs` с токеном
+GitHub из окружения. Логи задания — `GET .../actions/jobs/<job>/logs`.
 
 **Тесты службы в CI ходят в сеть, а локально — нет (25.09.2026).** Локальная команда запускает тесты с
 `--network none`, а шаг CI — `docker compose run … services`, у которого `network_mode: host`. Тест, который

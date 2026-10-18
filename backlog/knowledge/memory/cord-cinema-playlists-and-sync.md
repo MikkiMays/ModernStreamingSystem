@@ -2,10 +2,7 @@
 name: cord-cinema-playlists-and-sync
 description: "Почему длинный фильм в Cord открывался минутами, и три числа про синхронность совместного просмотра"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 2e891725-89ca-47a4-8bdc-0dd08879f242
-  modified: 2026-09-19T16:12:13.591Z
 ---
 
 В кинозале [[cord-watch-together]] «длинные фильмы долго открываются» оказалось не про видео, а

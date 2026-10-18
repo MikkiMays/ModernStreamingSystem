@@ -28,10 +28,9 @@
   клавиши, «О программе»; `AppearanceFields` с темой; `settings/AccountsTab.tsx` — Яндекс
   Музыка. Настройки одни на всё приложение: на главной, во встрече и в Windows-клиенте
   (мост `settings.open` открывает нужный раздел).
-- Ползунки: своя заливка, грабли с глобальным правилом `input:not(...)` (память
-  `cord-ui-traps`); подписка `MediaSession.preferences` на `cord:preferences`.
-- Проверка вёрстки модалки — `scrollWidth - clientWidth` по каждой вкладке на 7 ширинах
-  (память `cord-ui-checks-on-prod`).
+- Ползунки: своя заливка, грабли с глобальным правилом `input:not(...)` (`CONTEXT.md` →
+  «Грабли интерфейса»); подписка `MediaSession.preferences` на `cord:preferences`.
+- Проверка вёрстки модалки — `scrollWidth - clientWidth` по каждой вкладке на 7 ширинах.
 - Референсы владельца — настройки FACEIT и Discord: `refs/img/IMG_5886-faceit-settings.jpg`,
   `refs/img/IMG_5887-discord-settings.jpg`, разбор и вывод «для Cord» — `refs/README.md`.
   Брать структуру (слева поиск, разделы с иконками в группах, подразделы-якоря; справа строки

@@ -2,10 +2,7 @@
 name: cord-poker-table
 description: "Покер в Cord: где он живёт, три решения, на которых он держится, и ловушка отката"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 3ab5db6d-f4de-4044-aba0-f2969159b90f
-  modified: 2026-09-21T20:37:12.782Z
 ---
 
 В [[meet-cord-system]] с 20.09.2026 есть **покер** — первая игра в группе «Игры» панели

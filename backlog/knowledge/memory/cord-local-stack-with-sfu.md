@@ -2,10 +2,7 @@
 name: cord-local-stack-with-sfu
 description: "Как поднять рядом с продом Cord полный второй стенд со своим SFU и проверять на нём медиа, ничего не трогая"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: 3ab5db6d-f4de-4044-aba0-f2969159b90f
-  modified: 2026-09-21T09:50:58.605Z
 ---
 
 К [[cord-ui-checks-on-prod]] есть важное дополнение: «встреча на dev-сервере живёт 20 секунд»
@@ -50,7 +47,7 @@ CORD_DEV_API=http://127.0.0.1:8099 npx vite --host 127.0.0.1 --port 5199 --stric
 - **`PUBLIC_URL` обязан совпадать с адресом vite** до буквы. `RequestGuard` сравнивает `Origin`
   строкой, а `EventConfig` отдаёт его же в `setAllowedOrigins` для WebSocket. `localhost` и
   `127.0.0.1` — разные строки.
-- Порт 5173 на этой машине часто занят **забытыми dev-серверами прошлых сессий**
+- Порт 5173 на этой машине часто занят **забытыми dev-серверами**
   (`ps -eo cmd | grep vite`). Проще взять другой порт, чем разбираться, чей он.
 - Медиа-вебхуки LiveKit в такой связке не доходят (шлюза, который ставит `X-Internal-Secret`,
   нет) — и это ничего не ломает: «В эфире» включает команда `media.restored` от самого клиента.

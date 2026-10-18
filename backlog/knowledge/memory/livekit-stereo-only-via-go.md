@@ -2,10 +2,7 @@
 name: livekit-stereo-only-via-go
 description: Почему музыка в Cord приходила в моно и почему стерео возможно только через Go-SDK
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: bde17172-5ad2-4928-81df-2d9a5f97b544
-  modified: 2026-09-15T19:26:34.861Z
 ---
 
 Проверено на месте 15.09.2026, на работающем сервере [[meet-cord-system]].
@@ -30,5 +27,5 @@ packetizer паникует), а Ogg-страница — **не** пакет: �
 
 Так это и сделано: `services/publisher` (Go) + `cord_services/publisher.py`, построчный JSON.
 
-Связано: [[handoff-checkmarks-lie]] — в документации Cord стереопоток был обещан задолго до
-того, как он появился.
+В документации Cord стереопоток был обещан задолго до того, как он появился: обещание в доках
+— не доказательство.

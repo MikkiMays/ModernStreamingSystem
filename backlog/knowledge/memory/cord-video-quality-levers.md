@@ -2,10 +2,7 @@
 name: cord-video-quality-levers
 description: "Где в Cord ломается качество видео: кодек камеры, потолок «Авто», adaptiveStream и один предел LiveKit, который снаружи не убирается"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: 96ca8505-2bba-48d5-ae8d-384880ef13bd
-  modified: 2026-09-17T06:01:01.766Z
 ---
 
 Четыре рычага качества в [[meet-cord-system]], проверенные на живом проде 17.09.2026.

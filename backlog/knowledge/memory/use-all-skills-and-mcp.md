@@ -2,10 +2,7 @@
 name: use-all-skills-and-mcp
 description: "Владелец требует максимально задействовать все доступные скиллы, MCP и плагины и разрешает ставить новые самостоятельно"
 metadata:
-  node_type: memory
   type: feedback
-  originSessionId: 7d93cfb7-e19b-4237-9de5-f0fff2336931
-  modified: 2026-09-23T22:23:43.820Z
 ---
 
 24.09.2026 владелец [[meet-cord-system]] попросил записать в память навсегда: «о максимальном
@@ -25,4 +22,4 @@ metadata:
 простаивают, пока модель делает всё вручную.
 
 **How to apply:** в отчёте по задаче называть, какие скиллы/агенты реально сработали и на чём.
-Связано: [[cord-standing-permissions]], [[codex-global-toolkit]].
+Связано: [[cord-standing-permissions]].

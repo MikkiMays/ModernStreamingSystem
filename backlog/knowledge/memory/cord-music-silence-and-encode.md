@@ -2,10 +2,7 @@
 name: cord-music-silence-and-encode
 description: "Почему пауза в музыке Cord звучала как поломка и чем меряется, кодек это или сеть"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 0281e58f-8a0b-4244-b256-bf44ff7d8801
-  modified: 2026-09-18T12:22:42.602Z
 ---
 
 Владелец жаловался (18.09.2026): музыка играет с помехами на фоне, «что-то режет ухо», а по

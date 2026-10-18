@@ -2,16 +2,12 @@
 name: meet-cord-system
 description: "Что такое /opt/meet (Cord), из чего состоит, три режима установки и как выкатывать"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: b904f720-4f54-4584-b7c1-b8827e4f3ce8
-  modified: 2026-09-19T18:14:42.582Z
 ---
 
-`/opt/meet` — это **Cord**, приложение для видеовстреч. Не путать с [[kiki-jarvis-system]]:
-это отдельный продукт, живущий на той же машине.
+`/opt/meet` (на первом сервере) — это **Cord**, приложение для видеовстреч, отдельный продукт.
 
-Два независимых git-репозитория (оба приватные у MikkiMays, на 15.09.2026):
+Два независимых git-репозитория (оба приватные на GitHub):
 
 - `ModernStreamingSystem` — ядро (Java 25 / Spring Boot), веб (React 19 / Vite), сервисы
   (Python, музыка и Telegram), инфраструктура. Прод: https://meet.nikg.tech

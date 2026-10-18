@@ -2,10 +2,7 @@
 name: cord-durak-table
 description: "Дурак в Cord: где он живёт, чем отличается от покера и на каких граблях там уже стояли"
 metadata:
-  node_type: memory
   type: project
-  originSessionId: 89b2cdd6-0e83-4c79-a6c9-d612c55cd0d9
-  modified: 2026-09-21T22:03:03.002Z
 ---
 
 В [[meet-cord-system]] с 21.09.2026 есть **дурак** — вторая игра в группе «Игры» панели

@@ -2,10 +2,7 @@
 name: cord-openapi-regeneration
 description: "Как перегенерировать contracts/openapi.json в Cord, когда прод-ядро отдаёт 404 на /api/openapi"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: a466d3e5-7e35-4331-a68e-fc91e5275bb6
-  modified: 2026-09-19T07:10:59.977Z
 ---
 
 `npm run generate:api` в [[meet-cord-system]] ходит на `localhost:8080/api/openapi`, а прод-ядро

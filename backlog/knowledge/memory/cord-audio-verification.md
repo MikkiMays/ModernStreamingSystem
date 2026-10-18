@@ -2,15 +2,12 @@
 name: cord-audio-verification
 description: "Как на этой машине послушать, что на самом деле приходит в комнату Cord"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: bde17172-5ad2-4928-81df-2d9a5f97b544
-  modified: 2026-09-15T19:27:03.206Z
 ---
 
 Про звук нельзя верить ни коду, ни панели: статус в Cord показывал «играет», когда в комнате
-была тишина. Способ, который даёт настоящий ответ (собран 15.09.2026, лежит в скретчпаде
-сессии, воспроизводится за пять минут):
+была тишина. Способ, который даёт настоящий ответ (собран 15.09.2026, воспроизводится за пять
+минут):
 
 1. Образ-слушатель, потому что в `modern-streaming-services` больше нет ни livekit, ни numpy:
    `FROM python:3.12-slim-bookworm` + `pip install livekit==1.1.18 numpy httpx` + ffmpeg,
@@ -30,4 +27,4 @@ metadata:
 `ListParticipants` у самого SFU (JWT HS256 собирается руками, грант `roomAdmin` + `roomList`
 с именем комнаты) отвечает на вопрос «а что думает сервер»: `stereo`, `mimeType`, кодеки.
 
-Связано: [[livekit-stereo-only-via-go]], [[meet-cord-system]], [[handoff-checkmarks-lie]].
+Связано: [[livekit-stereo-only-via-go]], [[meet-cord-system]].

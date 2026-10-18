@@ -2,10 +2,7 @@
 name: cord-capacity-numbers
 description: "Чем меряется ёмкость сервера Cord и три числа, которые решают спор про железо"
 metadata: 
-  node_type: memory
   type: reference
-  originSessionId: 256a2243-4ce9-4dd5-af39-a1940a49cc11
-  modified: 2026-09-16T08:06:33.116Z
 ---
 
 Инструмент, которым это меряется на месте (16.09.2026, [[meet-cord-system]]):

@@ -2,10 +2,7 @@
 name: cord-retention-config
 description: "Сроки хранения встреч в Cord задаются словами в yaml, и несохранённая встреча уходит сразу"
 metadata: 
-  node_type: memory
   type: project
-  originSessionId: 3fab4b5d-87ec-4927-b760-abc19943df88
-  modified: 2026-09-20T07:59:23.122Z
 ---
 
 С 20.09.2026 в [[meet-cord-system]] сроки хранения собраны в `stream.retention`
