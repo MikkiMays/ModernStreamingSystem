@@ -11,21 +11,9 @@ import {
 } from 'react';
 import type { Store } from '../core/store';
 import { windowsRelease } from '../core/download';
+import { AppIcon } from './brand/Logo';
 
-/**
- * The application's own mark, in the proportions of `Cord.ico`: three bars leaning fifteen
- * degrees on a blue tile. Drawn rather than fetched so it is crisp at any size and needs no
- * second request.
- */
-export function AppIcon({ size = 64 }: { size?: number }) {
-  return (
-    <span className="app-icon" style={{ '--icon': `${size}px` } as CSSProperties} aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
-  );
-}
+export { AppIcon, Logo } from './brand/Logo';
 
 /**
  * Ссылка на клиент для Windows.
@@ -210,18 +198,6 @@ export function Avatar({
       ) : (
         name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'
       )}
-    </span>
-  );
-}
-export function Logo() {
-  return (
-    <span className="brand">
-      <span className="brand-symbol" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
-      cord<span className="brand-dot">.</span>
     </span>
   );
 }
