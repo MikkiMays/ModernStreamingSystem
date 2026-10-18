@@ -1,0 +1,480 @@
+diff --git a/web/e2e/download.spec.ts b/web/e2e/download.spec.ts
+index 8ea631c..33b37cc 100644
+--- a/web/e2e/download.spec.ts
++++ b/web/e2e/download.spec.ts
+@@ -5,14 +5,11 @@ import AxeBuilder from '@axe-core/playwright';
+  * `/download` stands outside the application: no server session, no room. Somebody handed the
+  * address should be able to fetch the client before they have a password or an invitation.
+  *
+- * Большинство серверов ничего у себя не выкладывают — Cord, поднятый по инструкции, своей
+- * копии не имеет, пока владелец её туда не положит. Раньше это означало страницу «здесь
+- * сборки нет» и исчезнувшую кнопку на главной. Теперь кнопка есть всегда: своя копия, если
+- * она есть, иначе последний релиз проекта. Проверяются оба случая.
++ * Установщик лежит только на этом сервере: репозиторий приватный, и ссылка в него — 404.
++ * Есть манифест — кнопка ведёт в файл, который сервер действительно отдаёт; нет — кнопки нет,
++ * и ни одного стороннего адреса на странице тоже. Проверяются оба случая.
+  */
+-const REPOSITORY = 'MikkiMays/ModernStreamingSystem.Windows';
+-
+-test('the download page stands on its own and always leads to a real installer', async ({ page }) => {
++test('the download page stands on its own and leads only to this server', async ({ page }) => {
+   // A missing manifest is a 404 behind the real gateway, but a development server answers
+   // every unknown path with the application shell. Trust the content, not the status — which
+   // is exactly what the page itself does.
+@@ -26,16 +23,17 @@ test('the download page stands on its own and always leads to a real installer',
+   await expect(page.getByRole('heading', { name: /Windows покажет предупреждение/ })).toBeVisible();
+ 
+   const installer = page.getByRole('link', { name: /Скачать установщик/ });
+-  await expect(installer).toBeVisible();
+-  const href = (await installer.getAttribute('href'))!;
+   if (published) {
++    await expect(installer).toBeVisible();
++    const href = (await installer.getAttribute('href'))!;
+     expect(href).toMatch(new RegExp(`^/downloads/windows/v${manifest!.version}/`));
+     const head = await page.request.head(href);
+     expect(head.status(), 'the button must point at a file this server really serves').toBe(200);
+   } else {
+-    // Никаких сторонних адресов: по этой ссылке человек запустит исполняемый файл.
+-    expect(href).toMatch(new RegExp(`^https://github\\.com/${REPOSITORY}/releases/`));
++    await expect(page.getByText(/Сборка для Windows сейчас недоступна/)).toBeVisible();
++    await expect(installer).toHaveCount(0);
+   }
++  await expect(page.locator('a[href*="github.com"]')).toHaveCount(0);
+ 
+   expect(
+     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+diff --git a/web/src/core/download.test.ts b/web/src/core/download.test.ts
+index 30c6082..48b7830 100644
+--- a/web/src/core/download.test.ts
++++ b/web/src/core/download.test.ts
+@@ -9,35 +9,11 @@ const manifest = {
+     { name: 'Cord-win-x64.zip', kind: 'portable', size: 94160968, sha256: 'b'.repeat(64) },
+   ],
+ };
+-const REPO = 'MikkiMays/ModernStreamingSystem.Windows';
+-const download = (tag: string, name: string) => `https://github.com/${REPO}/releases/download/${tag}/${name}`;
+-const githubRelease = {
+-  tag_name: 'v0.7.0',
+-  published_at: '2026-09-17T10:00:00Z',
+-  assets: [
+-    {
+-      name: 'Cord-Setup-0.7.0-x64.exe',
+-      size: 324227543,
+-      browser_download_url: download('v0.7.0', 'Cord-Setup-0.7.0-x64.exe'),
+-    },
+-    {
+-      name: 'Cord-win-x64.zip',
+-      size: 94160968,
+-      browser_download_url: download('v0.7.0', 'Cord-win-x64.zip'),
+-    },
+-  ],
+-};
+ const answer = (body: unknown, status = 200) =>
+   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+ const missing = () => new Response('', { status: 404 });
+ // The module remembers its answer for the page load, so each test needs its own copy.
+ const load = () => import('./download');
+-/** First call is this server's own copy, second is GitHub. */
+-const answers = (server: Response, github: Response) => {
+-  const calls = [server, github];
+-  vi.mocked(fetch).mockImplementation(() => Promise.resolve(calls.shift() ?? missing()));
+-};
+-
+ beforeEach(() => {
+   vi.resetModules();
+   vi.stubGlobal('fetch', vi.fn());
+@@ -49,7 +25,6 @@ it('turns the published manifest into the two links the page draws', async () =>
+   const { windowsRelease, megabytes } = await load();
+   const release = await windowsRelease();
+   expect(release?.version).toBe('0.6.0');
+-  expect(release?.origin).toBe('server');
+   expect(release?.installer?.url).toBe('/downloads/windows/v0.6.0/Cord-Setup-0.6.0-x64.exe');
+   expect(release?.portable?.url).toBe('/downloads/windows/v0.6.0/Cord-win-x64.zip');
+   expect(megabytes(release!.installer!.size)).toBe('309 МБ');
+@@ -59,18 +34,12 @@ it('turns the published manifest into the two links the page draws', async () =>
+   expect(fetch).toHaveBeenCalledTimes(1);
+ });
+ 
+-/**
+- * Самый частый случай: кто-то поднял Cord по инструкции и ничего у себя не выкладывал.
+- * Раньше это была страница «здесь сборки нет», теперь — последний релиз проекта.
+- */
+-it('берёт релиз с GitHub, когда этот сервер ничего не выкладывал', async () => {
+-  answers(missing(), answer(githubRelease));
++it('не идёт ни в какой другой источник, когда этот сервер ничего не выкладывал', async () => {
++  vi.mocked(fetch).mockResolvedValue(missing());
+   const { windowsRelease } = await load();
+-  const release = await windowsRelease();
+-  expect(release?.version).toBe('0.7.0');
+-  expect(release?.origin).toBe('github');
+-  expect(release?.installer?.url).toBe(download('v0.7.0', 'Cord-Setup-0.7.0-x64.exe'));
+-  expect(release?.portable?.url).toBe(download('v0.7.0', 'Cord-win-x64.zip'));
++  await expect(windowsRelease()).resolves.toBeNull();
++  expect(fetch).toHaveBeenCalledTimes(1);
++  expect(vi.mocked(fetch).mock.calls[0]![0]).toBe('/downloads/windows/download.json');
+ });
+ 
+ it('survives a server that answers the address with something else entirely', async () => {
+@@ -91,31 +60,7 @@ it('refuses a manifest that could point the button somewhere else', async () =>
+     { ...manifest, files: 'not a list' },
+   ]) {
+     vi.resetModules();
+-    answers(answer(broken), missing());
+-    const { windowsRelease } = await load();
+-    await expect(windowsRelease(), JSON.stringify(broken).slice(0, 80)).resolves.toBeNull();
+-  }
+-});
+-
+-/**
+- * Адрес загрузки приходит из ответа и становится ссылкой, по которой человек запустит
+- * исполняемый файл. Значит, он обязан вести в наш репозиторий и никуда больше.
+- */
+-it('refuses a GitHub answer that points the button off the repository', async () => {
+-  for (const broken of [
+-    { ...githubRelease, tag_name: 'latest' },
+-    {
+-      ...githubRelease,
+-      assets: [{ ...githubRelease.assets[0], browser_download_url: 'https://evil.test/Cord-Setup.exe' }],
+-    },
+-    {
+-      ...githubRelease,
+-      assets: [{ ...githubRelease.assets[0], name: 'Cord-Setup-9.9.9-x64.exe' }],
+-    },
+-    { ...githubRelease, assets: [githubRelease.assets[1]] },
+-  ]) {
+-    vi.resetModules();
+-    answers(missing(), answer(broken));
++    vi.mocked(fetch).mockResolvedValue(answer(broken));
+     const { windowsRelease } = await load();
+     await expect(windowsRelease(), JSON.stringify(broken).slice(0, 80)).resolves.toBeNull();
+   }
+diff --git a/web/src/core/download.ts b/web/src/core/download.ts
+index 9649666..88ef42e 100644
+--- a/web/src/core/download.ts
++++ b/web/src/core/download.ts
+@@ -1,19 +1,11 @@
+ /**
+  * Откуда взять клиент Cord для Windows.
+  *
+- * Раньше был один источник: копия, выложенная владельцем этого сервера. Кто поднял Cord по
+- * инструкции и ничего не выкладывал, получал страницу «здесь сборки нет», а кнопка «Скачать»
+- * на главной просто исчезала — то есть самый частый случай был и самым бесполезным.
++ * Источник один — копия на этом сервере (`scripts/publish-windows-release.py`): обновления
++ * клиента ходят туда же. Cord — продукт, а не исходники, поэтому ни страница скачивания, ни
++ * «О программе» не ведут в репозиторий: он приватный, и ссылка на него — это 404.
+  *
+- * Поэтому источников три, по очереди:
+- *
+- *  1. Копия на этом сервере. Быстро, не зависит от GitHub, и обновления клиента ходят туда же.
+- *  2. Последний релиз на GitHub. Репозитории публичные, ответ анонимный, версия и размер
+- *     настоящие.
+- *  3. Просто ссылка на страницу релизов. Работает даже когда API недоступен или исчерпан
+- *     лимит запросов: без версии и размера, но с файлом.
+- *
+- * Кнопка не исчезает никогда — в этом и смысл.
++ * Нет манифеста — нет и кнопки: ответ `null`, и страница честно говорит, что сборки нет.
+  */
+ export interface WindowsFile {
+   name: string;
+@@ -27,22 +19,9 @@ export interface WindowsRelease {
+   publishedAt: string;
+   installer: WindowsFile | null;
+   portable: WindowsFile | null;
+-  /** Где лежит то, что скачивается: этот сервер или GitHub. */
+-  origin: 'server' | 'github';
+ }
+ 
+ const MANIFEST = '/downloads/windows/download.json';
+-/** Единственное место, где записано, чей это проект. */
+-export const REPOSITORY = 'MikkiMays/ModernStreamingSystem.Windows';
+-export const RELEASES_PAGE = `https://github.com/${REPOSITORY}/releases/latest`;
+-/**
+- * Прямая ссылка на установщик последнего релиза.
+- *
+- * Имя без версии живёт в релизе отдельной копией именно ради этого адреса: он не меняется
+- * никогда, и по нему можно скачать, не спрашивая GitHub, что сейчас последнее.
+- */
+-export const INSTALLER_URL = `https://github.com/${REPOSITORY}/releases/latest/download/Cord-Setup-x64.exe`;
+-export const PORTABLE_URL = `https://github.com/${REPOSITORY}/releases/latest/download/Cord-win-x64.zip`;
+ 
+ let asked: Promise<WindowsRelease | null> | undefined;
+ 
+@@ -53,10 +32,6 @@ export function windowsRelease(): Promise<WindowsRelease | null> {
+ }
+ 
+ async function load(): Promise<WindowsRelease | null> {
+-  return (await fromServer().catch(() => null)) ?? (await fromGithub().catch(() => null));
+-}
+-
+-async function fromServer(): Promise<WindowsRelease | null> {
+   const response = await fetch(MANIFEST, { signal: AbortSignal.timeout(6000) });
+   if (!response.ok) return null;
+   const data = (await response.json()) as {
+@@ -83,53 +58,6 @@ async function fromServer(): Promise<WindowsRelease | null> {
+     publishedAt: typeof data.publishedAt === 'string' ? data.publishedAt : '',
+     installer,
+     portable: files.find((entry) => entry.kind === 'portable') ?? null,
+-    origin: 'server',
+-  };
+-}
+-
+-/**
+- * Последний релиз по данным GitHub.
+- *
+- * Черновики и предвыпуски `releases/latest` не отдаёт вовсе, поэтому отдельной проверки на
+- * них нет. А вот адрес загрузки проверяется: он приходит из ответа и становится ссылкой,
+- * по которой человек запустит исполняемый файл, — значит, он обязан вести в наш репозиторий.
+- */
+-async function fromGithub(): Promise<WindowsRelease | null> {
+-  const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/releases/latest`, {
+-    headers: { accept: 'application/vnd.github+json' },
+-    signal: AbortSignal.timeout(6000),
+-  });
+-  if (!response.ok) return null;
+-  const data = (await response.json()) as {
+-    tag_name?: unknown;
+-    published_at?: unknown;
+-    assets?: { name?: unknown; size?: unknown; browser_download_url?: unknown }[];
+-  };
+-  if (typeof data.tag_name !== 'string' || !/^v\d+\.\d+\.\d+$/.test(data.tag_name)) return null;
+-  const version = data.tag_name.slice(1);
+-  const prefix = `https://github.com/${REPOSITORY}/releases/download/${data.tag_name}/`;
+-  const pick = (match: (name: string) => boolean, kind: WindowsFile['kind']): WindowsFile | null => {
+-    for (const asset of data.assets ?? []) {
+-      if (typeof asset.name !== 'string' || !match(asset.name)) continue;
+-      if (typeof asset.browser_download_url !== 'string' || !asset.browser_download_url.startsWith(prefix))
+-        continue;
+-      return {
+-        name: asset.name,
+-        kind,
+-        size: typeof asset.size === 'number' && asset.size > 0 ? asset.size : 0,
+-        url: asset.browser_download_url,
+-      };
+-    }
+-    return null;
+-  };
+-  const installer = pick((name) => name === `Cord-Setup-${version}-x64.exe`, 'installer');
+-  if (!installer) return null;
+-  return {
+-    version,
+-    publishedAt: typeof data.published_at === 'string' ? data.published_at : '',
+-    installer,
+-    portable: pick((name) => name === 'Cord-win-x64.zip', 'portable'),
+-    origin: 'github',
+   };
+ }
+ 
+diff --git a/web/src/ui/AboutFields.tsx b/web/src/ui/AboutFields.tsx
+index cd30a74..0e238db 100644
+--- a/web/src/ui/AboutFields.tsx
++++ b/web/src/ui/AboutFields.tsx
+@@ -1,7 +1,6 @@
+ import { useEffect, useState } from 'react';
+-import { Download, Github, Info, RefreshCw, Send, TriangleAlert } from 'lucide-react';
+-import { INSTALLER_URL, RELEASES_PAGE, isNewer, windowsRelease } from '../core/download';
+-import { CORE_REPOSITORY_URL, commitsLabel, upstreamState } from '../core/upstream-version';
++import { Download, Info, RefreshCw, Send, TriangleAlert } from 'lucide-react';
++import { isNewer, windowsRelease, type WindowsRelease } from '../core/download';
+ import { desktopUpdate, desktopVersion, notifyDesktop } from '../core/desktop';
+ import { appLabel, appVersion } from '../core/version';
+ import { useStore } from './primitives';
+@@ -11,8 +10,7 @@ import { useStore } from './primitives';
+  *
+  * Оболочка Windows отменяет любой переход на чужой адрес внутри окна и отдаёт системному
+  * браузеру только то, что просит новое окно, — то есть `target="_blank"`. Без него ссылка
+- * внутри приложения просто ничего не делает, и это не догадка: ровно так себя вела «Все
+- * выпуски», пока её не убрали отсюда.
++ * внутри приложения просто ничего не делает.
+  */
+ function External({
+   href,
+@@ -51,12 +49,10 @@ function External({
+ export function AboutFields() {
+   const desktop = !!window.chrome?.webview;
+   const shell = useStore(desktopUpdate);
+-  const [latest, setLatest] = useState<string | null | undefined>(undefined);
+-  const [behind, setBehind] = useState<number | null>(null);
++  const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
+   const [checking, setChecking] = useState(false);
+   useEffect(() => {
+     if (desktop) notifyDesktop('update.version');
+-    void upstreamState().then((state) => setBehind(state?.behind ?? null));
+   }, [desktop]);
+   const check = () => {
+     setChecking(true);
+@@ -67,12 +63,13 @@ export function AboutFields() {
+       setTimeout(() => setChecking(false), 4000);
+       return;
+     }
+-    setLatest(undefined);
++    setRelease(undefined);
+     void windowsRelease()
+-      .then((release) => setLatest(release?.version ?? null))
++      .then(setRelease)
+       .finally(() => setChecking(false));
+   };
+   useEffect(check, []); // eslint-disable-line react-hooks/exhaustive-deps
++  const latest = release === undefined ? undefined : (release?.version ?? null);
+   const installed = desktop ? desktopVersion(shell) : appVersion;
+   const fresh = !!latest && !!installed && isNewer(latest, installed);
+   return (
+@@ -97,15 +94,6 @@ export function AboutFields() {
+           <span>Для Windows вышел Cord {latest}.</span>
+         </p>
+       )}
+-      {behind !== null && (
+-        <p className="update-notice" role="status">
+-          <TriangleAlert size={15} />
+-          <span>
+-            Сервер отстаёт на {commitsLabel(behind)}. Обновить — <code>./update.sh</code> в каталоге проекта
+-            на сервере.
+-          </span>
+-        </p>
+-      )}
+ 
+       <div className="check-actions">
+         <button className="button secondary" disabled={checking} onClick={check}>
+@@ -116,8 +104,8 @@ export function AboutFields() {
+             <Download size={16} /> Обновить
+           </button>
+         )}
+-        {!desktop && fresh && (
+-          <a className="button primary" href={INSTALLER_URL}>
++        {!desktop && fresh && release?.installer && (
++          <a className="button primary" href={release.installer.url} download="">
+             <Download size={16} /> Скачать {latest}
+           </a>
+         )}
+@@ -144,20 +132,14 @@ export function AboutFields() {
+           Cord создаёт и развивает <strong>@nikgers</strong>.
+         </p>
+         {/*
+-          У двух ссылок остались одни значки: конверт Telegram и кот GitHub узнаются и без
+-          подписи, а подписи рядом с именем автора читались как призыв написать. Имя для
+-          доступности и подсказки никуда не делось — оно в `aria-label`.
++          У ссылки остался один значок: конверт Telegram узнаётся и без подписи, а подпись рядом
++          с именем автора читалась как призыв написать. Имя для доступности и подсказки никуда не
++          делось — оно в `aria-label`.
+         */}
+         <div className="check-actions">
+           <External href="https://t.me/nikgers" label="Telegram автора">
+             <Send size={16} />
+           </External>
+-          <External href={CORE_REPOSITORY_URL} label="Исходный код">
+-            <Github size={16} />
+-          </External>
+-          {/* В приложении эта ссылка лишняя: обновления оно ставит само, а список выпусков —
+-              разговор для того, кто читает репозиторий, и до него один клик выше. */}
+-          {!desktop && <External href={RELEASES_PAGE}>Все выпуски</External>}
+         </div>
+       </div>
+     </section>
+diff --git a/web/src/ui/Download.tsx b/web/src/ui/Download.tsx
+index 4e3249c..0e4a416 100644
+--- a/web/src/ui/Download.tsx
++++ b/web/src/ui/Download.tsx
+@@ -1,14 +1,7 @@
+ import { useEffect, useState } from 'react';
+ import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
+ import { AppIcon, Logo, ThemeButton, type Theme } from './primitives';
+-import {
+-  INSTALLER_URL,
+-  PORTABLE_URL,
+-  RELEASES_PAGE,
+-  megabytes,
+-  windowsRelease,
+-  type WindowsRelease,
+-} from '../core/download';
++import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
+ 
+ /**
+  * The page behind «Скачать Cord». It is deliberately outside the application: no server
+@@ -53,25 +46,10 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme:
+           <AppIcon size={76} />
+           <h1>Cord для Windows</h1>
+           {release === undefined && <p className="muted">Смотрим, что опубликовано…</p>}
+-          {/*
+-            Даже когда ни этот сервер, ни GitHub не ответили, кнопка остаётся: постоянный адрес
+-            последнего релиза не требует ни того, ни другого. Исчезающая кнопка «скачать» —
+-            худший из возможных ответов на вопрос «где скачать».
+-          */}
+           {release === null && (
+-            <>
+-              <p className="muted">Последняя сборка · Windows 10 build 19041 и новее, x64</p>
+-              <a className="button primary full download-primary" href={INSTALLER_URL}>
+-                <DownloadIcon size={19} /> Скачать установщик
+-              </a>
+-              <p className="form-footnote download-note">
+-                Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
+-                если его ещё нет.
+-              </p>
+-              <a className="text-button download-portable" href={PORTABLE_URL}>
+-                Портативная сборка без установки · ZIP
+-              </a>
+-            </>
++            <p className="muted" role="status">
++              Сборка для Windows сейчас недоступна. Попробуйте открыть страницу чуть позже.
++            </p>
+           )}
+           {release && (
+             <>
+@@ -80,11 +58,7 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme:
+                 {release.installer!.size > 0 && ` · ${megabytes(release.installer!.size)}`} · Windows 10 build
+                 19041 и новее, x64
+               </p>
+-              <a
+-                className="button primary full download-primary"
+-                href={release.installer!.url}
+-                download={release.origin === 'server' ? '' : undefined}
+-              >
++              <a className="button primary full download-primary" href={release.installer!.url} download="">
+                 <DownloadIcon size={19} /> Скачать установщик
+               </a>
+               <p className="form-footnote download-note">
+@@ -92,18 +66,11 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme:
+                 если его ещё нет.
+               </p>
+               {release.portable && (
+-                <a
+-                  className="text-button download-portable"
+-                  href={release.portable.url}
+-                  download={release.origin === 'server' ? '' : undefined}
+-                >
++                <a className="text-button download-portable" href={release.portable.url} download="">
+                   Портативная сборка без установки · ZIP
+                   {release.portable.size > 0 && `, ${megabytes(release.portable.size)}`}
+                 </a>
+               )}
+-              <a className="text-button download-portable" href={RELEASES_PAGE}>
+-                Все выпуски и что в них поменялось
+-              </a>
+             </>
+           )}
+         </section>
+@@ -165,10 +132,6 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme:
+             скачанный файл, а не то, что установщик положил на диск. У портативной сборки пометка остаётся на
+             распакованных файлах, поэтому установщик спокойнее.
+           </p>
+-          <p className="form-footnote download-note">
+-            Установщик собирает GitHub Actions из исходников этого проекта; контрольные суммы каждого выпуска
+-            лежат рядом с ним на странице релиза.
+-          </p>
+         </section>
+       </main>
+     </div>
+diff --git a/web/src/ui/primitives.tsx b/web/src/ui/primitives.tsx
+index ebefd92..9f590a7 100644
+--- a/web/src/ui/primitives.tsx
++++ b/web/src/ui/primitives.tsx
+@@ -30,9 +30,8 @@ export function AppIcon({ size = 64 }: { size?: number }) {
+ /**
+  * Ссылка на клиент для Windows.
+  *
+- * Раньше она появлялась, только если владелец этого сервера выложил у себя сборку, — то есть
+- * почти никогда. Теперь сборка есть всегда: своя копия, если она есть, иначе последний релиз
+- * проекта. Скрывается лишь там, где бессмысленна, — внутри самого приложения.
++ * Ведёт на `/download` всегда: если сборки на сервере сейчас нет, страница так и скажет.
++ * Скрывается лишь там, где бессмысленна, — внутри самого приложения.
+  */
+ export function DownloadLink() {
+   const [version, setVersion] = useState('');

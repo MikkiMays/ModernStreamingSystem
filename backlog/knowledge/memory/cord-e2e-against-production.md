@@ -1,0 +1,40 @@
+---
+name: cord-e2e-against-production
+description: "Как за минуту проверить клиента Cord настоящим браузером против боевого сервера, не поднимая локальный стенд"
+metadata: 
+  node_type: memory
+  type: reference
+  originSessionId: 256a2243-4ce9-4dd5-af39-a1940a49cc11
+  modified: 2026-09-17T19:54:02.027Z
+---
+
+`web/playwright.config.ts` в [[meet-cord-system]] уже умеет целиться в чужой сервер: если
+задан `PLAYWRIGHT_BASE_URL`, локальный `webServer` не поднимается вовсе. Флаги
+`--use-fake-device-for-media-stream`, `--use-fake-ui-for-media-stream` и
+`--auto-select-desktop-capture-source=Entire screen` тоже уже стоят в конфиге, поэтому
+камера, микрофон и **демонстрация экрана** работают headless без единого вопроса.
+
+```bash
+cd /opt/meet/ModernStreamingSystem/web
+PLAYWRIGHT_BASE_URL=https://meet.nikg.tech npx playwright test e2e/meeting.spec.ts e2e/screens.spec.ts
+```
+
+16.09.2026 три сценария (главная, два браузера через SFU, два экрана через SFU) прошли за
+55 секунд против прода. Это самая дешёвая настоящая проверка выкатки, какая здесь есть, и
+она сильнее любого `curl` по странице: [[handoff-checkmarks-lie]] — про то, почему «дверь
+отвечает» не то же самое, что «в неё ходят».
+
+**Что видно через `<video>`, то и проверяемо.** Размер собственного захвата читается как
+`videoHeight` у плитки `video[aria-label="Камера: <имя>"]` и меняется ровно тогда, когда
+`restartTrack` применил новые ограничения. Так проверено, что камера уходит в 360p на время
+показа экрана, — без доступа к getStats и без внутренностей LiveKit.
+
+**Забыть переменную — значит проверить не то.** Без `PLAYWRIGHT_BASE_URL` конфиг поднимает
+`npm run dev` на 5173, где нет ни ядра, ни SFU: 17.09.2026 такой прогон дал 13 падений из 14,
+и это выглядело как обвал прода, хотя прод был цел. Признак: падает даже `connect.spec.ts`
+(«сервер отвечает до того, как показана встреча»). Настоящий прогон против прода в тот же
+день — 14 из 14 за 4,8 минуты.
+
+Ограничение: Playwright и браузеры стоят только в `web/`, поэтому скрипт с
+`import { chromium } from '@playwright/test'` обязан лежать **внутри** `web/` — ESM ищет
+пакет от файла, а не от рабочего каталога.

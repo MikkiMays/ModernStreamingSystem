@@ -17,3 +17,8 @@ test-results/
 __pycache__/
 
 .ruff_cache/
+
+# Бэклог: рабочие файлы сессий, не состояние
+/backlog/.deploy.lock
+/backlog/journal/*.log
+/backlog/screens/

@@ -1,0 +1,71 @@
+diff --git a/docs/releases/0.7.6.md b/docs/releases/0.7.6.md
+new file mode 100644
+index 0000000..c55196c
+--- /dev/null
++++ b/docs/releases/0.7.6.md
+@@ -0,0 +1,14 @@
++# Cord 0.7.6
++
++## Установщик без ссылок
++
++Из установщика и из карточки Cord в «Установленных приложениях» Windows убраны ссылки на
++репозиторий: он закрыт, и они вели в пустую страницу. Описание в мастере установки больше не
++предлагает переходить по внешним адресам.
++
++## Установка
++
++Скачайте `Cord-Setup-0.7.6-x64.exe` со страницы `/download` вашего сервера и запустите поверх
++установленной версии. Установка выполняется для текущего пользователя без прав
++администратора; серверы, избранное и настройки сохраняются. Требуется Windows x64, начиная с
++Windows 10 build 19041.
+diff --git a/installer/About-installation.txt b/installer/About-installation.txt
+index 171e1d2..dbd656e 100644
+--- a/installer/About-installation.txt
++++ b/installer/About-installation.txt
+@@ -2,14 +2,10 @@ Cord — разговоры, экран и совместный просмотр
+ 
+ Что это. Cord — приложение для видеовстреч: разговор с камерой и микрофоном, демонстрация экрана со звуком, общая музыка и кинозал, в котором комната смотрит видео вместе и с одной секунды. Windows-версия — это не сайт в рамке: отдельное окно, свой список избранных комнат, горячая клавиша микрофона на всю систему, уведомления и обновление одной кнопкой.
+ 
+-Куда вы попадёте после установки. Никуда — пока не скажете. Встречи идут на сервере, и Cord не подключается ни к какому серверу сам: при первом запуске он спросит адрес. Впишите адрес того сервера, с которого вы скачали Cord, — обычно это та же ссылка, по которой открылась страница загрузки (например, https://meet.example.com). Если Cord вам дал кто-то другой, спросите адрес у него. Серверов можно добавить сколько угодно и переключаться между ними в любой момент; пароль сервера, если он есть, хранится рядом с записью и подставляется сам.
++Куда вы попадёте после установки. Никуда — пока не скажете. Встречи идут на сервере, и Cord не подключается ни к какому серверу сам: при первом запуске он спросит адрес. Впишите адрес того сервера, с которого вы скачали Cord,, — это адрес той же страницы, с которой вы скачали установщик. Если Cord вам дал кто-то другой, спросите адрес у него. Серверов можно добавить сколько угодно и переключаться между ними в любой момент; пароль сервера, если он есть, хранится рядом с записью и подставляется сам.
+ 
+ Что ставится. Приложение, библиотеки .NET, Windows App SDK и ресурсы интерфейса. Если Microsoft Edge WebView2 Runtime ещё не установлен, он поставится из включённого автономного пакета Microsoft. Для распаковки этих компонентов интернет не требуется — он нужен самим звонкам.
+ 
+ Куда ставится. В папку текущего пользователя: AppData\Local\Programs\Cord. Права администратора не нужны. Cord появится в меню «Пуск» и в списке установленных приложений Windows; ярлык на рабочем столе включается отдельной галочкой.
+ 
+ Обновление и удаление. При обновлении сохраняются имя, избранное, список серверов и настройки устройств. Перед обновлением завершите звонок и закройте Cord. Удаление приложения сохраняет пользовательский профиль и общий WebView2 Runtime — другим программам он тоже нужен.
+-
+-Исходный код и выпуски: https://github.com/MikkiMays/ModernStreamingSystem.Windows
+-Установщик создан с Inno Setup — https://jrsoftware.org/
+-Распространение WebView2 — https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution
+diff --git a/installer/Cord.iss b/installer/Cord.iss
+index 58cf1f2..3d0f209 100644
+--- a/installer/Cord.iss
++++ b/installer/Cord.iss
+@@ -41,11 +41,8 @@ AlwaysRestart=no
+ UsePreviousAppDir=yes
+ UsePreviousTasks=yes
+ AppComments=Видеовстречи, демонстрация экрана и совместный просмотр. Сервер выбираете вы.
+-; Адреса ведут туда, где лежит сам Cord, а не на чей-то сервер встреч: сервер у каждого свой,
+-; и установщик не должен рекламировать один из них как «тот самый».
+-AppPublisherURL=https://github.com/MikkiMays/ModernStreamingSystem.Windows
+-AppSupportURL=https://github.com/MikkiMays/ModernStreamingSystem.Windows/issues
+-AppUpdatesURL=https://github.com/MikkiMays/ModernStreamingSystem.Windows/releases/latest
++; Ссылок нет намеренно: Cord — продукт, а не исходники. Репозиторий приватный, и адрес в
++; «Установленных приложениях» Windows вёл бы в 404.
+ ; Windows reads these when it describes the file — in its properties, and in the SmartScreen
+ ; dialog for an unsigned build. They do not remove that dialog; nothing inside the installer
+ ; can. They decide whether it names the program or shows a blank.
+diff --git a/src/Cord.Windows/Cord.Windows.csproj b/src/Cord.Windows/Cord.Windows.csproj
+index 2e1ba8f..624d688 100644
+--- a/src/Cord.Windows/Cord.Windows.csproj
++++ b/src/Cord.Windows/Cord.Windows.csproj
+@@ -16,7 +16,7 @@
+     <RootNamespace>Cord.Windows</RootNamespace>
+     <ApplicationIcon>Assets\Cord.ico</ApplicationIcon>
+     <Product>Cord</Product>
+-    <Version>0.7.5</Version>
++    <Version>0.7.6</Version>
+     <Authors>@nikgers</Authors>
+     <Company>@nikgers</Company>
+     <Copyright>© @nikgers</Copyright>
