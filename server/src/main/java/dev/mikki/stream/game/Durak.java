@@ -54,6 +54,9 @@ public class Durak {
   /** Сколько стол стоит пустым, прежде чем уйти со сцены. Столько же у покера. */
   public static final long LINGER_MS = 600000;
 
+  /** Сколько видно «нечем отбиться», прежде чем стол возьмёт за защитника сам. */
+  public static final long AUTO_TAKE_MS = 1500;
+
   /** Сколько ждём хода от того, кого во встрече уже нет. */
   public static final long AWAY_ACT_MS = 3000;
 
@@ -1278,7 +1281,8 @@ public class Durak {
               seat.out && seat.place > 0,
               seat.place,
               seat.away,
-              seat.fool));
+              seat.fool,
+              null));
     }
     var notes =
         log.stream()

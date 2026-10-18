@@ -196,6 +196,31 @@ class GameVisualEventsTest {
     assertThat(restored.view(null, NOW + 1500).reactions().getFirst().id()).isGreaterThan(1);
   }
 
+  /**
+   * Перевод — не ещё одна атака, а уход боя к соседу: у него своё событие, и в нём видно, к кому
+   * бой уехал. Карта перевода открыта — она и так ложится на стол лицом вверх.
+   */
+  @Test
+  void transferIsItsOwnEventPointingAtTheNextDefender() {
+    var game = Durak.open("p0", "perevodnoy", NOW, 36);
+    for (int index = 0; index < 3; index++) game.sit("p" + index, "P" + index, index, NOW);
+    game.deal(NOW);
+    game.attacker = 0;
+    game.defender = 1;
+    game.boutNumber = 2;
+    game.seats.get(0).hand = new java.util.ArrayList<>(List.of(16, 20, 24));
+    game.seats.get(1).hand = new java.util.ArrayList<>(List.of(17, 21, 25));
+    game.seats.get(2).hand = new java.util.ArrayList<>(List.of(18, 22, 26));
+    game.limit = 3;
+    game.act("p0", "attack", Cards.text(16), null, NOW + 2000);
+    game.act("p1", "transfer", Cards.text(17), null, NOW + 2100);
+    var last = game.visualEvents.getLast();
+    assertThat(last.type()).isEqualTo("transfer");
+    assertThat(last.fromSeat()).isEqualTo(1);
+    assertThat(last.toSeat()).isEqualTo(2);
+    assertThat(last.cards()).containsExactly(Cards.text(17));
+  }
+
   @Test
   void visualHistoryIsBoundedAndCountersNeverResetBetweenHands() {
     var game = durak();

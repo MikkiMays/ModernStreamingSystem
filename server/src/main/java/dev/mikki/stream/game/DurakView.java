@@ -118,7 +118,8 @@ public record DurakView(
       int place,
       boolean away,
       /** Тот самый. Видно только когда партия кончилась. */
-      boolean fool) {}
+      boolean fool,
+      String auto) {}
 
   /** Строка ленты: что произошло и когда. */
   public record DurakNote(long at, String kind, int seat, String name, String text) {}

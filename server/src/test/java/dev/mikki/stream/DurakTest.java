@@ -387,6 +387,60 @@ class DurakTest {
         .hasMessageContaining("больше не положить");
   }
 
+  /**
+   * T51: «в конце, когда нет карт, мне могут подкинуть».
+   *
+   * <p>После перевода предел боя считался как «уже лежащие атаки плюс рука нового защитника»: у
+   * него две карты, на столе две атаки — и подкинуть разрешалось ещё две. Отбившись последними
+   * картами, он сидел с пустой рукой под новой атакой. Предел — это рука защитника на начало его
+   * боя, и перевод начинает бой заново.
+   */
+  @Test
+  void aTransferNeverLetsTheBoutOutgrowTheNewDefender() {
+    var table = table(3, "perevodnoy", 36);
+    endgame(table, "9c", "6s 6d", "6h Ks", "7s 7h");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "transfer", "6h", null);
+    assertThat(table.defender).isEqualTo(2);
+    assertThat(table.limit).isEqualTo(2);
+    act(table, 2, "beat", "7s", "6s");
+    act(table, 2, "beat", "7h", "6h");
+    assertThat(table.seats.get(2).hand).isEmpty();
+    // Шестёрка бубён у заходившего есть, но защитнику больше нечем отбиваться: бой кончен.
+    assertThat(table.boutEnd).isEqualTo("beaten");
+    assertThatThrownBy(() -> act(table, 0, "attack", "6d", null)).isInstanceOf(Problem.class);
+  }
+
+  /**
+   * Стол, сохранённый прежним ядром посреди такого боя, несёт завышенный предел. Колода пуста, у
+   * защитника не осталось карт — подкинуть ему нельзя, сколько бы ни обещал старый предел.
+   */
+  @Test
+  void aDefenderWithAnEmptyHandIsNeverThrownAt() {
+    var table = table(3, "perevodnoy", 36);
+    endgame(table, "9c", "6s 6d", "6h Ks", "7s 7h");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "transfer", "6h", null);
+    table.limit = 4;
+    act(table, 2, "beat", "7s", "6s");
+    act(table, 2, "beat", "7h", "6h");
+    assertThat(table.acting()).isEmpty();
+    assertThat(table.boutEnd).isEqualTo("beaten");
+    table.tick(table.deadline);
+    assertThat(table.seats.get(2).out).isTrue();
+  }
+
+  @Test
+  void theDefenderIsNeverThrownMoreThanHeHolds() {
+    var table = table(3);
+    deal(table, "9c", "8d 8h 8c", "6s 6d 7d 8s Js Qs", "As", "6h 6c 7c Jh Qh Kh");
+    act(table, 0, "attack", "6s", null);
+    // Одна карта у защитника — одна неотбитая на столе. Вторую шестёрку класть некуда.
+    assertThatThrownBy(() -> act(table, 2, "attack", "6h", null))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("не подкинуть");
+  }
+
   @Test
   void aThrowInTableRefusesTransfersOutright() {
     var table = table(3);
@@ -485,6 +539,80 @@ class DurakTest {
     assertThat(table.acting()).containsExactly(0);
     table.tick(table.deadline);
     assertThat(table.boutEnd).isEqualTo("beaten");
+  }
+
+  // --- Решения за игрока (T07) ----------------------------------------------------------------
+
+  /**
+   * Нечем отбиться — стол берёт за защитника сам, но не мгновенно: полторы секунды видно, что
+   * сейчас произойдёт, и «Беру» можно нажать и раньше.
+   */
+  @Test
+  void aDefenderWhoCannotBeatTakesByHimselfAfterAShortPause() {
+    var table = table(2);
+    deal(table, "9h", "6d 7d 8d Td Jd Qd", "As 7s 8s 9s Ts Js", "6c 7c 8c 9c Tc Jc");
+    act(table, 0, "attack", "As", null);
+    assertThat(table.deadline - table.actionAt).isEqualTo(Durak.AUTO_TAKE_MS);
+    assertThat(table.view("p0", T0).seats().get(1).auto()).isEqualTo("take");
+    assertThat(table.view("p1", T0).seats().get(1).auto()).isEqualTo("take");
+    table.tick(table.deadline);
+    assertThat(table.taking).isTrue();
+    assertThat(table.log).anyMatch(note -> note.text.contains("нечем отбиться"));
+  }
+
+  /** Отбить по одной можно каждую, а все разом — нет: козырь у защитника один на две карты. */
+  @Test
+  void aDefenderWhoCannotCoverEveryCardTakesToo() {
+    var table = table(2);
+    deal(table, "9h", "6d 7d 8d Td Jd Qd", "As Ad 8s 9s Ts Js", "6h 7c 8c 9c Tc Jc");
+    act(table, 0, "attack", "As", null);
+    assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
+    assertThat(table.view("p0", T0).seats().get(1).auto()).isNull();
+    act(table, 0, "attack", "Ad", null);
+    assertThat(table.deadline - table.actionAt).isEqualTo(Durak.AUTO_TAKE_MS);
+    assertThat(table.view("p0", T0).seats().get(1).auto()).isEqualTo("take");
+  }
+
+  /** Перевести можно — значит ход ещё есть, и стол защитника не торопит. */
+  @Test
+  void aDefenderWhoCanTransferIsNotRushed() {
+    var table = table(3, "perevodnoy", 36);
+    deal(
+        table,
+        "9h",
+        "6d",
+        "As 7s 8s 9s Ts Js",
+        "Ac 7c 8c 9c Tc Jc",
+        "Qs 7d 8d Jd Td 9d");
+    act(table, 0, "attack", "As", null);
+    assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
+    assertThat(table.view("p0", T0).seats().get(1).auto()).isNull();
+  }
+
+  /**
+   * Нечего подкинуть — стол пасует за игрока и говорит об этом всем: у его места метка, и ждать
+   * его никто не будет. Какие у него карты, метка не говорит — только что подходящих нет.
+   */
+  @Test
+  void anAttackerWithNothingToThrowIsPassedAndMarkedForEveryone() {
+    var table = table(3);
+    deal(
+        table,
+        "9h",
+        "6d 7d 8d Td",
+        "6s 6c 8s 9s Ts Js",
+        "7s Ks As Ac Kc Qc",
+        "Qd Jd 8h Jc Tc 9c");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "7s", "6s");
+    assertThat(table.acting()).containsExactly(0);
+    for (var viewer : List.of("p0", "p1", "p2", "stranger")) {
+      var seats = table.view(viewer, T0).seats();
+      assertThat(seats.get(2).auto()).isEqualTo("pass");
+      assertThat(seats.get(0).auto()).isNull();
+    }
+    assertThat(table.view("p2", T0).you().actions()).doesNotContain("pass");
+    assertThat(table.view("p0", T0).you().actions()).contains("pass");
   }
 
   // --- Снимок ------------------------------------------------------------------------------
