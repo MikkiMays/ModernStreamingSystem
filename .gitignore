@@ -22,3 +22,6 @@ __pycache__/
 /backlog/.deploy.lock
 /backlog/journal/*.log
 /backlog/screens/
+
+# Рабочие копии параллельных агентов (git worktree)
+/.claude/worktrees/
