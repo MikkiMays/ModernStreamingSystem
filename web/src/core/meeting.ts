@@ -1,5 +1,5 @@
 import { ConnectionQuality } from 'livekit-client';
-import type { Admission, Command, Participant, RoomEvent, Snapshot } from '../api/types';
+import type { Admission, Command, RoomEvent, Snapshot } from '../api/types';
 import { ApiError, RoomApi } from '../api/client';
 import { MediaSession, type DeviceChoice } from '../media/session';
 import { ControlChannel } from './control';
@@ -7,12 +7,12 @@ import { Store } from './store';
 import { Uploader } from './uploader';
 import { rememberMeeting } from './recent';
 import { NotificationSounds, type Cue } from './sounds';
+import { RoomCues } from './room-cues';
 import { readPreferences } from './preferences';
 import { volumeKey } from './volumes';
 import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
 
-const PRESENT: Participant['status'][] = ['JOINING', 'CONNECTED', 'RECOVERING'];
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
 /** Столько замеров держится: хватает на любой разумный поток событий комнаты за это время. */
@@ -52,8 +52,8 @@ export class Meeting {
   private viewRevision = 0;
   private played = new Set<string>();
   private sounds = new NotificationSounds();
-  /** Who was in the room the last time we looked, so arrivals and departures can be heard. */
-  private roster = new Map<string, Participant['status']>();
+  /** Кто приходит и уходит — по разнице снимков, только люди (`core/room-cues.ts`, T38). */
+  private cues: RoomCues;
   readonly ended = new Store<string | null>(null);
   readonly invite: Store<string | null>;
   readonly fileRevision = new Store(0);
@@ -73,6 +73,7 @@ export class Meeting {
   ) {
     this.api = new RoomApi(admission);
     this.snapshot = new Store(admission.snapshot);
+    this.cues = new RoomCues(admission.participantId);
     this.invite = new Store(admission.inviteUrl);
     this.media = new MediaSession(this.api, (reason) => {
       void this.resolveEnd(reason, true);
@@ -89,7 +90,7 @@ export class Meeting {
     this.control.start();
     // Everyone already here is not an arrival. The roster starts as what the room looks like
     // at this moment, and the only cue for opening it is the one about you.
-    this.roster = new Map(this.snapshot.get().participants.map((p) => [p.id, p.status]));
+    this.cues.seed(this.snapshot.get().participants);
     this.cue('self-join');
     this.accept(this.snapshot.get());
     // The picture belongs to this device, so each room has to be told about it once. A room
@@ -140,21 +141,13 @@ export class Meeting {
    * that leaving is heard once even when the snapshot confirming it never comes.
    */
   private listen(snapshot: Snapshot) {
-    const previous = this.roster;
-    this.roster = new Map(snapshot.participants.map((p) => [p.id, p.status]));
+    const cues = this.cues.next(snapshot.participants);
     // A room that has just closed empties in one step. That is one ending, not ten departures.
     if (!this.started || this.ended.get() || snapshot.closedAt) return;
-    const present = (status?: Participant['status']) => !!status && PRESENT.includes(status);
-    for (const person of snapshot.participants) {
-      if (person.id === this.admission.participantId) continue;
-      const before = previous.get(person.id);
-      if (person.status === 'WAITING' && before !== 'WAITING') this.cue('knock');
-      else if (present(person.status) && !present(before)) this.cue('join');
-    }
-    for (const [id, status] of previous) {
-      if (id === this.admission.participantId || !present(status)) continue;
-      if (!present(this.roster.get(id))) this.cue('leave');
-    }
+    for (const cue of cues) this.cue(cue);
+    // Сторожевая запись: почему прозвучал каждый звук — чтобы «звуки сами по себе» разбирались
+    // по журналу клиента, а не по памяти.
+    if (cues.length) console.info('[cord] звуки комнаты', this.cues.journal.slice(-cues.length));
   }
   private accept = (snapshot: Snapshot, roundTrip?: number) => {
     if (this.disposed) return;
