@@ -1,3 +1,14 @@
+Cord game sounds (web/public/sounds/games/*.ogg)
+Kenney "Casino Audio" 1.1 by Kenney Vleugels (Kenney.nl); files are unmodified.
+Source: https://opengameart.org/content/54-casino-sound-effects-cards-dice-chips
+License: Creative Commons Zero (CC0 1.0), http://creativecommons.org/publicdomain/zero/1.0/
+"You may use these assets in personal and commercial projects.
+Credit (Kenney or www.kenney.nl) would be nice but is not mandatory."
+Files: card-place-1, card-place-2, card-slide-1, card-slide-2, card-shove-1, card-fan-1,
+card-shuffle, cards-pack-take-out-1, chip-lay-1, chip-lay-2, chips-stack-1, chips-handle-1.
+
+------------------------------------------------------------------------------
+
 Cord optional microphone noise suppression
 Third-party notices; upstream components are unmodified.
 
