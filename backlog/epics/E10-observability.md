@@ -15,15 +15,13 @@ T32 «ВАЖНО Активити/аналитика/аудит - подгото
 ## Что уже есть
 
 - Ядро отдаёт `/actuator/prometheus` (`management.endpoints.web.exposure.include:
-  health,prometheus`). У LiveKit есть свой порт Prometheus — проверить конфиг
+  health,prometheus`). У LiveKit своя выдача метрик Prometheus — проверить конфиг
   `infra/generated/livekit.json`.
-- На машине уже стоят Grafana, Prometheus, cadvisor и node-exporter, но это **Kiki**, не Cord.
-  Их можно читать как пример, но не трогать и не смешивать.
-- Cloudflare: `meet`/`rtc`/`turn` — DNS only (`docs/deployment-meet-nikg-tech.md`). Поэтому
-  статистики Cloudflare по трафику Cord почти нет — это нужно сказать владельцу прямо.
+- DNS-записи `meet`/`rtc`/`turn` идут без проксирующего CDN (`docs/deployment-meet-nikg-tech.md`),
+  поэтому внешней статистики по трафику Cord почти нет — это нужно сказать владельцу прямо.
 - Учётных записей нет. Доступ к панели — по секрету сервера (`ADMIN_PASSWORD` в `.env`, тем
   же механизмом подписанного токена, что `ACCESS_PASSWORD`) и/или через Caddy.
-- Машина: 6 vCPU, 15 ГБ, общая с Kiki.
+- Машина: ресурсы нового сервера — из `journal/ENV-<hostname>.md` (E00).
 
 ## Этап A — исследование
 

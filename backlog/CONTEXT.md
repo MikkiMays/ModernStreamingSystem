@@ -68,8 +68,8 @@
 - Живая проверка: Playwright из `web/` против прода
   (`PLAYWRIGHT_BASE_URL=https://meet.nikg.tech npx playwright test ...`); без переменной
   конфиг поднимает пустой dev-сервер и «всё падает». Стенд со своим SFU рядом с продом —
-  `web/.local/stack.sh up [--services] | status | down` (порты 7883–7885, 8099, 18101, 5199;
-  двум агентам одновременно на нём нельзя). Ядро отвечает 403 на чужой `Origin` — dev-сервер
+  `web/.local/stack.sh up [--services] | status | down` (свои порты, не продовые; двум
+  агентам одновременно на нём нельзя). Ядро отвечает 403 на чужой `Origin` — dev-сервер
   против прода только с подменой Origin (скилл `verify`).
 - Windows на Linux собирается частично: `Cord.Core` и тесты — да, XAML — нет; всё остальное
   проверяет Windows-CI.

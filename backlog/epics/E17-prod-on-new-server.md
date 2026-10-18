@@ -8,10 +8,10 @@
 - Развёртывание: `setup.sh`, `update.sh`, `compose.yaml`, `docs/deployment.md`,
   `docs/deployment-meet-nikg-tech.md`, `docs/INSTALL.md`, `infra/` (Caddy, LiveKit, стена
   sniffer `infra/sniffer-firewall.sh`), `scripts/firewall.sh`, `scripts/turn-cert.sh`.
-- Топология, которую нельзя сломать: LiveKit объявляет TURN на 443, а камере и микрофону
-  нужен настоящий https (по голому IP браузер их не даст). Старый прод делил 443 с другим
-  сервисом (`docs/frankfurt-installation.md`, `--legacy-hosts`); новый сервер — только Cord,
-  поэтому здесь обычная раскладка `docs/deployment.md` без совместного размещения.
+- Топология, которую нельзя сломать: LiveKit объявляет TURN на порту https, а камере и
+  микрофону нужен настоящий https (по числовому адресу браузер их не даст). Старый прод делил
+  порт https с другим сервисом; новый сервер — только Cord, поэтому здесь обычная раскладка
+  `docs/deployment.md` без совместного размещения.
 - Данные старого прода: PostgreSQL (комнаты, избранное, профили устройств, история кинозала,
   музыка, Telegram-привязки), вложения tusd (живут неделю), зеркало клиента Windows
   (`.local/windows-releases`, восстанавливается из релизов GitHub с токеном), `.env`,
@@ -20,7 +20,7 @@
 ## Шаги
 
 1. **Машина.** Ресурсы и сеть из `CONTEXT.md` → «Сервер — это прод»; открыть нужные порты
-   (443 TCP/UDP, медиадиапазон LiveKit по `infra/`), фаервол по `scripts/firewall.sh` — без
+   (https TCP/UDP и медиадиапазон LiveKit — по `infra/` и `docs/deployment.md`), фаервол по `scripts/firewall.sh` — без
    ослабления стены sniffer. Записать в журнал.
 2. **Стек.** Поднять Cord по `docs/deployment.md` с `.env` и cookies владельца
    (`OWNER-ACTIONS.md`). Нет `.env` — сгенерировать новые секреты через `setup.sh` и записать в
@@ -30,9 +30,9 @@
    по желанию (неделя жизни), зеркало Windows — `scripts/publish-windows-release.py` из
    последнего релиза. Нет ни дампа, ни доступа — старт с чистой базой и запись в
    `OWNER-ACTIONS.md`: что потеряется (избранное и привязки людей).
-4. **Проверка до DNS.** Прод-стек на этой машине проверяется подменой адреса: `curl --resolve
-   meet.nikg.tech:443:<IP>`, e2e Playwright с `--host-resolver-rules`, звонок двух браузеров,
-   демонстрация, TURN через 443, музыка, кинозал.
+4. **Проверка до DNS.** Прод-стек на этой машине проверяется подменой адреса: `curl --resolve`
+   на адрес этой машины, e2e Playwright с `--host-resolver-rules`, звонок двух браузеров,
+   демонстрация, TURN, музыка, кинозал.
 5. **Переключение.** DNS `meet.nikg.tech` → эта машина — шаг владельца (`OWNER-ACTIONS.md`),
    сертификат выпускает Caddy после переключения. Если владелец дал доступ к DNS — агент делает
    сам, с низким TTL заранее.

@@ -5,20 +5,20 @@ metadata:
   type: reference
 ---
 
-`npm run generate:api` в [[meet-cord-system]] ходит на `localhost:8080/api/openapi`, а прод-ядро
+`npm run generate:api` в [[meet-cord-system]] ходит на локальное ядро (`/api/openapi`), а прод-ядро
 там отвечает **404**: в `compose.yaml` стоит `SPRINGDOC_API_DOCS_ENABLED: 'false'`. Поднимать
 второе ядро рядом с продом тоже нельзя вслепую — оно попросит базу.
 
 Рабочий обход: запустить уже собранный образ отдельным контейнером с H2 в памяти и включённым
-springdoc, на чужом порту.
+springdoc, на своём свободном порту.
 
 ```
-docker run --rm -d --name cord-openapi -p 127.0.0.1:8099:8099 \
-  -e SPRING_PROFILES_ACTIVE=local -e SERVER_PORT=8099 -e SPRINGDOC_API_DOCS_ENABLED=true \
+docker run --rm -d --name cord-openapi -p <локальный адрес>:<порт>:<порт> \
+  -e SPRING_PROFILES_ACTIVE=local -e SERVER_PORT=<порт> -e SPRINGDOC_API_DOCS_ENABLED=true \
   -e DATABASE_PASSWORD=x -e FILES_ROOT=/tmp/uploads \
   -e SPRING_DATASOURCE_URL='jdbc:h2:mem:contracts;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1' \
   modern-streaming-core
-API_SCHEMA_URL=http://127.0.0.1:8099/api/openapi npm run generate:api   # из web/
+API_SCHEMA_URL=<адрес ядра>/api/openapi npm run generate:api   # из web/
 ```
 
 Профиль `local` сам по себе не годится: он пишет H2 в `./.local`, а внутри образа это

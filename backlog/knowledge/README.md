@@ -35,11 +35,11 @@
 - [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
 - [`livekit-stereo-only-via-go`](memory/livekit-stereo-only-via-go.md) — Почему музыка в Cord приходила в моно и почему стерео возможно только через Go-SDK
-- [`livekit-turn-and-secure-context`](memory/livekit-turn-and-secure-context.md) — Два ограничения, которые определяют топологию Cord: LiveKit жёстко объявляет TURN на 443, а захват камеры требует secure context
+- [`livekit-turn-and-secure-context`](memory/livekit-turn-and-secure-context.md) — Два ограничения, которые определяют топологию Cord: LiveKit жёстко объявляет TURN на порту https, а без https нет камеры
 - [`meet-cord-system`](memory/meet-cord-system.md) — Что такое /opt/meet (Cord), из чего состоит, три режима установки и как выкатывать
 - [`pricing-from-official-sources`](memory/pricing-from-official-sources.md) — Владелец требует официальные прайсы и первоисточники, а не пересказы из статей — особенно когда решение стоит денег
 - [`use-all-skills-and-mcp`](memory/use-all-skills-and-mcp.md) — Владелец требует максимально задействовать все доступные скиллы, MCP и плагины и разрешает ставить новые самостоятельно
-- [`vm-host-stalls`](memory/vm-host-stalls.md) — С 14.10.2026 ВМ старого прода замирала на 20–55 с пачками; виноват хост провайдера, не код Cord
+- [`vm-host-stalls`](memory/vm-host-stalls.md) — С 14.10.2026 ВМ старого прода замирала на 20–55 с пачками; виноват хост, не код Cord
 - [`windows-client-checks-on-linux`](memory/windows-client-checks-on-linux.md) — Как проверить C# клиента Cord на этой машине, хотя WinUI здесь не собирается
 
 ## Скиллы (`codex-skills/`, написаны для Codex — читать как справку)

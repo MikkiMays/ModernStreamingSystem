@@ -28,6 +28,6 @@ metadata:
 полного экрана подделывается `addInitScript`: `document.fullscreenEnabled → false` плюс
 `Element.prototype.requestFullscreen`, отвечающий отказом.
 
-Локальный `vite --config web/.local/probe.config.ts` (порт 5174) для этого **не подходит**: он
+Локальный `vite --config web/.local/probe.config.ts` для этого **не подходит**: он
 переписывает Origin только у HTTP, а вебсокет `/api/v1/events` получает 403 и во встречу не
 пускает. Проверять изменения — после выкатки, прямо на проде.
