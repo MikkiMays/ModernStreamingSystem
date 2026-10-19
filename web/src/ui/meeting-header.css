@@ -17,6 +17,7 @@
 }
 .meeting-header__identity {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--space-4);
   min-width: 0;
@@ -34,6 +35,7 @@
    номером встречи»), и двумя строками на узком экране. */
 .meeting-header__text {
   display: flex;
+  flex: 0 1 auto;
   align-items: baseline;
   gap: var(--space-3);
   min-width: 0;
@@ -190,10 +192,16 @@
   }
 }
 @media (max-width: 767px) {
+  /* Колонкой: ширина строк — ширина колонки, иначе длинное название не обрезается, а залезает
+     под звезду и приглашение. */
   .meeting-header__text {
+    flex: 1 1 auto;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 2px;
+  }
+  .meeting-header__rename {
+    margin-right: 0;
   }
   .meeting-header__title {
     font-size: var(--text-base);

@@ -416,10 +416,21 @@
 .home-room__here {
   flex: none;
 }
-.home-room__more,
 .home-group__more {
   flex: none;
   margin-right: 2px;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+/*
+  «…» у комнаты не занимает места, пока его не видно: название тянется до края, как в ChatGPT. Под
+  указателем кнопка встаёт поверх правого края строки, а текст под ней растворяется маской.
+*/
+.home-room__more {
+  position: absolute;
+  top: 50%;
+  right: var(--space-1);
+  translate: 0 -50%;
   opacity: 0;
   transition: opacity var(--motion-fast) var(--ease-standard);
 }
@@ -431,10 +442,25 @@
 .home-group__more[data-popup-open] {
   opacity: 1;
 }
+.home-room:hover .home-room__open,
+.home-room:focus-within .home-room__open,
+.home-room:has(.home-room__more[data-popup-open]) .home-room__open {
+  mask-image: linear-gradient(to left, transparent 36px, currentColor 64px);
+}
 @media (hover: none) {
+  .home-room__more {
+    position: static;
+    translate: none;
+    flex: none;
+    margin-right: 2px;
+  }
   .home-room__more,
   .home-group__more {
     opacity: 1;
+  }
+  .home-room:hover .home-room__open,
+  .home-room:focus-within .home-room__open {
+    mask-image: none;
   }
 }
 input.home-inline-name {
