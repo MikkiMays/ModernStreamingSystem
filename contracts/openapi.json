@@ -1358,6 +1358,12 @@
       },
       "Favorite": {
         "properties": {
+          "alias": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "canJoin": {
             "type": "boolean"
           },
@@ -1366,6 +1372,15 @@
           },
           "code": {
             "type": "string"
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pinned": {
+            "type": "boolean"
           },
           "roomId": {
             "type": "string"
@@ -1382,10 +1397,34 @@
           "canJoin",
           "closed",
           "code",
+          "pinned",
           "roomId",
           "savedAt",
           "title"
         ],
+        "type": "object"
+      },
+      "FavoriteSettings": {
+        "properties": {
+          "alias": {
+            "maxLength": 60,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pinned": {
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "GameSummary": {
@@ -1900,6 +1939,49 @@
           "previous",
           "prompt",
           "submitted"
+        ],
+        "type": "object"
+      },
+      "Group": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "GroupOrder": {
+        "properties": {
+          "groupIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "groupIds"
+        ],
+        "type": "object"
+      },
+      "GroupTitle": {
+        "properties": {
+          "title": {
+            "maxLength": 60,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
         ],
         "type": "object"
       },
@@ -3412,6 +3494,186 @@
         },
         "tags": [
           "favorite-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/{id}/settings": {
+      "put": {
+        "operationId": "settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-group-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/groups": {
+      "get": {
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-group-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/groups/{id}": {
+      "delete": {
+        "operationId": "remove_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-group-controller"
+        ]
+      },
+      "put": {
+        "operationId": "put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupTitle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-group-controller"
+        ]
+      }
+    },
+    "/api/v1/favorites/groups/order": {
+      "put": {
+        "operationId": "reorder_1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "favorite-group-controller"
         ]
       }
     },

@@ -22,6 +22,7 @@ const room: Favorite = {
   savedAt: 1,
   closed: false,
   canJoin: true,
+  pinned: false,
 };
 const daily = {
   ...room,

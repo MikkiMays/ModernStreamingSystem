@@ -16,6 +16,7 @@ const saved = (n: number): Favorite[] =>
     savedAt: i,
     closed: false,
     canJoin: true,
+    pinned: false,
   }));
 
 function fakeMeeting(extra: Record<string, unknown> = {}, status = 'connected') {

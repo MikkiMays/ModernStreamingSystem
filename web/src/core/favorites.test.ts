@@ -9,6 +9,7 @@ const room = (roomId: string): Favorite => ({
   savedAt: 1,
   closed: false,
   canJoin: true,
+  pinned: false,
 });
 
 beforeEach(() => localStorage.clear());
