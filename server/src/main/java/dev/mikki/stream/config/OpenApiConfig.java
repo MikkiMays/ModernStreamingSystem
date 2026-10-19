@@ -44,6 +44,7 @@ public class OpenApiConfig {
               "MediaToken",
               "Attachment",
               "Favorite",
+              "Group",
               "Event",
               "EventPayload",
               "Replay",
@@ -101,6 +102,8 @@ public class OpenApiConfig {
           .getRequired()
           .removeAll(List.of("visualEvents", "reactions", "paused", "pausedAt", "pausedRemaining"));
       schemas.get("DurakYou").getRequired().remove("plays");
+      // Группы избранного (T40): группа и своё имя есть не у каждой комнаты.
+      schemas.get("Favorite").getRequired().removeAll(List.of("groupId", "alias"));
       // Решение стола за игрока (T07) — новое поле; прежнее ядро его не присылает.
       schemas.get("DurakSeat").getRequired().remove("auto");
       schemas
@@ -154,6 +157,10 @@ public class OpenApiConfig {
               // Карта лежит неотбитой ровно до тех пор, пока её не побили.
               Map.entry("CardPair", List.of("beat")),
               Map.entry("Ack", List.of("value")),
+              // Комната без группы и без своего имени — обычное дело; null в настройках и
+              // означает «убрать из группы», «вернуть название комнаты».
+              Map.entry("Favorite", List.of("groupId", "alias")),
+              Map.entry("FavoriteSettings", List.of("groupId", "alias")),
               Map.entry("Attachment", List.of("uploadId", "completedAt", "sha256", "cancelledAt")),
               Map.entry("EventPayload", List.of("message", "screenId", "participantId")),
               Map.entry("Replay", List.of("snapshot")));

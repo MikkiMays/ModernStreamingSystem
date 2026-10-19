@@ -9,7 +9,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FavoriteService {
   public record Favorite(
-      String roomId, String title, String code, long savedAt, boolean closed, boolean canJoin) {}
+      String roomId,
+      String title,
+      String code,
+      long savedAt,
+      boolean closed,
+      boolean canJoin,
+      String groupId,
+      boolean pinned,
+      String alias) {}
 
   private final RoomRepository repository;
   private final RoomService rooms;
@@ -19,7 +27,8 @@ public class FavoriteService {
     this.rooms = rooms;
   }
 
-  private String key(String credential) {
+  // Не private: группы (FavoriteGroupService) должны узнавать профиль ровно тем же ключом.
+  String key(String credential) {
     String value = credential.replaceFirst("^Bearer ", "");
     if (!value.matches("[A-Za-z0-9_-]{43}")) throw Problem.forbidden();
     return Secrets.hash(value);
@@ -28,8 +37,14 @@ public class FavoriteService {
   public List<Favorite> list(String credential) {
     return repository
         .jdbc()
+        // Группа читается через JOIN, а не прямо из group_id: ссылка на исчезнувшую группу
+        // должна вернуться пустой, иначе комната пропала бы из всех списков сразу.
         .sql(
-            "SELECT room_id,member_id,saved_at FROM favorites WHERE profile_hash=? ORDER BY sort_order, saved_at DESC, room_id")
+            """
+            SELECT f.room_id,f.member_id,f.saved_at,g.id AS group_id,f.pinned,f.alias
+            FROM favorites f
+            LEFT JOIN favorite_groups g ON g.profile_hash=f.profile_hash AND g.id=f.group_id
+            WHERE f.profile_hash=? ORDER BY f.sort_order, f.saved_at DESC, f.room_id""")
         .param(key(credential))
         .query(
             (rs, n) -> {
@@ -44,7 +59,10 @@ public class FavoriteService {
                   room.code,
                   rs.getLong("saved_at"),
                   room.closedAt != null,
-                  member != null);
+                  member != null,
+                  rs.getString("group_id"),
+                  rs.getBoolean("pinned"),
+                  rs.getString("alias"));
             })
         .list();
   }
