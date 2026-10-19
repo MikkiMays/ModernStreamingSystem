@@ -248,12 +248,14 @@ export function MeetingView({
       </header>
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
         <main className="stage-wrap" aria-label="Сцена встречи">
-          {!ended && may('participant.approve') && snapshot.participants.some((p) => p.status === 'WAITING') && (
-            <button className="admission-banner" onClick={() => setPanel('people')}>
-              <Users size={18} /> Запросы на подключение:{' '}
-              {snapshot.participants.filter((p) => p.status === 'WAITING').length} · Открыть
-            </button>
-          )}
+          {!ended &&
+            may('participant.approve') &&
+            snapshot.participants.some((p) => p.status === 'WAITING') && (
+              <button className="admission-banner" onClick={() => setPanel('people')}>
+                <Users size={18} /> Запросы на подключение:{' '}
+                {snapshot.participants.filter((p) => p.status === 'WAITING').length} · Открыть
+              </button>
+            )}
           {!ended && media.status === 'recovering' && (
             <div className="recovery-banner" role="status">
               <Wifi size={20} />

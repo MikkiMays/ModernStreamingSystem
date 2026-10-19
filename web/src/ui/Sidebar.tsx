@@ -203,13 +203,13 @@ export function Sidebar({
                     <>
                       {p.status === 'WAITING' &&
                         allowed(snapshot, meeting.admission.participantId, 'participant.approve') && (
-                        <IconButton
-                          label={'Разрешить вход: ' + p.name}
-                          onClick={() => void run('participant.approve', p.id)}
-                        >
-                          <Check size={18} />
-                        </IconButton>
-                      )}
+                          <IconButton
+                            label={'Разрешить вход: ' + p.name}
+                            onClick={() => void run('participant.approve', p.id)}
+                          >
+                            <Check size={18} />
+                          </IconButton>
+                        )}
                       <IconButton
                         label={'Исключить: ' + p.name}
                         onClick={() => void run('participant.remove', p.id)}
