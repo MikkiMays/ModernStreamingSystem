@@ -11,6 +11,7 @@ import {
   type MusicState,
   type MusicTrack,
 } from '../core/services';
+import { allowed, type RoomAction } from '../core/permissions';
 import { useStore } from './primitives';
 import { YandexIntegration } from './YandexIntegration';
 import { MusicPlayer } from './MusicPlayer';
@@ -109,7 +110,13 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const ended = useStore(meeting.ended);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const active = !!self && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(self.status) && !ended;
-  const canUse = active && (self?.owner || snapshot.integrationsAllowed !== false);
+  /*
+    Права — ответ ядра (`you.can`), а не правило, пересчитанное здесь. Каждое действие спрашивается
+    своим именем: убрать музыку может каждый, кому разрешены интеграции, а не только ведущий (T14).
+  */
+  const can = (action: RoomAction) => active && allowed(snapshot, meeting.admission.participantId, action);
+  const canUse = can('music.control');
+  const canRemove = can('music.remove');
   /**
    * Что во встрече занято прямо сейчас — и что чему мешает.
    *
@@ -166,7 +173,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
     if (rosterChanged) void meeting.refresh();
   };
   const run = async (job: () => Promise<MusicState>, rosterChanged = false) => {
-    if (!canUse) return;
     setError('');
     try {
       update(await job(), rosterChanged);
@@ -187,12 +193,13 @@ export function Services({ meeting }: { meeting: Meeting }) {
     extra?: Parameters<MusicApi['command']>[1],
     patch?: Partial<MusicState>,
   ) => {
+    if (!canUse) return;
     if (patch && state) setForesight({ base: state.revision, patch });
     void run(() => api.command(action, extra));
   };
   /** Joining and leaving the room take seconds and change who is in it; those do wait. */
-  const heavy = async (job: () => Promise<MusicState>) => {
-    if (busy || !canUse) return;
+  const heavy = async (job: () => Promise<MusicState>, permitted: boolean) => {
+    if (busy || !permitted) return;
     setBusy(true);
     try {
       await run(job, true);
@@ -212,7 +219,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
             ),
           );
       return api.enable();
-    });
+    }, can('music.enable'));
 
   /*
     Панель интеграций — это витрина, а не длинный список всего сразу.
@@ -288,7 +295,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
       <button className="text-button cinema-back" onClick={() => setGroup(null)}>
         <ArrowLeft size={16} /> Группы интеграций
       </button>
-      {active && !canUse && (
+      {active && !can('integrations.use') && (
         <p className="muted">
           Организатор разрешил управление интеграциями только себе. Громкость музыки для себя можно менять
           ниже.
@@ -342,7 +349,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
                 во встречу.
               </p>
             )}
-            {canUse ? (
+            {can('music.enable') ? (
               <button className="button primary full" disabled={busy} onClick={enableMusic}>
                 <Music2 size={18} />
                 Добавить во встречу
@@ -372,7 +379,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
               </p>
             )}
             <MusicUpload
-              canUse={canUse}
+              canUse={can('music.upload')}
               maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
               upload={(file, signal) => api.upload(file, signal)}
               onAdded={update}
@@ -385,11 +392,11 @@ export function Services({ meeting }: { meeting: Meeting }) {
               onPromote={(track: MusicTrack, patch) => command('next', { trackId: track.id }, patch)}
               onRemove={(track: MusicTrack, patch) => command('remove', { trackId: track.id }, patch)}
             />
-            {self?.owner && (
+            {canRemove && (
               <button
                 className="button ghost full"
-                disabled={!canUse || busy}
-                onClick={() => void heavy(api.disable)}
+                disabled={busy}
+                onClick={() => void heavy(api.disable, canRemove)}
               >
                 <Unplug size={17} />
                 Убрать сервис из встречи
@@ -398,7 +405,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
           </>
         )}
       </section>
-      {canUse && state?.enabled && (
+      {can('yandex.connect') && state?.enabled && (
         <YandexIntegration
           meeting={meeting}
           update={update}

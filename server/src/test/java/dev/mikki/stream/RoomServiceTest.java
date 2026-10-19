@@ -257,6 +257,90 @@ class RoomServiceTest {
     assertThat(returned.snapshot().integrationsAllowed()).isTrue();
   }
 
+  /**
+   * Права приходят в снимке участника готовым списком ({@code you.can}): служба и браузер читают
+   * его по имени действия. T14: убрать музыку может каждый, кому разрешены интеграции.
+   */
+  @Test
+  void everySnapshotCarriesTheViewersOwnRights() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Права", "Организатор", false, true));
+    var guest = guest(host);
+    assertThat(host.snapshot().you().can()).contains("room.close", "telegram.link", "music.remove");
+    assertThat(guest.snapshot().you().can())
+        .contains("integrations.use", "music.remove", "watch.open")
+        .doesNotContain("room.close", "telegram.link", "participant.remove");
+    rooms.integrationSettings(host.roomId(), host.credential(), false);
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).you().can())
+        .contains("music.view", "cinema.resolve")
+        .doesNotContain("integrations.use", "music.remove", "watch.open");
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).you().can())
+        .contains("music.remove", "room.integrations");
+    // Посторонний — снимок без зрителя — прав не получает вовсе.
+    assertThat(rooms.snapshot(rooms.read(host.roomId())).you()).isNull();
+
+    var music = rooms.addMusicService(host.roomId(), UUID.randomUUID());
+    assertThat(rooms.snapshot(host.roomId(), music.credential()).you().can()).isEmpty();
+
+    var door = rooms.create(new Create(UUID.randomUUID(), "Дверь", "Хозяин", true));
+    var waiting = guest(door);
+    assertThat(waiting.snapshot().you().can()).isEmpty();
+    assertThat(rooms.snapshot(door.roomId(), waiting.credential()).you().can()).isEmpty();
+
+    command(host, "close", null, 0);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).you().can()).isEmpty();
+  }
+
+  @Test
+  void gameHostRightsFollowTheTableAndKeepTheirRefusals() {
+    var host = host();
+    var guest = guest(host);
+    var other = guest(host);
+    rooms.command(
+        guest.roomId(),
+        guest.credential(),
+        new Command(
+            UUID.randomUUID(),
+            "chess.open",
+            null,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null));
+    assertThat(rooms.snapshot(host.roomId(), guest.credential()).you().can())
+        .contains("chess.manage");
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).you().can())
+        .contains("chess.manage");
+    assertThat(rooms.snapshot(host.roomId(), other.credential()).you().can())
+        .doesNotContain("chess.manage");
+    var game = rooms.read(host.roomId()).chess.id;
+    assertThatThrownBy(
+            () ->
+                rooms.command(
+                    other.roomId(),
+                    other.credential(),
+                    new Command(
+                        UUID.randomUUID(),
+                        "chess.close",
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        game,
+                        null,
+                        null,
+                        null,
+                        null)))
+        .isInstanceOf(Problem.class)
+        .extracting("code")
+        .isEqualTo("GAME_HOST_ONLY");
+  }
+
   @Test
   void musicServiceIsIdempotentConsumesOneSeatAndHasNoHostRights() {
     var host = host();

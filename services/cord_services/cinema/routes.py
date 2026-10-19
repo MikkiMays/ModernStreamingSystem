@@ -56,7 +56,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")
     async def providers(room_id: str, authorization: str = Header()):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.providers()
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/search")
@@ -67,7 +67,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.search(provider, query, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/channel")
@@ -79,7 +79,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.channel(provider, id, tab, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/playlist")
@@ -90,7 +90,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.playlist(provider, id, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/categories")
@@ -101,7 +101,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.categories(provider, query, cursor, room=room_id)
 
     # Номер раздела длиннее прежних двадцати знаков только у VK Видео (её строка — полсотни);
@@ -114,7 +114,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.category(provider, id, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/series")
@@ -126,7 +126,7 @@ def routes(cinema: Cinema, core) -> APIRouter:
         cursor: str = Query(default="", max_length=12),
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.series(provider, id, season, cursor, room=room_id)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/details")
@@ -137,19 +137,21 @@ def routes(cinema: Cinema, core) -> APIRouter:
         kind: Kind = "video",
         authorization: str = Header(),
     ):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.details(provider, id, kind, room=room_id)
 
     @router.post("/api/v1/services/rooms/{room_id}/cinema/resolve")
     async def resolve(room_id: str, request: Resolve, authorization: str = Header()):
-        await core.member(room_id, authorization)
+        # Поток для своего плеера нужен каждому зрителю открытого ролика, а не только тому,
+        # кто его открыл: право — «участник», флаг интеграций здесь не участвует.
+        await core.member(room_id, authorization, action="cinema.resolve")
         return await cinema.resolve(request, room=room_id)
 
     # Вставленная ссылка: чья она и на какой странице её открыть. POST, а не GET: ссылка — это
     # ввод человека до двух тысяч знаков, и в адресе запроса (а с ним в журналах прокси) ей не место.
     @router.post("/api/v1/services/rooms/{room_id}/cinema/link")
     async def link(room_id: str, request: Link, authorization: str = Header()):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="cinema.browse")
         return await cinema.link(request.url, room=room_id)
 
     # Эти открыты по подписи, а не по заголовку: их дёргает сам плеер, десятками запросов

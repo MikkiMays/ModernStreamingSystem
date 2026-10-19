@@ -6,14 +6,21 @@ export type Status = Participant['status'];
 export type Message = components['schemas']['Message'];
 export type Snapshot = Omit<
   components['schemas']['Snapshot'],
-  'watch' | 'poker' | 'durak' | 'chess' | 'gartic'
+  'watch' | 'poker' | 'durak' | 'chess' | 'gartic' | 'you'
 > & {
   watch: Watch | null;
   poker: PokerTable | null;
   durak: DurakTable | null;
   chess?: ChessTable | null;
   gartic?: GarticTable | null;
+  /**
+   * Права этого участника — готовым списком ядра (`core/permissions.ts`). Старое ядро поля не
+   * присылает; у постороннего оно `null`.
+   */
+  you?: RoomYou | null;
 };
+/** Что участник может во встрече: имена действий матрицы ядра (`room/Permissions.java`). */
+export type RoomYou = { can: string[] };
 /** Снимок сужен (см. `Watch`), поэтому всё, что его содержит, сужается вместе с ним. */
 export type Admission = Omit<components['schemas']['Admission'], 'snapshot'> & { snapshot: Snapshot };
 export type Ack = components['schemas']['Ack'];

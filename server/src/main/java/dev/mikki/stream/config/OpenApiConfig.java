@@ -48,6 +48,7 @@ public class OpenApiConfig {
               "EventPayload",
               "Replay",
               "Watch",
+              "RoomYou",
               "Capabilities",
               "TableView",
               "SeatView",
@@ -91,7 +92,7 @@ public class OpenApiConfig {
           .getRequired()
           .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
-      schemas.get("Snapshot").getRequired().removeAll(List.of("chess", "gartic"));
+      schemas.get("Snapshot").getRequired().removeAll(List.of("chess", "gartic", "you"));
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")
@@ -126,9 +127,11 @@ public class OpenApiConfig {
               Map.entry(
                   "Participant",
                   List.of("recoveryDeadline", "service", "screenId", "viewingScreenId")),
-              // Смотреть и играть вместе может быть нечего — и чаще всего нечего.
+              // Смотреть и играть вместе может быть нечего — и чаще всего нечего. Прав нет у
+              // постороннего: снимок без зрителя.
               Map.entry(
-                  "Snapshot", List.of("closedAt", "watch", "poker", "durak", "chess", "gartic")),
+                  "Snapshot",
+                  List.of("closedAt", "watch", "poker", "durak", "chess", "gartic", "you")),
               Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
               Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
               Map.entry("GarticYou", List.of("prompt", "previous")),

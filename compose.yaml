@@ -65,7 +65,9 @@ services:
       test: [CMD, wget, -q, --spider, 'http://127.0.0.1:8080/actuator/health']
       interval: 5s
       timeout: 3s
-      start_period: 30s
+      # Spring на перегруженной ВМ поднимается и две минуты (cord.nikg.tech, 19.10.2026): без
+      # запаса compose объявлял ядро нездоровым и не запускал шлюз и службы.
+      start_period: 180s
       retries: 12
   services:
     logging: *default-logging

@@ -265,7 +265,23 @@ public final class Contracts {
       /** То же самое для дурака: одно число, по которому браузер понимает, что история выросла. */
       long durakGamesAt,
       dev.mikki.stream.game.ChessView chess,
-      dev.mikki.stream.game.GarticView gartic) {}
+      dev.mikki.stream.game.GarticView gartic,
+      /**
+       * Что этот участник может во встрече прямо сейчас ({@link Permissions}). У постороннего —
+       * {@code null}, и тогда поля в ответе нет вовсе: старый клиент о нём не знает.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          RoomYou you) {}
+
+  /**
+   * Права участника — готовым ответом, а не правилом для пересчёта.
+   *
+   * <p>Имена — те же, что у {@link Permissions.Action#wire()}: {@code music.remove}, {@code
+   * integrations.use}. Служба проверяет по ним маршруты, браузер — кнопки; своих копий правила нет
+   * ни у той, ни у другого.
+   */
+  public record RoomYou(List<String> can) {}
 
   public record Admission(
       String roomId,

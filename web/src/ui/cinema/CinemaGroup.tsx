@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import { CinemaApi, PROVIDERS } from '../../core/cinema';
+import { allowed } from '../../core/permissions';
 import { useStore } from '../primitives';
 import { useProviders } from './useProviders';
 
@@ -21,8 +22,7 @@ import { useProviders } from './useProviders';
 export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () => void }) {
   const snapshot = useStore(meeting.snapshot);
   const cinema = useStore(meeting.cinema);
-  const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const canUse = !!self && (self.owner || snapshot.integrationsAllowed !== false);
+  const canUse = allowed(snapshot, meeting.admission.participantId, 'watch.close');
   const watch = snapshot.watch;
   const [error, setError] = useState('');
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);

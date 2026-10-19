@@ -4,6 +4,7 @@ import { MoreHorizontal } from 'lucide-react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import type { Participant } from '../api/types';
 import type { Meeting } from '../core/meeting';
+import { allowed } from '../core/permissions';
 import { Slider, useStore } from './primitives';
 
 /** The same menu and keyboard behavior are used on tiles and in the participant list. */
@@ -64,7 +65,7 @@ export function ParticipantMenu({
       {remote && person.screen && person.screenId && person.screenStarted && (
         <Item onClick={() => meeting.openStream(person.id)}>Смотреть стрим</Item>
       )}
-      {self?.owner && remote && active && (
+      {allowed(snapshot, meeting.admission.participantId, 'participant.mute') && remote && active && (
         <Item
           onClick={() =>
             void meeting
@@ -75,7 +76,8 @@ export function ParticipantMenu({
           Выключить микрофон для всех
         </Item>
       )}
-      {self?.owner && !person.owner && (
+      {/* Создателя не исключают: это правило о цели, а не о праве (`RoomService`). */}
+      {allowed(snapshot, meeting.admission.participantId, 'participant.remove') && !person.owner && (
         <Item
           className="danger-text"
           onClick={() =>
