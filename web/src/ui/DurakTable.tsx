@@ -67,7 +67,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
   const connected = connection === 'connected';
   const you = table.you;
   const mySeat = you?.seat ?? null;
-  const host = allowed(snapshot, meeting.admission.participantId, 'durak.manage');
+  const host = allowed({ ...snapshot, durak: table }, meeting.admission.participantId, 'durak.manage');
   const paused = !!table.paused;
   const pauseSupported = table.paused !== undefined;
   const scene = useRef<HTMLDivElement>(null);

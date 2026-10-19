@@ -99,7 +99,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     mySeat,
     tableGeometry.ratio,
   );
-  const dealer = allowed(snapshot, me, 'poker.manage');
+  const dealer = allowed({ ...snapshot, poker: table }, me, 'poker.manage');
   const cheer = celebration(table.result);
   const [error, setError] = useState('');
   /*

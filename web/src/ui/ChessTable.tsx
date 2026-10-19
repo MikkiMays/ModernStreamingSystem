@@ -67,7 +67,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
   const me = meeting.admission.participantId;
   const color: ChessColor | null =
     table.white?.memberId === me ? 'white' : table.black?.memberId === me ? 'black' : null;
-  const host = allowed(snapshot, me, 'chess.manage');
+  const host = allowed({ ...snapshot, chess: table }, me, 'chess.manage');
   const [flippedOverride, setFlipped] = useState<boolean | null>(null);
   const flipped = flippedOverride ?? color === 'black';
   const [selected, setSelected] = useState<string | null>(null);

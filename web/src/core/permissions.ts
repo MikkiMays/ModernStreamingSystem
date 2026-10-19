@@ -96,16 +96,16 @@ export function allowed(snapshot: View, participantId: string, action: RoomActio
 /** Прежнее правило интерфейса — для снимка без `you`. Одно на весь веб. */
 function legacy(snapshot: View, participantId: string, action: RoomAction): boolean {
   const self = snapshot.participants.find((p) => p.id === participantId);
-  if (!self) return false;
+  // Ведущий стола — по самому столу: его `hostId` знает и тот, кого в списке людей ещё нет.
   const host = (table: { hostId: string } | null | undefined) =>
-    !!table && (table.hostId === participantId || self.owner);
+    !!table && (table.hostId === participantId || !!self?.owner);
   switch (KIND[action]) {
     case 'creator':
-      return self.owner;
+      return !!self?.owner;
     case 'integrations':
-      return self.owner || snapshot.integrationsAllowed !== false;
+      return !!self && (self.owner || snapshot.integrationsAllowed !== false);
     case 'participant':
-      return true;
+      return !!self;
     case 'poker':
       return host(snapshot.poker);
     case 'durak':
