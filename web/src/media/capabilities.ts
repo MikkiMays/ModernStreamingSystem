@@ -129,6 +129,11 @@ export function settleMs(rules = qualityRules()) {
   return rules.settleMs;
 }
 
-export function cameraYieldsToScreen(rules = qualityRules()) {
-  return rules.cameraYieldsToScreen;
+/**
+ * Уступает ли камера показу экрана. Сервер может велеть это всем; человек может попросить это для
+ * себя (настройки → «Голос и видео» → «Уступать показу экрана», по П2 по умолчанию выключено).
+ * Отказаться от того, что велел сервер, нельзя: потолок отдачи — его решение.
+ */
+export function cameraYieldsToScreen(rules = qualityRules(), chosen = false) {
+  return rules.cameraYieldsToScreen || chosen;
 }

@@ -62,10 +62,15 @@ button {
 }
 /* Checkboxes and radios are fixed-size controls, not fields. They were included here and
    inherited width:100% and min-height:48px, so every one of them had to be rescued by a
-   per-class override — and the one class that lacked it rendered a 730x48 checkbox. */
-input:not([type='checkbox'], [type='radio']),
-select,
-textarea {
+   per-class override — and the one class that lacked it rendered a 730x48 checkbox.
+
+   Ползунок — тоже не поле: правило рисовало вокруг дорожки белую «таблетку» с рамкой, и в
+   паре с кольцом фокуса это и было «ползунок выделяется» (T31). А `:where()` обнуляет вес
+   правила: раньше его (0,1,1) перебивал классы `.slider` и `.ui-input` набора, и каждому
+   экрану приходилось писать `input.класс`, чтобы его стиль вообще применился. */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'])),
+:where(select),
+:where(textarea) {
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -152,6 +157,16 @@ select {
 }
 .slider:disabled {
   cursor: not-allowed;
+}
+/* Кольцо — только с клавиатуры и по форме дорожки, а не прямоугольником вокруг строки. */
+.slider:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-full);
+}
+/* Ползунок, взятый пальцем или мышью, кольца не получает и после клавиш (`ui/pointer-focus.ts`). */
+input[type='range'][data-pointer-focus]:focus-visible {
+  outline: none;
 }
 .slider:disabled::-webkit-slider-thumb {
   background: var(--muted);

@@ -78,6 +78,33 @@ it('defaults to silent PING display and enabled notifications, then saves both i
   });
 });
 
+/**
+ * E03: громкость собеседников и «камера уступает показу» — новые ключи той же записи. Запись,
+ * сохранённая до них, читается целиком как была: новые поля берут умолчания, старые не теряются.
+ */
+it('читает запись до E03 без потерь и даёт новым полям безопасные умолчания', () => {
+  const before = {
+    showPing: true,
+    soundVolume: 40,
+    micHotkey: { code: 'KeyJ', ctrl: true, alt: false, shift: false, meta: false },
+    audio: { suppression: 'rnnoise', echoCancellation: false, autoGainControl: false, gain: 1.5 },
+    yandexMusicToken: 'kept-token',
+  };
+  localStorage.setItem('cord:preferences:v1', JSON.stringify(before));
+  expect(readPreferences()).toMatchObject({
+    ...before,
+    outputVolume: 100,
+    cameraYieldsToScreen: false,
+  });
+  savePreferences({ outputVolume: 35, cameraYieldsToScreen: true });
+  expect(readPreferences()).toMatchObject({ ...before, outputVolume: 35, cameraYieldsToScreen: true });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ outputVolume: 400, cameraYieldsToScreen: 'yes' }),
+  );
+  expect(readPreferences()).toMatchObject({ outputVolume: 100, cameraYieldsToScreen: false });
+});
+
 it('keeps the network mode automatic until asked otherwise, and rejects an unknown one', () => {
   expect(readPreferences().network).toBe('auto');
   savePreferences({ network: 'stable' });
