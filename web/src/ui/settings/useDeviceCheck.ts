@@ -53,6 +53,9 @@ export function useDeviceCheck(preferences: Preferences) {
     if (recordUrl.current) URL.revokeObjectURL(recordUrl.current);
     recordUrl.current = '';
   };
+  // Обработка звука сравнивается по значению: запись настроек отдаёт новый объект на каждую правку,
+  // и проверка микрофона обрывалась бы от любого соседнего ползунка.
+  const audioKey = JSON.stringify(preferences.audio);
   useEffect(() => {
     setMic(false);
     setCamera(false);
@@ -61,7 +64,7 @@ export function useDeviceCheck(preferences: Preferences) {
     setRecorded('');
     setRecording(false);
     return stop;
-  }, [preferences.devices.microphone, preferences.devices.camera, preferences.audio]);
+  }, [preferences.devices.microphone, preferences.devices.camera, audioKey]);
   useEffect(() => {
     const element = playback.current;
     if (element && 'setSinkId' in element)

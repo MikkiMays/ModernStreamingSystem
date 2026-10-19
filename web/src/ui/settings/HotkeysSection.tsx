@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Info } from 'lucide-react';
 import {
   defaultMicHotkey,
@@ -91,12 +91,17 @@ export function HotkeysSection({
   const [refused, setRefused] = useState<HotkeyNote | null>(null);
   // Пока идёт запись, оболочка отпускает прежнее сочетание: иначе нажатие его самого включило бы
   // микрофон, а не записалось.
+  // Вернуть оболочке после записи — то, что стоит сейчас: только что назначенное, а не прежнее.
+  // Слой раскладки идёт раньше пассивных эффектов: к уборке записи ссылка уже новая.
+  const current = useRef(value);
+  useLayoutEffect(() => {
+    current.current = value;
+  });
   useEffect(() => {
-    if (recording) notifyDesktop('hotkey.configure', { hotkey: null });
-    return () => {
-      if (recording) notifyDesktop('hotkey.configure', { hotkey: value });
-    };
-  }, [recording, value]);
+    if (!recording) return;
+    notifyDesktop('hotkey.configure', { hotkey: null });
+    return () => notifyDesktop('hotkey.configure', { hotkey: current.current });
+  }, [recording]);
   const notes = value ? hotkeyNotes(value, place) : [];
   const stop = () => {
     setRecording(false);

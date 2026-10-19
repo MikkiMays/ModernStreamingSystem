@@ -184,11 +184,13 @@ describe('«Горячие клавиши» (T27)', () => {
     expect(screen.getByText('В приложении сочетание работает и поверх других программ.')).toBeInTheDocument();
     record({ code: 'KeyJ', key: 'j', shiftKey: true });
     expect(screen.getByText(/только в окне Cord/)).toBeInTheDocument();
-    // Пока шла запись, оболочке велели отпустить прежнее сочетание, а потом — взять новое.
+    // Пока шла запись, оболочке велели отпустить прежнее сочетание, а потом — взять новое, а не прежнее.
     await act(async () => {});
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'hotkey.configure', hotkey: null }),
-    );
+    const configure = postMessage.mock.calls
+      .map(([message]) => message as { type: string; hotkey?: unknown })
+      .filter((message) => message.type === 'hotkey.configure');
+    expect(configure[0]).toMatchObject({ hotkey: null });
+    expect(configure.at(-1)).toMatchObject({ hotkey: { code: 'KeyJ', shift: true } });
   });
 });
 
