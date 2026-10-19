@@ -188,7 +188,12 @@ export function useDurakMotion({
 
     const now = meeting.serverNow();
     const additions = events.filter(
-      (event) => event.id > prior.cursor && event.type === 'play' && now - event.at < 1500,
+      // Перевод — тоже карта на стол, только от защитника: летит так же, а скольжение боя к
+      // соседу рисует сам стол (`durak-transfer-cue`).
+      (event) =>
+        event.id > prior.cursor &&
+        (event.type === 'play' || event.type === 'transfer') &&
+        now - event.at < 1500,
     );
     // A large catch-up is a new state, not a queue of throws to replay.
     if (additions.length > 4) {

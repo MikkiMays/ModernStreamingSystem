@@ -4,7 +4,12 @@ import type { Meeting } from '../core/meeting';
 import type { DurakTable as Table } from '../api/types';
 import { Store } from '../core/store';
 import DurakTable from './DurakTable';
-vi.mock('../core/sounds', () => ({ signal: vi.fn() }));
+vi.mock('../core/sounds', () => ({
+  signal: vi.fn(),
+  ensureNotificationAudio: vi.fn(),
+  notificationAudio: () => undefined,
+  soundVolume: () => 1,
+}));
 vi.stubGlobal(
   'ResizeObserver',
   class {
@@ -142,7 +147,7 @@ it('pending commands block double submission and rejection keeps the authoritati
   expect(screen.getByRole('alert')).toHaveTextContent('Этот бой уже закончился');
   expect(screen.getByRole('button', { name: '8, трефы' })).toBeEnabled();
 });
-it('renders occupied seats with no avatar count and one spectator seat action', async () => {
+it('renders occupied seats with their card counts and one spectator seat action', async () => {
   const room = meeting();
   const { container } = render(<DurakTable meeting={room} table={{ ...table, you: null }} />);
   expect(container.querySelectorAll('.durak-seat')).toHaveLength(3);
@@ -151,10 +156,36 @@ it('renders occupied seats with no avatar count and one spectator seat action', 
       element.getAttribute('data-game-seat'),
     ),
   ).toEqual(['0', '3', '5']);
-  expect(container.querySelector('.durak-seat-count')).toBeNull();
+  // T07: сколько карт на руках — у каждого места, число без рубашек веером.
+  expect([...container.querySelectorAll('.durak-seat-count')].map((count) => count.textContent)).toEqual([
+    '6',
+    '6',
+    '6',
+  ]);
   expect(screen.getAllByRole('button', { name: 'Сесть за стол' })).toHaveLength(1);
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' })));
   expect(room.command).toHaveBeenCalledWith('durak.sit', undefined, undefined, undefined);
+});
+it('shows the table decisions for players, the deck and the discard on the felt (T07)', () => {
+  const marked = {
+    ...table,
+    you: null,
+    discarded: 8,
+    seats: seats.map((seat) =>
+      seat.index === 5 ? { ...seat, auto: 'pass' } : seat.index === 0 ? { ...seat, auto: 'take' } : seat,
+    ),
+  } as unknown as Table;
+  const { container } = render(<DurakTable meeting={meeting('m3')} table={marked} />);
+  const thrower = container.querySelector<HTMLElement>('[data-game-seat="5"]')!;
+  expect(thrower).toHaveAttribute('data-auto', 'pass');
+  expect(within(thrower).getByText('Нечего подкинуть')).toBeInTheDocument();
+  const defender = container.querySelector<HTMLElement>('[data-game-seat="0"]')!;
+  expect(within(defender).getByText('Нечем отбиться')).toBeInTheDocument();
+  expect(container.querySelector('.durak-felt .durak-stock')).not.toBeNull();
+  expect(screen.getByRole('img', { name: 'Колода: 12 карт, козырь 9, черви' })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Бито: 8 карт' })).toBeInTheDocument();
+  expect(container.querySelector('.durak-felt-mark')).not.toBeNull();
+  expect(screen.getAllByRole('button', { name: /Увеличить лицо до 1,25×/ })).toHaveLength(3);
 });
 it('paused snapshot freezes countdown, clears selection and disables playing', () => {
   vi.useFakeTimers();

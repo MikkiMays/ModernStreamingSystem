@@ -276,9 +276,9 @@
   display: none;
 }
 /* Раздачу покера рисуют полёты `CardMotion`; своя CSS-раздача погашена, чтобы карта не летела
-   дважды. Победная пятёрка — не раздача: её подъём на вскрытии остаётся. */
+   дважды. Победная пятёрка — не раздача: её подъём на вскрытии остаётся. Веер руки дурака после
+   раздачи живёт в `durak.css` (`.durak-hand[data-dealing]`). */
 .poker .playing-card:not([data-highlight]),
-.durak.durak .durak-hand-card,
 .durak.durak .durak-attack,
 .durak.durak .durak-defence,
 .durak.durak .durak-mat[data-end] {

@@ -143,7 +143,8 @@
   */
   & .durak-mat {
     --seat-room: 86px;
-    --bout-w: min(var(--card-w), calc((100cqh - 2 * var(--seat-room)) / 1.8));
+    /* `--deck-row` — строка колоды и отбоя над боем на телефоне; на широком столе они по бокам. */
+    --bout-w: min(var(--card-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px)) / 1.8));
   }
   & .durak-bout {
     --card-w: max(34px, var(--bout-w));
@@ -170,6 +171,18 @@
     border-radius: inherit;
     pointer-events: none;
   }
+  /* Знак Cord, вытканный в середине сукна: под картами боя, приглушён до тени. */
+  & .durak-felt-mark {
+    --brand-accent: #d5ecf3;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: min(20cqw, 34cqh);
+    height: auto;
+    opacity: 0.09;
+    pointer-events: none;
+  }
   & .durak-focus-shade {
     position: absolute;
     inset: 0;
@@ -182,22 +195,35 @@
   & .durak-felt[data-choice] .durak-focus-shade {
     opacity: 0.54;
   }
+  /*
+    Середина стола — три колонки: колода, бой, отбой (T07). Колода и отбой лежат на сукне у всех
+    на виду, но не между местами: по бокам боя, куда не встаёт ни одно место овала.
+  */
   & .durak-mat {
     position: absolute;
     left: 50%;
     top: 47%;
     translate: -50% -50%;
-    width: 60%;
+    width: 64%;
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'deck bout discard'
+      '. place .';
+    align-items: center;
     justify-items: center;
     gap: 12px;
     z-index: 5;
     pointer-events: none;
   }
+  & .durak-center {
+    grid-column: 1 / -1;
+  }
   & .durak-mat > * {
     pointer-events: auto;
   }
   & .durak-bout {
+    grid-area: bout;
     width: 100%;
     display: flex;
     flex-wrap: wrap;
@@ -209,6 +235,12 @@
   & .durak-bout[data-end] {
     opacity: 1;
     animation: none;
+  }
+  /* Бой кончился: пауза — чтобы увидели, чем, — и карты уходят к взявшему или в отбой. */
+  @media (prefers-reduced-motion: no-preference) {
+    & .durak-bout[data-end] .durak-pair {
+      animation: durak-sweep 620ms cubic-bezier(0.45, 0, 0.75, 0.3) var(--sweep-delay, 450ms) both;
+    }
   }
   & .durak-pair {
     position: relative;
@@ -261,6 +293,7 @@
     pointer-events: none;
   }
   & .durak-place {
+    grid-area: place;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -337,23 +370,59 @@
       inset 0 0 0 1px #7d98b7,
       0 3px 8px #0004;
   }
-  & .durak-stock {
-    --card-w: 24px;
+  /* Марка Cord на рубашке — колода своего заведения. */
+  & .durak-card-mark {
+    --brand-accent: #e9f0fa;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: 58%;
+    height: auto;
+    filter: drop-shadow(0 1px 1px #0006);
+  }
+  & .durak-stock,
+  & .durak-discard {
+    --card-w: clamp(30px, 4.6cqw, 52px);
     position: relative;
-    display: flex;
-    align-items: center;
+    display: grid;
+    justify-items: center;
     flex-shrink: 0;
-    gap: 10px;
-    padding-block: 6px;
+    gap: 6px;
+    pointer-events: none;
+  }
+  & .durak-stock {
+    grid-area: deck;
+  }
+  & .durak-discard {
+    grid-area: discard;
   }
   & .durak-stock-cards {
     position: relative;
-    width: calc(var(--card-w) * 2.2);
+    width: calc(var(--card-w) * 1.95);
     height: calc(var(--card-w) * 1.42);
+  }
+  & .durak-discard-cards {
+    position: relative;
+    width: calc(var(--card-w) * 1.5);
+    height: calc(var(--card-w) * 1.42);
+  }
+  & .durak-discard .durak-back {
+    left: 50%;
+    top: 0;
+    translate: -50% 0;
+    rotate: var(--tilt, 0deg);
+  }
+  & .durak-discard[data-empty] .durak-discard-cards::before {
+    content: '';
+    position: absolute;
+    inset: 0 calc(var(--card-w) * 0.25);
+    border: 1px dashed #cce8ef3d;
+    border-radius: var(--card-r);
   }
   & .durak-trump {
     position: absolute;
-    left: var(--card-w);
+    left: calc(var(--card-w) * 0.62);
     top: 50%;
     translate: 0 -50%;
     rotate: 90deg;
@@ -376,15 +445,23 @@
     translate: -50% -50%;
   }
   & .durak-stock-count {
-    color: #dce7f3;
-    font-size: 14px;
+    min-width: 44px;
+    padding: 3px 8px;
+    border-radius: 9px;
+    background: #0d1c29cc;
+    color: #eef4fb;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.15;
     font-variant-numeric: tabular-nums;
     text-align: center;
   }
   & .durak-stock-count small {
     display: block;
     font-size: 10px;
+    font-weight: 500;
     color: #b4c8d8;
+    white-space: nowrap;
   }
   & .durak-seat {
     position: absolute;
@@ -396,9 +473,19 @@
     gap: 4px;
     z-index: 3;
   }
+  /* Лицо, число карт и кнопка увеличения: лицо круглое и обрезает всё, что в него положить. */
+  & .durak-seat-avatar {
+    position: relative;
+    display: grid;
+    justify-items: center;
+  }
   & .durak-seat-face {
     width: clamp(42px, 5.8cqw, 60px);
     aspect-ratio: 1;
+    /* Увеличенное лицо (T11) растёт наружу, от сукна: опора — край, обращённый к середине. */
+    scale: var(--face-zoom, 1);
+    transform-origin: 50% 0%;
+    transition: scale 160ms ease;
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -422,10 +509,103 @@
     height: 100%;
     object-fit: cover;
   }
+  & .durak-seat[data-side='top'] .durak-seat-face {
+    transform-origin: 50% 100%;
+  }
+  & .durak-seat[data-side='left'] .durak-seat-face {
+    transform-origin: 100% 50%;
+  }
+  & .durak-seat[data-side='right'] .durak-seat-face {
+    transform-origin: 0% 50%;
+  }
   & .durak-seat[data-acting] .durak-seat-face {
     box-shadow:
       0 0 0 3px #aacbff,
       0 3px 10px #0004;
+  }
+  /* Сколько карт на руках: значок с рубашкой у правого нижнего края лица. */
+  & .durak-seat-count {
+    position: absolute;
+    right: -8px;
+    bottom: -3px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 28px;
+    height: 20px;
+    padding: 0 6px 0 5px;
+    border: 1px solid #ffffff2e;
+    border-radius: 10px;
+    background: #0d1a27;
+    color: #eef3fb;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 6px #0006;
+  }
+  & .durak-seat-count i {
+    width: 8px;
+    height: 11px;
+    border: 1px solid #dce3ee;
+    border-radius: 2px;
+    background: repeating-linear-gradient(45deg, #45688e 0 2px, #2d4d73 2px 4px);
+  }
+  /* Решение стола за игрока (T07) видно всем: подпись другим цветом, у «нечем отбиться» — кольцо. */
+  & .durak-seat[data-auto] .durak-seat-role {
+    color: #ffd59a;
+    font-weight: 600;
+  }
+  & .durak-seat[data-auto='take'] .durak-seat-face {
+    box-shadow:
+      0 0 0 3px #ffb35c,
+      0 3px 10px #0004;
+  }
+  & .durak-seat[data-fool] .durak-seat-face {
+    box-shadow:
+      0 0 0 3px #ff8f8f,
+      0 3px 10px #0004;
+  }
+  & .durak-seat[data-fool] .durak-seat-role {
+    color: #ffb2b2;
+    font-weight: 700;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    & .durak-seat[data-fool] .durak-seat-face {
+      animation: durak-fool 650ms ease-in-out 2;
+    }
+    & .durak-seat[data-first] .durak-seat-face {
+      animation: durak-first 1.2s ease-out 2;
+    }
+  }
+  /* Перевод: метка с именем нового защитника скользит к нему от переводящего. */
+  & .durak-transfer-cue {
+    position: absolute;
+    left: var(--tx);
+    top: var(--ty);
+    translate: -50% -50%;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 40%;
+    padding: 5px 10px;
+    border-radius: 99px;
+    background: #d6e5ff;
+    color: #122c52;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: 0 4px 14px #0006;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    & .durak-transfer-cue {
+      animation: durak-transfer 1100ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
+    }
   }
   & .durak-seat-name {
     display: block;
@@ -620,6 +800,16 @@
   }
   & .durak-hand-card[data-held] {
     opacity: 0.12;
+  }
+  /* Раздача: карты встают в веер по одной, с тем же шагом, с каким летят рубашки к местам. */
+  @media (prefers-reduced-motion: no-preference) {
+    & .durak-hand[data-dealing] .durak-hand-card {
+      animation: durak-fan-in 380ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+      animation-delay: calc(var(--i, 0) * 70ms + 200ms - var(--dealt, 0ms));
+    }
+  }
+  & .durak-hand-count {
+    font-variant-numeric: tabular-nums;
   }
   & .durak-hand-card:disabled {
     opacity: 1;
@@ -994,6 +1184,76 @@
   }
 }
 
+@keyframes durak-sweep {
+  to {
+    translate: var(--sweep-x, 0) var(--sweep-y, 0);
+    scale: 0.4;
+    opacity: 0;
+  }
+}
+@keyframes durak-transfer {
+  0% {
+    left: var(--fx);
+    top: var(--fy);
+    opacity: 0;
+    scale: 0.8;
+  }
+  15% {
+    left: var(--fx);
+    top: var(--fy);
+    opacity: 1;
+    scale: 1;
+  }
+  75% {
+    left: var(--tx);
+    top: var(--ty);
+    opacity: 1;
+  }
+  100% {
+    left: var(--tx);
+    top: var(--ty);
+    opacity: 0;
+  }
+}
+@keyframes durak-fan-in {
+  from {
+    translate: 0 70px;
+    rotate: 0deg;
+    opacity: 0;
+  }
+}
+@keyframes durak-fool {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  20% {
+    rotate: -9deg;
+  }
+  40% {
+    rotate: 8deg;
+  }
+  60% {
+    rotate: -5deg;
+  }
+  80% {
+    rotate: 3deg;
+  }
+}
+@keyframes durak-first {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px #aacbff,
+      0 3px 10px #0004;
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px #d3e3ff,
+      0 0 30px #9ec0ff;
+  }
+}
+
 @media (max-width: 720px) {
   .durak.durak-refined[data-phase] {
     --card-w: 52px;
@@ -1032,9 +1292,31 @@
        полосы между местами. С пятой — поле шире, чтобы в ряд вставали три пары. */
     & .durak-mat {
       --seat-room: 84px;
+      --deck-row: 44px;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        'deck discard'
+        'bout bout'
+        'place place';
+      gap: 8px;
+    }
+    /* На телефоне колода и отбой — строкой над боем: по бокам ему не хватило бы ширины. */
+    & .durak-stock,
+    & .durak-discard {
+      --card-w: 22px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    & .durak-stock-count {
+      min-width: 0;
+      padding: 2px 6px;
     }
     & .durak-bout:is([data-pairs='3'], [data-pairs='4'], [data-pairs='5'], [data-pairs='6']) {
-      --card-w: max(30px, min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - 8px) / 3.6)));
+      --card-w: max(
+        30px,
+        min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px) - 8px) / 3.6))
+      );
       gap: 8px 4px;
     }
     & .durak-mat:has(> .durak-bout:is([data-pairs='5'], [data-pairs='6'])) {
@@ -1073,7 +1355,7 @@
       font-size: 10px;
     }
     & .durak-stock-count {
-      font-size: 12px;
+      font-size: 13px;
     }
     & .durak-stock-count small {
       font-size: 9px;

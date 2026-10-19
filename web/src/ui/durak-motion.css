@@ -1,4 +1,4 @@
-/* One confirmed throw. No dealing, sweeping or repeated idle animation. */
+/* One confirmed throw or transfer. Dealing (CardMotion), sweeping and the transfer cue live in durak.css. */
 .durak-motion-layer {
   position: absolute;
   inset: 0;
