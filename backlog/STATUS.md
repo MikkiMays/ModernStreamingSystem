@@ -16,7 +16,7 @@
 | 1 | E15-A Figma: «как есть», флоу, инвентарь движения | `epics/E15-screens-and-figma.md` | T57 | ждёт |
 | 1 | E16 Дизайн-система и премиальный облик | `epics/E16-design-system.md` | T47 T39 T55 | ждёт |
 | 1 | E14-A Языки: слой переводов | `epics/E14-i18n.md` | T03 | ждёт |
-| 1 | E01-B0 Быстрые победы: клиент и ссылки | `epics/E01-desktop-app.md` | T56 T01 T15 T42 | ждёт |
+| 1 | E01-B0 Быстрые победы: клиент и ссылки | `epics/E01-desktop-app.md` | T56 T01 T15 T42 T58 | в работе (T56 T01 T15 T42 — выпуск 0.7.6) |
 | 1 | E05 Медиа: качество, звук, восстановление | `epics/E05-media-quality-resilience.md` | T44 T48 T49 T50 T38 T09 T10 T06 T52 | ждёт |
 | 1 | E06-A Права интеграций | `epics/E06-integrations-permissions-music.md` | T14 | ждёт |
 | 2 | E02 Бренд, шапка, главная | `epics/E02-brand-shell-home.md` | T24 T25 T35 T40 T41 T46 T01 T52 | ждёт |
