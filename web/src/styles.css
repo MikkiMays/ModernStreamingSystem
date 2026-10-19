@@ -2658,6 +2658,23 @@ progress {
   align-items: center;
   gap: 8px;
 }
+/* Звуки игр (T45): флажок на стол, под общим выключателем сигналов. */
+.game-sound-settings {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.game-sound-settings legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+}
+.game-sound-settings:disabled {
+  opacity: 0.55;
+}
 /*
   Строка «флажок и подпись под ним». Правило висело на предке — `.audio-settings`, — и каждый
   новый раздел с такой строкой приходилось дописывать в селектор; стоило вынести переключатели

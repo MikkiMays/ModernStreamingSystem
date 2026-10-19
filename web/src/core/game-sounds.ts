@@ -71,7 +71,9 @@ export function cardCues(game: 'poker' | 'durak', events: readonly GameVisualEve
   const deals = events.filter((event) => event.type === 'deal');
   if (deals.length) {
     cues.push({ sound: 'shuffle', delay: 0 });
-    deals.slice(0, DEAL_VOICES).forEach((_, index) => cues.push({ sound: 'deal', delay: 180 + index * DEAL_STEP }));
+    deals
+      .slice(0, DEAL_VOICES)
+      .forEach((_, index) => cues.push({ sound: 'deal', delay: 180 + index * DEAL_STEP }));
   }
   let draws = 0;
   for (const event of events) {
@@ -93,10 +95,16 @@ export function cardCues(game: 'poker' | 'durak', events: readonly GameVisualEve
                 ? 'discard'
                 : 'slide'
               : null;
-    if (sound) cues.push({ sound, delay: 0 });
+    // Закрытый бой дурака лежит на столе ещё мгновение и только потом уезжает (`durak-sweep`):
+    // шорох звучит, когда карты двинулись, а не когда бой закрылся.
+    const late = game === 'durak' && (sound === 'sweep' || sound === 'discard');
+    if (sound) cues.push({ sound, delay: late ? SWEEP_DELAY : 0 });
   }
   return cues;
 }
+
+/** Через сколько закрытый бой дурака начинает уезжать — то же число, что `--sweep-delay`. */
+const SWEEP_DELAY = 450;
 
 /**
  * Курсор событий: первый снимок и снимок после обрыва — это состояние, а не новости.
@@ -188,7 +196,8 @@ export function preloadGameSounds(game: GameKind) {
     game === 'poker'
       ? ['shuffle', 'deal', 'place', 'slide', 'chip', 'chips', 'collect']
       : ['shuffle', 'deal', 'place', 'slide', 'sweep', 'discard'];
-  for (const sound of wanted) for (const name of SAMPLES[sound as GameSound] ?? []) void sample(context, name);
+  for (const sound of wanted)
+    for (const name of SAMPLES[sound as GameSound] ?? []) void sample(context, name);
 }
 
 /** Сыграть звук стола, если этой игре сейчас можно звучать. */
@@ -237,7 +246,14 @@ interface Tone {
   gain: number;
   type?: OscillatorType;
 }
-const tone = (hz: number, at: number, hold: number, gain: number, type: OscillatorType = 'sine', to?: number): Tone => ({
+const tone = (
+  hz: number,
+  at: number,
+  hold: number,
+  gain: number,
+  type: OscillatorType = 'sine',
+  to?: number,
+): Tone => ({
   hz,
   at,
   hold,
@@ -265,17 +281,33 @@ const TONES: Record<GameSound, Tone[]> = {
     tone(783.99, 0.12, 0.16, 0.06),
     tone(1046.5, 0.18, 0.3, 0.065),
   ],
-  lose: [tone(659.25, 0, 0.16, 0.05, 'triangle'), tone(523.25, 0.14, 0.16, 0.05, 'triangle'), tone(440, 0.28, 0.34, 0.05, 'triangle')],
+  lose: [
+    tone(659.25, 0, 0.16, 0.05, 'triangle'),
+    tone(523.25, 0.14, 0.16, 0.05, 'triangle'),
+    tone(440, 0.28, 0.34, 0.05, 'triangle'),
+  ],
   // Замены записей, если OGG не декодируется: короткие глухие удары.
-  shuffle: [tone(220, 0, 0.05, 0.05, 'triangle', 120), tone(200, 0.06, 0.05, 0.05, 'triangle', 110), tone(240, 0.12, 0.05, 0.05, 'triangle', 120)],
+  shuffle: [
+    tone(220, 0, 0.05, 0.05, 'triangle', 120),
+    tone(200, 0.06, 0.05, 0.05, 'triangle', 110),
+    tone(240, 0.12, 0.05, 0.05, 'triangle', 120),
+  ],
   deal: [tone(260, 0, 0.04, 0.06, 'triangle', 130)],
   slide: [tone(240, 0, 0.08, 0.05, 'triangle', 100)],
   place: [tone(200, 0, 0.05, 0.08, 'triangle', 90)],
   sweep: [tone(180, 0, 0.18, 0.05, 'triangle', 80)],
   discard: [tone(160, 0, 0.12, 0.06, 'triangle', 70)],
   chip: [tone(2200, 0, 0.03, 0.03, 'square'), tone(2600, 0.04, 0.03, 0.025, 'square')],
-  chips: [tone(2400, 0, 0.03, 0.03, 'square'), tone(2000, 0.035, 0.03, 0.03, 'square'), tone(2800, 0.07, 0.03, 0.025, 'square')],
-  collect: [tone(2000, 0, 0.03, 0.03, 'square'), tone(2400, 0.05, 0.03, 0.03, 'square'), tone(2800, 0.1, 0.04, 0.03, 'square')],
+  chips: [
+    tone(2400, 0, 0.03, 0.03, 'square'),
+    tone(2000, 0.035, 0.03, 0.03, 'square'),
+    tone(2800, 0.07, 0.03, 0.025, 'square'),
+  ],
+  collect: [
+    tone(2000, 0, 0.03, 0.03, 'square'),
+    tone(2400, 0.05, 0.03, 0.03, 'square'),
+    tone(2800, 0.1, 0.04, 0.03, 'square'),
+  ],
 };
 
 function synth(context: AudioContext, sound: GameSound, offset: number, volume: number) {

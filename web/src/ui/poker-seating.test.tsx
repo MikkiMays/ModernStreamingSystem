@@ -4,7 +4,12 @@ import type { PokerSeat, PokerTable } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
 import PokerScene, { Slide } from './PokerTable';
-vi.mock('../core/sounds', () => ({ signal: vi.fn() }));
+vi.mock('../core/sounds', () => ({
+  signal: vi.fn(),
+  ensureNotificationAudio: vi.fn(),
+  notificationAudio: () => undefined,
+  soundVolume: () => 1,
+}));
 vi.stubGlobal(
   'ResizeObserver',
   class {

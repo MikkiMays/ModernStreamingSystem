@@ -53,5 +53,7 @@ export function saveZoom(game: GameKind, person: string, zoom: FaceZoom): Record
 /** Подпись кнопки — что она сделает, а не что сейчас. */
 export function zoomLabel(zoom: number, name: string): string {
   const next = nextZoom(zoom);
-  return next === 1 ? `Вернуть обычный размер: ${name}` : `Увеличить лицо до ${String(next).replace('.', ',')}×: ${name}`;
+  return next === 1
+    ? `Вернуть обычный размер: ${name}`
+    : `Увеличить лицо до ${String(next).replace('.', ',')}×: ${name}`;
 }

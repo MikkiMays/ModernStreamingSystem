@@ -68,6 +68,9 @@ import { useFullscreen } from '../core/fullscreen';
 import { allowed } from '../core/permissions';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
+import { CordMark, CordWordmark } from './brand/Logo';
+import { FaceZoomButton, useFaceZoom } from './FaceZoom';
+import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
 
 /**
  * Покерный стол на сцене встречи.
@@ -145,6 +148,11 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     announced.current = table.actionAt;
     signal('turn');
   }, [you?.turn, table.actionAt]);
+
+  // Карты и фишки звучат от тех же событий, от которых летят; часы тикают в конце своего хода.
+  useCardSounds(meeting, 'poker', table.visualEvents);
+  usePokerChipSounds(meeting, table);
+  useTurnTicks(meeting, 'poker', table.deadline, !!you?.turn && !table.paused);
 
   const celebrated = useRef(0);
   useEffect(() => {
@@ -238,10 +246,8 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               карт и фишек, — потому он и приглушён до тени.
             */}
             <span className="poker-mark">
-              <i />
-              <i />
-              <i />
-              <em>cord</em>
+              <CordMark className="poker-mark-sign" />
+              <CordWordmark className="poker-mark-word" />
             </span>
           </div>
           <div className="poker-line" aria-hidden="true" />
@@ -877,6 +883,7 @@ function SeatView({
     (tile) => tile.participantId === seat.memberId && tile.source === Track.Source.Camera && !tile.muted,
   );
   const speaking = useStore(meeting.media.speaking).includes(seat.memberId ?? '');
+  const zoom = useFaceZoom('poker', seat.memberId);
   // Откуда прилетают карты: из середины стола. Направление — вектор к центру, в долях ширины
   // стола (высоту из него пересчитывает CSS через `--felt-ratio`).
   const style = {
@@ -905,8 +912,9 @@ function SeatView({
       data-mine={mine || undefined}
     >
       <div className="poker-person">
-        <div className="poker-face">
+        <div className="poker-face" style={zoom.style}>
           {camera ? <SeatCamera tile={camera} /> : <Avatar name={seat.name} src={avatar} />}
+          <FaceZoomButton zoom={zoom.zoom} name={seat.name} onCycle={zoom.cycle} />
           {/* На паузе кольца нет: срока нет, и кольцо, домотанное до конца, врало бы. */}
           {active && !table.paused && (
             <TurnRing table={table} elapsed={meeting.serverNow() - table.actionAt} />

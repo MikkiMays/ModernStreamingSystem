@@ -35,6 +35,7 @@ import {
 } from '../core/chess';
 import { allowed } from '../core/permissions';
 import { GamePeople } from './GamePeople';
+import { useChessSounds } from './useGameSounds';
 import { IconButton, Modal, useMediaQuery, useStore } from './primitives';
 
 interface Drag {
@@ -68,6 +69,8 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
   const color: ChessColor | null =
     table.white?.memberId === me ? 'white' : table.black?.memberId === me ? 'black' : null;
   const host = allowed({ ...snapshot, chess: table }, me, 'chess.manage');
+  // Ход, взятие, шах и мат звучат у всех от записи партии; часы тикают только у того, чей ход.
+  useChessSounds(meeting, table, color !== null && table.phase === 'playing' && table.turn === color);
   const [flippedOverride, setFlipped] = useState<boolean | null>(null);
   const flipped = flippedOverride ?? color === 'black';
   const [selected, setSelected] = useState<string | null>(null);
@@ -271,7 +274,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
         <span className="chess-color-mark" aria-hidden="true" />
         <div className="chess-player-person">
           {player ? (
-            <GamePeople meeting={meeting} memberIds={[player.memberId]} />
+            <GamePeople meeting={meeting} memberIds={[player.memberId]} game="chess" />
           ) : (
             <span className="chess-empty-player">{label} · свободное место</span>
           )}
@@ -676,7 +679,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               <h4>
                 Зрители <span>{spectators.length}</span>
               </h4>
-              <GamePeople meeting={meeting} memberIds={spectators} />
+              <GamePeople meeting={meeting} memberIds={spectators} game="chess" />
             </div>
           )}
           <details className="chess-help">
