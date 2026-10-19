@@ -778,7 +778,8 @@ button.watch-stream:hover {
   min-height: var(--control-sm);
   padding: var(--space-1) var(--space-2);
 }
-.people-strip .watch-stream span:not(.live-badge) {
+.people-strip .watch-stream span:not(.live-badge),
+.people-strip .lens-switch {
   display: none;
 }
 

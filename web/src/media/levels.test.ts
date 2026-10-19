@@ -253,6 +253,26 @@ describe('VoiceLevels', () => {
     expect(levels.tier('anna')).toBe(0);
   });
 
+  it('пока звуковой контекст спит, ступень — от SFU, а проснулся — от своего замера', () => {
+    const h = harness();
+    let awake = false;
+    const source = mic('anna');
+    const speaking = new Store<string[]>(['anna']);
+    const levels = new VoiceLevels(new Store([source]), speaking, {
+      ...h.env,
+      meter: (track) => {
+        const meter = h.env.meter(track)!;
+        return { ...meter, ready: () => awake };
+      },
+    });
+    levels.watch('anna', () => {});
+    h.run(100);
+    expect(levels.tier('anna')).toBe(2);
+    awake = true;
+    h.run(100);
+    expect(levels.tier('anna')).toBe(0);
+  });
+
   it('уровень меряется, а SFU не перебивает его своим мнением', () => {
     const h = harness();
     const source = mic('anna');

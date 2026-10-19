@@ -76,6 +76,11 @@ export function levelOf(db: number): number {
 export interface Meter {
   read(): number;
   close(): void;
+  /**
+   * Слышит ли измеритель звук прямо сейчас. Звуковой контекст, рождённый без жеста (перезагрузка
+   * посреди встречи, iOS), спит и отдаёт тишину — пока так, ступень берётся от SFU, а не «молчит».
+   */
+  ready?(): boolean;
 }
 export type MeterFactory = (track: MediaStreamTrack) => Meter | null;
 
@@ -291,15 +296,20 @@ export class VoiceLevels {
     if (this.disposed) return;
     const next: Record<string, VoiceLevel> = {};
     for (const [id, entry] of this.measured) {
-      if (!entry.meter) continue;
+      if (!hears(entry)) continue;
       const tier = tierOf(entry.db);
       const level = Math.round(levelOf(entry.db) * 100) / 100;
       if (tier || level) next[id] = { level, tier };
     }
     for (const id of this.sfu)
-      if (!this.measured.get(id)?.meter && this.watched(id)) next[id] = { level: 0, tier: SFU_TIER };
+      if (!hears(this.measured.get(id)) && this.watched(id)) next[id] = { level: 0, tier: SFU_TIER };
     if (!same(this.state.get(), next)) this.state.set(Object.keys(next).length ? next : EMPTY);
   }
+}
+
+/** Есть ли у участника свой измеритель, который сейчас слышит звук. */
+function hears(entry: Measured | undefined) {
+  return !!entry?.meter && (entry.meter.ready?.() ?? true);
 }
 
 function same(a: Record<string, VoiceLevel>, b: Record<string, VoiceLevel>) {
@@ -332,7 +342,9 @@ export function browserEnvironment(): LevelsEnvironment {
     source.connect(analyser);
     const data = new Float32Array(analyser.fftSize);
     const bytes = new Uint8Array(analyser.fftSize);
+    const audio = context;
     return {
+      ready: () => audio.state === 'running',
       read() {
         if (analyser.getFloatTimeDomainData) {
           analyser.getFloatTimeDomainData(data);
