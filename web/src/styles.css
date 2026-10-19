@@ -1,3 +1,4 @@
+@import './styles/tokens.css';
 @import 'tailwindcss';
 
 /* Interactive and reading sizes remain usable on touch displays and at 200% text zoom. */
@@ -5,61 +6,14 @@
 @theme {
   --font-sans: 'Inter Variable', system-ui, sans-serif;
 }
+/* Цвета, тени, радиусы и темы живут в `styles/tokens.css` (E16); здесь — только база. */
 :root {
   font-family: var(--font-sans);
-  color-scheme: light;
-  --bg: #f7f8fa;
-  --surface: #fff;
-  --surface-2: #f0f2f6;
-  --text: #222631;
-  --muted: #6c7484;
-  --line: #e4e7ed;
-  --blue: #3564f3;
-  --blue-hover: #2854dd;
-  --blue-soft: #eaf0ff;
-  --shadow: 0 12px 44px #1722340a;
-  --radius: 20px;
-  /* Стрелка выпадающего списка. Цвет вшит в картинку, поэтому у каждой темы она своя. */
-  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%236c7484' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
-  /* Кто говорит. Зелёный здесь читается как «идёт звук», а не как «всё в порядке». */
-  --speaking: #2f9e5f;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-}
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #16181f;
-  --surface: #20232d;
-  --surface-2: #292d38;
-  --text: #f0f2f7;
-  --muted: #a0a8b9;
-  --line: #343946;
-  --blue: #6b8dff;
-  --blue-hover: #85a0ff;
-  --blue-soft: #293653;
-  --shadow: 0 12px 44px #0002;
-  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23a0a8b9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
-  --speaking: #45d17f;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --bg: #16181f;
-    --surface: #20232d;
-    --surface-2: #292d38;
-    --text: #f0f2f7;
-    --muted: #a0a8b9;
-    --line: #343946;
-    --blue: #6b8dff;
-    --blue-hover: #85a0ff;
-    --blue-soft: #293653;
-    --shadow: 0 12px 44px #0002;
-    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23a0a8b9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
-    --speaking: #45d17f;
-  }
 }
 * {
   box-sizing: border-box;

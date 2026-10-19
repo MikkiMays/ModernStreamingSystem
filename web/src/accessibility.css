@@ -1,17 +1,4 @@
-:root {
-  --muted: #626c7d;
-  --blue: #2d59df;
-}
-:root[data-theme='dark'] {
-  --muted: #aab3c5;
-  --blue: #8aa4ff;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --muted: #aab3c5;
-    --blue: #8aa4ff;
-  }
-}
+/* `--muted` и `--blue` здесь больше не переопределяются: значения AA заданы в `styles/tokens.css`. */
 .create-description {
   color: #fff;
 }

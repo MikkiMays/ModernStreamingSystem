@@ -1,0 +1,204 @@
+/*
+  Полноэкранная загрузка (T55, П14): CSS 3D + @keyframes, без зависимостей. Сцена крутится на
+  компоновщике и не замирает, пока разбирается бандл; анимируются только transform и opacity.
+
+  Копия сцены марки живёт в `index.html` до JS — с литералами вместо токенов, потому что
+  токены ещё не загружены. `loader.test.ts` сверяет, что кадры и цвета там те же, что здесь.
+*/
+.fl {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 40px;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  background: var(--loader-bg);
+  color: var(--text);
+  contain: strict;
+  --fl-accent: var(--accent-fill);
+  --fl-delay: 150ms;
+}
+.fl[data-tone='dark'] {
+  color-scheme: dark;
+  background: var(--stage-bg);
+  color: var(--stage-text);
+}
+.fl--inline {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  height: 320px;
+  border-radius: var(--radius-4);
+  contain: layout paint;
+}
+.fl__fade {
+  display: grid;
+  justify-items: center;
+  gap: 36px;
+  opacity: 0;
+  animation: fl-in 240ms ease-out var(--fl-delay) forwards;
+}
+.fl__stage {
+  position: relative;
+  width: min(56vw, 220px);
+  aspect-ratio: 1;
+  perspective: 800px;
+}
+.fl__scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: fl-sway 6s ease-in-out infinite alternate;
+}
+.fl__shadow {
+  position: absolute;
+  inset: auto 14% -8%;
+  height: 10%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), transparent);
+  animation: fl-breathe 3s ease-in-out infinite alternate;
+}
+.fl-cord__plate {
+  position: absolute;
+  inset: 20%;
+  border-radius: 24%;
+  background: var(--fl-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.fl-cord__bar {
+  position: absolute;
+  left: var(--x);
+  top: calc(50% - var(--h) / 2);
+  width: 7.5%;
+  height: var(--h);
+  border-radius: 999px;
+  background: #fff;
+  transform: translateZ(28px) translateY(0) rotate(-15deg);
+  animation: fl-bob 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  animation-delay: calc(var(--i) * -0.4s);
+}
+.fl-cards {
+  animation: none;
+}
+.fl-card {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: var(--cw, 62px);
+  aspect-ratio: 5 / 7;
+  margin-left: calc(var(--cw, 62px) / -2);
+  margin-top: calc(var(--cw, 62px) * -0.7);
+  transform-style: preserve-3d;
+  will-change: transform;
+  transform: translate3d(var(--fx), 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(var(--fr));
+  animation: fl-fly var(--T, 2.8s) cubic-bezier(0.33, 0, 0.67, 1) infinite;
+  animation-delay: calc(var(--i) * var(--T, 2.8s) / -7);
+}
+.fl-card__face,
+.fl-card__back {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+.fl-card__face {
+  background: #fff;
+  color: #1b1f27;
+  font: 600 18px / 1 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+.fl-card__face[data-red] {
+  color: #c21f29;
+}
+.fl-card__back {
+  transform: rotateY(180deg);
+  background: var(--fl-accent);
+  color: #fff;
+}
+.fl-card__back > svg {
+  width: 46%;
+  height: 46%;
+}
+.fl__brand {
+  --brand-h: 26px;
+}
+.fl__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.fl__slow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  opacity: 0;
+  animation: fl-in 240ms ease-out forwards;
+}
+.fl[data-tone='dark'] .fl__slow {
+  color: var(--stage-muted);
+}
+@keyframes fl-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fl-sway {
+  from {
+    transform: rotateX(16deg) rotateY(-22deg);
+  }
+  to {
+    transform: rotateX(8deg) rotateY(22deg);
+  }
+}
+@keyframes fl-breathe {
+  from {
+    transform: scaleX(0.86);
+    opacity: 0.7;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes fl-bob {
+  from {
+    transform: translateZ(28px) translateY(6%) rotate(-15deg);
+  }
+  to {
+    transform: translateZ(28px) translateY(-12%) rotate(-15deg);
+  }
+}
+@keyframes fl-fly {
+  0% {
+    transform: translate3d(var(--x0), 0, 0) rotateX(78deg) rotateY(0deg) rotateZ(var(--r0));
+  }
+  50% {
+    transform: translate3d(var(--x1), var(--y1), 90px) rotateX(12deg) rotateY(180deg) rotateZ(var(--r1));
+  }
+  100% {
+    transform: translate3d(var(--x0), 0, 0) rotateX(78deg) rotateY(360deg) rotateZ(var(--r0));
+  }
+}
+/* Проявление остаётся; сцена стоит готовым кадром: марка в покое, карты веером. */
+@media (prefers-reduced-motion: reduce) {
+  .fl__scene,
+  .fl__scene *,
+  .fl__shadow {
+    animation: none;
+  }
+  .fl[data-reduced='breathe'] .fl__shadow {
+    animation: fl-breathe 3s ease-in-out infinite alternate;
+  }
+}
