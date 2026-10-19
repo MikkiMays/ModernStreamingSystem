@@ -1,0 +1,340 @@
+/*
+  Токены Cord — единственный источник значений оформления (E16).
+
+  Три слоя. Сырые `--palette-*` живут только в этом файле: ни один компонент их не читает.
+  Смысловые (`--bg`, `--surface-1..3`, `--text`, `--muted`, `--accent`, …) переключаются темой.
+  Компонентные (`--field-bg`, `--menu-bg`, `--tile-ring`, …) собраны из смысловых и нужны там,
+  где один компонент должен выглядеть одинаково в разных местах.
+
+  Тема: `:root[data-theme='light' | 'dark' | 'system']` ставит `App.tsx`; при `system` решает
+  `prefers-color-scheme`. Те же значения действуют на любом вложенном `[data-theme]`, поэтому
+  витрина показывает обе темы рядом. Два тёмных блока обязаны совпадать — это сверяет
+  `styles/tokens.test.ts`; контраст по WCAG 2.2 AA — `scripts/check-contrast.mjs`.
+
+  Прежние имена (`--bg --surface --surface-2 --text --muted --line --blue --blue-hover
+  --blue-soft --shadow --radius --speaking --select-arrow`) отображены на новые в конце файла,
+  чтобы существующий CSS работал без правок до миграции.
+*/
+
+:root {
+  /* ---------- сырые: графит с холодным оттенком (225°) ---------- */
+  --palette-ink-950: #0a0c11;
+  --palette-ink-900: #111419;
+  --palette-ink-800: #1a1f28;
+  --palette-ink-700: #222834;
+  --palette-ink-600: #2c3340;
+  --palette-ink-500: #3a4250;
+  --palette-ink-400: #525b6b;
+  --palette-ink-300: #8d97a8;
+  --palette-ink-200: #b3bbc9;
+  --palette-ink-100: #d3d8e1;
+  --palette-ink-50: #eef0f4;
+  --palette-white: #ffffff;
+  --palette-mist-50: #f6f7fa;
+  --palette-mist-100: #eef0f5;
+  --palette-mist-200: #e1e4eb;
+  --palette-mist-300: #c6ccd6;
+  --palette-slate-700: #4d5566;
+  --palette-slate-600: #5f6878;
+  --palette-slate-900: #1b1f27;
+  /* акцент — синий Cord, цвет марки и иконки приложения */
+  --palette-blue-50: #eaf0ff;
+  --palette-blue-300: #a8bbff;
+  --palette-blue-400: #7d9bff;
+  --palette-blue-500: #3564f3;
+  --palette-blue-600: #2d59df;
+  --palette-blue-650: #2b55d9;
+  --palette-blue-700: #2347b8;
+  --palette-blue-900: #1c2a4e;
+  /* красный: разрыв, «сбросить», «в эфире» */
+  --palette-red-50: #fdeeee;
+  --palette-red-300: #ff8a8f;
+  --palette-red-500: #d4323a;
+  --palette-red-600: #b8262e;
+  --palette-red-700: #c21f29;
+  --palette-red-900: #4a1b1f;
+  /* зелёный: голос, «идёт» */
+  --palette-green-300: #4fd48a;
+  --palette-green-400: #45d17f;
+  --palette-green-500: #2f9e5f;
+  --palette-green-700: #1b7a47;
+  /* янтарь: предупреждение */
+  --palette-amber-300: #f2c14e;
+  --palette-amber-700: #9a6700;
+
+  /* ---------- шкалы (одинаковы в темах) ---------- */
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --leading-tight: 1.2;
+  --leading-base: 1.45;
+  --tracking-tight: -0.01em;
+  --tracking-display: -0.02em;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-1: 4px;
+  --radius-2: 8px;
+  --radius-3: 12px;
+  --radius-4: 16px;
+  --radius-5: 20px;
+  --radius-6: 28px;
+  --radius-full: 999px;
+
+  --control-sm: 32px;
+  --control-md: 36px;
+  --control-lg: 40px;
+  --control-touch: 48px;
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  --z-stage: 10;
+  --z-panel: 20;
+  --z-dock: 30;
+  --z-menu: 40;
+  --z-dialog: 50;
+  --z-loader: 60;
+  --z-toast: 70;
+
+  /* ---------- медиасцена: одна и та же в обеих темах ---------- */
+  --stage-bg: var(--palette-ink-950);
+  --stage-tile: #171b23;
+  --stage-tile-2: #1f242e;
+  --stage-text: #f2f4f8;
+  --stage-muted: #a9b2c1;
+  --stage-line: rgb(255 255 255 / 0.08);
+  --stage-scrim: linear-gradient(to top, rgb(10 12 17 / 0.72), rgb(10 12 17 / 0));
+  --tile-radius: var(--radius-4);
+  --tile-ring: var(--voice);
+  --tile-ring-width: 3px;
+  --dock-bg: #1a1f28;
+  --dock-text: var(--stage-text);
+  --voice: var(--palette-green-400);
+  --voice-1: rgb(69 209 127 / 0.25);
+  --voice-2: rgb(69 209 127 / 0.5);
+  --voice-3: rgb(69 209 127 / 0.75);
+  --voice-4: var(--palette-green-400);
+  --live: var(--palette-red-500);
+  --on-live: var(--palette-white);
+}
+
+/* ---------- смысловые: светлая тема ---------- */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: var(--palette-mist-50);
+  --surface-1: var(--palette-white);
+  --surface-2: var(--palette-mist-100);
+  --surface-3: var(--palette-white);
+  --surface-hover: rgb(27 31 39 / 0.05);
+  --surface-active: rgb(27 31 39 / 0.09);
+  --text: var(--palette-slate-900);
+  --text-secondary: var(--palette-slate-700);
+  --muted: var(--palette-slate-600);
+  --text-disabled: #9aa3b2;
+  --line: var(--palette-mist-200);
+  --line-strong: var(--palette-mist-300);
+  --accent: var(--palette-blue-600);
+  --accent-hover: var(--palette-blue-700);
+  --accent-fill: var(--palette-blue-500);
+  --accent-fill-hover: var(--palette-blue-650);
+  --accent-fill-active: var(--palette-blue-700);
+  --accent-soft: var(--palette-blue-50);
+  --on-accent: var(--palette-white);
+  --danger: var(--palette-red-700);
+  --danger-fill: var(--palette-red-500);
+  --danger-fill-hover: var(--palette-red-600);
+  --danger-soft: var(--palette-red-50);
+  --on-danger: var(--palette-white);
+  --success: var(--palette-green-700);
+  --warning: var(--palette-amber-700);
+  --shadow-1: 0 1px 2px rgb(16 22 36 / 0.06), 0 0 0 1px rgb(16 22 36 / 0.04);
+  --shadow-2:
+    0 10px 30px -12px rgb(16 22 36 / 0.22), 0 2px 6px -2px rgb(16 22 36 / 0.08),
+    0 0 0 1px rgb(16 22 36 / 0.05);
+  --shadow-3:
+    0 32px 80px -24px rgb(16 22 36 / 0.35), 0 8px 24px -12px rgb(16 22 36 / 0.18),
+    0 0 0 1px rgb(16 22 36 / 0.06);
+  --scrim: rgb(16 22 36 / 0.45);
+  --loader-bg: var(--palette-mist-50);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%235f6878' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+}
+
+/* ---------- смысловые: тёмная тема (два блока совпадают дословно) ---------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: var(--palette-ink-900);
+  --surface-1: var(--palette-ink-800);
+  --surface-2: var(--palette-ink-700);
+  --surface-3: var(--palette-ink-600);
+  --surface-hover: rgb(255 255 255 / 0.05);
+  --surface-active: rgb(255 255 255 / 0.09);
+  --text: var(--palette-ink-50);
+  --text-secondary: var(--palette-ink-200);
+  --muted: var(--palette-ink-300);
+  --text-disabled: #5f6878;
+  --line: var(--palette-ink-600);
+  --line-strong: var(--palette-ink-500);
+  --accent: var(--palette-blue-400);
+  --accent-hover: var(--palette-blue-300);
+  --accent-fill: var(--palette-blue-500);
+  --accent-fill-hover: var(--palette-blue-650);
+  --accent-fill-active: var(--palette-blue-700);
+  --accent-soft: var(--palette-blue-900);
+  --on-accent: var(--palette-white);
+  --danger: var(--palette-red-300);
+  --danger-fill: var(--palette-red-500);
+  --danger-fill-hover: var(--palette-red-600);
+  --danger-soft: var(--palette-red-900);
+  --on-danger: var(--palette-white);
+  --success: var(--palette-green-300);
+  --warning: var(--palette-amber-300);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-2:
+    0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-3:
+    0 40px 100px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --scrim: rgb(0 0 0 / 0.6);
+  --loader-bg: var(--palette-ink-900);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: var(--palette-ink-900);
+    --surface-1: var(--palette-ink-800);
+    --surface-2: var(--palette-ink-700);
+    --surface-3: var(--palette-ink-600);
+    --surface-hover: rgb(255 255 255 / 0.05);
+    --surface-active: rgb(255 255 255 / 0.09);
+    --text: var(--palette-ink-50);
+    --text-secondary: var(--palette-ink-200);
+    --muted: var(--palette-ink-300);
+    --text-disabled: #5f6878;
+    --line: var(--palette-ink-600);
+    --line-strong: var(--palette-ink-500);
+    --accent: var(--palette-blue-400);
+    --accent-hover: var(--palette-blue-300);
+    --accent-fill: var(--palette-blue-500);
+    --accent-fill-hover: var(--palette-blue-650);
+    --accent-fill-active: var(--palette-blue-700);
+    --accent-soft: var(--palette-blue-900);
+    --on-accent: var(--palette-white);
+    --danger: var(--palette-red-300);
+    --danger-fill: var(--palette-red-500);
+    --danger-fill-hover: var(--palette-red-600);
+    --danger-soft: var(--palette-red-900);
+    --on-danger: var(--palette-white);
+    --success: var(--palette-green-300);
+    --warning: var(--palette-amber-300);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+    --shadow-2:
+      0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
+      inset 0 1px 0 rgb(255 255 255 / 0.05);
+    --shadow-3:
+      0 40px 100px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07),
+      inset 0 1px 0 rgb(255 255 255 / 0.06);
+    --scrim: rgb(0 0 0 / 0.6);
+    --loader-bg: var(--palette-ink-900);
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+  }
+}
+
+/* ---------- компонентные: собраны из смысловых, одинаковы в темах по форме ---------- */
+:root {
+  --focus-outline: 2px solid var(--accent);
+  --focus-offset: 2px;
+  --field-bg: var(--surface-1);
+  --field-line: var(--line-strong);
+  --field-radius: var(--radius-2);
+  --control-radius: var(--radius-2);
+  --menu-bg: var(--surface-3);
+  --menu-radius: var(--radius-3);
+  --dialog-bg: var(--surface-1);
+  --dialog-radius: var(--radius-4);
+  --toast-bg: var(--surface-3);
+  --card-bg: var(--surface-1);
+  --card-radius: var(--radius-3);
+  --handle: var(--accent);
+  --brand-accent: var(--accent-fill);
+}
+
+/*
+  Медиасцена: видео, плитки и карты живут на тёмном в обеих темах (Discord, Cardbox), а панели
+  и настройки — в теме человека. Класс переназначает смысловые токены, и всё внутри сцены само
+  берёт тёмные значения — без отдельных правил «для сцены».
+*/
+.media-stage {
+  color-scheme: dark;
+  --bg: var(--stage-bg);
+  --surface-1: var(--stage-tile);
+  --surface-2: var(--stage-tile-2);
+  --surface-3: var(--palette-ink-600);
+  --surface-hover: rgb(255 255 255 / 0.06);
+  --surface-active: rgb(255 255 255 / 0.1);
+  --text: var(--stage-text);
+  --text-secondary: var(--palette-ink-200);
+  --muted: var(--stage-muted);
+  --line: var(--stage-line);
+  --line-strong: var(--palette-ink-500);
+  --accent: var(--palette-blue-400);
+  --accent-hover: var(--palette-blue-300);
+  --accent-soft: var(--palette-blue-900);
+  --danger: var(--palette-red-300);
+  --danger-soft: var(--palette-red-900);
+  --success: var(--palette-green-300);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-2:
+    0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --scrim: rgb(0 0 0 / 0.6);
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Движение выключается одним местом: компоненты берут длительности из токенов. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+}
+
+/* ---------- прежние имена → новые (до миграции шага 5) ---------- */
+:root,
+[data-theme],
+.media-stage {
+  --surface: var(--surface-1);
+  --blue: var(--accent);
+  --blue-hover: var(--accent-hover);
+  --blue-soft: var(--accent-soft);
+  --shadow: var(--shadow-2);
+  --radius: var(--radius-5);
+  --speaking: var(--voice);
+}
