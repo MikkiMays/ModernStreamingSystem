@@ -13,6 +13,7 @@ public class ApiErrors {
         ProblemDetail.forStatusAndDetail(
             HttpStatusCode.valueOf(error.status()), error.getMessage());
     body.setProperty("code", error.code());
+    error.properties().forEach(body::setProperty);
     return ResponseEntity.status(error.status()).cacheControl(CacheControl.noStore()).body(body);
   }
 

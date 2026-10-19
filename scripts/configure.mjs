@@ -142,6 +142,16 @@ if (!refresh)
     { mode: 0o600 },
   );
 
+/**
+ * Сколько подключений SFU пускает в одну встречу.
+ *
+ * Ядро считает людей (`stream.max-participants`, по умолчанию 20; бот музыки места не занимает), а
+ * SFU — все подключения: бота и переходную сессию того, кто вернулся раньше, чем ушла прежняя.
+ * Поэтому здесь на четыре больше — иначе двадцать первым упёрся бы в SFU не человек, а бот, и вместо
+ * понятного `ROOM_FULL` от ядра встреча молча не пустила бы музыку.
+ */
+const MAX_PARTICIPANTS = Number(saved.STREAM_MAX_PARTICIPANTS) || 20;
+
 const livekit = {
   port: 7880,
   bind_addresses: ["0.0.0.0"],
@@ -153,7 +163,7 @@ const livekit = {
   },
   redis: { address: "127.0.0.1:6379", password: redis },
   keys: { [key]: mediaSecret },
-  room: { empty_timeout: 300, departure_timeout: 60, max_participants: 10 },
+  room: { empty_timeout: 300, departure_timeout: 60, max_participants: MAX_PARTICIPANTS + 4 },
   turn: {
     enabled: true,
     domain: turn,

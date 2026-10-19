@@ -1,6 +1,8 @@
 package dev.mikki.stream.room;
 
-import dev.mikki.stream.access.Secrets;
+import dev.mikki.stream.access.Entrant;
+import dev.mikki.stream.access.Identity;
+import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
 import java.util.*;
 import org.springframework.stereotype.Service;
@@ -21,17 +23,23 @@ public class FavoriteService {
 
   private final RoomRepository repository;
   private final RoomService rooms;
+  private final StreamProperties config;
 
-  public FavoriteService(RoomRepository repository, RoomService rooms) {
+  public FavoriteService(RoomRepository repository, RoomService rooms, StreamProperties config) {
     this.repository = repository;
     this.rooms = rooms;
+    this.config = config;
   }
 
-  // Не private: группы (FavoriteGroupService) должны узнавать профиль ровно тем же ключом.
+  /**
+   * Профиль избранного — тот же секрет устройства, что {@code X-Cord-Profile}, и тот же хэш ({@link
+   * Identity}). Не private: группы ({@code FavoriteGroupService}) должны узнавать профиль ровно тем
+   * же ключом.
+   */
   String key(String credential) {
-    String value = credential.replaceFirst("^Bearer ", "");
-    if (!value.matches("[A-Za-z0-9_-]{43}")) throw Problem.forbidden();
-    return Secrets.hash(value);
+    var hash = Identity.profileHash(credential.replaceFirst("^Bearer ", ""));
+    if (hash == null) throw Problem.forbidden();
+    return hash;
   }
 
   public List<Favorite> list(String credential) {
@@ -81,9 +89,29 @@ public class FavoriteService {
             .query(Long.class)
             .single()
         > 0) return;
-    // Числа комнат в избранном здесь нет намеренно. Это список на **своём** сервере, и его
-    // длина — дело хозяина сервера, а не приложения: пять записей по паре десятков байт не
-    // экономят ничего, зато «удалите одну, чтобы добавить новую» стоило человеку выбора.
+    /*
+     Десять комнат на профиль — решение владельца (T06, П3), и число живёт в настройках сервера
+     (`stream.favorites.max-saved`), а не здесь.
+
+     Считается под тем же общим замком, что и запись: двенадцать одновременных «сохранить»
+     проходят по очереди, и одиннадцатая видит десять. Уже сохранённое сверх предела — например,
+     до того, как предел появился, — не удаляется: отказ получает только новое, пока список не
+     станет короче. Ответ несёт само число, чтобы интерфейс сказал «10 из 10», не зашивая его, а
+     текст отказа — те же слова, что подсказка у звезды на главной (E02).
+    */
+    int max = config.favorites().maxSaved();
+    if (repository
+            .jdbc()
+            .sql("SELECT COUNT(*) FROM favorites WHERE profile_hash=?")
+            .param(key)
+            .query(Long.class)
+            .single()
+        >= max)
+      throw new Problem(
+          409,
+          "FAVORITES_FULL",
+          "В избранном уже " + max + " " + roomsWord(max) + ". Уберите одну, чтобы добавить эту",
+          Map.of("max", max));
     long first =
         repository
             .jdbc()
@@ -97,6 +125,17 @@ public class FavoriteService {
             "INSERT INTO favorites(profile_hash,room_id,member_id,saved_at,sort_order) VALUES(?,?,?,?,?)")
         .params(key, roomId, member.id, rooms.now(), first - 1)
         .update();
+  }
+
+  /**
+   * «комната», «комнаты», «комнат» — предел настраивается, и слово должно согласоваться с числом.
+   */
+  static String roomsWord(int count) {
+    int tens = count % 100, ones = count % 10;
+    if (tens >= 11 && tens <= 14) return "комнат";
+    if (ones == 1) return "комната";
+    if (ones >= 2 && ones <= 4) return "комнаты";
+    return "комнат";
   }
 
   @Transactional
@@ -141,8 +180,20 @@ public class FavoriteService {
         .update();
   }
 
+  /** Без профиля входящего — для служб и тестов; транзакция своя, как у соседней двери. */
   @Transactional
   public Contracts.Admission join(String credential, String roomId, Contracts.Rejoin request) {
+    return join(credential, roomId, request, Entrant.UNKNOWN);
+  }
+
+  /**
+   * Войти в сохранённую встречу. Профиль избранного здесь — ключ к записи, а одна активная встреча
+   * (T52) решается по {@code X-Cord-Profile} входящего, как в любой другой двери: служба, входящая
+   * от имени Telegram-беседы своим профилем избранного, этого заголовка не присылает.
+   */
+  @Transactional
+  public Contracts.Admission join(
+      String credential, String roomId, Contracts.Rejoin request, Entrant entrant) {
     repository.lockGlobal();
     var memberId =
         repository
@@ -158,6 +209,6 @@ public class FavoriteService {
         request.commandId(),
         request,
         Contracts.Admission.class,
-        () -> rooms.joinSaved(roomId, memberId, request));
+        () -> rooms.joinSaved(roomId, memberId, request, entrant));
   }
 }

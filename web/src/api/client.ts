@@ -8,12 +8,19 @@ import type {
   PokerGame,
   Snapshot,
 } from './types';
+import { entryHeaders } from '../core/identity';
 
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     message: string,
+    /**
+     * Весь ответ отказа (RFC 7807): кроме `code` и `detail` ядро кладёт туда значения, которые
+     * интерфейсу нужны не словами, — `roomId` и `title` у `ALREADY_IN_MEETING`, `max` у
+     * `FAVORITES_FULL`.
+     */
+    readonly problem: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -81,7 +88,12 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
   }
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: unknown };
-    throw new ApiError(response.status, body.code ?? 'REQUEST_FAILED', detailOf(body.detail));
+    throw new ApiError(
+      response.status,
+      body.code ?? 'REQUEST_FAILED',
+      detailOf(body.detail),
+      body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
+    );
   }
   const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;
@@ -90,19 +102,30 @@ const post = (data?: unknown): RequestInit => ({
   method: 'POST',
   ...(data ? { body: JSON.stringify(data) } : {}),
 });
+/**
+ * Вход во встречу: тело то же, что всегда, плюс профиль устройства и — после «Выйти оттуда и войти
+ * сюда» — встреча, которую покидают (`core/identity.ts`, T52).
+ */
+const entry = (data: unknown, leave?: string): RequestInit => ({
+  ...post(data),
+  headers: entryHeaders(leave),
+});
 export const publicApi = {
   capabilities: () => request<Capabilities>('/capabilities'),
-  create: (data: {
-    commandId: string;
-    title: string;
-    name: string;
-    approvalRequired: boolean;
-    integrationsAllowed?: boolean;
-  }) => request<Admission>('/rooms', post(data)),
-  join: (roomId: string, data: { commandId: string; invite: string; name: string }) =>
-    request<Admission>(`/rooms/${roomId}/join`, post(data)),
-  joinCode: (data: { commandId: string; code: string; name: string }) =>
-    request<Admission>('/rooms/join-by-code', post(data)),
+  create: (
+    data: {
+      commandId: string;
+      title: string;
+      name: string;
+      approvalRequired: boolean;
+      integrationsAllowed?: boolean;
+    },
+    leave?: string,
+  ) => request<Admission>('/rooms', entry(data, leave)),
+  join: (roomId: string, data: { commandId: string; invite: string; name: string }, leave?: string) =>
+    request<Admission>(`/rooms/${roomId}/join`, entry(data, leave)),
+  joinCode: (data: { commandId: string; code: string; name: string }, leave?: string) =>
+    request<Admission>('/rooms/join-by-code', entry(data, leave)),
 };
 export class RoomApi {
   readonly base: string;
@@ -113,8 +136,8 @@ export class RoomApi {
     return this.admission.credential;
   }
   snapshot = () => request<Snapshot>(this.base, {}, this.credential);
-  rejoin = (name: string, commandId: string) =>
-    request<Admission>(`${this.base}/rejoin`, post({ name, commandId }), this.credential);
+  rejoin = (name: string, commandId: string, leave?: string) =>
+    request<Admission>(`${this.base}/rejoin`, entry({ name, commandId }, leave), this.credential);
   resume = () =>
     request<{ reset: boolean; snapshot: Snapshot | null }>(
       `${this.base}/resume`,

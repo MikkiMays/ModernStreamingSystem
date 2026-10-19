@@ -99,6 +99,8 @@ public class MediaService {
       member.generation++;
       member.recoveryDeadline = null;
       room.everConnected = true;
+      // Второй человек на связи — встреча началась (T35); бот её не начинает.
+      room.markStarted(rooms.now());
     } else if (type.equals("participant_left")
         && sid.equals(member.mediaSid)
         && member.status == CONNECTED) {
@@ -176,6 +178,9 @@ public class MediaService {
         }
       }
     }
+    // Здесь же встреча получает начало, если двое уже на связи — и тогда, когда они были на связи
+    // ещё до образа ядра, который это начало ставит: метка появится на ближайшем проходе.
+    if (room.markStarted(rooms.now())) changed = true;
     if (changed) rooms.emit(room, "room.changed", Contracts.EventPayload.changed());
     repository.save(room, rooms.now());
   }

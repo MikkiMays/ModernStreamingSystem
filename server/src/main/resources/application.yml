@@ -35,9 +35,14 @@ stream:
   access-password: ${ACCESS_PASSWORD:}
   server-name: ${SERVER_NAME:Cord}
   redis-enabled: true
-  max-participants: 10
+  # Сколько людей во встрече (T06). Боты — музыка — места не занимают; SFU пускает на четыре
+  # подключения больше (`scripts/configure.mjs`), чтобы им и переходным сессиям хватало места.
+  max-participants: ${STREAM_MAX_PARTICIPANTS:20}
   max-screens: 2
-  max-rooms: 5
+  # Сколько встреч сервер держит одновременно. Считается встреча, где хотя бы один человек на
+  # связи, или совсем новая — моложе 30 секунд. Восемь обычных встреч по 5–6 человек, а не восемь
+  # полных (`docs/architecture/target-2026-10.md` §5.2); уточняется замером на спокойной машине.
+  max-rooms: ${STREAM_MAX_ROOMS:8}
   recovery-seconds: 20
   join-seconds: 120
   empty-room-seconds: 60
@@ -76,3 +81,11 @@ stream:
       settle: ${QUALITY_SETTLE:4 seconds}
       # Ужимать ли камеру до маленького слоя на время демонстрации экрана. По умолчанию — нет.
       camera-yields-to-screen: ${CAMERA_YIELDS_TO_SCREEN:false}
+  favorites:
+    # Сколько встреч профиль устройства хранит в избранном — во всех группах вместе (T06, П3).
+    # Одиннадцатая не добавляется: ядро отвечает `409 FAVORITES_FULL` с этим числом.
+    max-saved: ${FAVORITES_MAX_SAVED:10}
+  meeting:
+    # У профиля устройства активна одна встреча (T52): вход во вторую спрашивает, выйти ли из первой
+    # (`409 ALREADY_IN_MEETING`, повтор с `X-Cord-Leave`). Без профиля правило не действует.
+    one-active-per-profile: ${ONE_ACTIVE_MEETING_PER_PROFILE:true}

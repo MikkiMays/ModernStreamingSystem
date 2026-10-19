@@ -2,6 +2,7 @@ package dev.mikki.stream.api;
 
 import dev.mikki.stream.access.*;
 import dev.mikki.stream.room.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.*;
@@ -16,10 +17,12 @@ public class FavoriteController {
 
   private final FavoriteService favorites;
   private final RateLimits limits;
+  private final Identity identity;
 
-  public FavoriteController(FavoriteService favorites, RateLimits limits) {
+  public FavoriteController(FavoriteService favorites, RateLimits limits, Identity identity) {
     this.favorites = favorites;
     this.limits = limits;
+    this.identity = identity;
   }
 
   @GetMapping
@@ -52,8 +55,9 @@ public class FavoriteController {
   public Contracts.Admission join(
       @PathVariable UUID id,
       @RequestHeader("Authorization") String profile,
-      @Valid @RequestBody Contracts.Rejoin request) {
+      @Valid @RequestBody Contracts.Rejoin request,
+      HttpServletRequest http) {
     limits.check("favorite:" + Secrets.hash(profile), 60);
-    return favorites.join(profile, id.toString(), request);
+    return favorites.join(profile, id.toString(), request, identity.entrant(http));
   }
 }

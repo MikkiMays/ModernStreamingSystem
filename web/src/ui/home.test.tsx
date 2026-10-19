@@ -22,6 +22,7 @@ const room: Favorite = {
   savedAt: 1,
   closed: false,
   canJoin: true,
+  pinned: false,
 };
 const daily = {
   ...room,
@@ -36,7 +37,7 @@ const capabilities = {
   admissionOpen: true,
   fileMaxBytes: 1000000,
   frameRates: [30, 60],
-  maxParticipants: 10,
+  maxParticipants: 20,
   maxScreens: 2,
   name: 'Cord',
   passwordRequired: false,
@@ -50,6 +51,7 @@ const capabilities = {
   region: 'local',
   resolutions: [720, 1080],
   roomMaxBytes: 10000000,
+  favoritesMax: 10,
 };
 const clients: QueryClient[] = [];
 

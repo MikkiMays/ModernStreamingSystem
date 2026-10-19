@@ -27,6 +27,8 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
     assert.equal(sfu.turn.external_tls, true);
     assert.equal(sfu.turn.tls_port, 5349);
     assert.equal(sfu.rtc.udp_port, 7882);
+    // Двадцать людей ядра и четыре места ботам и переходным сессиям (T06).
+    assert.equal(sfu.room.max_participants, 24);
     assert.deepEqual(edge.apps.layer4.servers.main.listen, [':443']);
     assert.equal(edge.apps.layer4.servers.main.routes[1].handle[1].proxy_protocol, 'v2');
     assert.match(env, /SESSION_SECRET=[a-f0-9]{64}/);

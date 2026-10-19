@@ -19,6 +19,7 @@ import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
 import { BootGate } from './ui/loader/BootGate';
 import { useMeetingBeacon } from './ui/useMeetingBeacon';
+import { findActiveMeeting, requestHandover } from './core/active-meeting';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -43,6 +44,9 @@ function Workspace() {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [error, setError] = useState('');
   const [favoriteSettings, setFavoriteSettings] = useState<Favorite | null>(null);
+  // «Перейти туда» (T52) ведёт на экран входа в другую встречу: он собирается заново, а не
+  // донашивает имя команды и состояние прежнего.
+  const [visit, setVisit] = useState(0);
   const [section, setSection] = useState<string | undefined>(undefined);
   const connection = useStore(session);
   useEffect(greetHostConnection, []);
@@ -214,7 +218,8 @@ function Workspace() {
       void navigate().catch((e) => setError((e as Error).message));
     });
   }, [page, meeting, theme, avatar]);
-  const recent = async (id: string, restoring = false) => {
+  /** Открыть недавнюю встречу; `false` — открыть не вышло (ошибка уже показана). */
+  const recent = async (id: string, restoring = false, quiet = false) => {
     try {
       const admission = getRecent(id);
       if (!admission) throw new Error('Сессия не найдена');
@@ -226,10 +231,46 @@ function Workspace() {
         setDestination({ kind: 'recent', admission });
         setPage('prejoin');
       }
+      return true;
     } catch (e) {
-      setError((e as Error).message);
+      if (!quiet) setError((e as Error).message);
       if (e instanceof Error && 'status' in e && [403, 404, 410].includes(Number(e.status))) removeRecent(id);
+      return false;
     }
+  };
+  /**
+   * «Перейти туда» из окна «Вы уже во встрече…» (T52): ядро назвало встречу, где этот профиль уже
+   * есть. Дороги туда, по порядку:
+   *
+   * 1. Соседняя вкладка этого браузера (`core/active-meeting.ts`): встреча переносится сюда тем же
+   *    участником, как «Вернуться» на главной, — та вкладка отпускает разговор без выхода.
+   * 2. Прежний вход этой вкладки (недавние, `sessionStorage`) — через экран входа и повторный вход
+   *    (`restoring` не ставится): та же сессия в двух местах сразу означала бы один участник SFU на
+   *    двоих, а повторный вход заменяет прежнюю сессию честно.
+   * 3. Избранное — тем же повторным входом.
+   *
+   * Нет ни одной — в этом браузере встреча не открыта, и экран входа скажет об этом сам (`false`).
+   */
+  const goElsewhere = async ({ roomId }: { roomId: string }) => {
+    const tab = await findActiveMeeting(roomId);
+    if (tab) {
+      const admission = await requestHandover(tab);
+      rememberMeeting(admission);
+      if (await recent(admission.roomId, true, true)) {
+        setVisit((value) => value + 1);
+        return true;
+      }
+    }
+    if (getRecent(roomId) && (await recent(roomId, false, true))) {
+      setVisit((value) => value + 1);
+      return true;
+    }
+    const favorite = (await favoriteApi.list()).find((f) => f.roomId === roomId);
+    if (!favorite) return false;
+    setVisit((value) => value + 1);
+    setDestination({ kind: 'favorite', favorite });
+    setPage('prejoin');
+    return true;
   };
   useEffect(() => {
     const match = /^\/room\/([0-9a-f-]{36})$/.exec(location.pathname);
@@ -291,7 +332,15 @@ function Workspace() {
           }}
         />
       )}
-      {page === 'prejoin' && <Prejoin destination={destination} onBack={home} onJoin={enter} />}{' '}
+      {page === 'prejoin' && (
+        <Prejoin
+          key={visit}
+          destination={destination}
+          onBack={home}
+          onJoin={enter}
+          onElsewhere={goElsewhere}
+        />
+      )}{' '}
       {page === 'room' && meeting && (
         <Suspense
           fallback={
