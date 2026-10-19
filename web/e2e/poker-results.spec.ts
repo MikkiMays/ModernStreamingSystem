@@ -17,7 +17,7 @@ async function start(page: Page, name: string) {
   await page.getByRole('button', { name: /Новая встреча/ }).click();
   await page.getByLabel('Ваше имя').fill(name);
   await page.getByRole('button', { name: 'Начать встречу' }).click();
-  await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+  await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
 }
 
 async function invite(host: Page): Promise<string> {
@@ -47,7 +47,7 @@ test('итоги игры приезжают обоим, остаются в и�
     await guest.goto(link);
     await guest.getByLabel('Ваше имя').fill('Алекс');
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
 
     await host.getByRole('button', { name: 'Интеграции', exact: true }).click();
     await host.getByRole('button', { name: /Игры/ }).click();

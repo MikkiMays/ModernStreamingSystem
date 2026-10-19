@@ -14,13 +14,11 @@ import {
   MonitorUp,
   PhoneOff,
   Settings2,
-  ShieldCheck,
   Users,
   Video,
   VideoOff,
   Wifi,
   X,
-  Star,
   Maximize2,
   Minimize2,
   MoreHorizontal,
@@ -28,7 +26,7 @@ import {
 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
 import type { Meeting } from '../core/meeting';
-import { IconButton, Logo, useMediaQuery, useStore } from './primitives';
+import { IconButton, useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { Ping } from './Ping';
 import { CameraChoices, CameraMenu } from './CameraMenu';
@@ -37,9 +35,10 @@ import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
 import { MeetingSettings } from './MeetingSettings';
 import { Settings } from './Settings';
-import { ThemeButton, formatCode, type Theme } from './Home';
-import { favoriteApi } from '../core/favorites';
-import { useFavorites } from './useFavorites';
+import type { Theme } from './Home';
+import { MeetingHeader } from './MeetingHeader';
+import { ResizeHandle, usePanelWidth } from './kit';
+import { humans } from '../core/people';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { notifyDesktop, onDesktopCommand } from '../core/desktop';
 import { useFullscreen } from '../core/fullscreen';
@@ -133,13 +132,12 @@ export function MeetingView({
     if (section) setSettings(true);
   }, [section]);
   const preferences = useStore(meeting.media.preferences);
-  const favorites = useFavorites();
   const volumes = useStore(meeting.media.volumes);
   const deafened = useStore(meeting.media.deafened);
-  const isFavorite = !!favorites.data?.some((f) => f.roomId === meeting.admission.roomId);
-  const [savingFavorite, setSavingFavorite] = useState(false);
   const profile = preferences.screen;
-  const [width, setWidth] = useState(360);
+  /* Ширина правой панели — тем же механизмом, что и левая на главной (T46, П11): ручка с курсором
+     `col-resize`, ширина помнится на устройстве. */
+  const panelWidth = usePanelWidth('meeting-panel', { min: 320, max: 480, default: 360 });
   const [audioBlocked, setAudioBlocked] = useState(false);
   const audioNeedsGesture = useCallback(() => setAudioBlocked(true), []);
   const showIntegrationPanel = preferences.showIntegrationPanel !== false;
@@ -175,77 +173,26 @@ export function MeetingView({
   const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);
   const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
   const openServicesPanel = () => setPanel((current) => (current === 'services' ? null : 'services'));
-  const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
+  /** Люди без ботов и интеграций — для счётчиков (T35). */
+  const people = humans(snapshot.participants);
   return (
     <div
       className={`meeting-page ${targetFull ? 'meeting-fullscreen' : ''} ${controlsVisible ? '' : 'controls-hidden'}`}
       data-full={targetFull ? 'true' : undefined}
+      // Устойчивый признак «медиа подключено» для e2e и оболочек вместо текста «В эфире» (T25).
+      data-media-status={ended ? 'ended' : media.status}
       onPointerMove={wakeControls}
       onPointerDown={wakeControls}
       onFocusCapture={wakeControls}
-      style={{ '--panel-width': `${width}px` } as CSSProperties}
+      style={{ '--panel-width': `${panelWidth.width}px` } as CSSProperties}
     >
       <Ping meeting={meeting} />
-      <header className="meeting-header">
-        <div className="meeting-title">
-          <Logo />
-          <span className="header-divider" />
-          <div>
-            {/* Ведущему название — это ещё и кнопка: туда же, где оно написано, и идут, чтобы
-                его исправить. Остальным нажимать не на что, и заголовок остаётся заголовком. */}
-            {may('room.settings') && !ended ? (
-              <button className="meeting-rename" onClick={() => setMeetingSettings(true)}>
-                <h1>{snapshot.title}</h1>
-                <Pencil size={13} aria-label="Настройки встречи" />
-              </button>
-            ) : (
-              <h1>{snapshot.title}</h1>
-            )}
-            <span className="room-subtitle">
-              <ShieldCheck size={12} />{' '}
-              <button className="room-code" aria-label="Код встречи" onClick={() => setInvite(true)}>
-                {snapshot.code ? formatCode(snapshot.code) : 'Пригласить'}
-              </button>
-            </span>
-          </div>
-        </div>
-        <div className="meeting-header-actions">
-          <span className={`connection-badge ${media.status === 'connected' ? 'is-live' : ''}`}>
-            <span className="status-dot" />
-            {ended
-              ? 'Завершено'
-              : media.status === 'connected'
-                ? 'В эфире'
-                : self?.status === 'WAITING'
-                  ? 'Ожидание входа'
-                  : 'Подключаемся'}
-          </span>
-          <ThemeButton theme={theme} setTheme={setTheme} />
-          <IconButton
-            label={isFavorite ? 'Убрать комнату из избранного' : 'Сохранить комнату в избранное'}
-            aria-pressed={isFavorite}
-            className={isFavorite ? 'favorite-active' : ''}
-            disabled={savingFavorite || !self || self.status === 'WAITING'}
-            onClick={async () => {
-              setSavingFavorite(true);
-              try {
-                if (isFavorite) await favoriteApi.remove(meeting.admission.roomId);
-                else await favoriteApi.save(meeting.admission);
-                await favorites.refetch();
-              } catch (e) {
-                meeting.media.report(e);
-              } finally {
-                setSavingFavorite(false);
-              }
-            }}
-          >
-            <Star size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-          </IconButton>
-          <IconButton label="Пригласить участников" onClick={() => setInvite(true)}>
-            <Link size={19} />
-          </IconButton>
-        </div>
-      </header>
+      <MeetingHeader
+        meeting={meeting}
+        canEdit={may('room.settings')}
+        onInvite={() => setInvite(true)}
+        onSettings={() => setMeetingSettings(true)}
+      />
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
         <main className="stage-wrap" aria-label="Сцена встречи">
           {!ended &&
@@ -320,7 +267,7 @@ export function MeetingView({
                   <ArrowLeft size={16} /> Вернуться в разговор
                 </button>
               )}
-              {snapshot.participants.length === 1 && !media.screen && (
+              {people.length === 1 && !media.screen && (
                 <button className="invite-hint" onClick={() => setInvite(true)}>
                   <Users size={18} />
                   <span>Самое время пригласить своих</span>
@@ -471,8 +418,7 @@ export function MeetingView({
                             {deafened ? 'Включить звук встречи' : 'Выключить звук встречи'}
                           </Menu.Item>
                           <Menu.Item onClick={() => togglePanel('people')}>
-                            <Users size={18} /> Участники ·{' '}
-                            {snapshot.participants.filter((p) => !p.service).length}
+                            <Users size={18} /> Участники · {people.length}
                           </Menu.Item>
                           <Menu.Item onClick={() => togglePanel('chat')}>
                             <MessageSquare size={18} /> Чат и файлы
@@ -544,7 +490,7 @@ export function MeetingView({
                 onClick={() => togglePanel('people')}
               >
                 <Users size={21} />
-                <span className="count-badge">{snapshot.participants.filter((p) => !p.service).length}</span>
+                <span className="count-badge">{people.length}</span>
               </IconButton>
               <IconButton
                 label="Чат"
@@ -567,30 +513,15 @@ export function MeetingView({
         </main>
         {panel && (
           <>
-            <div
+            <ResizeHandle
               className="panel-resizer"
-              role="separator"
-              tabIndex={0}
-              aria-label="Ширина боковой панели"
-              aria-orientation="vertical"
-              aria-valuemin={320}
-              aria-valuemax={480}
-              aria-valuenow={width}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowLeft') {
-                  e.preventDefault();
-                  setPanelWidth(width + 16);
-                }
-                if (e.key === 'ArrowRight') {
-                  e.preventDefault();
-                  setPanelWidth(width - 16);
-                }
-              }}
-              onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
-              onPointerMove={(e) => {
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  setPanelWidth(window.innerWidth - e.clientX - 16);
-              }}
+              edge="end"
+              label="Ширина боковой панели"
+              value={panelWidth.width}
+              min={panelWidth.min}
+              max={panelWidth.max}
+              onChange={panelWidth.setWidth}
+              onReset={panelWidth.reset}
             />
             <Sidebar
               meeting={meeting}

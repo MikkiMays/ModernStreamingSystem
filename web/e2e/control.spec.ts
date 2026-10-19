@@ -22,7 +22,7 @@ test('control reconnects and replays messages while remote video continues', asy
     await host.getByRole('button', { name: /Новая встреча/ }).click();
     await host.getByLabel('Ваше имя').fill('Организатор');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await host.getByRole('button', { name: 'Включить камеру' }).click();
     await host.getByRole('button', { name: 'Пригласить участников' }).click();
     const invite = await host.getByLabel('Ссылка приглашения').inputValue();
@@ -30,7 +30,7 @@ test('control reconnects and replays messages while remote video continues', asy
     await guest.goto(invite);
     await guest.getByLabel('Ваше имя').fill('Зритель');
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible();
     await expect
       .poll(() => guest.locator('video.camera-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
       .toBeGreaterThan(0);

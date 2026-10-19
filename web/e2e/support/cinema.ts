@@ -456,7 +456,7 @@ export async function startMeeting(page: Page, name = 'Майс') {
   await page.getByRole('button', { name: /Новая встреча/ }).click();
   await page.getByLabel('Ваше имя').fill(name);
   await page.getByRole('button', { name: 'Начать встречу' }).click();
-  await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 }
 
 /** Ссылка приглашения из окна «Пригласить участников». */
@@ -472,7 +472,7 @@ export async function joinMeeting(page: Page, invitation: string, name = 'Але
   await page.goto(invitation);
   await page.getByLabel('Ваше имя').fill(name);
   await page.getByRole('button', { name: 'Войти во встречу' }).click();
-  await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 }
 
 /**

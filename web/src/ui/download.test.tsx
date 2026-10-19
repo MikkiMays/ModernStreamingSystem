@@ -27,7 +27,7 @@ vi.mock('../core/download', async (original) => ({
 afterEach(cleanup);
 
 it('links the newest installer without printing its version', async () => {
-  const view = render(<Download theme="light" setTheme={() => {}} />);
+  const view = render(<Download />);
   const installer = await screen.findByRole('link', { name: /Скачать установщик/ });
   expect(installer).toHaveAttribute('href', release.installer.url);
   expect(view.container).toHaveTextContent('300 МБ');

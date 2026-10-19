@@ -7,6 +7,8 @@ import {
   type Favorite,
 } from '../core/favorites';
 import { orderedFavorites } from '../core/favorite-order';
+import { favoritesLimit } from '../core/favorite-groups';
+import { serverInfo } from '../core/session';
 
 const favoritesKey = () => ['favorites', favoriteProfile()] as const;
 
@@ -61,4 +63,10 @@ export function useReorderFavorites() {
     },
     onSettled: () => client.invalidateQueries({ queryKey: key }),
   });
+}
+
+/** Сколько комнат помещается в избранное на этом сервере (П3): `capabilities.favoritesMax` или 10. */
+export function useFavoritesLimit() {
+  const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: serverInfo, retry: 1 });
+  return favoritesLimit(capabilities.data);
 }

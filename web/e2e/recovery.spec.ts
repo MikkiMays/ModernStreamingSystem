@@ -22,7 +22,7 @@ test('media signaling recovers inside the fixed deadline without duplicating the
     await page.getByRole('button', { name: /Новая встреча/ }).click();
     await page.getByLabel('Ваше имя').fill('Смена сети');
     await page.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(page.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(page.locator('[data-media-status="connected"]')).toBeVisible();
     await page.getByRole('button', { name: 'Включить камеру' }).click();
     await expect
       .poll(() => page.locator('video.camera-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
@@ -39,7 +39,7 @@ test('media signaling recovers inside the fixed deadline without duplicating the
       await new Promise((resolve) => setTimeout(resolve, outage));
       blocked = false;
       for (const frame of buffered.splice(0)) frame.socket.send(frame.message);
-      await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 7000 });
+      await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 7000 });
       const snapshot = await page.request.get(`/api/v1/rooms/${credentials.roomId}`, {
         headers: { Authorization: `Bearer ${credentials.credential}` },
       });

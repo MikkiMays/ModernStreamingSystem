@@ -35,14 +35,14 @@ test('two real browser contexts exchange camera, audio and messages through Live
     await host.getByRole('button', { name: /Новая встреча/ }).click();
     await host.getByLabel('Ваше имя').fill('Майс');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
     await host.getByRole('button', { name: 'Пригласить участников', exact: true }).click();
     const invitation = await host.getByRole('textbox', { name: 'Ссылка приглашения' }).inputValue();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await guest.goto(invitation);
     await guest.getByLabel('Ваше имя').fill('Алекс');
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
     await host.getByRole('button', { name: 'Включить камеру', exact: true }).click();
     await host.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
     await expect(guest.locator('video[aria-label="Камера: Майс"]')).toBeVisible();
@@ -126,7 +126,7 @@ test('the call dock stays one row on a phone and nothing covers it', async ({ br
     await page.getByRole('button', { name: /Новая встреча/ }).click();
     await page.getByLabel('Ваше имя').fill('Тест');
     await page.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 
     const rows = async () =>
       page.evaluate(
