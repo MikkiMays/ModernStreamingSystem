@@ -231,6 +231,14 @@ public final class Contracts {
       long anchorAt,
       long revision) {}
 
+  /**
+   * Снимок комнаты глазами участника.
+   *
+   * <p>{@code ignoreUnknown} — ради отката: снимок лежит и в расписках входа ({@code
+   * command_receipts.response}), и образ ядра, который поля ещё не знает, должен прочитать повтор
+   * входа, а не упасть на нём. Защищает откат на образы начиная с этого.
+   */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
   public record Snapshot(
       String id,
       String title,
@@ -290,6 +298,8 @@ public final class Contracts {
    */
   public record RoomYou(List<String> can) {}
 
+  /** Расписка входа; {@code ignoreUnknown} — по той же причине, что у {@link Snapshot}. */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
   public record Admission(
       String roomId,
       String participantId,

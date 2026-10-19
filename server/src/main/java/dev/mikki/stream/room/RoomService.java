@@ -75,11 +75,14 @@ public class RoomService {
         () -> {
           if (!config.admissionOpen())
             throw new Problem(503, "DRAINING", "Сервер временно не принимает новые комнаты");
-          if (rooms.all().stream().filter(r -> r.busy(now())).count() >= config.maxRooms())
-            throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
           var room = new RoomState();
           room.id = UUID.randomUUID().toString();
+          // Здесь — до подсчёта слотов, а не после, как в остальных дверях: человек, который один
+          // держит встречу и согласился из неё выйти, освобождает слот себе же. Откажет подсчёт —
+          // выход откатится вместе со всем остальным.
           oneMeeting(room.id, entrant);
+          if (rooms.all().stream().filter(r -> r.busy(now())).count() >= config.maxRooms())
+            throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
           room.code = newCode();
           room.title = request.title().strip();
           room.createdAt = now();

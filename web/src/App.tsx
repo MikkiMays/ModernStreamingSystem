@@ -210,7 +210,8 @@ function Workspace() {
       void navigate().catch((e) => setError((e as Error).message));
     });
   }, [page, meeting, theme, avatar]);
-  const recent = async (id: string, restoring = false) => {
+  /** Открыть недавнюю встречу; `false` — открыть не вышло (ошибка уже показана). */
+  const recent = async (id: string, restoring = false, quiet = false) => {
     try {
       const admission = getRecent(id);
       if (!admission) throw new Error('Сессия не найдена');
@@ -222,9 +223,11 @@ function Workspace() {
         setDestination({ kind: 'recent', admission });
         setPage('prejoin');
       }
+      return true;
     } catch (e) {
-      setError((e as Error).message);
+      if (!quiet) setError((e as Error).message);
       if (e instanceof Error && 'status' in e && [403, 404, 410].includes(Number(e.status))) removeRecent(id);
+      return false;
     }
   };
   /**
@@ -232,11 +235,14 @@ function Workspace() {
    * есть. Дорога туда из этой вкладки — прежний вход в неё (недавние, `sessionStorage`) или
    * избранное. Нет ни того, ни другого — встреча идёт в другой вкладке или окне, и экран входа
    * скажет об этом сам (`false`).
+   *
+   * Прежний вход ведёт через экран входа и повторный вход (`restoring` не ставится): та же сессия
+   * в двух вкладках сразу означала бы один участник SFU на двоих, а повторный вход заменяет
+   * прежнюю сессию честно.
    */
   const goElsewhere = async ({ roomId }: { roomId: string }) => {
-    if (getRecent(roomId)) {
+    if (getRecent(roomId) && (await recent(roomId, false, true))) {
       setVisit((value) => value + 1);
-      await recent(roomId);
       return true;
     }
     const favorite = (await favoriteApi.list()).find((f) => f.roomId === roomId);

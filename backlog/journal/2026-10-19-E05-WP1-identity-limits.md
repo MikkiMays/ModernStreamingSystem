@@ -46,6 +46,14 @@
 транзакции и общего замка нет — `admissionIsAtomicForEverySeat` поймал дубль `room_events`. Перегрузки помечены
 `@Transactional` сами.
 
+**Ревью субагентом** (`feature-dev:code-reviewer`, по диффу `bdc817b..HEAD`): серьёзных ошибок нет; блокер
+слияния — нерегенерированные контракты (так и задумано, очередь 3.2). Поправлено по трём мелким находкам:
+в `create` «одна встреча» теперь до подсчёта слотов (выход освобождает слот себе же); `App.goElsewhere`
+считает «Перейти туда» удавшимся, только если прежний вход действительно открылся (`recent` возвращает
+`boolean`), иначе пробует избранное и окно говорит про другую вкладку; `Contracts.Snapshot` и `Admission`
+получили `ignoreUnknown` — расписка входа со `startedAt` при откате на следующие образы не падает (на образ
+до WP1 — по-прежнему, как и с `you`).
+
 ## Проверки
 
 | Проверка | Код выхода | Примечание |
@@ -59,6 +67,7 @@
 | то же: home, favorite-reorder, core/session | 0 | 3 файла, 14 тестов |
 | `npx prettier --check` на 14 тронутых файлах веба | 0 | |
 | `npx tsc -b` | 1 → 0 | первый — только `home.test.tsx` (образец без `quality`, с `main`), после правки чисто |
+| после ревью: `fmt:check`; `-Dtest=MeetingLimitsTest,RoomServiceTest,PermissionsTest,ContractsValidationTest`; `prettier --check src/App.tsx`; `tsc -b` | 0 / 0 / 0 / 0 | 118 тестов ядра |
 
 Нагрузка хоста во время работы — load average 20–32 на 4 vCPU; `RoomServiceTest` шёл 96–210 с.
 
