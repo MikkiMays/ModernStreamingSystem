@@ -28,8 +28,11 @@ MOUNT="$(docker volume inspect modern-streaming_certificates --format '{{.Mountp
   || { echo "Cannot inspect the certificate volume. Run this as root on the server." >&2; exit 1; }
 
 # Caddy nests issued certificates under whichever ACME directory it used, so the issuer
-# folder is discovered rather than assumed.
-SRC="$(find "$MOUNT/caddy/certificates" -type f -name "$DOMAIN.crt" 2>/dev/null | head -1)"
+# folder is discovered rather than assumed. The volume root is `/data` in the edge
+# container: the stock Caddy image keeps its storage in `/data/caddy`, caddyl4 straight in
+# `/data`, so both are searched. A missing folder is not an error: with `pipefail` it used
+# to end the script with a silent exit 1 instead of the explanation below.
+SRC="$(find "$MOUNT/caddy/certificates" "$MOUNT/certificates" -type f -name "$DOMAIN.crt" 2>/dev/null | head -1 || true)"
 if [[ -z "$SRC" ]]; then
   echo "No certificate for $DOMAIN yet. Check that the A record points here and that port 80 is reachable."
   exit 2
