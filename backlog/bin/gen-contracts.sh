@@ -34,11 +34,13 @@ docker run -d --name "$NAME-redis" --network host redis:8.6.6-alpine \
   redis-server --bind 127.0.0.1 --port $REDIS_PORT --requirepass "$SECRET" --save '' >/dev/null
 
 until docker exec "$NAME-pg" pg_isready -q -h 127.0.0.1 -p $PG_PORT -U streaming; do sleep 2; done
+until docker exec "$NAME-redis" redis-cli -p $REDIS_PORT -a "$SECRET" --no-auth-warning ping 2>/dev/null | grep -q PONG; do sleep 2; done
 
 docker run -d --name "$NAME-core" --network host --read-only --tmpfs /tmp \
   -e SERVER_ADDRESS=127.0.0.1 -e SERVER_PORT=$CORE_PORT -e SPRINGDOC_API_DOCS_ENABLED=true \
   -e DATABASE_URL="jdbc:postgresql://127.0.0.1:$PG_PORT/streaming" -e DATABASE_PASSWORD="$SECRET" \
   -e REDIS_HOST=127.0.0.1 -e SPRING_DATA_REDIS_PORT=$REDIS_PORT -e REDIS_PASSWORD="$SECRET" \
+  -e SPRING_DATA_REDIS_TIMEOUT=10s \
   -e LIVEKIT_API_KEY=contracts -e LIVEKIT_API_SECRET="$SECRET$SECRET" \
   -e SESSION_SECRET="$SECRET$SECRET" -e INTERNAL_SECRET="$SECRET$SECRET" \
   -e FILES_ROOT=/tmp/uploads \
