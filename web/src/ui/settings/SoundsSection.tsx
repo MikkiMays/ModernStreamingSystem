@@ -4,7 +4,7 @@ import type { GameKind, Preferences } from '../../core/preferences';
 import { NotificationSounds, ensureNotificationAudio } from '../../core/sounds';
 import { Slider, Switch } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
-import { row, rowDomId } from './sections';
+import { row } from './sections';
 
 /** Сигналы, которые можно прослушать: короткие, поэтому узнать их проще, чем описать. */
 const SAMPLES = [
@@ -86,27 +86,25 @@ export function SoundsSection({
           }
         />
       </SettingGroup>
-      <div id={rowDomId('sounds-games')}>
-        <SettingGroup title="Звуки игр">
-          {GAMES.map(([game, title]) => (
-            <div key={game} className="setting-row" data-disabled={!enabled || undefined}>
-              <div className="setting-row__text">
-                <span className="setting-row__label">{title}</span>
-              </div>
-              <div className="setting-row__control">
-                <Switch
-                  checked={preferences.gameSounds[game]}
-                  disabled={!enabled}
-                  ariaLabel={`Звуки игры: ${title}`}
-                  onCheckedChange={(on) =>
-                    void change({ gameSounds: { ...preferences.gameSounds, [game]: on } })
-                  }
-                />
-              </div>
+      <SettingGroup title="Звуки игр" id="sounds-games">
+        {GAMES.map(([game, title]) => (
+          <div key={game} className="setting-row" data-disabled={!enabled || undefined}>
+            <div className="setting-row__text">
+              <span className="setting-row__label">{title}</span>
             </div>
-          ))}
-        </SettingGroup>
-      </div>
+            <div className="setting-row__control">
+              <Switch
+                checked={preferences.gameSounds[game]}
+                disabled={!enabled}
+                ariaLabel={`Звуки игры: ${title}`}
+                onCheckedChange={(on) =>
+                  void change({ gameSounds: { ...preferences.gameSounds, [game]: on } })
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </SettingGroup>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { Mic, Square, Video, Volume2, Disc } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import type { Preferences } from '../../core/preferences';
 import type { LinkState } from '../../media/link-quality';
+import { qualityRules } from '../../media/capabilities';
 import { Button, Slider, Switch } from '../kit';
 import { useMicLevel } from '../useMicLevel';
 import { LevelBar, SettingGroup, SettingRow, SettingValue } from './Row';
@@ -116,11 +117,9 @@ export function VoiceSection({
     ) : null;
   // Во встрече полоса показывает, как вас слышат сейчас; своя проверка — пока она идёт.
   const level = check.mic ? check.level : published;
-  const micHint = check.mic
-    ? row('mic-check').hint
-    : meeting
-      ? 'Так вас слышат во встрече сейчас'
-      : undefined;
+  const micHint = meeting && !check.mic ? 'Так вас слышат во встрече сейчас' : undefined;
+  // Сервер может велеть камере уступать всем — тогда выключатель включён и не нажимается.
+  const serverYields = qualityRules().cameraYieldsToScreen;
   return (
     <>
       <SettingGroup title="Микрофон" anchor="microphone">
@@ -163,6 +162,7 @@ export function VoiceSection({
                 variant="secondary"
                 icon={<Disc />}
                 disabled={check.recording}
+                aria-label={check.recording ? 'Записываем пробу микрофона' : 'Записать 5 с пробы микрофона'}
                 onClick={check.record}
               >
                 {check.recording ? 'Записываем…' : 'Записать 5 с'}
@@ -173,7 +173,7 @@ export function VoiceSection({
               variant={check.mic ? 'secondary' : 'primary'}
               icon={check.mic ? <Square /> : <Mic />}
               loading={check.busy === 'microphone'}
-              aria-pressed={check.mic}
+              aria-label={check.mic ? 'Остановить проверку микрофона' : 'Проверить микрофон'}
               onClick={() => void check.toggle('microphone')}
             >
               {check.mic ? 'Остановить' : 'Проверить'}
@@ -207,7 +207,13 @@ export function VoiceSection({
           </div>
         </SettingRow>
         <SettingRow id="output-check" below={failure('speaker')}>
-          <Button size="sm" variant="secondary" icon={<Volume2 />} onClick={() => void check.speaker()}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Volume2 />}
+            aria-label="Проверить динамики"
+            onClick={() => void check.speaker()}
+          >
             Проверить
           </Button>
         </SettingRow>
@@ -237,9 +243,10 @@ export function VoiceSection({
             else void change({ camera });
           }}
         />
-        <SettingRow id="camera-yields">
+        <SettingRow id="camera-yields" hint={serverYields ? 'Так настроен этот сервер' : undefined}>
           <Switch
-            checked={preferences.cameraYieldsToScreen}
+            checked={serverYields || preferences.cameraYieldsToScreen}
+            disabled={serverYields}
             ariaLabel={row('camera-yields').label}
             onCheckedChange={(cameraYieldsToScreen) => void change({ cameraYieldsToScreen })}
           />
@@ -267,7 +274,7 @@ export function VoiceSection({
             variant="secondary"
             icon={check.camera ? <Square /> : <Video />}
             loading={check.busy === 'camera'}
-            aria-pressed={check.camera}
+            aria-label={check.camera ? 'Скрыть превью камеры' : 'Показать превью камеры'}
             onClick={() => void check.toggle('camera')}
           >
             {check.camera ? 'Скрыть' : 'Показать'}

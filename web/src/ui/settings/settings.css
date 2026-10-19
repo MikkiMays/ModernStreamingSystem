@@ -301,6 +301,10 @@ input.settings-search__input {
   margin-bottom: var(--space-5);
   padding-right: var(--space-12);
 }
+/* Заголовок получает фокус только сам (переход из поиска к разделу без строки) — кольцо не нужно. */
+.settings-content__title:focus {
+  outline: none;
+}
 .settings-content__title {
   margin: 0;
   font-size: var(--text-xl);
@@ -645,6 +649,9 @@ input.settings-search__input {
 }
 
 /* ---------- аккаунты (T33) ---------- */
+.setting-account:focus {
+  outline: none;
+}
 .setting-account__who {
   display: flex;
   align-items: center;

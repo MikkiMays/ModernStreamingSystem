@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { Music, Send, type LucideIcon } from 'lucide-react';
 import { ACCOUNTS, connected, type AccountSpec, type TokenAccount } from '../../core/accounts';
 import type { Preferences } from '../../core/preferences';
@@ -68,11 +68,17 @@ function AccountRow({
   change: (patch: Partial<Preferences>) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  // Нажатая кнопка исчезает (форма закрылась, «Сбросить» сменилось «Подключить») — фокус
+  // остаётся на строке сервиса, а не падает в начало страницы.
+  const self = useRef<HTMLDivElement>(null);
+  const settle = () => requestAnimationFrame(() => self.current?.focus({ preventScroll: true }));
   const Icon = ICONS[account.id] ?? Music;
   const on = connected(account, preferences);
   const state = account.soon ? null : on ? 'Подключено' : 'Не подключено';
   return (
     <div
+      ref={self}
+      tabIndex={-1}
       className="setting-row setting-account"
       id={rowDomId(`account-${account.id}` as RowId)}
       data-service={account.id}
@@ -96,7 +102,10 @@ function AccountRow({
               size="sm"
               variant="quiet"
               aria-label={`Сбросить: ${account.name}`}
-              onClick={() => void change({ [account.key]: '' } as Partial<Preferences>)}
+              onClick={() => {
+                void change({ [account.key]: '' } as Partial<Preferences>);
+                settle();
+              }}
             >
               Сбросить
             </Button>
@@ -118,10 +127,14 @@ function AccountRow({
         <div className="setting-row__below">
           <TokenForm
             account={account}
-            onCancel={() => setEditing(false)}
+            onCancel={() => {
+              setEditing(false);
+              settle();
+            }}
             onSave={(value) => {
               void change({ [account.key]: value } as Partial<Preferences>);
               setEditing(false);
+              settle();
             }}
           />
         </div>

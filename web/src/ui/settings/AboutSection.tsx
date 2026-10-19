@@ -79,7 +79,13 @@ export function AboutSection() {
           }
         >
           <div className="setting-actions">
-            <Button size="sm" icon={<RefreshCw />} loading={checking} onClick={check}>
+            <Button
+              size="sm"
+              icon={<RefreshCw />}
+              loading={checking}
+              aria-label="Проверить обновления"
+              onClick={check}
+            >
               Проверить
             </Button>
             {desktop && shell.available && (

@@ -12,7 +12,6 @@ import { desktopHotkeyStatus, notifyDesktop } from '../../core/desktop';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
-import { rowDomId } from './sections';
 
 const TEXT = {
   // T27, слова владельца: на сайте — только в активной вкладке, на устройстве — всегда.
@@ -152,7 +151,13 @@ export function HotkeysSection({
               size="sm"
               variant={recording ? 'primary' : 'secondary'}
               data-hotkey-recorder
-              aria-pressed={recording}
+              aria-label={
+                recording
+                  ? `${TEXT.cancelHint} записи сочетания`
+                  : value
+                    ? 'Изменить сочетание микрофона'
+                    : 'Назначить сочетание микрофона'
+              }
               onClick={() => {
                 setRefused(null);
                 setRecording(true);
@@ -187,33 +192,47 @@ export function HotkeysSection({
               {recording ? TEXT.cancelHint : value ? 'Изменить' : 'Назначить'}
             </Button>
             {!recording && !isDefault && (
-              <Button size="sm" variant="quiet" onClick={() => change({ ...defaultMicHotkey })}>
+              <Button
+                size="sm"
+                variant="quiet"
+                aria-label="По умолчанию — сочетание микрофона"
+                onClick={() => {
+                  setRefused(null);
+                  change({ ...defaultMicHotkey });
+                }}
+              >
                 По умолчанию
               </Button>
             )}
             {!recording && value && (
-              <Button size="sm" variant="quiet" onClick={() => change(null)}>
+              <Button
+                size="sm"
+                variant="quiet"
+                aria-label="Отключить сочетание микрофона"
+                onClick={() => {
+                  setRefused(null);
+                  change(null);
+                }}
+              >
                 Отключить
               </Button>
             )}
           </div>
         </SettingRow>
       </SettingGroup>
-      <div id={rowDomId('hotkey-other')}>
-        <SettingGroup title="Клавиши кинозала и игр" defaultOpen={false}>
-          {OTHER_KEYS.map((group) => (
-            <div key={group.title} className="setting-keymap">
-              <h4 className="setting-keymap__title">{group.title}</h4>
-              {group.keys.map(([parts, action]) => (
-                <div key={`${group.title}-${parts.join()}`} className="setting-keymap__row">
-                  <Keys parts={parts} />
-                  <span>{action}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </SettingGroup>
-      </div>
+      <SettingGroup title="Клавиши кинозала и игр" id="hotkey-other" defaultOpen={false}>
+        {OTHER_KEYS.map((group) => (
+          <div key={group.title} className="setting-keymap">
+            <h4 className="setting-keymap__title">{group.title}</h4>
+            {group.keys.map(([parts, action]) => (
+              <div key={`${group.title}-${parts.join()}`} className="setting-keymap__row">
+                <Keys parts={parts} />
+                <span>{action}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </SettingGroup>
     </>
   );
 }

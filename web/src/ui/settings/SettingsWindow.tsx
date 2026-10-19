@@ -105,10 +105,15 @@ export function SettingsWindow({
   const [view, setView] = useState<'list' | 'section'>(section ? 'section' : 'list');
   const [query, setQuery] = useState('');
   const [spy, setSpy] = useState<string | undefined>(undefined);
-  const content = useRef<HTMLDivElement>(null);
+  // Правая часть — состоянием, а не ссылкой: окно рождается закрытым, и эффекты, которым она
+  // нужна (прокрутка к месту, подсветка якоря), должны повториться, когда она появилась.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  // Куда отдать фокус после перехода из поиска: нажатая строка результата исчезает.
+  const focusAfter = useRef(false);
   const context = window.chrome?.webview ? 'desktop' : 'browser';
 
-  const go = (next: Place, row?: SearchHit['row']) => {
+  const go = (next: Place, row?: SearchHit['row'], focus = false) => {
+    focusAfter.current = focus;
     setPlace(next);
     setView('section');
     setTarget((previous) => ({ anchor: next.anchor, row, nonce: previous.nonce + 1 }));
@@ -125,25 +130,32 @@ export function SettingsWindow({
 
   // Переход: к строке, к подразделу или в начало раздела — после того, как раздел нарисован.
   useLayoutEffect(() => {
-    const scroller = content.current;
     if (!scroller || !target.nonce) return;
-    const goal = target.row
-      ? document.getElementById(rowDomId(target.row))
-      : target.anchor
-        ? document.getElementById(anchorDomId(target.anchor))
-        : null;
+    const anchor = target.anchor ? document.getElementById(anchorDomId(target.anchor)) : null;
+    const row = target.row ? document.getElementById(rowDomId(target.row)) : null;
+    // Строка, которой не видно (её нет в этом месте или она в скрытом теле), — к подразделу.
+    const goal = row && row.getClientRects().length ? row : anchor;
     if (goal) {
       const top =
         goal.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
       scroller.scrollTop = Math.max(0, top - 16);
     } else scroller.scrollTop = 0;
     setSpy(target.anchor ?? sectionSpec(place.section).anchors[0]?.id);
-  }, [target, place.section, view]);
+    if (focusAfter.current) {
+      focusAfter.current = false;
+      // Фокус — на управление найденной строки; не вышло (строки здесь нет) — на заголовок раздела.
+      const control = (row ?? goal)?.querySelector<HTMLElement>(
+        'input, select, button, [role="switch"], [tabindex]',
+      );
+      control?.focus({ preventScroll: true });
+      if (!control || document.activeElement !== control)
+        scroller.querySelector<HTMLElement>('.settings-content__title')?.focus({ preventScroll: true });
+    }
+  }, [target, place.section, view, scroller]);
 
   // Какой подраздел сейчас на экране — его якорь слева подсвечен.
   const anchors = sectionSpec(place.section).anchors;
   useEffect(() => {
-    const scroller = content.current;
     if (!scroller || !anchors.length) return;
     let frame = 0;
     const measure = () => {
@@ -164,7 +176,7 @@ export function SettingsWindow({
       scroller.removeEventListener('scroll', onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [anchors, view]);
+  }, [anchors, view, scroller]);
 
   /**
    * Сохранить настройку — и, если это картинка профиля, дождаться ответа комнаты.
@@ -266,7 +278,7 @@ export function SettingsWindow({
                             type="button"
                             className="settings-result"
                             onClick={() => {
-                              go({ section: hit.section, anchor: hit.anchor }, hit.row);
+                              go({ section: hit.section, anchor: hit.anchor }, hit.row, true);
                               setQuery('');
                             }}
                           >
@@ -324,7 +336,7 @@ export function SettingsWindow({
                 ))
               )}
             </nav>
-            <div className="settings-content" ref={content}>
+            <div className="settings-content" ref={setScroller}>
               <header className="settings-content__head">
                 {phone && (
                   <IconButton
@@ -335,7 +347,9 @@ export function SettingsWindow({
                     <ChevronLeft size={20} />
                   </IconButton>
                 )}
-                <h2 className="settings-content__title">{current.title}</h2>
+                <h2 className="settings-content__title" tabIndex={-1}>
+                  {current.title}
+                </h2>
               </header>
               <SettingsTargetContext.Provider value={target}>
                 <div className="settings-content__body" data-section={current.id}>

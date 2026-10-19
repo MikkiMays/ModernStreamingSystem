@@ -57,7 +57,7 @@ export function ServerSection({
       {!!saved.password && (
         <SettingRow id="server-password">
           <Button size="sm" variant="quiet" onClick={() => setSaved(rememberServer({ password: '' }))}>
-            Забыть
+            Забыть пароль
           </Button>
         </SettingRow>
       )}

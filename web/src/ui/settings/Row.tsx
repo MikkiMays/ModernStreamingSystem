@@ -96,6 +96,7 @@ export function SettingRow({
 export function SettingGroup({
   title,
   anchor,
+  id,
   note,
   defaultOpen = true,
   collapsible = true,
@@ -103,6 +104,8 @@ export function SettingGroup({
 }: {
   title: string;
   anchor?: string;
+  /** Группа сама — строка карты (её находит поиск): «Звуки игр», «Клавиши кинозала и игр». */
+  id?: RowId;
   /** Одна строка под заголовком — для всей группы сразу. */
   note?: ReactNode;
   defaultOpen?: boolean;
@@ -111,15 +114,23 @@ export function SettingGroup({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const target = useContext(SettingsTargetContext);
-  useEffect(() => {
-    if (anchor && target.anchor === anchor && target.nonce) setOpen(true);
-  }, [anchor, target.anchor, target.nonce]);
+  /*
+    Переход сюда раскрывает группу ещё при отрисовке, а не эффектом после неё: окно меряет место
+    строки в своём эффекте раскладки, и строка в скрытом теле дала бы ноль — прокрутка ушла бы в
+    начало раздела, а подсветка мигнула бы за краем.
+  */
+  const [seen, setSeen] = useState(0);
+  const aimed = (!!anchor && target.anchor === anchor) || (!!id && target.row === id);
+  if (aimed && target.nonce && target.nonce !== seen) {
+    setSeen(target.nonce);
+    if (!open) setOpen(true);
+  }
   const base = useId();
   const shown = open || !collapsible;
   return (
     <section
       className="setting-group"
-      id={anchor ? anchorDomId(anchor) : undefined}
+      id={anchor ? anchorDomId(anchor) : id ? rowDomId(id) : undefined}
       aria-labelledby={`${base}-title`}
       data-open={shown || undefined}
     >

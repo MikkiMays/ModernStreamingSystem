@@ -51,7 +51,10 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('combobox', { name: 'Устройство ввода' })).toBeInTheDocument();
     expect(screen.getByRole('slider', { name: 'Громкость микрофона' })).toBeDisabled();
     expect(screen.getByRole('meter', { name: 'Уровень микрофона' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Проверить', pressed: false })).toBeInTheDocument();
+    // У одинаковых на вид «Проверить» — разные имена для диктора.
+    expect(screen.getByRole('button', { name: 'Проверить микрофон' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Проверить динамики' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Показать превью камеры' })).toBeInTheDocument();
     // Качество — только из правил сервера: без «Авто» и без 1440p (E05).
     const camera = screen.getByRole('combobox', { name: 'Камера: качество' });
     expect(
@@ -87,6 +90,46 @@ describe('окно настроек (T26)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Яндекс Музыка/ }));
     expect(heading()).toHaveTextContent('Аккаунты');
     expect(screen.getByRole('searchbox', { name: 'Найти настройку' })).toHaveValue('');
+  });
+
+  it('найденная строка в свёрнутой группе раскрывает группу и получает фокус', () => {
+    render(<Settings open onOpenChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: false })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
+      target: { value: 'буфер' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Запас буфера приёма/ }));
+    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: true })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Запас буфера приёма' })).toHaveFocus();
+  });
+
+  it('группа без подраздела раскрывается по своей строке поиска', () => {
+    render(<Settings open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
+      target: { value: 'клавиши кинозала' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Клавиши кинозала и игр/ }));
+    expect(heading()).toHaveTextContent('Горячие клавиши');
+    expect(
+      screen.getByRole('button', { name: 'Клавиши кинозала и игр', expanded: true }),
+    ).toBeInTheDocument();
+  });
+
+  it('если камере велит уступать сервер, выключатель включён и не нажимается', () => {
+    localStorage.setItem(
+      'cord:quality:v1',
+      JSON.stringify({
+        default: { resolution: 720, fps: 30 },
+        ceiling: { resolution: 1080, fps: 60 },
+        settleMs: 4000,
+        cameraYieldsToScreen: true,
+      }),
+    );
+    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
+    const yields = screen.getByRole('switch', { name: 'Уступать показу экрана' });
+    expect(yields).toBeChecked();
+    expect(yields).toHaveAttribute('data-disabled');
+    expect(screen.getByText('Так настроен этот сервер')).toBeInTheDocument();
   });
 });
 
@@ -140,7 +183,7 @@ describe('профиль и оформление (T41)', () => {
 
 describe('«Горячие клавиши» (T27)', () => {
   const record = (init: KeyboardEventInit) => {
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить сочетание микрофона' }));
     fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, init);
   };
 
@@ -162,8 +205,12 @@ describe('«Горячие клавиши» (T27)', () => {
     expect(readPreferences().micHotkey).toMatchObject({ code: 'Space', ctrl: false });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText(/«пауза» в плеере кинозала/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'По умолчанию' }));
+    // Отказ не висит после того, как сочетание сменили другой кнопкой.
+    record({ code: 'KeyT', key: 't', ctrlKey: true });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'По умолчанию — сочетание микрофона' }));
     expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('Esc отменяет запись, а модификаторы без клавиши её не заканчивают', () => {
@@ -171,7 +218,7 @@ describe('«Горячие клавиши» (T27)', () => {
     record({ code: 'ControlLeft', key: 'Control', ctrlKey: true });
     expect(screen.getByText('Ctrl + …')).toBeInTheDocument();
     fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, { code: 'Escape', key: 'Escape' });
-    expect(screen.getByRole('button', { name: 'Изменить' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toBeInTheDocument();
     expect(readPreferences().micHotkey?.code).toBe('KeyM');
   });
 
