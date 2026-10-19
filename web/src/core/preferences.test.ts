@@ -2,17 +2,43 @@ import { beforeEach, expect, it } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
-  expect(readPreferences().camera.automatic).toBe(true);
-  savePreferences({ screen: { resolution: 1440, fps: 60, automatic: false } });
+  // Умолчание — с сервера (здесь встроенное 720p30): «Авто» больше нет.
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  savePreferences({ screen: { resolution: 1080, fps: 60 } });
   expect(readPreferences().screen.fps).toBe(60);
-  // «Авто» — стартовая ступень лестницы, а не самый скромный уровень, какой бывает.
-  expect(readPreferences().camera.resolution).toBe(1080);
+  expect(readPreferences().camera.resolution).toBe(720);
   localStorage.setItem(
     'cord:preferences:v1',
     JSON.stringify({ camera: { resolution: 9999, fps: -1 }, devices: { microphone: 42 } }),
   );
   expect(readPreferences().camera.fps).toBe(30);
   expect(readPreferences().devices).toEqual({});
+});
+
+/**
+ * Старые записи: «Авто» и 1440p. Первое — уровень по умолчанию с сервера, второе — потолок.
+ * Сама запись не переписывается: другой сервер может разрешать больше.
+ */
+it('мигрирует сохранённые «Авто» и 1440p к ближайшему допустимому уровню, не трогая запись', () => {
+  const saved = {
+    camera: { resolution: 1080, fps: 30, automatic: true },
+    screen: { resolution: 1440, fps: 60, automatic: false },
+  };
+  localStorage.setItem('cord:preferences:v1', JSON.stringify(saved));
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().screen).toEqual({ resolution: 1080, fps: 60 });
+  expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).toEqual(saved);
+  // Сервер, который разрешает 1440p, возвращает выбор человека сам.
+  localStorage.setItem(
+    'cord:quality:v1',
+    JSON.stringify({
+      default: { resolution: 720, fps: 30 },
+      ceiling: { resolution: 1440, fps: 60 },
+      settleMs: 4000,
+      cameraYieldsToScreen: false,
+    }),
+  );
+  expect(readPreferences().screen).toEqual({ resolution: 1440, fps: 60 });
 });
 
 it('migrates the display name and validates stored audio and hotkeys', () => {
@@ -66,11 +92,11 @@ it('keeps the network mode automatic until asked otherwise, and rejects an unkno
  */
 it('помнит качество приёма отдельно от качества отдачи', () => {
   expect(readPreferences().reception).toBe('fit');
-  savePreferences({ camera: { resolution: 1440, fps: 60, automatic: false } });
+  savePreferences({ camera: { resolution: 1080, fps: 60 } });
   expect(readPreferences().reception).toBe('fit');
   savePreferences({ reception: 'best' });
   expect(readPreferences().reception).toBe('best');
-  expect(readPreferences().camera.automatic).toBe(false);
+  expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 60 });
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ reception: 'как можно лучше' }));
   expect(readPreferences().reception).toBe('fit');
 });
