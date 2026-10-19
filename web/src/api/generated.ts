@@ -502,6 +502,8 @@ export interface components {
         };
         Capabilities: {
             admissionOpen: boolean;
+            /** Format: int32 */
+            favoritesMax: number;
             /** Format: int64 */
             fileMaxBytes: number;
             frameRates: number[];
@@ -1222,6 +1224,8 @@ export interface components {
             sequence: number;
             /** Format: int64 */
             serverTime: number;
+            /** Format: int64 */
+            startedAt?: null | number;
             title: string;
             watch: components["schemas"]["Watch"] | null;
             you?: components["schemas"]["RoomYou"] | null;

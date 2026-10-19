@@ -185,6 +185,10 @@
           "admissionOpen": {
             "type": "boolean"
           },
+          "favoritesMax": {
+            "format": "int32",
+            "type": "integer"
+          },
           "fileMaxBytes": {
             "format": "int64",
             "type": "integer"
@@ -234,6 +238,7 @@
         },
         "required": [
           "admissionOpen",
+          "favoritesMax",
           "fileMaxBytes",
           "frameRates",
           "maxParticipants",
@@ -2870,6 +2875,13 @@
           "serverTime": {
             "format": "int64",
             "type": "integer"
+          },
+          "startedAt": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
           },
           "title": {
             "type": "string"
