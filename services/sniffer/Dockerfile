@@ -20,19 +20,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certifi
     && groupadd --gid 10001 cord && useradd --uid 10001 --gid cord --no-create-home cord
 # Из кинозала службы — только выход, его защита и разбор ссылки; пакеты с пустыми `__init__`, чтобы не
 # тянуть за ними фасад кинозала со всеми его зависимостями.
-COPY services/cord_services/cinema/net.py services/cord_services/cinema/egress.py \
+# Права задаются здесь, а не берутся из рабочей копии: клон под `umask 077` даёт файлы 0600, и
+# пользователь 10001 не может прочитать собственный код. Кэш слоёв BuildKit смену одних прав не
+# замечает, так что исправленная потом рабочая копия слой не пересобрала бы.
+COPY --chmod=u=rwX,go=rX services/cord_services/cinema/net.py services/cord_services/cinema/egress.py \
     services/cord_services/cinema/address.py ./cord_services/cinema/
 RUN touch cord_services/__init__.py cord_services/cinema/__init__.py
 COPY --chmod=0755 services/sniffer/chrome.sh ./chrome.sh
-COPY services/sniffer/sniffer ./sniffer
+COPY --chmod=u=rwX,go=rX services/sniffer/sniffer ./sniffer
 
 # Тесты плеера страниц: страницы-фикстуры служат сами тесты, внутри контейнера и без сети. hls.js — той же
 # версии и с той же подписью, что у веба; поток — тот же HLS, что у e2e веба.
 FROM base AS test
-COPY services/sniffer/tests/fixtures/hlsjs.py /tmp/hlsjs.py
+COPY --chmod=u=rwX,go=rX services/sniffer/tests/fixtures/hlsjs.py /tmp/hlsjs.py
 RUN python /tmp/hlsjs.py /opt/fixtures && rm /tmp/hlsjs.py
-COPY web/e2e/fixtures/hls /opt/fixtures/hls
-COPY services/sniffer/tests /tests
+COPY --chmod=u=rwX,go=rX web/e2e/fixtures/hls /opt/fixtures/hls
+COPY --chmod=u=rwX,go=rX services/sniffer/tests /tests
 USER 10001:10001
 ENTRYPOINT ["python", "-m", "unittest", "discover", "-s", "/tests"]
 CMD ["-v"]

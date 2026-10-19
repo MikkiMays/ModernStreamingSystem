@@ -20,6 +20,9 @@ WORKDIR /app
 COPY services/requirements.lock ./requirements.lock
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY --from=publisher /cord-publisher /usr/local/bin/cord-publisher
-COPY services/cord_services ./cord_services
+# Modes are set here, not inherited from the checkout: a clone made under `umask 077` gives
+# 0600 files, and user 10001 then cannot import its own code. BuildKit's layer cache ignores
+# mode-only changes, so fixing the checkout afterwards would not rebuild the layer.
+COPY --chmod=u=rwX,go=rX services/cord_services ./cord_services
 USER 10001:10001
 CMD ["uvicorn", "cord_services.app:create_app", "--factory", "--host", "127.0.0.1", "--port", "18100", "--no-access-log", "--log-level", "warning"]
