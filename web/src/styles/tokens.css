@@ -53,10 +53,13 @@
   --palette-red-600: #b8262e;
   --palette-red-700: #c21f29;
   --palette-red-900: #4a1b1f;
-  /* зелёный: голос, «идёт» */
+  /* зелёный: голос, «идёт»; 200, 450 и 600 — ступени громкости голоса (T23) */
+  --palette-green-200: #8ff0b8;
   --palette-green-300: #4fd48a;
   --palette-green-400: #45d17f;
+  --palette-green-450: #33a865;
   --palette-green-500: #2f9e5f;
+  --palette-green-600: #2b7d4f;
   --palette-green-700: #1b7a47;
   /* янтарь: предупреждение */
   --palette-amber-300: #f2c14e;
@@ -133,10 +136,12 @@
   --dock-bg: #1a1f28;
   --dock-text: var(--stage-text);
   --voice: var(--palette-green-400);
-  --voice-1: rgb(69 209 127 / 0.25);
-  --voice-2: rgb(69 209 127 / 0.5);
-  --voice-3: rgb(69 209 127 / 0.75);
-  --voice-4: var(--palette-green-400);
+  /* Ступени громкости (T23): тихо, речь, громко, пик — от глубокого зелёного к светлому, все ≥ 3:1
+     к сцене. Прозрачность вместо оттенка терялась на пёстром кадре. */
+  --voice-1: var(--palette-green-600);
+  --voice-2: var(--palette-green-450);
+  --voice-3: var(--palette-green-400);
+  --voice-4: var(--palette-green-200);
   --live: var(--palette-red-500);
   --on-live: var(--palette-white);
 }
@@ -308,6 +313,7 @@
   --danger: var(--palette-red-300);
   --danger-soft: var(--palette-red-900);
   --success: var(--palette-green-300);
+  --warning: var(--palette-amber-300);
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.04);
   --shadow-2:
     0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),

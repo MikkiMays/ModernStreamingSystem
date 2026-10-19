@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { PokerSeat, PokerTable } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
+import { VoiceLevels } from '../media/levels';
 import PokerScene, { Slide } from './PokerTable';
 vi.mock('../core/sounds', () => ({
   signal: vi.fn(),
@@ -96,10 +97,12 @@ function table(patch: Partial<PokerTable> = {}): PokerTable {
 
 it('asks the server for a seat instead of choosing one from a stale snapshot', () => {
   const command = vi.fn().mockResolvedValue(undefined);
+  const tracks = new Store([]);
+  const speaking = new Store<string[]>([]);
   const room = {
     admission: { participantId: 'spectator', roomId: 'room' },
     snapshot: new Store({ participants: [] }),
-    media: { tracks: new Store([]), preferences: new Store({}), speaking: new Store([]) },
+    media: { tracks, preferences: new Store({}), speaking, levels: new VoiceLevels(tracks, speaking) },
     control: { state: new Store('connected') },
     serverNow: () => 10000,
     command,

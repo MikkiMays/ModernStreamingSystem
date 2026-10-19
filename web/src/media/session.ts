@@ -46,6 +46,7 @@ import {
 import { signal } from '../core/sounds';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
+import { VoiceLevels } from './levels';
 import { browserCapture, ownAudioLeaks, type CaptureAdapter } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
@@ -176,8 +177,14 @@ export class MediaSession {
   readonly deafened = new Store(false);
   /** Что мы отдаём прямо сейчас, по измерению, а не по настройке. */
   readonly outbound = new Store<OutboundVideo | null>(null);
-  /** Кто сейчас говорит — по данным SFU, а не по громкости, посчитанной в странице. */
+  /**
+   * Кто сейчас говорит — по данным SFU: сглажено и с задержкой сервера. Им выбирается крупный план
+   * в раскладке «Говорящий» (там задержка — достоинство: плитка не прыгает на каждом «угу»), а
+   * обводки плиток, списка и лиц в играх читают `levels`.
+   */
   readonly speaking = new Store<string[]>([]);
+  /** Громкость голоса каждого — меряет сам зритель, без сети (T23, `media/levels.ts`). */
+  readonly levels = new VoiceLevels(this.tracks, this.speaking);
   /** Последний кадр чужой демонстрации: participantId → ссылка на картинку. */
   readonly screenPreviews = new Store<Record<string, string>>({});
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
@@ -1734,6 +1741,7 @@ export class MediaSession {
     this.previewImages.clear();
     this.screenPreviews.set({});
     this.speaking.set([]);
+    this.levels.dispose();
     this.screenTracks.forEach((t) => t.stop());
     this.deviceTracks.forEach((t) => t.stop());
     this.deviceTracks.clear();
