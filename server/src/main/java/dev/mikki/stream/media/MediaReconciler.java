@@ -1,7 +1,9 @@
 package dev.mikki.stream.media;
 
+import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,17 +20,22 @@ public class MediaReconciler {
   private final MediaGateway gateway;
   private final Lifecycle lifecycle;
 
+  /** Запасной путь открытия показа ждёт окно разгона — почему, в самом классе. */
+  private final ScreenGrace grace;
+
   public MediaReconciler(
       RoomRepository repository,
       RoomService rooms,
       MediaService media,
       MediaGateway gateway,
-      Lifecycle lifecycle) {
+      Lifecycle lifecycle,
+      StreamProperties config) {
     this.repository = repository;
     this.rooms = rooms;
     this.media = media;
     this.gateway = gateway;
     this.lifecycle = lifecycle;
+    this.grace = new ScreenGrace(config.media().quality().settle().toMillis());
   }
 
   @Scheduled(fixedDelay = 1000)
@@ -39,6 +46,7 @@ public class MediaReconciler {
 
   @Scheduled(fixedDelay = 2000)
   public void reconcile() {
+    var pending = new HashSet<String>();
     for (var room : repository.all()) {
       if (room.closedAt != null && room.mediaDrained) continue;
       try {
@@ -65,12 +73,18 @@ public class MediaReconciler {
               || !member.mediaAllowed()
               || screens > 1
               || (screens > 0 && !member.screen)) gateway.remove(room.id, identity);
-          else if (screens == 1 && !member.screenStarted)
-            media.screenObserved(room.id, identity, p.getSid());
+          else if (screens == 1 && !member.screenStarted) {
+            // Отправитель сам скажет, когда пошёл кадр целевого качества (T48); этот путь — для
+            // клиентов, которые команды не знают, и срабатывает не раньше окна разгона.
+            var key = room.id + ":" + identity + ":" + p.getSid();
+            pending.add(key);
+            if (grace.due(key, observedAt)) media.screenObserved(room.id, identity, p.getSid());
+          }
         }
       } catch (dev.mikki.stream.shared.Problem ignored) {
         // An unavailable SFU is not evidence that every participant has left.
       }
     }
+    grace.keepOnly(pending);
   }
 }

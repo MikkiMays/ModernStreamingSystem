@@ -49,6 +49,8 @@ public class OpenApiConfig {
               "Replay",
               "Watch",
               "Capabilities",
+              "QualityRules",
+              "Level",
               "TableView",
               "SeatView",
               "PotView",

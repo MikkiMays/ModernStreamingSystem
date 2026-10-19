@@ -5,6 +5,7 @@ import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
 import dev.mikki.stream.application.CommandDispatcher;
 import dev.mikki.stream.attachment.AttachmentService;
+import dev.mikki.stream.config.Level;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.media.*;
 import dev.mikki.stream.room.*;
@@ -33,7 +34,17 @@ public class ApiController {
       // What the connect screen needs before it may ask for anything: how this server calls
       // itself, and whether it will want a password.
       String name,
-      boolean passwordRequired) {}
+      boolean passwordRequired,
+      // Правила качества видео: сервер задаёт, клиент исполняет (П2). `resolutions` и
+      // `frameRates` выше — список допустимого, выведенный из потолка; здесь — умолчание, сам
+      // потолок и окно разгона.
+      QualityRules quality) {}
+
+  public record QualityRules(
+      @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
+      Level ceiling,
+      long settleMs,
+      boolean cameraYieldsToScreen) {}
 
   public record Screen(@NotNull UUID commandId, boolean enabled) {}
 
@@ -72,18 +83,24 @@ public class ApiController {
 
   @GetMapping("/capabilities")
   public Capabilities capabilities() {
+    var quality = config.media().quality();
     return new Capabilities(
         config.maxParticipants(),
         config.maxScreens(),
         config.recoverySeconds(),
         config.fileMaxBytes(),
         config.roomMaxBytes(),
-        List.of(720, 1080, 1440),
-        List.of(15, 30, 60),
+        Level.RESOLUTIONS.stream().filter(r -> r <= quality.ceiling().resolution()).toList(),
+        Level.FRAME_RATES.stream().filter(f -> f <= quality.ceiling().fps()).toList(),
         config.admissionOpen(),
         "Europe",
         access.name(),
-        access.required());
+        access.required(),
+        new QualityRules(
+            quality.initial(),
+            quality.ceiling(),
+            quality.settle().toMillis(),
+            quality.cameraYieldsToScreen()));
   }
 
   @PostMapping("/rooms")
