@@ -1,5 +1,6 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.Identity;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
@@ -38,7 +39,10 @@ public class ApiController {
       // Правила качества видео: сервер задаёт, клиент исполняет (П2). `resolutions` и
       // `frameRates` выше — список допустимого, выведенный из потолка; здесь — умолчание, сам
       // потолок и окно разгона.
-      QualityRules quality) {}
+      QualityRules quality,
+      // Сколько встреч профиль устройства хранит в избранном (T06, П3): интерфейс пишет «N из
+      // этого числа», не зашивая его. Сколько людей во встрече — `maxParticipants` выше, без ботов.
+      int favoritesMax) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -56,6 +60,7 @@ public class ApiController {
   private final RateLimits limits;
   private final ServerAccess access;
   private final ClientAddress address;
+  private final Identity identity;
 
   public ApiController(
       RoomService rooms,
@@ -65,7 +70,8 @@ public class ApiController {
       StreamProperties config,
       RateLimits limits,
       ServerAccess access,
-      ClientAddress address) {
+      ClientAddress address,
+      Identity identity) {
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
@@ -74,6 +80,7 @@ public class ApiController {
     this.limits = limits;
     this.access = access;
     this.address = address;
+    this.identity = identity;
   }
 
   @GetMapping("/ping")
@@ -100,21 +107,28 @@ public class ApiController {
             quality.initial(),
             quality.ceiling(),
             quality.settle().toMillis(),
-            quality.cameraYieldsToScreen()));
+            quality.cameraYieldsToScreen()),
+        config.favorites().maxSaved());
   }
+
+  /*
+   Четыре двери во встречу ниже (и пятая — `/favorites/{id}/join`) передают ядру, кто входит:
+   профиль устройства из `X-Cord-Profile` и встречу из `X-Cord-Leave`, если человек согласился её
+   покинуть (T52). Тела запросов от этого не меняются — старый клиент входит как раньше.
+  */
 
   @PostMapping("/rooms")
   public Contracts.Admission create(
       @Valid @RequestBody Contracts.Create request, HttpServletRequest http) {
     limits.check("admission:" + address.of(http), 30);
-    return rooms.create(request);
+    return rooms.create(request, identity.entrant(http));
   }
 
   @PostMapping("/rooms/{id}/join")
   public Contracts.Admission join(
       @PathVariable UUID id, @Valid @RequestBody Contracts.Join request, HttpServletRequest http) {
     limits.check("admission:" + address.of(http), 30);
-    return rooms.join(id.toString(), request);
+    return rooms.join(id.toString(), request, identity.entrant(http));
   }
 
   @GetMapping("/rooms/{id}")
@@ -146,7 +160,7 @@ public class ApiController {
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {
     limits.check("code-admission:" + address.of(http), 10);
-    return rooms.joinCode(request);
+    return rooms.joinCode(request, identity.entrant(http));
   }
 
   @PostMapping("/rooms/{id}/rejoin")
@@ -156,7 +170,7 @@ public class ApiController {
       @Valid @RequestBody Contracts.Rejoin request,
       HttpServletRequest http) {
     limits.check("admission:" + address.of(http), 30);
-    return rooms.rejoin(id.toString(), credential, request);
+    return rooms.rejoin(id.toString(), credential, request, identity.entrant(http));
   }
 
   @GetMapping("/rooms/{id}/events")

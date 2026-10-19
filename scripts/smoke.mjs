@@ -59,7 +59,7 @@ async function ready(path) {
 }
 const capabilities = await ready("/api/v1/capabilities");
 assert.equal(capabilities.status, 200);
-assert.equal(JSON.parse(capabilities.body).maxParticipants, 10);
+assert.equal(JSON.parse(capabilities.body).maxParticipants, Number(env.STREAM_MAX_PARTICIPANTS) || 20);
 const services = await ready("/api/v1/services/catalog");
 assert(JSON.parse(services.body).services.some(service => service.id === "music"));
 const home = await get("/", env.APP_HOST);

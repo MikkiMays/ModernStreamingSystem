@@ -3,6 +3,7 @@ package dev.mikki.stream.room;
 import static dev.mikki.stream.room.Contracts.*;
 import static dev.mikki.stream.room.RoomState.Status.*;
 
+import dev.mikki.stream.access.Entrant;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.Permissions.Action;
@@ -13,6 +14,7 @@ import java.time.Clock;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class RoomService {
   private final Secrets secrets;
   private final Clock clock;
   private final GameClock games;
+  private final ApplicationEventPublisher events;
   private final SecureRandom codeRandom = new SecureRandom();
 
   public RoomService(
@@ -30,12 +33,14 @@ public class RoomService {
       StreamProperties config,
       Secrets secrets,
       Clock clock,
-      GameClock games) {
+      GameClock games,
+      ApplicationEventPublisher events) {
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
     this.clock = clock;
     this.games = games;
+    this.events = events;
   }
 
   public long now() {
@@ -50,8 +55,17 @@ public class RoomService {
     return rooms.get(roomId, true);
   }
 
+  /*
+   Двери без профиля — для служб и тестов. Каждая помечена @Transactional сама: вызов соседнего
+   метода изнутри бина мимо прокси транзакции не открывает, и общий замок без неё не держится.
+  */
   @Transactional
   public Admission create(Create request) {
+    return create(request, Entrant.UNKNOWN);
+  }
+
+  @Transactional
+  public Admission create(Create request, Entrant entrant) {
     rooms.lockGlobal();
     return receipt(
         "create",
@@ -61,23 +75,20 @@ public class RoomService {
         () -> {
           if (!config.admissionOpen())
             throw new Problem(503, "DRAINING", "Сервер временно не принимает новые комнаты");
-          if (rooms.all().stream()
-                  .filter(
-                      r ->
-                          r.closedAt == null
-                              && r.members.values().stream()
-                                  .anyMatch(RoomState.Member::occupiesSeat))
-                  .count()
-              >= config.maxRooms())
-            throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
           var room = new RoomState();
           room.id = UUID.randomUUID().toString();
+          // Здесь — до подсчёта слотов, а не после, как в остальных дверях: человек, который один
+          // держит встречу и согласился из неё выйти, освобождает слот себе же. Откажет подсчёт —
+          // выход откатится вместе со всем остальным.
+          oneMeeting(room.id, entrant);
+          if (rooms.all().stream().filter(r -> r.busy(now())).count() >= config.maxRooms())
+            throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
           room.code = newCode();
           room.title = request.title().strip();
           room.createdAt = now();
           room.approvalRequired = request.approvalRequired();
           room.integrationsAllowed = !Boolean.FALSE.equals(request.integrationsAllowed());
-          var member = newMember(room, request.name(), true, request.commandId());
+          var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
           emit(room, "room.changed", EventPayload.changed());
@@ -121,6 +132,11 @@ public class RoomService {
 
   @Transactional
   public Admission joinCode(JoinCode request) {
+    return joinCode(request, Entrant.UNKNOWN);
+  }
+
+  @Transactional
+  public Admission joinCode(JoinCode request, Entrant entrant) {
     rooms.lockGlobal();
     var room = lock(rooms.roomForCode(request.code()));
     return receipt(
@@ -130,8 +146,9 @@ public class RoomService {
         Admission.class,
         () -> {
           requireOpen(room);
-          checkSeat(room);
-          var member = newMember(room, request.name(), false, request.commandId());
+          checkSeat(room, true);
+          oneMeeting(room.id, entrant);
+          var member = newMember(room, request.name(), false, request.commandId(), entrant);
           // Код — такое же приглашение, как ссылка, и решает про них обоих одна настройка
           // комнаты. Раньше вход по коду ждал подтверждения **всегда**, и выбор «По ссылке и
           // коду — сразу» не значил ничего: правильный номер не открывал дверь, пока хозяин
@@ -146,23 +163,33 @@ public class RoomService {
 
   @Transactional
   public Admission rejoin(String roomId, String credential, Rejoin request) {
+    return rejoin(roomId, credential, request, Entrant.UNKNOWN);
+  }
+
+  @Transactional
+  public Admission rejoin(String roomId, String credential, Rejoin request, Entrant entrant) {
     rooms.lockGlobal();
     var room = lock(roomId);
     var previous = authenticate(room, credential, true);
-    return returnMember(room, previous, request, false);
+    return returnMember(room, previous, request, false, entrant);
   }
 
   @Transactional
   public Admission joinSaved(String roomId, String memberId, Rejoin request) {
+    return joinSaved(roomId, memberId, request, Entrant.UNKNOWN);
+  }
+
+  @Transactional
+  public Admission joinSaved(String roomId, String memberId, Rejoin request, Entrant entrant) {
     rooms.lockGlobal();
     var room = lock(roomId);
     var member = room.members.get(memberId);
     if (member == null) throw Problem.forbidden();
-    return returnMember(room, member, request, true);
+    return returnMember(room, member, request, true, entrant);
   }
 
   private Admission returnMember(
-      RoomState room, RoomState.Member previous, Rejoin request, boolean saved) {
+      RoomState room, RoomState.Member previous, Rejoin request, boolean saved, Entrant entrant) {
     return receipt(
         "rejoin:" + room.id + ":" + previous.id,
         request.commandId(),
@@ -173,6 +200,8 @@ public class RoomService {
             freezeHistory(room, room.closedAt);
             room.closedAt = null;
             room.mediaDrained = false;
+            // Открытая заново встреча — новая встреча: её время идёт с нового начала.
+            room.startedAt = null;
           }
           requireOpen(room);
           if (previous.replacedBy != null)
@@ -181,8 +210,18 @@ public class RoomService {
           // The room, conversation and host rights survive an explicit return.
           var status = previous.status;
           previous.status = LEFT;
-          checkSeat(room);
-          var member = newMember(room, request.name(), previous.owner, request.commandId());
+          checkSeat(room, true);
+          oneMeeting(room.id, entrant);
+          // Старый клиент профиля не присылает — вернувшийся остаётся тем профилем, каким был.
+          var member =
+              newMember(
+                  room,
+                  request.name(),
+                  previous.owner,
+                  request.commandId(),
+                  entrant.profileHash() != null
+                      ? entrant
+                      : new Entrant(room.profiles.get(previous.id), null));
           member.codeRequest = previous.codeRequest;
           /*
            Исключение заканчивает встречу для человека, а не знакомство с комнатой.
@@ -228,22 +267,24 @@ public class RoomService {
         });
   }
 
-  private void checkSeat(RoomState room) {
+  /**
+   * Есть ли место для входящего: сервер принимает, у сервера есть слот для встречи, во встрече есть
+   * место.
+   *
+   * <p>Место — только для людей ({@code human}). Бот его не занимает: иначе встреча с музыкой
+   * вмещала бы на одного человека меньше, чем написано в настройках (T06, П3). SFU пускает на
+   * четыре подключения больше предела — как раз для ботов и переходных сессий.
+   */
+  private void checkSeat(RoomState room, boolean human) {
     if (!config.admissionOpen())
       throw new Problem(503, "DRAINING", "Сервер завершает действующие встречи");
-    if (room.members.values().stream().noneMatch(RoomState.Member::occupiesSeat)
-        && rooms.all().stream()
-                .filter(
-                    r ->
-                        !r.id.equals(room.id)
-                            && r.closedAt == null
-                            && r.members.values().stream().anyMatch(RoomState.Member::occupiesSeat))
-                .count()
+    if (!room.busy(now())
+        && rooms.all().stream().filter(r -> !r.id.equals(room.id) && r.busy(now())).count()
             >= config.maxRooms())
       throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
-    if (room.members.values().stream().filter(RoomState.Member::occupiesSeat).count()
-        >= config.maxParticipants())
-      throw Problem.conflict("ROOM_FULL", "В комнате уже десять участников");
+    if (human && room.seatedHumans() >= config.maxParticipants())
+      throw Problem.conflict(
+          "ROOM_FULL", "Во встрече нет свободных мест (предел — " + config.maxParticipants() + ")");
     if (room.members.size() >= 500) {
       var retained =
           new HashSet<>(
@@ -260,6 +301,7 @@ public class RoomService {
                   !m.occupiesSeat()
                       && !retained.contains(m.id)
                       && now() - m.joinedAt > config.retention().messages().toMillis());
+      room.profiles.keySet().retainAll(room.members.keySet());
     }
     if (room.members.size() >= 500)
       throw new Problem(429, "SESSION_LIMIT", "Достигнут лимит входов за время встречи");
@@ -267,6 +309,11 @@ public class RoomService {
 
   @Transactional
   public Admission join(String roomId, Join request) {
+    return join(roomId, request, Entrant.UNKNOWN);
+  }
+
+  @Transactional
+  public Admission join(String roomId, Join request, Entrant entrant) {
     rooms.lockGlobal();
     var room = lock(roomId);
     return receipt(
@@ -286,8 +333,9 @@ public class RoomService {
                               && i.expiresAt() > now()
                               && Secrets.equal(i.secretHash(), Secrets.hash(request.invite())));
           if (!valid) throw new Problem(403, "INVITE_INVALID", "Приглашение истекло или отозвано");
-          checkSeat(room);
-          var member = newMember(room, request.name(), false, request.commandId());
+          checkSeat(room, true);
+          oneMeeting(room.id, entrant);
+          var member = newMember(room, request.name(), false, request.commandId(), entrant);
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -357,8 +405,8 @@ public class RoomService {
             throw Problem.conflict("SERVICE_EXISTS", "Музыкальный сервис уже подключён");
           // Та же граница с другой стороны: пока комната смотрит кино, музыке в ней места нет.
           stageBusy(room, Occupant.CINEMA);
-          checkSeat(room);
-          var member = newMember(room, "Музыка", false, commandId);
+          checkSeat(room, false);
+          var member = newMember(room, "Музыка", false, commandId, Entrant.UNKNOWN);
           member.service = "music";
           member.approved = true;
           member.status = JOINING;
@@ -369,7 +417,8 @@ public class RoomService {
         });
   }
 
-  private RoomState.Member newMember(RoomState room, String name, boolean owner, UUID commandId) {
+  private RoomState.Member newMember(
+      RoomState room, String name, boolean owner, UUID commandId, Entrant entrant) {
     var m = new RoomState.Member();
     m.id = UUID.randomUUID().toString();
     m.name = name.strip();
@@ -381,7 +430,60 @@ public class RoomService {
     m.secretHash =
         Secrets.hash(secrets.derive("session:" + room.id + ":" + m.id + ":" + commandId));
     room.members.put(m.id, m);
+    if (entrant.profileHash() != null) room.profiles.put(m.id, entrant.profileHash());
     return m;
+  }
+
+  /**
+   * Одна активная встреча на профиль устройства (T52, П13).
+   *
+   * <p>Стоит в каждой двери во встречу — создать, по ссылке, по коду, вернуться, из избранного —
+   * под общим замком ({@code lockGlobal}): две вкладки, входящие одновременно в две встречи,
+   * проходят её по очереди, и вторая уже видит первую.
+   *
+   * <p>Живое участие этого профиля в другой открытой встрече ({@link RoomState#engages}) — отказ
+   * {@code 409 ALREADY_IN_MEETING} с её названием. Повтор с {@code X-Cord-Leave}, называющим ровно
+   * эту встречу, закрывает прежнее участие обычным выходом — остальные видят и слышат его как любой
+   * другой — и пускает. Всё это одна транзакция: откажи дверь дальше, выход откатится вместе со
+   * входом. Та же встреча во второй вкладке — не вторая встреча; боты и вход без профиля правила не
+   * знают.
+   */
+  private void oneMeeting(String roomId, Entrant entrant) {
+    var profile = entrant.profileHash();
+    if (!config.meeting().oneActivePerProfile() || profile == null) return;
+    long at = now();
+    var elsewhere =
+        rooms.all().stream().filter(r -> !r.id.equals(roomId) && r.engages(profile, at)).toList();
+    for (var other : elsewhere)
+      if (!other.id.equals(entrant.leave()))
+        throw new Problem(
+            409,
+            "ALREADY_IN_MEETING",
+            "Вы уже во встрече «" + other.title + "»",
+            Map.of("roomId", other.id, "title", other.title));
+    for (var other : elsewhere) leaveFor(other.id, profile);
+  }
+
+  /** Выход профиля из встречи — тот же, что по кнопке «Выйти», для каждой его вкладки в ней. */
+  private void leaveFor(String roomId, String profile) {
+    var room = lock(roomId);
+    for (var member : room.members.values())
+      if (member.human() && member.occupiesSeat() && profile.equals(room.profiles.get(member.id)))
+        depart(member);
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
+    // Сокеты той встречи узнают о выходе сразу после фиксации, а не на следующем проходе.
+    events.publishEvent(new RoomChanged(room.id));
+  }
+
+  /**
+   * Человек ушёл сам: место свободно, показ и срок восстановления сняты, старые вызовы отсечены.
+   */
+  private static void depart(RoomState.Member member) {
+    member.status = LEFT;
+    member.generation++;
+    member.screen = false;
+    member.recoveryDeadline = null;
   }
 
   private Admission admission(
@@ -409,7 +511,8 @@ public class RoomService {
             current.durakGamesAt(),
             current.chess(),
             current.gartic(),
-            current.you());
+            current.you(),
+            current.startedAt());
     return new Admission(
         room.id,
         member.id,
@@ -547,7 +650,8 @@ public class RoomService {
         lastDurakAt(room),
         room.chess == null ? null : room.chess.view(viewer == null ? null : viewer.id, now()),
         room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()),
-        viewer == null ? null : new RoomYou(Permissions.granted(room, viewer)));
+        viewer == null ? null : new RoomYou(Permissions.granted(room, viewer)),
+        room.startedAt);
   }
 
   /**
@@ -624,7 +728,9 @@ public class RoomService {
         null,
         // Права — свои, как и у допущенного: у ожидающего их список пуст, и браузеру незачем
         // угадывать это по статусу.
-        current.you());
+        current.you(),
+        // Сколько встреча идёт — не её жизнь, а её часы: их видно и из-за двери.
+        current.startedAt());
   }
 
   @Transactional
@@ -639,12 +745,7 @@ public class RoomService {
         () -> {
           String value = null;
           switch (command.type()) {
-            case "leave" -> {
-              member.status = LEFT;
-              member.generation++;
-              member.screen = false;
-              member.recoveryDeadline = null;
-            }
+            case "leave" -> depart(member);
             case "profile.avatar" -> {
               member.avatar = avatar(command.text());
               emit(room, "room.changed", EventPayload.changed());
@@ -1070,6 +1171,7 @@ public class RoomService {
                 member.recoveryDeadline = null;
                 member.generation++;
                 room.everConnected = true;
+                room.markStarted(now());
               }
             }
             default -> throw new Problem(400, "UNKNOWN_COMMAND", "Неизвестная команда");

@@ -1,5 +1,12 @@
-import { beforeEach, expect, it } from 'vitest';
-import { autoJoinEnabled, cacheFavorites, cachedFavorites, favoriteProfile, setAutoJoin } from './favorites';
+import { beforeEach, expect, it, vi } from 'vitest';
+import {
+  autoJoinEnabled,
+  cacheFavorites,
+  cachedFavorites,
+  favoriteApi,
+  favoriteProfile,
+  setAutoJoin,
+} from './favorites';
 import type { Favorite } from './favorites';
 
 const room = (roomId: string): Favorite => ({
@@ -55,4 +62,20 @@ it('leaves auto-join alone when the list is empty or unreadable', () => {
   localStorage.setItem('cord:autojoin:v1', '{ broken');
   cacheFavorites([room('a')]);
   expect(localStorage.getItem('cord:autojoin:v1')).toBe('{ broken');
+});
+
+it('вход из избранного несёт профиль дважды: ключом к записи и профилем входящего (T52)', async () => {
+  const fetch = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })));
+  vi.stubGlobal('fetch', fetch);
+  try {
+    await favoriteApi.join('room-2', 'Имя', 'command', 'room-1');
+    const [path, init] = fetch.mock.calls.at(-1) as unknown as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(path).toBe('/api/v1/favorites/room-2/join');
+    expect(headers.Authorization).toBe(`Bearer ${favoriteProfile()}`);
+    expect(headers['X-Cord-Profile']).toBe(favoriteProfile());
+    expect(headers['X-Cord-Leave']).toBe('room-1');
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

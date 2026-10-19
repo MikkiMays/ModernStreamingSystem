@@ -290,6 +290,43 @@ class RoomServiceTest {
     assertThat(rooms.snapshot(host.roomId(), host.credential()).you().can()).isEmpty();
   }
 
+  /**
+   * Бюджет снимка (решение 7 целевой архитектуры): комната из двадцати человек без переписки — не
+   * больше 24 КиБ.
+   *
+   * <p>ЗАЧЕМ ТЕСТ. Снимок собирается на каждого участника и целиком перечитывается каждым на любое
+   * {@code room.changed}: двадцать человек — двадцать чтений на каждое изменение. Поле, которое
+   * растёт с числом людей или с историей, умножается на это дважды. Картинки профиля в бюджет не
+   * входят: у каждой свой предел (3500 знаков), и двадцать картинок — это ещё до 70 КиБ сверху.
+   */
+  @Test
+  void aSnapshotOfTwentyPeopleStaysWithinBudget() {
+    var host =
+        rooms.create(
+            new Create(UUID.randomUUID(), "Н".repeat(80), "Х".repeat(40), false),
+            new dev.mikki.stream.access.Entrant("a".repeat(64), null));
+    var present = new HashMap<String, String>();
+    present.put(host.participantId(), "PA_" + "h".repeat(12));
+    for (int i = 1; i < config.maxParticipants(); i++) {
+      var guest =
+          rooms.join(
+              host.roomId(),
+              new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Г".repeat(40)),
+              new dev.mikki.stream.access.Entrant(String.valueOf(i % 10).repeat(64), null));
+      present.put(guest.participantId(), "PA_" + String.valueOf(i % 10).repeat(12));
+    }
+    media.observe(host.roomId(), present, now.incrementAndGet());
+    media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true);
+    var snapshot = rooms.snapshot(host.roomId(), host.credential());
+    assertThat(snapshot.participants()).hasSize(config.maxParticipants());
+    assertThat(snapshot.startedAt()).isNotNull();
+    int bytes =
+        dev.mikki.stream.shared.Json.write(snapshot)
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            .length;
+    assertThat(bytes).isLessThanOrEqualTo(24 * 1024);
+  }
+
   @Test
   void gameHostRightsFollowTheTableAndKeepTheirRefusals() {
     var host = host();
@@ -341,8 +378,13 @@ class RoomServiceTest {
         .isEqualTo("GAME_HOST_ONLY");
   }
 
+  /**
+   * Бот — не человек: музыка во встрече не занимает ни одного из двадцати мест (T06, П3). Иначе
+   * комната с музыкой вмещала бы девятнадцать человек, а предел в настройках означал бы не то, что
+   * в нём написано.
+   */
   @Test
-  void musicServiceIsIdempotentConsumesOneSeatAndHasNoHostRights() {
+  void musicServiceIsIdempotentTakesNoHumanSeatAndHasNoHostRights() {
     var host = host();
     var id = UUID.randomUUID();
     var music = rooms.addMusicService(host.roomId(), id);
@@ -359,11 +401,12 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class)
         .extracting("code")
         .isEqualTo("SERVICE_EXISTS");
-    for (int i = 0; i < 8; i++) guest(host);
+    for (int i = 1; i < config.maxParticipants(); i++) guest(host);
     assertThatThrownBy(() -> guest(host))
         .isInstanceOf(Problem.class)
         .extracting("code")
         .isEqualTo("ROOM_FULL");
+    assertThat(rooms.read(host.roomId()).seatedHumans()).isEqualTo(config.maxParticipants());
     command(music, "leave", null, 0);
     var replacement = rooms.addMusicService(host.roomId(), UUID.randomUUID());
     assertThat(replacement.participantId()).isNotEqualTo(music.participantId());
@@ -382,11 +425,11 @@ class RoomServiceTest {
   }
 
   @Test
-  void admissionIsAtomicForTenSeats() throws Exception {
+  void admissionIsAtomicForEverySeat() throws Exception {
     var host = host();
     try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
       var work = new ArrayList<Future<Boolean>>();
-      for (int i = 0; i < 25; i++)
+      for (int i = 0; i < config.maxParticipants() + 5; i++)
         work.add(
             pool.submit(
                 () -> {
@@ -400,8 +443,8 @@ class RoomServiceTest {
                 }));
       int admitted = 0;
       for (var result : work) if (result.get()) admitted++;
-      assertThat(admitted).isEqualTo(9);
-      assertThat(rooms.read(host.roomId()).members).hasSize(10);
+      assertThat(admitted).isEqualTo(config.maxParticipants() - 1);
+      assertThat(rooms.read(host.roomId()).members).hasSize(config.maxParticipants());
     }
   }
 
@@ -531,13 +574,14 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
     var guest = guest(host);
     command(guest, "leave", null, 0);
-    for (int i = 0; i < 9; i++) guest(host);
+    for (int i = 1; i < config.maxParticipants(); i++) guest(host);
     assertThatThrownBy(
             () ->
                 rooms.rejoin(
                     host.roomId(), guest.credential(), new Rejoin(UUID.randomUUID(), "Места нет")))
         .isInstanceOf(Problem.class)
-        .hasMessageContaining("десять");
+        .extracting("code")
+        .isEqualTo("ROOM_FULL");
   }
 
   @Test
@@ -776,7 +820,8 @@ class RoomServiceTest {
   @Test
   void favoritesRequireMembershipAndSaveAtomically() throws Exception {
     String profile = "A".repeat(43);
-    var hosts = java.util.stream.IntStream.range(0, 12).mapToObj(_ -> host()).toList();
+    int max = config.favorites().maxSaved();
+    var hosts = java.util.stream.IntStream.range(0, max).mapToObj(_ -> host()).toList();
     try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
       var results =
           hosts.stream()
@@ -784,9 +829,9 @@ class RoomServiceTest {
               .toList();
       for (var result : results) result.get();
     }
-    // Числа комнат больше нет: одновременная запись двенадцати сохраняет все двенадцать, по
-    // одной записи на комнату и без гонок.
-    assertThat(favorites.list(profile)).hasSize(12);
+    // Одновременная запись до самого предела сохраняет всё, по одной записи на комнату и без
+    // гонок. Что сверх предела — отказ с числом (MeetingLimitsTest).
+    assertThat(favorites.list(profile)).hasSize(max);
     assertThat(favorites.list("B".repeat(43))).isEmpty();
     var first = hosts.getFirst();
     var closed =

@@ -18,6 +18,11 @@ export type Snapshot = Omit<
    * присылает; у постороннего оно `null`.
    */
   you?: RoomYou | null;
+  /**
+   * Когда встреча началась — впервые двое живых людей на связи, по часам сервера (T35); `null`,
+   * пока этого не было. Объявлено руками до регенерации контрактов (WP1); старое ядро поля не шлёт.
+   */
+  startedAt?: number | null;
 };
 /** Что участник может во встрече: имена действий матрицы ядра (`room/Permissions.java`). */
 export type RoomYou = { can: string[] };
@@ -26,7 +31,11 @@ export type Admission = Omit<components['schemas']['Admission'], 'snapshot'> & {
 export type Ack = components['schemas']['Ack'];
 export type Command = components['schemas']['Command'];
 export type Attachment = components['schemas']['Attachment'];
-export type Capabilities = components['schemas']['Capabilities'];
+/**
+ * `favoritesMax` — сколько встреч профиль хранит в избранном (T06, `stream.favorites.max-saved`).
+ * Объявлено руками до регенерации контрактов (WP1); старое ядро поля не шлёт.
+ */
+export type Capabilities = components['schemas']['Capabilities'] & { favoritesMax?: number };
 export type Replay = Omit<components['schemas']['Replay'], 'snapshot'> & { snapshot: Snapshot | null };
 /**
  * Что комната смотрит вместе. Провайдер и вид приходят строками — здесь они сужаются до того,

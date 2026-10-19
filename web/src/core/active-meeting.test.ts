@@ -3,6 +3,7 @@ import type { Admission } from '../api/types';
 import {
   ANSWER_MS,
   announceMeeting,
+  findActiveMeeting,
   requestHandover,
   setChannelFactory,
   thisTab,
@@ -100,6 +101,15 @@ it('gives up with an explanation when the meeting tab does not answer', async ()
   const moved = requestHandover({ ...info, tab: 'gone-tab' }, 100);
   vi.advanceTimersByTime(101);
   await expect(moved).rejects.toThrow(/не ответила/);
+});
+
+it('finds the tab that holds a given meeting, or answers null after the usual wait (WP1)', async () => {
+  const meeting = announceMeeting(info, { admission: () => admission, onHandedOver: () => {} }, 'tab-b');
+  await expect(findActiveMeeting('room-1')).resolves.toEqual({ ...info, tab: 'tab-b' });
+  const missing = findActiveMeeting('room-2');
+  vi.advanceTimersByTime(ANSWER_MS);
+  await expect(missing).resolves.toBeNull();
+  meeting.stop();
 });
 
 it('ignores handover requests meant for another tab or room', () => {

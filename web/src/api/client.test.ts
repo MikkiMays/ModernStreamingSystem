@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { ApiError, request } from './client';
+import { ApiError, publicApi, request, RoomApi } from './client';
+import { profileSecret } from '../core/identity';
 
 /*
   Отказ сервера — словами для человека.
@@ -65,4 +66,66 @@ it('отказ словами сервера остаётся его слова�
   expect((await refusal()).message).toBe('Не удалось выполнить запрос');
   answer(500, { detail: null });
   expect((await refusal()).message).toBe('Не удалось выполнить запрос');
+});
+
+/*
+  Профиль устройства во входах (T52).
+
+  Ядро держит одну активную встречу на профиль и узнаёт его по `X-Cord-Profile` — во всех дверях во
+  встречу. «Выйти оттуда и войти сюда» — тот же запрос с `X-Cord-Leave`. Остальные запросы профиль
+  не несут: ему незачем ходить туда, где он ничего не решает.
+*/
+
+const sent = () => {
+  const call = (fetch as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls.at(-1)!;
+  return { path: call[0], headers: call[1].headers as Record<string, string> };
+};
+
+it('каждый вход во встречу несёт профиль, повтор после отказа — ещё и встречу, которую покидают', async () => {
+  const profile = profileSecret();
+  const admission = { roomId: 'room-2', credential: 'member.secret' } as never;
+  const room = { commandId: 'c', title: 'Т', name: 'И', approvalRequired: false };
+  const entries: [string, () => Promise<unknown>, () => Promise<unknown>][] = [
+    ['/api/v1/rooms', () => publicApi.create(room), () => publicApi.create(room, 'room-1')],
+    [
+      '/api/v1/rooms/room-2/join',
+      () => publicApi.join('room-2', { commandId: 'c', invite: 'i', name: 'И' }),
+      () => publicApi.join('room-2', { commandId: 'c', invite: 'i', name: 'И' }, 'room-1'),
+    ],
+    [
+      '/api/v1/rooms/join-by-code',
+      () => publicApi.joinCode({ commandId: 'c', code: '123456789', name: 'И' }),
+      () => publicApi.joinCode({ commandId: 'c', code: '123456789', name: 'И' }, 'room-1'),
+    ],
+    [
+      '/api/v1/rooms/room-2/rejoin',
+      () => new RoomApi(admission).rejoin('И', 'c'),
+      () => new RoomApi(admission).rejoin('И', 'c', 'room-1'),
+    ],
+  ];
+  for (const [path, plain, leaving] of entries) {
+    answer(200, {});
+    await plain();
+    expect(sent().path).toBe(path);
+    expect(sent().headers['X-Cord-Profile']).toBe(profile);
+    expect(sent().headers['X-Cord-Leave']).toBeUndefined();
+    await leaving();
+    expect(sent().headers['X-Cord-Profile']).toBe(profile);
+    expect(sent().headers['X-Cord-Leave']).toBe('room-1');
+  }
+  // Снимок, команды и прочее профиль не несут.
+  await new RoomApi(admission).snapshot();
+  expect(sent().headers['X-Cord-Profile']).toBeUndefined();
+});
+
+it('подробности отказа ядра (RFC 7807) доходят до интерфейса значениями', async () => {
+  answer(409, {
+    code: 'ALREADY_IN_MEETING',
+    detail: 'Вы уже во встрече «Вечер»',
+    roomId: 'room-1',
+    title: 'Вечер',
+  });
+  const error = await refusal();
+  expect(error.code).toBe('ALREADY_IN_MEETING');
+  expect(error.problem).toMatchObject({ roomId: 'room-1', title: 'Вечер' });
 });

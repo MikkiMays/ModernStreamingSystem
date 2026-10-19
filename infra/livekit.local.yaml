@@ -9,7 +9,7 @@ rtc:
 keys:
   devkey: local-development-only-secret-32bytes
 room:
-  max_participants: 10
+  max_participants: 24
   empty_timeout: 300
   departure_timeout: 60
 webhook:

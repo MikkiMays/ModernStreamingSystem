@@ -231,6 +231,14 @@ public final class Contracts {
       long anchorAt,
       long revision) {}
 
+  /**
+   * Снимок комнаты глазами участника.
+   *
+   * <p>{@code ignoreUnknown} — ради отката: снимок лежит и в расписках входа ({@code
+   * command_receipts.response}), и образ ядра, который поля ещё не знает, должен прочитать повтор
+   * входа, а не упасть на нём. Защищает откат на образы начиная с этого.
+   */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
   public record Snapshot(
       String id,
       String title,
@@ -272,7 +280,14 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          RoomYou you) {}
+          RoomYou you,
+      /**
+       * Когда встреча началась — впервые двое живых людей на связи (T35), по часам сервера; {@code
+       * null}, пока этого не было. Сколько она идёт, браузер считает сам от {@code serverTime}.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          Long startedAt) {}
 
   /**
    * Права участника — готовым ответом, а не правилом для пересчёта.
@@ -283,6 +298,8 @@ public final class Contracts {
    */
   public record RoomYou(List<String> can) {}
 
+  /** Расписка входа; {@code ignoreUnknown} — по той же причине, что у {@link Snapshot}. */
+  @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
   public record Admission(
       String roomId,
       String participantId,
