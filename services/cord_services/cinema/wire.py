@@ -125,6 +125,8 @@ class Details(TypedDict):
     poster: str | None
     # Сериал, к которому относится серия, — только у площадок, которые это знают (Rutube).
     series: NotRequired[str]
+    # Следующая серия того же сериала — карточкой, которую плеер включает комнате («По ссылке»).
+    next: NotRequired[Card]
 
 
 class ChannelDetails(ChannelHead):
@@ -396,6 +398,7 @@ def details(
     description: str = "",
     poster: str | None = None,
     series: str = _ABSENT,
+    next: Card = _ABSENT,
 ) -> Details:
     built: dict[str, Any] = {
         "provider": provider,
@@ -418,6 +421,8 @@ def details(
     # Ключ новый и есть не у всех: у YouTube и Twitch страница ролика — прежние шестнадцать.
     if series is not _ABSENT:
         built["series"] = series
+    if next is not _ABSENT:
+        built["next"] = next
     return cast(Details, built)
 
 
