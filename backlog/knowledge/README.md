@@ -34,6 +34,7 @@
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
 - [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
+- [`livekit-resume-on-network-change`](memory/livekit-resume-on-network-change.md) — Почему livekit-client не замечает смену сети (VPN) и как попросить у него бесшовный resume без полного connect
 - [`livekit-stereo-only-via-go`](memory/livekit-stereo-only-via-go.md) — Почему музыка в Cord приходила в моно и почему стерео возможно только через Go-SDK
 - [`livekit-turn-and-secure-context`](memory/livekit-turn-and-secure-context.md) — Два ограничения, которые определяют топологию Cord: LiveKit жёстко объявляет TURN на порту https, а без https нет камеры
 - [`meet-cord-system`](memory/meet-cord-system.md) — Что такое /opt/meet (Cord), из чего состоит, три режима установки и как выкатывать

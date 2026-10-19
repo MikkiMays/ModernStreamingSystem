@@ -10,6 +10,9 @@ type Packet =
   | { type: 'ack'; ack: Ack }
   | { type: 'error'; message: string; code: string };
 
+/** Сколько ждать pong после знака сети, прежде чем счесть открытый сокет мёртвым. */
+export const PROBE_MS = 3000;
+
 export class ControlChannel {
   readonly state = new Store<'connecting' | 'connected' | 'recovering' | 'closed'>('connecting');
   readonly ping = new Store<number | null>(null);
@@ -34,12 +37,32 @@ export class ControlChannel {
     window.addEventListener('online', this.network);
     this.connect();
   }
+  /** До какого момента открытый сокет обязан ответить на pong после знака сети, иначе он мёртв. */
+  private probeDeadline = 0;
   private network = () => {
-    if (this.socket?.readyState !== WebSocket.OPEN && this.socket?.readyState !== WebSocket.CONNECTING) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.probe();
+      return;
+    }
+    if (this.socket?.readyState !== WebSocket.CONNECTING) {
       clearTimeout(this.timer);
       this.connect();
     }
   };
+  /**
+   * Сеть сменилась, а сокет «открыт»: открытый — не значит живой.
+   *
+   * После смены адреса (VPN включили или выключили) TCP-соединение под сокетом мертво, но
+   * браузер узнаёт об этом только по своему таймауту, а мы — по `lastPong` через пятнадцать
+   * секунд. Поэтому по знаку сети уходит немедленный ping, и на pong даётся три секунды
+   * (`PROBE_MS`): нет ответа — сокет закрывается, и канал переподключается с нулевой задержкой.
+   */
+  private probe() {
+    if (this.probeDeadline) return;
+    this.probeDeadline = Date.now() + PROBE_MS;
+    this.pingRequest = undefined;
+    this.measurePing();
+  }
   private connect = () => {
     if (this.disposed) return;
     const socket = new WebSocket(
@@ -73,13 +96,18 @@ export class ControlChannel {
             this.state.set('connected');
             clearInterval(this.heartbeat);
             this.heartbeat = setInterval(() => {
-              if (Date.now() - this.lastPong > 15000) socket.close();
+              if (
+                Date.now() - this.lastPong > 15000 ||
+                (this.probeDeadline && Date.now() > this.probeDeadline)
+              )
+                socket.close();
               else if (!document.hidden || Date.now() - this.lastPong > 5000) this.measurePing();
             }, 2000);
             this.measurePing();
             break;
           case 'pong':
             this.lastPong = Date.now();
+            this.probeDeadline = 0;
             if (this.pingRequest && this.pingRequest.id === packet.requestId) {
               this.ping.set(Math.round(performance.now() - this.pingRequest.at));
             }
@@ -125,6 +153,7 @@ export class ControlChannel {
       clearTimeout(this.handshake);
       this.ping.set(null);
       this.pingRequest = undefined;
+      this.probeDeadline = 0;
       this.state.set('recovering');
       this.timer = setTimeout(this.connect, Math.min(3000, [0, 500, 1000, 2000][this.attempt++] ?? 3000));
     };

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { gradeLink, isOrdered, linkChanged, LinkMonitor, readPath, unknownLink } from './link-quality';
+import {
+  gradeLink,
+  isOrdered,
+  linkChanged,
+  LinkMonitor,
+  readIce,
+  readPath,
+  unknownLink,
+} from './link-quality';
 
 type Stat = Record<string, unknown> & { id: string; type: string };
 const report = (stats: Stat[]) => new Map(stats.map((s) => [s.id, s])) as unknown as RTCStatsReport;
@@ -129,5 +137,38 @@ describe('накопление по отчётам', () => {
     monitor.observe(report([pair(), candidate('local'), candidate('remote'), inbound({ jitter: 0.05 })]));
     monitor.reset();
     expect(monitor.current).toEqual(unknownLink);
+  });
+});
+
+describe('жив ли путь по мнению ICE', () => {
+  it('читает состояние из transport и берёт худшее из двух транспортов', () => {
+    expect(readIce(report([{ id: 't', type: 'transport', iceState: 'connected' }]))).toBe('connected');
+    expect(readIce(report([{ id: 't', type: 'transport', iceState: 'completed' }]))).toBe('connected');
+    expect(
+      readIce(
+        report([
+          { id: 'pub', type: 'transport', iceState: 'connected' },
+          { id: 'sub', type: 'transport', iceState: 'disconnected' },
+        ]),
+      ),
+    ).toBe('disconnected');
+    expect(readIce(report([{ id: 't', type: 'transport', iceState: 'failed' }]))).toBe('failed');
+    // Firefox поля не отдаёт — это не «отключено».
+    expect(readIce(report([{ id: 't', type: 'transport' }]))).toBe('unknown');
+    expect(readIce(report([]))).toBe('unknown');
+  });
+
+  it('смена состояния ICE — повод перерисовать и перепроверить', () => {
+    expect(linkChanged(unknownLink, { ...unknownLink, ice: 'disconnected' })).toBe(true);
+    const monitor = new LinkMonitor();
+    monitor.observe(
+      report([
+        pair(),
+        candidate('local'),
+        candidate('remote'),
+        { id: 't', type: 'transport', iceState: 'disconnected' },
+      ]),
+    );
+    expect(monitor.current.ice).toBe('disconnected');
   });
 });
