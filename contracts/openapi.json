@@ -210,6 +210,9 @@
           "passwordRequired": {
             "type": "boolean"
           },
+          "quality": {
+            "$ref": "#/components/schemas/QualityRules"
+          },
           "recoverySeconds": {
             "format": "int32",
             "type": "integer"
@@ -237,6 +240,7 @@
           "maxScreens",
           "name",
           "passwordRequired",
+          "quality",
           "recoverySeconds",
           "region",
           "resolutions",
@@ -1933,6 +1937,12 @@
           "ownerPresent": {
             "type": "boolean"
           },
+          "participantCan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "title": {
             "type": "string"
           }
@@ -1983,6 +1993,23 @@
           "code",
           "commandId",
           "name"
+        ],
+        "type": "object"
+      },
+      "Level": {
+        "properties": {
+          "fps": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "resolution": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fps",
+          "resolution"
         ],
         "type": "object"
       },
@@ -2308,6 +2335,30 @@
         ],
         "type": "object"
       },
+      "QualityRules": {
+        "properties": {
+          "cameraYieldsToScreen": {
+            "type": "boolean"
+          },
+          "ceiling": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "default": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "settleMs": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cameraYieldsToScreen",
+          "ceiling",
+          "default",
+          "settleMs"
+        ],
+        "type": "object"
+      },
       "Rejoin": {
         "properties": {
           "commandId": {
@@ -2441,6 +2492,20 @@
         },
         "required": [
           "title"
+        ],
+        "type": "object"
+      },
+      "RoomYou": {
+        "properties": {
+          "can": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "can"
         ],
         "type": "object"
       },
@@ -2720,6 +2785,16 @@
             "oneOf": [
               {
                 "$ref": "#/components/schemas/Watch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "you": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoomYou"
               },
               {
                 "type": "null"

@@ -447,6 +447,7 @@ export interface components {
             maxScreens: number;
             name: string;
             passwordRequired: boolean;
+            quality: components["schemas"]["QualityRules"];
             /** Format: int32 */
             recoverySeconds: number;
             region: string;
@@ -893,6 +894,7 @@ export interface components {
             id?: string;
             integrationsAllowed?: boolean;
             ownerPresent?: boolean;
+            participantCan?: string[];
             title?: string;
         };
         Join: {
@@ -906,6 +908,12 @@ export interface components {
             /** Format: uuid */
             commandId: string;
             name: string;
+        };
+        Level: {
+            /** Format: int32 */
+            fps: number;
+            /** Format: int32 */
+            resolution: number;
         };
         MediaToken: {
             /** Format: int64 */
@@ -1007,6 +1015,13 @@ export interface components {
             amount: number;
             seats: number[];
         };
+        QualityRules: {
+            cameraYieldsToScreen: boolean;
+            ceiling: components["schemas"]["Level"];
+            default: components["schemas"]["Level"];
+            /** Format: int64 */
+            settleMs: number;
+        };
         Rejoin: {
             /** Format: uuid */
             commandId: string;
@@ -1041,6 +1056,9 @@ export interface components {
         RoomSettings: {
             approvalRequired?: boolean;
             title: string;
+        };
+        RoomYou: {
+            can: string[];
         };
         Save: {
             roomCredential: string;
@@ -1121,6 +1139,7 @@ export interface components {
             serverTime: number;
             title: string;
             watch: components["schemas"]["Watch"] | null;
+            you?: components["schemas"]["RoomYou"] | null;
         };
         TableView: {
             /** Format: int64 */

@@ -53,6 +53,13 @@ for _ in $(seq 1 360); do
 done
 ((ready)) || { echo "Ядро не ответило за 30 минут" >&2; docker logs --tail 20 "$NAME-core"; exit 1; }
 
-(cd web && API_SCHEMA_URL="http://127.0.0.1:$CORE_PORT/api/openapi" npm run -s generate:api)
+# Схему — сначала в файл, с повторами: одноразовое ядро на перегруженной машине отвечало на
+# проверку готовности и тут же переставало принимать соединения к запросу генератора.
+SCHEMA=$(mktemp)
+curl -fsS --retry 20 --retry-connrefused --retry-delay 5 --max-time 120 \
+  "http://127.0.0.1:$CORE_PORT/api/openapi" -o "$SCHEMA" \
+  || { echo "Схему снять не удалось" >&2; docker logs --tail 60 "$NAME-core"; exit 1; }
+(cd web && API_SCHEMA_FILE="$SCHEMA" npm run -s generate:api)
+rm -f "$SCHEMA"
 (cd web && npx prettier --log-level warn --write src/api/generated.ts >/dev/null 2>&1 || true)
 git status --short -- contracts/openapi.json web/src/api/generated.ts

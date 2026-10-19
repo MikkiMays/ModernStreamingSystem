@@ -372,7 +372,7 @@ class RouteTests(unittest.TestCase):
         ):
             answer = self.ask(client, url)
             self.assertEqual((answer.status_code, answer.json()), (200, {"route": route}), url)
-        self.core.member.assert_awaited_with(ROOM, "Bearer member.secret")
+        self.core.member.assert_awaited_with(ROOM, "Bearer member.secret", action="cinema.browse")
 
     def test_an_unknown_link_goes_to_the_general_path_and_its_answer_is_the_answer(self):
         # Что нашлось на чужой странице, решает общий путь (`test_cinema_link.py`); маршрут отдаёт его

@@ -1,9 +1,15 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import openapiTS, { astToString } from 'openapi-typescript';
 
-const response = await fetch(process.env.API_SCHEMA_URL ?? 'http://localhost:8080/api/openapi');
-if (!response.ok) throw new Error(`OpenAPI returned ${response.status}`);
-const schema = await response.json();
+// API_SCHEMA_FILE — схема, уже снятая с ядра (backlog/bin/gen-contracts.sh): одноразовое ядро не
+// обязано дожить до этого запроса.
+async function loadSchema() {
+  if (process.env.API_SCHEMA_FILE) return JSON.parse(await readFile(process.env.API_SCHEMA_FILE, 'utf8'));
+  const response = await fetch(process.env.API_SCHEMA_URL ?? 'http://localhost:8080/api/openapi');
+  if (!response.ok) throw new Error(`OpenAPI returned ${response.status}`);
+  return response.json();
+}
+const schema = await loadSchema();
 schema.paths = Object.fromEntries(
   Object.entries(schema.paths).filter(([path]) => path.startsWith('/api/v1/')),
 );
