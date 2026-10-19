@@ -38,8 +38,7 @@ textarea,
 .section-title > span,
 .message-meta,
 .message-meta time,
-.person-caption,
-.connection-badge {
+.person-caption {
   font-size: 12px;
 }
 .screen-tools .icon-button,
@@ -59,9 +58,6 @@ textarea,
   place-items: center;
   color: var(--muted);
 }
-.connection-badge.is-live {
-  color: #237653;
-}
 @media (max-width: 767px) {
   .call-dock {
     gap: 2px;
@@ -75,12 +71,6 @@ textarea,
   .call-dock .dock-divider {
     display: none;
   }
-  .connection-badge {
-    font-size: 10px;
-  }
-  .meeting-title h1 {
-    max-width: 38vw;
-  }
   .panel-open .person-caption {
     font-size: 10px;
   }
@@ -91,14 +81,6 @@ textarea,
     padding-inline: 8px;
     font-size: 14px;
   }
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .connection-badge.is-live {
-    color: #8fd8b4;
-  }
-}
-:root[data-theme='dark'] .connection-badge.is-live {
-  color: #8fd8b4;
 }
 /* Small quality labels still need the full text contrast ratio. */
 .quality-tag {

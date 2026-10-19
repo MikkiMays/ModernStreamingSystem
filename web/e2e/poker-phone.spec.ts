@@ -23,7 +23,7 @@ test('стол на телефоне: панели не выезжают за э
     await page.getByRole('button', { name: /Новая встреча/ }).click();
     await page.getByLabel('Ваше имя').fill('Майс');
     await page.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await page.getByRole('button', { name: 'Настройки и действия' }).click();
     await page.getByRole('menuitem', { name: /Интеграции/ }).click();
     await page.getByRole('button', { name: /Игры/ }).click();

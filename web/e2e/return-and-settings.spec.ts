@@ -28,7 +28,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);
     await host.getByLabel('Ваше имя').fill('Хозяин');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
     const code = (await host.getByRole('button', { name: 'Код встречи', exact: true }).innerText()).trim();
@@ -45,7 +45,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(guest.getByText('Организатор скоро впустит вас')).toBeVisible();
     await host.getByRole('button', { name: /Запросы на подключение/ }).click();
     await host.getByRole('button', { name: 'Разрешить вход: Гость по коду' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible();
     await guest.getByRole('button', { name: 'Сохранить комнату в избранное' }).click();
     await host.getByRole('button', { name: 'Сохранить комнату в избранное' }).click();
     await guest.getByRole('button', { name: 'Чат', exact: true }).click();
@@ -95,7 +95,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(guest.getByLabel('Название встречи')).toHaveCount(0);
     await expect(guest.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible();
     await guest.getByRole('button', { name: 'Чат', exact: true }).click();
     await expect(guest.getByText('Продолжаем этот разговор', { exact: true })).toBeVisible();
     await expect(host.locator('.participant-row')).toHaveCount(2);
@@ -118,7 +118,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.getByLabel('Ваше имя')).toHaveCount(0);
     await expect(host.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
     await host.getByRole('tab', { name: 'Видео', exact: true }).click();
@@ -137,7 +137,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
       .getByRole('dialog', { name: 'Избранные комнаты', exact: true })
       .getByRole('button', { name: new RegExp(code) })
       .click();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await expect(host.getByRole('heading', { name: 'Наша любимая комната' })).toBeVisible();
     await host.getByRole('button', { name: 'Убрать комнату из избранного' }).click();
     await host.getByRole('button', { name: 'Выйти из встречи' }).click();

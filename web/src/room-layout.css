@@ -23,10 +23,6 @@
   margin-inline: 4px 10px;
   flex-shrink: 0;
 }
-.favorite-active {
-  color: var(--blue);
-  background: var(--blue-soft);
-}
 .text-button {
   color: var(--blue);
   padding: 8px;
@@ -81,9 +77,6 @@
   .preview-settings {
     bottom: 12px;
     right: 12px;
-  }
-  .meeting-header-actions {
-    gap: 0;
   }
 }
 

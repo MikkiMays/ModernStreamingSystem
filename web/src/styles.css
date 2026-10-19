@@ -594,38 +594,6 @@ h2 {
   padding: 9px 12px;
 }
 /*
-  Название встречи как кнопка — для ведущего.
-
-  Туда же, где название написано, и идут его исправлять; отдельный пункт меню для этого есть,
-  но искать его будет только тот, кто уже знает, что он там. Карандаш появляется по наведению,
-  чтобы заголовок оставался заголовком, а не выглядел полем ввода.
-*/
-.meeting-rename {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-.meeting-rename svg {
-  opacity: 0;
-  color: var(--muted);
-  transition: opacity 150ms;
-}
-.meeting-rename:hover svg,
-.meeting-rename:focus-visible svg {
-  opacity: 1;
-}
-@media (hover: none) {
-  .meeting-rename svg {
-    opacity: 1;
-  }
-}
-/*
   Ссылка «О программе» внизу главной. Раньше здесь стояла версия сборки — кнопкой в тот же раздел:
   вопрос «какая у меня версия» почти всегда следующим шагом становится «а есть ли новее». Номер
   версии теперь показывает только «О программе» (T58), а дорога туда осталась.
@@ -824,69 +792,6 @@ h2 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-.meeting-header {
-  min-height: 80px;
-  padding: 0 26px;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.meeting-title {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  min-width: 0;
-}
-.meeting-title .brand {
-  --brand-h: 27px;
-}
-.header-divider {
-  height: 28px;
-  width: 1px;
-  background: var(--line);
-}
-.meeting-title h1 {
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 38vw;
-  margin-bottom: 5px;
-}
-.room-subtitle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--muted);
-}
-.meeting-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.connection-badge {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--muted);
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 30px;
-  white-space: nowrap;
-}
-.connection-badge.is-live {
-  color: #338368;
-  background: #41976d0a;
-  border-color: #41976d25;
-}
-.is-live .status-dot {
-  background: #3b9d73;
 }
 .meeting-body {
   flex: 1;
@@ -1371,20 +1276,6 @@ h2 {
   background: var(--surface-2);
   border: 1px solid var(--bg);
 }
-.panel-resizer {
-  width: 12px;
-  cursor: col-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.panel-resizer:hover:after {
-  content: '';
-  width: 3px;
-  height: 40px;
-  border-radius: 3px;
-  background: var(--blue);
-}
 .side-panel {
   min-height: 0;
   display: flex;
@@ -1629,14 +1520,6 @@ h2 {
   align-items: center;
   gap: 9px;
   margin-bottom: 14px;
-}
-.room-code {
-  color: inherit;
-  background: none;
-  padding: 0;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.6px;
 }
 .invite-code {
   display: flex;
@@ -1998,9 +1881,6 @@ progress {
   .meeting-body.panel-open {
     grid-template-columns: minmax(0, 1fr);
   }
-  .panel-resizer {
-    display: none;
-  }
   .side-panel {
     position: absolute;
     z-index: 12;
@@ -2159,40 +2039,6 @@ progress {
   .prejoin-page .app-header .button {
     padding: 0;
     font-size: 12px;
-  }
-  .meeting-header {
-    min-height: 70px;
-    padding: 0 14px;
-    gap: 8px;
-  }
-  .meeting-title {
-    gap: 9px;
-  }
-  .meeting-title .brand {
-    --brand-h: 24px;
-  }
-  .meeting-title .brand-word {
-    display: none;
-  }
-  .header-divider {
-    display: none;
-  }
-  .meeting-title h1 {
-    font-size: 13px;
-    max-width: 41vw;
-  }
-  .room-subtitle {
-    font-size: 9px;
-  }
-  .connection-badge {
-    font-size: 9px;
-    padding: 7px 9px;
-  }
-  .meeting-header-actions {
-    gap: 2px;
-  }
-  .meeting-header-actions > .icon-button:first-of-type {
-    display: none;
   }
   .meeting-body {
     padding: 0 8px;
@@ -2423,17 +2269,8 @@ progress {
   .dock-divider {
     display: none;
   }
-  .meeting-title h1 {
-    max-width: 120px;
-  }
-  .connection-badge {
-    display: none;
-  }
 }
 @media (max-height: 600px) and (min-width: 768px) {
-  .meeting-header {
-    min-height: 60px;
-  }
   .call-footer {
     min-height: 76px;
   }

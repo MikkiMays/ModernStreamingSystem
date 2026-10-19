@@ -18,14 +18,14 @@ test('карты показывают по желанию, и это видят 
     await host.getByRole('button', { name: /Новая встреча/ }).click();
     await host.getByLabel('Ваше имя').fill('Майс');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await host.getByRole('button', { name: 'Пригласить участников', exact: true }).click();
     const invitation = await host.getByRole('textbox', { name: 'Ссылка приглашения' }).inputValue();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await guest.goto(invitation);
     await guest.getByLabel('Ваше имя').fill('Алекс');
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(guest.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
 
     await host.getByRole('button', { name: 'Интеграции', exact: true }).click();
     await host.getByRole('button', { name: /Игры/ }).click();

@@ -1,0 +1,216 @@
+/*
+  Шапка встречи (E02: T25, T35, T41). Только токены `styles/tokens.css`.
+
+  Слева — марка, название и строка о встрече: код, время, а если что-то не так — состояние.
+  Справа — только то, что относится к этой встрече: звезда избранного и приглашение. Тема ушла в
+  настройки (T41), «В эфире» — из шапки вовсе (T25).
+*/
+.meeting-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 64px;
+  padding: 0 var(--space-6);
+  flex-shrink: 0;
+  color: var(--text);
+}
+.meeting-header__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.meeting-header__brand {
+  --brand-h: 26px;
+}
+.meeting-header__rule {
+  flex: none;
+  width: 1px;
+  height: 24px;
+  background: var(--line);
+}
+/* Название и строка о встрече — одной линией там, где хватает места (П7: время «наравне с
+   номером встречи»), и двумя строками на узком экране. */
+.meeting-header__text {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.meeting-header__title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+.meeting-header__rename {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+.meeting-header__rename:hover {
+  background: var(--surface-hover);
+}
+.meeting-header__rename > svg {
+  flex: none;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.meeting-header__rename:hover > svg,
+.meeting-header__rename:focus-visible > svg {
+  opacity: 1;
+}
+@media (hover: none) {
+  .meeting-header__rename > svg {
+    opacity: 1;
+  }
+}
+.meeting-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.meeting-header__code {
+  min-height: 0;
+  padding: 2px var(--space-1);
+  margin: 0 calc(var(--space-1) * -1);
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.meeting-header__code:hover {
+  color: var(--accent);
+}
+.meeting-header__clock {
+  color: var(--text-secondary);
+}
+/* Перед временем — зелёная точка «идёт» (цвет голоса из токенов): строка читается как «код,
+   и встреча идёт столько-то», без точек-разделителей между словами. */
+.meeting-header__clock::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--voice);
+  vertical-align: 0.12em;
+}
+.meeting-header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+.meeting-header__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+.meeting-header__status[data-tone='progress'] .meeting-header__dot {
+  background: var(--accent);
+  animation: meeting-header-pulse 1.2s var(--ease-standard) infinite;
+}
+.meeting-header__status[data-tone='warning'] {
+  color: var(--warning);
+}
+.meeting-header__status[data-tone='warning'] .meeting-header__dot {
+  background: var(--warning);
+  animation: meeting-header-pulse 1.2s var(--ease-standard) infinite;
+}
+@keyframes meeting-header-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meeting-header__status[data-tone] .meeting-header__dot {
+    animation: none;
+  }
+}
+.meeting-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+.meeting-header__favorite[data-pressed] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.meeting-header__favorite[aria-disabled='true'] {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+@media (max-width: 1199px) {
+  .meeting-header {
+    min-height: 56px;
+    padding: 0 var(--space-4);
+    gap: var(--space-2);
+  }
+  .meeting-header__identity {
+    gap: var(--space-3);
+  }
+  .meeting-header__brand {
+    --brand-h: 24px;
+  }
+  .meeting-header__brand .brand-word,
+  .meeting-header__rule {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .meeting-header__text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .meeting-header__title {
+    font-size: var(--text-base);
+  }
+  .meeting-header__meta {
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+  }
+  .meeting-header__code {
+    font-size: var(--text-xs);
+  }
+  .meeting-header__clock::before {
+    margin-right: var(--space-1);
+  }
+}
+@media (max-height: 600px) and (min-width: 768px) {
+  .meeting-header {
+    min-height: 52px;
+  }
+}
