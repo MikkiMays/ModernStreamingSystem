@@ -14,19 +14,29 @@
   border-radius: 12px;
   color: var(--text);
 }
+/* Лицо и кнопка увеличения рядом: само лицо круглое и обрезает всё, что в него положить. */
+.game-person-avatar {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+}
 .game-person-face {
+  --game-face: calc(var(--game-person-size, 38px) * var(--face-zoom, 1));
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 var(--game-person-size, 38px);
-  width: var(--game-person-size, 38px);
-  height: var(--game-person-size, 38px);
+  flex: 0 0 var(--game-face);
+  width: var(--game-face);
+  height: var(--game-face);
   border-radius: 50%;
   overflow: hidden;
   background: var(--surface-2);
   outline: 2px solid transparent;
   outline-offset: 2px;
-  transition: outline-color 150ms ease;
+  transition:
+    outline-color 150ms ease,
+    width 160ms ease,
+    height 160ms ease;
 }
 .game-person-face video,
 .game-person-face .avatar {
@@ -60,6 +70,42 @@
 }
 .game-person .participant-more {
   margin-left: auto;
+}
+/*
+  Увеличение лица за любым столом (T11). Кнопка — в правом верхнем углу лица, видна при наведении
+  и фокусе; на сенсорном экране наводить нечем, поэтому там она видна всегда, но приглушённо.
+*/
+.face-zoom {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #ffffff3d;
+  border-radius: 50%;
+  background: #0b1520e0;
+  color: #eef3fb;
+  box-shadow: 0 2px 6px #0006;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.face-zoom:focus-visible {
+  opacity: 1;
+  outline: 2px solid #a8c4ff;
+  outline-offset: 2px;
+}
+:is(.game-person-avatar, .durak-seat-avatar, .poker-face):hover > .face-zoom {
+  opacity: 1;
+}
+@media (hover: none) {
+  .face-zoom {
+    opacity: 0.72;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-person-face {

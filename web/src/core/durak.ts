@@ -171,6 +171,12 @@ export function tableSays(table: DurakTable, mySeat: number | null): string {
   if (table.boutEnd === 'beaten') return 'Бито';
   const waiting = table.acting;
   if (!waiting.length) return 'Стол раздаёт';
+  // Нечем отбиться — стол возьмёт за защитника сам через полторы секунды (T07).
+  const cornered = table.seats.find((seat) => seat.index === table.defender)?.auto === 'take';
+  if (cornered)
+    return mySeat === table.defender
+      ? 'Нечем отбиться — берём карты'
+      : `${table.seats[table.defender]?.name ?? ''}: нечем отбиться — берёт`;
   if (mySeat !== null && waiting.includes(mySeat)) {
     if (mySeat === table.defender && !table.taking) return 'Ваш ход: отбивайтесь или берите';
     return table.table.length ? 'Ваш ход: подкиньте или скажите «бито»' : 'Ваш ход: заходите';

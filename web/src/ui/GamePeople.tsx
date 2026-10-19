@@ -4,6 +4,8 @@ import type { Meeting } from '../core/meeting';
 import type { MediaTile } from '../media/session';
 import { Avatar, useStore } from './primitives';
 import { ParticipantMenu } from './ParticipantMenu';
+import { FaceZoomButton, useFaceZoom } from './FaceZoom';
+import type { GameKind } from '../core/preferences';
 import '../game-people.css';
 
 function GameCamera({ tile }: { tile: MediaTile }) {
@@ -35,6 +37,7 @@ export function GamePerson({
   label,
   fallbackName,
   interactive = true,
+  game,
 }: {
   meeting: Meeting;
   memberId?: string | null;
@@ -42,6 +45,8 @@ export function GamePerson({
   /** Recorded game identity remains readable after the member leaves the meeting. */
   fallbackName?: string;
   interactive?: boolean;
+  /** За каким столом лицо: его размер у каждого зрителя свой и помнится по игре (T11). */
+  game?: GameKind;
 }) {
   const snapshot = useStore(meeting.snapshot);
   const tracks = useStore(meeting.media.tracks);
@@ -52,10 +57,14 @@ export function GamePerson({
   );
   const speaking = !!memberId && speakers.includes(memberId);
   const name = person?.name ?? fallbackName ?? label ?? 'Свободное место';
+  const zoom = useFaceZoom(game ?? 'chess', game ? memberId : null);
   const content = (
     <>
-      <span className="game-person-face">
-        {camera ? <GameCamera tile={camera} /> : <Avatar name={name} src={person?.avatar} />}
+      <span className="game-person-avatar" style={zoom.style}>
+        <span className="game-person-face">
+          {camera ? <GameCamera tile={camera} /> : <Avatar name={name} src={person?.avatar} />}
+        </span>
+        {game && memberId && <FaceZoomButton zoom={zoom.zoom} name={name} onCycle={zoom.cycle} />}
       </span>
       <span className="game-person-copy">
         <b title={name}>{name}</b>
@@ -80,7 +89,15 @@ export function GamePerson({
   );
 }
 
-export function GamePeople({ meeting, memberIds }: { meeting: Meeting; memberIds?: string[] }) {
+export function GamePeople({
+  meeting,
+  memberIds,
+  game,
+}: {
+  meeting: Meeting;
+  memberIds?: string[];
+  game?: GameKind;
+}) {
   const snapshot = useStore(meeting.snapshot);
   const people =
     memberIds ??
@@ -90,7 +107,7 @@ export function GamePeople({ meeting, memberIds }: { meeting: Meeting; memberIds
   return (
     <div className="game-people" aria-label="Участники встречи">
       {people.map((id) => (
-        <GamePerson key={id} meeting={meeting} memberId={id} />
+        <GamePerson key={id} meeting={meeting} memberId={id} game={game} />
       ))}
     </div>
   );

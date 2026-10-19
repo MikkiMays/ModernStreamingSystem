@@ -54,6 +54,9 @@ public class Durak {
   /** Сколько стол стоит пустым, прежде чем уйти со сцены. Столько же у покера. */
   public static final long LINGER_MS = 600000;
 
+  /** Сколько видно «нечем отбиться», прежде чем стол возьмёт за защитника сам. */
+  public static final long AUTO_TAKE_MS = 1500;
+
   /** Сколько ждём хода от того, кого во встрече уже нет. */
   public static final long AWAY_ACT_MS = 3000;
 
@@ -748,7 +751,7 @@ public class Durak {
       throw Problem.conflict("DURAK_TURN", "Заходит тот, чей ход");
     if (!attacks.isEmpty() && !mayThrow(index))
       throw Problem.conflict("DURAK_TURN", "Подкидывать могут только соседи защитника");
-    if (attacks.size() >= limit)
+    if (attacks.size() >= limit || unbeaten() >= seats.get(defender).hand.size())
       throw Problem.conflict("DURAK_LIMIT", "Больше в этот бой не подкинуть");
     var seat = seats.get(index);
     if (!seat.hand.contains(card)) throw Problem.forbidden();
@@ -817,6 +820,11 @@ public class Durak {
   }
 
   private void take(int index, long now) {
+    take(index, now, false);
+  }
+
+  /** {@code cornered} — берёт не он, а стол за него: отбиться ему нечем. */
+  private void take(int index, long now, boolean cornered) {
     if (index != defender) throw Problem.conflict("DURAK_TURN", "Берёт тот, кто отбивается");
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
     if (attacks.isEmpty()) throw Problem.conflict("DURAK_EMPTY", "Брать пока нечего");
@@ -824,7 +832,8 @@ public class Durak {
     player(seats.get(index).memberId, seats.get(index).name).takes++;
     // Взял — значит, можно докинуть «вдогонку»: спасовавшие снова в игре.
     passed.clear();
-    note(now, "take", index, seats.get(index).name, seats.get(index).name + " берёт");
+    var name = seats.get(index).name;
+    note(now, "take", index, name, name + (cornered ? " берёт: нечем отбиться" : " берёт"));
     reschedule(now);
   }
 
@@ -875,15 +884,23 @@ public class Durak {
     var seat = seats.get(index);
     int next = nextPlaying(index);
     seat.hand.remove((Integer) card);
-    visual(now, "play", index, null, 1, List.of(Cards.text(card)));
+    // Своё событие, а не ещё одна атака: бой уезжает к соседу, и это видно и слышно иначе.
+    visual(now, "transfer", index, next, 1, List.of(Cards.text(card)));
     attacks.add(card);
     beats.add(-1);
     passed.clear();
     player(seat.memberId, seat.name).transfers++;
     attacker = index;
     defender = next;
+    /*
+     Перевод начинает бой заново, и предел — рука нового защитника на его начало (T51).
+
+     Здесь стояло «атаки на столе плюс его рука»: две атаки и две карты давали предел четыре, и
+     отбившийся последними двумя картами сидел с пустой рукой под третьей и четвёртой. Отбить он
+     может ровно столько, сколько держит, — столько и кладут.
+    */
     int cap = firstFive && boutNumber == 1 ? FIRST_ATTACKS : MAX_ATTACKS;
-    limit = Math.min(cap, attacks.size() + seats.get(next).hand.size());
+    limit = Math.min(cap, seats.get(next).hand.size());
     note(now, "transfer", index, seat.name, seat.name + " переводит на " + seats.get(next).name);
     reschedule(now);
   }
@@ -906,12 +923,89 @@ public class Durak {
     return index == attacker || index == nextPlaying(defender);
   }
 
+  /** Сколько атак на столе ещё не побито. */
+  private int unbeaten() {
+    return (int) beats.stream().filter(card -> card < 0).count();
+  }
+
+  /**
+   * Есть ли в этот бой место ещё для одной карты.
+   *
+   * <p>Два условия, и второе — страховка. Предел считается на начало боя, а неотбитых на столе не
+   * может быть больше, чем карт у защитника: пустая рука при пустой колоде значит, что атака
+   * кончилась, что бы ни обещал предел, записанный прежним ядром (T51).
+   */
+  private boolean roomToThrow() {
+    return attacks.size() < limit && unbeaten() < seats.get(defender).hand.size();
+  }
+
   /** Может ли это место положить хоть одну карту в текущий бой. */
   private boolean canThrow(int index) {
-    if (!mayThrow(index) || attacks.size() >= limit) return false;
+    if (!mayThrow(index) || !roomToThrow()) return false;
     if (attacks.isEmpty()) return index == attacker;
     var ranks = ranksOnTable();
     return seats.get(index).hand.stream().anyMatch(card -> ranks.contains(Cards.rank(card)));
+  }
+
+  /**
+   * Подкинуть законно, место в бою есть, а подходящего номинала нет (T07).
+   *
+   * <p>Такого игрока стол не ждёт и пасует за него, а у его места все видят «нечего подкинуть». Что
+   * у него в руке, метка не раскрывает — только то, что подходящего нет; так и за настоящим столом
+   * говорят вслух «мне нечего».
+   */
+  private boolean nothingToThrow(int index) {
+    if (!playing() || attacks.isEmpty() || passed.contains(index) || !mayThrow(index)) return false;
+    if (!roomToThrow()) return false;
+    var ranks = ranksOnTable();
+    return seats.get(index).hand.stream().noneMatch(card -> ranks.contains(Cards.rank(card)));
+  }
+
+  /**
+   * Защитнику нечем отбиться и некуда перевести: бой он всё равно возьмёт (T07).
+   *
+   * <p>Рука за бой только тает, поэтому, если неотбитое нельзя покрыть разными картами руки уже
+   * сейчас, его нельзя будет покрыть никогда. Проверяется всё неотбитое разом, а не по карте: две
+   * атаки, которые бьёт один и тот же единственный козырь, — это тоже «нечем».
+   */
+  private boolean cornered() {
+    if (!playing() || boutEnd != null || taking || !beats.contains(-1)) return false;
+    var hand = seats.get(defender).hand;
+    var open = new ArrayList<Integer>();
+    for (int slot = 0; slot < attacks.size(); slot++)
+      if (beats.get(slot) < 0) open.add(attacks.get(slot));
+    if (covers(open, hand)) return false;
+    for (var card : hand) if (legal(() -> validateTransfer(defender, card))) return false;
+    return true;
+  }
+
+  /** Паросочетание «атака — чем бьём» (Кун): у каждой неотбитой карты своя защитная. */
+  private boolean covers(List<Integer> open, List<Integer> hand) {
+    var owner = new int[hand.size()];
+    java.util.Arrays.fill(owner, -1);
+    for (int attack = 0; attack < open.size(); attack++)
+      if (!assign(attack, open, hand, owner, new boolean[hand.size()])) return false;
+    return true;
+  }
+
+  private boolean assign(
+      int attack, List<Integer> open, List<Integer> hand, int[] owner, boolean[] seen) {
+    for (int slot = 0; slot < hand.size(); slot++) {
+      if (seen[slot] || !beatsCard(hand.get(slot), open.get(attack))) continue;
+      seen[slot] = true;
+      if (owner[slot] < 0 || assign(owner[slot], open, hand, owner, seen)) {
+        owner[slot] = attack;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Что стол решил за это место: {@code take}, {@code pass} или {@code null}. */
+  private String auto(int index) {
+    if (index == defender) return cornered() ? "take" : null;
+    // Метка остаётся и на полторы секунды закрытого боя: по ней и видно, почему он закрылся.
+    return nothingToThrow(index) ? "pass" : null;
   }
 
   /**
@@ -940,7 +1034,8 @@ public class Durak {
       return;
     }
     actionAt = now;
-    deadline = now + turnSeconds * 1000L;
+    // Нечем отбиться — ждать полный срок незачем: полторы секунды видно, что сейчас будет.
+    deadline = now + (cornered() ? AUTO_TAKE_MS : turnSeconds * 1000L);
   }
 
   /** Бой кончился. Карты ещё полторы секунды лежат на столе — этим и видно, чем он кончился. */
@@ -1135,7 +1230,7 @@ public class Durak {
       return true;
     }
     if (waiting.size() == 1 && waiting.get(0) == defender && !taking) {
-      take(defender, now);
+      take(defender, now, cornered());
     } else {
       for (var index : waiting) if (!passed.contains(index)) passed.add(index);
       reschedule(now);
@@ -1278,7 +1373,8 @@ public class Durak {
               seat.out && seat.place > 0,
               seat.place,
               seat.away,
-              seat.fool));
+              seat.fool,
+              playing() && seat.playing() ? auto(index) : null));
     }
     var notes =
         log.stream()
@@ -1346,7 +1442,7 @@ public class Durak {
     var actions = new ArrayList<String>();
     boolean live = !paused && playing() && boutEnd == null && seat.playing();
     if (live && index != defender && !attacks.isEmpty() && (taking || !beats.contains(-1)))
-      if (!passed.contains(index) && mayThrow(index)) actions.add("pass");
+      if (!passed.contains(index) && canThrow(index)) actions.add("pass");
     if (live && index == defender && !taking && !attacks.isEmpty()) actions.add("take");
     return new DurakView.DurakYou(
         index, cards, actions, live && waiting.contains(index), live ? plays(index) : List.of());

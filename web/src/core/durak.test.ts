@@ -209,6 +209,14 @@ describe('что говорит стол', () => {
     expect(tableSays(table({ acting: [0] }), 0)).toBe('Ваш ход: подкиньте или скажите «бито»');
   });
 
+  it('говорит, что защитнику нечем отбиться и стол берёт за него (T07)', () => {
+    const cornered = table({
+      seats: table().seats.map((item) => (item.index === 1 ? { ...item, auto: 'take' as const } : item)),
+    });
+    expect(tableSays(cornered, 1)).toBe('Нечем отбиться — берём карты');
+    expect(tableSays(cornered, 0)).toBe('Игрок 1: нечем отбиться — берёт');
+  });
+
   it('объявляет конец боя одним словом', () => {
     expect(tableSays(table({ boutEnd: 'beaten' }), 0)).toBe('Бито');
     expect(tableSays(table({ boutEnd: 'taken' }), 0)).toBe('Игрок 1 забирает');

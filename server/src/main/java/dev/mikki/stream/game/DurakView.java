@@ -118,7 +118,13 @@ public record DurakView(
       int place,
       boolean away,
       /** Тот самый. Видно только когда партия кончилась. */
-      boolean fool) {}
+      boolean fool,
+      /**
+       * Что стол решил за это место (T07): {@code pass} — подкинуть нечего, стол его не ждёт;
+       * {@code take} — отбиться нечем, через {@link Durak#AUTO_TAKE_MS} стол возьмёт за него.
+       * {@code null} — решает сам. Только итог: какие карты у него, отсюда не узнать.
+       */
+      String auto) {}
 
   /** Строка ленты: что произошло и когда. */
   public record DurakNote(long at, String kind, int seat, String name, String text) {}

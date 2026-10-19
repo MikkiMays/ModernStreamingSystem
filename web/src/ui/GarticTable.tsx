@@ -16,6 +16,7 @@ import type { Meeting } from '../core/meeting';
 import type { GarticTable as Table } from '../api/types';
 import { GamePeople, GamePerson } from './GamePeople';
 import { GameTurn } from './GamePresentation';
+import { useGarticSounds } from './useGameSounds';
 import { AlbumReveal, ClassicResults } from './GarticResults';
 import { allowed } from '../core/permissions';
 import { IconButton, useStore } from './primitives';
@@ -48,6 +49,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
   const players = table.players.filter((player) => player.active && !player.away);
   const minimum = phone ? 3 : 2;
   const phaseKey = `${table.gameId}:${table.turnToken}`;
+  useGarticSounds(meeting, table, !!table.you?.playing);
   const send: SendCommand = (type, text, extra) =>
     meeting.command(type, text, undefined, {
       contentId: table.gameId,
@@ -364,7 +366,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
           )}
           {!host && ended && <span>Следующую игру запускает ведущий</span>}
         </div>
-        <GamePeople meeting={meeting} />
+        <GamePeople meeting={meeting} game="gartic" />
       </footer>
     </section>
   );
@@ -692,6 +694,7 @@ function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
               memberId={player.memberId}
               fallbackName={player.name}
               label={playerStatus(player, table)}
+              game="gartic"
             />
             {phone ? (
               <span className="gartic-player-progress" aria-hidden="true">

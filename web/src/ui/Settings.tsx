@@ -21,6 +21,7 @@ import {
   readPreferences,
   savePreferences,
   type AudioPreferences,
+  type GameKind,
   type Preferences,
   type Reception,
 } from '../core/preferences';
@@ -364,7 +365,23 @@ export function AudioFields({
  * here because the cues are deliberately short: hearing one is faster than reading, but only
  * once you know what it was.
  */
-export function SoundFields({ enabled, change }: { enabled: boolean; change: (enabled: boolean) => void }) {
+export function SoundFields({
+  enabled,
+  change,
+  volume = 100,
+  changeVolume,
+  games,
+  changeGames,
+}: {
+  enabled: boolean;
+  change: (enabled: boolean) => void;
+  /** Громкость сигналов, 0–100: общая у уведомлений и звуков игр (П10). */
+  volume?: number;
+  changeVolume?: (volume: number) => void;
+  /** Звуки столов, у каждой игры свой выключатель (T45). */
+  games?: Record<GameKind, boolean>;
+  changeGames?: (games: Record<GameKind, boolean>) => void;
+}) {
   const demo = useMemo(() => new NotificationSounds(), []);
   return (
     <section className="audio-settings" aria-label="Звуки уведомлений">
@@ -408,12 +425,52 @@ export function SoundFields({ enabled, change }: { enabled: boolean; change: (en
           </button>
         ))}
       </div>
+      {changeVolume && (
+        <label className="gain-setting" data-disabled={!enabled}>
+          Громкость сигналов и игр · {volume}%
+          <Slider
+            min={0}
+            max={100}
+            step={5}
+            disabled={!enabled}
+            value={volume}
+            aria-label="Громкость сигналов и звуков игр"
+            onChange={(e) => changeVolume(Number(e.target.value))}
+          />
+        </label>
+      )}
+      {games && changeGames && (
+        <fieldset className="game-sound-settings" disabled={!enabled}>
+          <legend>Звуки игр</legend>
+          {GAME_SOUNDS.map(([game, title, hint]) => (
+            <label key={game} className="check-setting">
+              <input
+                type="checkbox"
+                checked={games[game]}
+                onChange={(e) => changeGames({ ...games, [game]: e.target.checked })}
+              />
+              <span>
+                {title}
+                <small>{hint}</small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
       <p className="form-footnote">
         Звук выхода звучит и при закрытии приложения: сначала выход из встречи, потом окно.
       </p>
     </section>
   );
 }
+
+/** Что звучит за каждым столом — подписи флажков «Звуки игр». */
+const GAME_SOUNDS: [GameKind, string, string][] = [
+  ['poker', 'Покер', 'Раздача, ставки, сброс, банк победителю, часы своего хода.'],
+  ['durak', 'Дурак', 'Раздача, бросок, перевод, взятие, «бито», часы своего хода, победа.'],
+  ['chess', 'Шахматы', 'Ход, взятие, шах, мат, часы своего хода.'],
+  ['gartic', 'Gartic', 'Новый раунд, верная догадка, раскрытие, последние секунды, конец игры.'],
+];
 
 /**
  * Which server this client is talking to — a different question from who you are on it, which
@@ -784,6 +841,10 @@ export function Settings({
           <SoundFields
             enabled={preferences.notificationSounds}
             change={(notificationSounds) => change({ notificationSounds })}
+            volume={preferences.soundVolume}
+            changeVolume={(soundVolume) => change({ soundVolume })}
+            games={preferences.gameSounds}
+            changeGames={(gameSounds) => change({ gameSounds })}
           />
           <PlayoutFields mode={preferences.network} link={link} change={(network) => change({ network })} />
           {open && <DeviceCheck preferences={preferences} />}
