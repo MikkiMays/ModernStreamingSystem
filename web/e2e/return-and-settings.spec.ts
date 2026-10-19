@@ -86,9 +86,9 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     ).toBeVisible();
     await guest.reload();
     await expect(guest.getByRole('heading', { name: 'Недавние встречи' })).toHaveCount(0);
-    await guest.getByRole('button', { name: 'Избранные комнаты', exact: true }).click();
+    // Избранное — в боковой панели главной (E02), а не в диалоге из шапки.
     await guest
-      .getByRole('dialog', { name: 'Избранные комнаты', exact: true })
+      .getByRole('navigation', { name: 'Избранное' })
       .getByRole('button', { name: new RegExp(code) })
       .click();
     await expect(guest.getByLabel('Ваше имя')).toHaveValue('Гость по коду');
@@ -104,17 +104,10 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(
       host.getByRole('main').getByRole('textbox', { name: 'Код встречи или ссылка' }),
     ).toBeVisible();
-    await host.getByRole('button', { name: 'Избранные комнаты', exact: true }).click();
-    await host.getByRole('button', { name: 'Настроить вход в «Наша любимая комната»' }).click();
-    await host.getByRole('switch', { name: 'Автоподключение', exact: true }).check();
-    await host
-      .getByRole('dialog', { name: 'Наша любимая комната', exact: true })
-      .getByRole('button', { name: 'Закрыть', exact: true })
-      .click();
-    await host
-      .getByRole('dialog', { name: 'Избранные комнаты', exact: true })
-      .getByRole('button', { name: new RegExp(code) })
-      .click();
+    const favorites = host.getByRole('navigation', { name: 'Избранное' });
+    await favorites.getByRole('button', { name: 'Действия с «Наша любимая комната»' }).click();
+    await host.getByRole('menuitemcheckbox', { name: 'Автоподключение' }).click();
+    await favorites.getByRole('button', { name: new RegExp(code) }).click();
     await expect(host.getByLabel('Ваше имя')).toHaveCount(0);
     await expect(host.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
@@ -132,11 +125,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('menuitem', { name: 'Завершить для всех' }).click();
     // Only the definition persists: favorited closed rooms can start another conversation.
     await host.getByRole('button', { name: 'На главную', exact: true }).click();
-    await host.getByRole('button', { name: 'Избранные комнаты', exact: true }).click();
-    await host
-      .getByRole('dialog', { name: 'Избранные комнаты', exact: true })
-      .getByRole('button', { name: new RegExp(code) })
-      .click();
+    await favorites.getByRole('button', { name: new RegExp(code) }).click();
     await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await expect(host.getByRole('heading', { name: 'Наша любимая комната' })).toBeVisible();
     await host.getByRole('button', { name: 'Убрать комнату из избранного' }).click();
