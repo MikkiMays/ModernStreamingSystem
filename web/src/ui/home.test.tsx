@@ -23,7 +23,7 @@ const capabilities = {
   admissionOpen: true,
   fileMaxBytes: 1000000,
   frameRates: [30, 60],
-  maxParticipants: 10,
+  maxParticipants: 20,
   maxScreens: 2,
   name: 'Cord',
   passwordRequired: false,
@@ -31,6 +31,13 @@ const capabilities = {
   region: 'local',
   resolutions: [720, 1080],
   roomMaxBytes: 10000000,
+  quality: {
+    default: { resolution: 720, fps: 30 },
+    ceiling: { resolution: 1080, fps: 60 },
+    settleMs: 4000,
+    cameraYieldsToScreen: false,
+  },
+  favoritesMax: 10,
 };
 const clients: QueryClient[] = [];
 
