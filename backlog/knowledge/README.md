@@ -31,7 +31,7 @@
 - [`cord-testcontainers-on-host`](memory/cord-testcontainers-on-host.md) — Почему *PostgresTest ядра на стенде молча пропускаются или падают по таймауту, и какой запуск даёт настоящий PostgreSQL
 - [`cord-standing-permissions`](memory/cord-standing-permissions.md) — Владелец Cord дал все разрешения: в конце каждой сессии разработки — выкатка в прод и актуальный main обеих реп, без вопросов
 - [`cord-ui-checks-on-prod`](memory/cord-ui-checks-on-prod.md) — Как проверять вёрстку и медиа Cord настоящим браузером на этой машине, включая обход origin-проверки ядра
-- [`cord-ui-traps`](memory/cord-ui-traps.md) — Три ловушки интерфейса Cord, которые выглядели как сломанные ручки, а не как неверные значения
+- [`cord-ui-traps`](memory/cord-ui-traps.md) — Ловушки интерфейса Cord, которые выглядели как сломанные ручки: ползунки, подложки Base UI, холст
 - [`cord-video-quality-levers`](memory/cord-video-quality-levers.md) — Где в Cord ломается качество видео: кодек камеры, потолок «Авто», adaptiveStream и один предел LiveKit, который снаружи не убирается
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
