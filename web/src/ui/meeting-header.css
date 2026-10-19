@@ -51,36 +51,48 @@
   letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
 }
-.meeting-header__rename {
+.meeting-header__name {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-1) var(--space-2);
   margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
-  border: 0;
   border-radius: var(--radius-2);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
-.meeting-header__rename:hover {
+.meeting-header__name[data-editable]:hover {
   background: var(--surface-hover);
 }
-.meeting-header__rename > svg {
+.meeting-header__rename {
+  display: grid;
+  place-items: center;
   flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
   color: var(--muted);
+  cursor: pointer;
   opacity: 0;
   transition: opacity var(--motion-fast) var(--ease-standard);
 }
-.meeting-header__rename:hover > svg,
-.meeting-header__rename:focus-visible > svg {
+/* Нажимается вся строка с названием, а не только карандаш. */
+.meeting-header__rename::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.meeting-header__name:hover .meeting-header__rename,
+.meeting-header__rename:focus-visible {
   opacity: 1;
 }
 @media (hover: none) {
-  .meeting-header__rename > svg {
+  .meeting-header__rename {
     opacity: 1;
   }
 }
@@ -200,7 +212,7 @@
     align-items: stretch;
     gap: 2px;
   }
-  .meeting-header__rename {
+  .meeting-header__name {
     margin-right: 0;
   }
   .meeting-header__title {

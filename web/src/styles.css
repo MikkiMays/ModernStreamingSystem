@@ -414,7 +414,8 @@ h2 {
   left: 12px;
   right: 12px;
   bottom: calc(12px + env(safe-area-inset-bottom));
-  z-index: 40;
+  /* Слой пульта, как выдвижная панель главной: та открывается позже по DOM и ложится поверх. */
+  z-index: var(--z-dock);
   display: flex;
   align-items: center;
   gap: 12px;

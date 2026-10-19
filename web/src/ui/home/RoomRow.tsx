@@ -75,7 +75,9 @@ function RoomMenuItems({
   actions: RoomActions;
   onRename: () => void;
 }) {
-  const automatic = actions.autojoin(room);
+  // Автовход живёт в `localStorage`, не в состоянии React: без своей копии отмеченный пункт не
+  // перерисовывался бы, а меню оставалось бы открытым поверх списка.
+  const [automatic, setAutomatic] = useState(() => actions.autojoin(room));
   return (
     <>
       <MenuItem icon={<ArrowRight size={16} />} shortcut="Enter" onClick={() => actions.open(room)}>
@@ -117,7 +119,11 @@ function RoomMenuItems({
       <MenuCheckboxItem
         className="ui-menu__item"
         checked={automatic}
-        onCheckedChange={(checked) => actions.setAutojoin(room, checked)}
+        closeOnClick
+        onCheckedChange={(checked) => {
+          setAutomatic(checked);
+          actions.setAutojoin(room, checked);
+        }}
       >
         <span className="ui-menu__icon" aria-hidden="true">
           {automatic ? <Check size={16} /> : <Zap size={16} />}

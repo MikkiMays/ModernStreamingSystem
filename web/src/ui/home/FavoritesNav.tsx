@@ -1,6 +1,13 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { ChevronRight, FolderMinus, MoreHorizontal, Pencil, Plus, Star } from 'lucide-react';
-import { useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { autoJoinEnabled, setAutoJoin } from '../../core/favorites';
 import {
   GROUPS_MAX,
@@ -96,6 +103,19 @@ export function FavoritesNav({
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const justDragged = useRef(false);
+  /*
+    Комната, которую сдвинули с клавиатуры. Шаг вниз React делает переносом самого узла строки, и
+    фокус с её кнопки падает в body — второе Alt+↓ было бы уже некуда нажать. После отрисовки фокус
+    возвращается туда, где он был.
+  */
+  const refocus = useRef<string | null>(null);
+  useEffect(() => {
+    const roomId = refocus.current;
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (!roomId || !lost) return;
+    document.querySelector<HTMLElement>(`[data-room-id="${roomId}"] .home-room__open`)?.focus();
+    refocus.current = null;
+  });
 
   const fail = (error: unknown) =>
     toast.add({ title: (error as Error).message || 'Не получилось', type: 'danger' });
@@ -122,6 +142,11 @@ export function FavoritesNav({
         candidate.rooms.some((item) => item.roomId === room.roomId),
       )!;
       const index = section.rooms.findIndex((item) => item.roomId === room.roomId) + step;
+      refocus.current = room.roomId;
+      // Возвращать фокус можно только сразу после шага: позже он ушёл бы туда, куда его увели сами.
+      setTimeout(() => {
+        if (refocus.current === room.roomId) refocus.current = null;
+      }, 1000);
       run(shelf.placeRoom(room.roomId, section.key, index));
     },
   };
@@ -147,7 +172,9 @@ export function FavoritesNav({
   };
   const dragHandlers: DragHandlers = {
     onPointerDown(event: ReactPointerEvent<HTMLElement>, room: SavedRoom) {
-      if (event.button !== 0 || event.pointerType === 'touch' || dragRef.current) return;
+      // Начатое, но не ставшее перетаскиванием нажатие (указатель ушёл, отпустили мимо) не держит
+      // место: новое нажатие его заменяет, иначе перетаскивание умерло бы до перезагрузки.
+      if (event.button !== 0 || event.pointerType === 'touch' || dragRef.current?.active) return;
       dragRef.current = {
         roomId: room.roomId,
         pointerId: event.pointerId,
@@ -161,6 +188,10 @@ export function FavoritesNav({
     onPointerMove(event) {
       const current = dragRef.current;
       if (!current || current.pointerId !== event.pointerId) return;
+      if ((event.buttons & 1) === 0) {
+        update(null);
+        return;
+      }
       if (!current.active) {
         if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < DRAG_THRESHOLD) return;
         event.currentTarget.setPointerCapture(event.pointerId);

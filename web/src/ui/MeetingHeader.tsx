@@ -115,14 +115,22 @@ export function MeetingHeader({
         <div className="meeting-header__text">
           {/* Туда же, где название написано, и идут, чтобы его исправить. Остальным нажимать не на
               что, и заголовок остаётся заголовком. */}
-          {canEdit && !ended ? (
-            <button type="button" className="meeting-header__rename" onClick={onSettings}>
-              <h1 className="meeting-header__title">{snapshot.title}</h1>
-              <Pencil size={13} aria-label={TEXT.settings} />
-            </button>
-          ) : (
+          {/* Заголовок остаётся заголовком и у ведущего: внутри кнопки он перестал бы им быть для
+              диктора. Нажимается вся строка с карандашом — кнопка лежит поверх неё (`::after`). */}
+          <div className="meeting-header__name" data-editable={(canEdit && !ended) || undefined}>
             <h1 className="meeting-header__title">{snapshot.title}</h1>
-          )}
+            {canEdit && !ended && (
+              <button
+                type="button"
+                className="meeting-header__rename"
+                aria-label={TEXT.settings}
+                title={TEXT.settings}
+                onClick={onSettings}
+              >
+                <Pencil size={13} aria-hidden="true" />
+              </button>
+            )}
+          </div>
           <div className="meeting-header__meta">
             <button type="button" className="meeting-header__code" aria-label={TEXT.code} onClick={onInvite}>
               {snapshot.code ? formatCode(snapshot.code) : TEXT.invite}

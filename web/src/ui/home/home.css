@@ -611,10 +611,12 @@ input.home-inline-name:focus-visible {
 .home-bar .brand {
   --brand-h: 24px;
 }
+/* Выдвижная панель — слой пульта (30): под меню (40), иначе меню комнаты открывалось бы под ней,
+   и под диалогами (50), чтобы подтверждение «Убрать» вставало поверх. */
 .home-drawer__backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--z-dialog);
+  z-index: var(--z-dock);
   background: var(--scrim);
   transition: opacity var(--motion-base) var(--ease-standard);
 }
@@ -624,7 +626,7 @@ input.home-inline-name:focus-visible {
 }
 .home-drawer {
   position: fixed;
-  z-index: var(--z-dialog);
+  z-index: var(--z-dock);
   inset: 0 auto 0 0;
   width: min(320px, calc(100vw - var(--space-12)));
   box-shadow: var(--shadow-3);
