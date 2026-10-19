@@ -27,6 +27,7 @@
 - [`cord-poker-table`](memory/cord-poker-table.md) — Покер в Cord: где он живёт, три решения, на которых он держится, и ловушка отката
 - [`cord-quality-ladder-and-reception`](memory/cord-quality-ladder-and-reception.md) — Почему показ в Cord стартовал в 15 fps и как сделан режим приёма «всегда максимум»
 - [`cord-retention-config`](memory/cord-retention-config.md) — Сроки хранения встреч в Cord задаются словами в yaml, и несохранённая встреча уходит сразу
+- [`cord-room-member-rollback`](memory/cord-room-member-rollback.md) — ignoreUnknown на RoomState не спасает вложенные классы — новое поле участника делает комнату нечитаемой для прежнего образа ядра
 - [`cord-standing-permissions`](memory/cord-standing-permissions.md) — Владелец Cord дал все разрешения: в конце каждой сессии разработки — выкатка в прод и актуальный main обеих реп, без вопросов
 - [`cord-ui-checks-on-prod`](memory/cord-ui-checks-on-prod.md) — Как проверять вёрстку и медиа Cord настоящим браузером на этой машине, включая обход origin-проверки ядра
 - [`cord-ui-traps`](memory/cord-ui-traps.md) — Три ловушки интерфейса Cord, которые выглядели как сломанные ручки, а не как неверные значения
