@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties, type RefObject } from 'react';
+import { useMemo, useRef, type CSSProperties, type MutableRefObject, type RefObject } from 'react';
 import {
   Clapperboard,
   Maximize2,
@@ -66,6 +66,7 @@ export function Chrome({
   playing,
   behind,
   volume,
+  loudness,
   sync,
   player,
   captions,
@@ -96,6 +97,8 @@ export function Chrome({
   /** Отстали от комнаты настолько, что это видно глазом. */
   behind: boolean;
   volume: number;
+  /** Громкость до «без звука», общая с клавишей M; без неё кнопка помнит свою. */
+  loudness?: MutableRefObject<number>;
   sync: Pick<
     ReturnType<typeof useRoomSync>,
     'position' | 'duration' | 'buffered' | 'lag' | 'over' | 'send' | 'command' | 'skip' | 'resync'
@@ -254,7 +257,7 @@ export function Chrome({
             остаётся, и смысл у неё другой: встать туда, где комната.
           */}
           {!live && <SyncButton behind={behind} onSync={resync} />}
-          <Volume meeting={meeting} volume={volume} />
+          <Volume meeting={meeting} volume={volume} loudness={loudness} />
           <span className="watch-gap" />
           {texts.length > 0 && (
             <CaptionsMenu
@@ -297,11 +300,20 @@ export function Chrome({
 }
 
 /** Громкость просмотра — своя у каждого: комната о ней не знает. */
-function Volume({ meeting, volume }: { meeting: Meeting; volume: number }) {
+function Volume({
+  meeting,
+  volume,
+  loudness,
+}: {
+  meeting: Meeting;
+  volume: number;
+  loudness?: MutableRefObject<number>;
+}) {
   /** Громкость до «без звука»: туда же она и возвращается. */
-  const loudness = useRef(Math.max(8, volume || 70));
+  const own = useRef(Math.max(8, volume || 70));
+  const memory = loudness ?? own;
   const setVolume = (value: number) => {
-    if (value > 0) loudness.current = value;
+    if (value > 0) memory.current = value;
     meeting.media.saveSettings({ watchVolume: value });
   };
   const muted = volume <= 0;
@@ -309,7 +321,7 @@ function Volume({ meeting, volume }: { meeting: Meeting; volume: number }) {
     <div className="watch-volume">
       <IconButton
         label={muted ? 'Включить звук просмотра' : 'Выключить звук просмотра'}
-        onClick={() => setVolume(muted ? loudness.current : 0)}
+        onClick={() => setVolume(muted ? memory.current : 0)}
       >
         {muted ? <VolumeX size={18} /> : volume < 50 ? <Volume1 size={18} /> : <Volume2 size={18} />}
       </IconButton>

@@ -4,6 +4,7 @@ import type { Watch } from '../../../api/types';
 import type { CinemaSource } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import { Store } from '../../../core/store';
+import theaterCss from '../theater.css?raw';
 import WatchTheater from './WatchTheater';
 
 /*
@@ -153,4 +154,81 @@ it('досмотрели: нажатие мышью по кадру включа
   expect(room.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
   expect(room.command).not.toHaveBeenCalledWith('watch.pause', undefined, undefined, expect.anything());
   expect(video.currentTime).toBe(0);
+});
+
+/** Открыть файл и дождаться, пока плеер готов: метаданные пришли, длительность известна. */
+async function ready(watch: Watch, room = meeting()) {
+  answers = [file('/cinema/fetch?sig=old')];
+  const view = render(<WatchTheater meeting={room} watch={watch} />);
+  const video = view.container.querySelector('video')!;
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
+  Object.defineProperty(video, 'duration', { configurable: true, value: 635 });
+  fireEvent.loadedMetadata(video);
+  const theater = view.container.querySelector<HTMLElement>('.watch-theater')!;
+  const chrome = view.container.querySelector<HTMLElement>('.watch-chrome')!;
+  return { room, video, theater, chrome };
+}
+
+/*
+  T19: «убирать курсор и ленту плеера снизу при просмотре». Через две с половиной секунды без
+  движения уходят курсор (`data-idle` на всём плеере) и пульт вместе с нижней полосой; движение мыши
+  возвращает их.
+*/
+it('через 2,5 с без движения плеер спит: курсор и пульт с нижней лентой уходят, движение их возвращает', async () => {
+  const { theater, chrome } = await ready(WATCH);
+  // Последнее движение — сейчас: отсчёт бездействия начинается от него.
+  fireEvent.pointerMove(theater);
+  expect(chrome).toHaveAttribute('data-shown', 'true');
+  await act(() => new Promise((done) => setTimeout(done, 2600)));
+  expect(theater).toHaveAttribute('data-idle', 'true');
+  expect(chrome).not.toHaveAttribute('data-shown');
+  fireEvent.pointerMove(theater);
+  expect(theater).not.toHaveAttribute('data-idle');
+  expect(chrome).toHaveAttribute('data-shown', 'true');
+});
+
+/*
+  Почему «лента снизу» не уходила: правило `.watch-chrome:focus-within` держало пульт видимым, пока
+  фокус стоит на кнопке, — а после нажатия мышью он там и стоит. Пульт клавиатуре достаётся фокусом
+  Tab (он будит плеер, как движение мыши), а не правилом CSS, которое не отпускает его никогда.
+*/
+it('фокус, оставшийся на кнопке после нажатия мышью, пульт на кадре не держит', () => {
+  expect(theaterCss).not.toMatch(/\.watch-chrome:focus-within/);
+});
+
+/*
+  T20: клавиши плеера. Пауза и перемотка — общие, той же командой комнате, что кнопки пульта.
+*/
+it('пробел включает для всех, стрелка вправо — перемотка на 10 с для всех, стрелка вверх — своя громкость', async () => {
+  const { room } = await ready(WATCH);
+  fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+  expect(room.command).toHaveBeenCalledWith('watch.play', undefined, undefined, { positionMs: 0 });
+  // Отправка в комнату одна за раз: следующая — когда прежняя дошла.
+  await act(() => new Promise((done) => setTimeout(done, 0)));
+  fireEvent.keyDown(document.body, { key: 'ArrowRight', code: 'ArrowRight' });
+  expect(room.command).toHaveBeenCalledWith('watch.seek', undefined, undefined, { positionMs: 10_000 });
+  expect(document.querySelector('.watch-hint')).toHaveTextContent('+10 с');
+  fireEvent.keyDown(document.body, { key: 'ArrowUp', code: 'ArrowUp' });
+  expect(room.media.saveSettings).toHaveBeenCalledWith({ watchVolume: 75 });
+});
+
+it('без права на пульт клавиша паузы не шлёт ничего и говорит почему; в поле ввода клавиши не плеера', async () => {
+  const room = meeting();
+  room.snapshot.set({
+    ...room.snapshot.get(),
+    participants: [{ id: 'me', owner: false, name: 'Гость' }],
+    integrationsAllowed: false,
+  } as never);
+  await ready(WATCH, room);
+  fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+  expect(room.command).not.toHaveBeenCalled();
+  expect(document.querySelector('.watch-hint')).toHaveTextContent(
+    'Ведущий разрешил пульт только себе — пауза и перемотка у него',
+  );
+
+  const field = document.createElement('input');
+  document.body.append(field);
+  fireEvent.keyDown(field, { key: 'ArrowUp', code: 'ArrowUp' });
+  expect(room.media.saveSettings).not.toHaveBeenCalledWith({ watchVolume: expect.any(Number) });
+  field.remove();
 });

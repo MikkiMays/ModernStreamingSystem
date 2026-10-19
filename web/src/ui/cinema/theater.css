@@ -84,18 +84,20 @@
   transition: opacity 160ms ease;
   color: #f2f5fb;
 }
-.watch-chrome[data-shown='true'],
-/* Клавиатурой пульт достаётся и тогда, когда мышь его усыпила: скрытый прозрачностью
-   элемент остаётся в обходе табом, и терять его там нельзя. */
-.watch-chrome:focus-within {
+/*
+  Видимость пульта — только `data-shown`. Правило `:focus-within` держало его на кадре, пока фокус
+  стоит на кнопке, — а после нажатия мышью он там и стоит: нижняя лента не уходила никогда (T19).
+  Клавиатуре пульт достаётся фокусом Tab: он будит плеер (`onFocusCapture`), как движение мыши.
+*/
+.watch-chrome[data-shown='true'] {
   opacity: 1;
 }
 .watch-head,
 .watch-foot {
   pointer-events: auto;
 }
-.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-head,
-.watch-chrome:not([data-shown='true']):not(:focus-within) .watch-foot {
+.watch-chrome:not([data-shown='true']) .watch-head,
+.watch-chrome:not([data-shown='true']) .watch-foot {
   pointer-events: none;
 }
 /*
@@ -446,6 +448,41 @@
   font-weight: 500;
   white-space: pre-line;
   text-wrap: balance;
+}
+/*
+  Отклик клавиши (T20): «+10 с», «Громкость 60 %» — или почему клавиша не сработала. Сверху по
+  центру, поверх кадра и пульта, и мимо нажатий: это табличка, а не кнопка.
+*/
+.watch-hint {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  max-width: min(90%, 520px);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #05070cd9;
+  color: #f2f5fb;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  animation: watch-hint 1800ms ease forwards;
+}
+@keyframes watch-hint {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .watch-hint {
+    animation: none;
+  }
 }
 /*
   Пульт плеера на телефоне.

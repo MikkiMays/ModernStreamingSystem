@@ -11,10 +11,14 @@ import type { QualityPage } from './menus/QualityMenu';
 import { useCaptions } from './useCaptions';
 import { usePlayback } from './usePlayback';
 import { useEcho, useRoomSync } from './useRoomSync';
+import { useWatchKeys } from './useWatchKeys';
 import { controlsShown, framePress, playToggle } from './watch-controls';
+import { KEY_TEXT, muteToggle, volumeAfter, type WatchAction } from './watch-keys';
 
-/** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором. */
-const IDLE_MS = 2800;
+/** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором (T19). */
+const IDLE_MS = 2500;
+/** Сколько висит на кадре отклик клавиши («+10 с») или подсказка, почему она не сработала. */
+const HINT_MS = 1800;
 
 /**
  * Кинозал: то, что комната смотрит вместе, своим плеером.
@@ -133,6 +137,48 @@ export function WatchTheater({
   });
   const { command } = sync;
 
+  /** Громкость до «без звука» — общая у клавиши M и кнопки пульта: туда звук и возвращается. */
+  const loudness = useRef(Math.max(8, preferences.watchVolume || 70));
+  const [hint, setHint] = useState<{ text: string; at: number } | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const say = useCallback((text: string) => {
+    setHint({ text, at: Date.now() });
+    clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setHint(null), HINT_MS);
+  }, []);
+  useEffect(() => () => clearTimeout(hintTimer.current), []);
+  const saveVolume = (value: number) => {
+    if (value > 0) loudness.current = value;
+    meeting.media.saveSettings({ watchVolume: value });
+    say(KEY_TEXT.volume(value));
+  };
+  /** Клавиши плеера (T20): решает `watch-keys.ts`, здесь — только исполнение. */
+  const act = (action: WatchAction) => {
+    if (action.type === 'toggle') {
+      const toggle = playToggle({ paused: watch.paused, over: sync.over, playing });
+      command(toggle.command);
+      say(toggle.label);
+    } else if (action.type === 'seek') {
+      sync.skip(action.deltaMs);
+      say(KEY_TEXT.seek(action.deltaMs));
+    } else if (action.type === 'volume') {
+      saveVolume(volumeAfter(preferences.watchVolume, action.delta));
+    } else if (action.type === 'mute') {
+      const next = muteToggle(preferences.watchVolume, loudness.current);
+      loudness.current = next.loudness;
+      meeting.media.saveSettings({ watchVolume: next.volume });
+      say(KEY_TEXT.volume(next.volume));
+    } else toggleFullscreen();
+  };
+  useWatchKeys({
+    screen,
+    context: { live, canControl, seekable: sync.duration > 0, menuOpen: menu || captionMenu },
+    micHotkey: preferences.micHotkey,
+    onAction: act,
+    onHint: say,
+    wake,
+  });
+
   const behind = !live && Math.abs(sync.drift) > VISIBLE_DRIFT;
   // Когда пульт виден — правило в `watch-controls.ts`: по бездействию он уходит и на паузе.
   const showControls = controlsShown({
@@ -220,6 +266,11 @@ export function WatchTheater({
             <LoaderCircle size={34} />
           </div>
         )}
+        {hint && (
+          <div key={hint.at} className="watch-hint" role="status">
+            {hint.text}
+          </div>
+        )}
         {status !== 'ready' && (
           <div className="watch-overlay" role="status">
             {status === 'loading' && (
@@ -257,6 +308,7 @@ export function WatchTheater({
           playing={playing}
           behind={behind}
           volume={preferences.watchVolume}
+          loudness={loudness}
           sync={sync}
           player={player}
           captions={captions}
