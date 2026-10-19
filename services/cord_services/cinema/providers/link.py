@@ -156,6 +156,9 @@ PAGES_DOWN = "Плеер страниц сейчас недоступен — п
 BUSY_ROOM = "Комната уже разбирает ссылку — дождитесь ответа"
 TOO_OFTEN = "Комната слишком часто разбирает ссылки, подождите минуту"
 SUPERSEDED = "Эту ссылку сменила следующая"
+NO_SEASON = "Такого сезона в этом плейлисте нет"
+# Сезон «0» плейлиста — всё, что к сезонам не отнесли (трейлеры, спецвыпуски), как «Другое» у Rutube.
+OTHER_SEASON = "0"
 
 # Узнаются по тексту yt-dlp — английскому, как его пишут разборщики. Регистр не важен.
 LOGIN_WORDS = re.compile(
@@ -692,6 +695,9 @@ class Link(Provider):
         """
         Серии плейлиста порцией. Каждая серия без своей площадки получает номер здесь — и на сутки.
 
+        Сезоны — если сайт назвал их у серий (`season_number` yt-dlp): вкладки «Сезон N» и «Другое» (серии
+        без сезона), без выбора — первый сезон, чужой сезон — 404. Без сезонов — весь плейлист, как был.
+
         Номер серии со своей страницей — номер этой страницы (`identify` по её адресу), и её запись
         могла уже завести другая комната, вставив ту же ссылку. Такую запись серия не переписывает:
         имя, постер и описание серии пишет чужой плейлист, и страницу ролика чужой комнаты он бы
@@ -701,55 +707,20 @@ class Link(Provider):
         if not record or record.get("kind") != "series":
             raise HTTPException(410, GONE)
         entries = record.get("entries") or []
+        seasons = _seasons(entries)
+        if season is not None and season not in seasons:
+            raise HTTPException(404, NO_SEASON)
+        if seasons and season is None:
+            season = seasons[0]
+        # Серии открытого сезона в порядке плейлиста; без сезонов — весь плейлист, как был.
+        chosen = [entry for entry in entries if season is None or _season_of(entry) == season]
         cards: list[wire.Card] = []
         fresh: dict[str, dict[str, Any]] = {}
-        for number, entry in enumerate(entries[offset : offset + PAGE], offset + 1):
-            poster = self.image(entry.get("thumbnail") or "")
-            routed = entry.get("route")
-            if routed:
-                # Серия своей площадки: её карточка — той площадки, и включает её та площадка.
-                cards.append(
-                    wire.card(
-                        routed["provider"],
-                        routed["kind"],
-                        routed["id"],
-                        entry["title"],
-                        duration=entry.get("duration"),
-                        live=routed["kind"] == "channel",
-                        poster=poster,
-                    )
-                )
-                continue
-            # Серия на самой странице плейлиста своего адреса не хранит (M12) — он у записи один раз; здесь
-            # он восстанавливается из адреса записи. Своя страница у серии — её собственный адрес.
-            episode_url = entry.get("url") or record["url"]
-            episode_id = self.identify(episode_url, entry.get("item"))
-            if self.links.get(episode_id) is None:
-                fresh[episode_id] = {
-                    "kind": "video",
-                    "url": episode_url,
-                    "item": entry.get("item"),
-                    "title": entry["title"],
-                    "author": record.get("author") or "",
-                    "duration": entry.get("duration"),
-                    "thumbnail": entry.get("thumbnail") or "",
-                    "description": "",
-                    "site": record.get("site") or "",
-                    "series": series_id,
-                }
-            cards.append(
-                wire.card(
-                    self.id,
-                    "video",
-                    episode_id,
-                    entry["title"],
-                    author=record.get("author") or "",
-                    duration=entry.get("duration"),
-                    poster=poster,
-                    badge=f"{number} серия",
-                    series=series_id,
-                )
-            )
+        for number, entry in enumerate(chosen[offset : offset + PAGE], offset + 1):
+            # Значок — номер серии, который назвал сайт; без него у плейлиста без сезонов — место в нём,
+            # а у сезона без номера серии значка нет: «4 серия» трейлера ничего не сказала бы.
+            episode = entry.get("episode") or (None if seasons else number)
+            cards.append(self._episode_card(record, series_id, entry, episode, fresh))
         if fresh:
             self._keep(fresh)
         head = wire.series_head(
@@ -757,9 +728,118 @@ class Link(Provider):
             record["title"],
             poster=self.image(record.get("thumbnail") or ""),
             description=record.get("description") or "",
+            seasons=[{"id": number, "title": _season_title(number)} for number in seasons],
         )
-        more = offset + PAGE < len(entries)
-        return {"series": head, "season": None, "items": cards, "next": str(offset + PAGE) if more else None}
+        more = offset + PAGE < len(chosen)
+        return {
+            "series": head,
+            "season": season,
+            "items": cards,
+            "next": str(offset + PAGE) if more else None,
+        }
+
+    def _episode_card(
+        self,
+        record: dict[str, Any],
+        series_id: str,
+        entry: dict[str, Any],
+        episode: int | None,
+        fresh: dict[str, dict[str, Any]],
+    ) -> wire.Card:
+        """
+        Карточка серии плейлиста. Серия своей площадки — карточка той площадки; серия без своей
+        площадки получает номер здесь, и её запись (на сутки) кладётся в `fresh`, если её ещё нет.
+        """
+        poster = self.image(entry.get("thumbnail") or "")
+        routed = entry.get("route")
+        if routed:
+            # Серия своей площадки: её карточка — той площадки, и включает её та площадка.
+            return wire.card(
+                routed["provider"],
+                routed["kind"],
+                routed["id"],
+                entry["title"],
+                duration=entry.get("duration"),
+                live=routed["kind"] == "channel",
+                poster=poster,
+            )
+        # Серия на самой странице плейлиста своего адреса не хранит (M12) — он у записи один раз; здесь
+        # он восстанавливается из адреса записи. Своя страница у серии — её собственный адрес.
+        episode_url = entry.get("url") or record["url"]
+        episode_id = self.identify(episode_url, entry.get("item"))
+        if episode_id not in fresh and self.links.get(episode_id) is None:
+            fresh[episode_id] = {
+                "kind": "video",
+                "url": episode_url,
+                "item": entry.get("item"),
+                "title": entry["title"],
+                "author": record.get("author") or "",
+                "duration": entry.get("duration"),
+                "thumbnail": entry.get("thumbnail") or "",
+                "description": "",
+                "site": record.get("site") or "",
+                "series": series_id,
+            }
+        extra = {"badge": f"{episode} серия"} if episode else {}
+        return wire.card(
+            self.id,
+            "video",
+            episode_id,
+            entry["title"],
+            author=record.get("author") or "",
+            duration=entry.get("duration"),
+            poster=poster,
+            series=series_id,
+            **extra,
+        )
+
+    def _next(self, item_id: str, record: dict[str, Any]) -> wire.Card | None:
+        """
+        Следующая серия того же плейлиста — для «Следующая серия» в плеере. С сезонами — по порядку
+        сезонов (через границу сезона тоже), а «Другое» (трейлеры) в эту очередь не встаёт; без сезонов
+        — следующая в плейлисте. Последняя серия — `None`.
+        """
+        series_id = record.get("series") or ""
+        series = self.links.get(series_id) if series_id else None
+        if not series or series.get("kind") != "series":
+            return None
+        entries = series.get("entries") or []
+        index = next(
+            (
+                number
+                for number, entry in enumerate(entries)
+                if not entry.get("route")
+                and self.identify(entry.get("url") or series["url"], entry.get("item")) == item_id
+            ),
+            None,
+        )
+        if index is None:
+            return None
+        seasons = _seasons(entries)
+        if seasons:
+            own = _season_of(entries[index])
+            ranks = {number: rank for rank, number in enumerate(seasons)}
+            line = sorted(
+                (
+                    number
+                    for number, entry in enumerate(entries)
+                    if (_season_of(entry) == OTHER_SEASON) == (own == OTHER_SEASON)
+                ),
+                key=lambda number: (ranks[_season_of(entries[number])], number),
+            )
+        else:
+            line = list(range(len(entries)))
+        place = line.index(index)
+        if place + 1 >= len(line):
+            return None
+        number = line[place + 1]
+        following = entries[number]
+        episode = following.get("episode") or (None if seasons else number + 1)
+        fresh: dict[str, dict[str, Any]] = {}
+        card = self._episode_card(series, series_id, following, episode, fresh)
+        if fresh:
+            self._keep(fresh)
+        return card
 
     async def details(self, ctx: Ctx, kind: str, item_id: str) -> wire.Details:
         """Страница видео по ссылке — из того, что нашлось при разборе: наружу за ней не ходят."""
@@ -767,7 +847,10 @@ class Link(Provider):
         if not record or record.get("kind") == "series":
             raise HTTPException(410, GONE)
         live = record.get("kind") == "channel"
-        extra = {"series": record["series"]} if record.get("series") else {}
+        extra: dict[str, Any] = {"series": record["series"]} if record.get("series") else {}
+        following = self._next(item_id, record) if record.get("series") and not live else None
+        if following is not None:
+            extra["next"] = following
         return wire.details(
             self.id,
             record["kind"],
@@ -982,11 +1065,19 @@ def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] 
     if kind in ("playlist", "multi_video"):
         return None
     title = entry.get("title") or f"Видео {index}"
-    found = {
+    found: dict[str, Any] = {
         "title": _clip(title, TITLE_LIMIT) or f"Видео {index}",
         "duration": _number(entry.get("duration")),
         "thumbnail": _thumbnail(entry),
     }
+    # Сезон и серия, если сайт их назвал (`season_number`/`episode_number` yt-dlp): по ним сериал по
+    # ссылке получает вкладки сезонов и значки серий, а плеер — «Следующую серию».
+    season = _ordinal(entry.get("season_number"))
+    episode = _ordinal(entry.get("episode_number"))
+    if season is not None:
+        found["season"] = season
+    if episode:
+        found["episode"] = episode
     if kind in ("url", "url_transparent"):
         target = entry.get("url") or ""
     else:
@@ -1007,6 +1098,37 @@ def _episode(entry: Any, index: int, page: str, route: Route) -> dict[str, Any] 
     if not address.web(target):
         return None
     return {**found, "url": target}
+
+
+def _ordinal(value: Any) -> int | None:
+    """Номер сезона или серии от yt-dlp: целое от нуля до 9999 (бывает и строкой цифр), иначе `None`."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value.strip())
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, int) and 0 <= value < 10000:
+        return value
+    return None
+
+
+def _season_of(entry: dict[str, Any]) -> str:
+    """Сезон серии вкладкой: его номер, а без номера (или сезон 0) — «Другое»."""
+    season = entry.get("season")
+    return str(season) if isinstance(season, int) and season > 0 else OTHER_SEASON
+
+
+def _seasons(entries: list[dict[str, Any]]) -> list[str]:
+    """Сезоны плейлиста по возрастанию, «Другое» последним; пусто — сайт сезонов не называл вовсе."""
+    if not any(isinstance(entry.get("season"), int) for entry in entries):
+        return []
+    found = {_season_of(entry) for entry in entries}
+    return sorted(found, key=lambda number: (number == OTHER_SEASON, int(number)))
+
+
+def _season_title(number: str) -> str:
+    return "Другое" if number == OTHER_SEASON else f"Сезон {number}"
 
 
 # --- что показать на карточке -----------------------------------------------------------

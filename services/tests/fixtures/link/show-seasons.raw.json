@@ -1,0 +1,18 @@
+{
+ "_type": "playlist",
+ "id": "show",
+ "title": "Сериал по ссылке",
+ "description": "Два сезона и трейлер",
+ "webpage_url": "https://tv.example/show",
+ "extractor": "generic",
+ "extractor_key": "Generic",
+ "_note": "Форма сырого ответа yt-dlp на страницу сериала: записи url_result с season_number и episode_number. Собрано по форме, а не записью сайта.",
+ "entries": [
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/s1e1", "title": "Пилот", "duration": 1500.0, "season_number": 1, "episode_number": 1},
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/s1e2", "title": "Вторая серия", "duration": 1480.0, "season_number": 1, "episode_number": 2},
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/s1e3", "title": "Финал сезона", "duration": 1620.0, "season_number": 1, "episode_number": 3},
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/s2e1", "title": "Начало второго сезона", "duration": 1510.0, "season_number": 2, "episode_number": 1},
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/s2e2", "title": "Конец", "duration": 1530.0, "season_number": 2, "episode_number": 2},
+  {"_type": "url", "ie_key": "Generic", "url": "https://tv.example/show/trailer", "title": "Трейлер", "duration": 90.0}
+ ]
+}

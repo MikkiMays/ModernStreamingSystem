@@ -15,6 +15,7 @@ const mock = vi.hoisted(() => {
       AUDIO_TRACKS_UPDATED: 'audioTracksUpdated',
       AUDIO_TRACK_SWITCHED: 'audioTrackSwitched',
       SUBTITLE_TRACKS_UPDATED: 'subtitleTracksUpdated',
+      LEVEL_LOADED: 'levelLoaded',
       ERROR: 'hlsError',
     };
     static ErrorTypes = {
@@ -98,12 +99,36 @@ describe('HLS через hls.js', () => {
       liveSyncDurationCount: 3,
       liveMaxLatencyDurationCount: 12,
       audioPreference: { lang: 'ru' },
+      enableInterstitialPlayback: false,
     });
     expect(hls().subtitleDisplay).toBe(false);
     expect(mock.calls).toEqual(['loadSource /cinema/playlist?u=1', 'attachMedia']);
     attachHls(video, '/x', '', callbacks());
     expect((hls().config as { audioPreference?: unknown }).audioPreference).toBeUndefined();
     expect(hlsSupported()).toBe(true);
+  });
+
+  it('рекламу, которую пометил поток записи, сообщает отрезками; у эфира — нет', () => {
+    const breaks = vi.fn();
+    attachHls(document.createElement('video'), '/x', '', { ...callbacks(), breaks });
+    const fragment = (index: number, tags: string[][] = []) => ({
+      start: index * 6,
+      duration: 6,
+      programDateTime: null,
+      tagList: [['INF', '6'], ...tags],
+    });
+    const fragments = [
+      fragment(0),
+      fragment(1, [['EXT-X-CUE-OUT', '12']]),
+      fragment(2),
+      fragment(3, [['EXT-X-CUE-IN']]),
+      fragment(4),
+    ];
+    fire('levelLoaded', { details: { live: false, fragments } });
+    expect(breaks).toHaveBeenCalledWith([{ start: 6, end: 18 }]);
+    breaks.mockClear();
+    fire('levelLoaded', { details: { live: true, fragments } });
+    expect(breaks).not.toHaveBeenCalled();
   });
 
   it('сообщает ступени и какая выбрана руками, а переходы автоматики — отдельно', () => {

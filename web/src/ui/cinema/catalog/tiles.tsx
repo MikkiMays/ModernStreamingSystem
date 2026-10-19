@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Clapperboard, Eye, Gamepad2, ListVideo, LoaderCircle, Play, Tv, Users } from 'lucide-react';
 import { clock, viewers, type CinemaItem } from '../../../core/cinema';
+import { arrowNav } from './arrow-nav';
 
 /*
   Плитки каталога. Какую плитку взять для карточки и что значит нажатие — решает сцена: у одной
@@ -16,11 +17,17 @@ import { clock, viewers, type CinemaItem } from '../../../core/cinema';
 export type GridKind = 'wide' | 'boxes' | 'faces' | 'tall';
 
 /** Широкими кадрами — по умолчанию; значение по умолчанию не в разборе параметров: такой разбор
- *  React Compiler пропускает целиком. */
+ *  React Compiler пропускает целиком. Стрелки ходят по плиткам: ← / → соседняя, ↑ / ↓ строкой
+ *  выше и ниже (T20, `arrow-nav.ts`). */
 export function Grid({ kind, children }: { kind?: GridKind; children: ReactNode }) {
   const shape = kind ?? 'wide';
   return (
-    <div className={shape === 'wide' ? 'cinema-grid' : `cinema-grid cinema-grid-${shape}`}>{children}</div>
+    <div
+      className={shape === 'wide' ? 'cinema-grid' : `cinema-grid cinema-grid-${shape}`}
+      onKeyDown={arrowNav}
+    >
+      {children}
+    </div>
   );
 }
 

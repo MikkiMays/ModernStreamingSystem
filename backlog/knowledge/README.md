@@ -12,6 +12,7 @@
 - [`cord-capacity-numbers`](memory/cord-capacity-numbers.md) — Чем меряется ёмкость сервера Cord и три числа, которые решают спор про железо
 - [`cord-catalog-platform-limits`](memory/cord-catalog-platform-limits.md) — Что YouTube и Twitch отдают каталогу Cord анонимно, и где у них стоят стены
 - [`cord-ci-and-release-traps`](memory/cord-ci-and-release-traps.md) — Чем CI в Cord строже локальных команд и как пуш подряд ломает выкладку релиза Windows
+- [`cord-cinema-ad-markers`](memory/cord-cinema-ad-markers.md) — Где в кинозале видны рекламные метки потока (hls.js tagList), почему интерстишелы выключены и почему фокус держал пульт на кадре
 - [`cord-cinema-playlists-and-sync`](memory/cord-cinema-playlists-and-sync.md) — Почему длинный фильм в Cord открывался минутами, и три числа про синхронность совместного просмотра
 - [`cord-cinema-providers`](memory/cord-cinema-providers.md) — Какие площадки кинозала Cord реально достижимы (Rutube, VK Видео, ivi, по ссылке с плеером страниц), почему Кинопоиска, Зоны и Jellyfin нет, и почему прокси отдаёт чужое только своим типом
 - [`cord-disk-utilisation`](memory/cord-disk-utilisation.md) — Где в Cord копится место, срок хранения встреч в неделю и суточная уборка cord-tidy

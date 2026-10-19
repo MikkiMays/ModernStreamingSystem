@@ -112,6 +112,19 @@ export function rememberLink(recent: readonly string[], url: string): string[] {
   return [url, ...recent.filter((entry) => linkKey(entry) !== key)].slice(0, RECENT);
 }
 
+/**
+ * Убрать ссылку из недавних (T17) — по тому же ключу, по которому она туда встаёт: ссылка, записанная
+ * другим написанием (хост заглавными, косая черта в конце), убирается тоже.
+ *
+ * Недавние — на этом устройстве (`cinemaLinks` профиля), поэтому и убираются только здесь. Ответы
+ * службы о ссылках (`cinema_links` в её сторе) — не история, а общий кэш разбора на сутки, его делят
+ * все комнаты: удалять там нечего.
+ */
+export function forgetLink(recent: readonly string[], url: string): string[] {
+  const key = linkKey(url);
+  return recent.filter((entry) => linkKey(entry) !== key);
+}
+
 /** Ссылка для глаз: хост отдельно, путь с параметрами отдельно — хост узнают первым. */
 export function linkParts(url: string): { host: string; rest: string } {
   try {

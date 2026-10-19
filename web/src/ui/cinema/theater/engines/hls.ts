@@ -1,4 +1,5 @@
 import Hls from 'hls.js';
+import { adBreaks, type AdBreak, type AdFragment } from '../ad-breaks';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
 import type { Playback } from './playback';
@@ -30,6 +31,8 @@ export function attachHls(
     voice: (current: number) => void;
     /** Субтитры, которые лежат в самом плейлисте. */
     texts: (tracks: MediaTrack[]) => void;
+    /** Рекламные отрезки, которые пометил сам поток (`ad-breaks.ts`), — у записи, не у эфира. */
+    breaks?: (breaks: AdBreak[]) => void;
     /** Подпись протухла (403/410): `true` — адрес обновляется, лечить на месте не нужно. */
     expired: () => boolean;
     fail: (message: string) => void;
@@ -94,6 +97,13 @@ export function attachHls(
       по списку дорожек, когда он приедет.
     */
     audioPreference: language ? { lang: language } : undefined,
+    /*
+      Вставки-интерстишелы (`EXT-X-DATERANGE` с `CLASS="com.apple.hls.interstitial"`) — это рекламный
+      ролик поверх основного потока, и hls.js 1.6 по умолчанию играет его сам. Рекламу, которую
+      помечает поток, кинозал не показывает (T17): вставка просто не играется, основной поток идёт
+      дальше. Её адрес к тому же чужой и мимо нашего прокси — CSP его всё равно не пустил бы.
+    */
+    enableInterstitialPlayback: false,
   });
   // Рисуем реплики сами: браузер кладёт их на нижний край кадра, ровно под пульт с
   // паузой и громкостью. Дорожка при этом остаётся живой — «спрятана» значит «разобрана,
@@ -123,6 +133,12 @@ export function attachHls(
   });
   hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
     if (callbacks.alive()) callbacks.voice(data.id);
+  });
+  // Рекламу, которую помечает сам поток, ищем в каждом пришедшем списке записи: у эфира общей
+  // позиции нет, и пропустить вставку всей комнатой там некуда.
+  hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
+    if (!callbacks.alive() || !callbacks.breaks || data.details.live) return;
+    callbacks.breaks(adBreaks(data.details.fragments as unknown as AdFragment[]));
   });
   hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, data) => {
     if (callbacks.alive()) callbacks.texts(data.subtitleTracks);

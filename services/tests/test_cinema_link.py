@@ -780,6 +780,110 @@ class Playlists(LinkCase):
         )
 
 
+SHOW = "https://tv.example/show"
+
+
+class Seasons(LinkCase):
+    """
+    Сериал по ссылке (T17): сайт назвал у серий сезон и номер (`season_number`/`episode_number` yt-dlp) —
+    у страницы сериала вкладки сезонов и значки серий, а у страницы серии — следующая серия для плеера.
+    Фикстура собрана по форме сырого ответа yt-dlp, без сети.
+    """
+
+    async def opened(self, links=None):
+        door = Door({SHOW: recorded("show-seasons.raw.json")})
+        cinema = self.make(door, links=links)
+        item = (await cinema.link(SHOW, room=ROOM))["item"]
+        return cinema, item
+
+    async def test_seasons_are_tabs_and_episodes_carry_the_numbers_the_site_gave(self):
+        cinema, item = await self.opened()
+        self.assertEqual((item["kind"], item["count"]), ("series", 6))
+        first = await cinema.series("link", item["id"], room=ROOM)
+        self.assertEqual(
+            first["series"]["seasons"],
+            [
+                {"id": "1", "title": "Сезон 1"},
+                {"id": "2", "title": "Сезон 2"},
+                {"id": "0", "title": "Другое"},
+            ],
+        )
+        # Без выбора — первый сезон.
+        self.assertEqual(first["season"], "1")
+        self.assertEqual(
+            [(card["title"], card["badge"]) for card in first["items"]],
+            [("Пилот", "1 серия"), ("Вторая серия", "2 серия"), ("Финал сезона", "3 серия")],
+        )
+        second = await cinema.series("link", item["id"], "2", room=ROOM)
+        self.assertEqual(second["season"], "2")
+        self.assertEqual(
+            [(card["title"], card["badge"]) for card in second["items"]],
+            [("Начало второго сезона", "1 серия"), ("Конец", "2 серия")],
+        )
+        # Трейлер без сезона — во «Другом», и значка серии у него нет.
+        other = await cinema.series("link", item["id"], "0", room=ROOM)
+        self.assertEqual([card["title"] for card in other["items"]], ["Трейлер"])
+        self.assertNotIn("badge", other["items"][0])
+        with self.assertRaises(HTTPException) as missing:
+            await cinema.series("link", item["id"], "7", room=ROOM)
+        self.assertEqual(
+            (missing.exception.status_code, missing.exception.detail),
+            (404, "Такого сезона в этом плейлисте нет"),
+        )
+
+    async def test_the_next_episode_follows_the_seasons_and_the_last_one_has_none(self):
+        links = MemoryLinks()
+        cinema, item = await self.opened(links)
+        first = await cinema.series("link", item["id"], room=ROOM)
+        finale = first["items"][2]
+        details = await cinema.details("link", finale["id"], "video", room=ROOM)
+        # После финала первого сезона — первая серия второго, через границу сезона.
+        following = details["next"]
+        self.assertEqual(
+            (following["provider"], following["kind"], following["title"], following["badge"]),
+            ("link", "video", "Начало второго сезона", "1 серия"),
+        )
+        # Номер следующей серии заведён сразу: плеер включает её, не открывая второй сезон.
+        self.assertEqual(links.get(following["id"])["url"], "https://tv.example/show/s2e1")
+        self.assertEqual(links.get(following["id"])["series"], item["id"])
+        last = await cinema.details("link", following["id"], "video", room=ROOM)
+        self.assertEqual(last["next"]["title"], "Конец")
+        end = await cinema.details("link", last["next"]["id"], "video", room=ROOM)
+        # Трейлер — не следующая серия: у последней серии «следующей» нет.
+        self.assertNotIn("next", end)
+
+    async def test_a_playlist_without_seasons_has_no_tabs_and_its_next_is_the_following_entry(self):
+        election = recorded("election.raw.json")
+        cinema = self.make(Door({ELECTION: election}))
+        item = (await cinema.link(ELECTION, room=ROOM))["item"]
+        page = await cinema.series("link", item["id"], room=ROOM)
+        self.assertEqual((page["series"]["seasons"], page["season"]), ([], None))
+        details = await cinema.details("link", page["items"][0]["id"], "video", room=ROOM)
+        self.assertEqual(
+            (details["next"]["id"], details["next"]["badge"]), (page["items"][1]["id"], "2 серия")
+        )
+        last = await cinema.details("link", page["items"][2]["id"], "video", room=ROOM)
+        self.assertNotIn("next", last)
+        with self.assertRaises(HTTPException) as missing:
+            await cinema.series("link", item["id"], "1", room=ROOM)
+        self.assertEqual(missing.exception.status_code, 404)
+
+    def test_season_and_episode_numbers_are_read_only_when_they_are_numbers(self):
+        from cord_services.cinema.providers.link import _episode
+
+        def read(**numbers):
+            entry = {"_type": "url", "url": "https://tv.example/x", "title": "Серия", **numbers}
+            found = _episode(entry, 1, "https://tv.example/show", lambda url: None)
+            return found.get("season"), found.get("episode")
+
+        self.assertEqual(read(season_number=2, episode_number=5), (2, 5))
+        self.assertEqual(read(season_number="3", episode_number="7"), (3, 7))
+        self.assertEqual(read(season_number=True, episode_number=-1), (None, None))
+        self.assertEqual(read(season_number="первый", episode_number=1.5), (None, None))
+        # Серия 0 — не номер для значка; сезон 0 — «Другое».
+        self.assertEqual(read(season_number=0, episode_number=0), (0, None))
+
+
 class Refusals(LinkCase):
     async def refused(self, error, url="https://site.example/v"):
         door = Door({url: error})

@@ -944,6 +944,14 @@
   align-items: center;
   gap: 6px;
 }
+/* Заголовок и «Очистить всё» — одной строкой: удалить можно и всё сразу (T17). */
+.cinema-link-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
 .cinema-link-recent ul {
   display: grid;
   gap: 6px;
@@ -951,37 +959,59 @@
   padding: 0;
   list-style: none;
 }
-.cinema-link-recent button {
+/* Строка недавней ссылки: сама ссылка во всю ширину и крестик «убрать» справа от неё. */
+.cinema-link-recent li {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
+  align-items: stretch;
+  gap: 6px;
   min-width: 0;
-  padding: 9px 12px;
+}
+.cinema-link-open,
+.cinema-link-forget {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
+}
+.cinema-link-open:hover,
+.cinema-link-forget:hover {
+  background: var(--surface-2);
+}
+.cinema-link-open {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px;
   font-size: 13px;
   text-align: left;
 }
-.cinema-link-recent button:hover {
-  background: var(--surface-2);
-}
-.cinema-link-recent button svg {
+.cinema-link-open svg {
   flex: none;
   color: var(--muted);
 }
-.cinema-link-recent button b {
+.cinema-link-open b {
   flex: none;
   font-weight: 600;
 }
-.cinema-link-recent button span {
+.cinema-link-open span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
+}
+.cinema-link-forget {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  padding: 0;
+  color: var(--muted);
+}
+.cinema-link-forget:hover {
+  color: var(--text);
 }
 .cinema-link-address {
   overflow-wrap: anywhere;

@@ -3,6 +3,7 @@ import type { Watch } from '../../../api/types';
 import type { CinemaApi } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import type { Preferences } from '../../../core/preferences';
+import type { AdBreak } from './ad-breaks';
 import { attachDash } from './engines/dash';
 import { attachFile } from './engines/file';
 import { attachHls, hlsSupported } from './engines/hls';
@@ -40,6 +41,8 @@ export function usePlayback({
   const [voices, setVoices] = useState<AudioChoice[]>([]);
   const [voice, setVoice] = useState(-1);
   const [texts, setTexts] = useState<CaptionChoice[]>([]);
+  /** Рекламные отрезки, которые пометил поток (T17): по ним плеер пропускает рекламу всей комнатой. */
+  const [breaks, setBreaks] = useState<AdBreak[]>([]);
   const playback = useRef<Playback | null>(null);
   /**
    * Что человек выбрал ушами, а не что сейчас играет.
@@ -67,6 +70,7 @@ export function usePlayback({
     setVoices([]);
     setVoice(-1);
     setTexts([]);
+    setBreaks([]);
   }, [api, content]);
 
   // Плеер живёт, пока не сменился источник: пересоздавать его на каждое изменение комнаты —
@@ -121,6 +125,7 @@ export function usePlayback({
         wanted: (tracks) => pickAudio(tracks, wantedVoice.current, source.language),
         voice: setVoice,
         texts: (tracks) => setTexts(captionChoices(tracks, source.captions)),
+        breaks: setBreaks,
         expired,
         fail,
       });
@@ -180,6 +185,7 @@ export function usePlayback({
     voices,
     voice,
     texts,
+    breaks,
     playback,
     mediaError,
     chooseVoice,
