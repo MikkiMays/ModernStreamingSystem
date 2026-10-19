@@ -18,6 +18,7 @@ import { Download } from './ui/Download';
 import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
 import { BootGate } from './ui/loader/BootGate';
+import { useMeetingBeacon } from './ui/useMeetingBeacon';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -87,6 +88,12 @@ function Workspace() {
     setSection(undefined);
     history.replaceState(null, '', '/');
   };
+  // Соседние вкладки видят встречу этой (T52); забрали её себе — здесь разговор закрывается без
+  // выхода из встречи, и главная говорит, где он продолжается.
+  useMeetingBeacon(page === 'room' ? meeting : null, () => {
+    home();
+    setError('Встреча продолжается в другой вкладке');
+  });
   const openDestination = (next: Destination) => {
     const cached = recentMeetings().find((r) =>
       next.kind === 'code'
@@ -276,8 +283,7 @@ function Workspace() {
   });
   // Nothing about meetings before the server has answered. A meeting already open is the one
   // exception: a session that lapses mid-conversation must never take the conversation away.
-  if (!connection && page !== 'room')
-    return <Connect theme={theme} setTheme={setTheme} onConnected={() => setError('')} />;
+  if (!connection && page !== 'room') return <Connect onConnected={() => setError('')} />;
   return (
     <>
       {page !== 'room' && <Ping />}
@@ -305,6 +311,12 @@ function Workspace() {
             setPage('prejoin');
           }}
           onJoin={openDestination}
+          onResume={(admission) => {
+            // Встреча из соседней вкладки (T52): та вкладка её отпустила, этот же участник
+            // продолжает здесь — как после перезагрузки страницы.
+            rememberMeeting(admission);
+            void recent(admission.roomId, true);
+          }}
         />
       )}
       {page === 'prejoin' && (
@@ -352,12 +364,11 @@ function Workspace() {
  * the address should be able to fetch Cord before they have a password or an invitation.
  */
 function Downloads() {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
+  // Тему здесь не выбирают (T41: она в настройках), но выбранную в приложении — показывают.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('cord:theme', theme);
-  }, [theme]);
-  return <Download theme={theme} setTheme={setTheme} />;
+    document.documentElement.dataset.theme = localStorage.getItem('cord:theme') || 'system';
+  }, []);
+  return <Download />;
 }
 
 export default function App() {

@@ -11,7 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FavoriteService {
   public record Favorite(
-      String roomId, String title, String code, long savedAt, boolean closed, boolean canJoin) {}
+      String roomId,
+      String title,
+      String code,
+      long savedAt,
+      boolean closed,
+      boolean canJoin,
+      String groupId,
+      boolean pinned,
+      String alias) {}
 
   private final RoomRepository repository;
   private final RoomService rooms;
@@ -23,8 +31,12 @@ public class FavoriteService {
     this.config = config;
   }
 
-  /** Профиль избранного — тот же секрет устройства, что {@code X-Cord-Profile}, и тот же хэш. */
-  private String key(String credential) {
+  /**
+   * Профиль избранного — тот же секрет устройства, что {@code X-Cord-Profile}, и тот же хэш
+   * ({@link Identity}). Не private: группы ({@code FavoriteGroupService}) должны узнавать профиль
+   * ровно тем же ключом.
+   */
+  String key(String credential) {
     var hash = Identity.profileHash(credential.replaceFirst("^Bearer ", ""));
     if (hash == null) throw Problem.forbidden();
     return hash;
@@ -33,8 +45,14 @@ public class FavoriteService {
   public List<Favorite> list(String credential) {
     return repository
         .jdbc()
+        // Группа читается через JOIN, а не прямо из group_id: ссылка на исчезнувшую группу
+        // должна вернуться пустой, иначе комната пропала бы из всех списков сразу.
         .sql(
-            "SELECT room_id,member_id,saved_at FROM favorites WHERE profile_hash=? ORDER BY sort_order, saved_at DESC, room_id")
+            """
+            SELECT f.room_id,f.member_id,f.saved_at,g.id AS group_id,f.pinned,f.alias
+            FROM favorites f
+            LEFT JOIN favorite_groups g ON g.profile_hash=f.profile_hash AND g.id=f.group_id
+            WHERE f.profile_hash=? ORDER BY f.sort_order, f.saved_at DESC, f.room_id""")
         .param(key(credential))
         .query(
             (rs, n) -> {
@@ -49,7 +67,10 @@ public class FavoriteService {
                   room.code,
                   rs.getLong("saved_at"),
                   room.closedAt != null,
-                  member != null);
+                  member != null,
+                  rs.getString("group_id"),
+                  rs.getBoolean("pinned"),
+                  rs.getString("alias"));
             })
         .list();
   }
@@ -75,7 +96,8 @@ public class FavoriteService {
      Считается под тем же общим замком, что и запись: двенадцать одновременных «сохранить»
      проходят по очереди, и одиннадцатая видит десять. Уже сохранённое сверх предела — например,
      до того, как предел появился, — не удаляется: отказ получает только новое, пока список не
-     станет короче. Ответ несёт само число, чтобы интерфейс сказал «10 из 10», не зашивая его.
+     станет короче. Ответ несёт само число, чтобы интерфейс сказал «10 из 10», не зашивая его, а
+     текст отказа — те же слова, что подсказка у звезды на главной (E02).
     */
     int max = config.favorites().maxSaved();
     if (repository
@@ -88,7 +110,7 @@ public class FavoriteService {
       throw new Problem(
           409,
           "FAVORITES_FULL",
-          "В избранном нет места (предел — " + max + "). Уберите одну встречу, чтобы добавить эту",
+          "В избранном уже " + max + " " + roomsWord(max) + ". Уберите одну, чтобы добавить эту",
           Map.of("max", max));
     long first =
         repository
@@ -103,6 +125,15 @@ public class FavoriteService {
             "INSERT INTO favorites(profile_hash,room_id,member_id,saved_at,sort_order) VALUES(?,?,?,?,?)")
         .params(key, roomId, member.id, rooms.now(), first - 1)
         .update();
+  }
+
+  /** «комната», «комнаты», «комнат» — предел настраивается, и слово должно согласоваться с числом. */
+  static String roomsWord(int count) {
+    int tens = count % 100, ones = count % 10;
+    if (tens >= 11 && tens <= 14) return "комнат";
+    if (ones == 1) return "комната";
+    if (ones >= 2 && ones <= 4) return "комнаты";
+    return "комнат";
   }
 
   @Transactional

@@ -1,42 +1,37 @@
-# Состояние сессии — точка возобновления (19.10.2026)
+# Состояние сессии — точка возобновления (19.10.2026, вечер)
 
-Этот файл — для следующего «меня» после `/compact` или перезапуска. Где что лежит и что идёт.
+Этот файл — для следующего «меня» после `/compact`, сброса лимита или перезапуска. Где что лежит и что идёт.
 
-## Ветки (всё локально — пуш ждёт `gh auth login` владельца, OWNER-ACTIONS №1)
+## Ветки и выкатка
 
 | Репо | Ветка | Что |
 | --- | --- | --- |
-| ядро | `main` = a7ed543 | E00 + E01-B0 (T56 веб) + марка SVG (T24/T01 веб) + исследования E11-A/E12/E09/E16-4a |
-| ядро | `epic/E05-media` (от main) | T38 (`web/src/core/room-cues.ts` + тест, подключено в `meeting.ts`), T49 (`web/src/media/volume.ts` + тест, подключено в `ui/Stage.tsx`) — **не закоммичено на момент записи**, проверки в `/opt/.cord-work/e05a-check.log` |
-| Windows | `epic/E01-B0-quick-wins` = fe97a78 поверх `epic/E01-A-electron-adr` = 81f8b6f поверх `main` 0d5c2fa | ADR Electron; выпуск 0.7.6: марка в шапке (T01), ПКМ без Edge (T42), ярлык по умолчанию (T15), обновления только с зеркала (T56). Тесты Cord.Core 52/54 (2 — DPAPI, только Windows), `dotnet format` чист. XAML проверит CI |
+| ядро | `main` (на GitHub) | E00, E01-B0 веб (T56), E06-A (T14), E05 (T38 T49 T44 T48 T50), E16, E07 (T17 T19 T20), E08 (T51 T07 T45 T11), T58 веб; контракты перегенерированы после E08 |
+| ядро | `epic/E14-A-i18n` | WIP: i18next 26 + `contracts/errors.json` + скрипты; **не подключено** в `main.tsx`, базовая линия `check.mjs` не записана |
+| Windows | `main` = e50bfd0 (на GitHub) | 0.7.6 (T01 T15 T42 T56) + 0.7.7 (T58: принудительное обновление при запуске). XAML проверяет только CI; зеркало стенда не опубликовано |
 
-## Субагенты в работе (worktree `ModernStreamingSystem/.claude/worktrees/agent-*`)
+Стенд `https://cord.nikg.tech` — сборка `9015602`, смоук зелёный (`SMOKE_PROBE_MS=20000 node scripts/smoke.mjs`).
+Выкатка — `backlog/bin/deploy.sh core services gateway` (ядро первым, ждёт до 20 мин). Контракты —
+`backlog/bin/gen-contracts.sh` (собирает ядро, снимает схему на одноразовых Postgres/Redis; `CORD_GEN_NO_BUILD=1` — с готовым образом).
 
-- E06-A права (`epic/E06-A-permissions`): матрица в ядре, `you.can` в снимке, служба спрашивает ядро, T14.
-- E07 кинозал (`epic/E07-cinema`): T17/T19/T20.
-- E08 игры (`epic/E08-games`): T51, T07, T45 (звуки Kenney CC0 + синтез), T11.
-- E10-A исследование наблюдаемости → `docs/observability.md` (файл уже есть, ждём отчёт, не коммитить до него).
-После отчёта: прочитать дифф ветки, ревью, слить в `main` (`--ff-only` или merge), перегенерировать
-`contracts/openapi.json` + `web/src/api/generated.ts`, если две ветки их тронули.
+## Агенты (worktree `.claude/worktrees/agent-*`, Opus)
 
-## Стек на стенде
+- **WP1** — личность `X-Cord-Profile`, одна активная встреча (T52, 409 + `X-Cord-Leave`), пределы (T06), `Snapshot.startedAt`.
+- **E02** — бренд, шапка, главная (T24 T25 T35 T40 T41 T46 T01 + интерфейс T52), миграция своих экранов на токены E16.
 
-Сборка: gateway ✔, services ✔, sniffer — в процессе, core — повтор с `COMPOSE_BAKE=false` (первый раз
-упал на сбое BuildKit). Журнал — `/opt/.cord-work/stack-build.log`. После сборки: `sudo ./setup.sh
---domain cord.nikg.tech --ip 108.165.32.75` (`.env` уже есть и сохранится; поставит ufw, таймер уборки,
-стену sniffer, поднимет стек, выпустит сертификат) → смоук → e2e против `https://cord.nikg.tech`.
+После отчёта: ревью диффа → `git merge --no-ff` в `main` → `gen-contracts.sh` (WP1 меняет схему) → `npx tsc -b`
+в `web` → коммит → пуш → `deploy.sh`. E02 стартовал от `main` до правки `home.test.tsx` (обязательное `quality`) —
+при слиянии взять правку из `main`.
 
-## Дальше по плану (моя очередь)
+## Дальше по очереди
 
-1. Закоммитить E05 T38/T49 → T44/T48 (качество из `application.yml` → `capabilities`, без «Авто» и 1440,
-   миграция сохранённых настроек, демонстрация показывается зрителям после кадра целевого качества —
-   `screen.started` уже есть в командах) → T06/T52 в ядре (после слияния E06-A: конфликт в RoomService).
-2. E16: токены, примитивы, `FullscreenLoader` (спека `docs/superpowers/specs/2026-10-19-fullscreen-loader.md`),
-   хук ширины панелей (T46), витрина.
-3. E14-A: слой переводов (решение о библиотеке в DECISIONS), вынос строк.
-4. E15-A: Figma «как есть» (файл https://www.figma.com/design/X7lD00UAOuZfH4hL0S4bxA).
+1. E03 Настройки, E04 Экран звонка (после E02, чтобы не делить `styles.css`).
+2. E14-A: подключить слой, вынести строки — после волны 2 (экраны устоялись).
+3. E05 T09/T10, E06-B, E15-A (Figma), затем волны 4–5. Финал — полные прогоны, e2e, `FINAL.md`.
+4. Windows: проверить CI 0.7.7, опубликовать зеркало (`scripts/publish-windows-release.py`).
 
-## Машина
+## Машина и токены
 
-Steal 25–60 %, load 20–45. Монитор — `/opt/.cord-work/health.log` (раз в 2 мин). vitest — только
-`--pool=threads --testTimeout=60000` (форки не успевают стартовать). Своп 4,5 ГБ.
+Steal 30–70 %, своп почти полон при 3+ агентах. Не больше 2–3 агентов одновременно; Fable — только самое
+сложное. vitest — `--pool=forks --maxWorkers=1 --testTimeout=60000`. Медленность — хоста, не кода (владелец).
+Монитор — `/opt/.cord-work/health.log`.

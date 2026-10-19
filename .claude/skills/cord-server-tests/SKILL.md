@@ -16,7 +16,7 @@ google-java-format валит новые файлы почти всегда, п�
 | --- | --- |
 | Отформатировать Java | `docker run --rm -v cord-m2:/root/.m2 -v "$PWD":/w -w /w maven:3.9.11-eclipse-temurin-25 mvn -B -q -pl server com.spotify.fmt:fmt-maven-plugin:format` |
 | Один класс тестов | то же, `mvn -B -pl server test -Dtest=DurakTest` (можно `-Dtest='DurakTest#transfer*'`) |
-| Как в CI | то же, `mvn -B -pl server fmt:check verify` + для Testcontainers: `-v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=172.17.0.1` |
+| Как в CI | то же, `mvn -B -pl server fmt:check verify` + для Testcontainers: `--network host -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_RYUK_DISABLED=true` (с `TESTCONTAINERS_HOST_OVERRIDE` *PostgresTest на стенде пропускаются — `backlog/knowledge/memory/cord-testcontainers-on-host.md`) |
 | Тесты служб | `docker compose run --rm --no-deps --network none --entrypoint python -v "$PWD/services/tests:/tests:ro" -e PYTHONPATH=/app:/tests services -m unittest discover -s /tests` (образ `services` пересобрать после правки кода: код копируется в образ) |
 | Один модуль служб | `... -m unittest test_services -v` |
 | ruff кинозала | `docker run --rm -v "$PWD/services":/s -w /s ghcr.io/astral-sh/ruff:0.13.2 check cord_services/cinema sniffer tests/test_cinema*.py --line-length 110 --extend-select E501` |

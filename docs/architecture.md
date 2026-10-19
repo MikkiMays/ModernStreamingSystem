@@ -118,6 +118,16 @@ stateDiagram-v2
 | `PUT /api/v1/favorites/{roomId}` | Сохранить по действующему `roomCredential`; проверка допуска; не больше `stream.favorites.max-saved` (10) на профиль, иначе `409 FAVORITES_FULL {max}` |
 | `DELETE /api/v1/favorites/{roomId}` | Удалить только собственную закладку |
 | `POST /api/v1/favorites/{roomId}/join` | Явный вход с `commandId` и именем, восстановление ранее предоставленных прав |
+| `GET /api/v1/favorites/groups` | Группы избранного этого профиля по порядку (V8, E02) |
+| `PUT /api/v1/favorites/groups/{groupId}` | Создать (в конец) или переименовать группу `{title ≤ 60}`; групп не больше десяти — `409 FAVORITE_GROUPS_FULL` |
+| `DELETE /api/v1/favorites/groups/{groupId}` | Удалить группу; её комнаты возвращаются в общий список |
+| `PUT /api/v1/favorites/groups/order` | Порядок групп целиком, как `/favorites/order` |
+| `PUT /api/v1/favorites/{roomId}/settings` | `{groupId, pinned, alias}` — группа, закрепление и своё имя комнаты; полная замена трёх полей |
+
+Миграция V8 добавляет `favorite_groups(profile_hash, id, title, sort_order, created_at)` и в `favorites`
+— `group_id`, `pinned`, `alias`. Группа — тоже вещь профиля устройства: синхронизации между устройствами
+нет, как и у самого избранного. Комната из группы, которой больше нет, приходит с `groupId: null`.
+Свёрнута ли группа, помнит браузер (`localStorage`), не ядро.
 
 Глобальная блокировка и блокировка комнаты защищают лимит избранного, места и лимит работающих комнат. Уже сохранённое сверх предела не удаляется — отказ получает только новое. Неактивные определения сохранённых комнат не занимают рабочий слот: слот (`stream.max-rooms`) держит встреча, где хотя бы один человек на связи, или моложе 30 секунд.
 

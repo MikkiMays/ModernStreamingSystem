@@ -1,57 +1,54 @@
-/* Native navigation owns favorites; the WebView keeps only the meeting entry. */
+/* Клиент Windows: избранное и группы — в его собственной панели, в WebView остаётся только вход. */
 .desktop-home {
   position: relative;
-  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 64px 24px;
+  min-height: 100dvh;
+  padding: var(--space-16) var(--space-6);
   background: var(--bg);
 }
 .desktop-home-settings {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--space-3);
+  right: var(--space-3);
 }
 @media (max-width: 420px) {
   .desktop-home {
-    padding-inline: 16px;
+    padding-inline: var(--space-4);
   }
 }
 @media (max-height: 580px) {
   .desktop-home {
-    padding-block: 52px 20px;
+    padding-block: var(--space-12) var(--space-5);
   }
   .desktop-connect.home-entry {
-    padding-block: 24px;
+    padding-block: var(--space-6);
   }
-  .desktop-connect .home-entry-welcome {
-    margin-bottom: 22px;
+  .desktop-connect .home-entry__welcome {
+    margin-bottom: var(--space-5);
   }
 }
 /* Узкое и низкое окно (360×430): подсказка под полем переносится в две строки, и карточка
    вместе с отступами становилась на 20 пикселей выше окна. Подзаголовок здесь уходит раньше. */
 @media (max-height: 460px) {
   .desktop-connect.home-entry {
-    padding-block: 20px;
+    padding-block: var(--space-5);
   }
-  .desktop-connect .home-entry-welcome {
-    margin-bottom: 16px;
+  .desktop-connect .home-entry__welcome {
+    margin-bottom: var(--space-4);
   }
-  .desktop-connect .home-entry-welcome p {
+  .desktop-connect .home-entry__welcome p {
     display: none;
   }
 }
 @media (max-height: 380px) {
   .desktop-connect.home-entry {
-    padding-block: 18px;
+    padding-block: var(--space-4);
   }
-  .desktop-connect .home-entry-welcome {
-    margin-bottom: 14px;
+  .desktop-connect .home-entry__welcome {
+    margin-bottom: var(--space-3);
   }
-  .desktop-connect .home-entry-welcome p {
-    display: none;
-  }
-  .desktop-connect .home-entry-divider {
-    margin-block: 12px;
+  .desktop-connect .home-entry__divider {
+    margin-block: var(--space-3);
   }
 }

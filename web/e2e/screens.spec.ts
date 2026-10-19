@@ -54,7 +54,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: /Новая встреча/ }).click();
     await host!.getByLabel('Ваше имя').fill('Экран 1');
     await host!.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host!.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();
     await host!.getByRole('button', { name: 'Пригласить участников' }).click();
     const invite = await host!.getByLabel('Ссылка приглашения').inputValue();
     await host!.getByRole('button', { name: 'Закрыть', exact: true }).click();
@@ -62,7 +62,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
       await page.goto(invite);
       await page.getByLabel('Ваше имя').fill(`Экран ${i + 2}`);
       await page.getByRole('button', { name: 'Войти во встречу' }).click();
-      await expect(page.getByText('В эфире', { exact: true })).toBeVisible();
+      await expect(page.locator('[data-media-status="connected"]')).toBeVisible();
     }
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить камеру', exact: true }).click();
@@ -167,7 +167,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: 'Остановить', exact: true }).click();
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
     await expect(third!.locator('.person-tile')).toHaveCount(3);
-    await expect(host!.getByText('В эфире', { exact: true })).toBeVisible();
+    await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();
     await third!.getByRole('button', { name: 'Полноэкранный режим', exact: true }).click();
     await expect(third!.locator('.meeting-page')).toHaveClass(/meeting-fullscreen/);
     await third!.mouse.move(800, 180);

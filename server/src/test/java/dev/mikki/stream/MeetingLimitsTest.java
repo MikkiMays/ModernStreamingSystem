@@ -403,6 +403,9 @@ class MeetingLimitsTest {
               assertThat(problem.status()).isEqualTo(409);
               assertThat(problem.code()).isEqualTo("FAVORITES_FULL");
               assertThat(problem.properties()).containsEntry("max", 10);
+              // Те же слова, что подсказка у звезды на главной (E02).
+              assertThat(problem.getMessage())
+                  .isEqualTo("В избранном уже 10 комнат. Уберите одну, чтобы добавить эту");
             });
     var kept = favorites.list(SECRET).getFirst().roomId();
     var keptHost = hosts.stream().filter(h -> h.roomId().equals(kept)).findFirst().orElseThrow();

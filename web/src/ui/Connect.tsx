@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, LoaderCircle, Server, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Check, Server, TriangleAlert } from 'lucide-react';
 import type { Capabilities } from '../api/types';
-import { DownloadLink, Logo, ThemeButton, type Theme } from './primitives';
+import { DownloadLink, Logo } from './primitives';
+import { Button, Field, Input, Switch } from './kit';
+import './shell.css';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { describeFailure, openConnection, serverInfo, type Attempt } from '../core/session';
 import { ensureNotificationAudio } from '../core/sounds';
@@ -19,15 +21,7 @@ import { notifyDesktop } from '../core/desktop';
  * belongs to the Windows client, which has none of those limits; from inside it this screen
  * can ask the shell to open it.
  */
-export function Connect({
-  theme,
-  setTheme,
-  onConnected,
-}: {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  onConnected: () => void;
-}) {
+export function Connect({ onConnected }: { onConnected: () => void }) {
   const desktop = !!window.chrome?.webview;
   const here = currentServerUrl();
   const saved = thisServer();
@@ -80,33 +74,33 @@ export function Connect({
   const name = saved.name.trim() || info?.name || serverLabel({ url: here, name: '' });
   const waiting = !info && !attempt;
   return (
-    <div className="connect-page">
-      <header className="app-header">
+    <div className="shell-page">
+      <header className="shell-header">
         <Logo />
-        <div className="header-end">
-          <span className="header-note">Подключение к серверу</span>
-          <DownloadLink />
-          <ThemeButton theme={theme} setTheme={setTheme} />
+        <div className="shell-header__end">
+          <span className="shell-header__note">Подключение к серверу</span>
+          <DownloadLink className="shell-download" />
         </div>
       </header>
-      <main className="connect-main">
-        <section className="connect-card" aria-labelledby="connect-title">
-          <span className="connect-badge" aria-hidden="true">
-            <Server size={26} />
+      <main className="shell-main">
+        <section className="shell-card connect-card" aria-labelledby="connect-title">
+          <span className="connect-card__badge" aria-hidden="true">
+            <Server size={22} />
           </span>
-          <h1 id="connect-title">{waiting ? 'Ищем сервер…' : name}</h1>
-          <p className="muted">{new URL(here).host}</p>
+          <div className="connect-card__heading">
+            <h1 id="connect-title">{waiting ? 'Ищем сервер…' : name}</h1>
+            <p>{new URL(here).host}</p>
+          </div>
           <form
-            className="connect-form"
+            className="connect-card__form"
             onSubmit={(event) => {
               event.preventDefault();
               void connect();
             }}
           >
             {info?.passwordRequired && (
-              <label>
-                Пароль сервера
-                <input
+              <Field label="Пароль сервера">
+                <Input
                   type="password"
                   value={password}
                   maxLength={200}
@@ -115,37 +109,34 @@ export function Connect({
                   placeholder="Спросите у того, кто дал адрес"
                   onChange={(event) => setPassword(event.target.value)}
                 />
-              </label>
+              </Field>
             )}
-            <label className="check-setting">
-              <input
-                type="checkbox"
-                checked={autoConnect}
-                onChange={(event) => {
-                  setAutoConnect(event.target.checked);
-                  rememberServer({ autoConnect: event.target.checked });
-                }}
-              />
-              <span>Подключаться автоматически при запуске</span>
-            </label>
-            <button className="button primary full" type="submit" disabled={busy || waiting}>
-              {busy ? (
-                <>
-                  <LoaderCircle className="spin" size={18} /> Подключаемся…
-                </>
-              ) : (
-                <>
-                  Подключиться <ArrowRight size={18} />
-                </>
-              )}
-            </button>
+            <Switch
+              label="Подключаться автоматически при запуске"
+              checked={autoConnect}
+              onCheckedChange={(checked) => {
+                setAutoConnect(checked);
+                rememberServer({ autoConnect: checked });
+              }}
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              full
+              loading={busy}
+              disabled={waiting}
+              icon={busy ? undefined : <ArrowRight size={18} />}
+            >
+              {busy ? 'Подключаемся…' : 'Подключиться'}
+            </Button>
           </form>
-          <div className="server-status-row">
+          <div className="connect-card__status">
             <ConnectionStatus attempt={busy ? null : attempt} />
             {desktop && (
-              <button className="text-button" onClick={() => notifyDesktop('servers.open')}>
+              <Button variant="quiet" size="sm" onClick={() => notifyDesktop('servers.open')}>
                 Другой сервер…
-              </button>
+              </Button>
             )}
           </div>
         </section>

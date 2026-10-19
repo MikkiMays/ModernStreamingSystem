@@ -33,21 +33,31 @@ flock -w 1800 9 || { echo "Другая выкатка держит $LOCK дол
 
 echo "== сборка $* (коммит $head)"
 CORD_BUILD=$head docker compose build "$@"
-echo "== подъём $*"
-docker compose up -d --no-deps "$@"
+# Ядро — первым и отдельно: шлюз и службы ждут его здоровья (`depends_on: service_healthy`) даже
+# при `--no-deps`, если оно в той же команде, а на перегруженной машине Spring поднимается и за 14
+# минут. Каждая служба поднимается и ждётся по очереди.
+order=()
+[[ " $* " == *" core "* ]] && order+=(core)
+for service in "$@"; do [[ $service == core ]] || order+=("$service"); done
 
-deadline=$((SECONDS + 300))
-for service in "$@"; do
+wait_healthy() {
+  local service=$1 deadline=$((SECONDS + 1200)) id state
   while :; do
     id=$(docker compose ps -q "$service")
     state=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null || echo missing)
     case $state in
-      healthy|running) echo "  $service: $state"; break ;;
+      healthy|running) echo "  $service: $state"; return ;;
       unhealthy|exited|dead|missing) echo "  $service: $state" >&2; docker compose logs --tail 40 "$service" >&2; exit 1 ;;
     esac
-    ((SECONDS < deadline)) || { echo "  $service: не стал здоровым за 5 минут ($state)" >&2; exit 1; }
-    sleep 3
+    ((SECONDS < deadline)) || { echo "  $service: не стал здоровым за 20 минут ($state)" >&2; exit 1; }
+    sleep 5
   done
+}
+
+for service in "${order[@]}"; do
+  echo "== подъём $service"
+  docker compose up -d --no-deps "$service"
+  wait_healthy "$service"
 done
 
 # Коммит вшит в бандл веба (`__CORD_BUILD__`, web/vite.config.ts) — его же печатает «О программе».

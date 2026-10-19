@@ -20,7 +20,7 @@ test('камера держит выбранный кадр на время по
     await page.getByRole('button', { name: /Новая встреча/ }).click();
     await page.getByLabel('Ваше имя').fill('Майс');
     await page.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(page.getByText('В эфире', { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 20000 });
 
     await page.getByRole('button', { name: 'Включить камеру', exact: true }).click();
     const camera = page.locator('video[aria-label="Камера: Майс"]').first();
