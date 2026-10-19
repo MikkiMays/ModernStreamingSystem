@@ -4,7 +4,6 @@ import { DownloadLink, IconButton, Logo, Modal, ThemeButton, type Theme } from '
 import { favoriteApi } from '../core/favorites';
 import { useFavorites, useReorderFavorites } from './useFavorites';
 import { InstallHint } from './InstallHint';
-import { appLabel } from '../core/version';
 import { DesktopHome } from './DesktopHome';
 import { HomeEntry } from './HomeEntry';
 import { Settings } from './Settings';
@@ -24,7 +23,7 @@ interface HomeProps {
 }
 export function Home(props: HomeProps) {
   const [settings, setSettings] = useState(false);
-  // Раздел, с которого открыться. Просит либо оболочка, либо строка версии внизу страницы.
+  // Раздел, с которого открыться. Просит либо оболочка, либо ссылка «О программе» внизу страницы.
   const [section, setSection] = useState<string | undefined>(undefined);
   // The host can ask for a section by name — the profile block in its sidebar opens the page's
   // own profile settings, because that is where the picture lives.
@@ -99,8 +98,9 @@ function BrowserHome({
         <span className="home-privacy-note">
           <ShieldCheck size={15} aria-hidden="true" /> Без аккаунта. На вашем сервере.
         </span>
-        <button className="build-label" onClick={() => onSettings('about')}>
-          Cord {appLabel}
+        {/* Номера версии здесь нет (T58): он только в «О программе», куда эта ссылка и ведёт. */}
+        <button className="about-link" onClick={() => onSettings('about')}>
+          О программе
         </button>
       </footer>
       <InstallHint />

@@ -5,6 +5,7 @@ import { publicApi } from '../api/client';
 import { favoriteApi, type Favorite } from '../core/favorites';
 import { Home } from './Home';
 import { DesktopHome } from './DesktopHome';
+import { appVersion } from '../core/version';
 
 // Device settings are outside this screen; their media discovery is tested separately.
 vi.mock('./Settings', () => ({ Settings: () => null }));
@@ -105,4 +106,11 @@ it('explains why creation is unavailable without preventing invitation entry', a
   expect(create).toHaveAccessibleDescription(/временно недоступно/i);
   expect(view.getByLabelText('Код встречи или ссылка')).toBeEnabled();
   expect(view.getByRole('button', { name: 'Присоединиться' })).toBeEnabled();
+});
+
+// T58: номер версии — только в «О программе». Внизу главной вместо него ссылка туда же.
+it('leads to «О программе» from the footer without showing the version number', () => {
+  const view = show();
+  expect(view.getByRole('button', { name: 'О программе' })).toBeInTheDocument();
+  expect(view.container.textContent).not.toContain(appVersion);
 });

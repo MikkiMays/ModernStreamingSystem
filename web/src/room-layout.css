@@ -71,7 +71,7 @@
 [data-desktop='true'] .prejoin-page > .app-header .brand {
   visibility: hidden;
 }
-[data-desktop='true'] .build-label {
+[data-desktop='true'] .about-link {
   display: none;
 }
 @media (max-width: 767px) {
