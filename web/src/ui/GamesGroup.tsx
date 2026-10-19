@@ -30,6 +30,7 @@ import {
   POKER_MODES,
   winnerOf,
 } from '../core/poker';
+import { allowed, type RoomAction } from '../core/permissions';
 import { GameResult } from './PokerResult';
 import { Modal, useStore } from './primitives';
 
@@ -89,11 +90,11 @@ const STACK_STEPS = [0.5, 1, 2, 5];
 
 export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () => void }) {
   const snapshot = useStore(meeting.snapshot);
-  const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const canUse = !!self && (self.owner || snapshot.integrationsAllowed !== false);
+  // Принести стол и распоряжаться им — ответы ядра (`you.can`), а не правило, пересчитанное здесь.
+  const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);
   const table = snapshot.poker;
   const durak = snapshot.durak;
-  const dealer = !!table && (table.hostId === self?.id || !!self?.owner);
+  const dealer = may('poker.manage');
   // Стол уже стоит — значит, открыта его строка; иначе открывается та, на которую нажали.
   const [open, setOpen] = useState<GameId | null>(
     table ? 'poker' : durak ? 'durak' : snapshot.chess ? 'chess' : snapshot.gartic ? 'gartic' : null,
@@ -227,9 +228,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   {live ? (
                     <>
                       <p>Игра открыта на сцене встречи. Голос и камеры остаются с вами.</p>
-                      {(self?.owner ||
-                        (game.id === 'chess' ? snapshot.chess?.hostId : snapshot.gartic?.hostId) ===
-                          self?.id) && (
+                      {may(game.id === 'chess' ? 'chess.manage' : 'gartic.manage') && (
                         <button
                           className="button ghost full"
                           onClick={() =>
@@ -282,7 +281,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                             : 'Фраза превращается в рисунок, рисунок — в новую фразу. От трёх игроков.'}
                         </p>
                       )}
-                      {canUse ? (
+                      {may(game.id === 'chess' ? 'chess.open' : 'gartic.open') ? (
                         <button
                           className="button primary full"
                           onClick={() =>
@@ -303,9 +302,8 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
               {expanded && game.id === 'durak' && (
                 <DurakBody
                   table={durak}
-                  canUse={canUse}
-                  owner={!!self?.owner}
-                  selfId={self?.id}
+                  canUse={may('durak.open')}
+                  host={may('durak.manage')}
                   deck={deck}
                   transfer={transfer}
                   onDeck={setDeck}
@@ -366,7 +364,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     </div>
                     <StackChoice preset={preset.stack} stack={stack} blinds={blinds} onChange={setStack} />
                     <RebuyChoice limit={limit} stack={stack} onChange={setRebuys} />
-                    {canUse ? (
+                    {may('poker.open') ? (
                       <button className="button primary full" onClick={() => void bring()}>
                         <Spade size={17} /> Открыть стол
                       </button>
@@ -412,8 +410,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
 function DurakBody({
   table,
   canUse,
-  owner,
-  selfId,
+  host,
   deck,
   transfer,
   onDeck,
@@ -422,8 +419,7 @@ function DurakBody({
 }: {
   table: DurakTable | null;
   canUse: boolean;
-  owner: boolean;
-  selfId: string | undefined;
+  host: boolean;
   deck: number;
   transfer: boolean;
   onDeck: (value: number) => void;
@@ -431,7 +427,6 @@ function DurakBody({
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
 }) {
   if (table) {
-    const host = table.hostId === selfId || owner;
     const seated = table.seats.filter((seat) => seat.memberId).length;
     return (
       <div className="games-body">

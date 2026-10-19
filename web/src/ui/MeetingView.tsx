@@ -43,6 +43,7 @@ import { useFavorites } from './useFavorites';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { notifyDesktop, onDesktopCommand } from '../core/desktop';
 import { useFullscreen } from '../core/fullscreen';
+import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 
@@ -170,6 +171,8 @@ export function MeetingView({
     };
   }, [meeting, preferences.micHotkey, ended]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
+  // Действия ведущего — по ответу ядра (`you.can`), а не по флажку `owner` в списке людей.
+  const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);
   const togglePanel = (value: Panel) => setPanel((p) => (p === value ? null : value));
   const openServicesPanel = () => setPanel((current) => (current === 'services' ? null : 'services'));
   const setPanelWidth = (value: number) => setWidth(Math.min(480, Math.max(320, value)));
@@ -190,7 +193,7 @@ export function MeetingView({
           <div>
             {/* Ведущему название — это ещё и кнопка: туда же, где оно написано, и идут, чтобы
                 его исправить. Остальным нажимать не на что, и заголовок остаётся заголовком. */}
-            {self?.owner && !ended ? (
+            {may('room.settings') && !ended ? (
               <button className="meeting-rename" onClick={() => setMeetingSettings(true)}>
                 <h1>{snapshot.title}</h1>
                 <Pencil size={13} aria-label="Настройки встречи" />
@@ -245,7 +248,7 @@ export function MeetingView({
       </header>
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
         <main className="stage-wrap" aria-label="Сцена встречи">
-          {!ended && self?.owner && snapshot.participants.some((p) => p.status === 'WAITING') && (
+          {!ended && may('participant.approve') && snapshot.participants.some((p) => p.status === 'WAITING') && (
             <button className="admission-banner" onClick={() => setPanel('people')}>
               <Users size={18} /> Запросы на подключение:{' '}
               {snapshot.participants.filter((p) => p.status === 'WAITING').length} · Открыть
@@ -493,12 +496,12 @@ export function MeetingView({
                           {fullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
                         </Menu.Item>
                       )}
-                      {self?.owner && (
+                      {may('room.settings') && (
                         <Menu.Item onClick={() => setMeetingSettings(true)}>
                           <Pencil size={18} /> Настройки встречи
                         </Menu.Item>
                       )}
-                      {self?.owner && (
+                      {may('room.close') && (
                         <Menu.Item
                           className="danger-text"
                           onClick={() => void meeting.command('close').catch((e) => meeting.media.report(e))}
@@ -600,7 +603,7 @@ export function MeetingView({
 
       <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
-      {self?.owner && (
+      {may('room.settings') && (
         <MeetingSettings meeting={meeting} open={meetingSettings} onOpenChange={setMeetingSettings} />
       )}
       <Settings

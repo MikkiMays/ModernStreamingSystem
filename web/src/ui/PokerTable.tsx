@@ -65,6 +65,7 @@ import {
 } from '../core/poker';
 import { GameResult, GameCrown } from './PokerResult';
 import { useFullscreen } from '../core/fullscreen';
+import { allowed } from '../core/permissions';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 
@@ -98,7 +99,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     mySeat,
     tableGeometry.ratio,
   );
-  const dealer = table.hostId === me || !!snapshot.participants.find((p) => p.id === me)?.owner;
+  const dealer = allowed(snapshot, me, 'poker.manage');
   const cheer = celebration(table.result);
   const [error, setError] = useState('');
   /*

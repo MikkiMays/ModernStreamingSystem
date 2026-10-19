@@ -21,6 +21,7 @@ import { Avatar, IconButton, useStore } from './primitives';
 import { Track } from 'livekit-client';
 import { Services } from './Services';
 import { ParticipantMenu } from './ParticipantMenu';
+import { allowed } from '../core/permissions';
 
 export type Panel = 'people' | 'chat' | 'services';
 function formatBytes(value: number) {
@@ -198,9 +199,10 @@ export function Sidebar({
                               : 'Участник'}
                     </small>
                   </div>
-                  {self?.owner && !p.owner ? (
+                  {allowed(snapshot, meeting.admission.participantId, 'participant.remove') && !p.owner ? (
                     <>
-                      {p.status === 'WAITING' && (
+                      {p.status === 'WAITING' &&
+                        allowed(snapshot, meeting.admission.participantId, 'participant.approve') && (
                         <IconButton
                           label={'Разрешить вход: ' + p.name}
                           onClick={() => void run('participant.approve', p.id)}

@@ -33,6 +33,7 @@ import {
   type ChessPiece,
   type PieceTravel,
 } from '../core/chess';
+import { allowed } from '../core/permissions';
 import { GamePeople } from './GamePeople';
 import { IconButton, Modal, useMediaQuery, useStore } from './primitives';
 
@@ -66,7 +67,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
   const me = meeting.admission.participantId;
   const color: ChessColor | null =
     table.white?.memberId === me ? 'white' : table.black?.memberId === me ? 'black' : null;
-  const host = table.hostId === me || !!snapshot.participants.find((person) => person.id === me)?.owner;
+  const host = allowed(snapshot, me, 'chess.manage');
   const [flippedOverride, setFlipped] = useState<boolean | null>(null);
   const flipped = flippedOverride ?? color === 'black';
   const [selected, setSelected] = useState<string | null>(null);

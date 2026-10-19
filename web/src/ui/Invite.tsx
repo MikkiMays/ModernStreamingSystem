@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Check, Copy, Link, RefreshCw } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
+import { allowed } from '../core/permissions';
 import { Modal, useStore } from './primitives';
 import { formatCode } from './Home';
 
@@ -20,7 +21,7 @@ export function Invite({
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
-  const owner = snapshot.participants.find((p) => p.id === meeting.admission.participantId)?.owner;
+  const owner = allowed(snapshot, meeting.admission.participantId, 'invite.manage');
   useEffect(() => {
     let active = true;
     setQr('');
