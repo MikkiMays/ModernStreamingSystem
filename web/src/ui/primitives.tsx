@@ -1,8 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { Monitor, Moon, Sun, X } from 'lucide-react';
 import {
-  useEffect,
-  useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
@@ -10,7 +8,6 @@ import {
   type InputHTMLAttributes,
 } from 'react';
 import type { Store } from '../core/store';
-import { windowsRelease } from '../core/download';
 import { AppIcon } from './brand/Logo';
 
 export { AppIcon, Logo } from './brand/Logo';
@@ -19,27 +16,13 @@ export { AppIcon, Logo } from './brand/Logo';
  * Ссылка на клиент для Windows.
  *
  * Ведёт на `/download` всегда: если сборки на сервере сейчас нет, страница так и скажет.
- * Скрывается лишь там, где бессмысленна, — внутри самого приложения.
+ * Скрывается лишь там, где бессмысленна, — внутри самого приложения. Номера версии в подсказке
+ * нет (T58): его показывает только «О программе», поэтому и спрашивать манифест здесь незачем.
  */
 export function DownloadLink() {
-  const [version, setVersion] = useState('');
-  useEffect(() => {
-    if (window.chrome?.webview) return;
-    let active = true;
-    void windowsRelease().then((release) => {
-      if (active && release) setVersion(release.version);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
   if (window.chrome?.webview) return null;
   return (
-    <a
-      className="download-link"
-      href="/download"
-      title={version ? `Cord для Windows ${version}` : 'Cord для Windows'}
-    >
+    <a className="download-link" href="/download" title="Cord для Windows">
       <AppIcon size={22} />
       <span>Скачать Cord</span>
     </a>

@@ -7,6 +7,10 @@ import { megabytes, windowsRelease, type WindowsRelease } from '../core/download
  * The page behind «Скачать Cord». It is deliberately outside the application: no server
  * session, no meeting, nothing to connect to. Somebody who has just been given the address
  * should be able to get the client before they have a password or an invitation.
+ *
+ * Кнопка ведёт на последний опубликованный установщик, а его номер не печатается (T58): версию
+ * показывает только «О программе». Номер остаётся там, где его читает не человек, а браузер и
+ * Windows, — в адресе файла и в его имени.
  */
 export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
@@ -54,8 +58,7 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
           {release && (
             <>
               <p className="muted">
-                Версия {release.version}
-                {release.installer!.size > 0 && ` · ${megabytes(release.installer!.size)}`} · Windows 10 build
+                {release.installer!.size > 0 && `${megabytes(release.installer!.size)} · `}Windows 10 build
                 19041 и новее, x64
               </p>
               <a className="button primary full download-primary" href={release.installer!.url} download="">
