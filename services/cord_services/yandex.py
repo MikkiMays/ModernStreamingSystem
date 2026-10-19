@@ -361,38 +361,38 @@ class Token(BaseModel):
 def routes(yandex, core):
     router = APIRouter(prefix="/api/v1/services/rooms/{room_id}/yandex")
 
-    async def scope_for(room_id, authorization):
-        _, member = await core.member(room_id, authorization, integration=True)
+    async def scope_for(room_id, authorization, action):
+        _, member = await core.member(room_id, authorization, action=action)
         return "room:" + room_id, member
 
     @router.get("")
     async def status(room_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
         return yandex.status(scope)
 
     @router.delete("")
     async def disconnect(room_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.disconnect")
         return yandex.disconnect(scope)
 
     @router.post("/token")
     async def token(room_id: str, value: Token, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
         return await yandex.connect(scope, value.token)
 
     @router.post("/auth")
     async def auth(room_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
         return await yandex.start_auth(scope)
 
     @router.post("/auth/{auth_id}")
     async def poll(room_id: str, auth_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
         return await yandex.poll_auth(scope, auth_id)
 
     @router.delete("/auth/{auth_id}")
     async def cancel(room_id: str, auth_id: str, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.connect")
         value = yandex.store.claim(auth_id)
         if value and value.get("scope") == scope:
             yandex.store.delete_claim(auth_id)
@@ -400,12 +400,12 @@ def routes(yandex, core):
 
     @router.post("/search")
     async def search(room_id: str, value: Search, authorization: str = Header()):
-        scope, _ = await scope_for(room_id, authorization)
+        scope, _ = await scope_for(room_id, authorization, "yandex.search")
         return await yandex.search(scope, value.query)
 
     @router.post("/queue")
     async def queue(room_id: str, value: Enqueue, authorization: str = Header()):
-        scope, member = await scope_for(room_id, authorization)
+        scope, member = await scope_for(room_id, authorization, "yandex.queue")
         return await yandex.enqueue(
             room_id, scope, value.trackId, str(value.commandId), member["name"]
         )

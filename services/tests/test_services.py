@@ -55,6 +55,11 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
         self.closed = False
         self.integrations_allowed = False
         self.owner_present = False
+        # Права, которые «ядро» кладёт в снимок участника (`you.can`), по id участника. None —
+        # старое ядро, которое `you` не знает: служба решает по запасному правилу.
+        self.rights = None
+        # `participantCan` в `/internal/services`. None — старое ядро без этого поля.
+        self.participant_can = None
         # Место музыкального бота в комнате. По умолчанию его нет: снимок спрашивают и те,
         # кто про бота ничего не знает, а лишний участник в нём менял бы их проверки.
         self.bot_present = False
@@ -102,9 +107,16 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
                 "Bearer bot.secret",
             ):
                 return httpx.Response(403, json={"detail": "Forbidden"})
+            viewer = request.headers["authorization"].removeprefix("Bearer ")
+            you = (
+                {}
+                if self.rights is None
+                else {"you": {"can": self.rights.get(viewer.split(".")[0], [])}}
+            )
             return httpx.Response(
                 200,
                 json={
+                    **you,
                     "id": ROOM,
                     "title": "Test",
                     "closedAt": 1 if self.closed else None,
@@ -150,6 +162,11 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
                     "closedAt": 1 if self.closed else None,
                     "integrationsAllowed": self.integrations_allowed,
                     "ownerPresent": self.owner_present,
+                    **(
+                        {}
+                        if self.participant_can is None
+                        else {"participantCan": self.participant_can}
+                    ),
                 },
             )
         if path.endswith("/invite"):
@@ -257,9 +274,19 @@ class HttpTests(Fixture):
             ).status_code,
             200,
         )
+        # T14: убрать музыку может каждый, кому разрешены интеграции, — не только создатель.
+        # Это старое ядро (без `you`): запасное правило службы — то же, что матрица ядра.
         self.assertEqual(
             (await self.client.delete(base, headers=self.headers(GUEST))).status_code,
-            403,
+            200,
+        )
+        self.assertFalse(self.store.get(ROOM)["enabled"])
+        self.integrations_allowed = False
+        refused = await self.client.delete(base, headers=self.headers(GUEST))
+        self.assertEqual(refused.status_code, 403)
+        self.assertIn("только себе", refused.json()["detail"])
+        self.assertEqual(
+            (await self.client.delete(base, headers=self.headers())).status_code, 200
         )
         for status in ("WAITING", "LEFT", "REMOVED", "EXPIRED"):
             self.guest_status = status
@@ -338,6 +365,162 @@ class HttpTests(Fixture):
             410,
         )
         self.assertEqual(sum(path.endswith("/join") for _, path, _, _ in self.calls), 1)
+
+
+MUSIC = f"/api/v1/services/rooms/{ROOM}/music"
+YANDEX = f"/api/v1/services/rooms/{ROOM}/yandex"
+CINEMA = f"/api/v1/services/rooms/{ROOM}/cinema"
+# Каждый маршрут службы под проверкой участника — и действие, которое он спрашивает у ядра.
+ROUTES = [
+    ("GET", MUSIC, {}, "music.view"),
+    ("POST", MUSIC + "/enable", {"json": {"commandId": str(uuid.uuid4())}}, "music.enable"),
+    ("DELETE", MUSIC, {}, "music.remove"),
+    (
+        "POST",
+        MUSIC + "/commands",
+        {"json": {"commandId": str(uuid.uuid4()), "action": "pause"}},
+        "music.control",
+    ),
+    ("PUT", MUSIC + f"/upload/{uuid.uuid4()}", {"content": b"x"}, "music.upload"),
+    ("POST", f"/api/v1/services/rooms/{ROOM}/telegram/link", {}, "telegram.link"),
+    ("GET", YANDEX, {}, "yandex.connect"),
+    ("DELETE", YANDEX, {}, "yandex.disconnect"),
+    ("POST", YANDEX + "/token", {"json": {"token": "t" * 24}}, "yandex.connect"),
+    ("POST", YANDEX + "/auth", {}, "yandex.connect"),
+    ("POST", YANDEX + "/auth/" + "a" * 24, {}, "yandex.connect"),
+    ("DELETE", YANDEX + "/auth/" + "a" * 24, {}, "yandex.connect"),
+    ("POST", YANDEX + "/search", {"json": {"query": "песня"}}, "yandex.search"),
+    (
+        "POST",
+        YANDEX + "/queue",
+        {"json": {"trackId": "1", "commandId": str(uuid.uuid4())}},
+        "yandex.queue",
+    ),
+    ("GET", CINEMA + "/providers", {}, "cinema.browse"),
+    ("GET", CINEMA + "/search?provider=youtube&query=a", {}, "cinema.browse"),
+    ("GET", CINEMA + "/channel?provider=youtube&id=abc", {}, "cinema.browse"),
+    ("GET", CINEMA + "/playlist?provider=youtube&id=abc", {}, "cinema.browse"),
+    ("GET", CINEMA + "/categories?provider=twitch", {}, "cinema.browse"),
+    ("GET", CINEMA + "/category?provider=twitch&id=1", {}, "cinema.browse"),
+    ("GET", CINEMA + "/series?provider=rutube&id=1", {}, "cinema.browse"),
+    ("GET", CINEMA + "/details?provider=youtube&id=abc", {}, "cinema.browse"),
+    (
+        "POST",
+        CINEMA + "/resolve",
+        {"json": {"provider": "youtube", "contentId": "abc"}},
+        "cinema.resolve",
+    ),
+    ("POST", CINEMA + "/link", {"json": {"url": "https://example.test/v"}}, "cinema.browse"),
+]
+
+
+class PermissionTests(Fixture):
+    """Служба не решает сама, а спрашивает ядро: действие маршрута должно быть в `you.can`."""
+
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        self.store.set_state("bot_username", "cord_meet_bot")
+        # Сами площадки и Яндекс здесь не нужны — только то, пустит ли маршрут. В сеть никто
+        # не ходит: разрешённый запрос получает пустой ответ подставных методов.
+        cinema = self.app.state.cinema
+        for name in (
+            "providers",
+            "search",
+            "channel",
+            "playlist",
+            "categories",
+            "category",
+            "series",
+            "details",
+            "resolve",
+            "link",
+        ):
+            patcher = patch.object(cinema, name, AsyncMock(return_value={}))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        yandex = self.app.state.yandex
+        for name in ("connect", "start_auth", "poll_auth", "search", "enqueue"):
+            patcher = patch.object(yandex, name, AsyncMock(return_value={}))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    async def send(self, method, path, extra, member=GUEST):
+        return await self.client.request(
+            method, path, headers=self.headers(member), **extra
+        )
+
+    async def test_every_route_asks_the_core_for_its_own_action(self):
+        everything = sorted({action for *_, action in ROUTES})
+        for method, path, extra, action in ROUTES:
+            with self.subTest(route=f"{method} {path}"):
+                self.rights = {GUEST: [a for a in everything if a != action]}
+                refused = await self.send(method, path, extra)
+                self.assertEqual(refused.status_code, 403, refused.text)
+                self.rights = {GUEST: [action]}
+                allowed = await self.send(method, path, extra)
+                self.assertNotEqual(allowed.status_code, 403, allowed.text)
+
+    async def test_core_verdict_wins_over_the_old_fields(self):
+        # Флаг выключен, но ядро разрешило: решает ядро, а не копия правила в службе.
+        self.integrations_allowed = False
+        self.rights = {GUEST: ["music.remove"]}
+        self.assertEqual((await self.send("DELETE", MUSIC, {})).status_code, 200)
+        # И наоборот: создатель без права в `you.can` получает отказ.
+        self.rights = {HOST: []}
+        refused = await self.send("DELETE", MUSIC, {}, member=HOST)
+        self.assertEqual(refused.status_code, 403)
+
+    async def test_guest_removes_music_only_while_integrations_are_open(self):
+        # T14 с новым ядром: гость с правом на интеграции убирает музыку.
+        await self.music.enable(ROOM, str(uuid.uuid4()))
+        self.rights = {GUEST: ["integrations.use", "music.control", "music.remove"]}
+        removed = await self.send("DELETE", MUSIC, {})
+        self.assertEqual(removed.status_code, 200)
+        self.assertFalse(removed.json()["enabled"])
+        self.rights = {GUEST: ["music.view", "cinema.browse"]}
+        refused = await self.send("DELETE", MUSIC, {})
+        self.assertEqual(refused.status_code, 403)
+        self.assertIn("только себе", refused.json()["detail"])
+
+    async def test_telegram_link_is_for_the_creator_only(self):
+        url = f"/api/v1/services/rooms/{ROOM}/telegram/link"
+        # Флаг открыт для всех — привязка всё равно только у создателя (T30).
+        self.integrations_allowed = True
+        self.assertEqual((await self.send("POST", url, {})).status_code, 403)
+        self.assertEqual(
+            (await self.send("POST", url, {}, member=HOST)).status_code, 200
+        )
+        self.rights = {HOST: ["telegram.link"], GUEST: ["integrations.use"]}
+        refused = await self.send("POST", url, {})
+        self.assertEqual(refused.status_code, 403)
+        self.assertIn("создателю", refused.json()["detail"])
+        self.assertEqual(
+            (await self.send("POST", url, {}, member=HOST)).status_code, 200
+        )
+
+    async def test_old_core_fallback_follows_the_same_matrix(self):
+        self.rights = None
+        self.integrations_allowed = False
+        for method, path, extra, action in ROUTES:
+            with self.subTest(route=f"{method} {path}"):
+                guest = await self.send(method, path, extra)
+                host = await self.send(method, path, extra, member=HOST)
+                if action.startswith(("cinema.", "music.view")):
+                    self.assertNotEqual(guest.status_code, 403, guest.text)
+                else:
+                    self.assertEqual(guest.status_code, 403, guest.text)
+                self.assertNotEqual(host.status_code, 403, host.text)
+
+    async def test_absent_participants_hear_that_they_are_not_in_the_meeting(self):
+        self.rights = {GUEST: []}
+        self.guest_status = "WAITING"
+        refused = await self.send("GET", MUSIC, {})
+        self.assertEqual(refused.status_code, 403)
+        self.assertEqual(refused.json()["detail"], "Сначала войдите во встречу")
+
+    async def test_unknown_action_is_a_programming_error(self):
+        with self.assertRaises(ValueError):
+            await self.core.member(ROOM, f"Bearer {HOST}.secret", action="music.dance")
 
 
 class QueueTests(Fixture):
