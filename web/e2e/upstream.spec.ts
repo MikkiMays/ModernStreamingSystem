@@ -37,7 +37,7 @@ test('камера держит выбранный кадр на время по
       await page.waitForTimeout(1000);
     }
 
-    await page.getByRole('button', { name: 'Остановить', exact: true }).click();
+    await page.getByRole('button', { name: 'Остановить показ', exact: true }).click();
     await expect.poll(height, { timeout: 20000 }).toBeGreaterThan(400);
   } finally {
     await context.close();
