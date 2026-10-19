@@ -128,11 +128,14 @@ export function AudioLayer({
   onBlocked,
   volumes,
   deafened,
+  master = 1,
 }: {
   tracks: MediaTile[];
   onBlocked: () => void;
   volumes: Record<string, number>;
   deafened: boolean;
+  /** Громкость собеседников из настроек, 0–1: поверх громкости каждого, не вместо неё. */
+  master?: number;
 }) {
   return (
     <div className="audio-layer">
@@ -143,7 +146,7 @@ export function AudioLayer({
             key={t.id}
             tile={t}
             onBlocked={onBlocked}
-            volume={deafened ? 0 : (volumes[t.participantId] ?? 1)}
+            volume={deafened ? 0 : (volumes[t.participantId] ?? 1) * master}
           />
         ))}
     </div>

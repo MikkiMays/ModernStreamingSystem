@@ -1,23 +1,35 @@
 import { expect, it } from 'vitest';
-import { ACCOUNTS } from './accounts';
+import { ACCOUNTS, connected, type TokenAccount } from './accounts';
 import { readPreferences } from './preferences';
 
-it('describes the Yandex Music token with the same label, key and limits it had in «Профиль»', () => {
-  expect(ACCOUNTS).toHaveLength(1);
-  const account = ACCOUNTS[0];
-  if (!account) throw new Error('реестр аккаунтов пуст');
+it('describes the Yandex Music token under the same key and limits it had in «Профиль»', () => {
+  const account = ACCOUNTS.find((entry) => entry.id === 'yandex-music') as TokenAccount | undefined;
+  if (!account) throw new Error('в реестре нет Яндекс Музыки');
   expect(account).toMatchObject({
-    id: 'yandex-music',
+    name: 'Яндекс Музыка',
     label: 'Токен Яндекс Музыки',
     key: 'yandexMusicToken',
     input: 'token',
-    placeholder: 'Сохранить токен для автоподключения',
     maxLength: 1000,
   });
   expect(account.hint).toMatch(/Яндекс Музык/);
 });
 
-it('points at a real, string-valued Preferences key', () => {
+it('держит Telegram в списке со значком «Скоро», пока E09 не включил привязку', () => {
+  expect(ACCOUNTS.map((entry) => entry.id)).toEqual(['yandex-music', 'telegram']);
+  expect(ACCOUNTS.find((entry) => entry.id === 'telegram')?.soon).toBe(true);
+});
+
+it('points every connectable service at a real, string-valued Preferences key', () => {
   const preferences = readPreferences();
-  for (const account of ACCOUNTS) expect(typeof preferences[account.key]).toBe('string');
+  for (const account of ACCOUNTS) if (!account.soon) expect(typeof preferences[account.key]).toBe('string');
+});
+
+it('считает сервис подключённым, пока сохранён непустой токен; «Скоро» не подключён никогда', () => {
+  const [yandex, telegram] = ACCOUNTS;
+  const preferences = readPreferences();
+  expect(connected(yandex!, preferences)).toBe(false);
+  expect(connected(yandex!, { ...preferences, yandexMusicToken: '  ' })).toBe(false);
+  expect(connected(yandex!, { ...preferences, yandexMusicToken: 'token' })).toBe(true);
+  expect(connected(telegram!, { ...preferences, yandexMusicToken: 'token' })).toBe(false);
 });

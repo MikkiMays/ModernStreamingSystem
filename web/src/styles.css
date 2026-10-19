@@ -616,29 +616,7 @@ h2 {
   object-fit: cover;
   display: block;
 }
-.avatar-picker-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 550;
-  margin-bottom: 10px;
-}
-.avatar-picker {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.avatar-picker .avatar {
-  width: 64px;
-  height: 64px;
-  min-width: 64px;
-  font-size: 24px;
-}
-.avatar-picker-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
+
 .meeting-page {
   height: 100dvh;
   display: flex;
@@ -1363,16 +1341,7 @@ h2 {
   margin: 0 16px 8px;
   flex-shrink: 0;
 }
-.quality-section {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
-}
-.quality-section h3 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 14px;
-}
+
 .invite-code {
   display: flex;
   flex-direction: column;
@@ -1595,16 +1564,7 @@ progress {
   border-top: 1px solid var(--line);
   padding-top: 20px;
 }
-.settings-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-@media (max-width: 520px) {
-  .settings-row {
-    grid-template-columns: 1fr;
-  }
-}
+
 .settings-form select {
   font-size: 13px;
 }
@@ -2164,58 +2124,7 @@ progress {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.mic-live-level meter {
-  width: 100%;
-  height: 10px;
-}
-.mic-live-level small {
-  display: block;
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--muted);
-}
-/*
-  Разделы настроек стоят одной строкой и никогда не переносятся.
 
-  Перенос давал то, что выглядело поломкой: пять кнопок в ряд и шестая под ними. Вместо него —
-  одна строка на всю ширину окна, а если и её не хватает (узкий телефон), строка прокручивается
-  вбок. Полосу прокрутки при этом не показываем: это шесть кнопок, а не список.
-*/
-.settings-navigation {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 22px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.settings-navigation::-webkit-scrollbar {
-  display: none;
-}
-.settings-navigation button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  /* Кнопки делят строку поровну и сжимаются вместе, пока помещается подпись. */
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  padding: 10px 15px;
-  border-radius: 10px;
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-}
-.settings-navigation button > svg {
-  flex-shrink: 0;
-}
-.settings-navigation button[data-active] {
-  background: var(--surface-2);
-  color: var(--text);
-}
 /*
   Рамка с отступом — для полей ввода, а не для всего, что называется `input`.
   
@@ -2248,23 +2157,7 @@ progress {
   align-items: center;
   gap: 8px;
 }
-/* Звуки игр (T45): флажок на стол, под общим выключателем сигналов. */
-.game-sound-settings {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
-}
-.game-sound-settings legend {
-  margin-bottom: 4px;
-  padding: 0;
-  font-weight: 600;
-}
-.game-sound-settings:disabled {
-  opacity: 0.55;
-}
+
 /*
   Строка «флажок и подпись под ним». Правило висело на предке — `.audio-settings`, — и каждый
   новый раздел с такой строкой приходилось дописывать в селектор; стоило вынести переключатели
@@ -2289,24 +2182,7 @@ progress {
   margin-top: 2px;
   flex: none;
 }
-/*
-  Какой это сервер. Правило пропало вместе со списком серверов, а разметка осталась — имя и
-  адрес слипались в «Cordmeet.nikg.tech». `overflow-wrap` здесь не украшение: длинное имя
-  сервера без пробелов не даёт диалогу сузиться и разносит его по горизонтали.
-*/
-.connection-current {
-  display: grid;
-  gap: 3px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-2);
-  overflow-wrap: anywhere;
-}
-.connection-current small {
-  color: var(--muted);
-  font-size: 12px;
-}
+
 /*
   Выбор одного из трёх. Раньше это были три голые строки без всякого оформления, посреди
   разделов, у каждого из которых есть своя рамка: выглядело как обломок вёрстки.
@@ -2395,45 +2271,11 @@ progress {
 .device-check audio {
   width: 100%;
 }
-.hotkey-settings {
-  display: grid;
-  gap: 16px;
-}
-.hotkey-recorder {
-  min-height: 60px;
-  font-size: 17px;
-}
-/*
-  Разделы настроек на телефоне: сетка, а не полоса.
 
-  ЗАЧЕМ. Шесть кнопок в одну строку на экране в 360 пикселей — это шесть подписей по
-  одиннадцать пунктов, из которых видно три с половиной, и прокрутка вбок, о которой ничто
-  не сообщает: полосу мы прячем, а обрезанная кнопка у края читается как край экрана, а не
-  как «здесь есть ещё». Открывший настройки на телефоне просто не находил «О программе».
-
-  Три колонки в два ряда показывают все шесть сразу, значок над подписью. Прокрутки нет —
-  ни вбок, ни вдоль: ряд разделов остаётся на месте, а листается содержимое под ним.
-*/
+/* Проверка устройств в «Диагностике» на телефоне — плотнее. */
 @media (max-width: 600px) {
   .device-check {
     padding: 13px;
-  }
-  .settings-navigation {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-    padding: 10px 0 12px;
-    margin-bottom: 16px;
-    overflow: visible;
-  }
-  .settings-navigation button {
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px 4px;
-    min-height: 54px;
-    font-size: 11px;
-    white-space: normal;
-    line-height: 1.2;
   }
 }
 .network-check {
@@ -2473,83 +2315,7 @@ progress {
   cursor: pointer;
   padding: 12px 0;
 }
-/*
-  Плашка «что-то устарело». Появляется только когда есть что сказать, поэтому может позволить
-  себе быть заметной: жёлтая, со значком, в одну строку. Зелёного «всё хорошо» здесь нет —
-  его роль играет пустое место.
-*/
-.update-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px 13px;
-  border-radius: 11px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text);
-  background: color-mix(in srgb, #edbd64 16%, transparent);
-  border: 1px solid color-mix(in srgb, #edbd64 40%, transparent);
-}
-.update-notice svg {
-  flex: none;
-  margin-top: 2px;
-  /* Один цвет на обе темы: на светлом фоне он читается, на тёмном не режет. */
-  color: #c9963a;
-}
-:root[data-theme='dark'] .update-notice svg {
-  color: #edbd64;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .update-notice svg {
-    color: #edbd64;
-  }
-}
-.update-notice code {
-  padding: 1px 5px;
-  border-radius: 5px;
-  background: var(--surface-2);
-  font-size: 11px;
-}
-/* Кто это написал и куда писать. Внизу раздела: сначала дело, потом визитка. */
-.about-author {
-  display: grid;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-.about-author p {
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-.about-author .text-button {
-  font-size: 12px;
-}
-/*
-  То, что по умолчанию не трогают. Свёрнутое — одна строка; развёрнутое — обычный раздел.
-  Настройка, которую видно всегда, читается как та, которую надо выбрать.
-*/
-.advanced-settings > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 12px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.advanced-settings > summary:hover {
-  color: var(--text);
-}
-.advanced-settings[open] > summary {
-  color: var(--text);
-}
-.advanced-settings > section {
-  display: grid;
-  gap: 14px;
-  padding-bottom: 6px;
-}
+
 .modal-heading {
   position: sticky;
   top: calc(var(--modal-pad) * -1);
