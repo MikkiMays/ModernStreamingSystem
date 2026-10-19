@@ -56,3 +56,41 @@ it('correlates PING and suppresses notifications from replay after reconnect', (
   expect(events.mock.calls.map(([, live]) => live)).toEqual([false, false, true]);
   channel.dispose();
 });
+
+/**
+ * Сеть сменилась (VPN), а сокет «открыт»: открытый — не значит живой. По знаку сети уходит
+ * ping, и без pong за три секунды сокет закрывается — а не ждёт пятнадцать секунд `lastPong`.
+ */
+it('по знаку сети проверяет открытый сокет пингом и закрывает его без ответа', () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('WebSocket', Socket);
+  const channel = new ControlChannel(
+    { admission: { roomId: 'room' }, credential: 'credential' } as RoomApi,
+    vi.fn(),
+    vi.fn(),
+    vi.fn(),
+  );
+  channel.start();
+  const socket = Socket.all[0]!;
+  socket.onopen?.();
+  socket.receive({ type: 'authenticated', liveAfter: 5 });
+  const firstPing = JSON.parse(socket.send.mock.calls.at(-1)![0] as string) as { requestId: string };
+  socket.receive({ type: 'pong', requestId: firstPing.requestId });
+  const sent = socket.send.mock.calls.length;
+  window.dispatchEvent(new Event('online'));
+  expect(socket.send.mock.calls.length).toBe(sent + 1);
+  const probe = JSON.parse(socket.send.mock.calls.at(-1)![0] as string) as {
+    type: string;
+    requestId: string;
+  };
+  expect(probe.type).toBe('ping');
+  // Pong пришёл — сокет жив, закрывать нечего.
+  socket.receive({ type: 'pong', requestId: probe.requestId });
+  vi.advanceTimersByTime(4000);
+  expect(socket.close).not.toHaveBeenCalled();
+  // Второй знак сети — и тишина: через три секунды сокет закрыт.
+  window.dispatchEvent(new Event('online'));
+  vi.advanceTimersByTime(4000);
+  expect(socket.close).toHaveBeenCalled();
+  channel.dispose();
+});

@@ -15,6 +15,12 @@
 
 export type LinkPath = 'direct-udp' | 'direct-tcp' | 'relay-udp' | 'relay-tcp' | 'unknown';
 export type LinkGrade = 'good' | 'fair' | 'poor' | 'unknown';
+/**
+ * Жив ли путь по мнению ICE. `disconnected` — то, во что Chrome уходит через секунды после
+ * того, как исчез интерфейс (VPN включили или выключили); SDK LiveKit на это не реагирует и
+ * ждёт `failed`, а мы по нему просим resume сразу (`media/reconnect-plan.ts`).
+ */
+export type IceState = 'connected' | 'disconnected' | 'failed' | 'unknown';
 
 export interface LinkState {
   path: LinkPath;
@@ -25,6 +31,7 @@ export interface LinkState {
   jitterMs: number | null;
   lossPercent: number | null;
   grade: LinkGrade;
+  ice: IceState;
 }
 
 export const unknownLink: LinkState = {
@@ -34,7 +41,29 @@ export const unknownLink: LinkState = {
   jitterMs: null,
   lossPercent: null,
   grade: 'unknown',
+  ice: 'unknown',
 };
+
+/** Состояние ICE из `transport` (Chrome); Firefox поля не отдаёт — тогда «неизвестно». */
+export function readIce(report: RTCStatsReport): IceState {
+  let ice: IceState = 'unknown';
+  report.forEach((stat) => {
+    if (stat.type !== 'transport' || typeof stat.iceState !== 'string') return;
+    const state = stat.iceState as string;
+    const mapped: IceState =
+      state === 'connected' || state === 'completed'
+        ? 'connected'
+        : state === 'disconnected'
+          ? 'disconnected'
+          : state === 'failed' || state === 'closed'
+            ? 'failed'
+            : 'unknown';
+    // Транспортов может быть два (publisher и subscriber): худший из них и есть ответ.
+    const rank = { unknown: 0, connected: 1, disconnected: 2, failed: 3 };
+    if (rank[mapped] > rank[ice]) ice = mapped;
+  });
+  return ice;
+}
 
 /** То немногое из local-candidate/remote-candidate, что здесь используется. */
 interface CandidateStats {
@@ -150,6 +179,7 @@ export class LinkMonitor {
       rttMs: rtt === null ? null : rtt * 1000,
       jitterMs: jitter === null && this.peakJitterMs === 0 ? null : this.peakJitterMs,
       lossPercent: lost + received > 0 ? (lost / (lost + received)) * 100 : null,
+      ice: readIce(report),
     };
     this.state = { ...partial, grade: gradeLink(partial) };
     return this.state;
@@ -171,6 +201,7 @@ export function linkChanged(before: LinkState, after: LinkState) {
   return (
     before.path !== after.path ||
     before.grade !== after.grade ||
+    before.ice !== after.ice ||
     step(before.rttMs, 10) !== step(after.rttMs, 10) ||
     step(before.jitterMs, 5) !== step(after.jitterMs, 5) ||
     step(before.lossPercent, 0.5) !== step(after.lossPercent, 0.5)

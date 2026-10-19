@@ -18,13 +18,13 @@ import {
 import { Tabs } from '@base-ui/react/tabs';
 import type { Meeting } from '../core/meeting';
 import {
-  automaticProfile,
   readPreferences,
   savePreferences,
   type AudioPreferences,
   type Preferences,
   type Reception,
 } from '../core/preferences';
+import { qualityLevels, qualityRules } from '../media/capabilities';
 import { Store } from '../core/store';
 import { hotkeyFromEvent, hotkeyLabel, defaultMicHotkey, type Hotkey } from '../core/hotkeys';
 import { notifyDesktop, desktopHotkeyStatus } from '../core/desktop';
@@ -158,6 +158,15 @@ export function QualityFields({
 }) {
   const title = kind === 'screen' ? 'Демонстрация экрана' : 'Видео с камеры';
   const label = kind === 'screen' ? 'Экран' : 'Камера';
+  // «Авто» и 1440p из выбора ушли (T44, П2): умолчание и потолок задаёт сервер, выбранное
+  // публикуется сразу. 1440p вернётся в список сам, если сервер поднимет потолок.
+  const rules = qualityRules();
+  const levels = qualityLevels(rules);
+  const names: Record<Resolution, string> = {
+    720: '720p · HD',
+    1080: '1080p · Full HD',
+    1440: '1440p · QHD',
+  };
   return (
     <section className="quality-section" aria-label={title}>
       <h3>
@@ -169,45 +178,35 @@ export function QualityFields({
           Качество
           <select
             aria-label={label + ': качество'}
-            value={profile.automatic ? 'auto' : profile.resolution}
-            onChange={(e) =>
-              change(
-                e.target.value === 'auto'
-                  ? automaticProfile(kind)
-                  : { ...profile, resolution: Number(e.target.value) as Resolution, automatic: false },
-              )
-            }
+            value={profile.resolution}
+            onChange={(e) => change({ ...profile, resolution: Number(e.target.value) as Resolution })}
           >
-            <option value="auto">Авто</option>
-            <option value="720">720p · HD</option>
-            <option value="1080">1080p · Full HD</option>
-            <option value="1440">1440p · QHD</option>
+            {levels.resolutions.map((resolution) => (
+              <option key={resolution} value={resolution}>
+                {names[resolution]}
+              </option>
+            ))}
           </select>
         </label>
         <label>
           Плавность
-          {/* Частота принадлежит уровню, а не живёт отдельно: «разрешение автоматическое,
-              частота выбрана» обещало бы то, чего автоматика не умеет — она двигает и то,
-              и другое одной ступенью. Поэтому в Авто список показывает Авто и не спорит. */}
           <select
             aria-label={label + ': частота кадров'}
-            disabled={profile.automatic}
-            value={profile.automatic ? 'auto' : profile.fps}
+            value={profile.fps}
             onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
           >
-            {profile.automatic && <option value="auto">Авто</option>}
-            <option value="15">15 fps</option>
-            <option value="30">30 fps</option>
-            <option value="60">60 fps · плавнее</option>
+            {levels.frameRates.map((fps) => (
+              <option key={fps} value={fps}>
+                {fps === 60 ? '60 fps · плавнее' : `${fps} fps`}
+              </option>
+            ))}
           </select>
         </label>
       </div>
-      {profile.automatic && (
-        <p className="form-footnote">
-          Авто выбирает и кадр, и частоту по тому, что выдерживает связь, — вплоть до 1440p · 60 fps, — и
-          поднимает уровень, как только появляется запас.
-        </p>
-      )}
+      <p className="form-footnote">
+        Выбранное публикуется сразу. Этот сервер допускает до {rules.ceiling.resolution}p ·{' '}
+        {rules.ceiling.fps} fps; если связь не вывозит первые секунды, уровень держится, а не падает.
+      </p>
       {/*
         Настройки «показывать превью демонстрации» здесь больше нет — и не потому, что о ней
         забыли. Выключать её было незачем: в плитке у комнаты и так видно, что показ идёт, а

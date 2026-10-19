@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   cameraOptions,
-  captureCeiling,
   companionCameraCapture,
   companionCameraOptions,
   fitSource,
@@ -22,7 +21,7 @@ describe('screen profiles', () => {
    * картинки. Раньше здесь стояло `simulcast: false`, и второму не доставалось ничего.
    */
   it('отдаёт выбранный уровень верхним слоем и оставляет подпорки для тех, кто не тянет', () => {
-    const options = screenOptions({ resolution: 1440, fps: 60, automatic: false }, 'av1');
+    const options = screenOptions({ resolution: 1440, fps: 60 }, 'av1');
     expect(options.screenShareEncoding?.maxBitrate).toBe(16000000);
     expect(options.screenShareEncoding?.maxFramerate).toBe(60);
     expect(options.backupCodec).toEqual({ codec: 'vp8' });
@@ -40,36 +39,29 @@ describe('screen profiles', () => {
   /**
    * Между выбранным уровнем и подпоркой не должно быть пропасти: приёмник выбирает слой под
    * размер плитки и падает на её дно. С парой 1080p/360p плитка в семьсот пикселей получала
-   * 360p — вдвое меньше того, что в неё влезает. «Авто» бережёт канал и остаётся мельче.
+   * 360p — вдвое меньше того, что в неё влезает.
    */
-  it('под выбранный вручную уровень кладёт ступень 720p, а под «Авто» — дешёвые слои', () => {
-    const screen = screenOptions({ resolution: 1440, fps: 60, automatic: false }, 'vp8');
+  it('под выбранный уровень кладёт ступень 720p — и экрану, и камере', () => {
+    const screen = screenOptions({ resolution: 1440, fps: 60 }, 'vp8');
     expect(screen.screenShareSimulcastLayers?.map((layer) => layer.height)).toEqual([360, 720]);
-    const camera = cameraOptions({ resolution: 1440, fps: 60, automatic: false });
+    const camera = cameraOptions({ resolution: 1080, fps: 60 });
     expect(camera.videoSimulcastLayers?.map((layer) => layer.height)).toEqual([360, 720]);
-    const auto = cameraOptions({ resolution: 1440, fps: 60, automatic: true });
-    expect(auto.videoSimulcastLayers?.map((layer) => layer.height)).toEqual([180, 360]);
   });
 
   it('под 720p не подкладывает слой почти того же размера', () => {
-    const layers = screenOptions(
-      { resolution: 720, fps: 30, automatic: false },
-      'vp8',
-    ).screenShareSimulcastLayers;
+    const layers = screenOptions({ resolution: 720, fps: 30 }, 'vp8').screenShareSimulcastLayers;
     expect(layers?.map((layer) => layer.height)).toEqual([360]);
   });
-  it('keeps the smaller layers when quality is automatic', () => {
-    const options = screenOptions({ resolution: 1080, fps: 30, automatic: true }, 'vp8');
-    expect(options.simulcast).toBe(true);
-    expect(options.screenShareSimulcastLayers?.length).toBeGreaterThan(0);
-    expect(options.degradationPreference).toBe('balanced');
-  });
-  it('applies the same rule to the camera', () => {
-    const chosen = cameraOptions({ resolution: 1080, fps: 60, automatic: false });
-    expect(chosen.simulcast).toBe(true);
-    expect(chosen.videoEncoding?.maxFramerate).toBe(60);
-    expect(chosen.degradationPreference).toBe('maintain-framerate');
-    expect(cameraOptions({ resolution: 1080, fps: 60, automatic: true }).simulcast).toBe(true);
+
+  /** «Авто» нет: любой уровень — выбранный, и держит частоту, а не торгуется ею. */
+  it('публикует выбранное сразу и держит частоту у экрана и у камеры', () => {
+    const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');
+    expect(screen.screenShareEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
+    expect(screen.degradationPreference).toBe('maintain-framerate');
+    const camera = cameraOptions({ resolution: 720, fps: 30 });
+    expect(camera.videoEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
+    expect(camera.degradationPreference).toBe('maintain-framerate');
+    expect(camera.simulcast).toBe(true);
   });
 
   /**
@@ -77,14 +69,13 @@ describe('screen profiles', () => {
    * которая в полумраке удлиняет выдержку, укладывается в любой такой предел — и отдаёт
    * двадцать кадров там, где просили тридцать. Нижнюю границу задаёт только `min`.
    */
-  it('выбранную вручную частоту требует, а автоматическую — нет', () => {
-    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: false });
+  it('выбранную частоту требует', () => {
+    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60 });
     expect(asked[0]).toEqual({
       width: { min: 1920, ideal: 1920 },
       height: { min: 1080, ideal: 1080 },
       frameRate: { min: 60, ideal: 60 },
     });
-    expect(forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: true })).toEqual([]);
   });
 
   /**
@@ -92,7 +83,7 @@ describe('screen profiles', () => {
    * их частотой: «Качество» в списке стоит выше «Плавности», и жёстким остаётся именно кадр.
    */
   it('уступает частотой, а не размером кадра', () => {
-    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60, automatic: false });
+    const asked = forcedCameraConstraints({ resolution: 1080, fps: 60 });
     expect(asked.map((step) => step.frameRate)).toEqual([
       { min: 60, ideal: 60 },
       { ideal: 60 },
@@ -105,7 +96,7 @@ describe('screen profiles', () => {
 
   /** Просить больше, чем устройство умеет, — это отказ вместо картинки. */
   it('не требует у камеры того, чего она о себе не заявляла', () => {
-    const modest = forcedCameraConstraints({ resolution: 1440, fps: 60, automatic: false }, {
+    const modest = forcedCameraConstraints({ resolution: 1440, fps: 60 }, {
       width: { max: 1280 },
       height: { max: 720 },
       frameRate: { max: 30 },
@@ -117,21 +108,9 @@ describe('screen profiles', () => {
     });
   });
 
-  /** Захват в «Авто» идёт по верху лестницы: под текущую ступень подняться было бы некуда. */
-  it('просит у источника потолок, а не текущую ступень', () => {
-    expect(captureCeiling({ resolution: 720, fps: 15, automatic: true })).toEqual({
-      resolution: 1440,
-      fps: 60,
-    });
-    expect(captureCeiling({ resolution: 1080, fps: 30, automatic: false })).toEqual({
-      resolution: 1080,
-      fps: 30,
-      automatic: false,
-    });
-  });
-  it('камера рядом с показом идёт одним слоем и заметно дешевле самой скромной обычной', () => {
+  it('камера рядом с показом (если сервер велел уступать) идёт одним слоем и дешевле самой скромной обычной', () => {
     const companion = companionCameraOptions();
-    const smallest = cameraOptions({ resolution: 720, fps: 15, automatic: true });
+    const smallest = cameraOptions({ resolution: 720, fps: 15 });
     expect(companion.simulcast).toBe(false);
     expect(companion.videoSimulcastLayers).toBeUndefined();
     expect(companion.videoEncoding!.maxBitrate).toBeLessThan(smallest.videoEncoding!.maxBitrate!);

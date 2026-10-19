@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import java.nio.file.Path;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
@@ -37,7 +38,49 @@ public record StreamProperties(
     @Min(1) long roomMaxBytes,
     @Min(1) long totalMaxBytes,
     @Min(10) @Max(10000) int eventHistoryLimit,
-    boolean admissionOpen) {
+    boolean admissionOpen,
+    @NotNull @Valid Media media) {
+  /**
+   * Правила медиа, которые сервер отдаёт каждому входящему ({@code capabilities.quality}).
+   *
+   * <p>Сервер задаёт, клиент исполняет (П2, решение 3 целевой архитектуры): умолчание и потолок
+   * качества живут здесь, а не в четырёх файлах веба, и переопределяются переменными окружения, как
+   * сроки хранения.
+   */
+  public record Media(@NotNull @Valid Quality quality) {
+    public record Quality(
+        // Что публикуется, пока человек не выбрал иначе. `default` — слово Java, поэтому в коде
+        // компонент зовётся иначе, а ключ в yml и в `capabilities` остаётся `default`.
+        @Name("default") @NotNull Level initial,
+        // Выше этого выбрать нельзя; список разрешений и частот в `capabilities` выводится отсюда.
+        @NotNull Level ceiling,
+        // Окно разгона полосы после публикации: столько жалобы кодировщика не считаются, столько
+        // отправитель ждёт кадра целевого размера, прежде чем открыть показ зрителям (T48), и
+        // столько
+        // реконсайлер не открывает показ сам.
+        @NotNull Duration settle,
+        // Ужимать ли камеру до одного маленького слоя на время демонстрации экрана. По П2 —
+        // нет, если человек не выбрал иначе; переключатель в настройках — E03.
+        boolean cameraYieldsToScreen) {
+      @AssertTrue(
+          message =
+              "stream.media.quality: default must not exceed ceiling in resolution or frame rate")
+      public boolean isDefaultWithinCeiling() {
+        return initial != null && ceiling != null && initial.within(ceiling);
+      }
+
+      /**
+       * Минута ожидания — это уже не разгон, а зависший показ, и такую опечатку лучше не принять.
+       */
+      @AssertTrue(message = "stream.media.quality.settle must be between 0 and 60 seconds")
+      public boolean isSettleSane() {
+        return settle != null
+            && !settle.isNegative()
+            && settle.compareTo(Duration.ofSeconds(60)) <= 0;
+      }
+    }
+  }
+
   /**
    * Сколько что живёт после того, как разговор кончился.
    *

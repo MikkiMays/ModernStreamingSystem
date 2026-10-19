@@ -321,6 +321,8 @@ export function Stage({
     );
     const self = person.id === meeting.admission.participantId;
     const sharing = !!(person.screen && person.screenId && person.screenStarted);
+    // Слот взят, а кадра целевого качества ещё нет: показ открывается зрителям после него (T48).
+    const preparing = !!(person.screen && person.screenId && !person.screenStarted);
     return (
       <ParticipantMenu
         meeting={meeting}
@@ -366,6 +368,12 @@ export function Stage({
           </span>
           {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
         </div>
+        {preparing && (
+          <span className="watch-stream is-preparing" role="status">
+            <MonitorUp size={16} />
+            <span>Готовится показ…</span>
+          </span>
+        )}
         {sharing &&
           (self ? (
             <span className="watch-stream is-own">

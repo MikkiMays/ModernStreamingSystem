@@ -50,6 +50,8 @@ public class OpenApiConfig {
               "Watch",
               "RoomYou",
               "Capabilities",
+              "QualityRules",
+              "Level",
               "TableView",
               "SeatView",
               "PotView",

@@ -11,6 +11,7 @@ const sending = (patch: Partial<OutboundVideo> = {}): OutboundVideo => ({
   limitation: 'none',
   targetFps: 30,
   dormant: false,
+  settling: false,
   ...patch,
 });
 
@@ -22,6 +23,13 @@ describe('почему уходит не то, что выбрано', () => {
   it('называет кодировщик, когда жалуется он сам', () => {
     expect(outboundNote(sending({ limitation: 'bandwidth' }))).toBe('ограничивает канал');
     expect(outboundNote(sending({ limitation: 'cpu' }))).toBe('ограничивает процессор');
+  });
+
+  /** Разгон полосы в первые секунды — расписание, а не поломка: так и пишется. */
+  it('в окне разгона тесноту канала называет разгоном, а не ограничением', () => {
+    expect(outboundNote(sending({ limitation: 'bandwidth', settling: true }))).toBe('разгон канала');
+    expect(outboundNote(sending({ limitation: 'cpu', settling: true }))).toBe('ограничивает процессор');
+    expect(outboundNote(sending({ settling: true }))).toBe('');
   });
 
   /**

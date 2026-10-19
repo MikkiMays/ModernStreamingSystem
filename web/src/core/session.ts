@@ -4,6 +4,7 @@ import { Store } from './store';
 import { rememberServer, thisServer } from './servers';
 import { notifyDesktop } from './desktop';
 import { signal } from './sounds';
+import { rememberQuality } from '../media/capabilities';
 
 /**
  * The handshake with the server itself, before any room exists.
@@ -92,9 +93,17 @@ export function disconnect() {
   store(null);
 }
 
-/** What the server says about itself before anyone has authenticated. */
+/**
+ * What the server says about itself before anyone has authenticated.
+ *
+ * Заодно запоминаются правила качества (`capabilities.quality`): настройки читаются синхронно и
+ * до всякой сети, а умолчание и потолок уровня задаёт сервер (`media/capabilities.ts`).
+ */
 export function serverInfo(): Promise<Capabilities> {
-  return publicApi.capabilities();
+  return publicApi.capabilities().then((capabilities) => {
+    rememberQuality(capabilities);
+    return capabilities;
+  });
 }
 
 /** The handshake itself. Whether its result is kept is the caller's decision. */
