@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { atOf, knownProvider, linkCard, linkKey, linkOf, linkParts, rememberLink, RECENT } from './link';
+import {
+  atOf,
+  forgetLink,
+  knownProvider,
+  linkCard,
+  linkKey,
+  linkOf,
+  linkParts,
+  rememberLink,
+  RECENT,
+} from './link';
 
 describe('ссылка в кинозале со стороны браузера', () => {
   it('в поиске площадки ссылка — только со схемой или с www: остальное — слова для поиска', () => {
@@ -78,6 +88,16 @@ describe('ссылка в кинозале со стороны браузера'
     // Разные параметры и якоря — разные ссылки.
     expect(linkKey('https://example.com/watch?v=1')).not.toBe(linkKey('https://example.com/watch?v=2'));
     expect(linkKey('https://example.com/#/a')).not.toBe(linkKey('https://example.com/#/b'));
+  });
+
+  it('убрать из недавних: одну ссылку, в каком бы написании её ни прислали, остальные — как стояли', () => {
+    const recent = ['https://youtu.be/a', 'https://example.com/3/', 'https://ok.ru/video/1'];
+    expect(forgetLink(recent, 'https://EXAMPLE.com:443/3')).toEqual([
+      'https://youtu.be/a',
+      'https://ok.ru/video/1',
+    ]);
+    expect(forgetLink(recent, 'https://nowhere.example/')).toEqual(recent);
+    expect(forgetLink([], 'https://youtu.be/a')).toEqual([]);
   });
 
   it('ссылка для глаз: хост отдельно, остальное отдельно', () => {

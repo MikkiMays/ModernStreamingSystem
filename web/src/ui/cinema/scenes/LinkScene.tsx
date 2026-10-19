@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AudioLines,
   Captions,
@@ -9,6 +9,7 @@ import {
   Link2,
   LoaderCircle,
   MonitorPlay,
+  X,
 } from 'lucide-react';
 import {
   CinemaApi,
@@ -21,7 +22,7 @@ import {
   type CinemaLinkTrack,
   type CinemaPageKind,
 } from '../../../core/cinema';
-import { atOf, knownProvider, linkOf, linkParts } from '../../../core/cinema/link';
+import { atOf, forgetLink, knownProvider, linkOf, linkParts } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { Empty, Failure } from '../catalog/notes';
@@ -35,6 +36,14 @@ import { useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
 import { languageName } from '../theater/watch-tracks';
 import type { SceneProps } from '.';
+
+/** Строки недавних ссылок — в одном месте, до слоя переводов (E14). */
+const TEXT = {
+  recent: 'Недавние ссылки',
+  forget: (address: string) => `Убрать из недавних: ${address}`,
+  clear: 'Очистить всё',
+  clearLabel: 'Очистить недавние ссылки',
+} as const;
 
 /** Страницы у карточки по ссылке нет: всё, что о ней известно, пришло в самом ответе службы. */
 const NO_DETAILS = { data: null, isLoading: false, isError: false, error: null };
@@ -128,13 +137,25 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
    * сериал в стопке: вернувшись с серии, лента уже в памяти.
    */
   const seriesId = item?.kind === 'series' ? item.id : '';
+  /**
+   * Открытый сезон (T17): пусто — тот, что выберет служба (первый). Сезоны у плейлиста по ссылке есть,
+   * когда сайт назвал их у серий; другой плейлист — снова «как выберет служба».
+   */
+  const [season, setSeason] = useState('');
+  const [seasonOf, setSeasonOf] = useState('');
+  if (seasonOf !== seriesId) {
+    setSeasonOf(seriesId);
+    setSeason('');
+  }
   const episodes = useInfiniteQuery({
-    queryKey: ['cinema', 'page', provider, `series:${seriesId}:`],
-    queryFn: ({ pageParam, signal }) => api.series(provider, seriesId, '', pageParam, signal),
+    queryKey: ['cinema', 'page', provider, `series:${seriesId}:${season}`],
+    queryFn: ({ pageParam, signal }) => api.series(provider, seriesId, season, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
     enabled: !!seriesId,
     staleTime: 60000,
+    // Пока едет другой сезон, шапка с вкладками остаётся прежней, а не пропадает на время запроса.
+    placeholderData: keepPreviousData,
   });
   /** Куда ведёт карточка серии: своя площадка — её сцена, серия по ссылке — страница серии здесь. */
   const enter = (entry: CinemaItem) => {
@@ -157,6 +178,13 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       onChannel={() => {}}
     />
   );
+
+  /**
+   * Недавние — на этом устройстве (T17): убрать одну или все. Сразу, без вопроса: это свои десять
+   * ссылок, а не данные комнаты; серверный кэш разбора (`cinema_links`) общий и здесь не трогается.
+   */
+  const forget = (url: string) => meeting.media.saveSettings({ cinemaLinks: forgetLink(recent, url) });
+  const clearRecent = () => meeting.media.saveSettings({ cinemaLinks: [] });
 
   /** Ссылка из буфера или из недавних — сразу, без паузы на набор. */
   const choose = (url: string) => {
@@ -242,19 +270,32 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             {clipboard ? <small role="alert">{clipboard}</small> : null}
           </div>
           {recent.length ? (
-            <section className="cinema-link-recent" aria-label="Недавние ссылки">
-              <h4 className="cinema-heading">
-                <History size={13} /> Недавние ссылки
-              </h4>
+            <section className="cinema-link-recent" aria-label={TEXT.recent}>
+              <header className="cinema-link-recent-head">
+                <h4 className="cinema-heading">
+                  <History size={13} /> {TEXT.recent}
+                </h4>
+                <button className="text-button" aria-label={TEXT.clearLabel} onClick={clearRecent}>
+                  {TEXT.clear}
+                </button>
+              </header>
               <ul>
                 {recent.map((url) => {
                   const { host, rest } = linkParts(url);
                   return (
                     <li key={url}>
-                      <button title={url} onClick={() => choose(url)}>
+                      <button className="cinema-link-open" title={url} onClick={() => choose(url)}>
                         <Link2 size={15} />
                         <b>{host}</b>
                         <span>{rest}</span>
+                      </button>
+                      <button
+                        className="cinema-link-forget"
+                        aria-label={TEXT.forget(`${host}${rest}`)}
+                        title={TEXT.forget(host)}
+                        onClick={() => forget(url)}
+                      >
+                        <X size={15} />
                       </button>
                     </li>
                   );
@@ -298,8 +339,8 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             series={episodes.data?.pages[0]?.series ?? null}
             title={item.title}
             poster={item.poster}
-            season={null}
-            onSeason={() => {}}
+            season={season || (episodes.data?.pages[0]?.season ?? null)}
+            onSeason={setSeason}
             feed={episodes}
             items={cardsOf(episodes.data?.pages)}
             card={card}

@@ -81,6 +81,28 @@ const SERIES_PAGE = {
   ],
   next: null,
 };
+/** Сериал по ссылке с сезонами (T17): служба отдаёт вкладки и серии выбранного сезона. */
+const SEASONED = { ...SHOW, id: 'U2Vhc29uZWQtc2hvdy0wMDE', title: 'Сериал с сезонами', count: 5 };
+const seasonPage = (season: string) => ({
+  series: {
+    id: SEASONED.id,
+    title: SEASONED.title,
+    poster: null,
+    description: '',
+    year: null,
+    seasons: [
+      { id: '1', title: 'Сезон 1' },
+      { id: '2', title: 'Сезон 2' },
+    ],
+  },
+  season,
+  items: (season === '2' ? [4, 5] : [1, 2, 3]).map((number) => ({
+    ...episode(number),
+    series: SEASONED.id,
+    title: `Сезон ${season}, серия ${number}`,
+  })),
+  next: null,
+});
 const ANSWERS: Record<string, unknown> = {
   [RUTUBE]: {
     route: { provider: 'rutube', kind: 'video', id: 'd8061eab5d7ed2bad058162bc5762842', page: 'item' },
@@ -90,6 +112,7 @@ const ANSWERS: Record<string, unknown> = {
   },
   'https://ok.ru/video/1': { item: FILM },
   'https://archive.org/details/show': { item: SHOW },
+  'https://tv.example/show': { item: SEASONED },
   // Площадка, которую сервер уже узнал, а этот клиент — ещё нет (следующий релиз кинозала).
   'https://www.kinopoisk.ru/film/1/': {
     route: { provider: 'kinopoisk', kind: 'video', id: '1', page: 'item' },
@@ -102,6 +125,8 @@ const asked: string[] = [];
 const signals: (AbortSignal | null | undefined)[] = [];
 /** Какие ещё страницы каталога спросили: `series`, `details`. */
 const pages: string[] = [];
+/** С каким сезоном спрашивали серии (пусто — «как выберет служба»). */
+const seasons: string[] = [];
 let gate: Promise<void> = Promise.resolve();
 /** Обрыв сети: `fetch` отказывает сам, как браузер без связи. */
 let offline = false;
@@ -110,6 +135,7 @@ beforeEach(() => {
   asked.length = 0;
   signals.length = 0;
   pages.length = 0;
+  seasons.length = 0;
   gate = Promise.resolve();
   offline = false;
   vi.stubGlobal(
@@ -119,6 +145,11 @@ beforeEach(() => {
       if (offline) throw new TypeError('Failed to fetch');
       if (address.pathname === '/api/v1/services/rooms/room/cinema/series') {
         pages.push(`series:${address.searchParams.get('provider')}:${address.searchParams.get('id')}`);
+        if (address.searchParams.get('id') === SEASONED.id) {
+          const season = address.searchParams.get('season') ?? '';
+          seasons.push(season);
+          return json(seasonPage(season || '1'));
+        }
         return json(SERIES_PAGE);
       }
       if (address.pathname === '/api/v1/services/rooms/room/cinema/details') {
@@ -187,13 +218,13 @@ it('пустое поле — подсказка, кнопка буфера и �
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Вставить из буфера/ })).toBeInTheDocument();
   const recent = screen.getByRole('region', { name: 'Недавние ссылки' });
-  expect(
-    within(recent)
-      .getAllByRole('button')
-      .map((button) => button.textContent),
-  ).toEqual(['rutube.ru/video/d8061eab5d7ed2bad058162bc5762842/', 'example.com/films/1']);
+  const opens = () => Array.from(recent.querySelectorAll<HTMLButtonElement>('.cinema-link-open'));
+  expect(opens().map((button) => button.textContent)).toEqual([
+    'rutube.ru/video/d8061eab5d7ed2bad058162bc5762842/',
+    'example.com/films/1',
+  ]);
 
-  fireEvent.click(within(recent).getAllByRole('button')[0]!);
+  fireEvent.click(opens()[0]!);
   await waitFor(() =>
     expect(meeting.openCinema).toHaveBeenCalledWith('rutube', {
       page: 'item',
@@ -430,5 +461,42 @@ it('новая ссылка обрывает вопрос о прежней: о�
 it('поле ссылки без предела поиска: ссылка длиннее 120 знаков — обычная ссылка', () => {
   const { client } = mount();
   expect(field()).not.toHaveAttribute('maxLength');
+  client.clear();
+});
+
+/*
+  T17: история «По ссылке» — своя у устройства (`cinemaLinks` профиля), и убрать из неё можно одну
+  ссылку или всё сразу. Служба при этом не спрашивается: её кэш разбора общий для всех комнат.
+*/
+it('недавнюю ссылку убирают крестиком, а «Очистить всё» убирает все — службу при этом не спрашивают', () => {
+  const { client, meeting } = mount({ links: [RUTUBE, UNKNOWN, 'https://ok.ru/video/1'] });
+  const recent = screen.getByRole('region', { name: 'Недавние ссылки' });
+  fireEvent.click(within(recent).getByRole('button', { name: 'Убрать из недавних: example.com/films/1' }));
+  expect(meeting.media.saveSettings).toHaveBeenLastCalledWith({
+    cinemaLinks: [RUTUBE, 'https://ok.ru/video/1'],
+  });
+  expect(
+    Array.from(recent.querySelectorAll('.cinema-link-open')).map((button) => button.textContent),
+  ).toEqual(['rutube.ru/video/d8061eab5d7ed2bad058162bc5762842/', 'ok.ru/video/1']);
+
+  fireEvent.click(within(recent).getByRole('button', { name: 'Очистить недавние ссылки' }));
+  expect(meeting.media.saveSettings).toHaveBeenLastCalledWith({ cinemaLinks: [] });
+  expect(screen.queryByRole('region', { name: 'Недавние ссылки' })).toBeNull();
+  expect(asked).toEqual([]);
+  client.clear();
+});
+
+it('сериал по ссылке с сезонами: вкладки сезонов, выбранный сезон спрашивается у службы', async () => {
+  const { client } = mount();
+  paste('https://tv.example/show');
+  expect(await screen.findByRole('heading', { name: SEASONED.title })).toBeInTheDocument();
+  const tabs = await screen.findByRole('tablist', { name: 'Сезоны' });
+  expect(within(tabs).getByRole('tab', { name: 'Сезон 1' })).toHaveAttribute('aria-selected', 'true');
+  expect(await screen.findAllByRole('article')).toHaveLength(3);
+  fireEvent.click(within(tabs).getByRole('tab', { name: 'Сезон 2' }));
+  expect(await screen.findByText('Сезон 2, серия 4')).toBeInTheDocument();
+  expect(screen.getAllByRole('article')).toHaveLength(2);
+  expect(within(tabs).getByRole('tab', { name: 'Сезон 2' })).toHaveAttribute('aria-selected', 'true');
+  expect(seasons).toEqual(['', '2']);
   client.clear();
 });
