@@ -272,7 +272,14 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          RoomYou you) {}
+          RoomYou you,
+      /**
+       * Когда встреча началась — впервые двое живых людей на связи (T35), по часам сервера; {@code
+       * null}, пока этого не было. Сколько она идёт, браузер считает сам от {@code serverTime}.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          Long startedAt) {}
 
   /**
    * Права участника — готовым ответом, а не правилом для пересчёта.

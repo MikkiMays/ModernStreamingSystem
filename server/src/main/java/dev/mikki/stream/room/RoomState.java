@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.*;
 
 /**
- * A room is the transaction boundary; at most ten members may hold a seat.
+ * A room is the transaction boundary; at most {@code stream.max-participants} people may hold a
+ * seat — bots do not take one ({@link Member#human()}).
  *
  * <p>Снимок читается тем же ядром, которое его писало, — но не обязательно той же его версией:
  * между записью и чтением помещается выкатка, а иногда и откат. Поэтому неизвестные поля здесь
@@ -21,11 +22,39 @@ public class RoomState {
   public Long closedAt;
   public Long emptySince;
   public boolean everConnected;
+
+  /**
+   * Когда встреча началась: в ней впервые двое живых людей на связи (T35, П7), или null.
+   *
+   * <p>Ставится один раз ({@link #markStarted}) и не сдвигается, пока встреча идёт: вышел и
+   * вернулся второй человек — это та же встреча. Повторное открытие сохранённой встречи начинает её
+   * заново. По этой метке и часам сервера в снимке браузер показывает, сколько встреча идёт.
+   *
+   * <p>{@code NON_NULL} — чтобы комната без неё записывалась ровно как раньше: откат образа ядра
+   * читает такие комнаты без потерь.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long startedAt;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;
   public long sequence;
   public Map<String, Member> members = new LinkedHashMap<>();
+
+  /**
+   * Профиль устройства каждого вошедшего: участник → хэш секрета {@code X-Cord-Profile} (T52, П13).
+   *
+   * <p>ОТДЕЛЬНОЙ КАРТОЙ, А НЕ ПОЛЕМ УЧАСТНИКА — ради отката. Участник ({@link Member}) у прежнего
+   * образа ядра читается без {@code ignoreUnknown}, и новое поле в нём сделало бы нечитаемой каждую
+   * комнату, куда вошёл новый клиент. Карту же прежний образ просто пропустит: неизвестное в самой
+   * комнате он игнорирует. У ботов и старых клиентов записи нет.
+   *
+   * <p>Наружу — ни в снимок, ни в список участников — не отдаётся никогда.
+   */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> profiles = new LinkedHashMap<>();
+
   public Map<String, Invite> invites = new LinkedHashMap<>();
   public List<Message> messages = new ArrayList<>();
 
@@ -121,13 +150,63 @@ public class RoomState {
    * было бы раз в неделю включать в комнате музыку, чтобы она не удалялась никогда.
    */
   public long lastSeenAt(long now) {
-    if (members.values().stream().anyMatch(m -> m.service == null && m.occupiesSeat())) return now;
+    if (members.values().stream().anyMatch(m -> m.human() && m.occupiesSeat())) return now;
     long seen = createdAt;
     if (closedAt != null) seen = Math.max(seen, closedAt);
     if (emptySince != null) seen = Math.max(seen, emptySince);
-    for (var member : members.values())
-      if (member.service == null) seen = Math.max(seen, member.joinedAt);
+    for (var member : members.values()) if (member.human()) seen = Math.max(seen, member.joinedAt);
     return seen;
+  }
+
+  /** Сколько людей занимают места — ровно то, что ограничивает {@code stream.max-participants}. */
+  public long seatedHumans() {
+    return members.values().stream().filter(m -> m.human() && m.occupiesSeat()).count();
+  }
+
+  /** Сколько встреча считается новой и занимает место на сервере, даже если на связи никого. */
+  public static final long FRESH_MS = 30_000;
+
+  /**
+   * Занимает ли встреча место на сервере ({@code stream.max-rooms}).
+   *
+   * <p>Считается открытая встреча, где хотя бы один человек на связи, или совсем новая — моложе
+   * {@link #FRESH_MS}: создатель ещё подключается. Раньше считалась любая встреча с занятым местом,
+   * и пять запросов «создать» без единого подключения держали сервер закрытым две минуты, пока не
+   * выйдет срок входа (A1 модели угроз). Бот на связи без людей встречу не держит.
+   */
+  public boolean busy(long now) {
+    return closedAt == null
+        && (now - createdAt < FRESH_MS
+            || members.values().stream().anyMatch(m -> m.human() && m.status == Status.CONNECTED));
+  }
+
+  /**
+   * Поставить начало встречи, если на связи впервые двое людей. Возвращает, поставлено ли сейчас:
+   * тот, кто зовёт, решает, объявлять ли это участникам.
+   */
+  public boolean markStarted(long now) {
+    if (startedAt != null || closedAt != null) return false;
+    if (members.values().stream().filter(m -> m.human() && m.status == Status.CONNECTED).count()
+        < 2) return false;
+    startedAt = now;
+    return true;
+  }
+
+  /**
+   * Живое участие этого профиля во встрече (T52): место занято, и срок восстановления не вышел.
+   *
+   * <p>Восстановление связи (RECOVERING) и ожидание у двери (WAITING) — это участие: человек всё
+   * ещё во встрече. Вышедший срок восстановления — уже нет, даже если уборка до него не дошла.
+   */
+  public boolean engages(String profileHash, long now) {
+    return closedAt == null
+        && members.values().stream()
+            .anyMatch(
+                m ->
+                    m.human()
+                        && profileHash.equals(profiles.get(m.id))
+                        && m.occupiesSeat()
+                        && (m.recoveryDeadline == null || now < m.recoveryDeadline));
   }
 
   public enum Status {
@@ -140,6 +219,14 @@ public class RoomState {
     REMOVED
   }
 
+  /**
+   * Участник встречи.
+   *
+   * <p>{@code ignoreUnknown} — для следующего отката: начиная с этого образа новое поле участника
+   * не делает комнату нечитаемой для предыдущего. Прежние образы его не знают, поэтому новое о
+   * человеке пока кладётся рядом, в саму комнату ({@link #profiles}).
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Member {
     public String id;
     public String name;
@@ -165,6 +252,14 @@ public class RoomState {
     public long joinedAt;
     public String mediaSid;
     public long observedAt;
+
+    /**
+     * Человек ли это. Боты — музыка и всё, что приходит от служб, — не люди: они не занимают мест,
+     * не держат встречу и не начинают её. Правило одно, и спрашивают его здесь.
+     */
+    public boolean human() {
+      return service == null;
+    }
 
     public boolean occupiesSeat() {
       return status == Status.WAITING

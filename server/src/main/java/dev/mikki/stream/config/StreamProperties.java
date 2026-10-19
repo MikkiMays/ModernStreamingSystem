@@ -25,7 +25,9 @@ public record StreamProperties(
     @Size(max = 200) String accessPassword,
     @Size(max = 60) String serverName,
     boolean redisEnabled,
-    @Min(1) @Max(10) int maxParticipants,
+    // Сколько людей во встрече; боты (музыка) не считаются (T06, П3). Выше пятидесяти не пускаем:
+    // снимок читает каждый участник на каждое изменение, и бюджет 24 КиБ мерян на двадцать.
+    @Min(1) @Max(50) int maxParticipants,
     @Min(1) @Max(2) int maxScreens,
     @Min(1) int maxRooms,
     @Min(5) @Max(60) int recoverySeconds,
@@ -39,7 +41,23 @@ public record StreamProperties(
     @Min(1) long totalMaxBytes,
     @Min(10) @Max(10000) int eventHistoryLimit,
     boolean admissionOpen,
-    @NotNull @Valid Media media) {
+    @NotNull @Valid Media media,
+    @NotNull @Valid Favorites favorites,
+    @NotNull @Valid Meeting meeting) {
+  /**
+   * Избранное профиля устройства (T06, П3): до {@code max-saved} сохранённых комнат на профиль — во
+   * всех группах вместе. Сохранённое сверх предела раньше не удаляется, но новое не добавляется.
+   */
+  public record Favorites(@Min(1) @Max(1000) int maxSaved) {}
+
+  /**
+   * Правила встречи для человека.
+   *
+   * <p>{@code oneActivePerProfile} — у профиля устройства активна одна встреча (T52, П13): вход во
+   * вторую отвечает {@code 409 ALREADY_IN_MEETING}, пока человек не согласится выйти из первой.
+   */
+  public record Meeting(boolean oneActivePerProfile) {}
+
   /**
    * Правила медиа, которые сервер отдаёт каждому входящему ({@code capabilities.quality}).
    *

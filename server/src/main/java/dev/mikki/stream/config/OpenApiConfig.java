@@ -94,7 +94,10 @@ public class OpenApiConfig {
           .getRequired()
           .removeAll(List.of("screenId", "screenStarted", "viewingScreenId"));
       schemas.get("EventPayload").getRequired().removeAll(List.of("screenId", "participantId"));
-      schemas.get("Snapshot").getRequired().removeAll(List.of("chess", "gartic", "you"));
+      schemas
+          .get("Snapshot")
+          .getRequired()
+          .removeAll(List.of("chess", "gartic", "you", "startedAt"));
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")
@@ -130,10 +133,18 @@ public class OpenApiConfig {
                   "Participant",
                   List.of("recoveryDeadline", "service", "screenId", "viewingScreenId")),
               // Смотреть и играть вместе может быть нечего — и чаще всего нечего. Прав нет у
-              // постороннего: снимок без зрителя.
+              // постороннего: снимок без зрителя. Начала нет, пока на связи не было двоих.
               Map.entry(
                   "Snapshot",
-                  List.of("closedAt", "watch", "poker", "durak", "chess", "gartic", "you")),
+                  List.of(
+                      "closedAt",
+                      "watch",
+                      "poker",
+                      "durak",
+                      "chess",
+                      "gartic",
+                      "you",
+                      "startedAt")),
               Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
               Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
               Map.entry("GarticYou", List.of("prompt", "previous")),
