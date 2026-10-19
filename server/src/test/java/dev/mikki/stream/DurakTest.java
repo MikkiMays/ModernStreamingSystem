@@ -577,32 +577,20 @@ class DurakTest {
   @Test
   void aDefenderWhoCanTransferIsNotRushed() {
     var table = table(3, "perevodnoy", 36);
-    deal(
-        table,
-        "9h",
-        "6d",
-        "As 7s 8s 9s Ts Js",
-        "Ac 7c 8c 9c Tc Jc",
-        "Qs 7d 8d Jd Td 9d");
+    deal(table, "9h", "6d", "As 7s 8s 9s Ts Js", "Ac 7c 8c 9c Tc Jc", "Qs 7d 8d Jd Td 9d");
     act(table, 0, "attack", "As", null);
     assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
     assertThat(table.view("p0", T0).seats().get(1).auto()).isNull();
   }
 
   /**
-   * Нечего подкинуть — стол пасует за игрока и говорит об этом всем: у его места метка, и ждать
-   * его никто не будет. Какие у него карты, метка не говорит — только что подходящих нет.
+   * Нечего подкинуть — стол пасует за игрока и говорит об этом всем: у его места метка, и ждать его
+   * никто не будет. Какие у него карты, метка не говорит — только что подходящих нет.
    */
   @Test
   void anAttackerWithNothingToThrowIsPassedAndMarkedForEveryone() {
     var table = table(3);
-    deal(
-        table,
-        "9h",
-        "6d 7d 8d Td",
-        "6s 6c 8s 9s Ts Js",
-        "7s Ks As Ac Kc Qc",
-        "Qd Jd 8h Jc Tc 9c");
+    deal(table, "9h", "6d 7d 8d Td", "6s 6c 8s 9s Ts Js", "7s Ks As Ac Kc Qc", "Qd Jd 8h Jc Tc 9c");
     act(table, 0, "attack", "6s", null);
     act(table, 1, "beat", "7s", "6s");
     assertThat(table.acting()).containsExactly(0);
