@@ -129,6 +129,11 @@ export interface CinemaDetails extends CinemaItem {
   description: string;
   followers?: number | null;
   channelAvatar?: string | null;
+  /**
+   * Следующая серия того же сериала — у площадок, которые её знают («По ссылке» с плейлистом). С ней
+   * плеер под конец серии предлагает включить следующую всей комнате.
+   */
+  next?: CinemaItem;
 }
 
 /**

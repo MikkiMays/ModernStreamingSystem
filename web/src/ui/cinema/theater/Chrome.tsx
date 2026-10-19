@@ -19,6 +19,7 @@ import type { Participant, Watch } from '../../../api/types';
 import { clock, type CinemaSource } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import { IconButton, Slider } from '../../primitives';
+import type { AdBreak } from './ad-breaks';
 import { CaptionsMenu } from './menus/CaptionsMenu';
 import { QualityMenu, type QualityPage } from './menus/QualityMenu';
 import { SyncButton } from './SyncButton';
@@ -36,6 +37,18 @@ import { qualities } from './watch-levels';
  * «отмотать себе» означало бы смотреть его в одиночку.
  */
 const SKIP_MS = 15000;
+/**
+ * Ручной пропуск заставки или рекламы (T17), миллисекунды: восемьдесят пять секунд — длина обычной
+ * заставки сериала. Общий, как вся перемотка.
+ */
+const INTRO_MS = 85_000;
+/** Строки пропуска — в одном месте, до слоя переводов (E14). */
+const SKIP_TEXT = {
+  intro: 'Пропустить 85 секунд для всех',
+  ad: 'Пропустить рекламу для всех',
+  adShort: 'Пропустить рекламу',
+  adLabel: 'Реклама в потоке',
+} as const;
 /**
  * Отставание, которое для эфира нормально.
  *
@@ -68,6 +81,7 @@ export function Chrome({
   volume,
   loudness,
   sync,
+  ad,
   player,
   captions,
   menu,
@@ -103,6 +117,8 @@ export function Chrome({
     ReturnType<typeof useRoomSync>,
     'position' | 'duration' | 'buffered' | 'lag' | 'over' | 'send' | 'command' | 'skip' | 'resync'
   >;
+  /** Реклама, которую пометил поток, — если комната сейчас в ней (`ad-breaks.ts`). */
+  ad?: AdBreak | null;
   player: Pick<
     ReturnType<typeof usePlayback>,
     'levels' | 'level' | 'automatic' | 'voices' | 'voice' | 'texts' | 'chooseVoice' | 'chooseLevel'
@@ -257,6 +273,30 @@ export function Chrome({
             остаётся, и смысл у неё другой: встать туда, где комната.
           */}
           {!live && <SyncButton behind={behind} onSync={resync} />}
+          {!live && (
+            <IconButton
+              label={SKIP_TEXT.intro}
+              className="watch-intro"
+              disabled={!canControl || !duration}
+              onClick={() => skip(INTRO_MS)}
+            >
+              <b aria-hidden="true">+85</b>
+            </IconButton>
+          )}
+          {ad &&
+            (canControl ? (
+              <button
+                className="watch-ad"
+                aria-label={SKIP_TEXT.ad}
+                onClick={() => command('watch.seek', Math.round(ad.end * 1000))}
+              >
+                {SKIP_TEXT.adShort}
+              </button>
+            ) : (
+              <span className="watch-ad" role="status">
+                {SKIP_TEXT.adLabel}
+              </span>
+            ))}
           <Volume meeting={meeting} volume={volume} loudness={loudness} />
           <span className="watch-gap" />
           {texts.length > 0 && (

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LoaderCircle, Play } from 'lucide-react';
+import { LoaderCircle, Play, SkipForward } from 'lucide-react';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
 import { CinemaApi } from '../../../core/cinema';
 import { useFullscreen } from '../../../core/fullscreen';
-import { VISIBLE_DRIFT } from '../../../core/watch';
+import { targetPosition, VISIBLE_DRIFT } from '../../../core/watch';
 import { useStore } from '../../primitives';
+import { adAt, skipRank, SKIP_STEP_MS } from './ad-breaks';
 import { Chrome } from './Chrome';
 import type { QualityPage } from './menus/QualityMenu';
 import { useCaptions } from './useCaptions';
 import { allowed } from '../../../core/permissions';
 import { usePlayback } from './usePlayback';
+import { nextDue, useNextEpisode } from './useNextEpisode';
 import { useEcho, useRoomSync } from './useRoomSync';
 import { useWatchKeys } from './useWatchKeys';
 import { controlsShown, framePress, playToggle } from './watch-controls';
@@ -18,6 +20,14 @@ import { KEY_TEXT, muteToggle, volumeAfter, type WatchAction } from './watch-key
 
 /** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором (T19). */
 const IDLE_MS = 2500;
+/** Строки плеера — в одном месте, до слоя переводов (E14). */
+const TEXT = {
+  adSkipped: 'Реклама пропущена для всех',
+  next: 'Следующая серия',
+  nextPlay: 'Включить следующую для всех',
+  nextLocked: 'Включит тот, кому ведущий разрешил кинозал',
+} as const;
+
 /** Сколько висит на кадре отклик клавиши («+10 с») или подсказка, почему она не сработала. */
 const HINT_MS = 1800;
 
@@ -180,6 +190,47 @@ export function WatchTheater({
     wake,
   });
 
+  /*
+    Реклама, которую пометил сам поток (T17, `ad-breaks.ts`). Комната в ней — её пропускает за всех
+    первый в очереди (`skipRank`): открывший, потом остальные через полторы секунды каждый, если
+    комната всё ещё в рекламе. Без права на пульт не шлют — у таких только подпись.
+  */
+  const ad = live ? null : adAt(player.breaks, sync.position / 1000);
+  const adStart = ad?.start ?? null;
+  const adEnd = ad?.end ?? null;
+  const rank = skipRank(meeting.admission.participantId, watch.openedBy, snapshot.participants);
+  const roomNow = useRef({ watch, command, say });
+  useEffect(() => {
+    roomNow.current = { watch, command, say };
+  });
+  useEffect(() => {
+    if (adStart === null || adEnd === null || !canControl || watch.paused) return;
+    const timer = setTimeout(() => {
+      const now = roomNow.current;
+      const room = targetPosition(now.watch, meeting.serverNow()) / 1000;
+      // Комнату уже увёл кто-то раньше в очереди — второй раз не шлём.
+      if (room < adStart || room >= adEnd - 0.5) return;
+      now.command('watch.seek', Math.round(adEnd * 1000));
+      now.say(TEXT.adSkipped);
+    }, rank * SKIP_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [adStart, adEnd, canControl, watch.paused, rank, meeting]);
+
+  /** Следующая серия (T17): под конец серии и после неё — у площадок, которые её знают. */
+  const due = nextDue({ live, over: sync.over, positionMs: sync.position, durationMs: sync.duration });
+  const next = useNextEpisode({ api, watch, due });
+  const canOpen = allowed(snapshot, meeting.admission.participantId, 'watch.open');
+  const openNext = () => {
+    if (!next || !canOpen) return;
+    void meeting
+      .command('watch.open', next.title, undefined, {
+        provider: next.provider,
+        kind: next.kind === 'channel' ? 'channel' : 'video',
+        contentId: next.id,
+      })
+      .catch((e) => meeting.media.report(e));
+  };
+
   const behind = !live && Math.abs(sync.drift) > VISIBLE_DRIFT;
   // Когда пульт виден — правило в `watch-controls.ts`: по бездействию он уходит и на паузе.
   const showControls = controlsShown({
@@ -267,6 +318,19 @@ export function WatchTheater({
             <LoaderCircle size={34} />
           </div>
         )}
+        {next && due && (
+          <div className="watch-next">
+            <small>{TEXT.next}</small>
+            <b>{next.title}</b>
+            {canOpen ? (
+              <button className="button primary" onClick={openNext}>
+                <SkipForward size={16} /> {TEXT.nextPlay}
+              </button>
+            ) : (
+              <small>{TEXT.nextLocked}</small>
+            )}
+          </div>
+        )}
         {hint && (
           <div key={hint.at} className="watch-hint" role="status">
             {hint.text}
@@ -311,6 +375,7 @@ export function WatchTheater({
           volume={preferences.watchVolume}
           loudness={loudness}
           sync={sync}
+          ad={ad}
           player={player}
           captions={captions}
           menu={menu}

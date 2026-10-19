@@ -46,6 +46,8 @@ const file = (url: string): CinemaSource => ({
 /** Что спросили у `resolve` и что он ответит — по очереди. */
 const asked: Record<string, unknown>[] = [];
 let answers: CinemaSource[] = [];
+/** Что служба ответит на страницу серии (`details`); `null` — 404. */
+let detailsAnswer: unknown = null;
 
 function meeting() {
   return {
@@ -66,11 +68,19 @@ function meeting() {
 
 beforeEach(() => {
   asked.length = 0;
+  detailsAnswer = null;
   vi.stubGlobal(
     'fetch',
     vi.fn((input: string, init: RequestInit) => {
-      if (!new URL(input, 'http://test').pathname.endsWith('/cinema/resolve'))
-        return Promise.resolve(new Response('{}', { status: 404 }));
+      const path = new URL(input, 'http://test').pathname;
+      if (path.endsWith('/cinema/details') && detailsAnswer)
+        return Promise.resolve(
+          new Response(JSON.stringify(detailsAnswer), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      if (!path.endsWith('/cinema/resolve')) return Promise.resolve(new Response('{}', { status: 404 }));
       asked.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       return Promise.resolve(
         new Response(JSON.stringify(answers.shift()), {
@@ -231,4 +241,56 @@ it('без права на пульт клавиша паузы не шлёт н
   fireEvent.keyDown(field, { key: 'ArrowUp', code: 'ArrowUp' });
   expect(room.media.saveSettings).not.toHaveBeenCalledWith({ watchVolume: expect.any(Number) });
   field.remove();
+});
+
+/*
+  T17: «следующая серия». Серия по ссылке досмотрена — плеер спрашивает её страницу и предлагает
+  следующую; кнопка включает её всей комнате (`watch.open`), как «Смотреть вместе» в каталоге.
+*/
+it('досмотрели серию по ссылке — «Включить следующую для всех» открывает следующую серию комнате', async () => {
+  const id = 'Qm9vay1vZi1saW5rLTAwMQ';
+  const nextId = 'RXBpc29kZS1ieS1saW5rLTA';
+  detailsAnswer = {
+    provider: 'link',
+    kind: 'video',
+    id,
+    title: 'Финал сезона',
+    author: '',
+    duration: 635,
+    live: false,
+    description: '',
+    poster: null,
+    series: 'U2Vhc29uZWQtc2hvdy0wMDE',
+    next: {
+      provider: 'link',
+      kind: 'video',
+      id: nextId,
+      title: 'Начало второго сезона',
+      author: '',
+      duration: 1510,
+      live: false,
+      poster: null,
+      badge: '1 серия',
+    },
+  };
+  answers = [{ ...file('/cinema/fetch?sig=old'), provider: 'link', contentId: id }];
+  const room = meeting();
+  const { container } = render(
+    <WatchTheater
+      meeting={room}
+      watch={{ ...WATCH, provider: 'link', contentId: id, paused: false, anchorAt: Date.now() - 700_000 }}
+    />,
+  );
+  const video = container.querySelector('video')!;
+  await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
+  Object.defineProperty(video, 'ended', { configurable: true, value: true });
+  Object.defineProperty(video, 'currentTime', { configurable: true, writable: true, value: 635 });
+  const play = await screen.findByRole('button', { name: /Включить следующую для всех/ }, { timeout: 5000 });
+  expect(screen.getByText('Начало второго сезона')).toBeInTheDocument();
+  fireEvent.click(play);
+  expect(room.command).toHaveBeenCalledWith('watch.open', 'Начало второго сезона', undefined, {
+    provider: 'link',
+    kind: 'video',
+    contentId: nextId,
+  });
 });
