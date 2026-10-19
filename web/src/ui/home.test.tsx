@@ -27,6 +27,12 @@ const capabilities = {
   maxScreens: 2,
   name: 'Cord',
   passwordRequired: false,
+  quality: {
+    default: { resolution: 720, fps: 30 },
+    ceiling: { resolution: 1080, fps: 60 },
+    settleMs: 4000,
+    cameraYieldsToScreen: false,
+  },
   recoverySeconds: 20,
   region: 'local',
   resolutions: [720, 1080],

@@ -885,6 +885,16 @@
           "attacker": {
             "type": "boolean"
           },
+          "auto": {
+            "enum": [
+              "pass",
+              "take"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "away": {
             "type": "boolean"
           },
@@ -1498,6 +1508,7 @@
               "deal",
               "draw",
               "play",
+              "transfer",
               "take",
               "discard"
             ],
