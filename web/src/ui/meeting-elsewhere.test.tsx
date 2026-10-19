@@ -32,9 +32,10 @@ it('пока идёт переход, кнопки не нажимаются в�
   expect(screen.getByRole('button', { name: 'Перейти туда' })).toBeDisabled();
 });
 
-it('если туда не попасть из этой вкладки, говорит, где она идёт', () => {
-  open({ note: 'Встреча идёт в другой вкладке или окне — переключитесь туда.' });
-  expect(screen.getByRole('status')).toHaveTextContent('в другой вкладке или окне');
+it('если туда отсюда не попасть, говорит почему и оставляет второй выбор', () => {
+  open({ note: 'В этом браузере эта встреча не открыта.' });
+  expect(screen.getByRole('status')).toHaveTextContent('не открыта');
+  expect(screen.getByRole('button', { name: 'Выйти оттуда и войти сюда' })).toBeEnabled();
 });
 
 it('без встречи ничего не показывает', () => {

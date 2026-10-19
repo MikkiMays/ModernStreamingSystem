@@ -50,12 +50,6 @@ const capabilities = {
   region: 'local',
   resolutions: [720, 1080],
   roomMaxBytes: 10000000,
-  quality: {
-    default: { resolution: 720, fps: 30 },
-    ceiling: { resolution: 1080, fps: 60 },
-    settleMs: 4000,
-    cameraYieldsToScreen: false,
-  },
   favoritesMax: 10,
 };
 const clients: QueryClient[] = [];

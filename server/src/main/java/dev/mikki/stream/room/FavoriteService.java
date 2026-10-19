@@ -32,9 +32,9 @@ public class FavoriteService {
   }
 
   /**
-   * Профиль избранного — тот же секрет устройства, что {@code X-Cord-Profile}, и тот же хэш
-   * ({@link Identity}). Не private: группы ({@code FavoriteGroupService}) должны узнавать профиль
-   * ровно тем же ключом.
+   * Профиль избранного — тот же секрет устройства, что {@code X-Cord-Profile}, и тот же хэш ({@link
+   * Identity}). Не private: группы ({@code FavoriteGroupService}) должны узнавать профиль ровно тем
+   * же ключом.
    */
   String key(String credential) {
     var hash = Identity.profileHash(credential.replaceFirst("^Bearer ", ""));
@@ -127,7 +127,9 @@ public class FavoriteService {
         .update();
   }
 
-  /** «комната», «комнаты», «комнат» — предел настраивается, и слово должно согласоваться с числом. */
+  /**
+   * «комната», «комнаты», «комнат» — предел настраивается, и слово должно согласоваться с числом.
+   */
   static String roomsWord(int count) {
     int tens = count % 100, ones = count % 10;
     if (tens >= 11 && tens <= 14) return "комнат";

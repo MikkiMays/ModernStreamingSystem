@@ -54,6 +54,16 @@
 получили `ignoreUnknown` — расписка входа со `startedAt` при откате на следующие образы не падает (на образ
 до WP1 — по-прежнему, как и с `you`).
 
+**Слияние `main` с E02 (5a21b11)** по просьбе координатора. Конфликт в `FavoriteService` (группы избранного,
+V8): предел десяти комнат стоит в новом `FavoriteService`, `key()` пакетный и разбирает профиль через
+`Identity`; текст `FAVORITES_FULL` — словами подсказки звезды E02 «В избранном уже 10 комнат. Уберите одну,
+чтобы добавить эту» (слово согласуется с числом настройки). В вебе: «Перейти туда» сначала ищет встречу в
+соседней вкладке (`findActiveMeeting` в `core/active-meeting.ts` E02) и переносит её сюда тем же участником
+(`requestHandover`, как «Вернуться» на главной); нет вкладки — недавние, избранное, а иначе окно говорит, что
+в этом браузере встреча не открыта. Счётчик людей в панели — через `core/people.ts humans()` E02. Образец
+`capabilities` в `home.test.tsx` правили обе ветки — слияние оставило два `quality`, дубль убран. Миграции у
+WP1 по-прежнему нет; V8 занята E02.
+
 ## Проверки
 
 | Проверка | Код выхода | Примечание |
@@ -68,6 +78,10 @@
 | `npx prettier --check` на 14 тронутых файлах веба | 0 | |
 | `npx tsc -b` | 1 → 0 | первый — только `home.test.tsx` (образец без `quality`, с `main`), после правки чисто |
 | после ревью: `fmt:check`; `-Dtest=MeetingLimitsTest,RoomServiceTest,PermissionsTest,ContractsValidationTest`; `prettier --check src/App.tsx`; `tsc -b` | 0 / 0 / 0 / 0 | 118 тестов ядра |
+| после слияния E02: `fmt:check` | 1 → 0 | одна строка javadoc в `FavoriteService`, `fmt:format` |
+| после слияния: `-Dtest=MeetingLimitsTest,RoomServiceTest,PermissionsTest,FavoriteGroupsTest,FavoriteOrderTest,ContractsValidationTest,ArchitectureTest` | 0 | 133 теста |
+| после слияния: vitest active-meeting, identity, client, favorites, meeting-elsewhere, home | 0 | 6 файлов, 37 тестов; home отдельно ещё раз после правки образца — 10 |
+| после слияния: `prettier --check` на тронутых; `tsc -b` | 0 / 1 → 0 | `tsc` — двойной `quality` в образце `home.test.tsx` после слияния, убран |
 
 Нагрузка хоста во время работы — load average 20–32 на 4 vCPU; `RoomServiceTest` шёл 96–210 с.
 

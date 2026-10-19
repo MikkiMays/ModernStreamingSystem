@@ -19,6 +19,7 @@ import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
 import { BootGate } from './ui/loader/BootGate';
 import { useMeetingBeacon } from './ui/useMeetingBeacon';
+import { findActiveMeeting, requestHandover } from './core/active-meeting';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -239,15 +240,27 @@ function Workspace() {
   };
   /**
    * «Перейти туда» из окна «Вы уже во встрече…» (T52): ядро назвало встречу, где этот профиль уже
-   * есть. Дорога туда из этой вкладки — прежний вход в неё (недавние, `sessionStorage`) или
-   * избранное. Нет ни того, ни другого — встреча идёт в другой вкладке или окне, и экран входа
-   * скажет об этом сам (`false`).
+   * есть. Дороги туда, по порядку:
    *
-   * Прежний вход ведёт через экран входа и повторный вход (`restoring` не ставится): та же сессия
-   * в двух вкладках сразу означала бы один участник SFU на двоих, а повторный вход заменяет
-   * прежнюю сессию честно.
+   * 1. Соседняя вкладка этого браузера (`core/active-meeting.ts`): встреча переносится сюда тем же
+   *    участником, как «Вернуться» на главной, — та вкладка отпускает разговор без выхода.
+   * 2. Прежний вход этой вкладки (недавние, `sessionStorage`) — через экран входа и повторный вход
+   *    (`restoring` не ставится): та же сессия в двух местах сразу означала бы один участник SFU на
+   *    двоих, а повторный вход заменяет прежнюю сессию честно.
+   * 3. Избранное — тем же повторным входом.
+   *
+   * Нет ни одной — в этом браузере встреча не открыта, и экран входа скажет об этом сам (`false`).
    */
   const goElsewhere = async ({ roomId }: { roomId: string }) => {
+    const tab = await findActiveMeeting(roomId);
+    if (tab) {
+      const admission = await requestHandover(tab);
+      rememberMeeting(admission);
+      if (await recent(admission.roomId, true, true)) {
+        setVisit((value) => value + 1);
+        return true;
+      }
+    }
     if (getRecent(roomId) && (await recent(roomId, false, true))) {
       setVisit((value) => value + 1);
       return true;

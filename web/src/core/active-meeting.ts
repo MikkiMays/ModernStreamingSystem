@@ -151,6 +151,32 @@ export function watchActiveMeetings(listener: (meetings: ActiveMeeting[]) => voi
   };
 }
 
+/**
+ * Вкладка этого браузера, где идёт встреча `roomId`, — или `null`, если за {@link ANSWER_MS} никто не
+ * ответил. Нужна окну «Вы уже во встрече…» (WP1): ядро назвало встречу, и «Перейти туда» сначала
+ * ищет её здесь, в соседней вкладке.
+ */
+export function findActiveMeeting(roomId: string, waitMs = ANSWER_MS): Promise<ActiveMeeting | null> {
+  return new Promise((resolve) => {
+    let done = false;
+    let watcher: ReturnType<typeof watchActiveMeetings> | undefined;
+    const finish = (found: ActiveMeeting | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      watcher?.close();
+      resolve(found);
+    };
+    const timer = setTimeout(() => finish(null), waitMs);
+    watcher = watchActiveMeetings((list) => {
+      const found = list.find((meeting) => meeting.roomId === roomId);
+      if (found) finish(found);
+    });
+    // Соседи могли ответить ещё до того, как наблюдатель вернулся, — тогда закрыть его здесь.
+    if (done) watcher.close();
+  });
+}
+
 /** Попросить вкладку со встречей отдать её сюда. Ответ — допуск, с которым можно войти. */
 export function requestHandover(meeting: ActiveMeeting, waitMs = HANDOVER_MS): Promise<Admission> {
   const channel = makeChannel();

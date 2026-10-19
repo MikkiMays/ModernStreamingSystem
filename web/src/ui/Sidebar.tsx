@@ -23,6 +23,7 @@ import { Services } from './Services';
 import { ParticipantMenu } from './ParticipantMenu';
 import { allowed } from '../core/permissions';
 import { serverInfo } from '../core/session';
+import { humans } from '../core/people';
 
 export type Panel = 'people' | 'chat' | 'services';
 function formatBytes(value: number) {
@@ -87,7 +88,8 @@ export function Sidebar({
   useEffect(() => {
     if (nearBottom.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [snapshot.messages, files.data, panel]);
-  const people = snapshot.participants.filter((p) => !p.service);
+  // Люди без ботов — одно правило на весь веб (`core/people.ts`), как и у мест в ядре.
+  const people = humans(snapshot.participants);
   // Сколько людей вмещает встреча — говорит сервер (`capabilities.maxParticipants`, T06): боты, как
   // и в списке выше, не в счёт. Ответ тот же, что на главной, и обычно уже лежит в кэше.
   const seats = useQuery({ queryKey: ['capabilities'], queryFn: serverInfo, staleTime: Infinity }).data
