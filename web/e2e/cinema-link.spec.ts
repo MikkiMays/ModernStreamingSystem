@@ -159,15 +159,61 @@ test('recent links are remembered by the profile and open again from «По сс
     // Каталог открыт заново — ссылка первой в недавних; её помнит профиль, а не открытая сцена.
     browse = await openCinema(page, 'По ссылке');
     const recent = browse.getByRole('region', { name: 'Недавние ссылки' });
-    await expect(recent.getByRole('button')).toHaveText([`rutube.ru/video/${EPISODE.id}/`]);
+    await expect(recent.locator('.cinema-link-open')).toHaveText([`rutube.ru/video/${EPISODE.id}/`]);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cord:preferences:v1') ?? '{}'));
     expect(saved.cinemaLinks).toEqual([SERIES]);
 
-    await recent.getByRole('button').click();
+    await recent.locator('.cinema-link-open').click();
     await expect(browse.locator('.cinema-platform')).toHaveText('Rutube');
     await expect(browse.locator('.cinema-detail h3')).toHaveText(EPISODE.title);
     // Ответ о ссылке служба дала один раз: второе открытие — из памяти ответов.
     expect(cinema.calls.filter((call) => call.endpoint === 'link')).toHaveLength(1);
+  } finally {
+    await room.close();
+  }
+});
+
+/*
+  T17: недавние ссылки — свои у устройства, и их можно убрать: одну крестиком или все разом. После
+  перезагрузки страницы убранное не возвращается — профиль помнит и удаление.
+  НЕ ПРОГНАН (E07): стенда в сессии не было.
+*/
+test('recent links can be removed one by one or all at once, and stay removed after reload', async ({
+  browser,
+}) => {
+  const room = await context(browser);
+  const page = await room.newPage();
+  await routeCinema(page, general());
+  try {
+    await startMeeting(page);
+    await page.evaluate(
+      ([film, show]) => {
+        const saved = JSON.parse(localStorage.getItem('cord:preferences:v1') ?? '{}');
+        localStorage.setItem(
+          'cord:preferences:v1',
+          JSON.stringify({ ...saved, cinemaLinks: [film, show, 'https://ok.ru/video/1'] }),
+        );
+        window.dispatchEvent(new Event('cord:preferences'));
+      },
+      [FILM_URL, SHOW_URL],
+    );
+    let browse = await openCinema(page, 'По ссылке');
+    let recent = browse.getByRole('region', { name: 'Недавние ссылки' });
+    await expect(recent.locator('.cinema-link-open')).toHaveCount(3);
+    await recent.getByRole('button', { name: /^Убрать из недавних: archive\.org/ }).click();
+    await expect(recent.locator('.cinema-link-open')).toHaveText([
+      'dzen.ru/video/watch/6002240ff8b1af50bb2da5e3',
+      'ok.ru/video/1',
+    ]);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('cord:preferences:v1') ?? '{}'));
+    expect(saved.cinemaLinks).toEqual([FILM_URL, 'https://ok.ru/video/1']);
+
+    await recent.getByRole('button', { name: 'Очистить недавние ссылки' }).click();
+    await expect(recent).toHaveCount(0);
+    await browse.getByRole('button', { name: 'Закрыть кинотеатр' }).click();
+    browse = await openCinema(page, 'По ссылке');
+    recent = browse.getByRole('region', { name: 'Недавние ссылки' });
+    await expect(recent).toHaveCount(0);
   } finally {
     await room.close();
   }
@@ -303,5 +349,84 @@ test('a link typed by hand is asked only on Enter — pauses in typing ask the s
     ]);
   } finally {
     await room.close();
+  }
+});
+
+/*
+  T19 и T20 у двух зрителей: пробел у гостя ставит паузу всей комнате (у ведущего — тоже пауза), стрелка
+  вправо перематывает обоих, а через три секунды без движения у плеера нет ни курсора, ни пульта.
+  НЕ ПРОГНАН (E07): стенда в сессии не было.
+*/
+test('space pauses the room from either viewer, arrows seek for both, and the idle player hides its cursor', async ({
+  browser,
+}) => {
+  test.slow();
+  const first = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1440, height: 960 },
+  });
+  const second = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 1280, height: 900 },
+  });
+  const host = await first.newPage();
+  const guest = await second.newPage();
+  await routeCinema(host, general());
+  await routeCinema(guest, general());
+  try {
+    await startMeeting(host, 'Майс');
+    await joinMeeting(guest, await inviteLink(host), 'Алекс');
+    const browse = await openCinema(host, 'По ссылке');
+    await browse.locator('.cinema-search input').fill(FILM_URL);
+    await browse
+      .locator('.cinema-detail-actions')
+      .getByRole('button', { name: /Смотреть вместе/ })
+      .click();
+    for (const page of [host, guest]) {
+      await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех');
+      await expect
+        .poll(() => page.locator('.watch-video').evaluate((element: HTMLVideoElement) => element.currentTime))
+        .toBeGreaterThan(1);
+    }
+
+    // Пробел у гостя: фокус на странице (нажатие по кадру его туда и ставит), пауза — у обоих.
+    await guest.locator('.watch-video').hover();
+    await guest.locator('body').press('Space');
+    for (const page of [host, guest])
+      await expect(page.locator('.watch-play')).toHaveAttribute('aria-label', 'Включить для всех');
+    await expect(guest.locator('.watch-hint')).toHaveText('Пауза для всех');
+
+    // Стрелка вправо у ведущего — плюс десять секунд у обоих (ролик фикстуры — двенадцать секунд).
+    const before = await guest
+      .locator('.watch-video')
+      .evaluate((element: HTMLVideoElement) => element.currentTime);
+    await host.locator('body').press('ArrowRight');
+    await expect
+      .poll(() => guest.locator('.watch-video').evaluate((element: HTMLVideoElement) => element.currentTime))
+      .toBeGreaterThan(Math.min(before + 5, 11));
+
+    // Пробел снова — у ведущего, и комната играет.
+    await host.locator('body').press('Space');
+    await expect(guest.locator('.watch-play')).toHaveAttribute('aria-label', 'Пауза для всех');
+
+    // Три секунды без движения: курсора нет, пульт с нижней лентой ушёл.
+    await host.locator('.watch-video').hover();
+    await host.waitForTimeout(3000);
+    await expect(host.locator('.watch-theater')).toHaveAttribute('data-idle', 'true');
+    expect(await host.locator('.watch-video').evaluate((element) => getComputedStyle(element).cursor)).toBe(
+      'none',
+    );
+    expect(
+      await host
+        .locator('.watch-foot')
+        .evaluate((element) => getComputedStyle(element.parentElement!).opacity),
+    ).toBe('0');
+    // Движение мыши возвращает пульт.
+    await host.mouse.move(400, 300);
+    await host.mouse.move(420, 320);
+    await expect(host.locator('.watch-chrome')).toHaveAttribute('data-shown', 'true');
+  } finally {
+    await first.close();
+    await second.close();
   }
 });

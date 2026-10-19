@@ -171,3 +171,39 @@
   через 3 с) написаны, но не прогнаны: стенда нет.
 - Живая разметка рекламы конкретных сайтов «по ссылке» и сериалы yt-dlp — только на стенде; фикстура
   сезонов собрана по форме `url_result` yt-dlp, не записью сайта.
+
+## Итог (что сделано и где)
+
+- **T19**: `IDLE_MS = 2500` (`web/src/ui/cinema/theater/WatchTheater.tsx`); правило
+  `.watch-chrome:focus-within` снято (`web/src/ui/cinema/theater.css`) — оно и держало нижнюю ленту
+  после нажатия мышью. Тесты — `WatchTheater.test.tsx` (бездействие, правило CSS).
+- **T20**: таблица клавиш — `theater/watch-keys.ts` (+ `watch-keys.test.ts`), слушатель окна —
+  `theater/useWatchKeys.ts`, исполнение и отклик `.watch-hint` — `WatchTheater.tsx`; громкость до
+  «без звука» общая у клавиши M и кнопки (`Chrome.tsx`, `loudness`). Стрелки в каталоге —
+  `catalog/arrow-nav.ts` (+ `arrow-nav.test.tsx`), подключены в `Shelf.tsx` и `Grid` (`tiles.tsx`).
+  Право на паузу и перемотку — `allowed(…, 'watch.control')` (E06-A), новых копий правила нет.
+- **T17, история**: `forgetLink` (`web/src/core/cinema/link.ts`), крестик и «Очистить всё» в
+  `scenes/LinkScene.tsx` (строки — `TEXT`), стили `cinema.css` (`.cinema-link-open`, `-forget`).
+- **T17, сезоны и серии**: служба — `services/cord_services/cinema/providers/link.py` (`_episode`
+  читает номера, `series()` — сезоны, `_episode_card`, `_next`), `wire.details(next=…)`; тесты
+  `services/tests/test_cinema_link.py::Seasons` и фикстура `fixtures/link/show-seasons.raw.json`.
+  Веб: сезон в `LinkScene.tsx` (`keepPreviousData`), `CinemaDetails.next`
+  (`web/src/core/cinema/types.ts`), `theater/useNextEpisode.ts`, плашка `.watch-next` в
+  `WatchTheater.tsx` (право — `allowed(…, 'watch.open')`).
+- **T17, реклама**: `theater/ad-breaks.ts` (+ тест), `engines/hls.ts` (`enableInterstitialPlayback:
+  false`, `LEVEL_LOADED` → `breaks`), `usePlayback.ts` (`breaks`), автопропуск очередью,
+  «Пропустить рекламу» / «Реклама в потоке» и «+85» — `WatchTheater.tsx`, `Chrome.tsx`.
+- Провод: в ответе службы `GET …/cinema/details` появился необязательный ключ `next` (карточка).
+  Снимок ядра и OpenAPI ядра не менялись.
+
+## Осталось
+
+- Живой прогон на стенде: e2e в `cinema-link.spec.ts` (удаление истории; клавиши у двух зрителей и
+  курсор через 3 с) написаны, не прогнаны; разметка рекламы и сериалы yt-dlp у настоящих сайтов.
+- «Следующая серия» у Rutube, VK и ivi: их `details` пока не отдают `next` (у Rutube сезоны есть —
+  соседнюю серию можно взять из `metainfo/tv/<id>/video`).
+- Эвристика `DISCONTINUITY` с рекламных доменов и выбор основного потока вместо преролла в плеере
+  страниц (`services/sniffer`) — не делались (см. «пропустить рекламу» выше).
+- Грабли: vitest на этой машине под нагрузкой падает «Failed to start threads worker» (жёсткие 90 с
+  `WORKER_START_TIMEOUT` в vitest) — это нагрузка, а не тесты. `web/node_modules` в worktree агента —
+  символьная ссылка на основной checkout; шаблон `node_modules/` её не исключает, добавлять её нельзя.
