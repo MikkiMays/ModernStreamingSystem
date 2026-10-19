@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CinemaItem } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
+import { allowed } from '../../../core/permissions';
 import { useStore } from '../../primitives';
 import { problemText } from './notes';
 
@@ -13,8 +14,7 @@ import { problemText } from './notes';
  */
 export function useTogether(meeting: Meeting) {
   const snapshot = useStore(meeting.snapshot);
-  const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const canUse = !!self && (self.owner || snapshot.integrationsAllowed !== false);
+  const canUse = allowed(snapshot, meeting.admission.participantId, 'watch.open');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const open = async (item: CinemaItem) => {

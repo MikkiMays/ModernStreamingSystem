@@ -17,6 +17,7 @@ import type { GarticTable as Table } from '../api/types';
 import { GamePeople, GamePerson } from './GamePeople';
 import { GameTurn } from './GamePresentation';
 import { AlbumReveal, ClassicResults } from './GarticResults';
+import { allowed } from '../core/permissions';
 import { IconButton, useStore } from './primitives';
 import GarticCanvas, { GarticPicture, type GarticCanvasHandle } from './GarticCanvas';
 import '../gartic.css';
@@ -31,16 +32,13 @@ export default function GarticTable({ meeting }: { meeting: Meeting }) {
   const snapshot = useStore(meeting.snapshot);
   const table = snapshot.gartic;
   if (!table) return null;
-  const owner = !!snapshot.participants.find((person) => person.id === meeting.admission.participantId)
-    ?.owner;
-  return <GarticGame key={table.gameId} meeting={meeting} table={table} owner={owner} />;
+  const host = allowed(snapshot, meeting.admission.participantId, 'gartic.manage');
+  return <GarticGame key={table.gameId} meeting={meeting} table={table} host={host} />;
 }
 
-function GarticGame({ meeting, table, owner }: { meeting: Meeting; table: Table; owner: boolean }) {
+function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; host: boolean }) {
   const connection = useStore(meeting.control.state);
   const connected = connection === 'connected';
-  const me = meeting.admission.participantId;
-  const host = table.hostId === me || owner;
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const pendingAction = useRef(false);

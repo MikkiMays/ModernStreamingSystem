@@ -9,6 +9,7 @@ import { useStore } from '../../primitives';
 import { Chrome } from './Chrome';
 import type { QualityPage } from './menus/QualityMenu';
 import { useCaptions } from './useCaptions';
+import { allowed } from '../../../core/permissions';
 import { usePlayback } from './usePlayback';
 import { useEcho, useRoomSync } from './useRoomSync';
 import { useWatchKeys } from './useWatchKeys';
@@ -61,10 +62,10 @@ export function WatchTheater({
   const owner = snapshot.participants.find((p) => p.id === watch.openedBy);
   /**
    * Пауза общая. Право на неё — то же самое право трогать во встрече постороннее: ведущему
-   * всегда, остальным пока комната разрешает интеграции. Ядро проверяет это же правило;
-   * здесь оно только показывается кнопками.
+   * всегда, остальным пока комната разрешает интеграции. Решает ядро (`watch.control` в
+   * `you.can`); здесь оно только показывается кнопками.
    */
-  const canControl = !!self && (self.owner || snapshot.integrationsAllowed !== false);
+  const canControl = allowed(snapshot, meeting.admission.participantId, 'watch.control');
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [idle, setIdle] = useState(false);

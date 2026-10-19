@@ -286,40 +286,26 @@ h2 {
 .icon-button:hover:not(:disabled) {
   background: var(--surface-2);
 }
+/* Марка — рисунок (`ui/brand/Logo.tsx`): знак и слово одной высоты `--brand-h`, зазор между ними —
+   13/30 этой высоты, как у прежнего текстового логотипа. Размер меняют только через переменную. */
 .brand {
+  --brand-h: 30px;
+  --brand-accent: var(--blue);
   display: inline-flex;
   align-items: center;
-  gap: 11px;
-  font-size: 29px;
-  letter-spacing: -1.6px;
-  font-weight: 730;
-  line-height: 1;
+  gap: calc(var(--brand-h) * 13 / 30);
+  height: var(--brand-h);
+  color: var(--text);
+  flex: none;
 }
-.brand-dot {
-  color: var(--blue);
-  margin-left: -11px;
+.brand-mark {
+  width: var(--brand-h);
+  height: var(--brand-h);
 }
-.brand-symbol {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 2px;
-}
-.brand-symbol i {
-  display: block;
-  background: var(--blue);
-  width: 6px;
-  height: 18px;
-  border-radius: 5px;
-  transform: rotate(-15deg);
-}
-.brand-symbol i:nth-child(2) {
-  height: 29px;
-}
-.brand-symbol i:nth-child(3) {
-  height: 22px;
+.brand-word {
+  height: var(--brand-h);
+  width: auto;
+  aspect-ratio: 66 / 30;
 }
 .app-header {
   height: 104px;
@@ -901,7 +887,7 @@ h2 {
   min-width: 0;
 }
 .meeting-title .brand {
-  font-size: 26px;
+  --brand-h: 27px;
 }
 .header-divider {
   height: 28px;
@@ -2106,7 +2092,7 @@ progress {
     padding: 0 22px;
   }
   .brand {
-    font-size: 27px;
+    --brand-h: 28px;
   }
   .header-note {
     display: none;
@@ -2229,16 +2215,10 @@ progress {
     gap: 9px;
   }
   .meeting-title .brand {
-    font-size: 0;
-    gap: 0;
+    --brand-h: 24px;
   }
-  .meeting-title .brand-dot {
+  .meeting-title .brand-word {
     display: none;
-  }
-  .meeting-title .brand-symbol {
-    margin: 0;
-    transform: scale(0.8);
-    width: 28px;
   }
   .header-divider {
     display: none;
@@ -3389,29 +3369,9 @@ progress {
    Пропорции значка взяты из `Cord.ico`: три полосы под пятнадцатью градусами на
    синей плитке. Рисуется, а не грузится, — чёткий в любом размере и без запроса. */
 .app-icon {
-  width: var(--icon);
-  height: var(--icon);
-  min-width: var(--icon);
-  border-radius: calc(var(--icon) * 0.19);
-  background: #3564f3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(var(--icon) * 0.086);
-}
-.app-icon i {
+  --brand-accent: #3564f3;
+  flex: none;
   display: block;
-  width: calc(var(--icon) * 0.086);
-  height: calc(var(--icon) * 0.258);
-  border-radius: calc(var(--icon) * 0.05);
-  background: #fff;
-  transform: rotate(-15deg);
-}
-.app-icon i:nth-child(2) {
-  height: calc(var(--icon) * 0.477);
-}
-.app-icon i:nth-child(3) {
-  height: calc(var(--icon) * 0.352);
 }
 .download-link {
   display: inline-flex;

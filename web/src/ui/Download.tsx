@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
 import { AppIcon, Logo, ThemeButton, type Theme } from './primitives';
-import {
-  INSTALLER_URL,
-  PORTABLE_URL,
-  RELEASES_PAGE,
-  megabytes,
-  windowsRelease,
-  type WindowsRelease,
-} from '../core/download';
+import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
 
 /**
  * The page behind «Скачать Cord». It is deliberately outside the application: no server
@@ -53,25 +46,10 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
           <AppIcon size={76} />
           <h1>Cord для Windows</h1>
           {release === undefined && <p className="muted">Смотрим, что опубликовано…</p>}
-          {/*
-            Даже когда ни этот сервер, ни GitHub не ответили, кнопка остаётся: постоянный адрес
-            последнего релиза не требует ни того, ни другого. Исчезающая кнопка «скачать» —
-            худший из возможных ответов на вопрос «где скачать».
-          */}
           {release === null && (
-            <>
-              <p className="muted">Последняя сборка · Windows 10 build 19041 и новее, x64</p>
-              <a className="button primary full download-primary" href={INSTALLER_URL}>
-                <DownloadIcon size={19} /> Скачать установщик
-              </a>
-              <p className="form-footnote download-note">
-                Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
-                если его ещё нет.
-              </p>
-              <a className="text-button download-portable" href={PORTABLE_URL}>
-                Портативная сборка без установки · ZIP
-              </a>
-            </>
+            <p className="muted" role="status">
+              Сборка для Windows сейчас недоступна. Попробуйте открыть страницу чуть позже.
+            </p>
           )}
           {release && (
             <>
@@ -80,11 +58,7 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
                 {release.installer!.size > 0 && ` · ${megabytes(release.installer!.size)}`} · Windows 10 build
                 19041 и новее, x64
               </p>
-              <a
-                className="button primary full download-primary"
-                href={release.installer!.url}
-                download={release.origin === 'server' ? '' : undefined}
-              >
+              <a className="button primary full download-primary" href={release.installer!.url} download="">
                 <DownloadIcon size={19} /> Скачать установщик
               </a>
               <p className="form-footnote download-note">
@@ -92,18 +66,11 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
                 если его ещё нет.
               </p>
               {release.portable && (
-                <a
-                  className="text-button download-portable"
-                  href={release.portable.url}
-                  download={release.origin === 'server' ? '' : undefined}
-                >
+                <a className="text-button download-portable" href={release.portable.url} download="">
                   Портативная сборка без установки · ZIP
                   {release.portable.size > 0 && `, ${megabytes(release.portable.size)}`}
                 </a>
               )}
-              <a className="text-button download-portable" href={RELEASES_PAGE}>
-                Все выпуски и что в них поменялось
-              </a>
             </>
           )}
         </section>
@@ -164,10 +131,6 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
             Это один раз, при установке. Дальше Cord запускается обычно: пометку «скачано из интернета» несёт
             скачанный файл, а не то, что установщик положил на диск. У портативной сборки пометка остаётся на
             распакованных файлах, поэтому установщик спокойнее.
-          </p>
-          <p className="form-footnote download-note">
-            Установщик собирает GitHub Actions из исходников этого проекта; контрольные суммы каждого выпуска
-            лежат рядом с ним на странице релиза.
           </p>
         </section>
       </main>

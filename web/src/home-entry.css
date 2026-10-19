@@ -245,8 +245,7 @@
     gap: 8px;
   }
   .home-shell .brand {
-    gap: 7px;
-    font-size: 24px;
+    --brand-h: 25px;
   }
   .home-entry-main {
     padding-inline: 14px;

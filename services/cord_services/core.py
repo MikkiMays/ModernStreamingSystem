@@ -5,6 +5,60 @@ import uuid
 import httpx
 from fastapi import HTTPException
 
+# Права решает ядро (`server/.../room/Permissions.java`): снимок участника несёт готовый список
+# `you.can`, и служба спрашивает его по имени действия. Своего правила у службы нет.
+#
+# Этот словарь — не правило, а совместимость: какой класс у действия, если ядро ещё старое и `you`
+# в снимке нет. Классы те же, что у матрицы ядра (docs/superpowers/specs/2026-10-19-permissions.md),
+# поэтому и со старым ядром убрать музыку может каждый, кому разрешены интеграции (T14).
+CREATOR = "creator"
+INTEGRATIONS = "integrations"
+PARTICIPANT = "participant"
+ACTIONS = {
+    "telegram.link": CREATOR,
+    "music.view": PARTICIPANT,
+    "music.enable": INTEGRATIONS,
+    "music.control": INTEGRATIONS,
+    "music.upload": INTEGRATIONS,
+    "music.remove": INTEGRATIONS,
+    "yandex.connect": INTEGRATIONS,
+    "yandex.search": INTEGRATIONS,
+    "yandex.queue": INTEGRATIONS,
+    "yandex.disconnect": INTEGRATIONS,
+    "cinema.browse": PARTICIPANT,
+    "cinema.resolve": PARTICIPANT,
+}
+ABSENT = "Сначала войдите во встречу"
+REFUSALS = {
+    CREATOR: "Это действие доступно создателю встречи",
+    INTEGRATIONS: "Организатор разрешил интеграции только себе",
+}
+
+
+def present(room: dict, member: dict | None) -> bool:
+    """Участник во встрече и вправе действовать хоть как-то — факты снимка, не права."""
+    return bool(
+        member
+        and not room.get("closedAt")
+        and member.get("status") in ("JOINING", "CONNECTED", "RECOVERING")
+        and not member.get("service")
+    )
+
+
+def refusal(room: dict, member: dict | None, action: str) -> str:
+    """Отказ словами: не вошёл — так и сказать, иначе — чьё это действие."""
+    if not present(room, member):
+        return ABSENT
+    return REFUSALS.get(ACTIONS[action], ABSENT)
+
+
+def granted(room: dict) -> list[str] | None:
+    """Что ядро разрешило этому участнику, или None — ядро старое и `you` не знает."""
+    you = room.get("you")
+    if isinstance(you, dict) and isinstance(you.get("can"), list):
+        return you["can"]
+    return None
+
 
 class Core:
     def __init__(self, url: str, secret: str):
@@ -50,13 +104,10 @@ class Core:
             raise HTTPException(response.status_code, detail)
         return response.json() if response.content else None
 
-    async def member(
-        self,
-        room_id: str,
-        credential: str,
-        owner: bool = False,
-        integration: bool = False,
-    ):
+    async def member(self, room_id: str, credential: str, *, action: str):
+        """Снимок и участник — если ядро разрешает ему `action` (имя из `ACTIONS`)."""
+        if action not in ACTIONS:
+            raise ValueError("Неизвестное действие: " + action)
         try:
             uuid.UUID(room_id)
         except ValueError:
@@ -66,21 +117,21 @@ class Core:
         )
         member_id = credential.removeprefix("Bearer ").split(".", 1)[0]
         member = next((p for p in room["participants"] if p["id"] == member_id), None)
+        can = granted(room)
+        if can is not None:
+            if member and action in can:
+                return room, member
+            raise HTTPException(403, refusal(room, member, action))
+        # Старое ядро: прежние проверки участника и класс действия по той же матрице.
+        if not present(room, member):
+            raise HTTPException(403, ABSENT)
+        kind = ACTIONS[action]
         if (
-            room.get("closedAt")
-            or not member
-            or member["status"] not in ("JOINING", "CONNECTED", "RECOVERING")
-            or member.get("service")
-        ):
-            raise HTTPException(403, "Сначала войдите во встречу")
-        if (
-            integration
+            kind == INTEGRATIONS
             and not room.get("integrationsAllowed", True)
             and not member["owner"]
-        ):
-            raise HTTPException(403, "Организатор разрешил интеграции только себе")
-        if owner and not member["owner"]:
-            raise HTTPException(403, "Это действие доступно организатору")
+        ) or (kind == CREATOR and not member["owner"]):
+            raise HTTPException(403, REFUSALS[kind])
         return room, member
 
     async def command(
