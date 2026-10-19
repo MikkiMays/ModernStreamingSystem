@@ -176,4 +176,35 @@
 
 ## Аудит `grep`
 
-Заполняется после реализации — см. раздел ниже.
+`grep -rn 'owner=True\|integration=True' services/cord_services` — пусто. Ниже каждое оставшееся
+вхождение `.owner`, `["owner"]`, `integrationsAllowed`, `ownerId`, `ownerPresent` в `server/`,
+`services/`, `web/src` (без `generated.ts` и тестов) и почему это не копия правила.
+
+| Где | Что это | Почему не правило прав |
+| --- | --- | --- |
+| `room/Permissions.java:77,166` | сама матрица | единственное место правила |
+| `room/RoomState.java:26`, `Contracts.java:16,242`, `RoomService.java:79,337,401,539,611` | хранение флага, создание встречи, запись настройки, поле снимка | данные, не проверка |
+| `RoomService.java:185,202,207,376,499` | `owner` переходит к вернувшемуся создателю, проставляется при входе, отдаётся в списке людей | кто создатель — факт, а не право |
+| `RoomService.java:595` (`historyAllowed`) | создатель видит историю беседы сразу | вопрос «пустили ли во встречу», а не действие матрицы; создатель всегда допущен |
+| `RoomService.java:678` | создателя нельзя исключить и «впустить» | правило о цели действия (решение 6) |
+| `room/Lifecycle.java:260,376` | наследник стола: сначала создатель | выбор наследника, а не проверка права; после выбора права берутся из `hostId` по матрице |
+| `api/ServiceController.java:39,54,56` | `ownerPresent` (дать ли привязавшему кнопку «Войти организатором»), `integrationsAllowed` для старой службы | факт о встрече; права людей беседы — `participantCan` из матрицы |
+| `services/cord_services/core.py:131-133` | запасное правило для ядра без `you` | только совместимость; классы действий — те же, что у матрицы |
+| `services/cord_services/telegram.py:291,320-321,344,519` | `ownerId` — пользователь Telegram, выполнивший `/bind` или `/meet` | личность в Telegram, а не роль участника; `/bind` выдаёт только `telegram.link` (создатель) |
+| `telegram.py:570-571` | права людей беседы | `participantCan` ядра; флаг — только для старого ядра |
+| `attachment/AttachmentService.java:22,85,110,174,188,246` | `ownerId` вложения — кто его загрузил | своё вложение отменяет автор: правило о цели |
+| `web/src/core/permissions.ts:86-106` | запасное правило веба для снимка без `you` | одно место на весь веб, классы — те же, что у матрицы |
+| `web/src/ui/ParticipantMenu.tsx:80`, `Sidebar.tsx:202` | `!person.owner` рядом с `allowed(...)` | цель действия: создателя не исключают |
+| `Sidebar.tsx:197` | подпись «Организатор» | отображение |
+| `Sidebar.tsx:300` | `file.ownerId` — автор вложения | отображение |
+| `MeetingSettings.tsx:29-41`, `Prejoin.tsx:38,267,371`, `api/client.ts:100` | переключатель флага в настройках и при создании | данные формы, не проверка |
+| `cinema/providers/vk.py:802-830` | `leaf.owner` — владелец раздела VK | к правам встречи не относится |
+
+## Изменения провода (для перегенерации контрактов)
+
+- `Snapshot.you`: `RoomYou | null`, не обязателен (`@JsonInclude(NON_NULL)`), `nullable` в OpenAPI.
+- Новая схема `RoomYou { can: string[] }`, `can` обязателен (в списке `OpenApiConfig` «всё required»).
+- `Info` (`/internal/services/{room}`): новое необязательное поле `participantCan: string[]`.
+- Типы команд и маршруты не менялись. `contracts/openapi.json` и `web/src/api/generated.ts`
+  перегенерирует интегрирующая сессия (решение архитектора 11); до этого `you` в веб-типе
+  `Snapshot` объявлен вручную в `web/src/api/types.ts`.
