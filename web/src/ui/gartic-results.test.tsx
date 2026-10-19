@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GarticTable as Table } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
+import { VoiceLevels } from '../media/levels';
 import GarticTable from './GarticTable';
 import { GamePerson } from './GamePeople';
 
@@ -66,10 +67,17 @@ function meeting(value: Table) {
     snapshot: new Store({ gartic: value, participants }),
     admission: { participantId: 'self' },
     control: { state: new Store('connected') },
-    media: { tracks: new Store([]), speaking: new Store([]), volumes: new Store({}) },
+    media: voiceMedia(),
     command: vi.fn().mockResolvedValue({}),
     serverNow: () => 10000,
   } as unknown as Meeting;
+}
+
+/** Дорожки, говорящие по SFU и уровни голоса из них (`media/levels.ts`) — как у настоящей встречи. */
+function voiceMedia() {
+  const tracks = new Store([]);
+  const speaking = new Store<string[]>([]);
+  return { tracks, speaking, levels: new VoiceLevels(tracks, speaking), volumes: new Store({}) };
 }
 
 function telephone(patch: Partial<Table> = {}) {

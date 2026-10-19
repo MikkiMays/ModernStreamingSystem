@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import styles from '../styles.css?raw';
-import layout from '../room-layout.css?raw';
+import stage from './stage.css?raw';
+import dock from './call-dock.css?raw';
+import panel from './meeting-panel.css?raw';
 import cinema from './cinema/cinema.css?raw';
-import { COMPACT, DOCK, DRAWER, DRAWER_WIDTH, ROOMY, SHEET } from './breakpoints';
+import { COMPACT, DRAWER, DRAWER_WIDTH, ROOMY, SHEET } from './breakpoints';
 
 /*
   Границы раскладки записаны дважды — в CSS и в `breakpoints.ts`, откуда их берёт код, — и
@@ -43,27 +44,19 @@ function rule(css: string, selector: string): string {
 }
 
 describe('границы раскладки: CSS и код считают по одним числам', () => {
-  it('телефон: пульт звонка на всю ширину — там же, где код уносит кнопки в меню', () => {
-    expect(rule(media(layout, COMPACT), '.meeting-page')).toContain('--dock:');
+  it('телефон: пульт в одну строку и без правой группы — там же, где код уносит её в «ещё»', () => {
+    expect(rule(media(dock, COMPACT), '.call-footer')).toContain('grid-template-columns: minmax(0, 1fr);');
+    expect(rule(media(dock, COMPACT), '.meeting-page')).toContain('--dock-bottom:');
   });
 
   it('лист: панель встречи ложится во весь низ ровно на границе `SHEET`', () => {
-    const sheet = rule(media(styles, SHEET), '.side-panel');
-    expect(sheet).toContain('left: 8px;');
+    const sheet = rule(media(panel, SHEET), '.side-panel');
+    expect(sheet).toContain('left: var(--space-2);');
     expect(sheet).toContain('width: auto;');
   });
 
-  it('настольный пульт сжимается, чтобы поместиться в сцену, сразу за границей листа', () => {
-    // Граница пульта — следующий пиксель после листа: между ними не должно быть ширины ни того,
-    // ни другого.
-    expect(Number(/\d+/.exec(DOCK)![0])).toBe(Number(/\d+/.exec(SHEET)![0]) + 1);
-    expect(rule(media(layout, DOCK), '.stage-wrap > .call-footer .call-dock .icon-button')).toContain(
-      'min-width: 44px;',
-    );
-  });
-
   it('полоса: панель поверх сцены на границе `DRAWER` и шириной `DRAWER_WIDTH`', () => {
-    const drawer = rule(media(styles, DRAWER), '.side-panel');
+    const drawer = rule(media(panel, DRAWER), '.side-panel');
     expect(drawer).toContain('position: absolute;');
     expect(drawer).toContain(`width: ${DRAWER_WIDTH}px;`);
   });
@@ -77,9 +70,14 @@ describe('границы раскладки: CSS и код считают по �
   });
 
   it('панель поверх сцены кончается над пультом звонка — там же, где кончается сцена', () => {
-    expect(rule(media(layout, DRAWER), '.meeting-page:not(.meeting-fullscreen) .side-panel')).toContain(
-      'bottom: var(--dock-space);',
+    expect(rule(media(panel, DRAWER), '.side-panel')).toContain('bottom: var(--dock-space);');
+    expect(rule(stage, '.stage-wrap')).toContain('padding: var(--space-3) var(--space-3) var(--dock-space);');
+    expect(rule(stage, '.meeting-page')).toContain(
+      '--dock-space: calc(var(--dock-height) + 2 * var(--dock-bottom));',
     );
-    expect(rule(layout, '.stage-wrap')).toContain('padding-bottom: var(--dock-space);');
+  });
+
+  it('экран звонка пишется без `!important`: переопределения по весу уже ломали столы', () => {
+    for (const css of [stage, dock, panel]) expect(css).not.toContain('!important');
   });
 });

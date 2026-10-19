@@ -70,6 +70,7 @@ import { readPreferences, savePreferences } from '../core/preferences';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 import { CordMark, CordWordmark } from './brand/Logo';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
+import { useVoiceTier } from './useVoice';
 import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
 
 /**
@@ -882,7 +883,7 @@ function SeatView({
   const camera = tracks.find(
     (tile) => tile.participantId === seat.memberId && tile.source === Track.Source.Camera && !tile.muted,
   );
-  const speaking = useStore(meeting.media.speaking).includes(seat.memberId ?? '');
+  const voice = useVoiceTier(meeting, seat.memberId);
   const zoom = useFaceZoom('poker', seat.memberId);
   // Откуда прилетают карты: из середины стола. Направление — вектор к центру, в долях ширины
   // стола (высоту из него пересчитывает CSS через `--felt-ratio`).
@@ -908,7 +909,8 @@ function SeatView({
       data-away={seat.away || undefined}
       data-waiting={seat.waiting || undefined}
       data-winner={winner || undefined}
-      data-speaking={speaking || undefined}
+      data-speaking={voice > 0 || undefined}
+      data-voice={voice || undefined}
       data-mine={mine || undefined}
     >
       <div className="poker-person">

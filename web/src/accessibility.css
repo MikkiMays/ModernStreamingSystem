@@ -4,78 +4,35 @@ select,
 textarea,
 .input-icon input,
 .device-fields select,
-.settings-form select,
-.message-composer textarea,
-.people-panel > input {
+.settings-form select {
   font-size: 16px;
 }
-.message > p,
+
 .join-card p,
-.prejoin-form > .muted,
-.ended-stage p {
+.prejoin-form > .muted {
   font-size: 16px;
 }
-.panel-tabs > button,
-.share-button,
-.participant-info strong,
-.file-row strong,
+
 .upload-area strong,
 .action-menu [role='menuitem'],
 .settings-form label {
   font-size: 14px;
 }
 .form-footnote,
-.retention-note,
 .preview-caption,
-.file-footnote,
-.participant-info small,
-.file-row small,
-.message-meta,
-.message-meta time,
-.person-caption {
+.file-footnote {
   font-size: 12px;
 }
-.screen-tools .icon-button,
-.participant-row > .icon-button,
-.call-dock .icon-button,
+
 .modal-heading > .icon-button {
   min-width: 48px;
   width: 48px;
   height: 48px;
 }
-.screen-tools {
-  flex-wrap: wrap;
-}
+
 .loading-room {
   display: grid;
   min-height: 100dvh;
   place-items: center;
   color: var(--muted);
-}
-@media (max-width: 767px) {
-  .call-dock {
-    gap: 2px;
-  }
-  .call-dock .hangup {
-    min-width: 50px;
-  }
-  .share-button {
-    padding: 0 10px;
-  }
-  .call-dock .dock-divider {
-    display: none;
-  }
-  .panel-open .person-caption {
-    font-size: 10px;
-  }
-  .retention-note {
-    font-size: 11px;
-  }
-}
-/* Small quality labels still need the full text contrast ratio. */
-.quality-tag {
-  color: var(--text);
-  font-size: 12px;
-  min-height: 32px;
-  min-width: 32px;
 }

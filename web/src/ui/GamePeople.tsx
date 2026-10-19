@@ -5,6 +5,7 @@ import type { MediaTile } from '../media/session';
 import { Avatar, useStore } from './primitives';
 import { ParticipantMenu } from './ParticipantMenu';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
+import { useVoiceTier } from './useVoice';
 import type { GameKind } from '../core/preferences';
 import '../game-people.css';
 
@@ -50,12 +51,13 @@ export function GamePerson({
 }) {
   const snapshot = useStore(meeting.snapshot);
   const tracks = useStore(meeting.media.tracks);
-  const speakers = useStore(meeting.media.speaking);
+  // Голос — свой замер у каждого зрителя (T23): лицо загорается вместе со звуком, а не после SFU.
+  const voice = useVoiceTier(meeting, memberId);
   const person = snapshot.participants.find((participant) => participant.id === memberId);
   const camera = tracks.find(
     (track) => track.participantId === memberId && track.source === 'camera' && !track.muted,
   );
-  const speaking = !!memberId && speakers.includes(memberId);
+  const speaking = voice > 0;
   const name = person?.name ?? fallbackName ?? label ?? 'Свободное место';
   const zoom = useFaceZoom(game ?? 'chess', game ? memberId : null);
   const content = (
@@ -78,12 +80,17 @@ export function GamePerson({
       person={person}
       className="game-person"
       data-speaking={speaking ? 'true' : undefined}
+      data-voice={voice || undefined}
       data-away={['LEFT', 'EXPIRED', 'REMOVED'].includes(person.status) ? 'true' : undefined}
     >
       {content}
     </ParticipantMenu>
   ) : (
-    <div className="game-person" data-speaking={speaking ? 'true' : undefined}>
+    <div
+      className="game-person"
+      data-speaking={speaking ? 'true' : undefined}
+      data-voice={voice || undefined}
+    >
       {content}
     </div>
   );

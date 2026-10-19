@@ -7,7 +7,10 @@ import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
 import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
-import { Avatar, IconButton, useStore } from './primitives';
+import { Avatar, useStore } from './primitives';
+import { IconButton } from './kit';
+import { LensSwitch } from './CameraMenu';
+import { useVoiceTier } from './useVoice';
 import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
 import { applyVolumeNow } from '../media/volume';
@@ -152,6 +155,18 @@ export function AudioLayer({
     </div>
   );
 }
+/**
+ * Обводка говорящего — внутрь плитки, четырьмя оттенками зелёного по громкости (T23).
+ *
+ * Отдельный компонент, чтобы ступень перерисовывала только эту рамку, а не всю сцену: уровень
+ * меняется до 30 раз в секунду (`media/levels.ts`), и сетка с видео от этого вздрагивать не
+ * должна. Порядок плиток от громкости не зависит.
+ */
+function VoiceRing({ meeting, id }: { meeting: Meeting; id: string }) {
+  const tier = useVoiceTier(meeting, id);
+  return <span className="person-voice" data-voice={tier || undefined} aria-hidden="true" />;
+}
+
 export function Stage({
   meeting,
   onOpenServices,
@@ -166,6 +181,7 @@ export function Stage({
   const tracks = useStore(meeting.media.tracks);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
+  // SFU, а не свой замер: крупный план «Говорящего» должен залипать, а не прыгать на каждом слоге.
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
   const cinema = useStore(meeting.cinema);
@@ -228,7 +244,7 @@ export function Stage({
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
     );
     return (
-      <div className="stage watch-stage">
+      <div className="stage watch-stage media-stage">
         <div
           className="screen-viewport"
           style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
@@ -273,6 +289,7 @@ export function Stage({
         </div>
         <div className="screen-tools">
           <IconButton
+            tone="stage"
             label="Уменьшить"
             disabled={zoom <= 1}
             onClick={() => {
@@ -284,6 +301,7 @@ export function Stage({
           </IconButton>
           <span>{Math.round(zoom * 100)}%</span>
           <IconButton
+            tone="stage"
             label="Увеличить"
             disabled={zoom >= 4}
             onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
@@ -291,6 +309,7 @@ export function Stage({
             <ZoomIn size={17} />
           </IconButton>
           <IconButton
+            tone="stage"
             label="Вписать весь экран"
             onClick={() => {
               setZoom(1);
@@ -332,10 +351,6 @@ export function Stage({
         person={person}
         key={person.id}
         className="person-tile"
-        // Обводка вместо надписи: кто говорит, узнаётся боковым зрением, и читать для
-        // этого ничего не нужно. Заглушённый микрофон рядом остаётся отдельным знаком —
-        // на цвет полагаться нельзя.
-        data-speaking={mic && speaking.includes(person.id) ? 'true' : undefined}
         data-sharing={sharing ? 'true' : undefined}
         data-pinned={pinned === person.id ? 'true' : undefined}
         // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
@@ -364,13 +379,17 @@ export function Stage({
             <Avatar name={person.name} src={person.avatar} large />
           </div>
         )}
+        {/* Обводка вместо надписи: кто говорит, узнаётся боковым зрением. Заглушённый микрофон
+            рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
+        <VoiceRing meeting={meeting} id={person.id} />
         <div className="person-caption">
+          {!mic && <MicOff size={14} aria-label="Микрофон выключен" />}
           <span>
             {person.name}
             {self ? ' (Вы)' : ''}
           </span>
-          {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
         </div>
+        {self && camera && <LensSwitch meeting={meeting} tile={camera} />}
         {preparing && (
           <span className="watch-stream is-preparing" role="status">
             <MonitorUp size={16} />
@@ -426,7 +445,7 @@ export function Stage({
           </Suspense>
         </div>
         {watchers.length > 0 && (
-          <div className="people-strip" data-count={watchers.length}>
+          <div className="people-strip media-stage" data-count={watchers.length}>
             {watchers.map((person, index) => tile(person, index, false))}
           </div>
         )}
@@ -446,7 +465,7 @@ export function Stage({
           </Suspense>
         </div>
         {watchers.length > 0 && (
-          <div className="people-strip" data-count={watchers.length}>
+          <div className="people-strip media-stage" data-count={watchers.length}>
             {watchers.map((person, index) => tile(person, index, false))}
           </div>
         )}
@@ -504,7 +523,7 @@ export function Stage({
             </Suspense>
           )}
         </div>
-        <div className="people-strip" data-count={people.length}>
+        <div className="people-strip media-stage" data-count={people.length}>
           {people.map((person, index) => tile(person, index, false))}
         </div>
       </div>
@@ -512,7 +531,7 @@ export function Stage({
   }
   return (
     <div
-      className={`stage conversation-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
+      className={`stage conversation-stage media-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
       data-layout={layout}
     >
       <div

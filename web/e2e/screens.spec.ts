@@ -164,7 +164,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
       .filter({ hasText: 'Экран 1' })
       .getByRole('button', { name: /Смотреть стрим/ })
       .click();
-    await host!.getByRole('button', { name: 'Остановить', exact: true }).click();
+    await host!.getByRole('button', { name: 'Остановить показ', exact: true }).click();
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
     await expect(third!.locator('.person-tile')).toHaveCount(3);
     await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();

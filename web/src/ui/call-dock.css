@@ -1,0 +1,178 @@
+/*
+  Пульт звонка (E04, T22, П6). Только токены `styles/tokens.css`.
+
+  Три отдельные группы-плашки над сценой с зазором между ними: слева микрофон, камера и экран;
+  в центре «ещё» и «выйти»; справа чат, участники и интеграции. Пульт всегда тёмный — он часть
+  сцены (`.media-stage` на подвале), и группы стоят по центру сцены, а расположение участников и
+  полный экран — тихими значками у правого края, отдельно от групп.
+
+  Высоту места под пультом знают трое — сцена, панель поверх сцены и сам пульт — и все берут её из
+  `--dock-space` (`stage.css`). Подвал во всю ширину сцены нажатий не ловит: ловят только группы и
+  значки, иначе прозрачная полоса во весь экран съедала бы клики по кадру.
+*/
+.call-footer {
+  position: absolute;
+  z-index: var(--z-dock);
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--dock-bottom);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  background: transparent;
+  pointer-events: none;
+}
+.call-dock {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  pointer-events: auto;
+}
+.dock-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--dock-pad);
+  border-radius: var(--radius-5);
+  background: var(--dock-bg);
+  box-shadow: var(--shadow-2);
+}
+.dock-button.ui-icon-button {
+  position: relative;
+  width: var(--dock-button);
+  min-width: var(--dock-button);
+  height: var(--dock-button);
+  border-radius: var(--radius-4);
+}
+.dock-button > svg {
+  width: 22px;
+  height: 22px;
+}
+/*
+  Красный значок на сцене (набор, `tone="stage"`) значит «выключено» — для микрофона и камеры. Экран
+  и панели не выключены, а просто не открыты: у них в покое обычный значок, а открытые — акцентом.
+*/
+.dock-toggle.ui-icon-button--stage[aria-pressed='false'] {
+  background: transparent;
+}
+.dock-toggle.ui-icon-button--stage[aria-pressed='false']:hover {
+  background: var(--surface-hover);
+}
+.dock-toggle.ui-icon-button--stage[aria-pressed='false'] > svg {
+  color: inherit;
+}
+/* «Выйти» — шире остальных и красным: его ищут глазами быстрее всего и нажимают последним. */
+.dock-hangup.ui-icon-button {
+  width: calc(var(--dock-button) + var(--space-3));
+}
+/* Сколько людей — числом на кнопке «Участники», без ботов (`core/people.ts`). */
+.dock-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dock-button.ui-icon-button[data-pressed]:hover {
+  background: var(--accent-fill-hover);
+  color: var(--on-accent);
+}
+.dock-button[data-pressed] .dock-count {
+  background: var(--on-accent);
+  color: var(--accent-fill);
+}
+.dock-tools {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: auto;
+}
+.dock-tool.ui-icon-button {
+  width: var(--control-lg);
+  height: var(--control-lg);
+  color: var(--stage-muted);
+}
+.dock-tool.ui-icon-button:hover {
+  color: var(--stage-text);
+}
+/* «Ещё» — меню на тринадцать пунктов: на телефоне оно выше экрана, и лучше прокрутка, чем обрез. */
+.dock-menu {
+  max-height: min(var(--available-height, 70dvh), 70dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+  Телефон — `COMPACT` из `ui/breakpoints.ts`: две группы в одну строку от 320 px, правая группа,
+  расположение и полный экран уходят в «ещё» (это решает разметка, `useMediaQuery`). Вторая строка
+  невозможна: на 320 px две группы занимают 282 px из 304.
+*/
+@media (max-width: 700px) {
+  .meeting-page {
+    --dock-bottom: var(--space-2);
+  }
+  .call-footer {
+    left: var(--space-2);
+    right: var(--space-2);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .call-dock {
+    grid-column: 1;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  .dock-group {
+    gap: 2px;
+  }
+}
+
+/* ---------- полный экран ---------- */
+/*
+  Во весь экран пульт лежит поверх кадра и уходит через три секунды покоя; кнопка под ним
+  сворачивает его совсем (`MeetingView.tsx`).
+*/
+.meeting-fullscreen .call-footer {
+  bottom: var(--dock-fullscreen-bottom);
+  transition: opacity var(--motion-base) var(--ease-standard);
+}
+.meeting-fullscreen.controls-hidden .call-footer {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+.controls-toggle {
+  position: absolute;
+  z-index: calc(var(--z-dock) + 1);
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: var(--control-touch);
+  min-height: 28px;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--dock-bg);
+  color: var(--stage-text);
+  font-size: var(--text-xs);
+  box-shadow: var(--shadow-1);
+}
+.controls-toggle:hover {
+  background: var(--surface-3);
+}

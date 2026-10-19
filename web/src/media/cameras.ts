@@ -27,6 +27,8 @@ export interface CameraChoice {
   side: CameraSide;
   /** Первая линза стороны — та, которую браузер и так выбирает переворотом. */
   primary: boolean;
+  /** Вторая линза названа широкоугольной самой платформой (по названию). */
+  wide: boolean;
 }
 
 export interface CameraInput {
@@ -80,6 +82,7 @@ export function classifyCameras(cameras: CameraInput[]): CameraChoice[] {
       label: side === 'user' ? 'Фронтальная' : 'Основная',
       side,
       primary: true,
+      wide: false,
     });
     const second =
       rest.find((camera) => WIDE.test(camera.label)) ?? rest.find((camera) => !NARROW.test(camera.label));
@@ -95,10 +98,56 @@ export function classifyCameras(cameras: CameraInput[]): CameraChoice[] {
             : 'Вторая основная',
         side,
         primary: false,
+        wide: WIDE.test(second.label),
       });
   }
   // Одна камера — это не выбор, а надпись. Показывать её списком незачем.
   return choices.length > 1 ? choices : [];
+}
+
+/** Кнопка переключателя линз на своей плитке (T21). */
+export interface Lens {
+  deviceId: string;
+  /** Коротко, как в системной камере: «0.5×» и «1×», а для неизвестной второй линзы — «1» и «2». */
+  short: string;
+  /** Полностью — для диктора и подсказки: «Широкоугольная», «Основная». */
+  label: string;
+  active: boolean;
+}
+
+/**
+ * Линзы той стороны, куда камера смотрит сейчас, — для переключателя «0.5× / 1×» на своей плитке.
+ *
+ * Переворот (фронтальная ↔ задняя) — кнопка в пульте; вторая линза той же стороны — здесь, на
+ * самом кадре, как в системной камере телефона. Показывается, только когда на этой стороне две
+ * линзы: одна линза — не выбор.
+ *
+ * Сторона берётся по устройству, а если браузер выбрал линзу сам (переворот меняет
+ * `facingMode`, а не устройство) и её нет среди двух, — по `facingMode`; тогда горит основная:
+ * браузер переворотом берёт именно её.
+ *
+ * @returns линзы слева направо (широкоугольная — первой, как «0.5×» в системной камере) или `null`.
+ */
+export function lensesFor(
+  choices: CameraChoice[],
+  current: { deviceId?: string; facingMode?: string },
+): Lens[] | null {
+  const matched = choices.find((choice) => choice.deviceId === current.deviceId);
+  const side =
+    matched?.side ??
+    (current.facingMode === 'user' || current.facingMode === 'environment' ? current.facingMode : null);
+  if (!side) return null;
+  const primary = choices.find((choice) => choice.side === side && choice.primary);
+  const second = choices.find((choice) => choice.side === side && !choice.primary);
+  if (!primary || !second) return null;
+  const active = matched?.side === side ? matched.deviceId : primary.deviceId;
+  const lens = (choice: CameraChoice, short: string): Lens => ({
+    deviceId: choice.deviceId,
+    short,
+    label: choice.label,
+    active: choice.deviceId === active,
+  });
+  return second.wide ? [lens(second, '0.5×'), lens(primary, '1×')] : [lens(primary, '1'), lens(second, '2')];
 }
 
 /** Камеры устройства вместе с их возможностями, насколько платформа их сообщает. */

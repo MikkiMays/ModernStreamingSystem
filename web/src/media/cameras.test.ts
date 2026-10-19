@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCameras, type CameraInput } from './cameras';
+import { classifyCameras, lensesFor, type CameraInput } from './cameras';
 
 const camera = (deviceId: string, label: string, facingMode?: string[]): CameraInput => ({
   deviceId,
@@ -68,5 +68,46 @@ describe('какие камеры предлагать', () => {
 
   it('пропускает устройства без идентификатора: разрешения ещё не дали', () => {
     expect(classifyCameras([camera('', 'Front Camera'), camera('', 'Back Camera')])).toEqual([]);
+  });
+});
+
+describe('переключатель линз на своей плитке (T21)', () => {
+  const phone = classifyCameras([
+    camera('front', 'Front Camera'),
+    camera('back', 'Back Camera'),
+    camera('wide', 'Back Ultra Wide Camera'),
+  ]);
+
+  it('на задней стороне с широкоугольной — «0.5×» и «1×», горит та, что снимает', () => {
+    expect(lensesFor(phone, { deviceId: 'back', facingMode: 'environment' })).toEqual([
+      { deviceId: 'wide', short: '0.5×', label: 'Широкоугольная', active: false },
+      { deviceId: 'back', short: '1×', label: 'Основная', active: true },
+    ]);
+    expect(lensesFor(phone, { deviceId: 'wide' })?.find((lens) => lens.active)?.short).toBe('0.5×');
+  });
+
+  it('на фронтальной с одной линзой переключателя нет', () => {
+    expect(lensesFor(phone, { deviceId: 'front', facingMode: 'user' })).toBeNull();
+  });
+
+  it('браузер выбрал линзу сам — сторона по facingMode, горит основная', () => {
+    const lenses = lensesFor(phone, { deviceId: 'virtual-triple', facingMode: 'environment' });
+    expect(lenses?.map((lens) => [lens.short, lens.active])).toEqual([
+      ['0.5×', false],
+      ['1×', true],
+    ]);
+  });
+
+  it('вторая линза без слова «широкоугольная» — «1» и «2», без обещаний', () => {
+    const android = classifyCameras([
+      camera('0', 'camera2 0, facing back', ['environment']),
+      camera('2', 'camera2 2, facing back', ['environment']),
+      camera('1', 'camera2 1, facing front', ['user']),
+    ]);
+    expect(lensesFor(android, { deviceId: '0' })?.map((lens) => lens.short)).toEqual(['1', '2']);
+  });
+
+  it('настольная камера — ни стороны, ни переключателя', () => {
+    expect(lensesFor([], { deviceId: 'webcam' })).toBeNull();
   });
 });

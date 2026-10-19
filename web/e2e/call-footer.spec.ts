@@ -1,57 +1,125 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { routeCinema, startMeeting } from './support/cinema';
 
 /*
-  Пульт звонка помещается в сцену на любой ширине от 768 px.
+  Пульт звонка — три отдельные группы (T22): слева микрофон, камера и экран, в центре «ещё» и
+  «выйти», справа чат, участники и интеграции. На телефоне — две группы одной строкой от 320 px.
 
-  На 768 px его содержимое было на 32 px шире места в сцене: кнопка «Интеграции» у правого края
-  уходила за край, а нажатие по ней прокручивало сцену ради фокуса на 23 px влево — у каталога
-  и плиток срезался левый край. Теперь пульт сжимается (подпись, зазоры, кнопки — по очереди), и
-  прокручивать сцене нечего.
+  Здесь же прежняя жалоба: на 768 px «Интеграции» уходила за край сцены, а нажатие по ней
+  прокручивало сцену ради фокуса — у каталога и плиток срезался левый край. Прокручивать сцене по-
+  прежнему нечего ни на одной ширине.
 */
 
-test('the call controls fit the stage from 768 px up, and «Интеграции» does not scroll the stage', async ({
+/** Подписи групп пульта и сколько кнопок в каждой, слева направо. */
+async function groups(page: Page) {
+  return page.locator('.call-dock > [role="group"]').evaluateAll((list) =>
+    list.map((group) => ({
+      name: group.getAttribute('aria-label'),
+      buttons: group.querySelectorAll('button').length,
+    })),
+  );
+}
+
+/** Сколько разных строк занимают кнопки пульта и насколько что-нибудь торчит за край. */
+async function measure(page: Page) {
+  return page.evaluate(() => {
+    const footer = document.querySelector<HTMLElement>('.call-footer')!;
+    const stage = document.querySelector<HTMLElement>('.stage-wrap')!;
+    const buttons = [...document.querySelectorAll<HTMLElement>('.call-dock button')].filter(
+      (button) => button.getBoundingClientRect().width > 0,
+    );
+    const rows = new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)));
+    const right = Math.max(...buttons.map((button) => button.getBoundingClientRect().right));
+    return {
+      rows: rows.size,
+      outside: right > stage.getBoundingClientRect().right + 0.5,
+      footer: footer.scrollWidth - footer.clientWidth,
+      stage: stage.scrollWidth - stage.clientWidth,
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      scrolled: stage.scrollLeft,
+    };
+  });
+}
+
+test('three groups on a desktop, nothing overflows, and «Интеграции» does not scroll the stage', async ({
   browser,
 }) => {
   const room = await browser.newContext({
     permissions: ['camera', 'microphone'],
-    viewport: { width: 768, height: 900 },
+    viewport: { width: 1440, height: 900 },
   });
   const page = await room.newPage();
   // Каталог служб — из записи: панель интеграций без службы иначе показывает отказ.
   await routeCinema(page);
   const integrations = page.getByRole('button', { name: 'Интеграции', exact: true });
-  const overflow = () =>
-    page.evaluate(() => {
-      const footer = document.querySelector<HTMLElement>('.call-footer')!;
-      const stage = document.querySelector<HTMLElement>('.stage-wrap')!;
-      return {
-        footer: footer.scrollWidth - footer.clientWidth,
-        stage: stage.scrollWidth - stage.clientWidth,
-        scrolled: stage.scrollLeft,
-      };
-    });
   try {
     await startMeeting(page);
-    for (const width of [768, 800, 900]) {
+    expect(await groups(page)).toEqual([
+      { name: 'Микрофон и камера', buttons: 3 },
+      { name: 'Встреча', buttons: 2 },
+      { name: 'Чат и интеграции', buttons: 3 },
+    ]);
+    // Стрелки выбора камеры справа от её кнопки больше нет (T21): выбор — в «ещё».
+    await expect(page.getByRole('button', { name: 'Выбрать камеру' })).toHaveCount(0);
+    for (const width of [768, 800, 900, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await integrations.click();
       await expect(page.locator('.services-panel')).toBeVisible();
-      expect(await overflow(), `${width}px, «Интеграции» нажата`).toEqual({
+      expect(await measure(page), `${width}px, «Интеграции» нажата`).toMatchObject({
+        rows: 1,
+        outside: false,
         footer: 0,
         stage: 0,
+        page: 0,
         scrolled: 0,
       });
       await integrations.click();
       await expect(page.locator('.side-panel')).toHaveCount(0);
     }
-    for (const width of [768, 784, 800, 850, 900, 1024, 1100, 1199]) {
+    for (const width of [701, 768, 1024, 1199, 1440, 2560]) {
       await page.setViewportSize({ width, height: 900 });
-      const { footer, stage } = await overflow();
-      expect(footer, `пульт на ${width}px`).toBeLessThanOrEqual(0);
-      expect(stage, `сцена на ${width}px`).toBeLessThanOrEqual(0);
+      expect(await measure(page), `пульт на ${width}px`).toMatchObject({
+        rows: 1,
+        outside: false,
+        footer: 0,
+        stage: 0,
+        page: 0,
+      });
     }
   } finally {
     await room.close();
+  }
+});
+
+test('a phone gets two groups in one row from 320 px, the rest is in «ещё»', async ({ browser }) => {
+  const context = await browser.newContext({
+    permissions: ['camera', 'microphone'],
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await startMeeting(page);
+    expect(await groups(page)).toEqual([
+      { name: 'Микрофон и камера', buttons: 3 },
+      { name: 'Встреча', buttons: 2 },
+    ]);
+    // Третья слева на касании — смена камеры, а не показ экрана.
+    await expect(page.getByRole('button', { name: 'Сменить камеру', exact: true })).toBeVisible();
+    for (const width of [320, 360, 390, 430, 700]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await measure(page), `телефон ${width}px`).toMatchObject({
+        rows: 1,
+        outside: false,
+        stage: 0,
+        page: 0,
+      });
+    }
+    await page.getByRole('button', { name: 'Настройки и действия' }).click();
+    for (const item of ['Чат и файлы', 'Участники', 'Интеграции', 'Показать экран', 'Полноэкранный режим'])
+      await expect(page.getByRole('menuitem', { name: item })).toBeVisible();
+  } finally {
+    await context.close();
   }
 });
