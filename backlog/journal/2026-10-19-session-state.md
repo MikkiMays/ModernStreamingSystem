@@ -40,3 +40,16 @@
 
 Steal 25–60 %, load 20–45. Монитор — `/opt/.cord-work/health.log` (раз в 2 мин). vitest — только
 `--pool=threads --testTimeout=60000` (форки не успевают стартовать). Своп 4,5 ГБ.
+
+## 02:55 — лимит Opus исчерпан, точка возобновления
+
+- Opus-агенты остановлены, работа лежит в worktree незакоммиченной: E06-A (1 коммит + 34 файла),
+  E07 (1 + 12), E08 (2 + 12) — `.claude/worktrees/agent-a25a9d…`, `agent-ac82f7…`, `agent-a75c0d…`.
+  Продолжать их на **Fable** с того же места (сначала `git status`/`git diff` в worktree).
+- Идут на Fable: E05-quality (`agent-a8fea4…`, T44/T48/T50), E16 (`agent-a0fcb5…`).
+- Ветка `epic/E14-A-i18n`: WIP-коммит слоя переводов; дальше — подключить в `main.tsx`, записать базу
+  храповика, tsc/vitest, шаг в CI.
+- Стенд: образы gateway/services/sniffer собраны, core — повтор сборки шёл; затем `setup.sh --domain
+  cord.nikg.tech --ip 108.165.32.75`.
+- Владельцу: таймаут хуков 30 с — хуки плагинов `vercel` и `security-guidance` (их hooks.json).
+- Пуш всё ещё ждёт `gh auth login`.
