@@ -45,11 +45,13 @@ docker run -d --name "$NAME-core" --network host --read-only --tmpfs /tmp \
   "$IMAGE" >/dev/null
 
 # На перегруженной машине Spring поднимается минутами.
-for _ in $(seq 1 120); do
-  curl -fs "http://127.0.0.1:$CORE_PORT/api/openapi" -o /dev/null && break
+ready=0
+for _ in $(seq 1 360); do
+  curl -fs "http://127.0.0.1:$CORE_PORT/api/openapi" -o /dev/null && { ready=1; break; }
   docker inspect -f '{{.State.Running}}' "$NAME-core" | grep -q true || { docker logs --tail 40 "$NAME-core"; exit 1; }
   sleep 5
 done
+((ready)) || { echo "Ядро не ответило за 30 минут" >&2; docker logs --tail 20 "$NAME-core"; exit 1; }
 
 (cd web && API_SCHEMA_URL="http://127.0.0.1:$CORE_PORT/api/openapi" npm run -s generate:api)
 (cd web && npx prettier --log-level warn --write src/api/generated.ts >/dev/null 2>&1 || true)
