@@ -24,12 +24,15 @@ function get(path, host, gateway = true, headers = {}) {
       response.on("data", chunk => { body += chunk; if (body.length > 65536) req.destroy(new Error("Oversize response")); });
       response.on("end", () => resolve({ status: response.statusCode, body }));
     });
-    const timeout = setTimeout(() => req.destroy(new Error("Probe timed out")), 3000);
+    const timeout = setTimeout(() => req.destroy(new Error("Probe timed out")), PROBE_MS);
     req.on("close", () => clearTimeout(timeout));
     req.on("error", reject);
     req.end();
   });
 }
+
+// A loaded or CPU-capped host answers slower than 3 s; SMOKE_PROBE_MS widens the per-request budget.
+const PROBE_MS = Number(process.env.SMOKE_PROBE_MS ?? 3000);
 
 let healthy = false;
 for (let attempt = 0; attempt < 40; attempt++) {
