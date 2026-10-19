@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ru" data-theme="dark" data-variant="a">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E16 — настройки, макет направления</title>
+    <link rel="stylesheet" href="mock.css" />
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="mark" viewBox="0 0 30 30">
+          <g fill="currentColor">
+            <rect
+              x="2"
+              y="6"
+              width="6"
+              height="18"
+              rx="3"
+              transform="rotate(-15 5 15)"
+            />
+            <rect
+              x="12"
+              y="0.5"
+              width="6"
+              height="29"
+              rx="3"
+              transform="rotate(-15 15 15)"
+            />
+            <rect
+              x="22"
+              y="4"
+              width="6"
+              height="22"
+              rx="3"
+              transform="rotate(-15 25 15)"
+            />
+          </g>
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m20 20-4.2-4.2" />
+        </symbol>
+        <symbol id="i-mic" viewBox="0 0 24 24">
+          <rect x="9" y="3" width="6" height="11" rx="3" />
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+        </symbol>
+        <symbol id="i-screen" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="12" rx="2.5" />
+          <path d="M8 20h8M12 16v4" />
+        </symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24">
+          <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15ZM10 21h4" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+          />
+        </symbol>
+        <symbol id="i-lang" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </symbol>
+        <symbol id="i-key" viewBox="0 0 24 24">
+          <rect x="3" y="6" width="18" height="12" rx="2.5" />
+          <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+        </symbol>
+        <symbol id="i-sound" viewBox="0 0 24 24">
+          <path
+            d="M4 10v4h3l5 4V6L7 10ZM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"
+          />
+        </symbol>
+        <symbol id="i-plug" viewBox="0 0 24 24">
+          <path d="M9 3v4M15 3v4M6 7h12v4a6 6 0 0 1-12 0ZM12 17v4" />
+        </symbol>
+        <symbol id="i-server" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="7" rx="2" />
+          <rect x="3" y="13" width="18" height="7" rx="2" />
+          <path d="M7 7.5h.01M7 16.5h.01" />
+        </symbol>
+        <symbol id="i-info" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5M12 8h.01" />
+        </symbol>
+        <symbol id="i-chev" viewBox="0 0 24 24">
+          <path d="m6 9 6 6 6-6" />
+        </symbol>
+        <symbol id="i-chev-r" viewBox="0 0 24 24">
+          <path d="m9 6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-x" viewBox="0 0 24 24">
+          <path d="M6 6l12 12M18 6 6 18" />
+        </symbol>
+        <symbol id="i-home" viewBox="0 0 24 24">
+          <path d="m3 11 9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z" />
+        </symbol>
+        <symbol id="i-gear" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"
+          />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="app">
+      <div class="titlebar">
+        <svg class="mark" style="color: var(--accent-fill)">
+          <use href="#mark" />
+        </svg>
+        <span class="title">Настройки</span>
+        <div class="win"><span>—</span><span>▢</span><span>✕</span></div>
+      </div>
+
+      <!-- Вариант a: окно поверх приложения. Варианты b и c: та же структура страницей. -->
+      <div class="settings-root">
+        <div class="settings-page behind">
+          <nav class="rail" aria-label="Разделы">
+            <span class="pip tool"
+              ><svg class="icon"><use href="#i-home" /></svg
+            ></span>
+            <span class="pip me">П</span>
+            <span class="pip room">К</span>
+            <span class="pip room">И</span>
+            <span class="gap"></span>
+            <span class="pip tool" style="color: var(--accent)"
+              ><svg class="icon"><use href="#i-gear" /></svg
+            ></span>
+          </nav>
+
+          <nav class="settings-nav" aria-label="Настройки">
+            <div class="profile">
+              <span class="ava">П</span>
+              <div><b>Полина</b><span>Это устройство</span></div>
+            </div>
+            <div class="search">
+              <svg class="icon"><use href="#i-search" /></svg> Найти настройку
+            </div>
+
+            <div class="group">Приложение</div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-sun" /></svg> Внешний вид
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-lang" /></svg> Язык
+              <span class="badge">Новое</span>
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-bell" /></svg> Уведомления
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-key" /></svg> Горячие клавиши
+            </div>
+
+            <div class="group">Встречи</div>
+            <div class="nav-item on">
+              <svg class="icon"><use href="#i-mic" /></svg> Голос и видео
+            </div>
+            <div class="sub-items">
+              <span class="on">Микрофон</span><span>Камера</span
+              ><span>Обработка звука</span><span>Качество</span>
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-screen" /></svg> Демонстрация
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-sound" /></svg> Звуки
+            </div>
+
+            <div class="group">Подключения</div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-plug" /></svg> Аккаунты
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-server" /></svg> Серверы
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-info" /></svg> О Cord
+            </div>
+          </nav>
+
+          <div
+            class="handle hover"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ширина списка разделов"
+          ></div>
+
+          <main class="settings-content">
+            <div class="inner">
+              <h1>Голос и видео</h1>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2>Микрофон</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Устройство</b><span>Каким микрофоном вас слышат</span>
+                  </div>
+                  <div class="select">
+                    Yeti Nano <svg class="icon"><use href="#i-chev" /></svg>
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Громкость</b
+                    ><span>Насколько громко вас слышат остальные</span>
+                  </div>
+                  <div class="slider"><i></i><b></b></div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Проверка</b
+                    ><span>Скажите что-нибудь — полоса покажет уровень</span>
+                  </div>
+                  <div class="level"><i></i></div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Кнопка микрофона</b
+                    ><span>Нажмите, чтобы говорить, пока держите</span>
+                  </div>
+                  <div class="val">
+                    Ctrl + Пробел <button class="btn">Изменить</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2>Камера</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Устройство</b
+                    ><span>Какую камеру показывать остальным</span>
+                  </div>
+                  <div class="select">
+                    Logitech C920 <svg class="icon"><use href="#i-chev" /></svg>
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Зеркалить мой вид</b
+                    ><span>Только вам, остальные видят как есть</span>
+                  </div>
+                  <span class="switch on"></span>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Предпросмотр</b
+                    ><span>Проверьте кадр до входа во встречу</span>
+                  </div>
+                  <svg class="icon chev"><use href="#i-chev-r" /></svg>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2>Обработка звука</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Подавление шума</b
+                    ><span>Клавиатура и фон тише, голос — нет</span>
+                  </div>
+                  <span class="switch on"></span>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Эхоподавление</b
+                    ><span>Если собеседники слышат себя</span>
+                  </div>
+                  <span class="switch"></span>
+                </div>
+                <div class="note">
+                  <svg class="icon"><use href="#i-info" /></svg>
+                  <div>
+                    Громкость уведомлений и звуков комнаты — в разделе «Звуки».
+                    <b style="color: var(--accent); font-weight: 500"
+                      >Перейти в «Звуки»</b
+                    >
+                  </div>
+                </div>
+              </section>
+            </div>
+          </main>
+        </div>
+
+        <!-- Слой варианта a: затемнение и окно настроек -->
+        <div class="scrim" data-only="a"></div>
+        <div
+          class="settings-dialog"
+          data-only="a"
+          role="dialog"
+          aria-label="Настройки"
+        >
+          <nav class="settings-nav" aria-label="Настройки">
+            <div class="profile">
+              <span class="ava">П</span>
+              <div><b>Полина</b><span>Это устройство</span></div>
+            </div>
+            <div class="search">
+              <svg class="icon"><use href="#i-search" /></svg> Найти настройку
+            </div>
+            <div class="group">Приложение</div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-sun" /></svg> Внешний вид
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-lang" /></svg> Язык
+              <span class="badge">Новое</span>
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-bell" /></svg> Уведомления
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-key" /></svg> Горячие клавиши
+            </div>
+            <div class="group">Встречи</div>
+            <div class="nav-item on">
+              <svg class="icon"><use href="#i-mic" /></svg> Голос и видео
+            </div>
+            <div class="sub-items">
+              <span class="on">Микрофон</span><span>Камера</span
+              ><span>Обработка звука</span><span>Качество</span>
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-screen" /></svg> Демонстрация
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-sound" /></svg> Звуки
+            </div>
+            <div class="group">Подключения</div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-plug" /></svg> Аккаунты
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-server" /></svg> Серверы
+            </div>
+            <div class="nav-item">
+              <svg class="icon"><use href="#i-info" /></svg> О Cord
+            </div>
+          </nav>
+          <div
+            class="handle hover"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ширина списка разделов"
+          ></div>
+          <main class="settings-content">
+            <span class="dialog-close"
+              ><svg class="icon"><use href="#i-x" /></svg
+            ></span>
+            <div class="inner">
+              <h1>Голос и видео</h1>
+              <section class="section">
+                <div class="section-head">
+                  <h2>Микрофон</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Устройство</b><span>Каким микрофоном вас слышат</span>
+                  </div>
+                  <div class="select">
+                    Yeti Nano <svg class="icon"><use href="#i-chev" /></svg>
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Громкость</b
+                    ><span>Насколько громко вас слышат остальные</span>
+                  </div>
+                  <div class="slider"><i></i><b></b></div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Проверка</b
+                    ><span>Скажите что-нибудь — полоса покажет уровень</span>
+                  </div>
+                  <div class="level"><i></i></div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Кнопка микрофона</b
+                    ><span>Нажмите, чтобы говорить, пока держите</span>
+                  </div>
+                  <div class="val">
+                    Ctrl + Пробел <button class="btn">Изменить</button>
+                  </div>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head">
+                  <h2>Камера</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Устройство</b
+                    ><span>Какую камеру показывать остальным</span>
+                  </div>
+                  <div class="select">
+                    Logitech C920 <svg class="icon"><use href="#i-chev" /></svg>
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Зеркалить мой вид</b
+                    ><span>Только вам, остальные видят как есть</span>
+                  </div>
+                  <span class="switch on"></span>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Предпросмотр</b
+                    ><span>Проверьте кадр до входа во встречу</span>
+                  </div>
+                  <svg class="icon chev"><use href="#i-chev-r" /></svg>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head">
+                  <h2>Обработка звука</h2>
+                  <svg class="icon"><use href="#i-chev" /></svg>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Подавление шума</b
+                    ><span>Клавиатура и фон тише, голос — нет</span>
+                  </div>
+                  <span class="switch on"></span>
+                </div>
+                <div class="row">
+                  <div>
+                    <b>Эхоподавление</b
+                    ><span>Если собеседники слышат себя</span>
+                  </div>
+                  <span class="switch"></span>
+                </div>
+                <div class="note">
+                  <svg class="icon"><use href="#i-info" /></svg>
+                  <div>
+                    Громкость уведомлений и звуков комнаты — в разделе «Звуки».
+                    <b style="color: var(--accent); font-weight: 500"
+                      >Перейти в «Звуки»</b
+                    >
+                  </div>
+                </div>
+              </section>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
