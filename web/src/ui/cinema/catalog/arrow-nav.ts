@@ -55,7 +55,12 @@ export function arrowNav(event: KeyboardEvent<HTMLElement>) {
   const index = tiles.findIndex((tile) => tile.contains(target));
   const next = arrowTarget({ key: event.key, index, count: tiles.length, columns: columnsOf(tiles) });
   if (next === null) return;
-  const focus = tiles[next]!.querySelector<HTMLElement>('.cinema-open, button:not(:disabled)');
+  // Список селекторов отдал бы первую кнопку по порядку в разметке («Смотреть вместе» стоит раньше),
+  // поэтому сначала главная кнопка, и только без неё — любая доступная.
+  const tile = tiles[next]!;
+  const focus =
+    tile.querySelector<HTMLElement>('.cinema-open') ??
+    tile.querySelector<HTMLElement>('button:not(:disabled)');
   if (!focus) return;
   event.preventDefault();
   focus.focus();
