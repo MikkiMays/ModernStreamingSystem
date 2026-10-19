@@ -1,7 +1,4 @@
 /* `--muted` и `--blue` здесь больше не переопределяются: значения AA заданы в `styles/tokens.css`. */
-.create-description {
-  color: #fff;
-}
 input,
 select,
 textarea,
@@ -33,9 +30,6 @@ textarea,
 .file-footnote,
 .participant-info small,
 .file-row small,
-.create-description,
-.home-footer,
-.section-title > span,
 .message-meta,
 .message-meta time,
 .person-caption {

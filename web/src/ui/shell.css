@@ -1,0 +1,314 @@
+/*
+  Страницы вне приложения — подключение к серверу и скачивание (E02). Только токены
+  `styles/tokens.css`. Шапка у них общая: марка слева, одно-два действия справа; переключателя
+  темы здесь больше нет — тема живёт в настройках (T41), а до них эта страница идёт по системе
+  или по последнему выбору.
+*/
+.shell-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 1440px;
+  min-height: 72px;
+  margin: 0 auto;
+  padding: 0 clamp(var(--space-4), 4vw, var(--space-12));
+}
+.shell-header .brand {
+  --brand-h: 28px;
+}
+.shell-header__home {
+  display: inline-flex;
+  border-radius: var(--radius-2);
+  color: inherit;
+}
+.shell-header__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.shell-header__note {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+.shell-header .ui-button > svg {
+  flex: none;
+}
+.shell-download {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-md);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+.shell-download:hover {
+  color: var(--accent);
+}
+.shell-main {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-5);
+  width: 100%;
+  padding: var(--space-6) var(--space-6) var(--space-16);
+}
+.shell-card {
+  width: min(100%, 460px);
+  padding: var(--space-8);
+  border-radius: var(--radius-5);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-2);
+}
+
+/* ---------- подключение ---------- */
+.connect-card {
+  display: grid;
+  gap: var(--space-5);
+}
+.connect-card__badge {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-3);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.connect-card__heading h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+.connect-card__heading p {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.connect-card__form {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.connect-card__form .ui-switch-row {
+  padding: 0;
+}
+.connect-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 24px;
+}
+/* Итог попытки: коротко, слева снизу, подробность ошибки раскрывается стрелкой. */
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+.connection-status.connected {
+  color: var(--success);
+}
+.connection-status.failed {
+  display: block;
+  max-width: 100%;
+  color: var(--danger);
+}
+/* `display: flex` убирает родной треугольник раскрытия; причина должна выглядеть открываемой —
+   одна нарисованная стрелка, повёрнутая, когда открыто. */
+.connection-status.failed summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  cursor: pointer;
+}
+.connection-status.failed summary::-webkit-details-marker {
+  display: none;
+}
+.connection-status.failed summary::after {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-top: var(--space-1);
+  border: 4px solid transparent;
+  border-top-color: currentColor;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.connection-status.failed[open] summary::after {
+  margin: calc(var(--space-1) * -1) 0 0;
+  transform: rotate(-180deg);
+}
+.connection-status.failed small {
+  display: block;
+  padding: var(--space-2) 0 0 18px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-base);
+}
+
+/* ---------- скачивание ---------- */
+.download-main {
+  grid-template-columns: minmax(0, 640px);
+  justify-content: center;
+}
+.download-main > .shell-card {
+  width: 100%;
+}
+.download-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+.download-card .app-icon {
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-2);
+}
+.download-card h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+.download-card__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.download-card__primary {
+  max-width: 360px;
+  height: var(--control-touch);
+  margin-top: var(--space-2);
+  font-size: var(--text-md);
+  text-decoration: none;
+}
+.download-card__note {
+  margin: 0;
+  max-width: 460px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-base);
+}
+.download-section .download-card__note {
+  max-width: none;
+}
+.download-card__portable {
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+.download-section {
+  display: grid;
+  gap: var(--space-3);
+}
+.download-section h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+.download-section h2 > svg {
+  color: var(--accent);
+}
+.download-section p,
+.download-section ol {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+.download-section ol {
+  padding-left: var(--space-6);
+  color: var(--text);
+}
+/* `display: grid` у списка превратил бы пункты в ячейки и забрал бы номера, а номера и есть
+   инструкция. */
+.download-section li + li {
+  margin-top: var(--space-1);
+}
+/*
+  Адрес этого сервера. Поле только для чтения, но настоящее: адрес надо уметь выделить и
+  скопировать даже там, где буфер обмена запрещён политикой браузера.
+*/
+.download-address {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: var(--space-3);
+  border-radius: var(--field-radius);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.download-address input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-lg);
+  padding: 0 var(--space-3) 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 699px) {
+  .shell-header {
+    min-height: 60px;
+  }
+  .shell-header .brand {
+    --brand-h: 24px;
+  }
+  .shell-header__note {
+    display: none;
+  }
+  .shell-download > span {
+    display: none;
+  }
+  .shell-download {
+    padding: 0 var(--space-2);
+  }
+  .shell-main {
+    align-content: start;
+    padding: var(--space-3) var(--space-4) var(--space-10);
+  }
+  .shell-card {
+    padding: var(--space-6) var(--space-5);
+    border-radius: var(--radius-4);
+  }
+  .download-card h1 {
+    font-size: var(--text-xl);
+  }
+}

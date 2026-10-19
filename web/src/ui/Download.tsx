@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
-import { AppIcon, Logo, ThemeButton, type Theme } from './primitives';
+import { AppIcon, Logo } from './primitives';
+import { Button } from './kit';
 import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
+import './shell.css';
 
 /**
  * The page behind «Скачать Cord». It is deliberately outside the application: no server
@@ -12,7 +14,7 @@ import { megabytes, windowsRelease, type WindowsRelease } from '../core/download
  * показывает только «О программе». Номер остаётся там, где его читает не человек, а браузер и
  * Windows, — в адресе файла и в его имени.
  */
-export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
+export function Download() {
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   /**
@@ -33,60 +35,63 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
     };
   }, []);
   return (
-    <div className="download-page">
-      <header className="app-header">
-        <a className="header-home" href="/">
+    <div className="shell-page">
+      <header className="shell-header">
+        <a className="shell-header__home" href="/" aria-label="Cord — на главную">
           <Logo />
         </a>
-        <div className="header-end">
-          <a className="text-button" href="/">
-            <ArrowLeft size={16} /> На главную
+        <div className="shell-header__end">
+          <a className="ui-button ui-button--quiet ui-button--sm" href="/">
+            <ArrowLeft size={16} aria-hidden="true" /> На главную
           </a>
-          <ThemeButton theme={theme} setTheme={setTheme} />
         </div>
       </header>
-      <main className="download-main">
-        <section className="download-card">
-          <AppIcon size={76} />
+      <main className="shell-main download-main">
+        <section className="shell-card download-card">
+          <AppIcon size={72} />
           <h1>Cord для Windows</h1>
-          {release === undefined && <p className="muted">Смотрим, что опубликовано…</p>}
+          {release === undefined && <p className="download-card__meta">Смотрим, что опубликовано…</p>}
           {release === null && (
-            <p className="muted" role="status">
+            <p className="download-card__meta" role="status">
               Сборка для Windows сейчас недоступна. Попробуйте открыть страницу чуть позже.
             </p>
           )}
           {release && (
             <>
-              <p className="muted">
-                {release.installer!.size > 0 && `${megabytes(release.installer!.size)} · `}Windows 10 build
+              <p className="download-card__meta">
+                {release.installer!.size > 0 && `${megabytes(release.installer!.size)}, `}Windows 10 build
                 19041 и новее, x64
               </p>
-              <a className="button primary full download-primary" href={release.installer!.url} download="">
-                <DownloadIcon size={19} /> Скачать установщик
+              <a
+                className="ui-button ui-button--primary ui-button--lg ui-button--full download-card__primary"
+                href={release.installer!.url}
+                download=""
+              >
+                <DownloadIcon size={18} aria-hidden="true" /> Скачать установщик
               </a>
-              <p className="form-footnote download-note">
+              <p className="download-card__note">
                 Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
                 если его ещё нет.
               </p>
               {release.portable && (
-                <a className="text-button download-portable" href={release.portable.url} download="">
-                  Портативная сборка без установки · ZIP
+                <a className="download-card__portable" href={release.portable.url} download="">
+                  Портативная сборка без установки, ZIP
                   {release.portable.size > 0 && `, ${megabytes(release.portable.size)}`}
                 </a>
               )}
             </>
           )}
         </section>
-        <section className="download-warning download-address">
+        <section className="shell-card download-section">
           <h2>
-            <Server size={19} /> Куда подключаться после установки
+            <Server size={18} aria-hidden="true" /> Куда подключаться после установки
           </h2>
           <p>
             Cord не подключается никуда сам — при первом запуске он спросит адрес сервера. Это адрес вот этой
             страницы, тот же, с которого вы сейчас скачиваете приложение:
           </p>
-          <div className="invite-link">
-            <Server size={18} />
+          <div className="download-address">
+            <Server size={16} aria-hidden="true" />
             <input
               aria-label="Адрес этого сервера"
               value={address}
@@ -94,8 +99,9 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
               onFocus={(e) => e.target.select()}
             />
           </div>
-          <button
-            className="button secondary full"
+          <Button
+            full
+            icon={copied ? <Check size={16} /> : <Copy size={16} />}
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(address);
@@ -105,17 +111,16 @@ export function Download({ theme, setTheme }: { theme: Theme; setTheme: (theme: 
               }
             }}
           >
-            {copied ? <Check size={18} /> : <Copy size={18} />}{' '}
             {copied ? 'Адрес скопирован' : 'Скопировать адрес'}
-          </button>
-          <p className="form-footnote download-note">
+          </Button>
+          <p className="download-card__note">
             В Cord: «Указать первый сервер» → вставьте адрес → «Добавить». Имя и пароль — по желанию сервера;
             серверов можно держать несколько и переключаться между ними.
           </p>
         </section>
-        <section className="download-warning">
+        <section className="shell-card download-section">
           <h2>
-            <ShieldAlert size={19} /> Windows покажет предупреждение
+            <ShieldAlert size={18} aria-hidden="true" /> Windows покажет предупреждение
           </h2>
           <p>
             Установщик не подписан сертификатом издателя, поэтому SmartScreen скажет «Система Windows защитила

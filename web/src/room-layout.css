@@ -1,28 +1,3 @@
-.favorite-row {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.favorite-row .recent-room {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  border-radius: 0;
-}
-.favorite-row .recent-room > span:nth-child(2) {
-  min-width: 0;
-}
-.favorite-row strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.favorite-row > .icon-button {
-  margin-inline: 4px 10px;
-  flex-shrink: 0;
-}
 .text-button {
   color: var(--blue);
   padding: 8px;
@@ -51,29 +26,13 @@
   width: 48px;
   min-width: 48px;
 }
-[data-desktop='true'] .home-page > .app-header {
-  display: none;
-}
-[data-desktop='true'] .home-main {
-  margin-top: 0;
-  padding-top: clamp(36px, 7vh, 66px);
-}
-[data-desktop='true'] .home-main h1 {
-  font-size: clamp(38px, 4vw, 54px);
-}
 [data-desktop='true'] .prejoin-page > .app-header {
   height: 76px;
 }
 [data-desktop='true'] .prejoin-page > .app-header .brand {
   visibility: hidden;
 }
-[data-desktop='true'] .about-link {
-  display: none;
-}
 @media (max-width: 767px) {
-  .favorite-row .recent-room small {
-    font-size: 10px;
-  }
   .preview-settings {
     bottom: 12px;
     right: 12px;

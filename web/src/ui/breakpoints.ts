@@ -31,3 +31,9 @@ export const ROOMY = '(min-width: 960px)';
 
 /** Ширина полосы панели, пока она лежит поверх сцены. */
 export const DRAWER_WIDTH = 360;
+
+/**
+ * Главная: боковая панель с избранным — своя колонка с ручкой ширины; уже — выдвижное меню под
+ * бургером (`ui/home/home.css` считает по тому же числу).
+ */
+export const HOME_NAV_DOCKED = '(min-width: 960px)';

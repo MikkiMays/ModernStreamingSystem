@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { Monitor, Moon, Sun, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   useSyncExternalStore,
   type CSSProperties,
@@ -19,10 +19,10 @@ export { AppIcon, Logo } from './brand/Logo';
  * Скрывается лишь там, где бессмысленна, — внутри самого приложения. Номера версии в подсказке
  * нет (T58): его показывает только «О программе», поэтому и спрашивать манифест здесь незачем.
  */
-export function DownloadLink() {
+export function DownloadLink({ className = 'shell-download' }: { className?: string }) {
   if (window.chrome?.webview) return null;
   return (
-    <a className="download-link" href="/download" title="Cord для Windows">
+    <a className={className} href="/download" title="Cord для Windows">
       <AppIcon size={22} />
       <span>Скачать Cord</span>
     </a>
@@ -30,24 +30,6 @@ export function DownloadLink() {
 }
 
 export type Theme = 'system' | 'light' | 'dark';
-export function ThemeButton({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme) => void }) {
-  const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-  return (
-    <IconButton
-      label={`Тема: ${theme === 'system' ? 'системная' : theme === 'light' ? 'светлая' : 'тёмная'}. Переключить`}
-      onClick={() => setTheme(next)}
-    >
-      {theme === 'system' ? (
-        <Monitor size={20} />
-      ) : theme === 'light' ? (
-        <Sun size={20} />
-      ) : (
-        <Moon size={20} />
-      )}
-    </IconButton>
-  );
-}
-
 export function useStore<T>(store: Store<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.get);
 }
