@@ -1,8 +1,8 @@
-import { Menu } from '@base-ui/react/menu';
 import { LayoutGrid, UserSquare } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { StageLayout } from '../core/preferences';
-import { IconButton, useStore } from './primitives';
+import { IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
+import { useStore } from './primitives';
 
 /**
  * Как расставить участников.
@@ -11,40 +11,32 @@ import { IconButton, useStore } from './primitives';
  * даёт две марки вместо двух лиц, а на мониторе она же — то, что нужно. Договариваться об
  * этом с собеседником не о чем, поэтому настройка живёт на устройстве.
  */
-const LAYOUTS: { value: StageLayout; title: string; hint: string; icon: typeof LayoutGrid }[] = [
-  { value: 'grid', title: 'Сетка', hint: 'Все одинакового размера', icon: LayoutGrid },
-  { value: 'speaker', title: 'Говорящий', hint: 'Крупно тот, кто говорит', icon: UserSquare },
+const LAYOUTS: { value: StageLayout; title: string; icon: typeof LayoutGrid }[] = [
+  { value: 'grid', title: 'Сетка', icon: LayoutGrid },
+  { value: 'speaker', title: 'Говорящий', icon: UserSquare },
 ];
 
 function apply(meeting: Meeting, layout: StageLayout) {
   meeting.media.saveSettings({ layout });
 }
 
+/** Тихий значок справа от пульта: раскладку меняют редко, и в группах ей не место. */
 export function LayoutMenu({ meeting }: { meeting: Meeting }) {
   const layout = useStore(meeting.media.preferences).layout;
   const Current = LAYOUTS.find((item) => item.value === layout)?.icon ?? LayoutGrid;
   return (
-    <Menu.Root>
-      <Menu.Trigger
+    <Menu>
+      <MenuTrigger
         render={
-          <IconButton label="Расположение участников">
-            <Current size={21} />
+          <IconButton tone="stage" className="dock-tool" label="Расположение участников">
+            <Current size={20} />
           </IconButton>
         }
       />
-      <Menu.Portal>
-        <Menu.Positioner className="menu-layer" side="top" sideOffset={12}>
-          <Menu.Popup className="action-menu">
-            {LAYOUTS.map((item) => (
-              <Menu.Item key={item.value} onClick={() => apply(meeting, item.value)}>
-                <item.icon size={18} /> {item.title}
-                {item.value === layout ? ' ·' : ''}
-              </Menu.Item>
-            ))}
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+      <MenuContent side="top" align="end" sideOffset={12}>
+        <LayoutChoices meeting={meeting} />
+      </MenuContent>
+    </Menu>
   );
 }
 
@@ -54,10 +46,14 @@ export function LayoutChoices({ meeting }: { meeting: Meeting }) {
   return (
     <>
       {LAYOUTS.map((item) => (
-        <Menu.Item key={item.value} onClick={() => apply(meeting, item.value)}>
-          <item.icon size={18} /> {item.title}
-          {item.value === layout ? ' ·' : ''}
-        </Menu.Item>
+        <MenuItem
+          key={item.value}
+          icon={<item.icon />}
+          shortcut={item.value === layout ? '✓' : undefined}
+          onClick={() => apply(meeting, item.value)}
+        >
+          {item.title}
+        </MenuItem>
       ))}
     </>
   );
