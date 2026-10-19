@@ -1091,6 +1091,27 @@ class TelegramTests(Fixture):
         self.assertNotIn("Продолжаем", self.sent[-1]["text"])
         self.assertFalse(self.store.get(ROOM)["enabled"])
 
+    async def test_chat_music_rights_come_from_the_core(self):
+        # Люди беседы — не участники встречи: за них отвечает `participantCan` ядра.
+        self.bind()
+        self.integrations_allowed = True
+        self.participant_can = ["music.view"]
+        await self.bot.handle(self.message("/pause", 400, user=2))
+        self.assertIn("только себе", self.sent[-1]["text"])
+        # Флаг выключен, но ядро разрешает участнику музыку — решает ядро.
+        self.integrations_allowed = False
+        self.participant_can = ["music.view", "music.control"]
+        await self.bot.handle(self.message("/pause", 401, user=2))
+        self.assertNotIn("только себе", self.sent[-1]["text"])
+        # Привязавший беседу — создатель встречи: ему музыку можно всегда.
+        self.participant_can = ["music.view"]
+        await self.bot.handle(self.message("/pause", 402, user=1))
+        self.assertNotIn("только себе", self.sent[-1]["text"])
+        # Старое ядро без поля — прежний флаг.
+        self.participant_can = None
+        await self.bot.handle(self.message("/pause", 403, user=2))
+        self.assertIn("только себе", self.sent[-1]["text"])
+
     async def test_controls_help_and_foreign_bot_filter(self):
         self.bind()
         for title in ("One", "Two", "Three"):
