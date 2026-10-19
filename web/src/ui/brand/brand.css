@@ -1,0 +1,26 @@
+/* Марка — рисунок (`Logo.tsx`): знак и слово одной высоты `--brand-h`, зазор между ними —
+   13/30 высоты, как в прежнем текстовом логотипе. Цвет полос и точки — `--brand-accent`
+   (из токенов: `--accent-fill`), слово — цвет текста вокруг; `--brand-accent: currentColor`
+   даёт монохромную марку. */
+.brand {
+  --brand-h: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--brand-h) * 13 / 30);
+  height: var(--brand-h);
+  color: var(--text);
+  flex: none;
+  font-size: 0;
+  letter-spacing: 0;
+}
+.brand-mark {
+  width: var(--brand-h);
+  height: var(--brand-h);
+  flex: none;
+}
+.brand-word {
+  height: var(--brand-h);
+  width: auto;
+  aspect-ratio: 66 / 30;
+  flex: none;
+}

@@ -17,6 +17,7 @@ import { Connect } from './ui/Connect';
 import { Download } from './ui/Download';
 import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
+import { BootGate } from './ui/loader/BootGate';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -24,6 +25,8 @@ const queryClient = new QueryClient({
 const MeetingView = lazy(() =>
   import('./ui/MeetingView').then((module) => ({ default: module.MeetingView })),
 );
+// Витрина набора примитивов (E16): без сервера, сессии и кэша — как `/download`.
+const Showcase = lazy(() => import('./ui/kit/Showcase').then((module) => ({ default: module.Showcase })));
 function initialDestination() {
   try {
     return parseInvite(location.href);
@@ -322,10 +325,26 @@ function Downloads() {
 }
 
 export default function App() {
-  if (location.pathname === '/download') return <Downloads />;
+  // `BootGate` стоит рядом с экраном, а не над ним: статичная загрузка гаснет после кадра
+  // самого экрана, а не после кадра пустой обёртки, пока ленивый чанк ещё едет.
+  if (location.pathname === '/download')
+    return (
+      <>
+        <Downloads />
+        <BootGate />
+      </>
+    );
+  if (location.pathname === '/kit')
+    return (
+      <Suspense fallback={null}>
+        <Showcase />
+        <BootGate />
+      </Suspense>
+    );
   return (
     <QueryClientProvider client={queryClient}>
       <Workspace />
+      <BootGate />
     </QueryClientProvider>
   );
 }
