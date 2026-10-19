@@ -47,9 +47,20 @@ export const defaultAudio: AudioPreferences = {
   gain: 1,
 };
 
+/** Игры, у которых есть свои звуки стола (T45). */
+export type GameKind = 'poker' | 'durak' | 'chess' | 'gartic';
+export const gameKinds: GameKind[] = ['poker', 'durak', 'chess', 'gartic'];
+
 export interface Preferences {
   showPing: boolean;
   notificationSounds: boolean;
+  /**
+   * Громкость сигналов, 0–100: уведомления встречи и звуки игр — одной ручкой (П10). Сто — та
+   * громкость, с которой сигналы звучали до появления ручки.
+   */
+  soundVolume: number;
+  /** Звуки столов, у каждой игры свой выключатель. Звучат, только пока включены сигналы. */
+  gameSounds: Record<GameKind, boolean>;
   showIntegrationPanel: boolean;
   yandexMusicToken: string;
   screen: ScreenProfile;
@@ -132,6 +143,13 @@ export function readPreferences(): Preferences {
   return {
     showPing: data.showPing === true,
     notificationSounds: data.notificationSounds !== false,
+    soundVolume:
+      typeof data.soundVolume === 'number' && Number.isFinite(data.soundVolume)
+        ? Math.max(0, Math.min(100, Math.round(data.soundVolume)))
+        : 100,
+    gameSounds: Object.fromEntries(
+      gameKinds.map((game) => [game, data.gameSounds?.[game] !== false]),
+    ) as Record<GameKind, boolean>,
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,

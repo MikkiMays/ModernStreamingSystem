@@ -618,6 +618,8 @@ export interface components {
         };
         DurakSeat: {
             attacker: boolean;
+            /** @enum {string|null} */
+            auto?: "pass" | "take" | null;
             away: boolean;
             defender: boolean;
             fool: boolean;
@@ -782,7 +784,7 @@ export interface components {
             /** Format: int32 */
             toSeat: null | number;
             /** @enum {string} */
-            type: "deal" | "draw" | "play" | "take" | "discard";
+            type: "deal" | "draw" | "play" | "transfer" | "take" | "discard";
         };
         GarticAlbum: {
             /** Format: int32 */

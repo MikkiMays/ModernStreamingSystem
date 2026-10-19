@@ -120,7 +120,7 @@ export type RoomEvent = Omit<components['schemas']['Event'], 'version' | 'type'>
 };
 
 export type GameVisualEvent = Omit<components['schemas']['GameVisualEvent'], 'type'> & {
-  type: 'deal' | 'draw' | 'play' | 'take' | 'discard';
+  type: 'deal' | 'draw' | 'play' | 'transfer' | 'take' | 'discard';
 };
 export type GameReaction = components['schemas']['DurakReaction'];
 export type ChessTable = components['schemas']['ChessView'];

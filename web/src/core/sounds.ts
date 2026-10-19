@@ -117,6 +117,8 @@ export class NotificationSounds {
     const context = notificationContext;
     if (!context || context.state !== 'running') return;
     const notes = CUES[cue];
+    const volume = soundVolume();
+    if (volume <= 0) return;
     for (const { hz, at, hold, gain: level, type } of notes) {
       const starts = context.currentTime + at;
       const oscillator = context.createOscillator();
@@ -124,7 +126,7 @@ export class NotificationSounds {
       oscillator.type = type ?? 'sine';
       oscillator.frequency.value = hz;
       gain.gain.setValueAtTime(0, starts);
-      gain.gain.linearRampToValueAtTime(level, starts + 0.009);
+      gain.gain.linearRampToValueAtTime(level * volume, starts + 0.009);
       gain.gain.exponentialRampToValueAtTime(0.0001, starts + hold);
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(starts);
@@ -160,8 +162,20 @@ export function signal(cue: Cue) {
   application.play(cue);
 }
 
+/**
+ * Громкость сигналов, 0–1: общая у уведомлений встречи и у звуков игр (П10). Одна ручка на всё,
+ * что звучит «от приложения», а не от собеседников.
+ */
+export function soundVolume(): number {
+  return Math.max(0, Math.min(1, readPreferences().soundVolume / 100));
+}
+
 let listening = false;
 let notificationContext: AudioContext | undefined;
+/** Тот же контекст, что у сигналов: его отпирает первый жест, и игры звучат с ним сразу. */
+export function notificationAudio(): AudioContext | undefined {
+  return notificationContext;
+}
 /** Install at application startup so the entrance gesture unlocks room cues too. */
 export function unlockNotificationAudio() {
   if (listening || typeof AudioContext === 'undefined') return;
