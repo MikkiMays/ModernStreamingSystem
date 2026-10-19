@@ -1108,7 +1108,7 @@ class RouteTests(unittest.TestCase):
         )
 
         class Core:
-            async def member(self, room, authorization):
+            async def member(self, room, authorization, **_):
                 return {"id": room}, {"id": "member"}
 
         from fastapi import FastAPI
