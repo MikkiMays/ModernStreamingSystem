@@ -1,9 +1,11 @@
 package dev.mikki.stream.api;
 
 import dev.mikki.stream.room.Contracts;
+import dev.mikki.stream.room.Permissions;
 import dev.mikki.stream.room.RoomService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +22,23 @@ public class ServiceController {
     this.rooms = rooms;
   }
 
+  /**
+   * Встреча глазами службы.
+   *
+   * <p>{@code participantCan} — что может обычный участник этой встречи ({@link
+   * dev.mikki.stream.room.Permissions#participant}). По нему Telegram-бот решает за людей из
+   * привязанной беседы: они не участники встречи, снимка «глазами» каждого из них нет, а своей
+   * копии правила у службы больше нет. {@code integrationsAllowed} остаётся для службы, которая ещё
+   * не знает о {@code participantCan}.
+   */
   public record Info(
       String id,
       String title,
       String code,
       Long closedAt,
       boolean ownerPresent,
-      boolean integrationsAllowed) {}
+      boolean integrationsAllowed,
+      List<String> participantCan) {}
 
   @GetMapping("/{roomId}")
   public Info info(@PathVariable UUID roomId) {
@@ -41,7 +53,8 @@ public class ServiceController {
                 member ->
                     member.owner
                         && member.status == dev.mikki.stream.room.RoomState.Status.CONNECTED),
-        room.integrationsAllowed);
+        room.integrationsAllowed,
+        Permissions.participant(room));
   }
 
   @PostMapping("/{roomId}/invite")

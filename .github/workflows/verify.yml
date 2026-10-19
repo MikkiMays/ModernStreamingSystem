@@ -1,5 +1,12 @@
 name: Verify streaming system
-on: [push, pull_request, workflow_dispatch]
+# Коммит, который меняет только бэклог (промпты, журналы, статус), продукт не трогает — весь CI
+# ради него не нужен.
+on:
+  push:
+    paths-ignore: ['backlog/**']
+  pull_request:
+    paths-ignore: ['backlog/**']
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -27,8 +34,11 @@ jobs:
           assert int(suite.attrib['tests']) >= 15
           assert int(suite.attrib['skipped']) == 0
           PY
+      # Квота хранилища артефактов общая на аккаунт: когда она кончается, загрузка падает, хотя
+      # проверки прошли (18.10.2026). Отчёты — подсказка для разбора, а не сама проверка.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
+        continue-on-error: true
         with:
           name: core-test-results
           path: server/target/surefire-reports
@@ -77,8 +87,19 @@ jobs:
           } finally {
             .\scripts\stop-local.ps1
           }
+      # Журналы стенда — прямо в вывод задания: без них падение «SFU не встал» не разобрать, а
+      # артефакт может не загрузиться (квота).
+      - name: Print the local stack logs after a failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem .local/logs -File -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Output "===== $($_.Name)"
+            Get-Content $_.FullName -Tail 60
+          }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
+        continue-on-error: true
         with:
           name: browser-test-results
           include-hidden-files: true

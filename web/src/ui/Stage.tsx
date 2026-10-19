@@ -10,6 +10,7 @@ import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, IconButton, useStore } from './primitives';
 import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
+import { applyVolumeNow } from '../media/volume';
 import { SCENES } from './cinema/scenes';
 
 const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
@@ -100,10 +101,18 @@ function VideoTrack({
 }
 function AudioTrack({ tile, onBlocked, volume }: { tile: MediaTile; onBlocked: () => void; volume: number }) {
   const ref = useRef<HTMLAudioElement>(null);
+  // Громкость на момент подключения читается из ref, а не из зависимостей: менять её не значит
+  // переподключать дорожку.
+  const level = useRef(volume);
+  level.current = volume;
   useEffect(() => {
     const audio = ref.current;
     if (!audio) return;
     tile.track.attach(audio);
+    // Узел усиления только что родился на 1: убавленная до нуля музыка не должна прозвучать ни
+    // одного отсчёта, пока LiveKit плавно ведёт громкость к выбранной (T49, `media/volume.ts`).
+    if (tile.track instanceof RemoteAudioTrack)
+      applyVolumeNow(tile.track as unknown as Parameters<typeof applyVolumeNow>[0], level.current);
     void audio.play().catch(onBlocked);
     return () => {
       tile.track.detach(audio);
@@ -312,6 +321,8 @@ export function Stage({
     );
     const self = person.id === meeting.admission.participantId;
     const sharing = !!(person.screen && person.screenId && person.screenStarted);
+    // Слот взят, а кадра целевого качества ещё нет: показ открывается зрителям после него (T48).
+    const preparing = !!(person.screen && person.screenId && !person.screenStarted);
     return (
       <ParticipantMenu
         meeting={meeting}
@@ -357,6 +368,12 @@ export function Stage({
           </span>
           {!mic && <MicOff size={15} aria-label="Микрофон выключен" />}
         </div>
+        {preparing && (
+          <span className="watch-stream is-preparing" role="status">
+            <MonitorUp size={16} />
+            <span>Готовится показ…</span>
+          </span>
+        )}
         {sharing &&
           (self ? (
             <span className="watch-stream is-own">

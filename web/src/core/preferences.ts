@@ -1,5 +1,6 @@
 import { notifyDesktop } from './desktop';
 import type { ScreenProfile } from '../media/profiles';
+import { nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import type { NetworkMode } from '../media/playout';
 import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
@@ -102,22 +103,14 @@ export interface Preferences {
 }
 const key = 'cord:preferences:v1';
 /**
- * «Авто» — это не уровень, а лестница, и начинается она там же, где лестница в
- * `media/auto-quality.ts`. Камера стояла здесь на 720p30, и это и означало «Авто»: не
- * «столько, сколько тянет связь», а ровно 720p — хуже, чем у любого, кто выбрал уровень
- * руками. Теперь это стартовая ступень, с которой автоматика уходит вверх.
+ * Уровень отдачи — всегда выбранный; умолчание и потолок задаёт сервер (`media/capabilities.ts`).
+ *
+ * Старые записи несут `automatic: true` («Авто» — лестницы больше нет), 1440p (выше нынешнего
+ * потолка) и забытые `automaticFps`/режим содержимого. Всё это сводится к ближайшему допустимому
+ * уровню при чтении; сама запись не переписывается — другой сервер может разрешать больше.
  */
-const defaultScreen: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
-const defaultCamera: ScreenProfile = { resolution: 1080, fps: 30, automatic: true };
-// Settings saved before the content mode was removed still carry it; the extra key is ignored.
-// `automaticFps` тоже остался в старых записях: частота теперь автоматическая ровно тогда,
-// когда автоматический сам уровень, и отдельным флагом больше не управляется.
-function profile(value: Partial<ScreenProfile> | undefined, fallback: ScreenProfile): ScreenProfile {
-  return {
-    resolution: [720, 1080, 1440].includes(value?.resolution ?? 0) ? value!.resolution! : fallback.resolution,
-    fps: [15, 30, 60].includes(value?.fps ?? 0) ? value!.fps! : fallback.fps,
-    automatic: typeof value?.automatic === 'boolean' ? value.automatic : true,
-  };
+function profile(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
+  return nearestLevel(value);
 }
 export function readPreferences(): Preferences {
   let data: Partial<Preferences> = {};
@@ -136,8 +129,8 @@ export function readPreferences(): Preferences {
     pokerFeed: data.pokerFeed !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
-    screen: profile(data.screen, defaultScreen),
-    camera: profile(data.camera, defaultCamera),
+    screen: profile(data.screen),
+    camera: profile(data.camera),
     devices,
     audio: {
       suppression: ['off', 'browser', 'rnnoise', 'voice'].includes(data.audio?.suppression ?? '')
@@ -196,7 +189,4 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
     notificationSounds: next.notificationSounds,
   });
   return next;
-}
-export function automaticProfile(kind: 'screen' | 'camera'): ScreenProfile {
-  return { ...(kind === 'screen' ? defaultScreen : defaultCamera) };
 }

@@ -29,6 +29,7 @@ vi.mock('livekit-client', async (importOriginal) => {
       this.emit(sdk.RoomEvent.Disconnected);
     });
     connect = vi.fn(async () => {});
+    simulateScenario = vi.fn(async () => {});
   }
   return { ...sdk, Room: FakeRoom };
 });
@@ -196,12 +197,13 @@ describe('selective screen subscriptions', () => {
 /**
  * «Камера моргает». Шаг лестницы качества раньше снимал камеру с публикации и публиковал заново:
  * у всех, кто смотрит, пропадала дорожка и начиналась новая — с нижнего слоя и разгона полосы.
- * Теперь шаг — это параметры слоёв у той же дорожки. Лестница здесь зовётся напрямую: её входы
- * (жалобы кодировщика) проверены в upstream/auto-quality, а здесь важно, ЧЕМ шаг исполняется.
+ * Теперь ступень удержания — это параметры слоёв у той же дорожки. Удержание здесь зовётся
+ * напрямую: его входы (жалобы кодировщика) проверены в upstream/hold, а здесь важно, ЧЕМ ступень
+ * исполняется.
  */
-describe('шаг лестницы камеры', () => {
+describe('ступень удержания камеры', () => {
   function cameraFixture(
-    camera: { resolution: number; fps: number; automatic: boolean },
+    camera: { resolution: number; fps: number },
     size?: { width: number; height: number },
   ) {
     localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera }));
@@ -231,37 +233,127 @@ describe('шаг лестницы камеры', () => {
   }
   afterEach(() => localStorage.clear());
 
-  it('под выбранным вручную уровнем меняет слои той же дорожки и не трогает захват', async () => {
-    const f = cameraFixture({ resolution: 1440, fps: 60, automatic: false });
+  it('меняет слои той же дорожки, не трогает захват и не переписывает выбор', async () => {
+    const f = cameraFixture({ resolution: 1080, fps: 60 }, { width: 1920, height: 1080 });
     try {
-      f.step(1080, 60);
+      f.step(720, 60);
       await vi.waitFor(() => expect(f.sender.setParameters).toHaveBeenCalledOnce());
-      expect(f.layers().at(-1)).toMatchObject({ maxBitrate: 10000000, maxFramerate: 60 });
+      expect(f.layers().at(-1)).toMatchObject({ maxBitrate: 5000000, maxFramerate: 60 });
       expect(f.capture.applyConstraints).not.toHaveBeenCalled();
       expect(f.unpublishTrack).not.toHaveBeenCalled();
       expect(f.publishTrack).not.toHaveBeenCalled();
+      // Ступень — не выбор: в настройках по-прежнему то, что выбрал человек.
+      expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).camera).toEqual({
+        resolution: 1080,
+        fps: 60,
+      });
     } finally {
       f.session.dispose();
     }
   });
+});
 
-  it('в «Авто» выше снятого расширяет захват той же дорожкой и запоминает ступень', async () => {
-    const f = cameraFixture({ resolution: 1080, fps: 30, automatic: true }, { width: 1920, height: 1080 });
-    try {
-      f.step(1440, 60);
-      await vi.waitFor(() => expect(f.sender.setParameters).toHaveBeenCalledOnce());
-      expect(f.capture.applyConstraints).toHaveBeenCalledWith(
-        expect.objectContaining({ height: { ideal: 1440 }, frameRate: { ideal: 60 } }),
+/**
+ * Показ открывается зрителям после кадра целевого качества (T48): `screen.started` уходит, когда
+ * верхний слой закодировал кадр того размера, что просили, — или когда кончилось окно разгона.
+ */
+describe('показ открывается зрителям после кадра целевого качества', () => {
+  function readyFixture(settleMs: number) {
+    localStorage.setItem(
+      'cord:quality:v1',
+      JSON.stringify({
+        default: { resolution: 720, fps: 30 },
+        ceiling: { resolution: 1080, fps: 60 },
+        settleMs,
+        cameraYieldsToScreen: false,
+      }),
+    );
+    const f = screenFixture();
+    let frame = { width: 640, height: 360 };
+    const report = () =>
+      new Map([
+        [
+          'f',
+          {
+            type: 'outbound-rtp',
+            kind: 'video',
+            frameWidth: frame.width,
+            frameHeight: frame.height,
+            framesEncoded: 3,
+          },
+        ],
+      ]) as unknown as RTCStatsReport;
+    f.publishTrack.mockImplementation(async () => ({
+      track: {
+        source: Track.Source.ScreenShare,
+        kind: Track.Kind.Video,
+        mediaStreamTrack: f.video,
+        stop: f.video.stop,
+        getRTCStatsReport: async () => report(),
+      },
+    }));
+    Object.assign(f.api, { screen: vi.fn(async () => ({ value: 'slot' })) });
+    f.permissions.canPublishSources.push(Track.sourceToProto(Track.Source.ScreenShare));
+    const started = () =>
+      (f.api.command as ReturnType<typeof vi.fn>).mock.calls.some(
+        ([command]) => (command as { type: string }).type === 'screen.started',
       );
-      expect(f.unpublishTrack).not.toHaveBeenCalled();
-      expect(f.publishTrack).not.toHaveBeenCalled();
-      expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).camera).toMatchObject({
-        resolution: 1440,
-        fps: 60,
-        automatic: true,
-      });
+    return { ...f, started, encode: (width: number, height: number) => (frame = { width, height }) };
+  }
+  afterEach(() => localStorage.clear());
+
+  it('не шлёт screen.started, пока верхний слой мельче целевого, и шлёт по кадру целевого размера', async () => {
+    const f = readyFixture(10000);
+    try {
+      f.media.share(f.media.requestedProfile);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(f.started()).toBe(false);
+      // Захват 1920×1080 под уровень 720p — цель 1280×720.
+      f.encode(1280, 720);
+      await vi.waitFor(() => expect(f.started()).toBe(true), { timeout: 3000 });
     } finally {
-      f.session.dispose();
+      f.media.dispose();
+    }
+  });
+
+  it('по истечении окна разгона открывает то, что есть', async () => {
+    const f = readyFixture(600);
+    try {
+      f.media.share(f.media.requestedProfile);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalled());
+      expect(f.started()).toBe(false);
+      await vi.waitFor(() => expect(f.started()).toBe(true), { timeout: 3000 });
+    } finally {
+      f.media.dispose();
+    }
+  });
+});
+
+/** Знак сети при живом SDK — немедленный resume, а не ожидание таймаута пинга (T50). */
+describe('знак сети', () => {
+  it('по online при «подключённом» SDK просит resume сразу, но не чаще раза в несколько секунд', () => {
+    const { media, room } = fixture();
+    const resume = (room as unknown as { simulateScenario: ReturnType<typeof vi.fn> }).simulateScenario;
+    try {
+      window.dispatchEvent(new Event('online'));
+      expect(resume).toHaveBeenCalledWith('signal-reconnect');
+      window.dispatchEvent(new Event('online'));
+      expect(resume).toHaveBeenCalledTimes(1);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('пока SDK переподключается сам, не мешает ему', () => {
+    const { media, room } = fixture();
+    const resume = (room as unknown as { simulateScenario: ReturnType<typeof vi.fn> }).simulateScenario;
+    try {
+      (room as unknown as { state: string }).state = 'reconnecting';
+      window.dispatchEvent(new Event('online'));
+      expect(resume).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
     }
   });
 });

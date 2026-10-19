@@ -1,4 +1,4 @@
-import { captureCeiling, type ScreenProfile } from './profiles';
+import type { ScreenProfile } from './profiles';
 
 /** A Windows/WebView host can supply capture without changing room or UI state. */
 export interface CaptureAdapter {
@@ -12,10 +12,9 @@ export interface CaptureAdapter {
  * означало 1920×1080 и вопрос «почему показ идёт в 1080, если выбрано 1440»: выбор доезжал
  * до `applyConstraints` уже после захвата, а тот умеет только урезать то, что дали.
  *
- * Просить надо **потолок**, а не текущую ступень: в «Авто» уровень меняется по ходу показа,
- * и источник, захваченный под 1080p30, не дал бы подняться выше, сколько бы ни было канала.
- * Захват идёт по верхней границе, а сколько из него отдавать — решают ограничения дорожки,
- * которые накладываются сразу после.
+ * Просится выбранный уровень: лестницы «Авто», ради которой захват когда-то шёл по верху
+ * лестницы (1440p60), больше нет — выбранное публикуется сразу (T44). Сколько из захвата
+ * отдавать, решают ограничения дорожки, которые накладываются сразу после.
  *
  * `ideal`, а не `exact`: экран меньше запрошенного не растянуть, и требовать этого нельзя —
  * `exact` здесь означал бы отказ захватывать вовсе.
@@ -48,13 +47,12 @@ export function ownAudioLeaks(video?: MediaStreamTrack, audio?: MediaStreamTrack
 
 export const browserCapture: CaptureAdapter = {
   supported: () => typeof navigator.mediaDevices?.getDisplayMedia === 'function',
-  capture: (profile) => {
-    const ceiling = captureCeiling(profile);
-    return navigator.mediaDevices.getDisplayMedia({
+  capture: (profile) =>
+    navigator.mediaDevices.getDisplayMedia({
       video: {
-        width: { ideal: Math.round((ceiling.resolution * 16) / 9) },
-        height: { ideal: ceiling.resolution },
-        frameRate: { ideal: ceiling.fps, max: ceiling.fps },
+        width: { ideal: Math.round((profile.resolution * 16) / 9) },
+        height: { ideal: profile.resolution },
+        frameRate: { ideal: profile.fps, max: profile.fps },
       },
       // Незнакомое имя ограничения браузер просто игнорирует, поэтому просить можно всегда;
       // а понял он просьбу или нет — видно по `ownAudioRestrictable`.
@@ -64,6 +62,5 @@ export const browserCapture: CaptureAdapter = {
         autoGainControl: false,
         restrictOwnAudio: true,
       } as MediaTrackConstraints,
-    });
-  },
+    }),
 };

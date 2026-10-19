@@ -241,6 +241,16 @@ button.watch-stream:hover {
   font-weight: 500;
   cursor: default;
 }
+/*
+  Показ готовится: слот взят, но кадра целевого качества ещё нет, и зрителям он не открыт.
+  Та же плашка, только приглушённая и без LIVE — это ожидание, а не кнопка.
+*/
+.watch-stream.is-preparing {
+  background: #24273399;
+  font-weight: 500;
+  color: #ffffffcc;
+  cursor: default;
+}
 .watch-stream .live-badge {
   font-size: 9px;
   font-weight: 700;

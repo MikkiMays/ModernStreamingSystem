@@ -558,10 +558,17 @@ class Telegram:
                     info = await self.core.request(
                         "GET", f"/internal/services/{room_id}"
                     )
+                    # Люди беседы — не участники встречи, снимка «глазами» каждого нет. За них
+                    # отвечает ядро: `participantCan` — что может обычный участник. Привязавший
+                    # беседу — создатель встречи (команду `/bind` выдаёт только ему
+                    # `telegram.link`), и ему музыку можно всегда. Старое ядро поля не знает —
+                    # тогда прежний флаг.
+                    allowed = info.get("participantCan")
                     if (
-                        not info.get("integrationsAllowed", True)
-                        and message.get("from", {}).get("id") != binding["ownerId"]
-                    ):
+                        "music.control" not in allowed
+                        if isinstance(allowed, list)
+                        else not info.get("integrationsAllowed", True)
+                    ) and message.get("from", {}).get("id") != binding["ownerId"]:
                         raise HTTPException(
                             403,
                             "Организатор разрешил управление интеграциями только себе",

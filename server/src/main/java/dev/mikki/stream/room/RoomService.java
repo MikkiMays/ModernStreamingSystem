@@ -5,6 +5,7 @@ import static dev.mikki.stream.room.RoomState.Status.*;
 
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.room.Permissions.Action;
 import dev.mikki.stream.shared.Json;
 import dev.mikki.stream.shared.Problem;
 import java.security.SecureRandom;
@@ -316,7 +317,7 @@ public class RoomService {
   public Snapshot roomSettings(String roomId, String credential, Contracts.RoomSettings settings) {
     var room = lock(roomId);
     var member = authenticate(room, credential);
-    owner(member);
+    Permissions.require(room, member, Action.ROOM_SETTINGS);
     requireOpen(room);
     // Проверка та же, что при создании: @NotBlank отсекает пустое и одни пробелы, @Size —
     // длину. Дублировать её здесь значило бы завести второе место, где она может разойтись.
@@ -331,7 +332,7 @@ public class RoomService {
   public Snapshot integrationSettings(String roomId, String credential, boolean enabled) {
     var room = lock(roomId);
     var member = authenticate(room, credential);
-    owner(member);
+    Permissions.require(room, member, Action.ROOM_INTEGRATIONS);
     requireOpen(room);
     room.integrationsAllowed = enabled;
     emit(room, "room.changed", EventPayload.changed());
@@ -407,7 +408,8 @@ public class RoomService {
             current.pokerGamesAt(),
             current.durakGamesAt(),
             current.chess(),
-            current.gartic());
+            current.gartic(),
+            current.you());
     return new Admission(
         room.id,
         member.id,
@@ -479,9 +481,10 @@ public class RoomService {
   /**
    * Снимок комнаты глазами конкретного участника.
    *
-   * <p>Участник здесь нужен ровно для одного: покер. Всё остальное в комнате — общее, и показывать
-   * его по-разному незачем; карты же принадлежат тому, кому их раздали, и снимок «для всех» их не
-   * содержит вовсе ({@code viewer == null} — это взгляд постороннего).
+   * <p>Участник здесь нужен для двух вещей: карт и прав. Всё остальное в комнате — общее, и
+   * показывать его по-разному незачем; карты же принадлежат тому, кому их раздали, а права — тому,
+   * у кого они есть ({@code you}). Снимок «для всех» не содержит ни того, ни другого ({@code viewer
+   * == null} — это взгляд постороннего).
    */
   private Snapshot snapshot(RoomState room, RoomState.Member viewer) {
     var participants =
@@ -543,7 +546,8 @@ public class RoomService {
         lastGameAt(room),
         lastDurakAt(room),
         room.chess == null ? null : room.chess.view(viewer == null ? null : viewer.id, now()),
-        room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()));
+        room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()),
+        viewer == null ? null : new RoomYou(Permissions.granted(room, viewer)));
   }
 
   /**
@@ -617,7 +621,10 @@ public class RoomService {
         0,
         0,
         null,
-        null);
+        null,
+        // Права — свои, как и у допущенного: у ожидающего их список пуст, и браузеру незачем
+        // угадывать это по статусу.
+        current.you());
   }
 
   @Transactional
@@ -643,16 +650,16 @@ public class RoomService {
               emit(room, "room.changed", EventPayload.changed());
             }
             case "close" -> {
-              owner(member);
+              Permissions.require(room, member, Action.ROOM_CLOSE);
               close(room);
             }
             case "invite.create" -> {
-              owner(member);
+              Permissions.require(room, member, Action.INVITE_MANAGE);
               requireOpen(room);
               value = invite(room);
             }
             case "invite.revoke" -> {
-              owner(member);
+              Permissions.require(room, member, Action.INVITE_MANAGE);
               requireOpen(room);
               room.invites.replaceAll(
                   (id, i) ->
@@ -660,7 +667,12 @@ public class RoomService {
                           i.id(), i.secretHash(), i.createdAt(), i.expiresAt(), true));
             }
             case "participant.remove", "participant.approve" -> {
-              owner(member);
+              Permissions.require(
+                  room,
+                  member,
+                  command.type().equals("participant.remove")
+                      ? Action.PARTICIPANT_REMOVE
+                      : Action.PARTICIPANT_APPROVE);
               requireOpen(room);
               var target = room.members.get(command.targetId());
               if (target == null || target.owner) throw Problem.forbidden();
@@ -725,7 +737,7 @@ public class RoomService {
             case "watch.open" -> {
               requireActive(room, member);
               requireOpen(room);
-              integrations(room, member);
+              Permissions.require(room, member, Action.WATCH_OPEN);
               // Активная интеграция в комнате одна. Музыка и кинозал спорят за одно и то же —
               // за уши участников, — и «добавились обе» означает два звука разом, из которых
               // не выключить ни один.
@@ -777,7 +789,7 @@ public class RoomService {
                Своим у каждого остаётся то, о чём договариваться не с кем: громкость и
                качество приёма. Их комната не хранит вовсе.
               */
-              integrations(room, member);
+              Permissions.require(room, member, Action.WATCH_CONTROL);
               if (!"video".equals(watch.kind))
                 throw Problem.conflict(
                     "WATCH_LIVE", "Живой эфир нельзя останавливать и перематывать");
@@ -789,7 +801,7 @@ public class RoomService {
             }
             case "watch.close" -> {
               requireActive(room, member);
-              integrations(room, member);
+              Permissions.require(room, member, Action.WATCH_CLOSE);
               room.watch = null;
             }
             /*
@@ -805,7 +817,7 @@ public class RoomService {
             case "poker.open" -> {
               requireActive(room, member);
               requireOpen(room);
-              integrations(room, member);
+              Permissions.require(room, member, Action.POKER_OPEN);
               stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.DURAK_TABLE);
               if (room.poker != null) throw Problem.conflict("POKER_OPEN", "Стол уже открыт");
               room.poker =
@@ -865,7 +877,7 @@ public class RoomService {
             case "durak.open" -> {
               requireActive(room, member);
               requireOpen(room);
-              integrations(room, member);
+              Permissions.require(room, member, Action.DURAK_OPEN);
               stageBusy(room, Occupant.NEW_GAME, Occupant.CINEMA, Occupant.POKER_TABLE);
               if (room.durak != null) throw Problem.conflict("DURAK_OPEN", "Стол уже открыт");
               room.durak =
@@ -905,14 +917,14 @@ public class RoomService {
             }
             case "chess.open" -> {
               requireActive(room, member);
-              integrations(room, member);
+              Permissions.require(room, member, Action.CHESS_OPEN);
               gameStageAvailable(room);
               room.chess =
                   dev.mikki.stream.game.Chess.open(member.id, member.name, command.option(), now());
             }
             case "chess.close" -> {
               requireActive(room, member);
-              gameHost(member, chess(room).hostId);
+              chessHost(room, member);
               gameIdentity(chess(room).id, command.contentId());
               room.chess = null;
             }
@@ -928,12 +940,12 @@ public class RoomService {
             }
             case "chess.start" -> {
               requireActive(room, member);
-              gameHost(member, chess(room).hostId);
+              chessHost(room, member);
               room.chess.start(command.contentId(), now());
             }
             case "chess.settings" -> {
               requireActive(room, member);
-              gameHost(member, chess(room).hostId);
+              chessHost(room, member);
               gameIdentity(room.chess.id, command.contentId());
               room.chess.configure(command.option(), now());
             }
@@ -956,7 +968,7 @@ public class RoomService {
             }
             case "gartic.open" -> {
               requireActive(room, member);
-              integrations(room, member);
+              Permissions.require(room, member, Action.GARTIC_OPEN);
               gameStageAvailable(room);
               room.gartic =
                   dev.mikki.stream.game.Gartic.open(
@@ -978,17 +990,17 @@ public class RoomService {
               gameIdentity(drawing.gameId, command.contentId());
               switch (command.type()) {
                 case "gartic.close" -> {
-                  gameHost(member, drawing.hostId);
+                  Permissions.require(room, member, Action.GARTIC_MANAGE);
                   room.gartic = null;
                 }
                 case "gartic.join" -> drawing.join(member.id, member.name, now());
                 case "gartic.leave" -> drawing.leave(member.id, now());
                 case "gartic.settings" -> {
-                  gameHost(member, drawing.hostId);
+                  Permissions.require(room, member, Action.GARTIC_MANAGE);
                   drawing.configure(command.option(), command.chips(), now());
                 }
                 case "gartic.start" -> {
-                  gameHost(member, drawing.hostId);
+                  Permissions.require(room, member, Action.GARTIC_MANAGE);
                   drawing.start(now());
                 }
                 case "gartic.choose" ->
@@ -1003,7 +1015,7 @@ public class RoomService {
                 case "gartic.submit" ->
                     drawing.submit(member.id, command.text(), gameTurn(command), now());
                 case "gartic.reveal" -> {
-                  gameHost(member, drawing.hostId);
+                  Permissions.require(room, member, Action.GARTIC_MANAGE);
                   drawing.reveal(
                       gameNumber(command.chips()),
                       command.seat() == null ? 0 : command.seat(),
@@ -1076,7 +1088,7 @@ public class RoomService {
   public Ack muteMicrophone(String roomId, String credential, Command command, Runnable mute) {
     var room = lock(roomId);
     var member = authenticate(room, credential);
-    owner(member);
+    Permissions.require(room, member, Action.PARTICIPANT_MUTE);
     requireActive(room, member);
     var target = room.members.get(command.targetId());
     if (target == null || !target.mediaAllowed()) throw Problem.forbidden();
@@ -1089,22 +1101,6 @@ public class RoomService {
           mute.run();
           return new Ack(command.commandId(), true, room.sequence, null);
         });
-  }
-
-  private void owner(RoomState.Member member) {
-    if (!member.owner || !member.occupiesSeat()) throw Problem.forbidden();
-  }
-
-  /**
-   * Кто может трогать во встрече постороннее: ведущий всегда, остальные — если комната разрешила
-   * интеграции всем. Тот же переключатель управляет ботами: заводить для просмотра второй значило
-   * бы спросить дважды об одном и том же.
-   *
-   * <p>Одна проверка и на «принести», и на «нажать паузу»: смотрят вместе свои, и разрешение видеть
-   * кино вместе — это то же самое разрешение его остановить.
-   */
-  private void integrations(RoomState room, RoomState.Member member) {
-    if (!member.owner && !room.integrationsAllowed) throw Problem.forbidden();
   }
 
   /**
@@ -1226,9 +1222,13 @@ public class RoomService {
       throw Problem.conflict("INTEGRATION_BUSY", "Сначала закройте текущую игру или кинозал");
   }
 
-  private static void gameHost(RoomState.Member member, String hostId) {
-    if (!member.owner && !member.id.equals(hostId))
-      throw Problem.conflict("GAME_HOST_ONLY", "Это действие доступно ведущему игры");
+  /**
+   * Распоряжаться доской может её ведущий и создатель встречи ({@link Permissions}); доска при этом
+   * должна быть — команда без неё отвечает {@code CHESS_CLOSED}, как и раньше, до проверки права.
+   */
+  private static void chessHost(RoomState room, RoomState.Member member) {
+    chess(room);
+    Permissions.require(room, member, Action.CHESS_MANAGE);
   }
 
   private static void gameIdentity(String actual, String expected) {
@@ -1266,15 +1266,15 @@ public class RoomService {
   }
 
   /**
-   * Кто распоряжается столом: тот, кто его принёс, и ведущий встречи.
+   * Кто распоряжается столом: тот, кто его принёс, и ведущий встречи ({@link Permissions}).
    *
    * <p>Ведущий здесь не «начальник», а запасной выход: принёсший стол мог закрыть вкладку, и без
    * этого правила игра осталась бы без того, кто раздаёт, до конца встречи.
    */
   private void dealer(RoomState room, RoomState.Member member) {
     requireActive(room, member);
-    var poker = table(room);
-    if (!member.owner && !member.id.equals(poker.hostId)) throw Problem.forbidden();
+    table(room);
+    Permissions.require(room, member, Action.POKER_MANAGE);
   }
 
   /** Стол дурака, который точно есть. */
@@ -1286,8 +1286,8 @@ public class RoomService {
   /** Кто распоряжается столом дурака: принёсший его и ведущий встречи. То же, что у покера. */
   private void fool(RoomState room, RoomState.Member member) {
     requireActive(room, member);
-    var table = durak(room);
-    if (!member.owner && !member.id.equals(table.hostId)) throw Problem.forbidden();
+    durak(room);
+    Permissions.require(room, member, Action.DURAK_MANAGE);
   }
 
   /** Участник во встрече и вправе действовать; возвращает время, которым это и произошло. */

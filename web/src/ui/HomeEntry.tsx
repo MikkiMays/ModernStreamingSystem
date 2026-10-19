@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Hash, Plus } from 'lucide-react';
-import { publicApi } from '../api/client';
+import { serverInfo } from '../core/session';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
 import '../home-entry.css';
 
@@ -18,7 +18,8 @@ export function HomeEntry({
   const id = useId();
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
-  const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: publicApi.capabilities, retry: 1 });
+  // `serverInfo`, а не голый запрос: заодно запоминаются правила качества с сервера.
+  const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: serverInfo, retry: 1 });
   const creationClosed = capabilities.data?.admissionOpen === false;
   return (
     <section className={`home-entry ${className}`} aria-labelledby={`${id}-title`}>

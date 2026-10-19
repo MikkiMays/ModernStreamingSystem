@@ -36,6 +36,7 @@ import {
   type Drop,
 } from '../core/durak';
 import { useTableRatio } from './GamePresentation';
+import { allowed } from '../core/permissions';
 import { useDurakMotion } from './DurakMotion';
 import { DurakReactions } from './DurakReactions';
 import { Avatar, IconButton, useStore } from './primitives';
@@ -66,9 +67,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
   const connected = connection === 'connected';
   const you = table.you;
   const mySeat = you?.seat ?? null;
-  const host =
-    table.hostId === meeting.admission.participantId ||
-    !!snapshot.participants.find((p) => p.id === meeting.admission.participantId)?.owner;
+  const host = allowed({ ...snapshot, durak: table }, meeting.admission.participantId, 'durak.manage');
   const paused = !!table.paused;
   const pauseSupported = table.paused !== undefined;
   const scene = useRef<HTMLDivElement>(null);

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Download, Github, Info, RefreshCw, Send, TriangleAlert } from 'lucide-react';
-import { INSTALLER_URL, RELEASES_PAGE, isNewer, windowsRelease } from '../core/download';
-import { CORE_REPOSITORY_URL, commitsLabel, upstreamState } from '../core/upstream-version';
+import { Download, Info, RefreshCw, Send, TriangleAlert } from 'lucide-react';
+import { isNewer, windowsRelease, type WindowsRelease } from '../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop } from '../core/desktop';
 import { appLabel, appVersion } from '../core/version';
 import { useStore } from './primitives';
@@ -11,8 +10,7 @@ import { useStore } from './primitives';
  *
  * Оболочка Windows отменяет любой переход на чужой адрес внутри окна и отдаёт системному
  * браузеру только то, что просит новое окно, — то есть `target="_blank"`. Без него ссылка
- * внутри приложения просто ничего не делает, и это не догадка: ровно так себя вела «Все
- * выпуски», пока её не убрали отсюда.
+ * внутри приложения просто ничего не делает.
  */
 function External({
   href,
@@ -51,12 +49,10 @@ function External({
 export function AboutFields() {
   const desktop = !!window.chrome?.webview;
   const shell = useStore(desktopUpdate);
-  const [latest, setLatest] = useState<string | null | undefined>(undefined);
-  const [behind, setBehind] = useState<number | null>(null);
+  const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
   useEffect(() => {
     if (desktop) notifyDesktop('update.version');
-    void upstreamState().then((state) => setBehind(state?.behind ?? null));
   }, [desktop]);
   const check = () => {
     setChecking(true);
@@ -67,12 +63,13 @@ export function AboutFields() {
       setTimeout(() => setChecking(false), 4000);
       return;
     }
-    setLatest(undefined);
+    setRelease(undefined);
     void windowsRelease()
-      .then((release) => setLatest(release?.version ?? null))
+      .then(setRelease)
       .finally(() => setChecking(false));
   };
   useEffect(check, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const latest = release === undefined ? undefined : (release?.version ?? null);
   const installed = desktop ? desktopVersion(shell) : appVersion;
   const fresh = !!latest && !!installed && isNewer(latest, installed);
   return (
@@ -97,15 +94,6 @@ export function AboutFields() {
           <span>Для Windows вышел Cord {latest}.</span>
         </p>
       )}
-      {behind !== null && (
-        <p className="update-notice" role="status">
-          <TriangleAlert size={15} />
-          <span>
-            Сервер отстаёт на {commitsLabel(behind)}. Обновить — <code>./update.sh</code> в каталоге проекта
-            на сервере.
-          </span>
-        </p>
-      )}
 
       <div className="check-actions">
         <button className="button secondary" disabled={checking} onClick={check}>
@@ -116,8 +104,8 @@ export function AboutFields() {
             <Download size={16} /> Обновить
           </button>
         )}
-        {!desktop && fresh && (
-          <a className="button primary" href={INSTALLER_URL}>
+        {!desktop && fresh && release?.installer && (
+          <a className="button primary" href={release.installer.url} download="">
             <Download size={16} /> Скачать {latest}
           </a>
         )}
@@ -144,20 +132,14 @@ export function AboutFields() {
           Cord создаёт и развивает <strong>@nikgers</strong>.
         </p>
         {/*
-          У двух ссылок остались одни значки: конверт Telegram и кот GitHub узнаются и без
-          подписи, а подписи рядом с именем автора читались как призыв написать. Имя для
-          доступности и подсказки никуда не делось — оно в `aria-label`.
+          У ссылки остался один значок: конверт Telegram узнаётся и без подписи, а подпись рядом
+          с именем автора читалась как призыв написать. Имя для доступности и подсказки никуда не
+          делось — оно в `aria-label`.
         */}
         <div className="check-actions">
           <External href="https://t.me/nikgers" label="Telegram автора">
             <Send size={16} />
           </External>
-          <External href={CORE_REPOSITORY_URL} label="Исходный код">
-            <Github size={16} />
-          </External>
-          {/* В приложении эта ссылка лишняя: обновления оно ставит само, а список выпусков —
-              разговор для того, кто читает репозиторий, и до него один клик выше. */}
-          {!desktop && <External href={RELEASES_PAGE}>Все выпуски</External>}
         </div>
       </div>
     </section>

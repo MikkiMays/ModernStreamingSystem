@@ -185,12 +185,12 @@ def create_app(
 
     @app.get("/api/v1/services/rooms/{room_id}/music")
     async def state(room_id: str, authorization: str = Header()):
-        await core.member(room_id, authorization)
+        await core.member(room_id, authorization, action="music.view")
         return store.public(room_id)
 
     @app.post("/api/v1/services/rooms/{room_id}/music/enable")
     async def enable(room_id: str, operation: Operation, authorization: str = Header()):
-        room, _ = await core.member(room_id, authorization, integration=True)
+        room, _ = await core.member(room_id, authorization, action="music.enable")
         # Активная интеграция в комнате одна. Ядро скажет то же самое при создании места для
         # бота, но здесь отказ приходит раньше — до того, как человек дождётся подключения.
         if room.get("watch"):
@@ -199,12 +199,14 @@ def create_app(
 
     @app.delete("/api/v1/services/rooms/{room_id}/music")
     async def disable(room_id: str, authorization: str = Header()):
-        await core.member(room_id, authorization, owner=True)
+        # Убрать — то же право, что добавить (T14): раньше сюда пускали только создателя, и бота,
+        # которого включил гость, до прихода создателя не мог убрать никто.
+        await core.member(room_id, authorization, action="music.remove")
         return await music.disable(room_id)
 
     @app.post("/api/v1/services/rooms/{room_id}/music/commands")
     async def command(room_id: str, command: Command, authorization: str = Header()):
-        await core.member(room_id, authorization, integration=True)
+        await core.member(room_id, authorization, action="music.control")
         return await music.command(room_id, command.model_dump(mode="json"))
 
     @app.put("/api/v1/services/rooms/{room_id}/music/upload/{command_id}")
@@ -215,7 +217,7 @@ def create_app(
         authorization: str = Header(),
         x_filename: str = Header(default="Аудиофайл"),
     ):
-        _, member = await core.member(room_id, authorization, integration=True)
+        _, member = await core.member(room_id, authorization, action="music.upload")
         scope = "upload:" + room_id + ":" + member["id"]
         async with music.locks[scope + ":" + str(command_id)]:
             if store.receipt(scope, str(command_id)):
@@ -254,7 +256,8 @@ def create_app(
 
     @app.post("/api/v1/services/rooms/{room_id}/telegram/link")
     async def link(room_id: str, authorization: str = Header()):
-        room, member = await core.member(room_id, authorization, owner=True)
+        # Привязка открывает беседе встречу — решение создателя, флаг здесь не участвует (T30).
+        room, member = await core.member(room_id, authorization, action="telegram.link")
         if not store.state("bot_username"):
             raise HTTPException(503, "Telegram-бот ещё не подключён")
         profile = store.state("room-profile:" + room_id)

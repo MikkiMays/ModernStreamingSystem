@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react';
 import { DOT_PATH, WORD_PATH, WORD_RIGHT } from './wordmark-paths';
-import './brand.css';
 
 /**
  * Марка Cord — рисунок, а не текст (T24): три полосы под −15° и слово «cord.», обведённое из Inter
