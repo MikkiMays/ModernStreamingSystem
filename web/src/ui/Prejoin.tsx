@@ -21,15 +21,23 @@ import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
 import { AudioFields, QualityFields, ReceptionFields } from './Settings';
 import { audioCapture } from '../media/audio';
+import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
+import { MeetingElsewhere } from './MeetingElsewhere';
 
 export function Prejoin({
   destination,
   onBack,
   onJoin,
+  onElsewhere,
 }: {
   destination: Destination | null;
   onBack: () => void;
   onJoin: (admission: Admission, choices: DeviceChoice & { micOn: boolean; cameraOn: boolean }) => void;
+  /**
+   * «Перейти туда» (T52): открыть встречу, где этот профиль уже есть. `false` — из этой вкладки
+   * туда дороги нет (встреча идёт в другой вкладке или окне).
+   */
+  onElsewhere?: (meeting: ElsewhereMeeting) => Promise<boolean>;
 }) {
   const [name, setName] = useState(localStorage.getItem('cord:name') ?? '');
   const [title, setTitle] = useState('Наша встреча');
@@ -47,6 +55,10 @@ export function Prejoin({
   const [mic, setMic] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Ядро не пустило: этот профиль уже во встрече `elsewhere` (T52). Человек выбирает в окне.
+  const [elsewhere, setElsewhere] = useState<ElsewhereMeeting | null>(null);
+  const [elsewhereNote, setElsewhereNote] = useState('');
+  const [going, setGoing] = useState(false);
   const [deviceBusy, setDeviceBusy] = useState(false);
   const preview = useRef<HTMLVideoElement>(null);
   const stream = useRef(new MediaStream());
@@ -88,6 +100,47 @@ export function Prejoin({
       active = false;
     };
   }, [destination]);
+  /**
+   * Вход туда, куда человек собрался. Одна дверь на форму и на автовход: `leave` — встреча, из
+   * которой ядро выведет в том же шаге, когда человек выбрал «Выйти оттуда и войти сюда» (T52).
+   * Ссылка организатора из Telegram идёт через службу, а та профиля устройства не передаёт —
+   * правило одной встречи этот вход не касается.
+   */
+  const admit = (displayName: string, leave?: string) =>
+    destination?.kind === 'telegram'
+      ? servicesApi.redeemClaim(destination.token, displayName, commandId.current)
+      : destination?.kind === 'favorite'
+        ? favoriteApi.join(destination.favorite.roomId, displayName, commandId.current, leave)
+        : destination?.kind === 'recent'
+          ? new RoomApi(destination.admission).rejoin(displayName, commandId.current, leave)
+          : destination?.kind === 'code'
+            ? publicApi.joinCode(
+                { commandId: commandId.current, code: destination.code, name: displayName },
+                leave,
+              )
+            : destination?.kind === 'invite'
+              ? publicApi.join(
+                  destination.roomId,
+                  { commandId: commandId.current, invite: destination.invite, name: displayName },
+                  leave,
+                )
+              : publicApi.create(
+                  {
+                    commandId: commandId.current,
+                    title: title.trim(),
+                    name: displayName,
+                    approvalRequired,
+                    integrationsAllowed,
+                  },
+                  leave,
+                );
+  /** Отказ входа: «вы уже во встрече» — окно выбора, всё остальное — строка ошибки в форме. */
+  const refused = (e: unknown) => {
+    const other = alreadyInMeeting(e);
+    setElsewhere(other);
+    setElsewhereNote('');
+    if (!other) setError((e as Error).message);
+  };
   useEffect(() => {
     if (!autoJoining || automaticStarted.current || destination?.kind !== 'favorite') return;
     automaticStarted.current = true;
@@ -106,7 +159,7 @@ export function Prejoin({
       })
       .catch((e) => {
         if (mounted.current) {
-          setError((e as Error).message);
+          refused(e);
           setAutoJoining(false);
         }
       });
@@ -121,6 +174,40 @@ export function Prejoin({
         </button>
       </main>
     );
+  /** Войти; `leave` — после «Выйти оттуда и войти сюда». Имя из автовхода — то же запасное. */
+  const submit = async (leave?: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const admission = await admit(name.trim() || 'Участник', leave);
+      if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
+      localStorage.setItem('cord:name', name.trim());
+      savePreferences({ devices: choices });
+      stream.current.getTracks().forEach((t) => t.stop());
+      setElsewhere(null);
+      onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
+    } catch (e) {
+      refused(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  /** «Перейти туда»: в ту встречу, если эта вкладка знает к ней дорогу; иначе — сказать, где она. */
+  const goElsewhere = async () => {
+    if (!elsewhere) return;
+    setGoing(true);
+    try {
+      if (!(await onElsewhere?.(elsewhere)) && mounted.current)
+        setElsewhereNote(
+          'Эта встреча идёт в другой вкладке или окне — переключитесь туда. Или выйдите из неё и войдите сюда.',
+        );
+    } catch (e) {
+      if (mounted.current) setElsewhereNote((e as Error).message);
+    } finally {
+      if (mounted.current) setGoing(false);
+    }
+  };
   const toggle = async (kind: 'audio' | 'video') => {
     if (deviceBusy) return;
     setDeviceBusy(true);
@@ -234,48 +321,9 @@ export function Prejoin({
         </div>
         <form
           className="prejoin-form"
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
-            if (busy) return;
-            setBusy(true);
-            setError('');
-            try {
-              const admission =
-                destination?.kind === 'telegram'
-                  ? await servicesApi.redeemClaim(destination.token, name.trim(), commandId.current)
-                  : destination?.kind === 'favorite'
-                    ? await favoriteApi.join(destination.favorite.roomId, name.trim(), commandId.current)
-                    : destination?.kind === 'recent'
-                      ? await new RoomApi(destination.admission).rejoin(name.trim(), commandId.current)
-                      : destination?.kind === 'code'
-                        ? await publicApi.joinCode({
-                            commandId: commandId.current,
-                            code: destination.code,
-                            name: name.trim(),
-                          })
-                        : destination?.kind === 'invite'
-                          ? await publicApi.join(destination.roomId, {
-                              commandId: commandId.current,
-                              invite: destination.invite,
-                              name: name.trim(),
-                            })
-                          : await publicApi.create({
-                              commandId: commandId.current,
-                              title: title.trim(),
-                              name: name.trim(),
-                              approvalRequired,
-                              integrationsAllowed,
-                            });
-              if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
-              localStorage.setItem('cord:name', name.trim());
-              savePreferences({ devices: choices });
-              stream.current.getTracks().forEach((t) => t.stop());
-              onJoin(admission, { ...choices, micOn: mic, cameraOn: camera });
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
+            void submit();
           }}
         >
           <span className="eyebrow">{destination ? 'ПОЧТИ НА МЕСТЕ' : 'НОВАЯ ВСТРЕЧА'}</span>
@@ -399,6 +447,14 @@ export function Prejoin({
           <p className="form-footnote">Ссылка и QR для приглашения появятся в комнате.</p>
         </form>
       </main>
+      <MeetingElsewhere
+        meeting={elsewhere}
+        busy={busy ? 'move' : going ? 'go' : undefined}
+        note={elsewhereNote}
+        onGo={() => void goElsewhere()}
+        onMove={() => elsewhere && void submit(elsewhere.roomId)}
+        onClose={() => setElsewhere(null)}
+      />
       <Modal
         wide
         open={settings}

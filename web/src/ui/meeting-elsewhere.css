@@ -1,0 +1,19 @@
+/* «Вы уже во встрече…» (T52). Окно и кнопки — из набора E16; здесь только то, что нужно двум длинным
+   подписям: там, где окно становится нижним листом (как в `kit.css`), они встают одна под другой
+   во всю ширину, а не вылезают за край. */
+.meeting-elsewhere .ui-dialog__footer {
+  flex-wrap: wrap;
+}
+.meeting-elsewhere__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+@media (max-width: 767px) {
+  .meeting-elsewhere .ui-dialog__footer {
+    flex-direction: column-reverse;
+  }
+  .meeting-elsewhere .ui-dialog__footer .ui-button {
+    width: 100%;
+  }
+}

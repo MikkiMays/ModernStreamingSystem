@@ -42,6 +42,9 @@ function Workspace() {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [error, setError] = useState('');
   const [favoriteSettings, setFavoriteSettings] = useState<Favorite | null>(null);
+  // «Перейти туда» (T52) ведёт на экран входа в другую встречу: он собирается заново, а не
+  // донашивает имя команды и состояние прежнего.
+  const [visit, setVisit] = useState(0);
   const [section, setSection] = useState<string | undefined>(undefined);
   const connection = useStore(session);
   useEffect(greetHostConnection, []);
@@ -224,6 +227,25 @@ function Workspace() {
       if (e instanceof Error && 'status' in e && [403, 404, 410].includes(Number(e.status))) removeRecent(id);
     }
   };
+  /**
+   * «Перейти туда» из окна «Вы уже во встрече…» (T52): ядро назвало встречу, где этот профиль уже
+   * есть. Дорога туда из этой вкладки — прежний вход в неё (недавние, `sessionStorage`) или
+   * избранное. Нет ни того, ни другого — встреча идёт в другой вкладке или окне, и экран входа
+   * скажет об этом сам (`false`).
+   */
+  const goElsewhere = async ({ roomId }: { roomId: string }) => {
+    if (getRecent(roomId)) {
+      setVisit((value) => value + 1);
+      await recent(roomId);
+      return true;
+    }
+    const favorite = (await favoriteApi.list()).find((f) => f.roomId === roomId);
+    if (!favorite) return false;
+    setVisit((value) => value + 1);
+    setDestination({ kind: 'favorite', favorite });
+    setPage('prejoin');
+    return true;
+  };
   useEffect(() => {
     const match = /^\/room\/([0-9a-f-]{36})$/.exec(location.pathname);
     if (match?.[1]) void recent(match[1], true);
@@ -279,7 +301,15 @@ function Workspace() {
           onJoin={openDestination}
         />
       )}
-      {page === 'prejoin' && <Prejoin destination={destination} onBack={home} onJoin={enter} />}{' '}
+      {page === 'prejoin' && (
+        <Prejoin
+          key={visit}
+          destination={destination}
+          onBack={home}
+          onJoin={enter}
+          onElsewhere={goElsewhere}
+        />
+      )}{' '}
       {page === 'room' && meeting && (
         <Suspense
           fallback={
