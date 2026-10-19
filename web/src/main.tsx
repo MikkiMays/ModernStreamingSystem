@@ -12,7 +12,9 @@ import './poker.css';
 import './durak.css';
 import App from './App';
 import { unlockNotificationAudio } from './core/sounds';
+import { installPointerFocus } from './ui/pointer-focus';
 unlockNotificationAudio();
+installPointerFocus();
 
 /**
  * Регистрируется после загрузки и только в браузере.

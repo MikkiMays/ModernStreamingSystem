@@ -611,8 +611,8 @@ input.home-inline-name:focus-visible {
 .home-bar .brand {
   --brand-h: 24px;
 }
-/* Выдвижная панель — слой пульта (30): под меню (40), иначе меню комнаты открывалось бы под ней,
-   и под диалогами (50), чтобы подтверждение «Убрать» вставало поверх. */
+/* Выдвижная панель — под меню (40), иначе меню комнаты открывалось бы под ней, и под диалогами
+   (50), чтобы подтверждение «Убрать» вставало поверх. */
 .home-drawer__backdrop {
   position: fixed;
   inset: 0;
@@ -624,9 +624,14 @@ input.home-inline-name:focus-visible {
 .home-drawer__backdrop[data-ending-style] {
   opacity: 0;
 }
+/* Сама панель — сразу под меню (39), а не на слое пульта: Base UI кладёт у модальной панели
+   подложки `[data-base-ui-inert][role='presentation']`, и общее правило подложек меню
+   (`styles.css`) поднимает их на 39. Панель на 30 оказывалась под собственной подложкой, и на
+   телефоне её нельзя было нажать — ни «Настройки», ни комнаты. На том же слое панель выше:
+   она идёт в портале последней. */
 .home-drawer {
   position: fixed;
-  z-index: var(--z-dock);
+  z-index: calc(var(--z-menu) - 1);
   inset: 0 auto 0 0;
   width: min(320px, calc(100vw - var(--space-12)));
   box-shadow: var(--shadow-3);

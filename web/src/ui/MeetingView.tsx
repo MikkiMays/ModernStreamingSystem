@@ -534,7 +534,13 @@ export function MeetingView({
         )}
       </div>
 
-      <AudioLayer tracks={tracks} onBlocked={audioNeedsGesture} volumes={volumes} deafened={deafened} />
+      <AudioLayer
+        tracks={tracks}
+        onBlocked={audioNeedsGesture}
+        volumes={volumes}
+        deafened={deafened}
+        master={preferences.outputVolume / 100}
+      />
       <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
       {may('room.settings') && (
         <MeetingSettings meeting={meeting} open={meetingSettings} onOpenChange={setMeetingSettings} />

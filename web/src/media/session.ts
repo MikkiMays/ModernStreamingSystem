@@ -665,8 +665,8 @@ export class MediaSession {
       limitation,
       screenLevel: this.profile,
       cameraLevel: this.cameraProfile,
-      // Уступает ли камера показу, решает сервер (П2: по умолчанию — нет).
-      cameraYields: cameraYieldsToScreen(),
+      // Уступает ли камера показу: велел сервер или попросил сам человек (П2: по умолчанию — нет).
+      cameraYields: cameraYieldsToScreen(undefined, this.preferences.get().cameraYieldsToScreen),
     };
   }
   /**
@@ -1185,6 +1185,9 @@ export class MediaSession {
     // ни тем более переподключение для этого не нужны.
     this.playout.setMode(next.network);
     if (patch.network !== undefined) void this.tunePlayout();
+    // Камера, уступающая показу, пересчитывается сразу: идёт демонстрация — роль камеры меняется
+    // на месте, без ожидания следующего опроса.
+    if (patch.cameraYieldsToScreen !== undefined) this.syncUpstream();
   }
   setVolume(participantId: string, volume: number) {
     if (!Number.isFinite(volume)) return;

@@ -62,6 +62,17 @@ export interface Preferences {
   soundVolume: number;
   /** Звуки столов, у каждой игры свой выключатель. Звучат, только пока включены сигналы. */
   gameSounds: Record<GameKind, boolean>;
+  /**
+   * Громкость собеседников, 0–100: голоса и боты встречи одной ручкой поверх громкости каждого
+   * (её человек ставит в меню участника). Сто — как было до ручки: ничего не убавлено.
+   */
+  outputVolume: number;
+  /**
+   * Уступает ли камера показу экрана: пока идёт демонстрация, камера уходит в маленький слой
+   * (`companionCamera`). По П2 по умолчанию — нет; сервер может велеть это всем
+   * (`capabilities.quality.cameraYieldsToScreen`), а здесь человек просит это для себя.
+   */
+  cameraYieldsToScreen: boolean;
   showIntegrationPanel: boolean;
   yandexMusicToken: string;
   screen: ScreenProfile;
@@ -143,6 +154,11 @@ export function readPreferences(): Preferences {
     gameSounds: Object.fromEntries(
       gameKinds.map((game) => [game, data.gameSounds?.[game] !== false]),
     ) as Record<GameKind, boolean>,
+    outputVolume:
+      typeof data.outputVolume === 'number' && Number.isFinite(data.outputVolume)
+        ? Math.max(0, Math.min(100, Math.round(data.outputVolume)))
+        : 100,
+    cameraYieldsToScreen: data.cameraYieldsToScreen === true,
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
     showIntegrationPanel: data.showIntegrationPanel !== false,

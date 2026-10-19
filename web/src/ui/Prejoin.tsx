@@ -20,6 +20,7 @@ import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
 import { AudioFields, QualityFields, ReceptionFields } from './Settings';
+import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { MeetingElsewhere } from './MeetingElsewhere';
@@ -467,42 +468,58 @@ export function Prejoin({
         description="Устройства и качество сохраняются на этом устройстве. Камеру и микрофон вы включаете сами."
       >
         <div className="settings-form">
-          <h3>Устройства</h3>
-          {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => {
-            const key = kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker';
-            return (
-              <label key={kind}>
-                {kind === 'audioinput' ? 'Микрофон' : kind === 'videoinput' ? 'Камера' : 'Вывод звука'}
-                <select
-                  value={choices[key] ?? ''}
-                  disabled={
+          <SettingGroup
+            title="Устройства"
+            collapsible={false}
+            note={camera || mic ? 'Выключите предпросмотр устройства, чтобы сменить его.' : undefined}
+          >
+            {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => {
+              const key = kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker';
+              const label =
+                kind === 'audioinput' ? 'Микрофон' : kind === 'videoinput' ? 'Камера' : 'Вывод звука';
+              return (
+                <SettingRow
+                  key={kind}
+                  id={
                     kind === 'audioinput'
-                      ? mic
+                      ? 'mic-device'
                       : kind === 'videoinput'
-                        ? camera
-                        : !('setSinkId' in HTMLMediaElement.prototype)
+                        ? 'camera-device'
+                        : 'output-device'
                   }
-                  onChange={(e) => {
-                    const next = { ...choices, [key]: e.target.value };
-                    setChoices(next);
-                    savePreferences({ devices: next });
-                  }}
+                  label={label}
+                  stack
                 >
-                  <option value="">По умолчанию</option>
-                  {devices
-                    .filter((d) => d.kind === kind && d.deviceId)
-                    .map((d, i) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.label || `Устройство ${i + 1}`}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            );
-          })}
-          {(camera || mic) && (
-            <small className="muted">Выключите предпросмотр устройства, чтобы сменить его.</small>
-          )}
+                  <select
+                    className="ui-input ui-select setting-select"
+                    aria-label={label}
+                    value={choices[key] ?? ''}
+                    disabled={
+                      kind === 'audioinput'
+                        ? mic
+                        : kind === 'videoinput'
+                          ? camera
+                          : !('setSinkId' in HTMLMediaElement.prototype)
+                    }
+                    onChange={(e) => {
+                      const next = { ...choices, [key]: e.target.value };
+                      setChoices(next);
+                      savePreferences({ devices: next });
+                    }}
+                  >
+                    <option value="">По умолчанию</option>
+                    {devices
+                      .filter((d) => d.kind === kind && d.deviceId)
+                      .map((d, i) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Устройство ${i + 1}`}
+                        </option>
+                      ))}
+                  </select>
+                </SettingRow>
+              );
+            })}
+          </SettingGroup>
           <AudioFields
             audio={preferences.audio}
             change={(audio) => setPreferences(savePreferences({ audio }))}

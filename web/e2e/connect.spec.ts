@@ -38,7 +38,10 @@ test('the server answers before any meeting is shown', async ({ browser }) => {
 
     // Disconnecting puts the connect screen back.
     await page.getByRole('button', { name: 'Настройки', exact: true }).click();
-    await page.getByRole('tab', { name: 'Подключение', exact: true }).click();
+    await page
+      .getByRole('navigation', { name: 'Разделы настроек' })
+      .getByRole('button', { name: 'Сервер', exact: true })
+      .click();
     await page.getByRole('button', { name: 'Отключиться' }).click();
     await expect(page.getByRole('heading', { name: 'Мой сервер' })).toBeVisible();
   } finally {

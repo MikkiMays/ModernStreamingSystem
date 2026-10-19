@@ -71,10 +71,6 @@ textarea,
   .retention-note {
     font-size: 11px;
   }
-  .settings-row select {
-    padding-inline: 8px;
-    font-size: 14px;
-  }
 }
 /* Small quality labels still need the full text contrast ratio. */
 .quality-tag {

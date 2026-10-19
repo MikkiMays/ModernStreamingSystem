@@ -22,7 +22,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('radio', { name: /Только с вашего подтверждения/ }).check();
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
-    await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('auto');
+    // «Авто» больше нет (E05, П2): уровень по умолчанию — с сервера, 720p30.
+    await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('30');
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toHaveCount(0);
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);
@@ -53,12 +54,17 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
 
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    await host.getByRole('tab', { name: 'Видео', exact: true }).click();
-    await expect(host.getByLabel('Камера: качество', { exact: true })).toHaveValue('auto');
-    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('auto');
+    // Настройки открываются на «Голосе и видео»: камера и показ — подразделы того же раздела.
+    await expect(host.locator('.settings-content__title')).toHaveText('Голос и видео');
+    await expect(host.getByLabel('Камера: качество', { exact: true })).toHaveValue('720');
+    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('720');
+    // Потолок сервера — 1080p60: 1440p в выборе нет.
+    await expect(
+      host.getByLabel('Экран: качество', { exact: true }).locator('option[value="1440"]'),
+    ).toHaveCount(0);
     await host.getByLabel('Камера: качество', { exact: true }).selectOption('1080');
     await host.getByLabel('Камера: частота кадров', { exact: true }).selectOption('60');
-    await host.getByLabel('Экран: качество', { exact: true }).selectOption('1440');
+    await host.getByLabel('Экран: качество', { exact: true }).selectOption('1080');
     await host.getByLabel('Экран: частота кадров', { exact: true }).selectOption('60');
     await host.emulateMedia({ reducedMotion: 'reduce' });
     expect(
@@ -73,7 +79,6 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
       .toBeGreaterThan(0);
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    await host.getByRole('tab', { name: 'Видео', exact: true }).click();
     await host.getByLabel('Камера: частота кадров', { exact: true }).selectOption('30');
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect
@@ -114,10 +119,9 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    await host.getByRole('tab', { name: 'Видео', exact: true }).click();
     await expect(host.getByLabel('Камера: качество', { exact: true })).toHaveValue('1080');
     await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('30');
-    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('1440');
+    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('1080');
     await expect(host.getByLabel('Экран: частота кадров', { exact: true })).toHaveValue('60');
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();

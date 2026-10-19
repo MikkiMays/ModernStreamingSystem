@@ -56,16 +56,24 @@ const SCREENS = {
   },
   settings: async (page, shoot) => {
     await home(page);
+    // Уже 960 px «Настройки» главной — в выдвижном меню под бургером (E02).
+    const burger = page.getByRole('button', { name: 'Открыть меню' });
+    if (await burger.isVisible()) await burger.click();
     await page
       .getByRole('button', { name: /Настройки/ })
       .first()
       .click();
-    const tabs = page.getByRole('tab');
-    await tabs.first().waitFor();
-    for (let i = 0; i < (await tabs.count()); i++) {
-      const tab = tabs.nth(i);
-      const name = (await tab.innerText()).trim().toLowerCase().replace(/\s+/g, '-');
-      await tab.click();
+    // Разделы — список слева (E03); у прежней сборки — вкладки сверху.
+    const nav = page.getByRole('navigation', { name: 'Разделы настроек' });
+    const items = (await nav.count()) ? nav.locator('.settings-nav__item') : page.getByRole('tab');
+    await items.first().waitFor();
+    const back = page.getByRole('button', { name: 'К разделам' });
+    if (await nav.count()) await shoot('settings-list');
+    for (let i = 0; i < (await items.count()); i++) {
+      if (await back.isVisible()) await back.click();
+      const item = items.nth(i);
+      const name = (await item.innerText()).trim().toLowerCase().replace(/\s+/g, '-');
+      await item.click();
       await page.waitForTimeout(250);
       await shoot(`settings-${i}-${name}`);
     }

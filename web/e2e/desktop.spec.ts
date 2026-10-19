@@ -157,10 +157,16 @@ test('the profile block opens settings during a meeting, and leaving goes home',
       ),
     );
   await open();
-  const settings = page.getByRole('dialog').filter({ hasText: 'Настроить под себя' });
+  const settings = page.getByRole('dialog', { name: 'Настройки' });
   await expect(settings).toBeVisible();
-  await expect(settings.getByLabel('Имя по умолчанию')).toBeVisible();
-  await expect(settings.getByLabel('Тема')).toBeVisible();
+  // Мост называет раздел прежним именем вкладки — открывается «Профиль».
+  await expect(settings.getByRole('textbox', { name: 'Имя' })).toBeVisible();
+  // Тема живёт в «Оформлении» (T41).
+  await settings
+    .getByRole('navigation', { name: 'Разделы настроек' })
+    .getByRole('button', { name: 'Оформление' })
+    .click();
+  await expect(settings.getByRole('radiogroup', { name: 'Тема' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(settings).toHaveCount(0);
 
@@ -174,5 +180,5 @@ test('the profile block opens settings during a meeting, and leaving goes home',
     ),
   );
   await expect(page.locator('.desktop-home')).toBeVisible();
-  await expect(page.getByRole('dialog').filter({ hasText: 'Настроить под себя' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Настройки' })).toHaveCount(0);
 });
