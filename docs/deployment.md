@@ -326,7 +326,7 @@ curl --fail https://meet.example.org/api/v1/capabilities
 | `stream.abuse.human-check` | `HUMAN_CHECK` | `proof-of-work` | невидимая задача «не бот» (ALTCHA) на создании встречи и входе по коду; `off` — выключить |
 | `stream.abuse.proof-cost` | `PROOF_COST` | `50000` | сколько чисел браузер перебирает в худшем случае (в среднем — половину) |
 | `stream.abuse.per-ip.rooms-created` | `ABUSE_IP_ROOMS_CREATED` | `10 per hour` | новых встреч с адреса; отказ предел не съедает |
-| `stream.abuse.per-ip.open-rooms` | `ABUSE_IP_OPEN_ROOMS` | `3` | встреч с адреса, одновременно занимающих место на сервере |
+| `stream.abuse.per-ip.open-rooms` | `ABUSE_IP_OPEN_ROOMS` | `8` | встреч с адреса, одновременно занимающих место на сервере; 8 — чтобы офис или мобильный NAT не упирался в три встречи (решение владельца, 20.10.2026) |
 | `stream.abuse.per-ip.admissions` | `ABUSE_IP_ADMISSIONS` | `30 per minute` | входов (создать, по ссылке, вернуться) |
 | `stream.abuse.per-ip.code-joins` | `ABUSE_IP_CODE_JOINS` | `10 per minute` | попыток входа по коду |
 | `stream.abuse.per-ip.code-misses` | `ABUSE_IP_CODE_MISSES` | `20 per hour` | промахов кодом; выбравший ждёт конца окна |

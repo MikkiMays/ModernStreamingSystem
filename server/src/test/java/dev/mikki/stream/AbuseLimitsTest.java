@@ -48,7 +48,10 @@ import org.springframework.web.socket.WebSocketSession;
       "stream.scheduling-enabled=false",
       "stream.event-history-limit=10",
       "stream.files-root=./.local/test-uploads",
-      "stream.max-rooms=200"
+      "stream.max-rooms=200",
+      // Механизм проверяется на трёх: по умолчанию с адреса — восемь (решение владельца
+      // 20.10.2026).
+      "stream.abuse.per-ip.open-rooms=3"
     })
 @ActiveProfiles("local")
 class AbuseLimitsTest {
