@@ -1,6 +1,8 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.Entrant;
 import dev.mikki.stream.access.Identity;
+import dev.mikki.stream.access.ProofOfWork;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
@@ -61,6 +63,7 @@ public class ApiController {
   private final ServerAccess access;
   private final ClientAddress address;
   private final Identity identity;
+  private final ProofOfWork proofs;
 
   public ApiController(
       RoomService rooms,
@@ -71,7 +74,8 @@ public class ApiController {
       RateLimits limits,
       ServerAccess access,
       ClientAddress address,
-      Identity identity) {
+      Identity identity,
+      ProofOfWork proofs) {
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
@@ -81,6 +85,7 @@ public class ApiController {
     this.access = access;
     this.address = address;
     this.identity = identity;
+    this.proofs = proofs;
   }
 
   @GetMapping("/ping")
@@ -113,22 +118,69 @@ public class ApiController {
 
   /*
    Четыре двери во встречу ниже (и пятая — `/favorites/{id}/join`) передают ядру, кто входит:
-   профиль устройства из `X-Cord-Profile` и встречу из `X-Cord-Leave`, если человек согласился её
-   покинуть (T52). Тела запросов от этого не меняются — старый клиент входит как раньше.
+   профиль устройства из `X-Cord-Profile`, встречу из `X-Cord-Leave`, если человек согласился её
+   покинуть (T52), и ключ адреса для пределов антибота (E11). Тела запросов от этого не меняются.
   */
+
+  /**
+   * Задача «не бот» на действие {@code create} или {@code code} (E11-B, {@link ProofOfWork}).
+   *
+   * <p>Браузер просит её, как только открыта форма, и решает в фоне — к нажатию ответ готов. Задача
+   * дорожает вчетверо, если адрес уже выбрал половину своего предела, и ввосьмеро, пока включён
+   * «щит». При {@code human-check: off} ответ пустой ({@code 204}), и браузер ничего не решает.
+   */
+  @GetMapping("/proof")
+  public ResponseEntity<ProofOfWork.Challenge> proof(
+      @RequestParam("for") String action, HttpServletRequest http) {
+    if (!action.equals("create") && !action.equals("code"))
+      throw new IllegalArgumentException("Unknown proof action");
+    var abuse = config.abuse();
+    if (abuse.humanCheck() == StreamProperties.Abuse.HumanCheck.OFF)
+      return ResponseEntity.noContent().build();
+    var key = address.of(http);
+    limits.check("proof:" + key, 60);
+    var pressure =
+        action.equals("create")
+            ? limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
+                >= abuse.perIp().roomsCreated().count()
+            : limits.count("code-miss:" + key, abuse.perIp().codeMisses()) * 2
+                >= abuse.perIp().codeMisses().count();
+    long cost = (long) abuse.proofCost() * (rooms.shielded() ? 8 : 1) * (pressure ? 4 : 1);
+    return ResponseEntity.ok(proofs.issue(action, key, cost));
+  }
+
+  /** Кто входит — с ключом адреса; людская проверка «не бот» — для всех, кроме наших служб. */
+  private Entrant entrant(HttpServletRequest http, String proofFor) {
+    var key = address.of(http);
+    var abuse = config.abuse().perIp();
+    var service = address.service(http);
+    if (proofFor != null) {
+      limits.check(
+          (proofFor.equals("code") ? "code-admission:" : "admission:") + key,
+          proofFor.equals("code") ? abuse.codeJoins() : abuse.admissions(),
+          "RATE_LIMITED",
+          "Слишком много запросов. Подождите минуту");
+      if (!service && config.abuse().humanCheck() != StreamProperties.Abuse.HumanCheck.OFF)
+        proofs.verify(http.getHeader(ProofOfWork.HEADER), proofFor, key);
+    } else
+      limits.check(
+          "admission:" + key,
+          abuse.admissions(),
+          "RATE_LIMITED",
+          "Слишком много запросов. Подождите минуту");
+    return identity.entrant(http).from(address.entrant(http));
+  }
 
   @PostMapping("/rooms")
   public Contracts.Admission create(
       @Valid @RequestBody Contracts.Create request, HttpServletRequest http) {
-    limits.check("admission:" + address.of(http), 30);
-    return rooms.create(request, identity.entrant(http));
+    return rooms.create(request, entrant(http, "create"));
   }
 
   @PostMapping("/rooms/{id}/join")
   public Contracts.Admission join(
       @PathVariable UUID id, @Valid @RequestBody Contracts.Join request, HttpServletRequest http) {
-    limits.check("admission:" + address.of(http), 30);
-    return rooms.join(id.toString(), request, identity.entrant(http));
+    return rooms.join(id.toString(), request, entrant(http, null));
   }
 
   @GetMapping("/rooms/{id}")
@@ -159,8 +211,7 @@ public class ApiController {
   @PostMapping("/rooms/join-by-code")
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {
-    limits.check("code-admission:" + address.of(http), 10);
-    return rooms.joinCode(request, identity.entrant(http));
+    return rooms.joinCode(request, entrant(http, "code"));
   }
 
   @PostMapping("/rooms/{id}/rejoin")
@@ -169,8 +220,7 @@ public class ApiController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody Contracts.Rejoin request,
       HttpServletRequest http) {
-    limits.check("admission:" + address.of(http), 30);
-    return rooms.rejoin(id.toString(), credential, request, identity.entrant(http));
+    return rooms.rejoin(id.toString(), credential, request, entrant(http, null));
   }
 
   @GetMapping("/rooms/{id}/events")

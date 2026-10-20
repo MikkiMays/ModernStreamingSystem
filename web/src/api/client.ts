@@ -9,6 +9,8 @@ import type {
   Snapshot,
 } from './types';
 import { entryHeaders } from '../core/identity';
+import { prepareProof, takeProof, type ProofAction } from '../core/proof';
+import type { Challenge } from '../core/proof-solve';
 
 export class ApiError extends Error {
   constructor(
@@ -110,6 +112,31 @@ const entry = (data: unknown, leave?: string): RequestInit => ({
   ...post(data),
   headers: entryHeaders(leave),
 });
+/** Задача «не бот» с сервера; `undefined` — проверка выключена (`204`). */
+const challengeFor = (action: ProofAction) => () =>
+  request<Challenge | undefined>(`/proof?for=${action}`);
+/** Начать решать задачу «не бот» заранее — как только открыта форма создания или входа по коду. */
+export const prepareHuman = (action: ProofAction) => prepareProof(action, challengeFor(action));
+/**
+ * Вход, который сервер пускает только с ответом на задачу «не бот» (E11-B): создание встречи и вход
+ * по коду. Ответ одноразовый и живёт пять минут — устаревший сервер отклоняет `PROOF_INVALID`, и вход
+ * повторяется один раз со свежей задачей. Человек видит разве что чуть более долгое «Подключаемся».
+ */
+async function human<T>(action: ProofAction, path: string, init: RequestInit): Promise<T> {
+  const send = async () => {
+    const proof = await takeProof(action, challengeFor(action));
+    return request<T>(path, {
+      ...init,
+      headers: { ...(init.headers as Record<string, string>), ...(proof ? { 'X-Cord-Proof': proof } : {}) },
+    });
+  };
+  try {
+    return await send();
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'PROOF_INVALID') return send();
+    throw error;
+  }
+}
 export const publicApi = {
   capabilities: () => request<Capabilities>('/capabilities'),
   create: (
@@ -121,11 +148,11 @@ export const publicApi = {
       integrationsAllowed?: boolean;
     },
     leave?: string,
-  ) => request<Admission>('/rooms', entry(data, leave)),
+  ) => human<Admission>('create', '/rooms', entry(data, leave)),
   join: (roomId: string, data: { commandId: string; invite: string; name: string }, leave?: string) =>
     request<Admission>(`/rooms/${roomId}/join`, entry(data, leave)),
   joinCode: (data: { commandId: string; code: string; name: string }, leave?: string) =>
-    request<Admission>('/rooms/join-by-code', entry(data, leave)),
+    human<Admission>('code', '/rooms/join-by-code', entry(data, leave)),
 };
 export class RoomApi {
   readonly base: string;

@@ -33,7 +33,8 @@ public class OpenApiConfig {
                           "message.created",
                           "files.changed",
                           "screen.started",
-                          "screen.first_viewer")));
+                          "screen.first_viewer",
+                          "meeting.warning")));
       for (String name :
           List.of(
               "Admission",
@@ -98,7 +99,7 @@ public class OpenApiConfig {
       schemas
           .get("Snapshot")
           .getRequired()
-          .removeAll(List.of("chess", "gartic", "you", "startedAt"));
+          .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt"));
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")
@@ -147,7 +148,8 @@ public class OpenApiConfig {
                       "chess",
                       "gartic",
                       "you",
-                      "startedAt")),
+                      "startedAt",
+                      "endsAt")),
               Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
               Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
               Map.entry("GarticYou", List.of("prompt", "previous")),

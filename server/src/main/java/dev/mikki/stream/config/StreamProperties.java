@@ -43,7 +43,9 @@ public record StreamProperties(
     boolean admissionOpen,
     @NotNull @Valid Media media,
     @NotNull @Valid Favorites favorites,
-    @NotNull @Valid Meeting meeting) {
+    @NotNull @Valid Meeting meeting,
+    @NotNull @Valid Chat chat,
+    @NotNull @Valid Abuse abuse) {
   /**
    * Избранное профиля устройства (T06, П3): до {@code max-saved} сохранённых комнат на профиль — во
    * всех группах вместе. Сохранённое сверх предела раньше не удаляется, но новое не добавляется.
@@ -55,8 +57,88 @@ public record StreamProperties(
    *
    * <p>{@code oneActivePerProfile} — у профиля устройства активна одна встреча (T52, П13): вход во
    * вторую отвечает {@code 409 ALREADY_IN_MEETING}, пока человек не согласится выйти из первой.
+   *
+   * <p>{@code maxDuration} — потолок длительности одной встречи (A2 модели угроз): страница с ботом
+   * музыки или забытая вкладка не держат встречу вечно. За {@code warnBefore} до конца всем
+   * приходит событие {@code meeting.warning}, потом встреча завершается как обычно. {@code never} —
+   * без потолка. Вернуться из избранного можно — это новая встреча и действие человека.
    */
-  public record Meeting(boolean oneActivePerProfile) {}
+  public record Meeting(
+      boolean oneActivePerProfile, @NotNull Duration maxDuration, @NotNull Duration warnBefore) {
+    @AssertTrue(message = "stream.meeting.warn-before must be shorter than max-duration")
+    public boolean isWarningInsideMeeting() {
+      return maxDuration != null && warnBefore != null && warnBefore.compareTo(maxDuration) < 0;
+    }
+  }
+
+  /**
+   * Переписка встречи (A6, A7 модели угроз).
+   *
+   * <p>{@code roomHistory} — сколько сообщений комната держит: сверх него уходят старейшие
+   * (кольцо). Раньше на тысячном сообщении сервер отказывал всем, и один участник мог заглушить чат
+   * на сутки.
+   *
+   * <p>{@code executableAttachments} — что делать с файлом, который может запустить программу:
+   * {@code warn} — пометить и предупредить при скачивании, {@code block} — не принимать, {@code
+   * allow} — как любой другой.
+   */
+  public record Chat(
+      @Min(50) @Max(10000) int roomHistory, @NotNull Executables executableAttachments) {
+    public enum Executables {
+      WARN,
+      BLOCK,
+      ALLOW
+    }
+  }
+
+  /**
+   * Пределы антибота словами (E11, {@code docs/abuse-model.md} §4).
+   *
+   * <p>Ключи: IPv4 — адрес, IPv6 — сеть /64 ({@code ClientAddress}); профиль — хэш секрета {@code
+   * X-Cord-Profile}; участник — его ключ во встрече; бот — {@code X-Cord-Actor}. Пределы на адрес
+   * щедрее, чем на профиль: за мобильным CGNAT и офисным NAT много людей. Боты в людских пределах
+   * не участвуют, а службы с верным {@code X-Service-Secret} проверку «не бот» не проходят — у них
+   * свои пределы по актору.
+   *
+   * <p>{@code humanCheck} — невидимая проверка «не бот» на создании встречи и входе по коду:
+   * proof-of-work по протоколу ALTCHA (решение 15 архитектуры). {@code proofCost} — сколько чисел
+   * перебирает браузер в худшем случае (в среднем — половину).
+   */
+  public record Abuse(
+      @NotNull HumanCheck humanCheck,
+      @Min(1000) @Max(10_000_000) int proofCost,
+      @NotNull @Valid PerIp perIp,
+      @NotNull @Valid PerProfile perProfile,
+      @NotNull @Valid PerMember perMember,
+      @NotNull @Valid Server server) {
+    public enum HumanCheck {
+      PROOF_OF_WORK,
+      OFF
+    }
+
+    public record PerIp(
+        @NotNull Rate roomsCreated,
+        @Min(1) int openRooms,
+        @NotNull Rate admissions,
+        @NotNull Rate codeJoins,
+        @NotNull Rate codeMisses,
+        @Min(1) int sockets,
+        @NotNull Rate socketOpens,
+        @NotNull Rate passwordMisses,
+        @NotNull Rate signaling) {}
+
+    public record PerProfile(@NotNull Rate roomsCreated, @Min(1) int openRooms) {}
+
+    /**
+     * {@code chatRepeat} — одно и то же сообщение подряд не чаще, чем раз в этот срок; {@code
+     * sockets} — сколько сокетов событий держит один участник (лишний закрывает самый старый).
+     */
+    public record PerMember(
+        @NotNull Rate chatMessages, @NotNull Duration chatRepeat, @Min(1) int sockets) {}
+
+    /** {@code codeMisses} — промахи кодом по всему серверу; выше — «щит» (A3). */
+    public record Server(@NotNull Rate codeMisses) {}
+  }
 
   /**
    * Правила медиа, которые сервер отдаёт каждому входящему ({@code capabilities.quality}).

@@ -1,6 +1,7 @@
 package dev.mikki.stream.events;
 
 import dev.mikki.stream.access.RateLimits;
+import dev.mikki.stream.api.ClientAddress;
 import dev.mikki.stream.application.CommandDispatcher;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.*;
@@ -21,11 +22,13 @@ public class RoomSocket extends TextWebSocketHandler {
   private static final class Connection {
     final WebSocketSession socket;
     final long openedAt = System.currentTimeMillis();
+    final String address;
     String roomId, credential, participantId;
     long sequence = -1;
 
-    Connection(WebSocketSession session) {
+    Connection(WebSocketSession session, String address) {
       socket = new ConcurrentWebSocketSessionDecorator(session, 5000, 262144);
+      this.address = address;
     }
   }
 
@@ -36,6 +39,7 @@ public class RoomSocket extends TextWebSocketHandler {
   private final StringRedisTemplate redis;
   private final StreamProperties config;
   private final CommandDispatcher commands;
+  private final ClientAddress addresses;
 
   public RoomSocket(
       RoomService rooms,
@@ -43,19 +47,52 @@ public class RoomSocket extends TextWebSocketHandler {
       Validator validator,
       StringRedisTemplate redis,
       StreamProperties config,
-      CommandDispatcher commands) {
+      CommandDispatcher commands,
+      ClientAddress addresses) {
     this.rooms = rooms;
     this.limits = limits;
     this.validator = validator;
     this.redis = redis;
     this.config = config;
     this.commands = commands;
+    this.addresses = addresses;
   }
 
+  /**
+   * Сокет открыт. Сколько их держит один адрес и как часто открывает — свой предел (A13 модели
+   * угроз): раньше один ключ участника открывал сокеты без счёта, и каждый открытый раз в секунду
+   * ходил в базу. Лишний сокет закрывается сразу с {@code POLICY_VIOLATION}.
+   */
   @Override
-  public void afterConnectionEstablished(WebSocketSession socket) {
+  public void afterConnectionEstablished(WebSocketSession socket) throws Exception {
     socket.setTextMessageSizeLimit(8192);
-    sockets.put(socket.getId(), new Connection(socket));
+    var headers = socket.getHandshakeHeaders();
+    var remote = socket.getRemoteAddress();
+    var address =
+        addresses.of(
+            headers::getFirst,
+            remote == null
+                ? ""
+                : remote.getAddress() == null
+                    ? remote.getHostString()
+                    : remote.getAddress().getHostAddress());
+    var abuse = config.abuse().perIp();
+    try {
+      limits.check(
+          "socket-open:" + address,
+          abuse.socketOpens(),
+          "RATE_LIMITED",
+          "Слишком много подключений. Подождите минуту");
+    } catch (dev.mikki.stream.shared.Problem refused) {
+      socket.close(CloseStatus.POLICY_VIOLATION);
+      return;
+    }
+    if (sockets.values().stream().filter(c -> address.equals(c.address)).count()
+        >= abuse.sockets()) {
+      socket.close(CloseStatus.POLICY_VIOLATION);
+      return;
+    }
+    sockets.put(socket.getId(), new Connection(socket, address));
   }
 
   @Override
@@ -77,6 +114,7 @@ public class RoomSocket extends TextWebSocketHandler {
           c.participantId = member.id;
           c.sequence = body.path("after").asLong(-1);
           limits.check("ws:" + member.id, 60);
+          oneTooMany(c);
           send(
               c,
               Map.of(
@@ -154,13 +192,58 @@ public class RoomSocket extends TextWebSocketHandler {
     }
   }
 
+  /**
+   * У участника не больше {@code abuse.per-member.sockets} сокетов: лишний закрывает самый старый.
+   * Вторая вкладка и переподключение после сна остаются законными, а шестьсот сокетов одного ключа
+   * — нет.
+   */
+  private void oneTooMany(Connection fresh) {
+    var same =
+        sockets.values().stream()
+            .filter(c -> c != fresh && fresh.participantId.equals(c.participantId))
+            .sorted(Comparator.comparingLong(c -> c.openedAt))
+            .toList();
+    int extra = same.size() + 1 - config.abuse().perMember().sockets();
+    for (int i = 0; i < extra; i++) {
+      var old = same.get(i);
+      sockets.remove(old.socket.getId());
+      try {
+        old.socket.close(CloseStatus.POLICY_VIOLATION);
+      } catch (Exception ignored) {
+      }
+    }
+  }
+
+  /**
+   * Догнать отставшие сокеты. В базу ходит только тот, чей номер меньше последнего события комнаты
+   * ({@link RoomService#latest}): простаивающие сокеты не стоят ни одного запроса. Раньше каждый
+   * открытый сокет делал здесь два запроса в секунду (A13).
+   */
   @Scheduled(fixedDelay = 1000)
   public void catchUp() {
     for (var c : sockets.values())
       synchronized (c) {
         try {
+          if (c.credential != null) {
+            if (rooms.latest(c.roomId) > c.sequence) flush(c);
+          } else if (System.currentTimeMillis() - c.openedAt > 5000) close(c);
+        } catch (Exception e) {
+          close(c);
+        }
+      }
+  }
+
+  /**
+   * Страховка редким проходом: событие, записанное другим экземпляром ядра, этот процесс видит
+   * только по сообщению Redis, а сообщение может потеряться. Раз в пятнадцать секунд — и сокет
+   * узнаёт его, как узнавал раньше каждую секунду.
+   */
+  @Scheduled(fixedDelay = 15000)
+  public void sweep() {
+    for (var c : sockets.values())
+      synchronized (c) {
+        try {
           if (c.credential != null) flush(c);
-          else if (System.currentTimeMillis() - c.openedAt > 5000) close(c);
         } catch (Exception e) {
           close(c);
         }

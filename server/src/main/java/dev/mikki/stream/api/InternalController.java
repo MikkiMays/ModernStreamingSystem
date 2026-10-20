@@ -1,11 +1,13 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.attachment.AttachmentService;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.media.MediaService;
 import dev.mikki.stream.shared.Json;
 import dev.mikki.stream.shared.Problem;
 import io.livekit.server.WebhookReceiver;
+import jakarta.servlet.http.HttpServletRequest;
 import java.net.*;
 import java.util.*;
 import org.springframework.web.bind.annotation.*;
@@ -16,17 +18,39 @@ public class InternalController {
   private final MediaService media;
   private final AttachmentService files;
   private final WebhookReceiver receiver;
+  private final StreamProperties config;
+  private final RateLimits limits;
+  private final ClientAddress address;
 
-  public InternalController(MediaService media, AttachmentService files, StreamProperties config) {
+  public InternalController(
+      MediaService media,
+      AttachmentService files,
+      StreamProperties config,
+      RateLimits limits,
+      ClientAddress address) {
     this.media = media;
     this.files = files;
+    this.config = config;
+    this.limits = limits;
+    this.address = address;
     receiver = new WebhookReceiver(config.livekitKey(), config.livekitSecret());
   }
 
+  /**
+   * Пропуск к SFU. Шлюз спрашивает его на каждое подключение сигналинга и называет адрес клиента
+   * ({@code X-Real-IP}); подключений с одного адреса — свой предел (A12 модели угроз), чтобы поток
+   * мусорных токенов не занимал ядро проверкой подписи.
+   */
   @GetMapping("/signaling-auth")
   public void signaling(
       @RequestHeader(value = "Authorization", required = false) String authorization,
-      @RequestHeader(value = "X-Media-Token", required = false) String mediaToken) {
+      @RequestHeader(value = "X-Media-Token", required = false) String mediaToken,
+      HttpServletRequest http) {
+    limits.check(
+        "signaling:" + address.of(http),
+        config.abuse().perIp().signaling(),
+        "RATE_LIMITED",
+        "Слишком много подключений. Подождите минуту");
     String token =
         mediaToken == null || mediaToken.isBlank()
             ? (authorization == null ? null : authorization.replaceFirst("^Bearer ", ""))

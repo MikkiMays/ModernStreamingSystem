@@ -89,3 +89,53 @@ stream:
     # У профиля устройства активна одна встреча (T52): вход во вторую спрашивает, выйти ли из первой
     # (`409 ALREADY_IN_MEETING`, повтор с `X-Cord-Leave`). Без профиля правило не действует.
     one-active-per-profile: ${ONE_ACTIVE_MEETING_PER_PROFILE:true}
+    # Потолок длительности одной встречи (A2 `docs/abuse-model.md`): страница с ботом музыки или
+    # забытая вкладка не держат встречу вечно. За `warn-before` до конца всем приходит
+    # предупреждение, затем встреча завершается. `never` — без потолка. Сроки — словами (`Term`).
+    max-duration: ${MEETING_MAX_DURATION:24 hours}
+    warn-before: ${MEETING_WARN_BEFORE:15 minutes}
+  chat:
+    # Сколько сообщений держит комната. Сверх этого уходят старейшие — кольцо, а не отказ всем.
+    room-history: ${CHAT_ROOM_HISTORY:1000}
+    # Файлы, которые могут запустить программу (exe, msi, bat, js, apk, архивы…): `warn` — пометка и
+    # предупреждение при скачивании, `block` — не принимать (415 FILE_TYPE_BLOCKED), `allow` — как все.
+    executable-attachments: ${CHAT_EXECUTABLE_ATTACHMENTS:warn}
+  # Антибот (E11, `docs/abuse-model.md` §4). Пределы — словами: `10 per hour`, `20 per minute`,
+  # `2 per 10 minutes`, `off`. Ключ адреса — IPv4 целиком или сеть /64 для IPv6. Числа — для машины
+  # на 6 vCPU; пересчитываются по метрикам E10 и замеру ёмкости E05.
+  abuse:
+    # Невидимая проверка «не бот» на создании встречи и входе по коду: браузер решает задачу
+    # proof-of-work (протокол ALTCHA) в фоне, человек её не видит. `off` — выключить.
+    human-check: ${HUMAN_CHECK:proof-of-work}
+    # Сколько чисел перебирает браузер в худшем случае; в среднем — половину. 50 000 — доли секунды на
+    # телефоне. Ключ, выбравший половину своих пределов, и «щит» получают задачу дороже.
+    proof-cost: ${PROOF_COST:50000}
+    # На адрес — щедрее, чем на профиль: за мобильным и офисным NAT много людей.
+    per-ip:
+      rooms-created: ${ABUSE_IP_ROOMS_CREATED:10 per hour}
+      # Сколько встреч, созданных с адреса, одновременно занимают место на сервере (`max-rooms`).
+      open-rooms: ${ABUSE_IP_OPEN_ROOMS:3}
+      admissions: ${ABUSE_IP_ADMISSIONS:30 per minute}
+      code-joins: ${ABUSE_IP_CODE_JOINS:10 per minute}
+      # Промахи кодом встречи. Выбравший предел до конца окна не входит по коду вовсе — даже верным.
+      code-misses: ${ABUSE_IP_CODE_MISSES:20 per hour}
+      # Открытые сокеты событий с адреса и частота их открытия.
+      sockets: ${ABUSE_IP_SOCKETS:30}
+      socket-opens: ${ABUSE_IP_SOCKET_OPENS:60 per minute}
+      # Неверный пароль сервера; выбравший предел ждёт конца окна.
+      password-misses: ${ABUSE_IP_PASSWORD_MISSES:10 per hour}
+      # Подключения к SFU через шлюз (`/internal/signaling-auth`).
+      signaling: ${ABUSE_IP_SIGNALING:60 per minute}
+    per-profile:
+      rooms-created: ${ABUSE_PROFILE_ROOMS_CREATED:6 per hour}
+      open-rooms: ${ABUSE_PROFILE_OPEN_ROOMS:2}
+    per-member:
+      chat-messages: ${ABUSE_MEMBER_CHAT_MESSAGES:20 per minute}
+      # Одно и то же сообщение подряд — не чаще, чем раз в этот срок.
+      chat-repeat: ${ABUSE_MEMBER_CHAT_REPEAT:30 seconds}
+      # Сокеты событий одного участника; лишний закрывает самый старый.
+      sockets: ${ABUSE_MEMBER_SOCKETS:3}
+    server:
+      # Промахи кодом по всему серверу. Выше — «щит»: вход по коду идёт через допуск ведущего, а
+      # задача «не бот» дорожает в восемь раз, пока счётчик не спадёт.
+      code-misses: ${ABUSE_SERVER_CODE_MISSES:300 per minute}

@@ -4,6 +4,7 @@ import static dev.mikki.stream.room.Contracts.*;
 import static dev.mikki.stream.room.RoomState.Status.*;
 
 import dev.mikki.stream.access.Entrant;
+import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.room.Permissions.Action;
@@ -26,7 +27,17 @@ public class RoomService {
   private final Clock clock;
   private final GameClock games;
   private final ApplicationEventPublisher events;
+  private final RateLimits limits;
   private final SecureRandom codeRandom = new SecureRandom();
+
+  /**
+   * Последний номер события каждой комнаты, зафиксированный в базе этим процессом.
+   *
+   * <p>Секундный проход сокетов ({@code RoomSocket.catchUp}) сверяет с ним номер каждого сокета и
+   * идёт в базу только за отставшими. Раньше каждый открытый сокет раз в секунду делал два запроса
+   * (A13 модели угроз), и шестьсот сокетов одного ключа выбирали весь пул соединений.
+   */
+  private final Map<String, Long> sequences = new java.util.concurrent.ConcurrentHashMap<>();
 
   public RoomService(
       RoomRepository rooms,
@@ -34,13 +45,15 @@ public class RoomService {
       Secrets secrets,
       Clock clock,
       GameClock games,
-      ApplicationEventPublisher events) {
+      ApplicationEventPublisher events,
+      RateLimits limits) {
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
     this.clock = clock;
     this.games = games;
     this.events = events;
+    this.limits = limits;
   }
 
   public long now() {
@@ -66,6 +79,17 @@ public class RoomService {
 
   @Transactional
   public Admission create(Create request, Entrant entrant) {
+    // Предел в час — до общего замка: пачка запросов скрипта получает отказ, не вставая в очередь
+    // перед людьми (A1). Здесь только сверка, шаг счётчика — после удачи: отказ не съедает предел.
+    var origin = origin(entrant);
+    var address = entrant.address();
+    var hour = config.abuse();
+    if ((address != null && limits.exhausted("rooms:ip:" + address, hour.perIp().roomsCreated()))
+        || (entrant.profileHash() != null
+            && limits.exhausted(
+                "rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated())))
+      throw new Problem(
+          429, "ROOMS_PER_HOUR", "Слишком много новых встреч за час. Попробуйте позже");
     rooms.lockGlobal();
     return receipt(
         "create",
@@ -81,20 +105,59 @@ public class RoomService {
           // держит встречу и согласился из неё выйти, освобождает слот себе же. Откажет подсчёт —
           // выход откатится вместе со всем остальным.
           oneMeeting(room.id, entrant);
-          if (rooms.all().stream().filter(r -> r.busy(now())).count() >= config.maxRooms())
+          var busy = rooms.all().stream().filter(r -> r.busy(now())).toList();
+          if (busy.size() >= config.maxRooms())
             throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
+          openRooms(busy, origin, entrant.profileHash());
           room.code = newCode();
-          room.title = request.title().strip();
+          room.title = Names.title(request.title());
           room.createdAt = now();
           room.approvalRequired = request.approvalRequired();
           room.integrationsAllowed = !Boolean.FALSE.equals(request.integrationsAllowed());
+          room.createdFrom = origin;
+          room.createdBy = entrant.profileHash();
           var member = newMember(room, request.name(), true, request.commandId(), entrant);
           var url = invite(room);
           rooms.insert(room, now());
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
+          if (address != null) limits.hit("rooms:ip:" + address, hour.perIp().roomsCreated());
+          if (entrant.profileHash() != null)
+            limits.hit("rooms:profile:" + entrant.profileHash(), hour.perProfile().roomsCreated());
           return admission(room, member, request.commandId(), url);
         });
+  }
+
+  /**
+   * Ключ адреса входящего, как его хранит комната: HMAC секретом сервера, а не сам адрес (П8). По
+   * нему считается, сколько встреч с этого адреса сейчас открыто, и блокирует владелец сервера.
+   */
+  private String origin(Entrant entrant) {
+    return entrant.address() == null ? null : secrets.derive("origin:" + entrant.address());
+  }
+
+  /**
+   * Сколько встреч одного адреса и одного профиля одновременно занимают место на сервере (A1).
+   *
+   * <p>Без этого предела пять запросов с одного адреса раз в тридцать секунд держали все {@code
+   * max-rooms} сервера: встреча считается, пока она моложе тридцати секунд, а скрипту ничего не
+   * стоит создавать новые. Считается то же, что считает {@code max-rooms}, — {@link
+   * RoomState#busy}.
+   */
+  private void openRooms(List<RoomState> all, String origin, String profile) {
+    var abuse = config.abuse();
+    // Встреча, из которой создатель уже ушёл и где никого нет, не считается, даже если она моложе
+    // тридцати секунд: человек, передумавший и создавший новую, — не скрипт.
+    var busy = all.stream().filter(r -> r.seatedHumans() > 0).toList();
+    if (origin != null
+        && busy.stream().filter(r -> origin.equals(r.createdFrom)).count()
+            >= abuse.perIp().openRooms())
+      throw new Problem(
+          429, "OPEN_ROOMS", "С этого адреса уже идёт несколько встреч. Завершите одну из них");
+    if (profile != null
+        && busy.stream().filter(r -> profile.equals(r.createdBy)).count()
+            >= abuse.perProfile().openRooms())
+      throw new Problem(429, "OPEN_ROOMS", "У вас уже идут встречи. Завершите одну из них");
   }
 
   private String newCode() {
@@ -137,8 +200,23 @@ public class RoomService {
 
   @Transactional
   public Admission joinCode(JoinCode request, Entrant entrant) {
+    var address = entrant.address();
+    if (address != null
+        && limits.exhausted("code-miss:" + address, config.abuse().perIp().codeMisses()))
+      throw new Problem(
+          429,
+          "CODE_MISSES",
+          "Слишком много неверных кодов. Попробуйте позже или войдите по ссылке");
+    // Код ищется до общего замка: перебор не встаёт в очередь перед теми, кто создаёт встречи и
+    // входит по ссылке (A3). Замок берётся только под найденную комнату.
+    var found = rooms.findForCode(request.code());
+    if (found.isEmpty()) throw codeMiss(address);
+    boolean shield = shielded();
     rooms.lockGlobal();
-    var room = lock(rooms.roomForCode(request.code()));
+    var room = lock(found.get());
+    // Завершённая встреча отвечает тем же, что и несуществующий код: иначе по разнице 410 и 404
+    // перебором находились бы коды сохранённых встреч.
+    if (room.closedAt != null) throw codeMiss(address);
     return receipt(
         "code:" + room.id,
         request.commandId(),
@@ -149,6 +227,13 @@ public class RoomService {
           checkSeat(room, true);
           oneMeeting(room.id, entrant);
           var member = newMember(room, request.name(), false, request.commandId(), entrant);
+          // «Щит»: пока сервер отбивается от перебора, верный код ведёт к двери ведущего, а не
+          // внутрь. Угаданный код тогда ничего не даёт без согласия того, кто во встрече.
+          if (shield && member.approved) {
+            member.approved = false;
+            member.status = WAITING;
+            member.recoveryDeadline = null;
+          }
           // Код — такое же приглашение, как ссылка, и решает про них обоих одна настройка
           // комнаты. Раньше вход по коду ждал подтверждения **всегда**, и выбор «По ссылке и
           // коду — сразу» не значил ничего: правильный номер не открывал дверь, пока хозяин
@@ -159,6 +244,60 @@ public class RoomService {
           rooms.save(room, now());
           return admission(room, member, request.commandId(), null);
         });
+  }
+
+  /** Ключ серверного счётчика промахов кодом — по нему включается «щит» (A3). */
+  private static final String SERVER_MISSES = "code-miss:server";
+
+  /**
+   * Промах кодом: шаг счётчиков адреса и сервера и один и тот же ответ на «нет такого кода» и
+   * «встреча завершена».
+   */
+  private Problem codeMiss(String address) {
+    var abuse = config.abuse();
+    if (address != null) limits.hit("code-miss:" + address, abuse.perIp().codeMisses());
+    limits.hit(SERVER_MISSES, abuse.server().codeMisses());
+    return new Problem(404, "CODE_INVALID", "Проверьте код встречи");
+  }
+
+  /**
+   * Включён ли «щит»: промахов кодом по всему серверу больше {@code abuse.server.code-misses}. Пока
+   * он включён, вход по коду идёт через допуск ведущего, а задача «не бот» дороже.
+   */
+  public boolean shielded() {
+    return limits.exhausted(SERVER_MISSES, config.abuse().server().codeMisses());
+  }
+
+  /**
+   * Частота чата у человека (A6): свой предел сообщений, отдельный от общего предела команд, и одно
+   * и то же сообщение подряд не чаще, чем раз в {@code chat-repeat}. Отказ получает только он —
+   * остальные пишут дальше.
+   */
+  private void chatAllowed(RoomState room, RoomState.Member member, String text) {
+    var abuse = config.abuse().perMember();
+    var last =
+        rooms
+            .jdbc()
+            .sql(
+                "SELECT content, created_at FROM messages WHERE room_id=? AND participant_id=?"
+                    + " ORDER BY created_at DESC LIMIT 1")
+            .params(room.id, member.id)
+            .query((row, i) -> Map.entry(row.getString(1), row.getLong(2)))
+            .optional();
+    if (last.isPresent()
+        && last.get().getKey().equals(text)
+        && now() - last.get().getValue() < abuse.chatRepeat().toMillis())
+      throw new Problem(429, "CHAT_REPEAT", "Это сообщение уже отправлено. Подождите немного");
+    limits.check(
+        "chat:" + member.id,
+        abuse.chatMessages(),
+        "CHAT_RATE",
+        "Слишком много сообщений подряд. Подождите минуту");
+  }
+
+  /** Снять «щит» досрочно — рычаг владельца сервера (E10) и уборка в тестах. */
+  public void forgetCodeMisses() {
+    limits.reset(SERVER_MISSES, config.abuse().server().codeMisses());
   }
 
   @Transactional
@@ -200,8 +339,11 @@ public class RoomService {
             freezeHistory(room, room.closedAt);
             room.closedAt = null;
             room.mediaDrained = false;
-            // Открытая заново встреча — новая встреча: её время идёт с нового начала.
+            // Открытая заново встреча — новая встреча: её время идёт с нового начала, и потолок
+            // длительности тоже считается заново.
             room.startedAt = null;
+            room.openedAt = now();
+            room.endsAt = null;
           }
           requireOpen(room);
           if (previous.replacedBy != null)
@@ -221,7 +363,7 @@ public class RoomService {
                   request.commandId(),
                   entrant.profileHash() != null
                       ? entrant
-                      : new Entrant(room.profiles.get(previous.id), null));
+                      : new Entrant(room.profiles.get(previous.id), null, entrant.address()));
           member.codeRequest = previous.codeRequest;
           /*
            Исключение заканчивает встречу для человека, а не знакомство с комнатой.
@@ -343,11 +485,27 @@ public class RoomService {
         });
   }
 
+  /**
+   * Приглашение от бота — одно на комнату, пока оно живо (A11 модели угроз).
+   *
+   * <p>Раньше каждый {@code /meet} выдавал новое, и сотня команд от любого участника группы
+   * выбирала потолок в сто приглашений комнаты на сутки: ведущий больше не мог пригласить никого.
+   * Ссылка выводится из номера приглашения и секрета сервера, поэтому ту же ссылку можно выдать
+   * снова, не храня её. Отозванное или почти истёкшее — повод выдать новое.
+   */
   @Transactional
   public String serviceInvite(String roomId) {
     var room = lock(roomId);
     requireOpen(room);
+    var held = room.botInvite == null ? null : room.invites.get(room.botInvite);
+    if (held != null && !held.revoked() && held.expiresAt() > now() + 3_600_000L)
+      return inviteUrl(room, held.id());
     var url = invite(room);
+    room.botInvite =
+        room.invites.values().stream()
+            .max(Comparator.comparingLong(RoomState.Invite::createdAt))
+            .map(RoomState.Invite::id)
+            .orElse(null);
     emit(room, "room.changed", EventPayload.changed());
     rooms.save(room, now());
     return url;
@@ -369,7 +527,7 @@ public class RoomService {
     requireOpen(room);
     // Проверка та же, что при создании: @NotBlank отсекает пустое и одни пробелы, @Size —
     // длину. Дублировать её здесь значило бы завести второе место, где она может разойтись.
-    room.title = settings.title().strip();
+    room.title = Names.title(settings.title());
     room.approvalRequired = settings.approvalRequired();
     emit(room, "room.changed", EventPayload.changed());
     rooms.save(room, now());
@@ -421,7 +579,7 @@ public class RoomService {
       RoomState room, String name, boolean owner, UUID commandId, Entrant entrant) {
     var m = new RoomState.Member();
     m.id = UUID.randomUUID().toString();
-    m.name = name.strip();
+    m.name = Names.person(name);
     m.owner = owner;
     m.joinedAt = now();
     m.status = (!owner && room.approvalRequired) ? WAITING : JOINING;
@@ -512,7 +670,8 @@ public class RoomService {
             current.chess(),
             current.gartic(),
             current.you(),
-            current.startedAt());
+            current.startedAt(),
+            current.endsAt());
     return new Admission(
         room.id,
         member.id,
@@ -537,7 +696,15 @@ public class RoomService {
             now(),
             now() + config.retention().messages().toMillis(),
             false));
-    return config.publicUrl() + "/join/" + room.id + "#invite=" + token;
+    return inviteUrl(room, id);
+  }
+
+  private String inviteUrl(RoomState room, String inviteId) {
+    return config.publicUrl()
+        + "/join/"
+        + room.id
+        + "#invite="
+        + secrets.derive("invite:" + room.id + ":" + inviteId);
   }
 
   public RoomState.Member authenticate(RoomState room, String credential) {
@@ -651,7 +818,8 @@ public class RoomService {
         room.chess == null ? null : room.chess.view(viewer == null ? null : viewer.id, now()),
         room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()),
         viewer == null ? null : new RoomYou(Permissions.granted(room, viewer)),
-        room.startedAt);
+        room.startedAt,
+        room.endsAt);
   }
 
   /**
@@ -730,7 +898,8 @@ public class RoomService {
         // угадывать это по статусу.
         current.you(),
         // Сколько встреча идёт — не её жизнь, а её часы: их видно и из-за двери.
-        current.startedAt());
+        current.startedAt(),
+        current.endsAt());
   }
 
   @Transactional
@@ -1130,14 +1299,25 @@ public class RoomService {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
                 throw new Problem(400, "EMPTY_MESSAGE", "Введите сообщение");
-              if (rooms
+              if (member.human()) chatAllowed(room, member, command.text().strip());
+              // Кольцо, а не стена (A6): сверх потолка уходят старейшие. Раньше на тысячном
+              // сообщении сервер отказывал всем, и один участник мог заглушить чат на сутки.
+              long stored =
+                  rooms
                       .jdbc()
                       .sql("SELECT COUNT(*) FROM messages WHERE room_id=?")
                       .param(room.id)
                       .query(Long.class)
-                      .single()
-                  >= 1000)
-                throw new Problem(429, "MESSAGE_LIMIT", "Достигнут лимит сообщений комнаты");
+                      .single();
+              int cap = config.chat().roomHistory();
+              if (stored >= cap)
+                rooms
+                    .jdbc()
+                    .sql(
+                        "DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE room_id=?"
+                            + " ORDER BY created_at, id LIMIT ?)")
+                    .params(room.id, stored - cap + 1)
+                    .update();
               var msg =
                   new RoomState.Message(
                       UUID.randomUUID().toString(),
@@ -1521,6 +1701,35 @@ public class RoomService {
         .sql("DELETE FROM room_events WHERE room_id=? AND sequence<=?")
         .params(room.id, room.sequence - config.eventHistoryLimit())
         .update();
+    published(room.id, event.sequence());
+  }
+
+  /**
+   * Запомнить номер события, когда он станет виден в базе: после фиксации транзакции, а без неё —
+   * сразу. Номер из откатившейся транзакции не запоминается — иначе сокеты комнаты каждую секунду
+   * искали бы событие, которого нет.
+   */
+  private void published(String roomId, long sequence) {
+    Runnable remember = () -> sequences.merge(roomId, sequence, Math::max);
+    if (org.springframework.transaction.support.TransactionSynchronizationManager
+        .isSynchronizationActive())
+      org.springframework.transaction.support.TransactionSynchronizationManager
+          .registerSynchronization(
+              new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                  remember.run();
+                }
+              });
+    else remember.run();
+  }
+
+  /**
+   * Последний зафиксированный номер события комнаты, известный этому процессу, или -1. Сокет с
+   * номером не меньше этого догонять нечего — базу можно не спрашивать.
+   */
+  public long latest(String roomId) {
+    return sequences.getOrDefault(roomId, -1L);
   }
 
   public Replay replay(String roomId, String credential, long after) {
