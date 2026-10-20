@@ -1,17 +1,11 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ShieldAlert, TimerOff } from 'lucide-react';
 import type { Attachment, Snapshot } from '../../api/types';
+import { locale } from '../../i18n';
 import './notices.css';
 
-/*
-  Предупреждения антибота во встрече (E11-B). Тексты — здесь, одним местом: слой переводов E14
-  заберёт их в `locales/ru.json`.
-*/
-const TEXT = {
-  ends: (time: string) =>
-    `Встреча завершится в ${time}: у встреч на этом сервере есть предельная длительность`,
-  executable: 'Файл может запустить программу. Открывайте, только если доверяете отправителю',
-};
+/* Предупреждения антибота во встрече (E11-B). Тексты — в каталоге: `meeting.ceiling`, `chat.executable`. */
 
 /** Когда встреча завершится по потолку длительности, или `null`, пока ядро об этом не сказало. */
 export function readEndsAt(snapshot: Snapshot): number | null {
@@ -25,22 +19,23 @@ export function readEndsAt(snapshot: Snapshot): number | null {
  * часы сервера.
  */
 export function MeetingEnds({ snapshot }: { snapshot: Snapshot }) {
+  const { t } = useTranslation();
   const endsAt = readEndsAt(snapshot);
   const time = useMemo(
     () =>
       endsAt === null
         ? ''
-        : new Date(Date.now() + endsAt - snapshot.serverTime).toLocaleTimeString('ru-RU', {
+        : new Date(Date.now() + endsAt - snapshot.serverTime).toLocaleTimeString(locale(t), {
             hour: '2-digit',
             minute: '2-digit',
           }),
-    [endsAt, snapshot.serverTime],
+    [endsAt, snapshot.serverTime, t],
   );
   if (endsAt === null) return null;
   return (
-    <p className="abuse-notice abuse-notice--meeting" role="status">
+    <p className="abuse-notice" role="status">
       <TimerOff size={14} aria-hidden="true" />
-      {TEXT.ends(time)}
+      {t(($) => $.meeting.ceiling, { time })}
     </p>
   );
 }
@@ -52,11 +47,12 @@ export function isExecutable(file: Attachment): boolean {
 
 /** Предупреждение у файла, который может запустить программу (A7 модели угроз). */
 export function ExecutableNote({ file }: { file: Attachment }) {
+  const { t } = useTranslation();
   if (!isExecutable(file)) return null;
   return (
-    <small className="abuse-notice abuse-notice--file" role="note">
+    <small className="abuse-notice" role="note">
       <ShieldAlert size={13} aria-hidden="true" />
-      {TEXT.executable}
+      {t(($) => $.chat.executable)}
     </small>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Dialog } from '../kit';
 import './notices.css';
 
@@ -8,16 +9,8 @@ import './notices.css';
   `xn--`, по которой подмену букв видно, — а переход спрашивает «Ссылка ведёт на …. Открыть?».
   Внешних проверок (Safe Browsing и подобных) нет: переписка встречи никуда не уходит.
 
-  Тексты — здесь, одним местом: слой переводов E14 заберёт их в `locales/ru.json`.
+  Тексты — в каталоге: `chat.link.*`.
 */
-const TEXT = {
-  title: 'Переход по ссылке',
-  leadsTo: 'Ссылка ведёт на',
-  question: 'Открыть?',
-  open: 'Открыть',
-  cancel: 'Отмена',
-};
-
 const LINK = /https?:\/\/[^\s<>"'«»]+[^\s<>"'«».,;:!?)\]]/giu;
 
 /** Части текста: обычный текст и ссылки с их настоящим доменом. */
@@ -47,6 +40,7 @@ function written(url: string): string {
 
 /** Текст сообщения, где ссылки показывают домен и переходят только после подтверждения. */
 export function ChatText({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<{ url: string; host: string } | null>(null);
   const parts = splitLinks(text);
   if (!parts.some((part) => 'url' in part)) return <>{text}</>;
@@ -78,17 +72,17 @@ export function ChatText({ text }: { text: string }) {
       <Dialog
         open={pending !== null}
         onOpenChange={(open) => !open && setPending(null)}
-        title={TEXT.title}
+        title={t(($) => $.chat.link.title)}
         size="sm"
         description={
           <>
-            {TEXT.leadsTo} <strong>{pending?.host}</strong>. {TEXT.question}
+            {t(($) => $.chat.link.leadsTo)} <strong>{pending?.host}</strong>. {t(($) => $.chat.link.question)}
           </>
         }
         footer={
           <>
             <Button variant="quiet" onClick={() => setPending(null)}>
-              {TEXT.cancel}
+              {t(($) => $.chat.link.cancel)}
             </Button>
             <Button
               variant="primary"
@@ -97,7 +91,7 @@ export function ChatText({ text }: { text: string }) {
                 setPending(null);
               }}
             >
-              {TEXT.open}
+              {t(($) => $.chat.link.open)}
             </Button>
           </>
         }
