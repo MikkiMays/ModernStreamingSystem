@@ -32,7 +32,7 @@ from cord_services.cinema.providers import PROVIDERS
 from cord_services.cinema.providers.vk import BROWSER, People, Vk, _picture
 from cord_services.cinema.registry import Features, Kit
 from cord_services.cinema.resolve import Resolver, YtDlp, ytdlp
-from cord_services.cinema.transport.signer import proxied
+from cord_services.cinema.transport.signer import SIGNATURE_TTL, proxied
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "vk"
 # Сразу после съёмки: анонимный токен из неё живёт до 1 790 351 185 (сутки).
@@ -1005,7 +1005,7 @@ class ResolveTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(found["kind"], "hls")
         self.assertEqual(
             found["url"],
-            proxied(self.signer, recorded("master-vod.url").strip(), "playlist", 5 * 3600, provider="vk"),
+            proxied(self.signer, recorded("master-vod.url").strip(), "playlist", SIGNATURE_TTL, provider="vk"),
         )
         self.assertEqual(
             found["captions"],

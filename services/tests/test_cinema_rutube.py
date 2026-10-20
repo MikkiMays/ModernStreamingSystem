@@ -37,7 +37,7 @@ from cord_services.cinema.providers import PROVIDERS
 from cord_services.cinema.providers.rutube import Rutube
 from cord_services.cinema.registry import Features, Kit
 from cord_services.cinema.resolve import YtDlp
-from cord_services.cinema.transport.signer import proxied
+from cord_services.cinema.transport.signer import SIGNATURE_TTL, proxied
 from cord_services.core import Core
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "rutube"
@@ -45,7 +45,8 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "rutube"
 NOW = 1_790_250_000.0
 SECRET = "secret"
 DAY = 24 * 3600
-FIVE_HOURS = 5 * 3600
+# Срок подписи прокси (`CINEMA_LINK_TTL`, A8): с E11-B — час, а не пять.
+LINK_TTL = SIGNATURE_TTL
 ROOM = str(uuid.uuid4())
 
 PLAY = {"no_404": "true", "referer": "https://rutube.ru", "pver": "v2", "client": "wdp"}
@@ -812,9 +813,9 @@ class SourceTests(Stage):
                 "live": False,
                 "kind": "hls",
                 "url": proxied(
-                    signer, options["video_balancer"]["m3u8"], "playlist", FIVE_HOURS, provider="rutube"
+                    signer, options["video_balancer"]["m3u8"], "playlist", LINK_TTL, provider="rutube"
                 ),
-                "expiresAt": int((NOW + FIVE_HOURS) * 1000),
+                "expiresAt": int((NOW + LINK_TTL) * 1000),
                 "notice": None,
                 "language": "",
                 # Субтитры площадки — SRT, а `<track>` читает только WebVTT: их отдаёт маршрут,
@@ -849,7 +850,7 @@ class SourceTests(Stage):
                 Signer(SECRET),
                 options["live_streams"]["hls"][0]["url"],
                 "playlist",
-                FIVE_HOURS,
+                LINK_TTL,
                 provider="rutube",
             ),
         )

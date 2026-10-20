@@ -15,6 +15,7 @@ import re
 import time
 import uuid
 from collections import defaultdict
+from html import escape, unescape
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlencode
 
@@ -175,3 +176,17 @@ def bind_room(value: Any, room: str, signer: Signer) -> Any:
     sealed = signer.seal(route, params.get("p", ""), params["u"], params["e"], params.get("h") or None, room)
     return located(route, room) + "?" + urlencode(sealed)
 
+
+# Адрес прокси внутри текста манифеста (MPD — XML, амперсанды в нём записаны `&amp;`).
+_ADDRESS = re.compile(re.escape(PREFIX) + r"/(?:fetch|playlist|subtitles|image)\?[^\s\"'<>]+")
+
+
+def bind_text(body: str, room: str, signer: Signer) -> str:
+    """
+    Манифест DASH, где адреса прокси переподписаны под встречу.
+
+    Манифест собирается при разборе — общем на всех зрителей, — и адреса дорожек в нём без встречи. Отдавая
+    его конкретной встрече (`…/r/<встреча>/dash/<имя>`), прокси переписывает их так же, как `bind_room` —
+    ответ разбора, иначе дорожки шли бы мимо счёта и после конца встречи.
+    """
+    return _ADDRESS.sub(lambda found: escape(bind_room(unescape(found.group(0)), room, signer)), body)

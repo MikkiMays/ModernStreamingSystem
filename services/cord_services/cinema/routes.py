@@ -13,7 +13,7 @@ from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .facade import Cinema, Kind, Link, Resolve, Tab
-from .guard import Traffic, Watching, bind_room
+from .guard import Traffic, Watching, bind_room, bind_text
 from .transport.relay import SEALED
 from .transport.signer import PREFIX, ROOM
 
@@ -256,7 +256,10 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
     @signed.get(PREFIX + "/r/{room}/dash/{key}")
     async def room_dash(room: str, key: str):
         await admitted(room)
-        return traffic.wrap(cinema.dash(key), room)
+        manifest = cinema.dash(key)
+        manifest.body = bind_text(manifest.body.decode(), room, cinema.signer).encode()
+        manifest.headers["content-length"] = str(len(manifest.body))
+        return traffic.wrap(manifest, room)
 
     @signed.get(PREFIX + "/r/{room}/seg/{key}/{index}")
     async def room_segment(room: str, key: str, index: int, range: str | None = Header(default=None)):

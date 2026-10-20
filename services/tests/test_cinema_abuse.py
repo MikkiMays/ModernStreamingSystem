@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
 from cord_services.cinema.facade import Cinema
-from cord_services.cinema.guard import Traffic, Watching, bind_room, size
+from cord_services.cinema.guard import Traffic, Watching, bind_room, bind_text, size
 from cord_services.cinema.routes import routes
 from cord_services.cinema.transport import signer as signing
 from cord_services.cinema.transport.signer import PREFIX, ROOM, Signer, proxied
@@ -81,6 +81,21 @@ class RoomInSignature(unittest.TestCase):
         self.assertEqual(self.signer.open("playlist", u, e, s, p, h, room=ROOM_A), URL)
         # Общий ответ не тронут: следующая встреча получит свои адреса из того же разбора.
         self.assertTrue(shared["url"].startswith(f"{PREFIX}/playlist?"))
+
+
+class Manifest(unittest.TestCase):
+    def test_dash_tracks_are_rebound_to_the_meeting_inside_the_xml(self):
+        signer = Signer("secret-of-thirty-two-characters!", hosts)
+        address = proxied(signer, URL, "fetch", provider="youtube")
+        body = "<MPD><BaseURL>" + address.replace("&", "&amp;") + "</BaseURL></MPD>"
+        bound = bind_text(body, ROOM_A, signer)
+        self.assertIn("<BaseURL>" + PREFIX + "/r/" + ROOM_A + "/fetch?", bound)
+        inner = bound.split("<BaseURL>")[1].split("</BaseURL>")[0]
+        self.assertNotIn("&", inner.replace("&amp;", ""))
+        inner = inner.replace("&amp;", "&")
+        query = {k: v[0] for k, v in parse_qs(urlsplit(inner).query).items()}
+        opened = signer.open("fetch", query["u"], query["e"], query["s"], query["p"], room=ROOM_A)
+        self.assertEqual(opened, URL)
 
 
 class Core:
