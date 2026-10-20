@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Заставка на мгновение до загрузки страницы: фон интерфейса Cord и знак в центре. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <color android:color="#FF101114" />
+    </item>
+    <item
+        android:width="96dp"
+        android:height="96dp"
+        android:drawable="@mipmap/ic_launcher_foreground"
+        android:gravity="center" />
+</layer-list>
