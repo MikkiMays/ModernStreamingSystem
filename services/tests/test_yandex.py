@@ -1,3 +1,4 @@
+import subprocess
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -220,3 +221,57 @@ class YandexTests(Fixture):
         ):
             with self.assertRaises(HTTPException):
                 self.yandex.download_url(url)
+
+    async def test_album_cover_comes_along_from_yandex_hosts_only(self):
+        scope = "room:" + ROOM
+        self.yandex.save(scope, {"token": "TEST_TOKEN", "name": "Tester"})
+        one = SimpleNamespace(
+            id=123,
+            title="Track",
+            artists=[SimpleNamespace(name="Artist")],
+            duration_ms=1000,
+            available=True,
+            cover_uri="avatars.yandex.net/get-music-content/1/abc/%%",
+        )
+        self.fake.tracks = AsyncMock(return_value=[one])
+        self.fake.tracks_download_info = AsyncMock(
+            return_value=[
+                SimpleNamespace(
+                    preview=False,
+                    codec="mp3",
+                    bitrate_in_kbps=320,
+                    download_info_url="https://music.yandex.ru/download-info/123",
+                    get_direct_link_async=AsyncMock(
+                        return_value="https://cdn.yandex.net/a.mp3"
+                    ),
+                )
+            ]
+        )
+        wav = self.root / "source.wav"
+        audio(wav)
+        art = self.root / "art.png"
+        subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=40x40",
+                "-frames:v", "1", "-y", str(art),
+            ],
+            check=True,
+        )
+        asked = []
+
+        def respond(request):
+            asked.append(str(request.url))
+            if request.url.host == "avatars.yandex.net":
+                return httpx.Response(200, content=art.read_bytes())
+            return httpx.Response(200, content=wav.read_bytes())
+
+        await self.yandex.http.aclose()
+        self.yandex.http = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        state = await self.yandex.enqueue(ROOM, scope, "123", str(uuid.uuid4()), "Tester")
+        self.assertRegex(state["queue"][0]["cover"], r"\.jpg$")
+        self.assertIn("https://avatars.yandex.net/get-music-content/1/abc/400x400", asked)
+        # Обложка с чужого хоста не скачивается вовсе — трек идёт без неё.
+        one.cover_uri = "evil.test/cover/%%"
+        state = await self.yandex.enqueue(ROOM, scope, "123", str(uuid.uuid4()), "Tester")
+        self.assertIsNone(state["queue"][1]["cover"])
+        self.assertFalse(any("evil.test" in url for url in asked))

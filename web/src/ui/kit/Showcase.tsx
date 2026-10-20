@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { FullscreenLoader } from '../loader/FullscreenLoader';
+import { IntegrationsSample } from '../IntegrationsSample';
 import {
   AppIcon,
   Badge,
@@ -414,6 +415,11 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
           />
           <div className="kit__main">Содержимое</div>
         </div>
+      </Section>
+
+      <Section title="Интеграции">
+        <p className="kit__muted">Витрина и музыка панели встречи на образцах: панель 320 и 400 px.</p>
+        <IntegrationsSample theme={theme} />
       </Section>
 
       <Section title="Загрузка">

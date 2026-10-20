@@ -112,6 +112,10 @@ public final class Permissions {
     MUSIC_UPLOAD("music.upload", Rule.INTEGRATIONS),
     /** Убрать — то же право, что добавить (T14): раньше служба пускала сюда только создателя. */
     MUSIC_REMOVE("music.remove", Rule.INTEGRATIONS),
+    /** Поиск по площадкам без аккаунта (YouTube, SoundCloud) — как поиск Яндекса (T18). */
+    MUSIC_SEARCH("music.search", Rule.INTEGRATIONS),
+    /** Трек по ссылке или из найденного — как трек из Яндекса: в общую очередь (T18). */
+    MUSIC_LINK("music.link", Rule.INTEGRATIONS),
     YANDEX_CONNECT("yandex.connect", Rule.INTEGRATIONS),
     YANDEX_SEARCH("yandex.search", Rule.INTEGRATIONS),
     YANDEX_QUEUE("yandex.queue", Rule.INTEGRATIONS),

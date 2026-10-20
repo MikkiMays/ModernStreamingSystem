@@ -10,6 +10,7 @@ import uuid
 import httpx
 from fastapi import HTTPException
 
+from . import covers
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
@@ -407,6 +408,7 @@ class Telegram:
         ) or ".." in remote_path.split("/"):
             raise HTTPException(400, "Telegram не вернул аудиофайл")
         path = self.store.files / key
+        cover = None
         try:
             total = 0
             async with self.client.stream(
@@ -422,6 +424,7 @@ class Telegram:
                             raise HTTPException(413, "Аудиофайл слишком большой")
                         output.write(chunk)
             metadata = await probe(path)
+            cover = await covers.extract(path, self.store.files)
             title = str(
                 audio.get("title")
                 or metadata["title"]
@@ -437,6 +440,7 @@ class Telegram:
                 "addedBy": self.actor(message),
                 "source": "telegram",
                 "createdAt": now(),
+                "cover": cover,
             }
             await self.music.enqueue(room_id, track)
             self.store.remember("tg-audio", key, {"id": key})
@@ -446,6 +450,8 @@ class Telegram:
         except BaseException:
             if not any(t["id"] == key for t in self.store.get(room_id)["queue"]):
                 path.unlink(missing_ok=True)
+                if cover:
+                    (self.store.files / cover).unlink(missing_ok=True)
             raise
 
     async def handle(self, update: dict):

@@ -21,6 +21,7 @@
 - [`cord-ladder-in-place`](memory/cord-ladder-in-place.md) — Почему камера в Cord «моргала» каждые полминуты и как лестница качества теперь шагает без переопубликации
 - [`cord-local-stack-with-sfu`](memory/cord-local-stack-with-sfu.md) — Как поднять рядом с продом Cord полный второй стенд со своим SFU и проверять на нём медиа, ничего не трогая
 - [`cord-moderation-is-soft`](memory/cord-moderation-is-soft.md) — Решение владельца Cord: исключение и выключенный микрофон — не запрет, а конец встречи
+- [`cord-music-platform-sources`](memory/cord-music-platform-sources.md) — Что YouTube и SoundCloud отдают музыке Cord через yt-dlp без ключей и как узнать 30-секундный фрагмент SoundCloud Go+
 - [`cord-music-silence-and-encode`](memory/cord-music-silence-and-encode.md) — Почему пауза в музыке Cord звучала как поломка и чем меряется, кодек это или сеть
 - [`cord-openapi-regeneration`](memory/cord-openapi-regeneration.md) — Как перегенерировать contracts/openapi.json в Cord, когда прод-ядро отдаёт 404 на /api/openapi
 - [`cord-playout-buffer`](memory/cord-playout-buffer.md) — Почему в Cord звук «то ускорялся, то ломался», и почему нулевой буфер приёма больше не просят
@@ -39,6 +40,7 @@
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
 - [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
+- [`cord-worktree-kit-shots`](memory/cord-worktree-kit-shots.md) — Почему в worktree Cord dev-сервер рисует запасной шрифт и почему колонка другой темы на /kit врёт про поля
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
 - [`livekit-resume-on-network-change`](memory/livekit-resume-on-network-change.md) — Почему livekit-client не замечает смену сети (VPN) и как попросить у него бесшовный resume без полного connect
 - [`livekit-stereo-only-via-go`](memory/livekit-stereo-only-via-go.md) — Почему музыка в Cord приходила в моно и почему стерео возможно только через Go-SDK

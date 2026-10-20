@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { MusicState, MusicTrack } from '../core/services';
 import {
+  afterMove,
   afterPromote,
   afterRemove,
   afterSkip,
+  classifyQuery,
+  dropIndex,
   foresee,
   foresightSpent,
   formatDuration,
   offeredSources,
   playbackPosition,
-  preferredSource,
 } from './music-playback';
 
 const song = (id: string): MusicTrack => ({
@@ -19,6 +21,7 @@ const song = (id: string): MusicTrack => ({
   duration: 100,
   addedBy: 'Кто-то',
   source: 'upload',
+  cover: null,
 });
 
 const state = (patch: Partial<MusicState> = {}): MusicState => ({
@@ -43,11 +46,12 @@ describe('часы и очередь музыкальной панели', () =>
   });
 
   it('предлагает только те источники, которые есть у сервера, и в своём порядке', () => {
-    expect(offeredSources(['yandex', 'upload', 'какой-то новый'])).toEqual(['upload', 'yandex']);
-    expect(offeredSources(undefined)).toEqual(['upload', 'telegram', 'yandex']);
-    expect(preferredSource(['upload', 'yandex'])).toBe('yandex');
-    expect(preferredSource(['upload'])).toBe('upload');
-    expect(preferredSource([])).toBe('upload');
+    expect(offeredSources(['soundcloud', 'yandex', 'upload', 'какой-то новый'])).toEqual([
+      'upload',
+      'yandex',
+      'soundcloud',
+    ]);
+    expect(offeredSources(undefined)).toEqual(['upload', 'telegram', 'yandex', 'youtube', 'soundcloud']);
   });
 
   /** Главное свойство предсказания: оно живёт ровно до первого состояния новее своего. */
@@ -86,5 +90,49 @@ describe('часы и очередь музыкальной панели', () =>
   it('обнуляет позицию, только если убрали именно тот трек, что играет', () => {
     expect(afterRemove(state({ position: 42 }), 'два').position).toBe(42);
     expect(afterRemove(state({ position: 42 }), 'один').position).toBe(0);
+  });
+
+  it('переставляет трек на любое место после играющего, как служба', () => {
+    const four = state({ queue: [song('один'), song('два'), song('три'), song('четыре')] });
+    expect(afterMove(four, 'четыре', 1).queue?.map((t) => t.id)).toEqual(['один', 'четыре', 'два', 'три']);
+    expect(afterMove(four, 'два', 99).queue?.map((t) => t.id)).toEqual(['один', 'три', 'четыре', 'два']);
+    expect(afterMove(four, 'три', 0).queue?.map((t) => t.id)).toEqual(['один', 'три', 'два', 'четыре']);
+    // Играющий не переставляется, пропавший — тоже: предсказывать нечего.
+    expect(afterMove(four, 'один', 2)).toEqual({});
+    expect(afterMove(four, 'пятый', 1)).toEqual({});
+  });
+
+  it('место при перетаскивании — сколько строк выше указателя, но не раньше первого после играющего', () => {
+    const middles = [20, 60, 100];
+    expect(dropIndex(middles, 0)).toBe(1);
+    expect(dropIndex(middles, 59)).toBe(1);
+    expect(dropIndex(middles, 61)).toBe(2);
+    expect(dropIndex(middles, 400)).toBe(3);
+  });
+});
+
+describe('одно поле: поиск или ссылка', () => {
+  it('пустое и текст', () => {
+    expect(classifyQuery('   ')).toEqual({ kind: 'empty' });
+    expect(classifyQuery('  daft   punk ')).toEqual({ kind: 'text', text: 'daft punk' });
+  });
+
+  it('узнаёт ссылки площадок, которые музыка открывает', () => {
+    expect(classifyQuery('https://youtu.be/dQw4w9WgXcQ')).toEqual({
+      kind: 'link',
+      source: 'youtube',
+      url: 'https://youtu.be/dQw4w9WgXcQ',
+    });
+    expect(classifyQuery(' https://music.youtube.com/watch?v=dQw4w9WgXcQ ')).toMatchObject({
+      kind: 'link',
+      source: 'youtube',
+    });
+    expect(classifyQuery('https://m.soundcloud.com/artist/track')).toMatchObject({ source: 'soundcloud' });
+    expect(classifyQuery('https://music.yandex.ru/album/1/track/2')).toMatchObject({ source: 'yandex' });
+  });
+
+  it('чужая ссылка — не запрос в поиск', () => {
+    expect(classifyQuery('https://example.com/song.mp3')).toEqual({ kind: 'foreign' });
+    expect(classifyQuery('http://youtube.com.evil.test/watch?v=x')).toEqual({ kind: 'foreign' });
   });
 });

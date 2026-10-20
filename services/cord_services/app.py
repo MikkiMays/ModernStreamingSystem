@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import secrets
 import uuid
 from contextlib import asynccontextmanager
@@ -11,9 +12,10 @@ from typing import Literal
 from urllib.parse import unquote
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+from . import covers
 from .cinema import Cinema
 from .cinema import routes as cinema_routes
 from .cinema.net import NetConfig
@@ -21,8 +23,18 @@ from .cinema.sniffer import Sniffer, key_for
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
+from .sources import PLATFORMS, Sources
 from .store import Store, now
 from .yandex import Yandex, routes
+
+# Источники музыки по порядку, в котором их видит человек. `MUSIC_SOURCES` — включённые через
+# запятую, пусто — все. YouTube и SoundCloud выключаются здесь одной строкой (E06-B, T18).
+MUSIC_SOURCES = ("upload", "telegram", "yandex", "youtube", "soundcloud")
+
+
+def music_sources(value: str | None) -> list[str]:
+    wanted = {part.strip().lower() for part in (value or "").split(",") if part.strip()}
+    return [source for source in MUSIC_SOURCES if not wanted or source in wanted]
 
 
 class Command(BaseModel):
@@ -38,13 +50,26 @@ class Command(BaseModel):
         "seek",
         "remove",
         "next",
+        "move",
     ]
     trackId: str | None = Field(default=None, max_length=36)
     position: float | None = Field(default=None, ge=0, le=3600, allow_inf_nan=False)
     enabled: bool | None = None
+    # Куда встаёт трек у `move`: первое место — играющий, поэтому не меньше единицы.
+    index: int | None = Field(default=None, ge=1, le=99)
 
 
 class Operation(BaseModel):
+    commandId: uuid.UUID
+
+
+class MusicSearch(BaseModel):
+    source: Literal["youtube", "soundcloud"]
+    query: str = Field(min_length=1, max_length=300)
+
+
+class MusicLink(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
     commandId: uuid.UUID
 
 
@@ -82,6 +107,13 @@ def create_app(
         links=store.links,
         sniffer=Sniffer(sniffer_url, key_for(core.secret)) if sniffer_url and core.secret else None,
     )
+    sources_on = music_sources(os.environ.get("MUSIC_SOURCES"))
+    sources = Sources(
+        cinema.ytdlp,
+        store,
+        music,
+        [source for source in sources_on if source in PLATFORMS],
+    )
     telegram = None
     background = []
 
@@ -109,7 +141,12 @@ def create_app(
         async def clean():
             while True:
                 await asyncio.sleep(300)
-                store.cleanup()
+                # Одна неудачная уборка не должна останавливать все следующие: без них не
+                # истекают сроки треков и не уходят осиротевшие файлы до перезапуска службы.
+                try:
+                    store.cleanup()
+                except Exception:
+                    logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
         background.append(asyncio.create_task(clean(), name="cleanup"))
         yield
@@ -117,6 +154,7 @@ def create_app(
             task.cancel()
         await asyncio.gather(*background, return_exceptions=True)
         await music.close()
+        sources.close()
         if telegram:
             await telegram.client.aclose()
         await yandex.http.aclose()
@@ -134,6 +172,7 @@ def create_app(
     app.state.store, app.state.core, app.state.music = store, core, music
     app.state.yandex = yandex
     app.state.cinema = cinema
+    app.state.sources = sources
     app.include_router(routes(yandex, core))
     app.include_router(cinema_routes(cinema, core))
 
@@ -151,8 +190,11 @@ def create_app(
             )
         response = await call_next(request)
         # Кинозал отвечает за свои заголовки сам: сегменты видео должны лежать в кэше
-        # браузера, иначе отмотка назад скачивает уже скачанное — и с нашего же канала.
-        if not request.url.path.startswith("/api/v1/services/cinema/"):
+        # браузера, иначе отмотка назад скачивает уже скачанное — и с нашего же канала. Обложка
+        # трека под своим именем не меняется никогда — её кэш задаёт маршрут обложек.
+        if not request.url.path.startswith(
+            ("/api/v1/services/cinema/", "/api/v1/services/music/covers/")
+        ):
             response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
@@ -179,7 +221,7 @@ def create_app(
                     and store.state("bot_status") == "polling"
                 ),
             },
-            "sources": ["upload", "telegram", "yandex"],
+            "sources": sources_on,
             "maxFileBytes": MAX_FILE,
         }
 
@@ -225,6 +267,7 @@ def create_app(
             music.check_quota(room_id, int(request.headers.get("content-length", 0)))
             track_id = str(uuid.uuid4())
             path = store.files / track_id
+            cover = None
             total = 0
             try:
                 with path.open("xb") as output:
@@ -238,6 +281,7 @@ def create_app(
                 if total == 0:
                     raise HTTPException(400, "Файл пуст")
                 metadata = await probe(path)
+                cover = await covers.extract(path, store.files)
                 track = {
                     "id": track_id,
                     "file": track_id,
@@ -246,13 +290,44 @@ def create_app(
                     "addedBy": member["name"],
                     "source": "upload",
                     "createdAt": now(),
+                    "cover": cover,
                 }
                 result = await music.enqueue(room_id, track)
                 store.remember(scope, str(command_id), {"trackId": track_id})
                 return result
             except BaseException:
                 path.unlink(missing_ok=True)
+                if cover:
+                    (store.files / cover).unlink(missing_ok=True)
                 raise
+
+    @app.post("/api/v1/services/rooms/{room_id}/music/search")
+    async def search(room_id: str, value: MusicSearch, authorization: str = Header()):
+        await core.member(room_id, authorization, action="music.search")
+        return await sources.search(room_id, value.source, value.query)
+
+    @app.post("/api/v1/services/rooms/{room_id}/music/link")
+    async def add_link(room_id: str, value: MusicLink, authorization: str = Header()):
+        _, member = await core.member(room_id, authorization, action="music.link")
+        return await sources.enqueue(
+            room_id, value.url, str(value.commandId), member["name"]
+        )
+
+    @app.get("/api/v1/services/music/covers/{name}")
+    async def cover(name: str):
+        # Без заголовка входа: `<img>` его не пошлёт, а CSP пускает картинки только со своего
+        # адреса. Имя — новый UUID, не выводится из трека; отдаётся только обложка, которую держит
+        # чья-то очередь, — звук и прочие файлы хранилища этим путём не достать.
+        if not re.fullmatch(covers.NAME, name) or name not in store.referenced():
+            raise HTTPException(404, "Обложки нет")
+        path = store.files / name
+        if not path.is_file():
+            raise HTTPException(404, "Обложки нет")
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400, immutable"},
+        )
 
     @app.post("/api/v1/services/rooms/{room_id}/telegram/link")
     async def link(room_id: str, authorization: str = Header()):

@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .covers import files_of
+
 
 # Сколько живёт принесённое в комнату: и сам файл в очереди, и запись о комнате после того,
 # как музыку в ней выключили. Сутки — один срок на оба, потому что вопрос один: «этим ещё
@@ -19,6 +21,27 @@ TRACK_TTL = 86400000
 
 def now() -> int:
     return int(time.time() * 1000)
+
+
+def size_of(path: Path) -> int:
+    """Размер файла — или ноль, если его уже нет.
+
+    Каталог звука живой: скачивание с площадки (`sources.py`) пишет и удаляет свои куски из потока
+    пула, пока цикл событий считает место. Файл, пропавший между «есть ли он» и «сколько весит», —
+    это не ошибка запроса, а ноль байт.
+    """
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def older_than(path: Path, seconds: float) -> bool:
+    """Не менялся ли файл дольше `seconds`. Пропавший — не старый: убирать нечего."""
+    try:
+        return path.stat().st_mtime < time.time() - seconds
+    except OSError:
+        return False
 
 
 def initial(room_id: str) -> dict[str, Any]:
@@ -46,6 +69,10 @@ class Store:
         self.root = root
         self.files = root / "audio"
         self.files.mkdir(mode=0o700, exist_ok=True)
+        # Недокачанное с площадок (`sources.py`): yt-dlp пишет сюда куски и миниатюру, а в `audio/`
+        # переезжает только готовый файл — уборка и подсчёт места не видят чужих полуфайлов.
+        self.incoming = root / "incoming"
+        self.incoming.mkdir(mode=0o700, exist_ok=True)
         self.db = sqlite3.connect(root / "services.sqlite", isolation_level=None)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -119,6 +146,8 @@ class Store:
                     k: track[k]
                     for k in ["id", "title", "artist", "duration", "addedBy", "source"]
                 }
+                # Обложка — имя файла `<uuid>.jpg`, по которому её отдаёт служба, или `None`.
+                | {"cover": track.get("cover")}
                 for track in value["queue"]
             ]
         }
@@ -175,8 +204,17 @@ class Store:
             (key, value),
         )
 
+    def referenced(self) -> set[str]:
+        """Файлы, которые держит хоть одна очередь: звук и обложки."""
+        return {
+            name
+            for room in self.cache.values()
+            for track in room["queue"]
+            for name in files_of(track)
+        }
+
     def prune_files(self, files: list[str]):
-        referenced = {track["file"] for room in self.rooms() for track in room["queue"]}
+        referenced = self.referenced()
         for name in files:
             if name not in referenced:
                 (self.files / name).unlink(missing_ok=True)
@@ -201,7 +239,9 @@ class Store:
                     track for track in room["queue"] if track not in expired
                 ]
                 self.save(room)
-                self.prune_files([track["file"] for track in expired])
+                self.prune_files(
+                    [name for track in expired for name in files_of(track)]
+                )
             # Пустая запись о музыке комнаты, которой давно не пользовались, не хранит
             # ничего: очередь пуста, музыка выключена, пропуск бота в комнату протух. А
             # запись остаётся — и не только в файле: весь ledger поднимается в память при
@@ -223,12 +263,13 @@ class Store:
         self.db.execute("DELETE FROM claims WHERE expires_at<=?", (now(),))
         self.db.execute("DELETE FROM receipts WHERE expires_at<=?", (now(),))
         self.links.sweep()
-        referenced = {track["file"] for room in self.rooms() for track in room["queue"]}
+        referenced = self.referenced()
         for path in self.files.iterdir():
-            if (
-                path.name not in referenced
-                and path.stat().st_mtime < time.time() - 3600
-            ):
+            if path.name not in referenced and older_than(path, 3600):
+                path.unlink(missing_ok=True)
+        # Куски скачивания, которое оборвалось вместе со службой или отменой, — тот же час.
+        for path in self.incoming.iterdir():
+            if older_than(path, 3600):
                 path.unlink(missing_ok=True)
 
 

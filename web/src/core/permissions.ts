@@ -24,6 +24,8 @@ export type RoomAction =
   | 'music.control'
   | 'music.upload'
   | 'music.remove'
+  | 'music.search'
+  | 'music.link'
   | 'yandex.connect'
   | 'yandex.search'
   | 'yandex.queue'
@@ -62,6 +64,8 @@ const KIND: Record<RoomAction, Kind> = {
   'music.control': 'integrations',
   'music.upload': 'integrations',
   'music.remove': 'integrations',
+  'music.search': 'integrations',
+  'music.link': 'integrations',
   'yandex.connect': 'integrations',
   'yandex.search': 'integrations',
   'yandex.queue': 'integrations',

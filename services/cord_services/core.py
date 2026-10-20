@@ -21,6 +21,8 @@ ACTIONS = {
     "music.control": INTEGRATIONS,
     "music.upload": INTEGRATIONS,
     "music.remove": INTEGRATIONS,
+    "music.search": INTEGRATIONS,
+    "music.link": INTEGRATIONS,
     "yandex.connect": INTEGRATIONS,
     "yandex.search": INTEGRATIONS,
     "yandex.queue": INTEGRATIONS,

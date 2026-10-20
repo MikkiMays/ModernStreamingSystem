@@ -1,25 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Upload } from 'lucide-react';
 import type { MusicState } from '../core/services';
+import { Button } from './kit';
 
-/** Свои файлы в общую очередь: кнопка, перетаскивание и возможность передумать. */
+/**
+ * Свои файлы в общую очередь: кнопка, перетаскивание и возможность передумать.
+ *
+ * Перетащить файлы можно на весь блок «Добавить» — поле поиска и кнопку вместе (`children`): цель
+ * размером с палец мышью не находится, а блок виден целиком. Пока файлы над ним, блок подсвечен.
+ */
 export function MusicUpload({
   canUse,
   maxFileBytes,
   upload,
   onAdded,
   onError,
+  children,
 }: {
   canUse: boolean;
   maxFileBytes: number;
   upload: (file: File, signal: AbortSignal) => Promise<MusicState>;
   onAdded: (state: MusicState) => void;
   onError: (message: string) => void;
+  children?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
+  const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
+  const limit = Math.round(maxFileBytes / (1024 * 1024));
   const send = async (files: File[]) => {
     if (!canUse || busy || !files.length) return;
     setBusy(true);
@@ -27,7 +37,7 @@ export function MusicUpload({
     abort.current = controller;
     try {
       for (const file of files) {
-        if (file.size > maxFileBytes) throw new Error(`«${file.name}»: максимум 50 МБ на трек`);
+        if (file.size > maxFileBytes) throw new Error(`«${file.name}»: максимум ${limit} МБ на трек`);
         onAdded(await upload(file, controller.signal));
       }
     } catch (e) {
@@ -39,41 +49,54 @@ export function MusicUpload({
   };
   return (
     <div
-      className="music-drop"
-      onDragOver={(e) => e.preventDefault()}
+      className="music-add"
+      data-over={over || undefined}
+      onDragOver={(e) => {
+        if (!canUse || !e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
+      }}
       onDrop={(e) => {
         e.preventDefault();
+        setOver(false);
         void send(Array.from(e.dataTransfer.files));
       }}
     >
-      <input
-        ref={input}
-        type="file"
-        multiple
-        accept="audio/*,.m4a,.flac,.ogg,.opus,.webm"
-        hidden
-        aria-label="Добавить музыкальные файлы"
-        onChange={(e) => {
-          void send(Array.from(e.target.files ?? []));
-          e.target.value = '';
-        }}
-      />
-      <button
-        className="button secondary full"
-        disabled={!canUse || busy}
-        onClick={() => input.current?.click()}
-      >
-        {busy ? <LoaderCircle size={18} className="spin" /> : <Upload size={18} />}
-        {busy ? 'Добавляем треки…' : 'Добавить аудиофайлы'}
-      </button>
-      {busy && (
-        <button className="button ghost" onClick={() => abort.current?.abort()}>
-          Отменить загрузку
-        </button>
-      )}
-      <p className="form-footnote">
-        Можно перетащить сюда несколько файлов. До 50 МБ и 60 минут на трек; файлы хранятся до суток.
-      </p>
+      {children}
+      <div className="music-add__files">
+        <input
+          ref={input}
+          type="file"
+          multiple
+          accept="audio/*,.m4a,.flac,.ogg,.opus,.webm"
+          hidden
+          aria-label="Добавить музыкальные файлы"
+          onChange={(e) => {
+            void send(Array.from(e.target.files ?? []));
+            e.target.value = '';
+          }}
+        />
+        <Button
+          variant="quiet"
+          size="sm"
+          icon={<Upload />}
+          loading={busy}
+          disabled={!canUse}
+          onClick={() => input.current?.click()}
+        >
+          Загрузить файлы
+        </Button>
+        {busy ? (
+          <Button variant="quiet" size="sm" onClick={() => abort.current?.abort()}>
+            Отменить
+          </Button>
+        ) : (
+          <span className="music-add__hint">Можно и перетащить: до {limit} МБ и 60 минут на трек</span>
+        )}
+      </div>
     </div>
   );
 }

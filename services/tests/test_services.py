@@ -382,6 +382,23 @@ ROUTES = [
         "music.control",
     ),
     ("PUT", MUSIC + f"/upload/{uuid.uuid4()}", {"content": b"x"}, "music.upload"),
+    (
+        "POST",
+        MUSIC + "/search",
+        {"json": {"source": "youtube", "query": "песня"}},
+        "music.search",
+    ),
+    (
+        "POST",
+        MUSIC + "/link",
+        {
+            "json": {
+                "url": "https://youtu.be/dQw4w9WgXcQ",
+                "commandId": str(uuid.uuid4()),
+            }
+        },
+        "music.link",
+    ),
     ("POST", f"/api/v1/services/rooms/{ROOM}/telegram/link", {}, "telegram.link"),
     ("GET", YANDEX, {}, "yandex.connect"),
     ("DELETE", YANDEX, {}, "yandex.disconnect"),
@@ -441,6 +458,12 @@ class PermissionTests(Fixture):
         yandex = self.app.state.yandex
         for name in ("connect", "start_auth", "poll_auth", "search", "enqueue"):
             patcher = patch.object(yandex, name, AsyncMock(return_value={}))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for name in ("search", "enqueue"):
+            patcher = patch.object(
+                self.app.state.sources, name, AsyncMock(return_value={})
+            )
             patcher.start()
             self.addCleanup(patcher.stop)
 

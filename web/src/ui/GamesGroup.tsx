@@ -160,7 +160,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   return (
     <div className="games-group">
       <button className="text-button cinema-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Группы интеграций
+        <ArrowLeft size={16} /> Интеграции
       </button>
       <div className="games-list">
         {GAMES.map((game) => {

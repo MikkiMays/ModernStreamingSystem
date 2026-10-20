@@ -1,100 +1,42 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Gamepad2, Music2, Send, Tv, Unplug } from 'lucide-react';
+import { ArrowLeft, Music2, Unplug } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import {
   YandexApi,
   MusicApi,
   servicesApi,
   type MusicAction,
-  type MusicSource,
   type MusicState,
   type MusicTrack,
 } from '../core/services';
 import { allowed, type RoomAction } from '../core/permissions';
 import { useStore } from './primitives';
-import { YandexIntegration } from './YandexIntegration';
+import { Button } from './kit';
+import { YandexIntegration, useYandexAccount } from './YandexIntegration';
 import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
+import { MusicSearch } from './MusicSearch';
 import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
-import {
-  foresee,
-  foresightSpent,
-  MUSIC_SOURCE_LABELS,
-  offeredSources,
-  preferredSource,
-  type Foresight,
-} from './music-playback';
+import { IntegrationShelf } from './IntegrationShelf';
+import { musicHint, SHELF, type ShelfId } from './integration-shelf';
+import { foresee, foresightSpent, offeredSources, type Foresight } from './music-playback';
 import { gameActivity, musicActivity } from './services-status';
 
 /**
- * Панель сервисов встречи.
+ * Панель интеграций встречи: витрина (`IntegrationShelf`) и внутри — группа.
  *
- * ПОРЯДОК ЗДЕСЬ — ЭТО ПОВЕДЕНИЕ, А НЕ ОФОРМЛЕНИЕ. Загрузка файлов, очередь и поиск в Яндексе
+ * ПОРЯДОК ВНУТРИ МУЗЫКИ — ЭТО ПОВЕДЕНИЕ, А НЕ ОФОРМЛЕНИЕ. Загрузка файлов, очередь и поиск
  * раньше показывались и тогда, когда музыкального сервиса во встрече ещё не было. Треки в
  * такую очередь и правда складывались — но играть их было некому, и человек оставался с
  * полным списком и тишиной. Поэтому сначала плеер: пока его нет, панель предлагает ровно одно
  * действие, а всё, что относится к содержимому и источникам, появляется после него.
  */
-type Group = 'cinema' | 'music' | 'games' | 'telegram';
-type GroupCard = {
-  id: Group;
-  name: string;
-  hint: string;
-  icon: typeof Music2;
-  accent: string;
-  ready: boolean;
-};
-const GROUPS: GroupCard[] = [
-  {
-    id: 'cinema',
-    name: 'Кинозал',
-    /*
-      Что в группе, а не чьё: раньше здесь стояли имена площадок переключателя («YouTube и Twitch на
-      всю комнату»), а плиток внутри теперь шесть — и на установке с `CINEMA_PROVIDERS` часть из них
-      выключена. Список всех шести в одну строку не влез бы и на широкой панели, а эта строка
-      помещается в одну и на самом узком экране — как и подсказки соседних групп.
-    */
-    hint: 'Видео и эфиры на всю комнату',
-    icon: Tv,
-    accent: '#4674f3',
-    ready: true,
-  },
-  {
-    id: 'music',
-    name: 'Музыка',
-    hint: 'Общая очередь и Яндекс Музыка',
-    icon: Music2,
-    accent: '#1f9d63',
-    ready: true,
-  },
-  {
-    id: 'games',
-    name: 'Игры',
-    hint: 'Покер, Дурак, шахматы и Gartic',
-    icon: Gamepad2,
-    accent: '#8a5cf6',
-    ready: true,
-  },
-];
-/**
- * Telegram стоит отдельно и внизу — и пока не открывается.
- *
- * Он не «ещё один сервис во встрече»: остальные три звучат и показывают, а этот связывает
- * комнату с беседой снаружи. Жил он при музыке — как её часть, хотя музыка про него не знает
- * ничего, кроме того, что оттуда тоже присылают треки. Нынешняя привязка устарела целиком и
- * будет переделана; до тех пор она недоступна, как и «Игры», — обещание видно, а не спрятано.
- */
-const TELEGRAM: GroupCard = {
-  id: 'telegram',
-  name: 'Telegram',
-  hint: 'Встреча и музыка из вашей беседы',
-  icon: Send,
-  accent: '#2ea6da',
-  ready: false,
-};
+type Group = 'cinema' | 'music' | 'games';
+const OPENS: readonly ShelfId[] = ['cinema', 'music', 'games'];
+const NAMES = Object.fromEntries(SHELF.map((item) => [item.id, item.name])) as Record<ShelfId, string>;
 
 export function Services({ meeting }: { meeting: Meeting }) {
   /**
@@ -142,13 +84,11 @@ export function Services({ meeting }: { meeting: Meeting }) {
     cinema: !!snapshot.watch,
     music: musicStatus.active,
     games: gamesStatus.active,
-    telegram: false,
   };
   const RIVALS: Record<Group, Group[]> = {
     cinema: ['music', 'games'],
     music: ['cinema'],
     games: ['cinema'],
-    telegram: [],
   };
   const blockedBy = (group: Group): Group | null =>
     running[group] ? null : (RIVALS[group].find((rival) => running[rival]) ?? null);
@@ -158,12 +98,16 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [foresight, setForesight] = useState<Foresight | null>(null);
-  const [source, setSource] = useState<MusicSource>('yandex');
+  // Сколько команд очереди ушло и ещё без ответа — для предсказания (`command`).
+  const inFlight = useRef(0);
   const sources = useMemo(() => offeredSources(catalog.data?.sources), [catalog.data?.sources]);
-  const fallback = preferredSource(sources);
+  const served = music.data;
+  const state = foresee(served, foresight);
+  const yandexOn = sources.includes('yandex') && can('yandex.connect');
+  const yandexAccount = useYandexAccount(yandexApi, meeting.admission.roomId, yandexOn && !!state?.enabled);
   useEffect(() => {
-    if (!sources.includes(source)) setSource(fallback);
-  }, [fallback, source, sources]);
+    if (foresightSpent(served, foresight)) setForesight(null);
+  }, [served, foresight]);
 
   // The bot holds a seat in the room, so only joining and leaving change the snapshot.
   // Refreshing it after every play or skip fetched the whole meeting a second time and
@@ -182,11 +126,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
       setError((e as Error).message);
     }
   };
-  const served = music.data;
-  const state = foresee(served, foresight);
-  useEffect(() => {
-    if (foresightSpent(served, foresight)) setForesight(null);
-  }, [served, foresight]);
 
   const command = (
     action: MusicAction,
@@ -194,8 +133,17 @@ export function Services({ meeting }: { meeting: Meeting }) {
     patch?: Partial<MusicState>,
   ) => {
     if (!canUse) return;
-    if (patch && state) setForesight({ base: state.revision, patch });
-    void run(() => api.command(action, extra));
+    /*
+      Каждая команда сдвигает ревизию службы на одну. Если до этой ещё не ответили прежние (две
+      перестановки стрелками подряд), предсказание живёт, пока служба не применит и их: иначе ответ
+      на первую сбросил бы его, и список на миг откатился бы ко второй половине пути.
+    */
+    const ahead = inFlight.current;
+    inFlight.current += 1;
+    if (patch && state) setForesight({ base: state.revision + ahead, patch });
+    void run(() => api.command(action, extra)).finally(() => {
+      inFlight.current -= 1;
+    });
   };
   /** Joining and leaving the room take seconds and change who is in it; those do wait. */
   const heavy = async (job: () => Promise<MusicState>, permitted: boolean) => {
@@ -207,74 +155,54 @@ export function Services({ meeting }: { meeting: Meeting }) {
       setBusy(false);
     }
   };
+  /*
+    Сохранённый токен Яндекса подставляется при добавлении музыки — как и раньше по умолчанию.
+    Выбор «источника по умолчанию» перед добавлением убран: он решал только это, а источник теперь
+    выбирается поиском.
+  */
   const enableMusic = () =>
     void heavy(async () => {
       const token = preferences.yandexMusicToken.trim();
-      if (source === 'yandex' && token)
+      if (sources.includes('yandex') && token)
         await yandexApi
           .connectToken(token)
           .catch(() =>
             setError(
-              'Не удалось подключить сохранённый токен Яндекс Музыки. Откройте интеграцию для ручной авторизации.',
+              'Не удалось подключить сохранённый токен Яндекс Музыки. Подключите аккаунт вручную ниже.',
             ),
           );
       return api.enable();
     }, can('music.enable'));
 
-  /*
-    Панель интеграций — это витрина, а не длинный список всего сразу.
-
-    Раньше здесь одной страницей лежали и музыка, и Яндекс, и Telegram; кинозал стал бы
-    четвёртым, и человек искал бы нужное прокруткой. Теперь сверху группы — «Кинозал»,
-    «Музыка», «Игры», — а внутри каждой её собственные сервисы. Группа «Игры» пустая
-    намеренно: место для неё занято, и обещание видно, а не спрятано в планах.
-  */
-  const groupCard = (item: GroupCard) => {
-    // Занятую группу открыть можно — там её и выключают; ту, которой мешает соседняя, нет.
-    // Ненаписанной группе объяснять нечего: у неё свой ответ — «скоро».
-    const blocked = item.ready ? blockedBy(item.id) : null;
-    return (
-      <button
-        key={item.id}
-        className="service-group"
-        data-active={running[item.id] ? 'true' : undefined}
-        disabled={!item.ready || !!blocked}
-        onClick={() => item.ready && !blocked && setGroup(item.id)}
-      >
-        <span className="service-group-icon" style={{ background: item.accent }}>
-          <item.icon size={24} />
-        </span>
-        <span>
-          <b>{item.name}</b>
-          <small>
-            {blocked
-              ? `Сейчас активна другая интеграция — ${GROUPS.find((g) => g.id === blocked)?.name}`
-              : item.hint}
-          </small>
-        </span>
-        {!item.ready && <span className="service-soon">Скоро</span>}
-        {item.id === 'music' && <span className="service-state">{musicStatus.label}</span>}
-        {item.id === 'games' && gamesStatus.active && (
-          <span className="service-state">{gamesStatus.label}</span>
-        )}
-        {running[item.id] && item.id !== 'music' && <span className="service-live">Активна</span>}
-      </button>
+  if (!group) {
+    const blocked = Object.fromEntries(
+      OPENS.map((id) => [id, blockedBy(id as Group)])
+        .filter(([, rival]) => rival)
+        .map(([id, rival]) => [id, NAMES[rival as ShelfId]]),
     );
-  };
-
-  if (!group)
     return (
       <div className="services-panel" key="groups">
-        <h3 className="services-title">Что добавить во встречу</h3>
-        <div className="service-groups">{GROUPS.map(groupCard)}</div>
-        <div className="service-groups service-groups-apart">{groupCard(TELEGRAM)}</div>
+        <IntegrationShelf
+          hints={{ music: musicHint(sources) }}
+          live={{
+            cinema: running.cinema ? 'Идёт показ' : undefined,
+            music: musicStatus.active ? musicStatus.label : undefined,
+            games: gamesStatus.active ? gamesStatus.label : undefined,
+          }}
+          blockedBy={blocked}
+          canLinkTelegram={can('telegram.link')}
+          onOpen={(id) => {
+            if ((OPENS as readonly string[]).includes(id)) setGroup(id as Group);
+          }}
+        />
         {error && (
-          <p className="form-error" role="alert">
+          <p className="services-error" role="alert">
             {error}
           </p>
         )}
       </div>
     );
+  }
 
   if (group === 'cinema')
     return (
@@ -290,131 +218,143 @@ export function Services({ meeting }: { meeting: Meeting }) {
       </div>
     );
 
+  const platforms = sources.filter((source) => source === 'youtube' || source === 'soundcloud');
+  const yandexReady = yandexOn && can('yandex.search');
   return (
-    <div className="services-panel" key="music">
-      <button className="text-button cinema-back" onClick={() => setGroup(null)}>
-        <ArrowLeft size={16} /> Группы интеграций
-      </button>
+    <div className="services-panel music-panel" key="music">
+      <Button
+        variant="quiet"
+        size="sm"
+        className="music-panel__back"
+        icon={<ArrowLeft />}
+        onClick={() => setGroup(null)}
+      >
+        Интеграции
+      </Button>
       {active && !can('integrations.use') && (
-        <p className="muted">
+        <p className="music-panel__note">
           Организатор разрешил управление интеграциями только себе. Громкость музыки для себя можно менять
           ниже.
         </p>
       )}
-      <section className="service-card">
-        <div className="service-heading">
-          <span className="service-icon">
-            <Music2 size={24} />
-          </span>
-          <div>
-            <h3>Музыка</h3>
-            <p>Одна очередь на всю встречу</p>
-          </div>
+      {!active ? (
+        <p className="music-panel__note">Музыка доступна после входа во встречу.</p>
+      ) : catalog.isError || music.isError ? (
+        <div role="alert" className="music-panel__problem">
+          <p>Музыка сейчас не отвечает.</p>
+          <Button
+            size="sm"
+            onClick={() => {
+              void catalog.refetch();
+              void music.refetch();
+            }}
+          >
+            Повторить
+          </Button>
         </div>
-        {!active ? (
-          <p className="muted">Сервисы доступны после входа во встречу.</p>
-        ) : catalog.isError || music.isError ? (
-          <div role="alert" className="form-error">
-            <p>Сервисы временно недоступны.</p>
-            <button
-              className="button secondary"
-              onClick={() => {
-                void catalog.refetch();
-                void music.refetch();
-              }}
-            >
-              Повторить
-            </button>
-          </div>
-        ) : !state ? (
-          <p role="status" className="muted">
-            Подключаем сервисы…
-          </p>
-        ) : !state.enabled ? (
-          <>
-            <p className="muted">Общая музыка для всех. Занимает одно место во встрече.</p>
-            <label>
-              Источник музыки по умолчанию
-              <select value={source} onChange={(e) => setSource(e.target.value as MusicSource)}>
-                {sources.map((value) => (
-                  <option key={value} value={value}>
-                    {MUSIC_SOURCE_LABELS[value]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {state.queue.length > 0 && (
-              <p className="form-footnote">
-                Очередь никуда не делась: {state.queue.length} трек(ов) заиграют, как только сервис вернётся
-                во встречу.
-              </p>
-            )}
-            {can('music.enable') ? (
-              <button className="button primary full" disabled={busy} onClick={enableMusic}>
-                <Music2 size={18} />
-                Добавить во встречу
-              </button>
-            ) : (
-              <p className="form-footnote">Добавление сервисов ограничено организатором.</p>
-            )}
-            {state.error && (
-              <p className="form-error" role="alert">
-                {state.error}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <MusicPlayer
-              state={state}
-              canUse={canUse}
-              volume={(state.participantId ? volumes[state.participantId] : undefined) ?? 1}
-              onVolume={(value) => state.participantId && meeting.media.setVolume(state.participantId, value)}
-              onCommand={command}
-              onSeek={(position) => command('seek', { position }, { position })}
-            />
-            {state.error && (
-              <p className="form-error" role="alert">
-                {state.error}
-              </p>
-            )}
+      ) : !state ? (
+        <p role="status" className="music-panel__note">
+          Подключаем музыку…
+        </p>
+      ) : !state.enabled ? (
+        <section className="music-intro" aria-labelledby="music-intro-title">
+          <span className="music-intro__icon" aria-hidden="true">
+            <Music2 size={26} />
+          </span>
+          <h3 id="music-intro-title">Музыка</h3>
+          <p>Одна очередь на всю встречу: {musicHint(sources)}. Занимает одно место во встрече.</p>
+          {state.queue.length > 0 && (
+            <p className="music-intro__queue">
+              Очередь никуда не делась: {state.queue.length} трек(ов) заиграют, как только музыка вернётся во
+              встречу.
+            </p>
+          )}
+          {can('music.enable') ? (
+            <Button variant="primary" full loading={busy} icon={<Music2 />} onClick={enableMusic}>
+              Добавить во встречу
+            </Button>
+          ) : (
+            <p className="music-intro__queue">Добавлять интеграции организатор разрешил только себе.</p>
+          )}
+          {state.error && (
+            <p className="services-error" role="alert">
+              {state.error}
+            </p>
+          )}
+        </section>
+      ) : (
+        <>
+          <MusicPlayer
+            state={state}
+            canUse={canUse}
+            volume={(state.participantId ? volumes[state.participantId] : undefined) ?? 1}
+            onVolume={(value) => state.participantId && meeting.media.setVolume(state.participantId, value)}
+            onCommand={command}
+            onSeek={(position) => command('seek', { position }, { position })}
+          />
+          {state.error && (
+            <p className="services-error" role="alert">
+              {state.error}
+            </p>
+          )}
+          {/* Добавлять — тем, кому разрешены интеграции; остальным поле только обещало бы отказ. */}
+          {can('integrations.use') && (
             <MusicUpload
               canUse={can('music.upload')}
               maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
               upload={(file, signal) => api.upload(file, signal)}
               onAdded={update}
               onError={setError}
+            >
+              <MusicSearch
+                abilities={{
+                  platforms,
+                  canSearch: can('music.search'),
+                  searchPlatform: api.search,
+                  addLink: can('music.link') ? api.addLink : null,
+                  yandex: yandexReady
+                    ? {
+                        connected: !!yandexAccount.data?.connected,
+                        search: yandexApi.search,
+                        add: can('yandex.queue') ? yandexApi.enqueue : null,
+                      }
+                    : null,
+                }}
+                onAdded={update}
+              />
+            </MusicUpload>
+          )}
+          <MusicQueue
+            state={state}
+            canUse={canUse}
+            onClear={(patch) => command('clear', undefined, patch)}
+            onPromote={(track: MusicTrack, patch) => command('next', { trackId: track.id }, patch)}
+            onRemove={(track: MusicTrack, patch) => command('remove', { trackId: track.id }, patch)}
+            onMove={(track: MusicTrack, index, patch) => command('move', { trackId: track.id, index }, patch)}
+          />
+          {yandexOn && (
+            <YandexIntegration
+              api={yandexApi}
+              roomId={meeting.admission.roomId}
+              storedToken={preferences.yandexMusicToken}
+              onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
             />
-            <MusicQueue
-              state={state}
-              canUse={canUse}
-              onClear={(patch) => command('clear', undefined, patch)}
-              onPromote={(track: MusicTrack, patch) => command('next', { trackId: track.id }, patch)}
-              onRemove={(track: MusicTrack, patch) => command('remove', { trackId: track.id }, patch)}
-            />
-            {canRemove && (
-              <button
-                className="button ghost full"
-                disabled={busy}
-                onClick={() => void heavy(api.disable, canRemove)}
-              >
-                <Unplug size={17} />
-                Убрать сервис из встречи
-              </button>
-            )}
-          </>
-        )}
-      </section>
-      {can('yandex.connect') && state?.enabled && (
-        <YandexIntegration
-          meeting={meeting}
-          update={update}
-          storedToken={preferences.yandexMusicToken}
-          onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
-        />
+          )}
+          {canRemove && (
+            <Button
+              variant="quiet"
+              className="music-panel__remove"
+              icon={<Unplug />}
+              loading={busy}
+              onClick={() => void heavy(api.disable, canRemove)}
+            >
+              Убрать музыку из встречи
+            </Button>
+          )}
+        </>
       )}
       {error && (
-        <p className="form-error" role="alert">
+        <p className="services-error" role="alert">
           {error}
         </p>
       )}
