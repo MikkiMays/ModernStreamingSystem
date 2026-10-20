@@ -6,6 +6,13 @@
 export const LANGUAGES = ['ru', 'en', 'es', 'fr', 'it', 'zh-Hans', 'de', 'pt-BR'] as const;
 export type Language = (typeof LANGUAGES)[number];
 export const SOURCE_LANGUAGE: Language = 'ru';
+/**
+ * Языки с переведённым каталогом. Язык браузера выбирается только из них: каталог-заглушка (E14-A-5,
+ * до E14-B) — это русский текст под `locale`, `<html lang>` и правилами чисел чужого языка: «Субтитры
+ * Russian», английские формы при числах у русских строк, диктор читает русское английским голосом.
+ * Явный выбор в «Оформлении» — по-прежнему любой из `LANGUAGES`.
+ */
+export const TRANSLATED: readonly Language[] = ['ru'];
 
 /** Как каждый язык называет себя сам — так его и ищут в списке. */
 export const LANGUAGE_NAMES: Record<Language, string> = {
@@ -39,7 +46,7 @@ function browserLanguages(): readonly string[] {
   return navigator.languages?.length ? navigator.languages : [navigator.language];
 }
 
-/** Выбор человека важнее языка браузера; без обоих — русский. */
+/** Выбор человека важнее языка браузера (если на него уже переведено, `TRANSLATED`); без обоих — русский. */
 export function detectLanguage(
   saved: Language | null,
   browser: readonly string[] = browserLanguages(),
@@ -47,7 +54,7 @@ export function detectLanguage(
   if (saved) return saved;
   for (const tag of browser) {
     const match = matchLanguage(tag);
-    if (match) return match;
+    if (match && TRANSLATED.includes(match)) return match;
   }
   return SOURCE_LANGUAGE;
 }

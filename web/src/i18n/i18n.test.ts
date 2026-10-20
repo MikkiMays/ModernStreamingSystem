@@ -16,8 +16,15 @@ describe('языки', () => {
 
   it('выбор человека важнее браузера, без обоих — русский', () => {
     expect(detectLanguage('de', ['fr-FR'])).toBe('de');
-    expect(detectLanguage(null, ['ja-JP', 'it-IT'])).toBe('it');
+    expect(detectLanguage(null, ['ja-JP', 'ru-RU'])).toBe('ru');
     expect(detectLanguage(null, ['ja-JP'])).toBe('ru');
+  });
+
+  it('язык браузера без перевода не выбирается сам: русский текст под чужим locale хуже русского', () => {
+    // До E14-B у en…pt-BR только подпись выбора языка: английский браузер давал «Субтитры Russian».
+    expect(detectLanguage(null, ['en-US', 'en'])).toBe('ru');
+    expect(detectLanguage(null, ['it-IT'])).toBe('ru');
+    expect(detectLanguage('en', ['en-US'])).toBe('en');
   });
 
   it('по-русски сразу, без ожидания загрузки', () => {
