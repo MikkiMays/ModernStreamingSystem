@@ -25,5 +25,5 @@ gh release download "v$version" -R "$REMOTE" -D "$work/artifacts" \
 
 cd "$REPO"
 python3 -I scripts/publish-windows-release.py "$work/release.json" "$work/artifacts"
-curl -fsS "https://$(sed -n 's/^APP_HOST=//p' .env | head -1)/downloads/windows/latest.json" | head -c 300
+curl -fsS "https://$(sed -n 's/^APP_HOST=//p' .env | head -1)/downloads/windows/download.json" | head -c 300
 echo

@@ -40,15 +40,18 @@ class PublicationTest(unittest.TestCase):
 
     def test_verified_publication_and_repeat_preserve_files(self):
         self.prepare(); self.publish(); self.publish()
-        manifest = json.loads((self.destination / 'latest.json').read_text())
-        self.assertEqual(manifest['repository'], REPO)
+        text = (self.destination / 'download.json').read_text()
+        self.assertEqual(json.loads(text)['version'], '0.4.1')
+        # Наружу — только версия и файлы: ни адресов, ни учёта репозитория (T56).
+        self.assertNotIn('github', text)
+        self.assertFalse((self.destination / 'latest.json').exists())
         self.assertEqual((self.destination / 'v0.4.1/Cord-Setup-0.4.1-x64.exe').read_bytes(), b'original installer')
 
     def test_corrupt_download_does_not_publish_latest(self):
         self.prepare()
         (self.artifacts / 'Cord-Setup-0.4.1-x64.exe').write_bytes(b'corrupt')
         self.publish(False)
-        self.assertFalse((self.destination / 'latest.json').exists())
+        self.assertFalse((self.destination / 'download.json').exists())
 
     def test_published_version_cannot_change_content(self):
         self.prepare(); self.publish()
@@ -58,7 +61,7 @@ class PublicationTest(unittest.TestCase):
     def test_latest_cannot_downgrade(self):
         self.prepare(); self.publish()
         self.prepare('0.4.0'); self.publish(False)
-        self.assertEqual(json.loads((self.destination / 'latest.json').read_text())['tag_name'], 'v0.4.1')
+        self.assertEqual(json.loads((self.destination / 'download.json').read_text())['version'], '0.4.1')
 
     def test_old_releases_are_dropped_but_the_served_one_stays(self):
         # Отдаётся наружу только последний выпуск, а каждый прежний — это 400 МБ, которые
@@ -66,7 +69,7 @@ class PublicationTest(unittest.TestCase):
         for version in ['0.4.0', '0.4.1', '0.5.0', '0.6.0']:
             self.prepare(version, body=('installer ' + version).encode()); self.publish()
         self.assertEqual(sorted(path.name for path in self.destination.glob('v*')), ['v0.5.0', 'v0.6.0'])
-        self.assertEqual(json.loads((self.destination / 'latest.json').read_text())['tag_name'], 'v0.6.0')
+        self.assertEqual(json.loads((self.destination / 'download.json').read_text())['version'], '0.6.0')
         self.assertTrue((self.destination / 'v0.6.0/Cord-Setup-0.6.0-x64.exe').exists())
 
     def test_keeping_one_release_never_removes_the_one_just_published(self):
@@ -79,6 +82,14 @@ class PublicationTest(unittest.TestCase):
         self.prepare('0.4.1'); self.publish()
         self.prepare('0.4.0'); self.publish(False, keep=1)
         self.assertTrue((self.destination / 'v0.4.1/Cord-Setup-0.4.1-x64.exe').exists())
+
+    def test_the_old_github_record_is_removed(self):
+        # До 0.7.8 клиент читал `latest.json` — запись выпуска GitHub целиком. Клиентов старше
+        # нет (решение владельца В-2), и публичный файл с учётом репозитория больше не нужен.
+        self.destination.mkdir()
+        (self.destination / 'latest.json').write_text(json.dumps(dict(tag_name='v0.4.0')))
+        self.prepare(); self.publish()
+        self.assertFalse((self.destination / 'latest.json').exists())
 
     def test_unrelated_repository_is_rejected(self):
         self.prepare()
