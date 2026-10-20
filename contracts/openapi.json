@@ -184,6 +184,84 @@
         ],
         "type": "object"
       },
+      "Block": {
+        "properties": {
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "liftedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BlockRequest": {
+        "properties": {
+          "kind": {
+            "pattern": "ip|profile",
+            "type": "string"
+          },
+          "memberId": {
+            "pattern": "[0-9a-f-]{36}",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "roomId": {
+            "pattern": "[0-9a-f-]{36}",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 64,
+            "minLength": 0,
+            "pattern": "[A-Za-z0-9_-]*",
+            "type": "string"
+          },
+          "term": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Bucket": {
+        "properties": {
+          "meetings": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "upToSeconds": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Capabilities": {
         "properties": {
           "admissionOpen": {
@@ -515,6 +593,19 @@
         ],
         "type": "object"
       },
+      "Close": {
+        "properties": {
+          "blockCreator": {
+            "type": "boolean"
+          },
+          "term": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Command": {
         "properties": {
           "card": {
@@ -638,7 +729,8 @@
               "gartic.canvas",
               "gartic.guess",
               "gartic.submit",
-              "gartic.reveal"
+              "gartic.reveal",
+              "presence.confirm"
             ],
             "type": "string"
           },
@@ -693,6 +785,26 @@
           "name",
           "title"
         ],
+        "type": "object"
+      },
+      "Day": {
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "humanSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "meetings": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "peakHumans": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "DurakNote": {
@@ -2140,6 +2252,71 @@
         ],
         "type": "object"
       },
+      "LiveRoom": {
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "bots": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "connected": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdHere": {
+            "type": "boolean"
+          },
+          "endsAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "humans": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "integrations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "screens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "waiting": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Login": {
+        "properties": {
+          "password": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MediaToken": {
         "properties": {
           "expiresAt": {
@@ -2227,6 +2404,45 @@
         ],
         "type": "object"
       },
+      "Now": {
+        "properties": {
+          "bots": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "connected": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "humans": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "live": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/LiveRoom"
+            },
+            "type": "array"
+          },
+          "screens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "serverTime": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "waiting": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Order": {
         "properties": {
           "roomIds": {
@@ -2240,6 +2456,20 @@
         "required": [
           "roomIds"
         ],
+        "type": "object"
+      },
+      "Page": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "Participant": {
@@ -2629,6 +2859,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "presenceBy": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
           }
         },
         "required": [
@@ -2784,6 +3021,49 @@
           "waiting",
           "wonAmount"
         ],
+        "type": "object"
+      },
+      "Server": {
+        "properties": {
+          "activityDailyMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "auditMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "autoBlockCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "autoBlockTermMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "autoBlockWindowMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "blockDefaultMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "blocksActive": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "build": {
+            "type": "string"
+          },
+          "meetingStatsMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "shield": {
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "Session": {
@@ -2961,6 +3241,77 @@
           "title",
           "watch"
         ],
+        "type": "object"
+      },
+      "Summary": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/Day"
+            },
+            "type": "array"
+          },
+          "durations": {
+            "items": {
+              "$ref": "#/components/schemas/Bucket"
+            },
+            "type": "array"
+          },
+          "endReasons": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "from": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "humanSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "integrations": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "joinFailures": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "joins": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "longestSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "medianSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "meetings": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "peakHumans": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "to": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uniqueDevices": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "TableView": {
@@ -3299,6 +3650,436 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/audit": {
+      "get": {
+        "operationId": "audit",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ip",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "room",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/blocks": {
+      "get": {
+        "operationId": "blocks",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Block"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      },
+      "post": {
+        "operationId": "block",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Block"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/blocks/{id}": {
+      "delete": {
+        "operationId": "lift",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/meetings": {
+      "get": {
+        "operationId": "meetings",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/now": {
+      "get": {
+        "operationId": "now",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Now"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/rooms/{id}/close": {
+      "post": {
+        "operationId": "close",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Close"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Now"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/server": {
+      "get": {
+        "operationId": "server",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/session": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/shield": {
+      "delete": {
+        "operationId": "shield",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
     "/api/v1/attachments/{id}": {
       "delete": {
         "operationId": "cancel",

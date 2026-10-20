@@ -1,4 +1,148 @@
 export interface paths {
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["blocks"];
+        put?: never;
+        post: operations["block"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/blocks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["lift"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/meetings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["meetings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["now"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/rooms/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["server"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shield": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["shield"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/attachments/{id}": {
         parameters: {
             query?: never;
@@ -517,6 +661,33 @@ export interface components {
             seat: number;
             split: boolean;
         };
+        Block: {
+            /** Format: int64 */
+            createdAt?: number;
+            createdBy?: string;
+            /** Format: int64 */
+            expiresAt?: number;
+            id?: string;
+            kind?: string;
+            /** Format: int64 */
+            liftedAt?: number;
+            reason?: string;
+            subject?: string;
+        };
+        BlockRequest: {
+            kind?: string;
+            memberId?: string;
+            reason?: string;
+            roomId?: string;
+            subject?: string;
+            term?: string;
+        };
+        Bucket: {
+            /** Format: int32 */
+            meetings?: number;
+            /** Format: int64 */
+            upToSeconds?: number;
+        };
         Capabilities: {
             admissionOpen: boolean;
             /** Format: int32 */
@@ -605,6 +776,10 @@ export interface components {
             whiteMs: number;
             winner: string | null;
         };
+        Close: {
+            blockCreator?: boolean;
+            term?: string;
+        };
         Command: {
             card?: string;
             /** Format: int64 */
@@ -624,7 +799,7 @@ export interface components {
             targetId?: string;
             text?: string;
             /** @enum {string} */
-            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal";
+            type: "leave" | "close" | "invite.create" | "invite.revoke" | "participant.remove" | "participant.approve" | "message.send" | "media.lost" | "media.restored" | "screen.started" | "view.open" | "view.close" | "view.playing" | "microphone.mute" | "profile.avatar" | "watch.open" | "watch.play" | "watch.pause" | "watch.seek" | "watch.close" | "poker.open" | "poker.close" | "poker.sit" | "poker.stand" | "poker.deal" | "poker.next" | "poker.act" | "poker.settings" | "poker.rebuy" | "poker.reveal" | "durak.open" | "durak.close" | "durak.sit" | "durak.stand" | "durak.deal" | "durak.act" | "durak.settings" | "durak.react" | "chess.open" | "chess.close" | "chess.sit" | "chess.stand" | "chess.start" | "chess.settings" | "chess.move" | "chess.act" | "gartic.open" | "gartic.close" | "gartic.join" | "gartic.leave" | "gartic.settings" | "gartic.start" | "gartic.choose" | "gartic.draw" | "gartic.canvas" | "gartic.guess" | "gartic.submit" | "gartic.reveal" | "presence.confirm";
             under?: string;
         };
         Connect: {
@@ -637,6 +812,15 @@ export interface components {
             integrationsAllowed?: boolean;
             name: string;
             title: string;
+        };
+        Day: {
+            day?: string;
+            /** Format: int64 */
+            humanSeconds?: number;
+            /** Format: int32 */
+            meetings?: number;
+            /** Format: int32 */
+            peakHumans?: number;
         };
         DurakNote: {
             /** Format: int64 */
@@ -1028,6 +1212,32 @@ export interface components {
             /** Format: int32 */
             resolution: number;
         };
+        LiveRoom: {
+            approvalRequired?: boolean;
+            /** Format: int32 */
+            bots?: number;
+            code?: string;
+            /** Format: int32 */
+            connected?: number;
+            /** Format: int64 */
+            createdAt?: number;
+            createdHere?: boolean;
+            /** Format: int64 */
+            endsAt?: number;
+            /** Format: int32 */
+            humans?: number;
+            id?: string;
+            integrations?: string[];
+            /** Format: int32 */
+            screens?: number;
+            /** Format: int64 */
+            startedAt?: number;
+            /** Format: int32 */
+            waiting?: number;
+        };
+        Login: {
+            password?: string;
+        };
         MediaToken: {
             /** Format: int64 */
             expiresAt: number;
@@ -1055,8 +1265,29 @@ export interface components {
             seat: number;
             text: string;
         };
+        Now: {
+            /** Format: int32 */
+            bots?: number;
+            /** Format: int32 */
+            connected?: number;
+            /** Format: int32 */
+            humans?: number;
+            /** Format: int32 */
+            live?: number;
+            rooms?: components["schemas"]["LiveRoom"][];
+            /** Format: int32 */
+            screens?: number;
+            /** Format: int64 */
+            serverTime?: number;
+            /** Format: int32 */
+            waiting?: number;
+        };
         Order: {
             roomIds: string[];
+        };
+        Page: {
+            items?: components["schemas"]["Event"][];
+            next?: string;
         };
         Participant: {
             avatar: string;
@@ -1172,6 +1403,8 @@ export interface components {
         };
         RoomYou: {
             can: string[];
+            /** Format: int64 */
+            presenceBy?: null | number;
         };
         Save: {
             roomCredential: string;
@@ -1217,6 +1450,26 @@ export interface components {
             /** Format: int64 */
             wonAmount: number;
         };
+        Server: {
+            /** Format: int64 */
+            activityDailyMs?: number;
+            /** Format: int64 */
+            auditMs?: number;
+            /** Format: int32 */
+            autoBlockCount?: number;
+            /** Format: int64 */
+            autoBlockTermMs?: number;
+            /** Format: int64 */
+            autoBlockWindowMs?: number;
+            /** Format: int64 */
+            blockDefaultMs?: number;
+            /** Format: int32 */
+            blocksActive?: number;
+            build?: string;
+            /** Format: int64 */
+            meetingStatsMs?: number;
+            shield?: boolean;
+        };
         Session: {
             /** Format: int64 */
             expiresAt?: number;
@@ -1257,6 +1510,36 @@ export interface components {
             title: string;
             watch: components["schemas"]["Watch"] | null;
             you?: components["schemas"]["RoomYou"] | null;
+        };
+        Summary: {
+            days?: components["schemas"]["Day"][];
+            durations?: components["schemas"]["Bucket"][];
+            endReasons?: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            from?: number;
+            /** Format: int64 */
+            humanSeconds?: number;
+            integrations?: {
+                [key: string]: number;
+            };
+            /** Format: int64 */
+            joinFailures?: number;
+            /** Format: int64 */
+            joins?: number;
+            /** Format: int64 */
+            longestSeconds?: number;
+            /** Format: int64 */
+            medianSeconds?: number;
+            /** Format: int32 */
+            meetings?: number;
+            /** Format: int32 */
+            peakHumans?: number;
+            /** Format: int64 */
+            to?: number;
+            /** Format: int64 */
+            uniqueDevices?: number;
         };
         TableView: {
             /** Format: int64 */
@@ -1362,6 +1645,250 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    audit: {
+        parameters: {
+            query?: {
+                code?: string;
+                cursor?: string;
+                from?: number;
+                group?: string;
+                ip?: string;
+                limit?: number;
+                outcome?: string;
+                room?: string;
+                to?: number;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Page"];
+                };
+            };
+        };
+    };
+    blocks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Block"][];
+                };
+            };
+        };
+    };
+    block: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Block"][];
+                };
+            };
+        };
+    };
+    lift: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    meetings: {
+        parameters: {
+            query: {
+                from: number;
+                to: number;
+                tz?: number;
+            };
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    now: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Now"];
+                };
+            };
+        };
+    };
+    close: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Close"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Now"];
+                };
+            };
+        };
+    };
+    server: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Server"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Login"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    shield: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     cancel: {
         parameters: {
             query?: never;
