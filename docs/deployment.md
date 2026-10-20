@@ -266,6 +266,55 @@ curl --fail https://meet.example.org/api/v1/capabilities
 
 Внешний `/rtc` без медиатокена должен получить отказ. Исключённый участник со старым токеном также не должен войти. `/internal/*`, Twirp и Actuator публично не проксируются. tus GET запрещён: файлы выдаёт только `/api/v1/attachments/{id}/content` после проверки доступа.
 
+## Антибот и пределы
+
+Учётных записей в Cord нет, поэтому злоупотребления держат пределы на адрес (IPv4 целиком, IPv6 — сеть
+/64), профиль устройства, участника и пользователя бота, невидимая проверка «не бот» и потолки встречи.
+Модель угроз и причины — `docs/abuse-model.md`. Всё ниже — в `server/src/main/resources/application.yml`
+и переопределяется переменной окружения в `.env`. Пределы пишутся словами: `10 per hour`,
+`20 per minute`, `2 per 10 minutes`, `off`; сроки — как сроки хранения (`24 hours`, `never`).
+
+| Ключ | Переменная | По умолчанию | Что делает |
+| --- | --- | --- | --- |
+| `stream.abuse.human-check` | `HUMAN_CHECK` | `proof-of-work` | невидимая задача «не бот» (ALTCHA) на создании встречи и входе по коду; `off` — выключить |
+| `stream.abuse.proof-cost` | `PROOF_COST` | `50000` | сколько чисел браузер перебирает в худшем случае (в среднем — половину) |
+| `stream.abuse.per-ip.rooms-created` | `ABUSE_IP_ROOMS_CREATED` | `10 per hour` | новых встреч с адреса; отказ предел не съедает |
+| `stream.abuse.per-ip.open-rooms` | `ABUSE_IP_OPEN_ROOMS` | `3` | встреч с адреса, одновременно занимающих место на сервере |
+| `stream.abuse.per-ip.admissions` | `ABUSE_IP_ADMISSIONS` | `30 per minute` | входов (создать, по ссылке, вернуться) |
+| `stream.abuse.per-ip.code-joins` | `ABUSE_IP_CODE_JOINS` | `10 per minute` | попыток входа по коду |
+| `stream.abuse.per-ip.code-misses` | `ABUSE_IP_CODE_MISSES` | `20 per hour` | промахов кодом; выбравший ждёт конца окна |
+| `stream.abuse.per-ip.sockets` | `ABUSE_IP_SOCKETS` | `30` | открытых сокетов событий с адреса |
+| `stream.abuse.per-ip.socket-opens` | `ABUSE_IP_SOCKET_OPENS` | `60 per minute` | открытий сокета |
+| `stream.abuse.per-ip.password-misses` | `ABUSE_IP_PASSWORD_MISSES` | `10 per hour` | неверных паролей сервера |
+| `stream.abuse.per-ip.signaling` | `ABUSE_IP_SIGNALING` | `60 per minute` | подключений к SFU через шлюз |
+| `stream.abuse.per-profile.rooms-created` | `ABUSE_PROFILE_ROOMS_CREATED` | `6 per hour` | новых встреч с профиля устройства |
+| `stream.abuse.per-profile.open-rooms` | `ABUSE_PROFILE_OPEN_ROOMS` | `2` | встреч профиля, занимающих место |
+| `stream.abuse.per-member.chat-messages` | `ABUSE_MEMBER_CHAT_MESSAGES` | `20 per minute` | сообщений участника |
+| `stream.abuse.per-member.chat-repeat` | `ABUSE_MEMBER_CHAT_REPEAT` | `30 seconds` | то же сообщение подряд — не чаще |
+| `stream.abuse.per-member.sockets` | `ABUSE_MEMBER_SOCKETS` | `3` | сокетов участника; лишний закрывает старый |
+| `stream.abuse.server.code-misses` | `ABUSE_SERVER_CODE_MISSES` | `300 per minute` | промахов кодом по серверу; выше — «щит»: вход по коду через допуск ведущего, задача «не бот» дороже ×8 |
+| `stream.meeting.max-duration` | `MEETING_MAX_DURATION` | `24 hours` | потолок длительности встречи; `never` — без потолка |
+| `stream.meeting.warn-before` | `MEETING_WARN_BEFORE` | `15 minutes` | за сколько до конца встреча предупреждает всех |
+| `stream.chat.room-history` | `CHAT_ROOM_HISTORY` | `1000` | сообщений в комнате; сверх уходят старейшие |
+| `stream.chat.executable-attachments` | `CHAT_EXECUTABLE_ATTACHMENTS` | `warn` | файлы, запускающие программу: `warn` — предупреждение, `block` — не принимать, `allow` |
+
+Служба (`services`), кинозал и бот:
+
+| Переменная | По умолчанию | Что делает |
+| --- | --- | --- |
+| `CINEMA_LINK_TTL` | `1 hour` | сколько живёт подписанный адрес прокси кинозала (было пять часов) |
+| `CINEMA_TRAFFIC_PER_MEETING` | `100GB` | байтов к зрителям на встречу; сверх — кино в ней останавливается до конца встречи |
+| `CINEMA_TRAFFIC_PER_DAY` | `500GB` | байтов прокси на сервер за сутки (UTC) |
+| `CINEMA_TRAFFIC_WARN_AT` | `80%` | доля потолка встречи, после которой она считается «на пределе» |
+| `TELEGRAM_MEETINGS_PER_USER` | `3` | новых встреч от пользователя бота в час; `/new` в личке при идущей встрече отвечает ею |
+| `TELEGRAM_COMMANDS_PER_CHAT` | `20` | команд в минуту в одном чате; лишние — без ответа |
+
+Служба не стартует без `INTERNAL_SECRET` длиной от 32 символов. Шлюз передаёт ядру адрес клиента и для
+сигналинга (`X-Real-IP` в `forward_auth`) и срезает у запросов снаружи `X-Service-Secret` и
+`X-Cord-Actor`. Числа по умолчанию — для машины на 6 vCPU; правьте их под тариф канала и метрики
+страницы «Активность». Счётчики пределов ядра — в Redis (без него — в памяти процесса), кинозала — в
+памяти службы: перезапуск обнуляет их, это щедрость, а не дыра.
+
 ## Наблюдаемость
 
 Внутренний `/actuator/prometheus` содержит JVM, CPU, пул JDBC, HTTP timings; `/actuator/health` проверяет БД/Redis. Экспорт метрик не публикуется через gateway. На SFU и хосте измерять исходящий трафик, CPU, память, потери, открытые дескрипторы. `docker stats`, `pidstat`, `sar -n DEV` и браузерный WebRTC stats дополняют друг друга. В клиенте диагностическая панель считает FPS/битрейт/потери по разности соседних измерений.

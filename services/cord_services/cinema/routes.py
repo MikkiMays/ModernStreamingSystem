@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any, Callable, Coroutine
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
@@ -12,8 +13,9 @@ from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .facade import Cinema, Kind, Link, Resolve, Tab
+from .guard import Traffic, Watching, bind_room, bind_text
 from .transport.relay import SEALED
-from .transport.signer import PREFIX
+from .transport.signer import PREFIX, ROOM
 
 # Площадка — строка, а не перечень в схеме: её проверяет реестр. Незнакомая или выключенная
 # получает 400 с человеческим текстом, а не 422 со схемой валидации.
@@ -49,10 +51,14 @@ class Sealed(APIRoute):
         return sealed
 
 
-def routes(cinema: Cinema, core) -> APIRouter:
+def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
     router = APIRouter()
     # Маршруты прокси — отдельной группой: их ответы и отказы запечатаны (`Sealed`).
     signed = APIRouter(route_class=Sealed)
+    # Прокси — не бесплатный канал (A8): адреса под встречей живут, пока она смотрит кино, а байты
+    # считаются на встречу и на сервер за сутки (`guard.py`).
+    traffic = traffic or Traffic.from_env()
+    watching = Watching(core)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")
     async def providers(room_id: str, authorization: str = Header()):
@@ -145,7 +151,8 @@ def routes(cinema: Cinema, core) -> APIRouter:
         # Поток для своего плеера нужен каждому зрителю открытого ролика, а не только тому,
         # кто его открыл: право — «участник», флаг интеграций здесь не участвует.
         await core.member(room_id, authorization, action="cinema.resolve")
-        return await cinema.resolve(request, room=room_id)
+        # Разбор общий на всех зрителей ролика; адреса в ответе — уже этой встречи (A8).
+        return bind_room(await cinema.resolve(request, room=room_id), str(uuid.UUID(room_id)), cinema.signer)
 
     # Вставленная ссылка: чья она и на какой странице её открыть. POST, а не GET: ссылка — это
     # ввод человека до двух тысяч знаков, и в адресе запроса (а с ним в журналах прокси) ей не место.
@@ -168,13 +175,16 @@ def routes(cinema: Cinema, core) -> APIRouter:
         accept_encoding: str | None = Header(default=None),
     ):
         url = cinema.signer.open("playlist", u, e, s, p, h)
-        return await cinema.manifest(url, accept_encoding, p, profile_id=h)
+        traffic.admit("")
+        return traffic.wrap(await cinema.manifest(url, accept_encoding, p, profile_id=h), "")
 
     @signed.get(PREFIX + "/fetch")
     async def fetch(
         u: str, e: str, s: str, p: Signed = "", h: Profile = "", range: str | None = Header(default=None)
     ):
-        return await cinema.fetch(cinema.signer.open("fetch", u, e, s, p, h), range, p, profile_id=h)
+        url = cinema.signer.open("fetch", u, e, s, p, h)
+        traffic.admit("")
+        return traffic.wrap(await cinema.fetch(url, range, p, profile_id=h), "")
 
     @signed.get(PREFIX + "/dash/{key}")
     async def dash(key: str):
@@ -185,16 +195,91 @@ def routes(cinema: Cinema, core) -> APIRouter:
     @signed.get(PREFIX + "/seg/{key}/{index}")
     async def segment(key: str, index: int, range: str | None = Header(default=None)):
         reel = cinema.reels.find(key, index)
-        return await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or "")
+        traffic.admit("")
+        return traffic.wrap(
+            await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""), ""
+        )
 
     @signed.get(PREFIX + "/image")
     async def image(u: str, e: str, s: str, p: Signed = ""):
-        return await cinema.fetch(cinema.signer.open("image", u, e, s, p), None, p)
+        url = cinema.signer.open("image", u, e, s, p)
+        traffic.admit("")
+        return traffic.wrap(await cinema.fetch(url, None, p), "")
 
     # Субтитры площадки, переведённые в WebVTT: `<track>` другого вида не читает.
     @signed.get(PREFIX + "/subtitles")
     async def subtitles(u: str, e: str, s: str, p: Signed = "", h: Profile = ""):
         return await cinema.subtitles(cinema.signer.open("subtitles", u, e, s, p, h), p, profile_id=h)
+
+    # Те же маршруты под встречей: `…/cinema/r/<встреча>/…` (A8). Номер встречи — в подписи адреса, и
+    # прокси пускает, пока встреча открыта и смотрит кино, а каждый байт к зрителю засчитывает ей.
+    # Вложенные адреса плейлиста подписываются под той же встречей (`ROOM`), относительные адреса
+    # сегментов остаются под ней сами.
+    async def admitted(room: str) -> str:
+        await watching.require(room)
+        traffic.admit(room)
+        return room
+
+    @signed.get(PREFIX + "/r/{room}/playlist")
+    async def room_playlist(
+        room: str,
+        u: str,
+        e: str,
+        s: str,
+        p: Signed = "",
+        h: Profile = "",
+        accept_encoding: str | None = Header(default=None),
+    ):
+        url = cinema.signer.open("playlist", u, e, s, p, h, room=room)
+        await admitted(room)
+        token = ROOM.set(room)
+        try:
+            response = await cinema.manifest(url, accept_encoding, p, profile_id=h)
+        finally:
+            ROOM.reset(token)
+        return traffic.wrap(response, room)
+
+    @signed.get(PREFIX + "/r/{room}/fetch")
+    async def room_fetch(
+        room: str,
+        u: str,
+        e: str,
+        s: str,
+        p: Signed = "",
+        h: Profile = "",
+        range: str | None = Header(default=None),
+    ):
+        url = cinema.signer.open("fetch", u, e, s, p, h, room=room)
+        await admitted(room)
+        return traffic.wrap(await cinema.fetch(url, range, p, profile_id=h), room)
+
+    @signed.get(PREFIX + "/r/{room}/dash/{key}")
+    async def room_dash(room: str, key: str):
+        await admitted(room)
+        manifest = cinema.dash(key)
+        manifest.body = bind_text(manifest.body.decode(), room, cinema.signer).encode()
+        manifest.headers["content-length"] = str(len(manifest.body))
+        return traffic.wrap(manifest, room)
+
+    @signed.get(PREFIX + "/r/{room}/seg/{key}/{index}")
+    async def room_segment(room: str, key: str, index: int, range: str | None = Header(default=None)):
+        await admitted(room)
+        reel = cinema.reels.find(key, index)
+        return traffic.wrap(
+            await cinema.fetch(reel.url, range, reel.provider, profile_id=reel.profile or ""), room
+        )
+
+    @signed.get(PREFIX + "/r/{room}/image")
+    async def room_image(room: str, u: str, e: str, s: str, p: Signed = ""):
+        url = cinema.signer.open("image", u, e, s, p, room=room)
+        await admitted(room)
+        return traffic.wrap(await cinema.fetch(url, None, p), room)
+
+    @signed.get(PREFIX + "/r/{room}/subtitles")
+    async def room_subtitles(room: str, u: str, e: str, s: str, p: Signed = "", h: Profile = ""):
+        url = cinema.signer.open("subtitles", u, e, s, p, h, room=room)
+        await admitted(room)
+        return traffic.wrap(await cinema.subtitles(url, p, profile_id=h), room)
 
     router.include_router(signed)
     return router

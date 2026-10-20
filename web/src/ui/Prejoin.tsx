@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { publicApi, RoomApi } from '../api/client';
+import { prepareHuman, publicApi, RoomApi } from '../api/client';
 import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
@@ -85,6 +85,11 @@ export function Prejoin({
       navigator.mediaDevices?.removeEventListener('devicechange', refreshDevices);
     };
   }, []);
+  useEffect(() => {
+    // Задача «не бот» решается в фоне, пока человек смотрит в камеру и вводит имя (E11-B).
+    if (!destination) prepareHuman('create');
+    else if (destination.kind === 'code') prepareHuman('code');
+  }, [destination]);
   useEffect(() => {
     if (destination?.kind !== 'telegram') return;
     let active = true;

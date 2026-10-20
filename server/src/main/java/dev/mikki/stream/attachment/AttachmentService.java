@@ -27,7 +27,80 @@ public class AttachmentService {
       Long completedAt,
       String sha256,
       long expiresAt,
-      Long cancelledAt) {}
+      Long cancelledAt,
+      /**
+       * Может ли файл запустить программу — по настоящему расширению имени (A7 модели угроз).
+       * Интерфейс показывает такому файлу предупреждение перед скачиванием ({@code
+       * stream.chat.executable-attachments: warn}).
+       */
+      boolean executable) {}
+
+  /**
+   * Расширения, под которыми файл может запустить программу или спрятать её: исполняемые файлы
+   * Windows, Android и macOS, сценарии, ярлыки, образы дисков, документы с макросами и архивы.
+   */
+  static final java.util.Set<String> EXECUTABLE =
+      java.util.Set.of(
+          "exe",
+          "msi",
+          "msix",
+          "msixbundle",
+          "appx",
+          "appxbundle",
+          "bat",
+          "cmd",
+          "com",
+          "scr",
+          "pif",
+          "cpl",
+          "ps1",
+          "psm1",
+          "vbs",
+          "vbe",
+          "js",
+          "jse",
+          "wsf",
+          "wsh",
+          "hta",
+          "jar",
+          "lnk",
+          "url",
+          "reg",
+          "dll",
+          "sys",
+          "apk",
+          "xapk",
+          "aab",
+          "iso",
+          "img",
+          "vhd",
+          "vhdx",
+          "dmg",
+          "pkg",
+          "app",
+          "deb",
+          "rpm",
+          "sh",
+          "run",
+          "docm",
+          "xlsm",
+          "pptm",
+          "zip",
+          "rar",
+          "7z",
+          "cab",
+          "gz",
+          "tgz",
+          "tar",
+          "xz",
+          "bz2");
+
+  /** Запускает ли файл с таким именем программу: решает последнее расширение, а не первое. */
+  public static boolean executable(String name) {
+    int dot = name == null ? -1 : name.lastIndexOf('.');
+    return dot >= 0
+        && EXECUTABLE.contains(name.substring(dot + 1).strip().toLowerCase(java.util.Locale.ROOT));
+  }
 
   private final RoomService rooms;
   private final RoomRepository repository;
@@ -54,7 +127,8 @@ public class AttachmentService {
         rs.getObject("completed_at", Long.class),
         rs.getString("sha256"),
         rs.getObject("expires_at") == null ? 0 : rs.getLong("expires_at"),
-        rs.getObject("cancelled_at", Long.class));
+        rs.getObject("cancelled_at", Long.class),
+        executable(rs.getString("name")));
   }
 
   public Attachment get(String id) {
@@ -90,7 +164,8 @@ public class AttachmentService {
         a.completedAt(),
         a.sha256(),
         expires(a, room),
-        a.cancelledAt());
+        a.cancelledAt(),
+        a.executable());
   }
 
   public List<Attachment> list(String roomId, String credential) {
@@ -152,8 +227,17 @@ public class AttachmentService {
           if (request.size() > config.totalMaxBytes() - total
               || request.size() > config.roomMaxBytes() - roomTotal)
             throw new Problem(413, "QUOTA_EXCEEDED", "Недостаточно места для вложения");
+          // Подмена направления (U+202E) и невидимые символы уходят из имени: `счёт‮fdp.exe` в
+          // списке выглядел бы как `счётexe.pdf` (A7). Решает настоящее расширение.
+          String name = Names.clean(request.name()).replaceAll("[/\\\\]", "_");
+          if (name.isEmpty()) name = "файл";
+          if (executable(name)
+              && config.chat().executableAttachments() == StreamProperties.Chat.Executables.BLOCK)
+            throw new Problem(
+                415,
+                "FILE_TYPE_BLOCKED",
+                "Такие файлы на этом сервере не принимаются: они могут запустить программу");
           var id = UUID.randomUUID().toString();
-          String name = request.name().replaceAll("[\\p{Cntrl}/\\\\]", "_");
           repository
               .jdbc()
               .sql(

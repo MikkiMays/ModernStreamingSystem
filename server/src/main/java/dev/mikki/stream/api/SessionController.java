@@ -2,6 +2,8 @@ package dev.mikki.stream.api;
 
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.ServerAccess;
+import dev.mikki.stream.config.StreamProperties;
+import dev.mikki.stream.shared.Problem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -22,11 +24,14 @@ public class SessionController {
   private final ServerAccess access;
   private final RateLimits limits;
   private final ClientAddress address;
+  private final StreamProperties config;
 
-  public SessionController(ServerAccess access, RateLimits limits, ClientAddress address) {
+  public SessionController(
+      ServerAccess access, RateLimits limits, ClientAddress address, StreamProperties config) {
     this.access = access;
     this.limits = limits;
     this.address = address;
+    this.config = config;
   }
 
   /**
@@ -40,8 +45,23 @@ public class SessionController {
   @PostMapping
   public Session connect(
       @Valid @RequestBody(required = false) Connect request, HttpServletRequest http) {
-    if (access.required()) limits.check("session:" + address.of(http), ATTEMPTS_PER_MINUTE);
-    var issued = access.connect(request == null ? null : request.password());
-    return new Session(issued.token(), issued.expiresAt(), access.name(), access.required());
+    if (!access.required()) {
+      var issued = access.connect(null);
+      return new Session(issued.token(), issued.expiresAt(), access.name(), false);
+    }
+    var key = address.of(http);
+    limits.check("session:" + key, ATTEMPTS_PER_MINUTE);
+    // Промахи паролем считаются отдельно и окном подлиннее (A15): шестьдесят попыток в минуту —
+    // это 86 400 в сутки с одного адреса. Выбравший предел ждёт конца окна даже с верным паролем.
+    var misses = config.abuse().perIp().passwordMisses();
+    if (limits.exhausted("password-miss:" + key, misses))
+      throw new Problem(429, "PASSWORD_MISSES", "Слишком много неверных паролей. Попробуйте позже");
+    try {
+      var issued = access.connect(request == null ? null : request.password());
+      return new Session(issued.token(), issued.expiresAt(), access.name(), true);
+    } catch (Problem refused) {
+      if (refused.status() == 401) limits.hit("password-miss:" + key, misses);
+      throw refused;
+    }
   }
 }

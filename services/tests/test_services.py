@@ -51,6 +51,8 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
         self.core = Core("http://core.test", "internal-test")
         await self.core.client.aclose()
         self.calls = []
+        # Кому ядро засчитывает запрос бота (`X-Cord-Actor`, A11): путь и значение заголовка.
+        self.actors = []
         self.guest_status = "CONNECTED"
         self.closed = False
         self.integrations_allowed = False
@@ -95,6 +97,7 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
                 request.headers.get("authorization"),
             )
         )
+        self.actors.append((request.url.path, request.headers.get("x-cord-actor")))
         assert request.headers["x-internal-secret"] == "internal-test"
         path = request.url.path
         if path.endswith("/media/token"):
@@ -1007,6 +1010,43 @@ class TelegramTests(Fixture):
         self.assertEqual(
             len([c for c in self.calls if c[1] == "/api/v1/rooms"]), before
         )
+
+    def created(self):
+        return len([c for c in self.calls if c[1] == "/api/v1/rooms"])
+
+    async def test_new_in_a_private_chat_reuses_the_open_meeting_and_is_limited_per_user(self):
+        """A11: `/new` в личке — та же идущая встреча, а четвёртая новая за час — отказ без ядра."""
+        await self.bot.handle(self.message("/new Первая", 1, private=True, thread=0))
+        await self.bot.handle(self.message("/new Вторая", 2, private=True, thread=0))
+        self.assertEqual(self.created(), 1)
+        self.closed = True
+        for number in (3, 4):
+            await self.bot.handle(self.message("/new Ещё", number, private=True, thread=0))
+        self.assertEqual(self.created(), 3)
+        await self.bot.handle(self.message("/new Лишняя", 5, private=True, thread=0))
+        self.assertEqual(self.created(), 3)
+        self.assertIn("за час", self.sent[-1]["text"])
+        # Другой пользователь считается отдельно.
+        await self.bot.handle(self.message("/new Своя", 6, private=True, thread=0, user=2))
+        self.assertEqual(self.created(), 4)
+
+    async def test_the_core_counts_a_telegram_user_not_the_bot(self):
+        """A11: ядро считает пределы по пользователю бота (HMAC номера), а не по адресу службы."""
+        await self.bot.handle(self.message("/new Первая", 1, private=True, thread=0))
+        await self.bot.handle(self.message("/new Вторая", 2, private=True, thread=0, user=2))
+        actors = [actor for path, actor in self.actors if path == "/api/v1/rooms"]
+        self.assertEqual(len(actors), 2)
+        for actor in actors:
+            # Номер пользователя Telegram ядро не видит — только его HMAC секретом службы.
+            self.assertRegex(actor, r"^tg:[0-9a-f]{32}$")
+        self.assertNotEqual(actors[0], actors[1])
+
+    async def test_a_flood_of_commands_in_one_chat_goes_unanswered(self):
+        """A11: больше двадцати команд в минуту в одном чате — лишние без ответа и без работы."""
+        self.bind()
+        for number in range(1, 26):
+            await self.bot.handle(self.message("/meet", number, user=number))
+        self.assertEqual(len(self.sent), 20)
 
     async def test_forwarded_audio_downloads_and_replay_does_not_duplicate(self):
         self.bind()

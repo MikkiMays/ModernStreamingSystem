@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
+import os
 import re
 import secrets
 import uuid
@@ -11,6 +13,7 @@ import httpx
 from fastapi import HTTPException
 
 from . import covers
+from .cinema.limits import Window
 from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
@@ -84,6 +87,15 @@ class Telegram:
         self.username = store.state("bot_username", "cord_meet_bot")
         self.ready = False
         self.me_id = None
+        # Пределы бота (A11 docs/abuse-model.md). Новые встречи — на пользователя Telegram в час:
+        # иначе `/new` в личке создавал комнату на каждое сообщение. Команды — на чат в минуту:
+        # лишние остаются без ответа, и поток спама из одного чата не задерживает остальные.
+        self.meetings = Window(
+            int(os.environ.get("TELEGRAM_MEETINGS_PER_USER", "3")),
+            3600,
+            "Слишком много новых встреч за час. Попробуйте позже или откройте прежнюю: /meet",
+        )
+        self.commands = Window(int(os.environ.get("TELEGRAM_COMMANDS_PER_CHAT", "20")), 60, "")
 
     async def api(self, method: str, data: dict | None = None):
         try:
@@ -228,13 +240,37 @@ class Telegram:
             or "Участник Telegram"
         )[:40]
 
+    def on_behalf(self, message: dict) -> dict:
+        """
+        Чей это запрос для пределов ядра (A11): `X-Cord-Actor: tg:<HMAC номера>`.
+
+        Все запросы бота приходят в ядро с одного адреса, и без этого заголовка пользователи бота
+        делили бы одну корзину пределов. Ядро верит заголовку только вместе с секретом службы, а
+        номер пользователя видит лишь его HMAC.
+        """
+        who = message.get("from", {}).get("id") or message["chat"]["id"]
+        mark = hmac.new(self.core.secret.encode(), f"telegram-actor:{who}".encode(), hashlib.sha256)
+        return {"X-Cord-Actor": "tg:" + mark.hexdigest()[:32]}
+
     async def ensure_room(
         self, message: dict, create: bool = False, title: str = "", update_id: int = 0
     ):
         scope = self.scope(message)
         binding = self.store.binding(scope)
         info = None
-        if binding is not None and not create:
+        if binding is not None and create and message["chat"]["type"] == "private":
+            # `/new` в личке, когда своя встреча ещё идёт, отвечает ею же: новая комната на каждое
+            # сообщение — тот же поток встреч, что и от скрипта (A11).
+            try:
+                info = await self.core.request("GET", f"/internal/services/{binding['roomId']}")
+            except HTTPException as error:
+                if error.status_code != 404:
+                    raise
+                info = None
+            create = bool(info is None or info.get("closedAt"))
+            if create:
+                info = None
+        if binding is not None and not create and info is None:
             # Встречу чата могло не стать: ядро удаляет комнату, в которую неделю никто не
             # заходил, и привязка после этого указывает в пустоту. Без этой ветки чат
             # оставался бы заперт навсегда — `/meet` спрашивал бы удалённую комнату и
@@ -259,6 +295,7 @@ class Telegram:
                     "Создайте комнату в Cord и привяжите канал командой /bind. Так права организатора останутся у вас",
                 )
             await self.admin(message)
+            self.meetings.take(str(message.get("from", {}).get("id") or message["chat"]["id"]))
             profile_key = "tg-profile:" + str(self.me_id) + ":" + str(update_id)
             profile = self.store.state(profile_key) or secrets.token_urlsafe(32)
             self.store.set_state(profile_key, profile)
@@ -278,6 +315,7 @@ class Telegram:
                     "name": self.actor(message),
                     "approvalRequired": False,
                 },
+                headers=self.on_behalf(message),
             )
             await self.core.request(
                 "PUT",
@@ -304,6 +342,7 @@ class Telegram:
                 f"/api/v1/favorites/{binding['roomId']}/join",
                 {"commandId": str(uuid.uuid4()), "name": binding["ownerName"]},
                 binding["profile"],
+                headers=self.on_behalf(message),
             )
             info = await self.core.request(
                 "GET", f"/internal/services/{binding['roomId']}"
@@ -496,6 +535,14 @@ class Telegram:
                     {"audio": audio, "at": now(), "roomId": binding["roomId"]})
                 self.store.remember("telegram-update", str(update_id), {"done": True})
             return
+        if command:
+            try:
+                self.commands.take(str(message["chat"]["id"]))
+            except HTTPException:
+                # Лишняя команда чата — без ответа: ответ на каждую и был бы тем потоком, ради
+                # которого спамят.
+                self.store.remember("telegram-update", str(update_id), {"done": True})
+                return
         if command == "play" and not arg and not self.audio_from(message) and not message.get("reply_to_message") and not message.get("external_reply"):
             key = self.recent_audio_key(message)
             recent = self.store.receipt("tg-recent-audio", key)

@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Admission, Attachment } from '../src/api/types';
+import { solveChallenge, type Challenge } from '../src/core/proof-solve';
 
 test('tus resumes at the acknowledged offset and enforces ownership', async ({ request }) => {
+  // Создание встречи просит ответ на задачу «не бот» (E11-B) — тот же, что решает браузер.
+  const challenge = await request.get('/api/v1/proof?for=create');
+  const proof = challenge.status() === 200 ? solveChallenge((await challenge.json()) as Challenge) : null;
   const created = await request.post('/api/v1/rooms', {
+    headers: proof ? { 'X-Cord-Proof': proof } : {},
     data: {
       commandId: crypto.randomUUID(),
       title: 'Проверка загрузки',

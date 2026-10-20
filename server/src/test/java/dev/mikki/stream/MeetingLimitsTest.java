@@ -53,11 +53,15 @@ class MeetingLimitsTest {
   @MockitoBean Clock clock;
   AtomicLong now = new AtomicLong(System.currentTimeMillis());
 
-  /** Секрет профиля устройства — то, что браузер хранит в {@code cord:profile:v1}. */
-  static final String SECRET = "P".repeat(43);
+  /**
+   * Секрет профиля устройства — то, что браузер хранит в {@code cord:profile:v1}. У каждого теста
+   * свой: пределы на профиль (E11) считаются в памяти процесса и пережили бы соседний тест.
+   */
+  final String SECRET =
+      (UUID.randomUUID().toString() + UUID.randomUUID()).replace("-", "").substring(0, 43);
 
   /** Тот же человек, каким его видит ядро: хэш секрета из {@code X-Cord-Profile}. */
-  static final Entrant ME = new Entrant(Identity.profileHash(SECRET), null);
+  final Entrant ME = new Entrant(Identity.profileHash(SECRET), null);
 
   @BeforeEach
   void setUp() {
@@ -67,7 +71,7 @@ class MeetingLimitsTest {
     when(tus.terminate(anyString())).thenReturn(true);
   }
 
-  static Entrant leaving(String roomId) {
+  Entrant leaving(String roomId) {
     return new Entrant(ME.profileHash(), roomId);
   }
 

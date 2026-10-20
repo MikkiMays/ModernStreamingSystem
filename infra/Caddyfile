@@ -37,6 +37,8 @@
 		forward_auth 127.0.0.1:8080 {
 			uri /internal/signaling-auth
 			header_up X-Internal-Secret {$INTERNAL_SECRET}
+			# Предел подключений сигналинга считается по адресу клиента (A12 docs/abuse-model.md).
+			header_up X-Real-IP {remote_host}
 			header_up X-Media-Token {query.access_token}
 			header_up -X-Forwarded-Uri
 		}
@@ -64,6 +66,10 @@ http://:{$GATEWAY_PORT:8091} {
 			reverse_proxy 127.0.0.1:8080 {
 				header_up X-Internal-Secret {$INTERNAL_SECRET}
 				header_up X-Real-IP {remote_host}
+				# Эти два заголовка говорят «я служба Cord» и «от имени этого пользователя бота».
+				# Браузеру их слать незачем: снаружи они не доходят до ядра вовсе (A14).
+				header_up -X-Service-Secret
+				header_up -X-Cord-Actor
 			}
 		}
 		handle /uploads/* {

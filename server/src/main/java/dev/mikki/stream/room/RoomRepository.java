@@ -3,6 +3,7 @@ package dev.mikki.stream.room;
 import dev.mikki.stream.shared.Json;
 import dev.mikki.stream.shared.Problem;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -74,6 +75,14 @@ public class RoomRepository {
         .query(String.class)
         .optional()
         .orElseThrow(() -> new Problem(404, "CODE_INVALID", "Проверьте код встречи"));
+  }
+
+  /** Комната с этим кодом, если она есть, — без отказа: промах решает тот, кто спрашивает. */
+  public Optional<String> findForCode(String code) {
+    return jdbc.sql("SELECT id FROM rooms WHERE room_code=?")
+        .param(code)
+        .query(String.class)
+        .optional();
   }
 
   public boolean codeExists(String code) {

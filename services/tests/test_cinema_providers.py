@@ -23,12 +23,13 @@ import httpx
 from fastapi import HTTPException
 
 from cord_services.cinema import Cinema, Resolve, Signer
-from cord_services.cinema.transport.signer import proxied
+from cord_services.cinema.transport.signer import SIGNATURE_TTL, proxied
 
 NOW = 1_800_000_000.0
 SECRET = "secret"
 DAY = 24 * 3600
-FIVE_HOURS = 5 * 3600
+# Срок подписи прокси (`CINEMA_LINK_TTL`, A8): с E11-B — час, а не пять.
+LINK_TTL = SIGNATURE_TTL
 
 # Опции yt-dlp по местам вызова — такими, какие они сейчас. Каталог листает «плоско», ролик
 # открывается целиком и без плейлиста вокруг.
@@ -161,7 +162,7 @@ def img(url, provider):
     return proxied(Signer(SECRET), url, "image", DAY, provider=provider)
 
 
-def signed(url, route, provider, ttl=FIVE_HOURS):
+def signed(url, route, provider, ttl=LINK_TTL):
     return proxied(Signer(SECRET), url, route, ttl, provider=provider)
 
 
@@ -1634,9 +1635,9 @@ class ResolveTests(Stage):
                 "live": False,
                 "kind": "file",
                 "url": signed(
-                    "https://rr1.googlevideo.com/videoplayback?itag=22", "fetch", "youtube", FIVE_HOURS
+                    "https://rr1.googlevideo.com/videoplayback?itag=22", "fetch", "youtube", LINK_TTL
                 ),
-                "expiresAt": int((NOW + FIVE_HOURS) * 1000),
+                "expiresAt": int((NOW + LINK_TTL) * 1000),
                 "notice": "Доступен только готовый файл: качество ограничено источником",
                 "language": "",
                 "captions": [
@@ -1674,7 +1675,7 @@ class ResolveTests(Stage):
                 "duration": 635,
                 "live": False,
                 "kind": "dash",
-                "expiresAt": 1800007200000,
+                "expiresAt": int((NOW + min(7200, LINK_TTL)) * 1000),
                 "notice": None,
                 "language": "en",
                 "captions": [],
@@ -1720,8 +1721,8 @@ class ResolveTests(Stage):
                 "duration": None,
                 "live": True,
                 "kind": "hls",
-                "url": signed(master, "playlist", "youtube", FIVE_HOURS),
-                "expiresAt": int((NOW + FIVE_HOURS) * 1000),
+                "url": signed(master, "playlist", "youtube", LINK_TTL),
+                "expiresAt": int((NOW + LINK_TTL) * 1000),
                 "notice": None,
                 "language": "en",
                 "captions": [],
@@ -1753,8 +1754,8 @@ class ResolveTests(Stage):
                 "duration": 3600,
                 "live": False,
                 "kind": "file",
-                "url": signed(self.separate_tracks()[2]["url"], "fetch", "twitch", 7200),
-                "expiresAt": 1800007200000,
+                "url": signed(self.separate_tracks()[2]["url"], "fetch", "twitch", min(7200, LINK_TTL)),
+                "expiresAt": int((NOW + min(7200, LINK_TTL)) * 1000),
                 "notice": "Доступен только готовый файл: качество ограничено источником",
                 "language": "",
                 "captions": [],
@@ -1786,8 +1787,8 @@ class ResolveTests(Stage):
                 "duration": None,
                 "live": True,
                 "kind": "hls",
-                "url": signed(master, "playlist", "twitch", FIVE_HOURS),
-                "expiresAt": int((NOW + FIVE_HOURS) * 1000),
+                "url": signed(master, "playlist", "twitch", LINK_TTL),
+                "expiresAt": int((NOW + LINK_TTL) * 1000),
                 "notice": None,
                 "language": "",
                 "captions": [],

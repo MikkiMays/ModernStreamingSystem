@@ -296,19 +296,32 @@ public class Lifecycle {
       games.forget(id);
     else games.schedule(id, RoomService.gameDeadline(room));
     if (room.closedAt == null) {
-      boolean occupied = room.members.values().stream().anyMatch(RoomState.Member::occupiesSeat);
+      /*
+       Пустая комната — та, где нет людей. Бот музыки людей не заменяет (правило E02, A2 модели
+       угроз): раньше он, оставшись один, держал комнату открытой, пока сам не уйдёт.
+
+       Комната, где за срок неиспользованной никто ни разу не вышел на связь, закрывается, даже
+       если в ней кто-то «сидит»: скрипт, зовущий `rejoin` раз в сто секунд без единого
+       медиасоединения, держал её часами.
+      */
+      boolean occupied =
+          room.members.values().stream().anyMatch(m -> m.human() && m.occupiesSeat());
+      long opened = room.openedAt != null ? room.openedAt : room.createdAt;
       var emptyBefore = room.emptySince;
       if (occupied) room.emptySince = null;
       else if (room.emptySince == null) room.emptySince = now;
       if (!Objects.equals(emptyBefore, room.emptySince)) dirty = true;
-      if (!occupied
-          && ((!room.everConnected && now - room.createdAt >= config.unusedRoomSeconds() * 1000L)
-              || (room.everConnected
-                  && room.emptySince != null
-                  && now - room.emptySince >= config.emptyRoomSeconds() * 1000L))) {
+      // Занятая комната отсчитывает срок от последнего открытия (вернувшемуся в сохранённую встречу
+      // нужны те же пять минут), пустая — как всегда, от создания.
+      if ((!room.everConnected
+              && now - (occupied ? opened : room.createdAt) >= config.unusedRoomSeconds() * 1000L)
+          || (!occupied
+              && room.everConnected
+              && room.emptySince != null
+              && now - room.emptySince >= config.emptyRoomSeconds() * 1000L)) {
         service.close(room);
         changed = true;
-      }
+      } else if (ceiling(room, opened, now)) changed = true;
     }
     if (changed) {
       service.emit(room, "room.changed", Contracts.EventPayload.changed());
@@ -360,6 +373,31 @@ public class Lifecycle {
                 .query(Long.class)
                 .single()
             == 0) rooms.jdbc().sql("DELETE FROM rooms WHERE id=?").param(id).update();
+  }
+
+  /**
+   * Потолок длительности встречи ({@code stream.meeting.max-duration}, A2 модели угроз).
+   *
+   * <p>За {@code warn-before} до конца всем уходит событие {@code meeting.warning}, а в снимке
+   * появляется {@code endsAt} — один раз: метка в комнате и есть «уже предупредили». В срок встреча
+   * завершается обычным {@link RoomService#close}: гаснут кино, музыка и столы, как после
+   * «Завершить для всех». Вернуться из избранного можно — это новая встреча, и считается она
+   * заново.
+   *
+   * @return изменилось ли что-то, о чём надо сказать участникам
+   */
+  private boolean ceiling(RoomState room, long opened, long now) {
+    var meeting = config.meeting();
+    if (meeting.maxDuration().compareTo(dev.mikki.stream.config.Term.FOREVER) >= 0) return false;
+    long ends = opened + meeting.maxDuration().toMillis();
+    if (now >= ends) {
+      service.close(room);
+      return true;
+    }
+    if (room.endsAt != null || now < ends - meeting.warnBefore().toMillis()) return false;
+    room.endsAt = ends;
+    service.emit(room, "meeting.warning", Contracts.EventPayload.changed());
+    return true;
   }
 
   /**

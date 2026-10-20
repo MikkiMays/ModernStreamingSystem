@@ -287,7 +287,15 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          Long startedAt) {}
+          Long startedAt,
+      /**
+       * Когда встреча завершится по потолку длительности ({@code stream.meeting.max-duration}, A2
+       * модели угроз), по часам сервера. Появляется вместе с событием {@code meeting.warning} — за
+       * {@code warn-before} до конца; до того {@code null}, и поля в ответе нет.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          Long endsAt) {}
 
   /**
    * Права участника — готовым ответом, а не правилом для пересчёта.

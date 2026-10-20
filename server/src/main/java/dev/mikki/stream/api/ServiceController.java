@@ -38,7 +38,9 @@ public class ServiceController {
       Long closedAt,
       boolean ownerPresent,
       boolean integrationsAllowed,
-      List<String> participantCan) {}
+      List<String> participantCan,
+      // Идёт ли в комнате кино: прокси кинозала отдаёт байты, только пока идёт (A8).
+      boolean watching) {}
 
   @GetMapping("/{roomId}")
   public Info info(@PathVariable UUID roomId) {
@@ -54,7 +56,8 @@ public class ServiceController {
                     member.owner
                         && member.status == dev.mikki.stream.room.RoomState.Status.CONNECTED),
         room.integrationsAllowed,
-        Permissions.participant(room));
+        Permissions.participant(room),
+        room.watch != null);
   }
 
   @PostMapping("/{roomId}/invite")

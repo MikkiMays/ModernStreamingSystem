@@ -36,6 +36,33 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Long startedAt;
 
+  /**
+   * С какого адреса и каким профилем встреча создана (A1 модели угроз): HMAC ключа адреса секретом
+   * сервера и хэш профиля. По ним считается, сколько встреч одного адреса и профиля сейчас занимают
+   * место на сервере. Наружу не отдаются; у встреч служб и тестов их нет.
+   *
+   * <p>{@code NON_NULL} — комната без них пишется как раньше, и откат образа читает её без потерь.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String createdFrom;
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String createdBy;
+
+  /**
+   * Когда встреча открыта в последний раз: создана или открыта заново из избранного. От этой метки
+   * считается потолок длительности ({@code stream.meeting.max-duration}, A2); null — с создания.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long openedAt;
+
+  /**
+   * Когда встреча завершится по потолку длительности — ставится в тот момент, когда всем ушло
+   * предупреждение ({@code meeting.warning}), и попадает в снимок. До предупреждения — null.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long endsAt;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;
@@ -56,6 +83,11 @@ public class RoomState {
   public Map<String, String> profiles = new LinkedHashMap<>();
 
   public Map<String, Invite> invites = new LinkedHashMap<>();
+
+  /** Приглашение, которое раздаёт бот Telegram, — одно на комнату, пока живо (A11). */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String botInvite;
+
   public List<Message> messages = new ArrayList<>();
 
   /** Что комната смотрит вместе прямо сейчас, или null. Живёт и умирает вместе с комнатой. */

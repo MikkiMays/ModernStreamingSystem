@@ -11,6 +11,7 @@ import dev.mikki.stream.access.ServerAccess;
 import dev.mikki.stream.api.ClientAddress;
 import dev.mikki.stream.api.RequestGuard;
 import dev.mikki.stream.api.SessionController;
+import dev.mikki.stream.config.Rate;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,30 @@ class ServerAccessTest {
     when(config.accessPassword()).thenReturn(password);
     when(config.serverName()).thenReturn("Наш Cord");
     when(config.publicUrl()).thenReturn("https://meet.example.com");
+    when(config.abuse()).thenReturn(abuse());
     return config;
+  }
+
+  /** Пределы антибота — те же, что в {@code application.yml} по умолчанию. */
+  static StreamProperties.Abuse abuse() {
+    var minute = Rate.perMinute(60);
+    return new StreamProperties.Abuse(
+        StreamProperties.Abuse.HumanCheck.PROOF_OF_WORK,
+        50000,
+        new StreamProperties.Abuse.PerIp(
+            Rate.parse("10 per hour"),
+            3,
+            Rate.parse("30 per minute"),
+            Rate.parse("10 per minute"),
+            Rate.parse("20 per hour"),
+            30,
+            minute,
+            Rate.parse("10 per hour"),
+            minute),
+        new StreamProperties.Abuse.PerProfile(Rate.parse("6 per hour"), 2),
+        new StreamProperties.Abuse.PerMember(
+            Rate.parse("20 per minute"), java.time.Duration.ofSeconds(30), 3),
+        new StreamProperties.Abuse.Server(Rate.parse("300 per minute")));
   }
 
   private static ServerAccess access(String password) {
@@ -82,15 +106,51 @@ class ServerAccessTest {
     var request = new MockHttpServletRequest("POST", "/api/v1/session");
     var open = settings("");
     new SessionController(
-            new ServerAccess(new Secrets(open), open), limits, new ClientAddress(open))
+            new ServerAccess(new Secrets(open), open), limits, new ClientAddress(open), open)
         .connect(new SessionController.Connect(null), request);
     verifyNoInteractions(limits);
 
     var closed = settings("тайна");
     new SessionController(
-            new ServerAccess(new Secrets(closed), closed), limits, new ClientAddress(closed))
+            new ServerAccess(new Secrets(closed), closed),
+            limits,
+            new ClientAddress(closed),
+            closed)
         .connect(new SessionController.Connect("тайна"), request);
     verify(limits).check(startsWith("session:"), eq(60));
+  }
+
+  /**
+   * Промахи паролем — десять в час (A15): одиннадцатая попытка — отказ до конца окна, даже с верным
+   * паролем. Верный пароль промахом не считается.
+   */
+  @Test
+  void tenWrongPasswordsCloseTheDoorForTheHour() {
+    var closed = settings("тайна");
+    var session =
+        new SessionController(
+            new ServerAccess(new Secrets(closed), closed),
+            RateLimits.inMemory(),
+            new ClientAddress(closed),
+            closed);
+    var request = new MockHttpServletRequest("POST", "/api/v1/session");
+    request.setRemoteAddr("203.0.113.15");
+    for (int i = 0; i < 5; i++) session.connect(new SessionController.Connect("тайна"), request);
+    for (int i = 0; i < 10; i++)
+      assertThatThrownBy(() -> session.connect(new SessionController.Connect("угадал?"), request))
+          .isInstanceOfSatisfying(
+              Problem.class, p -> assertThat(p.code()).isEqualTo("SERVER_PASSWORD_INVALID"));
+    assertThatThrownBy(() -> session.connect(new SessionController.Connect("тайна"), request))
+        .isInstanceOfSatisfying(
+            Problem.class,
+            p -> {
+              assertThat(p.status()).isEqualTo(429);
+              assertThat(p.code()).isEqualTo("PASSWORD_MISSES");
+            });
+    var neighbour = new MockHttpServletRequest("POST", "/api/v1/session");
+    neighbour.setRemoteAddr("203.0.113.16");
+    assertThat(session.connect(new SessionController.Connect("тайна"), neighbour).token())
+        .isNotBlank();
   }
 
   @Test

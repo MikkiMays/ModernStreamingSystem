@@ -82,6 +82,10 @@ class Claim(BaseModel):
 def create_app(
     root: Path | None = None, core: Core | None = None, *, telegram_enabled: bool = True
 ):
+    if core is None and len(os.environ.get("INTERNAL_SECRET", "")) < 32:
+        # Без секрета служба не может доказать ядру, что она своя, а подписи кинозала считались бы на
+        # запасном ключе, известном каждому, кто видел код (A14 docs/abuse-model.md). Лучше не подняться.
+        raise RuntimeError("INTERNAL_SECRET должен быть не короче 32 символов")
     store = Store(root or Path(os.environ.get("CORD_SERVICES_ROOT", "/data")))
     core = core or Core(
         os.environ.get("CORD_CORE_URL", "http://127.0.0.1:8080"),

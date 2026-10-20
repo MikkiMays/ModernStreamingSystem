@@ -28,6 +28,8 @@ import { serverInfo } from '../core/session';
 import { humans } from '../core/people';
 import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize } from './chat';
 import { useVoiceTier } from './useVoice';
+import { ExecutableNote } from './abuse/Notices';
+import { ChatText } from './abuse/ChatText';
 import { locale } from '../i18n';
 
 export type Panel = 'people' | 'chat' | 'services';
@@ -323,7 +325,9 @@ export function Sidebar({
                     {time(entry.at)}
                   </div>
                   <div className="message-body">
-                    <p>{entry.message.text}</p>
+                    <p>
+                      <ChatText text={entry.message.text} />
+                    </p>
                     <IconButton
                       size="sm"
                       label={t(($) => $.sidebar.copy)}
@@ -355,6 +359,7 @@ export function Sidebar({
                       <small>
                         {formatBytes(t, entry.file.size)} · {t(($) => $.sidebar.temporary)}
                       </small>
+                      <ExecutableNote file={entry.file} />
                     </div>
                     <IconButton
                       label={t(($) => $.sidebar.download, { name: entry.file.name })}

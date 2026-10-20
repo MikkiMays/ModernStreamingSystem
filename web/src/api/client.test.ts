@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { ApiError, publicApi, request, RoomApi } from './client';
 import { profileSecret } from '../core/identity';
+import { sha256 } from '../core/proof-solve';
 import { i18next } from '../i18n';
 
 /*
@@ -144,4 +145,72 @@ it('подробности отказа ядра (RFC 7807) доходят до 
   const error = await refusal();
   expect(error.code).toBe('ALREADY_IN_MEETING');
   expect(error.problem).toMatchObject({ roomId: 'room-1', title: 'Вечер' });
+});
+
+/*
+  Невидимая проверка «не бот» (E11-B): создание встречи и вход по коду берут задачу у сервера и
+  прикладывают ответ заголовком `X-Cord-Proof`. Устаревший ответ — один повтор со свежей задачей.
+*/
+it('создание и вход по коду несут ответ на задачу «не бот», устаревший — повторяются один раз', async () => {
+  let issued = 0;
+  let refuse = 1;
+  const posts: Record<string, string>[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((path: string, init: RequestInit) => {
+      if (path.startsWith('/api/v1/proof')) {
+        const salt = `соль${++issued}?expires=1&for=code&k=x`;
+        const body = {
+          algorithm: 'SHA-256',
+          challenge: sha256(salt + 42),
+          maxnumber: 100,
+          salt,
+          signature: 's',
+        };
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      }
+      posts.push(init.headers as Record<string, string>);
+      if (refuse-- > 0)
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: 'PROOF_INVALID', detail: 'Не удалось проверить браузер' }), {
+            status: 403,
+          }),
+        );
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    }),
+  );
+  await publicApi.joinCode({ commandId: 'c', code: '123456789', name: 'И' });
+  expect(posts).toHaveLength(2);
+  const answers = posts.map(
+    (headers) =>
+      JSON.parse(
+        new TextDecoder().decode(
+          Uint8Array.from(atob(headers['X-Cord-Proof'] ?? ''), (c) => c.charCodeAt(0)),
+        ),
+      ) as { number: number; salt: string },
+  );
+  expect(answers.map((a) => a.number)).toEqual([42, 42]);
+  expect(answers[0]!.salt).not.toBe(answers[1]!.salt);
+  expect(posts[1]!['X-Cord-Profile']).toBe(profileSecret());
+
+  // Выключенная проверка (204) — вход без заголовка.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((path: string, init: RequestInit) =>
+      Promise.resolve(
+        path.startsWith('/api/v1/proof')
+          ? new Response(null, { status: 204 })
+          : new Response(JSON.stringify({ sent: init.headers }), { status: 200 }),
+      ),
+    ),
+  );
+  const answer = (await publicApi.create({
+    commandId: 'c',
+    title: 'Т',
+    name: 'И',
+    approvalRequired: false,
+  })) as unknown as {
+    sent: Record<string, string>;
+  };
+  expect(answer.sent['X-Cord-Proof']).toBeUndefined();
 });
