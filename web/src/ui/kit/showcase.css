@@ -154,3 +154,26 @@
 .kit__resizable .ui-handle {
   display: grid;
 }
+/* Интеграции (E06-B): рамки шириной с панель встречи, в теме колонки. */
+.kit-integrations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+/*
+  Рамка — ширина панели (`--frame`), но не шире окна за вычетом полей колонки: на телефоне панель
+  встречи — лист во всю ширину, и рамка становится им же (разделы набора на телефоне шире окна сами).
+*/
+.kit-integrations__frame {
+  flex: none;
+  width: min(var(--frame), calc(100vw - 2 * var(--space-6)));
+  overflow: hidden;
+  border-radius: var(--radius-4);
+  background: var(--surface-1);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+}
+.kit-integrations__frame > .panel-body {
+  padding-top: var(--space-4);
+}
