@@ -178,14 +178,15 @@ const FLOWS = {
       ['c', 'meeting-grid', 2, 0, 'Та встреча'],
       ['d', 'meeting-solo', 2, 1, 'Новая встреча'],
       ['e', 'prejoin-create', 2, 2, 'Остался в прихожей'],
-      ['f', 'home-active-elsewhere', 0, 1, 'Главная: встреча в соседней вкладке'],
+      ['f', 'home-active-elsewhere', 0, 3, 'Главная: встреча в соседней вкладке'],
+      ['g', 'meeting-grid', 1, 3, 'Встреча переехала в эту вкладку'],
     ],
     edges: [
       ['a', 'b', '«Начать встречу» → 409'],
       ['b', 'c', '«Перейти туда»'],
       ['b', 'd', '«Выйти оттуда и войти сюда»'],
       ['b', 'e', '«Остаться»'],
-      ['f', 'c', '«Вернуться» — перенос в эту вкладку'],
+      ['f', 'g', '«Вернуться» — перенос тем же участником'],
     ],
   },
   update: {
@@ -372,7 +373,9 @@ for (const flow of FLOWS) {
     const ay = a.y + a.h / 2, by = b.y + b.h / 2;
     if (b.col > a.col) {
       const x1 = a.x + a.w + 12, x2 = b.x - 12;
-      const mid = PAD + a.col * (TW + GAP) + TW + 60;
+      // Через колонку — вертикаль у цели, чтобы горизонталь шла по пустому ряду источника, а не
+      // поперёк экранов промежуточной колонки.
+      const mid = b.col - a.col > 1 ? b.x - 60 : PAD + a.col * (TW + GAP) + TW + 60;
       pts = Math.abs(ay - by) < 2 ? [[x1, ay], [x2, by]] : [[x1, ay], [mid, ay], [mid, by], [x2, by]];
     } else if (b.col === a.col) {
       const down = b.row > a.row;
@@ -402,7 +405,7 @@ for (const flow of FLOWS) {
     const [p0, p1] = pts;
     // Колено к другому ряду — подпись у середины вертикали: из одного экрана выходит несколько
     // веток, а в один экран входит несколько, и у концов подписи легли бы друг на друга.
-    if (pts.length === 4 && b.col > a.col) { lab.x = pts[1][0] + 10; lab.y = (pts[1][1] + pts[2][1]) / 2 - lab.height / 2; }
+    if (pts.length === 4 && b.col > a.col) { lab.x = b.col - a.col > 1 ? pts[1][0] - lab.width - 10 : pts[1][0] + 10; lab.y = (pts[1][1] + pts[2][1]) / 2 - lab.height / 2; }
     else if (p0[1] === p1[1]) { lab.x = Math.min(p0[0], p1[0]) + 8; lab.y = p0[1] - lab.height - 8; }
     else { lab.x = p0[0] + 12; lab.y = (p0[1] + p1[1]) / 2 - lab.height / 2; }
   }

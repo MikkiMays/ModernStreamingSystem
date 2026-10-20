@@ -18,6 +18,7 @@
 - [`cord-disk-utilisation`](memory/cord-disk-utilisation.md) — Где в Cord копится место, срок хранения встреч в неделю и суточная уборка cord-tidy
 - [`cord-durak-table`](memory/cord-durak-table.md) — Дурак в Cord: где он живёт, чем отличается от покера и на каких граблях там уже стояли
 - [`cord-e2e-against-production`](memory/cord-e2e-against-production.md) — Как за минуту проверить клиента Cord настоящим браузером против боевого сервера, не поднимая локальный стенд
+- [`cord-figma-export`](memory/cord-figma-export.md) — Как экраны Cord попадают в Figma-файл продукта и на чём там спотыкаешься — план Starter, запрет захвата в слои, кадры по ссылкам upload_assets
 - [`cord-ladder-in-place`](memory/cord-ladder-in-place.md) — Почему камера в Cord «моргала» каждые полминуты и как лестница качества теперь шагает без переопубликации
 - [`cord-local-stack-with-sfu`](memory/cord-local-stack-with-sfu.md) — Как поднять рядом с продом Cord полный второй стенд со своим SFU и проверять на нём медиа, ничего не трогая
 - [`cord-moderation-is-soft`](memory/cord-moderation-is-soft.md) — Решение владельца Cord: исключение и выключенный микрофон — не запрет, а конец встречи
