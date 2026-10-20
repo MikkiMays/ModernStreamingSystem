@@ -1,0 +1,1837 @@
+#!/usr/bin/env node
+// Снимки «как есть» для Figma (E15-A, T57): каждый экран и состояние Cord на 360 / 1024 / 1440 в
+// обеих темах — PNG и manifest.json с размером кадра, по которому строятся фреймы в Figma.
+//
+//   node scripts/figma-screens.mjs                       — всё в ../backlog/screens/figma
+//   node scripts/figma-screens.mjs --only home,connect-password --widths 360 --themes dark
+//   node scripts/figma-screens.mjs --list                — перечень состояний и групп
+//   node scripts/figma-screens.mjs --tree [--tree-only]   — ещё и структура страницы в <id>-<ширина>-<тема>.json
+//
+// Одиночные состояния открываются в своём контексте на каждую ширину и тему. Сценарии со многими
+// участниками (сетка, демонстрация, кинозал, игры) собирают встречу один раз: настольный зритель
+// снимается на 1024 и 1440 сменой окна, телефонный — отдельным контекстом с касанием; тема
+// меняется атрибутом `data-theme` без перезагрузки — так её держит само приложение.
+// Данных, которых нет на стенде (десять комнат в избранном), подставляет `page.route`: интерфейс
+// при этом настоящий. Скрипт лежит в web/, потому что `@playwright/test` резолвится от файла.
+import { chromium } from '@playwright/test';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { writeCamera } from './fake-camera.mjs';
+
+const args = Object.fromEntries(
+  process.argv.slice(2).reduce((pairs, value, index, all) => {
+    if (value.startsWith('--'))
+      pairs.push([
+        value.slice(2),
+        all[index + 1] && !all[index + 1].startsWith('--') ? all[index + 1] : 'true',
+      ]);
+    return pairs;
+  }, []),
+);
+const base = args.base ?? process.env.PLAYWRIGHT_BASE_URL ?? 'https://cord.nikg.tech';
+const out = path.resolve(args.out ?? '../backlog/screens/figma');
+const WIDTHS = (args.widths ?? '360,1024,1440').split(',').map(Number);
+const THEMES = (args.themes ?? 'light,dark').split(',');
+const only = args.only?.split(',');
+const VIEW = { 360: 780, 1024: 768, 1440: 900 };
+const mobile = (width) => width < 768;
+const api = (p) => new URL(`/api/v1${p}`, base).href;
+
+// ---------------------------------------------------------------------------------------------
+// Манифест: одна строка на снимок, перезапуск части состояний обновляет только их строки.
+
+const manifestFile = path.join(out, 'manifest.json');
+mkdirSync(out, { recursive: true });
+const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : [];
+function record(entry) {
+  const at = manifest.findIndex(
+    (e) => e.id === entry.id && e.width === entry.width && e.theme === entry.theme,
+  );
+  if (at >= 0) manifest[at] = entry;
+  else manifest.push(entry);
+  writeFileSync(manifestFile, JSON.stringify(manifest, null, 1));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Браузер и контексты.
+
+// Камера — спокойный силуэт (`fake-camera.mjs`), а не зелёная таблица Chromium; `--camera off` — таблица.
+const camera = args.camera ?? path.join(os.tmpdir(), 'cord-camera.y4m');
+if (camera !== 'off' && !existsSync(camera)) await writeCamera(camera);
+const browser = await chromium.launch({
+  args: [
+    '--use-fake-device-for-media-stream',
+    '--use-fake-ui-for-media-stream',
+    '--auto-select-desktop-capture-source=Entire screen',
+    '--autoplay-policy=no-user-gesture-required',
+    ...(camera !== 'off' ? [`--use-file-for-fake-video-capture=${camera}`] : []),
+  ],
+});
+
+async function newContext(width, theme, { name = 'Ника', storage } = {}) {
+  const context = await browser.newContext({
+    viewport: { width, height: VIEW[width] ?? 900 },
+    deviceScaleFactor: mobile(width) ? 2 : 1,
+    hasTouch: mobile(width),
+    isMobile: mobile(width),
+    colorScheme: theme,
+    locale: 'ru-RU',
+    permissions: ['camera', 'microphone', 'clipboard-read', 'clipboard-write'],
+    // Рабочий sw.js отдаёт /assets/ и навигации сам — подмены `page.route` его бы не видели.
+    serviceWorkers: 'block',
+  });
+  await context.addInitScript(
+    ([t, n, s]) => {
+      try {
+        if (!localStorage.getItem('cord:theme')) localStorage.setItem('cord:theme', t);
+        if (n && !localStorage.getItem('cord:name')) localStorage.setItem('cord:name', n);
+        if (s)
+          for (const [k, v] of Object.entries(s)) if (!localStorage.getItem(k)) localStorage.setItem(k, v);
+      } catch {
+        /* хранилище недоступно — приложение возьмёт умолчания */
+      }
+    },
+    [theme, name, storage ?? null],
+  );
+  context.setDefaultTimeout(60000);
+  return context;
+}
+
+/** Тема без перезагрузки: приложение держит её атрибутом `data-theme` на `<html>`. */
+async function setTheme(page, theme) {
+  await page.evaluate((t) => {
+    document.documentElement.dataset.theme = t;
+    try {
+      localStorage.setItem('cord:theme', t);
+    } catch {
+      /* только вид */
+    }
+  }, theme);
+  await page.emulateMedia({ colorScheme: theme });
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Структура страницы для будущих слоёв (E15 этап A2 → B): дерево видимых элементов с рамкой,
+ * вычисленными стилями, текстом и разметкой значков. Плагин или `use_figma` строит из него
+ * настоящие фреймы вместо картинки.
+ */
+function pageTree() {
+  const PICK = [
+    'display',
+    'position',
+    'flexDirection',
+    'flexWrap',
+    'alignItems',
+    'justifyContent',
+    'gap',
+    'paddingTop',
+    'paddingRight',
+    'paddingBottom',
+    'paddingLeft',
+    'backgroundColor',
+    'backgroundImage',
+    'color',
+    'fontFamily',
+    'fontSize',
+    'fontWeight',
+    'lineHeight',
+    'letterSpacing',
+    'textAlign',
+    'textTransform',
+    'borderTopLeftRadius',
+    'borderTopRightRadius',
+    'borderBottomLeftRadius',
+    'borderBottomRightRadius',
+    'borderTopWidth',
+    'borderTopColor',
+    'borderBottomWidth',
+    'borderBottomColor',
+    'boxShadow',
+    'opacity',
+    'zIndex',
+    'overflow',
+    'objectFit',
+  ];
+  const DEFAULT = new Set([
+    'none',
+    'normal',
+    '0px',
+    'rgba(0, 0, 0, 0)',
+    'auto',
+    'static',
+    'visible',
+    'start',
+    'nowrap',
+    '1',
+    'row',
+  ]);
+  let count = 0;
+  const walk = (el) => {
+    if (count >= 5000) return null;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return null;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 && r.height < 1 && !el.children.length) return null;
+    count++;
+    const node = {
+      tag: el.tagName.toLowerCase(),
+      box: [r.x + scrollX, r.y + scrollY, r.width, r.height].map((v) => Math.round(v)),
+    };
+    if (typeof el.className === 'string' && el.className.trim()) node.cls = el.className.trim();
+    for (const a of ['role', 'aria-label', 'data-theme', 'data-layout'])
+      if (el.getAttribute(a)) (node.attr ??= {})[a] = el.getAttribute(a);
+    const style = {};
+    for (const k of PICK) if (cs[k] && !DEFAULT.has(cs[k])) style[k] = cs[k];
+    node.style = style;
+    const text = [...el.childNodes]
+      .filter((n) => n.nodeType === 3)
+      .map((n) => n.textContent.trim())
+      .filter(Boolean)
+      .join(' ');
+    if (text) node.text = text;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') node.value = el.value || el.placeholder || '';
+    if (el.tagName === 'IMG') node.src = (el.currentSrc || el.src || '').slice(0, 300);
+    if (el.tagName.toLowerCase() === 'svg') {
+      node.svg = el.outerHTML.slice(0, 6000);
+      return node;
+    }
+    if (['VIDEO', 'CANVAS', 'IFRAME'].includes(el.tagName)) return node;
+    const kids = [...el.children].map(walk).filter(Boolean);
+    if (kids.length) node.children = kids;
+    return node;
+  };
+  const root = walk(document.body);
+  return {
+    url: location.pathname,
+    viewport: [innerWidth, innerHeight],
+    theme: document.documentElement.dataset.theme,
+    count,
+    root,
+  };
+}
+
+async function shoot(page, id, width, theme, { fullPage = true } = {}) {
+  const file = `${id}-${width}-${theme}.png`;
+  // `fonts.ready` на медленной машине иногда висит — не дольше полутора секунд.
+  await page.evaluate(() => Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 1500))]));
+  if (args.tree) {
+    // --tree: рядом с кадром — структура страницы; --tree-only — только она, PNG и манифест не трогаются.
+    const tree = await page.evaluate(pageTree);
+    const treeFile = `${id}-${width}-${theme}.json`;
+    writeFileSync(path.join(out, treeFile), JSON.stringify(tree));
+    console.log(`  ✓ ${treeFile} (${tree.count} узлов)`);
+    if (args['tree-only']) return;
+  }
+  // Окно или меню поверх страницы снимаются в пределах экрана: при снимке «во всю страницу»
+  // фиксированная подложка покрывает только исходную высоту окна и кадр врёт.
+  const overlay = fullPage
+    ? await page
+        .locator('[role="dialog"]:visible, [role="alertdialog"]:visible, [role="menu"]:visible')
+        .count()
+        .catch(() => 0)
+    : 1;
+  const size = await page.evaluate(
+    (full) => ({
+      w: document.documentElement.clientWidth,
+      h: full ? Math.max(document.documentElement.scrollHeight, window.innerHeight) : window.innerHeight,
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }),
+    overlay === 0,
+  );
+  await page.screenshot({ path: path.join(out, file), fullPage: overlay === 0, caret: 'hide' });
+  // Размер кадра — по самому PNG (ширина и высота в заголовке IHDR), а не по окну: у страницы шире
+  // окна телефон уменьшает масштаб, и `innerHeight` перестаёт совпадать со снимком.
+  const png = readFileSync(path.join(out, file));
+  const scale = mobile(width) ? 2 : 1;
+  size.w = png.readUInt32BE(16) / scale;
+  size.h = png.readUInt32BE(20) / scale;
+  record({ id, width, theme, file, cssWidth: size.w, cssHeight: size.h, overflowX: size.overflowX });
+  console.log(
+    `  ✓ ${file} ${size.w}×${size.h}${size.overflowX > 0 ? ` (шире окна на ${size.overflowX})` : ''}`,
+  );
+}
+
+async function home(page) {
+  await page.goto(base);
+  await page
+    .getByRole('button', { name: /Новая встреча/ })
+    .first()
+    .waitFor({ timeout: 60000 });
+  await page.waitForTimeout(600);
+}
+
+async function connected(page) {
+  await page
+    .locator('[data-media-status="connected"]')
+    .or(page.getByText('В эфире', { exact: true }))
+    .first()
+    .waitFor({ timeout: 90000 });
+}
+
+/** Снимок ответа API — интерфейс рисует его как настоящий. */
+const json = (route, body, status = 200) =>
+  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+// ---------------------------------------------------------------------------------------------
+// Подставные данные: десять комнат в избранном по разделам (закреплённые, две группы, без группы).
+
+const now = Date.now();
+const GROUPS = [
+  { id: '00000000-0000-4000-8000-0000000000a1', title: 'Работа' },
+  { id: '00000000-0000-4000-8000-0000000000a2', title: 'Друзья' },
+];
+const FAVORITES = [
+  ['Планёрка', true, null, false],
+  ['Покер по пятницам', true, null, true],
+  ['Дизайн-ревью', false, 0, false],
+  ['Созвон с командой', false, 0, true],
+  ['Ретро спринта', false, 0, true],
+  ['Собеседование', false, 0, true],
+  ['Кино в субботу', false, 1, true],
+  ['Дурак', false, 1, false],
+  ['Шахматный клуб', false, 1, true],
+  ['Без повода', false, null, true],
+].map(([title, pinned, group, closed], i) => ({
+  roomId: `00000000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`,
+  code: String(318204650 + i * 7351).slice(0, 9),
+  title,
+  alias: null,
+  pinned,
+  groupId: group === null ? null : GROUPS[group].id,
+  closed,
+  canJoin: true,
+  savedAt: now - i * 3600_000,
+}));
+
+async function fakeFavorites(context, rooms = FAVORITES, groups = GROUPS) {
+  await context.route(/\/api\/v1\/favorites(\?.*)?$/, (route) =>
+    route.request().method() === 'GET' ? json(route, rooms) : route.continue(),
+  );
+  await context.route(/\/api\/v1\/favorites\/groups(\?.*)?$/, (route) =>
+    route.request().method() === 'GET' ? json(route, groups) : route.continue(),
+  );
+}
+
+/** Окно клиента Windows: `window.chrome.webview` с почтой оболочки (как e2e/desktop.spec.ts). */
+function webview() {
+  const listeners = new Set();
+  window.addEventListener('test:host', (event) =>
+    listeners.forEach((listener) => listener(new MessageEvent('message', { data: event.detail }))),
+  );
+  window.chrome = {
+    ...window.chrome,
+    webview: {
+      postMessage() {},
+      addEventListener: (_, listener) => listeners.add(listener),
+      removeEventListener: (_, listener) => listeners.delete(listener),
+    },
+  };
+}
+
+/** Встреча с подтверждением входа: гости ждут у двери (одна на весь прогон). */
+let gate = null;
+async function sharedGate() {
+  if (gate) return gate;
+  const context = await newContext(1024, 'dark', { name: 'Ника' });
+  const page = await context.newPage();
+  await createMeeting(page, { camera: false, approval: true });
+  gate = { context, page, code: await meetingCode(page) };
+  return gate;
+}
+
+/**
+ * Встреча, которую держит «другое окно» того же профиля (для 409): одна на весь прогон.
+ * Возвращает секрет профиля — его кладут в хранилище контекста, который пробует войти ещё куда-то.
+ */
+let host = null;
+async function sharedHost() {
+  if (host) return host;
+  const context = await newContext(1024, 'dark', { name: 'Ника' });
+  const page = await context.newPage();
+  await createMeeting(page, { camera: false });
+  const profile = await page.evaluate(() => localStorage.getItem('cord:profile:v1'));
+  host = { context, page, profile };
+  return host;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Одиночные состояния: (page, ctx) → открыть; ctx = { width, theme, context }.
+
+const SINGLE = {
+  // --- Загрузка и подключение ---------------------------------------------------------------
+  loader: {
+    group: 'Вход и главная',
+    title: 'Загрузка (index.html)',
+    src: 'web/index.html (#cord-boot), ui/loader/boot.ts, ui/loader/BootGate.tsx',
+    async open(page, { context }) {
+      // Бандл не приходит — статичная сцена `#cord-boot` остаётся на экране, как на медленной сети.
+      await context.route(/\/assets\/.*\.js$/, (route) => route.abort());
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.locator('#cord-boot').waitFor();
+      await page.waitForTimeout(1200);
+    },
+  },
+  'connect-searching': {
+    group: 'Вход и главная',
+    title: 'Подключение — ищем сервер',
+    src: 'ui/Connect.tsx',
+    async open(page, { context }) {
+      await context.route(/\/api\/v1\/capabilities/, () => {
+        /* без ответа: «Ищем сервер…» */
+      });
+      await page.goto(base);
+      await page.getByRole('heading', { name: 'Ищем сервер…' }).waitFor();
+      await page
+        .locator('#cord-boot')
+        .waitFor({ state: 'detached', timeout: 8000 })
+        .catch(() => {});
+      await page.waitForTimeout(400);
+    },
+  },
+  'connect-manual': {
+    group: 'Вход и главная',
+    title: 'Подключение — без автоподключения',
+    src: 'ui/Connect.tsx, core/servers.ts',
+    async open(page, { context }) {
+      await context.addInitScript((url) => {
+        localStorage.setItem(
+          'cord:servers:v1',
+          JSON.stringify({ url, name: '', password: '', autoConnect: false }),
+        );
+      }, new URL('/', base).href);
+      await page.goto(base);
+      await page.getByRole('button', { name: 'Подключиться' }).waitFor();
+      await page.waitForTimeout(500);
+    },
+  },
+  'connect-password': {
+    group: 'Вход и главная',
+    title: 'Подключение — нужен пароль сервера',
+    src: 'ui/Connect.tsx',
+    async open(page, { context }) {
+      await context.route(/\/api\/v1\/capabilities/, async (route) => {
+        const response = await route.fetch();
+        json(route, { ...(await response.json()), passwordRequired: true });
+      });
+      await page.goto(base);
+      await page.getByLabel('Пароль сервера').waitFor();
+      await page.waitForTimeout(400);
+    },
+  },
+  'connect-failed': {
+    group: 'Вход и главная',
+    title: 'Подключение — сервер не отвечает',
+    src: 'ui/Connect.tsx, core/session.ts',
+    async open(page, { context }) {
+      await context.route(/\/api\/v1\/capabilities/, (route) =>
+        route.fulfill({ status: 502, body: 'Bad gateway' }),
+      );
+      await page.goto(base);
+      const status = page.locator('details.connection-status.failed');
+      await status.waitFor();
+      await status.locator('summary').click();
+      await page.waitForTimeout(300);
+    },
+  },
+
+  'connect-wrong-password': {
+    group: 'Вход и главная',
+    title: 'Подключение — пароль не подошёл',
+    src: 'ui/Connect.tsx, core/session.ts (describeFailure)',
+    async open(page, { context }) {
+      await context.route(/\/api\/v1\/capabilities/, async (route) => {
+        const response = await route.fetch();
+        json(route, { ...(await response.json()), passwordRequired: true });
+      });
+      await context.route(/\/api\/v1\/session$/, (route) =>
+        json(route, { status: 401, code: 'SERVER_PASSWORD_INVALID', detail: 'Неверный пароль' }, 401),
+      );
+      await page.goto(base);
+      await page.getByLabel('Пароль сервера').fill('неверный');
+      await page.getByRole('button', { name: 'Подключиться' }).click();
+      const status = page.locator('details.connection-status.failed');
+      await status.waitFor();
+      await status.locator('summary').click();
+      await page.waitForTimeout(300);
+    },
+  },
+  'loader-start': {
+    // Загрузка лежит слоем поверх длинной витрины — снимается экран, а не вся страница.
+    fullPage: false,
+    group: 'Вход и главная',
+    title: 'Полноэкранная загрузка «Открываем Cord» (FullscreenLoader)',
+    src: 'ui/loader/FullscreenLoader.tsx, ui/loader/scenes.tsx, ui/loader/loader.css',
+    note: 'Компонент живёт в витрине /kit («Показать старт»); в приложении старт рисует index.html.',
+    async open(page) {
+      await page.goto(new URL('/kit', base).href);
+      await page.getByRole('button', { name: 'Показать старт' }).first().click();
+      await page.waitForTimeout(900);
+    },
+  },
+  'loader-cards': {
+    // Загрузка лежит слоем поверх длинной витрины — снимается экран, а не вся страница.
+    fullPage: false,
+    group: 'Вход и главная',
+    title: 'Загрузка игры «Раздаём карты» (сцена карт)',
+    src: 'ui/loader/FullscreenLoader.tsx, ui/loader/scenes.tsx',
+    async open(page) {
+      await page.goto(new URL('/kit', base).href);
+      await page.getByRole('button', { name: 'Показать карты' }).first().click();
+      await page.waitForTimeout(900);
+    },
+  },
+  'loader-slow': {
+    // Загрузка лежит слоем поверх длинной витрины — снимается экран, а не вся страница.
+    fullPage: false,
+    group: 'Вход и главная',
+    title: 'Загрузка — «Сеть медленная» и «Повторить» (через 1,5 с)',
+    src: 'ui/loader/FullscreenLoader.tsx',
+    async open(page) {
+      await page.goto(new URL('/kit', base).href);
+      await page.getByRole('button', { name: 'Показать старт' }).first().click();
+      await page
+        .getByText(/Сеть медленная/)
+        .first()
+        .waitFor({ timeout: 20000 });
+      await page.waitForTimeout(500);
+    },
+  },
+
+  // --- Главная -------------------------------------------------------------------------------
+  home: {
+    group: 'Вход и главная',
+    title: 'Главная — пустое избранное',
+    src: 'ui/home/HomeShell.tsx, ui/HomeEntry.tsx, ui/home/FavoritesNav.tsx, ui/InstallHint.tsx',
+    async open(page, { context }) {
+      await fakeFavorites(context, [], []);
+      await home(page);
+    },
+  },
+  'home-favorites': {
+    group: 'Вход и главная',
+    title: 'Главная — избранное 10 из 10 (закреплённые, группы)',
+    src: 'ui/home/FavoritesNav.tsx, ui/home/RoomRow.tsx, ui/useFavoriteShelf.ts',
+    // Уже 960 px панель под бургером — телефон снят в `home-drawer`.
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await home(page);
+      await page.getByText('Планёрка').first().waitFor();
+    },
+  },
+  'home-drawer': {
+    group: 'Вход и главная',
+    title: 'Главная — меню под бургером (уже 960 px)',
+    src: 'ui/home/HomeShell.tsx, ui/home/home.css',
+    widths: [360],
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await home(page);
+      await page.getByRole('button', { name: 'Открыть меню' }).click();
+      await page.getByRole('dialog', { name: 'Меню' }).waitFor();
+      await page.waitForTimeout(500);
+    },
+  },
+  'home-room-menu': {
+    group: 'Вход и главная',
+    title: 'Главная — меню комнаты в избранном',
+    src: 'ui/home/RoomRow.tsx, ui/kit/Menu.tsx',
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await home(page);
+      await page.getByText('Дизайн-ревью').first().click({ button: 'right' });
+      await page.getByRole('menu').first().waitFor();
+      await page.waitForTimeout(400);
+    },
+  },
+  'home-remove-confirm': {
+    group: 'Диалоги и прочее',
+    title: 'Окно «Убрать из избранного?»',
+    src: 'ui/home/FavoritesNav.tsx, ui/home/RoomRow.tsx',
+    async open(page, { context, width }) {
+      await fakeFavorites(context);
+      await home(page);
+      if (mobile(width)) {
+        await page.getByRole('button', { name: 'Открыть меню' }).click();
+        await page.getByRole('button', { name: 'Действия с «Дизайн-ревью»' }).click();
+      } else await page.getByText('Дизайн-ревью').first().click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Убрать из избранного' }).click();
+      await page.getByRole('dialog').filter({ hasText: 'из избранного?' }).waitFor();
+      await page.waitForTimeout(500);
+    },
+  },
+  'home-active-elsewhere': {
+    group: 'Вход и главная',
+    title: 'Главная — встреча идёт в соседней вкладке (T52), «Вернуться»',
+    src: 'ui/home/ActiveMeetingNotice.tsx, core/active-meeting.ts',
+    note: 'Соседняя вкладка подставлена ответом в BroadcastChannel «cord:active-meeting».',
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await context.addInitScript((roomId) => {
+        const channel = new BroadcastChannel('cord:active-meeting');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'who')
+            channel.postMessage({
+              type: 'here',
+              meeting: { tab: 'fake', roomId, title: 'Планёрка', code: '318204650' },
+            });
+        };
+      }, FAVORITES[0].roomId);
+      await home(page);
+      await page
+        .getByRole('region', { name: 'Вы во встрече в другой вкладке' })
+        .or(page.getByText('Вернуться'))
+        .first()
+        .waitFor({ timeout: 15000 });
+      await page.waitForTimeout(500);
+    },
+  },
+  'home-favorites-error': {
+    group: 'Вход и главная',
+    title: 'Главная — избранное не загрузилось',
+    src: 'ui/home/FavoritesNav.tsx',
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await context.route(/\/api\/v1\/favorites(\/groups)?(\?.*)?$/, (route) =>
+        route.fulfill({ status: 500, body: '{}' }),
+      );
+      await home(page);
+      await page
+        .getByText(/Не удалось загрузить избранное/)
+        .first()
+        .waitFor({ timeout: 30000 });
+      await page.waitForTimeout(300);
+    },
+  },
+  'room-not-found': {
+    group: 'Вход и главная',
+    title: 'Ссылка на встречу без сохранённого входа — «Сессия не найдена»',
+    src: 'App.tsx (global-error)',
+    note: 'В свежей вкладке без сессии сервера баннер стирает рукопожатие экрана подключения (App.tsx:299, onConnected → setError("")): человек видит главную без объяснения. Снято с уже открытой сессией сервера.',
+    async open(page, { context }) {
+      // Сессия сервера уже есть (вкладка, где Cord был открыт): иначе баннер стирает подключение.
+      await context.addInitScript(() =>
+        sessionStorage.setItem(
+          'cord:session:v1',
+          JSON.stringify({
+            token: 'snapshot',
+            expiresAt: Math.floor(Date.now() / 1000) + 3600,
+            name: '',
+            passwordRequired: false,
+          }),
+        ),
+      );
+      await page.goto(new URL('/room/00000000-0000-4000-8000-000000000000', base).href);
+      await page.locator('.global-error').first().waitFor({ timeout: 45000 });
+      await page.waitForTimeout(800);
+    },
+  },
+  'download-unavailable': {
+    group: 'Вход и главная',
+    title: 'Скачать Cord — сборка недоступна',
+    src: 'ui/Download.tsx, core/download.ts',
+    async open(page, { context }) {
+      await context.route(/\/downloads\/windows\/download\.json/, (route) =>
+        route.fulfill({ status: 404, body: '' }),
+      );
+      await page.goto(new URL('/download', base).href);
+      await page
+        .getByText(/сейчас недоступна/)
+        .first()
+        .waitFor();
+      await page.waitForTimeout(400);
+    },
+  },
+  'desktop-home': {
+    group: 'Вход и главная',
+    title: 'Главная в клиенте Windows (DesktopHome, WebView2)',
+    src: 'ui/DesktopHome.tsx, desktop-home.css',
+    note: 'Окно клиента подставлено: window.chrome.webview, как в e2e/desktop.spec.ts. Боковую панель рисует сам клиент.',
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await context.addInitScript(webview);
+      await home(page);
+    },
+  },
+  'desktop-favorite-settings': {
+    group: 'Диалоги и прочее',
+    title: 'Окно настроек избранной комнаты (клиент Windows)',
+    src: 'ui/FavoriteSettings.tsx, App.tsx (favorite.settings)',
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await fakeFavorites(context);
+      await context.addInitScript(webview);
+      await home(page);
+      await page.evaluate(
+        (roomId) =>
+          dispatchEvent(
+            new CustomEvent('test:host', { detail: { version: 1, type: 'favorite.settings', roomId } }),
+          ),
+        FAVORITES[2].roomId,
+      );
+      await page.getByRole('dialog').waitFor();
+      await page.waitForTimeout(500);
+    },
+  },
+  download: {
+    group: 'Вход и главная',
+    title: 'Скачать Cord (/download)',
+    src: 'ui/Download.tsx, core/download.ts',
+    async open(page) {
+      await page.goto(new URL('/download', base).href);
+      await page.getByRole('heading').first().waitFor();
+      await page.waitForTimeout(600);
+    },
+  },
+
+  // --- Прихожая ------------------------------------------------------------------------------
+  'prejoin-create': {
+    group: 'Прихожая',
+    title: 'Прихожая — новая встреча',
+    src: 'ui/Prejoin.tsx',
+    async open(page) {
+      await home(page);
+      await page
+        .getByRole('button', { name: /Новая встреча/ })
+        .first()
+        .click();
+      await page.getByLabel('Ваше имя').waitFor();
+      await page.waitForTimeout(2500);
+    },
+  },
+  'prejoin-join': {
+    group: 'Прихожая',
+    title: 'Прихожая — вход по коду или ссылке',
+    src: 'ui/Prejoin.tsx, core/invitation.ts',
+    async open(page) {
+      const { code } = await sharedGate();
+      await page.goto(new URL(`/join/${code}`, base).href);
+      await page.getByRole('button', { name: 'Войти во встречу' }).waitFor({ timeout: 60000 });
+      await page.waitForTimeout(2000);
+    },
+  },
+  'prejoin-settings': {
+    group: 'Прихожая',
+    title: 'Прихожая — окно «Перед разговором» (устройства)',
+    src: 'ui/Prejoin.tsx',
+    async open(page) {
+      await home(page);
+      await page
+        .getByRole('button', { name: /Новая встреча/ })
+        .first()
+        .click();
+      await page.getByRole('button', { name: 'Включить камеру', exact: true }).click();
+      await page.getByRole('button', { name: 'Настройки предпросмотра' }).click();
+      await page.getByRole('dialog').waitFor();
+      await page.waitForTimeout(1500);
+    },
+  },
+  'meeting-waiting': {
+    group: 'Прихожая',
+    title: 'Ожидание допуска — «Организатор скоро впустит вас»',
+    src: 'ui/MeetingView.tsx (ожидание), ui/MeetingHeader.tsx (TEXT.waiting)',
+    note: 'Встреча создана с «Только с вашего подтверждения»; гость вошёл по коду.',
+    async open(page) {
+      const { code } = await sharedGate();
+      await joinByCode(page, code, { wait: false });
+      await page
+        .getByText(/Организатор скоро впустит вас/)
+        .first()
+        .waitFor({ timeout: 60000 });
+      await page.waitForTimeout(1500);
+    },
+  },
+  'prejoin-denied': {
+    group: 'Прихожая',
+    title: 'Прихожая — камера и микрофон запрещены',
+    src: 'ui/Prejoin.tsx',
+    async open(page, { context }) {
+      await context.clearPermissions();
+      await context.addInitScript(() => {
+        const denied = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+        if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = denied;
+        const query = navigator.permissions?.query?.bind(navigator.permissions);
+        if (query)
+          navigator.permissions.query = (d) =>
+            d && (d.name === 'camera' || d.name === 'microphone')
+              ? Promise.resolve({
+                  state: 'denied',
+                  onchange: null,
+                  addEventListener() {},
+                  removeEventListener() {},
+                })
+              : query(d);
+      });
+      await home(page);
+      await page
+        .getByRole('button', { name: /Новая встреча/ })
+        .first()
+        .click();
+      await page.getByLabel('Ваше имя').waitFor();
+      // Камера в прихожей выключена до нажатия — отказ браузера виден, когда её включают.
+      await page.getByRole('button', { name: 'Включить камеру' }).click();
+      await page.waitForTimeout(2500);
+    },
+  },
+
+  // --- Настройки -----------------------------------------------------------------------------
+  settings: {
+    group: 'Настройки',
+    title: 'Настройки — разделы',
+    src: 'ui/settings/*, ui/settings/sections.ts',
+    multi: true,
+    async open(page, { width, shootAs }) {
+      await home(page);
+      // Уже 960 px «Настройки» главной — в выдвижном меню под бургером (E02).
+      const burger = page.getByRole('button', { name: 'Открыть меню' });
+      if (await burger.isVisible()) await burger.click();
+      await page
+        .getByRole('button', { name: /^Настройки$/ })
+        .first()
+        .click();
+      const nav = page.getByRole('navigation', { name: 'Разделы настроек' });
+      const items = nav.locator('.settings-nav__item');
+      await items.first().waitFor();
+      await page.waitForTimeout(600);
+      const back = page.getByRole('button', { name: 'К разделам' });
+      if (mobile(width)) await shootAs('settings-list', 'Настройки — список разделов (телефон)');
+      const count = await items.count();
+      for (let i = 0; i < count; i++) {
+        if (await back.isVisible().catch(() => false)) {
+          await back.click();
+          await page.waitForTimeout(300);
+        }
+        const item = items.nth(i);
+        const name = (await item.innerText()).trim().split('\n')[0];
+        await item.click();
+        await page.waitForTimeout(700);
+        const slug = `settings-${String(i + 1).padStart(2, '0')}`;
+        await shootAs(slug, `Настройки — ${name}`);
+        // Длинный раздел: второй кадр — прокрученный до конца.
+        const scroller = page.locator('.settings-content, .settings-section, [data-settings-scroll]').first();
+        const scrollable = await scroller
+          .evaluate((el) => el.scrollHeight > el.clientHeight + 40)
+          .catch(() => false);
+        if (scrollable) {
+          await scroller.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+          await page.waitForTimeout(400);
+          await shootAs(`${slug}b`, `Настройки — ${name}, прокручено вниз`);
+          await scroller.evaluate((el) => el.scrollTo({ top: 0 }));
+        }
+      }
+      // Поиск по настройкам.
+      if (await back.isVisible().catch(() => false)) await back.click();
+      const search = page.getByRole('searchbox').or(page.getByPlaceholder(/Поиск/)).first();
+      if (await search.isVisible().catch(() => false)) {
+        await search.fill('звук');
+        await page.waitForTimeout(600);
+        await shootAs('settings-search', 'Настройки — поиск «звук»');
+      }
+    },
+  },
+
+  'avatar-cropper': {
+    group: 'Диалоги и прочее',
+    title: 'Окно «Что будет в кружке» (картинка профиля)',
+    src: 'ui/AvatarCropper.tsx, ui/settings/* (Профиль)',
+    async open(page) {
+      await home(page);
+      const burger = page.getByRole('button', { name: 'Открыть меню' });
+      if (await burger.isVisible()) await burger.click();
+      await page
+        .getByRole('button', { name: /^Настройки$/ })
+        .first()
+        .click();
+      const nav = page.getByRole('navigation', { name: 'Разделы настроек' });
+      await nav
+        .getByRole('button', { name: /^Профиль/ })
+        .first()
+        .click();
+      await page
+        .locator('input[type=file][aria-label="Выбрать картинку профиля"]')
+        .setInputFiles(path.resolve('e2e/fixtures/poster.png'));
+      await page.getByRole('dialog', { name: /Что будет в кружке/ }).waitFor();
+      await page.waitForTimeout(800);
+    },
+  },
+
+  // --- Встреча: телефон в одиночку и окна правил -------------------------------------------
+  'meeting-solo': {
+    group: 'Встреча',
+    title: 'Встреча — один участник',
+    src: 'ui/MeetingView.tsx, ui/Stage.tsx, ui/CallDock.tsx, ui/MeetingHeader.tsx',
+    // настольные ширины снимает сценарий meeting до прихода остальных
+    widths: [360],
+    async open(page) {
+      await createMeeting(page, { camera: true });
+    },
+  },
+  'dialog-favorites-full': {
+    group: 'Диалоги и прочее',
+    title: 'Избранное заполнено — подсказка звезды «В избранном уже 10 комнат»',
+    src: 'ui/MeetingHeader.tsx (TEXT.full), ui/useFavorites.ts',
+    note: 'Звезда на пределе aria-disabled; «В избранном уже 10 комнат. Уберите одну, чтобы добавить эту» — системная подсказка (атрибут title), на снимке её не видно.',
+    async open(page, { context, width }) {
+      await fakeFavorites(context);
+      await createMeeting(page, { camera: false });
+      const star = page.locator('.meeting-header__favorite');
+      // На пределе звезда `aria-disabled`: подсказка — ответ «почему не добавляется».
+      if (mobile(width)) {
+        await star.focus();
+        await star.tap({ force: true }).catch(() => {});
+      } else await star.hover();
+      await page
+        .getByText(/В избранном уже 10 комнат/)
+        .first()
+        .waitFor({ timeout: 10000 })
+        .catch(() => {});
+      await page.waitForTimeout(600);
+    },
+  },
+  'dialog-favorites-refused': {
+    group: 'Диалоги и прочее',
+    title: 'Избранное заполнено — отказ ядра FAVORITES_FULL при нажатии звезды',
+    src: 'ui/MeetingHeader.tsx, room/FavoriteService.java (FAVORITES_FULL)',
+    note: 'Список избранного успел устареть (9 из 10), ядро отвечает 409 FAVORITES_FULL — текст отказа тот же, что у подсказки звезды.',
+    async open(page, { context }) {
+      await fakeFavorites(context, FAVORITES.slice(0, 9));
+      await context.route(/\/api\/v1\/favorites\/[0-9a-f-]{36}$/, (route) =>
+        route.request().method() === 'PUT'
+          ? json(
+              route,
+              {
+                status: 409,
+                code: 'FAVORITES_FULL',
+                detail: 'В избранном уже 10 комнат. Уберите одну, чтобы добавить эту',
+                max: 10,
+              },
+              409,
+            )
+          : route.continue(),
+      );
+      await createMeeting(page, { camera: false });
+      await page.locator('.meeting-header__favorite').click();
+      await page
+        .getByText(/В избранном уже 10 комнат/)
+        .first()
+        .waitFor({ timeout: 15000 });
+      await page.waitForTimeout(600);
+    },
+  },
+  'dialog-409': {
+    group: 'Диалоги и прочее',
+    title: '409 «Вы уже во встрече» (T52) — тот же профиль в другом окне',
+    src: 'ui/MeetingElsewhere.tsx, core/identity.ts, ui/Prejoin.tsx',
+    note: 'Профиль устройства уже держит место во встрече в другом окне; ядро отвечает 409 ALREADY_IN_MEETING, браузер показывает выбор.',
+    async open(page, { context }) {
+      const host = await sharedHost();
+      await context.addInitScript((secret) => localStorage.setItem('cord:profile:v1', secret), host.profile);
+      await home(page);
+      await page
+        .getByRole('button', { name: /Новая встреча/ })
+        .first()
+        .click();
+      await page.getByLabel('Ваше имя').waitFor();
+      await page.getByRole('button', { name: 'Начать встречу' }).click();
+      await page.getByRole('dialog').filter({ hasText: 'Вы уже во встрече' }).waitFor({ timeout: 30000 });
+      await page.waitForTimeout(800);
+    },
+  },
+
+  // --- Набор (витрина /kit) -----------------------------------------------------------------
+  kit: {
+    group: 'Диалоги и прочее',
+    title: 'Витрина набора /kit (E16)',
+    src: 'ui/kit/Showcase.tsx, ui/kit/*',
+    widths: [1440],
+    async open(page) {
+      await page.goto(new URL('/kit', base).href);
+      await page.getByRole('heading').first().waitFor();
+      await page.waitForTimeout(800);
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// Сценарии со встречей. Каждый — функция (stage) → список шагов { id, title, group, prepare };
+// stage даёт настольную страницу (D), телефонную (M) и хелперов.
+
+const SCENARIOS = {};
+
+/** Создать встречу с главной; камера включается в прихожей. */
+async function createMeeting(page, { camera = true, approval = false } = {}) {
+  await home(page);
+  await page
+    .getByRole('button', { name: /Новая встреча/ })
+    .first()
+    .click();
+  await page.getByLabel('Ваше имя').waitFor();
+  if (approval) await page.getByText('Только с вашего подтверждения').click();
+  if (camera)
+    await page
+      .getByRole('button', { name: 'Включить камеру', exact: true })
+      .click()
+      .catch(() => {});
+  await page.getByRole('button', { name: 'Начать встречу' }).click();
+  await connected(page);
+  await page.waitForTimeout(1500);
+}
+
+/** Войти по коду: `/join/<9 цифр>` → прихожая → «Войти во встречу». */
+async function joinByCode(page, code, { camera = false, wait = true } = {}) {
+  await page.goto(new URL(`/join/${code}`, base).href);
+  await page.getByRole('button', { name: 'Войти во встречу' }).waitFor({ timeout: 60000 });
+  if (camera)
+    await page
+      .getByRole('button', { name: 'Включить камеру', exact: true })
+      .click()
+      .catch(() => {});
+  await page.getByRole('button', { name: 'Войти во встречу' }).click();
+  if (wait) {
+    await connected(page);
+    await page.waitForTimeout(1000);
+  }
+}
+
+async function meetingCode(page) {
+  const text = await page.getByRole('button', { name: 'Код встречи' }).innerText();
+  return text.replace(/\D/g, '');
+}
+
+/**
+ * Показ экрана без системного окна: холст с «рабочим столом» вместо getDisplayMedia (как
+ * `e2e/screens.spec.ts`) — снимок одинаковый на любой машине.
+ */
+function fakeScreen() {
+  if (!navigator.mediaDevices) return;
+  navigator.mediaDevices.getDisplayMedia = async () => {
+    const canvas = Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 });
+    const g = canvas.getContext('2d');
+    let t = 0;
+    const draw = () => {
+      t++;
+      const sky = g.createLinearGradient(0, 0, 1920, 1080);
+      sky.addColorStop(0, '#1e3a8a');
+      sky.addColorStop(1, '#0f766e');
+      g.fillStyle = sky;
+      g.fillRect(0, 0, 1920, 1080);
+      g.fillStyle = '#f8fafc';
+      g.fillRect(240, 120, 1440, 820);
+      g.fillStyle = '#e2e8f0';
+      g.fillRect(240, 120, 1440, 56);
+      ['#ef4444', '#f59e0b', '#22c55e'].forEach((c, i) => {
+        g.fillStyle = c;
+        g.beginPath();
+        g.arc(276 + i * 30, 148, 9, 0, 7);
+        g.fill();
+      });
+      g.fillStyle = '#0f172a';
+      g.font = 'bold 64px sans-serif';
+      g.fillText('План на неделю', 320, 290);
+      g.font = '36px sans-serif';
+      g.fillStyle = '#334155';
+      ['1. Дизайн-ревью экранов встречи', '2. Кинозал: каталог и плеер', '3. Игры: турнир в пятницу'].forEach(
+        (line, i) => g.fillText(line, 320, 390 + i * 70),
+      );
+      [220, 340, 280, 420, 380].forEach((h, i) => {
+        g.fillStyle = i === 3 ? '#3564f3' : '#94a3b8';
+        g.fillRect(1120 + i * 96, 880 - h, 60, h);
+      });
+      g.fillStyle = '#3564f3';
+      g.fillRect(320, 720, 40 + ((t * 6) % 560), 14);
+    };
+    draw();
+    setInterval(draw, 100);
+    return canvas.captureStream(10);
+  };
+}
+
+/** Участник-помощник: маленькое окно, чтобы машина тянула четверых. */
+async function helper(code, name, { camera = false } = {}) {
+  const context = await browser.newContext({
+    viewport: { width: 800, height: 600 },
+    colorScheme: 'dark',
+    locale: 'ru-RU',
+    permissions: ['camera', 'microphone'],
+    serviceWorkers: 'block',
+  });
+  await context.addInitScript((n) => {
+    localStorage.setItem('cord:name', n);
+    localStorage.setItem('cord:theme', 'dark');
+  }, name);
+  await context.addInitScript(fakeScreen);
+  context.setDefaultTimeout(60000);
+  const page = await context.newPage();
+  await routeCinemaIfAny(page);
+  await joinByCode(page, code, { camera });
+  return { context, page, name };
+}
+
+/**
+ * Обрыв по требованию: WebSocket идёт через Playwright, `block()` рвёт его кодом 1013 и не даёт
+ * подняться снова, `unblock()` пускает (как `e2e/recovery.spec.ts`, `e2e/control.spec.ts`).
+ */
+async function guardSockets(context, pattern, { reject = false } = {}) {
+  const live = new Set();
+  const buffered = [];
+  let blocked = false;
+  await context.routeWebSocket(pattern, (ws) => {
+    // Канал событий: пока «обрыв», новые соединения закрываются. Медиа: соединение держится,
+    // но ответы сервера копятся — так клиент видит тишину и ждёт, как при настоящем обрыве.
+    if (blocked && reject) {
+      ws.close({ code: 1013 }).catch(() => {});
+      return;
+    }
+    live.add(ws);
+    const server = ws.connectToServer();
+    server.onMessage((message) => {
+      if (blocked) buffered.push({ ws, message });
+      else ws.send(message);
+    });
+  });
+  return {
+    async block() {
+      blocked = true;
+      for (const ws of live) await ws.close({ code: 1013, reason: 'Снимок обрыва' }).catch(() => {});
+      live.clear();
+    },
+    unblock() {
+      blocked = false;
+      for (const { ws, message } of buffered.splice(0)) ws.send(message);
+    },
+  };
+}
+
+/** Записанные ответы кинозала из e2e (каталог, 12 с HLS) — если модуль подключился. */
+let cinema = null;
+try {
+  cinema = await import('../e2e/support/cinema.ts');
+} catch {
+  cinema = null;
+}
+async function routeCinemaIfAny(page) {
+  if (cinema) await cinema.routeCinema(page);
+}
+
+/**
+ * Снять состояние у обоих зрителей: настольного на 1024 и 1440 (смена окна), телефонного на 360.
+ * Тема — атрибутом, без перезагрузки.
+ */
+async function shootBoth(stage, id, { desk = true, phone = true } = {}) {
+  for (const theme of THEMES) {
+    if (stage.D && desk) {
+      await setTheme(stage.D, theme);
+      for (const width of WIDTHS.filter((w) => w >= 768)) {
+        await stage.D.setViewportSize({ width, height: VIEW[width] });
+        await stage.D.waitForTimeout(600);
+        await shoot(stage.D, id, width, theme);
+      }
+    }
+    if (stage.M && phone && WIDTHS.includes(360)) {
+      await setTheme(stage.M, theme);
+      await shoot(stage.M, id, 360, theme);
+    }
+  }
+}
+
+async function closeOverlays(page) {
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(120);
+  }
+}
+
+/** Пункт меню «Настройки и действия» (на телефоне туда уходят панели и раскладка). */
+async function moreItem(page, name) {
+  await page.getByRole('button', { name: 'Настройки и действия' }).click();
+  await page.getByRole('menuitem', { name }).first().click();
+}
+
+const panelOpen = (page) =>
+  page
+    .locator('aside.side-panel')
+    .isVisible()
+    .catch(() => false);
+
+async function openPanel(page, name, mobileName = name) {
+  const direct = page.getByRole('button', { name, exact: true });
+  if (await direct.isVisible().catch(() => false)) await direct.click();
+  else await moreItem(page, mobileName);
+  await page.waitForTimeout(800);
+}
+
+async function closePanel(page) {
+  const close = page.getByRole('button', { name: 'Закрыть панель' });
+  if (await close.isVisible().catch(() => false)) await close.click();
+  await page.waitForTimeout(400);
+}
+
+/** Раскрыть строку игры в группе «Игры» панели интеграций. */
+async function openGameRow(page, game) {
+  if (!(await panelOpen(page))) await openPanel(page, 'Интеграции');
+  const tab = page.getByRole('tab', { name: 'Интеграции' });
+  if (await tab.isVisible().catch(() => false)) await tab.click();
+  const group = page.getByRole('button', { name: /^Игры/ }).first();
+  const row = page.locator('.games-group button[aria-expanded]').filter({ hasText: game }).first();
+  if (!(await row.isVisible().catch(() => false))) await group.click();
+  if ((await row.getAttribute('aria-expanded')) !== 'true') await row.click();
+  await page.waitForTimeout(400);
+}
+
+/** Убрать игру со сцены: кнопка группы, при подтверждении — та же кнопка в окне. */
+async function closeGame(page, game) {
+  await openGameRow(page, game);
+  const button = page
+    .getByRole('button', { name: /Убрать стол из встречи|Закрыть игру|Закрыть шахматы|Закрыть Gartic/ })
+    .first();
+  await button.click();
+  const dialog = page.getByRole('dialog');
+  if (await dialog.isVisible().catch(() => false))
+    await dialog
+      .getByRole('button', { name: /Убрать|Закрыть/ })
+      .last()
+      .click();
+  await page.waitForTimeout(1500);
+}
+
+async function seatEveryone(stage, seatSelector) {
+  for (const page of [stage.D, stage.M, ...stage.people.map((p) => p.page)]) {
+    const seat = page.locator(seatSelector).first();
+    await seat.waitFor({ timeout: 20000 }).catch(() => {});
+    if (await seat.isVisible().catch(() => false)) await seat.click().catch(() => {});
+    await page.waitForTimeout(300);
+  }
+}
+
+/**
+ * Встреча на четверых: настольный зритель «Ника» (создатель), телефонный «Марк», помощники «Аня»
+ * (камера, показ экрана) и «Борис». `--only meeting --steps a,b` снимает только названные шаги
+ * после общей подготовки.
+ */
+SCENARIOS.meeting = async ({ titles }) => {
+  const want = args.steps?.split(',');
+  const needs = (id) => !want || want.includes(id);
+  for (const s of SCENARIO_STEPS) titles[s.id] = { group: s.group, title: s.title, src: s.src, note: s.note };
+  titles['meeting-solo'] = {
+    group: 'Встреча',
+    title: 'Встреча — один участник',
+    src: 'ui/MeetingView.tsx, ui/Stage.tsx, ui/CallDock.tsx, ui/MeetingHeader.tsx',
+  };
+  const stage = {};
+  const desk = await newContext(1440, THEMES[0], { name: 'Ника' });
+  stage.guardD = {
+    // Обрывы ставятся только когда шаги их снимают: прокси Playwright на канале событий — лишнее звено.
+    rtc: needs('meeting-recovering') ? await guardSockets(desk, /\/rtc/) : null,
+    events: needs('meeting-control-lost')
+      ? await guardSockets(desk, /\/api\/v1\/events/, { reject: true })
+      : null,
+  };
+  stage.D = await desk.newPage();
+  await routeCinemaIfAny(stage.D);
+  await createMeeting(stage.D, { camera: true });
+  const code = await meetingCode(stage.D);
+  console.log(`  встреча ${code}`);
+
+  // «Один участник» — до того, как придут остальные (телефон — одиночным рецептом meeting-solo).
+  if (!want || want.includes('meeting-solo')) await shootBoth({ D: stage.D }, 'meeting-solo');
+  stage.people = [await helper(code, 'Аня', { camera: true }), await helper(code, 'Борис')];
+  const phone = await newContext(360, THEMES[0], { name: 'Марк' });
+  stage.guardM = {
+    // Обрывы ставятся только когда шаги их снимают: прокси Playwright на канале событий — лишнее звено.
+    rtc: needs('meeting-recovering') ? await guardSockets(phone, /\/rtc/) : null,
+    events: needs('meeting-control-lost')
+      ? await guardSockets(phone, /\/api\/v1\/events/, { reject: true })
+      : null,
+  };
+  stage.M = await phone.newPage();
+  await routeCinemaIfAny(stage.M);
+  await joinByCode(stage.M, code);
+  await stage.D.waitForTimeout(2500);
+
+  for (const s of SCENARIO_STEPS) {
+    if (want && !want.includes(s.id) && !s.always) continue;
+    console.log(` шаг ${s.id}`);
+    try {
+      const shot = await s.run(stage);
+      if (shot !== false) await shootBoth(stage, s.id, s.shoot ?? {});
+    } catch (error) {
+      console.log(`  ✗ ${s.id}: ${String(error).split('\n')[0]}`);
+      await stage.D.screenshot({ path: path.join(out, `_fail-${s.id}-D.png`) }).catch(() => {});
+      await stage.M.screenshot({ path: path.join(out, `_fail-${s.id}-M.png`) }).catch(() => {});
+    } finally {
+      if (s.after)
+        await s.after(stage).catch((e) => console.log(`  ! после ${s.id}: ${String(e).split('\n')[0]}`));
+      for (const p of [stage.D, stage.M]) await closeOverlays(p).catch(() => {});
+      await stage.D.setViewportSize({ width: 1440, height: VIEW[1440] }).catch(() => {});
+    }
+  }
+  for (const p of stage.people) await p.context.close();
+  await phone.close();
+  await desk.close();
+};
+
+/** Шаги встречи по порядку; `run` готовит D и M и возвращает false, если снимок не нужен. */
+const SCENARIO_STEPS = [
+  {
+    id: 'meeting-grid',
+    group: 'Встреча',
+    title: 'Встреча — сетка, четверо',
+    src: 'ui/Stage.tsx, ui/grid.ts, ui/stage.css, ui/CallDock.tsx',
+    async run() {},
+  },
+  {
+    id: 'meeting-speaker',
+    group: 'Встреча',
+    title: 'Встреча — раскладка «Говорящий»',
+    src: 'ui/LayoutMenu.tsx, ui/Stage.tsx',
+    async run({ D, M }) {
+      await D.getByRole('button', { name: 'Расположение участников' }).click();
+      await D.getByRole('menuitem', { name: /Говорящий/ }).click();
+      await M.getByRole('button', { name: 'Настройки и действия' }).click();
+      // На телефоне раскладка — пункт меню «ещё»; меню появляется с анимацией, ждать пункт.
+      await M.getByRole('menuitem', { name: /Говорящий/ }).click({ timeout: 10000 });
+      await D.waitForTimeout(1500);
+    },
+    async after({ D, M }) {
+      await closeOverlays(D);
+      await D.getByRole('button', { name: 'Расположение участников' }).click();
+      await D.getByRole('menuitem', { name: /Сетка/ }).click();
+      await closeOverlays(M);
+      await M.getByRole('button', { name: 'Настройки и действия' }).click();
+      await M.getByRole('menuitem', { name: /Сетка/ }).click({ timeout: 10000 });
+    },
+  },
+  {
+    id: 'meeting-chat',
+    group: 'Встреча',
+    title: 'Встреча — панель «Чат и файлы»',
+    src: 'ui/Sidebar.tsx, ui/chat.ts, ui/meeting-panel.css',
+    async run({ D, M, people }) {
+      const anya = people[0].page;
+      await openPanel(anya, 'Чат', 'Чат и файлы');
+      for (const line of [
+        'Всем привет! Начинаем через минуту',
+        'Скинула план на неделю — посмотрите до пятницы',
+      ]) {
+        await anya.getByRole('textbox', { name: 'Сообщение' }).fill(line);
+        await anya.keyboard.press('Enter');
+        await anya.waitForTimeout(500);
+      }
+      await closePanel(anya);
+      await openPanel(D, 'Чат', 'Чат и файлы');
+      await D.getByRole('textbox', { name: 'Сообщение' }).fill('Привет! Я тут, слышно хорошо');
+      await D.keyboard.press('Enter');
+      await openPanel(M, 'Чат', 'Чат и файлы');
+      await M.waitForTimeout(1000);
+    },
+    async after({ D, M }) {
+      await closePanel(D);
+      await closePanel(M);
+    },
+  },
+  {
+    id: 'meeting-people',
+    group: 'Встреча',
+    title: 'Встреча — панель «Участники»',
+    src: 'ui/Sidebar.tsx',
+    async run({ D, M }) {
+      await openPanel(D, 'Участники');
+      await openPanel(M, 'Участники');
+    },
+    async after({ D, M }) {
+      await closePanel(D);
+      await closePanel(M);
+    },
+  },
+  {
+    id: 'meeting-participant-menu',
+    group: 'Встреча',
+    title: 'Встреча — меню участника (громкость, закрепить, удалить)',
+    src: 'ui/ParticipantMenu.tsx',
+    async run({ D, M }) {
+      await D.locator('.person-tile').filter({ hasText: 'Аня' }).first().click({ button: 'right' });
+      await D.getByRole('menu').first().waitFor();
+      await openPanel(M, 'Участники');
+      await M.getByRole('button', { name: /Действия: Аня/ })
+        .first()
+        .click();
+      await M.waitForTimeout(600);
+    },
+    async after({ M }) {
+      await closeOverlays(M);
+      await closePanel(M);
+    },
+  },
+  {
+    id: 'meeting-integrations',
+    group: 'Встреча',
+    title: 'Встреча — панель «Интеграции»',
+    src: 'ui/Services.tsx, ui/ServiceRoster.tsx, ui/cinema/CinemaGroup.tsx, ui/GamesGroup.tsx',
+    async run({ D, M }) {
+      await openPanel(D, 'Интеграции');
+      await openPanel(M, 'Интеграции');
+    },
+    async after({ D, M }) {
+      await closePanel(D);
+      await closePanel(M);
+    },
+  },
+  {
+    id: 'meeting-more',
+    group: 'Встреча',
+    title: 'Встреча — меню «Настройки и действия»',
+    src: 'ui/CallDock.tsx',
+    async run({ D, M }) {
+      await D.getByRole('button', { name: 'Настройки и действия' }).click();
+      await M.getByRole('button', { name: 'Настройки и действия' }).click();
+      await D.waitForTimeout(500);
+    },
+  },
+  {
+    id: 'meeting-diagnostics',
+    group: 'Диалоги и прочее',
+    title: 'Окно «Диагностика»',
+    src: 'ui/Diagnostics.tsx, ui/DeviceCheck.tsx',
+    async run({ D, M }) {
+      await moreItem(D, 'Диагностика');
+      await moreItem(M, 'Диагностика');
+      await D.waitForTimeout(1500);
+    },
+  },
+  {
+    id: 'meeting-invite',
+    group: 'Диалоги и прочее',
+    title: 'Окно «Пригласить во встречу»',
+    src: 'ui/Invite.tsx',
+    async run({ D, M }) {
+      await D.getByRole('button', { name: 'Пригласить участников', exact: true }).click();
+      await M.getByRole('button', { name: 'Пригласить участников', exact: true }).click();
+      await D.getByRole('dialog').waitFor();
+      await D.waitForTimeout(800);
+    },
+  },
+  {
+    id: 'meeting-settings',
+    group: 'Настройки',
+    title: 'Настройки поверх встречи',
+    src: 'ui/settings/SettingsWindow.tsx, ui/CallDock.tsx',
+    async run({ D, M }) {
+      await moreItem(D, /^Настройки$/);
+      await moreItem(M, /^Настройки$/);
+      await D.waitForTimeout(900);
+    },
+  },
+  {
+    id: 'meeting-room-settings',
+    group: 'Встреча',
+    title: 'Окно «Настройки встречи» (создатель)',
+    src: 'ui/MeetingSettings.tsx',
+    shoot: { phone: false },
+    async run({ D }) {
+      await moreItem(D, 'Настройки встречи');
+      await D.getByRole('dialog').waitFor();
+      await D.waitForTimeout(800);
+    },
+  },
+  {
+    id: 'meeting-screen-tile',
+    group: 'Встреча',
+    title: 'Демонстрация — Аня показывает экран, у зрителей «Смотреть стрим»',
+    src: 'ui/Stage.tsx, media/session.ts',
+    async run({ D, people }) {
+      const anya = people[0].page;
+      await closeOverlays(anya);
+      await anya.getByRole('button', { name: 'Показать экран' }).click();
+      await anya.getByRole('button', { name: 'Остановить показ' }).waitFor({ timeout: 30000 });
+      await D.waitForTimeout(6000);
+    },
+  },
+  {
+    id: 'meeting-screen',
+    group: 'Встреча',
+    title: 'Демонстрация — экран на сцене',
+    src: 'ui/Stage.tsx, ui/stage.css',
+    async run({ D, M }) {
+      for (const page of [D, M]) {
+        const watch = page.getByRole('button', { name: /Смотреть стрим/ }).first();
+        await watch.waitFor({ timeout: 20000 });
+        await watch.click();
+        await page.locator('video.screen-video').first().waitFor({ timeout: 20000 });
+      }
+      await D.waitForTimeout(3000);
+    },
+    async after({ D, M, people }) {
+      for (const page of [D, M]) {
+        const back = page.getByRole('button', { name: /Вернуться в разговор/ }).first();
+        if (await back.isVisible().catch(() => false)) await back.click();
+      }
+      const anya = people[0].page;
+      await anya.getByRole('button', { name: 'Остановить показ' }).click();
+      await D.waitForTimeout(1500);
+    },
+  },
+  {
+    id: 'cinema-catalog',
+    group: 'Кинозал',
+    title: 'Кинозал — каталог YouTube (поиск)',
+    src: 'ui/cinema/CinemaGroup.tsx, ui/cinema/catalog/*, ui/cinema/cinema.css',
+    note: 'Ответы службы кинозала — записанные (e2e/support/cinema.ts), как в e2e: живые площадки просят подтверждения «не бот».',
+    async run({ D, M }) {
+      if (!cinema) throw new Error('нет e2e/support/cinema.ts');
+      const browse = await cinema.openCinema(D, 'YouTube');
+      await browse.locator('.cinema-search input').fill('never gonna give you up');
+      await D.waitForTimeout(2500);
+      const mobileBrowse = await cinema.openCinema(M, 'YouTube');
+      await mobileBrowse.locator('.cinema-search input').fill('never gonna give you up');
+      await M.waitForTimeout(2500);
+    },
+  },
+  {
+    id: 'cinema-detail',
+    group: 'Кинозал',
+    title: 'Кинозал — карточка ролика',
+    src: 'ui/cinema/catalog/*',
+    async run({ D, M }) {
+      const video = cinema.fixture('youtube-search-never-gonna-give-you-up').items[0];
+      for (const page of [D, M]) {
+        await page
+          .locator('.cinema-browser')
+          .getByRole('button', { name: `Подробнее: ${video.title}`, exact: true })
+          .click({ force: true });
+        await page.locator('.cinema-detail').waitFor();
+      }
+      await D.waitForTimeout(1500);
+    },
+  },
+  {
+    id: 'cinema-player',
+    group: 'Кинозал',
+    title: 'Кинозал — плеер «Смотреть вместе», люди лентой',
+    src: 'ui/cinema/theater/*, ui/cinema/theater.css',
+    async run({ D, M }) {
+      await D.locator('.cinema-browser')
+        .getByRole('button', { name: /Смотреть вместе/ })
+        .click({ force: true });
+      // Каталог личный: у телефона он остался открытым поверх плеера — закрыть его.
+      const back = M.getByRole('button', { name: /Вернуться к просмотру|Закрыть каталог/ }).first();
+      await back.waitFor({ timeout: 15000 }).catch(() => {});
+      if (await back.isVisible().catch(() => false)) await back.click();
+      for (const page of [D, M]) await page.locator('.watch-theater').waitFor({ timeout: 30000 });
+      await M.waitForTimeout(4000);
+      for (const page of [D, M])
+        await page
+          .locator('.watch-theater')
+          .hover()
+          .catch(() => {});
+    },
+    async after({ D }) {
+      await D.locator('.watch-theater')
+        .hover()
+        .catch(() => {});
+      const close = D.getByRole('button', { name: /Закрыть просмотр для всех|Закрыть для всех/ }).first();
+      if (await close.isVisible().catch(() => false)) await close.click();
+      await D.waitForTimeout(2000);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'games-panel',
+    group: 'Игры',
+    title: 'Игры — группа в панели интеграций',
+    src: 'ui/GamesGroup.tsx',
+    shoot: { phone: true },
+    async run({ D, M }) {
+      await openGameRow(D, /Покер/);
+      await openPanel(M, 'Интеграции');
+      const group = M.getByRole('button', { name: /^Игры/ }).first();
+      await group.click().catch(() => {});
+      await M.waitForTimeout(800);
+    },
+    async after({ M }) {
+      await closePanel(M);
+    },
+  },
+  {
+    id: 'game-poker',
+    group: 'Игры',
+    title: 'Покер — раздача на четверых',
+    src: 'ui/PokerTable.tsx, poker.css, ui/GamesGroup.tsx',
+    async run(stage) {
+      const { D } = stage;
+      await openGameRow(D, /Покер/);
+      await D.getByRole('button', { name: /Открыть стол/ })
+        .first()
+        .click();
+      await D.locator('.poker-felt').waitFor({ timeout: 30000 });
+      await seatEveryone(stage, '.game-seat-action');
+      await D.locator('.games-group').getByRole('button', { name: 'Раздать', exact: true }).click();
+      await D.locator('.poker-mine-cards .playing-card').first().waitFor({ timeout: 30000 });
+      await closePanel(D);
+      await D.waitForTimeout(3500);
+    },
+    async after({ D }) {
+      await closeGame(D, /Покер/);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'game-durak',
+    group: 'Игры',
+    title: 'Дурак — раздача на четверых',
+    src: 'ui/DurakTable.tsx, ui/DurakMotion.tsx, durak.css, ui/durak-motion.css',
+    async run(stage) {
+      const { D } = stage;
+      await openGameRow(D, /Дурак/);
+      await D.getByRole('button', { name: /Открыть стол/ })
+        .first()
+        .click();
+      await D.locator('.durak-felt').waitFor({ timeout: 30000 });
+      await seatEveryone(stage, '.durak >> role=button[name="Сесть за стол"]');
+      await D.locator('.games-group').getByRole('button', { name: 'Раздать', exact: true }).click();
+      await closePanel(D);
+      await D.waitForTimeout(5000);
+    },
+    async after({ D }) {
+      await closeGame(D, /Дурак/);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'game-chess',
+    group: 'Игры',
+    title: 'Шахматы — партия: Ника белыми, Аня чёрными',
+    src: 'ui/ChessTable.tsx, chess.css',
+    async run({ D, M, people }) {
+      await openGameRow(D, /Шахматы/);
+      await D.getByRole('button', { name: /Открыть доску/ })
+        .first()
+        .click();
+      // Кто открыл доску, тот уже за белыми; кнопка «Играть белыми» есть, только если места нет.
+      const white = D.getByRole('button', { name: /Играть белыми/ }).first();
+      if (
+        await white.waitFor({ timeout: 4000 }).then(
+          () => true,
+          () => false,
+        )
+      )
+        await white.click();
+      // Чёрными — первый, у кого получилось: окно помощника маленькое, у телефона доска своя.
+      let black = false;
+      for (const page of [...people.map((p) => p.page), M]) {
+        const button = page.getByRole('button', { name: /Играть чёрными/ }).first();
+        try {
+          // Кнопка места чёрных у верхнего края доски уходит под липкую шапку встречи — нажатие
+          // мышью до неё не доходит; событие отдаётся кнопке напрямую.
+          await button.waitFor({ timeout: 8000 });
+          await button.dispatchEvent('click');
+          await D.waitForFunction(
+            () =>
+              [...document.querySelectorAll('button')].some(
+                (b) => /Начать партию/.test(b.textContent) && !b.disabled,
+              ),
+            null,
+            { timeout: 8000 },
+          );
+          black = true;
+          break;
+        } catch {
+          /* следующий */
+        }
+      }
+      // Не сел второй — снимок остаётся честным: доска открыта, Ника за белыми ждёт соперника.
+      if (black)
+        await D.getByRole('button', { name: /Начать партию/ })
+          .first()
+          .click({ timeout: 30000 });
+      else console.log('  ! чёрные не заняты — снимается доска в ожидании соперника');
+      await closePanel(D);
+      await D.waitForTimeout(3000);
+    },
+    async after({ D }) {
+      const close = D.getByRole('button', { name: 'Закрыть шахматы' }).first();
+      if (await close.isVisible().catch(() => false)) {
+        await close.click();
+        await D.getByRole('dialog').getByRole('button', { name: 'Закрыть шахматы' }).click();
+      } else await closeGame(D, /Шахматы/);
+      await D.waitForTimeout(1500);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'game-gartic',
+    group: 'Игры',
+    title: 'Gartic — «Угадай рисунок», первый ход',
+    src: 'ui/GarticTable.tsx, ui/GarticCanvas.tsx, gartic.css',
+    async run({ D, M, people }) {
+      await openGameRow(D, /Gartic/);
+      await D.getByText('Угадай рисунок')
+        .first()
+        .click()
+        .catch(() => {});
+      await D.getByRole('button', { name: /Открыть Gartic/ })
+        .first()
+        .click();
+      for (const page of [D, M, ...people.map((p) => p.page)]) {
+        const join = page.getByRole('button', { name: 'Присоединиться', exact: true }).first();
+        await join.waitFor({ timeout: 20000 }).catch(() => {});
+        if (await join.isVisible().catch(() => false)) await join.click().catch(() => {});
+      }
+      await D.getByRole('button', { name: /Начать игру/ })
+        .first()
+        .click({ timeout: 30000 });
+      await closePanel(D);
+      await D.waitForTimeout(4000);
+    },
+    async after({ D }) {
+      const close = D.getByRole('button', { name: 'Закрыть Gartic' }).first();
+      if (await close.isVisible().catch(() => false)) {
+        await close.click();
+        const dialog = D.getByRole('dialog');
+        if (await dialog.isVisible().catch(() => false))
+          await dialog
+            .getByRole('button', { name: /Закрыть/ })
+            .last()
+            .click();
+      } else await closeGame(D, /Gartic/);
+      await D.waitForTimeout(1500);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'games-history',
+    group: 'Игры',
+    title: 'Окно «История игр»',
+    src: 'ui/GamesGroup.tsx, ui/PokerResult.tsx',
+    shoot: { phone: false },
+    async run({ D }) {
+      if (!(await panelOpen(D))) await openPanel(D, 'Интеграции');
+      const group = D.getByRole('button', { name: /^Игры/ }).first();
+      const history = D.getByRole('button', { name: /История игр/ }).first();
+      if (!(await history.isVisible().catch(() => false))) await group.click();
+      await history.click();
+      await D.getByRole('dialog').waitFor();
+      await D.waitForTimeout(800);
+    },
+    async after({ D }) {
+      await closeOverlays(D);
+      await closePanel(D);
+    },
+  },
+  {
+    id: 'meeting-control-lost',
+    group: 'Встреча',
+    title: 'Обрыв управления — «Восстанавливаем чат и управление…»',
+    src: 'ui/MeetingView.tsx, core/meeting.ts',
+    async run({ D, guardD, guardM }) {
+      await guardD.events.block();
+      await guardM.events.block();
+      await D.getByText(/Восстанавливаем чат и управление/)
+        .first()
+        .waitFor({ timeout: 30000 });
+      await D.waitForTimeout(800);
+    },
+    async after({ D, guardD, guardM }) {
+      guardD.events.unblock();
+      guardM.events.unblock();
+      await D.waitForTimeout(6000);
+    },
+  },
+  {
+    id: 'meeting-recovering',
+    group: 'Встреча',
+    title: 'Обрыв медиа — «Возвращаемся в разговор», обратный отсчёт',
+    src: 'ui/MeetingView.tsx, ui/MeetingHeader.tsx (TEXT.recovering), media/session.ts',
+    async run({ D, guardD, guardM }) {
+      await guardD.rtc.block();
+      await guardM.rtc.block();
+      await D.getByText(/Возвращаемся в разговор/)
+        .first()
+        .waitFor({ timeout: 20000 });
+      await D.waitForTimeout(500);
+    },
+    async after({ D, guardD, guardM }) {
+      guardD.rtc.unblock();
+      guardM.rtc.unblock();
+      await connected(D).catch(() => {});
+      await D.waitForTimeout(4000);
+    },
+  },
+  {
+    id: 'meeting-ended',
+    group: 'Встреча',
+    title: 'Встреча завершена для всех',
+    src: 'ui/MeetingView.tsx (экран завершения)',
+    async run({ D }) {
+      await moreItem(D, 'Завершить для всех');
+      const dialog = D.getByRole('dialog');
+      if (await dialog.isVisible().catch(() => false))
+        await dialog
+          .getByRole('button', { name: /Завершить/ })
+          .last()
+          .click();
+      await D.getByRole('heading', { name: /Встреча завершена/ }).waitFor({ timeout: 30000 });
+      await D.waitForTimeout(1500);
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------------------------
+
+const singleTitles = {};
+async function runSingle(id, spec) {
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (spec.widths && !spec.widths.includes(width)) continue;
+      const context = await newContext(width, theme, spec.context ?? {});
+      const page = await context.newPage();
+      try {
+        // Многокадровый рецепт снимает сам: `shootAs(id, title)` — состояние со своим именем.
+        const shootAs = async (as, title) => {
+          if (title) singleTitles[as] = { group: spec.group, title, src: spec.src };
+          await shoot(page, as, width, theme, spec);
+        };
+        await spec.open(page, { width, theme, context, shootAs });
+        if (!spec.multi) await shoot(page, id, width, theme, spec);
+      } catch (error) {
+        console.log(`  ✗ ${id}-${width}-${theme}: ${String(error).split('\n')[0]}`);
+        record({ id, width, theme, error: String(error).split('\n')[0] });
+      } finally {
+        await context.close();
+      }
+    }
+  }
+}
+
+if (args.list) {
+  for (const [id, spec] of Object.entries(SINGLE)) console.log(`${spec.group} · ${id} — ${spec.title}`);
+  for (const id of Object.keys(SCENARIOS)) console.log(`сценарий · ${id}`);
+  await browser.close();
+  process.exit(0);
+}
+
+const titlesFile = path.join(out, 'titles.json');
+const titles = existsSync(titlesFile) ? JSON.parse(readFileSync(titlesFile, 'utf8')) : {};
+for (const [id, spec] of Object.entries(SINGLE)) {
+  if (!spec.multi) titles[id] = { group: spec.group, title: spec.title, src: spec.src, note: spec.note };
+  if (only && !only.includes(id)) continue;
+  console.log(`${id} — ${spec.title}`);
+  await runSingle(id, spec);
+}
+Object.assign(titles, singleTitles);
+for (const [id, scenario] of Object.entries(SCENARIOS)) {
+  if (only && !only.includes(id)) continue;
+  console.log(`сценарий ${id}`);
+  try {
+    await scenario({ titles });
+  } catch (error) {
+    console.log(`  ✗ сценарий ${id}: ${String(error).split('\n')[0]}`);
+  }
+}
+writeFileSync(titlesFile, JSON.stringify(titles, null, 1));
+// Встречи-подставки закрываются вместе с окнами: ядро уберёт их после срока восстановления.
+for (const held of [host, gate]) await held?.context.close().catch(() => {});
+await browser.close();
