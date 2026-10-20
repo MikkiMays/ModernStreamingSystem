@@ -286,30 +286,33 @@ export function Services({ meeting }: { meeting: Meeting }) {
               {state.error}
             </p>
           )}
-          <MusicUpload
-            canUse={can('music.upload')}
-            maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
-            upload={(file, signal) => api.upload(file, signal)}
-            onAdded={update}
-            onError={setError}
-          >
-            <MusicSearch
-              abilities={{
-                platforms,
-                canSearch: can('music.search'),
-                searchPlatform: api.search,
-                addLink: can('music.link') ? api.addLink : null,
-                yandex: yandexReady
-                  ? {
-                      connected: !!yandexAccount.data?.connected,
-                      search: yandexApi.search,
-                      add: can('yandex.queue') ? yandexApi.enqueue : null,
-                    }
-                  : null,
-              }}
+          {/* Добавлять — тем, кому разрешены интеграции; остальным поле только обещало бы отказ. */}
+          {can('integrations.use') && (
+            <MusicUpload
+              canUse={can('music.upload')}
+              maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
+              upload={(file, signal) => api.upload(file, signal)}
               onAdded={update}
-            />
-          </MusicUpload>
+              onError={setError}
+            >
+              <MusicSearch
+                abilities={{
+                  platforms,
+                  canSearch: can('music.search'),
+                  searchPlatform: api.search,
+                  addLink: can('music.link') ? api.addLink : null,
+                  yandex: yandexReady
+                    ? {
+                        connected: !!yandexAccount.data?.connected,
+                        search: yandexApi.search,
+                        add: can('yandex.queue') ? yandexApi.enqueue : null,
+                      }
+                    : null,
+                }}
+                onAdded={update}
+              />
+            </MusicUpload>
+          )}
           <MusicQueue
             state={state}
             canUse={canUse}

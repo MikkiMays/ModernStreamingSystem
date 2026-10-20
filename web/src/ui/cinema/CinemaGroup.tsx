@@ -32,7 +32,7 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
   return (
     <div className="cinema-group">
       <button className="text-button cinema-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Группы интеграций
+        <ArrowLeft size={16} /> Интеграции
       </button>
       {watch && (
         <div className="cinema-open-now">
