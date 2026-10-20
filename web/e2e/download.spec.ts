@@ -15,7 +15,10 @@ test('the download page stands on its own and leads only to this server', async 
   // is exactly what the page itself does.
   const probe = await page.request.get('/downloads/windows/download.json');
   const manifest = probe.ok()
-    ? ((await probe.json().catch(() => null)) as { version?: string } | null)
+    ? ((await probe.json().catch(() => null)) as {
+        version?: string;
+        files?: { kind?: string; path?: string }[];
+      } | null)
     : null;
   const published = typeof manifest?.version === 'string';
   await page.goto('/download');
@@ -26,7 +29,10 @@ test('the download page stands on its own and leads only to this server', async 
   if (published) {
     await expect(installer).toBeVisible();
     const href = (await installer.getAttribute('href'))!;
-    expect(href).toMatch(new RegExp(`^/downloads/windows/v${manifest!.version}/`));
+    // Клиент на Electron лежит в своём канале (`path: "desktop/"`, E01-B), прежний — в каталоге выпуска.
+    const directory =
+      manifest!.files?.find((file) => file.kind === 'installer')?.path ?? `v${manifest!.version}/`;
+    expect(href.startsWith(`/downloads/windows/${directory}`), href).toBe(true);
     const head = await page.request.head(href);
     expect(head.status(), 'the button must point at a file this server really serves').toBe(200);
   } else {
