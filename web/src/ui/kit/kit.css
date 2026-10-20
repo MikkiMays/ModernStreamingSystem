@@ -973,24 +973,35 @@
   opacity: 0;
   transform: scale(0.96);
 }
+/* Выемка — повёрнутый квадрат цвета карточки; две внешние грани обведены линией, иначе на светлом фоне
+   белая выемка теряется (у карточки край рисует тень, у выемки тени нет). */
 .ui-coachmark__arrow {
   width: 14px;
   height: 14px;
+  border: 1px solid transparent;
   background: var(--menu-bg);
   transform: rotate(45deg);
   border-radius: 3px;
 }
 .ui-coachmark__arrow[data-side='bottom'] {
-  top: -6px;
+  top: -7px;
+  border-top-color: var(--line-strong);
+  border-left-color: var(--line-strong);
 }
 .ui-coachmark__arrow[data-side='top'] {
-  bottom: -6px;
+  bottom: -7px;
+  border-right-color: var(--line-strong);
+  border-bottom-color: var(--line-strong);
 }
 .ui-coachmark__arrow[data-side='left'] {
-  right: -6px;
+  right: -7px;
+  border-top-color: var(--line-strong);
+  border-right-color: var(--line-strong);
 }
 .ui-coachmark__arrow[data-side='right'] {
-  left: -6px;
+  left: -7px;
+  border-bottom-color: var(--line-strong);
+  border-left-color: var(--line-strong);
 }
 .ui-coachmark__progress {
   color: var(--muted);

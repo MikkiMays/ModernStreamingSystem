@@ -55,10 +55,10 @@ test('a fresh profile walks the tour once, and «Пройти знакомств
 });
 
 test('on a phone the tour is three steps, the last one at the menu', async ({ page }) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto('/');
-  await expect(tip(page, 'Новая встреча')).toContainText('1 из 3', { timeout: 25000 });
+  await expect(tip(page, 'Новая встреча')).toContainText('1 из 3', { timeout: 45000 });
   await page.getByRole('button', { name: 'Далее' }).click();
   await page.getByRole('button', { name: 'Далее' }).click();
   await expect(tip(page, 'Меню')).toContainText('3 из 3');

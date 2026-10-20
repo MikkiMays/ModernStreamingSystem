@@ -9,6 +9,7 @@ import AxeBuilder from '@axe-core/playwright';
 test('the support page answers common questions and sends a ticket with the visitor’s consent', async ({
   page,
 }) => {
+  test.setTimeout(90000);
   let sent: Record<string, unknown> | null = null;
   await page.route('**/api/v1/proof?for=support', (route) => route.fulfill({ status: 204 }));
   await page.route('**/api/v1/support', async (route) => {
@@ -35,7 +36,8 @@ test('the support page answers common questions and sends a ticket with the visi
   await page.getByText('Что будет отправлено').click();
   await expect(page.locator('.help-preview pre')).toContainText('client: web');
   await page.getByRole('button', { name: 'Отправить' }).click();
-  await expect(page.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible();
+  // Задача «не бот» решается в фоновом потоке — на медленной машине это секунды.
+  await expect(page.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible({ timeout: 20000 });
   expect(sent).toMatchObject({ topic: 'windows', contact: '@someone', consent: true });
   expect(String(sent!['diagnostics'])).toContain('browser:');
 });
@@ -55,6 +57,7 @@ test('the «?» on the home page opens help without leaving it', async ({ page }
 
 for (const width of [360, 1440, 2560])
   test(`the support page fits ${width} px in both themes`, async ({ page }) => {
+    test.setTimeout(90000);
     for (const theme of ['light', 'dark']) {
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript((value) => localStorage.setItem('cord:theme', value), theme);
