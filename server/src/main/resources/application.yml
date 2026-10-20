@@ -114,7 +114,7 @@ stream:
     per-ip:
       rooms-created: ${ABUSE_IP_ROOMS_CREATED:10 per hour}
       # Сколько встреч, созданных с адреса, одновременно занимают место на сервере (`max-rooms`).
-      open-rooms: ${ABUSE_IP_OPEN_ROOMS:3}
+      open-rooms: ${ABUSE_IP_OPEN_ROOMS:8}
       admissions: ${ABUSE_IP_ADMISSIONS:30 per minute}
       code-joins: ${ABUSE_IP_CODE_JOINS:10 per minute}
       # Промахи кодом встречи. Выбравший предел до конца окна не входит по коду вовсе — даже верным.

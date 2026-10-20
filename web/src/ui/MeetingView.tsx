@@ -29,6 +29,7 @@ export function MeetingView({
   setTheme,
   section,
   onSectionClosed,
+  onBackTarget,
 }: {
   meeting: Meeting;
   onHome: () => void;
@@ -41,6 +42,11 @@ export function MeetingView({
    */
   section?: string;
   onSectionClosed?: () => void;
+  /**
+   * Что закрыть кнопкой «Назад» оболочки (Mini App Telegram, E09): открытая панель — или `null`,
+   * тогда кнопка не нужна. Сама встреча этой кнопкой не закрывается: выход — своей кнопкой.
+   */
+  onBackTarget?: (close: (() => void) | null) => void;
 }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
@@ -99,6 +105,9 @@ export function MeetingView({
     никогда, а чужой фильм и смена ширины панель не трогают — подробности в самом правиле.
   */
   useYieldToCinema(meeting, setPanel);
+  useEffect(() => {
+    onBackTarget?.(panel ? () => setPanel(null) : null);
+  }, [panel, onBackTarget]);
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);

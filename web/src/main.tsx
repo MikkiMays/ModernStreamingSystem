@@ -1,26 +1,8 @@
 import { createRoot } from 'react-dom/client';
 // Слой переводов — раньше всего остального: модули ниже уже говорят через него (E14).
 import { applyLanguage } from './i18n';
-import '@fontsource-variable/inter';
-import './styles.css';
-import './accessibility.css';
-import './room-layout.css';
-/*
-  Экран звонка (E04) — сцена, пульт и панель встречи на токенах. Здесь, а не в компонентах: CSS
-  компонента встаёт в конец каскада, а кинозал и столы ниже переопределяют сцену равным весом и
-  обязаны оставаться после неё — как и тогда, когда всё это было `styles.css` и `room-layout.css`.
-*/
-import './ui/stage.css';
-import './ui/call-dock.css';
-import './ui/meeting-panel.css';
-// Интеграции в панели встречи — витрина и музыка (E06-B), на токенах.
-import './ui/integrations.css';
-// Кинозал — сразу за раскладкой встречи, откуда он вынесен: там же он и стоял в каскаде.
-import './ui/cinema/cinema.css';
-import './ui/cinema/theater.css';
-import './desktop-home.css';
-import './poker.css';
-import './durak.css';
+// Оформление — одним списком на оба входа: приложение и Mini App Telegram (`telegram/main.tsx`).
+import './app-styles';
 import App from './App';
 import { readPreferences } from './core/preferences';
 import { isDesktop } from './core/desktop';

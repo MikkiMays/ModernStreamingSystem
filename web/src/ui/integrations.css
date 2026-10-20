@@ -926,3 +926,84 @@ input.music-search__input:focus-visible {
 .music-account__error {
   color: var(--danger);
 }
+
+/* ---------- Telegram: привязка беседы (E09) ---------- */
+.telegram-group__chats {
+  display: grid;
+  gap: var(--space-2);
+}
+.telegram-group__chats h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.telegram-group__chats ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.telegram-group__chat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+}
+.telegram-group__chat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.telegram-group__chat-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.telegram-group__chat-text b,
+.telegram-group__chat-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.telegram-group__chat-text small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.telegram-group__code {
+  display: grid;
+  gap: var(--space-2);
+}
+.telegram-group__code p,
+.telegram-group__code small {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.telegram-group__command {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.telegram-group__command code {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow-wrap: anywhere;
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+}

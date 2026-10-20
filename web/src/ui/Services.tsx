@@ -21,6 +21,7 @@ import { MusicSearch } from './MusicSearch';
 import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
+import { TelegramGroup } from './TelegramGroup';
 import { IntegrationShelf } from './IntegrationShelf';
 import { musicHint, shelfName, type ShelfId } from './integration-shelf';
 import { foresee, foresightSpent, offeredSources, type Foresight } from './music-playback';
@@ -57,7 +58,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
    * короткая анимация появления, иначе подмена содержимого читается как сбой, а не как шаг.
    */
   const { t } = useTranslation();
-  const [group, setGroup] = useState<Group | null>(null);
+  const [group, setGroup] = useState<Group | 'telegram' | null>(null);
   /**
    * Площадка музыки, выбранная после входа. `null` — экран выбора: так музыка открывается каждый
    * раз, как и кинозал. Прошлый выбор помнит устройство и отмечает его на этом экране.
@@ -216,7 +217,13 @@ export function Services({ meeting }: { meeting: Meeting }) {
           }}
           blockedBy={blocked}
           canLinkTelegram={can('telegram.link')}
+          telegramReady={!!catalog.data?.telegram.webapp}
           onOpen={(id) => {
+            // Привязка беседы — не интеграция во встрече: с остальными за сцену и звук не спорит.
+            if (id === 'telegram') {
+              if (can('telegram.link')) setGroup('telegram');
+              return;
+            }
             if (!(OPENS as readonly string[]).includes(id)) return;
             // Музыка, как и кинозал, каждый раз открывается выбором площадки.
             if (id === 'music') setChosen(null);
@@ -236,6 +243,13 @@ export function Services({ meeting }: { meeting: Meeting }) {
     return (
       <div className="services-panel" key="cinema">
         <CinemaGroup meeting={meeting} onBack={() => setGroup(null)} />
+      </div>
+    );
+
+  if (group === 'telegram')
+    return (
+      <div className="services-panel" key="telegram">
+        <TelegramGroup meeting={meeting} onBack={() => setGroup(null)} />
       </div>
     );
 
