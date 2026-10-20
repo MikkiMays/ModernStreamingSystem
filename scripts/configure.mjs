@@ -284,9 +284,14 @@ await writeFile(
           },
         ],
       },
-      // Пока хост замирает, «упало» про ядро, SFU и входы — следствие, а не новость: одно сообщение вместо десятка.
+      // Пока хост тормозит, отказы во входе и 5xx шлюза — следствие, а не новость: одно сообщение вместо
+      // нескольких. «Не отвечает» не гасится: оно и так ждёт десять минут тишины, а замирание длится секунды.
+      // Гасить им всё `severity: page` нельзя — на машине с вечным steal не пришло бы ничего (E10-B, замер).
       inhibit_rules: [
-        { source_matchers: ['alertname="HostStalled"'], target_matchers: ['severity="page"'] },
+        {
+          source_matchers: ['alertname="HostStalled"'],
+          target_matchers: ['alertname=~"JoinFailures|GatewayErrors5xx"'],
+        },
       ],
       receivers: [owner, watchdog],
     },
