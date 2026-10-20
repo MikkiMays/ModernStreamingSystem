@@ -17,39 +17,13 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip, CameraSubmenu } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import type { Panel } from './Sidebar';
-
-/** Строки пульта — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  media: 'Микрофон и камера',
-  call: 'Встреча',
-  panels: 'Чат и интеграции',
-  micOn: 'Выключить микрофон',
-  micOff: 'Включить микрофон',
-  cameraOn: 'Выключить камеру',
-  cameraOff: 'Включить камеру',
-  share: 'Показать экран',
-  unshare: 'Остановить показ',
-  more: 'Настройки и действия',
-  leave: 'Выйти из встречи',
-  chat: 'Чат',
-  chatAndFiles: 'Чат и файлы',
-  people: 'Участники',
-  integrations: 'Интеграции',
-  deafen: 'Выключить звук встречи',
-  undeafen: 'Включить звук встречи',
-  fullscreen: 'Полноэкранный режим',
-  windowed: 'Выйти из полноэкранного режима',
-  settings: 'Настройки',
-  diagnostics: 'Диагностика',
-  meetingSettings: 'Настройки встречи',
-  closeForAll: 'Завершить для всех',
-};
 
 export interface CallDockProps {
   meeting: Meeting;
@@ -97,6 +71,7 @@ export function CallDock({
   onMeetingSettings,
   onCloseForAll,
 }: CallDockProps) {
+  const { t } = useTranslation();
   const media = useStore(meeting.media.state);
   const deafened = useStore(meeting.media.deafened);
   const outbound = useStore(meeting.media.outbound);
@@ -110,12 +85,12 @@ export function CallDock({
   return (
     <footer id="meeting-controls" className="call-footer media-stage" data-compact={compact || undefined}>
       <div className="call-dock">
-        <div className="dock-group" role="group" aria-label={TEXT.media}>
+        <div className="dock-group" role="group" aria-label={t(($) => $.dock.media)}>
           <IconButton
             tone="stage"
             size="lg"
             className="dock-button"
-            label={media.microphone ? TEXT.micOn : TEXT.micOff}
+            label={media.microphone ? t(($) => $.dock.micOn) : t(($) => $.dock.micOff)}
             aria-pressed={media.microphone}
             disabled={!live}
             onClick={() => void meeting.media.toggle('microphone')}
@@ -126,7 +101,7 @@ export function CallDock({
             tone="stage"
             size="lg"
             className="dock-button"
-            label={media.camera ? TEXT.cameraOn : TEXT.cameraOff}
+            label={media.camera ? t(($) => $.dock.cameraOn) : t(($) => $.dock.cameraOff)}
             aria-pressed={media.camera}
             disabled={!live}
             onClick={() => void meeting.media.toggle('camera')}
@@ -140,7 +115,7 @@ export function CallDock({
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={media.screen ? TEXT.unshare : TEXT.share}
+              label={media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
               pressed={media.screen}
               disabled={!live}
               onClick={share}
@@ -149,11 +124,11 @@ export function CallDock({
             </IconButton>
           )}
         </div>
-        <div className="dock-group" role="group" aria-label={TEXT.call}>
+        <div className="dock-group" role="group" aria-label={t(($) => $.dock.call)}>
           <Menu>
             <MenuTrigger
               render={
-                <IconButton tone="stage" size="lg" className="dock-button" label={TEXT.more}>
+                <IconButton tone="stage" size="lg" className="dock-button" label={t(($) => $.dock.more)}>
                   <MoreHorizontal size={22} />
                 </IconButton>
               }
@@ -163,11 +138,11 @@ export function CallDock({
                 icon={deafened ? <Headphones /> : <HeadphoneOff />}
                 onClick={() => meeting.media.deafened.set(!deafened)}
               >
-                {deafened ? TEXT.undeafen : TEXT.deafen}
+                {deafened ? t(($) => $.dock.undeafen) : t(($) => $.dock.deafen)}
               </MenuItem>
               {coarse && (
                 <MenuItem icon={<MonitorUp />} disabled={!live} onClick={share}>
-                  {media.screen ? TEXT.unshare : TEXT.share}
+                  {media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
                 </MenuItem>
               )}
               {!coarse && <CameraSubmenu meeting={meeting} />}
@@ -175,38 +150,38 @@ export function CallDock({
                 <>
                   <MenuSeparator />
                   <MenuItem icon={<MessageSquare />} onClick={() => togglePanel('chat')}>
-                    {TEXT.chatAndFiles}
+                    {t(($) => $.dock.chatAndFiles)}
                   </MenuItem>
                   <MenuItem icon={<Users />} shortcut={String(people)} onClick={() => togglePanel('people')}>
-                    {TEXT.people}
+                    {t(($) => $.dock.people)}
                   </MenuItem>
                   <MenuItem icon={<Puzzle />} onClick={() => togglePanel('services')}>
-                    {TEXT.integrations}
+                    {t(($) => $.dock.integrations)}
                   </MenuItem>
                   <MenuSeparator />
                   <LayoutChoices meeting={meeting} />
                   <MenuItem icon={fullscreen ? <Minimize2 /> : <Maximize2 />} onClick={toggleFullscreen}>
-                    {fullscreen ? TEXT.windowed : TEXT.fullscreen}
+                    {fullscreen ? t(($) => $.dock.windowed) : t(($) => $.dock.fullscreen)}
                   </MenuItem>
                 </>
               )}
               <MenuSeparator />
               <MenuItem icon={<Settings2 />} onClick={onSettings}>
-                {TEXT.settings}
+                {t(($) => $.dock.settings)}
               </MenuItem>
               <MenuItem icon={<Activity />} shortcut={sending ?? undefined} onClick={onDiagnostics}>
-                {TEXT.diagnostics}
+                {t(($) => $.dock.diagnostics)}
               </MenuItem>
               {onMeetingSettings && (
                 <MenuItem icon={<Pencil />} onClick={onMeetingSettings}>
-                  {TEXT.meetingSettings}
+                  {t(($) => $.dock.meetingSettings)}
                 </MenuItem>
               )}
               {onCloseForAll && (
                 <>
                   <MenuSeparator />
                   <MenuItem icon={<PhoneOff />} destructive onClick={onCloseForAll}>
-                    {TEXT.closeForAll}
+                    {t(($) => $.dock.closeForAll)}
                   </MenuItem>
                 </>
               )}
@@ -216,7 +191,7 @@ export function CallDock({
             variant="danger"
             size="lg"
             className="dock-button dock-hangup"
-            label={TEXT.leave}
+            label={t(($) => $.dock.leave)}
             disabled={ended}
             onClick={onLeave}
           >
@@ -224,12 +199,12 @@ export function CallDock({
           </IconButton>
         </div>
         {!compact && (
-          <div className="dock-group" role="group" aria-label={TEXT.panels}>
+          <div className="dock-group" role="group" aria-label={t(($) => $.dock.panels)}>
             <IconButton
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={TEXT.chat}
+              label={t(($) => $.dock.chat)}
               pressed={panel === 'chat'}
               onClick={() => togglePanel('chat')}
             >
@@ -239,7 +214,7 @@ export function CallDock({
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={TEXT.people}
+              label={t(($) => $.dock.people)}
               pressed={panel === 'people'}
               onClick={() => togglePanel('people')}
             >
@@ -252,7 +227,7 @@ export function CallDock({
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={TEXT.integrations}
+              label={t(($) => $.dock.integrations)}
               pressed={panel === 'services'}
               onClick={() => togglePanel('services')}
             >
@@ -267,7 +242,7 @@ export function CallDock({
           <IconButton
             tone="stage"
             className="dock-tool"
-            label={fullscreen ? TEXT.windowed : TEXT.fullscreen}
+            label={fullscreen ? t(($) => $.dock.windowed) : t(($) => $.dock.fullscreen)}
             onClick={toggleFullscreen}
           >
             {fullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}

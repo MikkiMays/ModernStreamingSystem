@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { anchorDomId, row, rowDomId, type RowId } from './sections';
+import { useTranslation } from 'react-i18next';
+import { anchorDomId, rowDomId, rowText, type RowId } from './sections';
 
 /**
  * Куда окно настроек просит прийти: подраздел (его группа раскрывается) и строка (её коротко
@@ -44,7 +45,8 @@ export function SettingRow({
   below?: ReactNode;
   children?: ReactNode | ((a11y: RowA11y) => ReactNode);
 }) {
-  const spec = row(id);
+  const { t } = useTranslation();
+  const spec = rowText(t, id);
   const base = useId();
   const labelId = `${base}-label`;
   const hintId = `${base}-hint`;

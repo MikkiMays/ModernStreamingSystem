@@ -11,6 +11,7 @@ import {
   DoorOpen,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { publicApi, RoomApi } from '../api/client';
 import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
@@ -40,8 +41,9 @@ export function Prejoin({
    */
   onElsewhere?: (meeting: ElsewhereMeeting) => Promise<boolean>;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(localStorage.getItem('cord:name') ?? '');
-  const [title, setTitle] = useState('Наша встреча');
+  const [title, setTitle] = useState(() => t(($) => $.prejoin.defaultTitle));
   const [settings, setSettings] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [integrationsAllowed, setIntegrationsAllowed] = useState(true);
@@ -145,7 +147,7 @@ export function Prejoin({
   useEffect(() => {
     if (!autoJoining || automaticStarted.current || destination?.kind !== 'favorite') return;
     automaticStarted.current = true;
-    const displayName = name.trim() || 'Участник';
+    const displayName = name.trim() || t(($) => $.prejoin.defaultName);
     void favoriteApi
       .join(destination.favorite.roomId, displayName, commandId.current)
       .then((admission) => {
@@ -164,14 +166,14 @@ export function Prejoin({
           setAutoJoining(false);
         }
       });
-  }, [autoJoining, destination, name, choices, onJoin]);
+  }, [autoJoining, destination, name, choices, onJoin, t]);
   if (autoJoining)
     return (
       <main className="loading-room">
         <LoaderCircle className="spin" size={30} />
-        <p role="status">Подключаемся к комнате…</p>
+        <p role="status">{t(($) => $.prejoin.autoJoining)}</p>
         <button className="button secondary" onClick={onBack}>
-          Отмена
+          {t(($) => $.prejoin.cancel)}
         </button>
       </main>
     );
@@ -181,7 +183,7 @@ export function Prejoin({
     setBusy(true);
     setError('');
     try {
-      const admission = await admit(name.trim() || 'Участник', leave);
+      const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
       localStorage.setItem('cord:name', name.trim());
       savePreferences({ devices: choices });
@@ -204,9 +206,7 @@ export function Prejoin({
     setGoing(true);
     try {
       if (!(await onElsewhere?.(elsewhere)) && mounted.current)
-        setElsewhereNote(
-          'В этом браузере эта встреча не открыта — место, видимо, держит закрытая вкладка или другое окно. Выйдите оттуда и войдите сюда.',
-        );
+        setElsewhereNote(t(($) => $.prejoin.elsewhereUnreachable));
     } catch (e) {
       if (mounted.current) setElsewhereNote((e as Error).message);
     } finally {
@@ -261,9 +261,7 @@ export function Prejoin({
       }
       refreshDevices();
     } catch {
-      setError(
-        'Не удалось получить доступ к устройству. Проверьте разрешения браузера. Войти слушателем можно без них.',
-      );
+      setError(t(($) => $.prejoin.deviceFailed));
     } finally {
       setDeviceBusy(false);
     }
@@ -273,7 +271,7 @@ export function Prejoin({
       <header className="app-header">
         <Logo />
         <button className="button ghost" onClick={onBack}>
-          <ArrowLeft size={18} /> На главную
+          <ArrowLeft size={18} /> {t(($) => $.prejoin.home)}
         </button>
       </header>
       <main className="prejoin-main">
@@ -285,18 +283,18 @@ export function Prejoin({
               autoPlay
               playsInline
               className={camera ? 'preview-video' : 'preview-video hidden'}
-              aria-label="Предпросмотр вашей камеры"
+              aria-label={t(($) => $.prejoin.preview)}
             />
             {!camera && (
               <div className="preview-avatar">
-                <Avatar name={name || 'Вы'} src={preferences.avatar || null} large />
-                <p>Камера выключена</p>
+                <Avatar name={name || t(($) => $.prejoin.you)} src={preferences.avatar || null} large />
+                <p>{t(($) => $.prejoin.cameraOff)}</p>
               </div>
             )}
-            <span className="preview-label">Вы · предпросмотр</span>
+            <span className="preview-label">{t(($) => $.prejoin.previewLabel)}</span>
             <div className="preview-controls">
               <IconButton
-                label={mic ? 'Выключить микрофон' : 'Включить микрофон'}
+                label={mic ? t(($) => $.prejoin.micOn) : t(($) => $.prejoin.micOff)}
                 className={mic ? 'active' : ''}
                 disabled={deviceBusy}
                 onClick={() => void toggle('audio')}
@@ -304,7 +302,7 @@ export function Prejoin({
                 {mic ? <Mic /> : <MicOff />}
               </IconButton>
               <IconButton
-                label={camera ? 'Выключить камеру' : 'Включить камеру'}
+                label={camera ? t(($) => $.prejoin.cameraOnLabel) : t(($) => $.prejoin.cameraOffLabel)}
                 className={camera ? 'active' : ''}
                 disabled={deviceBusy}
                 onClick={() => void toggle('video')}
@@ -313,7 +311,7 @@ export function Prejoin({
               </IconButton>
             </div>
             <IconButton
-              label="Настройки предпросмотра"
+              label={t(($) => $.prejoin.settingsButton)}
               className="preview-settings"
               onClick={() => setSettings(true)}
             >
@@ -321,7 +319,7 @@ export function Prejoin({
             </IconButton>
           </div>
           <p className="preview-caption">
-            <Headphones size={17} /> Для лучшего звука рекомендуем наушники
+            <Headphones size={17} /> {t(($) => $.prejoin.headphones)}
           </p>
         </div>
         <form
@@ -331,20 +329,22 @@ export function Prejoin({
             void submit();
           }}
         >
-          <span className="eyebrow">{destination ? 'ПОЧТИ НА МЕСТЕ' : 'НОВАЯ ВСТРЕЧА'}</span>
+          <span className="eyebrow">
+            {destination ? t(($) => $.prejoin.eyebrowJoin) : t(($) => $.prejoin.eyebrowNew)}
+          </span>
           <h1>
             {destination?.kind === 'favorite'
               ? destination.favorite.title
               : destination?.kind === 'recent'
                 ? destination.admission.snapshot.title
-                : 'Готовы к разговору?'}
+                : t(($) => $.prejoin.ready)}
           </h1>
           <p className="muted">
-            Проверьте, как вас видят и слышат.
+            {t(($) => $.prejoin.check)}
             {/* Тот же случай, что и на главной: перенос прячется на узком экране. */}
-            <br /> Подключиться можно и без устройств.
+            <br /> {t(($) => $.prejoin.noDevices)}
           </p>
-          <label htmlFor="display-name">Ваше имя</label>
+          <label htmlFor="display-name">{t(($) => $.prejoin.name)}</label>
           <input
             id="display-name"
             value={name}
@@ -354,14 +354,14 @@ export function Prejoin({
               commandId.current = crypto.randomUUID();
             }}
             maxLength={40}
-            placeholder="Как к вам обращаться?"
+            placeholder={t(($) => $.prejoin.namePlaceholder)}
             required
             autoFocus
             autoComplete="nickname"
           />
           {!destination && (
             <>
-              <label htmlFor="meeting-name">Название встречи</label>
+              <label htmlFor="meeting-name">{t(($) => $.prejoin.title)}</label>
               <input
                 id="meeting-name"
                 value={title}
@@ -371,9 +371,9 @@ export function Prejoin({
                 }}
                 maxLength={80}
                 required
-                placeholder="Например, Вечер с друзьями"
+                placeholder={t(($) => $.prejoin.titlePlaceholder)}
               />
-              <small className="form-footnote">Название можно будет поменять во встрече.</small>
+              <small className="form-footnote">{t(($) => $.prejoin.titleLater)}</small>
               {/*
                 Что это за встреча — решается здесь, а не за шестерёнкой предпросмотра.
 
@@ -382,11 +382,11 @@ export function Prejoin({
                 это про саму встречу, и спросить об этом надо до того, как она началась.
                 Решения не окончательные: то и другое меняется в настройках встречи.
               */}
-              <section className="audio-settings" aria-label="Кто может войти">
+              <section className="audio-settings" aria-label={t(($) => $.prejoin.access)}>
                 <h3>
-                  <DoorOpen size={19} /> Кто может войти
+                  <DoorOpen size={19} /> {t(($) => $.prejoin.access)}
                 </h3>
-                <div role="radiogroup" aria-label="Кто может войти" className="network-modes">
+                <div role="radiogroup" aria-label={t(($) => $.prejoin.access)} className="network-modes">
                   <label className="check-setting">
                     <input
                       type="radio"
@@ -398,8 +398,8 @@ export function Prejoin({
                       }}
                     />
                     <span>
-                      По ссылке и коду — сразу
-                      <small>Кто открыл приглашение, тот и вошёл. Подходит для своих.</small>
+                      {t(($) => $.prejoin.open)}
+                      <small>{t(($) => $.prejoin.openHint)}</small>
                     </span>
                   </label>
                   <label className="check-setting">
@@ -413,8 +413,8 @@ export function Prejoin({
                       }}
                     />
                     <span>
-                      Только с вашего подтверждения
-                      <small>Каждый входящий ждёт, пока вы его впустите.</small>
+                      {t(($) => $.prejoin.approval)}
+                      <small>{t(($) => $.prejoin.approvalHint)}</small>
                     </span>
                   </label>
                 </div>
@@ -428,17 +428,16 @@ export function Prejoin({
                     }}
                   />
                   <span>
-                    Разрешить интеграции всем участникам
-                    <small>Иначе кинозал и музыку добавляете и убираете только вы.</small>
+                    {t(($) => $.prejoin.integrations)}
+                    <small>{t(($) => $.prejoin.integrationsHint)}</small>
                   </span>
                 </label>
-                <p className="form-footnote">Это можно поменять и потом, уже во встрече.</p>
+                <p className="form-footnote">{t(($) => $.prejoin.changeLater)}</p>
               </section>
             </>
           )}
           <p className="permission-note" role="status">
-            Камеру и микрофон можно включить здесь или во встрече. Разрешение потребуется при первом
-            включении.
+            {t(($) => $.prejoin.permissionNote)}
           </p>
           {error && (
             <p className="form-error" role="alert">
@@ -447,9 +446,13 @@ export function Prejoin({
           )}
           <button type="submit" className="button primary full" disabled={busy || !name.trim()}>
             {busy ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}{' '}
-            {busy ? 'Подключаемся…' : destination ? 'Войти во встречу' : 'Начать встречу'}
+            {busy
+              ? t(($) => $.prejoin.connecting)
+              : destination
+                ? t(($) => $.prejoin.join)
+                : t(($) => $.prejoin.start)}
           </button>
-          <p className="form-footnote">Ссылка и QR для приглашения появятся в комнате.</p>
+          <p className="form-footnote">{t(($) => $.prejoin.inviteLater)}</p>
         </form>
       </main>
       <MeetingElsewhere
@@ -464,19 +467,18 @@ export function Prejoin({
         wide
         open={settings}
         onOpenChange={setSettings}
-        title="Перед разговором"
-        description="Устройства и качество сохраняются на этом устройстве. Камеру и микрофон вы включаете сами."
+        title={t(($) => $.prejoin.settings.title)}
+        description={t(($) => $.prejoin.settings.description)}
       >
         <div className="settings-form">
           <SettingGroup
-            title="Устройства"
+            title={t(($) => $.prejoin.settings.devices)}
             collapsible={false}
-            note={camera || mic ? 'Выключите предпросмотр устройства, чтобы сменить его.' : undefined}
+            note={camera || mic ? t(($) => $.prejoin.settings.devicesBusy) : undefined}
           >
             {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => {
               const key = kind === 'audioinput' ? 'microphone' : kind === 'videoinput' ? 'camera' : 'speaker';
-              const label =
-                kind === 'audioinput' ? 'Микрофон' : kind === 'videoinput' ? 'Камера' : 'Вывод звука';
+              const label = t(($) => $.prejoin.settings.kinds[kind]);
               return (
                 <SettingRow
                   key={kind}
@@ -507,12 +509,12 @@ export function Prejoin({
                       savePreferences({ devices: next });
                     }}
                   >
-                    <option value="">По умолчанию</option>
+                    <option value="">{t(($) => $.prejoin.settings.default)}</option>
                     {devices
                       .filter((d) => d.kind === kind && d.deviceId)
                       .map((d, i) => (
                         <option key={d.deviceId} value={d.deviceId}>
-                          {d.label || `Устройство ${i + 1}`}
+                          {d.label || t(($) => $.prejoin.settings.numbered, { n: i + 1 })}
                         </option>
                       ))}
                   </select>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { AppIcon, Logo } from './primitives';
 import { Button } from './kit';
 import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
@@ -15,6 +16,7 @@ import './shell.css';
  * Windows, — в адресе файла и в его имени.
  */
 export function Download() {
+  const { t } = useTranslation();
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   /**
@@ -37,46 +39,43 @@ export function Download() {
   return (
     <div className="shell-page">
       <header className="shell-header">
-        <a className="shell-header__home" href="/" aria-label="Cord — на главную">
+        <a className="shell-header__home" href="/" aria-label={t(($) => $.download.home)}>
           <Logo />
         </a>
         <div className="shell-header__end">
           <a className="ui-button ui-button--quiet ui-button--sm" href="/">
-            <ArrowLeft size={16} aria-hidden="true" /> На главную
+            <ArrowLeft size={16} aria-hidden="true" /> {t(($) => $.download.back)}
           </a>
         </div>
       </header>
       <main className="shell-main download-main">
         <section className="shell-card download-card">
           <AppIcon size={72} />
-          <h1>Cord для Windows</h1>
-          {release === undefined && <p className="download-card__meta">Смотрим, что опубликовано…</p>}
+          <h1>{t(($) => $.download.title)}</h1>
+          {release === undefined && <p className="download-card__meta">{t(($) => $.download.checking)}</p>}
           {release === null && (
             <p className="download-card__meta" role="status">
-              Сборка для Windows сейчас недоступна. Попробуйте открыть страницу чуть позже.
+              {t(($) => $.download.unavailable)}
             </p>
           )}
           {release && (
             <>
               <p className="download-card__meta">
-                {release.installer!.size > 0 && `${megabytes(release.installer!.size)}, `}Windows 10 build
-                19041 и новее, x64
+                {release.installer!.size > 0 && `${megabytes(t, release.installer!.size)}, `}
+                {t(($) => $.download.requirements)}
               </p>
               <a
                 className="ui-button ui-button--primary ui-button--lg ui-button--full download-card__primary"
                 href={release.installer!.url}
                 download=""
               >
-                <DownloadIcon size={18} aria-hidden="true" /> Скачать установщик
+                <DownloadIcon size={18} aria-hidden="true" /> {t(($) => $.download.installer)}
               </a>
-              <p className="download-card__note">
-                Установка для текущего пользователя — прав администратора не нужно. WebView2 поставится сам,
-                если его ещё нет.
-              </p>
+              <p className="download-card__note">{t(($) => $.download.installNote)}</p>
               {release.portable && (
                 <a className="download-card__portable" href={release.portable.url} download="">
-                  Портативная сборка без установки, ZIP
-                  {release.portable.size > 0 && `, ${megabytes(release.portable.size)}`}
+                  {t(($) => $.download.portable)}
+                  {release.portable.size > 0 && `, ${megabytes(t, release.portable.size)}`}
                 </a>
               )}
             </>
@@ -84,16 +83,13 @@ export function Download() {
         </section>
         <section className="shell-card download-section">
           <h2>
-            <Server size={18} aria-hidden="true" /> Куда подключаться после установки
+            <Server size={18} aria-hidden="true" /> {t(($) => $.download.connect.title)}
           </h2>
-          <p>
-            Cord не подключается никуда сам — при первом запуске он спросит адрес сервера. Это адрес вот этой
-            страницы, тот же, с которого вы сейчас скачиваете приложение:
-          </p>
+          <p>{t(($) => $.download.connect.text)}</p>
           <div className="download-address">
             <Server size={16} aria-hidden="true" />
             <input
-              aria-label="Адрес этого сервера"
+              aria-label={t(($) => $.download.connect.address)}
               value={address}
               readOnly
               onFocus={(e) => e.target.select()}
@@ -111,35 +107,24 @@ export function Download() {
               }
             }}
           >
-            {copied ? 'Адрес скопирован' : 'Скопировать адрес'}
+            {copied ? t(($) => $.download.connect.copied) : t(($) => $.download.connect.copy)}
           </Button>
-          <p className="download-card__note">
-            В Cord: «Указать первый сервер» → вставьте адрес → «Добавить». Имя и пароль — по желанию сервера;
-            серверов можно держать несколько и переключаться между ними.
-          </p>
+          <p className="download-card__note">{t(($) => $.download.connect.note)}</p>
         </section>
         <section className="shell-card download-section">
           <h2>
-            <ShieldAlert size={18} aria-hidden="true" /> Windows покажет предупреждение
+            <ShieldAlert size={18} aria-hidden="true" /> {t(($) => $.download.warning.title)}
           </h2>
-          <p>
-            Установщик не подписан сертификатом издателя, поэтому SmartScreen скажет «Система Windows защитила
-            ваш компьютер» и назовёт издателя неизвестным. Это говорится про любую новую программу без
-            платного сертификата, а не про конкретно эту.
-          </p>
+          <p>{t(($) => $.download.warning.text)}</p>
           <ol>
             <li>
-              В окне предупреждения нажмите <b>Подробнее</b>.
+              <Trans i18nKey={($) => $.download.warning.details} components={{ b: <b /> }} />
             </li>
             <li>
-              Затем <b>Выполнить в любом случае</b>.
+              <Trans i18nKey={($) => $.download.warning.run} components={{ b: <b /> }} />
             </li>
           </ol>
-          <p>
-            Это один раз, при установке. Дальше Cord запускается обычно: пометку «скачано из интернета» несёт
-            скачанный файл, а не то, что установщик положил на диск. У портативной сборки пометка остаётся на
-            распакованных файлах, поэтому установщик спокойнее.
-          </p>
+          <p>{t(($) => $.download.warning.after)}</p>
         </section>
       </main>
     </div>

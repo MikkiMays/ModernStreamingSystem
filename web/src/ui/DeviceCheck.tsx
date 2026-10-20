@@ -1,4 +1,5 @@
 import { Mic, Video, Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Preferences } from '../core/preferences';
 import { useDeviceCheck } from './settings/useDeviceCheck';
 
@@ -8,13 +9,12 @@ import { useDeviceCheck } from './settings/useDeviceCheck';
  * Private capture only: no call to publishTrack, even when opened during a meeting.
  */
 export function DeviceCheck({ preferences }: { preferences: Preferences }) {
+  const { t } = useTranslation();
   const check = useDeviceCheck(preferences);
   return (
-    <section className="device-check" aria-label="Проверка устройств">
-      <h3>Проверьте себя</h3>
-      <p className="muted">
-        Предпросмотр и запись слышны и видны только вам. Проверка остановится при закрытии окна.
-      </p>
+    <section className="device-check" aria-label={t(($) => $.devices.check.label)}>
+      <h3>{t(($) => $.devices.check.title)}</h3>
+      <p className="muted">{t(($) => $.devices.check.privacy)}</p>
       <div className="check-actions">
         <button
           className="button secondary"
@@ -23,7 +23,7 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
           aria-pressed={check.mic}
         >
           <Mic size={18} />
-          {check.mic ? 'Остановить проверку микрофона' : 'Проверить микрофон'}
+          {check.mic ? t(($) => $.devices.check.micStop) : t(($) => $.devices.check.micStart)}
         </button>
         <button
           className="button secondary"
@@ -32,17 +32,17 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
           aria-pressed={check.camera}
         >
           <Video size={18} />
-          {check.camera ? 'Остановить проверку камеры' : 'Проверить камеру'}
+          {check.camera ? t(($) => $.devices.check.cameraStop) : t(($) => $.devices.check.cameraStart)}
         </button>
         <button className="button ghost" onClick={() => void check.speaker()}>
           <Volume2 size={18} />
-          Проверить динамики
+          {t(($) => $.devices.check.speakers)}
         </button>
       </div>
       {check.mic && (
         <div className="mic-test">
           <label>
-            Уровень микрофона
+            {t(($) => $.devices.check.micLevel)}
             <meter
               min="0"
               max="100"
@@ -50,16 +50,21 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
               high={90}
               optimum={60}
               value={check.level}
-              aria-label="Уровень микрофона"
+              aria-label={t(($) => $.devices.check.micLevel)}
             />
           </label>
           <button className="button secondary" disabled={check.recording} onClick={check.record}>
-            {check.recording ? 'Записываем 5 секунд…' : 'Записать 5 секунд и послушать'}
+            {check.recording ? t(($) => $.devices.check.recording) : t(($) => $.devices.check.record)}
           </button>
         </div>
       )}
       {check.recorded && (
-        <audio ref={check.playback} controls src={check.recorded} aria-label="Ваша тестовая запись" />
+        <audio
+          ref={check.playback}
+          controls
+          src={check.recorded}
+          aria-label={t(($) => $.devices.check.recorded)}
+        />
       )}
       <video
         ref={check.video}
@@ -67,9 +72,15 @@ export function DeviceCheck({ preferences }: { preferences: Preferences }) {
         muted
         playsInline
         className={`device-check-video ${check.camera ? '' : 'hidden'}`}
-        aria-label="Тест камеры только для вас"
+        aria-label={t(($) => $.devices.check.cameraPreview)}
       />
-      {check.busy && <p role="status">Включаем {check.busy === 'camera' ? 'камеру' : 'микрофон'}…</p>}
+      {check.busy && (
+        <p role="status">
+          {check.busy === 'camera'
+            ? t(($) => $.devices.check.startingCamera)
+            : t(($) => $.devices.check.startingMic)}
+        </p>
+      )}
       {check.failure && (
         <p className="form-error" role="alert">
           {check.failure.text}

@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Meeting } from '../core/meeting';
 import type { DurakTable } from '../api/types';
 import { DurakReactions } from './DurakReactions';
-import { DURAK_STICKERS } from '../core/durak-stickers';
+import { DURAK_STICKERS, stickerLabel } from '../core/durak-stickers';
+import { t } from '../i18n';
 let now = 10000;
 const command = vi.fn().mockResolvedValue(undefined);
 const meeting = { serverNow: () => now, command } as unknown as Meeting;
@@ -18,7 +19,7 @@ describe('Durak reactions', () => {
   it('keeps all protocol IDs but deduplicates the artwork', () => {
     expect(DURAK_STICKERS).toHaveLength(54);
     expect(new Set(DURAK_STICKERS.map((s) => s.asset)).size).toBe(29);
-    expect(DURAK_STICKERS.every((s) => s.label.length > 3)).toBe(true);
+    expect(DURAK_STICKERS.every((s) => stickerLabel(t, s).length > 3)).toBe(true);
   });
   it('expires at server time and stops its timer', () => {
     vi.useFakeTimers();

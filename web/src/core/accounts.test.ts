@@ -1,18 +1,19 @@
 import { expect, it } from 'vitest';
-import { ACCOUNTS, connected, type TokenAccount } from './accounts';
+import { t } from '../i18n';
+import { accountName, ACCOUNTS, connected, tokenText, type TokenAccount } from './accounts';
 import { readPreferences } from './preferences';
 
 it('describes the Yandex Music token under the same key and limits it had in «Профиль»', () => {
   const account = ACCOUNTS.find((entry) => entry.id === 'yandex-music') as TokenAccount | undefined;
   if (!account) throw new Error('в реестре нет Яндекс Музыки');
-  expect(account).toMatchObject({
+  expect({ ...account, name: accountName(t, account), ...tokenText(t, account) }).toMatchObject({
     name: 'Яндекс Музыка',
     label: 'Токен Яндекс Музыки',
     key: 'yandexMusicToken',
     input: 'token',
     maxLength: 1000,
   });
-  expect(account.hint).toMatch(/Яндекс Музык/);
+  expect(tokenText(t, account).hint).toMatch(/Яндекс Музык/);
 });
 
 it('держит Telegram в списке со значком «Скоро», пока E09 не включил привязку', () => {

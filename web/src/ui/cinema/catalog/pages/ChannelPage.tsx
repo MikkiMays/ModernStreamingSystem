@@ -1,19 +1,16 @@
 import type { ReactNode } from 'react';
 import { Tv } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { viewers, type ChannelTab, type CinemaChannel, type CinemaItem } from '../../../../core/cinema';
 import { More } from '../More';
 import { Empty, Failure, Loading } from '../notes';
 import { Grid } from '../tiles';
 import type { Feed } from '../usePage';
 
-/** Вкладка страницы канала: какая лента за ней и как она называется у самой площадки. */
-export interface ChannelTabSpec {
-  id: ChannelTab;
-  name: string;
-}
-
 /** Лицо канала: баннер, аватар, имя и одна строка о нём. */
 function ChannelHead({ person }: { person: CinemaChannel }) {
+  const { t } = useTranslation();
+  const followers = viewers(t, person.followers);
   return (
     <header className="cinema-channel-head">
       {person.banner && (
@@ -31,8 +28,12 @@ function ChannelHead({ person }: { person: CinemaChannel }) {
           <h3>{person.title}</h3>
           <small>
             {person.handle ? `${person.handle} · ` : ''}
-            {viewers(person.followers) ? `${viewers(person.followers)} подписчиков` : 'Канал'}
-            {person.live && person.viewers ? ` · в эфире, ${viewers(person.viewers)} смотрят` : ''}
+            {followers
+              ? t(($) => $.cinema.meta.followers, { value: followers })
+              : t(($) => $.cinema.meta.channel)}
+            {person.live && person.viewers
+              ? ` · ${t(($) => $.cinema.meta.liveWatching, { value: viewers(t, person.viewers) })}`
+              : ''}
             {person.category ? ` · ${person.category}` : ''}
           </small>
         </div>
@@ -44,7 +45,8 @@ function ChannelHead({ person }: { person: CinemaChannel }) {
 /**
  * Страница канала: шапка, вкладки площадки и лента открытой вкладки (или «О канале»).
  *
- * Какие вкладки у канала бывают, знает сцена своей площадки — здесь их только рисуют.
+ * Какие вкладки у канала бывают, знает сцена своей площадки — здесь их только рисуют; подписи
+ * вкладок — в каталоге (`cinema.channel.tabs`), одни на все площадки.
  */
 export function ChannelPage({
   person,
@@ -57,26 +59,28 @@ export function ChannelPage({
 }: {
   /** Шапка канала; пусто, пока площадка её не прислала. */
   person: CinemaChannel | null;
-  tabs: readonly ChannelTabSpec[];
+  tabs: readonly ChannelTab[];
   tab: ChannelTab;
   onTab: (tab: ChannelTab) => void;
   feed: Feed;
   items: CinemaItem[];
   card: (item: CinemaItem) => ReactNode;
 }) {
+  const { t } = useTranslation();
+  const followers = person ? viewers(t, person.followers) : null;
   return (
     <>
       {person && <ChannelHead person={person} />}
-      <nav className="cinema-tabs" role="tablist" aria-label="Разделы канала">
+      <nav className="cinema-tabs" role="tablist" aria-label={t(($) => $.cinema.channel.tabsLabel)}>
         {tabs.map((entry) => (
           <button
-            key={entry.id}
+            key={entry}
             role="tab"
-            aria-selected={tab === entry.id}
+            aria-selected={tab === entry}
             className="cinema-tab"
-            onClick={() => onTab(entry.id)}
+            onClick={() => onTab(entry)}
           >
-            {entry.name}
+            {t(($) => $.cinema.channel.tabs[entry])}
           </button>
         ))}
       </nav>
@@ -87,10 +91,10 @@ export function ChannelPage({
             {person.description ? (
               <p className="cinema-about cinema-about-full">{person.description}</p>
             ) : (
-              <Empty text="Канал ничего о себе не написал." />
+              <Empty text={t(($) => $.cinema.channel.noAbout)} />
             )}
             <p className="cinema-detail-meta">
-              {viewers(person.followers) && <span>{viewers(person.followers)} подписчиков</span>}
+              {followers && <span>{t(($) => $.cinema.meta.followers, { value: followers })}</span>}
               {person.handle && <span>{person.handle}</span>}
             </p>
           </div>
@@ -107,13 +111,9 @@ export function ChannelPage({
           {!feed.isFetching && items.length === 0 && (
             <Empty
               text={
-                tab === 'playlists'
-                  ? 'У канала нет плейлистов.'
-                  : tab === 'streams'
-                    ? 'Канал не ведёт трансляций.'
-                    : tab === 'shorts'
-                      ? 'Коротких роликов у канала нет.'
-                      : 'Здесь пока нечего смотреть.'
+                tab === 'playlists' || tab === 'streams' || tab === 'shorts'
+                  ? t(($) => $.cinema.channel.empty[tab])
+                  : t(($) => $.cinema.channel.empty.other)
               }
             />
           )}

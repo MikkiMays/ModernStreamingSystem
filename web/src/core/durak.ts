@@ -1,4 +1,5 @@
 import type { DurakTable } from '../api/types';
+import type { Translate } from '../i18n';
 import { sha256 } from './poker';
 
 /**
@@ -79,23 +80,28 @@ export function fanAngle(index: number, count: number): { angle: number; lift: n
   return { angle, lift: Math.round((1 - away * away) * 14) };
 }
 
-const SUITS: Record<string, { glyph: string; red: boolean; name: string }> = {
-  s: { glyph: '♠', red: false, name: 'пики' },
-  h: { glyph: '♥', red: true, name: 'черви' },
-  d: { glyph: '♦', red: true, name: 'бубны' },
-  c: { glyph: '♣', red: false, name: 'трефы' },
+type Suit = 's' | 'h' | 'd' | 'c';
+
+const SUITS: Record<Suit, { glyph: string; red: boolean }> = {
+  s: { glyph: '♠', red: false },
+  h: { glyph: '♥', red: true },
+  d: { glyph: '♦', red: true },
+  c: { glyph: '♣', red: false },
 };
 
-const RANKS: Record<string, string> = {
-  T: '10',
-  J: 'В',
-  Q: 'Д',
-  K: 'К',
-  A: 'Т',
-};
+function isSuit(suit: string): suit is Suit {
+  return suit in SUITS;
+}
+
+/** Старшие карты: буква на лице и имя вслух — из каталога (`durak.ranks`, `durak.spoken`). */
+type Face = 'J' | 'Q' | 'K' | 'A';
+
+function isFace(rank: string): rank is Face {
+  return rank === 'J' || rank === 'Q' || rank === 'K' || rank === 'A';
+}
 
 export interface CardFace {
-  /** Номинал так, как его читают вслух по-русски: `В`, `Д`, `К`, `Т`, `10`, `6`. */
+  /** Номинал так, как его читают вслух на языке каталога: по-русски `В`, `Д`, `К`, `Т`, `10`, `6`. */
   rank: string;
   suit: string;
   glyph: string;
@@ -105,50 +111,30 @@ export interface CardFace {
 }
 
 /** Карта из провода (`As`, `7h`) в то, что рисуется и читается. */
-export function faceOf(card: string): CardFace {
+export function faceOf(t: Translate, card: string): CardFace {
   const rank = card.charAt(0);
-  const suit = SUITS[card.charAt(1)] ?? SUITS.s!;
-  const shown = RANKS[rank] ?? rank;
-  const spoken =
-    rank === 'T'
-      ? 'десятка'
-      : rank === 'J'
-        ? 'валет'
-        : rank === 'Q'
-          ? 'дама'
-          : rank === 'K'
-            ? 'король'
-            : rank === 'A'
-              ? 'туз'
-              : shown;
+  const code = card.charAt(1);
+  const suit: Suit = isSuit(code) ? code : 's';
+  const shown = isFace(rank) ? t(($) => $.durak.ranks[rank]) : rank === 'T' ? '10' : rank;
+  const spoken = isFace(rank) || rank === 'T' ? t(($) => $.durak.spoken[rank]) : shown;
   return {
     rank: shown,
-    suit: card.charAt(1),
-    glyph: suit.glyph,
-    red: suit.red,
-    label: `${spoken}, ${suit.name}`,
+    suit: code,
+    glyph: SUITS[suit].glyph,
+    red: SUITS[suit].red,
+    label: t(($) => $.durak.cardLabel, { rank: spoken, suit: t(($) => $.durak.suits[suit]) }),
   };
 }
 
 /** Козырь этой раздачи одной буквой масти — для подписи «козыри бубны». */
-export function trumpName(table: DurakTable): string {
-  const suit = table.trumpSuit ? SUITS[table.trumpSuit] : undefined;
-  return suit ? suit.name : '';
-}
-
-/** Число со словом по русскому счёту. То же правило, что в `core/poker.ts`. */
-export function plural(count: number, one: string, few: string, many: string): string {
-  const tail = count % 10;
-  const teen = count % 100;
-  if (teen >= 11 && teen <= 14) return `${count} ${many}`;
-  if (tail === 1) return `${count} ${one}`;
-  if (tail >= 2 && tail <= 4) return `${count} ${few}`;
-  return `${count} ${many}`;
+export function trumpName(t: Translate, table: DurakTable): string {
+  const suit = table.trumpSuit;
+  return suit && isSuit(suit) ? t(($) => $.durak.suits[suit]) : '';
 }
 
 /** Как называется вариант правил. */
-export function modeName(mode: DurakTable['mode']): string {
-  return mode === 'perevodnoy' ? 'Переводной' : 'Подкидной';
+export function modeName(t: Translate, mode: DurakTable['mode']): string {
+  return mode === 'perevodnoy' ? t(($) => $.durak.modes.perevodnoy) : t(($) => $.durak.modes.podkidnoy);
 }
 
 /**
@@ -158,33 +144,38 @@ export function modeName(mode: DurakTable['mode']): string {
  * это один вопрос, который задают, подняв глаза от своих карт. Ответ собирается из снимка, и
  * решает его сервер: здесь только слова.
  */
-export function tableSays(table: DurakTable, mySeat: number | null): string {
-  if (table.phase === 'lobby') return 'Стол ждёт раздачи';
+export function tableSays(t: Translate, table: DurakTable, mySeat: number | null): string {
+  if (table.phase === 'lobby') return t(($) => $.durak.says.lobby);
   if (table.phase === 'over') {
-    if (table.result?.draw) return 'Ничья — карт не осталось ни у кого';
-    return table.result ? `${table.result.foolName} — дурак` : 'Партия сыграна';
+    if (table.result?.draw) return t(($) => $.durak.says.draw);
+    return table.result
+      ? t(($) => $.durak.fool, { name: table.result.foolName })
+      : t(($) => $.durak.says.over);
   }
   if (table.boutEnd === 'taken') {
     const taker = table.seats[table.defender]?.name ?? '';
-    return `${taker} забирает`;
+    return t(($) => $.durak.says.taken, { name: taker });
   }
-  if (table.boutEnd === 'beaten') return 'Бито';
+  if (table.boutEnd === 'beaten') return t(($) => $.durak.says.beaten);
   const waiting = table.acting;
-  if (!waiting.length) return 'Стол раздаёт';
+  if (!waiting.length) return t(($) => $.durak.says.dealing);
   // Нечем отбиться — стол возьмёт за защитника сам через полторы секунды (T07).
   const cornered = table.seats.find((seat) => seat.index === table.defender)?.auto === 'take';
   if (cornered)
     return mySeat === table.defender
-      ? 'Нечем отбиться — берём карты'
-      : `${table.seats[table.defender]?.name ?? ''}: нечем отбиться — берёт`;
+      ? t(($) => $.durak.says.corneredMe)
+      : t(($) => $.durak.says.cornered, { name: table.seats[table.defender]?.name ?? '' });
   if (mySeat !== null && waiting.includes(mySeat)) {
-    if (mySeat === table.defender && !table.taking) return 'Ваш ход: отбивайтесь или берите';
-    return table.table.length ? 'Ваш ход: подкиньте или скажите «бито»' : 'Ваш ход: заходите';
+    if (mySeat === table.defender && !table.taking) return t(($) => $.durak.says.defend);
+    return table.table.length ? t(($) => $.durak.says.throw) : t(($) => $.durak.says.lead);
   }
   const names = waiting.map((index) => table.seats[index]?.name).filter(Boolean);
-  if (!names.length) return 'Стол думает';
-  if (waiting.length === 1 && waiting[0] === table.defender) return `${names[0]} отбивается`;
-  return names.length === 1 ? `Ждём ${names[0]}` : `Подкидывают: ${names.join(', ')}`;
+  if (!names.length) return t(($) => $.durak.says.thinking);
+  if (waiting.length === 1 && waiting[0] === table.defender)
+    return t(($) => $.durak.says.defends, { name: names[0] });
+  return names.length === 1
+    ? t(($) => $.durak.says.waiting, { name: names[0] })
+    : t(($) => $.durak.says.throwing, { names: names.join(', ') });
 }
 
 /** Сколько ещё карт влезает в бой. Ноль — больше ничего не подкинуть. */
@@ -225,10 +216,18 @@ export function commandFor(drop: Drop, defending: boolean): { option: string; un
   return { option: defending ? 'transfer' : 'attack' };
 }
 
+/** Итог проверки. Причина — код, а не текст: слова к ней подбирает {@link verdictReason}. */
 export type Verdict =
   | { state: 'ok'; cards: number }
-  | { state: 'mismatch'; reason: string }
-  | { state: 'unavailable'; reason: string };
+  | { state: 'mismatch'; reason: 'commitment' }
+  | { state: 'mismatch'; reason: 'trump'; card: string }
+  | { state: 'unavailable'; reason: 'unrevealed' | 'notStarted' };
+
+/** Почему проверка не сошлась или ещё невозможна — словами. */
+export function verdictReason(t: Translate, verdict: Exclude<Verdict, { state: 'ok' }>): string {
+  if (verdict.reason === 'trump') return t(($) => $.durak.verdict.trump, { card: verdict.card });
+  return t(($) => $.durak.verdict[verdict.reason]);
+}
 
 /**
  * Сошлась ли раздача с обещанием, данным до неё.
@@ -240,15 +239,13 @@ export type Verdict =
  * подменить его значило бы подменить и зерно, а отпечаток уже у всех на руках.
  */
 export async function verifyDeal(table: DurakTable): Promise<Verdict> {
-  if (!table.seed || !table.commitment)
-    return { state: 'unavailable', reason: 'Зерно раскрывается, когда партия сыграна' };
-  if ((await sha256(table.seed)) !== table.commitment)
-    return { state: 'mismatch', reason: 'Отпечаток зерна не совпал с объявленным до раздачи' };
-  if (!table.trump) return { state: 'unavailable', reason: 'Раздача ещё не начиналась' };
+  if (!table.seed || !table.commitment) return { state: 'unavailable', reason: 'unrevealed' };
+  if ((await sha256(table.seed)) !== table.commitment) return { state: 'mismatch', reason: 'commitment' };
+  if (!table.trump) return { state: 'unavailable', reason: 'notStarted' };
   const deck = await shuffle(table.seed, table.deckSize);
   const bottom = deck[deck.length - 1];
   if (bottom === undefined || cardText(bottom) !== table.trump)
-    return { state: 'mismatch', reason: `Козырь ${table.trump} не тот, что следует из зерна` };
+    return { state: 'mismatch', reason: 'trump', card: table.trump };
   return { state: 'ok', cards: deck.length };
 }
 

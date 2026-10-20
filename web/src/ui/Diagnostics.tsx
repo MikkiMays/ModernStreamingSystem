@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RotateCcw, Wifi } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { publicApi } from '../api/client';
 import { StatsSampler, type Sample } from '../media/diagnostics';
@@ -7,7 +8,13 @@ import { gradeName, pathName } from '../media/link-quality';
 import { Modal, useStore } from './primitives';
 import { DeviceCheck } from './DeviceCheck';
 
+/** Причины, которыми браузер объясняет ограничение передачи; незнакомую показываем как есть. */
+const LIMITS = ['none', 'cpu', 'bandwidth', 'unknown'] as const;
+type Limit = (typeof LIMITS)[number];
+const isLimit = (value: string): value is Limit => (LIMITS as readonly string[]).includes(value);
+
 export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) {
+  const { t } = useTranslation();
   const [samples, setSamples] = useState<(Sample & { name: string })[]>([]);
   const [network, setNetwork] = useState<{ running: boolean; times: number[]; failures: number }>({
     running: false,
@@ -68,168 +75,176 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
       wide
       open
       onOpenChange={onClose}
-      title="Диагностика"
-      description="Проверьте устройства и фактическое соединение этой встречи."
+      title={t(($) => $.diagnostics.title)}
+      description={t(($) => $.diagnostics.description)}
     >
       <div className="diagnostics-list">
         <DeviceCheck preferences={preferences} />
         <section className="network-check">
           <h3>
-            <Wifi size={19} /> Сеть
+            <Wifi size={19} /> {t(($) => $.diagnostics.network)}
           </h3>
           <dl className="network-metrics">
             <div>
-              <dt>Аудио и видео</dt>
+              <dt>{t(($) => $.diagnostics.media.label)}</dt>
               <dd>
                 {media.status === 'connected'
-                  ? 'Подключены'
+                  ? t(($) => $.diagnostics.media.connected)
                   : media.status === 'recovering'
-                    ? 'Восстанавливаются'
-                    : 'Не подключены'}
+                    ? t(($) => $.diagnostics.media.recovering)
+                    : t(($) => $.diagnostics.media.disconnected)}
               </dd>
             </div>
             <div>
-              <dt>Чат и управление</dt>
+              <dt>{t(($) => $.diagnostics.control.label)}</dt>
               <dd>
-                {control === 'connected' ? 'Подключены' : control === 'closed' ? 'Отключены' : 'Подключение…'}
+                {control === 'connected'
+                  ? t(($) => $.diagnostics.control.connected)
+                  : control === 'closed'
+                    ? t(($) => $.diagnostics.control.closed)
+                    : t(($) => $.diagnostics.control.connecting)}
               </dd>
             </div>
             <div>
-              <dt>Качество по данным сервера медиа</dt>
+              <dt>{t(($) => $.diagnostics.quality.label)}</dt>
+              <dd>{t(($) => $.diagnostics.quality.values[media.quality])}</dd>
+            </div>
+            <div>
+              <dt>{t(($) => $.diagnostics.path)}</dt>
               <dd>
-                {
-                  {
-                    excellent: 'Отличное',
-                    good: 'Хорошее',
-                    poor: 'Слабое',
-                    lost: 'Связь потеряна',
-                    unknown: 'Пока нет данных',
-                  }[media.quality]
-                }
+                {pathName(t, link.path)} · {gradeName(t, link.grade)}
               </dd>
             </div>
             <div>
-              <dt>Путь медиа</dt>
+              <dt>{t(($) => $.diagnostics.jitter.label)}</dt>
               <dd>
-                {pathName(link.path)} · {gradeName(link.grade)}
+                {link.jitterMs === null
+                  ? t(($) => $.diagnostics.noData)
+                  : t(($) => $.diagnostics.jitter.value, { ms: Math.round(link.jitterMs) })}
               </dd>
             </div>
             <div>
-              <dt>Неровность прихода пакетов</dt>
-              <dd>{link.jitterMs === null ? 'Нет данных' : `${Math.round(link.jitterMs)} мс, пик`}</dd>
-            </div>
-            <div>
-              <dt>Запас буфера, который просит клиент</dt>
+              <dt>{t(($) => $.diagnostics.buffer.label)}</dt>
               <dd>
                 {targets.length
                   ? targets
-                      .map(
-                        (target) =>
-                          `${{ conversation: 'разговор', media: 'музыка и экран', video: 'видео' }[target.kind]} ${target.targetMs} мс`,
+                      .map((target) =>
+                        t(($) => $.diagnostics.buffer.target, {
+                          kind: t(($) => $.diagnostics.buffer.kinds[target.kind]),
+                          ms: target.targetMs,
+                        }),
                       )
                       .join(' · ')
-                  : 'Нет подписанных дорожек'}
+                  : t(($) => $.diagnostics.buffer.none)}
               </dd>
             </div>
           </dl>
           {link.ordered && (
             <p className="form-footnote" role="status">
-              Медиа идёт через ретранслятор поверх TCP/TLS. Такой путь не теряет пакеты, а переспрашивает их,
-              и всё пришедшее следом ждёт опоздавшего — на слух это «замолчало, а потом заговорило быстрее».
-              Запас буфера поднят автоматически. Если это повторяется, проверьте, пропускает ли сеть UDP до
-              сервера медиа: прямой путь заметно ровнее.
+              {t(($) => $.diagnostics.ordered)}
             </p>
           )}
           <button className="button secondary" disabled={network.running} onClick={() => void testNetwork()}>
-            {network.running ? 'Проверяем…' : 'Проверить сеть'}
+            {network.running ? t(($) => $.diagnostics.checking) : t(($) => $.diagnostics.check)}
           </button>
           {!!(network.times.length + network.failures) && (
             <p role="status" className="network-result">
-              Ответ сервера:{' '}
-              {network.times.length
-                ? `${Math.round(network.times.reduce((a, b) => a + b, 0) / network.times.length)} мс в среднем · ${Math.round(Math.min(...network.times))}–${Math.round(Math.max(...network.times))} мс`
-                : 'не получен'}
-              . Успешных запросов: {network.times.length} из {network.times.length + network.failures}.
+              {t(($) => $.diagnostics.result.text, {
+                answer: network.times.length
+                  ? t(($) => $.diagnostics.result.average, {
+                      average: Math.round(network.times.reduce((a, b) => a + b, 0) / network.times.length),
+                      min: Math.round(Math.min(...network.times)),
+                      max: Math.round(Math.max(...network.times)),
+                    })
+                  : t(($) => $.diagnostics.result.none),
+                ok: network.times.length,
+                total: network.times.length + network.failures,
+              })}
             </p>
           )}
-          <p className="form-footnote">
-            Проверка измеряет время ответа сервера приложения. Маршрут аудио и видео, потери пакетов и RTT до
-            медиасервера показаны ниже, когда во встрече передаются дорожки.
-          </p>
+          <p className="form-footnote">{t(($) => $.diagnostics.footnote)}</p>
         </section>
         <details className="technical-diagnostics" open={samples.length > 0}>
-          <summary>Подробности аудио и видео</summary>
-          {!samples.length && (
-            <p className="muted">
-              Во встрече пока нет активных дорожек. Локальная проверка устройств не отправляет тест на
-              медиасервер.
-            </p>
-          )}
+          <summary>{t(($) => $.diagnostics.details)}</summary>
+          {!samples.length && <p className="muted">{t(($) => $.diagnostics.noTracks)}</p>}
           {samples.map((sample, i) => (
             <article className="diagnostic-sample" key={`${sample.name}-${i}`}>
               <strong>
-                {sample.name} · {sample.kind === 'audio' ? 'Аудио' : 'Видео'} · {sample.direction}
+                {sample.name} ·{' '}
+                {sample.kind === 'audio' ? t(($) => $.diagnostics.audio) : t(($) => $.diagnostics.video)} ·{' '}
+                {sample.direction}
               </strong>
               <dl>
                 {sample.kind === 'video' && (
                   <>
                     <div>
-                      <dt>Разрешение</dt>
+                      <dt>{t(($) => $.diagnostics.resolution)}</dt>
                       <dd>
                         {sample.width} × {sample.height}
                       </dd>
                     </div>
                     <div>
-                      <dt>Кадры в секунду</dt>
+                      <dt>{t(($) => $.diagnostics.fps)}</dt>
                       <dd>{sample.fps.toFixed(1)}</dd>
                     </div>
                   </>
                 )}
                 <div>
-                  <dt>Битрейт</dt>
-                  <dd>{(sample.mbps * 1000).toFixed(0)} Кбит/с</dd>
+                  <dt>{t(($) => $.diagnostics.bitrate)}</dt>
+                  <dd>{t(($) => $.diagnostics.kbps, { value: (sample.mbps * 1000).toFixed(0) })}</dd>
                 </div>
                 <div>
-                  <dt>Потери пакетов за интервал</dt>
-                  <dd>{sample.loss === null ? 'Нет данных' : `${sample.loss.toFixed(1)}%`}</dd>
+                  <dt>{t(($) => $.diagnostics.loss)}</dt>
+                  <dd>
+                    {sample.loss === null ? t(($) => $.diagnostics.noData) : `${sample.loss.toFixed(1)}%`}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Соединение</dt>
+                  <dt>{t(($) => $.diagnostics.connection)}</dt>
                   <dd>{sample.transport}</dd>
                 </div>
                 <div>
-                  <dt>RTT до медиасервера</dt>
-                  <dd>{sample.rttMs === null ? 'Нет данных' : `${sample.rttMs.toFixed(0)} мс`}</dd>
+                  <dt>{t(($) => $.diagnostics.rtt)}</dt>
+                  <dd>
+                    {sample.rttMs === null
+                      ? t(($) => $.diagnostics.noData)
+                      : t(($) => $.diagnostics.ms, { value: sample.rttMs.toFixed(0) })}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Кодек</dt>
+                  <dt>{t(($) => $.diagnostics.codec)}</dt>
                   <dd>{sample.codec}</dd>
                 </div>
                 <div>
-                  <dt>Буфер приёма</dt>
-                  <dd>{sample.bufferMs === null ? 'Нет данных' : `${sample.bufferMs.toFixed(0)} мс`}</dd>
+                  <dt>{t(($) => $.diagnostics.bufferRx)}</dt>
+                  <dd>
+                    {sample.bufferMs === null
+                      ? t(($) => $.diagnostics.noData)
+                      : t(($) => $.diagnostics.ms, { value: sample.bufferMs.toFixed(0) })}
+                  </dd>
                 </div>
                 {sample.kind === 'video' && (
                   <>
                     <div>
-                      <dt>{sample.direction === 'Передача' ? 'Кодирование кадра' : 'Декодирование кадра'}</dt>
+                      <dt>
+                        {sample.outbound ? t(($) => $.diagnostics.encode) : t(($) => $.diagnostics.decode)}
+                      </dt>
                       <dd>
-                        {sample.processingMs === null ? 'Нет данных' : `${sample.processingMs.toFixed(1)} мс`}
+                        {sample.processingMs === null
+                          ? t(($) => $.diagnostics.noData)
+                          : t(($) => $.diagnostics.ms, { value: sample.processingMs.toFixed(1) })}
                       </dd>
                     </div>
                     <div>
-                      <dt>Обработчик видео</dt>
+                      <dt>{t(($) => $.diagnostics.implementation)}</dt>
                       <dd>{sample.implementation}</dd>
                     </div>
                     <div>
-                      <dt>Ограничение</dt>
+                      <dt>{t(($) => $.diagnostics.limitation)}</dt>
                       <dd>
-                        {{
-                          none: 'Не обнаружено',
-                          cpu: 'Кодировщик / CPU',
-                          bandwidth: 'Канал связи',
-                          unknown: 'Нет данных от отправителя',
-                        }[sample.limitation] ?? sample.limitation}
+                        {isLimit(sample.limitation)
+                          ? t(($) => $.diagnostics.limits[sample.limitation as Limit])
+                          : sample.limitation}
                       </dd>
                     </div>
                   </>
@@ -239,17 +254,15 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
           ))}
         </details>
         <section className="network-check">
-          <h3>Изображение или звук зависли?</h3>
-          <p className="form-footnote">
-            Обновим получение дорожек от других участников. Возможна короткая пауза.
-          </p>
+          <h3>{t(($) => $.diagnostics.stuck.title)}</h3>
+          <p className="form-footnote">{t(($) => $.diagnostics.stuck.text)}</p>
           <button
             className="button secondary"
             disabled={media.status !== 'connected'}
             onClick={() => void meeting.media.returnToLive()}
           >
             <RotateCcw size={17} />
-            Обновить аудио и видео
+            {t(($) => $.diagnostics.stuck.button)}
           </button>
         </section>
       </div>

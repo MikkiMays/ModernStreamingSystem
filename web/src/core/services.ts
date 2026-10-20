@@ -1,5 +1,6 @@
 import { ApiError, request } from '../api/client';
 import type { Admission } from '../api/types';
+import { t as translate, type Translate } from '../i18n';
 
 /** Откуда трек в очереди. YouTube и SoundCloud — площадки без аккаунта (E06-B, T18). */
 export type MusicSource = 'upload' | 'telegram' | 'yandex' | 'youtube' | 'soundcloud';
@@ -13,15 +14,19 @@ export interface MusicTrack {
   /** Имя обложки у службы (`<uuid>.jpg`) или `null` — обложки нет. */
   cover: string | null;
 }
-const SOURCE_NAMES: Record<MusicSource, string> = {
-  upload: 'Аудиофайл',
+/**
+ * Имена источников латиницей — так их пишут на любом языке. Остальные («Аудиофайл», «Яндекс
+ * Музыка») — в каталоге (`music.sources`).
+ */
+const BRANDS: Partial<Record<MusicSource, string>> = {
   telegram: 'Telegram',
-  yandex: 'Яндекс Музыка',
   youtube: 'YouTube',
   soundcloud: 'SoundCloud',
 };
-export function musicSourceName(source: MusicSource) {
-  return SOURCE_NAMES[source] ?? 'Музыка';
+/** Источник трека словами; незнакомый (новая служба знает больше) — просто «Музыка». */
+export function musicSourceName(t: Translate, source: MusicSource): string {
+  if (source === 'upload' || source === 'yandex') return t(($) => $.music.sources[source]);
+  return BRANDS[source] ?? t(($) => $.music.sources.unknown);
 }
 /**
  * Адрес обложки. Картинку отдаёт служба со своего адреса и без заголовка входа: `<img>` его не
@@ -124,7 +129,11 @@ export class MusicApi {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, 'MUSIC_UPLOAD_FAILED', body.detail ?? 'Не удалось добавить трек');
+      throw new ApiError(
+        response.status,
+        'MUSIC_UPLOAD_FAILED',
+        body.detail ?? translate(($) => $.music.upload.failed),
+      );
     }
     return response.json() as Promise<MusicState>;
   }

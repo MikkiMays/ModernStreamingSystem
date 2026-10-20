@@ -12,6 +12,8 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { Translate } from '../i18n';
 import type { Meeting } from '../core/meeting';
 import type { GarticTable as Table } from '../api/types';
 import { GamePeople, GamePerson } from './GamePeople';
@@ -38,6 +40,7 @@ export default function GarticTable({ meeting }: { meeting: Meeting }) {
 }
 
 function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; host: boolean }) {
+  const { t } = useTranslation();
   const connection = useStore(meeting.control.state);
   const connected = connection === 'connected';
   const [error, setError] = useState('');
@@ -75,32 +78,32 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
     }
   };
   const phaseLabel = lobby
-    ? 'Собираемся за столом'
+    ? t(($) => $.gartic.phase.lobby)
     : table.phase === 'choosing'
       ? table.you?.choices.length
-        ? 'Выберите слово'
-        : 'Художник выбирает слово'
+        ? t(($) => $.gartic.phase.choose)
+        : t(($) => $.gartic.phase.artistChoosing)
       : table.phase === 'round-reveal'
-        ? 'Слово раскрыто'
+        ? t(($) => $.gartic.phase.roundReveal)
         : table.phase === 'finished'
-          ? 'Игра завершена'
+          ? t(($) => $.gartic.phase.finished)
           : table.phase === 'reveal'
-            ? 'Смотрим, что получилось'
+            ? t(($) => $.gartic.phase.reveal)
             : table.you?.submitted
-              ? 'Готово. Ждём остальных'
+              ? t(($) => $.gartic.phase.submitted)
               : table.phase === 'prompt'
                 ? table.you?.playing
-                  ? 'Придумайте начало истории'
-                  : 'Участники придумывают истории'
+                  ? t(($) => $.gartic.phase.prompt)
+                  : t(($) => $.gartic.phase.promptOthers)
                 : table.phase === 'describing'
                   ? table.you?.playing
-                    ? 'Опишите рисунок'
-                    : 'Участники описывают рисунки'
+                    ? t(($) => $.gartic.phase.describe)
+                    : t(($) => $.gartic.phase.describeOthers)
                   : table.you?.canDraw
-                    ? 'Время рисовать'
+                    ? t(($) => $.gartic.phase.draw)
                     : phone
-                      ? 'Рисуем полученные фразы'
-                      : 'Угадайте слово';
+                      ? t(($) => $.gartic.phase.drawPhrases)
+                      : t(($) => $.gartic.phase.guess);
 
   return (
     <section className="gartic" aria-label="Gartic" data-phase={table.phase}>
@@ -109,39 +112,36 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
           <Palette size={23} />
           <div>
             <h2>Gartic</h2>
-            <span>{phone ? 'Испорченный телефон' : 'Рисуй и угадывай'}</span>
+            <span>{phone ? t(($) => $.gartic.modes.telephone) : t(($) => $.gartic.modes.classic)}</span>
           </div>
         </div>
         {!lobby && !(phone && ended) && (
           <span className="gartic-round">
             {phone
-              ? `Шаг ${Math.min(table.step + 1, table.totalSteps)} из ${table.totalSteps}`
-              : `Круг ${table.round} из ${table.rounds}`}
+              ? t(($) => $.gartic.step, {
+                  step: Math.min(table.step + 1, table.totalSteps),
+                  total: table.totalSteps,
+                })
+              : t(($) => $.gartic.round, { round: table.round, rounds: table.rounds })}
           </span>
         )}
         <div className="gartic-header-actions">
           <details className="gartic-rules">
             <summary>
-              <BookOpen size={16} /> Правила
+              <BookOpen size={16} /> {t(($) => $.gartic.rules.title)}
             </summary>
             <div>
               {phone ? (
-                <p>
-                  Каждый придумывает фразу, следующий её рисует, а следующий описывает рисунок. Вы видите
-                  только предыдущий шаг. В конце ведущий показывает все истории.
-                </p>
+                <p>{t(($) => $.gartic.rules.telephone)}</p>
               ) : (
-                <p>
-                  По очереди выбирайте и рисуйте слово без букв и цифр. Остальные пишут ответы. Чем быстрее
-                  угадаете, тем больше очков. Художник получает очки за каждый верный ответ.
-                </p>
+                <p>{t(($) => $.gartic.rules.classic)}</p>
               )}
-              <p>Голосовой разговор продолжается. Не произносите загаданное слово вслух.</p>
+              <p>{t(($) => $.gartic.rules.voice)}</p>
             </div>
           </details>
           {host && (
             <IconButton
-              label="Закрыть Gartic"
+              label={t(($) => $.gartic.close)}
               disabled={!connected || pending}
               onClick={() => void act('gartic.close')}
             >
@@ -152,7 +152,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
       </header>
       {!connected && (
         <div className="gartic-connection" role="status">
-          Восстанавливаем связь с игрой…
+          {t(($) => $.gartic.reconnecting)}
         </div>
       )}
       {error && (
@@ -173,20 +173,20 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
             <div className="gartic-sketch" aria-hidden="true">
               <Pencil size={42} strokeWidth={1.3} />
               <span>
-                Нарисуйте.
+                {t(($) => $.gartic.lobby.sketchDraw)}
                 <br />
-                Удивите друзей.
+                {t(($) => $.gartic.lobby.sketchSurprise)}
               </span>
             </div>
-            <h3>{phone ? 'Одна фраза. Десяток неожиданных поворотов.' : 'Понятно без слов?'}</h3>
-            <p>
+            <h3>
               {phone
-                ? 'Передавайте рисунки и описания по кругу, а потом вместе смотрите, во что превратилась первая идея.'
-                : 'Кто-то рисует, остальные угадывают. Даже самые странные каракули могут принести победу.'}
-            </p>
+                ? t(($) => $.gartic.lobby.headline.telephone)
+                : t(($) => $.gartic.lobby.headline.classic)}
+            </h3>
+            <p>{phone ? t(($) => $.gartic.lobby.intro.telephone) : t(($) => $.gartic.lobby.intro.classic)}</p>
           </div>
           <div className="gartic-lobby-options">
-            <div className="gartic-mode-picker" aria-label="Режим Gartic">
+            <div className="gartic-mode-picker" aria-label={t(($) => $.gartic.lobby.modePicker)}>
               <button
                 type="button"
                 aria-pressed={!phone}
@@ -194,8 +194,8 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                 onClick={() => void act('gartic.settings', undefined, { option: 'classic' })}
               >
                 <Palette size={20} />
-                <b>Рисуй и угадывай</b>
-                <span>От 2 игроков, очки за ответы</span>
+                <b>{t(($) => $.gartic.modes.classic)}</b>
+                <span>{t(($) => $.gartic.lobby.modeHint.classic)}</span>
               </button>
               <button
                 type="button"
@@ -204,14 +204,14 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                 onClick={() => void act('gartic.settings', undefined, { option: 'telephone' })}
               >
                 <BookOpen size={20} />
-                <b>Испорченный телефон</b>
-                <span>От 3 игроков, общие истории</span>
+                <b>{t(($) => $.gartic.modes.telephone)}</b>
+                <span>{t(($) => $.gartic.lobby.modeHint.telephone)}</span>
               </button>
             </div>
             {!phone && (
               <div className="gartic-settings">
                 <label>
-                  Кругов
+                  {t(($) => $.gartic.lobby.rounds)}
                   <select
                     value={table.rounds}
                     disabled={!host || pending || !connected}
@@ -230,7 +230,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   </select>
                 </label>
                 <label>
-                  На рисунок
+                  {t(($) => $.gartic.lobby.turnSeconds)}
                   <select
                     value={table.turnSeconds}
                     disabled={!host || pending || !connected}
@@ -243,22 +243,20 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   >
                     {[45, 60, 90].map((value) => (
                       <option key={value} value={value}>
-                        {value} с
+                        {t(($) => $.gartic.lobby.seconds, { count: value })}
                       </option>
                     ))}
                   </select>
                 </label>
               </div>
             )}
-            {phone && (
-              <p className="gartic-small">
-                45 секунд на фразу, 90 секунд на рисунок. Каждый участвует в каждой истории.
-              </p>
-            )}
+            {phone && <p className="gartic-small">{t(($) => $.gartic.lobby.telephoneTiming)}</p>}
             <div className="gartic-lobby-players">
               <Users size={17} />
-              <b>{players.length} из 10 игроков</b>
-              <span>{players.map((player) => player.name).join(', ') || 'Присоединитесь первым'}</span>
+              <b>{t(($) => $.gartic.lobby.players, { count: players.length })}</b>
+              <span>
+                {players.map((player) => player.name).join(', ') || t(($) => $.gartic.lobby.joinFirst)}
+              </span>
             </div>
             <div className="gartic-actions">
               {!table.you ? (
@@ -268,11 +266,11 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   disabled={pending || !connected}
                   onClick={() => void act('gartic.join')}
                 >
-                  <Users size={17} /> Присоединиться
+                  <Users size={17} /> {t(($) => $.gartic.lobby.join)}
                 </button>
               ) : (
                 <span className="gartic-ready">
-                  <Check size={17} /> Вы в игре
+                  <Check size={17} /> {t(($) => $.gartic.lobby.inGame)}
                 </span>
               )}
               {host && (
@@ -282,17 +280,16 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   disabled={pending || !connected || players.length < minimum}
                   onClick={() => void act('gartic.start')}
                 >
-                  <Play size={17} /> Начать игру
+                  <Play size={17} /> {t(($) => $.gartic.lobby.start)}
                 </button>
               )}
             </div>
             {players.length < minimum && (
               <p className="gartic-small">
-                Для старта нужно ещё {minimum - players.length}{' '}
-                {minimum - players.length === 1 ? 'участник' : 'участника'}.
+                {t(($) => $.gartic.lobby.needMore, { count: minimum - players.length })}
               </p>
             )}
-            {!host && <p className="gartic-small">Игру запускает ведущий.</p>}
+            {!host && <p className="gartic-small">{t(($) => $.gartic.lobby.hostStarts)}</p>}
           </div>
         </div>
       ) : table.phase === 'reveal' ? (
@@ -315,7 +312,10 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
               <ClassicTask key={phaseKey} table={table} send={send} connected={connected} />
             )}
           </div>
-          <aside className="gartic-sidebar" aria-label={phone ? 'Прогресс игроков' : 'Ответы и счёт'}>
+          <aside
+            className="gartic-sidebar"
+            aria-label={phone ? t(($) => $.gartic.sidebar.telephone) : t(($) => $.gartic.sidebar.classic)}
+          >
             <Scoreboard table={table} meeting={meeting} />
             {!phone && <GuessPanel key={phaseKey} table={table} send={send} connected={connected} />}
           </aside>
@@ -327,7 +327,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
           {!table.you && !lobby && (
             <>
               <span>
-                <Eye size={16} /> Вы наблюдаете
+                <Eye size={16} /> {t(($) => $.gartic.footer.watching)}
               </span>
               <button
                 type="button"
@@ -335,13 +335,13 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                 disabled={!connected || pending}
                 onClick={() => void act('gartic.join')}
               >
-                Играть в следующей партии
+                {t(($) => $.gartic.footer.playNext)}
               </button>
             </>
           )}
           {table.you && !table.you.playing && !lobby && !ended && (
             <span>
-              <Check size={16} /> Вы присоединились к следующей партии
+              <Check size={16} /> {t(($) => $.gartic.footer.joinedNext)}
             </span>
           )}
           {table.you && (
@@ -351,7 +351,8 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
               disabled={!connected || pending}
               onClick={() => void act('gartic.leave')}
             >
-              <LogOut size={15} /> {lobby || ended ? 'Покинуть игру' : 'Стать зрителем'}
+              <LogOut size={15} />{' '}
+              {lobby || ended ? t(($) => $.gartic.footer.leave) : t(($) => $.gartic.footer.spectate)}
             </button>
           )}
           {host && ended && (
@@ -361,10 +362,10 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
               disabled={!connected || pending}
               onClick={() => void act('gartic.start')}
             >
-              <Play size={16} /> Сыграть снова
+              <Play size={16} /> {t(($) => $.gartic.footer.again)}
             </button>
           )}
-          {!host && ended && <span>Следующую игру запускает ведущий</span>}
+          {!host && ended && <span>{t(($) => $.gartic.footer.hostStartsNext)}</span>}
         </div>
         <GamePeople meeting={meeting} game="gartic" />
       </footer>
@@ -373,6 +374,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
 }
 
 function ClassicTask({ table, send, connected }: { table: Table; send: SendCommand; connected: boolean }) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const choosing = table.phase === 'choosing';
@@ -391,15 +393,21 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
   return (
     <>
       <div className="gartic-word" aria-live="polite">
-        <span>{table.answer ? 'Это было слово' : table.you?.canDraw ? 'Вы рисуете' : 'Угадайте слово'}</span>
+        <span>
+          {table.answer
+            ? t(($) => $.gartic.word.was)
+            : table.you?.canDraw
+              ? t(($) => $.gartic.word.youDraw)
+              : t(($) => $.gartic.word.guess)}
+        </span>
         <strong>{table.answer ?? (table.you?.canDraw ? table.you.prompt : table.hint) ?? '…'}</strong>
-        {table.you?.canDraw && <small>Слово видно только вам</small>}
+        {table.you?.canDraw && <small>{t(($) => $.gartic.word.onlyYou)}</small>}
       </div>
       {choosing && choices.length > 0 ? (
         <div className="gartic-choose">
           <Pencil size={34} strokeWidth={1.5} />
-          <h3>Что будете рисовать?</h3>
-          <p>Выберите одно из трёх слов.</p>
+          <h3>{t(($) => $.gartic.word.chooseTitle)}</h3>
+          <p>{t(($) => $.gartic.word.chooseHint)}</p>
           <div>
             {choices.map((word, index) => (
               <button
@@ -433,6 +441,7 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
 }
 
 function GuessPanel({ table, send, connected }: { table: Table; send: SendCommand; connected: boolean }) {
+  const { t } = useTranslation();
   const [guess, setGuess] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -457,15 +466,21 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
   };
   return (
     <div className="gartic-guesses">
-      <h3>Догадки</h3>
-      <ol ref={log} role="log" aria-label="Догадки игроков" aria-live="polite" aria-relevant="additions">
+      <h3>{t(($) => $.gartic.guesses.title)}</h3>
+      <ol
+        ref={log}
+        role="log"
+        aria-label={t(($) => $.gartic.guesses.log)}
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {table.guesses.map((entry) => (
           <li key={entry.id} data-correct={entry.correct || undefined}>
             <b>{entry.name}</b>
             <span>
               {entry.correct ? (
                 <>
-                  <Check size={14} /> Угадал слово
+                  <Check size={14} /> {t(($) => $.gartic.guesses.correct)}
                 </>
               ) : (
                 entry.text
@@ -475,15 +490,15 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
         ))}
         {!table.guesses.length && (
           <li className="gartic-empty-guesses">
-            {table.phase === 'drawing' ? 'Первая догадка за вами' : 'Здесь будут ответы игроков'}
+            {table.phase === 'drawing' ? t(($) => $.gartic.guesses.first) : t(($) => $.gartic.guesses.empty)}
           </li>
         )}
       </ol>
       {table.you?.canGuess ? (
         <form onSubmit={(event) => void submit(event)}>
           <input
-            aria-label="Ваша догадка"
-            placeholder="Что нарисовано?"
+            aria-label={t(($) => $.gartic.guesses.input)}
+            placeholder={t(($) => $.gartic.guesses.placeholder)}
             value={guess}
             maxLength={80}
             autoComplete="off"
@@ -492,7 +507,7 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
           />
           <button
             type="submit"
-            aria-label="Отправить догадку"
+            aria-label={t(($) => $.gartic.guesses.send)}
             disabled={!connected || pending || !guess.trim()}
           >
             <Send size={18} />
@@ -500,13 +515,11 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
         </form>
       ) : guessed ? (
         <p className="gartic-guessed">
-          <CheckCheck size={18} /> Вы угадали! Не подсказывайте остальным.
+          <CheckCheck size={18} /> {t(($) => $.gartic.guesses.youGuessed)}
         </p>
       ) : (
         <p className="gartic-small">
-          {table.you?.canDraw
-            ? 'Рисуйте — ответы оставьте другим.'
-            : 'Ответы доступны участникам, которые сейчас угадывают.'}
+          {table.you?.canDraw ? t(($) => $.gartic.guesses.drawer) : t(($) => $.gartic.guesses.guessersOnly)}
         </p>
       )}
       {error && (
@@ -529,6 +542,7 @@ function PhoneTask({
   connected: boolean;
   meeting: Meeting;
 }) {
+  const { t } = useTranslation();
   const canvas = useRef<GarticCanvasHandle>(null);
   const [text, setText] = useState('');
   const [pending, setPending] = useState(false);
@@ -538,8 +552,8 @@ function PhoneTask({
     return (
       <div className="gartic-phone-wait">
         <Eye size={34} strokeWidth={1.3} />
-        <h3>Истории пока в секрете</h3>
-        <p>Участники рисуют и описывают их друг для друга. Когда закончат, посмотрим все альбомы вместе.</p>
+        <h3>{t(($) => $.gartic.phone.secretTitle)}</h3>
+        <p>{t(($) => $.gartic.phone.secretText)}</p>
       </div>
     );
   const drawing = table.phase === 'drawing';
@@ -562,22 +576,22 @@ function PhoneTask({
       {table.phase === 'prompt' ? (
         <div className="gartic-prompt-intro">
           <BookOpen size={34} strokeWidth={1.3} />
-          <h3>С чего начнём историю?</h3>
-          <p>
-            Придумайте фразу, которую будет интересно нарисовать. Например: «Космонавт выгуливает улитку».
-          </p>
+          <h3>{t(($) => $.gartic.phone.promptTitle)}</h3>
+          <p>{t(($) => $.gartic.phone.promptText)}</p>
         </div>
       ) : drawing ? (
         <div className="gartic-phone-prompt">
-          <span>Нарисуйте эту фразу</span>
-          <blockquote>{you.prompt ?? you.previous?.text ?? 'Предыдущий участник пропустил ход'}</blockquote>
+          <span>{t(($) => $.gartic.phone.drawPhrase)}</span>
+          <blockquote>
+            {you.prompt ?? you.previous?.text ?? t(($) => $.gartic.phone.previousSkipped)}
+          </blockquote>
         </div>
       ) : you.previous?.kind === 'drawing' ? (
-        <GarticPicture strokes={you.previous.strokes} label="Рисунок, который нужно описать" />
+        <GarticPicture strokes={you.previous.strokes} label={t(($) => $.gartic.phone.describeDrawing)} />
       ) : (
         <div className="gartic-phone-wait">
           <Pencil size={28} />
-          <p>Предыдущий участник не успел нарисовать. Придумайте, что здесь могло быть.</p>
+          <p>{t(($) => $.gartic.phone.missingDrawing)}</p>
         </div>
       )}
       {drawing ? (
@@ -593,13 +607,17 @@ function PhoneTask({
         />
       ) : (
         <label className="gartic-text-entry">
-          {table.phase === 'prompt' ? 'Ваша фраза' : 'Что здесь нарисовано?'}
+          {table.phase === 'prompt'
+            ? t(($) => $.gartic.phone.yourPhrase)
+            : t(($) => $.gartic.phone.whatDrawn)}
           <textarea
             value={text}
             maxLength={120}
             rows={3}
             placeholder={
-              table.phase === 'prompt' ? 'Одна неожиданная идея…' : 'Опишите рисунок одной фразой…'
+              table.phase === 'prompt'
+                ? t(($) => $.gartic.phone.promptPlaceholder)
+                : t(($) => $.gartic.phone.describePlaceholder)
             }
             disabled={!connected || pending || you.submitted}
             onChange={(event) => setText(event.target.value)}
@@ -610,19 +628,24 @@ function PhoneTask({
       <div className="gartic-submit-row">
         {you.submitted ? (
           <p className="gartic-ready" role="status">
-            <CheckCheck size={20} /> Отправлено. Следующий шаг начнётся, когда все будут готовы.
+            <CheckCheck size={20} /> {t(($) => $.gartic.phone.sent)}
           </p>
         ) : (
           <>
             <span className="gartic-small">
-              После отправки изменить {drawing ? 'рисунок' : 'фразу'} нельзя.
+              {drawing ? t(($) => $.gartic.phone.finalDrawing) : t(($) => $.gartic.phone.finalPhrase)}
             </span>
             <button
               type="submit"
               className="button primary"
               disabled={!connected || pending || !you.canSubmit || (!drawing && !text.trim())}
             >
-              <Check size={18} /> {pending ? 'Отправляем…' : drawing ? 'Рисунок готов' : 'Отправить фразу'}
+              <Check size={18} />{' '}
+              {pending
+                ? t(($) => $.gartic.phone.sending)
+                : drawing
+                  ? t(($) => $.gartic.phone.drawingReady)
+                  : t(($) => $.gartic.phone.sendPhrase)}
             </button>
           </>
         )}
@@ -638,7 +661,7 @@ function PhoneTask({
             meeting={meeting}
             memberId={you.previous.authorId}
             fallbackName={you.previous.authorName}
-            label="Предыдущий шаг"
+            label={t(($) => $.gartic.phone.previousStep)}
           />
         </div>
       )}
@@ -646,43 +669,52 @@ function PhoneTask({
   );
 }
 
-function playerStatus(player: Table['players'][number], table: Table) {
-  if (player.away) return 'Нет связи';
-  if (!player.active) return 'Зритель';
+function playerStatus(t: Translate, player: Table['players'][number], table: Table) {
+  if (player.away) return t(($) => $.gartic.status.away);
+  if (!player.active) return t(($) => $.gartic.status.spectator);
   if (player.memberId === table.drawerId)
     return table.phase === 'choosing'
-      ? 'Выбирает слово'
+      ? t(($) => $.gartic.status.choosing)
       : table.phase === 'round-reveal'
-        ? 'Рисовал'
-        : 'Рисует';
+        ? t(($) => $.gartic.status.drew)
+        : t(($) => $.gartic.status.drawing);
   if (table.mode === 'telephone')
-    return player.submitted ? 'Готово' : table.phase === 'drawing' ? 'Рисует' : 'Думает';
+    return player.submitted
+      ? t(($) => $.gartic.status.ready)
+      : table.phase === 'drawing'
+        ? t(($) => $.gartic.status.drawing)
+        : t(($) => $.gartic.status.thinking);
   return player.guessed
-    ? 'Угадал'
+    ? t(($) => $.gartic.status.guessed)
     : table.phase === 'choosing'
-      ? 'Ждёт слово'
+      ? t(($) => $.gartic.status.waitingWord)
       : table.phase === 'round-reveal'
-        ? 'Ждёт следующий ход'
-        : 'Угадывает';
+        ? t(($) => $.gartic.status.waitingTurn)
+        : t(($) => $.gartic.status.guessing);
 }
 
 function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
+  const { t } = useTranslation();
   const phone = table.mode === 'telephone';
   const players = !phone ? [...table.players].sort((a, b) => b.score - a.score) : table.players;
   const active = players.filter((player) => player.active);
   const ready = active.filter((player) => player.submitted).length;
   return (
     <div className="gartic-scores">
-      <h3>{phone ? `Готово ${ready} из ${active.length}` : 'Игроки'}</h3>
+      <h3>
+        {phone
+          ? t(($) => $.gartic.scores.ready, { ready, total: active.length })
+          : t(($) => $.gartic.scores.players)}
+      </h3>
       {phone && (
         <progress
           className="gartic-player-completion"
-          aria-label="Готовность игроков"
+          aria-label={t(($) => $.gartic.scores.completion)}
           value={ready}
           max={Math.max(1, active.length)}
         />
       )}
-      <ol aria-label={phone ? 'Прогресс игроков' : 'Счёт игроков'}>
+      <ol aria-label={phone ? t(($) => $.gartic.scores.progress) : t(($) => $.gartic.scores.list)}>
         {players.map((player) => (
           <li
             key={player.memberId}
@@ -693,7 +725,7 @@ function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
               meeting={meeting}
               memberId={player.memberId}
               fallbackName={player.name}
-              label={playerStatus(player, table)}
+              label={playerStatus(t, player, table)}
               game="gartic"
             />
             {phone ? (
@@ -701,7 +733,10 @@ function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
                 {player.submitted ? <Check size={18} /> : <span className="gartic-waiting-dot" />}
               </span>
             ) : (
-              <strong className="gartic-score" aria-label={`${player.score} очков`}>
+              <strong
+                className="gartic-score"
+                aria-label={t(($) => $.gartic.points, { count: player.score })}
+              >
                 {player.score}
                 {player.guessed && <Check size={14} />}
               </strong>

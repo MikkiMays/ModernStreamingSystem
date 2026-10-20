@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { Admission } from './api/types';
 import { RoomApi } from './api/client';
 import type { Meeting } from './core/meeting';
@@ -37,6 +38,7 @@ function initialDestination() {
   }
 }
 function Workspace() {
+  const { t } = useTranslation();
   const [destination, setDestination] = useState<Destination | null>(initialDestination);
   const [page, setPage] = useState<'home' | 'prejoin' | 'room'>(() =>
     initialDestination() ? 'prejoin' : 'home',
@@ -93,7 +95,7 @@ function Workspace() {
   // выхода из встречи, и главная говорит, где он продолжается.
   useMeetingBeacon(page === 'room' ? meeting : null, () => {
     home();
-    setError('Встреча продолжается в другой вкладке');
+    setError(t(($) => $.app.elsewhere));
   });
   const openDestination = (next: Destination) => {
     const cached = recentMeetings().find((r) =>
@@ -210,7 +212,7 @@ function Workspace() {
         }
         if (command.page === 'favorite') {
           const favorite = (await favoriteApi.list()).find((f) => f.roomId === command.roomId);
-          if (!favorite) throw new Error('Комната больше не в избранном');
+          if (!favorite) throw new Error(t(($) => $.app.notFavorite));
           setDestination({ kind: 'favorite', favorite });
           setPage('prejoin');
         }
@@ -222,7 +224,7 @@ function Workspace() {
   const recent = async (id: string, restoring = false, quiet = false) => {
     try {
       const admission = getRecent(id);
-      if (!admission) throw new Error('Сессия не найдена');
+      if (!admission) throw new Error(t(($) => $.app.noSession));
       admission.snapshot = await new RoomApi(admission).snapshot();
       const self = admission.snapshot.participants.find((p) => p.id === admission.participantId);
       if (admission.snapshot.closedAt || (restoring && self && !sessionStorage.getItem(`cord:ended:${id}`))) {
@@ -345,7 +347,7 @@ function Workspace() {
         <Suspense
           fallback={
             <div role="status" className="loading-room">
-              Открываем комнату…
+              {t(($) => $.app.opening)}
             </div>
           }
         >
@@ -363,7 +365,7 @@ function Workspace() {
       {error && (
         <div className="global-error" role="alert">
           <span>{error}</span>
-          <button onClick={() => setError('')} aria-label="Закрыть уведомление">
+          <button onClick={() => setError('')} aria-label={t(($) => $.app.closeNotice)}>
             ×
           </button>
         </div>

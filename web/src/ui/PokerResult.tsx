@@ -1,6 +1,8 @@
 import { Coins, Crown, Layers, Timer, TrendingUp, Trophy } from 'lucide-react';
-import type { PokerEnding, PokerGame, PokerPlayer } from '../api/types';
-import { chips, plural, winnerOf } from '../core/poker';
+import { useTranslation } from 'react-i18next';
+import type { PokerGame, PokerPlayer } from '../api/types';
+import { chips, winnerOf } from '../core/poker';
+import type { Translate } from '../i18n';
 
 /**
  * Итоги игры: то, с чем люди встали из-за стола.
@@ -14,44 +16,49 @@ import { chips, plural, winnerOf } from '../core/poker';
  * ни карт, ни ставок, ни половины сидевших уже нет, и восстановить «сколько раз он пошёл ва-банк»
  * браузеру было бы неоткуда.
  */
-/* Подписи ко всем концам игры. Тип здесь не `string`, а закрытый набор: забытый конец не
-   компилируется, и «Игра окончена» вместо объяснения больше не появится. */
-const ENDINGS: Record<PokerEnding, string> = {
-  winner: 'За столом остался один',
-  closed: 'Стол убрали из встречи',
-  idle: 'За столом никого не осталось',
-  meeting: 'Встреча закончилась',
-};
+/* Подписи ко всем концам игры — в каталоге (`poker.result.endings`), ключ — сам конец. Набор
+   закрытый: конец без подписи в каталоге не компилируется, и «Игра окончена» вместо объяснения
+   остаётся только для концов, которых этот браузер ещё не знает. */
+function ending(t: Translate, game: PokerGame): string {
+  return t(($) => $.poker.result.endings[game.ending], { defaultValue: t(($) => $.poker.gameOver) });
+}
 
 /** Сколько игра шла — словами, а не двумя метками времени. */
-function span(from: number, to: number): string {
+function span(t: Translate, from: number, to: number): string {
   const minutes = Math.max(1, Math.round((to - from) / 60000));
-  if (minutes < 60) return `${minutes} мин`;
+  if (minutes < 60) return t(($) => $.poker.result.minutes, { minutes });
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+  return rest
+    ? t(($) => $.poker.result.hoursMinutes, { hours, minutes: rest })
+    : t(($) => $.poker.result.hours, { hours });
 }
 
 export function GameResult({ game }: { game: PokerGame }) {
+  const { t } = useTranslation();
   const winner = winnerOf(game);
   return (
     <div className="poker-result">
       <ul className="poker-result-facts">
         <li>
-          <Layers size={13} /> {plural(game.hands, 'раздача', 'раздачи', 'раздач')}
+          <Layers size={13} /> {t(($) => $.poker.result.hands, { count: game.hands })}
         </li>
         <li>
-          <Coins size={13} /> банк до {chips(game.biggestPot)}
+          <Coins size={13} /> {t(($) => $.poker.result.biggestPot, { amount: chips(t, game.biggestPot) })}
         </li>
         <li>
-          <TrendingUp size={13} /> блайнды {chips(game.smallBlind)}/{chips(game.bigBlind)}
+          <TrendingUp size={13} />{' '}
+          {t(($) => $.poker.result.blinds, {
+            small: chips(t, game.smallBlind),
+            big: chips(t, game.bigBlind),
+          })}
         </li>
         <li>
-          <Timer size={13} /> {span(game.startedAt, game.finishedAt)}
+          <Timer size={13} /> {span(t, game.startedAt, game.finishedAt)}
         </li>
       </ul>
       <p className="poker-result-ending">
-        {game.modeName} · {ENDINGS[game.ending] ?? 'Игра окончена'}
+        {game.modeName} · {ending(t, game)}
       </p>
       {game.highlights.length > 0 && (
         <ul className="poker-result-highlights">
@@ -76,13 +83,13 @@ export function GameResult({ game }: { game: PokerGame }) {
               {player.place === 1 && <Crown size={13} />}
             </b>
             <span className="poker-result-stack">
-              {chips(player.stack)}
+              {chips(t, player.stack)}
               <u data-up={player.net >= 0 || undefined}>
                 {player.net >= 0 ? '+' : '−'}
-                {chips(Math.abs(player.net))}
+                {chips(t, Math.abs(player.net))}
               </u>
             </span>
-            <small>{story(player)}</small>
+            <small>{story(t, player)}</small>
           </li>
         ))}
       </ol>
@@ -97,25 +104,28 @@ export function GameResult({ game }: { game: PokerGame }) {
  * поэтому числа стоят фразой и только те, в которых что-то было: «докупок 0» и «ва-банк 0» — это
  * не статистика, а заполненная графа.
  */
-function story(player: PokerPlayer): string {
-  const parts = [`поставил ${chips(player.invested)}`];
-  if (player.hands > 0) parts.push(`выиграл ${player.handsWon} из ${player.hands}`);
-  if (player.allIns > 0) parts.push(`ва-банк ${player.allIns}`);
-  if (player.rebuys > 0) parts.push(`докупок ${player.rebuys}`);
-  if (player.knockouts > 0) parts.push(`выбил ${player.knockouts}`);
-  if (player.showdowns > 0) parts.push(`вскрытий ${player.showdownWins}/${player.showdowns}`);
+function story(t: Translate, player: PokerPlayer): string {
+  const parts = [t(($) => $.poker.result.invested, { amount: chips(t, player.invested) })];
+  if (player.hands > 0)
+    parts.push(t(($) => $.poker.result.won, { won: player.handsWon, hands: player.hands }));
+  if (player.allIns > 0) parts.push(t(($) => $.poker.result.allIns, { allIns: player.allIns }));
+  if (player.rebuys > 0) parts.push(t(($) => $.poker.result.rebuys, { rebuys: player.rebuys }));
+  if (player.knockouts > 0) parts.push(t(($) => $.poker.result.knockouts, { knockouts: player.knockouts }));
+  if (player.showdowns > 0)
+    parts.push(t(($) => $.poker.result.showdowns, { won: player.showdownWins, total: player.showdowns }));
   if (player.bestHand) parts.push(player.bestHand);
   return parts.join(' · ');
 }
 
 /** Заголовок итогов: чем игра кончилась и кто в ней первый. */
 export function GameCrown({ game }: { game: PokerGame }) {
+  const { t } = useTranslation();
   const winner = winnerOf(game);
   return (
     <span className="poker-result-crown">
       <Trophy size={18} />
-      <b>{winner ? winner.name : 'Игра окончена'}</b>
-      <small>{winner ? `${chips(winner.stack)} на конец игры` : ''}</small>
+      <b>{winner ? winner.name : t(($) => $.poker.gameOver)}</b>
+      <small>{winner ? t(($) => $.poker.result.finalStack, { amount: chips(t, winner.stack) }) : ''}</small>
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Eye, ListVideo } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { published, viewers, type CinemaItem, type CinemaPlaylist } from '../../../../core/cinema';
 import { More } from '../More';
 import { Empty, Failure, Loading } from '../notes';
@@ -21,6 +22,9 @@ export function PlaylistPage({
   card: (item: CinemaItem) => ReactNode;
   onChannel: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+  const views = playlist ? viewers(t, playlist.views) : null;
+  const date = playlist ? published(t, playlist.published) : null;
   return (
     <>
       {playlist && (
@@ -33,18 +37,18 @@ export function PlaylistPage({
             <p className="cinema-detail-meta">
               {playlist.channelId ? (
                 <button className="cinema-author" onClick={() => onChannel(String(playlist.channelId))}>
-                  {playlist.author || 'Канал'}
+                  {playlist.author || t(($) => $.cinema.meta.channel)}
                 </button>
               ) : (
                 <span>{playlist.author}</span>
               )}
-              {playlist.count && <span>{playlist.count} видео</span>}
-              {viewers(playlist.views) && (
+              {playlist.count && <span>{t(($) => $.cinema.meta.videos, { count: playlist.count })}</span>}
+              {views && (
                 <span>
-                  <Eye size={12} /> {viewers(playlist.views)} просмотров
+                  <Eye size={12} /> {t(($) => $.cinema.meta.views, { value: views })}
                 </span>
               )}
-              {published(playlist.published) && <span>Обновлён {published(playlist.published)}</span>}
+              {date && <span>{t(($) => $.cinema.meta.updated, { date })}</span>}
             </p>
             {playlist.description && <p className="cinema-about">{playlist.description}</p>}
           </div>
@@ -58,7 +62,7 @@ export function PlaylistPage({
         busy={feed.isFetchingNextPage}
         onMore={() => void feed.fetchNextPage()}
       />
-      {!feed.isFetching && items.length === 0 && <Empty text="Плейлист пуст." />}
+      {!feed.isFetching && items.length === 0 && <Empty text={t(($) => $.cinema.playlist.empty)} />}
     </>
   );
 }

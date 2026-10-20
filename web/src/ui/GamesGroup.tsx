@@ -18,18 +18,10 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { DurakTable, PokerMode } from '../api/types';
-import {
-  blindsFor,
-  chips,
-  gameTitle,
-  MAX_STACK,
-  MIN_STACK,
-  plural,
-  POKER_MODES,
-  winnerOf,
-} from '../core/poker';
+import { blindsFor, chips, gameTitle, MAX_STACK, MIN_STACK, POKER_MODES, winnerOf } from '../core/poker';
 import { allowed, type RoomAction } from '../core/permissions';
 import { GameResult } from './PokerResult';
 import { Modal, useStore } from './primitives';
@@ -48,47 +40,25 @@ import { Modal, useStore } from './primitives';
  */
 type GameId = 'poker' | 'durak' | 'chess' | 'gartic';
 
+/** Название и подпись игры — в каталоге (`games.list[id]`). */
 const GAMES: {
   id: GameId;
-  name: string;
-  hint: string;
   accent: string;
   icon: typeof Spade;
 }[] = [
-  {
-    id: 'poker',
-    name: 'Покер',
-    hint: 'Безлимитный холдем, до десяти игроков',
-    accent: '#8a5cf6',
-    icon: Spade,
-  },
-  {
-    id: 'durak',
-    name: 'Дурак',
-    hint: 'Подкидной и переводной, до шести игроков',
-    accent: '#c9a227',
-    icon: Club,
-  },
-  {
-    id: 'chess',
-    name: 'Шахматы',
-    hint: 'Два игрока, контроль времени и зрители',
-    accent: '#5271a3',
-    icon: Crown,
-  },
-  {
-    id: 'gartic',
-    name: 'Gartic',
-    hint: 'Рисуем, угадываем и передаём истории',
-    accent: '#8d65c5',
-    icon: Pencil,
-  },
+  { id: 'poker', accent: '#8a5cf6', icon: Spade },
+  { id: 'durak', accent: '#c9a227', icon: Club },
+  { id: 'chess', accent: '#5271a3', icon: Crown },
+  { id: 'gartic', accent: '#8d65c5', icon: Pencil },
 ];
+
+const CHESS_PRESETS = ['untimed', '3-2', '5-0', '10-5', '15-10'] as const;
 
 /** Во сколько раз стартовый стек больше или меньше обычного для режима. */
 const STACK_STEPS = [0.5, 1, 2, 5];
 
 export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () => void }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   // Принести стол и распоряжаться им — ответы ядра (`you.can`), а не правило, пересчитанное здесь.
   const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);
@@ -160,7 +130,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   return (
     <div className="games-group">
       <button className="text-button cinema-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Интеграции
+        <ArrowLeft size={16} /> {t(($) => $.games.back)}
       </button>
       <div className="games-list">
         {GAMES.map((game) => {
@@ -208,10 +178,10 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   )}
                 </span>
                 <b>
-                  {game.name}
+                  {t(($) => $.games.list[game.id].name)}
                   {live && (
                     <span className="games-state" data-live="true">
-                      За столом {seated}
+                      {t(($) => $.games.seated, { count: seated })}
                     </span>
                   )}
                 </b>
@@ -224,10 +194,10 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
               </button>
               {expanded && (game.id === 'chess' || game.id === 'gartic') && (
                 <div className="games-body">
-                  <p className="form-footnote">{game.hint}</p>
+                  <p className="form-footnote">{t(($) => $.games.list[game.id].hint)}</p>
                   {live ? (
                     <>
-                      <p>Игра открыта на сцене встречи. Голос и камеры остаются с вами.</p>
+                      <p>{t(($) => $.games.liveOnStage)}</p>
                       {may(game.id === 'chess' ? 'chess.manage' : 'gartic.manage') && (
                         <button
                           className="button ghost full"
@@ -237,7 +207,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                             })
                           }
                         >
-                          <X size={16} /> Закрыть игру
+                          <X size={16} /> {t(($) => $.games.closeGame)}
                         </button>
                       )}
                     </>
@@ -245,40 +215,44 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     <>
                       {game.id === 'chess' ? (
                         <label className="field">
-                          Контроль времени
+                          {t(($) => $.games.timeControl)}
                           <select
-                            aria-label="Контроль времени"
+                            aria-label={t(($) => $.games.timeControl)}
                             value={chessPreset}
                             onChange={(event) => setChessPreset(event.target.value)}
                           >
-                            <option value="untimed">Без часов</option>
-                            <option value="3-2">3 минуты + 2 секунды</option>
-                            <option value="5-0">5 минут</option>
-                            <option value="10-5">10 минут + 5 секунд</option>
-                            <option value="15-10">15 минут + 10 секунд</option>
+                            {CHESS_PRESETS.map((id) => (
+                              <option key={id} value={id}>
+                                {t(($) => $.games.chessPresets[id])}
+                              </option>
+                            ))}
                           </select>
                         </label>
                       ) : (
-                        <div className="games-quick" role="group" aria-label="Режим рисования">
+                        <div
+                          className="games-quick"
+                          role="group"
+                          aria-label={t(($) => $.games.garticModes.group)}
+                        >
                           <button
                             data-active={garticMode === 'classic' || undefined}
                             onClick={() => setGarticMode('classic')}
                           >
-                            Угадай рисунок
+                            {t(($) => $.games.garticModes.classic)}
                           </button>
                           <button
                             data-active={garticMode === 'telephone' || undefined}
                             onClick={() => setGarticMode('telephone')}
                           >
-                            Испорченный телефон
+                            {t(($) => $.games.garticModes.telephone)}
                           </button>
                         </div>
                       )}
                       {game.id === 'gartic' && (
                         <p className="form-footnote">
                           {garticMode === 'classic'
-                            ? 'Один рисует, остальные угадывают слово. От двух игроков.'
-                            : 'Фраза превращается в рисунок, рисунок — в новую фразу. От трёх игроков.'}
+                            ? t(($) => $.games.garticModes.classicHint)
+                            : t(($) => $.games.garticModes.telephoneHint)}
                         </p>
                       )}
                       {may(game.id === 'chess' ? 'chess.open' : 'gartic.open') ? (
@@ -290,10 +264,11 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                             })
                           }
                         >
-                          <game.icon size={17} /> {game.id === 'chess' ? 'Открыть доску' : 'Открыть Gartic'}
+                          <game.icon size={17} />{' '}
+                          {game.id === 'chess' ? t(($) => $.games.openChess) : t(($) => $.games.openGartic)}
                         </button>
                       ) : (
-                        <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
+                        <p className="form-footnote">{t(($) => $.games.restricted)}</p>
                       )}
                     </>
                   )}
@@ -317,18 +292,23 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   <div className="games-body">
                     <ul className="games-facts">
                       <li>
-                        <Users size={14} /> За столом {table.seats.filter((seat) => seat.memberId).length} из
-                        10
+                        <Users size={14} />{' '}
+                        {t(($) => $.games.table.seatedOf, {
+                          count: table.seats.filter((seat) => seat.memberId).length,
+                          total: 10,
+                        })}
                       </li>
                       <li>
-                        <Coins size={14} /> Стартовый стек {chips(table.startingStack)}
+                        <Coins size={14} />{' '}
+                        {t(($) => $.games.table.startingStack, { chips: chips(t, table.startingStack) })}
                       </li>
                       <li>
-                        <Timer size={14} /> {table.turnSeconds} секунд на ход
+                        <Timer size={14} />{' '}
+                        {t(($) => $.games.table.turnSeconds, { count: table.turnSeconds })}
                       </li>
                       {table.levelUpAt > 0 && (
                         <li>
-                          <TrendingUp size={14} /> Уровень {table.level}
+                          <TrendingUp size={14} /> {t(($) => $.games.table.level, { level: table.level })}
                         </li>
                       )}
                     </ul>
@@ -336,15 +316,15 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                       <>
                         {table.phase === 'lobby' && (
                           <button className="button primary full" onClick={() => send('poker.deal')}>
-                            <Play size={17} /> Раздать
+                            <Play size={17} /> {t(($) => $.games.table.deal)}
                           </button>
                         )}
                         <button className="button ghost full" onClick={() => send('poker.close')}>
-                          <X size={17} /> Убрать стол из встречи
+                          <X size={17} /> {t(($) => $.games.table.remove)}
                         </button>
                       </>
                     ) : (
-                      <p className="form-footnote">Раздаёт тот, кто принёс стол, и ведущий встречи.</p>
+                      <p className="form-footnote">{t(($) => $.games.table.dealerOnly)}</p>
                     )}
                   </div>
                 ) : (
@@ -357,8 +337,8 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                           data-active={mode === item.id ? 'true' : undefined}
                           onClick={() => chooseMode(item.id)}
                         >
-                          <b>{item.name}</b>
-                          <small>{item.hint}</small>
+                          <b>{t(($) => $.poker.modes[item.id].name)}</b>
+                          <small>{t(($) => $.poker.modes[item.id].hint)}</small>
                         </button>
                       ))}
                     </div>
@@ -366,10 +346,10 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     <RebuyChoice limit={limit} stack={stack} onChange={setRebuys} />
                     {may('poker.open') ? (
                       <button className="button primary full" onClick={() => void bring()}>
-                        <Spade size={17} /> Открыть стол
+                        <Spade size={17} /> {t(($) => $.games.table.open)}
                       </button>
                     ) : (
-                      <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
+                      <p className="form-footnote">{t(($) => $.games.restricted)}</p>
                     )}
                   </div>
                 ))}
@@ -378,9 +358,9 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
         })}
       </div>
       <button className="button game-history-button" onClick={() => setHistory(true)}>
-        <History size={17} /> История игр
+        <History size={17} /> {t(($) => $.games.history.open)}
       </button>
-      <Modal open={history} onOpenChange={setHistory} title="История игр" wide>
+      <Modal open={history} onOpenChange={setHistory} title={t(($) => $.games.history.title)} wide>
         {history && (
           <>
             <GameHistory meeting={meeting} />
@@ -426,37 +406,38 @@ function DurakBody({
   onTransfer: (value: boolean) => void;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
 }) {
+  const { t } = useTranslation();
   if (table) {
     const seated = table.seats.filter((seat) => seat.memberId).length;
     return (
       <div className="games-body">
         <ul className="games-facts">
           <li>
-            <Users size={14} /> За столом {seated} из 6
+            <Users size={14} /> {t(($) => $.games.table.seatedOf, { count: seated, total: 6 })}
           </li>
           <li>
-            <Layers size={14} /> Колода {table.deckSize} карт
+            <Layers size={14} /> {t(($) => $.games.table.deck, { count: table.deckSize })}
           </li>
           <li>
             <Shuffle size={14} /> {table.modeName}
           </li>
           <li>
-            <Timer size={14} /> {table.turnSeconds} секунд на ход
+            <Timer size={14} /> {t(($) => $.games.table.turnSeconds, { count: table.turnSeconds })}
           </li>
         </ul>
         {host ? (
           <>
             {table.phase !== 'bout' && (
               <button className="button primary full" onClick={() => onSend('durak.deal')}>
-                <Play size={17} /> Раздать
+                <Play size={17} /> {t(($) => $.games.table.deal)}
               </button>
             )}
             <button className="button ghost full" onClick={() => onSend('durak.close')}>
-              <X size={17} /> Убрать стол из встречи
+              <X size={17} /> {t(($) => $.games.table.remove)}
             </button>
           </>
         ) : (
-          <p className="form-footnote">Раздаёт тот, кто принёс стол, и ведущий встречи.</p>
+          <p className="form-footnote">{t(($) => $.games.table.dealerOnly)}</p>
         )}
       </div>
     );
@@ -466,14 +447,14 @@ function DurakBody({
       <div className="games-stack">
         <div className="games-stack-head">
           <label>
-            Колода
-            <small>без джокеров</small>
+            {t(($) => $.games.durak.deck)}
+            <small>{t(($) => $.games.durak.noJokers)}</small>
           </label>
         </div>
         <div className="games-quick">
           {[36, 52].map((size) => (
             <button key={size} data-active={deck === size || undefined} onClick={() => onDeck(size)}>
-              {size} карт
+              {t(($) => $.games.durak.deckSize, { count: size })}
             </button>
           ))}
         </div>
@@ -481,16 +462,16 @@ function DurakBody({
       <div className="games-stack">
         <div className="games-stack-head">
           <label>
-            Правила
-            <small>перевод — картой того же номинала</small>
+            {t(($) => $.games.durak.rules)}
+            <small>{t(($) => $.games.durak.transferHint)}</small>
           </label>
         </div>
         <div className="games-quick">
           <button data-active={!transfer || undefined} onClick={() => onTransfer(false)}>
-            Подкидной
+            {t(($) => $.games.durak.podkidnoy)}
           </button>
           <button data-active={transfer || undefined} onClick={() => onTransfer(true)}>
-            Переводной
+            {t(($) => $.games.durak.perevodnoy)}
           </button>
         </div>
       </div>
@@ -499,10 +480,10 @@ function DurakBody({
           className="button primary full"
           onClick={() => onSend('durak.open', { option: transfer ? 'perevodnoy' : 'podkidnoy', chips: deck })}
         >
-          <Club size={17} /> Открыть стол
+          <Club size={17} /> {t(($) => $.games.table.open)}
         </button>
       ) : (
-        <p className="form-footnote">Добавление интеграций ограничено организатором.</p>
+        <p className="form-footnote">{t(($) => $.games.restricted)}</p>
       )}
     </div>
   );
@@ -515,12 +496,7 @@ function DurakBody({
  * «без додепов», «по одному», «по три», «сколько влезет». Ноль — это тоже ответ, а не
  * отсутствие настройки, поэтому он назван словом.
  */
-const REBUY_CHOICES: { value: number; label: string }[] = [
-  { value: 0, label: 'Без додепов' },
-  { value: 1, label: '1' },
-  { value: 3, label: '3' },
-  { value: -1, label: 'Без ограничений' },
-];
+const REBUY_CHOICES = [0, 1, 3, -1];
 
 function RebuyChoice({
   limit,
@@ -531,22 +507,23 @@ function RebuyChoice({
   stack: number;
   onChange: (value: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="games-stack games-rebuys">
       <div className="games-stack-head">
         <label>
-          Додепы на человека
-          <small>по {chips(stack)}</small>
+          {t(($) => $.games.rebuys.label)}
+          <small>{t(($) => $.games.rebuys.each, { chips: chips(t, stack) })}</small>
         </label>
       </div>
       <div className="games-quick">
         {REBUY_CHOICES.map((choice) => (
-          <button
-            key={choice.value}
-            data-active={limit === choice.value || undefined}
-            onClick={() => onChange(choice.value)}
-          >
-            {choice.label}
+          <button key={choice} data-active={limit === choice || undefined} onClick={() => onChange(choice)}>
+            {choice === 0
+              ? t(($) => $.games.rebuys.none)
+              : choice < 0
+                ? t(($) => $.games.rebuys.unlimited)
+                : String(choice)}
           </button>
         ))}
       </div>
@@ -577,6 +554,7 @@ function StackChoice({
   blinds: { small: number; big: number };
   onChange: (value: number) => void;
 }) {
+  const { t } = useTranslation();
   const [typed, setTyped] = useState<string | null>(null);
   const accept = (text: string) => {
     const digits = Number(text.replace(/[^\d]/g, ''));
@@ -591,12 +569,12 @@ function StackChoice({
     <div className="games-stack">
       <div className="games-stack-head">
         <label>
-          Стартовый стек
+          {t(($) => $.games.stack.label)}
           <input
             className="games-stack-input"
             type="text"
             inputMode="numeric"
-            value={typed ?? chips(stack)}
+            value={typed ?? chips(t, stack)}
             onChange={(event) => setTyped(event.target.value)}
             onBlur={(event) => accept(event.target.value)}
             onKeyDown={(event) => {
@@ -606,11 +584,11 @@ function StackChoice({
               }
               if (event.key === 'Escape') setTyped(null);
             }}
-            aria-label="Стартовый стек, фишки"
+            aria-label={t(($) => $.games.stack.input)}
           />
         </label>
         <small>
-          блайнды {chips(blinds.small)}/{chips(blinds.big)}
+          {t(($) => $.games.stack.blinds, { small: chips(t, blinds.small), big: chips(t, blinds.big) })}
         </small>
       </div>
       <input
@@ -621,14 +599,14 @@ function StackChoice({
         step={Math.max(50, Math.round(preset / 50))}
         value={Math.min(stack, top)}
         onChange={(event) => onChange(Number(event.target.value))}
-        aria-label="Стартовый стек"
+        aria-label={t(($) => $.games.stack.slider)}
       />
       <div className="games-quick">
         {STACK_STEPS.map((step) => {
           const value = Math.round(preset * step);
           return (
             <button key={step} data-active={stack === value || undefined} onClick={() => onChange(value)}>
-              {chips(value)}
+              {chips(t, value)}
             </button>
           );
         })}
@@ -650,6 +628,7 @@ function StackChoice({
  * её записать.
  */
 function DurakHistory({ meeting }: { meeting: Meeting }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const [open, setOpen] = useState<string | null>(null);
   const games = useQuery({
@@ -659,31 +638,32 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
     staleTime: 10000,
   });
   const list = [...(games.data ?? [])].reverse();
-  if (games.isPending) return <p role="status">Загружаем историю…</p>;
+  if (games.isPending) return <p role="status">{t(($) => $.games.history.loading)}</p>;
   if (games.isError)
     return (
       <p role="alert">
-        Не удалось загрузить историю.{' '}
+        {t(($) => $.games.history.failed)}{' '}
         <button className="text-button" onClick={() => void games.refetch()}>
-          Повторить
+          {t(($) => $.games.history.retry)}
         </button>
       </p>
     );
-  if (!list.length) return <p className="muted">Сыгранных партий пока нет.</p>;
+  if (!list.length) return <p className="muted">{t(($) => $.games.history.empty)}</p>;
   const score = [...(list[0]?.players ?? [])].sort(
     (a, b) => b.fools - a.fools || a.name.localeCompare(b.name),
   );
   return (
     <section className="games-history">
       <h4>
-        <Club size={15} /> Дурак · {plural(list.length, 'партия', 'партии', 'партий')}
+        <Club size={15} /> {t(($) => $.games.durakHistory.title)} ·{' '}
+        {t(($) => $.games.durakHistory.games, { count: list.length })}
       </h4>
       {score.length > 1 && (
         <ul className="games-score">
           {score.map((player) => (
             <li key={player.name}>
               <b>{player.name}</b>
-              <span>{plural(player.fools, 'раз', 'раза', 'раз')}</span>
+              <span>{t(($) => $.games.durakHistory.fools, { count: player.fools })}</span>
             </li>
           ))}
         </ul>
@@ -701,11 +681,14 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
                 <span className="games-icon" style={{ background: '#2b3442' }}>
                   <Club size={18} />
                 </span>
-                <b>Партия {game.number}</b>
+                <b>{t(($) => $.games.durakHistory.game, { number: game.number })}</b>
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
                 <small>
-                  {game.draw ? 'ничья' : `дурак — ${game.foolName}`} ·{' '}
-                  {plural(game.bouts, 'бой', 'боя', 'боёв')} · {game.modeName.toLowerCase()}
+                  {game.draw
+                    ? t(($) => $.games.durakHistory.draw)
+                    : t(($) => $.games.durakHistory.fool, { name: game.foolName })}{' '}
+                  · {t(($) => $.games.durakHistory.bouts, { count: game.bouts })} ·{' '}
+                  {game.modeName.toLowerCase()}
                 </small>
               </button>
               {expanded && (
@@ -713,11 +696,11 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
                   <table className="durak-score-table">
                     <thead>
                       <tr>
-                        <th>Игрок</th>
-                        <th>Дурак</th>
-                        <th>Брал</th>
-                        <th>Отбил</th>
-                        <th>Козырей</th>
+                        <th>{t(($) => $.games.durakHistory.columns.player)}</th>
+                        <th>{t(($) => $.games.durakHistory.columns.fool)}</th>
+                        <th>{t(($) => $.games.durakHistory.columns.took)}</th>
+                        <th>{t(($) => $.games.durakHistory.columns.defended)}</th>
+                        <th>{t(($) => $.games.durakHistory.columns.trumps)}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -771,6 +754,7 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
  * стол, пустой стол, конец встречи), — по ней список и перечитывается.
  */
 function GameHistory({ meeting }: { meeting: Meeting }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const [open, setOpen] = useState<string | null>(null);
   const games = useQuery({
@@ -782,21 +766,21 @@ function GameHistory({ meeting }: { meeting: Meeting }) {
     staleTime: 10000,
   });
   const list = [...(games.data ?? [])].reverse();
-  if (games.isPending) return <p role="status">Загружаем историю…</p>;
+  if (games.isPending) return <p role="status">{t(($) => $.games.history.loading)}</p>;
   if (games.isError)
     return (
       <p role="alert">
-        Не удалось загрузить историю.{' '}
+        {t(($) => $.games.history.failed)}{' '}
         <button className="text-button" onClick={() => void games.refetch()}>
-          Повторить
+          {t(($) => $.games.history.retry)}
         </button>
       </p>
     );
-  if (!list.length) return <p className="muted">Сыгранных партий пока нет.</p>;
+  if (!list.length) return <p className="muted">{t(($) => $.games.history.empty)}</p>;
   return (
     <section className="games-history">
       <h4>
-        <History size={15} /> История игр
+        <History size={15} /> {t(($) => $.games.pokerHistory.title)}
       </h4>
       <div className="games-list">
         {list.map((game) => {
@@ -812,11 +796,11 @@ function GameHistory({ meeting }: { meeting: Meeting }) {
                 <span className="games-icon" style={{ background: '#2b3442' }}>
                   <Spade size={18} />
                 </span>
-                <b>{gameTitle(game)}</b>
+                <b>{gameTitle(t, game)}</b>
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
                 <small>
-                  {game.modeName} · {plural(game.hands, 'раздача', 'раздачи', 'раздач')}
-                  {winner ? ` · впереди ${winner.name}` : ''}
+                  {game.modeName} · {t(($) => $.games.pokerHistory.hands, { count: game.hands })}
+                  {winner ? ` · ${t(($) => $.games.pokerHistory.leader, { name: winner.name })}` : ''}
                 </small>
               </button>
               {expanded && (

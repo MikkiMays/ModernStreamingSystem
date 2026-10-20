@@ -1,3 +1,5 @@
+import type { Translate } from '../i18n';
+
 export interface Hotkey {
   code: string;
   ctrl: boolean;
@@ -36,14 +38,14 @@ export function matchesHotkey(event: KeyboardEvent, key: Hotkey | null) {
     event.metaKey === key.meta
   );
 }
-export function hotkeyLabel(key: Hotkey | null) {
-  if (!key) return 'Не назначено';
+export function hotkeyLabel(t: Translate, key: Hotkey | null) {
+  if (!key) return t(($) => $.hotkeys.unassigned);
   return [
     key.ctrl && 'Ctrl',
     key.alt && 'Alt',
     key.shift && 'Shift',
     key.meta && 'Meta',
-    key.code === 'Space' ? 'Пробел' : key.code.replace(/^(Key|Digit)/, ''),
+    key.code === 'Space' ? t(($) => $.hotkeys.space) : key.code.replace(/^(Key|Digit)/, ''),
   ]
     .filter(Boolean)
     .join(' + ');
@@ -83,19 +85,19 @@ const BROWSER_RESERVED = new Set([
 ]);
 
 /** Клавиши плеера кинозала без Ctrl/Alt (`ui/cinema/theater/watch-keys.ts`); Shift их не отменяет. */
-const PLAYER_KEYS: Record<string, string> = {
-  Space: 'пауза',
-  KeyK: 'пауза',
-  KeyM: 'звук',
-  KeyF: 'полный экран',
+const PLAYER_KEYS: Record<string, 'pause' | 'sound' | 'fullscreen'> = {
+  Space: 'pause',
+  KeyK: 'pause',
+  KeyM: 'sound',
+  KeyF: 'fullscreen',
 };
 
 /** Клавиши хода за покерным столом без Ctrl/Alt (`ui/PokerTable.tsx`); Shift их тоже не отменяет. */
-const POKER_KEYS: Record<string, string> = {
-  KeyF: 'пас',
-  KeyC: 'чек или колл',
-  KeyR: 'ставка',
-  KeyA: 'ва-банк',
+const POKER_KEYS: Record<string, 'fold' | 'checkCall' | 'bet' | 'allIn'> = {
+  KeyF: 'fold',
+  KeyC: 'checkCall',
+  KeyR: 'bet',
+  KeyA: 'allIn',
 };
 
 function signature(key: Hotkey) {
@@ -110,20 +112,20 @@ function signature(key: Hotkey) {
  * программ только сочетания с Ctrl или Alt, без клавиши Windows и F12 (`MicrophoneHotkey.TryNative`);
  * плеер кинозала и покерный стол слушают голые буквы и пробел.
  */
-export function hotkeyNotes(key: Hotkey, place: HotkeyPlace): HotkeyNote[] {
-  const label = hotkeyLabel(key);
+export function hotkeyNotes(t: Translate, key: Hotkey, place: HotkeyPlace): HotkeyNote[] {
+  const label = hotkeyLabel(t, key);
   if (key.alt && !key.ctrl && !key.meta && key.code === 'F4')
-    return [{ level: 'blocked', text: 'Alt + F4 закрывает окно — выберите другое сочетание.' }];
+    return [{ level: 'blocked', text: t(($) => $.hotkeys.notes.altF4) }];
   if (place === 'browser' && BROWSER_RESERVED.has(signature(key)))
-    return [{ level: 'blocked', text: `${label} браузер оставляет себе — выберите другое сочетание.` }];
+    return [{ level: 'blocked', text: t(($) => $.hotkeys.notes.browser, { label }) }];
   const notes: HotkeyNote[] = [];
   if (place === 'desktop') {
     const local = key.meta
-      ? 'Клавиша Windows занята системой: сочетание будет работать только в окне Cord.'
+      ? t(($) => $.hotkeys.notes.windowsKey)
       : key.code === 'F12'
-        ? 'F12 занята системой: сочетание будет работать только в окне Cord.'
+        ? t(($) => $.hotkeys.notes.f12)
         : !key.ctrl && !key.alt
-          ? 'Без Ctrl или Alt сочетание работает только в окне Cord. Поверх других программ — с ними.'
+          ? t(($) => $.hotkeys.notes.noModifier)
           : null;
     if (local) notes.push({ level: 'warning', text: local });
   }
@@ -132,13 +134,13 @@ export function hotkeyNotes(key: Hotkey, place: HotkeyPlace): HotkeyNote[] {
   if (player)
     notes.push({
       level: 'warning',
-      text: `${label} — ещё и «${player}» в плеере кинозала: при открытом плеере сработает микрофон.`,
+      text: t(($) => $.hotkeys.notes.player, { label, action: t(($) => $.hotkeys.player[player]) }),
     });
   const poker = bare ? POKER_KEYS[key.code] : undefined;
   if (poker)
     notes.push({
       level: 'warning',
-      text: `${label} — ещё и «${poker}» за покерным столом: в свой ход сработает и то и другое.`,
+      text: t(($) => $.hotkeys.notes.poker, { label, action: t(($) => $.hotkeys.poker[poker]) }),
     });
   return notes;
 }

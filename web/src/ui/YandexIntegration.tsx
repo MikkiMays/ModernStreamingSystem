@@ -2,7 +2,9 @@ import { useEffect, useId, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Music } from 'lucide-react';
 import QRCode from 'qrcode';
+import { useTranslation } from 'react-i18next';
 import type { YandexApi, YandexAccount, YandexAuthorization } from '../core/services';
+import { t as translate } from '../i18n';
 import { Badge, Button } from './kit';
 
 /**
@@ -35,6 +37,7 @@ export function YandexIntegration({
   storedToken: string;
   onStoredTokenChange: (token: string) => void;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const client = useQueryClient();
   const account = useYandexAccount(api, roomId, true);
@@ -60,12 +63,13 @@ export function YandexIntegration({
           setAuth(null);
           setError('');
           client.setQueryData(['yandex', roomId], { connected: value.connected, name: value.name });
-          setNotice('Аккаунт подключён');
+          // Опрос живёт вне отрисовки — текст рождается в момент ответа, глобальным переводом.
+          setNotice(translate(($) => $.music.yandex.connected));
           return;
         }
         if (Date.now() >= value.expiresAt) {
           setAuth(null);
-          setError('Код истёк. Получите новый');
+          setError(translate(($) => $.music.yandex.expired));
           return;
         }
         timer = setTimeout(() => void poll(), value.interval * 1000);
@@ -95,10 +99,10 @@ export function YandexIntegration({
       if (saved) {
         try {
           save(await api.connectToken(saved));
-          setNotice('Подключено сохранённым токеном');
+          setNotice(t(($) => $.music.yandex.tokenConnected));
           return;
         } catch {
-          setError('Сохранённый токен больше не подходит. Войдите в Яндекс или введите новый токен.');
+          setError(t(($) => $.music.yandex.tokenStale));
         }
       }
       setAuth(await api.start());
@@ -129,23 +133,23 @@ export function YandexIntegration({
         </span>
         <div className="music-account__text">
           <span className="music-account__title" id={`${id}-title`}>
-            Яндекс Музыка
+            {t(($) => $.music.sources.yandex)}
           </span>
           <span className="music-account__hint">
             {account.isLoading
-              ? 'Проверяем подключение…'
+              ? t(($) => $.music.yandex.checking)
               : connected
                 ? account.data?.name
-                : 'Аккаунт комнаты: через него ищут и ставят треки все участники'}
+                : t(($) => $.music.yandex.hint)}
           </span>
         </div>
         {connected ? (
-          <Badge variant="success">Подключён</Badge>
+          <Badge variant="success">{t(($) => $.music.yandex.badge)}</Badge>
         ) : (
           !auth &&
           !account.isLoading && (
             <Button size="sm" variant="primary" loading={busy} onClick={() => void connect()}>
-              Подключить
+              {t(($) => $.music.yandex.connect)}
             </Button>
           )
         )}
@@ -153,7 +157,7 @@ export function YandexIntegration({
       {connected && (
         <div className="music-account__actions">
           <Button size="sm" variant="quiet" disabled={busy} onClick={() => void connect()}>
-            Сменить аккаунт
+            {t(($) => $.music.yandex.switch)}
           </Button>
           <Button
             size="sm"
@@ -162,14 +166,14 @@ export function YandexIntegration({
             disabled={busy}
             onClick={() => void disconnect()}
           >
-            Отключить
+            {t(($) => $.music.yandex.disconnect)}
           </Button>
         </div>
       )}
       {auth && (
         <div className="music-account__auth">
-          {qr && <img src={qr} alt="QR-код страницы входа Яндекса" width={176} height={176} />}
-          <p>Откройте страницу Яндекса и введите код:</p>
+          {qr && <img src={qr} alt={t(($) => $.music.yandex.qr)} width={176} height={176} />}
+          <p>{t(($) => $.music.yandex.openPage)}</p>
           <strong className="music-account__code">{auth.userCode}</strong>
           <a
             className="ui-button ui-button--primary ui-button--md"
@@ -177,10 +181,10 @@ export function YandexIntegration({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="ui-button__label">Войти в Яндекс</span>
+            <span className="ui-button__label">{t(($) => $.music.yandex.signIn)}</span>
             <ExternalLink size={16} aria-hidden="true" />
           </a>
-          <p className="music-account__note">Подтверждение появится здесь само. Код действует 5 минут.</p>
+          <p className="music-account__note">{t(($) => $.music.yandex.waiting)}</p>
           <Button
             size="sm"
             variant="quiet"
@@ -189,13 +193,13 @@ export function YandexIntegration({
               setAuth(null);
             }}
           >
-            Отменить вход
+            {t(($) => $.music.yandex.cancel)}
           </Button>
         </div>
       )}
       {!connected && !auth && !account.isLoading && (
         <details className="music-account__token">
-          <summary>У меня уже есть токен доступа</summary>
+          <summary>{t(($) => $.music.yandex.haveToken)}</summary>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -215,7 +219,7 @@ export function YandexIntegration({
             }}
           >
             <label className="music-account__label" htmlFor={`${id}-token`}>
-              Токен Яндекс Музыки
+              {t(($) => $.music.yandex.tokenLabel)}
             </label>
             <input
               id={`${id}-token`}
@@ -227,17 +231,12 @@ export function YandexIntegration({
               maxLength={1000}
             />
             <Button size="sm" disabled={busy || token.trim().length < 20} type="submit">
-              Подключить токен
+              {t(($) => $.music.yandex.connectToken)}
             </Button>
           </form>
         </details>
       )}
-      {!connected && !auth && (
-        <p className="music-account__note">
-          Пароль вводится на странице Яндекса. Для полных треков нужен аккаунт с подпиской. Работает через
-          неофициальный открытый коннектор Яндекс Музыки.
-        </p>
-      )}
+      {!connected && !auth && <p className="music-account__note">{t(($) => $.music.yandex.note)}</p>}
       {notice && (
         <p className="music-account__notice" role="status">
           {notice}

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp, Headphones, Link, PhoneOff, Users, Wifi, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
@@ -41,6 +42,7 @@ export function MeetingView({
   section?: string;
   onSectionClosed?: () => void;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
   const pinned = useStore(meeting.pinnedCamera);
@@ -165,28 +167,30 @@ export function MeetingView({
         onSettings={() => setMeetingSettings(true)}
       />
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
-        <main className="stage-wrap" aria-label="Сцена встречи">
+        <main className="stage-wrap" aria-label={t(($) => $.meeting.view.stage)}>
           {!ended &&
             may('participant.approve') &&
             snapshot.participants.some((p) => p.status === 'WAITING') && (
               <button className="admission-banner" onClick={() => setPanel('people')}>
-                <Users size={18} /> Запросы на подключение:{' '}
-                {snapshot.participants.filter((p) => p.status === 'WAITING').length} · Открыть
+                <Users size={18} />{' '}
+                {t(($) => $.meeting.view.requests, {
+                  n: snapshot.participants.filter((p) => p.status === 'WAITING').length,
+                })}
               </button>
             )}
           {!ended && media.status === 'recovering' && (
             <div className="recovery-banner media-stage" role="status">
               <Wifi size={20} />
               <div>
-                <strong>Возвращаемся в разговор</strong>
-                <span>Проверьте сеть. Повторяем подключение автоматически.</span>
+                <strong>{t(($) => $.meeting.view.recoveryTitle)}</strong>
+                <span>{t(($) => $.meeting.view.recoveryText)}</span>
               </div>
-              <b>{media.remaining} с</b>
+              <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
             </div>
           )}
           {!ended && control === 'recovering' && media.status === 'connected' && (
             <div className="control-banner media-stage" role="status">
-              Восстанавливаем чат и управление. Аудио и видео продолжают работать.
+              {t(($) => $.meeting.view.controlRecovering)}
             </div>
           )}
           {!ended && media.liveStatus && control !== 'recovering' && media.status === 'connected' && (
@@ -201,15 +205,15 @@ export function MeetingView({
               </span>
               <h2>{ended}</h2>
               <p>
-                Спасибо за разговор.
+                {t(($) => $.meeting.view.thanks)}
                 <br />
-                Сообщения и файлы доступны до окончания срока хранения.
+                {t(($) => $.meeting.view.retention)}
               </p>
               <Button variant="primary" size="lg" icon={<ArrowLeft />} onClick={onHome}>
-                На главную
+                {t(($) => $.meeting.view.home)}
               </Button>
               <Button variant="quiet" onClick={() => setPanel('chat')}>
-                Открыть историю
+                {t(($) => $.meeting.view.history)}
               </Button>
             </div>
           ) : self?.status === 'WAITING' ? (
@@ -217,11 +221,11 @@ export function MeetingView({
               <span className="waiting-orbit">
                 <Users size={32} />
               </span>
-              <h2>Организатор скоро впустит вас</h2>
+              <h2>{t(($) => $.meeting.view.waitingTitle)}</h2>
               <p>
-                Можно спокойно устроиться.
+                {t(($) => $.meeting.view.waitingSettle)}
                 <br />
-                Звук и камера пока не передаются.
+                {t(($) => $.meeting.view.waitingMedia)}
               </p>
             </div>
           ) : (
@@ -238,13 +242,13 @@ export function MeetingView({
                   className="return-conversation media-stage"
                   onClick={() => meeting.returnToConversation()}
                 >
-                  <ArrowLeft size={16} /> Вернуться в разговор
+                  <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
                 </button>
               )}
               {people.length === 1 && !media.screen && (
                 <button className="invite-hint media-stage" onClick={() => setInvite(true)}>
                   <Users size={18} />
-                  <span>Самое время пригласить своих</span>
+                  <span>{t(($) => $.meeting.view.inviteHint)}</span>
                   <Link size={16} />
                 </button>
               )}
@@ -258,13 +262,17 @@ export function MeetingView({
               icon={<Headphones />}
               onClick={() => void meeting.media.room.startAudio().then(() => setAudioBlocked(false))}
             >
-              Включить звук встречи
+              {t(($) => $.meeting.view.unlockAudio)}
             </Button>
           )}
           {media.error && !ended && (
             <div className="media-error media-stage" role="alert">
               <span>{media.error}</span>
-              <IconButton tone="stage" label="Скрыть уведомление" onClick={() => meeting.media.clearError()}>
+              <IconButton
+                tone="stage"
+                label={t(($) => $.meeting.view.dismissError)}
+                onClick={() => meeting.media.clearError()}
+              >
                 <X size={18} />
               </IconButton>
             </div>
@@ -273,7 +281,11 @@ export function MeetingView({
             <button
               ref={collapseToggle}
               className="controls-toggle media-stage"
-              aria-label={controlsVisible ? 'Свернуть управление' : 'Развернуть управление'}
+              aria-label={
+                controlsVisible
+                  ? t(($) => $.meeting.view.collapseControls)
+                  : t(($) => $.meeting.view.expandControls)
+              }
               aria-expanded={controlsVisible}
               aria-controls="meeting-controls"
               onClick={() => {
@@ -285,7 +297,7 @@ export function MeetingView({
               }}
             >
               {controlsVisible ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-              {!controlsVisible && <span>Управление</span>}
+              {!controlsVisible && <span>{t(($) => $.meeting.view.controls)}</span>}
             </button>
           )}
           <CallDock
@@ -316,7 +328,7 @@ export function MeetingView({
             <ResizeHandle
               className="panel-resizer"
               edge="end"
-              label="Ширина боковой панели"
+              label={t(($) => $.meeting.view.panelWidth)}
               value={panelWidth.width}
               min={panelWidth.min}
               max={panelWidth.max}

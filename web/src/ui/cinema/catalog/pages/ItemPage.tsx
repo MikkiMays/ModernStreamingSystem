@@ -1,4 +1,5 @@
 import { Eye, ListVideo, Play, Tv, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { clock, published, viewers, type CinemaDetails, type CinemaItem } from '../../../../core/cinema';
 import { Failure, Loading } from '../notes';
 
@@ -46,44 +47,49 @@ export function ItemPage({
   /** Дверь ко всем сериям сериала — у площадок, которые знают, из какого сериала серия. */
   onSeries?: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const shown = merge(item, details.data);
+  const followers = viewers(t, shown.followers);
+  const watching = viewers(t, shown.viewers);
+  const views = viewers(t, shown.views);
+  const date = published(t, shown.published);
   return (
     <div className="cinema-detail">
       <div className="cinema-detail-art">
         {shown.poster ? <img src={shown.poster} alt="" /> : <Tv size={34} />}
-        {shown.live && <span className="cinema-live">В эфире</span>}
+        {shown.live && <span className="cinema-live">{t(($) => $.cinema.meta.live)}</span>}
       </div>
       <div className="cinema-detail-body">
         <h3>{shown.title}</h3>
         <p className="cinema-detail-meta">
           <span>{shown.author}</span>
-          {viewers(shown.followers) && <span>{viewers(shown.followers)} подписчиков</span>}
-          {viewers(shown.viewers) && (
+          {followers && <span>{t(($) => $.cinema.meta.followers, { value: followers })}</span>}
+          {watching && (
             <span>
-              <Users size={12} /> {viewers(shown.viewers)} смотрят
+              <Users size={12} /> {t(($) => $.cinema.meta.watching, { value: watching })}
             </span>
           )}
-          {viewers(shown.views) && (
+          {views && (
             <span>
-              <Eye size={12} /> {viewers(shown.views)} просмотров
+              <Eye size={12} /> {t(($) => $.cinema.meta.views, { value: views })}
             </span>
           )}
           {clock(shown.duration) !== '—' && <span>{clock(shown.duration)}</span>}
-          {published(shown.published) && <span>{published(shown.published)}</span>}
+          {date && <span>{date}</span>}
           {shown.category && <span className="cinema-chip">{shown.category}</span>}
         </p>
         <div className="cinema-detail-actions">
           <button className="button primary" disabled={!canUse || !!busy} onClick={() => void onWatch(item)}>
-            <Play size={18} /> Смотреть вместе
+            <Play size={18} /> {t(($) => $.cinema.item.watch)}
           </button>
           {shown.channelId && (
             <button className="button secondary" onClick={() => onChannel(String(shown.channelId))}>
-              <Tv size={17} /> Открыть канал
+              <Tv size={17} /> {t(($) => $.cinema.item.openChannel)}
             </button>
           )}
           {shown.series && onSeries ? (
             <button className="button secondary" onClick={() => onSeries(String(shown.series))}>
-              <ListVideo size={17} /> Все серии
+              <ListVideo size={17} /> {t(($) => $.cinema.item.allEpisodes)}
             </button>
           ) : null}
         </div>

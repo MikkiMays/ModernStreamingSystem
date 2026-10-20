@@ -30,7 +30,15 @@ const home: FavoriteGroup = { id: 'home', title: 'Дом' };
 
 describe('readRoom', () => {
   it('reads an older core without groups as a plain list', () => {
-    const plain = readRoom({ roomId: 'a', title: 'А', code: '1', savedAt: 1, closed: false, canJoin: true, pinned: false });
+    const plain = readRoom({
+      roomId: 'a',
+      title: 'А',
+      code: '1',
+      savedAt: 1,
+      closed: false,
+      canJoin: true,
+      pinned: false,
+    });
     expect(plain).toMatchObject({ groupId: null, pinned: false, alias: null });
   });
 

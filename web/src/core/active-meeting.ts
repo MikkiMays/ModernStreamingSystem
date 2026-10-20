@@ -1,4 +1,5 @@
 import type { Admission } from '../api/types';
+import { t } from '../i18n';
 
 /**
  * Какая встреча идёт в соседней вкладке этого браузера (T52, П13).
@@ -180,7 +181,7 @@ export function findActiveMeeting(roomId: string, waitMs = ANSWER_MS): Promise<A
 /** Попросить вкладку со встречей отдать её сюда. Ответ — допуск, с которым можно войти. */
 export function requestHandover(meeting: ActiveMeeting, waitMs = HANDOVER_MS): Promise<Admission> {
   const channel = makeChannel();
-  if (!channel) return Promise.reject(new Error('Браузер не умеет передавать встречу между вкладками'));
+  if (!channel) return Promise.reject(new Error(t(($) => $.meeting.handover.unsupported)));
   return new Promise<Admission>((resolve, reject) => {
     const finish = () => {
       clearTimeout(timer);
@@ -196,7 +197,7 @@ export function requestHandover(meeting: ActiveMeeting, waitMs = HANDOVER_MS): P
     };
     const timer = setTimeout(() => {
       finish();
-      reject(new Error('Вкладка со встречей не ответила. Перейдите в неё или закройте её'));
+      reject(new Error(t(($) => $.meeting.handover.noAnswer)));
     }, waitMs);
     channel.addEventListener('message', onMessage);
     channel.postMessage({

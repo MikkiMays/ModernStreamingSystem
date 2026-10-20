@@ -1,4 +1,5 @@
 import { LayoutGrid, UserSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { StageLayout } from '../core/preferences';
 import { IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
@@ -11,9 +12,9 @@ import { useStore } from './primitives';
  * даёт две марки вместо двух лиц, а на мониторе она же — то, что нужно. Договариваться об
  * этом с собеседником не о чем, поэтому настройка живёт на устройстве.
  */
-const LAYOUTS: { value: StageLayout; title: string; icon: typeof LayoutGrid }[] = [
-  { value: 'grid', title: 'Сетка', icon: LayoutGrid },
-  { value: 'speaker', title: 'Говорящий', icon: UserSquare },
+const LAYOUTS: { value: StageLayout; icon: typeof LayoutGrid }[] = [
+  { value: 'grid', icon: LayoutGrid },
+  { value: 'speaker', icon: UserSquare },
 ];
 
 function apply(meeting: Meeting, layout: StageLayout) {
@@ -22,13 +23,14 @@ function apply(meeting: Meeting, layout: StageLayout) {
 
 /** Тихий значок справа от пульта: раскладку меняют редко, и в группах ей не место. */
 export function LayoutMenu({ meeting }: { meeting: Meeting }) {
+  const { t } = useTranslation();
   const layout = useStore(meeting.media.preferences).layout;
   const Current = LAYOUTS.find((item) => item.value === layout)?.icon ?? LayoutGrid;
   return (
     <Menu>
       <MenuTrigger
         render={
-          <IconButton tone="stage" className="dock-tool" label="Расположение участников">
+          <IconButton tone="stage" className="dock-tool" label={t(($) => $.dock.layout.label)}>
             <Current size={20} />
           </IconButton>
         }
@@ -42,6 +44,7 @@ export function LayoutMenu({ meeting }: { meeting: Meeting }) {
 
 /** Те же пункты, но внутри чужого меню: на телефоне отдельной кнопке места нет. */
 export function LayoutChoices({ meeting }: { meeting: Meeting }) {
+  const { t } = useTranslation();
   const layout = useStore(meeting.media.preferences).layout;
   return (
     <>
@@ -52,7 +55,7 @@ export function LayoutChoices({ meeting }: { meeting: Meeting }) {
           shortcut={item.value === layout ? '✓' : undefined}
           onClick={() => apply(meeting, item.value)}
         >
-          {item.title}
+          {t(($) => $.dock.layout.options[item.value])}
         </MenuItem>
       ))}
     </>

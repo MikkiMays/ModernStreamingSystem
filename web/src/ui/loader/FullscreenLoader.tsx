@@ -1,4 +1,5 @@
 import { isValidElement, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Logo } from '../brand/Logo';
 import { CardsScene, CordScene, type Deck } from './scenes';
 import './loader.css';
@@ -47,6 +48,7 @@ export function FullscreenLoader({
   brand = true,
   inline = false,
 }: FullscreenLoaderProps) {
+  const { t } = useTranslation();
   const root = useRef<HTMLDivElement>(null);
   const [exited, setExited] = useState(false);
   const [slow, setSlow] = useState(false);
@@ -113,10 +115,10 @@ export function FullscreenLoader({
       </div>
       {slow && (
         <div className="fl__slow">
-          <span>Сеть медленная</span>
+          <span>{t(($) => $.loader.slow)}</span>
           {onRetry && (
             <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onRetry}>
-              Повторить
+              {t(($) => $.loader.retry)}
             </button>
           )}
         </div>

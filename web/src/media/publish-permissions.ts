@@ -1,4 +1,5 @@
 import { RoomEvent, Track, type Room } from 'livekit-client';
+import { t } from '../i18n';
 
 /** The control API acknowledgement can arrive before the SFU permission update. */
 export function waitForPublishPermissions(
@@ -15,7 +16,13 @@ export function waitForPublishPermissions(
         sources.every((source) => permissions.canPublishSources.includes(Track.sourceToProto(source))))
     );
   };
-  if (signal.aborted) return Promise.reject(new DOMException('Демонстрация отменена', 'AbortError'));
+  if (signal.aborted)
+    return Promise.reject(
+      new DOMException(
+        t(($) => $.media.screen.cancelled),
+        'AbortError',
+      ),
+    );
   if (permitted()) return Promise.resolve();
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -34,11 +41,14 @@ export function waitForPublishPermissions(
     const check = () => {
       if (permitted()) finish();
     };
-    const cancel = () => finish(new DOMException('Демонстрация отменена', 'AbortError'));
-    const timer = setTimeout(
-      () => finish(new Error('Не получено разрешение медиасервера. Попробуйте включить демонстрацию снова.')),
-      timeoutMs,
-    );
+    const cancel = () =>
+      finish(
+        new DOMException(
+          t(($) => $.media.screen.cancelled),
+          'AbortError',
+        ),
+      );
+    const timer = setTimeout(() => finish(new Error(t(($) => $.media.screen.noPermission))), timeoutMs);
     room.on(RoomEvent.ParticipantPermissionsChanged, check);
     room.on(RoomEvent.Reconnecting, cancel);
     room.on(RoomEvent.SignalReconnecting, cancel);

@@ -15,6 +15,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Participant, Watch } from '../../../api/types';
 import { clock, type CinemaSource } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
@@ -42,13 +43,6 @@ const SKIP_MS = 15000;
  * заставки сериала. Общий, как вся перемотка.
  */
 const INTRO_MS = 85_000;
-/** Строки пропуска — в одном месте, до слоя переводов (E14). */
-const SKIP_TEXT = {
-  intro: 'Пропустить 85 секунд для всех',
-  ad: 'Пропустить рекламу для всех',
-  adShort: 'Пропустить рекламу',
-  adLabel: 'Реклама в потоке',
-} as const;
 /**
  * Отставание, которое для эфира нормально.
  *
@@ -135,12 +129,13 @@ export function Chrome({
   fullscreen: boolean;
   onFullscreen: () => void;
 }) {
+  const { t } = useTranslation();
   const { position, duration, buffered, lag, over, send, command, skip, resync } = sync;
   const { levels, voices, texts } = player;
-  const choices = useMemo(() => qualities(levels), [levels]);
-  const title = source?.title ?? watch.title ?? 'Совместный просмотр';
+  const choices = useMemo(() => qualities(t, levels), [t, levels]);
+  const title = source?.title ?? watch.title ?? t(($) => $.cinema.theater.untitled);
   // «Играть/пауза» — одна и та же кнопка посреди кадра и в полосе пульта (`playToggle`).
-  const toggle = playToggle({ paused: watch.paused, over, playing });
+  const toggle = playToggle(t, { paused: watch.paused, over, playing });
   return (
     <div className="watch-chrome" data-shown={shown ? 'true' : undefined}>
       <div className="watch-head">
@@ -150,24 +145,26 @@ export function Chrome({
           <small>
             {source?.notice ||
               (live
-                ? `Эфир · ${source?.author || watch.contentId}`
+                ? t(($) => $.cinema.theater.live, { author: source?.author || watch.contentId })
                 : behind
-                  ? 'Догоняем комнату…'
+                  ? t(($) => $.cinema.theater.catchingUp)
                   : owner
-                    ? `Открыл${owner.id === self?.id ? 'и вы' : ` ${owner.name}`}`
-                    : 'Смотрим вместе')}
+                    ? owner.id === self?.id
+                      ? t(($) => $.cinema.theater.openedBySelf)
+                      : t(($) => $.cinema.theater.openedBy, { name: owner.name })
+                    : t(($) => $.cinema.theater.together))}
           </small>
         </span>
         {/* На телефоне подпись прячется, а имя кнопки остаётся: без него это была бы
             кнопка без названия — и для голосового доступа, и для проверок. */}
         {onBrowse && (
-          <button className="watch-browse" aria-label="Каталог" onClick={onBrowse}>
+          <button className="watch-browse" aria-label={t(($) => $.cinema.theater.catalog)} onClick={onBrowse}>
             <Clapperboard size={16} />
-            <span>Каталог</span>
+            <span>{t(($) => $.cinema.theater.catalog)}</span>
           </button>
         )}
         {canControl && (
-          <IconButton label="Закрыть просмотр для всех" onClick={() => send('watch.close')}>
+          <IconButton label={t(($) => $.cinema.theater.closeForAll)} onClick={() => send('watch.close')}>
             <X size={19} />
           </IconButton>
         )}
@@ -180,7 +177,7 @@ export function Chrome({
         {center && (
           <>
             <IconButton
-              label="Назад на 15 секунд для всех"
+              label={t(($) => $.cinema.theater.back15)}
               className="watch-skip"
               disabled={!canControl || !duration}
               onClick={() => skip(-SKIP_MS)}
@@ -197,7 +194,7 @@ export function Chrome({
               {toggle.icon === 'play' ? <Play size={30} /> : <Pause size={30} />}
             </IconButton>
             <IconButton
-              label="Вперёд на 15 секунд для всех"
+              label={t(($) => $.cinema.theater.forward15)}
               className="watch-skip"
               disabled={!canControl || !duration}
               onClick={() => skip(SKIP_MS)}
@@ -219,7 +216,7 @@ export function Chrome({
               step={1000}
               value={Math.min(position, duration || position)}
               disabled={!canControl || !duration}
-              aria-label="Положение в ролике"
+              aria-label={t(($) => $.cinema.theater.position)}
               style={
                 {
                   '--slider-b': Math.min(1, buffered / Math.max(1000, duration)),
@@ -240,13 +237,17 @@ export function Chrome({
               className="watch-live"
               data-edge={lag > LIVE_EDGE ? undefined : 'true'}
               aria-label={
-                lag > LIVE_EDGE ? `Вернуться к эфиру, отстали на ${Math.round(lag)} с` : 'Идёт эфир'
+                lag > LIVE_EDGE
+                  ? t(($) => $.cinema.theater.liveBehind, { seconds: Math.round(lag) })
+                  : t(($) => $.cinema.theater.liveEdge)
               }
               onClick={resync}
             >
               <span className="watch-live-dot" />
               LIVE
-              {lag > LIVE_EDGE && <small>−{Math.round(lag)} с</small>}
+              {lag > LIVE_EDGE && (
+                <small>{t(($) => $.cinema.theater.lag, { seconds: Math.round(lag) })}</small>
+              )}
             </button>
           ) : (
             <>
@@ -259,7 +260,7 @@ export function Chrome({
                 {toggle.icon === 'play' ? <Play size={21} /> : <Pause size={21} />}
               </IconButton>
               <IconButton
-                label="В начало для всех"
+                label={t(($) => $.cinema.theater.toStart)}
                 disabled={!canControl}
                 onClick={() => command('watch.seek', 0)}
               >
@@ -275,7 +276,7 @@ export function Chrome({
           {!live && <SyncButton behind={behind} onSync={resync} />}
           {!live && (
             <IconButton
-              label={SKIP_TEXT.intro}
+              label={t(($) => $.cinema.theater.skip.intro)}
               className="watch-intro"
               disabled={!canControl || !duration}
               onClick={() => skip(INTRO_MS)}
@@ -287,14 +288,14 @@ export function Chrome({
             (canControl ? (
               <button
                 className="watch-ad"
-                aria-label={SKIP_TEXT.ad}
+                aria-label={t(($) => $.cinema.theater.skip.ad)}
                 onClick={() => command('watch.seek', Math.round(ad.end * 1000))}
               >
-                {SKIP_TEXT.adShort}
+                {t(($) => $.cinema.theater.skip.adShort)}
               </button>
             ) : (
               <span className="watch-ad" role="status">
-                {SKIP_TEXT.adLabel}
+                {t(($) => $.cinema.theater.skip.adLabel)}
               </span>
             ))}
           <Volume meeting={meeting} volume={volume} loudness={loudness} />
@@ -328,7 +329,9 @@ export function Chrome({
             />
           )}
           <IconButton
-            label={fullscreen ? 'Выйти из полноэкранного режима' : 'Развернуть плеер'}
+            label={
+              fullscreen ? t(($) => $.cinema.theater.exitFullscreen) : t(($) => $.cinema.theater.fullscreen)
+            }
             onClick={onFullscreen}
           >
             {fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
@@ -349,6 +352,7 @@ function Volume({
   volume: number;
   loudness?: MutableRefObject<number>;
 }) {
+  const { t } = useTranslation();
   /** Громкость до «без звука»: туда же она и возвращается. */
   const own = useRef(Math.max(8, volume || 70));
   const memory = loudness ?? own;
@@ -360,7 +364,7 @@ function Volume({
   return (
     <div className="watch-volume">
       <IconButton
-        label={muted ? 'Включить звук просмотра' : 'Выключить звук просмотра'}
+        label={muted ? t(($) => $.cinema.theater.unmute) : t(($) => $.cinema.theater.mute)}
         onClick={() => setVolume(muted ? memory.current : 0)}
       >
         {muted ? <VolumeX size={18} /> : volume < 50 ? <Volume1 size={18} /> : <Volume2 size={18} />}
@@ -370,7 +374,7 @@ function Volume({
         max={100}
         step={1}
         value={volume}
-        aria-label="Громкость просмотра"
+        aria-label={t(($) => $.cinema.theater.volume)}
         onChange={(event) => setVolume(Number(event.target.value))}
       />
     </div>

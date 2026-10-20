@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { ArrowLeft, Settings2 } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
+import { useTranslation } from 'react-i18next';
 import { levelLabel, type Level, type Quality } from '../watch-levels';
 import type { AudioChoice } from '../watch-tracks';
 
@@ -40,7 +41,9 @@ export function QualityMenu({
   onLevel: (index: number) => void;
   onVoice: (choice: AudioChoice) => void;
 }) {
-  const chosen = level >= 0 ? levelLabel(levels[level]) : '';
+  const { t } = useTranslation();
+  const chosen = level >= 0 ? levelLabel(t, levels[level]) : '';
+  const auto = t(($) => $.cinema.theater.quality.auto);
   return (
     <Menu.Root
       open={open}
@@ -53,9 +56,9 @@ export function QualityMenu({
     >
       <Menu.Trigger
         render={
-          <button className="watch-quality" aria-label="Качество картинки и язык звука">
+          <button className="watch-quality" aria-label={t(($) => $.cinema.theater.quality.menuLabel)}>
             <Settings2 size={17} />
-            <span>{chosen || 'Авто'}</span>
+            <span>{chosen || auto}</span>
           </button>
         }
       />
@@ -75,16 +78,20 @@ export function QualityMenu({
               <>
                 {voices.length > 1 && (
                   <Menu.Item closeOnClick={false} onClick={() => onPage('voice')}>
-                    Язык озвучки
-                    <small>{voices.find((item) => item.index === voice)?.label ?? 'Авто'}</small>
+                    {t(($) => $.cinema.theater.quality.voice)}
+                    <small>{voices.find((item) => item.index === voice)?.label ?? auto}</small>
                   </Menu.Item>
                 )}
                 {choices.length > 1 && (
                   <Menu.Item closeOnClick={false} onClick={() => onPage('quality')}>
-                    Качество
+                    {t(($) => $.cinema.theater.quality.title)}
                     <small>
                       {level < 0
-                        ? `Авто${automatic >= 0 ? ` · ${levelLabel(levels[automatic])}` : ''}`
+                        ? automatic >= 0
+                          ? t(($) => $.cinema.theater.quality.autoWith, {
+                              level: levelLabel(t, levels[automatic]),
+                            })
+                          : auto
                         : chosen}
                     </small>
                   </Menu.Item>
@@ -94,7 +101,9 @@ export function QualityMenu({
             {page !== 'root' && (
               <button type="button" className="watch-menu-back" onClick={() => onPage('root')}>
                 <ArrowLeft size={15} />
-                {page === 'voice' ? 'Язык озвучки' : 'Качество'}
+                {page === 'voice'
+                  ? t(($) => $.cinema.theater.quality.voice)
+                  : t(($) => $.cinema.theater.quality.title)}
               </button>
             )}
             {page === 'voice' &&
@@ -105,14 +114,14 @@ export function QualityMenu({
                   onClick={() => onVoice(item)}
                 >
                   {item.label}
-                  {item.original && <small>оригинал</small>}
+                  {item.original && <small>{t(($) => $.cinema.theater.quality.original)}</small>}
                 </Menu.Item>
               ))}
             {page === 'quality' && (
               <>
                 <Menu.Item data-selected={level < 0 ? 'true' : undefined} onClick={() => onLevel(-1)}>
-                  Автоматически
-                  {level < 0 && automatic >= 0 && <small>{levelLabel(levels[automatic])}</small>}
+                  {t(($) => $.cinema.theater.quality.automatic)}
+                  {level < 0 && automatic >= 0 && <small>{levelLabel(t, levels[automatic])}</small>}
                 </Menu.Item>
                 {choices.map((choice) => (
                   <Menu.Item

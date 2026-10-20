@@ -12,7 +12,10 @@ const registry = JSON.parse(readFileSync(new URL('../../../contracts/errors.json
 const target = fileURLToPath(new URL('../../src/i18n/locales/ru.json', import.meta.url));
 const catalog = JSON.parse(readFileSync(target, 'utf8'));
 const errors = Object.fromEntries(
-  Object.entries(registry).map(([code, entry]) => [code, entry.ru.replaceAll('{}', '…').replace(/\s+…/g, ' …')]),
+  Object.entries(registry).map(([code, entry]) => [
+    code,
+    entry.ru.replaceAll('{}', '…').replace(/\s+…/g, ' …'),
+  ]),
 );
 const next = JSON.stringify({ ...catalog, errors }, null, 2) + '\n';
 if (process.argv.includes('--check')) {

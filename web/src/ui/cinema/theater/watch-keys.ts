@@ -15,15 +15,29 @@
  * не у эфира, иначе — подсказка, почему нет. Громкость, звук и полный экран — свои, их можно всем.
  */
 
-/** Строки клавиш — в одном месте, до слоя переводов (E14). */
+import { t } from '../../../i18n';
+
+/**
+ * Отклики и подсказки клавиш (каталог, `cinema.keys`). Рождаются в момент нажатия, поэтому — с
+ * глобальным `t` и геттерами: каждое чтение — на языке, что стоит сейчас.
+ */
 export const KEY_TEXT = {
-  locked: 'Ведущий разрешил пульт только себе — пауза и перемотка у него',
-  live: 'Эфир не ставят на паузу и не перематывают',
-  micPause: (label: string) => `${label} включает микрофон — пауза на K`,
-  micOther: (label: string) => `${label} включает микрофон — у плеера эта клавиша не работает`,
-  seek: (deltaMs: number) => `${deltaMs > 0 ? '+' : '−'}${Math.round(Math.abs(deltaMs) / 1000)} с`,
-  volume: (volume: number) => (volume <= 0 ? 'Звук выключен' : `Громкость ${volume} %`),
-} as const;
+  get locked(): string {
+    return t(($) => $.cinema.keys.locked);
+  },
+  get live(): string {
+    return t(($) => $.cinema.keys.live);
+  },
+  micPause: (label: string) => t(($) => $.cinema.keys.micPause, { label }),
+  micOther: (label: string) => t(($) => $.cinema.keys.micOther, { label }),
+  seek: (deltaMs: number) =>
+    t(($) => $.cinema.keys.seek, {
+      sign: deltaMs > 0 ? '+' : '−',
+      seconds: Math.round(Math.abs(deltaMs) / 1000),
+    }),
+  volume: (volume: number) =>
+    volume <= 0 ? t(($) => $.cinema.keys.muted) : t(($) => $.cinema.keys.volume, { volume }),
+};
 
 /** Шаг перемотки стрелкой и стрелкой с Shift, миллисекунды. */
 export const SEEK_MS = 10_000;

@@ -1,17 +1,25 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { CinemaApi, PROVIDERS, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
+import { useTranslation } from 'react-i18next';
+import {
+  CinemaApi,
+  PROVIDERS,
+  providerName,
+  QUERY_LONGEST,
+  type ChannelTab,
+  type CinemaItem,
+} from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
 import { Empty, Failure, Following, Loading } from '../catalog/notes';
-import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
+import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
 import { cardsOf } from '../catalog/cards';
 import { Shell } from '../catalog/Shell';
 import { Shelf } from '../catalog/Shelf';
-import { Tabs, type TabSpec } from '../catalog/Tabs';
+import { Tabs } from '../catalog/Tabs';
 import { ChannelTile, Grid, PosterTile, Tile } from '../catalog/tiles';
 import { useLink } from '../catalog/useLink';
 import { usePage } from '../catalog/usePage';
@@ -20,13 +28,7 @@ import { useTogether } from '../catalog/useTogether';
 import type { SceneProps } from '.';
 
 /** Вкладки канала Rutube: у площадки нет ни трансляций отдельной лентой, ни плейлистов. */
-const TABS: readonly ChannelTabSpec[] = [
-  { id: 'videos', name: 'Видео' },
-  { id: 'about', name: 'О канале' },
-];
-
-/** Первая вкладка ряда разделов — витрина: полки вместо ленты раздела. */
-const SHOWCASE: TabSpec = { id: '', name: 'Главная' };
+const TABS: readonly ChannelTab[] = ['videos', 'about'];
 
 /** Смотрится ли это вместе прямо отсюда: ролик или идущий эфир ТВ. Канал автора — дверь. */
 function playable(item: CinemaItem): boolean {
@@ -52,6 +54,7 @@ function playable(item: CinemaItem): boolean {
  * Rutube — здесь же, ссылку другой площадки — в её сцене.
  */
 export default function RutubeScene({ provider, at, meeting, onClose }: SceneProps) {
+  const { t } = useTranslation();
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
@@ -116,7 +119,8 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
   const shows = first?.series ?? [];
   const inSection = cardsOf(feed.data?.pages);
   const chips = [
-    SHOWCASE,
+    // Первая вкладка ряда разделов — витрина: полки вместо ленты раздела.
+    { id: '', name: t(($) => $.cinema.rutube.home) },
     ...(sections.data?.items ?? []).map((entry) => ({ id: entry.id, name: entry.title })),
   ];
 
@@ -151,11 +155,11 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
       tabs={
         <span className="cinema-platform" style={accent}>
           <spec.icon size={15} />
-          {spec.name}
+          {providerName(t, provider)}
         </span>
       }
       query={query}
-      placeholder={spec.searchPlaceholder}
+      placeholder={t(($) => $.cinema.providers[provider].search)}
       maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
@@ -186,7 +190,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
               одна, по разделам ходят стрелками (`Tabs`). */}
           <div className="cinema-strip">
             <Tabs
-              label="Разделы Rutube"
+              label={t(($) => $.cinema.rutube.sectionsLabel)}
               items={chips}
               selected={section}
               onSelect={setSection}
@@ -207,7 +211,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
                 onMore={() => void feed.fetchNextPage()}
               />
               {!feed.isFetching && !feed.isError && inSection.length === 0 ? (
-                <Empty text="В этом разделе пока нечего показать комнате." />
+                <Empty text={t(($) => $.cinema.search.emptySection)} />
               ) : null}
             </>
           ) : (
@@ -215,9 +219,9 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
               {results.isError ? <Failure problem={results.error} /> : null}
               {first?.items.length ? (
                 <Shelf
-                  title="Прямой эфир"
-                  more="Все эфиры"
-                  onMore={() => go({ at: 'shelf', id: 'live', title: 'Прямой эфир' })}
+                  title={t(($) => $.cinema.rutube.live)}
+                  more={t(($) => $.cinema.rutube.allLive)}
+                  onMore={() => go({ at: 'shelf', id: 'live', title: t(($) => $.cinema.rutube.live) })}
                 >
                   {first.items.map(card)}
                 </Shelf>
@@ -225,9 +229,9 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
               {shows.length ? (
                 <Shelf
                   kind="tall"
-                  title="Сериалы и шоу"
-                  more="Все сериалы и шоу"
-                  onMore={() => go({ at: 'shelf', id: 'shows', title: 'Сериалы и шоу' })}
+                  title={t(($) => $.cinema.rutube.shows)}
+                  more={t(($) => $.cinema.rutube.allShows)}
+                  onMore={() => go({ at: 'shelf', id: 'shows', title: t(($) => $.cinema.rutube.shows) })}
                 >
                   {shows.map(card)}
                 </Shelf>
@@ -244,16 +248,18 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
               ролики про него, — и находят его первым. */}
           {first?.channels.length ? (
             <>
-              <h4 className="cinema-heading">Каналы</h4>
+              <h4 className="cinema-heading">{t(($) => $.cinema.headings.channels)}</h4>
               <Grid kind="faces">{first.channels.map(card)}</Grid>
             </>
           ) : null}
           {shows.length ? (
-            <Shelf kind="tall" title="Сериалы и шоу">
+            <Shelf kind="tall" title={t(($) => $.cinema.rutube.shows)}>
               {shows.map(card)}
             </Shelf>
           ) : null}
-          {first?.channels.length || shows.length ? <h4 className="cinema-heading">Видео и эфиры</h4> : null}
+          {first?.channels.length || shows.length ? (
+            <h4 className="cinema-heading">{t(($) => $.cinema.rutube.videosAndLive)}</h4>
+          ) : null}
           {results.isError ? <Failure problem={results.error} /> : null}
           {results.data ? <Grid>{found.map(card)}</Grid> : null}
           {results.isFetching && !results.isFetchingNextPage ? <Loading /> : null}
@@ -263,7 +269,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
             onMore={() => void results.fetchNextPage()}
           />
           {first && !found.length && !first.channels.length && !shows.length && !results.isFetching ? (
-            <Empty text="Ничего не нашлось. Попробуйте другие слова." />
+            <Empty text={t(($) => $.cinema.search.nothing)} />
           ) : null}
         </>
       ) : null}
@@ -310,7 +316,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
           feed={page.opened}
           items={page.items}
           card={card}
-          empty="Здесь нечего показать комнате: остальные серии на Rutube — по подписке или недоступны отсюда."
+          empty={t(($) => $.cinema.rutube.seriesEmpty)}
         />
       ) : null}
 

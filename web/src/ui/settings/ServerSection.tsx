@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plug } from 'lucide-react';
 import { notifyDesktop } from '../../core/desktop';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../../core/servers';
@@ -6,7 +7,7 @@ import { disconnect, session } from '../../core/session';
 import { useStore } from '../primitives';
 import { Button, Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
-import { row } from './sections';
+import { rowText } from './sections';
 
 /**
  * С каким сервером говорит этот клиент — другой вопрос, чем «кто вы на нём», поэтому не в
@@ -23,11 +24,12 @@ export function ServerSection({
   changePing: (showPing: boolean) => void;
   inCall: boolean;
 }) {
+  const { t } = useTranslation();
   const desktop = !!window.chrome?.webview;
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
   return (
-    <SettingGroup title="Подключение" collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.server.connection)} collapsible={false}>
       <SettingRow
         id="server-current"
         hint={`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}
@@ -36,16 +38,16 @@ export function ServerSection({
           size="sm"
           icon={<Plug />}
           disabled={inCall}
-          title={inCall ? 'Сначала выйдите из встречи' : undefined}
+          title={inCall ? t(($) => $.settings.server.leaveFirst) : undefined}
           onClick={() => (desktop ? notifyDesktop('servers.open') : disconnect())}
         >
-          {desktop ? 'Сменить сервер' : 'Отключиться'}
+          {desktop ? t(($) => $.settings.server.change) : t(($) => $.settings.server.disconnect)}
         </Button>
       </SettingRow>
       <SettingRow id="server-autoconnect">
         <Switch
           checked={saved.autoConnect}
-          ariaLabel={row('server-autoconnect').label}
+          ariaLabel={rowText(t, 'server-autoconnect').label}
           onCheckedChange={(autoConnect) => {
             setSaved(rememberServer({ autoConnect }));
             // В приложении список адресов — родной, и выключатель правдив, только если оболочка
@@ -57,12 +59,12 @@ export function ServerSection({
       {!!saved.password && (
         <SettingRow id="server-password">
           <Button size="sm" variant="quiet" onClick={() => setSaved(rememberServer({ password: '' }))}>
-            Забыть пароль
+            {t(($) => $.settings.server.forget)}
           </Button>
         </SettingRow>
       )}
       <SettingRow id="server-ping">
-        <Switch checked={showPing} ariaLabel={row('server-ping').label} onCheckedChange={changePing} />
+        <Switch checked={showPing} ariaLabel={rowText(t, 'server-ping').label} onCheckedChange={changePing} />
       </SettingRow>
     </SettingGroup>
   );

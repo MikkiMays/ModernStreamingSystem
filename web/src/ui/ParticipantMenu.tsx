@@ -2,6 +2,7 @@ import { ContextMenu } from '@base-ui/react/context-menu';
 import { Menu } from '@base-ui/react/menu';
 import { MoreHorizontal } from 'lucide-react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Participant } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { allowed } from '../core/permissions';
@@ -23,6 +24,7 @@ export function ParticipantMenu({
   /** Место плитки в сетке: его считает сцена по своему настоящему размеру, а не CSS. */
   style?: CSSProperties;
 } & Record<`data-${string}`, string | undefined>) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const volumes = useStore(meeting.media.volumes);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
@@ -37,7 +39,7 @@ export function ParticipantMenu({
       {remote && active && (
         <>
           <label className="participant-volume">
-            Громкость у вас · {Math.round(volume * 100)}%
+            {t(($) => $.stage.menu.volume, { value: Math.round(volume * 100) })}
             {/*
               Музыкальный бот — участник комнаты по устройству, но не по смыслу: его дорожка
               приходит сведённой и на своём уровне. Потолок для него такой же, как у ползунка
@@ -48,22 +50,22 @@ export function ParticipantMenu({
               max={person.service ? 100 : 200}
               step={1}
               value={Math.round(volume * 100)}
-              aria-label={`Громкость: ${person.name}`}
+              aria-label={t(($) => $.stage.menu.volumeOf, { name: person.name })}
               onChange={(e) => meeting.media.setVolume(person.id, Number(e.target.value) / 100)}
             />
           </label>
           <Item onClick={() => meeting.media.toggleParticipantMute(person.id)}>
-            {volume === 0 ? 'Восстановить громкость' : 'Отключить звук у меня'}
+            {volume === 0 ? t(($) => $.stage.menu.unmute) : t(($) => $.stage.menu.mute)}
           </Item>
         </>
       )}
       {active && !person.service && (
-        <Item onClick={() => meeting.pinCamera(person.id)}>Закрепить камеру</Item>
+        <Item onClick={() => meeting.pinCamera(person.id)}>{t(($) => $.stage.menu.pin)}</Item>
       )}
       {/* Свою демонстрацию не смотрят: это тот же экран, на котором она открыта, только
           с задержкой и через сеть. Показывающему нужна не она, а кнопка «остановить». */}
       {remote && person.screen && person.screenId && person.screenStarted && (
-        <Item onClick={() => meeting.openStream(person.id)}>Смотреть стрим</Item>
+        <Item onClick={() => meeting.openStream(person.id)}>{t(($) => $.stage.menu.watch)}</Item>
       )}
       {allowed(snapshot, meeting.admission.participantId, 'participant.mute') && remote && active && (
         <Item
@@ -73,7 +75,7 @@ export function ParticipantMenu({
               .catch((e) => meeting.media.report(e))
           }
         >
-          Выключить микрофон для всех
+          {t(($) => $.stage.menu.muteForAll)}
         </Item>
       )}
       {/* Создателя не исключают: это правило о цели, а не о праве (`RoomService`). */}
@@ -86,7 +88,7 @@ export function ParticipantMenu({
               .catch((e) => meeting.media.report(e))
           }
         >
-          Удалить из встречи
+          {t(($) => $.stage.menu.remove)}
         </Item>
       )}
     </>
@@ -100,7 +102,10 @@ export function ParticipantMenu({
       <ContextMenu.Trigger className={className} style={style} tabIndex={0} {...marks}>
         {children}
         <Menu.Root>
-          <Menu.Trigger className="icon-button participant-more" aria-label={`Действия: ${person.name}`}>
+          <Menu.Trigger
+            className="icon-button participant-more"
+            aria-label={t(($) => $.stage.menu.actions, { name: person.name })}
+          >
             <MoreHorizontal size={19} />
           </Menu.Trigger>
           <Menu.Portal>

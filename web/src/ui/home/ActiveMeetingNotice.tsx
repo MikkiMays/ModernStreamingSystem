@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Admission } from '../../api/types';
 import { requestHandover, watchActiveMeetings, type ActiveMeeting } from '../../core/active-meeting';
 import { formatCode } from '../../core/invitation';
 import { Button } from '../kit';
-
-const TEXT = {
-  title: 'Вы во встрече в другой вкладке',
-  back: 'Вернуться',
-  backLabel: (title: string) => `Вернуться во встречу «${title}» здесь`,
-  moving: 'Переносим…',
-};
 
 /** Встречи соседних вкладок этого браузера; переспрашиваются, когда страница снова на виду. */
 export function useActiveMeetings() {
@@ -42,13 +36,14 @@ export function ActiveMeetingNotice({
   meeting: ActiveMeeting;
   onResume: (admission: Admission) => void;
 }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   return (
-    <section className="home-here" aria-label={TEXT.title}>
+    <section className="home-here" aria-label={t(($) => $.home.here.title)}>
       <span className="home-here__pulse" aria-hidden="true" />
       <div className="home-here__text">
-        <p className="home-here__lead">{TEXT.title}</p>
+        <p className="home-here__lead">{t(($) => $.home.here.title)}</p>
         <p className="home-here__title">
           <strong>{meeting.title}</strong>
           {meeting.code && <span className="home-here__code">{formatCode(meeting.code)}</span>}
@@ -63,7 +58,7 @@ export function ActiveMeetingNotice({
         variant="primary"
         icon={<ArrowRight size={16} />}
         loading={busy}
-        aria-label={TEXT.backLabel(meeting.title)}
+        aria-label={t(($) => $.home.here.backLabel, { title: meeting.title })}
         onClick={async () => {
           setBusy(true);
           setError('');
@@ -75,7 +70,7 @@ export function ActiveMeetingNotice({
           }
         }}
       >
-        {busy ? TEXT.moving : TEXT.back}
+        {busy ? t(($) => $.home.here.moving) : t(($) => $.home.here.back)}
       </Button>
     </section>
   );

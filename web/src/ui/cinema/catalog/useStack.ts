@@ -1,6 +1,8 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ChannelTab, CinemaAt, CinemaItem, ProviderId } from '../../../core/cinema';
 import { linkCard } from '../../../core/cinema/link';
+import type { Translate } from '../../../i18n';
 
 /**
  * Что открыто прямо сейчас. Всё, кроме `home`, — это страница, на которую зашли.
@@ -24,8 +26,8 @@ export type View =
  * (`linkCard`): имя, кадр и всё остальное приезжают со страницы ролика. `link` — не страница
  * площадки, её показывает только сцена «По ссылке».
  */
-export function viewOf(provider: ProviderId, at: CinemaAt): View | null {
-  if (at.page === 'item') return { at: 'item', item: linkCard(provider, at), linked: true };
+export function viewOf(t: Translate, provider: ProviderId, at: CinemaAt): View | null {
+  if (at.page === 'item') return { at: 'item', item: linkCard(t, provider, at), linked: true };
   if (at.page === 'channel') return { at: 'channel', id: at.id, tab: 'videos' };
   if (at.page === 'playlist') return { at: 'playlist', id: at.id };
   if (at.page === 'series') return { at: 'series', id: at.id, season: '', title: '', poster: null };
@@ -94,12 +96,13 @@ export function useKeyed<T>(key: string, initial: T): [T, Dispatch<SetStateActio
  * кадр раньше.
  */
 export function useStack(owner: ProviderId, at: CinemaAt | null = null) {
+  const { t } = useTranslation();
   const [kept, setStack] = useKeyed<View[]>(owner, HOME);
   const [seen, setSeen] = useState<CinemaAt | null>(null);
   let stack = kept;
   if (at !== seen) {
     setSeen(at);
-    const next = at ? viewOf(owner, at) : null;
+    const next = at ? viewOf(t, owner, at) : null;
     // Новая стопка — уже в этом рендере: ни один кадр, даже промежуточный, не видит витрину.
     if (next && !same(kept[kept.length - 1], next)) {
       stack = [...kept, next];

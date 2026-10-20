@@ -5,6 +5,7 @@ import { publicApi } from '../api/client';
 import { favoriteApi, type Favorite } from '../core/favorites';
 import { Store } from '../core/store';
 import type { Meeting } from '../core/meeting';
+import { t } from '../i18n';
 import { headerStatus, MeetingHeader } from './MeetingHeader';
 
 const roomId = '00000000-0000-4000-8000-000000000001';
@@ -66,13 +67,15 @@ it('keeps a working meeting silent: no «В эфире», no theme switch in the
 });
 
 it('says what is wrong next to the title, and only then', () => {
-  expect(headerStatus(null, { status: 'CONNECTED' }, { status: 'connected' })).toBeNull();
-  expect(headerStatus(null, { status: 'CONNECTED' }, { status: 'connecting' })?.label).toBe('Подключаемся…');
-  expect(headerStatus(null, { status: 'CONNECTED' }, { status: 'recovering' })?.label).toBe(
+  expect(headerStatus(t, null, { status: 'CONNECTED' }, { status: 'connected' })).toBeNull();
+  expect(headerStatus(t, null, { status: 'CONNECTED' }, { status: 'connecting' })?.label).toBe(
+    'Подключаемся…',
+  );
+  expect(headerStatus(t, null, { status: 'CONNECTED' }, { status: 'recovering' })?.label).toBe(
     'Связь восстанавливается…',
   );
-  expect(headerStatus(null, { status: 'WAITING' }, { status: 'idle' })?.label).toBe('Ожидание входа');
-  expect(headerStatus('Встреча завершена', undefined, { status: 'ended' })?.label).toBe('Завершено');
+  expect(headerStatus(t, null, { status: 'WAITING' }, { status: 'idle' })?.label).toBe('Ожидание входа');
+  expect(headerStatus(t, 'Встреча завершена', undefined, { status: 'ended' })?.label).toBe('Завершено');
   show(fakeMeeting({}, 'recovering'));
   expect(screen.getByRole('status')).toHaveTextContent('Связь восстанавливается…');
 });

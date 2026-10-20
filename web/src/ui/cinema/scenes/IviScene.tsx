@@ -1,6 +1,7 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { CinemaApi, PROVIDERS, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
+import { useTranslation } from 'react-i18next';
+import { CinemaApi, PROVIDERS, providerName, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
@@ -43,6 +44,7 @@ function nowhere(): void {}
  * панели интеграций гаснет с этой причиной раньше, чем сцена вообще откроется.
  */
 export default function IviScene({ provider, at, meeting, onClose }: SceneProps) {
+  const { t } = useTranslation();
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
@@ -132,11 +134,11 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
       tabs={
         <span className="cinema-platform" style={accent}>
           <spec.icon size={15} />
-          {spec.name}
+          {providerName(t, provider)}
         </span>
       }
       query={query}
-      placeholder={spec.searchPlaceholder}
+      placeholder={t(($) => $.cinema.providers[provider].search)}
       maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
@@ -166,7 +168,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
           {chips.length ? (
             <div className="cinema-strip">
               <Tabs
-                label="Разделы ivi"
+                label={t(($) => $.cinema.ivi.sectionsLabel)}
                 items={chips}
                 selected={section}
                 onSelect={setSection}
@@ -187,7 +189,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
             onMore={() => void feed.fetchNextPage()}
           />
           {feed.data && !feed.isFetching && !feed.isError && inSection.length === 0 ? (
-            <Empty text="В этом разделе пока нечего показать комнате: отсюда ivi не отдаёт бесплатное." />
+            <Empty text={t(($) => $.cinema.ivi.emptySection)} />
           ) : null}
         </>
       ) : null}
@@ -203,7 +205,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
             onMore={() => void results.fetchNextPage()}
           />
           {results.data && !found.length && !results.isFetching ? (
-            <Empty text="Ничего не нашлось. Попробуйте другие слова." />
+            <Empty text={t(($) => $.cinema.search.nothing)} />
           ) : null}
         </>
       ) : null}
@@ -218,7 +220,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
           feed={page.opened}
           items={page.items}
           card={episode}
-          empty="Здесь нечего показать комнате: остальные серии на ivi — платные или недоступны отсюда."
+          empty={t(($) => $.cinema.ivi.seriesEmpty)}
         />
       ) : null}
 

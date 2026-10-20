@@ -7,6 +7,8 @@
  * выражения проверяются только глазами и только там, где плеер вообще заводится.
  */
 
+import type { Translate } from '../../../i18n';
+
 /** Что делать с нажатием по самому кадру. */
 export type FramePress = 'wake' | 'toggle' | 'none';
 
@@ -62,7 +64,7 @@ export function controlsShown(context: { idle: boolean; menuOpen: boolean; ready
 
 /** Кнопка «играть/пауза» пульта: как называется, что шлёт комнате и какой у неё значок. */
 export interface PlayToggle {
-  label: 'Включить для всех' | 'Пауза для всех';
+  label: string;
   command: 'watch.play' | 'watch.pause';
   icon: 'play' | 'pause';
 }
@@ -79,10 +81,13 @@ export interface PlayToggle {
  *
  * Значок — ещё и от своего плеера: комната уже играет, а свой ещё не пошёл, — это ▶, а не ❚❚.
  */
-export function playToggle(context: { paused: boolean; over: boolean; playing: boolean }): PlayToggle {
+export function playToggle(
+  t: Translate,
+  context: { paused: boolean; over: boolean; playing: boolean },
+): PlayToggle {
   const stopped = context.paused || context.over;
   return {
-    label: stopped ? 'Включить для всех' : 'Пауза для всех',
+    label: stopped ? t(($) => $.cinema.theater.play) : t(($) => $.cinema.theater.pause),
     command: stopped ? 'watch.play' : 'watch.pause',
     icon: stopped || !context.playing ? 'play' : 'pause',
   };

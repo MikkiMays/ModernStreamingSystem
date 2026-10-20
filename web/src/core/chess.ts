@@ -1,6 +1,9 @@
+import type { Translate } from '../i18n';
+
 /** Presentation only. Move legality, clocks and results belong to the server. */
 export type ChessColor = 'white' | 'black';
-export type ChessPiece = 'p' | 'n' | 'b' | 'r' | 'q' | 'k' | 'P' | 'N' | 'B' | 'R' | 'Q' | 'K';
+export type ChessPieceKind = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+export type ChessPiece = ChessPieceKind | 'P' | 'N' | 'B' | 'R' | 'Q' | 'K';
 export type ChessPosition = Record<string, ChessPiece>;
 export const FILES = 'abcdefgh';
 
@@ -25,22 +28,8 @@ export function pieceColor(piece: ChessPiece): ChessColor {
   return piece === piece.toUpperCase() ? 'white' : 'black';
 }
 
-export function pieceLabel(piece: ChessPiece): string {
-  const white = pieceColor(piece) === 'white';
-  switch (piece.toLowerCase()) {
-    case 'p':
-      return `${white ? 'белая' : 'чёрная'} пешка`;
-    case 'r':
-      return `${white ? 'белая' : 'чёрная'} ладья`;
-    case 'n':
-      return `${white ? 'белый' : 'чёрный'} конь`;
-    case 'b':
-      return `${white ? 'белый' : 'чёрный'} слон`;
-    case 'q':
-      return `${white ? 'белый' : 'чёрный'} ферзь`;
-    default:
-      return `${white ? 'белый' : 'чёрный'} король`;
-  }
+export function pieceLabel(t: Translate, piece: ChessPiece): string {
+  return t(($) => $.chess.pieces[piece.toLowerCase() as ChessPieceKind][pieceColor(piece)]);
 }
 
 export function pieceImage(piece: ChessPiece): string {
@@ -136,25 +125,34 @@ export function clockLabel(milliseconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-export const CHESS_PRESETS: Record<string, string> = {
-  untimed: 'Без часов',
-  '3-2': '3 + 2',
-  '5-0': '5 + 0',
-  '10-5': '10 + 5',
-  '15-10': '15 + 10',
-};
+const PRESETS = ['untimed', '3-2', '5-0', '10-5', '15-10'] as const;
+export type ChessPreset = (typeof PRESETS)[number];
 
-export const CHESS_RESULTS: Record<string, string> = {
-  checkmate: 'Мат',
-  stalemate: 'Пат',
-  'insufficient-material': 'Недостаточно материала для мата',
-  resignation: 'Соперник сдался',
-  'resignation-insufficient-material': 'У соперника нет материала для мата',
-  agreement: 'Ничья по соглашению',
-  timeout: 'Время истекло',
-  'timeout-insufficient-material': 'Время истекло, мат невозможен',
-  threefold: 'Троекратное повторение',
-  fivefold: 'Пятикратное повторение',
-  'fifty-move': 'Правило 50 ходов',
-  'seventy-five-move': 'Правило 75 ходов',
-};
+/** Контроль времени словами; незнакомый сервером присланный — как есть. */
+export function presetLabel(t: Translate, preset: string): string {
+  return PRESETS.some((known) => known === preset)
+    ? t(($) => $.chess.presets[preset as ChessPreset])
+    : preset;
+}
+
+const RESULTS = [
+  'checkmate',
+  'stalemate',
+  'insufficient-material',
+  'resignation',
+  'resignation-insufficient-material',
+  'agreement',
+  'timeout',
+  'timeout-insufficient-material',
+  'threefold',
+  'fivefold',
+  'fifty-move',
+  'seventy-five-move',
+] as const;
+export type ChessResult = (typeof RESULTS)[number];
+
+/** Чем кончилась партия; причина, которой клиент не знает, — просто «Партия завершена». */
+export function resultLabel(t: Translate, result: string | null | undefined): string {
+  const known = RESULTS.find((candidate) => candidate === result);
+  return known ? t(($) => $.chess.results[known]) : t(($) => $.chess.results.unknown);
+}

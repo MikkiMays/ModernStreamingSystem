@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Music2, Unplug } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import {
   YandexApi,
@@ -21,7 +22,7 @@ import { MusicUpload } from './MusicUpload';
 import { CinemaGroup } from './cinema/CinemaGroup';
 import { GamesGroup } from './GamesGroup';
 import { IntegrationShelf } from './IntegrationShelf';
-import { musicHint, SHELF, type ShelfId } from './integration-shelf';
+import { musicHint, shelfName, type ShelfId } from './integration-shelf';
 import { foresee, foresightSpent, offeredSources, type Foresight } from './music-playback';
 import { gameActivity, musicActivity } from './services-status';
 
@@ -36,13 +37,13 @@ import { gameActivity, musicActivity } from './services-status';
  */
 type Group = 'cinema' | 'music' | 'games';
 const OPENS: readonly ShelfId[] = ['cinema', 'music', 'games'];
-const NAMES = Object.fromEntries(SHELF.map((item) => [item.id, item.name])) as Record<ShelfId, string>;
 
 export function Services({ meeting }: { meeting: Meeting }) {
   /**
    * Какая группа открыта. `null` — витрина. Переход между ними не мгновенный: у панели есть
    * короткая анимация появления, иначе подмена содержимого читается как сбой, а не как шаг.
    */
+  const { t } = useTranslation();
   const [group, setGroup] = useState<Group | null>(null);
   const api = useMemo(() => new MusicApi(meeting.admission), [meeting]);
   const yandexApi = useMemo(() => new YandexApi(meeting.admission), [meeting]);
@@ -78,8 +79,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
     enabled: active,
     refetchInterval: active ? 2000 : false,
   });
-  const musicStatus = musicActivity(music.data, music.isError);
-  const gamesStatus = gameActivity(snapshot.poker, snapshot.durak, snapshot.chess, snapshot.gartic);
+  const musicStatus = musicActivity(t, music.data, music.isError);
+  const gamesStatus = gameActivity(t, snapshot.poker, snapshot.durak, snapshot.chess, snapshot.gartic);
   const running: Record<Group, boolean> = {
     cinema: !!snapshot.watch,
     music: musicStatus.active,
@@ -164,13 +165,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
     void heavy(async () => {
       const token = preferences.yandexMusicToken.trim();
       if (sources.includes('yandex') && token)
-        await yandexApi
-          .connectToken(token)
-          .catch(() =>
-            setError(
-              'Не удалось подключить сохранённый токен Яндекс Музыки. Подключите аккаунт вручную ниже.',
-            ),
-          );
+        await yandexApi.connectToken(token).catch(() => setError(t(($) => $.services.music.tokenFailed)));
       return api.enable();
     }, can('music.enable'));
 
@@ -178,14 +173,14 @@ export function Services({ meeting }: { meeting: Meeting }) {
     const blocked = Object.fromEntries(
       OPENS.map((id) => [id, blockedBy(id as Group)])
         .filter(([, rival]) => rival)
-        .map(([id, rival]) => [id, NAMES[rival as ShelfId]]),
+        .map(([id, rival]) => [id, shelfName(t, rival as ShelfId)]),
     );
     return (
       <div className="services-panel" key="groups">
         <IntegrationShelf
-          hints={{ music: musicHint(sources) }}
+          hints={{ music: musicHint(t, sources) }}
           live={{
-            cinema: running.cinema ? 'Идёт показ' : undefined,
+            cinema: running.cinema ? t(($) => $.services.cinemaLive) : undefined,
             music: musicStatus.active ? musicStatus.label : undefined,
             games: gamesStatus.active ? gamesStatus.label : undefined,
           }}
@@ -229,19 +224,16 @@ export function Services({ meeting }: { meeting: Meeting }) {
         icon={<ArrowLeft />}
         onClick={() => setGroup(null)}
       >
-        Интеграции
+        {t(($) => $.services.music.back)}
       </Button>
       {active && !can('integrations.use') && (
-        <p className="music-panel__note">
-          Организатор разрешил управление интеграциями только себе. Громкость музыки для себя можно менять
-          ниже.
-        </p>
+        <p className="music-panel__note">{t(($) => $.services.music.locked)}</p>
       )}
       {!active ? (
-        <p className="music-panel__note">Музыка доступна после входа во встречу.</p>
+        <p className="music-panel__note">{t(($) => $.services.music.needJoin)}</p>
       ) : catalog.isError || music.isError ? (
         <div role="alert" className="music-panel__problem">
-          <p>Музыка сейчас не отвечает.</p>
+          <p>{t(($) => $.services.music.down)}</p>
           <Button
             size="sm"
             onClick={() => {
@@ -249,32 +241,31 @@ export function Services({ meeting }: { meeting: Meeting }) {
               void music.refetch();
             }}
           >
-            Повторить
+            {t(($) => $.services.music.retry)}
           </Button>
         </div>
       ) : !state ? (
         <p role="status" className="music-panel__note">
-          Подключаем музыку…
+          {t(($) => $.services.music.connecting)}
         </p>
       ) : !state.enabled ? (
         <section className="music-intro" aria-labelledby="music-intro-title">
           <span className="music-intro__icon" aria-hidden="true">
             <Music2 size={26} />
           </span>
-          <h3 id="music-intro-title">Музыка</h3>
-          <p>Одна очередь на всю встречу: {musicHint(sources)}. Занимает одно место во встрече.</p>
+          <h3 id="music-intro-title">{t(($) => $.services.music.title)}</h3>
+          <p>{t(($) => $.services.music.intro, { sources: musicHint(t, sources) })}</p>
           {state.queue.length > 0 && (
             <p className="music-intro__queue">
-              Очередь никуда не делась: {state.queue.length} трек(ов) заиграют, как только музыка вернётся во
-              встречу.
+              {t(($) => $.services.music.queueKept, { count: state.queue.length })}
             </p>
           )}
           {can('music.enable') ? (
             <Button variant="primary" full loading={busy} icon={<Music2 />} onClick={enableMusic}>
-              Добавить во встречу
+              {t(($) => $.services.music.enable)}
             </Button>
           ) : (
-            <p className="music-intro__queue">Добавлять интеграции организатор разрешил только себе.</p>
+            <p className="music-intro__queue">{t(($) => $.services.music.enableLocked)}</p>
           )}
           {state.error && (
             <p className="services-error" role="alert">
@@ -348,7 +339,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
               loading={busy}
               onClick={() => void heavy(api.disable, canRemove)}
             >
-              Убрать музыку из встречи
+              {t(($) => $.services.music.remove)}
             </Button>
           )}
         </>

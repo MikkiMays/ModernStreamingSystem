@@ -1,6 +1,7 @@
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconButton } from './IconButton';
 
 /**
@@ -30,9 +31,10 @@ export function Dialog({
   children,
   footer,
   size = 'md',
-  closeLabel = 'Закрыть',
+  closeLabel,
   className,
 }: DialogProps) {
+  const { t } = useTranslation();
   const classes = ['ui-dialog', `ui-dialog--${size}`, className].filter(Boolean).join(' ');
   return (
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -44,7 +46,7 @@ export function Dialog({
               <BaseDialog.Title className="ui-dialog__title">{title}</BaseDialog.Title>
               <BaseDialog.Close
                 render={
-                  <IconButton label={closeLabel} size="sm">
+                  <IconButton label={closeLabel ?? t(($) => $.common.close)} size="sm">
                     <X size={18} />
                   </IconButton>
                 }

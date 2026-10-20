@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Check, Copy, Link, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { allowed } from '../core/permissions';
 import { Modal, useStore } from './primitives';
@@ -15,6 +16,7 @@ export function Invite({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const invitation = useStore(meeting.invite);
   const snapshot = useStore(meeting.snapshot);
   const link = invitation ?? (snapshot.code ? `${location.origin}/join/${snapshot.code}` : null);
@@ -37,24 +39,29 @@ export function Invite({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Пригласить во встречу"
-      description="Отправьте приглашение или предложите отсканировать QR. Вход без регистрации."
+      title={t(($) => $.invite.dialog.title)}
+      description={t(($) => $.invite.dialog.description)}
     >
       {snapshot.code && (
         <div className="invite-code">
-          <span>Код встречи</span>
+          <span>{t(($) => $.invite.dialog.code)}</span>
           <strong>{formatCode(snapshot.code)}</strong>
-          <small>По коду организатор подтверждает вход.</small>
+          <small>{t(($) => $.invite.dialog.codeHint)}</small>
         </div>
       )}
       {link ? (
         <>
           <div className="invite-qr">
-            {qr && <img src={qr} width={232} height={232} alt="QR-код приглашения во встречу" />}
+            {qr && <img src={qr} width={232} height={232} alt={t(($) => $.invite.dialog.qr)} />}
           </div>
           <div className="invite-link">
             <Link size={18} />
-            <input aria-label="Ссылка приглашения" value={link} readOnly onFocus={(e) => e.target.select()} />
+            <input
+              aria-label={t(($) => $.invite.dialog.link)}
+              value={link}
+              readOnly
+              onFocus={(e) => e.target.select()}
+            />
           </div>
           <button
             className="button primary full"
@@ -63,19 +70,17 @@ export function Invite({
                 await navigator.clipboard.writeText(link);
                 setCopied(true);
               } catch {
-                setError('Выделите и скопируйте ссылку вручную');
+                setError(t(($) => $.invite.dialog.copyManually));
               }
             }}
           >
             {copied ? <Check size={19} /> : <Copy size={19} />}{' '}
-            {copied ? 'Ссылка скопирована' : 'Скопировать приглашение'}
+            {copied ? t(($) => $.invite.dialog.copied) : t(($) => $.invite.dialog.copy)}
           </button>
         </>
       ) : (
         <p className="muted">
-          {owner
-            ? 'Создайте приглашение для этой комнаты.'
-            : 'Попросите организатора поделиться приглашением.'}
+          {owner ? t(($) => $.invite.dialog.create) : t(($) => $.invite.dialog.askOwner)}
         </p>
       )}
       {owner && (
@@ -92,13 +97,13 @@ export function Invite({
           }}
         >
           <RefreshCw size={16} />
-          {invitation ? 'Отозвать ссылку и создать новую' : 'Создать приглашение'}
+          {invitation ? t(($) => $.invite.dialog.renew) : t(($) => $.invite.dialog.createButton)}
         </button>
       )}
       <p className="form-footnote">
-        Действует 24 часа или до завершения встречи.
+        {t(($) => $.invite.dialog.validity)}
         <br />
-        Права организатора остаются только у вас.
+        {t(($) => $.invite.dialog.ownerRights)}
       </p>
       {error && (
         <p role="alert" className="form-error">

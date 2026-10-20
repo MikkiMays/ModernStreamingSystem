@@ -1,4 +1,5 @@
 import { ArrowRight, LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ElsewhereMeeting } from '../core/identity';
 import { Button, Dialog } from './kit';
 import './meeting-elsewhere.css';
@@ -30,6 +31,7 @@ export function MeetingElsewhere({
   onMove: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   if (!meeting) return null;
   return (
     <Dialog
@@ -39,9 +41,9 @@ export function MeetingElsewhere({
       }}
       size="md"
       className="meeting-elsewhere"
-      title={`Вы уже во встрече «${meeting.title}»`}
-      description="С одного устройства можно быть только в одной встрече за раз."
-      closeLabel="Остаться"
+      title={t(($) => $.meeting.elsewhere.title, { title: meeting.title })}
+      description={t(($) => $.meeting.elsewhere.description)}
+      closeLabel={t(($) => $.meeting.elsewhere.stay)}
       footer={
         <>
           <Button
@@ -51,7 +53,7 @@ export function MeetingElsewhere({
             disabled={!!busy}
             onClick={onGo}
           >
-            Перейти туда
+            {t(($) => $.meeting.elsewhere.go)}
           </Button>
           <Button
             variant="primary"
@@ -60,7 +62,7 @@ export function MeetingElsewhere({
             disabled={!!busy}
             onClick={onMove}
           >
-            Выйти оттуда и войти сюда
+            {t(($) => $.meeting.elsewhere.move)}
           </Button>
         </>
       }

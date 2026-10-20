@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, Server, TriangleAlert } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Capabilities } from '../api/types';
 import { DownloadLink, Logo } from './primitives';
 import { Button, Field, Input, Switch } from './kit';
@@ -22,6 +23,7 @@ import { notifyDesktop } from '../core/desktop';
  * can ask the shell to open it.
  */
 export function Connect({ onConnected }: { onConnected: () => void }) {
+  const { t } = useTranslation();
   const desktop = !!window.chrome?.webview;
   const here = currentServerUrl();
   const saved = thisServer();
@@ -78,7 +80,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
       <header className="shell-header">
         <Logo />
         <div className="shell-header__end">
-          <span className="shell-header__note">Подключение к серверу</span>
+          <span className="shell-header__note">{t(($) => $.connect.note)}</span>
           <DownloadLink className="shell-download" />
         </div>
       </header>
@@ -88,7 +90,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
             <Server size={22} />
           </span>
           <div className="connect-card__heading">
-            <h1 id="connect-title">{waiting ? 'Ищем сервер…' : name}</h1>
+            <h1 id="connect-title">{waiting ? t(($) => $.connect.searching) : name}</h1>
             <p>{new URL(here).host}</p>
           </div>
           <form
@@ -99,20 +101,20 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
             }}
           >
             {info?.passwordRequired && (
-              <Field label="Пароль сервера">
+              <Field label={t(($) => $.connect.password)}>
                 <Input
                   type="password"
                   value={password}
                   maxLength={200}
                   autoComplete="current-password"
                   autoFocus
-                  placeholder="Спросите у того, кто дал адрес"
+                  placeholder={t(($) => $.connect.passwordPlaceholder)}
                   onChange={(event) => setPassword(event.target.value)}
                 />
               </Field>
             )}
             <Switch
-              label="Подключаться автоматически при запуске"
+              label={t(($) => $.connect.autoConnect)}
               checked={autoConnect}
               onCheckedChange={(checked) => {
                 setAutoConnect(checked);
@@ -128,14 +130,14 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
               disabled={waiting}
               icon={busy ? undefined : <ArrowRight size={18} />}
             >
-              {busy ? 'Подключаемся…' : 'Подключиться'}
+              {busy ? t(($) => $.connect.connecting) : t(($) => $.connect.connect)}
             </Button>
           </form>
           <div className="connect-card__status">
             <ConnectionStatus attempt={busy ? null : attempt} />
             {desktop && (
               <Button variant="quiet" size="sm" onClick={() => notifyDesktop('servers.open')}>
-                Другой сервер…
+                {t(($) => $.connect.otherServer)}
               </Button>
             )}
           </div>
@@ -147,17 +149,18 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
 
 /** Small, green when it worked; red with the reason folded away when it did not. */
 export function ConnectionStatus({ attempt }: { attempt: Attempt | null }) {
+  const { t } = useTranslation();
   if (!attempt) return <span className="connection-status" />;
   if (attempt.ok)
     return (
       <span className="connection-status connected" role="status">
-        <Check size={14} /> Подключено!
+        <Check size={14} /> {t(($) => $.connect.connected)}
       </span>
     );
   return (
     <details className="connection-status failed">
       <summary role="status">
-        <TriangleAlert size={14} /> Не подключено
+        <TriangleAlert size={14} /> {t(($) => $.connect.notConnected)}
       </summary>
       <small>{attempt.detail}</small>
     </details>

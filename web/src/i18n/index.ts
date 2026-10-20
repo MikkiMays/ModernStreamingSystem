@@ -1,98 +1,93 @@
-import i18next from 'i18next';
+import i18next, { type TFunction } from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 import { initReactI18next } from 'react-i18next';
 import ru from './locales/ru.json';
+import { detectLanguage, LANGUAGES, SOURCE_LANGUAGE, type Language } from './languages';
+
+export * from './languages';
 
 /**
- * Языки Cord (П9). Русский — исходный и встроен в сборку; остальные приходят отдельным файлом,
- * когда их выбрали, — первый экран не платит за семь чужих каталогов.
+ * Слой переводов (E14-A).
+ *
+ * Русский — исходный и встроен в сборку: он же запасной для любого ключа, которого в другом языке
+ * ещё нет. Остальные языки приходят отдельными файлами сборки, когда их выбрали, — первый экран не
+ * платит за семь чужих каталогов.
+ *
+ * Ключи — селекторами: `t(($) => $.settings.title)`. Их проверяет компилятор, а лишних шаблонных
+ * типов строковых путей на тысячу с лишним ключей `tsc` не считает (`i18next.d.ts`).
  */
-export const LANGUAGES = ['ru', 'en', 'es', 'fr', 'it', 'zh-Hans', 'de', 'pt-BR'] as const;
-export type Language = (typeof LANGUAGES)[number];
-export const SOURCE_LANGUAGE: Language = 'ru';
-
-/** Как каждый язык называет себя сам — так его и ищут в списке. */
-export const LANGUAGE_NAMES: Record<Language, string> = {
-  ru: 'Русский',
-  en: 'English',
-  es: 'Español',
-  fr: 'Français',
-  it: 'Italiano',
-  'zh-Hans': '简体中文',
-  de: 'Deutsch',
-  'pt-BR': 'Português (Brasil)',
-};
-
-const STORAGE = 'cord:language';
-
-/** Код языка браузера → язык Cord: точное совпадение, затем по основе (`zh-CN` → `zh-Hans`). */
-export function matchLanguage(tag: string | undefined): Language | null {
-  if (!tag) return null;
-  const exact = LANGUAGES.find((language) => language.toLowerCase() === tag.toLowerCase());
-  if (exact) return exact;
-  const base = tag.toLowerCase().split('-')[0];
-  if (base === 'zh') return 'zh-Hans';
-  if (base === 'pt') return 'pt-BR';
-  return LANGUAGES.find((language) => language.toLowerCase() === base) ?? null;
-}
-
-function savedLanguage(): Language | null {
-  try {
-    return matchLanguage(localStorage.getItem(STORAGE) ?? undefined);
-  } catch {
-    return null;
-  }
-}
-
-/** Выбор человека важнее языка браузера; без обоих — русский. */
-export function detectLanguage(
-  saved = savedLanguage(),
-  browser: readonly string[] = typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language],
-): Language {
-  if (saved) return saved;
-  for (const tag of browser) {
-    const match = matchLanguage(tag);
-    if (match) return match;
-  }
-  return SOURCE_LANGUAGE;
-}
+const catalogs = import.meta.glob<{ default: Record<string, unknown> }>([
+  './locales/*.json',
+  '!./locales/ru.json',
+]);
 
 void i18next
   .use(initReactI18next)
-  .use(resourcesToBackend((language: string) => import(`./locales/${language}.json`)))
+  .use(
+    resourcesToBackend((language: string) => {
+      const load = catalogs[`./locales/${language}.json`];
+      return load ? load().then((module) => module.default) : Promise.resolve({});
+    }),
+  )
   .init({
-    lng: detectLanguage(),
+    // Сразу и синхронно — по-русски: модуль, который спросит перевод при загрузке, получит текст, а
+    // не ключ. Язык человека ставит `applyLanguage` до первой отрисовки (`main.tsx`).
+    lng: SOURCE_LANGUAGE,
     fallbackLng: SOURCE_LANGUAGE,
     supportedLngs: [...LANGUAGES],
+    load: 'currentOnly',
     resources: { ru: { translation: ru } },
     partialBundledLanguages: true,
+    initAsync: false,
+    enableSelector: true,
     interpolation: { escapeValue: false },
     returnNull: false,
+    // Язык меняется уже загруженным (`applyLanguage` ждёт файл), так что ждать в Suspense нечего.
+    react: { useSuspense: false },
   });
-document.documentElement.lang = i18next.language;
 
-/** Сменить язык и запомнить выбор на этом устройстве (`null` — снова «как в браузере»). */
-export async function setLanguage(language: Language | null) {
-  try {
-    if (language) localStorage.setItem(STORAGE, language);
-    else localStorage.removeItem(STORAGE);
-  } catch {
-    /* Без хранилища выбор просто не переживёт перезагрузку. */
-  }
-  const next = language ?? detectLanguage(null);
-  await i18next.changeLanguage(next);
-  document.documentElement.lang = next;
+i18next.on('languageChanged', (language) => {
+  if (typeof document !== 'undefined') document.documentElement.lang = language;
+});
+
+/**
+ * Перевод вне компонента. Компонент берёт свой `t` из `useTranslation()`: тот меняется вместе с
+ * языком, и React Compiler пересчитывает всё, что от него зависит.
+ */
+export type Translate = TFunction<'translation'>;
+export const t: Translate = i18next.t;
+
+/**
+ * Поставить язык: сохранённый выбор, иначе язык браузера, иначе русский. Ждёт файл каталога, чтобы
+ * интерфейс не мигнул русским; файл не загрузился — остаётся русский, и это не ошибка.
+ */
+export async function applyLanguage(saved: Language | null): Promise<Language> {
+  const language = detectLanguage(saved);
+  await i18next.changeLanguage(language).catch(() => undefined);
+  // Язык, на котором интерфейс нарисован сейчас: следующий выбор мог успеть раньше этого файла.
+  document.documentElement.lang = i18next.language;
+  return language;
 }
 
 /**
- * Текст ошибки сервера на языке человека. По-русски ядро и служба уже сказали точно, с числами и
- * именами, — это и показываем; на другом языке — перевод по стабильному коду из реестра
- * (`contracts/errors.json`), а если его нет — всё тот же текст сервера.
+ * Языковой тег для `Intl` — даты, время, числа и размеры. Из каталога, а не из кода языка: какой
+ * вид чисел у языка, решает его каталог. Функции, которые форматируют для разметки, берут `t`
+ * компонента — тогда смена языка пересчитывает и их.
  */
-export function errorText(code: string, detail: string): string {
-  if (i18next.language === SOURCE_LANGUAGE) return detail;
-  const key = `errors.${code}`;
-  return i18next.exists(key) ? i18next.t(key) : detail;
+export function locale(translate: Translate = t): string {
+  return translate(($) => $.locale);
+}
+
+/**
+ * Текст ошибки сервера на языке человека. По-русски ядро уже сказало точно, с числами и именами, —
+ * это и показываем; на другом языке — перевод по стабильному коду из реестра
+ * (`contracts/errors.json`), а если в этом языке его ещё нет — всё тот же текст сервера.
+ */
+export function errorText(code: string | undefined, detail: string): string {
+  const language = i18next.language;
+  if (!code || !language || language === SOURCE_LANGUAGE) return detail;
+  const text: unknown = i18next.getResource(language, 'translation', `errors.${code}`);
+  return typeof text === 'string' && text ? text : detail;
 }
 
 export { i18next };

@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Бейдж: короткое слово рядом с названием. `live` — «В эфире» на плитке того, кто показывает
@@ -19,9 +20,10 @@ export function Badge({ variant = 'neutral', className, children, ...props }: Ba
 
 /** «Скоро» — у возможности, которая объявлена, но ещё не работает. */
 export function Soon(props: Omit<BadgeProps, 'variant' | 'children'>) {
+  const { t } = useTranslation();
   return (
     <Badge variant="soon" {...props}>
-      Скоро
+      {t(($) => $.kit.soon)}
     </Badge>
   );
 }

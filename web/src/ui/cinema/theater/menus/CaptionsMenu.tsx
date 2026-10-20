@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { Captions } from 'lucide-react';
 import { Menu } from '@base-ui/react/menu';
+import { useTranslation } from 'react-i18next';
 import { IconButton } from '../../../primitives';
 import type { CaptionChoice } from '../watch-tracks';
 
@@ -27,12 +28,17 @@ export function CaptionsMenu({
   container: RefObject<HTMLDivElement | null>;
   onChoose: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Menu.Root open={open} onOpenChange={onOpenChange}>
       <Menu.Trigger
         render={
           <IconButton
-            label={caption ? `Субтитры: ${caption.label}` : 'Субтитры'}
+            label={
+              caption
+                ? t(($) => $.cinema.theater.captions.labelWith, { name: caption.label })
+                : t(($) => $.cinema.theater.captions.label)
+            }
             className={caption ? 'watch-on' : ''}
           >
             <Captions size={19} />
@@ -43,7 +49,7 @@ export function CaptionsMenu({
         <Menu.Positioner className="menu-layer" side="top" sideOffset={10} align="end">
           <Menu.Popup className="action-menu watch-quality-menu">
             <Menu.Item data-selected={text ? undefined : 'true'} onClick={() => onChoose('')}>
-              Выключены
+              {t(($) => $.cinema.theater.captions.off)}
             </Menu.Item>
             {texts.map((item) => (
               <Menu.Item
@@ -52,7 +58,7 @@ export function CaptionsMenu({
                 onClick={() => onChoose(item.id)}
               >
                 {item.label}
-                {item.auto && <small>распознано</small>}
+                {item.auto && <small>{t(($) => $.cinema.theater.captions.recognised)}</small>}
               </Menu.Item>
             ))}
           </Menu.Popup>

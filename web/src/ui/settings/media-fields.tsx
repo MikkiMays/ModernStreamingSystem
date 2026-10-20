@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { Translate } from '../../i18n';
 import type { AudioPreferences, Reception } from '../../core/preferences';
 import { qualityLevels, qualityRules } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
@@ -6,7 +8,7 @@ import type { NetworkMode } from '../../media/playout';
 import { gradeName, pathName, type LinkState } from '../../media/link-quality';
 import { Slider, Switch } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
-import { row } from './sections';
+import { rowText } from './sections';
 
 /**
  * Строки звука и видео, которые нужны в двух местах: в разделе «Голос и видео» окна настроек и в
@@ -31,14 +33,15 @@ export function QualityRows({
   profile: ScreenProfile;
   change: (next: ScreenProfile) => void;
 }) {
+  const { t } = useTranslation();
   const levels = qualityLevels(qualityRules());
-  const label = kind === 'screen' ? 'Экран' : 'Камера';
+  const label = t(($) => $.settings.media.kind[kind]);
   return (
     <>
       <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'} stack>
         <select
           className="ui-input ui-select setting-select"
-          aria-label={`${label}: качество`}
+          aria-label={t(($) => $.settings.media.quality, { label })}
           value={profile.resolution}
           onChange={(e) => change({ ...profile, resolution: Number(e.target.value) as Resolution })}
         >
@@ -52,7 +55,7 @@ export function QualityRows({
       <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'} stack>
         <select
           className="ui-input ui-select setting-select"
-          aria-label={`${label}: частота кадров`}
+          aria-label={t(($) => $.settings.media.fps, { label })}
           value={profile.fps}
           onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
         >
@@ -68,9 +71,9 @@ export function QualityRows({
 }
 
 /** Потолок сервера одной строкой — под заголовком группы показа. */
-export function ceilingNote() {
+export function ceilingNote(t: Translate) {
   const { ceiling } = qualityRules();
-  return `Этот сервер допускает до ${ceiling.resolution}p · ${ceiling.fps} fps`;
+  return t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
 }
 
 /** Группа «Видео с камеры» или «Демонстрация экрана» целиком — для предпросмотра. */
@@ -83,11 +86,12 @@ export function QualityFields({
   profile: ScreenProfile;
   change: (next: ScreenProfile) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <SettingGroup
-      title={kind === 'screen' ? 'Демонстрация экрана' : 'Видео с камеры'}
+      title={t(($) => $.settings.media.group[kind])}
       collapsible={false}
-      note={kind === 'screen' ? ceilingNote() : undefined}
+      note={kind === 'screen' ? ceilingNote(t) : undefined}
     >
       <QualityRows kind={kind} profile={profile} change={change} />
     </SettingGroup>
@@ -99,24 +103,26 @@ export function QualityFields({
  * (`Reception` в `core/preferences.ts`).
  */
 export function ReceptionRow({ mode, change }: { mode: Reception; change: (mode: Reception) => void }) {
+  const { t } = useTranslation();
   return (
     <SettingRow id="reception" stack>
       <select
         className="ui-input ui-select setting-select"
-        aria-label="Качество приёма"
+        aria-label={rowText(t, 'reception').label}
         value={mode}
         onChange={(e) => change(e.target.value as Reception)}
       >
-        <option value="fit">По размеру окна</option>
-        <option value="best">Всегда лучшее</option>
+        <option value="fit">{t(($) => $.settings.media.reception.fit)}</option>
+        <option value="best">{t(($) => $.settings.media.reception.best)}</option>
       </select>
     </SettingRow>
   );
 }
 
 export function ReceptionFields({ mode, change }: { mode: Reception; change: (mode: Reception) => void }) {
+  const { t } = useTranslation();
   return (
-    <SettingGroup title="Чужое видео" collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.anchors.reception)} collapsible={false}>
       <ReceptionRow mode={mode} change={change} />
     </SettingGroup>
   );
@@ -131,25 +137,26 @@ export function NoiseRow({
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
 }) {
+  const { t } = useTranslation();
   const constraints = navigator.mediaDevices?.getSupportedConstraints() as Constraints | undefined;
   return (
     <SettingRow id="noise" stack>
       <select
         className="ui-input ui-select setting-select"
-        aria-label={row('noise').label}
+        aria-label={rowText(t, 'noise').label}
         value={audio.suppression}
         onChange={(e: ChangeEvent<HTMLSelectElement>) =>
           change({ ...audio, suppression: e.target.value as AudioPreferences['suppression'] })
         }
       >
-        <option value="browser">Стандартное</option>
+        <option value="browser">{t(($) => $.settings.media.noise.browser)}</option>
         <option value="rnnoise" disabled={!('AudioWorkletNode' in window)}>
-          RNNoise — усиленное
+          {t(($) => $.settings.media.noise.rnnoise)}
         </option>
         <option value="voice" disabled={!constraints?.voiceIsolation}>
-          Изоляция голоса
+          {t(($) => $.settings.media.noise.voice)}
         </option>
-        <option value="off">Выключено</option>
+        <option value="off">{t(($) => $.settings.media.noise.off)}</option>
       </select>
     </SettingRow>
   );
@@ -162,11 +169,12 @@ export function EchoRow({
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <SettingRow id="echo">
       <Switch
         checked={audio.echoCancellation}
-        ariaLabel={row('echo').label}
+        ariaLabel={rowText(t, 'echo').label}
         onCheckedChange={(echoCancellation) => change({ ...audio, echoCancellation })}
       />
     </SettingRow>
@@ -180,11 +188,12 @@ export function AutoGainRow({
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <SettingRow id="mic-auto">
       <Switch
         checked={audio.autoGainControl}
-        ariaLabel={row('mic-auto').label}
+        ariaLabel={rowText(t, 'mic-auto').label}
         onCheckedChange={(autoGainControl) => change({ ...audio, autoGainControl })}
       />
     </SettingRow>
@@ -202,6 +211,7 @@ export function GainRow({
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
 }) {
+  const { t } = useTranslation();
   const percent = Math.round(audio.gain * 100);
   return (
     <SettingRow id="mic-volume" stack disabled={audio.autoGainControl}>
@@ -212,10 +222,10 @@ export function GainRow({
           step={1}
           disabled={audio.autoGainControl}
           value={percent}
-          label="Громкость микрофона"
+          label={rowText(t, 'mic-volume').label}
           onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
         />
-        <SettingValue>{audio.autoGainControl ? 'Авто' : `${percent}%`}</SettingValue>
+        <SettingValue>{audio.autoGainControl ? t(($) => $.settings.media.auto) : `${percent}%`}</SettingValue>
       </div>
     </SettingRow>
   );
@@ -229,8 +239,9 @@ export function AudioFields({
   audio: AudioPreferences;
   change: (value: AudioPreferences) => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <SettingGroup title="Голос и микрофон" collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.media.voiceGroup)} collapsible={false}>
       <NoiseRow audio={audio} change={change} />
       <EchoRow audio={audio} change={change} />
       <AutoGainRow audio={audio} change={change} />
@@ -239,11 +250,7 @@ export function AudioFields({
   );
 }
 
-const PLAYOUT: { value: NetworkMode; title: string }[] = [
-  { value: 'auto', title: 'Автоматически' },
-  { value: 'low-latency', title: 'Минимальная задержка' },
-  { value: 'stable', title: 'Максимальная устойчивость' },
-];
+const PLAYOUT: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 
 /**
  * Сколько звука держать про запас, прежде чем его услышат. На чёткость картинки не влияет —
@@ -259,6 +266,7 @@ export function PlayoutRow({
   change: (mode: NetworkMode) => void;
   link?: LinkState;
 }) {
+  const { t } = useTranslation();
   const known = link && link.path !== 'unknown';
   return (
     <SettingRow
@@ -267,23 +275,25 @@ export function PlayoutRow({
       below={
         known ? (
           <p className="setting-note" role="status">
-            Сейчас: {pathName(link.path)} · {gradeName(link.grade)}
-            {link.rttMs !== null && ` · оборот ${Math.round(link.rttMs)} мс`}
-            {link.ordered &&
-              '. Через TCP запас поднят сам; если это повторяется, проверьте, пропускает ли сеть UDP.'}
+            {t(($) => $.settings.media.playout.now, {
+              path: pathName(t, link.path),
+              grade: gradeName(t, link.grade),
+            })}
+            {link.rttMs !== null && t(($) => $.settings.media.playout.rtt, { ms: Math.round(link.rttMs) })}
+            {link.ordered && t(($) => $.settings.media.playout.tcp)}
           </p>
         ) : undefined
       }
     >
       <select
         className="ui-input ui-select setting-select"
-        aria-label="Запас буфера приёма"
+        aria-label={rowText(t, 'playout').label}
         value={mode}
         onChange={(e) => change(e.target.value as NetworkMode)}
       >
         {PLAYOUT.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.title}
+          <option key={option} value={option}>
+            {t(($) => $.settings.media.playout.modes[option])}
           </option>
         ))}
       </select>

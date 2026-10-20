@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { ArrowLeft, Clapperboard, Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { linkOf } from '../../../core/cinema/link';
 import { IconButton } from '../../primitives';
 
@@ -88,11 +89,12 @@ export function Shell({
 }) {
   /** Следующее изменение поля — вставка: перед ним было `paste` или `drop`. */
   const pasted = useRef(false);
+  const { t } = useTranslation();
   return (
-    <section className="cinema-browser" aria-label="Кинотеатр">
+    <section className="cinema-browser" aria-label={t(($) => $.cinema.shell.label)}>
       <header className="cinema-bar">
         {onBack ? (
-          <IconButton label="Назад" onClick={onBack}>
+          <IconButton label={t(($) => $.cinema.shell.back)} onClick={onBack}>
             <ArrowLeft size={19} />
           </IconButton>
         ) : (
@@ -150,22 +152,25 @@ export function Shell({
             }}
           />
           {query && (
-            <button className="icon-button" aria-label="Очистить поиск" onClick={() => onClear()}>
+            <button
+              className="icon-button"
+              aria-label={t(($) => $.cinema.shell.clear)}
+              onClick={() => onClear()}
+            >
               <X size={15} />
             </button>
           )}
         </label>
-        <IconButton label={watching ? 'Вернуться к просмотру' : 'Закрыть кинотеатр'} onClick={onClose}>
+        <IconButton
+          label={watching ? t(($) => $.cinema.shell.backToWatch) : t(($) => $.cinema.shell.close)}
+          onClick={onClose}
+        >
           <X size={19} />
         </IconButton>
       </header>
 
       <div className="cinema-body">
-        {locked && (
-          <p className="cinema-notice">
-            Ведущий разрешил интеграции только себе — смотреть можно, включать нет.
-          </p>
-        )}
+        {locked && <p className="cinema-notice">{t(($) => $.cinema.shell.locked)}</p>}
         {error && (
           <p className="form-error" role="alert">
             {error}
