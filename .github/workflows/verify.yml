@@ -22,7 +22,7 @@ jobs:
       # клиент переводит отказ. Секунда, поэтому раньше сборки.
       - name: Verify the error code registry matches the core
         run: python3 scripts/errors_registry.py --check
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '25.0.2+10.0.LTS'
@@ -52,7 +52,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
         with:
           distribution: temurin
           java-version: '25.0.2+10.0.LTS'
