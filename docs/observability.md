@@ -444,7 +444,7 @@ Alertmanager 0.34.1, Grafana OSS 13.2.4, node/postgres/redis-экспортер�
 `network_mode: host`, только 127.0.0.1, `mem_limit`. Сбор — `infra/monitoring/scrape.yml` (ядро, LiveKit
 с паролем, шлюз Caddy на 127.0.0.1:2019, tusd, службы `/metrics`, машина, база, Redis, Gatus, сам
 мониторинг). Алерты — `infra/monitoring/rules/cord.yml` по §8; Alertmanager — из `configure.mjs` (Telegram
-бота Cord и Healthchecks.io из `.env`, `HostStalled` гасит `severity: page`). Дашборды — генератор
+бота Cord и Healthchecks.io из `.env`, `HostStalled` гасит только `JoinFailures` и `GatewayErrors5xx` — постоянный steal этой машины иначе глушил бы всё). Дашборды — генератор
 `infra/monitoring/grafana/dashboards.mjs`; CI проверяет профиль теми же образами (`-dryRun`, `amtool`).
 
 **Отличия от плана §14 — и почему.**

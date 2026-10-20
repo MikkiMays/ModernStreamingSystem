@@ -658,4 +658,4 @@ electron-builder с собственными страницами, Squirrel с �
   профиля в конец `.env` и не вращает существующие; `update.sh` пересоздаёт службы профиля при правке
   `infra/monitoring/` или генератора.
 - **E10-B-10. `HostStalled` — по steal (> 30 % десять минут), без таймера soft lockup:** steal node_exporter видит сам.
-  «Не отвечает» — `max_over_time(up[5m]) == 0` ещё пять минут; `HostStalled` гасит `severity: page`; отбой всегда.
+  «Не отвечает» — `max_over_time(up[5m]) == 0` ещё пять минут; `HostStalled` гасит только `JoinFailures` и `GatewayErrors5xx`: живой подъём показал вечный steal > 30 % на этой машине, и гашение всех `severity: page` не пропустило бы ни одного алерта; отбой всегда.
