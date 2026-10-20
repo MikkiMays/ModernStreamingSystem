@@ -19,6 +19,9 @@ export default defineConfig({
   use: {
     baseURL: deployedUrl ?? 'http://localhost:5173',
     storageState: '.local/e2e/returning.json',
+    // Сценарии читают русский текст. Язык браузера выбирается сам из переведённых (E14-B), а
+    // Playwright по умолчанию — en-US: без этой строки e2e увидели бы английский интерфейс.
+    locale: 'ru-RU',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {

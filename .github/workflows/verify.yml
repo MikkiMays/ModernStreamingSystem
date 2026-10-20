@@ -72,6 +72,11 @@ jobs:
       - name: Verify the catalog errors match the registry
         run: node scripts/i18n/sync-errors.mjs --check
         working-directory: web
+      # E14-B: у каждого языка из TRANSLATED есть каждый ключ ru, вставки и разметка те же, формы числа —
+      # свои. Новый ключ ru без переводов на все языки роняет проверку.
+      - name: Verify every translated language covers the catalog
+        run: node scripts/i18n/coverage.mjs
+        working-directory: web
       - run: npm run format:check
         working-directory: web
       - run: npm test
