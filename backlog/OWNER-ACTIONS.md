@@ -104,3 +104,13 @@
    - **iPhone:** §6 и шаги 13–17 в Safari и с экрана «Домой». Для опыта с WKWebView (`docs/mobile.md` §9) —
      есть ли Mac с Xcode; аккаунт Apple ($99) понадобится только для TestFlight и входящих (П1).
    Ответ:
+
+8. **Клиент на Electron — ключ каталога серверов (20.10.2026, E01-B2).** Каталог (`GET /api/v1/catalog`) подписан
+   **ключом стенда**: закрытый — `.local/cord-catalog-key.pem` на этой машине (600, вне git), открытый — в
+   `contracts/catalog-keys.json` и `desktop/build/catalog-keys.json`. Для прода: `node scripts/sign-catalog.mjs keygen
+   --out <свой путь>.pem`, JWK из вывода — вторым ключом в оба файла, выпуск клиента; потом `sign --key <свой>.pem`,
+   новый `servers.jws` — копией в `desktop/src/shell/catalog.jws`, ключ стенда убрать из списков. Заодно подтвердить
+   страну стенда: в каталоге `NL` «Нидерланды» (из снимка E01-B), RDAP адреса показывает только регистратора в
+   Лондоне. Срок каталога — до 2027-04-18; CI ядра (`sign-catalog.mjs verify`) покраснеет через 30 дней после него.
+   Ответ:
+
