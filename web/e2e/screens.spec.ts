@@ -67,7 +67,9 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить камеру', exact: true }).click();
     await host!.getByRole('button', { name: 'Включить микрофон', exact: true }).click();
-    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1);
+    // Показ, камера и микрофон публикуются разом через настоящий SFU; на медленном стенде кнопка у
+    // зрителя появлялась через 5 с с небольшим — ровно за умолчанием `expect`.
+    await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1, { timeout: 20000 });
     await expect(guest!.locator('video.screen-video')).toHaveCount(0);
     await expect(guest!.locator('.person-tile video')).toHaveCount(1);
     await expect(guest!.locator('audio')).toHaveCount(1);
