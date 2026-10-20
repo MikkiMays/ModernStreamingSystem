@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { nextZoom, readZooms, saveZoom, zoomLabel, type FaceZoom } from '../core/face-zoom';
 import type { GameKind } from '../core/preferences';
 import { Store } from '../core/store';
@@ -37,7 +38,8 @@ export function useFaceZoom(game: GameKind, person: string | null | undefined) {
  * сенсорном экране — всегда, но приглушённо: наводить там нечем.
  */
 export function FaceZoomButton({ zoom, name, onCycle }: { zoom: number; name: string; onCycle: () => void }) {
-  const label = zoomLabel(zoom, name);
+  const { t } = useTranslation();
+  const label = zoomLabel(t, zoom, name);
   return (
     <button
       type="button"

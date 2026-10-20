@@ -13,6 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { roomName, type FavoriteGroup, type SavedRoom } from '../../core/favorite-groups';
 import { formatCode } from '../../core/invitation';
 import {
@@ -27,25 +28,6 @@ import {
   MenuTrigger,
 } from '../kit';
 import { InlineName } from './InlineName';
-
-/** Строки строки избранного — в одном месте, до слоя переводов (E14). */
-export const ROOM_TEXT = {
-  actions: (name: string) => `Действия с «${name}»`,
-  open: 'Открыть',
-  rename: 'Переименовать у себя',
-  renameField: (name: string) => `Своё имя для «${name}»`,
-  pin: 'Закрепить',
-  unpin: 'Открепить',
-  group: 'Группа',
-  noGroup: 'Без группы',
-  newGroup: 'Новая группа…',
-  copy: 'Скопировать код',
-  autojoin: 'Автоподключение',
-  remove: 'Убрать из избранного',
-  here: 'вы здесь',
-  forgotten: 'Комната больше не помнит вас',
-  pinned: 'Закреплена',
-};
 
 export interface RoomActions {
   open: (room: SavedRoom) => void;
@@ -75,29 +57,30 @@ function RoomMenuItems({
   actions: RoomActions;
   onRename: () => void;
 }) {
+  const { t } = useTranslation();
   // Автовход живёт в `localStorage`, не в состоянии React: без своей копии отмеченный пункт не
   // перерисовывался бы, а меню оставалось бы открытым поверх списка.
   const [automatic, setAutomatic] = useState(() => actions.autojoin(room));
   return (
     <>
       <MenuItem icon={<ArrowRight size={16} />} shortcut="Enter" onClick={() => actions.open(room)}>
-        {ROOM_TEXT.open}
+        {t(($) => $.favorites.room.open)}
       </MenuItem>
       <MenuItem icon={<Pencil size={16} />} shortcut="F2" onClick={onRename}>
-        {ROOM_TEXT.rename}
+        {t(($) => $.favorites.room.rename)}
       </MenuItem>
       <MenuItem
         icon={room.pinned ? <PinOff size={16} /> : <Pin size={16} />}
         onClick={() => actions.togglePin(room)}
       >
-        {room.pinned ? ROOM_TEXT.unpin : ROOM_TEXT.pin}
+        {room.pinned ? t(($) => $.favorites.room.unpin) : t(($) => $.favorites.room.pin)}
       </MenuItem>
-      <MenuSubmenu icon={<FolderInput size={16} />} label={ROOM_TEXT.group}>
+      <MenuSubmenu icon={<FolderInput size={16} />} label={t(($) => $.favorites.room.group)}>
         <MenuItem
           icon={!room.groupId ? <Check size={16} /> : null}
           onClick={() => actions.moveTo(room, null)}
         >
-          {ROOM_TEXT.noGroup}
+          {t(($) => $.favorites.room.noGroup)}
         </MenuItem>
         {groups.map((group) => (
           <MenuItem
@@ -110,11 +93,11 @@ function RoomMenuItems({
         ))}
         <MenuSeparator />
         <MenuItem icon={<FolderPlus size={16} />} onClick={() => actions.newGroupWith(room)}>
-          {ROOM_TEXT.newGroup}
+          {t(($) => $.favorites.room.newGroup)}
         </MenuItem>
       </MenuSubmenu>
       <MenuItem icon={<Copy size={16} />} onClick={() => actions.copyCode(room)}>
-        {ROOM_TEXT.copy}
+        {t(($) => $.favorites.room.copy)}
       </MenuItem>
       <MenuCheckboxItem
         className="ui-menu__item"
@@ -128,11 +111,11 @@ function RoomMenuItems({
         <span className="ui-menu__icon" aria-hidden="true">
           {automatic ? <Check size={16} /> : <Zap size={16} />}
         </span>
-        <span className="ui-menu__label">{ROOM_TEXT.autojoin}</span>
+        <span className="ui-menu__label">{t(($) => $.favorites.room.autojoin)}</span>
       </MenuCheckboxItem>
       <MenuSeparator />
       <MenuItem icon={<Trash2 size={16} />} shortcut="Del" destructive onClick={() => actions.remove(room)}>
-        {ROOM_TEXT.remove}
+        {t(($) => $.favorites.room.remove)}
       </MenuItem>
     </>
   );
@@ -165,6 +148,7 @@ export function RoomRow({
   dragging: boolean;
   insertion: 'before' | 'after' | null;
 }) {
+  const { t } = useTranslation();
   const [renaming, setRenaming] = useState(false);
   const name = roomName(room);
   let body: ReactNode;
@@ -172,7 +156,7 @@ export function RoomRow({
     body = (
       <InlineName
         initial={room.alias ?? room.title}
-        label={ROOM_TEXT.renameField(room.title)}
+        label={t(($) => $.favorites.room.renameField, { name: room.title })}
         placeholder={room.title}
         onCommit={(value) => {
           setRenaming(false);
@@ -217,16 +201,21 @@ export function RoomRow({
         <span className="home-room__text">
           <span className="home-room__name">{name}</span>
           <span className="home-room__code" data-warning={!room.canJoin || undefined}>
-            {room.canJoin ? formatCode(room.code) : ROOM_TEXT.forgotten}
+            {room.canJoin ? formatCode(room.code) : t(($) => $.favorites.room.forgotten)}
           </span>
         </span>
         {here && (
           <Badge variant="accent" className="home-room__here">
-            {ROOM_TEXT.here}
+            {t(($) => $.favorites.room.here)}
           </Badge>
         )}
         {room.pinned && !here && (
-          <Pin size={14} className="home-room__pin" aria-label={ROOM_TEXT.pinned} role="img" />
+          <Pin
+            size={14}
+            className="home-room__pin"
+            aria-label={t(($) => $.favorites.room.pinned)}
+            role="img"
+          />
         )}
       </button>
     );
@@ -248,7 +237,11 @@ export function RoomRow({
           <Menu>
             <MenuTrigger
               render={
-                <IconButton label={ROOM_TEXT.actions(name)} size="sm" className="home-room__more">
+                <IconButton
+                  label={t(($) => $.favorites.room.actions, { name })}
+                  size="sm"
+                  className="home-room__more"
+                >
                   <MoreHorizontal size={16} />
                 </IconButton>
               }

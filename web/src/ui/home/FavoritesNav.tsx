@@ -1,5 +1,6 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { ChevronRight, FolderMinus, MoreHorizontal, Pencil, Plus, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   useEffect,
   useId,
@@ -35,39 +36,6 @@ import { useFavoriteShelf } from '../useFavoriteShelf';
 import { InlineName } from './InlineName';
 import { RoomRow, type DragHandlers, type RoomActions } from './RoomRow';
 
-/** Строки панели избранного — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  title: 'Избранное',
-  count: (n: number, max: number) => `${n} из ${max}`,
-  countLabel: (n: number, max: number) => `Сохранено ${n} из ${max} комнат`,
-  newGroup: 'Группа',
-  newGroupLabel: 'Создать группу',
-  groupsFull: `Групп не больше ${GROUPS_MAX}`,
-  groupField: 'Название новой группы',
-  groupPlaceholder: 'Например, Работа',
-  pinned: 'Закреплено',
-  loose: 'Без группы',
-  groupActions: (title: string) => `Действия с группой «${title}»`,
-  renameGroup: 'Переименовать',
-  renameGroupField: (title: string) => `Новое название группы «${title}»`,
-  collapse: 'Свернуть',
-  expand: 'Развернуть',
-  removeGroup: 'Удалить группу',
-  groupRemoved: (title: string) => `Группа «${title}» удалена, комнаты — в общем списке`,
-  emptyGroup: 'Пока пусто. Перенесите сюда комнату',
-  emptyTitle: 'Здесь будут ваши встречи',
-  emptyText: 'Нажмите звёздочку в шапке встречи, чтобы возвращаться к ней отсюда.',
-  loading: 'Загружаем избранное…',
-  failed: 'Не удалось загрузить избранное.',
-  retry: 'Повторить',
-  copied: 'Код скопирован',
-  copyFailed: 'Не удалось скопировать код',
-  removeTitle: (name: string) => `Убрать «${name}» из избранного?`,
-  removeText: 'Вернуть её сюда можно будет только из самой встречи — звёздочкой в шапке.',
-  removeConfirm: 'Убрать',
-  cancel: 'Отмена',
-};
-
 const DRAG_THRESHOLD = 5;
 
 interface DragState {
@@ -93,6 +61,7 @@ export function FavoritesNav({
   /** Комнаты, где встреча идёт в соседней вкладке (T52). */
   here: ReadonlySet<string>;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const shelf = useFavoriteShelf();
   const limit = useFavoritesLimit();
@@ -118,7 +87,7 @@ export function FavoritesNav({
   });
 
   const fail = (error: unknown) =>
-    toast.add({ title: (error as Error).message || 'Не получилось', type: 'danger' });
+    toast.add({ title: (error as Error).message || t(($) => $.favorites.nav.failedAction), type: 'danger' });
   const run = (work: Promise<unknown>) => void work.catch(fail);
 
   const actions: RoomActions = {
@@ -130,8 +99,8 @@ export function FavoritesNav({
     copyCode: (room) =>
       void navigator.clipboard
         .writeText(formatCode(room.code))
-        .then(() => toast.add({ title: TEXT.copied, type: 'success' }))
-        .catch(() => toast.add({ title: TEXT.copyFailed, type: 'danger' })),
+        .then(() => toast.add({ title: t(($) => $.favorites.nav.copied), type: 'success' }))
+        .catch(() => toast.add({ title: t(($) => $.favorites.nav.copyFailed), type: 'danger' })),
     autojoin: (room) => autoJoinEnabled(room.roomId),
     setAutojoin: (room, enabled) => setAutoJoin(room.roomId, enabled),
     remove: (room) => setRemoving(room),
@@ -247,29 +216,37 @@ export function FavoritesNav({
   );
 
   return (
-    <nav className="home-nav__favorites" aria-label={TEXT.title} data-dragging={drag?.active || undefined}>
+    <nav
+      className="home-nav__favorites"
+      aria-label={t(($) => $.favorites.nav.title)}
+      data-dragging={drag?.active || undefined}
+    >
       <div className="home-nav__heading">
-        <h2 className="home-nav__title">{TEXT.title}</h2>
+        <h2 className="home-nav__title">{t(($) => $.favorites.nav.title)}</h2>
         <span
           className="home-nav__count"
           data-full={total >= limit || undefined}
-          aria-label={TEXT.countLabel(total, limit)}
-          title={TEXT.countLabel(total, limit)}
+          aria-label={t(($) => $.favorites.nav.countLabel, { n: total, count: limit })}
+          title={t(($) => $.favorites.nav.countLabel, { n: total, count: limit })}
         >
-          {TEXT.count(total, limit)}
+          {t(($) => $.favorites.nav.count, { n: total, max: limit })}
         </span>
         <button
           type="button"
           className="home-nav__new-group"
-          aria-label={TEXT.newGroupLabel}
-          title={groupsFull ? TEXT.groupsFull : TEXT.newGroupLabel}
+          aria-label={t(($) => $.favorites.nav.newGroupLabel)}
+          title={
+            groupsFull
+              ? t(($) => $.favorites.nav.groupsFull, { max: GROUPS_MAX })
+              : t(($) => $.favorites.nav.newGroupLabel)
+          }
           aria-disabled={groupsFull || undefined}
           onClick={() => {
             if (!groupsFull) setDrafting({});
           }}
         >
           <Plus size={14} aria-hidden="true" />
-          <span>{TEXT.newGroup}</span>
+          <span>{t(($) => $.favorites.nav.newGroup)}</span>
         </button>
       </div>
 
@@ -280,8 +257,8 @@ export function FavoritesNav({
           </span>
           <InlineName
             initial=""
-            label={TEXT.groupField}
-            placeholder={TEXT.groupPlaceholder}
+            label={t(($) => $.favorites.nav.groupField)}
+            placeholder={t(($) => $.favorites.nav.groupPlaceholder)}
             onCommit={(title) => {
               const moveRoomId = drafting.moveRoomId;
               setDrafting(null);
@@ -296,7 +273,7 @@ export function FavoritesNav({
         if (section.kind === 'pinned')
           return (
             <section key={section.key} className="home-nav__section" data-drop={section.key}>
-              <h3 className="home-nav__label">{TEXT.pinned}</h3>
+              <h3 className="home-nav__label">{t(($) => $.favorites.nav.pinned)}</h3>
               {renderRooms(section)}
             </section>
           );
@@ -320,7 +297,9 @@ export function FavoritesNav({
                 const title = section.group!.title;
                 void shelf
                   .removeGroup(section.group!.id)
-                  .then(() => toast.add({ title: TEXT.groupRemoved(title), type: 'info' }))
+                  .then(() =>
+                    toast.add({ title: t(($) => $.favorites.nav.groupRemoved, { title }), type: 'info' }),
+                  )
                   .catch(fail);
               }}
             >
@@ -336,7 +315,7 @@ export function FavoritesNav({
             data-dropping={(drag?.active && drag.target === section.key) || undefined}
           >
             {(shelf.groups.length > 0 || shelf.sections[0]?.kind === 'pinned') && (
-              <h3 className="home-nav__label">{TEXT.loose}</h3>
+              <h3 className="home-nav__label">{t(($) => $.favorites.nav.loose)}</h3>
             )}
             {renderRooms(section)}
           </section>
@@ -345,26 +324,26 @@ export function FavoritesNav({
 
       {!total && shelf.favorites.isPending && (
         <p className="home-nav__note" role="status">
-          {TEXT.loading}
+          {t(($) => $.favorites.nav.loading)}
         </p>
       )}
       {!total && !shelf.favorites.isPending && !shelf.favorites.isError && (
         <div className="home-nav__empty">
           <Star size={18} aria-hidden="true" />
-          <strong>{TEXT.emptyTitle}</strong>
-          <p>{TEXT.emptyText}</p>
+          <strong>{t(($) => $.favorites.nav.emptyTitle)}</strong>
+          <p>{t(($) => $.favorites.nav.emptyText)}</p>
         </div>
       )}
       {shelf.favorites.isError && (
         <p className="home-nav__note" role="status">
-          {TEXT.failed}{' '}
+          {t(($) => $.favorites.nav.failed)}{' '}
           <button
             type="button"
             className="home-nav__retry"
             disabled={shelf.favorites.isFetching}
             onClick={() => void shelf.favorites.refetch()}
           >
-            {TEXT.retry}
+            {t(($) => $.favorites.nav.retry)}
           </button>
         </p>
       )}
@@ -375,13 +354,13 @@ export function FavoritesNav({
           if (!open) setRemoving(null);
         }}
         size="sm"
-        closeLabel={TEXT.cancel}
-        title={removing ? TEXT.removeTitle(roomName(removing)) : ''}
-        description={TEXT.removeText}
+        closeLabel={t(($) => $.favorites.nav.cancel)}
+        title={removing ? t(($) => $.favorites.nav.removeTitle, { name: roomName(removing) }) : ''}
+        description={t(($) => $.favorites.nav.removeText)}
         footer={
           <>
             <Button variant="quiet" onClick={() => setRemoving(null)}>
-              {TEXT.cancel}
+              {t(($) => $.favorites.nav.cancel)}
             </Button>
             <Button
               variant="danger"
@@ -391,7 +370,7 @@ export function FavoritesNav({
                 if (room) run(shelf.removeRoom(room.roomId));
               }}
             >
-              {TEXT.removeConfirm}
+              {t(($) => $.favorites.nav.removeConfirm)}
             </Button>
           </>
         }
@@ -425,17 +404,18 @@ function GroupSection({
   onRemove: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const items = (
     <>
       <MenuItem icon={<Pencil size={16} />} shortcut="F2" onClick={onRename}>
-        {TEXT.renameGroup}
+        {t(($) => $.favorites.nav.renameGroup)}
       </MenuItem>
       <MenuItem icon={<ChevronRight size={16} />} onClick={onToggle}>
-        {collapsed ? TEXT.expand : TEXT.collapse}
+        {collapsed ? t(($) => $.favorites.nav.expand) : t(($) => $.favorites.nav.collapse)}
       </MenuItem>
       <MenuSeparator />
       <MenuItem icon={<FolderMinus size={16} />} destructive onClick={onRemove}>
-        {TEXT.removeGroup}
+        {t(($) => $.favorites.nav.removeGroup)}
       </MenuItem>
     </>
   );
@@ -455,7 +435,7 @@ function GroupSection({
               </span>
               <InlineName
                 initial={group.title}
-                label={TEXT.renameGroupField(group.title)}
+                label={t(($) => $.favorites.nav.renameGroupField, { title: group.title })}
                 onCommit={onRenamed}
                 onCancel={() => onRenamed('')}
               />
@@ -484,7 +464,11 @@ function GroupSection({
               <Menu>
                 <MenuTrigger
                   render={
-                    <IconButton label={TEXT.groupActions(group.title)} size="sm" className="home-group__more">
+                    <IconButton
+                      label={t(($) => $.favorites.nav.groupActions, { title: group.title })}
+                      size="sm"
+                      className="home-group__more"
+                    >
                       <MoreHorizontal size={16} />
                     </IconButton>
                   }
@@ -505,7 +489,7 @@ function GroupSection({
           children
         ) : (
           <p className="home-group__empty" id={listId}>
-            {TEXT.emptyGroup}
+            {t(($) => $.favorites.nav.emptyGroup)}
           </p>
         ))}
     </section>

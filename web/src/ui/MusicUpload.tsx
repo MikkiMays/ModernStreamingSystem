@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Upload } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { MusicState } from '../core/services';
 import { Button } from './kit';
 
@@ -24,6 +25,7 @@ export function MusicUpload({
   onError: (message: string) => void;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -37,7 +39,8 @@ export function MusicUpload({
     abort.current = controller;
     try {
       for (const file of files) {
-        if (file.size > maxFileBytes) throw new Error(`«${file.name}»: максимум ${limit} МБ на трек`);
+        if (file.size > maxFileBytes)
+          throw new Error(t(($) => $.music.upload.tooBig, { name: file.name, limit }));
         onAdded(await upload(file, controller.signal));
       }
     } catch (e) {
@@ -73,7 +76,7 @@ export function MusicUpload({
           multiple
           accept="audio/*,.m4a,.flac,.ogg,.opus,.webm"
           hidden
-          aria-label="Добавить музыкальные файлы"
+          aria-label={t(($) => $.music.upload.input)}
           onChange={(e) => {
             void send(Array.from(e.target.files ?? []));
             e.target.value = '';
@@ -87,14 +90,14 @@ export function MusicUpload({
           disabled={!canUse}
           onClick={() => input.current?.click()}
         >
-          Загрузить файлы
+          {t(($) => $.music.upload.button)}
         </Button>
         {busy ? (
           <Button variant="quiet" size="sm" onClick={() => abort.current?.abort()}>
-            Отменить
+            {t(($) => $.music.upload.cancel)}
           </Button>
         ) : (
-          <span className="music-add__hint">Можно и перетащить: до {limit} МБ и 60 минут на трек</span>
+          <span className="music-add__hint">{t(($) => $.music.upload.hint, { limit })}</span>
         )}
       </div>
     </div>

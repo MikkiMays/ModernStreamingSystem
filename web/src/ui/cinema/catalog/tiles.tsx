@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Clapperboard, Eye, Gamepad2, ListVideo, LoaderCircle, Play, Tv, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { clock, viewers, type CinemaItem } from '../../../core/cinema';
 import { arrowNav } from './arrow-nav';
 
@@ -51,12 +52,15 @@ export function Tile({
   onEnter: (item: CinemaItem) => void;
   onChannel: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+  const watching = viewers(t, item.viewers);
+  const views = viewers(t, item.views);
   return (
     <article className="cinema-tile">
       <span className="cinema-poster">
         {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Tv size={26} />}
         {item.live ? (
-          <span className="cinema-live">В эфире</span>
+          <span className="cinema-live">{t(($) => $.cinema.meta.live)}</span>
         ) : (
           item.duration && <span className="cinema-duration">{clock(item.duration)}</span>
         )}
@@ -64,7 +68,7 @@ export function Tile({
           <button
             className="cinema-start"
             disabled={!canUse || !!busy}
-            aria-label={`Смотреть вместе: ${item.title}`}
+            aria-label={t(($) => $.cinema.tiles.watch, { title: item.title })}
             onClick={() => void onWatch(item)}
           >
             {busy === item.id ? <LoaderCircle size={20} /> : <Play size={20} />}
@@ -73,24 +77,28 @@ export function Tile({
       </span>
       {/* Растянутая кнопка вместо обёртки всей плитки: внутрь плитки нужны ещё две кнопки, а
           кнопка в кнопке — это ни разметка, ни клавиатура. */}
-      <button className="cinema-open" aria-label={`Подробнее: ${item.title}`} onClick={() => onEnter(item)} />
+      <button
+        className="cinema-open"
+        aria-label={t(($) => $.cinema.tiles.details, { title: item.title })}
+        onClick={() => onEnter(item)}
+      />
       <b className="cinema-tile-title">{item.title}</b>
       <span className="cinema-tile-meta">
         {item.channelId ? (
           <button className="cinema-author" onClick={() => onChannel(String(item.channelId))}>
-            {item.author || 'Канал'}
+            {item.author || t(($) => $.cinema.meta.channel)}
           </button>
         ) : (
           <span>{item.author}</span>
         )}
-        {viewers(item.viewers) && (
+        {watching && (
           <span>
-            <Users size={11} /> {viewers(item.viewers)}
+            <Users size={11} /> {watching}
           </span>
         )}
-        {!item.viewers && viewers(item.views) && (
+        {!item.viewers && views && (
           <span>
-            <Eye size={11} /> {viewers(item.views)}
+            <Eye size={11} /> {views}
           </span>
         )}
         {/* Подпись площадки («3 серия») — только там, где она её дала: у YouTube и Twitch её нет,
@@ -107,12 +115,17 @@ export function Tile({
  * серии живут на его странице.
  */
 export function PosterTile({ item, onEnter }: { item: CinemaItem; onEnter: (item: CinemaItem) => void }) {
+  const { t } = useTranslation();
   return (
     <article className="cinema-tile cinema-tile-tall">
       <span className="cinema-cover">
         {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Clapperboard size={26} />}
       </span>
-      <button className="cinema-open" aria-label={`Открыть: ${item.title}`} onClick={() => onEnter(item)} />
+      <button
+        className="cinema-open"
+        aria-label={t(($) => $.cinema.tiles.open, { title: item.title })}
+        onClick={() => onEnter(item)}
+      />
       <b className="cinema-tile-title">{item.title}</b>
       {/* Бейдж и подпись — те же два чипа, что и у широкой плитки (`Tile`): у Rutube здесь всегда
           только бейдж («Сериал»/«Шоу»), у ivi — ещё и жанр с годом, вторым чипом. */}
@@ -128,18 +141,19 @@ export function PosterTile({ item, onEnter }: { item: CinemaItem; onEnter: (item
 
 /** Плейлист: та же обложка, но с корешком стопки и числом роликов. В него заходят. */
 export function PlaylistTile({ item, onEnter }: { item: CinemaItem; onEnter: (item: CinemaItem) => void }) {
+  const { t } = useTranslation();
   return (
     <article className="cinema-tile cinema-tile-list">
       <span className="cinema-poster">
         {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <ListVideo size={26} />}
         <span className="cinema-stack">
           <ListVideo size={13} />
-          {item.count ? `${item.count}` : 'Плейлист'}
+          {item.count ? `${item.count}` : t(($) => $.cinema.tiles.playlist)}
         </span>
       </span>
       <button
         className="cinema-open"
-        aria-label={`Открыть плейлист: ${item.title}`}
+        aria-label={t(($) => $.cinema.tiles.openPlaylist, { title: item.title })}
         onClick={() => onEnter(item)}
       />
       <b className="cinema-tile-title">{item.title}</b>
@@ -152,6 +166,8 @@ export function PlaylistTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
 
 /** Раздел: вертикальная обложка, как на самой площадке, и сколько его смотрят. */
 export function CategoryTile({ item, onEnter }: { item: CinemaItem; onEnter: (item: CinemaItem) => void }) {
+  const { t } = useTranslation();
+  const watching = viewers(t, item.viewers);
   return (
     <article className="cinema-tile cinema-tile-box">
       <span className="cinema-box">
@@ -159,14 +175,14 @@ export function CategoryTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
       </span>
       <button
         className="cinema-open"
-        aria-label={`Открыть раздел: ${item.title}`}
+        aria-label={t(($) => $.cinema.tiles.openCategory, { title: item.title })}
         onClick={() => onEnter(item)}
       />
       <b className="cinema-tile-title">{item.title}</b>
       <span className="cinema-tile-meta">
-        {viewers(item.viewers) && (
+        {watching && (
           <span>
-            <Users size={11} /> {viewers(item.viewers)}
+            <Users size={11} /> {watching}
           </span>
         )}
       </span>
@@ -176,6 +192,8 @@ export function CategoryTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
 
 /** Канал в результатах поиска: лицо, имя, псевдоним и сколько подписано. */
 export function ChannelTile({ item, onEnter }: { item: CinemaItem; onEnter: (item: CinemaItem) => void }) {
+  const { t } = useTranslation();
+  const followers = viewers(t, item.followers);
   return (
     <article className="cinema-tile cinema-tile-face">
       <span className="cinema-face">
@@ -183,13 +201,13 @@ export function ChannelTile({ item, onEnter }: { item: CinemaItem; onEnter: (ite
       </span>
       <button
         className="cinema-open"
-        aria-label={`Открыть канал: ${item.title}`}
+        aria-label={t(($) => $.cinema.tiles.openChannel, { title: item.title })}
         onClick={() => onEnter(item)}
       />
       <b className="cinema-tile-title">{item.title}</b>
       <span className="cinema-tile-meta">
         {item.author && <span>{item.author}</span>}
-        {viewers(item.followers) && <span>{viewers(item.followers)} подписчиков</span>}
+        {followers && <span>{t(($) => $.cinema.meta.followers, { value: followers })}</span>}
       </span>
     </article>
   );

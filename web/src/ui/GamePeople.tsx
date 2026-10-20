@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { TrackEvent } from 'livekit-client';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { MediaTile } from '../media/session';
 import { Avatar, useStore } from './primitives';
@@ -10,6 +11,7 @@ import type { GameKind } from '../core/preferences';
 import '../game-people.css';
 
 function GameCamera({ tile }: { tile: MediaTile }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
@@ -29,7 +31,15 @@ function GameCamera({ tile }: { tile: MediaTile }) {
       tile.track.detach(video);
     };
   }, [tile.track, tile.local]);
-  return <video ref={ref} autoPlay playsInline muted aria-label={`Камера: ${tile.name}`} />;
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted
+      aria-label={t(($) => $.games.people.camera, { name: tile.name })}
+    />
+  );
 }
 
 export function GamePerson({
@@ -49,6 +59,7 @@ export function GamePerson({
   /** За каким столом лицо: его размер у каждого зрителя свой и помнится по игре (T11). */
   game?: GameKind;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const tracks = useStore(meeting.media.tracks);
   // Голос — свой замер у каждого зрителя (T23): лицо загорается вместе со звуком, а не после SFU.
@@ -58,7 +69,7 @@ export function GamePerson({
     (track) => track.participantId === memberId && track.source === 'camera' && !track.muted,
   );
   const speaking = voice > 0;
-  const name = person?.name ?? fallbackName ?? label ?? 'Свободное место';
+  const name = person?.name ?? fallbackName ?? label ?? t(($) => $.games.people.freeSeat);
   const zoom = useFaceZoom(game ?? 'chess', game ? memberId : null);
   const content = (
     <>
@@ -70,7 +81,11 @@ export function GamePerson({
       </span>
       <span className="game-person-copy">
         <b title={name}>{name}</b>
-        {label ? <small>{label}</small> : speaking && <small className="game-person-speaking">Говорит</small>}
+        {label ? (
+          <small>{label}</small>
+        ) : (
+          speaking && <small className="game-person-speaking">{t(($) => $.games.people.speaking)}</small>
+        )}
       </span>
     </>
   );
@@ -105,6 +120,7 @@ export function GamePeople({
   memberIds?: string[];
   game?: GameKind;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const people =
     memberIds ??
@@ -112,7 +128,7 @@ export function GamePeople({
       .filter((person) => !person.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(person.status))
       .map((person) => person.id);
   return (
-    <div className="game-people" aria-label="Участники встречи">
+    <div className="game-people" aria-label={t(($) => $.games.people.list)}>
       {people.map((id) => (
         <GamePerson key={id} meeting={meeting} memberId={id} game={game} />
       ))}

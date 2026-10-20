@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { GripVertical, ListStart, MoreHorizontal, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type MusicTrack } from '../core/services';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
 import { MusicCover } from './MusicCover';
@@ -40,6 +41,7 @@ export function MusicQueue({
   onRemove: (track: MusicTrack, patch: Partial<MusicState>) => void;
   onMove: (track: MusicTrack, index: number, patch: Partial<MusicState>) => void;
 }) {
+  const { t } = useTranslation();
   const list = useRef<HTMLOListElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [said, setSaid] = useState('');
@@ -56,11 +58,11 @@ export function MusicQueue({
   if (!state.queue.length) return null;
 
   const move = (track: MusicTrack, index: number) => {
-    const from = state.queue.findIndex((t) => t.id === track.id);
+    const from = state.queue.findIndex((entry) => entry.id === track.id);
     const to = Math.min(Math.max(1, index), state.queue.length - 1);
     if (from < 1 || to === from) return;
     onMove(track, to, afterMove(state, track.id, to));
-    setSaid(`«${track.title}» — ${to}-й после текущего`);
+    setSaid(t(($) => $.music.queue.moved, { title: track.title, position: to }));
     // Строка переехала в разметке, и фокус с её ручки мог уйти вместе с узлом — возвращаем.
     requestAnimationFrame(() =>
       [...(list.current?.querySelectorAll<HTMLElement>('[data-handle]') ?? [])]
@@ -87,7 +89,7 @@ export function MusicQueue({
       pointer: event.pointerId,
       startY: event.clientY,
       dy: 0,
-      index: state.queue.findIndex((t) => t.id === track.id),
+      index: state.queue.findIndex((entry) => entry.id === track.id),
     });
   };
   const follow = (event: PointerEvent<HTMLButtonElement>) => {
@@ -106,18 +108,18 @@ export function MusicQueue({
   };
 
   // Черта места: перед той строкой, что после переезда окажется сразу за перетаскиваемой.
-  const rest = drag ? state.queue.filter((t) => t.id !== drag.id) : [];
+  const rest = drag ? state.queue.filter((entry) => entry.id !== drag.id) : [];
   const before = drag ? rest[drag.index]?.id : undefined;
   const last = drag && drag.index >= rest.length ? rest.at(-1)?.id : undefined;
 
   return (
     <section
       className="music-queue"
-      aria-label="Музыкальная очередь"
+      aria-label={t(($) => $.music.queue.label)}
       data-dragging={drag ? 'true' : undefined}
     >
       <div className="music-queue__head">
-        <h4>Далее</h4>
+        <h4>{t(($) => $.music.queue.next)}</h4>
         {upcoming.length > 0 && <span className="music-queue__count">{upcoming.length}</span>}
         <Button
           variant="quiet"
@@ -126,11 +128,11 @@ export function MusicQueue({
           disabled={!canUse || upcoming.length === 0}
           onClick={() => onClear({ queue: state.queue.slice(0, 1) })}
         >
-          Очистить
+          {t(($) => $.music.queue.clear)}
         </Button>
       </div>
       {upcoming.length === 0 ? (
-        <p className="music-queue__empty">Дальше пусто: найденный выше трек заиграет следом.</p>
+        <p className="music-queue__empty">{t(($) => $.music.queue.empty)}</p>
       ) : (
         <ol ref={list} className="music-queue__list">
           {upcoming.map((track, i) => {
@@ -149,7 +151,7 @@ export function MusicQueue({
                   type="button"
                   className="music-queue__handle"
                   data-handle={track.id}
-                  aria-label={`Переставить: ${track.title}`}
+                  aria-label={t(($) => $.music.queue.reorder, { title: track.title })}
                   aria-describedby="music-queue-hint"
                   disabled={!canUse}
                   onPointerDown={(event) => grab(track, event)}
@@ -169,7 +171,7 @@ export function MusicQueue({
                   <small>
                     <span>{track.artist || track.addedBy}</span>
                     {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
-                    <span className="music-queue__source">{musicSourceName(track.source)}</span>
+                    <span className="music-queue__source">{musicSourceName(t, track.source)}</span>
                   </small>
                 </div>
                 <span className="music-queue__time">{formatDuration(track.duration)}</span>
@@ -177,7 +179,11 @@ export function MusicQueue({
                   <MenuTrigger
                     disabled={!canUse}
                     render={
-                      <IconButton size="sm" className="music-queue__more" label={`Действия: ${track.title}`}>
+                      <IconButton
+                        size="sm"
+                        className="music-queue__more"
+                        label={t(($) => $.music.queue.actions, { title: track.title })}
+                      >
                         <MoreHorizontal size={16} />
                       </IconButton>
                     }
@@ -188,7 +194,7 @@ export function MusicQueue({
                         icon={<ListStart size={16} />}
                         onClick={() => onPromote(track, afterPromote(state, track))}
                       >
-                        Играть следующим
+                        {t(($) => $.music.queue.playNext)}
                       </MenuItem>
                     )}
                     <MenuItem
@@ -196,7 +202,7 @@ export function MusicQueue({
                       destructive
                       onClick={() => onRemove(track, afterRemove(state, track.id))}
                     >
-                      Убрать из очереди
+                      {t(($) => $.music.queue.remove)}
                     </MenuItem>
                   </MenuContent>
                 </Menu>
@@ -206,7 +212,7 @@ export function MusicQueue({
         </ol>
       )}
       <span id="music-queue-hint" hidden>
-        Перетащите или нажмите стрелки вверх и вниз, чтобы переставить трек
+        {t(($) => $.music.queue.hint)}
       </span>
       <span className="music-queue__said" role="status">
         {said}

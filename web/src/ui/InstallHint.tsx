@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Share, SquarePlus, X } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useMediaQuery } from './primitives';
 
 /**
@@ -19,6 +20,7 @@ const DISMISSED = 'cord:install-hint:dismissed';
 type InstallPrompt = Event & { prompt: () => Promise<void> };
 
 export function InstallHint() {
+  const { t } = useTranslation();
   const phone = useMediaQuery('(max-width: 700px)');
   const standalone = useMediaQuery('(display-mode: standalone)');
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
@@ -51,14 +53,18 @@ export function InstallHint() {
   return (
     <aside className="install-hint" role="note">
       <div>
-        <strong>Cord на экране «Домой»</strong>
+        <strong>{t(($) => $.download.install.title)}</strong>
         {prompt ? (
-          <small>Открывается как приложение, без адресной строки.</small>
+          <small>{t(($) => $.download.install.app)}</small>
         ) : (
           <small>
-            Нажмите <Share size={13} aria-label="Поделиться" /> и выберите{' '}
-            <SquarePlus size={13} aria-hidden="true" /> «На экран „Домой“». Откроется как приложение, без
-            адресной строки.
+            <Trans
+              i18nKey={($) => $.download.install.ios}
+              components={{
+                share: <Share size={13} aria-label={t(($) => $.download.install.share)} />,
+                plus: <SquarePlus size={13} aria-hidden="true" />,
+              }}
+            />
           </small>
         )}
       </div>
@@ -70,10 +76,10 @@ export function InstallHint() {
             close();
           }}
         >
-          Установить
+          {t(($) => $.download.install.install)}
         </button>
       )}
-      <button className="icon-button" aria-label="Скрыть подсказку" onClick={close}>
+      <button className="icon-button" aria-label={t(($) => $.download.install.hide)} onClick={close}>
         <X size={17} />
       </button>
     </aside>

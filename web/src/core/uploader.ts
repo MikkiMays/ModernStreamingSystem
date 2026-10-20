@@ -1,6 +1,7 @@
 import { Upload } from 'tus-js-client';
 import type { RoomApi } from '../api/client';
 import { Store } from './store';
+import { t } from '../i18n';
 
 export class Uploader {
   readonly state = new Store<{
@@ -69,7 +70,7 @@ export class Uploader {
       this.state.update((s) => ({
         ...s,
         status: 'error',
-        error: error instanceof Error ? error.message : 'Ошибка загрузки',
+        error: error instanceof Error ? error.message : t(($) => $.chat.uploadFailed),
       }));
     } finally {
       if (generation === this.generation) this.reserving = false;

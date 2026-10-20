@@ -9,6 +9,7 @@ import { MusicQueue } from './MusicQueue';
 import { MusicSearch } from './MusicSearch';
 import { MusicUpload } from './MusicUpload';
 import { YandexIntegration } from './YandexIntegration';
+import { t } from '../i18n';
 import { musicHint } from './integration-shelf';
 import { afterMove } from './music-playback';
 
@@ -128,7 +129,7 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
       <Frame width={320}>
         <div className="services-panel">
           <IntegrationShelf
-            hints={{ music: musicHint(['upload', 'yandex', 'youtube', 'soundcloud']) }}
+            hints={{ music: musicHint(t, ['upload', 'yandex', 'youtube', 'soundcloud']) }}
             live={{ music: 'Играет', games: 'Покер: игра идёт' }}
             canLinkTelegram={false}
             onOpen={() => {}}

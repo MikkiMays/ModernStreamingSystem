@@ -1,4 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import {
   useSyncExternalStore,
@@ -20,11 +21,12 @@ export { AppIcon, Logo } from './brand/Logo';
  * нет (T58): его показывает только «О программе», поэтому и спрашивать манифест здесь незачем.
  */
 export function DownloadLink({ className = 'shell-download' }: { className?: string }) {
+  const { t } = useTranslation();
   if (window.chrome?.webview) return null;
   return (
-    <a className={className} href="/download" title="Cord для Windows">
+    <a className={className} href="/download" title={t(($) => $.app.downloadTitle)}>
       <AppIcon size={22} />
-      <span>Скачать Cord</span>
+      <span>{t(($) => $.app.downloadLabel)}</span>
     </a>
   );
 }
@@ -111,7 +113,7 @@ export function Modal({
   wide = false,
   // A dialog that has its own «Закрыть» button must not also have a corner cross called the
   // same thing: two controls, one name, and nothing to tell them apart by ear.
-  closeLabel = 'Закрыть',
+  closeLabel,
 }: {
   wide?: boolean;
   open: boolean;
@@ -121,6 +123,7 @@ export function Modal({
   children: ReactNode;
   closeLabel?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -130,7 +133,7 @@ export function Modal({
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close
               render={
-                <IconButton label={closeLabel}>
+                <IconButton label={closeLabel ?? t(($) => $.common.close)}>
                   <X size={20} />
                 </IconButton>
               }
@@ -152,6 +155,7 @@ export function Avatar({
   large?: boolean;
   src?: string | null;
 }) {
+  const { t } = useTranslation();
   const color = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 5;
   // Only a data URI is rendered. A picture arrives from another participant through the room,
   // so it must never be able to name an address this browser would go and fetch.
@@ -161,7 +165,7 @@ export function Avatar({
       {picture ? (
         <img className="avatar-image" src={picture} alt="" />
       ) : (
-        name.trim().slice(0, 1).toLocaleUpperCase() || 'Г'
+        name.trim().slice(0, 1).toLocaleUpperCase() || t(($) => $.common.guestInitial)
       )}
     </span>
   );

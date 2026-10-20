@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { SHELF, musicHint, telegramNote } from './integration-shelf';
+import { t } from '../i18n';
+import { SHELF, musicHint, shelfHint, shelfName, telegramNote } from './integration-shelf';
 
 describe('витрина интеграций (T30, T08, T12, T13)', () => {
   it('порядок: игры, кинозал, музыка, затем «Скоро», Telegram — в самом низу', () => {
@@ -19,30 +20,30 @@ describe('витрина интеграций (T30, T08, T12, T13)', () => {
 
   it('у каждой «Скоро» — одна строка о том, что это будет', () => {
     const soon = SHELF.filter((item) => item.soon);
-    expect(soon.map((item) => item.name)).toEqual([
+    expect(soon.map((item) => shelfName(t, item.id))).toEqual([
       'Любая игра',
       'Сцена стендап',
       'Доска рисования',
       'Telegram',
     ]);
     for (const item of soon) {
-      expect(item.hint.length).toBeGreaterThan(10);
-      expect(item.hint).not.toContain('\n');
+      expect(shelfHint(t, item.id).length).toBeGreaterThan(10);
+      expect(shelfHint(t, item.id)).not.toContain('\n');
     }
   });
 
   it('Telegram видят все, а подсказка про создателя — у всех, кроме него', () => {
-    expect(telegramNote(false)).toBe('Подключит создатель встречи');
-    expect(telegramNote(true)).toBeNull();
+    expect(telegramNote(t, false)).toBe('Подключит создатель встречи');
+    expect(telegramNote(t, true)).toBeNull();
   });
 
   it('подсказка музыки называет включённые источники', () => {
-    expect(musicHint(['upload', 'telegram', 'yandex', 'youtube', 'soundcloud'])).toBe(
+    expect(musicHint(t, ['upload', 'telegram', 'yandex', 'youtube', 'soundcloud'])).toBe(
       'YouTube, SoundCloud, Яндекс Музыка и свои файлы',
     );
-    expect(musicHint(['upload', 'yandex'])).toBe('Яндекс Музыка и свои файлы');
-    expect(musicHint(['youtube'])).toBe('YouTube');
-    expect(musicHint(['upload'])).toBe('Свои аудиофайлы');
-    expect(musicHint([])).toBe('Общая очередь на всю встречу');
+    expect(musicHint(t, ['upload', 'yandex'])).toBe('Яндекс Музыка и свои файлы');
+    expect(musicHint(t, ['youtube'])).toBe('YouTube');
+    expect(musicHint(t, ['upload'])).toBe('Свои аудиофайлы');
+    expect(musicHint(t, [])).toBe('Общая очередь на всю встречу');
   });
 });

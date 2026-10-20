@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Track, TrackEvent } from 'livekit-client';
 import {
   Check,
@@ -55,9 +56,9 @@ import {
   HAND_RANKS,
   phaseLabel,
   playing,
-  plural,
   readyCount,
   showdownCards,
+  verdictText,
   verifyDeal,
   type CardState,
   type SeatSpot,
@@ -91,6 +92,7 @@ import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds
 type SheetKind = 'settings' | 'help' | 'results' | null;
 
 export default function PokerTable({ meeting, table }: { meeting: Meeting; table: Table }) {
+  const { t } = useTranslation();
   const tracks = useStore(meeting.media.tracks);
   const preferences = useStore(meeting.media.preferences);
   const snapshot = useStore(meeting.snapshot);
@@ -104,7 +106,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
     tableGeometry.ratio,
   );
   const dealer = allowed({ ...snapshot, poker: table }, me, 'poker.manage');
-  const cheer = celebration(table.result);
+  const cheer = celebration(t, table.result);
   const [error, setError] = useState('');
   /*
     Шпаргалка и итоги живут ЗДЕСЬ, внутри сцены, а не в панели справа.
@@ -222,14 +224,18 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
             active={!!you?.turn && !table.paused}
             label={
               table.paused
-                ? 'Пауза'
+                ? t(($) => $.poker.paused)
                 : you?.turn
                   ? compact
-                    ? 'Ваш ход'
-                    : `Ваш ход · ${you.callAmount > 0 ? `уравнять ${chips(you.callAmount)} или повысить` : 'чек или ставка'}`
+                    ? t(($) => $.poker.turn.yours)
+                    : you.callAmount > 0
+                      ? t(($) => $.poker.turn.yoursCall, { amount: chips(t, you.callAmount) })
+                      : t(($) => $.poker.turn.yoursCheck)
                   : table.seats.find((seat) => seat.index === table.actor)?.name
-                    ? `Ходит ${table.seats.find((seat) => seat.index === table.actor)?.name}`
-                    : phaseLabel(table.phase)
+                    ? t(($) => $.poker.turn.acting, {
+                        name: table.seats.find((seat) => seat.index === table.actor)?.name,
+                      })
+                    : phaseLabel(t, table.phase)
             }
           />
         )}
@@ -254,7 +260,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
           <div className="poker-line" aria-hidden="true" />
           {playing(table) && <span className="poker-deck" aria-hidden="true" />}
           <div className="poker-center">
-            <div className="poker-board" aria-label="Карты стола">
+            <div className="poker-board" aria-label={t(($) => $.poker.board)}>
               {table.board.map((card, index) => (
                 <PlayingCard
                   key={`${table.handNumber}-${card}`}
@@ -274,7 +280,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               {pot > 0 && (
                 <span className="poker-pot" key={beat}>
                   <ChipColumns amount={pot} columns={4} size={11} />
-                  <b>{chips(pot)}</b>
+                  <b>{chips(t, pot)}</b>
                 </span>
               )}
               {/*
@@ -286,18 +292,19 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 <span className="poker-sidepots">
                   {table.pots.map((side, index) => (
                     <b key={index}>
-                      {index === 0 ? 'Основной' : `Побочный ${index}`} {chips(side.amount)}
+                      {index === 0 ? t(($) => $.poker.pots.main) : t(($) => $.poker.pots.side, { index })}{' '}
+                      {chips(t, side.amount)}
                     </b>
                   ))}
                 </span>
               )}
-              <span className="poker-street">{phaseLabel(table.phase)}</span>
+              <span className="poker-street">{phaseLabel(t, table.phase)}</span>
             </div>
             {/* Пауза посреди раздачи: часы стоят, ходить нельзя — и это должно быть видно. */}
             {table.paused && playing(table) && (
               <div className="poker-waiting is-paused" role="status">
-                <Pause size={18} /> <b>Пауза</b>
-                <small>Часы остановлены</small>
+                <Pause size={18} /> <b>{t(($) => $.poker.paused)}</b>
+                <small>{t(($) => $.poker.pause.clocks)}</small>
               </div>
             )}
             <Waiting
@@ -316,9 +323,10 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
             */}
             {table.closesAt > 0 && !playing(table) && (
               <span className="poker-linger" role="status">
-                За столом никого: игра закончится через{' '}
-                <Countdown meeting={meeting} until={table.closesAt} minutes />. Сядьте за стол, и отсчёт
-                остановится.
+                <Trans
+                  i18nKey={($) => $.poker.linger}
+                  components={{ time: <Countdown meeting={meeting} until={table.closesAt} minutes /> }}
+                />
               </span>
             )}
           </div>
@@ -396,7 +404,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               disabled={!table.seatingOpen}
               onClick={() => send('poker.sit')}
             >
-              Сесть за стол
+              {t(($) => $.poker.sit)}
             </button>
           )}
           <Controls
@@ -503,6 +511,7 @@ function TableBar({
   onFull: () => void;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const seated = table.seats.filter((seat) => seat.memberId).length;
   const ready = readyCount(table);
   const showdown = table.phase === 'showdown';
@@ -511,19 +520,20 @@ function TableBar({
       <span className="poker-mode">
         <b>{table.modeName}</b>
         <small>
-          Блайнды {chips(table.smallBlind)}/{chips(table.bigBlind)}
-          {table.ante > 0 && ` · анте ${chips(table.ante)}`}
-          {table.handNumber > 0 && ` · раздача №${table.handNumber}`}
+          {t(($) => $.poker.bar.blinds, { small: chips(t, table.smallBlind), big: chips(t, table.bigBlind) })}
+          {table.ante > 0 && t(($) => $.poker.bar.ante, { amount: chips(t, table.ante) })}
+          {table.handNumber > 0 && t(($) => $.poker.bar.hand, { number: table.handNumber })}
         </small>
       </span>
       {table.levelUpAt > 0 && table.phase !== 'over' && (
-        <span className="poker-level" title="Когда вырастут блайнды">
-          <TrendingUp size={14} /> Уровень {table.level} ·{' '}
+        <span className="poker-level" title={t(($) => $.poker.bar.levelTitle)}>
+          <TrendingUp size={14} /> {t(($) => $.poker.bar.level, { level: table.level })}{' '}
           <Countdown meeting={meeting} until={table.levelUpAt} />
         </span>
       )}
       <span className="poker-seated">
-        {seated} из 10 мест{table.seatingOpen ? '' : ' · посадка закрыта'}
+        {t(($) => $.poker.bar.seated, { seated })}
+        {table.seatingOpen ? '' : t(($) => $.poker.bar.seatingClosed)}
       </span>
       {/*
         Одна кнопка вместо меню «Вид».
@@ -535,17 +545,17 @@ function TableBar({
       */}
       <button
         className="button secondary small poker-view"
-        aria-label="Настройки игры"
+        aria-label={t(($) => $.poker.settings.title)}
         aria-pressed={sheet === 'settings'}
         onClick={() => onSheet(sheet === 'settings' ? null : 'settings')}
       >
         {/* На телефоне от кнопки остаётся один значок: подпись в два слова забирала там
             половину строки, а имя для клавиатуры и озвучки остаётся в `aria-label`. */}
-        <Settings2 size={15} /> <span className="poker-view-label">Настройки игры</span>
+        <Settings2 size={15} /> <span className="poker-view-label">{t(($) => $.poker.settings.title)}</span>
       </button>
       {table.summary && (
         <button className="button secondary small" onClick={() => onSheet('results')}>
-          <Trophy size={15} /> Итоги
+          <Trophy size={15} /> {t(($) => $.poker.bar.results)}
         </button>
       )}
       {children}
@@ -558,7 +568,7 @@ function TableBar({
           */}
           {table.awaiting && (
             <button className="button primary small" onClick={() => onSend('poker.next')}>
-              <Check size={15} /> Продолжить
+              <Check size={15} /> {t(($) => $.poker.bar.next)}
             </button>
           )}
           {(table.phase === 'lobby' || showdown) && (
@@ -567,7 +577,7 @@ function TableBar({
               disabled={ready < 2}
               onClick={() => onSend('poker.deal')}
             >
-              <Play size={15} /> Раздать
+              <Play size={15} /> {t(($) => $.poker.bar.deal)}
             </button>
           )}
           {/*
@@ -581,7 +591,7 @@ function TableBar({
               onClick={() => onSend('poker.settings', { option: table.paused ? 'resume' : 'pause' })}
             >
               {table.paused ? <Play size={15} /> : <Pause size={15} />}
-              {table.paused ? 'Снять паузу' : 'Пауза'}
+              {table.paused ? t(($) => $.poker.bar.resume) : t(($) => $.poker.bar.pause)}
             </button>
           )}
         </div>
@@ -589,7 +599,7 @@ function TableBar({
       {/* Условия вокруг кнопки нет намеренно: замену полному экрану там, где его не бывает,
           держит сам `useFullscreen` — снаружи разницы никакой. */}
       <IconButton
-        label={full ? 'Выйти из полноэкранного режима' : 'Развернуть стол'}
+        label={full ? t(($) => $.poker.bar.exitFull) : t(($) => $.poker.bar.full)}
         className="poker-full"
         onClick={onFull}
       >
@@ -626,62 +636,65 @@ function GameSettings({
   onHelp: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const preferences = useStore(meeting.media.preferences);
   // Вид стола — своё у каждого, поэтому пишется в настройки устройства, а не в комнату.
   const toggle = (key: 'pokerHints' | 'pokerFeed') =>
     savePreferences({ ...readPreferences(), [key]: !preferences[key] });
   return (
     <Sheet
-      label="Настройки игры"
+      label={t(($) => $.poker.settings.title)}
       onClose={onClose}
       head={
         <span className="poker-sheet-title">
           <Settings2 size={16} />
-          <b>Настройки игры</b>
-          <small>{dealer ? 'Нижние — для всего стола' : 'Только для вас'}</small>
+          <b>{t(($) => $.poker.settings.title)}</b>
+          <small>
+            {dealer ? t(($) => $.poker.settings.scopeDealer) : t(($) => $.poker.settings.scopeSelf)}
+          </small>
         </span>
       }
     >
       <div className="poker-settings">
         <Toggle
           on={preferences.pokerHints}
-          title="Подсказки"
-          hint="Что у меня собралось и сколько стоит ответ"
+          title={t(($) => $.poker.settings.hints.title)}
+          hint={t(($) => $.poker.settings.hints.hint)}
           onChange={() => toggle('pokerHints')}
         />
         <Toggle
           on={preferences.pokerFeed}
-          title="Лента игры"
-          hint="Кто что сходил — списком у края стола"
+          title={t(($) => $.poker.feed.title)}
+          hint={t(($) => $.poker.settings.feedHint)}
           onChange={() => toggle('pokerFeed')}
         />
         <SettingsAction
           icon={<ListOrdered size={16} />}
-          title="Комбинации"
-          hint="Десять строк от флеш-рояля до старшей карты"
+          title={t(($) => $.poker.combinations.title)}
+          hint={t(($) => $.poker.combinations.hint)}
           onClick={onHelp}
         />
       </div>
       {dealer && (
         <div className="poker-settings" data-host="true">
-          <p className="poker-settings-head">Стол</p>
+          <p className="poker-settings-head">{t(($) => $.poker.settings.table)}</p>
           <Toggle
             on={table.autoDeal}
-            title="Авто-раздача"
+            title={t(($) => $.poker.settings.autoDeal.title)}
             hint={
               table.autoDeal
-                ? 'Стол сдаёт следующую раздачу сам'
-                : 'Каждую раздачу начинаете вы кнопкой «Раздать»'
+                ? t(($) => $.poker.settings.autoDeal.on)
+                : t(($) => $.poker.settings.autoDeal.off)
             }
             onChange={() => onSend('poker.settings', { option: 'auto-deal' })}
           />
           <Toggle
             on={table.seatingOpen}
-            title="Пускать новых за стол"
+            title={t(($) => $.poker.settings.seating.title)}
             hint={
               table.seatingOpen
-                ? 'Место занимают кнопкой «Сесть за стол» под столом'
-                : 'Доиграют те, кто уже сидит'
+                ? t(($) => $.poker.settings.seating.on)
+                : t(($) => $.poker.settings.seating.off)
             }
             onChange={() =>
               onSend('poker.settings', {
@@ -696,13 +709,16 @@ function GameSettings({
           */}
           <div className="poker-settings-choice">
             <span>
-              <b>Додепы на человека</b>
+              <b>{t(($) => $.poker.settings.rebuys.title)}</b>
               <small>
                 {table.rebuyLimit < 0
-                  ? `Без ограничений, по ${chips(table.rebuyChips)}`
+                  ? t(($) => $.poker.settings.rebuys.unlimited, { amount: chips(t, table.rebuyChips) })
                   : table.rebuyLimit === 0
-                    ? 'Запрещены: фишки кончились — человек выбыл'
-                    : `${plural(table.rebuyLimit, 'додеп', 'додепа', 'додепов')} по ${chips(table.rebuyChips)}`}
+                    ? t(($) => $.poker.settings.rebuys.none)
+                    : t(($) => $.poker.settings.rebuys.limited, {
+                        count: table.rebuyLimit,
+                        amount: chips(t, table.rebuyChips),
+                      })}
               </small>
             </span>
             <span className="poker-settings-steps">
@@ -717,7 +733,7 @@ function GameSettings({
                     })
                   }
                 >
-                  {value < 0 ? '∞' : value === 0 ? 'нет' : value}
+                  {value < 0 ? '∞' : value === 0 ? t(($) => $.poker.settings.rebuys.zero) : value}
                 </button>
               ))}
             </span>
@@ -725,15 +741,15 @@ function GameSettings({
           {table.phase !== 'over' && (
             <SettingsAction
               icon={table.paused ? <Play size={16} /> : <Pause size={16} />}
-              title={table.paused ? 'Снять паузу' : 'Поставить на паузу'}
-              hint="Часы останавливаются там, где стояли"
+              title={table.paused ? t(($) => $.poker.settings.resume) : t(($) => $.poker.settings.pause)}
+              hint={t(($) => $.poker.settings.pauseHint)}
               onClick={() => onSend('poker.settings', { option: table.paused ? 'resume' : 'pause' })}
             />
           )}
           <SettingsAction
             icon={<X size={16} />}
-            title="Убрать стол из встречи"
-            hint="Игра закончится, а её итоги останутся в истории"
+            title={t(($) => $.poker.settings.close.title)}
+            hint={t(($) => $.poker.settings.close.hint)}
             danger
             onClick={() => onSend('poker.close')}
           />
@@ -802,14 +818,15 @@ function Waiting({
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   onResults: () => void;
 }) {
+  const { t } = useTranslation();
   if (table.phase === 'over') {
     const winner = table.seats.find((seat) => seat.place === 1);
     return (
       <div className="poker-waiting is-over" role="status">
         <Crown size={22} />
-        <b>{winner ? `${winner.name} забирает всё` : 'Игра окончена'}</b>
+        <b>{winner ? t(($) => $.poker.waiting.winner, { name: winner.name }) : t(($) => $.poker.gameOver)}</b>
         <button className="button secondary small" onClick={onResults}>
-          <Trophy size={15} /> Итоги игры
+          <Trophy size={15} /> {t(($) => $.poker.results.title)}
         </button>
         {dealer && (
           <button
@@ -819,7 +836,7 @@ function Waiting({
               setTimeout(() => onSend('poker.open', { option: table.mode, chips: table.startingStack }), 250);
             }}
           >
-            Собрать заново
+            {t(($) => $.poker.waiting.again)}
           </button>
         )}
       </div>
@@ -831,24 +848,27 @@ function Waiting({
     <div className="poker-waiting" role="status">
       {table.paused ? (
         <>
-          <Pause size={18} /> <b>Пауза</b>
-          <small>Раздающий остановил игру</small>
+          <Pause size={18} /> <b>{t(($) => $.poker.paused)}</b>
+          <small>{t(($) => $.poker.waiting.pausedHint)}</small>
         </>
       ) : ready < 2 ? (
         <>
-          <Hand size={18} /> <b>Нужен ещё игрок</b>
-          <small>Кнопка «Сесть за стол» — под столом</small>
+          <Hand size={18} /> <b>{t(($) => $.poker.waiting.needPlayer)}</b>
+          <small>{t(($) => $.poker.waiting.needPlayerHint)}</small>
         </>
       ) : table.deadline > 0 ? (
         <>
           <Timer size={18} />{' '}
           <b>
-            Раздаём через <Countdown meeting={meeting} until={table.deadline} />
+            <Trans
+              i18nKey={($) => $.poker.waiting.dealIn}
+              components={{ time: <Countdown meeting={meeting} until={table.deadline} /> }}
+            />
           </b>
         </>
       ) : (
         <>
-          <Hand size={18} /> <b>Ждём раздающего</b>
+          <Hand size={18} /> <b>{t(($) => $.poker.waiting.dealer)}</b>
         </>
       )}
     </div>
@@ -879,6 +899,7 @@ function SeatView({
   mine: boolean;
   avatar: string | null;
 }) {
+  const { t } = useTranslation();
   const active = table.actor === seat.index && playing(table);
   const camera = tracks.find(
     (tile) => tile.participantId === seat.memberId && tile.source === Track.Source.Camera && !tile.muted,
@@ -923,12 +944,15 @@ function SeatView({
           )}
           {winner && <span className="poker-rays" aria-hidden="true" />}
           {table.button === seat.index && (
-            <span className="poker-puck is-dealer" title="Дилер">
+            <span className="poker-puck is-dealer" title={t(($) => $.poker.seat.dealer)}>
               D
             </span>
           )}
           {blind && !seat.folded && playing(table) && (
-            <span className="poker-puck is-blind" title={blind === 'SB' ? 'Малый блайнд' : 'Большой блайнд'}>
+            <span
+              className="poker-puck is-blind"
+              title={blind === 'SB' ? t(($) => $.poker.seat.smallBlind) : t(($) => $.poker.seat.bigBlind)}
+            >
               {blind}
             </span>
           )}
@@ -945,11 +969,11 @@ function SeatView({
           <span title={seat.name}>{seat.name}</span>
           <b>
             {seat.busted ? (
-              `${seat.place} место`
+              t(($) => $.poker.seat.place, { place: seat.place })
             ) : (
               <>
                 <ChipColumns amount={seat.stack} columns={3} size={9} />
-                {chips(seat.stack)}
+                {chips(t, seat.stack)}
               </>
             )}
           </b>
@@ -983,20 +1007,28 @@ function SeatView({
       {seat.bet > 0 && (
         <span className="poker-bet">
           <ChipColumns amount={seat.bet} columns={3} size={10} />
-          {chips(seat.bet)}
+          {chips(t, seat.bet)}
         </span>
       )}
       {seat.lastAction && !seat.folded && seat.lastAction !== 'check' && playing(table) && (
-        <span className="poker-bubble">{actionLabel(seat.lastAction, seat.lastActionAmount)}</span>
+        <span className="poker-bubble">{actionLabel(t, seat.lastAction, seat.lastActionAmount)}</span>
       )}
-      {seat.folded && <span className="poker-bubble is-quiet">Пас</span>}
-      {seat.waiting && <span className="poker-bubble is-quiet">Ждёт раздачу</span>}
-      {seat.away && !seat.busted && <span className="poker-bubble is-quiet">Отошёл</span>}
+      {seat.folded && <span className="poker-bubble is-quiet">{t(($) => $.poker.seat.folded)}</span>}
+      {seat.waiting && <span className="poker-bubble is-quiet">{t(($) => $.poker.seat.waiting)}</span>}
+      {seat.away && !seat.busted && (
+        <span className="poker-bubble is-quiet">{t(($) => $.poker.seat.away)}</span>
+      )}
       {seat.handName && showdown && <span className="poker-combo">{seat.handName}</span>}
       {won.length > 0 && (
-        <span className="poker-won">+{chips(won.reduce((sum, award) => sum + award.amount, 0))}</span>
+        <span className="poker-won">
+          +
+          {chips(
+            t,
+            won.reduce((sum, award) => sum + award.amount, 0),
+          )}
+        </span>
       )}
-      {seat.busted && <span className="poker-out">Вылет</span>}
+      {seat.busted && <span className="poker-out">{t(($) => $.poker.seat.busted)}</span>}
     </div>
   );
 }
@@ -1009,6 +1041,7 @@ function SeatView({
  * отражению.
  */
 function SeatCamera({ tile }: { tile: MediaTile }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const element = ref.current;
@@ -1033,7 +1066,7 @@ function SeatCamera({ tile }: { tile: MediaTile }) {
       autoPlay
       playsInline
       muted
-      aria-label={`Камера: ${tile.name}`}
+      aria-label={t(($) => $.poker.camera, { name: tile.name })}
     />
   );
 }
@@ -1117,6 +1150,7 @@ function PlayingCard({
  * уме, а отвечает оно на вопрос «успею ли я вернуться».
  */
 function Countdown({ meeting, until, minutes }: { meeting: Meeting; until: number; minutes?: boolean }) {
+  const { t } = useTranslation();
   const [left, setLeft] = useState(() => Math.max(0, Math.ceil((until - meeting.serverNow()) / 1000)));
   useEffect(() => {
     const update = () => setLeft(Math.max(0, Math.ceil((until - meeting.serverNow()) / 1000)));
@@ -1124,7 +1158,13 @@ function Countdown({ meeting, until, minutes }: { meeting: Meeting; until: numbe
     const timer = setInterval(update, 250);
     return () => clearInterval(timer);
   }, [meeting, until]);
-  return <>{minutes && left > 90 ? `${Math.ceil(left / 60)} мин` : `${left} с`}</>;
+  return (
+    <>
+      {minutes && left > 90
+        ? t(($) => $.poker.countdown.minutes, { minutes: Math.ceil(left / 60) })
+        : t(($) => $.poker.countdown.seconds, { seconds: left })}
+    </>
+  );
 }
 
 /** Кнопки хода. Что здесь законно — прислало ядро; здесь только размеры и подписи. */
@@ -1143,11 +1183,12 @@ function Controls({
   error: string;
   hints: boolean;
 }) {
+  const { t } = useTranslation();
   const you = table.you;
   const [raising, setRaising] = useState(false);
   const [amount, setAmount] = useState(0);
   const [sent, setSent] = useState(0);
-  const steps = useMemo(() => betSteps(table), [table]);
+  const steps = useMemo(() => betSteps(t, table), [t, table]);
   const share = callShare(table);
   const turn = !!you?.turn && sent !== table.actionAt;
   useEffect(() => {
@@ -1216,21 +1257,21 @@ function Controls({
           </div>
         ) : (
           <span className="poker-mine-hint">
-            {seated ? 'Ждём следующую раздачу' : 'Сядьте за стол, чтобы играть'}
+            {seated ? t(($) => $.poker.controls.waitNext) : t(($) => $.poker.controls.sitToPlay)}
           </span>
         )}
         {seat && (
           <span className="poker-mine-stack">
             <ChipColumns amount={seat.stack} columns={4} size={13} />
-            <b>{chips(seat.stack)}</b>
+            <b>{chips(t, seat.stack)}</b>
             {/* Что собралось — словами. Считает ядро и только по вашим картам. */}
             {hints && you?.hand && seat.cards.length > 0 ? (
               <small className="poker-mine-hand">{you.hand}</small>
             ) : (
               <small>
                 {seat.timeBankMs > 0
-                  ? `банк времени ${Math.round(seat.timeBankMs / 1000)} с`
-                  : 'банк времени истрачен'}
+                  ? t(($) => $.poker.controls.timeBank, { seconds: Math.round(seat.timeBankMs / 1000) })
+                  : t(($) => $.poker.controls.timeBankSpent)}
               </small>
             )}
           </span>
@@ -1248,7 +1289,7 @@ function Controls({
                   data-active={amount === step.amount || undefined}
                 >
                   <b>{step.label}</b>
-                  <small>{chips(step.amount)}</small>
+                  <small>{chips(t, step.amount)}</small>
                 </button>
               ))}
             </div>
@@ -1261,18 +1302,20 @@ function Controls({
                 step={Math.max(1, table.smallBlind)}
                 value={Math.min(you.maxRaiseTo, Math.max(you.minRaiseTo, amount))}
                 onChange={(event) => setAmount(Number(event.target.value))}
-                aria-label="Размер ставки"
+                aria-label={t(($) => $.poker.controls.betSize)}
               />
               <button
                 className="button primary"
                 onClick={() => act(amount >= you.maxRaiseTo ? 'allin' : 'raise', amount)}
               >
-                {amount >= you.maxRaiseTo ? 'Ва-банк' : `Повысить до ${chips(amount)}`}
+                {amount >= you.maxRaiseTo
+                  ? t(($) => $.poker.actions.allin)
+                  : t(($) => $.poker.controls.raiseTo, { amount: chips(t, amount) })}
               </button>
               <button
                 className="button ghost"
                 onClick={() => setRaising(false)}
-                aria-label="Отменить повышение"
+                aria-label={t(($) => $.poker.controls.cancelRaise)}
               >
                 <X size={18} />
               </button>
@@ -1282,33 +1325,37 @@ function Controls({
           <div className="poker-actions">
             {you.actions.includes('fold') && (
               <button className="poker-action is-fold" onClick={() => act('fold')}>
-                Пас <kbd>F</kbd>
+                {t(($) => $.poker.actions.fold)} <kbd>F</kbd>
               </button>
             )}
             {you.actions.includes('check') && (
               <button className="poker-action is-check" onClick={() => act('check')}>
-                Чек <kbd>C</kbd>
+                {t(($) => $.poker.actions.check)} <kbd>C</kbd>
               </button>
             )}
             {you.actions.includes('call') && (
               <button className="poker-action is-call" onClick={() => act('call')}>
                 <span>
-                  Колл {chips(you.callAmount)}
-                  {hints && share !== null && <small>{share}% банка</small>}
+                  {t(($) => $.poker.controls.call, { amount: chips(t, you.callAmount) })}
+                  {hints && share !== null && <small>{t(($) => $.poker.controls.share, { share })}</small>}
                 </span>
                 <kbd>C</kbd>
               </button>
             )}
             {(you.actions.includes('raise') || you.actions.includes('bet')) && (
               <button className="poker-action is-raise" onClick={() => setRaising(true)}>
-                {you.actions.includes('bet') ? 'Ставка' : 'Повысить'} <kbd>R</kbd>
+                {you.actions.includes('bet')
+                  ? t(($) => $.poker.actions.bet)
+                  : t(($) => $.poker.controls.raise)}{' '}
+                <kbd>R</kbd>
               </button>
             )}
             {you.actions.includes('allin') &&
               !you.actions.includes('raise') &&
               !you.actions.includes('bet') && (
                 <button className="poker-action is-allin" onClick={() => act('allin')}>
-                  <Zap size={16} /> Ва-банк {chips(you.maxRaiseTo)} <kbd>A</kbd>
+                  <Zap size={16} />{' '}
+                  {t(($) => $.poker.controls.allinAmount, { amount: chips(t, you.maxRaiseTo) })} <kbd>A</kbd>
                 </button>
               )}
           </div>
@@ -1326,16 +1373,16 @@ function Controls({
               */}
               {table.phase === 'showdown' && seat.cards.length > 0 && !seat.revealed && (
                 <button className="button secondary small" onClick={() => onSend('poker.reveal')}>
-                  <Eye size={15} /> Показать карты
+                  <Eye size={15} /> {t(($) => $.poker.controls.reveal)}
                 </button>
               )}
               <button className="button ghost small" onClick={() => onSend('poker.stand')}>
-                <LogOut size={15} /> Встать из-за стола
+                <LogOut size={15} /> {t(($) => $.poker.controls.stand)}
               </button>
             </>
           )}
           {!seated && dealer && table.phase === 'lobby' && (
-            <span className="poker-idle-hint">Раздать можно, когда за столом двое</span>
+            <span className="poker-idle-hint">{t(($) => $.poker.controls.needTwo)}</span>
           )}
           <Fairness table={table} />
         </div>
@@ -1372,6 +1419,7 @@ function Rebuy({
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   error: string;
 }) {
+  const { t } = useTranslation();
   const most = you.rebuy;
   const least = Math.min(most, Math.max(200, table.bigBlind * 10));
   const [amount, setAmount] = useState(most);
@@ -1379,17 +1427,19 @@ function Rebuy({
   return (
     <div className="poker-rebuy" role="alert">
       <span className="poker-rebuy-head">
-        <b>Фишки кончились</b>
+        <b>{t(($) => $.poker.rebuy.title)}</b>
         <small>
-          {left < 0
-            ? 'Взять заново можно сколько угодно раз'
-            : `Осталось ${plural(left, 'додеп', 'додепа', 'додепов')}`}
+          {left < 0 ? t(($) => $.poker.rebuy.unlimited) : t(($) => $.poker.rebuy.left, { count: left })}
         </small>
       </span>
       {most > least && (
         <label className="poker-rebuy-amount">
           <span>
-            Взять <b>{chips(amount)}</b>
+            <Trans
+              i18nKey={($) => $.poker.rebuy.pick}
+              values={{ amount: chips(t, amount) }}
+              components={{ b: <b /> }}
+            />
           </span>
           <input
             className="slider"
@@ -1399,13 +1449,16 @@ function Rebuy({
             step={Math.max(1, table.bigBlind)}
             value={Math.min(most, Math.max(least, amount))}
             onChange={(event) => setAmount(Number(event.target.value))}
-            aria-label="Сколько фишек взять"
+            aria-label={t(($) => $.poker.rebuy.amount)}
           />
         </label>
       )}
-      <Slide label={`Взять ${chips(amount)}`} onConfirm={() => onSend('poker.rebuy', { chips: amount })} />
+      <Slide
+        label={t(($) => $.poker.rebuy.take, { amount: chips(t, amount) })}
+        onConfirm={() => onSend('poker.rebuy', { chips: amount })}
+      />
       <button className="text-button poker-rebuy-out" onClick={() => onSend('poker.stand')}>
-        <LogOut size={14} /> Встать из-за стола
+        <LogOut size={14} /> {t(($) => $.poker.controls.stand)}
       </button>
       {error && (
         <p className="form-error" role="alert">
@@ -1428,6 +1481,7 @@ function Rebuy({
  * бывают тем более.
  */
 export function Slide({ label, onConfirm }: { label: string; onConfirm: () => void }) {
+  const { t } = useTranslation();
   const track = useRef<HTMLDivElement>(null);
   const [part, setPart] = useState(0);
   const done = useRef(false);
@@ -1462,7 +1516,7 @@ export function Slide({ label, onConfirm }: { label: string; onConfirm: () => vo
       onPointerUp={release}
       onPointerCancel={release}
     >
-      <span className="poker-slide-label">{label} — потяните вправо</span>
+      <span className="poker-slide-label">{t(($) => $.poker.slide, { label })}</span>
       <button
         className="poker-slide-knob"
         style={{ left: `calc(${(part * 100).toFixed(1)}% - ${(part * 48).toFixed(1)}px)` }}
@@ -1491,6 +1545,7 @@ export function Slide({ label, onConfirm }: { label: string; onConfirm: () => vo
  * разница между «нам сказали, что честно» и «мы посмотрели».
  */
 function Fairness({ table }: { table: Table }) {
+  const { t } = useTranslation();
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [checking, setChecking] = useState(false);
   useEffect(() => setVerdict(null), [table.handNumber, table.seed]);
@@ -1507,15 +1562,9 @@ function Fairness({ table }: { table: Table }) {
             .finally(() => setChecking(false));
         }}
       >
-        <ShieldCheck size={14} /> Проверить раздачу
+        <ShieldCheck size={14} /> {t(($) => $.poker.fair.check)}
       </button>
-      {verdict && (
-        <small data-state={verdict.state}>
-          {verdict.state === 'ok'
-            ? `Совпало: ${verdict.cards} карт легли ровно так, как обещал отпечаток`
-            : verdict.reason}
-        </small>
-      )}
+      {verdict && <small data-state={verdict.state}>{verdictText(t, verdict)}</small>}
     </span>
   );
 }
@@ -1547,17 +1596,18 @@ const FEED_MARKS: Record<string, string> = {
 };
 
 function Feed({ table }: { table: Table }) {
+  const { t } = useTranslation();
   const items = table.log.slice(-6).reverse();
   if (!items.length) return null;
   return (
-    <aside className="poker-log" aria-label="События стола">
-      <b>Лента игры</b>
+    <aside className="poker-log" aria-label={t(($) => $.poker.feed.label)}>
+      <b>{t(($) => $.poker.feed.title)}</b>
       <ol>
         {items.map((note, index) => (
           <li key={`${note.at}-${index}`} data-kind={note.kind}>
             <i aria-hidden="true">{FEED_MARKS[note.kind] ?? ''}</i>
             <span>{note.text}</span>
-            {note.amount > 0 && <u>{chips(note.amount)}</u>}
+            {note.amount > 0 && <u>{chips(t, note.amount)}</u>}
           </li>
         ))}
       </ol>
@@ -1589,6 +1639,7 @@ function Sheet({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   /*
     Escape закрывает лист, и слушатель ставится один раз.
 
@@ -1610,7 +1661,7 @@ function Sheet({
     <aside className="poker-sheet" data-wide={wide || undefined} role="region" aria-label={label}>
       <header className="poker-sheet-head">
         {head}
-        <button className="poker-sheet-close" onClick={onClose} aria-label="Закрыть">
+        <button className="poker-sheet-close" onClick={onClose} aria-label={t(($) => $.common.close)}>
           <X size={16} />
         </button>
       </header>
@@ -1621,23 +1672,24 @@ function Sheet({
 
 /** Лестница комбинаций — там же, где играют, а не в панели справа. */
 function Combinations({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   return (
     <Sheet
-      label="Комбинации"
+      label={t(($) => $.poker.combinations.title)}
       onClose={onClose}
       head={
         <span className="poker-sheet-title">
           <ListOrdered size={16} />
-          <b>Комбинации</b>
-          <small>Сверху сильные, снизу слабые</small>
+          <b>{t(($) => $.poker.combinations.title)}</b>
+          <small>{t(($) => $.poker.combinations.order)}</small>
         </span>
       }
     >
       <ol className="hand-ranks">
         {HAND_RANKS.map((rank, index) => (
-          <li key={rank.name}>
+          <li key={rank.id}>
             <b>
-              <i>{index + 1}</i> {rank.name}
+              <i>{index + 1}</i> {t(($) => $.poker.handRanks[rank.id].name)}
             </b>
             <span className="hand-ranks-cards" aria-hidden="true">
               {rank.cards.map((card) => {
@@ -1650,24 +1702,22 @@ function Combinations({ onClose }: { onClose: () => void }) {
                 );
               })}
             </span>
-            <small>{rank.hint}</small>
+            <small>{t(($) => $.poker.handRanks[rank.id].hint)}</small>
           </li>
         ))}
       </ol>
-      <p className="poker-sheet-note">
-        Рука собирается из пяти карт: две свои и пять общих, любые пять из семи. Равные комбинации делят банк,
-        а спорит между ними кикер — старшая из оставшихся карт.
-      </p>
+      <p className="poker-sheet-note">{t(($) => $.poker.combinations.note)}</p>
     </Sheet>
   );
 }
 
 /** Итоги игры — сразу, как она кончилась, и сколько стоит стол. */
 function Results({ game, onClose }: { game: NonNullable<Table['summary']>; onClose: () => void }) {
+  const { t } = useTranslation();
   return (
-    <Sheet label="Итоги игры" wide onClose={onClose} head={<GameCrown game={game} />}>
+    <Sheet label={t(($) => $.poker.results.title)} wide onClose={onClose} head={<GameCrown game={game} />}>
       <GameResult game={game} />
-      <p className="poker-sheet-note">Эти итоги останутся в истории беседы — в панели «Игры».</p>
+      <p className="poker-sheet-note">{t(($) => $.poker.results.note)}</p>
     </Sheet>
   );
 }
@@ -1687,6 +1737,7 @@ function Cheer({
   cheer: NonNullable<ReturnType<typeof celebration>>;
   spots: SeatSpot[];
 }) {
+  const { t } = useTranslation();
   const result = table.result!;
   const winners = result.awards;
   // Дождь фишек раскладывается по столу псевдослучайно, но одинаково у всех: зерно — момент
@@ -1721,7 +1772,10 @@ function Cheer({
             }}
           >
             <b>{award.name}</b>
-            <i>{award.handName || (award.split ? 'делит банк' : 'забирает банк')}</i>
+            <i>
+              {award.handName ||
+                (award.split ? t(($) => $.poker.cheer.split) : t(($) => $.poker.cheer.takes))}
+            </i>
           </span>
         ))}
       {rain.map((chip, index) => (

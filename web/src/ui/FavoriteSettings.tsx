@@ -1,5 +1,6 @@
 import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { autoJoinEnabled, setAutoJoin, type Favorite } from '../core/favorites';
 import { IconButton, Modal } from './primitives';
 
@@ -16,6 +17,7 @@ export function FavoriteSettings({
   removing: boolean;
   remove: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
@@ -23,7 +25,10 @@ export function FavoriteSettings({
   return (
     <>
       {!initiallyOpen && (
-        <IconButton label={`Настроить вход в «${room.title}»`} onClick={() => setOpen(true)}>
+        <IconButton
+          label={t(($) => $.favorites.settings.open, { title: room.title })}
+          onClick={() => setOpen(true)}
+        >
           <MoreHorizontal size={19} />
         </IconButton>
       )}
@@ -34,7 +39,7 @@ export function FavoriteSettings({
           if (!value) onClose?.();
         }}
         title={room.title}
-        description="Настройки входа на этом устройстве."
+        description={t(($) => $.favorites.settings.description)}
       >
         <label className="check-setting favorite-auto">
           <input
@@ -46,12 +51,9 @@ export function FavoriteSettings({
               setAutoJoin(room.roomId, e.target.checked);
             }}
           />
-          Автоподключение
+          {t(($) => $.favorites.settings.autojoin)}
         </label>
-        <p className="muted">
-          Открывать эту комнату сразу, без предпросмотра. Микрофон включится при входе, камера останется
-          выключенной.
-        </p>
+        <p className="muted">{t(($) => $.favorites.settings.autojoinHint)}</p>
         <button
           className="button secondary full"
           disabled={removing || busy}
@@ -70,7 +72,7 @@ export function FavoriteSettings({
           }}
         >
           <Trash2 size={17} />
-          Убрать из избранного
+          {t(($) => $.favorites.settings.remove)}
         </button>
         {error && (
           <p role="alert" className="form-error">

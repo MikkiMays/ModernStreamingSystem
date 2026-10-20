@@ -7,6 +7,7 @@ import type {
   PokerSeat,
   PokerTable,
 } from '../api/types';
+import { locale, type Translate } from '../i18n';
 
 /**
  * Стол, посчитанный до того, как его нарисовали.
@@ -66,54 +67,40 @@ export function seatLayout(mySeat: number | null, seats = SEATS): SeatSpot[] {
  * Разряды разделяются узким неразрывным пробелом, а не запятой: «1 250» читается с одного
  * взгляда, «1250» приходится разбирать. Сокращение появляется только там, где число перестаёт
  * помещаться в кружок места, — миллионы за домашним столом это уже не счёт, а масштаб.
+ *
+ * Знаки — языка каталога (`locale(t)`): разделитель разрядов и дробной части у каждого свой.
+ * Округление миллионов — прежнее, `toFixed`, а `Intl` только расставляет знаки: у него своё
+ * округление половин, и «1,15 млн» превратилось бы в «1,2» вместо «1,1».
  */
-export function chips(amount: number): string {
+export function chips(t: Translate, amount: number): string {
   const value = Math.round(amount);
   if (!Number.isFinite(value)) return '0';
   if (Math.abs(value) >= 1_000_000) {
     const millions = value / 1_000_000;
-    return `${millions.toFixed(millions >= 10 ? 0 : 1).replace('.', ',')} млн`;
+    const digits = millions >= 10 ? 0 : 1;
+    const shown = Number(millions.toFixed(digits)).toLocaleString(locale(t), {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+      useGrouping: false,
+    });
+    return t(($) => $.poker.millions, { value: shown });
   }
-  return value.toLocaleString('ru-RU').replace(/ /g, ' ');
+  return value.toLocaleString(locale(t)).replace(/ /g, ' ');
 }
 
-const ACTIONS: Record<PokerAction, string> = {
-  fold: 'Пас',
-  check: 'Чек',
-  call: 'Колл',
-  bet: 'Ставка',
-  raise: 'Рейз',
-  allin: 'Ва-банк',
-};
+const ACTIONS: readonly string[] = ['fold', 'check', 'call', 'bet', 'raise', 'allin'] satisfies PokerAction[];
 
 /** Как называется то, что человек сделал. Сумма добавляется только там, где она есть. */
-export function actionLabel(action: string, amount = 0): string {
-  const word = ACTIONS[action as PokerAction];
-  if (!word) return '';
+export function actionLabel(t: Translate, action: string, amount = 0): string {
+  if (!ACTIONS.includes(action)) return '';
+  const word = t(($) => $.poker.actions[action as PokerAction]);
   if (action === 'fold' || action === 'check') return word;
-  return amount > 0 ? `${word} ${chips(amount)}` : word;
-}
-
-/**
- * Число со словом.
- *
- * «1 раздач» в итогах игры выглядит как недоделанная таблица, поэтому правило русского счёта
- * здесь одно на все подписи: единица, двойка-четвёрка и всё остальное, с изъятием на
- * подростковые одиннадцать-четырнадцать. То же правило стоит в ядре ({@code Standings.plural}) —
- * там оно подписывает прикольные строчки итогов.
- */
-export function plural(count: number, one: string, few: string, many: string): string {
-  const tail = count % 10;
-  const teen = count % 100;
-  if (teen >= 11 && teen <= 14) return `${count} ${many}`;
-  if (tail === 1) return `${count} ${one}`;
-  if (tail >= 2 && tail <= 4) return `${count} ${few}`;
-  return `${count} ${many}`;
+  return amount > 0 ? `${word} ${chips(t, amount)}` : word;
 }
 
 /** Как называется игра в истории беседы: день и время, когда она кончилась. */
-export function gameTitle(game: PokerGame): string {
-  return new Date(game.finishedAt).toLocaleString('ru-RU', {
+export function gameTitle(t: Translate, game: PokerGame): string {
+  return new Date(game.finishedAt).toLocaleString(locale(t), {
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
@@ -131,18 +118,11 @@ export function winnerOf(game: PokerGame): PokerPlayer | undefined {
   return game.players.find((player) => player.place === 1) ?? game.players[0];
 }
 
-const PHASES: Record<string, string> = {
-  lobby: 'Ждём раздачу',
-  preflop: 'Префлоп',
-  flop: 'Флоп',
-  turn: 'Тёрн',
-  river: 'Ривер',
-  showdown: 'Вскрытие',
-  over: 'Игра окончена',
-};
+const PHASES = ['lobby', 'preflop', 'flop', 'turn', 'river', 'showdown', 'over'] as const;
+type Phase = (typeof PHASES)[number];
 
-export function phaseLabel(phase: string): string {
-  return PHASES[phase] ?? '';
+export function phaseLabel(t: Translate, phase: string): string {
+  return (PHASES as readonly string[]).includes(phase) ? t(($) => $.poker.phases[phase as Phase]) : '';
 }
 
 export interface TurnClock {
@@ -174,7 +154,7 @@ export function turnClock(table: PokerTable, serverNow: number): TurnClock {
 }
 
 export interface BetStep {
-  id: string;
+  id: 'third' | 'half' | 'threequarters' | 'pot' | 'allin';
   label: string;
   amount: number;
 }
@@ -187,33 +167,33 @@ export interface BetStep {
  * раз лез бы поправлять ползунок. Шаг, который не отличается от минимального повышения или от
  * ва-банка, не показывается: две кнопки с одинаковым действием хуже одной.
  */
-export function betSteps(table: PokerTable): BetStep[] {
+export function betSteps(t: Translate, table: PokerTable): BetStep[] {
   const you = table.you;
   if (!you) return [];
   const opening = table.betToCall === 0;
   const live = table.pot + table.seats.reduce((sum, seat) => sum + seat.bet, 0);
   const afterCall = live + you.callAmount;
-  const shares: [string, number, string][] = opening
+  const shares: [Exclude<BetStep['id'], 'allin'>, number][] = opening
     ? [
-        ['third', 1 / 3, '⅓ банка'],
-        ['half', 1 / 2, '½ банка'],
-        ['pot', 1, 'Банк'],
+        ['third', 1 / 3],
+        ['half', 1 / 2],
+        ['pot', 1],
       ]
     : [
-        ['half', 1 / 2, '½ банка'],
-        ['threequarters', 3 / 4, '¾ банка'],
-        ['pot', 1, 'Банк'],
+        ['half', 1 / 2],
+        ['threequarters', 3 / 4],
+        ['pot', 1],
       ];
   const step = Math.max(1, table.smallBlind);
   const steps: BetStep[] = [];
-  for (const [id, share, label] of shares) {
+  for (const [id, share] of shares) {
     const raw = table.betToCall + afterCall * share;
     const amount = Math.min(you.maxRaiseTo, Math.max(you.minRaiseTo, Math.round(raw / step) * step));
     if (amount >= you.maxRaiseTo) continue;
     if (steps.some((existing) => existing.amount === amount)) continue;
-    steps.push({ id, label, amount });
+    steps.push({ id, label: t(($) => $.poker.steps[id]), amount });
   }
-  steps.push({ id: 'allin', label: 'Ва-банк', amount: you.maxRaiseTo });
+  steps.push({ id: 'allin', label: t(($) => $.poker.actions.allin), amount: you.maxRaiseTo });
   return steps;
 }
 
@@ -230,12 +210,18 @@ export interface Celebration {
   knockout: boolean;
 }
 
-export function celebration(result: PokerResult | null | undefined): Celebration | null {
+export function celebration(t: Translate, result: PokerResult | null | undefined): Celebration | null {
   if (!result) return null;
   const knockout = result.busted.length > 0;
   const level = (result.drama as Celebration['level']) ?? 'normal';
   const label =
-    level === 'huge' ? (knockout ? 'Вылет' : 'Огромный банк') : level === 'big' ? 'Крупный банк' : '';
+    level === 'huge'
+      ? knockout
+        ? t(($) => $.poker.celebration.knockout)
+        : t(($) => $.poker.celebration.huge)
+      : level === 'big'
+        ? t(($) => $.poker.celebration.big)
+        : '';
   return { level, label, knockout };
 }
 
@@ -245,11 +231,11 @@ export function celebration(result: PokerResult | null | undefined): Celebration
  * Список повторён здесь ради одного: показать выбор **до** того, как стол создан, — сервер про
  * него в этот момент ещё ничего не знает. Правила из этих чисел не следуют: их применяет ядро,
  * а несовпадение ловится тестом, который пересчитывает блайнды теми же числами.
+ *
+ * Название и пояснение режима — в каталоге по его `id` (`poker.modes`).
  */
 export interface PokerModeInfo {
   id: PokerMode;
-  name: string;
-  hint: string;
   stack: number;
   /** Во сколько больших блайндов оценён стартовый стек: от него считаются блайнды. */
   depth: number;
@@ -259,24 +245,18 @@ export interface PokerModeInfo {
 export const POKER_MODES: PokerModeInfo[] = [
   {
     id: 'friendly',
-    name: 'Дружеская игра',
-    hint: 'Блайнды стоят на месте, докупиться можно между раздачами. Никто не вылетает насовсем.',
     stack: 5000,
     depth: 100,
     turnSeconds: 45,
   },
   {
     id: 'tournament',
-    name: 'Турнир',
-    hint: 'Один стек на всю игру, блайнды растут каждые восемь минут. Проиграл — выбыл, и стол считает места.',
     stack: 10000,
     depth: 100,
     turnSeconds: 30,
   },
   {
     id: 'turbo',
-    name: 'Блиц',
-    hint: 'Тот же турнир, только быстрее: блайнды каждые три минуты и пятнадцать секунд на ход.',
     stack: 3000,
     depth: 30,
     turnSeconds: 15,
@@ -465,19 +445,21 @@ export function readyCount(table: PokerTable): number {
  *
  * Нужна ровно там, где за домашним столом тянутся к телефону: «а флеш старше стрита?». Живёт
  * рядом с игрой, а не в документации, и открывается одной кнопкой из меню стола.
+ *
+ * Название и пояснение комбинации — в каталоге по её `id` (`poker.handRanks`).
  */
-export const HAND_RANKS: { name: string; cards: string[]; hint: string }[] = [
-  { name: 'Флеш-рояль', cards: ['As', 'Ks', 'Qs', 'Js', 'Ts'], hint: 'Стрит до туза одной масти' },
-  { name: 'Стрит-флеш', cards: ['9h', '8h', '7h', '6h', '5h'], hint: 'Пять подряд одной масти' },
-  { name: 'Каре', cards: ['Qs', 'Qh', 'Qd', 'Qc', '7s'], hint: 'Четыре одинаковых' },
-  { name: 'Фулл-хаус', cards: ['Js', 'Jh', 'Jd', '4s', '4h'], hint: 'Тройка и пара' },
-  { name: 'Флеш', cards: ['Ad', 'Jd', '9d', '6d', '3d'], hint: 'Пять карт одной масти' },
-  { name: 'Стрит', cards: ['Ts', '9h', '8d', '7c', '6s'], hint: 'Пять подряд, масти любые' },
-  { name: 'Сет', cards: ['8s', '8h', '8d', 'Kc', '2s'], hint: 'Три одинаковых' },
-  { name: 'Две пары', cards: ['Ks', 'Kh', '5d', '5c', '9s'], hint: 'Две пары и кикер' },
-  { name: 'Пара', cards: ['As', 'Ah', 'Jd', '7c', '3s'], hint: 'Две одинаковых' },
-  { name: 'Старшая карта', cards: ['Ad', 'Qh', '9s', '5c', '2d'], hint: 'Не собралось ничего' },
-];
+export const HAND_RANKS = [
+  { id: 'royalFlush', cards: ['As', 'Ks', 'Qs', 'Js', 'Ts'] },
+  { id: 'straightFlush', cards: ['9h', '8h', '7h', '6h', '5h'] },
+  { id: 'quads', cards: ['Qs', 'Qh', 'Qd', 'Qc', '7s'] },
+  { id: 'fullHouse', cards: ['Js', 'Jh', 'Jd', '4s', '4h'] },
+  { id: 'flush', cards: ['Ad', 'Jd', '9d', '6d', '3d'] },
+  { id: 'straight', cards: ['Ts', '9h', '8d', '7c', '6s'] },
+  { id: 'set', cards: ['8s', '8h', '8d', 'Kc', '2s'] },
+  { id: 'twoPair', cards: ['Ks', 'Kh', '5d', '5c', '9s'] },
+  { id: 'pair', cards: ['As', 'Ah', 'Jd', '7c', '3s'] },
+  { id: 'highCard', cards: ['Ad', 'Qh', '9s', '5c', '2d'] },
+] as const satisfies readonly { id: string; cards: readonly string[] }[];
 
 /** Карта разобранная: чем рисовать и каким цветом. */
 export interface CardFace {
@@ -605,10 +587,26 @@ export function cardText(card: number): string {
   return `${RANKS[Math.floor(card / 4)]}${SUIT_ORDER[card % 4]}`;
 }
 
+/** Итог проверки. Причина — код, а не текст: слова к ней подбирает {@link verdictText}. */
 export type Verdict =
   | { state: 'ok'; cards: number }
-  | { state: 'mismatch'; reason: string }
-  | { state: 'unavailable'; reason: string };
+  | { state: 'mismatch'; reason: 'commitment' }
+  | { state: 'mismatch'; reason: 'hole' | 'board'; card: string }
+  | { state: 'unavailable'; reason: 'unrevealed' | 'notStarted' };
+
+/** Итог проверки словами. */
+export function verdictText(t: Translate, verdict: Verdict): string {
+  switch (verdict.state) {
+    case 'ok':
+      return t(($) => $.poker.verdict.ok, { cards: verdict.cards });
+    case 'unavailable':
+      return t(($) => $.poker.verdict[verdict.reason]);
+    default:
+      return verdict.reason === 'commitment'
+        ? t(($) => $.poker.verdict.commitment)
+        : t(($) => $.poker.verdict[verdict.reason], { card: verdict.card });
+  }
+}
 
 /**
  * Сошлась ли раздача с обещанием, данным до неё.
@@ -619,21 +617,18 @@ export type Verdict =
  * раздачи сервер не может: отпечаток уже у всех на руках, а другое зерно даст другой отпечаток.
  */
 export async function verifyDeal(table: PokerTable): Promise<Verdict> {
-  if (!table.seed || !table.commitment)
-    return { state: 'unavailable', reason: 'Зерно раскрывается, когда раздача сыграна' };
-  if ((await sha256(table.seed)) !== table.commitment)
-    return { state: 'mismatch', reason: 'Отпечаток зерна не совпал с объявленным до раздачи' };
+  if (!table.seed || !table.commitment) return { state: 'unavailable', reason: 'unrevealed' };
+  if ((await sha256(table.seed)) !== table.commitment) return { state: 'mismatch', reason: 'commitment' };
   const deck = await shuffle(table.seed);
   const order = dealOrder(table);
-  if (order.length < 2) return { state: 'unavailable', reason: 'Раздача ещё не начиналась' };
+  if (order.length < 2) return { state: 'unavailable', reason: 'notStarted' };
   let checked = 0;
   for (const [place, index] of order.entries()) {
     const seat = table.seats[index];
     if (!seat?.cards.length) continue;
     for (const [card, text] of seat.cards.entries()) {
       const expected = cardText(deck[place + card * order.length] ?? -1);
-      if (expected !== text)
-        return { state: 'mismatch', reason: `Карта ${text} не та, что следует из зерна` };
+      if (expected !== text) return { state: 'mismatch', reason: 'hole', card: text };
       checked++;
     }
   }
@@ -641,8 +636,7 @@ export async function verifyDeal(table: PokerTable): Promise<Verdict> {
   const afterHoles = order.length * 2;
   const board = [1, 2, 3, 5, 7].map((shift) => deck[afterHoles + shift] ?? -1);
   for (const [index, text] of table.board.entries()) {
-    if (cardText(board[index] ?? -1) !== text)
-      return { state: 'mismatch', reason: `Карта стола ${text} не та, что следует из зерна` };
+    if (cardText(board[index] ?? -1) !== text) return { state: 'mismatch', reason: 'board', card: text };
     checked++;
   }
   return { state: 'ok', cards: checked };

@@ -1,3 +1,4 @@
+import type { Translate } from '../i18n';
 import type { OutboundVideo } from './session';
 
 /**
@@ -12,18 +13,19 @@ import type { OutboundVideo } from './session';
  * Отсюда и жалоба «выставил 30, а показывает 22»: виновник был не назван нигде, и оставалось
  * думать на настройку. Теперь причина называется целиком, в порядке убывания серьёзности.
  */
-export function outboundNote(video: OutboundVideo): string {
+export function outboundNote(t: Translate, video: OutboundVideo): string {
   // Первые секунды после публикации браузер наращивает полосу пробами, и кодировщику тесно по
   // расписанию, а не по вине канала. Назвать это «ограничивает канал» значило бы объявить
   // разгон поломкой — ровно то, что раньше роняло лестницу (T44).
-  if (video.limitation === 'bandwidth') return video.settling ? 'разгон канала' : 'ограничивает канал';
-  if (video.limitation === 'cpu') return 'ограничивает процессор';
+  if (video.limitation === 'bandwidth')
+    return video.settling ? t(($) => $.media.outbound.settling) : t(($) => $.media.outbound.bandwidth);
+  if (video.limitation === 'cpu') return t(($) => $.media.outbound.cpu);
   // Спящий слой — это не потеря качества, а отсутствие спроса на него, и сказать об этом
   // надо раньше, чем про источник: иначе «720p вместо 1080p» читается как поломка.
-  if (video.dormant) return 'крупнее никто не смотрит';
+  if (video.dormant) return t(($) => $.media.outbound.dormant);
   // Небольшой недобор — норма любого захвата, и придираться к нему значит держать в плашке
   // вечную жалобу. Заметный — это ответ на вопрос, который иначе некому задать.
   if (video.targetFps > 0 && video.fps > 0 && video.fps < video.targetFps * 0.85)
-    return video.source === 'screen' ? 'экран меняется реже' : 'столько даёт камера';
+    return video.source === 'screen' ? t(($) => $.media.outbound.screen) : t(($) => $.media.outbound.camera);
   return '';
 }

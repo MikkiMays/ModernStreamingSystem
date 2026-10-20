@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Slider } from './primitives';
 import { cropRect, encodeAvatar, type AvatarCrop } from '../core/avatar';
 
@@ -24,6 +25,7 @@ export function AvatarCropper({
   onCancel: () => void;
   onSave: (avatar: string) => void;
 }) {
+  const { t } = useTranslation();
   const [crop, setCrop] = useState<AvatarCrop>({ zoom: 1, x: 0.5, y: 0.5 });
   const [error, setError] = useState('');
   /**
@@ -70,8 +72,8 @@ export function AvatarCropper({
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
-      title="Что будет в кружке"
-      description="Потяните картинку и приблизьте так, как хотите показать себя комнате."
+      title={t(($) => $.avatar.cropper.title)}
+      description={t(($) => $.avatar.cropper.description)}
     >
       <div className="avatar-crop">
         <canvas
@@ -79,7 +81,7 @@ export function AvatarCropper({
           width={STAGE}
           height={STAGE}
           className="avatar-crop-stage"
-          aria-label="Кадр картинки профиля"
+          aria-label={t(($) => $.avatar.cropper.frame)}
           onPointerDown={(e) => {
             dragging.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY };
             e.currentTarget.setPointerCapture(e.pointerId);
@@ -111,13 +113,13 @@ export function AvatarCropper({
         <span className="avatar-crop-mask" aria-hidden="true" />
       </div>
       <label className="gain-setting avatar-crop-zoom">
-        Приближение · {crop.zoom.toFixed(1)}×
+        {t(($) => $.avatar.cropper.zoom, { value: crop.zoom.toFixed(1) })}
         <Slider
           min={100}
           max={400}
           step={1}
           value={Math.round(crop.zoom * 100)}
-          aria-label="Приближение картинки"
+          aria-label={t(($) => $.avatar.cropper.zoomLabel)}
           onChange={(e) => setCrop((current) => ({ ...current, zoom: Number(e.target.value) / 100 }))}
         />
       </label>
@@ -137,10 +139,10 @@ export function AvatarCropper({
             }
           }}
         >
-          Поставить
+          {t(($) => $.avatar.cropper.apply)}
         </button>
         <button className="button ghost" onClick={onCancel}>
-          Отмена
+          {t(($) => $.avatar.cropper.cancel)}
         </button>
       </div>
     </Modal>

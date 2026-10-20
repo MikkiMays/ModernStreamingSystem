@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Pencil, Star } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
 import type { MediaState } from '../media/session';
@@ -6,27 +7,12 @@ import type { Participant } from '../api/types';
 import { favoriteApi } from '../core/favorites';
 import { formatCode } from '../core/invitation';
 import { formatDuration, readStartedAt, spokenDuration } from '../core/meeting-clock';
+import type { Translate } from '../i18n';
 import { IconButton } from './kit';
 import { Logo } from './brand/Logo';
 import { useStore } from './primitives';
 import { useFavorites, useFavoritesLimit } from './useFavorites';
 import './meeting-header.css';
-
-/** Строки шапки — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  code: 'Код встречи',
-  invite: 'Пригласить',
-  inviteAll: 'Пригласить участников',
-  settings: 'Настройки встречи',
-  clock: 'Время встречи',
-  save: 'Сохранить комнату в избранное',
-  unsave: 'Убрать комнату из избранного',
-  full: (max: number) => `В избранном уже ${max} комнат. Уберите одну, чтобы добавить эту`,
-  ended: 'Завершено',
-  waiting: 'Ожидание входа',
-  recovering: 'Связь восстанавливается…',
-  connecting: 'Подключаемся…',
-};
 
 export interface HeaderStatus {
   label: string;
@@ -41,15 +27,16 @@ export interface HeaderStatus {
  * надо знать, — и стоят они у названия встречи, к которой относятся.
  */
 export function headerStatus(
+  t: Translate,
   ended: string | null,
   self: Pick<Participant, 'status'> | undefined,
   media: Pick<MediaState, 'status'>,
 ): HeaderStatus | null {
-  if (ended) return { label: TEXT.ended, tone: 'neutral' };
-  if (self?.status === 'WAITING') return { label: TEXT.waiting, tone: 'neutral' };
+  if (ended) return { label: t(($) => $.meeting.header.ended), tone: 'neutral' };
+  if (self?.status === 'WAITING') return { label: t(($) => $.meeting.header.waiting), tone: 'neutral' };
   if (media.status === 'connected') return null;
-  if (media.status === 'recovering') return { label: TEXT.recovering, tone: 'warning' };
-  return { label: TEXT.connecting, tone: 'progress' };
+  if (media.status === 'recovering') return { label: t(($) => $.meeting.header.recovering), tone: 'warning' };
+  return { label: t(($) => $.meeting.header.connecting), tone: 'progress' };
 }
 
 /**
@@ -79,11 +66,12 @@ export function MeetingHeader({
   onInvite: () => void;
   onSettings: () => void;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const media = useStore(meeting.media.state);
   const ended = useStore(meeting.ended);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const status = headerStatus(ended, self, media);
+  const status = headerStatus(t, ended, self, media);
   const startedAt = ended ? null : readStartedAt(snapshot);
   const duration = useDuration(meeting, startedAt, !ended);
 
@@ -123,8 +111,8 @@ export function MeetingHeader({
               <button
                 type="button"
                 className="meeting-header__rename"
-                aria-label={TEXT.settings}
-                title={TEXT.settings}
+                aria-label={t(($) => $.meeting.header.settings)}
+                title={t(($) => $.meeting.header.settings)}
                 onClick={onSettings}
               >
                 <Pencil size={13} aria-hidden="true" />
@@ -132,15 +120,20 @@ export function MeetingHeader({
             )}
           </div>
           <div className="meeting-header__meta">
-            <button type="button" className="meeting-header__code" aria-label={TEXT.code} onClick={onInvite}>
-              {snapshot.code ? formatCode(snapshot.code) : TEXT.invite}
+            <button
+              type="button"
+              className="meeting-header__code"
+              aria-label={t(($) => $.meeting.header.code)}
+              onClick={onInvite}
+            >
+              {snapshot.code ? formatCode(snapshot.code) : t(($) => $.meeting.header.invite)}
             </button>
             {duration !== null && (
               <span
                 className="meeting-header__clock"
                 role="timer"
-                aria-label={`${TEXT.clock}: ${spokenDuration(duration)}`}
-                title={TEXT.clock}
+                aria-label={t(($) => $.meeting.header.clockLabel, { duration: spokenDuration(t, duration) })}
+                title={t(($) => $.meeting.header.clock)}
               >
                 {formatDuration(duration)}
               </span>
@@ -158,7 +151,13 @@ export function MeetingHeader({
         {/* На пределе кнопка не `disabled`, а `aria-disabled`: выключенная теряет фокус и подсказку,
             а здесь подсказка и есть ответ на вопрос «почему не добавляется». */}
         <IconButton
-          label={full ? TEXT.full(limit) : isFavorite ? TEXT.unsave : TEXT.save}
+          label={
+            full
+              ? t(($) => $.meeting.header.full, { count: limit })
+              : isFavorite
+                ? t(($) => $.meeting.header.unsave)
+                : t(($) => $.meeting.header.save)
+          }
           pressed={isFavorite}
           className="meeting-header__favorite"
           aria-disabled={full || undefined}
@@ -169,7 +168,7 @@ export function MeetingHeader({
         >
           <Star size={19} fill={isFavorite ? 'currentColor' : 'none'} />
         </IconButton>
-        <IconButton label={TEXT.inviteAll} onClick={onInvite}>
+        <IconButton label={t(($) => $.meeting.header.inviteAll)} onClick={onInvite}>
           <Link size={18} />
         </IconButton>
       </div>

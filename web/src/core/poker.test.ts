@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PokerSeat, PokerTable } from '../api/types';
+import { t } from '../i18n';
 import {
   actionLabel,
   betSpot,
@@ -132,18 +133,18 @@ describe('место за столом', () => {
 
 describe('числа и подписи', () => {
   it('разделяет разряды и сокращает только миллионы', () => {
-    expect(chips(0)).toBe('0');
-    expect(chips(1250)).toBe('1\u202f250');
-    expect(chips(125000)).toBe('125\u202f000');
-    expect(chips(2400000)).toBe('2,4 млн');
+    expect(chips(t, 0)).toBe('0');
+    expect(chips(t, 1250)).toBe('1\u202f250');
+    expect(chips(t, 125000)).toBe('125\u202f000');
+    expect(chips(t, 2400000)).toBe('2,4 млн');
   });
 
   it('называет действие так, как его называют за столом', () => {
-    expect(actionLabel('fold')).toBe('Пас');
-    expect(actionLabel('check')).toBe('Чек');
-    expect(actionLabel('call', 200)).toBe('Колл 200');
-    expect(actionLabel('allin', 5000)).toBe('Ва-банк 5\u202f000');
-    expect(actionLabel('nonsense')).toBe('');
+    expect(actionLabel(t, 'fold')).toBe('Пас');
+    expect(actionLabel(t, 'check')).toBe('Чек');
+    expect(actionLabel(t, 'call', 200)).toBe('Колл 200');
+    expect(actionLabel(t, 'allin', 5000)).toBe('Ва-банк 5\u202f000');
+    expect(actionLabel(t, 'nonsense')).toBe('');
   });
 
   it('разбирает карту на то, чем её рисовать', () => {
@@ -353,17 +354,17 @@ describe('ставки в одно нажатие', () => {
         rebuysLeft: -1,
       },
     });
-    const steps = betSteps(state);
+    const steps = betSteps(t, state);
     expect(steps.map((step) => step.id)).toEqual(['half', 'threequarters', 'pot', 'allin']);
     expect(steps.every((step) => step.amount % state.smallBlind === 0)).toBe(true);
     expect(steps.at(-1)).toEqual({ id: 'allin', label: 'Ва-банк', amount: 5000 });
     // Шаг, который не отличается от ва-банка, не показывается вовсе.
-    const short = betSteps({ ...state, you: { ...state.you!, maxRaiseTo: 260 } });
+    const short = betSteps(t, { ...state, you: { ...state.you!, maxRaiseTo: 260 } });
     expect(short.map((step) => step.id)).toEqual(['allin']);
   });
 
   it('зрителю не предлагает ничего', () => {
-    expect(betSteps(table())).toEqual([]);
+    expect(betSteps(t, table())).toEqual([]);
   });
 });
 
@@ -391,14 +392,21 @@ describe('раздача', () => {
 
 describe('праздник', () => {
   it('громкость выбирает сервер, а не каждый сам', () => {
-    expect(celebration(null)).toBeNull();
+    expect(celebration(t, null)).toBeNull();
     expect(
-      celebration({ at: 1, showdown: true, pot: 100, drama: 'normal', awards: [], busted: [] })?.label,
+      celebration(t, { at: 1, showdown: true, pot: 100, drama: 'normal', awards: [], busted: [] })?.label,
     ).toBe('');
     expect(
-      celebration({ at: 1, showdown: true, pot: 100, drama: 'big', awards: [], busted: [] })?.label,
+      celebration(t, { at: 1, showdown: true, pot: 100, drama: 'big', awards: [], busted: [] })?.label,
     ).toBe('Крупный банк');
-    const knockout = celebration({ at: 1, showdown: true, pot: 100, drama: 'huge', awards: [], busted: [3] });
+    const knockout = celebration(t, {
+      at: 1,
+      showdown: true,
+      pot: 100,
+      drama: 'huge',
+      awards: [],
+      busted: [3],
+    });
     expect(knockout).toEqual({ level: 'huge', label: 'Вылет', knockout: true });
   });
 });

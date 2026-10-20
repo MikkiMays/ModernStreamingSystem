@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   Copy,
@@ -27,56 +28,7 @@ import { serverInfo } from '../core/session';
 import { humans } from '../core/people';
 import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize } from './chat';
 import { useVoiceTier } from './useVoice';
-
-/** Строки панели — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  panel: 'Панель встречи',
-  sections: 'Разделы встречи',
-  close: 'Закрыть панель',
-  titles: { people: 'Участники', chat: 'Чат и файлы', services: 'Боты и интеграции' },
-  people: 'Люди',
-  chat: 'Чат и файлы',
-  services: 'Интеграции',
-  invite: 'Пригласить в комнату',
-  search: 'Найти участника',
-  here: (count: number, seats?: number) => `В этой встрече · ${count}${seats ? ` из ${seats}` : ''}`,
-  waiting: 'Ожидает подтверждения',
-  joining: 'Подключается',
-  recovering: 'Восстанавливает связь',
-  owner: 'Организатор',
-  member: 'Участник',
-  you: ' (Вы)',
-  approve: (name: string) => 'Разрешить вход: ' + name,
-  remove: (name: string) => 'Исключить: ' + name,
-  micOff: 'Микрофон выключен',
-  retention: 'Сообщения и файлы исчезнут через час после встречи, максимум через сутки.',
-  attach: 'Прикрепить файл',
-  log: 'Сообщения и вложения',
-  emptyTitle: 'Всё рядом с разговором',
-  emptyText: 'Напишите сообщение или прикрепите файл — его можно и просто перетащить сюда.',
-  copy: 'Скопировать сообщение',
-  copied: 'Сообщение скопировано',
-  noClipboard: 'Копирование недоступно в этом браузере',
-  copyFailed: 'Не удалось скопировать сообщение',
-  someone: 'Участник',
-  temporary: 'временный файл',
-  download: (name: string) => 'Скачать ' + name,
-  unfinished: 'Незавершённая загрузка',
-  dropUnfinished: (name: string) => 'Удалить незавершённую загрузку: ' + name,
-  filesFailed: 'Не удалось получить вложения. Сообщения остаются доступны.',
-  progress: 'Прогресс загрузки',
-  paused: 'Приостановлено',
-  done: 'Загружено',
-  failed: 'Ошибка загрузки',
-  pause: 'Приостановить загрузку',
-  resume: 'Продолжить загрузку',
-  hide: 'Скрыть завершённую загрузку',
-  cancel: 'Отменить загрузку',
-  message: 'Сообщение',
-  ended: 'Встреча завершена',
-  placeholder: 'Написать сообщение…',
-  send: 'Отправить сообщение',
-};
+import { locale } from '../i18n';
 
 export type Panel = 'people' | 'chat' | 'services';
 export function Sidebar({
@@ -92,6 +44,7 @@ export function Sidebar({
   onClose: () => void;
   onInvite: () => void;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const revision = useStore(meeting.fileRevision);
   const ended = useStore(meeting.ended);
@@ -182,7 +135,7 @@ export function Sidebar({
   };
   const attach = (file?: globalThis.File) => {
     if (!file || !writable || uploadBusy) return;
-    const problem = oversize(file, fileMaxBytes);
+    const problem = oversize(t, file, fileMaxBytes);
     setRefusal(problem ?? '');
     if (problem) return;
     nearBottom.current = true;
@@ -213,50 +166,54 @@ export function Sidebar({
   const copyMessage = async (text: string) => {
     setError('');
     try {
-      if (!navigator.clipboard?.writeText) throw new Error(TEXT.noClipboard);
+      if (!navigator.clipboard?.writeText) throw new Error(t(($) => $.sidebar.noClipboard));
       await navigator.clipboard.writeText(text);
-      setFeedback(TEXT.copied);
+      setFeedback(t(($) => $.sidebar.copied));
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
       feedbackTimer.current = setTimeout(() => setFeedback(''), 2200);
     } catch (e) {
       setFeedback('');
-      setError((e as Error).message || TEXT.copyFailed);
+      setError((e as Error).message || t(($) => $.sidebar.copyFailed));
     }
   };
   const time = (at: number) => (
     <time dateTime={new Date(at).toISOString()}>
-      {new Date(at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+      {new Date(at).toLocaleTimeString(locale(t), { hour: '2-digit', minute: '2-digit' })}
     </time>
   );
   return (
-    <aside className="side-panel" aria-label={TEXT.panel}>
+    <aside className="side-panel" aria-label={t(($) => $.sidebar.panel)}>
       <div className="panel-heading">
-        <h2>{TEXT.titles[panel]}</h2>
-        <IconButton label={TEXT.close} onClick={onClose}>
+        <h2>{t(($) => $.sidebar.titles[panel])}</h2>
+        <IconButton label={t(($) => $.sidebar.close)} onClick={onClose}>
           <X size={20} />
         </IconButton>
       </div>
       <Tabs value={panel} onValueChange={(v) => setPanel(v as Panel)} className="panel-tabs-root">
-        <TabList className="panel-tabs" aria-label={TEXT.sections}>
+        <TabList className="panel-tabs" aria-label={t(($) => $.sidebar.sections)}>
           <Tab value="people">
-            {TEXT.people} <span className="panel-tabs__count">{people.length}</span>
+            {t(($) => $.sidebar.people)} <span className="panel-tabs__count">{people.length}</span>
           </Tab>
-          <Tab value="chat">{TEXT.chat}</Tab>
-          <Tab value="services">{TEXT.services}</Tab>
+          <Tab value="chat">{t(($) => $.sidebar.chat)}</Tab>
+          <Tab value="services">{t(($) => $.sidebar.services)}</Tab>
         </TabList>
         <TabPanel value="people" className="panel-body people-panel">
           <Button variant="secondary" full icon={<UserPlus />} onClick={onInvite}>
-            {TEXT.invite}
+            {t(($) => $.sidebar.invite)}
           </Button>
           <input
             type="search"
             className="people-search"
-            aria-label={TEXT.search}
-            placeholder={TEXT.search}
+            aria-label={t(($) => $.sidebar.search)}
+            placeholder={t(($) => $.sidebar.search)}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="panel-section-label">{TEXT.here(people.length, seats)}</div>
+          <div className="panel-section-label">
+            {seats
+              ? t(($) => $.sidebar.hereOf, { count: people.length, seats })
+              : t(($) => $.sidebar.here, { count: people.length })}
+          </div>
           <div className="participant-list">
             {people
               .filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
@@ -266,18 +223,18 @@ export function Sidebar({
                   <div className="participant-info">
                     <strong>
                       {p.name}
-                      {p.id === self?.id ? TEXT.you : ''}
+                      {p.id === self?.id ? t(($) => $.sidebar.you) : ''}
                     </strong>
                     <small>
                       {p.status === 'WAITING'
-                        ? TEXT.waiting
+                        ? t(($) => $.sidebar.waiting)
                         : p.status === 'JOINING'
-                          ? TEXT.joining
+                          ? t(($) => $.sidebar.joining)
                           : p.status === 'RECOVERING'
-                            ? TEXT.recovering
+                            ? t(($) => $.sidebar.recovering)
                             : p.owner
-                              ? TEXT.owner
-                              : TEXT.member}
+                              ? t(($) => $.sidebar.owner)
+                              : t(($) => $.sidebar.member)}
                     </small>
                   </div>
                   {allowed(snapshot, meeting.admission.participantId, 'participant.remove') && !p.owner ? (
@@ -286,7 +243,7 @@ export function Sidebar({
                         allowed(snapshot, meeting.admission.participantId, 'participant.approve') && (
                           <IconButton
                             size="sm"
-                            label={TEXT.approve(p.name)}
+                            label={t(($) => $.sidebar.approve, { name: p.name })}
                             onClick={() => void run('participant.approve', p.id)}
                           >
                             <Check size={18} />
@@ -294,7 +251,7 @@ export function Sidebar({
                         )}
                       <IconButton
                         size="sm"
-                        label={TEXT.remove(p.name)}
+                        label={t(($) => $.sidebar.remove, { name: p.name })}
                         onClick={() => void run('participant.remove', p.id)}
                       >
                         <UserX size={17} />
@@ -303,7 +260,13 @@ export function Sidebar({
                   ) : (
                     !tracks.some(
                       (t) => t.participantId === p.id && t.source === Track.Source.Microphone && !t.muted,
-                    ) && <MicOff className="participant-muted" size={16} aria-label={TEXT.micOff} />
+                    ) && (
+                      <MicOff
+                        className="participant-muted"
+                        size={16}
+                        aria-label={t(($) => $.sidebar.micOff)}
+                      />
+                    )
                   )}
                 </ParticipantMenu>
               ))}
@@ -318,12 +281,12 @@ export function Sidebar({
             attach(e.dataTransfer.files[0]);
           }}
         >
-          <div className="retention-note">{TEXT.retention}</div>
+          <div className="retention-note">{t(($) => $.sidebar.retention)}</div>
           <input
             type="file"
             ref={fileInput}
             hidden
-            aria-label={TEXT.attach}
+            aria-label={t(($) => $.sidebar.attach)}
             onChange={(e) => {
               attach(e.target.files?.[0]);
               e.target.value = '';
@@ -336,7 +299,7 @@ export function Sidebar({
               const el = e.currentTarget;
               nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
             }}
-            aria-label={TEXT.log}
+            aria-label={t(($) => $.sidebar.log)}
             role="log"
             aria-live="polite"
           >
@@ -345,8 +308,8 @@ export function Sidebar({
                 <span className="chat-empty-icon">
                   <Paperclip size={22} />
                 </span>
-                <strong>{TEXT.emptyTitle}</strong>
-                <p>{TEXT.emptyText}</p>
+                <strong>{t(($) => $.sidebar.emptyTitle)}</strong>
+                <p>{t(($) => $.sidebar.emptyText)}</p>
               </div>
             )}
             {timeline.map((entry) =>
@@ -363,7 +326,7 @@ export function Sidebar({
                     <p>{entry.message.text}</p>
                     <IconButton
                       size="sm"
-                      label={TEXT.copy}
+                      label={t(($) => $.sidebar.copy)}
                       className="message-copy"
                       onClick={() => void copyMessage(entry.message.text)}
                     >
@@ -378,7 +341,8 @@ export function Sidebar({
                 >
                   <div className="message-meta">
                     <strong>
-                      {snapshot.participants.find((p) => p.id === entry.file.ownerId)?.name ?? TEXT.someone}
+                      {snapshot.participants.find((p) => p.id === entry.file.ownerId)?.name ??
+                        t(($) => $.sidebar.someone)}
                     </strong>
                     {time(entry.at)}
                   </div>
@@ -389,11 +353,11 @@ export function Sidebar({
                     <div>
                       <strong title={entry.file.name}>{entry.file.name}</strong>
                       <small>
-                        {formatBytes(entry.file.size)} · {TEXT.temporary}
+                        {formatBytes(t, entry.file.size)} · {t(($) => $.sidebar.temporary)}
                       </small>
                     </div>
                     <IconButton
-                      label={TEXT.download(entry.file.name)}
+                      label={t(($) => $.sidebar.download, { name: entry.file.name })}
                       onClick={() =>
                         void meeting.api.download(entry.file).catch((e) => setError((e as Error).message))
                       }
@@ -413,10 +377,10 @@ export function Sidebar({
                   </span>
                   <div>
                     <strong>{file.name}</strong>
-                    <small>{TEXT.unfinished}</small>
+                    <small>{t(($) => $.sidebar.unfinished)}</small>
                   </div>
                   <IconButton
-                    label={TEXT.dropUnfinished(file.name)}
+                    label={t(($) => $.sidebar.dropUnfinished, { name: file.name })}
                     onClick={() =>
                       void meeting.api
                         .cancel(file.id)
@@ -428,31 +392,35 @@ export function Sidebar({
                   </IconButton>
                 </div>
               ))}
-            {files.isError && <p className="form-error">{TEXT.filesFailed}</p>}
+            {files.isError && <p className="form-error">{t(($) => $.sidebar.filesFailed)}</p>}
           </div>
           {uploading.status !== 'idle' && (
             <div className="upload-progress">
               <strong>{uploading.name}</strong>
-              <progress value={uploading.progress} max={1} aria-label={TEXT.progress} />
+              <progress value={uploading.progress} max={1} aria-label={t(($) => $.sidebar.progress)} />
               <div>
                 <span>
                   {uploading.status === 'paused'
-                    ? TEXT.paused
+                    ? t(($) => $.sidebar.paused)
                     : uploading.status === 'done'
-                      ? TEXT.done
+                      ? t(($) => $.sidebar.done)
                       : uploading.status === 'error'
-                        ? TEXT.failed
+                        ? t(($) => $.sidebar.failed)
                         : Math.round(uploading.progress * 100) + '%'}
                 </span>
                 {uploading.status === 'uploading' ? (
-                  <IconButton size="sm" label={TEXT.pause} onClick={() => void meeting.uploader.pause()}>
+                  <IconButton
+                    size="sm"
+                    label={t(($) => $.sidebar.pause)}
+                    onClick={() => void meeting.uploader.pause()}
+                  >
                     <Pause size={17} />
                   </IconButton>
                 ) : (
                   ['paused', 'error'].includes(uploading.status) && (
                     <IconButton
                       size="sm"
-                      label={TEXT.resume}
+                      label={t(($) => $.sidebar.resume)}
                       disabled={!writable}
                       onClick={() => meeting.uploader.resume()}
                     >
@@ -462,7 +430,7 @@ export function Sidebar({
                 )}
                 <IconButton
                   size="sm"
-                  label={uploading.status === 'done' ? TEXT.hide : TEXT.cancel}
+                  label={uploading.status === 'done' ? t(($) => $.sidebar.hide) : t(($) => $.sidebar.cancel)}
                   onClick={() => void meeting.uploader.cancel()}
                 >
                   <X size={17} />
@@ -495,7 +463,7 @@ export function Sidebar({
             }}
           >
             <IconButton
-              label={TEXT.attach}
+              label={t(($) => $.sidebar.attach)}
               className="composer__attach"
               disabled={!writable || uploadBusy}
               onClick={() => fileInput.current?.click()}
@@ -505,8 +473,8 @@ export function Sidebar({
             <textarea
               ref={input}
               className="composer__input"
-              aria-label={TEXT.message}
-              placeholder={ended ? TEXT.ended : TEXT.placeholder}
+              aria-label={t(($) => $.sidebar.message)}
+              placeholder={ended ? t(($) => $.sidebar.ended) : t(($) => $.sidebar.placeholder)}
               rows={1}
               maxLength={4000}
               value={draft}
@@ -523,7 +491,7 @@ export function Sidebar({
               }}
             />
             <IconButton
-              label={TEXT.send}
+              label={t(($) => $.sidebar.send)}
               type="submit"
               className="composer__send"
               disabled={!draft.trim() || sending || !writable}

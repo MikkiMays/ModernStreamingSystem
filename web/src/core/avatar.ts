@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /**
  * Everything the room sees has to fit the server's budget for a picture.
  *
@@ -51,10 +53,10 @@ export function cropRect(width: number, height: number, crop: AvatarCrop) {
 }
 
 export async function openPicture(file: File): Promise<ImageBitmap> {
-  if (!file.type.startsWith('image/')) throw new Error('Нужен файл с картинкой');
-  if (file.size > 20 * 1024 * 1024) throw new Error('Картинка слишком большая');
+  if (!file.type.startsWith('image/')) throw new Error(t(($) => $.avatar.errors.notImage));
+  if (file.size > 20 * 1024 * 1024) throw new Error(t(($) => $.avatar.errors.tooLarge));
   return createImageBitmap(file).catch(() => {
-    throw new Error('Не удалось прочитать картинку');
+    throw new Error(t(($) => $.avatar.errors.unreadable));
   });
 }
 
@@ -73,7 +75,7 @@ export async function openPicture(file: File): Promise<ImageBitmap> {
 export function encodeAvatar(bitmap: ImageBitmap, crop: AvatarCrop = wholePicture): string {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Не удалось обработать картинку');
+  if (!context) throw new Error(t(($) => $.avatar.errors.noCanvas));
   const { side, left, top } = cropRect(bitmap.width, bitmap.height, crop);
   // A browser without WebP quietly returns a PNG instead, which would blow the budget on
   // every single step. Asking once is cheaper than discovering it twenty-five times.
@@ -91,7 +93,7 @@ export function encodeAvatar(bitmap: ImageBitmap, crop: AvatarCrop = wholePictur
         if (encoded.startsWith(`data:${type}`) && encoded.length <= avatarMaxLength) return encoded;
       }
     }
-  throw new Error('Не удалось уменьшить картинку до нужного размера');
+  throw new Error(t(($) => $.avatar.errors.tooDetailed));
 }
 
 /** Файл целиком, кадром по центру: путь для тех, кому выбирать кадр негде. */

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Mic, Square, Video, Volume2, Disc } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import type { Preferences } from '../../core/preferences';
@@ -7,7 +8,7 @@ import { qualityRules } from '../../media/capabilities';
 import { Button, Slider, Switch } from '../kit';
 import { useMicLevel } from '../useMicLevel';
 import { LevelBar, SettingGroup, SettingRow, SettingValue } from './Row';
-import { row } from './sections';
+import { rowText } from './sections';
 import {
   AutoGainRow,
   ceilingNote,
@@ -61,6 +62,7 @@ function DeviceSelect({
   change: Change;
   meeting?: Meeting;
 }) {
+  const { t } = useTranslation();
   const key = DEVICE_KEY[kind];
   const unsupported = kind === 'audiooutput' && !('setSinkId' in HTMLMediaElement.prototype);
   return (
@@ -69,18 +71,18 @@ function DeviceSelect({
       aria-label={label}
       value={preferences.devices[key] ?? ''}
       disabled={unsupported}
-      title={unsupported ? 'Этот браузер выводит звук только в системное устройство' : undefined}
+      title={unsupported ? t(($) => $.settings.voice.systemOutputOnly) : undefined}
       onChange={(e) => {
         if (meeting) void meeting.media.switchDevice(kind, e.target.value);
         else void change({ devices: { ...preferences.devices, [key]: e.target.value } });
       }}
     >
-      <option value="">По умолчанию</option>
+      <option value="">{t(($) => $.settings.voice.defaultDevice)}</option>
       {devices
         .filter((device) => device.kind === kind && device.deviceId)
         .map((device, index) => (
           <option key={device.deviceId} value={device.deviceId}>
-            {device.label || `Устройство ${index + 1}`}
+            {device.label || t(($) => $.settings.voice.device, { number: index + 1 })}
           </option>
         ))}
     </select>
@@ -102,6 +104,7 @@ export function VoiceSection({
   meeting?: Meeting;
   link?: LinkState;
 }) {
+  const { t } = useTranslation();
   const devices = useMediaDevices();
   const check = useDeviceCheck(preferences);
   const published = useMicLevel(meeting);
@@ -117,16 +120,16 @@ export function VoiceSection({
     ) : null;
   // Во встрече полоса показывает, как вас слышат сейчас; своя проверка — пока она идёт.
   const level = check.mic ? check.level : published;
-  const micHint = meeting && !check.mic ? 'Так вас слышат во встрече сейчас' : undefined;
+  const micHint = meeting && !check.mic ? t(($) => $.settings.voice.micInMeeting) : undefined;
   // Сервер может велеть камере уступать всем — тогда выключатель включён и не нажимается.
   const serverYields = qualityRules().cameraYieldsToScreen;
   return (
     <>
-      <SettingGroup title="Микрофон" anchor="microphone">
+      <SettingGroup title={t(($) => $.settings.anchors.microphone)} anchor="microphone">
         <SettingRow id="mic-device" stack>
           <DeviceSelect
             kind="audioinput"
-            label={row('mic-device').label}
+            label={rowText(t, 'mic-device').label}
             devices={devices}
             preferences={preferences}
             change={change}
@@ -148,24 +151,30 @@ export function VoiceSection({
                   className="setting-recording"
                   controls
                   src={check.recorded}
-                  aria-label="Ваша тестовая запись"
+                  aria-label={t(($) => $.settings.voice.recording)}
                 />
               )}
             </>
           }
         >
           <div className="setting-check">
-            <LevelBar level={level} label="Уровень микрофона" />
+            <LevelBar level={level} label={t(($) => $.settings.voice.micLevel)} />
             {check.mic && (
               <Button
                 size="sm"
                 variant="secondary"
                 icon={<Disc />}
                 disabled={check.recording}
-                aria-label={check.recording ? 'Записываем пробу микрофона' : 'Записать 5 с пробы микрофона'}
+                aria-label={
+                  check.recording
+                    ? t(($) => $.settings.voice.recordingLabel)
+                    : t(($) => $.settings.voice.recordLabel)
+                }
                 onClick={check.record}
               >
-                {check.recording ? 'Записываем…' : 'Записать 5 с'}
+                {check.recording
+                  ? t(($) => $.settings.voice.recordingNow)
+                  : t(($) => $.settings.voice.record)}
               </Button>
             )}
             <Button
@@ -173,20 +182,22 @@ export function VoiceSection({
               variant={check.mic ? 'secondary' : 'primary'}
               icon={check.mic ? <Square /> : <Mic />}
               loading={check.busy === 'microphone'}
-              aria-label={check.mic ? 'Остановить проверку микрофона' : 'Проверить микрофон'}
+              aria-label={
+                check.mic ? t(($) => $.settings.voice.stopMicLabel) : t(($) => $.settings.voice.checkMicLabel)
+              }
               onClick={() => void check.toggle('microphone')}
             >
-              {check.mic ? 'Остановить' : 'Проверить'}
+              {check.mic ? t(($) => $.settings.voice.stop) : t(($) => $.settings.voice.check)}
             </Button>
           </div>
         </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title="Динамики" anchor="output">
+      <SettingGroup title={t(($) => $.settings.anchors.output)} anchor="output">
         <SettingRow id="output-device" stack>
           <DeviceSelect
             kind="audiooutput"
-            label={row('output-device').label}
+            label={rowText(t, 'output-device').label}
             devices={devices}
             preferences={preferences}
             change={change}
@@ -200,7 +211,7 @@ export function VoiceSection({
               max={100}
               step={5}
               value={preferences.outputVolume}
-              label={row('output-volume').label}
+              label={rowText(t, 'output-volume').label}
               onChange={(e) => void change({ outputVolume: Number(e.target.value) })}
             />
             <SettingValue>{preferences.outputVolume}%</SettingValue>
@@ -211,24 +222,24 @@ export function VoiceSection({
             size="sm"
             variant="secondary"
             icon={<Volume2 />}
-            aria-label="Проверить динамики"
+            aria-label={t(($) => $.settings.voice.checkSpeakersLabel)}
             onClick={() => void check.speaker()}
           >
-            Проверить
+            {t(($) => $.settings.voice.check)}
           </Button>
         </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title="Обработка звука" anchor="processing">
+      <SettingGroup title={t(($) => $.settings.anchors.processing)} anchor="processing">
         <NoiseRow audio={preferences.audio} change={audio} />
         <EchoRow audio={preferences.audio} change={audio} />
       </SettingGroup>
 
-      <SettingGroup title="Камера" anchor="camera">
+      <SettingGroup title={t(($) => $.settings.anchors.camera)} anchor="camera">
         <SettingRow id="camera-device" stack>
           <DeviceSelect
             kind="videoinput"
-            label={row('camera-device').label}
+            label={rowText(t, 'camera-device').label}
             devices={devices}
             preferences={preferences}
             change={change}
@@ -243,11 +254,14 @@ export function VoiceSection({
             else void change({ camera });
           }}
         />
-        <SettingRow id="camera-yields" hint={serverYields ? 'Так настроен этот сервер' : undefined}>
+        <SettingRow
+          id="camera-yields"
+          hint={serverYields ? t(($) => $.settings.voice.serverRule) : undefined}
+        >
           <Switch
             checked={serverYields || preferences.cameraYieldsToScreen}
             disabled={serverYields}
-            ariaLabel={row('camera-yields').label}
+            ariaLabel={rowText(t, 'camera-yields').label}
             onCheckedChange={(cameraYieldsToScreen) => void change({ cameraYieldsToScreen })}
           />
         </SettingRow>
@@ -263,7 +277,7 @@ export function VoiceSection({
                   autoPlay
                   muted
                   playsInline
-                  aria-label="Превью камеры только для вас"
+                  aria-label={t(($) => $.settings.voice.previewLabel)}
                 />
               )}
             </>
@@ -274,15 +288,19 @@ export function VoiceSection({
             variant="secondary"
             icon={check.camera ? <Square /> : <Video />}
             loading={check.busy === 'camera'}
-            aria-label={check.camera ? 'Скрыть превью камеры' : 'Показать превью камеры'}
+            aria-label={
+              check.camera
+                ? t(($) => $.settings.voice.hidePreviewLabel)
+                : t(($) => $.settings.voice.showPreviewLabel)
+            }
             onClick={() => void check.toggle('camera')}
           >
-            {check.camera ? 'Скрыть' : 'Показать'}
+            {check.camera ? t(($) => $.settings.voice.hide) : t(($) => $.settings.voice.show)}
           </Button>
         </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title="Демонстрация экрана" anchor="screen" note={ceilingNote()}>
+      <SettingGroup title={t(($) => $.settings.anchors.screen)} anchor="screen" note={ceilingNote(t)}>
         <QualityRows
           kind="screen"
           profile={preferences.screen}
@@ -293,7 +311,7 @@ export function VoiceSection({
         />
       </SettingGroup>
 
-      <SettingGroup title="Чужое видео" anchor="reception">
+      <SettingGroup title={t(($) => $.settings.anchors.reception)} anchor="reception">
         <ReceptionRow
           mode={preferences.reception}
           change={(reception) => {
@@ -303,7 +321,7 @@ export function VoiceSection({
         />
       </SettingGroup>
 
-      <SettingGroup title="Дополнительно" anchor="advanced" defaultOpen={false}>
+      <SettingGroup title={t(($) => $.settings.anchors.advanced)} anchor="advanced" defaultOpen={false}>
         <PlayoutRow mode={preferences.network} link={link} change={(network) => void change({ network })} />
       </SettingGroup>
     </>

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Clapperboard } from 'lucide-react';
-import { plural, type CinemaItem, type CinemaSeriesInfo } from '../../../../core/cinema';
+import { useTranslation } from 'react-i18next';
+import type { CinemaItem, CinemaSeriesInfo } from '../../../../core/cinema';
 import { More } from '../More';
 import { Empty, Failure, Loading } from '../notes';
 import { Tabs } from '../Tabs';
@@ -41,6 +42,7 @@ export function SeriesPage({
   /** Что сказать, если в сезоне нечего показать комнате, — словами площадки. */
   empty: string;
 }) {
+  const { t } = useTranslation();
   const picture = series?.poster ?? poster;
   const seasons = series?.seasons ?? [];
   return (
@@ -50,14 +52,14 @@ export function SeriesPage({
           {picture ? <img src={picture} alt="" /> : <Clapperboard size={34} />}
         </div>
         <div className="cinema-detail-body">
-          <h3>{series?.title || title || 'Сериал'}</h3>
+          <h3>{series?.title || title || t(($) => $.cinema.series.untitled)}</h3>
           {/* Строка пустой не бывает: у сериала из плейлиста нет ни года, ни сезонов, и пустая
               строка оставила бы в шапке лишний зазор. */}
           {series?.year || seasons.length > 0 ? (
             <p className="cinema-detail-meta">
               {series?.year ? <span>{series.year}</span> : null}
               {seasons.length > 0 ? (
-                <span>{plural(seasons.length, 'сезон', 'сезона', 'сезонов')}</span>
+                <span>{t(($) => $.cinema.series.seasons, { count: seasons.length })}</span>
               ) : null}
             </p>
           ) : null}
@@ -67,7 +69,7 @@ export function SeriesPage({
       {/* Вкладка одна — выбирать не из чего: такой ряд был бы подписью, а не выбором. */}
       {seasons.length > 1 ? (
         <Tabs
-          label="Сезоны"
+          label={t(($) => $.cinema.series.seasonsLabel)}
           items={seasons.map((entry) => ({ id: entry.id, name: entry.title }))}
           selected={season ?? ''}
           onSelect={onSeason}

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ImageUp, Trash2 } from 'lucide-react';
 import type { Preferences } from '../../core/preferences';
 import { openPicture } from '../../core/avatar';
@@ -21,6 +22,7 @@ type Change = (patch: Partial<Preferences>) => Promise<void>;
  * работает пальцем; телефон же — ровно то место, где лежат все фотографии человека.
  */
 function AvatarRow({ preferences, change }: { preferences: Preferences; change: Change }) {
+  const { t } = useTranslation();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   // Выбранная картинка до того, как выбран кадр: пока она здесь, открыто окно кадрирования.
@@ -39,7 +41,7 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
       await change({ avatar });
     } catch (problem) {
       await change({ avatar: previous }).catch(() => {});
-      setError((problem as Error).message || 'Комната не приняла картинку');
+      setError((problem as Error).message || t(($) => $.settings.profile.refused));
     } finally {
       setBusy(false);
     }
@@ -68,13 +70,13 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
       }
     >
       <div className="setting-avatar">
-        <Avatar name={preferences.name || 'Вы'} src={preferences.avatar || null} />
+        <Avatar name={preferences.name || t(($) => $.settings.you)} src={preferences.avatar || null} />
         <input
           ref={file}
           type="file"
           accept="image/*"
           hidden
-          aria-label="Выбрать картинку профиля"
+          aria-label={t(($) => $.settings.profile.pickLabel)}
           onChange={async (e) => {
             const picked = e.target.files?.[0];
             e.target.value = '';
@@ -93,11 +95,11 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
           }}
         />
         <Button size="sm" icon={<ImageUp />} loading={busy} onClick={() => file.current?.click()}>
-          {preferences.avatar ? 'Заменить' : 'Выбрать'}
+          {preferences.avatar ? t(($) => $.settings.profile.replace) : t(($) => $.settings.profile.pick)}
         </Button>
         {preferences.avatar && (
           <Button size="sm" variant="quiet" icon={<Trash2 />} disabled={busy} onClick={() => void apply('')}>
-            Убрать
+            {t(($) => $.settings.profile.remove)}
           </Button>
         )}
       </div>
@@ -107,8 +109,9 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
 
 /** «Профиль» устройства: учётных записей в Cord нет, имя и картинка живут здесь. */
 export function ProfileSection({ preferences, change }: { preferences: Preferences; change: Change }) {
+  const { t } = useTranslation();
   return (
-    <SettingGroup title="О вас" collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.profile.about)} collapsible={false}>
       <SettingRow id="profile-name" stack>
         {(a11y) => (
           <input
@@ -117,7 +120,7 @@ export function ProfileSection({ preferences, change }: { preferences: Preferenc
             maxLength={40}
             value={preferences.name}
             autoComplete="nickname"
-            placeholder="Как к вам обращаться?"
+            placeholder={t(($) => $.settings.profile.namePlaceholder)}
             onChange={(e) => void change({ name: e.target.value })}
           />
         )}

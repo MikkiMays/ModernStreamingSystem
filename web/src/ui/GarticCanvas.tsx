@@ -10,6 +10,7 @@ import {
   type Ref,
 } from 'react';
 import { Check, Eraser, Pencil, RotateCw, Trash2, Undo2, WifiOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DRAWING_LIMITS, DrawingQueue, drawingPoint, mergeDrawing, type DrawingStroke } from '../core/gartic';
 import { useMediaQuery } from './primitives';
 
@@ -17,19 +18,27 @@ export interface GarticCanvasHandle {
   flush: () => Promise<void>;
 }
 
+/** Цвет кисти и его имя в каталоге (`gartic.canvas.colors`). */
 const COLORS = [
-  ['#222631', 'Чёрный'],
-  ['#ffffff', 'Белый'],
-  ['#ef4444', 'Красный'],
-  ['#f97316', 'Оранжевый'],
-  ['#facc15', 'Жёлтый'],
-  ['#22c55e', 'Зелёный'],
-  ['#14b8a6', 'Бирюзовый'],
-  ['#38bdf8', 'Голубой'],
-  ['#3564f3', 'Синий'],
-  ['#8b5cf6', 'Фиолетовый'],
-  ['#ec4899', 'Розовый'],
-  ['#92400e', 'Коричневый'],
+  ['#222631', 'black'],
+  ['#ffffff', 'white'],
+  ['#ef4444', 'red'],
+  ['#f97316', 'orange'],
+  ['#facc15', 'yellow'],
+  ['#22c55e', 'green'],
+  ['#14b8a6', 'teal'],
+  ['#38bdf8', 'lightBlue'],
+  ['#3564f3', 'blue'],
+  ['#8b5cf6', 'violet'],
+  ['#ec4899', 'pink'],
+  ['#92400e', 'brown'],
+] as const;
+
+const WIDTHS = [
+  [3, 'thin'],
+  [6, 'medium'],
+  [12, 'thick'],
+  [24, 'wide'],
 ] as const;
 
 function Ink({ stroke }: { stroke: DrawingStroke }) {
@@ -159,16 +168,17 @@ function RemoteInk({ strokes, connected }: { strokes: DrawingStroke[]; connected
 /** Only validated geometry becomes SVG attributes; no remote markup or bitmap payloads. */
 export function GarticPicture({
   strokes,
-  label = 'Рисунок',
+  label,
   children,
 }: {
   strokes: DrawingStroke[];
   label?: string;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="gartic-paper">
-      <svg viewBox="0 0 1000 625" role="img" aria-label={label}>
+      <svg viewBox="0 0 1000 625" role="img" aria-label={label ?? t(($) => $.gartic.canvas.picture)}>
         <rect width="1000" height="625" fill="#ffffff" />
         {strokes.map((stroke) => (
           <Ink key={stroke.id} stroke={stroke} />
@@ -201,6 +211,7 @@ export default function GarticCanvas({
   onEdit: (option: 'undo' | 'clear') => Promise<unknown>;
   ref?: Ref<GarticCanvasHandle>;
 }) {
+  const { t } = useTranslation();
   const [color, setColor] = useState('#222631');
   const [width, setWidth] = useState(6);
   const [eraser, setEraser] = useState(false);
@@ -301,7 +312,7 @@ export default function GarticCanvas({
   );
 
   const limit = () => {
-    setError('На листе уже много штрихов. Отмените последний или очистите лист.');
+    setError(t(($) => $.gartic.canvas.tooManyStrokes));
     seal();
   };
   const begin = (event: PointerEvent<SVGSVGElement>) => {
@@ -389,13 +400,13 @@ export default function GarticCanvas({
       }}
     >
       {editable && (
-        <div className="gartic-tools" aria-label="Инструменты рисования">
-          <div className="gartic-palette" aria-label="Цвет кисти">
+        <div className="gartic-tools" aria-label={t(($) => $.gartic.canvas.tools)}>
+          <div className="gartic-palette" aria-label={t(($) => $.gartic.canvas.palette)}>
             {COLORS.map(([value, name]) => (
               <button
                 key={value}
                 type="button"
-                aria-label={name}
+                aria-label={t(($) => $.gartic.canvas.colors[name])}
                 aria-pressed={!eraser && color === value}
                 style={{ '--ink': value } as CSSProperties}
                 onClick={() => {
@@ -418,7 +429,7 @@ export default function GarticCanvas({
             <button
               type="button"
               className="gartic-tool"
-              aria-label="Кисть"
+              aria-label={t(($) => $.gartic.canvas.brush)}
               aria-pressed={!eraser}
               onClick={() => setEraser(false)}
             >
@@ -427,23 +438,24 @@ export default function GarticCanvas({
             <button
               type="button"
               className="gartic-tool"
-              aria-label="Ластик"
+              aria-label={t(($) => $.gartic.canvas.eraser)}
               aria-pressed={eraser}
               onClick={() => setEraser(true)}
             >
               <Eraser size={18} />
             </button>
             <label className="gartic-brush">
-              Толщина{' '}
+              {t(($) => $.gartic.canvas.width)}{' '}
               <select
-                aria-label="Толщина кисти"
+                aria-label={t(($) => $.gartic.canvas.widthLabel)}
                 value={width}
                 onChange={(event) => setWidth(Number(event.target.value))}
               >
-                <option value="3">Тонкая</option>
-                <option value="6">Средняя</option>
-                <option value="12">Толстая</option>
-                <option value="24">Широкая</option>
+                {WIDTHS.map(([value, name]) => (
+                  <option key={value} value={value}>
+                    {t(($) => $.gartic.canvas.widths[name])}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -451,8 +463,8 @@ export default function GarticCanvas({
             <button
               type="button"
               className="gartic-tool"
-              aria-label="Отменить последний штрих"
-              title="Отменить последний штрих (Ctrl+Z)"
+              aria-label={t(($) => $.gartic.canvas.undo)}
+              title={t(($) => $.gartic.canvas.undoTitle)}
               disabled={busy || locked || !connected || !ink.length}
               onClick={() => void edit('undo')}
             >
@@ -461,7 +473,7 @@ export default function GarticCanvas({
             <button
               type="button"
               className="gartic-tool"
-              aria-label="Очистить рисунок"
+              aria-label={t(($) => $.gartic.canvas.clear)}
               disabled={busy || locked || !connected || !ink.length}
               onClick={() => void edit('clear')}
             >
@@ -474,7 +486,7 @@ export default function GarticCanvas({
         <svg
           viewBox="0 0 1000 625"
           role="img"
-          aria-label={editable ? 'Холст для рисования' : 'Рисунок на столе'}
+          aria-label={editable ? t(($) => $.gartic.canvas.editable) : t(($) => $.gartic.canvas.view)}
           tabIndex={editable ? 0 : undefined}
           onPointerDown={begin}
           onPointerMove={move}
@@ -493,13 +505,15 @@ export default function GarticCanvas({
         {!ink.length && !active && (
           <div className="gartic-paper-empty" aria-hidden="true">
             <Pencil size={30} strokeWidth={1.25} />
-            <span>{editable ? 'Ваш первый штрих' : 'Здесь появится рисунок'}</span>
+            <span>
+              {editable ? t(($) => $.gartic.canvas.firstStroke) : t(($) => $.gartic.canvas.emptyView)}
+            </span>
           </div>
         )}
       </div>
       {editable && !connected && (
         <div className="gartic-canvas-status" role="status">
-          <WifiOff size={14} /> Связь восстанавливается. Штрихи сохранены на этом устройстве.
+          <WifiOff size={14} /> {t(($) => $.gartic.canvas.offline)}
         </div>
       )}
       {error && (
@@ -514,7 +528,7 @@ export default function GarticCanvas({
                 queue.current?.retry();
               }}
             >
-              <RotateCw size={15} /> Повторить отправку
+              <RotateCw size={15} /> {t(($) => $.gartic.canvas.retry)}
             </button>
           )}
         </div>

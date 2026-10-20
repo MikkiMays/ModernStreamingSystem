@@ -18,6 +18,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Реестр кодов ошибок (E14): каждый `Problem` ядра записан в contracts/errors.json — по нему
+      # клиент переводит отказ. Секунда, поэтому раньше сборки.
+      - name: Verify the error code registry matches the core
+        run: python3 scripts/errors_registry.py --check
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -59,6 +63,14 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+        working-directory: web
+      # Слой переводов (E14): строк с кириллицей в коде не становится больше, а русские тексты ошибок
+      # в каталоге совпадают с реестром кодов ядра.
+      - name: Verify no new hard-coded Russian strings
+        run: node scripts/i18n/check.mjs
+        working-directory: web
+      - name: Verify the catalog errors match the registry
+        run: node scripts/i18n/sync-errors.mjs --check
         working-directory: web
       - run: npm run format:check
         working-directory: web

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DurakSeat, DurakTable } from '../api/types';
+import { t } from '../i18n';
 import {
   commandFor,
   dropFrom,
@@ -91,15 +92,15 @@ function table(patch: Partial<DurakTable> = {}): DurakTable {
 
 describe('карта', () => {
   it('называется по-русски и знает свой цвет', () => {
-    expect(faceOf('As')).toMatchObject({ rank: 'Т', glyph: '♠', red: false });
-    expect(faceOf('Td')).toMatchObject({ rank: '10', glyph: '♦', red: true });
-    expect(faceOf('Qh')).toMatchObject({ rank: 'Д', glyph: '♥', red: true });
-    expect(faceOf('6c')).toMatchObject({ rank: '6', glyph: '♣', red: false });
+    expect(faceOf(t, 'As')).toMatchObject({ rank: 'Т', glyph: '♠', red: false });
+    expect(faceOf(t, 'Td')).toMatchObject({ rank: '10', glyph: '♦', red: true });
+    expect(faceOf(t, 'Qh')).toMatchObject({ rank: 'Д', glyph: '♥', red: true });
+    expect(faceOf(t, '6c')).toMatchObject({ rank: '6', glyph: '♣', red: false });
   });
 
   it('читается голосом целиком: и номинал, и масть', () => {
-    expect(faceOf('Jc').label).toBe('валет, трефы');
-    expect(faceOf('7h').label).toBe('7, черви');
+    expect(faceOf(t, 'Jc').label).toBe('валет, трефы');
+    expect(faceOf(t, '7h').label).toBe('7, черви');
   });
 });
 
@@ -200,26 +201,26 @@ describe('бросок карты', () => {
 
 describe('что говорит стол', () => {
   it('зовёт по имени того, кто отбивается', () => {
-    expect(tableSays(table(), null)).toBe('Игрок 1 отбивается');
+    expect(tableSays(t, table(), null)).toBe('Игрок 1 отбивается');
   });
 
   it('обращается к вам, когда ход ваш', () => {
-    expect(tableSays(table(), 1)).toBe('Ваш ход: отбивайтесь или берите');
-    expect(tableSays(table({ acting: [0], table: [] }), 0)).toBe('Ваш ход: заходите');
-    expect(tableSays(table({ acting: [0] }), 0)).toBe('Ваш ход: подкиньте или скажите «бито»');
+    expect(tableSays(t, table(), 1)).toBe('Ваш ход: отбивайтесь или берите');
+    expect(tableSays(t, table({ acting: [0], table: [] }), 0)).toBe('Ваш ход: заходите');
+    expect(tableSays(t, table({ acting: [0] }), 0)).toBe('Ваш ход: подкиньте или скажите «бито»');
   });
 
   it('говорит, что защитнику нечем отбиться и стол берёт за него (T07)', () => {
     const cornered = table({
       seats: table().seats.map((item) => (item.index === 1 ? { ...item, auto: 'take' as const } : item)),
     });
-    expect(tableSays(cornered, 1)).toBe('Нечем отбиться — берём карты');
-    expect(tableSays(cornered, 0)).toBe('Игрок 1: нечем отбиться — берёт');
+    expect(tableSays(t, cornered, 1)).toBe('Нечем отбиться — берём карты');
+    expect(tableSays(t, cornered, 0)).toBe('Игрок 1: нечем отбиться — берёт');
   });
 
   it('объявляет конец боя одним словом', () => {
-    expect(tableSays(table({ boutEnd: 'beaten' }), 0)).toBe('Бито');
-    expect(tableSays(table({ boutEnd: 'taken' }), 0)).toBe('Игрок 1 забирает');
+    expect(tableSays(t, table({ boutEnd: 'beaten' }), 0)).toBe('Бито');
+    expect(tableSays(t, table({ boutEnd: 'taken' }), 0)).toBe('Игрок 1 забирает');
   });
 
   it('называет дурака и признаёт ничью', () => {
@@ -227,16 +228,16 @@ describe('что говорит стол', () => {
       phase: 'over',
       result: { at: 1, foolSeat: 1, foolName: 'Игрок 1', draw: false, bouts: 4, places: [] },
     });
-    expect(tableSays(over, 0)).toBe('Игрок 1 — дурак');
+    expect(tableSays(t, over, 0)).toBe('Игрок 1 — дурак');
     const draw = table({
       phase: 'over',
       result: { at: 1, foolSeat: -1, foolName: '', draw: true, bouts: 4, places: [] },
     });
-    expect(tableSays(draw, 0)).toBe('Ничья — карт не осталось ни у кого');
+    expect(tableSays(t, draw, 0)).toBe('Ничья — карт не осталось ни у кого');
   });
 
   it('ждёт раздачи, пока её не начали', () => {
-    expect(tableSays(table({ phase: 'lobby' }), 0)).toBe('Стол ждёт раздачи');
+    expect(tableSays(t, table({ phase: 'lobby' }), 0)).toBe('Стол ждёт раздачи');
   });
 });
 
@@ -251,13 +252,13 @@ describe('бой', () => {
 
 describe('подписи', () => {
   it('называет вариант правил', () => {
-    expect(modeName('podkidnoy')).toBe('Подкидной');
-    expect(modeName('perevodnoy')).toBe('Переводной');
+    expect(modeName(t, 'podkidnoy')).toBe('Подкидной');
+    expect(modeName(t, 'perevodnoy')).toBe('Переводной');
   });
 
   it('называет козырную масть словом', () => {
-    expect(trumpName(table())).toBe('черви');
-    expect(trumpName(table({ trumpSuit: null }))).toBe('');
+    expect(trumpName(t, table())).toBe('черви');
+    expect(trumpName(t, table({ trumpSuit: null }))).toBe('');
   });
 });
 

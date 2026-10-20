@@ -1,3 +1,5 @@
+import type { Translate } from '../../../i18n';
+
 /** Preserve source codec choices; compare bitrate only within one codec and frame size. */
 export interface Level {
   height?: number;
@@ -17,10 +19,12 @@ function smooth(level: Level): boolean {
   return Number(level.attrs?.['FRAME-RATE'] ?? 0) > 35;
 }
 
-export function levelLabel(level: Level | undefined): string {
+export function levelLabel(t: Translate, level: Level | undefined): string {
   if (!level) return '';
   if (level.height) return `${level.height}p${smooth(level) ? '60' : ''}`;
-  return level.bitrate ? `${Math.round(level.bitrate / 1000)} кбит/с` : 'Как есть';
+  return level.bitrate
+    ? t(($) => $.cinema.theater.quality.bitrate, { value: Math.round(level.bitrate / 1000) })
+    : t(($) => $.cinema.theater.quality.source);
 }
 
 function codec(level: Level): string {
@@ -32,13 +36,13 @@ function codec(level: Level): string {
   return '';
 }
 
-export function qualities(levels: Level[]): Quality[] {
+export function qualities(t: Translate, levels: Level[]): Quality[] {
   const best = new Map<
     string,
     { level: number; bitrate: number; height: number; fast: boolean; label: string; codec: string }
   >();
   levels.forEach((level, index) => {
-    const label = levelLabel(level);
+    const label = levelLabel(t, level);
     const family = codec(level);
     const key = `${label}:${family}`;
     const bitrate = level.bitrate ?? 0;

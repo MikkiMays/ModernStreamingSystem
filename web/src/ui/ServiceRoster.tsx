@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Music2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { MusicApi, musicSourceName } from '../core/services';
 import { ParticipantMenu } from './ParticipantMenu';
 import { useStore } from './primitives';
 
 export function ServiceRoster({ meeting, onOpen }: { meeting: Meeting; onOpen: () => void }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const ended = useStore(meeting.ended);
   const api = useMemo(() => new MusicApi(meeting.admission), [meeting]);
@@ -24,27 +26,27 @@ export function ServiceRoster({ meeting, onOpen }: { meeting: Meeting; onOpen: (
   const current = state?.enabled ? state.queue[0] : undefined;
   const status =
     music.isError || state?.error
-      ? 'Нужна проверка подключения'
+      ? t(($) => $.services.roster.check)
       : !bot
-        ? 'Добавить во встречу'
+        ? t(($) => $.services.roster.add)
         : state?.status === 'connecting'
-          ? 'Подключаемся…'
+          ? t(($) => $.services.roster.connecting)
           : state?.paused
-            ? 'На паузе'
+            ? t(($) => $.services.roster.paused)
             : state?.status === 'playing'
-              ? 'Сейчас играет'
-              : 'Очередь пуста';
+              ? t(($) => $.services.roster.playing)
+              : t(($) => $.services.roster.empty);
   const card = (
-    <button className="integration-entry" onClick={onOpen} aria-label="Открыть плеер музыки">
+    <button className="integration-entry" onClick={onOpen} aria-label={t(($) => $.services.roster.open)}>
       <Music2 size={22} className="integration-symbol" />
       <span className="integration-summary">
-        <strong>Музыка</strong>
+        <strong>{t(($) => $.services.roster.music)}</strong>
         <small>{status}</small>
         {current && (
           <>
             <span className="integration-track">{current.title}</span>
             {current.artist && <small>{current.artist}</small>}
-            <span className="music-source">{musicSourceName(current.source)}</span>
+            <span className="music-source">{musicSourceName(t, current.source)}</span>
           </>
         )}
       </span>
@@ -52,8 +54,8 @@ export function ServiceRoster({ meeting, onOpen }: { meeting: Meeting; onOpen: (
     </button>
   );
   return (
-    <section className="integration-roster" aria-label="Боты и интеграции">
-      <h2>Боты и интеграции</h2>
+    <section className="integration-roster" aria-label={t(($) => $.services.roster.label)}>
+      <h2>{t(($) => $.services.roster.label)}</h2>
       {bot ? (
         <ParticipantMenu meeting={meeting} person={bot} className="integration-participant">
           {card}

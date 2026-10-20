@@ -12,13 +12,12 @@ import {
   RotateCcw,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ChessTable as ChessState } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import {
   boardSquares,
   capturedPieces,
-  CHESS_PRESETS,
-  CHESS_RESULTS,
   clockLabel,
   clockRemaining,
   FILES,
@@ -27,6 +26,8 @@ import {
   pieceImage,
   pieceLabel,
   positionFromFen,
+  presetLabel,
+  resultLabel,
   squareAtPoint,
   squarePoint,
   type ChessColor,
@@ -49,12 +50,7 @@ interface Drag {
   size: number;
   moved: boolean;
 }
-const PROMOTIONS = [
-  { piece: 'q', label: 'Ферзь', action: 'Превратить в ферзя' },
-  { piece: 'r', label: 'Ладья', action: 'Превратить в ладью' },
-  { piece: 'b', label: 'Слон', action: 'Превратить в слона' },
-  { piece: 'n', label: 'Конь', action: 'Превратить в коня' },
-];
+const PROMOTIONS = ['q', 'r', 'b', 'n'] as const;
 
 export default function ChessTable({ meeting }: { meeting: Meeting }) {
   const snapshot = useStore(meeting.snapshot);
@@ -63,6 +59,7 @@ export default function ChessTable({ meeting }: { meeting: Meeting }) {
 }
 
 function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const connection = useStore(meeting.control.state);
   const me = meeting.admission.participantId;
@@ -146,7 +143,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
     try {
       await meeting.command(type, text, undefined, { contentId: table.id, positionMs: table.ply, ...extra });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Не удалось отправить действие. Попробуйте ещё раз.');
+      setError(cause instanceof Error ? cause.message : t(($) => $.chess.sendFailed));
     } finally {
       pendingRef.current = false;
       setPending(false);
@@ -249,14 +246,17 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const colorWord = table.turn === 'white' ? 'белых' : 'чёрных';
-  const resultTitle = table.winner ? `Победа ${table.winner === 'white' ? 'белых' : 'чёрных'}` : 'Ничья';
+  const turnSide: ChessColor = table.turn === 'white' ? 'white' : 'black';
+  const winner: ChessColor = table.winner === 'white' ? 'white' : 'black';
+  const resultTitle = table.winner ? t(($) => $.chess.status.winner[winner]) : t(($) => $.chess.status.draw);
+  const turn =
+    table.turn === color ? t(($) => $.chess.status.yourTurn) : t(($) => $.chess.status.turn[turnSide]);
   const status =
     table.phase === 'lobby'
-      ? 'Пригласите соперника за доску'
+      ? t(($) => $.chess.status.lobby)
       : table.phase === 'over'
         ? resultTitle
-        : `${table.turn === color ? 'Ваш ход' : `Ход ${colorWord}`}${table.check ? ' · шах' : ''}`;
+        : `${turn}${table.check ? ` · ${t(($) => $.chess.status.check)}` : ''}`;
   const topColor: ChessColor = flipped ? 'white' : 'black';
   const bottomColor: ChessColor = flipped ? 'black' : 'white';
   const moveRows = new Map<number, typeof table.moves>();
@@ -267,7 +267,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
 
   function playerBar(side: ChessColor) {
     const player = table[side];
-    const label = side === 'white' ? 'Белые' : 'Чёрные';
+    const label = t(($) => $.chess.sides[side]);
     const active = table.phase === 'playing' && table.turn === side;
     return (
       <div className="chess-player" data-active={active || undefined} data-color={side}>
@@ -276,17 +276,21 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
           {player ? (
             <GamePeople meeting={meeting} memberIds={[player.memberId]} game="chess" />
           ) : (
-            <span className="chess-empty-player">{label} · свободное место</span>
+            <span className="chess-empty-player">
+              {label} · {t(($) => $.chess.freeSeat)}
+            </span>
           )}
           <div className="chess-player-detail">
             <span>
               {label}
-              {player?.away ? ' · отошёл' : ''}
+              {player?.away ? ` · ${t(($) => $.chess.away)}` : ''}
             </span>
             {captured[side].length > 0 && (
               <span
                 className="chess-captured"
-                aria-label={`Взятые фигуры: ${captured[side].map(pieceLabel).join(', ')}`}
+                aria-label={t(($) => $.chess.captured, {
+                  pieces: captured[side].map((piece) => pieceLabel(t, piece)).join(', '),
+                })}
               >
                 {captured[side].map((piece, index) => (
                   <img key={index} src={pieceImage(piece)} alt="" />
@@ -301,7 +305,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
             disabled={pending}
             onClick={() => void send('chess.sit', undefined, { seat: side === 'white' ? 0 : 1 })}
           >
-            Играть {side === 'white' ? 'белыми' : 'чёрными'}
+            {t(($) => $.chess.sit[side])}
           </button>
         ) : (
           <ChessClock
@@ -318,15 +322,15 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
   }
 
   return (
-    <section className="chess" aria-label="Шахматы" data-phase={table.phase}>
+    <section className="chess" aria-label={t(($) => $.chess.title)} data-phase={table.phase}>
       <header className="chess-header">
         <div className="chess-heading">
-          <h2>Шахматы</h2>
-          <span>{CHESS_PRESETS[table.preset] ?? table.preset}</span>
+          <h2>{t(($) => $.chess.title)}</h2>
+          <span>{presetLabel(t, table.preset)}</span>
         </div>
         <div className="chess-header-actions">
           <IconButton
-            label="Перевернуть доску"
+            label={t(($) => $.chess.flip)}
             onClick={() => {
               setFlipped(!flipped);
               setSelected(null);
@@ -334,11 +338,19 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
           >
             <ArrowLeftRight size={18} />
           </IconButton>
-          <IconButton label="Скачать партию PGN" disabled={table.moves.length === 0} onClick={downloadPgn}>
+          <IconButton
+            label={t(($) => $.chess.downloadPgn)}
+            disabled={table.moves.length === 0}
+            onClick={downloadPgn}
+          >
             <Download size={18} />
           </IconButton>
           {host && (
-            <IconButton label="Закрыть шахматы" disabled={pending} onClick={() => setConfirmation('close')}>
+            <IconButton
+              label={t(($) => $.chess.close)}
+              disabled={pending}
+              onClick={() => setConfirmation('close')}
+            >
               <X size={18} />
             </IconButton>
           )}
@@ -352,7 +364,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               className="chess-board"
               ref={board}
               role="grid"
-              aria-label="Шахматная доска. Стрелки — перемещение, Enter — выбрать фигуру и клетку"
+              aria-label={t(($) => $.chess.board)}
               aria-describedby="chess-status"
               data-interactive={canMove || undefined}
             >
@@ -377,7 +389,14 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                         data-target={targets.has(square) || undefined}
                         data-occupied={!!piece || undefined}
                         data-check={check || undefined}
-                        aria-label={`${square}, ${piece ? pieceLabel(piece) : 'пусто'}${targets.has(square) ? ', доступный ход' : ''}${check ? ', шах' : ''}`}
+                        aria-label={[
+                          square,
+                          piece ? pieceLabel(t, piece) : t(($) => $.chess.square.empty),
+                          targets.has(square) && t(($) => $.chess.square.target),
+                          check && t(($) => $.chess.square.check),
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}
                         aria-selected={picked === square}
                         tabIndex={focused === square ? 0 : -1}
                         onFocus={() => setFocused(square)}
@@ -486,19 +505,20 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
           {!live && (
             <div className="chess-review-notice">
               <span>
-                Просмотр позиции после{' '}
                 {shownPly === minimumPly
-                  ? 'начала записи'
-                  : `${Math.ceil(shownPly / 2)}${shownPly % 2 ? '.' : '…'} хода`}
+                  ? t(($) => $.chess.review.start)
+                  : t(($) => $.chess.review.move, {
+                      move: `${Math.ceil(shownPly / 2)}${shownPly % 2 ? '.' : '…'}`,
+                    })}
               </span>
               <button type="button" onClick={() => review(null)}>
-                Вернуться к игре
+                {t(($) => $.chess.review.back)}
               </button>
             </div>
           )}
         </div>
 
-        <aside className="chess-sidebar" aria-label="Партия и ходы">
+        <aside className="chess-sidebar" aria-label={t(($) => $.chess.sidebar)}>
           <div className="chess-status-block">
             <span className="chess-live-dot" data-active={table.phase === 'playing' || undefined} />
             <h3 id="chess-status" role="status">
@@ -507,12 +527,12 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
           </div>
           {connection !== 'connected' && (
             <p className="chess-notice" role="status">
-              Восстанавливаем связь. Часы продолжают идти.
+              {t(($) => $.chess.reconnecting)}
             </p>
           )}
           {table.phase === 'lobby' && (
             <div className="chess-lobby">
-              <p>Два игрока, одна доска. Остальные участники могут смотреть партию и общаться.</p>
+              <p>{t(($) => $.chess.lobby.intro)}</p>
               {host && (
                 <button
                   className="button"
@@ -520,11 +540,11 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                   onClick={() => void send('chess.start')}
                 >
                   <Play size={16} />
-                  Начать партию
+                  {t(($) => $.chess.lobby.start)}
                 </button>
               )}
-              {host && (!table.white || !table.black) && <small>Нужны игроки за оба цвета.</small>}
-              {!host && table.white && table.black && <small>Ведущий начнёт партию.</small>}
+              {host && (!table.white || !table.black) && <small>{t(($) => $.chess.lobby.needPlayers)}</small>}
+              {!host && table.white && table.black && <small>{t(($) => $.chess.lobby.hostStarts)}</small>}
             </div>
           )}
           {table.phase === 'over' && (
@@ -532,7 +552,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               <strong>
                 {table.winner === 'white' ? '1 — 0' : table.winner === 'black' ? '0 — 1' : '½ — ½'}
               </strong>
-              <p>{CHESS_RESULTS[table.result ?? ''] ?? 'Партия завершена'}</p>
+              <p>{resultLabel(t, table.result)}</p>
               {color && (
                 <button
                   className="button"
@@ -541,20 +561,20 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                 >
                   <RotateCcw size={16} />
                   {table.rematchRequests.includes(me)
-                    ? 'Ждём согласия соперника'
+                    ? t(($) => $.chess.rematch.waiting)
                     : table.rematchRequests.length
-                      ? 'Принять реванш'
-                      : 'Сыграть ещё'}
+                      ? t(($) => $.chess.rematch.accept)
+                      : t(($) => $.chess.rematch.again)}
                 </button>
               )}
-              <small>В новой партии игроки меняются цветами.</small>
+              <small>{t(($) => $.chess.rematch.swapColors)}</small>
             </div>
           )}
           <div className="chess-notation-heading">
-            <h4>Ходы</h4>
-            <span>{live ? 'Текущая позиция' : 'Просмотр'}</span>
+            <h4>{t(($) => $.chess.notation.title)}</h4>
+            <span>{live ? t(($) => $.chess.notation.live) : t(($) => $.chess.notation.review)}</span>
           </div>
-          <ol className="chess-notation" ref={notation} aria-label="История ходов">
+          <ol className="chess-notation" ref={notation} aria-label={t(($) => $.chess.notation.history)}>
             {[...moveRows].map(([number, moves]) => (
               <li key={number}>
                 <span>{number}.</span>
@@ -565,7 +585,10 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                       key={parity}
                       type="button"
                       aria-current={move.ply === shownPly ? 'step' : undefined}
-                      aria-label={`Ход ${number} ${parity ? 'белых' : 'чёрных'}: ${move.san}`}
+                      aria-label={t(($) => $.chess.notation.move[parity ? 'white' : 'black'], {
+                        number,
+                        san: move.san,
+                      })}
                       onClick={() => review(move.ply)}
                     >
                       {move.san}
@@ -576,25 +599,27 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                 })}
               </li>
             ))}
-            {table.moves.length === 0 && <li className="chess-no-moves">Первый ход появится здесь.</li>}
+            {table.moves.length === 0 && (
+              <li className="chess-no-moves">{t(($) => $.chess.notation.empty)}</li>
+            )}
           </ol>
           <div className="chess-history-controls">
             <IconButton
-              label="Начальная позиция"
+              label={t(($) => $.chess.notation.start)}
               disabled={shownPly <= minimumPly}
               onClick={() => review(minimumPly)}
             >
               <ChevronsLeft size={18} />
             </IconButton>
             <IconButton
-              label="Предыдущий ход"
+              label={t(($) => $.chess.notation.previous)}
               disabled={shownPly <= minimumPly}
               onClick={() => review(shownPly - 1)}
             >
               <ChevronLeft size={18} />
             </IconButton>
             <IconButton
-              label="Следующий ход"
+              label={t(($) => $.chess.notation.next)}
               disabled={live || shownPly >= table.ply}
               onClick={() => review(shownPly + 1)}
             >
@@ -606,7 +631,8 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               aria-pressed={live}
               onClick={() => review(null)}
             >
-              <span />В игре
+              <span />
+              {t(($) => $.chess.notation.liveButton)}
             </button>
           </div>
 
@@ -614,21 +640,21 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
             <div className="chess-game-actions">
               {table.drawOffer && table.drawOffer !== color ? (
                 <div className="chess-draw-offer">
-                  <p>Соперник предлагает ничью</p>
+                  <p>{t(($) => $.chess.draw.offered)}</p>
                   <div>
                     <button
                       className="button"
                       disabled={pending}
                       onClick={() => void send('chess.act', undefined, { option: 'draw-accept' })}
                     >
-                      Принять
+                      {t(($) => $.chess.draw.accept)}
                     </button>
                     <button
                       className="button secondary"
                       disabled={pending}
                       onClick={() => void send('chess.act', undefined, { option: 'draw-decline' })}
                     >
-                      Отклонить
+                      {t(($) => $.chess.draw.decline)}
                     </button>
                   </div>
                 </div>
@@ -640,7 +666,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                   onClick={() => void send('chess.act', undefined, { option: 'draw-offer' })}
                 >
                   <Handshake size={17} />
-                  {table.drawOffer === color ? 'Ничья предложена' : 'Предложить ничью'}
+                  {table.drawOffer === color ? t(($) => $.chess.draw.pending) : t(($) => $.chess.draw.offer)}
                 </button>
               )}
               {table.claimableDraws.length > 0 && (
@@ -650,7 +676,9 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                   disabled={pending}
                   onClick={() => void send('chess.act', undefined, { option: 'draw-claim' })}
                 >
-                  Заявить ничью ({table.claimableDraws.includes('threefold') ? 'повторение' : '50 ходов'})
+                  {table.claimableDraws.includes('threefold')
+                    ? t(($) => $.chess.draw.claimRepetition)
+                    : t(($) => $.chess.draw.claimFiftyMoves)}
                 </button>
               )}
               <button
@@ -660,13 +688,13 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                 onClick={() => setConfirmation('resign')}
               >
                 <Flag size={16} />
-                Сдаться
+                {t(($) => $.chess.resign)}
               </button>
             </div>
           )}
           {color && table.phase !== 'playing' && (
             <button className="chess-text-action" disabled={pending} onClick={() => void send('chess.stand')}>
-              Стать зрителем
+              {t(($) => $.chess.stand)}
             </button>
           )}
           {error && (
@@ -677,25 +705,16 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
           {spectators.length > 0 && (
             <div className="chess-spectators">
               <h4>
-                Зрители <span>{spectators.length}</span>
+                {t(($) => $.chess.spectators)} <span>{spectators.length}</span>
               </h4>
               <GamePeople meeting={meeting} memberIds={spectators} game="chess" />
             </div>
           )}
           <details className="chess-help">
-            <summary>Как играть</summary>
-            <p>
-              Нажмите на фигуру и клетку назначения или перетащите её. С клавиатуры: стрелки выбирают клетку,
-              Enter — фигуру и ход, Escape отменяет выбор.
-            </p>
-            <p>
-              Рокировка — ход короля на две клетки. При превращении пешки выберите новую фигуру. Цель —
-              поставить мат королю соперника.
-            </p>
-            <p>
-              Часы продолжают идти при потере связи. Ничью по троекратному повторению или правилу 50 ходов
-              можно заявить, когда появится кнопка.
-            </p>
+            <summary>{t(($) => $.chess.help.title)}</summary>
+            <p>{t(($) => $.chess.help.controls)}</p>
+            <p>{t(($) => $.chess.help.rules)}</p>
+            <p>{t(($) => $.chess.help.clock)}</p>
           </details>
         </aside>
       </div>
@@ -713,23 +732,23 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
         onOpenChange={(open) => {
           if (!open) setPromotion(null);
         }}
-        title="Превращение пешки"
-        description="Выберите фигуру, в которую превратится пешка."
+        title={t(($) => $.chess.promotion.title)}
+        description={t(($) => $.chess.promotion.description)}
       >
         <div className="chess-promotion">
           {PROMOTIONS.map((choice) => {
-            const uci = promotion?.find((move) => move.endsWith(choice.piece));
-            const piece = (color === 'white' ? choice.piece.toUpperCase() : choice.piece) as ChessPiece;
+            const uci = promotion?.find((move) => move.endsWith(choice));
+            const piece = (color === 'white' ? choice.toUpperCase() : choice) as ChessPiece;
             return (
               <button
                 type="button"
-                key={choice.piece}
-                aria-label={choice.action}
+                key={choice}
+                aria-label={t(($) => $.chess.promotion.pieces[choice].action)}
                 disabled={!uci || pending}
                 onClick={() => uci && playMove(uci)}
               >
                 <img src={pieceImage(piece)} alt="" />
-                <span>{choice.label}</span>
+                <span>{t(($) => $.chess.promotion.pieces[choice].label)}</span>
               </button>
             );
           })}
@@ -740,8 +759,8 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
         onOpenChange={(open) => {
           if (!open) setClaimMove(null);
         }}
-        title="Этот ход позволяет заявить ничью"
-        description="Можно завершить партию ничьей по правилам повторения позиции или 50 ходов либо продолжить играть."
+        title={t(($) => $.chess.claim.title)}
+        description={t(($) => $.chess.claim.description)}
       >
         <div className="chess-confirm-actions">
           <button
@@ -752,7 +771,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               setClaimMove(null);
             }}
           >
-            Продолжить партию
+            {t(($) => $.chess.claim.continue)}
           </button>
           <button
             className="button primary"
@@ -762,7 +781,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               setClaimMove(null);
             }}
           >
-            Заявить ничью
+            {t(($) => $.chess.claim.claim)}
           </button>
         </div>
       </Modal>
@@ -771,16 +790,20 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
         onOpenChange={(open) => {
           if (!open) setConfirmation(null);
         }}
-        title={confirmation === 'resign' ? 'Сдаться в этой партии?' : 'Закрыть шахматы?'}
+        title={
+          confirmation === 'resign'
+            ? t(($) => $.chess.confirm.resignTitle)
+            : t(($) => $.chess.confirm.closeTitle)
+        }
         description={
           confirmation === 'resign'
-            ? 'Соперник получит победу. После этого можно предложить реванш.'
-            : 'Доска исчезнет у всех участников. Скачайте PGN, если хотите сохранить партию.'
+            ? t(($) => $.chess.confirm.resignDescription)
+            : t(($) => $.chess.confirm.closeDescription)
         }
       >
         <div className="chess-confirm-actions">
           <button className="button secondary" onClick={() => setConfirmation(null)}>
-            Отмена
+            {t(($) => $.chess.confirm.cancel)}
           </button>
           <button
             className="button danger"
@@ -795,7 +818,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               );
             }}
           >
-            {confirmation === 'resign' ? 'Сдаться' : 'Закрыть шахматы'}
+            {confirmation === 'resign' ? t(($) => $.chess.confirm.resign) : t(($) => $.chess.confirm.close)}
           </button>
         </div>
       </Modal>
@@ -818,6 +841,7 @@ function ChessClock({
   untimed: boolean;
   label: string;
 }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => meeting.serverNow());
   useEffect(() => {
     setNow(meeting.serverNow());
@@ -830,7 +854,10 @@ function ChessClock({
     <div
       className="chess-clock"
       role="timer"
-      aria-label={`${label}: ${untimed ? 'без часов' : clockLabel(left)}`}
+      aria-label={t(($) => $.chess.clock, {
+        side: label,
+        time: untimed ? t(($) => $.chess.untimed) : clockLabel(left),
+      })}
       data-running={running || undefined}
       data-urgent={(!untimed && running && left < 30_000) || undefined}
     >

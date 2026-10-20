@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { t } from '../i18n';
 
 const manifest = {
   version: '0.6.0',
@@ -27,7 +28,7 @@ it('turns the published manifest into the two links the page draws', async () =>
   expect(release?.version).toBe('0.6.0');
   expect(release?.installer?.url).toBe('/downloads/windows/v0.6.0/Cord-Setup-0.6.0-x64.exe');
   expect(release?.portable?.url).toBe('/downloads/windows/v0.6.0/Cord-win-x64.zip');
-  expect(megabytes(release!.installer!.size)).toBe('309 МБ');
+  expect(megabytes(t, release!.installer!.size)).toBe('309 МБ');
   // Asked once per page load: the link in the header and the page itself share one answer.
   expect(fetch).toHaveBeenCalledTimes(1);
   await windowsRelease();

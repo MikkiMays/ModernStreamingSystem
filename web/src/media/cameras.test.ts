@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../i18n';
 import { classifyCameras, lensesFor, type CameraInput } from './cameras';
 
 const camera = (deviceId: string, label: string, facingMode?: string[]): CameraInput => ({
@@ -13,7 +14,7 @@ describe('какие камеры предлагать', () => {
   it('находит широкоугольную по возможностям и названию', () => {
     expect(
       labels(
-        classifyCameras([
+        classifyCameras(t, [
           camera('1', 'camera2 0, facing front', ['user']),
           camera('2', 'camera2 1, facing back', ['environment']),
           camera('3', 'camera2 2, facing back ultra wide', ['environment']),
@@ -26,7 +27,7 @@ describe('какие камеры предлагать', () => {
   it('обходится одними названиями, когда возможностей нет', () => {
     expect(
       labels(
-        classifyCameras([
+        classifyCameras(t, [
           camera('1', 'Front Camera'),
           camera('2', 'Back Camera'),
           camera('3', 'Back Ultra Wide Camera'),
@@ -36,7 +37,7 @@ describe('какие камеры предлагать', () => {
   });
 
   it('берёт по две на сторону и не больше четырёх всего', () => {
-    const list = classifyCameras([
+    const list = classifyCameras(t, [
       camera('1', 'Front Camera'),
       camera('2', 'Front Wide Camera'),
       camera('3', 'Back Camera'),
@@ -50,7 +51,7 @@ describe('какие камеры предлагать', () => {
 
   /** Телефото и глубина рядом с двумя понятными кнопками — шум, а не выбор. */
   it('не предлагает телефото и датчик глубины как основную', () => {
-    const list = classifyCameras([
+    const list = classifyCameras(t, [
       camera('1', 'Back Telephoto Camera'),
       camera('2', 'Back Camera'),
       camera('3', 'Front Camera'),
@@ -59,20 +60,22 @@ describe('какие камеры предлагать', () => {
   });
 
   it('молчит, когда сторону назвать нечем: это не телефон', () => {
-    expect(classifyCameras([camera('1', 'HD Webcam C920'), camera('2', 'OBS Virtual Camera')])).toEqual([]);
+    expect(classifyCameras(t, [camera('1', 'HD Webcam C920'), camera('2', 'OBS Virtual Camera')])).toEqual(
+      [],
+    );
   });
 
   it('молчит про одну камеру: одна камера — это не выбор', () => {
-    expect(classifyCameras([camera('1', 'Front Camera', ['user'])])).toEqual([]);
+    expect(classifyCameras(t, [camera('1', 'Front Camera', ['user'])])).toEqual([]);
   });
 
   it('пропускает устройства без идентификатора: разрешения ещё не дали', () => {
-    expect(classifyCameras([camera('', 'Front Camera'), camera('', 'Back Camera')])).toEqual([]);
+    expect(classifyCameras(t, [camera('', 'Front Camera'), camera('', 'Back Camera')])).toEqual([]);
   });
 });
 
 describe('переключатель линз на своей плитке (T21)', () => {
-  const phone = classifyCameras([
+  const phone = classifyCameras(t, [
     camera('front', 'Front Camera'),
     camera('back', 'Back Camera'),
     camera('wide', 'Back Ultra Wide Camera'),
@@ -99,7 +102,7 @@ describe('переключатель линз на своей плитке (T21)
   });
 
   it('вторая линза без слова «широкоугольная» — «1» и «2», без обещаний', () => {
-    const android = classifyCameras([
+    const android = classifyCameras(t, [
       camera('0', 'camera2 0, facing back', ['environment']),
       camera('2', 'camera2 2, facing back', ['environment']),
       camera('1', 'camera2 1, facing front', ['user']),

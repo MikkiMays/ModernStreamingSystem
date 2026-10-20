@@ -1,20 +1,12 @@
 import { Check, SwitchCamera, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TrackEvent } from 'livekit-client';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { MediaTile } from '../media/session';
 import { classifyCameras, lensesFor, readCameras, type CameraChoice } from '../media/cameras';
 import { IconButton, MenuItem, MenuSeparator, MenuSubmenu } from './kit';
 import { useStore } from './primitives';
-
-/** Строки камеры — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  flip: 'Сменить камеру',
-  camera: 'Камера',
-  next: 'Следующая камера',
-  numbered: (index: number) => `Камера ${index + 1}`,
-  lenses: 'Линза камеры',
-};
 
 /**
  * Смена камеры на телефоне — одно нажатие, сразу другая сторона (T21).
@@ -25,12 +17,13 @@ const TEXT = {
  * той же стороны — переключателем на своей плитке (`LensSwitch`).
  */
 export function CameraFlip({ meeting, disabled }: { meeting: Meeting; disabled?: boolean }) {
+  const { t } = useTranslation();
   return (
     <IconButton
       tone="stage"
       size="lg"
       className="dock-button"
-      label={TEXT.flip}
+      label={t(($) => $.devices.camera.flip)}
       disabled={disabled}
       onClick={() => void meeting.media.flipCamera()}
     >
@@ -46,6 +39,7 @@ export function CameraFlip({ meeting, disabled }: { meeting: Meeting; disabled?:
  * делают раз в жизни устройства. Список — здесь и в «Голос и видео» в настройках.
  */
 export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const chosen = useStore(meeting.media.preferences).devices.camera;
   // Подменю живёт, пока открыто «ещё»: список читается при каждом открытии — камеру могли
@@ -61,9 +55,9 @@ export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
     };
   }, []);
   return (
-    <MenuSubmenu icon={<Video />} label={TEXT.camera}>
+    <MenuSubmenu icon={<Video />} label={t(($) => $.devices.camera.title)}>
       <MenuItem icon={<SwitchCamera />} onClick={() => void meeting.media.flipCamera()}>
-        {TEXT.next}
+        {t(($) => $.devices.camera.next)}
       </MenuItem>
       {devices.length > 0 && <MenuSeparator />}
       {devices.map((device, index) => (
@@ -72,7 +66,7 @@ export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
           icon={device.deviceId && device.deviceId === chosen ? <Check /> : undefined}
           onClick={() => void meeting.media.switchDevice('videoinput', device.deviceId)}
         >
-          {device.label || TEXT.numbered(index)}
+          {device.label || t(($) => $.devices.camera.numbered, { n: index + 1 })}
         </MenuItem>
       ))}
     </MenuSubmenu>
@@ -87,6 +81,7 @@ export function CameraSubmenu({ meeting }: { meeting: Meeting }) {
  * переключателя не получают.
  */
 export function LensSwitch({ meeting, tile }: { meeting: Meeting; tile: MediaTile }) {
+  const { t } = useTranslation();
   const [choices, setChoices] = useState<CameraChoice[]>([]);
   const [current, setCurrent] = useState<MediaTrackSettings>({});
   useEffect(() => {
@@ -94,7 +89,7 @@ export function LensSwitch({ meeting, tile }: { meeting: Meeting; tile: MediaTil
     const read = () => {
       setCurrent(tile.track.mediaStreamTrack?.getSettings() ?? {});
       void readCameras()
-        .then((cameras) => alive && setChoices(classifyCameras(cameras)))
+        .then((cameras) => alive && setChoices(classifyCameras(t, cameras)))
         .catch(() => {});
     };
     read();
@@ -106,11 +101,11 @@ export function LensSwitch({ meeting, tile }: { meeting: Meeting; tile: MediaTil
       tile.track.off(TrackEvent.Restarted, read);
       navigator.mediaDevices?.removeEventListener?.('devicechange', read);
     };
-  }, [tile.track]);
+  }, [tile.track, t]);
   const lenses = lensesFor(choices, current);
   if (!lenses) return null;
   return (
-    <div className="lens-switch" role="group" aria-label={TEXT.lenses}>
+    <div className="lens-switch" role="group" aria-label={t(($) => $.devices.camera.lenses)}>
       {lenses.map((lens) => (
         <button
           key={lens.deviceId}

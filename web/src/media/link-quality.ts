@@ -1,3 +1,5 @@
+import type { Translate } from '../i18n';
+
 /**
  * Какой канал нам сегодня достался.
  *
@@ -208,16 +210,10 @@ export function linkChanged(before: LinkState, after: LinkState) {
   );
 }
 
-export function pathName(path: LinkPath) {
-  return {
-    'direct-udp': 'Прямой к серверу медиа · UDP',
-    'direct-tcp': 'Прямой к серверу медиа · TCP',
-    'relay-udp': 'Через ретранслятор TURN · UDP',
-    'relay-tcp': 'Через ретранслятор TURN · TCP/TLS',
-    unknown: 'Путь не определён',
-  }[path];
+export function pathName(t: Translate, path: LinkPath) {
+  return t(($) => $.media.link.paths[path]);
 }
 
-export function gradeName(grade: LinkGrade) {
-  return { good: 'Хороший', fair: 'Средний', poor: 'Слабый', unknown: 'Пока нет данных' }[grade];
+export function gradeName(t: Translate, grade: LinkGrade) {
+  return t(($) => $.media.link.grades[grade]);
 }

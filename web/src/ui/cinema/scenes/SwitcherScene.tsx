@@ -1,11 +1,14 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   CinemaApi,
   PROVIDERS,
+  providerName,
   QUERY_LONGEST,
   SWITCHER_TABS,
+  type ChannelTab,
   type CinemaItem,
   type ProviderId,
 } from '../../../core/cinema';
@@ -15,7 +18,7 @@ import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
 import { Empty, Failure, Following, Loading } from '../catalog/notes';
 import { CategoryPage } from '../catalog/pages/CategoryPage';
-import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
+import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
 import { Shell } from '../catalog/Shell';
@@ -31,23 +34,15 @@ import type { SceneProps } from '.';
  * С чего начать, когда ещё ничего не набрано.
  *
  * Пустой экран с надписью «наберите название» — это вопрос без подсказки: люди приходят в
- * кинозал не с готовым запросом, а с «давай что-нибудь посмотрим».
+ * кинозал не с готовым запросом, а с «давай что-нибудь посмотрим». Слова — в каталоге
+ * (`cinema.switcher.hints`): подсказка уходит в поиск на языке того, кто её нажал.
  */
-const HINTS = ['Фильмы целиком', 'Музыка', 'Подкасты', 'Документальные', 'Стендап', 'Мультфильмы'];
+const HINTS = ['movies', 'music', 'podcasts', 'documentaries', 'standup', 'cartoons'] as const;
 
 /** Вкладки канала. У YouTube они те же, что на самой площадке; у Twitch их две. */
-const TABS: Partial<Record<ProviderId, readonly ChannelTabSpec[]>> = {
-  youtube: [
-    { id: 'videos', name: 'Видео' },
-    { id: 'streams', name: 'Трансляции' },
-    { id: 'shorts', name: 'Короткие' },
-    { id: 'playlists', name: 'Плейлисты' },
-    { id: 'about', name: 'О канале' },
-  ],
-  twitch: [
-    { id: 'videos', name: 'Видео' },
-    { id: 'about', name: 'О канале' },
-  ],
+const TABS: Partial<Record<ProviderId, readonly ChannelTab[]>> = {
+  youtube: ['videos', 'streams', 'shorts', 'playlists', 'about'],
+  twitch: ['videos', 'about'],
 };
 
 /** Смотрится ли это вместе прямо отсюда, или в это заходят. */
@@ -72,6 +67,7 @@ function playable(item: CinemaItem): boolean {
  * ссылке (`at`), начинается сразу с её страницы.
  */
 export default function SwitcherScene({ provider, at, meeting, onProvider, onClose }: SceneProps) {
+  const { t } = useTranslation();
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const watching = !!useStore(meeting.snapshot).watch;
   const { canUse, busy, error, open } = useTogether(meeting);
@@ -157,7 +153,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
     <Shell
       onBack={stack.length > 1 ? back : undefined}
       tabs={
-        <div className="cinema-services" role="tablist" aria-label="Площадка">
+        <div className="cinema-services" role="tablist" aria-label={t(($) => $.cinema.switcher.tabsLabel)}>
           {tabs.map((id) => {
             const service = PROVIDERS[id];
             return (
@@ -167,21 +163,21 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 aria-selected={provider === id}
                 className="cinema-service"
                 data-id={id}
-                title={service.hint}
+                title={t(($) => $.cinema.providers[id].hint)}
                 // Цвет выбранной вкладки — из реестра площадок, той же карточки, что красит и
                 // плитку в панели интеграций: CSS больше не хранит вторую копию этих hex-ов.
                 style={{ '--accent': service.accent } as CSSProperties}
                 onClick={() => onProvider(id)}
               >
                 <service.icon size={15} />
-                {service.name}
+                {providerName(t, id)}
               </button>
             );
           })}
         </div>
       }
       query={query}
-      placeholder={PROVIDERS[provider].searchPlaceholder}
+      placeholder={t(($) => $.cinema.providers[provider].search)}
       maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
@@ -209,14 +205,18 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
           {/* У Twitch каталог начинается не с поиска: там сначала выбирают, что смотрят,
               и только потом — кого. Поэтому разделы стоят рядом с эфирами, а не прячутся. */}
           {provider === 'twitch' && (
-            <nav className="cinema-shelves" role="tablist" aria-label="Витрина Twitch">
+            <nav
+              className="cinema-shelves"
+              role="tablist"
+              aria-label={t(($) => $.cinema.switcher.shelvesLabel)}
+            >
               <button
                 role="tab"
                 aria-selected={shelf === 'live'}
                 className="cinema-shelf-tab"
                 onClick={() => setShelf('live')}
               >
-                <Radio size={15} /> Эфиры
+                <Radio size={15} /> {t(($) => $.cinema.switcher.live)}
               </button>
               <button
                 role="tab"
@@ -224,14 +224,18 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 className="cinema-shelf-tab"
                 onClick={() => setShelf('categories')}
               >
-                <Gamepad2 size={15} /> Категории
+                <Gamepad2 size={15} /> {t(($) => $.cinema.switcher.categories)}
               </button>
             </nav>
           )}
 
           {shelf === 'categories' && provider === 'twitch' ? (
             <>
-              <h4 className="cinema-heading">{settled ? 'Найденные разделы' : 'Популярные разделы'}</h4>
+              <h4 className="cinema-heading">
+                {settled
+                  ? t(($) => $.cinema.switcher.foundSections)
+                  : t(($) => $.cinema.switcher.popularSections)}
+              </h4>
               {categories.isError && <Failure problem={categories.error} />}
               {categories.data && <Grid kind="boxes">{cardsOf(categories.data.pages).map(card)}</Grid>}
               {categories.isFetching && !categories.isFetchingNextPage && <Loading />}
@@ -241,7 +245,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 onMore={() => void categories.fetchNextPage()}
               />
               {categories.data?.pages[0]?.items.length === 0 && !categories.isFetching && (
-                <Empty text="Таких разделов на Twitch нет." />
+                <Empty text={t(($) => $.cinema.switcher.noSections)} />
               )}
             </>
           ) : (
@@ -249,37 +253,42 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
               {provider === 'youtube' && settled.length <= 1 && (
                 <div className="cinema-empty">
                   <Clapperboard size={40} />
-                  <b>Что включим комнате?</b>
-                  <small>Найдётся то же, что и на YouTube: ролик, фильм целиком или канал.</small>
+                  <b>{t(($) => $.cinema.switcher.emptyTitle)}</b>
+                  <small>{t(($) => $.cinema.switcher.emptyText)}</small>
                   <div className="cinema-hints">
-                    {HINTS.map((hint) => (
-                      <button key={hint} className="cinema-chip-button" onClick={() => setQuery(hint)}>
-                        {hint}
-                      </button>
-                    ))}
+                    {HINTS.map((id) => {
+                      const hint = t(($) => $.cinema.switcher.hints[id]);
+                      return (
+                        <button key={id} className="cinema-chip-button" onClick={() => setQuery(hint)}>
+                          {hint}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
-              {provider === 'twitch' && !settled && <h4 className="cinema-heading">Сейчас в эфире</h4>}
+              {provider === 'twitch' && !settled && (
+                <h4 className="cinema-heading">{t(($) => $.cinema.switcher.liveNow)}</h4>
+              )}
               {/* Полки над лентой: каналы у YouTube, разделы у Twitch. Набрав имя канала,
                   человек ищет сам канал, а не ролики про него — и находит его первым. */}
               {!!results.data?.pages[0]?.channels.length && (
                 <>
-                  <h4 className="cinema-heading">Каналы</h4>
+                  <h4 className="cinema-heading">{t(($) => $.cinema.headings.channels)}</h4>
                   <Grid kind="faces">{results.data.pages[0].channels.map(card)}</Grid>
-                  <h4 className="cinema-heading">Видео</h4>
+                  <h4 className="cinema-heading">{t(($) => $.cinema.headings.videos)}</h4>
                 </>
               )}
               {!!results.data?.pages[0]?.categories.length && (
                 <>
-                  <h4 className="cinema-heading">Разделы</h4>
+                  <h4 className="cinema-heading">{t(($) => $.cinema.headings.sections)}</h4>
                   {/* Полка, а не витрина: обложки здесь мельче и стоят одним рядом. В полный
                       рост они занимали весь первый экран, и найденные каналы — то, за чем
                       сюда и пришли, — оказывались ниже края. */}
                   <div className="cinema-shelf">
                     <Grid kind="boxes">{results.data.pages[0].categories.slice(0, 6).map(card)}</Grid>
                   </div>
-                  <h4 className="cinema-heading">Каналы</h4>
+                  <h4 className="cinema-heading">{t(($) => $.cinema.headings.channels)}</h4>
                 </>
               )}
               {results.isError && <Failure problem={results.error} />}
@@ -293,7 +302,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
               {results.data?.pages[0]?.items.length === 0 &&
                 !results.data?.pages[0]?.channels.length &&
                 !results.data?.pages[0]?.categories.length &&
-                !results.isFetching && <Empty text="Ничего не нашлось. Попробуйте другие слова." />}
+                !results.isFetching && <Empty text={t(($) => $.cinema.search.nothing)} />}
             </>
           )}
         </>
@@ -326,7 +335,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
           category={page.category}
           title={view.title}
           // Разделы в этом каталоге бывают только у Twitch.
-          note="Раздел Twitch"
+          note={t(($) => $.cinema.switcher.categoryNote)}
           feed={page.opened}
           items={page.items}
           card={card}

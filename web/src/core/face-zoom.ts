@@ -1,3 +1,4 @@
+import { locale, type Translate } from '../i18n';
 import type { GameKind } from './preferences';
 
 /**
@@ -51,9 +52,9 @@ export function saveZoom(game: GameKind, person: string, zoom: FaceZoom): Record
 }
 
 /** Подпись кнопки — что она сделает, а не что сейчас. */
-export function zoomLabel(zoom: number, name: string): string {
+export function zoomLabel(t: Translate, zoom: number, name: string): string {
   const next = nextZoom(zoom);
   return next === 1
-    ? `Вернуть обычный размер: ${name}`
-    : `Увеличить лицо до ${String(next).replace('.', ',')}×: ${name}`;
+    ? t(($) => $.stage.faceZoom.reset, { name })
+    : t(($) => $.stage.faceZoom.zoomIn, { zoom: new Intl.NumberFormat(locale(t)).format(next), name });
 }

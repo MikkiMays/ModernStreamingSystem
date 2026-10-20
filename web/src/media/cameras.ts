@@ -18,6 +18,8 @@
  * Соврать о том, чего не знаем, хуже, чем назвать вещь нейтрально.
  */
 
+import type { Translate } from '../i18n';
+
 export type CameraSide = 'user' | 'environment';
 
 export interface CameraChoice {
@@ -60,7 +62,7 @@ function sideOf(camera: CameraInput): CameraSide | null {
  *   классифицировать нечего — обычно это настольная машина с одной камерой, где выбор
  *   и не нужен, либо имена ещё не выданы, потому что нет разрешения.
  */
-export function classifyCameras(cameras: CameraInput[]): CameraChoice[] {
+export function classifyCameras(t: Translate, cameras: CameraInput[]): CameraChoice[] {
   const sides: Record<CameraSide, CameraInput[]> = { user: [], environment: [] };
   for (const camera of cameras) {
     if (!camera.deviceId) continue;
@@ -79,7 +81,7 @@ export function classifyCameras(cameras: CameraInput[]): CameraChoice[] {
     const [main, ...rest] = ordered;
     choices.push({
       deviceId: main!.deviceId,
-      label: side === 'user' ? 'Фронтальная' : 'Основная',
+      label: side === 'user' ? t(($) => $.devices.lens.front) : t(($) => $.devices.lens.main),
       side,
       primary: true,
       wide: false,
@@ -91,11 +93,11 @@ export function classifyCameras(cameras: CameraInput[]): CameraChoice[] {
         deviceId: second.deviceId,
         label: WIDE.test(second.label)
           ? side === 'user'
-            ? 'Фронтальная широкоугольная'
-            : 'Широкоугольная'
+            ? t(($) => $.devices.lens.frontWide)
+            : t(($) => $.devices.lens.wide)
           : side === 'user'
-            ? 'Вторая фронтальная'
-            : 'Вторая основная',
+            ? t(($) => $.devices.lens.secondFront)
+            : t(($) => $.devices.lens.secondMain),
         side,
         primary: false,
         wide: WIDE.test(second.label),

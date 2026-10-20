@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Download, RefreshCw, Send, TriangleAlert } from 'lucide-react';
 import { isNewer, windowsRelease, type WindowsRelease } from '../../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop } from '../../core/desktop';
@@ -17,6 +18,7 @@ import { SettingGroup, SettingRow } from './Row';
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  */
 export function AboutSection() {
+  const { t } = useTranslation();
   const desktop = !!window.chrome?.webview;
   const shell = useStore(desktopUpdate);
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
@@ -48,16 +50,19 @@ export function AboutSection() {
       ? undefined
       : shell.status || undefined
     : latest === undefined
-      ? 'Смотрим, какой выпуск последний…'
+      ? t(($) => $.settings.about.checking)
       : latest === null
-        ? 'Не удалось узнать последний выпуск для Windows'
+        ? t(($) => $.settings.about.unknown)
         : fresh
-          ? 'Веб-клиент обновляется вместе с сервером'
-          : `Последний выпуск для Windows — ${latest}`;
+          ? t(($) => $.settings.about.webUpdates)
+          : t(($) => $.settings.about.latest, { version: latest });
   return (
     <>
       <SettingGroup title="Cord" collapsible={false}>
-        <SettingRow id="about-version" hint={desktop ? 'Приложение для Windows' : 'Веб-клиент этого сервера'}>
+        <SettingRow
+          id="about-version"
+          hint={desktop ? t(($) => $.settings.about.desktop) : t(($) => $.settings.about.web)}
+        >
           <span className="setting-value setting-value--strong">
             Cord {desktop ? desktopVersion(shell) || '…' : appLabel}
           </span>
@@ -71,8 +76,8 @@ export function AboutSection() {
                 <TriangleAlert size={15} aria-hidden="true" />
                 <span>
                   {desktop
-                    ? shell.status || 'Доступно обновление приложения.'
-                    : `Для Windows вышел Cord ${latest}.`}
+                    ? shell.status || t(($) => $.settings.about.desktopUpdate)
+                    : t(($) => $.settings.about.windowsUpdate, { version: latest })}
                 </span>
               </p>
             ) : undefined
@@ -83,10 +88,10 @@ export function AboutSection() {
               size="sm"
               icon={<RefreshCw />}
               loading={checking}
-              aria-label="Проверить обновления"
+              aria-label={t(($) => $.settings.about.checkLabel)}
               onClick={check}
             >
-              Проверить
+              {t(($) => $.settings.about.check)}
             </Button>
             {desktop && shell.available && (
               <Button
@@ -95,7 +100,7 @@ export function AboutSection() {
                 icon={<Download />}
                 onClick={() => notifyDesktop('update.apply')}
               >
-                Обновить
+                {t(($) => $.settings.about.update)}
               </Button>
             )}
             {!desktop && fresh && release?.installer && (
@@ -107,12 +112,14 @@ export function AboutSection() {
                 <span className="ui-button__icon" aria-hidden="true">
                   <Download />
                 </span>
-                <span className="ui-button__label">Скачать {latest}</span>
+                <span className="ui-button__label">
+                  {t(($) => $.settings.about.download, { version: latest })}
+                </span>
               </a>
             )}
           </div>
         </SettingRow>
-        <SettingRow id="about-author" hint={<>Cord создаёт и развивает @nikgers</>}>
+        <SettingRow id="about-author" hint={t(($) => $.settings.about.author)}>
           {/*
             У ссылки один значок: конверт Telegram узнаётся и без подписи, а подпись рядом с именем
             автора читалась как призыв написать. Имя для доступности — в `aria-label`.
@@ -124,8 +131,8 @@ export function AboutSection() {
             href="https://t.me/nikgers"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Telegram автора"
-            title="Telegram автора"
+            aria-label={t(($) => $.settings.about.telegram)}
+            title={t(($) => $.settings.about.telegram)}
           >
             <Send size={18} />
           </a>

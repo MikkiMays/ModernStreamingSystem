@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { hotkeyLabel, matchesHotkey, type Hotkey } from '../../../core/hotkeys';
+import { t } from '../../../i18n';
 import { focusKind, watchKey, type FocusPlace, type KeyContext, type WatchAction } from './watch-keys';
 
 /** Фокус нигде: на самой странице, а не на каком-то её элементе. */
@@ -74,7 +75,7 @@ export function useWatchKeys({
         focus: focusKind(target),
         focusVisible: focusVisible(target),
         micHotkey: !!matchesHotkey(event, mic),
-        micLabel: hotkeyLabel(mic),
+        micLabel: hotkeyLabel(t, mic),
       });
       if (!verdict) return;
       now.wake();

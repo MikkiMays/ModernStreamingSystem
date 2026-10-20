@@ -11,10 +11,12 @@ import {
   MonitorPlay,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   CinemaApi,
   PROVIDER_IDS,
   PROVIDERS,
+  providerName,
   type CinemaAt,
   type CinemaItem,
   type CinemaLinkAnswer,
@@ -23,6 +25,7 @@ import {
   type CinemaPageKind,
 } from '../../../core/cinema';
 import { atOf, forgetLink, knownProvider, linkOf, linkParts } from '../../../core/cinema/link';
+import { locale, type Translate } from '../../../i18n';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { Empty, Failure } from '../catalog/notes';
@@ -36,14 +39,6 @@ import { useStack } from '../catalog/useStack';
 import { useTogether } from '../catalog/useTogether';
 import { languageName } from '../theater/watch-tracks';
 import type { SceneProps } from '.';
-
-/** Строки недавних ссылок — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  recent: 'Недавние ссылки',
-  forget: (address: string) => `Убрать из недавних: ${address}`,
-  clear: 'Очистить всё',
-  clearLabel: 'Очистить недавние ссылки',
-} as const;
 
 /** Страницы у карточки по ссылке нет: всё, что о ней известно, пришло в самом ответе службы. */
 const NO_DETAILS = { data: null, isLoading: false, isError: false, error: null };
@@ -59,9 +54,15 @@ function pageOf(item: CinemaItem): CinemaPageKind {
   return item.kind === 'channel' ? 'channel' : item.kind === 'playlist' ? 'playlist' : 'series';
 }
 
-/** Площадки, чьи ссылки открываются в их же каталоге, — словами: «YouTube, Twitch и VK Видео». */
-const KNOWN = PROVIDER_IDS.filter((id) => PROVIDERS[id].scene !== 'link').map((id) => PROVIDERS[id].name);
-const LISTED = KNOWN.length > 1 ? `${KNOWN.slice(0, -1).join(', ')} и ${KNOWN.at(-1)}` : (KNOWN[0] ?? '');
+/** Площадки, чьи ссылки открываются в их же каталоге. */
+const KNOWN = PROVIDER_IDS.filter((id) => PROVIDERS[id].scene !== 'link');
+
+/** Те же площадки словами, списком по правилам языка: «YouTube, Twitch и VK Видео». */
+function listed(t: Translate): string {
+  return new Intl.ListFormat(locale(t), { type: 'conjunction' }).format(
+    KNOWN.map((id) => providerName(t, id)),
+  );
+}
 
 /**
  * Сцена «По ссылке»: вставить ссылку — и смотреть вместе.
@@ -82,6 +83,7 @@ const LISTED = KNOWN.length > 1 ? `${KNOWN.slice(0, -1).join(', ')} и ${KNOWN.a
  * сервере (её разбор отменяется).
  */
 export default function LinkScene({ provider, at, meeting, onClose }: SceneProps) {
+  const { t } = useTranslation();
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
@@ -208,9 +210,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       choose(url);
     } else
       setClipboard(
-        refused
-          ? 'Браузер не дал прочитать буфер обмена — вставьте ссылку в поле сами.'
-          : 'В буфере обмена нет ссылки.',
+        refused ? t(($) => $.cinema.linkScene.clipboardRefused) : t(($) => $.cinema.linkScene.clipboardEmpty),
       );
   };
 
@@ -220,11 +220,11 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       tabs={
         <span className="cinema-platform" style={accent}>
           <spec.icon size={15} />
-          {spec.name}
+          {providerName(t, provider)}
         </span>
       }
       query={query}
-      placeholder={spec.searchPlaceholder}
+      placeholder={t(($) => $.cinema.providers[provider].search)}
       onSearch={(value, whole) => {
         setQuery(value);
         link.cancel();
@@ -260,23 +260,25 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
         <>
           <div className="cinema-empty">
             <Link2 size={40} />
-            <b>Вставьте ссылку на видео</b>
-            <small>
-              Ролик, эфир, канал или плейлист {LISTED} откроется в их каталоге — сразу на своей странице.
-            </small>
+            <b>{t(($) => $.cinema.linkScene.title)}</b>
+            <small>{t(($) => $.cinema.linkScene.intro, { providers: listed(t) })}</small>
             <button className="button secondary" onClick={() => void paste()}>
-              <ClipboardPaste size={17} /> Вставить из буфера
+              <ClipboardPaste size={17} /> {t(($) => $.cinema.linkScene.paste)}
             </button>
             {clipboard ? <small role="alert">{clipboard}</small> : null}
           </div>
           {recent.length ? (
-            <section className="cinema-link-recent" aria-label={TEXT.recent}>
+            <section className="cinema-link-recent" aria-label={t(($) => $.cinema.linkScene.recent)}>
               <header className="cinema-link-recent-head">
                 <h4 className="cinema-heading">
-                  <History size={13} /> {TEXT.recent}
+                  <History size={13} /> {t(($) => $.cinema.linkScene.recent)}
                 </h4>
-                <button className="text-button" aria-label={TEXT.clearLabel} onClick={clearRecent}>
-                  {TEXT.clear}
+                <button
+                  className="text-button"
+                  aria-label={t(($) => $.cinema.linkScene.clearLabel)}
+                  onClick={clearRecent}
+                >
+                  {t(($) => $.cinema.linkScene.clear)}
                 </button>
               </header>
               <ul>
@@ -291,8 +293,8 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
                       </button>
                       <button
                         className="cinema-link-forget"
-                        aria-label={TEXT.forget(`${host}${rest}`)}
-                        title={TEXT.forget(host)}
+                        aria-label={t(($) => $.cinema.linkScene.forget, { address: `${host}${rest}` })}
+                        title={t(($) => $.cinema.linkScene.forget, { address: host })}
                         onClick={() => forget(url)}
                       >
                         <X size={15} />
@@ -308,17 +310,17 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
         // Набрана руками и ещё не спрошена: спрашивают по Enter или кнопкой, а не на паузу в наборе.
         <div className="cinema-empty">
           <Link2 size={40} />
-          <b>Открыть эту ссылку?</b>
-          <small>Нажмите Enter или кнопку — кинозал посмотрит, что на этой странице.</small>
+          <b>{t(($) => $.cinema.linkScene.confirmTitle)}</b>
+          <small>{t(($) => $.cinema.linkScene.confirmText)}</small>
           <button className="button primary" onClick={() => ask(query)}>
-            <Link2 size={17} /> Открыть ссылку
+            <Link2 size={17} /> {t(($) => $.cinema.linkScene.open)}
           </button>
         </div>
       ) : !linkOf(typed, true) ? (
-        <Empty text="Это не похоже на ссылку: нужен адрес страницы с видео — например, https://rutube.ru/video/…" />
+        <Empty text={t(($) => $.cinema.linkScene.notLink)} />
       ) : !current ? null : link.checking === current ? (
         <p className="cinema-waiting" role="status">
-          <LoaderCircle size={22} /> Ищем видео…
+          <LoaderCircle size={22} /> {t(($) => $.cinema.linkScene.searching)}
         </p>
       ) : link.problem ? (
         <Failure problem={link.problem} />
@@ -326,13 +328,13 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
         // Сюда ссылка своей площадки попадает, только если переход не состоялся: дверь — руками.
         <div className="cinema-empty">
           <Link2 size={40} />
-          <b>Это ссылка на {PROVIDERS[route.provider].name}</b>
+          <b>{t(($) => $.cinema.linkScene.providerLink, { name: providerName(t, route.provider) })}</b>
           <button className="button primary" onClick={() => meeting.openCinema(route.provider, atOf(route))}>
-            Открыть в {PROVIDERS[route.provider].name}
+            {t(($) => $.cinema.linkScene.openIn, { name: providerName(t, route.provider) })}
           </button>
         </div>
       ) : route ? (
-        <Empty text="Эту площадку знает сервер, но ещё не эта версия кинозала — обновите страницу." />
+        <Empty text={t(($) => $.cinema.linkScene.unknownProvider)} />
       ) : item?.kind === 'series' ? (
         <>
           <SeriesPage
@@ -344,7 +346,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             feed={episodes}
             items={cardsOf(episodes.data?.pages)}
             card={card}
-            empty="В этом плейлисте нечего показать комнате."
+            empty={t(($) => $.cinema.linkScene.playlistEmpty)}
           />
           <Facts item={item} />
         </>
@@ -353,7 +355,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       ) : answer ? (
         <div className="cinema-empty" role="status">
           <Link2 size={40} />
-          <b>{answer.reason || 'Эту ссылку пока не открыть'}</b>
+          <b>{answer.reason || t(($) => $.cinema.linkScene.cannotOpen)}</b>
           <small className="cinema-link-address">{current}</small>
         </div>
       ) : null}
@@ -391,13 +393,14 @@ function Result({
   );
 }
 
-/** Дорожка словами: как её назвал сайт, а если никак — язык по-русски (`ru` — «Русский»). */
-function trackName(track: CinemaLinkTrack): string {
-  return track.label || languageName(track.lang) || 'Без названия';
+/** Дорожка словами: как её назвал сайт, а если никак — язык на языке интерфейса (`ru` — «Русский»). */
+function trackName(t: Translate, track: CinemaLinkTrack): string {
+  return track.label || languageName(t, track.lang) || t(($) => $.cinema.linkScene.untitled);
 }
 
 /** Сайт, качество, звук и субтитры — строками «что — какое»; чего сайт не назвал, того и нет. */
 function Facts({ item }: { item: CinemaLinkItem }) {
+  const { t } = useTranslation();
   const qualities = item.qualities ?? [];
   const audio = item.audio ?? [];
   const captions = item.captions ?? [];
@@ -406,7 +409,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {item.site ? (
         <div>
           <dt>
-            <Globe size={14} /> Сайт
+            <Globe size={14} /> {t(($) => $.cinema.linkScene.site)}
           </dt>
           <dd>{item.site}</dd>
         </div>
@@ -414,7 +417,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {qualities.length ? (
         <div>
           <dt>
-            <MonitorPlay size={14} /> Качество
+            <MonitorPlay size={14} /> {t(($) => $.cinema.linkScene.quality)}
           </dt>
           <dd className="cinema-link-qualities">
             {qualities.map((quality) => (
@@ -428,18 +431,24 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {audio.length ? (
         <div>
           <dt>
-            <AudioLines size={14} /> Звук
+            <AudioLines size={14} /> {t(($) => $.cinema.linkScene.audio)}
           </dt>
-          <dd>{audio.map(trackName).join(', ')}</dd>
+          <dd>{audio.map((track) => trackName(t, track)).join(', ')}</dd>
         </div>
       ) : null}
       {captions.length ? (
         <div>
           <dt>
-            <Captions size={14} /> Субтитры
+            <Captions size={14} /> {t(($) => $.cinema.linkScene.captions)}
           </dt>
           <dd>
-            {captions.map((track) => `${trackName(track)}${track.auto ? ' (распознаны)' : ''}`).join(', ')}
+            {captions
+              .map((track) =>
+                track.auto
+                  ? t(($) => $.cinema.linkScene.recognised, { name: trackName(t, track) })
+                  : trackName(t, track),
+              )
+              .join(', ')}
           </dd>
         </div>
       ) : null}

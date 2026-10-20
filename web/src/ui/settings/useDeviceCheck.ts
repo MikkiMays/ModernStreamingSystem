@@ -6,6 +6,7 @@ import {
   type LocalVideoTrack,
 } from 'livekit-client';
 import type { Preferences } from '../../core/preferences';
+import { t } from '../../i18n';
 import { audioCapture, CordAudioProcessor, needsAudioProcessor } from '../../media/audio';
 
 /**
@@ -144,7 +145,7 @@ export function useDeviceCheck(preferences: Preferences) {
     } catch (e) {
       acquired?.stop();
       if (operation === revision.current)
-        fail(kind, e instanceof Error ? e.message : 'Не удалось включить устройство');
+        fail(kind, e instanceof Error ? e.message : t(($) => $.settings.voice.deviceFailed));
     } finally {
       if (operation === revision.current) setBusy(null);
     }
@@ -189,7 +190,10 @@ export function useDeviceCheck(preferences: Preferences) {
         if (rec.state === 'recording') rec.stop();
       }, 5000);
     } catch {
-      fail('microphone', 'Запись пробы не поддерживается этим браузером. Полоса уровня работает.');
+      fail(
+        'microphone',
+        t(($) => $.settings.voice.recordUnsupported),
+      );
     }
   };
   const speaker = async () => {
@@ -214,7 +218,10 @@ export function useDeviceCheck(preferences: Preferences) {
       tone.stop(ctx.currentTime + 0.65);
     } catch {
       if (ctx.state !== 'closed') await ctx.close();
-      fail('speaker', 'Не удалось воспроизвести тестовый звук');
+      fail(
+        'speaker',
+        t(($) => $.settings.voice.toneFailed),
+      );
     }
   };
   return {

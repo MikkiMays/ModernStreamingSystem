@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../../i18n';
 import {
   atOf,
   forgetLink,
@@ -49,7 +50,7 @@ describe('ссылка в кинозале со стороны браузера'
   });
 
   it('карточка по ссылке — только номер; имя до приезда страницы говорит, что это и откуда', () => {
-    expect(linkCard('vk', { kind: 'video', id: '-1_2' })).toEqual({
+    expect(linkCard(t, 'vk', { kind: 'video', id: '-1_2' })).toEqual({
       provider: 'vk',
       kind: 'video',
       id: '-1_2',
@@ -62,14 +63,16 @@ describe('ссылка в кинозале со стороны браузера'
       views: null,
       poster: null,
     });
-    expect(linkCard('vk', { kind: 'channel', id: 'near_you' })).toMatchObject({
+    expect(linkCard(t, 'vk', { kind: 'channel', id: 'near_you' })).toMatchObject({
       title: 'Эфир VK Видео Live: near_you',
       live: true,
     });
-    expect(linkCard('youtube', { kind: 'video', id: 'dQw4w9WgXcQ' }).title).toBe('Видео YouTube по ссылке');
-    expect(linkCard('twitch', { kind: 'channel', id: 'pesh' }).title).toBe('Эфир Twitch: pesh');
-    expect(linkCard('twitch', { kind: 'video', id: '2000000001' }).title).toBe('Запись Twitch по ссылке');
-    expect(linkCard('rutube', { kind: 'channel', id: '5ab908fccfac5bb43ef2b1e4182256b0' }).title).toBe(
+    expect(linkCard(t, 'youtube', { kind: 'video', id: 'dQw4w9WgXcQ' }).title).toBe(
+      'Видео YouTube по ссылке',
+    );
+    expect(linkCard(t, 'twitch', { kind: 'channel', id: 'pesh' }).title).toBe('Эфир Twitch: pesh');
+    expect(linkCard(t, 'twitch', { kind: 'video', id: '2000000001' }).title).toBe('Запись Twitch по ссылке');
+    expect(linkCard(t, 'rutube', { kind: 'channel', id: '5ab908fccfac5bb43ef2b1e4182256b0' }).title).toBe(
       'Эфир Rutube по ссылке',
     );
   });
