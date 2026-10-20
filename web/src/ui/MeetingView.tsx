@@ -138,7 +138,11 @@ export function MeetingView({
       // Кнопки на миниатюре в панели задач (T53): микрофон, камера, завершить.
       if (command.type === 'thumbar') {
         if (command.action === 'mic') toggle();
-        if (command.action === 'camera' && !meeting.ended.get() && meeting.media.state.get().status === 'connected')
+        if (
+          command.action === 'camera' &&
+          !meeting.ended.get() &&
+          meeting.media.state.get().status === 'connected'
+        )
           void meeting.media.toggle('camera');
         if (command.action === 'leave') void meeting.leave();
       }
@@ -162,7 +166,11 @@ export function MeetingView({
       notifyDesktop('overlay.state', {
         participants: humans(meeting.snapshot.get().participants)
           .slice(0, 20)
-          .map((p) => ({ name: p.name.slice(0, 40), tier: levels[p.id]?.tier ?? 0, speaking: speaking.has(p.id) })),
+          .map((p) => ({
+            name: p.name.slice(0, 40),
+            tier: levels[p.id]?.tier ?? 0,
+            speaking: speaking.has(p.id),
+          })),
       });
     };
     const schedule = () => {

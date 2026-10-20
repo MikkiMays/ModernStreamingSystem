@@ -8,9 +8,17 @@ function fakeDesktop(features: string[] = ['hotkeys', 'overlay', 'update']) {
     protocol: { major: 2, minor: 0 },
     features,
     app: { version: '1.0.0', arch: 'x64' },
-    bootstrap: { profile: 'x'.repeat(43), theme: 'system', showPing: false, notificationSounds: true, autoConnect: true },
+    bootstrap: {
+      profile: 'x'.repeat(43),
+      theme: 'system',
+      showPing: false,
+      notificationSounds: true,
+      autoConnect: true,
+    },
     send: vi.fn(),
-    invoke: vi.fn(async (method: string) => (method === 'update.status' ? { status: 'Установлена последняя версия.', available: false } : null)),
+    invoke: vi.fn(async (method: string) =>
+      method === 'update.status' ? { status: 'Установлена последняя версия.', available: false } : null,
+    ),
     on: vi.fn((type: string, listener: (data: Record<string, unknown>) => void) => {
       let set = listeners.get(type);
       if (!set) listeners.set(type, (set = new Set()));
@@ -80,7 +88,9 @@ describe('мост v2 — адаптер', () => {
     const stop = desktop.onDesktopCommand((command) => seen.push(command));
     api.emit('hotkey', { action: 'mic.toggle', phase: 'down' });
     api.emit('hotkey', { action: 'mic.toggle', phase: 'up' });
-    api.emit('hotkeys.status', { status: { 'mic.toggle': 'Работает и поверх других программ во время встречи.' } });
+    api.emit('hotkeys.status', {
+      status: { 'mic.toggle': 'Работает и поверх других программ во время встречи.' },
+    });
     api.emit('deeplink', { room: { code: '123456789' } });
     api.emit('thumbar', { action: 'camera' });
     api.emit('navigate', { page: 'create' });
@@ -91,10 +101,20 @@ describe('мост v2 — адаптер', () => {
       { version: 1, type: 'deeplink', code: '123456789' },
       { version: 1, type: 'thumbar', action: 'camera' },
       { version: 1, type: 'navigate', page: 'create' },
-      { version: 1, type: 'update.status', name: '1.0.0', detail: 'Доступно обновление приложения.', available: true },
+      {
+        version: 1,
+        type: 'update.status',
+        name: '1.0.0',
+        detail: 'Доступно обновление приложения.',
+        available: true,
+      },
     ]);
     expect(desktop.desktopHotkeyStatus.get()).toContain('поверх других программ');
-    expect(desktop.desktopUpdate.get()).toEqual({ version: '1.0.0', status: 'Доступно обновление приложения.', available: true });
+    expect(desktop.desktopUpdate.get()).toEqual({
+      version: '1.0.0',
+      status: 'Доступно обновление приложения.',
+      available: true,
+    });
     stop();
     api.emit('navigate', { page: 'home' });
     expect(seen).toHaveLength(6);
@@ -103,7 +123,11 @@ describe('мост v2 — адаптер', () => {
   it('WinUI (v1) по-прежнему узнаётся и говорит через postMessage', async () => {
     const posted: unknown[] = [];
     (window as unknown as { chrome?: unknown }).chrome = {
-      webview: { postMessage: (m: unknown) => posted.push(m), addEventListener: () => {}, removeEventListener: () => {} },
+      webview: {
+        postMessage: (m: unknown) => posted.push(m),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      },
     };
     const desktop = await import('./desktop');
     expect(desktop.isDesktop()).toBe(true);

@@ -63,7 +63,10 @@ async function load(): Promise<WindowsRelease | null> {
   };
 }
 
-function file(entry: Partial<WindowsFile> & { sha256?: unknown; path?: unknown }, tag: string): WindowsFile | null {
+function file(
+  entry: Partial<WindowsFile> & { sha256?: unknown; path?: unknown },
+  tag: string,
+): WindowsFile | null {
   // The name becomes part of a URL, so it may be a file name and nothing more.
   if (
     typeof entry.name !== 'string' ||
@@ -75,7 +78,8 @@ function file(entry: Partial<WindowsFile> & { sha256?: unknown; path?: unknown }
     return null;
   // Клиент на Electron лежит в своём канале (`desktop/`), а не в каталоге выпуска: выкладка пишет
   // `path`. Только имя каталога — никаких `..` и схем.
-  const directory = typeof entry.path === 'string' && /^[a-z0-9-]{1,20}\/$/.test(entry.path) ? entry.path : `${tag}/`;
+  const directory =
+    typeof entry.path === 'string' && /^[a-z0-9-]{1,20}\/$/.test(entry.path) ? entry.path : `${tag}/`;
   return {
     name: entry.name,
     kind: entry.kind,
