@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pause, Play, Repeat2, Shuffle, SkipForward } from 'lucide-react';
-import { musicSourceName, type MusicState } from '../core/services';
-import { IconButton, Slider } from './primitives';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { AudioLines, Pause, Play, Repeat2, Shuffle, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { coverUrl, musicSourceName, type MusicState } from '../core/services';
+import { Badge, IconButton, Slider } from './kit';
+import { MusicCover } from './MusicCover';
 import { afterSkip, formatDuration, playbackPosition } from './music-playback';
 
-/** Что сейчас звучит, где игла и чем это можно перебить. */
+/**
+ * «Сейчас играет» (T18): обложка, название, источник, игла, пульт и громкость у себя — одной
+ * карточкой. Под обложкой — её же размытый свет: единственное украшение панели, и оно про трек, а
+ * не про оформление. Светит только под картинкой, не под текстом, — контраст букв от обложки не
+ * зависит. Нет обложки — нет и света.
+ */
 export function MusicPlayer({
   state,
   canUse,
@@ -45,32 +51,54 @@ export function MusicPlayer({
     setDragging(null);
     onSeek(value);
   };
+  const status =
+    state.status === 'connecting'
+      ? 'Подключаем музыку'
+      : !current
+        ? 'Очередь пуста'
+        : state.paused
+          ? 'На паузе'
+          : 'Сейчас играет';
+  const percent = Math.round(volume * 100);
+  const backdrop = current?.cover
+    ? ({ '--music-cover': `url("${coverUrl(current.cover)}")` } as CSSProperties)
+    : undefined;
   return (
-    <>
-      <div className="now-playing">
-        <span className="panel-eyebrow">
-          {state.status === 'connecting'
-            ? 'ПОДКЛЮЧАЕМ МУЗЫКУ'
-            : state.paused
-              ? 'НА ПАУЗЕ'
-              : current
-                ? 'СЕЙЧАС ИГРАЕТ'
-                : 'ГОТОВЫ СЛУШАТЬ'}
+    <section
+      className="music-now"
+      aria-label="Сейчас играет"
+      data-playing={playing || undefined}
+      data-backdrop={backdrop ? 'true' : undefined}
+      style={backdrop}
+    >
+      <div className="music-now__head">
+        <span className="music-now__art">
+          <MusicCover track={current} size="lg" />
         </span>
-        <strong>{current?.title ?? 'Добавьте первый трек'}</strong>
-        <span>
-          {current?.artist || (current ? `Добавил: ${current.addedBy}` : 'Из файла, Telegram или Яндекса')}
-        </span>
-        {current && <span className="music-source">Источник · {musicSourceName(current.source)}</span>}
+        <div className="music-now__meta">
+          <span className="music-now__state">
+            <span className="music-now__status">
+              {playing && <AudioLines size={14} aria-hidden="true" />}
+              {status}
+            </span>
+            {current && <Badge>{musicSourceName(current.source)}</Badge>}
+          </span>
+          <strong className="music-now__title">{current?.title ?? 'Добавьте первый трек'}</strong>
+          <span className="music-now__artist">
+            {current
+              ? current.artist || `Добавил: ${current.addedBy}`
+              : 'Найдите трек ниже, вставьте ссылку или загрузите файл'}
+          </span>
+        </div>
       </div>
       {current && (
-        <div className="music-progress">
+        <div className="music-now__progress">
           <Slider
             min={0}
             max={Math.max(1, current.duration)}
             step={1}
             disabled={!canUse}
-            aria-label="Позиция трека"
+            label="Позиция трека"
             value={dragging ?? position}
             onChange={(e) => setDragging(Number(e.target.value))}
             onPointerUp={(e) => commit(Number(e.currentTarget.value))}
@@ -79,15 +107,25 @@ export function MusicPlayer({
                 commit(Number(e.currentTarget.value));
             }}
           />
-          <div>
+          <div className="music-now__times">
             <span>{formatDuration(dragging ?? position)}</span>
             <span>{formatDuration(current.duration)}</span>
           </div>
         </div>
       )}
-      <div className="music-controls">
+      <div className="music-now__controls">
+        <IconButton
+          label="Перемешать очередь"
+          className="music-now__toggle"
+          disabled={!canUse || state.queue.length < 3}
+          onClick={() => onCommand('shuffle')}
+        >
+          <Shuffle size={18} />
+        </IconButton>
         <IconButton
           label={state.paused ? 'Продолжить музыку' : 'Пауза музыки'}
+          size="lg"
+          className="music-now__play"
           disabled={!canUse || !current}
           onClick={() =>
             onCommand(state.paused ? 'play' : 'pause', undefined, {
@@ -96,35 +134,34 @@ export function MusicPlayer({
             })
           }
         >
-          {state.paused ? <Play size={22} /> : <Pause size={22} />}
+          {state.paused || !current ? <Play size={22} /> : <Pause size={22} />}
         </IconButton>
         <IconButton
           label="Следующий трек"
+          className="music-now__toggle"
           disabled={!canUse || !current}
           onClick={() => onCommand('skip', undefined, afterSkip(state))}
         >
-          <SkipForward size={22} />
-        </IconButton>
-        <IconButton
-          label="Перемешать очередь"
-          disabled={!canUse || state.queue.length < 3}
-          onClick={() => onCommand('shuffle')}
-        >
-          <Shuffle size={19} />
+          <SkipForward size={20} />
         </IconButton>
         <IconButton
           label="Повторять очередь"
+          className="music-now__toggle"
           aria-pressed={state.repeat}
-          className={state.repeat ? 'selected' : ''}
+          data-on={state.repeat || undefined}
           disabled={!canUse}
           onClick={() => onCommand('repeat', { enabled: !state.repeat }, { repeat: !state.repeat })}
         >
-          <Repeat2 size={19} />
+          <Repeat2 size={18} />
         </IconButton>
       </div>
       {state.participantId && (
-        <label className="gain-setting music-volume">
-          Громкость музыки у вас · {Math.round(volume * 100)}%
+        <div className="music-now__volume">
+          {percent === 0 ? (
+            <VolumeX size={16} aria-hidden="true" />
+          ) : (
+            <Volume2 size={16} aria-hidden="true" />
+          )}
           {/*
             Музыке усиление не положено. Тихий собеседник — это случайность его микрофона, и
             её честно исправлять усилением; трек же приходит сведённым и на своём уровне, и
@@ -134,12 +171,15 @@ export function MusicPlayer({
             min={0}
             max={100}
             step={1}
-            value={Math.round(volume * 100)}
-            aria-label="Громкость музыки"
+            value={percent}
+            label="Громкость музыки у вас"
             onChange={(e) => onVolume(Number(e.target.value) / 100)}
           />
-        </label>
+          <output className="music-now__percent" aria-hidden="true">
+            {percent}%
+          </output>
+        </div>
       )}
-    </>
+    </section>
   );
 }

@@ -1,65 +1,204 @@
-import { ListPlus, Trash2 } from 'lucide-react';
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { GripVertical, ListStart, MoreHorizontal, Trash2 } from 'lucide-react';
 import { musicSourceName, type MusicState, type MusicTrack } from '../core/services';
-import { IconButton } from './primitives';
-import { afterPromote, afterRemove, formatDuration } from './music-playback';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
+import { MusicCover } from './MusicCover';
+import { afterMove, afterPromote, afterRemove, dropIndex, formatDuration } from './music-playback';
 
-/** Что стоит после текущего трека и что с этим можно сделать. */
+interface Drag {
+  id: string;
+  pointer: number;
+  /** Откуда взяли — по вертикали, чтобы строка шла за пальцем. */
+  startY: number;
+  dy: number;
+  /** Куда встанет: место в очереди (не раньше первого после играющего). */
+  index: number;
+}
+
+/**
+ * «Далее» (T18): что заиграет после текущего трека. Играющий здесь не повторяется — он в карточке
+ * «Сейчас играет» выше.
+ *
+ * ПЕРЕСТАНОВКА — ЗА РУЧКУ, ЛЮБЫМ УКАЗАТЕЛЕМ. На главной (E02) касание не тащит строку: там палец
+ * листает список. Здесь тянут только за ручку — отдельный элемент управления, который список не
+ * листает (`touch-action: none`), поэтому и пальцем тоже. С клавиатуры — стрелки ↑/↓ на ручке.
+ * Строка идёт за указателем, черта показывает, куда она встанет; служба ставит её туда же
+ * (`move`), а до ответа видно предсказание (`afterMove`).
+ */
 export function MusicQueue({
   state,
   canUse,
   onClear,
   onPromote,
   onRemove,
+  onMove,
 }: {
   state: MusicState;
   canUse: boolean;
   onClear: (patch: Partial<MusicState>) => void;
   onPromote: (track: MusicTrack, patch: Partial<MusicState>) => void;
   onRemove: (track: MusicTrack, patch: Partial<MusicState>) => void;
+  onMove: (track: MusicTrack, index: number, patch: Partial<MusicState>) => void;
 }) {
+  const list = useRef<HTMLOListElement>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [said, setSaid] = useState('');
+  const upcoming = state.queue.slice(1);
   if (!state.queue.length) return null;
+
+  const move = (track: MusicTrack, index: number) => {
+    const from = state.queue.findIndex((t) => t.id === track.id);
+    const to = Math.min(Math.max(1, index), state.queue.length - 1);
+    if (from < 1 || to === from) return;
+    onMove(track, to, afterMove(state, track.id, to));
+    setSaid(`«${track.title}» — ${to}-й после текущего`);
+    // Строка переехала в разметке, и фокус с её ручки мог уйти вместе с узлом — возвращаем.
+    requestAnimationFrame(() =>
+      [...(list.current?.querySelectorAll<HTMLElement>('[data-handle]') ?? [])]
+        .find((handle) => handle.dataset.handle === track.id)
+        ?.focus(),
+    );
+  };
+  /** Середины строк, кроме перетаскиваемой; играющий трек — «выше всех» (его строки здесь нет). */
+  const middles = (id: string) => [
+    Number.NEGATIVE_INFINITY,
+    ...[...(list.current?.querySelectorAll<HTMLElement>('[data-track-id]') ?? [])]
+      .filter((row) => row.dataset.trackId !== id)
+      .map((row) => {
+        const box = row.getBoundingClientRect();
+        return box.top + box.height / 2;
+      }),
+  ];
+  const grab = (track: MusicTrack, event: PointerEvent<HTMLButtonElement>) => {
+    if (!canUse || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({
+      id: track.id,
+      pointer: event.pointerId,
+      startY: event.clientY,
+      dy: 0,
+      index: state.queue.findIndex((t) => t.id === track.id),
+    });
+  };
+  const follow = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!drag || drag.pointer !== event.pointerId) return;
+    setDrag({ ...drag, dy: event.clientY - drag.startY, index: dropIndex(middles(drag.id), event.clientY) });
+  };
+  const drop = (track: MusicTrack, event: PointerEvent<HTMLButtonElement>) => {
+    if (!drag || drag.pointer !== event.pointerId) return;
+    setDrag(null);
+    move(track, drag.index);
+  };
+  const step = (track: MusicTrack, index: number, event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    move(track, index + (event.key === 'ArrowUp' ? -1 : 1));
+  };
+
+  // Черта места: перед той строкой, что после переезда окажется сразу за перетаскиваемой.
+  const rest = drag ? state.queue.filter((t) => t.id !== drag.id) : [];
+  const before = drag ? rest[drag.index]?.id : undefined;
+  const last = drag && drag.index >= rest.length ? rest.at(-1)?.id : undefined;
+
   return (
-    <section className="music-queue" aria-label="Музыкальная очередь">
-      <div className="queue-heading">
-        <h4>Сейчас и далее · {state.queue.length}</h4>
-        <IconButton
-          label="Очистить следующие треки"
-          disabled={!canUse || state.queue.length < 2}
+    <section
+      className="music-queue"
+      aria-label="Музыкальная очередь"
+      data-dragging={drag ? 'true' : undefined}
+    >
+      <div className="music-queue__head">
+        <h4>Далее</h4>
+        {upcoming.length > 0 && <span className="music-queue__count">{upcoming.length}</span>}
+        <Button
+          variant="quiet"
+          size="sm"
+          className="music-queue__clear"
+          disabled={!canUse || upcoming.length === 0}
           onClick={() => onClear({ queue: state.queue.slice(0, 1) })}
         >
-          <Trash2 size={16} />
-        </IconButton>
+          Очистить
+        </Button>
       </div>
-      <ol>
-        {state.queue.map((track, i) => (
-          <li key={track.id} data-current={i === 0}>
-            <span className="queue-number">{i + 1}</span>
-            <div className="queue-track">
-              <strong>{track.title}</strong>
-              <small>
-                {track.artist || track.addedBy} · {musicSourceName(track.source)} ·{' '}
-                {formatDuration(track.duration)}
-              </small>
-            </div>
-            {i > 1 && (
-              <IconButton
-                label={`Следующим: ${track.title}`}
-                disabled={!canUse}
-                onClick={() => onPromote(track, afterPromote(state, track))}
+      {upcoming.length === 0 ? (
+        <p className="music-queue__empty">Дальше пусто: найденный выше трек заиграет следом.</p>
+      ) : (
+        <ol ref={list} className="music-queue__list">
+          {upcoming.map((track, i) => {
+            const index = i + 1;
+            const dragging = drag?.id === track.id;
+            return (
+              <li
+                key={track.id}
+                className="music-queue__row"
+                data-track-id={track.id}
+                data-lifted={dragging || undefined}
+                data-insert={track.id === before ? 'before' : track.id === last ? 'after' : undefined}
+                style={dragging ? { transform: `translateY(${drag.dy}px)` } : undefined}
               >
-                <ListPlus size={16} />
-              </IconButton>
-            )}
-            <IconButton
-              label={`Убрать трек: ${track.title}`}
-              disabled={!canUse}
-              onClick={() => onRemove(track, afterRemove(state, track.id))}
-            >
-              <Trash2 size={15} />
-            </IconButton>
-          </li>
-        ))}
-      </ol>
+                <button
+                  type="button"
+                  className="music-queue__handle"
+                  data-handle={track.id}
+                  aria-label={`Переставить: ${track.title}`}
+                  aria-describedby="music-queue-hint"
+                  disabled={!canUse}
+                  onPointerDown={(event) => grab(track, event)}
+                  onPointerMove={follow}
+                  onPointerUp={(event) => drop(track, event)}
+                  onPointerCancel={() => setDrag(null)}
+                  onKeyDown={(event) => step(track, index, event)}
+                >
+                  <GripVertical size={16} aria-hidden="true" />
+                </button>
+                <MusicCover track={track} />
+                <div className="music-queue__text">
+                  <strong>{track.title}</strong>
+                  <small>
+                    <span>{track.artist || track.addedBy}</span>
+                    {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
+                    <span className="music-queue__source">{musicSourceName(track.source)}</span>
+                  </small>
+                </div>
+                <span className="music-queue__time">{formatDuration(track.duration)}</span>
+                <Menu>
+                  <MenuTrigger
+                    disabled={!canUse}
+                    render={
+                      <IconButton size="sm" className="music-queue__more" label={`Действия: ${track.title}`}>
+                        <MoreHorizontal size={16} />
+                      </IconButton>
+                    }
+                  />
+                  <MenuContent align="end">
+                    {index > 1 && (
+                      <MenuItem
+                        icon={<ListStart size={16} />}
+                        onClick={() => onPromote(track, afterPromote(state, track))}
+                      >
+                        Играть следующим
+                      </MenuItem>
+                    )}
+                    <MenuItem
+                      icon={<Trash2 size={16} />}
+                      destructive
+                      onClick={() => onRemove(track, afterRemove(state, track.id))}
+                    >
+                      Убрать из очереди
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <span id="music-queue-hint" hidden>
+        Перетащите или нажмите стрелки вверх и вниз, чтобы переставить трек
+      </span>
+      <span className="music-queue__said" role="status">
+        {said}
+      </span>
     </section>
   );
 }

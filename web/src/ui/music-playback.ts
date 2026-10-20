@@ -8,13 +8,7 @@
 
 import type { MusicSource, MusicState, MusicTrack } from '../core/services';
 
-export const MUSIC_SOURCES: MusicSource[] = ['upload', 'telegram', 'yandex'];
-
-export const MUSIC_SOURCE_LABELS: Record<MusicSource, string> = {
-  upload: 'Аудиофайл',
-  telegram: 'Telegram',
-  yandex: 'Яндекс Музыка',
-};
+export const MUSIC_SOURCES: MusicSource[] = ['upload', 'telegram', 'yandex', 'youtube', 'soundcloud'];
 
 /** Минуты и секунды. Отрицательное и дробное приводится к тому, что можно показать. */
 export function formatDuration(value: number) {
@@ -28,11 +22,6 @@ export function offeredSources(offered: string[] | undefined): MusicSource[] {
     (MUSIC_SOURCES as string[]).includes(value),
   );
   return MUSIC_SOURCES.filter((source) => known.includes(source));
-}
-
-/** Яндекс по умолчанию, если он вообще есть: с него чаще всего и начинают. */
-export function preferredSource(sources: MusicSource[]): MusicSource {
-  return sources.includes('yandex') ? 'yandex' : (sources[0] ?? 'upload');
 }
 
 /**
@@ -88,4 +77,56 @@ export function afterRemove(state: MusicState, trackId: string): Partial<MusicSt
     queue: state.queue.filter((t) => t.id !== trackId),
     position: state.queue[0]?.id === trackId ? 0 : state.position,
   };
+}
+
+/**
+ * Очередь после «переставить» (перетаскивание, стрелки на ручке): трек встаёт на место `index`.
+ * Первое место — играющий трек, поэтому не раньше второго; дальше конца — в конец. Так же считает
+ * служба (`music.py`, команда `move`), и предсказание совпадает с ответом.
+ */
+export function afterMove(state: MusicState, trackId: string, index: number): Partial<MusicState> {
+  const from = state.queue.findIndex((t) => t.id === trackId);
+  if (from < 1) return {};
+  const rest = state.queue.filter((t) => t.id !== trackId);
+  const to = Math.min(Math.max(1, index), rest.length);
+  return { queue: [...rest.slice(0, to), state.queue[from]!, ...rest.slice(to)] };
+}
+
+/**
+ * Куда встанет перетаскиваемый трек: сколько строк очереди (кроме него самого) выше указателя.
+ * `middles` — середины этих строк по вертикали, сверху вниз; первая — играющий трек.
+ */
+export function dropIndex(middles: number[], y: number): number {
+  return Math.max(1, middles.filter((middle) => middle < y).length);
+}
+
+/** Что в поле «Найти трек или вставить ссылку»: запрос, ссылка площадки или чужая ссылка. */
+export type MusicQuery =
+  | { kind: 'empty' }
+  | { kind: 'text'; text: string }
+  | { kind: 'link'; source: 'youtube' | 'soundcloud' | 'yandex'; url: string }
+  | { kind: 'foreign' };
+
+const LINK_SOURCES: [RegExp, 'youtube' | 'soundcloud' | 'yandex'][] = [
+  [/^(?:(?:www|m|music)\.)?youtube\.com$|^(?:www\.)?youtu\.be$/, 'youtube'],
+  [/^(?:(?:www|m)\.)?soundcloud\.com$/, 'soundcloud'],
+  [/^music\.yandex\.(?:ru|com|kz|by|uz)$/, 'yandex'],
+];
+
+/**
+ * Подсказка интерфейсу, а не проверка: какую ссылку открыть каким путём, решает служба. Здесь — только
+ * чтобы ссылка не уходила в поиск как текст, а чужая ссылка получала ответ сразу, без запроса.
+ */
+export function classifyQuery(value: string): MusicQuery {
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (!text) return { kind: 'empty' };
+  if (!/^https?:\/\//i.test(text)) return { kind: 'text', text };
+  let host: string;
+  try {
+    host = new URL(text).hostname.toLowerCase();
+  } catch {
+    return { kind: 'foreign' };
+  }
+  const found = LINK_SOURCES.find(([pattern]) => pattern.test(host));
+  return found ? { kind: 'link', source: found[1], url: text } : { kind: 'foreign' };
 }

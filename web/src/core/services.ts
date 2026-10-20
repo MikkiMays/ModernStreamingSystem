@@ -1,17 +1,44 @@
 import { ApiError, request } from '../api/client';
 import type { Admission } from '../api/types';
 
+/** Откуда трек в очереди. YouTube и SoundCloud — площадки без аккаунта (E06-B, T18). */
+export type MusicSource = 'upload' | 'telegram' | 'yandex' | 'youtube' | 'soundcloud';
 export interface MusicTrack {
   id: string;
   title: string;
   artist: string;
   duration: number;
   addedBy: string;
-  source: 'upload' | 'telegram' | 'yandex';
+  source: MusicSource;
+  /** Имя обложки у службы (`<uuid>.jpg`) или `null` — обложки нет. */
+  cover: string | null;
 }
-export type MusicSource = 'upload' | 'telegram' | 'yandex';
-export function musicSourceName(source: MusicTrack['source']) {
-  return { upload: 'Аудиофайл', telegram: 'Telegram', yandex: 'Яндекс Музыка' }[source];
+const SOURCE_NAMES: Record<MusicSource, string> = {
+  upload: 'Аудиофайл',
+  telegram: 'Telegram',
+  yandex: 'Яндекс Музыка',
+  youtube: 'YouTube',
+  soundcloud: 'SoundCloud',
+};
+export function musicSourceName(source: MusicSource) {
+  return SOURCE_NAMES[source] ?? 'Музыка';
+}
+/**
+ * Адрес обложки. Картинку отдаёт служба со своего адреса и без заголовка входа: `<img>` его не
+ * пошлёт, а чужие адреса картинок CSP не пускает.
+ */
+export function coverUrl(cover: string) {
+  return `/api/v1/services/music/covers/${encodeURIComponent(cover)}`;
+}
+/** Найденный на площадке без аккаунта трек: его добавляют по `url`. */
+export interface PlatformTrack {
+  url: string;
+  title: string;
+  artist: string;
+  duration: number;
+  /** `false` — эфир или фрагмент SoundCloud Go+: в очередь не добавить. */
+  available: boolean;
+  source: 'youtube' | 'soundcloud';
 }
 export interface MusicState {
   roomId: string;
@@ -32,7 +59,7 @@ export interface ServiceCatalog {
   maxFileBytes: number;
 }
 export type MusicAction =
-  'play' | 'pause' | 'skip' | 'stop' | 'clear' | 'shuffle' | 'repeat' | 'remove' | 'next' | 'seek';
+  'play' | 'pause' | 'skip' | 'stop' | 'clear' | 'shuffle' | 'repeat' | 'remove' | 'next' | 'seek' | 'move';
 const post = (body: unknown) => ({ method: 'POST', body: JSON.stringify(body) });
 export const servicesApi = {
   catalog: () => request<ServiceCatalog>('/services/catalog'),
@@ -54,10 +81,28 @@ export class MusicApi {
       this.admission.credential,
     );
   disable = () => request<MusicState>(`${this.base}/music`, { method: 'DELETE' }, this.admission.credential);
-  command = (action: MusicAction, extra: { trackId?: string; position?: number; enabled?: boolean } = {}) =>
+  command = (
+    action: MusicAction,
+    extra: { trackId?: string; position?: number; enabled?: boolean; index?: number } = {},
+  ) =>
     request<MusicState>(
       `${this.base}/music/commands`,
       post({ commandId: crypto.randomUUID(), action, ...extra }),
+      this.admission.credential,
+    );
+  /** Поиск на площадке без аккаунта: YouTube или SoundCloud. */
+  search = (source: PlatformTrack['source'], query: string) =>
+    request<PlatformTrack[]>(
+      `${this.base}/music/search`,
+      // Первый поиск площадки после запуска службы поднимает движок yt-dlp — дольше обычных восьми секунд.
+      { ...post({ source, query }), signal: AbortSignal.timeout(20000) },
+      this.admission.credential,
+    );
+  /** Трек по ссылке или из найденного: служба скачивает его и ставит в очередь. */
+  addLink = (url: string) =>
+    request<MusicState>(
+      `${this.base}/music/link`,
+      { ...post({ url, commandId: crypto.randomUUID() }), signal: AbortSignal.timeout(180000) },
       this.admission.credential,
     );
   linkTelegram = () =>

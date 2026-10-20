@@ -1,77 +1,50 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ListPlus, Search, ExternalLink, LoaderCircle, LogOut, Info } from 'lucide-react';
+import { ExternalLink, Music } from 'lucide-react';
 import QRCode from 'qrcode';
-import { YandexApi, type MusicState, type YandexAuthorization, type YandexTrack } from '../core/services';
-import type { Meeting } from '../core/meeting';
-import { IconButton } from './primitives';
+import type { YandexApi, YandexAccount, YandexAuthorization } from '../core/services';
+import { Badge, Button } from './kit';
 
-export function YandexIntegration({
-  meeting,
-  update,
-  storedToken,
-  onStoredTokenChange,
-}: {
-  meeting: Meeting;
-  update: (state: MusicState) => void;
-  storedToken: string;
-  onStoredTokenChange: (token: string) => void;
-}) {
-  return (
-    <section className="service-card yandex-card">
-      <div className="service-heading">
-        <span className="service-icon yandex">Я</span>
-        <div>
-          <h3>Яндекс Музыка</h3>
-          <p>Поиск и музыка для всей комнаты</p>
-        </div>
-        <details className="integration-info">
-          <summary aria-label="Как подключить Яндекс Музыку">
-            <Info size={18} />
-          </summary>
-          <p>
-            Войдите в Яндекс, чтобы искать и слушать треки. В комнате используется один аккаунт, который
-            участники выбирают по договорённости. Подключить или сменить его может любой участник, которому
-            создатель разрешил интеграции.
-          </p>
-        </details>
-      </div>
-      <YandexAccount
-        meeting={meeting}
-        update={update}
-        storedToken={storedToken}
-        onStoredTokenChange={onStoredTokenChange}
-      />
-    </section>
-  );
+/**
+ * Аккаунт Яндекс Музыки комнаты — один на всех, и знают о нём двое: эта строка и поле поиска
+ * (ищет в Яндексе, только когда аккаунт подключён). Ключ и опрос общие, поэтому запрос один.
+ *
+ * Аккаунт меняется, только когда его подключают или отключают, а эта строка пишет итог своих
+ * действий прямо в кэш. Опрос раз в три секунды был запросом на участника за значение, которое
+ * почти не двигается, — теперь раз в тридцать.
+ */
+export function useYandexAccount(api: YandexApi, roomId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['yandex', roomId],
+    queryFn: api.status,
+    retry: false,
+    refetchInterval: 30000,
+    enabled,
+  });
 }
-function YandexAccount({
-  meeting,
-  update,
+
+/** Строка «Яндекс Музыка» в панели музыки: кто подключён, вход по коду или токеном. */
+export function YandexIntegration({
+  api,
+  roomId,
   storedToken,
   onStoredTokenChange,
 }: {
-  meeting: Meeting;
-  update: (state: MusicState) => void;
+  api: YandexApi;
+  roomId: string;
   storedToken: string;
   onStoredTokenChange: (token: string) => void;
 }) {
-  const api = useMemo(() => new YandexApi(meeting.admission), [meeting]);
+  const id = useId();
   const client = useQueryClient();
-  const key = useMemo(() => ['yandex', meeting.admission.roomId], [meeting.admission.roomId]);
-  // The account changes only when somebody connects or disconnects it, and this component
-  // writes the result of its own actions straight into the cache. A three-second poll was
-  // a request per participant per three seconds for a value that almost never moves.
-  const account = useQuery({ queryKey: key, queryFn: api.status, retry: false, refetchInterval: 30000 });
+  const account = useYandexAccount(api, roomId, true);
   const [auth, setAuth] = useState<YandexAuthorization | null>(null);
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [adding, setAdding] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
-  const [tracks, setTracks] = useState<YandexTrack[] | null>(null);
   const [token, setToken] = useState(storedToken);
   const [notice, setNotice] = useState('');
+  const save = (value: YandexAccount) => client.setQueryData(['yandex', roomId], value);
   useEffect(() => {
     setToken(storedToken);
   }, [storedToken]);
@@ -85,7 +58,7 @@ function YandexAccount({
         if (disposed) return;
         if (value.status === 'connected') {
           setAuth(null);
-          client.setQueryData(key, { connected: value.connected, name: value.name });
+          client.setQueryData(['yandex', roomId], { connected: value.connected, name: value.name });
           setNotice('Аккаунт подключён');
           return;
         }
@@ -103,18 +76,15 @@ function YandexAccount({
       }
     };
     timer = setTimeout(() => void poll(), auth.interval * 1000);
-    void QRCode.toDataURL(auth.verificationUrl, {
-      width: 180,
-      margin: 1,
-      color: { dark: '#17151f', light: '#ffffff' },
-    }).then((value) => {
+    // QR рисуется тёмным по белому в обеих темах: так его читает любая камера.
+    void QRCode.toDataURL(auth.verificationUrl, { width: 176, margin: 1 }).then((value) => {
       if (!disposed) setQr(value);
     });
     return () => {
       disposed = true;
       clearTimeout(timer);
     };
-  }, [api, auth, client, key]);
+  }, [api, auth, client, roomId]);
   const connect = async () => {
     setBusy(true);
     setError('');
@@ -123,7 +93,7 @@ function YandexAccount({
       const saved = storedToken.trim();
       if (saved) {
         try {
-          client.setQueryData(key, await api.connectToken(saved));
+          save(await api.connectToken(saved));
           setNotice('Подключено сохранённым токеном');
           return;
         } catch {
@@ -137,50 +107,105 @@ function YandexAccount({
       setBusy(false);
     }
   };
+  const disconnect = async () => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      save(await api.disconnect());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const connected = !!account.data?.connected && !auth;
   return (
-    <>
-      {account.isLoading ? (
-        <p role="status">Проверяем подключение…</p>
-      ) : account.data?.connected && !auth ? (
-        <>
-          <div className="integration-account">
-            <span>
-              <strong>{account.data.name}</strong>
-              <small>Подключён к этой комнате</small>
-            </span>
-            {
-              <IconButton
-                label="Отключить Яндекс Музыку"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    client.setQueryData(key, await api.disconnect());
-                    setTracks(null);
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <LogOut size={18} />
-              </IconButton>
-            }
-          </div>
-          <button className="button ghost full" disabled={busy} onClick={() => void connect()}>
+    <section className="music-account" aria-labelledby={`${id}-title`}>
+      <div className="music-account__row">
+        <span className="music-account__icon" aria-hidden="true">
+          <Music size={18} />
+        </span>
+        <div className="music-account__text">
+          <span className="music-account__title" id={`${id}-title`}>
+            Яндекс Музыка
+          </span>
+          <span className="music-account__hint">
+            {account.isLoading
+              ? 'Проверяем подключение…'
+              : connected
+                ? account.data?.name
+                : 'Аккаунт комнаты: через него ищут и ставят треки все участники'}
+          </span>
+        </div>
+        {connected ? (
+          <Badge variant="success">Подключён</Badge>
+        ) : (
+          !auth &&
+          !account.isLoading && (
+            <Button size="sm" variant="primary" loading={busy} onClick={() => void connect()}>
+              Подключить
+            </Button>
+          )
+        )}
+      </div>
+      {connected && (
+        <div className="music-account__actions">
+          <Button size="sm" variant="quiet" disabled={busy} onClick={() => void connect()}>
             Сменить аккаунт
-          </button>
+          </Button>
+          <Button
+            size="sm"
+            variant="quiet"
+            className="music-account__off"
+            disabled={busy}
+            onClick={() => void disconnect()}
+          >
+            Отключить
+          </Button>
+        </div>
+      )}
+      {auth && (
+        <div className="music-account__auth">
+          {qr && <img src={qr} alt="QR-код страницы входа Яндекса" width={176} height={176} />}
+          <p>Откройте страницу Яндекса и введите код:</p>
+          <strong className="music-account__code">{auth.userCode}</strong>
+          <a
+            className="ui-button ui-button--primary ui-button--md"
+            href={auth.verificationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="ui-button__label">Войти в Яндекс</span>
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
+          <p className="music-account__note">Подтверждение появится здесь само. Код действует 5 минут.</p>
+          <Button
+            size="sm"
+            variant="quiet"
+            onClick={() => {
+              void api.cancel(auth.id).catch(() => {});
+              setAuth(null);
+            }}
+          >
+            Отменить вход
+          </Button>
+        </div>
+      )}
+      {!connected && !auth && !account.isLoading && (
+        <details className="music-account__token">
+          <summary>У меня уже есть токен доступа</summary>
           <form
-            className="integration-search"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (busy || !query.trim()) return;
+              const value = token.trim();
+              if (!value) return;
               setBusy(true);
               setError('');
-              setNotice('');
               try {
-                setTracks(await api.search(query.trim()));
+                save(await api.connectToken(value));
+                setToken('');
+                onStoredTokenChange(value);
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -188,149 +213,40 @@ function YandexAccount({
               }
             }}
           >
-            <label htmlFor={`music-search`}>Название, исполнитель или ссылка на трек</label>
-            <div>
-              <input
-                id={`music-search`}
-                value={query}
-                maxLength={300}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Найдите музыку"
-              />
-              <IconButton label="Найти в Яндекс Музыке" type="submit" disabled={busy || !query.trim()}>
-                {busy ? <LoaderCircle className="spin" size={18} /> : <Search size={18} />}
-              </IconButton>
-            </div>
+            <label className="music-account__label" htmlFor={`${id}-token`}>
+              Токен Яндекс Музыки
+            </label>
+            <input
+              id={`${id}-token`}
+              className="ui-input"
+              type="password"
+              autoComplete="off"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              maxLength={1000}
+            />
+            <Button size="sm" disabled={busy || token.trim().length < 20} type="submit">
+              Подключить токен
+            </Button>
           </form>
-          {tracks &&
-            (tracks.length ? (
-              <ol className="integration-results">
-                {tracks.map((track) => (
-                  <li key={track.id}>
-                    <span>
-                      <strong>{track.title}</strong>
-                      <small>
-                        {track.artist} · {Math.floor(track.duration / 60)}:
-                        {String(Math.floor(track.duration % 60)).padStart(2, '0')}
-                      </small>
-                    </span>
-                    <IconButton
-                      label={`Добавить в очередь: ${track.title}`}
-                      disabled={!!adding || !track.available}
-                      onClick={async () => {
-                        setAdding(track.id);
-                        setError('');
-                        try {
-                          update(await api.enqueue(track.id));
-                          setNotice(`Добавлено: ${track.title}`);
-                        } catch (e) {
-                          setError((e as Error).message);
-                        } finally {
-                          setAdding(null);
-                        }
-                      }}
-                    >
-                      {adding === track.id ? (
-                        <LoaderCircle className="spin" size={18} />
-                      ) : (
-                        <ListPlus size={18} />
-                      )}
-                    </IconButton>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="muted">Треки не найдены. Попробуйте другое название.</p>
-            ))}
-        </>
-      ) : (
-        <>
-          {auth ? (
-            <div className="yandex-auth">
-              {qr && <img src={qr} alt="QR-код страницы входа Яндекса" width={180} height={180} />}
-              <p>Откройте страницу Яндекса и введите код:</p>
-              <strong className="device-code">{auth.userCode}</strong>
-              <a
-                className="button primary full"
-                href={auth.verificationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Войти в Яндекс <ExternalLink size={16} />
-              </a>
-              <p className="form-footnote">
-                Подтверждение появится здесь автоматически. Код действует 5 минут.
-              </p>
-              <button
-                className="button ghost"
-                onClick={() => {
-                  void api.cancel(auth.id).catch(() => {});
-                  setAuth(null);
-                }}
-              >
-                Отменить вход
-              </button>
-            </div>
-          ) : (
-            <>
-              <button className="button primary full" disabled={busy} onClick={() => void connect()}>
-                {busy ? <LoaderCircle className="spin" size={18} /> : <ExternalLink size={18} />}
-                {storedToken.trim() ? 'Подключить сохранённый токен' : 'Подключить Яндекс Музыку'}
-              </button>
-              <p className="form-footnote">
-                Пароль вводится на странице Яндекса. Для полных треков нужен аккаунт с доступом к ним.
-                Участники комнаты смогут ставить музыку через этот аккаунт.
-              </p>
-              <details className="token-option">
-                <summary>У меня уже есть токен доступа</summary>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const value = token.trim();
-                    if (!value) return;
-                    setBusy(true);
-                    setError('');
-                    try {
-                      client.setQueryData(key, await api.connectToken(value));
-                      setToken('');
-                      onStoredTokenChange(value);
-                    } catch (e) {
-                      setError((e as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  <label>
-                    Токен Яндекс Музыки
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      maxLength={1000}
-                    />
-                  </label>
-                  <button className="button secondary full" disabled={busy || token.trim().length < 20}>
-                    Подключить токен
-                  </button>
-                </form>
-              </details>
-            </>
-          )}
-          <p className="form-footnote">Используется неофициальный открытый коннектор Яндекс Музыки.</p>
-        </>
+        </details>
+      )}
+      {!connected && !auth && (
+        <p className="music-account__note">
+          Пароль вводится на странице Яндекса. Для полных треков нужен аккаунт с подпиской. Работает через
+          неофициальный открытый коннектор Яндекс Музыки.
+        </p>
       )}
       {notice && (
-        <p className="integration-notice" role="status">
+        <p className="music-account__notice" role="status">
           {notice}
         </p>
       )}
       {(error || account.isError) && (
-        <p className="form-error" role="alert">
+        <p className="music-account__error" role="alert">
           {error || (account.error as Error).message}
         </p>
       )}
-    </>
+    </section>
   );
 }

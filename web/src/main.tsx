@@ -11,6 +11,8 @@ import './room-layout.css';
 import './ui/stage.css';
 import './ui/call-dock.css';
 import './ui/meeting-panel.css';
+// Интеграции в панели встречи — витрина и музыка (E06-B), на токенах.
+import './ui/integrations.css';
 // Кинозал — сразу за раскладкой встречи, откуда он вынесен: там же он и стоял в каскаде.
 import './ui/cinema/cinema.css';
 import './ui/cinema/theater.css';
