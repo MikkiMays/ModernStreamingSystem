@@ -32,6 +32,7 @@
 - [`cord-retention-config`](memory/cord-retention-config.md) — Сроки хранения встреч в Cord задаются словами в yaml, и несохранённая встреча уходит сразу
 - [`cord-room-member-rollback`](memory/cord-room-member-rollback.md) — ignoreUnknown на RoomState не спасает вложенные классы — новое поле участника делает комнату нечитаемой для прежнего образа ядра
 - [`cord-testcontainers-on-host`](memory/cord-testcontainers-on-host.md) — Почему *PostgresTest ядра на стенде молча пропускаются или падают по таймауту, и какой запуск даёт настоящий PostgreSQL
+- [`cord-telegram-mini-app`](memory/cord-telegram-mini-app.md) — Как Mini App Telegram открывает встречу Cord из беседы и три стены платформы — кнопка web_app в группах, рамка Telegram Web и скрипт с telegram.org
 - [`cord-standing-permissions`](memory/cord-standing-permissions.md) — Владелец Cord дал все разрешения: в конце каждой сессии разработки — выкатка в прод и актуальный main обеих реп, без вопросов
 - [`cord-ui-checks-on-prod`](memory/cord-ui-checks-on-prod.md) — Как проверять вёрстку и медиа Cord настоящим браузером на этой машине, включая обход origin-проверки ядра
 - [`cord-ui-traps`](memory/cord-ui-traps.md) — Ловушки интерфейса Cord, которые выглядели как сломанные ручки: ползунки, подложки Base UI, холст

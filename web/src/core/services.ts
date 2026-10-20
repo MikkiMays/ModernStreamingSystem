@@ -59,9 +59,30 @@ export interface MusicState {
 }
 export interface ServiceCatalog {
   services: { id: string; name: string; description: string }[];
-  telegram: { username: string | null; connected: boolean };
+  /** `webapp` — Mini App включён на сервере и бот на связи (E09): витрина открывает Telegram. */
+  telegram: { username: string | null; connected: boolean; webapp?: boolean };
   sources: string[];
   maxFileBytes: number;
+}
+/** Вход из Mini App Telegram: имя из проверенной `initData` и приглашение во встречу беседы. */
+export interface TelegramEntry {
+  roomId: string;
+  title: string;
+  name: string;
+  inviteUrl: string;
+}
+/** Код привязки беседы: команда для чата и ссылка «Добавить бота в группу». */
+export interface TelegramLinkCode {
+  command: string;
+  expiresAt: number;
+  startgroupUrl: string;
+}
+/** Беседа, которую встреча открывает кнопкой Mini App. */
+export interface TelegramChat {
+  id: string;
+  chatTitle: string;
+  since: number;
+  pinned: boolean;
 }
 export type MusicAction =
   'play' | 'pause' | 'skip' | 'stop' | 'clear' | 'shuffle' | 'repeat' | 'remove' | 'next' | 'seek' | 'move';
@@ -72,6 +93,9 @@ export const servicesApi = {
     request<{ roomId: string; title: string; name: string }>('/services/claims/preview', post({ token })),
   redeemClaim: (token: string, name: string, commandId: string) =>
     request<Admission>('/services/claims/redeem', post({ token, name, commandId })),
+  /** Без заголовка входа: пропуск здесь — `initData`, подписанная токеном бота. */
+  telegramEnter: (initData: string) =>
+    request<TelegramEntry>('/services/telegram/webapp/enter', post({ initData })),
 };
 export class MusicApi {
   private base: string;
@@ -111,9 +135,13 @@ export class MusicApi {
       this.admission.credential,
     );
   linkTelegram = () =>
-    request<{ command: string; expiresAt: number }>(
-      `${this.base}/telegram/link`,
-      post({}),
+    request<TelegramLinkCode>(`${this.base}/telegram/link`, post({}), this.admission.credential);
+  telegramChats = () =>
+    request<{ links: TelegramChat[] }>(`${this.base}/telegram`, {}, this.admission.credential);
+  unlinkTelegram = (id: string) =>
+    request<{ links: TelegramChat[] }>(
+      `${this.base}/telegram/links/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
       this.admission.credential,
     );
   async upload(file: File, signal: AbortSignal) {

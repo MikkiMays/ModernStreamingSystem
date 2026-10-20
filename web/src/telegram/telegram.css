@@ -1,0 +1,78 @@
+/*
+  Mini App Telegram (E09, T55): встреча на весь экран внутри Telegram.
+
+  `--tg-inset-*` ставит `insets.ts` (зона устройства + зона кнопок Telegram в полноэкранном режиме),
+  `--tg-viewport-stable-height` — SDK (`viewport.bindCssVars`). Отступы — наибольшее из `env()` и
+  значения Telegram: на iOS оба говорят о вырезе, и сумма дала бы двойной отступ. Высота — стабильная
+  высота Telegram, а не `100dvh`: та меняется рывками, пока окно разворачивается.
+*/
+:root[data-telegram] {
+  --cord-inset-top: max(env(safe-area-inset-top, 0px), var(--tg-inset-top, 0px));
+  --cord-inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-inset-bottom, 0px));
+  --cord-inset-left: max(env(safe-area-inset-left, 0px), var(--tg-inset-left, 0px));
+  --cord-inset-right: max(env(safe-area-inset-right, 0px), var(--tg-inset-right, 0px));
+  overscroll-behavior: none;
+}
+:root[data-telegram] body {
+  overscroll-behavior: none;
+}
+
+/* Сцена и видео — во весь экран, как у Cardbox; шапка — под кнопками Telegram, пульт — над жестами. */
+:root[data-telegram] .meeting-page {
+  height: var(--tg-viewport-stable-height, 100dvh);
+  padding: 0 var(--cord-inset-right) var(--cord-inset-bottom) var(--cord-inset-left);
+}
+:root[data-telegram] .meeting-header {
+  padding-top: var(--cord-inset-top);
+}
+
+/* Экраны до встречи: «нет микрофона», «привязка снята», «откройте из Telegram». */
+.tg-screen {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-8);
+  padding: calc(var(--space-6) + var(--cord-inset-top, 0px))
+    calc(var(--space-4) + var(--cord-inset-right, 0px)) calc(var(--space-6) + var(--cord-inset-bottom, 0px))
+    calc(var(--space-4) + var(--cord-inset-left, 0px));
+  background: var(--bg);
+  color: var(--text);
+}
+.tg-screen__logo {
+  --brand-h: 26px;
+}
+.tg-screen__card {
+  width: min(100%, 400px);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+.tg-screen__icon {
+  display: grid;
+  place-items: center;
+  width: var(--control-touch);
+  height: var(--control-touch);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.tg-screen__card h1 {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.tg-screen__card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+.tg-screen__actions {
+  width: 100%;
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}

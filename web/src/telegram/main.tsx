@@ -1,0 +1,25 @@
+import { createRoot } from 'react-dom/client';
+// Слой переводов — раньше всего остального, как в `main.tsx`.
+import { applyLanguage } from '../i18n';
+import '../app-styles';
+import './telegram.css';
+import { readPreferences } from '../core/preferences';
+import { unlockNotificationAudio } from '../core/sounds';
+import { installPointerFocus } from '../ui/pointer-focus';
+import { startTelegram } from './sdk';
+import { TelegramApp } from './TelegramApp';
+
+/*
+  Вход Mini App Telegram (`tg.html`, E09). Telegram — до React: цвета шапки и фона, полный экран и
+  `ready()` уходят, пока на экране статичная загрузка, и заставка Telegram сменяется ею без шва.
+  Service worker здесь не ставится: WebView Telegram — не установленное приложение, а кэш бандла
+  пережил бы выкатку.
+*/
+const shell = startTelegram();
+document.documentElement.dataset.telegram = shell ? shell.platform : 'outside';
+unlockNotificationAudio();
+installPointerFocus();
+
+void applyLanguage(readPreferences().language).then(() =>
+  createRoot(document.getElementById('root')!).render(<TelegramApp shell={shell} />),
+);
