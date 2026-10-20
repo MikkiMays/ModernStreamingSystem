@@ -12,7 +12,7 @@ from typing import Literal
 from urllib.parse import unquote
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from . import covers
@@ -22,6 +22,7 @@ from .cinema.net import NetConfig
 from .cinema.sniffer import Sniffer, key_for
 from .core import Core
 from .media import MAX_FILE, probe
+from .metrics import render as render_metrics
 from .music import Music
 from .sources import PLATFORMS, Sources
 from .store import Store, now
@@ -243,6 +244,12 @@ def create_app(
     @app.get("/health")
     async def health():
         return {"status": "UP"}
+
+    @app.get("/metrics")
+    async def metrics():
+        return PlainTextResponse(
+            render_metrics(app.state), media_type="text/plain; version=0.0.4"
+        )
 
     @app.get("/api/v1/services/catalog")
     async def catalog():

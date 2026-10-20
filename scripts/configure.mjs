@@ -73,6 +73,21 @@ if (refresh) {
 const topology = resolveTopology(topologyArgs);
 
 const secret = () => randomBytes(32).toString("hex");
+
+/**
+ * Профиль `monitoring` (E10-B, docs/observability.md): VictoriaMetrics, Grafana, алерты. По умолчанию
+ * выключен — `--monitoring` включает его здесь, на установке и при перевыпуске.
+ *
+ * ЧТО ДОБАВЛЯЕТ В .env. Пароль метрик LiveKit (их порт слушает на тех же адресах, что и сигналинг, то
+ * есть на 0.0.0.0, — без пароля метрики SFU видел бы весь интернет), пароль входа в Grafana и
+ * `COMPOSE_PROFILES=monitoring`, по которому `docker compose up -d` поднимает профиль сам. Уже
+ * записанные значения не меняются: `.env` правит владелец, а секреты не вращаются сами.
+ */
+const monitoring = "monitoring" in args;
+const MONITORING_KEYS = {
+  LIVEKIT_METRICS_PASSWORD: () => secret(),
+  GRAFANA_PASSWORD: () => randomBytes(18).toString("base64url"),
+};
 const key = refresh ? saved.LIVEKIT_API_KEY : `API${randomBytes(9).toString("hex")}`;
 const mediaSecret = refresh ? saved.LIVEKIT_API_SECRET : secret();
 const redis = refresh ? saved.REDIS_PASSWORD : secret();
@@ -130,9 +145,20 @@ const values = {
   // what every installation did before the door existed. Put a word here and Cord asks for it
   // once per visit, before it shows anything about meetings.
   ACCESS_PASSWORD: "",
+  // Пароль владельца сервера: страница «Активность» (/activity) — встречи, журнал, блокировки.
+  // Пусто — страница выключена.
+  ADMIN_PASSWORD: "",
   SERVER_NAME: app,
+  ...(monitoring
+    ? {
+        ...Object.fromEntries(Object.entries(MONITORING_KEYS).map(([k, make]) => [k, make()])),
+        COMPOSE_PROFILES: "monitoring",
+      }
+    : {}),
 };
-// Перевыпуск не трогает .env: там живут секреты и то, что владелец правил руками.
+// Перевыпуск не трогает .env: там живут секреты и то, что владелец правил руками. Единственное
+// исключение — `--monitoring`: недостающие ключи профиля дописываются в конец, а `COMPOSE_PROFILES`
+// получает `monitoring` рядом с тем, что там уже было.
 if (!refresh)
   await writeFile(
     ".env",
@@ -141,6 +167,23 @@ if (!refresh)
       .join("\n") + "\n",
     { mode: 0o600 },
   );
+const env = refresh ? { ...saved } : { ...values };
+if (refresh && monitoring) {
+  let text = existing.endsWith("\n") ? existing : existing + "\n";
+  for (const [k, make] of Object.entries(MONITORING_KEYS))
+    if (!saved[k]) {
+      env[k] = make();
+      text += `${k}=${env[k]}\n`;
+    }
+  const profiles = (saved.COMPOSE_PROFILES ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  if (!profiles.includes("monitoring")) {
+    env.COMPOSE_PROFILES = [...profiles, "monitoring"].join(",");
+    text = /^COMPOSE_PROFILES=.*$/m.test(text)
+      ? text.replace(/^COMPOSE_PROFILES=.*$/m, `COMPOSE_PROFILES=${env.COMPOSE_PROFILES}`)
+      : text + `COMPOSE_PROFILES=${env.COMPOSE_PROFILES}\n`;
+  }
+  if (text !== existing) await writeFile(".env", text, { mode: 0o600 });
+}
 
 /**
  * Сколько подключений SFU пускает в одну встречу.
@@ -180,6 +223,12 @@ const livekit = {
     urls: [`http://127.0.0.1:${ports["hooks-port"]}/internal/livekit`],
   },
   logging: { level: "warn" },
+  // Метрики SFU для профиля `monitoring` — только с паролем: LiveKit 1.13 слушает этот порт на тех же
+  // `bind_addresses`, что и сигналинг (0.0.0.0), отдельной привязки к 127.0.0.1 у него нет. Без пароля
+  // в .env блока нет вовсе, и порт не открывается (docs/observability.md §3).
+  ...(env.LIVEKIT_METRICS_PASSWORD
+    ? { prometheus: { port: 6789, username: "metrics", password: env.LIVEKIT_METRICS_PASSWORD } }
+    : {}),
 };
 await writeFile(
   "infra/generated/livekit.json",
@@ -198,6 +247,58 @@ await writeFile(
     null,
     2,
   ) + "\n",
+);
+/**
+ * Куда Alertmanager шлёт оповещения (профиль `monitoring`). Telegram — бот Cord (токен из
+ * `.local/telegram.env`) в чат владельца `ALERT_TELEGRAM_CHAT_ID`; без чата или токена оповещения видны
+ * только в Grafana. `HEALTHCHECKS_URL` — внешний сторож: вечный алерт `Watchdog` пингует его раз в минуту,
+ * и о смерти самой машины скажет он, а не она. JSON — это тоже YAML: файл читает Alertmanager как есть.
+ */
+const telegramEnv = await readFile(".local/telegram.env", "utf8").catch(() => "");
+const botToken = /^CORD_MEET_TELEGRAM_BOT_TOKEN=(.+)$/m.exec(telegramEnv)?.[1]?.trim();
+const chatId = Number(env.ALERT_TELEGRAM_CHAT_ID);
+const owner = { name: "owner" };
+if (botToken && Number.isInteger(chatId) && chatId !== 0)
+  owner.telegram_configs = [{ bot_token: botToken, chat_id: chatId, send_resolved: true }];
+const watchdog = { name: "watchdog" };
+if (env.HEALTHCHECKS_URL)
+  watchdog.webhook_configs = [{ url: env.HEALTHCHECKS_URL, send_resolved: false }];
+await writeFile(
+  "infra/generated/alertmanager.yml",
+  JSON.stringify(
+    {
+      route: {
+        receiver: "owner",
+        group_by: ["alertname"],
+        // Отбой обязателен и не мгновенен: хост замирает на 20–55 с (урок vm-host-stalls).
+        group_wait: "1m",
+        group_interval: "5m",
+        repeat_interval: "6h",
+        routes: [
+          {
+            matchers: ['alertname="Watchdog"'],
+            receiver: "watchdog",
+            group_wait: "0s",
+            group_interval: "1m",
+            repeat_interval: "1m",
+          },
+        ],
+      },
+      // Пока хост тормозит, отказы во входе и 5xx шлюза — следствие, а не новость: одно сообщение вместо
+      // нескольких. «Не отвечает» не гасится: оно и так ждёт десять минут тишины, а замирание длится секунды.
+      // Гасить им всё `severity: page` нельзя — на машине с вечным steal не пришло бы ничего (E10-B, замер).
+      inhibit_rules: [
+        {
+          source_matchers: ['alertname="HostStalled"'],
+          target_matchers: ['alertname=~"JoinFailures|GatewayErrors5xx"'],
+        },
+      ],
+      receivers: [owner, watchdog],
+    },
+    null,
+    2,
+  ) + "\n",
+  { mode: 0o600 },
 );
 await writeFile(
   "infra/generated/redis.conf",

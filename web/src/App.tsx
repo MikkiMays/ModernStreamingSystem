@@ -34,6 +34,10 @@ const Showcase = lazy(() => import('./ui/kit/Showcase').then((module) => ({ defa
 const SupportPage = lazy(() =>
   import('./ui/support/SupportPage').then((module) => ({ default: module.SupportPage })),
 );
+// «Активность» владельца сервера (E10-B) — отдельным чанком: гостям встречи он не нужен.
+const Activity = lazy(() =>
+  import('./ui/activity/Activity').then((module) => ({ default: module.Activity })),
+);
 function initialDestination() {
   try {
     return parseInvite(location.href);
@@ -417,6 +421,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <Support />
+        <BootGate />
+      </Suspense>
+    );
+  // Страница владельца сервера (E10-B): своя дверь — пароль владельца, без сессии встречи и кэша.
+  if (location.pathname === '/activity')
+    return (
+      <Suspense fallback={null}>
+        <Activity />
         <BootGate />
       </Suspense>
     );

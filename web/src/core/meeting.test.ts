@@ -15,6 +15,7 @@ vi.mock('../media/session', async () => {
       start = vi.fn(async () => {
         this.state.set({ status: 'connected' });
       });
+      holdMicrophone = vi.fn(async () => {});
       setServiceParticipants = vi.fn();
       rememberPeople = vi.fn();
       watchScreen = vi.fn();

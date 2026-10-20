@@ -344,6 +344,19 @@ curl --fail https://meet.example.org/api/v1/capabilities
 | `stream.meeting.warn-before` | `MEETING_WARN_BEFORE` | `15 minutes` | за сколько до конца встреча предупреждает всех |
 | `stream.chat.room-history` | `CHAT_ROOM_HISTORY` | `1000` | сообщений в комнате; сверх уходят старейшие |
 | `stream.chat.executable-attachments` | `CHAT_EXECUTABLE_ATTACHMENTS` | `warn` | файлы, запускающие программу: `warn` — предупреждение, `block` — не принимать, `allow` |
+| `stream.abuse.per-ip.uploads` | `ABUSE_IP_UPLOADS` | `2GB per 1 day` | сколько байт загружает один адрес за срок (A10); не больше пятой части `total-max-bytes`; `off` — без квоты |
+| `stream.meeting.presence-check` | `MEETING_PRESENCE_CHECK` | `2 hours` | «Вы ещё здесь?»: кто столько не говорил, не трогал мышь и клавиатуру и не держал камеру, видит вопрос; `never` — не спрашивать |
+| `stream.meeting.presence-answer` | `MEETING_PRESENCE_ANSWER` | `5 minutes` | сколько ждать ответа до обычного выхода |
+| `stream.meeting.idle-integrations` | `MEETING_IDLE_INTEGRATIONS` | `10 minutes` | кино и музыка гаснут, если столько ни один человек не на связи (места заняты, медиа нет) |
+| `stream.abuse.blocks.default-term` | `BLOCK_DEFAULT_TERM` | `1 day` | срок блока владельца, если он его не выбрал; `never` — навсегда |
+| `stream.abuse.blocks.auto-block` | `AUTO_BLOCK` | `10 per 10 minutes` | отказов «слишком часто» про адрес, после которых сервер закрывает адрес сам; `off` — не закрывает |
+| `stream.abuse.blocks.auto-block-term` | `AUTO_BLOCK_TERM` | `30 minutes` | на сколько закрывает автоблок |
+
+Блокировки, автоблок и «снять щит» — на странице владельца «Активность» (ниже, «Наблюдаемость»).
+Блок закрывает весь API, кроме рукопожатия, и подключение к SFU; адрес хранится отпечатком (HMAC
+секретом сервера), владелец его не видит. Автоблок считает только отказы про адрес (`RATE_LIMITED`,
+`ROOMS_PER_HOUR`, `OPEN_ROOMS`, `CODE_MISSES`, `PASSWORD_MISSES`): полный сервер и частый чат одного
+человека офис за NAT не закрывают.
 
 Служба (`services`), кинозал и бот:
 
@@ -367,7 +380,9 @@ curl --fail https://meet.example.org/api/v1/capabilities
 Форма «Помощи» (`/support` и окно «?» в приложении, E13) кладёт обращение в таблицу `support_tickets`
 (V11); бот службы раз в 20 секунд забирает недонесённые из очереди ядра (`/internal/support/outbox`) и
 пишет их в чат владельца без разметки. Форма открыта и до пароля сервера и защищена той же задачей
-«не бот», что создание встречи. Адрес не хранится — только его HMAC секретом сервера.
+«не бот», что создание встречи. Адрес не хранится — только его HMAC секретом сервера. Владелец видит
+обращения на странице «Активность» → «Обращения» (вход `ADMIN_PASSWORD`) и ведёт их статус: новое, в работе,
+решено; там же видно, донёс ли бот обращение до Telegram.
 
 | Ключ | Переменная | По умолчанию | Что делает |
 | --- | --- | --- | --- |
@@ -383,7 +398,65 @@ curl --fail https://meet.example.org/api/v1/capabilities
 
 ## Наблюдаемость
 
-Внутренний `/actuator/prometheus` содержит JVM, CPU, пул JDBC, HTTP timings; `/actuator/health` проверяет БД/Redis. Экспорт метрик не публикуется через gateway. На SFU и хосте измерять исходящий трафик, CPU, память, потери, открытые дескрипторы. `docker stats`, `pidstat`, `sar -n DEV` и браузерный WebRTC stats дополняют друг друга. В клиенте диагностическая панель считает FPS/битрейт/потери по разности соседних измерений.
+Подробно — `docs/observability.md`. Две части, и первая работает без второй.
+
+**Страница «Активность»** (`https://<сервер>/activity`) — для владельца сервера: встречи сейчас и за
+период, журнал аудита, блокировки, «завершить встречу», «завершить и заблокировать создателя», «снять
+щит». Это своя статистика ядра в PostgreSQL (миграции V9, V10), профиль `monitoring` ей не нужен.
+Включается паролем в `.env` и перезапуском ядра:
+
+```bash
+echo "ADMIN_PASSWORD=$(openssl rand -base64 18)" >> .env    # или своё слово
+docker compose up -d --no-deps --force-recreate core
+```
+
+Пустой `ADMIN_PASSWORD` — страницы нет (ядро отвечает 404). Это не `ACCESS_PASSWORD` (пароль для
+гостей): владельцу пароль гостей не нужен. Сроки хранения — словами, как остальные:
+
+| Ключ | Переменная | По умолчанию | Что хранит |
+| --- | --- | --- | --- |
+| `stream.admin-password` | `ADMIN_PASSWORD` | пусто | пароль страницы «Активность»; пусто — выключена |
+| `stream.retention.audit` | `AUDIT_RETENTION` | `3 months` | журнал аудита: входы, отказы, исключения, рычаги владельца; имя участника и отпечаток адреса |
+| `stream.retention.meeting-stats` | `MEETING_STATS_RETENTION` | `1 year` | строки встреч: длительность, пик, человеко-секунды, интеграции — без названий и текста |
+| `stream.retention.activity-daily` | `ACTIVITY_DAILY_RETENTION` | `never` | итоги дня — только числа |
+
+**Профиль `monitoring`** — VictoriaMetrics, vmalert, Alertmanager, Grafana OSS, экспортеры машины,
+PostgreSQL и Redis, Gatus (≈ 410 МиБ своей памяти, потолки `mem_limit` в сумме 1 ГиБ). Всё слушает
+только 127.0.0.1; наружу не открыт ни один порт, CSP шлюза и стена плеера страниц не тронуты. По
+умолчанию выключен. Включить на новой установке — `sudo ./setup.sh --domain … --monitoring`; на
+работающей:
+
+```bash
+node scripts/configure.mjs --refresh --monitoring   # дописывает в .env недостающие ключи ниже
+docker compose up -d                                # COMPOSE_PROFILES из .env поднимает профиль
+# Метрики SFU появятся после перезапуска LiveKit — он обрывает идущие звонки, делать без встреч:
+docker compose up -d --force-recreate livekit
+```
+
+| Переменная | Кто пишет | Что делает |
+| --- | --- | --- |
+| `COMPOSE_PROFILES` | `--monitoring` | `monitoring` — `docker compose up -d` поднимает профиль; `update.sh` его держит |
+| `LIVEKIT_METRICS_PASSWORD` | `--monitoring` | пароль метрик LiveKit (порт 6789 слушает 0.0.0.0, как сигналинг; без пароля блока `prometheus` в `livekit.json` нет вовсе) |
+| `GRAFANA_PASSWORD` | `--monitoring` | пароль `admin` в Grafana; без него Grafana не стартует |
+| `METRICS_RETENTION` | владелец | срок рядов VictoriaMetrics: `90d` (по умолчанию), `6M`, `1y` |
+| `ALERT_TELEGRAM_CHAT_ID` | владелец | чат для алертов; бот — тот же бот Cord (`.local/telegram.env`) |
+| `HEALTHCHECKS_URL` | владелец | адрес проверки Healthchecks.io: вечный алерт `Watchdog` пингует его раз в минуту — о смерти самой машины скажет он |
+| `GATEWAY_METRICS_PORT` | владелец | порт метрик шлюза на 127.0.0.1, по умолчанию `2019` (поменять, если занят) |
+
+После правки `ALERT_TELEGRAM_CHAT_ID` или `HEALTHCHECKS_URL`: `node scripts/configure.mjs --refresh &&
+docker compose up -d --force-recreate alertmanager`.
+
+**Grafana — только через SSH-туннель**, не через шлюз: со своего компьютера `ssh -L
+3000:127.0.0.1:3000 root@<сервер>`, затем `http://localhost:3000`, пользователь `admin`, пароль
+`GRAFANA_PASSWORD`. Так у Grafana нет ни адреса в интернете, ни своей CSP рядом с CSP Cord.
+Дашборды («встречи», «SFU», «сервер», «доступность») — из `infra/monitoring/grafana/dashboards`,
+правка в интерфейсе не сохраняется; меняются генератором `node infra/monitoring/grafana/dashboards.mjs`
+и коммитом. Алерты — `infra/monitoring/rules/cord.yml`.
+
+Ядро отдаёт `/actuator/prometheus` (JVM, HTTP, пул JDBC и метры `cord_*` — встречи, люди, входы по
+исходу, отказы по коду, блоки; только перечислимые метки) на 127.0.0.1; шлюз его не публикует. На SFU и
+хосте помогают `docker stats`, `pidstat`, `sar -n DEV` и браузерный WebRTC stats; в клиенте
+диагностическая панель считает FPS/битрейт/потери по разности соседних измерений.
 
 Не включать access logs с query signaling, SQL parameter logging, request-body logging или дампы команд. Не хранить трассы Playwright с настоящими пользовательскими документами. CI использует синтетические имена/файлы; артефакты диагностических тестов живут 7 дней.
 

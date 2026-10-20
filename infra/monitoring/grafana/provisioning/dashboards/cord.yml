@@ -1,0 +1,12 @@
+# Дашборды Cord — из файлов репозитория (infra/monitoring/grafana/dashboards/*.json, их пишет
+# dashboards.mjs). Правка в интерфейсе Grafana не сохраняется: дашборд — код, меняется коммитом.
+apiVersion: 1
+providers:
+  - name: cord
+    folder: Cord
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/dashboards

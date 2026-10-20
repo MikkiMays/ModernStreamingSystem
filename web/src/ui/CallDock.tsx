@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   PhoneOff,
+  PictureInPicture2,
   Puzzle,
   Settings2,
   Users,
@@ -76,6 +77,8 @@ export function CallDock({
   const deafened = useStore(meeting.media.deafened);
   const outbound = useStore(meeting.media.outbound);
   const profile = useStore(meeting.media.preferences).screen;
+  /** «Свернуть в окно» (E12): только когда есть чья-то картинка и браузер умеет. */
+  const pip = useStore(meeting.media.pip.state);
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
@@ -146,6 +149,11 @@ export function CallDock({
                 </MenuItem>
               )}
               {!coarse && <CameraSubmenu meeting={meeting} />}
+              {(pip.available || pip.active) && (
+                <MenuItem icon={<PictureInPicture2 />} onClick={() => meeting.media.pip.toggle()}>
+                  {pip.active ? t(($) => $.dock.pipClose) : t(($) => $.dock.pip)}
+                </MenuItem>
+              )}
               {compact && (
                 <>
                   <MenuSeparator />

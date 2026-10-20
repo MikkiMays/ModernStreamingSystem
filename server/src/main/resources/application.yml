@@ -33,6 +33,9 @@ stream:
   internal-secret: ${INTERNAL_SECRET}
   files-root: ${FILES_ROOT:./.local/uploads}
   access-password: ${ACCESS_PASSWORD:}
+  # Пароль владельца сервера: страница «Активность» (`/activity`) — встречи, журнал, блокировки и
+  # рычаги. Пусто — страница выключена. Это не пароль входа на сервер (`ACCESS_PASSWORD`).
+  admin-password: ${ADMIN_PASSWORD:}
   server-name: ${SERVER_NAME:Cord}
   redis-enabled: true
   # Сколько людей во встрече (T06). Боты — музыка — места не занимают; SFU пускает на четыре
@@ -61,6 +64,14 @@ stream:
     closed-history: ${CLOSED_HISTORY_RETENTION:1 hour}
     # Сколько живут сообщения, события, расписки, приглашения и вложения идущей встречи.
     messages: ${MESSAGE_RETENTION:1 day}
+    # Журнал аудита: кто что сделал во встрече и на сервере. Трёх месяцев хватает на разбор жалобы.
+    # Адрес в нём — только отпечатком (HMAC секретом сервера), сам адрес не хранится нигде.
+    audit: ${AUDIT_RETENTION:3 months}
+    # Строки встреч для «Активности» за период: длительность, пик, человеко-минуты. Ни названий, ни
+    # текста. Год — чтобы сравнивать с прошлым сезоном.
+    meeting-stats: ${MEETING_STATS_RETENTION:1 year}
+    # Итоги дня — только числа, без людей.
+    activity-daily: ${ACTIVITY_DAILY_RETENTION:never}
   upload-timeout-seconds: 3600
   file-max-bytes: 104857600
   room-max-bytes: 1073741824
@@ -94,6 +105,13 @@ stream:
     # предупреждение, затем встреча завершается. `never` — без потолка. Сроки — словами (`Term`).
     max-duration: ${MEETING_MAX_DURATION:24 hours}
     warn-before: ${MEETING_WARN_BEFORE:15 minutes}
+    # «Вы ещё здесь?»: кто столько времени не говорил, не трогал мышь и клавиатуру и не включал
+    # камеру, видит плашку; без ответа за `presence-answer` — обычный выход. `never` — не спрашивать.
+    presence-check: ${MEETING_PRESENCE_CHECK:2 hours}
+    presence-answer: ${MEETING_PRESENCE_ANSWER:5 minutes}
+    # Кино и музыка гаснут, если столько времени ни один человек не на связи: места заняты, а
+    # смотреть и слушать некому.
+    idle-integrations: ${MEETING_IDLE_INTEGRATIONS:10 minutes}
   chat:
     # Сколько сообщений держит комната. Сверх этого уходят старейшие — кольцо, а не отказ всем.
     room-history: ${CHAT_ROOM_HISTORY:1000}
@@ -137,6 +155,9 @@ stream:
       password-misses: ${ABUSE_IP_PASSWORD_MISSES:10 per hour}
       # Подключения к SFU через шлюз (`/internal/signaling-auth`).
       signaling: ${ABUSE_IP_SIGNALING:60 per minute}
+      # Сколько байт загружает один адрес за срок (`2GB per 1 day`, `off`). Выше пятой части
+      # `total-max-bytes` не бывает: один адрес не займёт место всего сервера (A10).
+      uploads: ${ABUSE_IP_UPLOADS:2GB per 1 day}
     per-profile:
       rooms-created: ${ABUSE_PROFILE_ROOMS_CREATED:6 per hour}
       open-rooms: ${ABUSE_PROFILE_OPEN_ROOMS:2}
@@ -150,3 +171,13 @@ stream:
       # Промахи кодом по всему серверу. Выше — «щит»: вход по коду идёт через допуск ведущего, а
       # задача «не бот» дорожает в восемь раз, пока счётчик не спадёт.
       code-misses: ${ABUSE_SERVER_CODE_MISSES:300 per minute}
+    # Блокировки владельца сервера (страница «Активность»): адрес (IPv6 — сеть /64) или профиль
+    # устройства. Блок снимается досрочно там же.
+    blocks:
+      # Срок блока, если владелец его не выбрал. `never` — навсегда.
+      default-term: ${BLOCK_DEFAULT_TERM:1 day}
+      # Столько отказов «слишком часто» за окно — и сервер закрывает адрес сам на `auto-block-term`.
+      # Считаются только отказы про адрес (частота входов, новых встреч, промахи кода и пароля).
+      # `off` — сам не закрывает.
+      auto-block: ${AUTO_BLOCK:10 per 10 minutes}
+      auto-block-term: ${AUTO_BLOCK_TERM:30 minutes}

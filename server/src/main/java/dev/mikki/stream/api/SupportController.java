@@ -1,5 +1,6 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.AdminAccess;
 import dev.mikki.stream.access.ProofOfWork;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.support.SupportService;
@@ -19,7 +20,8 @@ import org.springframework.web.bind.annotation.*;
  * <p>Форма открыта и до пароля сервера ({@code RequestGuard.OPEN}): помощь нужнее всего тому, кто
  * застрял у двери. От потока её держат задача «не бот» на действие {@code support} и пределы на
  * адрес и на сервер ({@code stream.support}). Очередь — {@code /internal/}: её видит только служба
- * с внутренним секретом, наружу шлюз этот путь не пропускает.
+ * с внутренним секретом, наружу шлюз этот путь не пропускает. Владелец видит обращения и ведёт их
+ * статус на странице «Активность» ({@code /api/v1/admin/support}, вход {@link AdminAccess}).
  */
 @RestController
 public class SupportController {
@@ -31,17 +33,26 @@ public class SupportController {
       @Size(max = SupportService.MAX_DIAGNOSTICS) String diagnostics,
       boolean consent) {}
 
+  /** Новый статус обращения: «в работе», «решено» — или обратно в «новые». */
+  public record StatusChange(@NotNull SupportService.Status status) {}
+
   private final SupportService support;
   private final ProofOfWork proofs;
   private final ClientAddress address;
   private final StreamProperties config;
+  private final AdminAccess admin;
 
   public SupportController(
-      SupportService support, ProofOfWork proofs, ClientAddress address, StreamProperties config) {
+      SupportService support,
+      ProofOfWork proofs,
+      ClientAddress address,
+      StreamProperties config,
+      AdminAccess admin) {
     this.support = support;
     this.proofs = proofs;
     this.address = address;
     this.config = config;
+    this.admin = admin;
   }
 
   @PostMapping("/api/v1/support")
@@ -70,6 +81,28 @@ public class SupportController {
   @PostMapping("/internal/support/{id}/sent")
   public ResponseEntity<Void> sent(@PathVariable java.util.UUID id) {
     support.sent(id.toString());
+    return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * Обращения для «Активности», новые первыми; {@code before} — время последнего на прошлой
+   * странице.
+   */
+  @GetMapping("/api/v1/admin/support")
+  public List<SupportService.Entry> tickets(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestParam(value = "before", required = false) Long before) {
+    admin.require(token);
+    return support.recent(50, before);
+  }
+
+  @PutMapping("/api/v1/admin/support/{id}/status")
+  public ResponseEntity<Void> status(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @PathVariable java.util.UUID id,
+      @Valid @RequestBody StatusChange change) {
+    admin.require(token);
+    support.setStatus(id.toString(), change.status());
     return ResponseEntity.noContent().build();
   }
 }

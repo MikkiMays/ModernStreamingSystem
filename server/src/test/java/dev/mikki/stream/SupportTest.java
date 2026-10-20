@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import dev.mikki.stream.access.AdminAccess;
 import dev.mikki.stream.access.ProofOfWork;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
@@ -49,7 +50,8 @@ import org.springframework.web.context.WebApplicationContext;
       "stream.support.notify-telegram-chat=-100123",
       "stream.support.per-ip=3 per hour",
       "stream.support.per-server=6 per hour",
-      "stream.support.retention=30 days"
+      "stream.support.retention=30 days",
+      "stream.admin-password=пароль владельца"
     })
 @ActiveProfiles("local")
 class SupportTest {
@@ -258,6 +260,42 @@ class SupportTest {
     assertThat(support.recent(2, page.getLast().createdAt()))
         .extracting(SupportService.Entry::id)
         .containsExactly(ids.get(0));
+  }
+
+  /** «Активность» (E10-B): владелец видит обращения и ведёт их статус; без его входа — отказ. */
+  @Test
+  void theOwnerSeesTicketsOnTheActivityPageAndMovesThem() throws Exception {
+    var id = submit(fresh(), "Не приходит звук от собеседника");
+    mvc.perform(get("/api/v1/admin/support"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("ADMIN_REQUIRED"));
+    var session =
+        mvc.perform(
+                from(post("/api/v1/admin/session"), fresh())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"password\":\"пароль владельца\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    var token = Json.tree(session).path("token").asText();
+    mvc.perform(get("/api/v1/admin/support").header(AdminAccess.HEADER, token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(id))
+        .andExpect(jsonPath("$[0].status").value("NEW"))
+        .andExpect(jsonPath("$[0].message").value("Не приходит звук от собеседника"));
+    mvc.perform(
+            put("/api/v1/admin/support/" + id + "/status")
+                .header(AdminAccess.HEADER, token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\"}"))
+        .andExpect(status().isNoContent());
+    assertThat(support.recent(10, null).getFirst().status()).isEqualTo(Status.DONE);
+    mvc.perform(
+            put("/api/v1/admin/support/" + id + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"OPEN\"}"))
+        .andExpect(status().isUnauthorized());
   }
 
   /**

@@ -30,6 +30,9 @@ ufw allow 7882/udp
 ufw allow 3478/udp
 if [[ "$MODE" == "strict" ]]; then ufw deny 5349/tcp; else ufw allow 5349/tcp; fi
 ufw deny 7880/tcp
+# Метрики LiveKit (профиль monitoring): порт слушает 0.0.0.0, как и сигналинг; он под паролем,
+# но снаружи его не видно и так. Остальной мониторинг слушает только 127.0.0.1.
+ufw deny 6789/tcp
 ufw deny 8080/tcp
 ufw deny 8090/tcp
 ufw deny 8091/tcp

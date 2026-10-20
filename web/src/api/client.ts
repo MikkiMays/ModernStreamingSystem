@@ -12,7 +12,7 @@ import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
 import type { Challenge } from '../core/proof-solve';
-import { errorText, t } from '../i18n';
+import { errorText, locale, t } from '../i18n';
 
 export class ApiError extends Error {
   constructor(
@@ -67,6 +67,20 @@ function detailOf(detail: unknown): string {
   return t(($) => $.errors.INVALID_REQUEST);
 }
 
+/**
+ * Владелец сервера закрыл этот адрес или устройство (`403 BLOCKED`, E10-B): ядро называет срок
+ * числом, а словами и по часам этого устройства его называет клиент.
+ */
+function blockedUntil(until: number): string {
+  const date = new Date(until).toLocaleString(locale(t), {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return t(($) => $.api.blockedUntil, { date });
+}
+
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
   const send = () =>
     fetch(`/api/v1${path}`, {
@@ -92,7 +106,11 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
       response = await send();
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { code?: string; detail?: unknown };
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      detail?: unknown;
+      until?: unknown;
+    };
     // Код отказа — в последние ошибки для обращения в поддержку; адреса и тексты туда не идут.
     noteError(
       `${response.status} ${body.code ?? 'REQUEST_FAILED'} ${init.method ?? 'GET'} ${path.split('?')[0]!.replace(/[0-9a-f-]{36}/g, ':id')}`,
@@ -100,7 +118,9 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
     throw new ApiError(
       response.status,
       body.code ?? 'REQUEST_FAILED',
-      errorText(body.code, detailOf(body.detail)),
+      body.code === 'BLOCKED' && typeof body.until === 'number'
+        ? blockedUntil(body.until)
+        : errorText(body.code, detailOf(body.detail)),
       body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
     );
   }

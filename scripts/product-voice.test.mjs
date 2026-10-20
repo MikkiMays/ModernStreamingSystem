@@ -24,6 +24,7 @@ test("lets ordinary product words through", () => {
     "Можно написать и автору Cord в Telegram",
     "Время ответа сервера",
     "Встречи на этом сервере",
+    "Отпечаток адреса: сам адрес сервер не хранит",
   ])
     assert.deepEqual(check(text), [], text);
 });
