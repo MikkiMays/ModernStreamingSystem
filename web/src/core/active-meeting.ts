@@ -18,6 +18,10 @@ import { t } from '../i18n';
  *
  * Вкладка, которая упала, не прощается. Поэтому список не копится, а переспрашивается: при
  * каждом `refresh()` прежние записи живут, только если их вкладка ответила снова.
+ *
+ * Уход в bfcache — не конец встречи (E12): телефонный браузер прячет страницу туда при переходе
+ * назад или при нехватке памяти и возвращает её как была. Такая вкладка прощается (`gone`), но не
+ * закрывает канал насовсем, а по `pageshow` объявляется снова; окончательно — только без `persisted`.
  */
 export interface ActiveMeeting {
   tab: string;
@@ -72,9 +76,10 @@ export function announceMeeting(
   /** Имя вкладки — своё только в тестах, где «соседняя вкладка» живёт в том же процессе. */
   tab = thisTab,
 ) {
-  const channel = makeChannel();
+  let channel = makeChannel();
   let current: ActiveMeeting = { ...info, tab };
   let stopped = false;
+  let parked = false;
   const say = (message: Message) => channel?.postMessage(message);
   const listener = (event: MessageEvent) => {
     const message = event.data;
@@ -86,22 +91,45 @@ export function announceMeeting(
       handover.onHandedOver();
     }
   };
-  const stop = () => {
-    if (stopped) return;
-    stopped = true;
+  const close = () => {
     say({ type: 'gone', tab });
     channel?.removeEventListener('message', listener);
     channel?.close();
-    window.removeEventListener('pagehide', stop);
+    channel = null;
+  };
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (!parked) close();
+    window.removeEventListener('pagehide', hide);
+    window.removeEventListener('pageshow', show);
+  };
+  const hide = (event: Event) => {
+    if (stopped || parked) return;
+    if (!(event as PageTransitionEvent).persisted) {
+      stop();
+      return;
+    }
+    parked = true;
+    close();
+  };
+  const show = (event: Event) => {
+    if (stopped || !parked || !(event as PageTransitionEvent).persisted) return;
+    parked = false;
+    channel = makeChannel();
+    channel?.addEventListener('message', listener);
+    say({ type: 'here', meeting: current });
   };
   channel?.addEventListener('message', listener);
-  window.addEventListener('pagehide', stop);
+  window.addEventListener('pagehide', hide);
+  window.addEventListener('pageshow', show);
   say({ type: 'here', meeting: current });
   return {
     update(next: Omit<ActiveMeeting, 'tab'>) {
       if (stopped) return;
       current = { ...next, tab };
-      say({ type: 'here', meeting: current });
+      // Из bfcache объявится по `pageshow` — уже с новым названием.
+      if (!parked) say({ type: 'here', meeting: current });
     },
     stop,
   };

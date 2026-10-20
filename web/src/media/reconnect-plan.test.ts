@@ -42,3 +42,17 @@ describe('что делать по знаку сети', () => {
     );
   });
 });
+
+describe('возвращение из заморозки (E12)', () => {
+  it('страница стояла — сокет SDK, скорее всего, мёртв: resume сразу, как по знаку сети', () => {
+    expect(reconnectAction(signals({ trigger: 'woke' }))).toBe('resume');
+    expect(reconnectAction(signals({ trigger: 'woke', sinceNudgeMs: NUDGE_INTERVAL_MS - 1 }))).toBe('none');
+  });
+
+  it('SDK сдался — полный connect; переподключается сам — не мешать', () => {
+    expect(reconnectAction(signals({ trigger: 'woke', sdk: 'disconnected', recovering: true }))).toBe(
+      'connect',
+    );
+    expect(reconnectAction(signals({ trigger: 'woke', sdk: 'reconnecting' }))).toBe('none');
+  });
+});

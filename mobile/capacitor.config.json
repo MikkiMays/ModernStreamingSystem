@@ -1,0 +1,16 @@
+{
+  "appId": "tech.nikg.cord",
+  "appName": "Cord",
+  "webDir": "www",
+  "appendUserAgent": "CordApp/0.1",
+  "server": {
+    "url": "https://cord.nikg.tech",
+    "androidScheme": "https",
+    "cleartext": false,
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false
+  }
+}
