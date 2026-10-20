@@ -53,6 +53,10 @@ export const defaultAudio: AudioPreferences = {
 export type GameKind = 'poker' | 'durak' | 'chess' | 'gartic';
 export const gameKinds: GameKind[] = ['poker', 'durak', 'chess', 'gartic'];
 
+/** Где человек выбирает площадку при входе (T59). */
+export type PlatformArea = 'music' | 'cinema';
+const platformAreas: PlatformArea[] = ['music', 'cinema'];
+
 export interface Preferences {
   showPing: boolean;
   notificationSounds: boolean;
@@ -109,6 +113,13 @@ export interface Preferences {
    * вставить ту же ссылку ещё раз — частое дело (серия за серией, эфир после перерыва).
    */
   cinemaLinks: string[];
+  /**
+   * Какую площадку выбирали в прошлый раз — у музыки и у кинозала (T59): экран выбора при входе
+   * отмечает её и ставит на неё фокус. Своё у устройства, как недавние ссылки. Здесь — только имя:
+   * что это за площадка и включена ли она на этом сервере, решает экран выбора, а незнакомое имя
+   * (площадку убрали) он просто не отметит.
+   */
+  lastPlatform: Partial<Record<PlatformArea, string>>;
   /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
   reception: Reception;
   name: string;
@@ -202,6 +213,12 @@ export function readPreferences(): Preferences {
           )
           .slice(0, 10)
       : [],
+    lastPlatform: Object.fromEntries(
+      platformAreas.flatMap((area) => {
+        const id: unknown = data.lastPlatform?.[area];
+        return typeof id === 'string' && /^[a-z][a-z-]{0,31}$/.test(id) ? [[area, id]] : [];
+      }),
+    ),
     name: (localStorage.getItem('cord:name') ?? (typeof data.name === 'string' ? data.name : '')).slice(
       0,
       40,

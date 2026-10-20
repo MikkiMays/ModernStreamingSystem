@@ -104,3 +104,16 @@ it('служба назвала пустой список — плиток не�
   expect(await screen.findByText('Площадки кинозала на этом сервере выключены.')).toBeVisible();
   expect(tiles()).toEqual([]);
 });
+
+it('экран выбора — тот же, что у музыки: прошлый выбор отмечен и помнится на устройстве (T59)', async () => {
+  const meeting = mount(() => json({ providers: [entry('youtube'), entry('rutube'), entry('link')] }));
+  expect(screen.getByRole('heading', { name: 'Кинозал' })).toBeInTheDocument();
+  expect(screen.getByText('Выберите площадку')).toBeInTheDocument();
+  await waitFor(() => expect(tiles()).toHaveLength(3));
+  expect(screen.queryByText('Последний выбор')).toBeNull();
+  screen.getByRole('button', { name: /^Rutube/ }).click();
+  expect(meeting.openCinema).toHaveBeenCalledWith('rutube');
+  expect(meeting.media.saveSettings).toHaveBeenCalledWith({ lastPlatform: { cinema: 'rutube' } });
+  const rutube = await screen.findByRole('button', { name: /^Rutube/ });
+  await waitFor(() => expect(within(rutube).getByText('Последний выбор')).toBeVisible());
+});

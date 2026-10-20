@@ -10,8 +10,12 @@ import { MusicSearch } from './MusicSearch';
 import { MusicUpload } from './MusicUpload';
 import { YandexIntegration } from './YandexIntegration';
 import { t } from '../i18n';
-import { musicHint } from './integration-shelf';
+import { musicHint, shelfName } from './integration-shelf';
 import { afterMove } from './music-playback';
+import { platformTiles, type MusicPlatform } from './music-platforms';
+import { PlatformPicker, PlatformTabs } from './PlatformPicker';
+
+const PLATFORMS: MusicPlatform[] = ['youtube', 'soundcloud', 'yandex', 'upload'];
 
 /**
  * Витрина и музыка на образцах — для страницы набора `/kit` (E16): без встречи, сервера и сети.
@@ -124,6 +128,10 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
   const [state, setState] = useState(STATE);
   const now = (patch: Partial<MusicState>) => setState((current) => ({ ...current, ...patch }));
   const added = async () => state;
+  // Площадка музыки (T59): вкладки над плеером переключают поле, как в панели встречи.
+  const [platform, setPlatform] = useState<MusicPlatform>('youtube');
+  const tiles = platformTiles(t, PLATFORMS);
+  const playing = state.queue[0];
   return (
     <div className="kit-integrations">
       <Frame width={320}>
@@ -136,11 +144,40 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
           />
         </div>
       </Frame>
+      <Frame width={320}>
+        <div className="services-panel music-panel">
+          <PlatformPicker
+            className="music-picker"
+            title={shelfName(t, 'music')}
+            backLabel={t(($) => $.services.music.back)}
+            onBack={() => {}}
+            label={t(($) => $.music.platforms.tiles)}
+            tiles={tiles}
+            last={platform}
+            onPick={setPlatform}
+            focusOnEnter={false}
+            now={
+              playing && (
+                <p>
+                  {t(($) => $.music.platforms.playing)} <b>{playing.title}</b>
+                  <small>{playing.artist}</small>
+                </p>
+              )
+            }
+          />
+        </div>
+      </Frame>
       <Frame width={400}>
         <div className="services-panel music-panel">
           <Button variant="quiet" size="sm" className="music-panel__back" icon={<ArrowLeft />}>
             Интеграции
           </Button>
+          <PlatformTabs
+            label={t(($) => $.music.platforms.label)}
+            tiles={tiles}
+            current={platform}
+            onPick={setPlatform}
+          />
           <MusicPlayer
             state={state}
             canUse
@@ -149,24 +186,44 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
             onCommand={(_, __, patch) => patch && now(patch)}
             onSeek={(position) => now({ position })}
           />
-          <MusicUpload
-            canUse
-            maxFileBytes={50 * 1024 * 1024}
-            upload={added}
-            onAdded={() => {}}
-            onError={() => {}}
-          >
-            <MusicSearch
-              abilities={{
-                platforms: ['youtube', 'soundcloud'],
-                canSearch: true,
-                searchPlatform: async (source) => FOUND[source],
-                addLink: added,
-                yandex: { connected: true, search: async () => YANDEX, add: added },
-              }}
+          {platform === 'upload' ? (
+            <MusicUpload
+              canUse
+              maxFileBytes={50 * 1024 * 1024}
+              upload={added}
               onAdded={() => {}}
-            />
-          </MusicUpload>
+              onError={() => {}}
+            >
+              <p className="music-add__lead">{t(($) => $.music.platforms.upload.drop)}</p>
+            </MusicUpload>
+          ) : (
+            <>
+              {platform === 'yandex' && (
+                <YandexIntegration
+                  api={yandexApi}
+                  roomId={`kit-${theme}`}
+                  storedToken=""
+                  onStoredTokenChange={() => {}}
+                />
+              )}
+              <MusicSearch
+                key={platform}
+                abilities={{
+                  platform,
+                  offered: PLATFORMS,
+                  canSearch: true,
+                  searchPlatform: async (source) => FOUND[source],
+                  addLink: added,
+                  yandex:
+                    platform === 'yandex'
+                      ? { connected: true, search: async () => YANDEX, add: added }
+                      : null,
+                }}
+                onSwitch={(next) => setPlatform(next)}
+                onAdded={() => {}}
+              />
+            </>
+          )}
           <MusicQueue
             state={state}
             canUse
@@ -174,12 +231,6 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
             onPromote={(_, patch) => now(patch)}
             onRemove={(_, patch) => now(patch)}
             onMove={(trackItem, index) => now(afterMove(state, trackItem.id, index))}
-          />
-          <YandexIntegration
-            api={yandexApi}
-            roomId={`kit-${theme}`}
-            storedToken=""
-            onStoredTokenChange={() => {}}
           />
           <Button variant="quiet" className="music-panel__remove" icon={<Unplug />}>
             Убрать музыку из встречи
