@@ -364,6 +364,13 @@ interface AudioContextLike {
 export const RESUME_WAIT_MS = 300;
 
 /**
+ * События, в которых браузер считает нажатие жестом человека и разрешает звук. `pointerdown` касанием
+ * жестом не считается (только `pointerup`/`touchend`), а WebKit исторически будит звук на `touchend` и
+ * `click` — слушаем всё: лишний вызов на работающем контексте ничего не делает.
+ */
+const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const;
+
+/**
  * Будильник звука собеседников.
  *
  * Чужой звук у нас идёт через WebAudio (`webAudioMix`), и после фона, обычного звонка или Siri
@@ -382,8 +389,7 @@ export class AudioWaker {
     private readonly gestures: LifecycleTarget | null = typeof document !== 'undefined' ? document : null,
   ) {
     context?.addEventListener('statechange', this.changed);
-    this.gestures?.addEventListener('pointerdown', this.gesture);
-    this.gestures?.addEventListener('keydown', this.gesture);
+    for (const type of GESTURES) this.gestures?.addEventListener(type, this.gesture);
   }
 
   get running() {
@@ -425,7 +431,6 @@ export class AudioWaker {
     this.disposed = true;
     this.blocked.set(false);
     this.context?.removeEventListener('statechange', this.changed);
-    this.gestures?.removeEventListener('pointerdown', this.gesture);
-    this.gestures?.removeEventListener('keydown', this.gesture);
+    for (const type of GESTURES) this.gestures?.removeEventListener(type, this.gesture);
   }
 }

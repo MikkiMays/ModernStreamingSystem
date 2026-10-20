@@ -356,7 +356,7 @@ describe('будильник звука собеседников', () => {
       context.dispatchEvent(new Event('statechange'));
       return Promise.resolve();
     });
-    gestures.dispatchEvent(new Event('pointerdown'));
+    gestures.dispatchEvent(new Event('touchend'));
     await vi.advanceTimersByTimeAsync(0);
     expect(waker.blocked.get()).toBe(false);
   });

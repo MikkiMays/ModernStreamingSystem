@@ -318,7 +318,8 @@ export function MeetingView({
               {t(($) => $.meeting.view.unlockAudio)}
             </Button>
           )}
-          <BackgroundNote meeting={meeting} />
+          {/* Кнопка «Включить звук» стоит на том же месте и важнее подсказки. */}
+          {!(audioBlocked || audioAsleep) && <BackgroundNote meeting={meeting} />}
           {media.error && !ended && (
             <div className="media-error media-stage" role="alert">
               <span>{media.error}</span>
