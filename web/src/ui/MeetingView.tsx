@@ -12,6 +12,7 @@ import { MeetingSettings } from './MeetingSettings';
 import { Settings } from './Settings';
 import type { Theme } from './Home';
 import { MeetingHeader } from './MeetingHeader';
+import { PresenceAsk, usePresence } from './abuse/Presence';
 import { Button, IconButton, ResizeHandle, usePanelWidth } from './kit';
 import { humans } from '../core/people';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
@@ -89,6 +90,8 @@ export function MeetingView({
   const compact = useMediaQuery(COMPACT);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
+  // «Вы ещё здесь?» (A2): браузер сам говорит ядру, что за ним кто-то есть, пока встреча идёт.
+  const presence = usePresence(meeting, !ended);
   useEffect(() => {
     notifyDesktop('call-state', { inCall: !ended });
   }, [ended]);
@@ -232,6 +235,7 @@ export function MeetingView({
               <b>{t(($) => $.meeting.view.seconds, { n: media.remaining })}</b>
             </div>
           )}
+          {!ended && <PresenceAsk snapshot={snapshot} presence={presence} />}
           {!ended && control === 'recovering' && media.status === 'connected' && (
             <div className="control-banner media-stage" role="status">
               {t(($) => $.meeting.view.controlRecovering)}

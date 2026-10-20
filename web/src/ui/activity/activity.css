@@ -1,0 +1,387 @@
+/* «Активность» — страница владельца сервера (E10-B). Только токены набора (styles/tokens.css). */
+.activity-page {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding: var(--space-4);
+  font-family: var(--font-sans);
+}
+
+.activity-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 1200px;
+  margin: 0 auto var(--space-4);
+}
+
+.activity-header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 auto 0 0;
+  font-size: var(--text-xl);
+}
+
+.activity-login {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 360px;
+  margin: 10vh auto 0;
+}
+
+.activity-login p,
+.activity-hint {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.activity-tabs {
+  max-width: 1200px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.activity-section {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 1200px;
+  margin: var(--space-4) auto 0;
+}
+
+.activity-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+
+.activity-tile {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.activity-tile__value {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-tile__label {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.activity-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.activity-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.activity-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.activity-table th,
+.activity-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.activity-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.activity-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.activity-table tr[data-outcome='denied'] td:nth-child(2) {
+  color: var(--text-secondary);
+}
+
+.activity-denied {
+  color: var(--warning);
+}
+
+.activity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.activity-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.activity-nowrap {
+  white-space: nowrap;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.activity-blocks {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-blocks li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.activity-blocks li[data-active='false'] {
+  color: var(--muted);
+}
+
+.activity-blocks li div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-blocks li span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.activity-facts {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.activity-facts dt {
+  color: var(--muted);
+}
+
+.activity-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.activity-code {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+/* ---------- столбцы (Bars.tsx) ---------- */
+.activity-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-4);
+}
+
+.activity-bars {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  background: var(--surface-1);
+}
+
+.activity-bars figcaption {
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+
+.activity-bars ul {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 160px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line-strong);
+  list-style: none;
+}
+
+.activity-bars li {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  outline: none;
+}
+
+.activity-bars__track {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+}
+
+.activity-bars__bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: var(--radius-1) var(--radius-1) 0 0;
+  background: var(--accent-fill);
+}
+
+.activity-bars li:hover .activity-bars__bar,
+.activity-bars li:focus-visible .activity-bars__bar {
+  background: var(--accent-fill-hover);
+}
+
+.activity-bars__value {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-bars__label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* Подписи под столбцами — только у первого, последнего и каждого седьмого: иначе слипаются. */
+.activity-bars:not(.activity-bars--horizontal)
+  li:not(:first-child, :last-child, :nth-child(7n + 1))
+  .activity-bars__label {
+  visibility: hidden;
+}
+
+.activity-bars:not(.activity-bars--horizontal) {
+  padding-bottom: calc(var(--space-4) + 1.2em);
+}
+
+.activity-bars li:hover::after,
+.activity-bars li:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + var(--space-1));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2);
+  background: var(--surface-3);
+  box-shadow: var(--shadow-2);
+  color: var(--text);
+  font-size: var(--text-xs);
+  pointer-events: none;
+}
+
+.activity-bars--horizontal ul {
+  flex-direction: column;
+  height: auto;
+  gap: var(--space-2);
+  border-bottom: 0;
+  border-left: 1px solid var(--line-strong);
+}
+
+.activity-bars--horizontal li {
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activity-bars--horizontal .activity-bars__track {
+  align-items: center;
+  height: 16px;
+}
+
+.activity-bars--horizontal .activity-bars__bar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 var(--radius-1) var(--radius-1) 0;
+}
+
+.activity-bars--horizontal .activity-bars__label {
+  position: static;
+  transform: none;
+  flex: 0 0 96px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.activity-bars--horizontal .activity-bars__value {
+  position: static;
+  transform: none;
+  margin-left: var(--space-2);
+}
+
+.activity-bars--horizontal li:hover::after,
+.activity-bars--horizontal li:focus-visible::after {
+  bottom: auto;
+  top: 100%;
+}
+
+@media (max-width: 600px) {
+  .activity-page {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+  }
+
+  .activity-table th:nth-child(4),
+  .activity-table td:nth-child(4) {
+    display: none;
+  }
+}
