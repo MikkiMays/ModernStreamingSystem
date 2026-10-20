@@ -11,6 +11,7 @@ import { rememberMeeting } from '../core/recent';
 import { thisServer } from '../core/servers';
 import { servicesApi, type TelegramEntry } from '../core/services';
 import { openConnection, session } from '../core/session';
+import { t as translate } from '../i18n';
 import { Connect } from '../ui/Connect';
 import { Button, Logo } from '../ui/kit';
 import { BootGate } from '../ui/loader/BootGate';
@@ -81,7 +82,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
           microphone = true;
         }
         const destination = parseInvite(entry.inviteUrl);
-        if (destination.kind !== 'invite') throw new Error(t(($) => $.invite.parseFailed));
+        if (destination.kind !== 'invite') throw new Error(translate(($) => $.invite.parseFailed));
         const admission = await publicApi.join(
           destination.roomId,
           { commandId: commandId.current, invite: destination.invite, name: entry.name },
@@ -110,7 +111,8 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
         });
       }
     },
-    [shell, t],
+    // Только `shell`: смена языка во встрече не должна заново входить в неё (текст ошибки — общий `t`).
+    [shell],
   );
   useEffect(() => {
     void run();
