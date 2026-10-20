@@ -31,6 +31,9 @@ dirty=$(git status --porcelain --untracked-files=no -- . ':!backlog' | head -1)
 exec 9>"$LOCK"
 flock -w 1800 9 || { echo "Другая выкатка держит $LOCK дольше 30 минут" >&2; exit 1; }
 
+# Без bake: compose 2.x отдаёт сборку BuildKit-у через bake, и под нагрузкой тот теряет задание
+# («NotFound: forwarding Ping: no such job») — сборка падает на ровном месте.
+export COMPOSE_BAKE=false
 echo "== сборка $* (коммит $head)"
 CORD_BUILD=$head docker compose build "$@"
 # Ядро — первым и отдельно: шлюз и службы ждут его здоровья (`depends_on: service_healthy`) даже
