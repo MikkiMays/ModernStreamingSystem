@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish a verified GitHub release artifact; latest changes only after all files exist."""
+"""Publish a verified GitHub release artifact; download.json changes only after all files exist."""
 import argparse
 import hashlib
 import json
@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("metadata", type=Path, help="GitHub releases/tags/vX.Y.Z API JSON")
 parser.add_argument("artifacts", type=Path, help="Extracted Cord-win-x64 workflow artifact")
 parser.add_argument("--destination", type=Path, default=Path(".local/windows-releases"))
-# Сколько выпусков остаётся на сервере. Наружу отдаётся ровно один — тот, что в latest.json:
+# Сколько выпусков остаётся на сервере. Наружу отдаётся ровно один — тот, что в download.json:
 # страница /download и обновлялка клиента спрашивают только его, а старые каталоги лежали
 # мёртвым грузом по 400 МБ каждый. Второй остаётся не для раздачи, а для человека: вернуть
 # вчерашний установщик, не ходя на GitHub. Ноль означает «не убирать ничего».
@@ -41,11 +41,11 @@ for name in names:
     if not name.endswith(".sha256") and (args.artifacts / (name + ".sha256")).read_text().split()[0].lower() != digest:
         raise SystemExit("Sidecar checksum mismatch: " + name)
 args.destination.mkdir(parents=True, exist_ok=True)
-latest = args.destination / "latest.json"
-if latest.exists():
-    previous = json.loads(latest.read_text())["tag_name"]
-    if tuple(map(int, previous[1:].split("."))) > tuple(map(int, version.split("."))):
-        raise SystemExit("Refusing to downgrade latest")
+current = args.destination / "download.json"
+if current.exists():
+    previous = json.loads(current.read_text())["version"]
+    if tuple(map(int, previous.split("."))) > tuple(map(int, version.split("."))):
+        raise SystemExit("Refusing to downgrade the published release")
 with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as folder:
     stage = Path(folder) / tag
     stage.mkdir()
@@ -59,14 +59,10 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
                 raise SystemExit("Refusing to replace a published release: " + name)
     else:
         os.rename(stage, target)
-    release["repository"] = REPOSITORY
-    manifest = Path(folder) / "latest.json"
-    manifest.write_text(json.dumps(release, ensure_ascii=False, indent=2) + "\n")
-    os.chmod(manifest, 0o644)
-    os.replace(manifest, latest)
-    # What the download page needs, and nothing else. `latest.json` is the whole GitHub release
-    # record — the updater reads it because it verifies the upstream URLs — but a page that only
-    # has to draw one button should not be handed the repository's bookkeeping.
+    # The one public description of the release, for the download page and the client's update
+    # splash alike: version and files with sizes and digests, nothing of the repository. The
+    # whole GitHub record used to go out as `latest.json` for clients before 0.7.8; there are no
+    # such clients (owner decision В-2), so it is no longer published and a leftover is removed.
     page = {
         "version": version,
         "tag": tag,
@@ -87,9 +83,10 @@ with tempfile.TemporaryDirectory(prefix=".release-", dir=args.destination) as fo
     catalogue = Path(folder) / "download.json"
     catalogue.write_text(json.dumps(page, ensure_ascii=False, indent=2) + "\n")
     os.chmod(catalogue, 0o644)
-    os.replace(catalogue, args.destination / "download.json")
+    os.replace(catalogue, current)
+(args.destination / "latest.json").unlink(missing_ok=True)
 
-# Старые выпуски убираются ПОСЛЕ того, как `latest.json` и `download.json` уже указывают на
+# Старые выпуски убираются ПОСЛЕ того, как `download.json` уже указывает на
 # новый. Порядок здесь — это и есть безопасность: пока манифест не переписан, страница
 # раздаёт прежний каталог, и убрать его значило бы отдать 404 тому, кто нажал «Скачать» в
 # эту секунду. Провалившаяся выкладка сюда не доходит вовсе — и ничего не удаляет.
