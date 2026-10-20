@@ -96,6 +96,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "executable": {
+            "type": "boolean"
+          },
           "expiresAt": {
             "format": "int64",
             "type": "integer"
@@ -133,6 +136,7 @@
           "cancelledAt",
           "completedAt",
           "createdAt",
+          "executable",
           "expiresAt",
           "id",
           "name",
@@ -269,6 +273,27 @@
           "attack",
           "beat"
         ],
+        "type": "object"
+      },
+      "Challenge": {
+        "properties": {
+          "algorithm": {
+            "type": "string"
+          },
+          "challenge": {
+            "type": "string"
+          },
+          "maxnumber": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "salt": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "ChessMove": {
@@ -1312,7 +1337,8 @@
               "message.created",
               "files.changed",
               "screen.started",
-              "screen.first_viewer"
+              "screen.first_viewer",
+              "meeting.warning"
             ],
             "type": "string"
           },
@@ -2043,6 +2069,9 @@
           },
           "title": {
             "type": "string"
+          },
+          "watching": {
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -2825,6 +2854,13 @@
           "durakGamesAt": {
             "format": "int64",
             "type": "integer"
+          },
+          "endsAt": {
+            "format": "int64",
+            "type": [
+              "null",
+              "integer"
+            ]
           },
           "gartic": {
             "oneOf": [
@@ -3735,6 +3771,36 @@
                     "type": "integer"
                   },
                   "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/proof": {
+      "get": {
+        "operationId": "proof",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "for",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Challenge"
                 }
               }
             },

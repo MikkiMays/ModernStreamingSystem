@@ -191,6 +191,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["proof"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms": {
         parameters: {
             query?: never;
@@ -479,6 +495,7 @@ export interface components {
             completedAt: null | number;
             /** Format: int64 */
             createdAt: number;
+            executable: boolean;
             /** Format: int64 */
             expiresAt: number;
             id: string;
@@ -524,6 +541,14 @@ export interface components {
         CardPair: {
             attack: string;
             beat: string | null;
+        };
+        Challenge: {
+            algorithm?: string;
+            challenge?: string;
+            /** Format: int64 */
+            maxnumber?: number;
+            salt?: string;
+            signature?: string;
         };
         ChessMove: {
             /** Format: int64 */
@@ -795,7 +820,7 @@ export interface components {
             /** Format: int64 */
             sequence: number;
             /** @enum {string} */
-            type: "room.changed" | "message.created" | "files.changed" | "screen.started" | "screen.first_viewer";
+            type: "room.changed" | "message.created" | "files.changed" | "screen.started" | "screen.first_viewer" | "meeting.warning";
             /** Format: int32 */
             version: number;
         };
@@ -983,6 +1008,7 @@ export interface components {
             ownerPresent?: boolean;
             participantCan?: string[];
             title?: string;
+            watching?: boolean;
         };
         Join: {
             /** Format: uuid */
@@ -1212,6 +1238,8 @@ export interface components {
             durak: components["schemas"]["DurakView"] | null;
             /** Format: int64 */
             durakGamesAt: number;
+            /** Format: int64 */
+            endsAt?: null | number;
             gartic?: components["schemas"]["GarticView"] | null;
             id: string;
             integrationsAllowed: boolean;
@@ -1660,6 +1688,28 @@ export interface operations {
                     "*/*": {
                         [key: string]: number;
                     };
+                };
+            };
+        };
+    };
+    proof: {
+        parameters: {
+            query: {
+                for: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Challenge"];
                 };
             };
         };
