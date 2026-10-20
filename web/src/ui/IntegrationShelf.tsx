@@ -12,6 +12,11 @@ export interface ShelfView {
   blockedBy?: Partial<Record<ShelfId, string>>;
   /** Может ли этот человек привязать беседу Telegram (`telegram.link`). */
   canLinkTelegram: boolean;
+  /**
+   * Mini App Telegram включён на сервере (`catalog.telegram.webapp`, E09). Тогда Telegram — не «Скоро»:
+   * создателю — кнопка внутрь, остальным — строка без действия с подсказкой, кто подключает.
+   */
+  telegramReady?: boolean;
   onOpen: (id: ShelfId) => void;
 }
 
@@ -26,6 +31,7 @@ export function IntegrationShelf({
   live = {},
   blockedBy = {},
   canLinkTelegram,
+  telegramReady = false,
   onOpen,
 }: ShelfView) {
   const { t } = useTranslation();
@@ -81,6 +87,23 @@ export function IntegrationShelf({
     );
   };
 
+  /** Telegram при включённом Mini App: готовая карточка у создателя, строка с подсказкой у остальных. */
+  const telegramCard = (item: ShelfItem) =>
+    canLinkTelegram ? (
+      readyCard(item)
+    ) : (
+      <div key={item.id} className="service-group service-group--soon">
+        <span className="service-group__icon" aria-hidden="true">
+          <item.icon size={20} />
+        </span>
+        <span className="service-group__text">
+          <b>{shelfName(t, item.id)}</b>
+          <small>{shelfHint(t, item.id)}</small>
+          <small className="service-group__note">{telegramNote(t, false)}</small>
+        </span>
+      </div>
+    );
+
   return (
     <div className="integration-shelf">
       <h3 className="integration-shelf__title">{t(($) => $.integrations.title)}</h3>
@@ -88,12 +111,22 @@ export function IntegrationShelf({
       <ul className="integration-shelf__soon" aria-label={t(($) => $.integrations.soon)}>
         {soon.map(soonCard)}
       </ul>
-      <ul
-        className="integration-shelf__soon integration-shelf__apart"
-        aria-label={t(($) => $.integrations.apart)}
-      >
-        {apart.map(soonCard)}
-      </ul>
+      {telegramReady ? (
+        <div
+          className="integration-shelf__ready integration-shelf__apart"
+          role="group"
+          aria-label={t(($) => $.integrations.apart)}
+        >
+          {apart.map(telegramCard)}
+        </div>
+      ) : (
+        <ul
+          className="integration-shelf__soon integration-shelf__apart"
+          aria-label={t(($) => $.integrations.apart)}
+        >
+          {apart.map(soonCard)}
+        </ul>
+      )}
     </div>
   );
 }

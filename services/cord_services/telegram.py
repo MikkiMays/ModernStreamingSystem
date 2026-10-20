@@ -7,6 +7,7 @@ import json
 import os
 import re
 import secrets
+import time
 import uuid
 
 import httpx
@@ -18,6 +19,16 @@ from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
 from .store import Store, now
+from .webapp import (
+    LINK_PREFIX,
+    InitDataError,
+    Memberships,
+    Refusal,
+    display_name,
+    release,
+    startapp_url,
+    verify_init_data,
+)
 
 COMMANDS = [
     ("meet", "Открыть встречу этого чата"),
@@ -74,8 +85,22 @@ class Telegram:
         music: Music,
         public_url: str,
         yandex=None,
+        *,
+        webapp: bool = False,
+        short_name: str = "",
+        init_data_age: int = 3600,
     ):
         self.yandex = yandex
+        # Mini App (E09, `TELEGRAM_WEBAPP_ENABLED`): кнопка «Открыть встречу» в беседе и вход по ней.
+        self.webapp = webapp
+        self.short_name = short_name
+        self.init_data_age = init_data_age
+        self.memberships = Memberships()
+        # Вход через Mini App — на пользователя Telegram: перезагрузка WebView и пара повторов — да,
+        # перебор кнопок разных бесед — нет.
+        self.entries = Window(
+            20, 600, "Слишком много входов подряд. Подождите несколько минут"
+        )
         self.token = token
         self.store = store
         self.core = core
@@ -149,8 +174,16 @@ class Telegram:
         ]
         name = "Cord · встречи и музыка"
         description = (
-            "Создавайте встречи Cord прямо в Telegram, связывайте комнаты с чатами и "
-            "темами, отправляйте музыку в общую очередь. /help — подключение и все команды."
+            (
+                "Cord — видеовстречи прямо из чата. Создатель встречи привязывает её к беседе, и в "
+                "чате появляется кнопка «Открыть встречу»: Cord открывается на весь экран, без "
+                "регистрации. /help — подключение и все команды."
+            )
+            if self.webapp
+            else (
+                "Создавайте встречи Cord прямо в Telegram, связывайте комнаты с чатами и "
+                "темами, отправляйте музыку в общую очередь. /help — подключение и все команды."
+            )
         )
         short = "Встречи Cord и общая музыкальная очередь. Добавьте в чат и отправьте /meet."
         rights = {
@@ -164,6 +197,8 @@ class Telegram:
                 "can_promote_members": False,
                 "can_change_info": False,
                 "can_invite_users": False,
+                # Кнопку Mini App бот закрепляет в беседе при привязке (E09).
+                "can_pin_messages": True,
                 "can_post_stories": False,
                 "can_edit_stories": False,
                 "can_delete_stories": False,
@@ -248,9 +283,22 @@ class Telegram:
         делили бы одну корзину пределов. Ядро верит заголовку только вместе с секретом службы, а
         номер пользователя видит лишь его HMAC.
         """
-        who = message.get("from", {}).get("id") or message["chat"]["id"]
+        return self.actor_header(message.get("from", {}).get("id") or message["chat"]["id"])
+
+    def actor_header(self, who: int) -> dict:
         mark = hmac.new(self.core.secret.encode(), f"telegram-actor:{who}".encode(), hashlib.sha256)
         return {"X-Cord-Actor": "tg:" + mark.hexdigest()[:32]}
+
+    async def reopen(self, binding: dict, headers: dict) -> dict:
+        """Закрытую встречу беседы открыть заново — входом её создателя по избранному, как `/meet`."""
+        await self.core.request(
+            "POST",
+            f"/api/v1/favorites/{binding['roomId']}/join",
+            {"commandId": str(uuid.uuid4()), "name": binding["ownerName"]},
+            binding["profile"],
+            headers=headers,
+        )
+        return await self.core.request("GET", f"/internal/services/{binding['roomId']}")
 
     async def ensure_room(
         self, message: dict, create: bool = False, title: str = "", update_id: int = 0
@@ -337,17 +385,137 @@ class Telegram:
                 "GET", f"/internal/services/{binding['roomId']}"
             )
         if info.get("closedAt"):
-            await self.core.request(
-                "POST",
-                f"/api/v1/favorites/{binding['roomId']}/join",
-                {"commandId": str(uuid.uuid4()), "name": binding["ownerName"]},
-                binding["profile"],
-                headers=self.on_behalf(message),
-            )
-            info = await self.core.request(
-                "GET", f"/internal/services/{binding['roomId']}"
-            )
+            info = await self.reopen(binding, self.on_behalf(message))
         return binding, info
+
+    def link_for(self, message: dict, binding: dict) -> dict:
+        """
+        Номер привязки для кнопки Mini App этой беседы — действующий или новый.
+
+        Номер — `b` и 16 случайных байт base64url: по нему нельзя угадать ни встречу, ни беседу, а
+        код комнаты в открытую в кнопку не попадает. Привязка сменилась на другую встречу — старый
+        номер отзывается, и его кнопка отвечает «привязка снята».
+        """
+        scope = self.scope(message)
+        link = self.store.active_telegram_link(scope)
+        if link and link["roomId"] == binding["roomId"]:
+            return link
+        if link:
+            self.store.revoke_telegram_link(link["id"])
+        link_id = LINK_PREFIX + secrets.token_urlsafe(16)
+        body = {
+            "chatId": message["chat"]["id"],
+            "threadId": message.get("message_thread_id", 0),
+            "chatTitle": message["chat"].get("title") or self.actor(message),
+            "messageId": None,
+            "pinned": False,
+        }
+        self.store.put_telegram_link(link_id, scope, binding["roomId"], body)
+        return self.store.telegram_link(link_id)
+
+    def webapp_button(self, link: dict) -> dict:
+        return {
+            "text": "Открыть встречу",
+            "url": startapp_url(self.username, link["id"], self.short_name),
+            # Bot API 9.4: выделенная кнопка. Старый клиент поле не знает и рисует обычную.
+            "style": "primary",
+        }
+
+    async def bound(self, message: dict, binding: dict):
+        """Ответ на привязку. С Mini App — сообщение с кнопкой «Открыть встречу», закреплённое в чате."""
+        text = (
+            "Комната «"
+            + binding["title"]
+            + "» привязана к этому чату или теме. /meet — вход, /play — музыка."
+        )
+        if not self.webapp:
+            await self.reply(message, text)
+            return
+        previous = self.store.active_telegram_link(self.scope(message))
+        if previous:
+            await release(self.store, previous, self.api, keep_binding=True)
+        link = self.link_for(message, binding)
+        sent = await self.reply(
+            message,
+            "Встреча «" + binding["title"] + "» привязана к этому чату. Кнопка ниже открывает её "
+            "прямо в Telegram, на весь экран. /meet — ссылка для браузера, /play — музыка.",
+            [[self.webapp_button(link)]],
+        )
+        message_id = sent.get("message_id") if isinstance(sent, dict) else None
+        pinned = False
+        if message_id:
+            try:
+                await self.api(
+                    "pinChatMessage",
+                    {
+                        "chat_id": message["chat"]["id"],
+                        "message_id": message_id,
+                        "disable_notification": True,
+                    },
+                )
+                pinned = True
+            except HTTPException:
+                # Нет права закрепа — кнопка остаётся в сообщении, просто без закрепа.
+                pinned = False
+        body = {k: link[k] for k in ("chatId", "threadId", "chatTitle")}
+        self.store.update_telegram_link(
+            link["id"], {**body, "messageId": message_id, "pinned": pinned}
+        )
+
+    async def webapp_enter(self, raw: str, clock: float | None = None) -> dict:
+        """
+        Вход через Mini App: `initData` → привязка → членство → приглашение во встречу.
+
+        Ответ — `{roomId, title, name, inviteUrl}`: браузер входит по приглашению сам, со своего
+        адреса и своим профилем устройства, а имя берёт отсюда, из проверенной строки.
+        """
+        try:
+            data = verify_init_data(
+                raw, self.token, time.time() if clock is None else clock, self.init_data_age
+            )
+        except InitDataError:
+            raise Refusal(
+                401, "TELEGRAM_INIT_DATA", "Ссылка устарела. Откройте встречу заново из чата"
+            ) from None
+        user = data.get("user")
+        if not isinstance(user, dict) or not isinstance(user.get("id"), int):
+            raise Refusal(401, "TELEGRAM_INIT_DATA", "Ссылка устарела. Откройте встречу заново из чата")
+        self.entries.take(str(user["id"]))
+        link = self.store.telegram_link(data.get("start_param", ""))
+        if link is None:
+            raise Refusal(
+                404, "TELEGRAM_LINK_UNKNOWN", "Откройте встречу кнопкой из чата, к которому она привязана"
+            )
+        if link["revokedAt"]:
+            raise Refusal(
+                410, "TELEGRAM_LINK_REVOKED", "Привязка снята. Попросите создателя встречи привязать её заново"
+            )
+        if not await self.memberships.check(self.api, link["chatId"], user["id"]):
+            raise Refusal(403, "TELEGRAM_NOT_MEMBER", "Вы не состоите в чате, к которому привязана встреча")
+        binding = self.store.binding(link["scope"])
+        if not binding or binding["roomId"] != link["roomId"]:
+            self.store.revoke_telegram_link(link["id"])
+            raise Refusal(
+                410, "TELEGRAM_LINK_REVOKED", "Привязка снята. Попросите создателя встречи привязать её заново"
+            )
+        try:
+            info = await self.core.request("GET", f"/internal/services/{binding['roomId']}")
+        except HTTPException as error:
+            if error.status_code != 404:
+                raise
+            await release(self.store, link, self.api)
+            raise Refusal(
+                410, "TELEGRAM_MEETING_GONE", "Этой встречи больше нет. Создайте новую в чате: /meet"
+            ) from None
+        if info.get("closedAt"):
+            info = await self.reopen(binding, self.actor_header(user["id"]))
+        invite = await self.core.request("POST", f"/internal/services/{binding['roomId']}/invite")
+        return {
+            "roomId": binding["roomId"],
+            "title": info["title"],
+            "name": display_name(user),
+            "inviteUrl": invite["url"],
+        }
 
     async def show_meeting(self, message: dict, update_id: int, create=False, title=""):
         binding, info = await self.ensure_room(message, create, title, update_id)
@@ -355,6 +523,9 @@ class Telegram:
             "POST", f"/internal/services/{binding['roomId']}/invite"
         )
         buttons = [[{"text": "Войти во встречу", "url": invite["url"]}]]
+        if self.webapp:
+            # Mini App — первой: прямо в Telegram, на весь экран; ссылка в браузер — запасной путь.
+            buttons.insert(0, [self.webapp_button(self.link_for(message, binding))])
         text = f"{info['title']}\nКод: {info['code'][:3]}-{info['code'][3:6]}-{info['code'][6:]}\nПо ссылке можно войти без ожидания допуска."
         if (
             message.get("from", {}).get("id") == binding["ownerId"]
@@ -493,7 +664,19 @@ class Telegram:
                     (self.store.files / cover).unlink(missing_ok=True)
             raise
 
+    async def left(self, change: dict):
+        """Бота исключили из беседы или он вышел: её привязки Mini App отзываются."""
+        status = change.get("new_chat_member", {}).get("status")
+        if status not in ("left", "kicked"):
+            return
+        chat_id = change.get("chat", {}).get("id")
+        for link in self.store.chat_telegram_links(chat_id):
+            await release(self.store, link)
+
     async def handle(self, update: dict):
+        if update.get("my_chat_member"):
+            await self.left(update["my_chat_member"])
+            return
         message = update.get("message") or update.get("channel_post")
         if not message or message.get("from", {}).get("is_bot"):
             return  # Prevent bot-to-bot loops; a user-forwarded file is accepted.
@@ -550,6 +733,15 @@ class Telegram:
             if recent and not recent.get("used") and now() - recent["at"] < 300000 and binding and binding["roomId"] == recent["roomId"]:
                 message["audio"] = recent["audio"]
                 message["_cord_recent_key"] = key
+        if (
+            command == "start"
+            and arg
+            and not arg.startswith("host_")
+            and message["chat"]["type"] in ("group", "supergroup")
+        ):
+            # «Добавить бота в группу» из Cord (`startgroup=<код>`): Telegram добавил бота и прислал
+            # в группу `/start <код>` от того, кто добавлял, — это та же привязка, что `/bind <код>`.
+            command = "bind"
         try:
             if command == "start" and arg.startswith("host_"):
                 await self.host_link(message, arg[5:])
@@ -565,24 +757,19 @@ class Telegram:
                         400,
                         "Получите свежий код: Cord → Интеграции → Telegram → Связать с чатом",
                     )
-                self.store.bind(
-                    self.scope(message),
-                    {
-                        **claim,
-                        "ownerId": message.get("from", {}).get(
-                            "id", message["chat"]["id"]
-                        ),
-                    },
-                )
+                binding = {
+                    **claim,
+                    "ownerId": message.get("from", {}).get("id", message["chat"]["id"]),
+                }
+                self.store.bind(self.scope(message), binding)
                 self.store.delete_claim(arg)
-                await self.reply(
-                    message,
-                    "Комната «"
-                    + claim["title"]
-                    + "» привязана к этому чату или теме. /meet — вход, /play — музыка.",
-                )
+                await self.bound(message, binding)
             elif command == "unbind":
                 await self.admin(message)
+                link = self.store.active_telegram_link(self.scope(message))
+                if link:
+                    # Закреп снимается, кнопка из сообщения уходит, старые ссылки отвечают «снята».
+                    await release(self.store, link, self.api)
                 self.store.unbind(self.scope(message))
                 await self.reply(
                     message, "Привязка удалена. Сама встреча продолжает работать."
@@ -816,7 +1003,9 @@ class Telegram:
                     {
                         "offset": offset,
                         "timeout": 25,
-                        "allowed_updates": ["message", "channel_post"],
+                        # `my_chat_member` — бота убрали из беседы: её кнопка Mini App больше не
+                        # ведёт никуда, и привязка отзывается (E09).
+                        "allowed_updates": ["message", "channel_post", "my_chat_member"],
                         "limit": 20,
                     },
                 )

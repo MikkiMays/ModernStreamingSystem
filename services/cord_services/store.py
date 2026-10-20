@@ -83,6 +83,12 @@ class Store:
             CREATE TABLE IF NOT EXISTS claims(token TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS receipts(scope TEXT NOT NULL, command_id TEXT NOT NULL, body TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY(scope, command_id));
             CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS telegram_links(
+                id TEXT PRIMARY KEY, scope TEXT NOT NULL, room_id TEXT NOT NULL, body TEXT NOT NULL,
+                created_at INTEGER NOT NULL, revoked_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS telegram_links_scope ON telegram_links(scope, revoked_at);
+            CREATE INDEX IF NOT EXISTS telegram_links_room ON telegram_links(room_id, revoked_at);
             CREATE TABLE IF NOT EXISTS cinema_links(
                 id TEXT PRIMARY KEY, body TEXT NOT NULL, expires_at INTEGER NOT NULL,
                 size INTEGER NOT NULL DEFAULT 0
@@ -179,6 +185,60 @@ class Store:
 
     def unbind(self, scope: str):
         self.db.execute("DELETE FROM bindings WHERE scope=?", (scope,))
+
+    # Привязки Mini App (E09): номер из кнопки `startapp` → беседа и встреча. Отозванная остаётся
+    # строкой с `revoked_at`: старая кнопка тогда отвечает «привязка снята», а не «не найдено».
+    def put_telegram_link(self, link_id: str, scope: str, room_id: str, body: dict):
+        self.db.execute(
+            "INSERT INTO telegram_links(id,scope,room_id,body,created_at) VALUES (?,?,?,?,?)",
+            (link_id, scope, room_id, json.dumps(body, ensure_ascii=False), now()),
+        )
+
+    def update_telegram_link(self, link_id: str, body: dict):
+        self.db.execute(
+            "UPDATE telegram_links SET body=? WHERE id=?",
+            (json.dumps(body, ensure_ascii=False), link_id),
+        )
+
+    def _links(self, where: str, args: tuple) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT id,scope,room_id,body,created_at,revoked_at FROM telegram_links WHERE "
+            + where
+            + " ORDER BY created_at",
+            args,
+        ).fetchall()
+        return [
+            {
+                **json.loads(body),
+                "id": link_id,
+                "scope": scope,
+                "roomId": room_id,
+                "createdAt": created_at,
+                "revokedAt": revoked_at,
+            }
+            for link_id, scope, room_id, body, created_at, revoked_at in rows
+        ]
+
+    def telegram_link(self, link_id: str) -> dict | None:
+        found = self._links("id=?", (link_id,))
+        return found[0] if found else None
+
+    def active_telegram_link(self, scope: str) -> dict | None:
+        found = self._links("scope=? AND revoked_at IS NULL", (scope,))
+        return found[-1] if found else None
+
+    def room_telegram_links(self, room_id: str) -> list[dict]:
+        return self._links("room_id=? AND revoked_at IS NULL", (room_id,))
+
+    def chat_telegram_links(self, chat_id) -> list[dict]:
+        """Действующие привязки беседы во всех её темах (`scope` = `<чат>:<тема>`)."""
+        return self._links("scope LIKE ? AND revoked_at IS NULL", (f"{int(chat_id)}:%",))
+
+    def revoke_telegram_link(self, link_id: str):
+        self.db.execute(
+            "UPDATE telegram_links SET revoked_at=? WHERE id=? AND revoked_at IS NULL",
+            (now(), link_id),
+        )
 
     def claim(self, token: str) -> dict | None:
         row = self.db.execute(

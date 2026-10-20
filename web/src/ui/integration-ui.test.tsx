@@ -53,6 +53,19 @@ describe('витрина', () => {
     expect(screen.queryByText('Подключит создатель встречи')).toBeNull();
   });
 
+  it('Mini App включён: Telegram — без «Скоро», открывает его только создатель (E09, T30)', () => {
+    const onOpen = vi.fn();
+    const { rerender } = render(<IntegrationShelf canLinkTelegram telegramReady onOpen={onOpen} />);
+    expect(screen.getAllByText('Скоро')).toHaveLength(3);
+    fireEvent.click(screen.getByText('Telegram'));
+    expect(onOpen).toHaveBeenCalledWith('telegram');
+    expect(screen.getByRole('group', { name: 'Связь с беседой' })).toBeInTheDocument();
+    rerender(<IntegrationShelf canLinkTelegram={false} telegramReady onOpen={onOpen} />);
+    expect(screen.getByText('Telegram').closest('button')).toBeNull();
+    expect(screen.getByText('Подключит создатель встречи')).toBeInTheDocument();
+    expect(screen.getAllByText('Скоро')).toHaveLength(3);
+  });
+
   it('занятую соседом группу не открыть, и видно, кем занята', () => {
     render(
       <IntegrationShelf

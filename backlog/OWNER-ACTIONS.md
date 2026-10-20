@@ -38,8 +38,11 @@
   умеет рисовать на холсте, агент напишет плагин Figma — его нужно будет один раз запустить в
   этом файле (Plugins → Development → Import plugin from manifest). Без доступа E15 готовит всё
   к импорту и не стоит.
-- **Telegram (E09):** BotFather — описание бота, картинка «что умеет бот», Mini App и домен
-  (`/newapp`, `/setdomain`), если Bot API это не позволяет сделать запросом.
+- **Telegram (E09):** код готов и выключен (`TELEGRAM_WEBAPP_ENABLED=false`). Чтобы включить — BotFather:
+  Configure Mini App → Enable Mini App с адресом `https://<домен>/tg`, Splash Screen цветом `#111419` для
+  обеих тем, по желанию Description Picture; затем флаг в `.local/telegram.env` и перезапуск `services`
+  (`docs/deployment.md` → «Telegram Mini App»). `/setdomain` не нужен. Проверка на телефоне — iOS и Android:
+  камера и микрофон внутри Telegram, полный экран, закреп кнопки в группе и в теме форума.
 - **Мобильные приложения (E12), если E12 решит, что без нативной оболочки нельзя:** Apple
   Developer Program ($99/год), Google Play Console ($25 разово).
 - **Подпись Windows-установщика / Electron (E01):** сертификат издателя (или Azure Trusted

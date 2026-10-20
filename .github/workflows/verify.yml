@@ -169,6 +169,9 @@ jobs:
         run: |
           docker compose run --rm --no-deps gateway caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker compose run --rm --no-deps edge validate --config /etc/edge.json
+      # Рамка — только для Mini App Telegram (`/tg`, E09); у всех остальных путей `frame-ancestors 'none'`.
+      - name: Verify frame-ancestors and CSP per gateway path
+        run: bash infra/csp-check.sh
       - name: Verify production containers boot with private configuration files
         run: |
           docker compose up -d postgres redis volume-init livekit tusd core services gateway
