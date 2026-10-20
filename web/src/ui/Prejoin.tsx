@@ -24,6 +24,7 @@ import { AudioFields, QualityFields, ReceptionFields } from './Settings';
 import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
+import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
 
 export function Prejoin({
@@ -57,6 +58,8 @@ export function Prejoin({
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
   const [error, setError] = useState('');
+  /** Ошибка — отказ камеры или микрофона: рядом с ней «Помощь» с ответом на этот вопрос. */
+  const [deviceError, setDeviceError] = useState(false);
   const [busy, setBusy] = useState(false);
   // Ядро не пустило: этот профиль уже во встрече `elsewhere` (T52). Человек выбирает в окне.
   const [elsewhere, setElsewhere] = useState<ElsewhereMeeting | null>(null);
@@ -187,6 +190,7 @@ export function Prejoin({
     if (busy) return;
     setBusy(true);
     setError('');
+    setDeviceError(false);
     try {
       const admission = await admit(name.trim() || t(($) => $.prejoin.defaultName), leave);
       if (destination?.kind === 'recent') admission.inviteUrl = destination.admission.inviteUrl;
@@ -222,6 +226,7 @@ export function Prejoin({
     if (deviceBusy) return;
     setDeviceBusy(true);
     setError('');
+    setDeviceError(false);
     const enabled = kind === 'audio' ? mic : camera;
     try {
       if (enabled) {
@@ -267,6 +272,7 @@ export function Prejoin({
       refreshDevices();
     } catch {
       setError(t(($) => $.prejoin.deviceFailed));
+      setDeviceError(true);
     } finally {
       setDeviceBusy(false);
     }
@@ -275,9 +281,12 @@ export function Prejoin({
     <div className="prejoin-page">
       <header className="app-header">
         <Logo />
-        <button className="button ghost" onClick={onBack}>
-          <ArrowLeft size={18} /> {t(($) => $.prejoin.home)}
-        </button>
+        <div className="app-header__end">
+          <HelpButton faq="camera" />
+          <button className="button ghost" onClick={onBack}>
+            <ArrowLeft size={18} /> {t(($) => $.prejoin.home)}
+          </button>
+        </div>
       </header>
       <main className="prejoin-main">
         <div className="preview-column">
@@ -445,9 +454,11 @@ export function Prejoin({
             {t(($) => $.prejoin.permissionNote)}
           </p>
           {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
+            <div className="form-error form-error--help" role="alert">
+              <span>{error}</span>
+              {/* Нет доступа к камере или микрофону — сразу к ответу на этот вопрос (T36). */}
+              {deviceError && <HelpButton faq="camera" look="text" />}
+            </div>
           )}
           <button type="submit" className="button primary full" disabled={busy || !name.trim()}>
             {busy ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}{' '}

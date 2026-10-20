@@ -4,6 +4,7 @@ import { DesktopHome } from './DesktopHome';
 import { hasFeature } from '../core/desktop';
 import { HomeShell } from './home/HomeShell';
 import { Settings } from './Settings';
+import { HomeTour } from './onboarding/Onboarding';
 import type { Theme } from './primitives';
 import type { Destination } from '../core/invitation';
 export { formatCode, parseInvite, type Destination } from '../core/invitation';
@@ -46,6 +47,8 @@ export function Home(props: HomeProps) {
           onResume={(admission) => props.onResume?.(admission)}
         />
       )}
+      {/* Знакомство (T34) ждёт, пока окно настроек закрыто: «Пройти знакомство» в нём его и запускает. */}
+      <HomeTour paused={settings} />
       <Settings
         open={settings}
         section={props.section ?? section}

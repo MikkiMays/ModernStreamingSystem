@@ -30,6 +30,10 @@ const MeetingView = lazy(() =>
 );
 // Витрина набора примитивов (E16): без сервера, сессии и кэша — как `/download`.
 const Showcase = lazy(() => import('./ui/kit/Showcase').then((module) => ({ default: module.Showcase })));
+// «Помощь» (E13): тоже вне приложения — её открывают и тогда, когда Cord не подключается.
+const SupportPage = lazy(() =>
+  import('./ui/support/SupportPage').then((module) => ({ default: module.SupportPage })),
+);
 function initialDestination() {
   try {
     return parseInvite(location.href);
@@ -384,12 +388,19 @@ function Workspace() {
  * application entirely: no server session, no room, no query cache — somebody who was handed
  * the address should be able to fetch Cord before they have a password or an invitation.
  */
-function Downloads() {
+function useSavedTheme() {
   // Тему здесь не выбирают (T41: она в настройках), но выбранную в приложении — показывают.
   useEffect(() => {
     document.documentElement.dataset.theme = localStorage.getItem('cord:theme') || 'system';
   }, []);
+}
+function Downloads() {
+  useSavedTheme();
   return <Download />;
+}
+function Support() {
+  useSavedTheme();
+  return <SupportPage />;
 }
 
 export default function App() {
@@ -401,6 +412,13 @@ export default function App() {
         <Downloads />
         <BootGate />
       </>
+    );
+  if (location.pathname === '/support')
+    return (
+      <Suspense fallback={null}>
+        <Support />
+        <BootGate />
+      </Suspense>
     );
   if (location.pathname === '/kit')
     return (

@@ -10,6 +10,7 @@ import { formatDuration, readStartedAt, spokenDuration } from '../core/meeting-c
 import type { Translate } from '../i18n';
 import { IconButton } from './kit';
 import { MeetingEnds } from './abuse/Notices';
+import { HelpButton } from './support/HelpButton';
 import { Logo } from './brand/Logo';
 import { useStore } from './primitives';
 import { useFavorites, useFavoritesLimit } from './useFavorites';
@@ -60,12 +61,15 @@ export function MeetingHeader({
   canEdit,
   onInvite,
   onSettings,
+  onDiagnostics,
 }: {
   meeting: Meeting;
   /** Ведущему название — ещё и кнопка настроек встречи. */
   canEdit: boolean;
   onInvite: () => void;
   onSettings: () => void;
+  /** «Диагностика» этой встречи — из окна помощи (T36). */
+  onDiagnostics?: () => void;
 }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
@@ -173,6 +177,8 @@ export function MeetingHeader({
         <IconButton label={t(($) => $.meeting.header.inviteAll)} onClick={onInvite}>
           <Link size={18} />
         </IconButton>
+        {/* «?» в шапке, как в Discord (T36): ответы и обращение — окном, разговор не прерывается. */}
+        <HelpButton onDiagnostics={onDiagnostics} />
       </div>
     </header>
   );

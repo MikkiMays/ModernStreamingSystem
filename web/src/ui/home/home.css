@@ -611,6 +611,10 @@ input.home-inline-name:focus-visible {
 .home-bar .brand {
   --brand-h: 24px;
 }
+/* «?» — у правого края шапки, как в Discord (T36). */
+.home-bar__help {
+  margin-left: auto;
+}
 /* Выдвижная панель — под меню (40), иначе меню комнаты открывалось бы под ней, и под диалогами
    (50), чтобы подтверждение «Убрать» вставало поверх. */
 .home-drawer__backdrop {

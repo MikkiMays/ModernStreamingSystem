@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, RefreshCw, Send, TriangleAlert } from 'lucide-react';
+import { Compass, Download, RefreshCw, Send, TriangleAlert } from 'lucide-react';
 import { isNewer, windowsRelease, type WindowsRelease } from '../../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../core/desktop';
 import { appLabel, appVersion } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
+import { AUTHOR_TELEGRAM } from '../../core/support';
+import { HelpButton } from '../support/HelpButton';
 import { SettingGroup, SettingRow } from './Row';
 
 /**
@@ -17,7 +19,7 @@ import { SettingGroup, SettingRow } from './Row';
  * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  */
-export function AboutSection() {
+export function AboutSection({ onTour }: { onTour?: () => void }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
   const shell = useStore(desktopUpdate);
@@ -128,7 +130,7 @@ export function AboutSection() {
           */}
           <a
             className="ui-icon-button ui-icon-button--ghost ui-icon-button--md"
-            href="https://t.me/nikgers"
+            href={AUTHOR_TELEGRAM}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t(($) => $.settings.about.telegram)}
@@ -137,6 +139,20 @@ export function AboutSection() {
             <Send size={18} />
           </a>
         </SettingRow>
+        <SettingRow id="about-help">
+          <HelpButton
+            look="text"
+            className="ui-button ui-button--secondary ui-button--sm"
+            text={t(($) => $.settings.about.help)}
+          />
+        </SettingRow>
+        {onTour && (
+          <SettingRow id="about-tour">
+            <Button size="sm" icon={<Compass />} onClick={onTour}>
+              {t(($) => $.settings.about.tour)}
+            </Button>
+          </SettingRow>
+        )}
       </SettingGroup>
     </>
   );

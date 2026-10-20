@@ -7,6 +7,7 @@ import { StatsSampler, type Sample } from '../media/diagnostics';
 import { gradeName, pathName } from '../media/link-quality';
 import { Modal, useStore } from './primitives';
 import { DeviceCheck } from './DeviceCheck';
+import { HelpButton } from './support/HelpButton';
 
 /** Причины, которыми браузер объясняет ограничение передачи; незнакомую показываем как есть. */
 const LIMITS = ['none', 'cpu', 'bandwidth', 'unknown'] as const;
@@ -265,6 +266,10 @@ export default function Diagnostics({ meeting, onClose }: { meeting: Meeting; on
             {t(($) => $.diagnostics.stuck.button)}
           </button>
         </section>
+        <p className="diagnostics-help">
+          <span>{t(($) => $.diagnostics.help)}</span>
+          <HelpButton faq="network" look="text" />
+        </p>
       </div>
     </Modal>
   );

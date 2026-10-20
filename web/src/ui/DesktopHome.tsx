@@ -19,6 +19,7 @@ export function DesktopHome({
       <IconButton
         label={t(($) => $.download.desktop.settings)}
         className="desktop-home-settings"
+        data-tour="settings"
         onClick={onSettings}
       >
         <Settings2 size={18} />

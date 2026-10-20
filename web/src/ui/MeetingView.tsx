@@ -20,6 +20,9 @@ import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
+import { HelpButton } from './support/HelpButton';
+import { OnceHint } from './onboarding/Onboarding';
+import { anchorFor } from '../core/onboarding';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -89,6 +92,12 @@ export function MeetingView({
   const compact = useMediaQuery(COMPACT);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
+  // Первый вход во встречу (T34): одна подсказка у микрофона, камеры и экрана — когда вышли в эфир.
+  const live = media.status === 'connected' && !ended;
+  const [dock, setDock] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setDock(live ? anchorFor('dock') : null);
+  }, [live]);
   useEffect(() => {
     notifyDesktop('call-state', { inCall: !ended });
   }, [ended]);
@@ -209,6 +218,7 @@ export function MeetingView({
         canEdit={may('room.settings')}
         onInvite={() => setInvite(true)}
         onSettings={() => setMeetingSettings(true)}
+        onDiagnostics={() => setDiagnostics(true)}
       />
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
         <main className="stage-wrap" aria-label={t(($) => $.meeting.view.stage)}>
@@ -312,6 +322,8 @@ export function MeetingView({
           {media.error && !ended && (
             <div className="media-error media-stage" role="alert">
               <span>{media.error}</span>
+              {/* Не вышли в эфир — помощь с диагностикой этой встречи, не уходя из неё (T36). */}
+              <HelpButton tone="stage" onDiagnostics={() => setDiagnostics(true)} />
               <IconButton
                 tone="stage"
                 label={t(($) => $.meeting.view.dismissError)}
@@ -412,6 +424,7 @@ export function MeetingView({
           if (!open) onSectionClosed?.();
         }}
       />
+      <OnceHint id="meeting" anchor={dock} ready={live && !settings && !diagnostics} side="top" />
       {diagnostics && (
         <Suspense fallback={null}>
           <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />
