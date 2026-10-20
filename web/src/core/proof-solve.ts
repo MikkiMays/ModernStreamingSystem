@@ -48,11 +48,11 @@ export function sha256(text: string): string {
   for (let offset = 0; offset < length; offset += 64) {
     for (let i = 0; i < 16; i++) W[i] = view.getUint32(offset + i * 4);
     for (let i = 16; i < 64; i++) {
-      const a = W[i - 15],
-        b = W[i - 2];
+      const a = W[i - 15]!,
+        b = W[i - 2]!;
       const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3);
       const s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10);
-      W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+      W[i] = (W[i - 16]! + s0 + W[i - 7]! + s1) | 0;
     }
     let a = h0,
       b = h1,
@@ -64,7 +64,7 @@ export function sha256(text: string): string {
       h = h7;
     for (let i = 0; i < 64; i++) {
       const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
-      const t1 = (h + S1 + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+      const t1 = (h + S1 + ((e & f) ^ (~e & g)) + K[i]! + W[i]!) | 0;
       const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
       const t2 = (S0 + ((a & b) ^ (a & c) ^ (b & c))) | 0;
       h = g;
@@ -95,15 +95,16 @@ export function sha256(text: string): string {
 export function solveChallenge(challenge: Challenge): string | null {
   if (challenge.algorithm !== 'SHA-256') return null;
   for (let number = 0; number <= challenge.maxnumber; number++)
-    if (sha256(challenge.salt + number) === challenge.challenge)
-      return btoa(
-        JSON.stringify({
-          algorithm: challenge.algorithm,
-          challenge: challenge.challenge,
-          number,
-          salt: challenge.salt,
-          signature: challenge.signature,
-        }),
-      );
+    if (sha256(challenge.salt + number) === challenge.challenge) {
+      const json = JSON.stringify({
+        algorithm: challenge.algorithm,
+        challenge: challenge.challenge,
+        number,
+        salt: challenge.salt,
+        signature: challenge.signature,
+      });
+      // base64 от UTF-8, а не от строки: `btoa` понимает только латиницу.
+      return btoa(String.fromCharCode(...encoder.encode(json)));
+    }
   return null;
 }

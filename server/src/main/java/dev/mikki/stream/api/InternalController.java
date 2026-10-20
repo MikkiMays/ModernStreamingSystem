@@ -46,11 +46,7 @@ public class InternalController {
       @RequestHeader(value = "Authorization", required = false) String authorization,
       @RequestHeader(value = "X-Media-Token", required = false) String mediaToken,
       HttpServletRequest http) {
-    limits.check(
-        "signaling:" + address.of(http),
-        config.abuse().perIp().signaling(),
-        "RATE_LIMITED",
-        "Слишком много подключений. Подождите минуту");
+    limits.check("signaling:" + address.of(http), config.abuse().perIp().signaling());
     String token =
         mediaToken == null || mediaToken.isBlank()
             ? (authorization == null ? null : authorization.replaceFirst("^Bearer ", ""))

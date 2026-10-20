@@ -28,7 +28,8 @@ describe('решатель задачи «не бот»', () => {
       salt: SALT,
       signature: 'подпись',
     };
-    const answer = JSON.parse(atob(solveChallenge(challenge)!)) as Record<string, unknown>;
+    const decoded = Uint8Array.from(atob(solveChallenge(challenge)!), (c) => c.charCodeAt(0));
+    const answer = JSON.parse(new TextDecoder().decode(decoded)) as Record<string, unknown>;
     expect(answer).toEqual({
       algorithm: 'SHA-256',
       challenge: challenge.challenge,

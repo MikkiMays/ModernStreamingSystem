@@ -1,0 +1,27 @@
+/* Предупреждения антибота (E11-B): только токены E16, своих цветов нет. */
+.abuse-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  color: var(--warning);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+.abuse-notice svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* Ссылка в чате: видно, что это ссылка и куда она ведёт. */
+.chat-link {
+  color: var(--accent);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.chat-link__host {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}

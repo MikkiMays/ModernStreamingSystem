@@ -48,13 +48,21 @@ public class RateLimits {
 
   /** Прежняя форма: столько в минуту, отказ общими словами. */
   public void check(String key, int limit) {
-    check(key, Rate.perMinute(limit), "RATE_LIMITED", "Слишком много запросов. Подождите минуту");
+    check(key, Rate.perMinute(limit));
   }
 
-  /** Шаг счётчика и отказ {@code 429 code}, если шаг вышел за предел. */
-  public void check(String key, Rate rate, String code, String message) {
-    if (rate.unlimited()) return;
-    if (hit(key, rate) > rate.count()) throw new Problem(429, code, message);
+  /** Шаг счётчика и отказ {@code 429 RATE_LIMITED}, если шаг вышел за предел. */
+  public void check(String key, Rate rate) {
+    if (exceeded(key, rate))
+      throw new Problem(429, "RATE_LIMITED", "Слишком много запросов. Подождите минуту");
+  }
+
+  /**
+   * Шаг счётчика: вышел ли он за предел. Для отказов со своим кодом ({@code CHAT_RATE}) — код
+   * пишется у вызова словами, чтобы реестр ошибок ({@code contracts/errors.json}) его видел.
+   */
+  public boolean exceeded(String key, Rate rate) {
+    return !rate.unlimited() && hit(key, rate) > rate.count();
   }
 
   /** Шаг счётчика: сколько стало в текущем окне. */

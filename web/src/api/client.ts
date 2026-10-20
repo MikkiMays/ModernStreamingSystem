@@ -113,8 +113,7 @@ const entry = (data: unknown, leave?: string): RequestInit => ({
   headers: entryHeaders(leave),
 });
 /** Задача «не бот» с сервера; `undefined` — проверка выключена (`204`). */
-const challengeFor = (action: ProofAction) => () =>
-  request<Challenge | undefined>(`/proof?for=${action}`);
+const challengeFor = (action: ProofAction) => () => request<Challenge | undefined>(`/proof?for=${action}`);
 /** Начать решать задачу «не бот» заранее — как только открыта форма создания или входа по коду. */
 export const prepareHuman = (action: ProofAction) => prepareProof(action, challengeFor(action));
 /**

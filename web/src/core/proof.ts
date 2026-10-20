@@ -19,7 +19,11 @@ const pending = new Map<ProofAction, Promise<string | null>>();
 
 /** Начать решать заранее. Повторный вызов до `takeProof` ничего не меняет. */
 export function prepareProof(action: ProofAction, fetchChallenge: FetchChallenge): void {
-  if (!pending.has(action)) pending.set(action, obtain(fetchChallenge).catch(() => null));
+  if (!pending.has(action))
+    pending.set(
+      action,
+      obtain(fetchChallenge).catch(() => null),
+    );
 }
 
 /**

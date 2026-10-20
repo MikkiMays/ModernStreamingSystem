@@ -77,18 +77,9 @@ public class RoomSocket extends TextWebSocketHandler {
                     ? remote.getHostString()
                     : remote.getAddress().getHostAddress());
     var abuse = config.abuse().perIp();
-    try {
-      limits.check(
-          "socket-open:" + address,
-          abuse.socketOpens(),
-          "RATE_LIMITED",
-          "Слишком много подключений. Подождите минуту");
-    } catch (dev.mikki.stream.shared.Problem refused) {
-      socket.close(CloseStatus.POLICY_VIOLATION);
-      return;
-    }
-    if (sockets.values().stream().filter(c -> address.equals(c.address)).count()
-        >= abuse.sockets()) {
+    if (limits.exceeded("socket-open:" + address, abuse.socketOpens())
+        || sockets.values().stream().filter(c -> address.equals(c.address)).count()
+            >= abuse.sockets()) {
       socket.close(CloseStatus.POLICY_VIOLATION);
       return;
     }

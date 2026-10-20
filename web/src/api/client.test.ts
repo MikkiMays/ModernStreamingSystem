@@ -144,7 +144,13 @@ it('создание и вход по коду несут ответ на зад
     vi.fn((path: string, init: RequestInit) => {
       if (path.startsWith('/api/v1/proof')) {
         const salt = `соль${++issued}?expires=1&for=code&k=x`;
-        const body = { algorithm: 'SHA-256', challenge: sha256(salt + 42), maxnumber: 100, salt, signature: 's' };
+        const body = {
+          algorithm: 'SHA-256',
+          challenge: sha256(salt + 42),
+          maxnumber: 100,
+          salt,
+          signature: 's',
+        };
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
       }
       posts.push(init.headers as Record<string, string>);
@@ -159,10 +165,17 @@ it('создание и вход по коду несут ответ на зад
   );
   await publicApi.joinCode({ commandId: 'c', code: '123456789', name: 'И' });
   expect(posts).toHaveLength(2);
-  const answers = posts.map((headers) => JSON.parse(atob(headers['X-Cord-Proof'])) as { number: number; salt: string });
+  const answers = posts.map(
+    (headers) =>
+      JSON.parse(
+        new TextDecoder().decode(
+          Uint8Array.from(atob(headers['X-Cord-Proof'] ?? ''), (c) => c.charCodeAt(0)),
+        ),
+      ) as { number: number; salt: string },
+  );
   expect(answers.map((a) => a.number)).toEqual([42, 42]);
-  expect(answers[0].salt).not.toBe(answers[1].salt);
-  expect(posts[1]['X-Cord-Profile']).toBe(profileSecret());
+  expect(answers[0]!.salt).not.toBe(answers[1]!.salt);
+  expect(posts[1]!['X-Cord-Profile']).toBe(profileSecret());
 
   // Выключенная проверка (204) — вход без заголовка.
   vi.stubGlobal(
@@ -175,7 +188,12 @@ it('создание и вход по коду несут ответ на зад
       ),
     ),
   );
-  const answer = (await publicApi.create({ commandId: 'c', title: 'Т', name: 'И', approvalRequired: false })) as unknown as {
+  const answer = (await publicApi.create({
+    commandId: 'c',
+    title: 'Т',
+    name: 'И',
+    approvalRequired: false,
+  })) as unknown as {
     sent: Record<string, string>;
   };
   expect(answer.sent['X-Cord-Proof']).toBeUndefined();

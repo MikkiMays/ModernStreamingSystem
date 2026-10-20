@@ -27,6 +27,8 @@ import { serverInfo } from '../core/session';
 import { humans } from '../core/people';
 import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize } from './chat';
 import { useVoiceTier } from './useVoice';
+import { ExecutableNote } from './abuse/Notices';
+import { ChatText } from './abuse/ChatText';
 
 /** Строки панели — в одном месте, до слоя переводов (E14). */
 const TEXT = {
@@ -360,7 +362,9 @@ export function Sidebar({
                     {time(entry.at)}
                   </div>
                   <div className="message-body">
-                    <p>{entry.message.text}</p>
+                    <p>
+                      <ChatText text={entry.message.text} />
+                    </p>
                     <IconButton
                       size="sm"
                       label={TEXT.copy}
@@ -391,6 +395,7 @@ export function Sidebar({
                       <small>
                         {formatBytes(entry.file.size)} · {TEXT.temporary}
                       </small>
+                      <ExecutableNote file={entry.file} />
                     </div>
                     <IconButton
                       label={TEXT.download(entry.file.name)}

@@ -288,11 +288,8 @@ public class RoomService {
         && last.get().getKey().equals(text)
         && now() - last.get().getValue() < abuse.chatRepeat().toMillis())
       throw new Problem(429, "CHAT_REPEAT", "Это сообщение уже отправлено. Подождите немного");
-    limits.check(
-        "chat:" + member.id,
-        abuse.chatMessages(),
-        "CHAT_RATE",
-        "Слишком много сообщений подряд. Подождите минуту");
+    if (limits.exceeded("chat:" + member.id, abuse.chatMessages()))
+      throw new Problem(429, "CHAT_RATE", "Слишком много сообщений подряд. Подождите минуту");
   }
 
   /** Снять «щит» досрочно — рычаг владельца сервера (E10) и уборка в тестах. */
@@ -500,12 +497,8 @@ public class RoomService {
     var held = room.botInvite == null ? null : room.invites.get(room.botInvite);
     if (held != null && !held.revoked() && held.expiresAt() > now() + 3_600_000L)
       return inviteUrl(room, held.id());
-    var url = invite(room);
-    room.botInvite =
-        room.invites.values().stream()
-            .max(Comparator.comparingLong(RoomState.Invite::createdAt))
-            .map(RoomState.Invite::id)
-            .orElse(null);
+    room.botInvite = newInvite(room);
+    var url = inviteUrl(room, room.botInvite);
     emit(room, "room.changed", EventPayload.changed());
     rooms.save(room, now());
     return url;
@@ -682,6 +675,11 @@ public class RoomService {
   }
 
   private String invite(RoomState room) {
+    return inviteUrl(room, newInvite(room));
+  }
+
+  /** Новое приглашение комнаты; возвращает его номер — по нему выводится ссылка. */
+  private String newInvite(RoomState room) {
     if (room.invites.size() >= 100)
       room.invites.values().removeIf(i -> i.revoked() || i.expiresAt() <= now());
     if (room.invites.size() >= 100)
@@ -696,7 +694,7 @@ public class RoomService {
             now(),
             now() + config.retention().messages().toMillis(),
             false));
-    return inviteUrl(room, id);
+    return id;
   }
 
   private String inviteUrl(RoomState room, String inviteId) {

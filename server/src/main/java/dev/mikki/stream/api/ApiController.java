@@ -138,7 +138,7 @@ public class ApiController {
     if (abuse.humanCheck() == StreamProperties.Abuse.HumanCheck.OFF)
       return ResponseEntity.noContent().build();
     var key = address.of(http);
-    limits.check("proof:" + key, 60);
+    limits.check("proof-issue:" + key, 60);
     var pressure =
         action.equals("create")
             ? limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
@@ -157,17 +157,10 @@ public class ApiController {
     if (proofFor != null) {
       limits.check(
           (proofFor.equals("code") ? "code-admission:" : "admission:") + key,
-          proofFor.equals("code") ? abuse.codeJoins() : abuse.admissions(),
-          "RATE_LIMITED",
-          "Слишком много запросов. Подождите минуту");
+          proofFor.equals("code") ? abuse.codeJoins() : abuse.admissions());
       if (!service && config.abuse().humanCheck() != StreamProperties.Abuse.HumanCheck.OFF)
         proofs.verify(http.getHeader(ProofOfWork.HEADER), proofFor, key);
-    } else
-      limits.check(
-          "admission:" + key,
-          abuse.admissions(),
-          "RATE_LIMITED",
-          "Слишком много запросов. Подождите минуту");
+    } else limits.check("admission:" + key, abuse.admissions());
     return identity.entrant(http).from(address.entrant(http));
   }
 

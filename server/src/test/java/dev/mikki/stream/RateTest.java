@@ -38,9 +38,9 @@ class RateTest {
   void aWindowLongerThanAMinuteHolds() {
     var limits = RateLimits.inMemory();
     var rate = Rate.parse("3 per hour");
-    for (int i = 0; i < 3; i++) limits.check("test-hour:" + RateTest.class, rate, "X", "x");
-    assertThatThrownBy(() -> limits.check("test-hour:" + RateTest.class, rate, "X", "Отказ"))
-        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo("X"));
+    for (int i = 0; i < 3; i++) limits.check("test-hour:" + RateTest.class, rate);
+    assertThatThrownBy(() -> limits.check("test-hour:" + RateTest.class, rate))
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo("RATE_LIMITED"));
     // Счётчик без шага — тот же, что видит проверка.
     assertThat(limits.count("test-hour:" + RateTest.class, rate)).isEqualTo(4);
   }
