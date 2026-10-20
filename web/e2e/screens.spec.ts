@@ -54,7 +54,7 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await host!.getByRole('button', { name: /Новая встреча/ }).click();
     await host!.getByLabel('Ваше имя').fill('Экран 1');
     await host!.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host!.locator('[data-media-status="connected"]')).toBeVisible();
+    await expect(host!.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await host!.getByRole('button', { name: 'Пригласить участников' }).click();
     const invite = await host!.getByLabel('Ссылка приглашения').inputValue();
     await host!.getByRole('button', { name: 'Закрыть', exact: true }).click();

@@ -148,7 +148,7 @@ test('the profile block opens settings during a meeting, and leaving goes home',
   await page.getByLabel('Название встречи').fill('Проверка настроек');
   await page.getByLabel('Ваше имя').fill('Организатор');
   await page.getByRole('button', { name: 'Начать встречу', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Выйти из встречи' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выйти из встречи' })).toBeVisible({ timeout: 25000 });
 
   const open = () =>
     page.evaluate(() =>

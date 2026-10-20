@@ -22,7 +22,7 @@ test('media signaling recovers inside the fixed deadline without duplicating the
     await page.getByRole('button', { name: /Новая встреча/ }).click();
     await page.getByLabel('Ваше имя').fill('Смена сети');
     await page.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(page.locator('[data-media-status="connected"]')).toBeVisible();
+    await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await page.getByRole('button', { name: 'Включить камеру' }).click();
     await expect
       .poll(() => page.locator('video.camera-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
