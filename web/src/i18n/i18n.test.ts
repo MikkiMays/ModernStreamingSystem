@@ -20,11 +20,13 @@ describe('языки', () => {
     expect(detectLanguage(null, ['ja-JP'])).toBe('ru');
   });
 
-  it('язык браузера без перевода не выбирается сам: русский текст под чужим locale хуже русского', () => {
-    // До E14-B у en…pt-BR только подпись выбора языка: английский браузер давал «Субтитры Russian».
-    expect(detectLanguage(null, ['en-US', 'en'])).toBe('ru');
-    expect(detectLanguage(null, ['it-IT'])).toBe('ru');
-    expect(detectLanguage('en', ['en-US'])).toBe('en');
+  it('язык браузера берётся сам, если на него переведено; незнакомый — русский', () => {
+    // E14-B: все восемь языков переведены (TRANSLATED), браузер на английском получает английский.
+    expect(detectLanguage(null, ['en-US', 'en'])).toBe('en');
+    expect(detectLanguage(null, ['zh-CN'])).toBe('zh-Hans');
+    expect(detectLanguage(null, ['ja-JP', 'it-IT'])).toBe('it');
+    expect(detectLanguage(null, ['ja-JP'])).toBe('ru');
+    expect(detectLanguage('de', ['en-US'])).toBe('de');
   });
 
   it('по-русски сразу, без ожидания загрузки', () => {
@@ -46,17 +48,30 @@ describe('языки', () => {
     expect(await applyLanguage('en')).toBe('en');
     expect(document.documentElement.lang).toBe('en');
     expect(t(($) => $.language.label)).toBe('Language');
-    expect(t(($) => $.common.close)).toBe('Закрыть');
+    expect(t(($) => $.common.close)).toBe('Close');
     expect(locale()).toBe('en');
+    // Ключ, который появился в ru, а перевести его ещё не успели, показывается по-русски.
+    i18next.addResource('ru', 'translation', 'test.fresh', 'Новая строка');
+    expect(i18next.t('test.fresh' as never)).toBe('Новая строка');
+  });
+
+  it('формы числа — по правилам языка: английский one/other, китайский одна, французский с many', async () => {
+    await applyLanguage('en');
+    expect(t(($) => $.durak.cards, { count: 1 })).toBe('1 card');
+    expect(t(($) => $.durak.cards, { count: 21 })).toBe('21 cards');
+    await applyLanguage('zh-Hans');
+    expect(t(($) => $.durak.cards, { count: 3 })).toBe('3 张牌');
+    await applyLanguage('fr');
+    expect(t(($) => $.durak.cards, { count: 1 })).toBe('1\u00a0carte');
+    expect(t(($) => $.durak.cards, { count: 1_000_000 })).toBe('1000000\u00a0cartes');
   });
 
   it('ошибку сервера по-русски показывает как есть, иначе — по коду, а без перевода — как есть', async () => {
     expect(errorText('ROOM_FULL', 'Во встрече уже 20 участников')).toBe('Во встрече уже 20 участников');
     await i18next.changeLanguage('en');
-    // Русский текст реестра — не перевод: без английского остаётся слово сервера.
-    expect(errorText('ROOM_FULL', 'Во встрече уже 20 участников')).toBe('Во встрече уже 20 участников');
-    i18next.addResourceBundle('en', 'translation', { errors: { ROOM_FULL: 'The meeting is full' } }, true);
     expect(errorText('ROOM_FULL', 'Во встрече уже 20 участников')).toBe('The meeting is full');
+    // Код, которого в языке нет, — слово сервера: русский шаблон реестра с «…» хуже точного текста.
+    expect(errorText('NO_SUCH_CODE', 'Текст сервера')).toBe('Текст сервера');
     expect(errorText(undefined, 'Текст сервера')).toBe('Текст сервера');
   });
 });

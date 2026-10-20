@@ -68,7 +68,11 @@ const bridge = () => {
 };
 
 async function shot(browser, name, { theme, enter }) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    locale: 'ru-RU',
+  });
   const page = await context.newPage();
   if (theme) await page.addInitScript(bridge);
   await page.route('**/api/v1/session', (route) =>

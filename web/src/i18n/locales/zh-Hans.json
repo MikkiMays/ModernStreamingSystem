@@ -1,14 +1,3017 @@
 {
   "locale": "zh-Hans",
+  "common": {
+    "close": "关闭",
+    "guestInitial": "访"
+  },
   "language": {
     "label": "语言",
     "system": "跟随浏览器"
   },
   "settings": {
-    "rows": {
-      "appearance-language": {
-        "label": "界面语言"
+    "groups": {
+      "app": "应用",
+      "meetings": "会议",
+      "connections": "连接"
+    },
+    "sections": {
+      "profile": {
+        "title": "个人资料",
+        "keywords": "名字 头像 图片 照片"
+      },
+      "appearance": {
+        "title": "外观",
+        "keywords": "主题 样式 深色 浅色"
+      },
+      "hotkeys": {
+        "title": "快捷键",
+        "keywords": "组合键 按键 键盘"
+      },
+      "voice": {
+        "title": "语音和视频",
+        "keywords": "声音 音频 麦克风 摄像头"
+      },
+      "sounds": {
+        "title": "声音",
+        "keywords": "通知 提示音 游戏"
+      },
+      "accounts": {
+        "title": "账号",
+        "keywords": "集成 服务"
+      },
+      "server": {
+        "title": "服务器",
+        "keywords": "连接"
+      },
+      "about": {
+        "title": "关于",
+        "keywords": "版本 cord"
       }
+    },
+    "anchors": {
+      "microphone": "麦克风",
+      "output": "扬声器",
+      "processing": "音频处理",
+      "camera": "摄像头",
+      "screen": "屏幕共享",
+      "reception": "接收的视频",
+      "advanced": "高级"
+    },
+    "rows": {
+      "profile-name": {
+        "label": "名字",
+        "hint": "加入会议时使用",
+        "keywords": "昵称 用户名"
+      },
+      "profile-avatar": {
+        "label": "头像",
+        "hint": "会议参与者可以看到",
+        "keywords": "头像 照片 图片"
+      },
+      "appearance-theme": {
+        "label": "主题",
+        "hint": "",
+        "keywords": "浅色 深色 夜间 系统 主题"
+      },
+      "appearance-bots": {
+        "label": "会议旁的机器人",
+        "hint": "在舞台旁列出正在使用的集成",
+        "keywords": "集成 面板 音乐"
+      },
+      "hotkey-mic": {
+        "label": "麦克风",
+        "hint": "开启或静音",
+        "keywords": "快捷键 热键 静音 mute"
+      },
+      "hotkey-other": {
+        "label": "影院和游戏按键",
+        "hint": "",
+        "keywords": "播放器 暂停 扑克"
+      },
+      "mic-device": {
+        "label": "输入设备",
+        "hint": "",
+        "keywords": "麦克风 耳麦"
+      },
+      "mic-volume": {
+        "label": "麦克风音量",
+        "hint": "",
+        "keywords": "增益 输入电平 gain"
+      },
+      "mic-auto": {
+        "label": "自动调节音量",
+        "hint": "让轻声和大声更均衡",
+        "keywords": "自动 增益 agc"
+      },
+      "mic-check": {
+        "label": "麦克风测试",
+        "hint": "说点什么，音量条会显示电平",
+        "keywords": "测试 指示 录音"
+      },
+      "output-device": {
+        "label": "输出设备",
+        "hint": "",
+        "keywords": "扬声器 耳机 音箱 声音输出"
+      },
+      "output-volume": {
+        "label": "输出音量",
+        "hint": "",
+        "keywords": "语音 声音"
+      },
+      "output-check": {
+        "label": "声音测试",
+        "hint": "",
+        "keywords": "扬声器测试"
+      },
+      "noise": {
+        "label": "降噪",
+        "hint": "播放音乐时请选“关闭”",
+        "keywords": "噪音 rnnoise 人声隔离"
+      },
+      "echo": {
+        "label": "回声消除",
+        "hint": "用扬声器通话时需要",
+        "keywords": "回声"
+      },
+      "camera-device": {
+        "label": "摄像头",
+        "hint": "",
+        "keywords": "网络摄像头 设备"
+      },
+      "camera-resolution": {
+        "label": "摄像头分辨率",
+        "hint": "",
+        "keywords": "画质 720p 1080p"
+      },
+      "camera-fps": {
+        "label": "摄像头帧率",
+        "hint": "",
+        "keywords": "fps 流畅"
+      },
+      "camera-yields": {
+        "label": "优先屏幕共享",
+        "hint": "你共享屏幕时，摄像头降为 360p",
+        "keywords": "屏幕共享 节省带宽"
+      },
+      "camera-preview": {
+        "label": "预览",
+        "hint": "仅你可见",
+        "keywords": "摄像头测试"
+      },
+      "screen-resolution": {
+        "label": "屏幕共享分辨率",
+        "hint": "",
+        "keywords": "屏幕共享 画质 直播"
+      },
+      "screen-fps": {
+        "label": "屏幕共享帧率",
+        "hint": "",
+        "keywords": "屏幕共享 fps 流畅 直播"
+      },
+      "reception": {
+        "label": "接收视频画质",
+        "hint": "",
+        "keywords": "他人视频 流量"
+      },
+      "playout": {
+        "label": "接收缓冲",
+        "hint": "仅音频：应对延迟波动的能力",
+        "keywords": "延迟 缓冲 ping 卡顿 网络"
+      },
+      "sounds-on": {
+        "label": "会议提示音",
+        "hint": "进出、加入请求、聊天、麦克风",
+        "keywords": "通知 声音"
+      },
+      "sounds-volume": {
+        "label": "提示音和游戏音量",
+        "hint": "",
+        "keywords": "通知音量"
+      },
+      "sounds-samples": {
+        "label": "试听",
+        "hint": "",
+        "keywords": "提示音示例"
+      },
+      "sounds-games": {
+        "label": "游戏音效",
+        "hint": "",
+        "keywords": "扑克 durak 国际象棋 gartic"
+      },
+      "account-yandex-music": {
+        "label": "Yandex Music",
+        "hint": "",
+        "keywords": "令牌 token 音乐 yandex"
+      },
+      "account-telegram": {
+        "label": "Telegram",
+        "hint": "",
+        "keywords": "telegram 机器人"
+      },
+      "server-current": {
+        "label": "服务器",
+        "hint": "",
+        "keywords": "地址 断开 更换"
+      },
+      "server-autoconnect": {
+        "label": "启动时连接",
+        "hint": "",
+        "keywords": "自动连接"
+      },
+      "server-password": {
+        "label": "已保存的密码",
+        "hint": "",
+        "keywords": "忘记密码"
+      },
+      "server-ping": {
+        "label": "显示 PING",
+        "hint": "在首页和会议中显示服务器延迟",
+        "keywords": "延迟 ping"
+      },
+      "about-version": {
+        "label": "版本",
+        "hint": "",
+        "keywords": "版本号 构建"
+      },
+      "about-updates": {
+        "label": "更新",
+        "hint": "",
+        "keywords": "检查 更新 下载 windows"
+      },
+      "about-author": {
+        "label": "作者",
+        "hint": "",
+        "keywords": "telegram 联系 nikgers"
+      },
+      "appearance-language": {
+        "label": "界面语言",
+        "hint": "",
+        "keywords": "language 语言 翻译 界面"
+      }
+    },
+    "title": "设置",
+    "navigation": "设置分区",
+    "search": "搜索设置",
+    "nothing": "未找到结果",
+    "found": "搜索结果",
+    "device": "此设备",
+    "unnamed": "未命名",
+    "you": "你",
+    "back": "返回分区",
+    "subsections": "子分区：{{section}}",
+    "sectionHit": "分区",
+    "appearance": {
+      "theme": "主题",
+      "themes": {
+        "system": "跟随系统",
+        "light": "浅色",
+        "dark": "深色"
+      },
+      "inMeeting": "会议中"
+    },
+    "about": {
+      "checking": "正在查询最新版本…",
+      "unknown": "无法获取 Windows 最新版本",
+      "webUpdates": "网页版随服务器一同更新",
+      "latest": "Windows 最新版本：{{version}}",
+      "desktop": "Windows 应用",
+      "web": "此服务器的网页版",
+      "desktopUpdate": "应用有可用更新。",
+      "windowsUpdate": "Windows 版 Cord {{version}} 已发布。",
+      "checkLabel": "检查更新",
+      "check": "检查",
+      "update": "更新",
+      "download": "下载 {{version}}",
+      "author": "Cord 由 @nikgers 创建和开发",
+      "telegram": "作者的 Telegram"
+    },
+    "accounts": {
+      "save": "保存",
+      "cancel": "取消",
+      "connected": "已连接",
+      "disconnected": "未连接",
+      "reset": "重置",
+      "resetLabel": "重置：{{name}}",
+      "connect": "连接",
+      "connectLabel": "连接：{{name}}",
+      "services": "服务"
+    },
+    "hotkeys": {
+      "browser": "在浏览器中，快捷键仅在 Cord 标签页处于活动状态时有效。在应用中始终有效。",
+      "desktop": "在应用中，即使其他程序在前台，快捷键也有效。",
+      "recording": "请按下快捷键…",
+      "meeting": "会议",
+      "cancel": "Esc — 取消",
+      "cancelLabel": "Esc — 取消录制快捷键",
+      "change": "更改",
+      "changeLabel": "更改麦克风快捷键",
+      "assign": "设置",
+      "assignLabel": "设置麦克风快捷键",
+      "reset": "默认",
+      "resetLabel": "恢复默认麦克风快捷键",
+      "disable": "停用",
+      "disableLabel": "停用麦克风快捷键",
+      "groups": {
+        "cinema": "影院",
+        "poker": "扑克（轮到你时）",
+        "home": "首页"
+      },
+      "actions": {
+        "pause": "暂停",
+        "playerSound": "播放器声音",
+        "fullscreen": "全屏",
+        "seek": "快进或快退 10 秒，按住 Shift 为 30 秒",
+        "volume": "音量",
+        "fold": "弃牌",
+        "checkCall": "过牌或跟注",
+        "bet": "下注",
+        "allIn": "全下",
+        "reorder": "调整收藏中房间的顺序"
+      }
+    },
+    "media": {
+      "kind": {
+        "screen": "屏幕",
+        "camera": "摄像头"
+      },
+      "quality": "{{label}}：画质",
+      "fps": "{{label}}：帧率",
+      "ceiling": "此服务器最高支持 {{resolution}}p · {{fps}} fps",
+      "group": {
+        "screen": "屏幕共享",
+        "camera": "摄像头视频"
+      },
+      "reception": {
+        "fit": "适应窗口",
+        "best": "始终最佳"
+      },
+      "noise": {
+        "browser": "标准",
+        "rnnoise": "RNNoise — 增强",
+        "voice": "人声隔离",
+        "off": "关闭"
+      },
+      "auto": "自动",
+      "voiceGroup": "语音和麦克风",
+      "playout": {
+        "modes": {
+          "auto": "自动",
+          "low-latency": "最低延迟",
+          "stable": "最高稳定性"
+        },
+        "now": "当前：{{path}} · {{grade}}",
+        "rtt": " · 往返 {{ms}} 毫秒",
+        "tcp": "。经由 TCP 时缓冲会自动增大；如果反复出现，请检查网络是否允许 UDP。"
+      }
+    },
+    "profile": {
+      "refused": "房间未接受该图片",
+      "pickLabel": "选择头像",
+      "replace": "更换",
+      "pick": "选择",
+      "remove": "移除",
+      "about": "关于你",
+      "namePlaceholder": "怎么称呼你？"
+    },
+    "server": {
+      "connection": "连接",
+      "leaveFirst": "请先离开会议",
+      "change": "更换服务器",
+      "disconnect": "断开连接",
+      "forget": "忘记密码"
+    },
+    "sounds": {
+      "cues": "提示音",
+      "volume": "提示音和游戏音效音量",
+      "samplesLabel": "试听提示音",
+      "samples": {
+        "self-join": "你加入",
+        "join": "有人加入",
+        "leave": "有人离开",
+        "knock": "请求加入",
+        "message": "消息",
+        "screen": "屏幕共享",
+        "mic-on": "麦克风已开启",
+        "mic-off": "麦克风已静音"
+      },
+      "games": {
+        "poker": "扑克",
+        "durak": "Durak",
+        "chess": "国际象棋",
+        "gartic": "Gartic"
+      },
+      "gameLabel": "游戏音效：{{game}}"
+    },
+    "voice": {
+      "systemOutputOnly": "此浏览器只能通过系统设备输出声音",
+      "defaultDevice": "默认",
+      "device": "设备 {{number}}",
+      "micInMeeting": "这是你现在在会议中的声音",
+      "recording": "你的测试录音",
+      "micLevel": "麦克风电平",
+      "recordingLabel": "正在录制麦克风测试",
+      "recordLabel": "录制 5 秒麦克风测试",
+      "recordingNow": "正在录制…",
+      "record": "录制 5 秒",
+      "stopMicLabel": "停止麦克风测试",
+      "checkMicLabel": "测试麦克风",
+      "stop": "停止",
+      "check": "测试",
+      "checkSpeakersLabel": "测试扬声器",
+      "serverRule": "由此服务器设定",
+      "previewLabel": "摄像头预览，仅你可见",
+      "hidePreviewLabel": "隐藏摄像头预览",
+      "showPreviewLabel": "显示摄像头预览",
+      "hide": "隐藏",
+      "show": "显示",
+      "deviceFailed": "无法启用设备",
+      "recordUnsupported": "此浏览器不支持测试录音。电平条仍可使用。",
+      "toneFailed": "无法播放测试音"
+    }
+  },
+  "meeting": {
+    "clock": {
+      "lessThanMinute": "不到 1 分钟",
+      "minutes": "{{minutes}} 分钟",
+      "hours": "{{hours}} 小时",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟"
+    },
+    "header": {
+      "code": "会议代码",
+      "invite": "邀请",
+      "inviteAll": "邀请参与者",
+      "settings": "会议设置",
+      "clock": "会议时长",
+      "clockLabel": "会议时长：{{duration}}",
+      "save": "将房间加入收藏",
+      "unsave": "从收藏中移除房间",
+      "full_other": "收藏中已有 {{count}} 个房间。移除一个后才能添加此房间",
+      "ended": "已结束",
+      "waiting": "等待进入",
+      "recovering": "正在恢复连接…",
+      "connecting": "正在连接…"
+    },
+    "settings": {
+      "saveFailed": "保存失败",
+      "title": "会议设置",
+      "description": "只有主持人可以更改，其他人会立即看到。",
+      "name": "会议名称",
+      "namePlaceholder": "例如：朋友之夜",
+      "access": "谁可以加入",
+      "open": "凭链接或代码直接进入",
+      "openHint": "打开邀请的人即可进入。适合熟人之间。",
+      "approval": "需经你批准",
+      "approvalHint": "每位加入者都要等你放行。已在会议中的人不受影响。",
+      "linkStays": "会议的链接和代码不会改变。要阻止通过旧链接进入，请撤销邀请并创建新邀请。",
+      "integrations": "集成",
+      "integrationsAll": "允许所有参与者使用集成",
+      "integrationsHint": "不勾选时，只有你能添加和移除影院与音乐。音量仍由每个人自行调节。",
+      "saving": "正在保存…",
+      "save": "保存",
+      "unchanged": "没有任何更改"
+    },
+    "elsewhere": {
+      "title": "你已在会议“{{title}}”中",
+      "description": "同一设备一次只能参加一个会议。",
+      "stay": "留在这里",
+      "go": "前往该会议",
+      "move": "离开那边，加入这里"
+    },
+    "view": {
+      "stage": "会议舞台",
+      "requests": "加入请求：{{n}} · 打开",
+      "recoveryTitle": "正在回到对话",
+      "recoveryText": "请检查网络。我们会自动重新连接。",
+      "seconds": "{{n}} 秒",
+      "controlRecovering": "正在恢复聊天和控制。音频和视频仍正常工作。",
+      "thanks": "感谢这次交流。",
+      "retention": "消息和文件在保存期结束前均可查看。",
+      "home": "返回首页",
+      "history": "打开记录",
+      "waitingTitle": "主持人很快会让你进入",
+      "waitingSettle": "请稍候片刻。",
+      "waitingMedia": "你的声音和摄像头暂未传输。",
+      "returnToConversation": "回到对话",
+      "inviteHint": "正是邀请朋友的好时机",
+      "unlockAudio": "开启会议声音",
+      "dismissError": "隐藏通知",
+      "collapseControls": "收起控制栏",
+      "expandControls": "展开控制栏",
+      "controls": "控制栏",
+      "panelWidth": "侧边栏宽度"
+    },
+    "end": {
+      "session": "此会话已结束。请使用邀请重新加入。",
+      "closed": "会议已结束",
+      "left": "你已离开会议",
+      "revoked": "你的会议访问权限已终止"
+    },
+    "handover": {
+      "unsupported": "此浏览器无法在标签页之间转移会议",
+      "noAnswer": "会议所在的标签页没有响应。请切换到该标签页或将其关闭"
+    },
+    "ceiling": "会议将于 {{time}} 结束：此服务器上的会议有时长上限",
+    "presence": {
+      "title": "你还在吗？",
+      "text": "如果没有回应，你将在 {{time}} 离开会议——这样被遗忘的标签页就不会一直占着位置",
+      "confirm": "我在"
+    },
+    "background": {
+      "iosSafari": "你可以把 Safari 切到后台或锁屏——只要顶部的橙色麦克风圆点亮着，通话就会继续。期间摄像头会关闭。如果来了普通电话，或 iPhone 关闭了 Safari，通话会中断。想在其他应用上方看到对方，请在控制菜单中选择“画中画”。",
+      "iosHome": "在这里，只要你离开屏幕或锁屏，iPhone 就会关闭麦克风。要在后台通话，请在 Safari 中打开会议。",
+      "android": "你可以把浏览器切到后台或关闭屏幕：只要通知栏里显示“…正在使用麦克风”，通话就会继续。如果手机在后台关闭了浏览器，请取消对它的电池限制。",
+      "noMicrophone": "没有麦克风权限时，你把浏览器切到后台或关闭屏幕后，手机可能会中断通话。请在网站设置中允许麦克风：用按钮静音时它不会传输声音，但能让通话在后台保持。",
+      "telegram": "在 Telegram 中，通话只在 Telegram 打开时保持：如果把它切到后台或关闭屏幕，手机可能会中断通话。要在后台通话，请在浏览器中打开会议。",
+      "gapClosed": "你离开屏幕期间，手机关闭了麦克风——从 {{from}} 到 {{to}} 别人听不到你。",
+      "gapOpen": "你离开屏幕期间，手机在 {{from}} 关闭了麦克风，现在别人仍然听不到你。请关闭麦克风后再重新开启。",
+      "copyLink": "复制链接",
+      "copied": "链接已复制",
+      "hide": "隐藏提示"
+    }
+  },
+  "chess": {
+    "title": "国际象棋",
+    "pieces": {
+      "p": {
+        "white": "白兵",
+        "black": "黑兵"
+      },
+      "r": {
+        "white": "白车",
+        "black": "黑车"
+      },
+      "n": {
+        "white": "白马",
+        "black": "黑马"
+      },
+      "b": {
+        "white": "白象",
+        "black": "黑象"
+      },
+      "q": {
+        "white": "白后",
+        "black": "黑后"
+      },
+      "k": {
+        "white": "白王",
+        "black": "黑王"
+      }
+    },
+    "presets": {
+      "untimed": "不计时",
+      "3-2": "3 + 2",
+      "5-0": "5 + 0",
+      "10-5": "10 + 5",
+      "15-10": "15 + 10"
+    },
+    "results": {
+      "checkmate": "将死",
+      "stalemate": "逼和",
+      "insufficient-material": "子力不足，无法将死",
+      "resignation": "对手认输",
+      "resignation-insufficient-material": "对手子力不足，无法将死",
+      "agreement": "双方同意和棋",
+      "timeout": "超时",
+      "timeout-insufficient-material": "超时，但无法将死",
+      "threefold": "三次重复局面",
+      "fivefold": "五次重复局面",
+      "fifty-move": "50 回合规则",
+      "seventy-five-move": "75 回合规则",
+      "unknown": "对局结束"
+    },
+    "promotion": {
+      "title": "兵的升变",
+      "description": "选择兵要升变成的棋子。",
+      "pieces": {
+        "q": {
+          "label": "后",
+          "action": "升变为后"
+        },
+        "r": {
+          "label": "车",
+          "action": "升变为车"
+        },
+        "b": {
+          "label": "象",
+          "action": "升变为象"
+        },
+        "n": {
+          "label": "马",
+          "action": "升变为马"
+        }
+      }
+    },
+    "sendFailed": "无法发送走法。请重试。",
+    "status": {
+      "lobby": "邀请对手来下棋",
+      "yourTurn": "轮到你走",
+      "turn": {
+        "white": "白方走棋",
+        "black": "黑方走棋"
+      },
+      "check": "将军",
+      "winner": {
+        "white": "白方胜",
+        "black": "黑方胜"
+      },
+      "draw": "和棋"
+    },
+    "sides": {
+      "white": "白方",
+      "black": "黑方"
+    },
+    "freeSeat": "空位",
+    "away": "暂离",
+    "captured": "被吃的棋子：{{pieces}}",
+    "sit": {
+      "white": "执白",
+      "black": "执黑"
+    },
+    "flip": "翻转棋盘",
+    "downloadPgn": "下载 PGN 棋谱",
+    "close": "关闭国际象棋",
+    "board": "棋盘。方向键移动，Enter 选择棋子和格子",
+    "square": {
+      "empty": "空",
+      "target": "可走",
+      "check": "将军"
+    },
+    "review": {
+      "start": "正在查看记录开始时的局面",
+      "move": "正在查看第 {{move}} 步后的局面",
+      "back": "回到对局"
+    },
+    "sidebar": "对局与走法",
+    "reconnecting": "正在恢复连接。棋钟仍在走。",
+    "lobby": {
+      "intro": "两名棋手，一张棋盘。其他参与者可以观战和聊天。",
+      "start": "开始对局",
+      "needPlayers": "黑白双方都需要棋手。",
+      "hostStarts": "主持人将开始对局。"
+    },
+    "rematch": {
+      "waiting": "等待对手同意",
+      "accept": "接受再战",
+      "again": "再来一局",
+      "swapColors": "新对局中双方交换执子颜色。"
+    },
+    "notation": {
+      "title": "走法",
+      "live": "当前局面",
+      "review": "回看",
+      "history": "走法记录",
+      "move": {
+        "white": "第 {{number}} 步白方：{{san}}",
+        "black": "第 {{number}} 步黑方：{{san}}"
+      },
+      "empty": "第一步会显示在这里。",
+      "start": "初始局面",
+      "previous": "上一步",
+      "next": "下一步",
+      "liveButton": "实时"
+    },
+    "draw": {
+      "offered": "对手提议和棋",
+      "accept": "接受",
+      "decline": "拒绝",
+      "pending": "已提议和棋",
+      "offer": "提议和棋",
+      "claimRepetition": "申请和棋（重复局面）",
+      "claimFiftyMoves": "申请和棋（50 回合）"
+    },
+    "resign": "认输",
+    "stand": "改为观战",
+    "spectators": "观众",
+    "help": {
+      "title": "玩法",
+      "controls": "点按棋子再点目标格，或直接拖动。键盘操作：方向键选择格子，Enter 选择棋子和走法，Esc 取消选择。",
+      "rules": "王车易位是王一次走两格。兵升变时请选择新的棋子。目标是将死对方的王。",
+      "clock": "断线时棋钟会继续走。出现按钮时，可以按三次重复局面或 50 回合规则申请和棋。"
+    },
+    "claim": {
+      "title": "这一步可以申请和棋",
+      "description": "你可以按重复局面或 50 回合规则以和棋结束对局，也可以继续下。",
+      "continue": "继续对局",
+      "claim": "申请和棋"
+    },
+    "confirm": {
+      "resignTitle": "要在这局认输吗？",
+      "closeTitle": "要关闭国际象棋吗？",
+      "resignDescription": "对手将获胜。之后你可以提议再战。",
+      "closeDescription": "棋盘会从所有参与者的界面中消失。如需保存对局，请先下载 PGN。",
+      "cancel": "取消",
+      "resign": "认输",
+      "close": "关闭国际象棋"
+    },
+    "clock": "{{side}}：{{time}}",
+    "untimed": "不计时"
+  },
+  "gartic": {
+    "phase": {
+      "lobby": "大家到桌边集合",
+      "choose": "选择一个词",
+      "artistChoosing": "画手正在选词",
+      "roundReveal": "答案揭晓",
+      "finished": "游戏结束",
+      "reveal": "看看最后变成了什么",
+      "submitted": "已完成，等待其他人",
+      "prompt": "想一个故事的开头",
+      "promptOthers": "玩家们正在构思故事",
+      "describe": "描述这幅画",
+      "describeOthers": "玩家们正在描述画作",
+      "draw": "开始画吧",
+      "drawPhrases": "正在画收到的句子",
+      "guess": "猜猜这个词"
+    },
+    "modes": {
+      "classic": "你画我猜",
+      "telephone": "传话游戏"
+    },
+    "step": "第 {{step}} 步，共 {{total}} 步",
+    "round": "第 {{round}} 轮，共 {{rounds}} 轮",
+    "rules": {
+      "title": "规则",
+      "telephone": "每人先写一句话，下一位把它画出来，再下一位描述这幅画。你只能看到上一步。最后由主持人展示所有故事。",
+      "classic": "轮流选词并把它画出来，不能写字母或数字。其他人输入答案。猜得越快，得分越高。每有一人猜对，画手也会得分。",
+      "voice": "语音聊天会继续。不要把答案说出来。"
+    },
+    "close": "关闭 Gartic",
+    "reconnecting": "正在重新连接游戏…",
+    "lobby": {
+      "sketchDraw": "画出来。",
+      "sketchSurprise": "给朋友一个惊喜。",
+      "headline": {
+        "telephone": "一句话，十几次意想不到的转折。",
+        "classic": "不用说话也能懂吗？"
+      },
+      "intro": {
+        "telephone": "把画和描述一圈圈传下去，最后一起看看最初的想法变成了什么。",
+        "classic": "一人画，其他人猜。再奇怪的涂鸦也可能带来胜利。"
+      },
+      "modePicker": "Gartic 模式",
+      "modeHint": {
+        "classic": "2 人起，猜对得分",
+        "telephone": "3 人起，共同编故事"
+      },
+      "rounds": "轮数",
+      "turnSeconds": "作画时间",
+      "seconds": "{{count}} 秒",
+      "telephoneTiming": "每句话 45 秒，每幅画 90 秒。每个人都会参与每个故事。",
+      "players": "{{count}} / 10 名玩家",
+      "joinFirst": "第一个加入",
+      "join": "加入",
+      "inGame": "你已加入游戏",
+      "start": "开始游戏",
+      "needMore_other": "还需要 {{count}} 名玩家才能开始。",
+      "hostStarts": "由主持人开始游戏。"
+    },
+    "sidebar": {
+      "telephone": "玩家进度",
+      "classic": "答案和得分"
+    },
+    "footer": {
+      "watching": "你正在观战",
+      "playNext": "参加下一局",
+      "joinedNext": "你已加入下一局",
+      "leave": "退出游戏",
+      "spectate": "改为观战",
+      "again": "再玩一次",
+      "hostStartsNext": "下一局由主持人开始"
+    },
+    "word": {
+      "was": "答案是",
+      "youDraw": "由你来画",
+      "guess": "猜猜这个词",
+      "onlyYou": "只有你能看到这个词",
+      "chooseTitle": "你要画什么？",
+      "chooseHint": "从三个词中选一个。"
+    },
+    "guesses": {
+      "title": "猜测",
+      "log": "玩家的猜测",
+      "correct": "猜对了",
+      "first": "来做第一个猜的人",
+      "empty": "玩家的答案会显示在这里",
+      "input": "你的猜测",
+      "placeholder": "画的是什么？",
+      "send": "发送猜测",
+      "youGuessed": "猜对了！别给其他人提示。",
+      "drawer": "你负责画，猜就交给别人吧。",
+      "guessersOnly": "只有正在猜词的玩家可以作答。"
+    },
+    "phone": {
+      "secretTitle": "故事暂时保密",
+      "secretText": "玩家们正在为彼此作画和描述。完成后，我们一起看所有画册。",
+      "promptTitle": "故事从哪里开始？",
+      "promptText": "想一句画起来有趣的话。例如：“宇航员在遛蜗牛”。",
+      "drawPhrase": "画出这句话",
+      "previousSkipped": "上一位玩家跳过了这一步",
+      "describeDrawing": "需要描述的画",
+      "missingDrawing": "上一位玩家没来得及画。想象一下这里可能是什么。",
+      "yourPhrase": "你的句子",
+      "whatDrawn": "这里画的是什么？",
+      "promptPlaceholder": "一个出人意料的点子…",
+      "describePlaceholder": "用一句话描述这幅画…",
+      "sent": "已发送。所有人准备好后进入下一步。",
+      "finalDrawing": "发送后无法修改画作。",
+      "finalPhrase": "发送后无法修改句子。",
+      "sending": "正在发送…",
+      "drawingReady": "画好了",
+      "sendPhrase": "发送句子",
+      "previousStep": "上一步"
+    },
+    "status": {
+      "away": "已断线",
+      "spectator": "观众",
+      "choosing": "正在选词",
+      "drew": "画过了",
+      "drawing": "正在画",
+      "ready": "已完成",
+      "thinking": "正在思考",
+      "guessed": "已猜中",
+      "waitingWord": "等待出词",
+      "waitingTurn": "等待下一回合",
+      "guessing": "正在猜"
+    },
+    "scores": {
+      "ready": "已完成 {{ready}} / {{total}}",
+      "players": "玩家",
+      "completion": "玩家完成情况",
+      "progress": "玩家进度",
+      "list": "玩家得分"
+    },
+    "points_other": "{{count}} 分",
+    "results": {
+      "rank": "第 {{rank}} 名",
+      "you": "这是你",
+      "offline": "离线",
+      "pointsWord": "分",
+      "details": "详情：{{name}}",
+      "toFirst": "与第一名的差距",
+      "pointsValue_other": "{{points}} 分",
+      "fromLeader": "与领先者的差距",
+      "nobodyScored": "这一局还没有人得分。",
+      "section": "游戏结果",
+      "noPoints": "这次没有得分",
+      "tie": "并列第一",
+      "winner": "获胜者：{{name}}",
+      "noPointsText": "重要的是画得开心。再来一局？",
+      "tieText_other": "{{names}}——各得 {{points}} 分。",
+      "winnerText": "所有词都猜出来了。来看看谁表现最好。",
+      "podium": "最佳成绩",
+      "place": "第 {{rank}} 名",
+      "players": "玩家数",
+      "total": "本局得分",
+      "round": "轮次",
+      "ofRounds": "/ {{rounds}}",
+      "ranking": "最终排名",
+      "compareHint": "点按箭头进行比较",
+      "empty": "暂无玩家成绩。",
+      "scoringTitle": "计分方式",
+      "scoringText": "猜对一次得 250 到 500 分：猜得越快，得分越高。每有一位玩家猜对，画手得 100 分。分数相同则名次相同。"
+    },
+    "reveal": {
+      "nextStep": "下一步",
+      "nextStory": "下一个故事",
+      "restart": "从头观看",
+      "section": "玩家的故事",
+      "albums": "玩家画册",
+      "title": "我们的故事",
+      "intro": "看看想象力把我们带到了哪里。",
+      "albumSteps": "步数：{{count}}",
+      "stories": "故事数",
+      "totalSteps": "总步数",
+      "hostShowing": "你正在向整个房间展示故事",
+      "hostFlipping": "主持人正在为大家翻看故事",
+      "storyOf": "第 {{index}} 个故事，共 {{total}} 个",
+      "start": "开头：{{name}}",
+      "unavailable": "故事暂不可用",
+      "steps": "故事步骤",
+      "showStep": "显示第 {{step}} 步",
+      "stepN": "第 {{step}} 步",
+      "author": {
+        "drawing": "画作，第 {{step}} 步",
+        "text": "句子，第 {{step}} 步"
+      },
+      "kind": {
+        "skipped": "已跳过",
+        "drawing": "画作",
+        "text": "句子"
+      },
+      "waitUpdate": "等待游戏更新。",
+      "skippedTitle": "这一步被跳过了",
+      "skippedText": "有时候想象力需要多一点时间。",
+      "drawingBy": "画作：{{name}}",
+      "noText": "无描述",
+      "announce": "{{owner}} 的故事。第 {{step}} 步，共 {{total}} 步。{{kind}}作者：{{author}}。",
+      "announceKind": {
+        "skipped": "此步已跳过。",
+        "drawing": "画作。",
+        "text": "句子。"
+      },
+      "navigation": "翻看故事",
+      "previous": "上一步",
+      "back": "返回"
+    },
+    "canvas": {
+      "colors": {
+        "black": "黑色",
+        "white": "白色",
+        "red": "红色",
+        "orange": "橙色",
+        "yellow": "黄色",
+        "green": "绿色",
+        "teal": "青绿色",
+        "lightBlue": "浅蓝色",
+        "blue": "蓝色",
+        "violet": "紫色",
+        "pink": "粉色",
+        "brown": "棕色"
+      },
+      "picture": "画作",
+      "tooManyStrokes": "画纸上的笔画已经很多了。请撤销最后一笔或清空画纸。",
+      "tools": "绘画工具",
+      "palette": "画笔颜色",
+      "brush": "画笔",
+      "eraser": "橡皮擦",
+      "width": "粗细",
+      "widthLabel": "画笔粗细",
+      "widths": {
+        "thin": "细",
+        "medium": "中",
+        "thick": "粗",
+        "wide": "特粗"
+      },
+      "undo": "撤销最后一笔",
+      "undoTitle": "撤销最后一笔（Ctrl+Z）",
+      "clear": "清空画作",
+      "editable": "绘画画布",
+      "view": "桌上的画作",
+      "firstStroke": "你的第一笔",
+      "emptyView": "画作会显示在这里",
+      "offline": "正在恢复连接。笔画已保存在此设备上。",
+      "retry": "重新发送"
+    },
+    "errors": {
+      "invalidStroke": "笔画无效。请重新开始画。",
+      "strokeTooLong": "笔画太长。",
+      "roundOver": "本轮已结束。",
+      "waitConnection": "请等待连接恢复。",
+      "resendFirst": "请先重新发送画作。",
+      "localDiscarded": "本地笔画已撤销。",
+      "sendFailed": "无法发送画作。"
+    }
+  },
+  "games": {
+    "list": {
+      "poker": {
+        "name": "扑克",
+        "hint": "无限注德州扑克，最多十名玩家"
+      },
+      "durak": {
+        "name": "Durak",
+        "hint": "经典和可转移两种玩法，最多六名玩家"
+      },
+      "chess": {
+        "name": "国际象棋",
+        "hint": "两名棋手，可计时，可观战"
+      },
+      "gartic": {
+        "name": "Gartic",
+        "hint": "画画、猜词、接力讲故事"
+      }
+    },
+    "back": "集成",
+    "seated": "在座 {{count}} 人",
+    "liveOnStage": "游戏已在会议舞台上打开。语音和摄像头照常工作。",
+    "closeGame": "关闭游戏",
+    "timeControl": "用时",
+    "chessPresets": {
+      "untimed": "不计时",
+      "3-2": "3 分钟 + 2 秒",
+      "5-0": "5 分钟",
+      "10-5": "10 分钟 + 5 秒",
+      "15-10": "15 分钟 + 10 秒"
+    },
+    "garticModes": {
+      "group": "绘画模式",
+      "classic": "看图猜词",
+      "telephone": "传话游戏",
+      "classicHint": "一人画，其他人猜词。2 人起。",
+      "telephoneHint": "句子变成画，画再变成新句子。3 人起。"
+    },
+    "openChess": "打开棋盘",
+    "openGartic": "打开 Gartic",
+    "restricted": "主持人限制了添加集成。",
+    "table": {
+      "seatedOf": "在座 {{count}} / {{total}} 人",
+      "startingStack": "起始筹码 {{chips}}",
+      "turnSeconds_other": "每步 {{count}} 秒",
+      "level": "级别 {{level}}",
+      "deck_other": "{{count}} 张牌的牌组",
+      "deal": "发牌",
+      "remove": "从会议中移除牌桌",
+      "dealerOnly": "由开桌的人和会议主持人发牌。",
+      "open": "打开牌桌"
+    },
+    "durak": {
+      "deck": "牌组",
+      "noJokers": "不含王牌（Joker）",
+      "deckSize_other": "{{count}} 张牌",
+      "rules": "规则",
+      "transferHint": "用同点数的牌转移进攻",
+      "podkidnoy": "经典",
+      "perevodnoy": "可转移"
+    },
+    "rebuys": {
+      "label": "每人补码次数",
+      "each": "每次 {{chips}}",
+      "none": "不可补码",
+      "unlimited": "不限次数"
+    },
+    "stack": {
+      "label": "起始筹码",
+      "input": "起始筹码数",
+      "blinds": "盲注 {{small}}/{{big}}",
+      "slider": "起始筹码"
+    },
+    "history": {
+      "open": "游戏记录",
+      "title": "游戏记录",
+      "loading": "正在加载记录…",
+      "failed": "无法加载记录。",
+      "retry": "重试",
+      "empty": "还没有已完成的对局。"
+    },
+    "durakHistory": {
+      "title": "Durak",
+      "games_other": "{{count}} 局",
+      "fools_other": "{{count}} 次",
+      "game": "第 {{number}} 局",
+      "draw": "平局",
+      "fool": "傻瓜：{{name}}",
+      "bouts_other": "{{count}} 轮进攻",
+      "columns": {
+        "player": "玩家",
+        "fool": "傻瓜",
+        "took": "收牌",
+        "defended": "守住",
+        "trumps": "王牌数"
+      }
+    },
+    "pokerHistory": {
+      "title": "游戏记录",
+      "hands_other": "{{count}} 手牌",
+      "leader": "{{name}} 领先"
+    },
+    "people": {
+      "camera": "摄像头：{{name}}",
+      "freeSeat": "空位",
+      "speaking": "正在发言",
+      "list": "会议参与者"
+    },
+    "turn": {
+      "remaining_other": "剩余 {{count}} 秒",
+      "seconds": "{{count}} 秒"
+    }
+  },
+  "hotkeys": {
+    "unassigned": "未设置",
+    "space": "空格",
+    "player": {
+      "pause": "暂停",
+      "sound": "声音",
+      "fullscreen": "全屏"
+    },
+    "poker": {
+      "fold": "弃牌",
+      "checkCall": "过牌或跟注",
+      "bet": "下注",
+      "allIn": "全下"
+    },
+    "notes": {
+      "altF4": "Alt + F4 会关闭窗口，请选择其他快捷键。",
+      "browser": "{{label}} 被浏览器占用，请选择其他快捷键。",
+      "windowsKey": "Windows 键由系统占用：该快捷键只在 Cord 窗口中有效。",
+      "f12": "F12 由系统占用：该快捷键只在 Cord 窗口中有效。",
+      "noModifier": "不带 Ctrl 或 Alt 时，快捷键只在 Cord 窗口中有效；带上它们，在其他程序前台时也有效。",
+      "player": "{{label}} 在影院播放器中也是“{{action}}”：播放器打开时，会切换麦克风。",
+      "poker": "{{label}} 在扑克牌桌上也是“{{action}}”：轮到你时，两者都会触发。"
+    }
+  },
+  "accounts": {
+    "yandex-music": {
+      "name": "Yandex Music",
+      "label": "Yandex Music 令牌",
+      "placeholder": "粘贴令牌",
+      "hint": "令牌保存在此设备上，在你把 Yandex Music 添加到会议时使用。"
+    },
+    "telegram": {
+      "name": "Telegram"
+    }
+  },
+  "media": {
+    "end": {
+      "duplicate": "会议已在另一个窗口中打开",
+      "removed": "主持人已为你结束会议。你可以通过链接、代码或收藏重新加入",
+      "revoked": "你的会议访问权限已终止",
+      "notRecovered_other": "连接未能在 {{count}} 秒内恢复",
+      "recoveryExpired": "恢复连接的时间已用完"
+    },
+    "liveUpdating": "正在更新直播…",
+    "actionFailed": "操作失败",
+    "participant": "参与者",
+    "screen": {
+      "unsupported": "此浏览器不支持屏幕共享",
+      "noTrack": "无法获取屏幕画面",
+      "ownAudioLeaks": "此浏览器无法从系统声音中去除 Cord 自身的声音：观众会同时听到对话和自己的声音。请改为共享窗口或标签页，或更新浏览器。",
+      "cancelled": "屏幕共享已取消",
+      "noPermission": "未获得媒体服务器的许可。请重新尝试共享屏幕。"
+    },
+    "encoder": {
+      "screen": "编码器负载过高。正在将屏幕切换为兼容的编解码器。",
+      "camera": "编码器负载过高。正在将摄像头切换为兼容的编解码器。"
+    },
+    "link": {
+      "paths": {
+        "direct-udp": "直连媒体服务器 · UDP",
+        "direct-tcp": "直连媒体服务器 · TCP",
+        "relay-udp": "经由 TURN 中继 · UDP",
+        "relay-tcp": "经由 TURN 中继 · TCP/TLS",
+        "unknown": "路径未知"
+      },
+      "grades": {
+        "good": "良好",
+        "fair": "一般",
+        "poor": "较差",
+        "unknown": "暂无数据"
+      }
+    },
+    "outbound": {
+      "settling": "通道正在提速",
+      "bandwidth": "受带宽限制",
+      "cpu": "受处理器限制",
+      "dormant": "无人放大观看",
+      "screen": "屏幕变化较少",
+      "camera": "摄像头上限"
+    },
+    "ping": {
+      "screenTitle": "控制通道延迟及屏幕的上行数据",
+      "cameraTitle": "控制通道延迟及摄像头的上行数据",
+      "controlTitle": "控制 WebSocket 的 RTT",
+      "httpTitle": "服务器 /api/v1/ping 的响应时间",
+      "offline": "无连接",
+      "ms": "{{value}} 毫秒",
+      "mbps": "{{value}} Mbps"
+    },
+    "background": {
+      "artist": "Cord · 会议",
+      "untitled": "会议"
+    }
+  },
+  "poker": {
+    "millions": "{{value}} 百万",
+    "actions": {
+      "fold": "弃牌",
+      "check": "过牌",
+      "call": "跟注",
+      "bet": "下注",
+      "raise": "加注",
+      "allin": "全下"
+    },
+    "phases": {
+      "lobby": "等待发牌",
+      "preflop": "翻牌前",
+      "flop": "翻牌",
+      "turn": "转牌",
+      "river": "河牌",
+      "showdown": "摊牌",
+      "over": "游戏结束"
+    },
+    "steps": {
+      "third": "⅓ 底池",
+      "half": "½ 底池",
+      "threequarters": "¾ 底池",
+      "pot": "底池"
+    },
+    "celebration": {
+      "knockout": "淘汰",
+      "huge": "超大底池",
+      "big": "大底池"
+    },
+    "modes": {
+      "friendly": {
+        "name": "友谊赛",
+        "hint": "盲注保持不变，可在两手牌之间补码。没有人会被彻底淘汰。"
+      },
+      "tournament": {
+        "name": "锦标赛",
+        "hint": "整场只有一份筹码，盲注每八分钟上涨一次。输光即出局，牌桌会记录名次。"
+      },
+      "turbo": {
+        "name": "闪电赛",
+        "hint": "同样的锦标赛，节奏更快：盲注每三分钟上涨，每次行动限时十五秒。"
+      }
+    },
+    "handRanks": {
+      "royalFlush": {
+        "name": "皇家同花顺",
+        "hint": "同一花色、到 A 为止的顺子"
+      },
+      "straightFlush": {
+        "name": "同花顺",
+        "hint": "同一花色的五张连牌"
+      },
+      "quads": {
+        "name": "四条",
+        "hint": "四张点数相同的牌"
+      },
+      "fullHouse": {
+        "name": "葫芦",
+        "hint": "三条加一对"
+      },
+      "flush": {
+        "name": "同花",
+        "hint": "五张同一花色的牌"
+      },
+      "straight": {
+        "name": "顺子",
+        "hint": "五张连牌，花色不限"
+      },
+      "set": {
+        "name": "三条",
+        "hint": "三张点数相同的牌"
+      },
+      "twoPair": {
+        "name": "两对",
+        "hint": "两个对子加一张踢脚"
+      },
+      "pair": {
+        "name": "一对",
+        "hint": "两张点数相同的牌"
+      },
+      "highCard": {
+        "name": "高牌",
+        "hint": "什么都没凑成"
+      }
+    },
+    "verdict": {
+      "ok_other": "核验通过：{{cards}} 张牌与指纹的承诺完全一致",
+      "unrevealed": "这手牌打完后才会公开种子",
+      "commitment": "种子的指纹与发牌前公布的不一致",
+      "notStarted": "这手牌还没有开始",
+      "hole": "牌 {{card}} 与种子推算出的不符",
+      "board": "公共牌 {{card}} 与种子推算出的不符"
+    },
+    "gameOver": "游戏结束",
+    "paused": "已暂停",
+    "sit": "入座",
+    "board": "公共牌",
+    "camera": "摄像头：{{name}}",
+    "slide": "{{label}} — 向右滑动",
+    "linger": "牌桌上没有人：游戏将在 <time/> 后结束。入座即可停止倒计时。",
+    "turn": {
+      "yours": "轮到你",
+      "yoursCall": "轮到你 · 跟注 {{amount}} 或加注",
+      "yoursCheck": "轮到你 · 过牌或下注",
+      "acting": "{{name}} 正在行动"
+    },
+    "pots": {
+      "main": "主池",
+      "side": "边池 {{index}}"
+    },
+    "pause": {
+      "clocks": "计时已停止"
+    },
+    "bar": {
+      "blinds": "盲注 {{small}}/{{big}}",
+      "ante": " · 前注 {{amount}}",
+      "hand": " · 第 {{number}} 手",
+      "levelTitle": "盲注何时上涨",
+      "level": "级别 {{level}} ·",
+      "seated": "{{seated}} / 10 个座位",
+      "seatingClosed": " · 已停止入座",
+      "results": "结果",
+      "next": "继续",
+      "deal": "发牌",
+      "pause": "暂停",
+      "resume": "继续",
+      "full": "展开牌桌",
+      "exitFull": "退出全屏"
+    },
+    "settings": {
+      "title": "游戏设置",
+      "scopeDealer": "以下设置对整桌生效",
+      "scopeSelf": "仅对你生效",
+      "hints": {
+        "title": "提示",
+        "hint": "我凑成了什么，跟注要多少"
+      },
+      "feedHint": "谁做了什么——在牌桌边缘列出",
+      "table": "牌桌",
+      "autoDeal": {
+        "title": "自动发牌",
+        "on": "牌桌自动发下一手牌",
+        "off": "每手牌都由你点击“发牌”开始"
+      },
+      "seating": {
+        "title": "允许新玩家入座",
+        "on": "通过牌桌下方的“入座”按钮占座",
+        "off": "只有已入座的人打完这局"
+      },
+      "rebuys": {
+        "title": "每人补码次数",
+        "unlimited": "不限次数，每次 {{amount}}",
+        "none": "禁止：筹码输光即出局",
+        "limited_other": "{{count}} 次补码，每次 {{amount}}",
+        "zero": "无"
+      },
+      "pause": "暂停",
+      "resume": "继续",
+      "pauseHint": "计时会停在当前位置",
+      "close": {
+        "title": "从会议中移除牌桌",
+        "hint": "游戏将结束，结果会保留在记录中"
+      }
+    },
+    "waiting": {
+      "winner": "{{name}} 赢走全部",
+      "again": "重新开始",
+      "pausedHint": "发牌人暂停了游戏",
+      "needPlayer": "还需要一名玩家",
+      "needPlayerHint": "“入座”按钮在牌桌下方",
+      "dealIn": "<time/> 后发牌",
+      "dealer": "等待发牌人"
+    },
+    "seat": {
+      "dealer": "庄家",
+      "smallBlind": "小盲",
+      "bigBlind": "大盲",
+      "place": "第 {{place}} 名",
+      "folded": "已弃牌",
+      "waiting": "等待发牌",
+      "away": "暂离",
+      "busted": "出局"
+    },
+    "countdown": {
+      "minutes": "{{minutes}} 分钟",
+      "seconds": "{{seconds}} 秒"
+    },
+    "controls": {
+      "waitNext": "等待下一手牌",
+      "sitToPlay": "入座后即可游戏",
+      "timeBank": "时间银行 {{seconds}} 秒",
+      "timeBankSpent": "时间银行已用完",
+      "betSize": "下注金额",
+      "raiseTo": "加注到 {{amount}}",
+      "cancelRaise": "取消加注",
+      "call": "跟注 {{amount}}",
+      "share": "底池的 {{share}}%",
+      "raise": "加注",
+      "allinAmount": "全下 {{amount}}",
+      "reveal": "亮牌",
+      "stand": "离开牌桌",
+      "needTwo": "牌桌上有两人时才能发牌"
+    },
+    "rebuy": {
+      "title": "筹码输光了",
+      "unlimited": "可以无限次补码",
+      "left_other": "还剩 {{count}} 次补码",
+      "pick": "领取 <b>{{amount}}</b>",
+      "amount": "领取多少筹码",
+      "take": "领取 {{amount}}"
+    },
+    "fair": {
+      "check": "核验这手牌"
+    },
+    "feed": {
+      "label": "牌桌动态",
+      "title": "游戏动态"
+    },
+    "combinations": {
+      "title": "牌型",
+      "hint": "从皇家同花顺到高牌，共十种",
+      "order": "上强下弱",
+      "note": "一手牌由五张组成：你的两张底牌加五张公共牌，七张中任选五张。牌型完全相同则平分底池；同类牌型之间比踢脚——剩余牌中最大的一张。"
+    },
+    "results": {
+      "title": "游戏结果",
+      "note": "这些结果会保留在对话记录中——在“游戏”面板里。"
+    },
+    "cheer": {
+      "split": "平分底池",
+      "takes": "赢下底池"
+    },
+    "result": {
+      "endings": {
+        "winner": "牌桌上只剩一人",
+        "closed": "牌桌已从会议中移除",
+        "idle": "牌桌上已无人",
+        "meeting": "会议已结束"
+      },
+      "minutes": "{{minutes}} 分钟",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+      "hours": "{{hours}} 小时",
+      "hands_other": "{{count}} 手牌",
+      "biggestPot": "底池最高 {{amount}}",
+      "blinds": "盲注 {{small}}/{{big}}",
+      "invested": "投入 {{amount}}",
+      "won": "赢得 {{won}} / {{hands}} 手",
+      "allIns": "全下 {{allIns}} 次",
+      "rebuys": "补码 {{rebuys}} 次",
+      "knockouts": "淘汰 {{knockouts}} 人",
+      "showdowns": "摊牌 {{won}}/{{total}}",
+      "finalStack": "结束时 {{amount}}"
+    }
+  },
+  "durak": {
+    "title": "Durak",
+    "suits": {
+      "s": "黑桃",
+      "h": "红桃",
+      "d": "方块",
+      "c": "梅花"
+    },
+    "ranks": {
+      "J": "J",
+      "Q": "Q",
+      "K": "K",
+      "A": "A"
+    },
+    "spoken": {
+      "T": "10",
+      "J": "J",
+      "Q": "Q",
+      "K": "K",
+      "A": "A"
+    },
+    "cardLabel": "{{suit}} {{rank}}",
+    "modes": {
+      "podkidnoy": "经典",
+      "perevodnoy": "可转移"
+    },
+    "fool": "{{name}} 是傻瓜",
+    "says": {
+      "lobby": "牌桌等待发牌",
+      "draw": "平局——所有人都没牌了",
+      "over": "本局结束",
+      "taken": "{{name}} 收牌",
+      "beaten": "已打掉",
+      "dealing": "正在发牌",
+      "corneredMe": "无牌可挡——收下这些牌",
+      "cornered": "{{name}}：无牌可挡，收牌",
+      "defend": "轮到你：防守或收牌",
+      "throw": "轮到你：追加或点“完成”",
+      "lead": "轮到你：出牌进攻",
+      "thinking": "牌桌正在思考",
+      "defends": "{{name}} 正在防守",
+      "waiting": "等待 {{name}}",
+      "throwing": "正在追加：{{names}}"
+    },
+    "verdict": {
+      "unrevealed": "本局结束后才会公开种子",
+      "commitment": "种子的指纹与发牌前公布的不一致",
+      "notStarted": "还没有开始发牌",
+      "trump": "王牌 {{card}} 与种子推算出的不符"
+    },
+    "cards_other": "{{count}} 张牌",
+    "deckSize_other": "{{size}} 张牌",
+    "seconds": "{{seconds}} 秒",
+    "camera": "摄像头：{{name}}",
+    "sit": "入座",
+    "deal": "发牌",
+    "refused": "这张牌不能这样出。请选择其他牌或目标。",
+    "status": {
+      "reconnecting": "正在恢复连接…",
+      "paused": "游戏已暂停"
+    },
+    "guidance": {
+      "beatOrTransfer": "压住高亮的牌，或将进攻转移出去",
+      "beat": "选择桌上要压的牌",
+      "transfer": "将进攻转移给下一位玩家",
+      "place": "把选中的牌放到桌上",
+      "none": "这张牌无法出——请换一张"
+    },
+    "pause": {
+      "resume": "继续游戏",
+      "pauseGame": "暂停游戏",
+      "pause": "暂停",
+      "stopped": "计时已停止",
+      "left": " · 剩余 {{seconds}} 秒",
+      "continue": "继续",
+      "hostWill": "所有人回来后，主持人会继续游戏"
+    },
+    "full": "展开牌桌",
+    "exitFull": "收起牌桌",
+    "attack": {
+      "beat": "压住 {{card}}",
+      "onTable": "桌上：{{card}}",
+      "beatShort": "压牌"
+    },
+    "place": {
+      "transfer": "转移",
+      "throw": "追加",
+      "put": "放到桌上"
+    },
+    "center": {
+      "over": "本局已结束",
+      "gather": "大家来牌桌集合吧",
+      "ready": "可以开始了",
+      "again": "再来一局？",
+      "needTwo": "至少需要两名玩家",
+      "dealHost": "等大家准备好后发牌",
+      "dealSoon": "主持人马上发牌"
+    },
+    "hand": {
+      "cancelSelection": "取消选择",
+      "cancel": "取消",
+      "yours": "你的手牌",
+      "watching": "你正在观战",
+      "waiting": "等待发牌",
+      "left": "向左查看手牌",
+      "label": "你的牌",
+      "right": "向右查看手牌",
+      "instruction": "{{guidance}}。按 Esc 取消选择。"
+    },
+    "hint": {
+      "saving": "正在保存出牌…",
+      "paused": "牌会留在原位",
+      "target": "选择桌上高亮的目标",
+      "turn": "选择一张牌或拖到桌上",
+      "watch": "关注牌局进展"
+    },
+    "actions": {
+      "take": "收牌",
+      "pass": "完成"
+    },
+    "turn": {
+      "left_other": "剩余 {{seconds}} 秒",
+      "pausedLeft_other": "已暂停，剩余 {{seconds}} 秒"
+    },
+    "stock": {
+      "label": "牌堆：{{cards}}，王牌 {{card}}",
+      "trump": "王牌：{{card}}",
+      "trumps": "王牌 · {{suit}}",
+      "inDeck": "在牌堆中"
+    },
+    "discard": {
+      "label": "弃牌堆：{{cards}}",
+      "caption": "弃牌堆"
+    },
+    "role": {
+      "fool": "傻瓜",
+      "out": "第 {{place}} 个出完",
+      "cornered": "无牌可挡",
+      "nothing": "无牌可追加",
+      "takes": "收牌",
+      "defends": "防守中",
+      "passed": "完成",
+      "attacks": "进攻中",
+      "away": "暂离"
+    },
+    "seat": {
+      "mine": "{{name}} · 你"
+    },
+    "settings": {
+      "title": "游戏设置",
+      "hostNote": "更改对整桌生效",
+      "guestNote": "本桌规则",
+      "pauseHint": "计时会停止，牌留在桌上",
+      "rules": "牌桌规则",
+      "deck": {
+        "label": "牌组",
+        "live": "可在两局之间更换",
+        "idle": "不含王牌（Joker）"
+      },
+      "mode": {
+        "label": "游戏模式",
+        "hint": "第一轮进攻不能转移"
+      },
+      "throwers": {
+        "label": "谁可以追加",
+        "all": "所有人",
+        "neighbours": "相邻玩家"
+      },
+      "first": {
+        "label": "第一轮进攻"
+      },
+      "turn": {
+        "label": "每步限时",
+        "paused": "继续游戏后才能修改时间"
+      },
+      "seating": {
+        "label": "允许新玩家入座",
+        "open": "空位开放中",
+        "closed": "只有已入座的人参与"
+      },
+      "guestOnly": "只有牌桌发起人或会议主持人可以修改规则和暂停游戏。",
+      "stand": {
+        "label": "离开牌桌",
+        "live": "你将退出当前这一局",
+        "idle": "你会以观众身份留在会议中"
+      },
+      "close": {
+        "label": "从会议中移除牌桌",
+        "hint": "游戏将结束，结果会保留在记录中"
+      }
+    },
+    "score": {
+      "title": "比分",
+      "description": "本次会议的成绩",
+      "player": "玩家",
+      "games": "局数",
+      "fools": "傻瓜",
+      "streak": "连胜"
+    },
+    "result": {
+      "title": "本局结果",
+      "draw": "平局",
+      "bouts_other": "{{count}} 轮进攻",
+      "drawNote": "所有人都出完了牌",
+      "foolNote": "其他玩家都已出完",
+      "back": "回到牌桌"
+    },
+    "reactions": {
+      "send": "发送表情",
+      "title": "表情",
+      "player": "玩家",
+      "bubble": "{{name}}：{{sticker}}",
+      "cooldown": "{{seconds}} 秒后可再发送"
+    },
+    "stickers": {
+      "durak-online-01": "笑出眼泪",
+      "durak-online-02": "捂脸",
+      "durak-online-03": "疲惫",
+      "durak-online-04": "两张 6",
+      "durak-online-05": "生气",
+      "durak-online-06": "淡定",
+      "durak-online-07": "眨眼",
+      "durak-online-08": "嘲笑",
+      "durak-online-09": "思考",
+      "durak-online-10": "献花",
+      "durak-online-11": "面无表情",
+      "durak-online-12": "难过",
+      "durak-online-13": "闭嘴",
+      "durak-online-14": "按按钮",
+      "durak-online-15": "点赞",
+      "durak-online-16": "吹口哨",
+      "durak-online-17": "担心",
+      "durak-online-18": "敬礼",
+      "durak-online-19": "你好",
+      "durak-online-20": "惊讶",
+      "durak-online-21": "坏笑",
+      "durak-online-22": "微笑",
+      "durak-online-23": "戴墨镜",
+      "durak-online-24": "挠头",
+      "durak-online-25": "吐舌头",
+      "durak-online-26": "亲亲",
+      "durak-online-52": "表情包式困惑",
+      "durak-online-53": "倒着点赞",
+      "durak-online-54": "勉强点赞"
+    }
+  },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}}千",
+      "millions": "{{value}}百万"
+    },
+    "providers": {
+      "youtube": {
+        "hint": "视频、电影和频道",
+        "search": "视频、频道或播放列表"
+      },
+      "twitch": {
+        "hint": "直播和录像",
+        "search": "Twitch 上的频道或游戏"
+      },
+      "rutube": {
+        "hint": "电视直播、剧集和节目",
+        "search": "视频、频道和电视"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "分区、社区和直播",
+        "search": "视频和社区"
+      },
+      "ivi": {
+        "hint": "电影、剧集和动画——免费内容",
+        "search": "电影、剧集或动画"
+      },
+      "link": {
+        "name": "通过链接",
+        "hint": "通过链接打开视频、直播或播放列表",
+        "search": "粘贴视频链接"
+      }
+    },
+    "linkCard": {
+      "vkStream": "VK Video Live 直播：{{id}}",
+      "twitchStream": "Twitch 直播：{{id}}",
+      "stream": "通过链接打开的 {{name}} 直播",
+      "twitchVideo": "通过链接打开的 Twitch 录像",
+      "video": "通过链接打开的 {{name}} 视频"
+    },
+    "group": {
+      "back": "集成",
+      "platforms": "影院平台",
+      "watching": "正在观看：",
+      "closeForAll": "为所有人关闭",
+      "unavailable": "暂不可用",
+      "noProviders": "此服务器已关闭影院平台。",
+      "closeCatalog": "关闭片库",
+      "locked": "主持人仅允许自己开始和停止播放。"
+    },
+    "shell": {
+      "label": "影院",
+      "back": "返回",
+      "clear": "清除搜索",
+      "backToWatch": "回到观看",
+      "close": "关闭影院",
+      "locked": "主持人仅允许自己使用集成——你可以观看，但不能播放内容。"
+    },
+    "more": {
+      "loading": "正在加载…",
+      "show": "显示更多"
+    },
+    "notes": {
+      "offline": "无法连接服务器——请重试",
+      "timeout": "服务器未及时响应——请重试",
+      "failed": "请求失败",
+      "asking": "正在查询平台…",
+      "pressEnter": "按 Enter，影院就会打开这个链接。",
+      "opening": "正在打开链接…"
+    },
+    "meta": {
+      "live": "直播中",
+      "channel": "频道",
+      "followers": "{{value}} 位关注者",
+      "watching": "{{value}} 人在看",
+      "watchingNow": "{{value}} 人正在观看",
+      "liveWatching": "直播中，{{value}} 人在看",
+      "views": "{{value}} 次观看",
+      "updated": "更新于 {{date}}",
+      "videos_other": "{{count}} 个视频"
+    },
+    "tiles": {
+      "watch": "一起看：{{title}}",
+      "details": "详情：{{title}}",
+      "open": "打开：{{title}}",
+      "openPlaylist": "打开播放列表：{{title}}",
+      "openCategory": "打开分区：{{title}}",
+      "openChannel": "打开频道：{{title}}",
+      "playlist": "播放列表"
+    },
+    "headings": {
+      "channels": "频道",
+      "videos": "视频",
+      "sections": "分区"
+    },
+    "search": {
+      "nothing": "未找到结果。试试其他关键词。",
+      "emptySection": "这个分区暂时没有可以给房间播放的内容。"
+    },
+    "category": {
+      "empty": "这个分区现在没有人在直播。"
+    },
+    "channel": {
+      "tabsLabel": "频道分区",
+      "tabs": {
+        "videos": "视频",
+        "streams": "直播",
+        "shorts": "短视频",
+        "playlists": "播放列表",
+        "about": "简介"
+      },
+      "noAbout": "该频道没有填写简介。",
+      "empty": {
+        "playlists": "该频道没有播放列表。",
+        "streams": "该频道不直播。",
+        "shorts": "该频道没有短视频。",
+        "other": "这里暂时没有可看的内容。"
+      }
+    },
+    "item": {
+      "watch": "一起看",
+      "openChannel": "打开频道",
+      "allEpisodes": "全部剧集"
+    },
+    "playlist": {
+      "empty": "播放列表为空。"
+    },
+    "series": {
+      "untitled": "剧集",
+      "seasons_other": "{{count}} 季",
+      "seasonsLabel": "季"
+    },
+    "switcher": {
+      "tabsLabel": "平台",
+      "hints": {
+        "movies": "完整电影",
+        "music": "音乐",
+        "podcasts": "播客",
+        "documentaries": "纪录片",
+        "standup": "脱口秀",
+        "cartoons": "动画"
+      },
+      "shelvesLabel": "Twitch 推荐",
+      "live": "直播",
+      "categories": "分类",
+      "foundSections": "找到的分区",
+      "popularSections": "热门分区",
+      "noSections": "Twitch 上没有这样的分区。",
+      "emptyTitle": "给房间放点什么？",
+      "emptyText": "YouTube 上有的这里都能找到：视频、完整电影或频道。",
+      "liveNow": "正在直播",
+      "categoryNote": "Twitch 分区"
+    },
+    "rutube": {
+      "home": "首页",
+      "sectionsLabel": "RUTUBE 分区",
+      "live": "直播",
+      "allLive": "全部直播",
+      "shows": "剧集和节目",
+      "allShows": "全部剧集和节目",
+      "videosAndLive": "视频和直播",
+      "seriesEmpty": "这里没有可以给房间播放的内容：RUTUBE 上的其余剧集需要订阅，或无法从这里访问。"
+    },
+    "vk": {
+      "sectionsLabel": "VK Video 分区",
+      "down": "VK Video 片库暂时无法打开",
+      "downHint": "{{error}}。VK 的视频或直播仍可通过链接打开——把链接粘贴到搜索框。",
+      "communities": "社区",
+      "nothing": "未找到结果。试试其他关键词，或粘贴 VK 视频链接。"
+    },
+    "ivi": {
+      "sectionsLabel": "ivi 分区",
+      "emptySection": "这个分区暂时没有可以给房间播放的内容：ivi 不向此处提供免费内容。",
+      "seriesEmpty": "这里没有可以给房间播放的内容：ivi 上的其余剧集需要付费，或无法从这里访问。"
+    },
+    "linkScene": {
+      "recent": "最近的链接",
+      "forget": "从最近记录中移除：{{address}}",
+      "clear": "全部清除",
+      "clearLabel": "清除最近的链接",
+      "clipboardRefused": "浏览器不允许读取剪贴板——请自行把链接粘贴到输入框。",
+      "clipboardEmpty": "剪贴板中没有链接。",
+      "title": "粘贴视频链接",
+      "intro": "{{providers}} 的视频、直播、频道或播放列表会在其片库中打开——直接进入对应页面。",
+      "paste": "从剪贴板粘贴",
+      "confirmTitle": "打开这个链接？",
+      "confirmText": "按 Enter 或点击按钮，影院会查看这个页面上的内容。",
+      "open": "打开链接",
+      "notLink": "这看起来不像链接：需要带有视频的页面地址，例如 https://rutube.ru/video/…",
+      "searching": "正在查找视频…",
+      "providerLink": "这是 {{name}} 的链接",
+      "openIn": "在 {{name}} 中打开",
+      "unknownProvider": "服务器支持这个平台，但当前版本的影院还不支持——请刷新页面。",
+      "playlistEmpty": "这个播放列表中没有可以给房间播放的内容。",
+      "cannotOpen": "暂时无法打开这个链接",
+      "untitled": "无标题",
+      "site": "网站",
+      "quality": "画质",
+      "audio": "音频",
+      "captions": "字幕",
+      "recognised": "{{name}}（自动生成）"
+    },
+    "theater": {
+      "label": "一起看",
+      "untitled": "一起看",
+      "live": "直播 · {{author}}",
+      "catchingUp": "正在追上房间进度…",
+      "openedBySelf": "由你打开",
+      "openedBy": "由 {{name}} 打开",
+      "together": "大家一起看",
+      "catalog": "片库",
+      "closeForAll": "为所有人停止观看",
+      "back15": "为所有人后退 15 秒",
+      "forward15": "为所有人前进 15 秒",
+      "play": "为所有人播放",
+      "pause": "为所有人暂停",
+      "position": "视频进度",
+      "liveBehind": "回到直播，已落后 {{seconds}} 秒",
+      "liveEdge": "直播中",
+      "lag": "−{{seconds}} 秒",
+      "toStart": "为所有人回到开头",
+      "sync": "与房间同步",
+      "skip": {
+        "intro": "为所有人跳过 85 秒",
+        "ad": "为所有人跳过广告",
+        "adShort": "跳过广告",
+        "adLabel": "流中的广告"
+      },
+      "adSkipped": "已为所有人跳过广告",
+      "exitFullscreen": "退出全屏",
+      "fullscreen": "展开播放器",
+      "unmute": "开启视频声音",
+      "mute": "关闭视频声音",
+      "volume": "视频音量",
+      "buffering": "正在加载",
+      "opening": "正在打开…",
+      "start": "一起看",
+      "next": "下一集",
+      "nextPlay": "为所有人播放下一集",
+      "nextLocked": "由主持人允许使用影院的人播放",
+      "quality": {
+        "bitrate": "{{value}} kbps",
+        "source": "原画",
+        "menuLabel": "画质和音频语言",
+        "auto": "自动",
+        "autoWith": "自动 · {{level}}",
+        "voice": "配音语言",
+        "title": "画质",
+        "original": "原声",
+        "automatic": "自动"
+      },
+      "captions": {
+        "label": "字幕",
+        "labelWith": "字幕：{{name}}",
+        "off": "关闭",
+        "recognised": "自动生成"
+      },
+      "errors": {
+        "streamBroken": "视频流中断了。请尝试重新打开视频",
+        "unsupported": "此浏览器无法播放流媒体视频",
+        "streamFailed": "视频流无法打开。请换一个视频",
+        "openFailed": "无法打开视频",
+        "renewFailed": "无法刷新视频流"
+      }
+    },
+    "keys": {
+      "locked": "主持人仅允许自己使用遥控——暂停和快进由主持人控制",
+      "live": "直播不能暂停或回放",
+      "micPause": "{{label}} 会切换麦克风——按 K 暂停",
+      "micOther": "{{label}} 会切换麦克风——此键在播放器中无效",
+      "seek": "{{sign}}{{seconds}} 秒",
+      "muted": "已静音",
+      "volume": "音量 {{volume}}%"
+    }
+  },
+  "devices": {
+    "lens": {
+      "front": "前置",
+      "main": "后置主摄",
+      "frontWide": "前置广角",
+      "wide": "广角",
+      "secondFront": "第二前置",
+      "secondMain": "第二主摄"
+    },
+    "camera": {
+      "flip": "切换摄像头",
+      "title": "摄像头",
+      "next": "下一个摄像头",
+      "numbered": "摄像头 {{n}}",
+      "lenses": "摄像头镜头"
+    },
+    "check": {
+      "label": "设备检测",
+      "title": "检查一下自己",
+      "privacy": "预览和录音只有你能看到和听到。关闭窗口后检测会停止。",
+      "micStop": "停止麦克风测试",
+      "micStart": "测试麦克风",
+      "cameraStop": "停止摄像头测试",
+      "cameraStart": "测试摄像头",
+      "speakers": "测试扬声器",
+      "micLevel": "麦克风电平",
+      "recording": "正在录制 5 秒…",
+      "record": "录制 5 秒并回放",
+      "recorded": "你的测试录音",
+      "cameraPreview": "摄像头测试，仅你可见",
+      "startingCamera": "正在开启摄像头…",
+      "startingMic": "正在开启麦克风…"
+    }
+  },
+  "stage": {
+    "faceZoom": {
+      "reset": "恢复正常大小：{{name}}",
+      "zoomIn": "将面部放大到 {{zoom}}×：{{name}}"
+    },
+    "screenOf": "屏幕：{{name}}",
+    "cameraOf": "摄像头：{{name}}",
+    "streamConnecting": "正在连接直播…",
+    "zoomOut": "缩小",
+    "zoomIn": "放大",
+    "fit": "显示整个屏幕",
+    "micOff": "麦克风已静音",
+    "you": "（你）",
+    "preparing": "正在准备共享…",
+    "sharing": "你正在共享屏幕",
+    "watch": "观看直播",
+    "recovering": "正在恢复连接…",
+    "gameLoading": "正在打开游戏…",
+    "menu": {
+      "volume": "你听到的音量 · {{value}}%",
+      "volumeOf": "音量：{{name}}",
+      "unmute": "恢复音量",
+      "mute": "为我静音",
+      "pin": "固定摄像头",
+      "watch": "观看直播",
+      "muteForAll": "为所有人关闭麦克风",
+      "remove": "移出会议",
+      "actions": "操作：{{name}}"
+    }
+  },
+  "dock": {
+    "media": "麦克风和摄像头",
+    "call": "会议",
+    "panels": "聊天和集成",
+    "micOn": "关闭麦克风",
+    "micOff": "开启麦克风",
+    "cameraOn": "关闭摄像头",
+    "cameraOff": "开启摄像头",
+    "share": "共享屏幕",
+    "unshare": "停止共享",
+    "more": "设置和操作",
+    "leave": "离开会议",
+    "chat": "聊天",
+    "chatAndFiles": "聊天和文件",
+    "people": "参与者",
+    "integrations": "集成",
+    "deafen": "关闭会议声音",
+    "undeafen": "开启会议声音",
+    "fullscreen": "全屏",
+    "windowed": "退出全屏",
+    "settings": "设置",
+    "diagnostics": "诊断",
+    "meetingSettings": "会议设置",
+    "closeForAll": "为所有人结束",
+    "layout": {
+      "label": "参与者布局",
+      "options": {
+        "grid": "网格",
+        "speaker": "发言人"
+      }
+    },
+    "pip": "画中画",
+    "pipClose": "退出画中画"
+  },
+  "invite": {
+    "dialog": {
+      "title": "邀请加入会议",
+      "description": "发送邀请或让对方扫描二维码。无需注册。",
+      "code": "会议代码",
+      "codeHint": "通过代码加入需主持人批准。",
+      "qr": "会议邀请二维码",
+      "link": "邀请链接",
+      "copyManually": "请手动选中并复制链接",
+      "copied": "链接已复制",
+      "copy": "复制邀请",
+      "create": "为此房间创建邀请。",
+      "askOwner": "请主持人分享邀请。",
+      "renew": "撤销链接并创建新链接",
+      "createButton": "创建邀请",
+      "validity": "24 小时内或会议结束前有效。",
+      "ownerRights": "主持人权限只属于你。"
+    },
+    "parseFailed": "请输入 9 位代码或完整的邀请链接"
+  },
+  "app": {
+    "elsewhere": "会议正在另一个标签页中进行",
+    "notFavorite": "该房间已不在收藏中",
+    "noSession": "未找到会话",
+    "opening": "正在打开房间…",
+    "closeNotice": "关闭通知",
+    "downloadTitle": "Windows 版 Cord",
+    "downloadLabel": "下载 Cord"
+  },
+  "api": {
+    "requestFailed": "请求失败",
+    "fileUnavailable": "文件不可用或已过期",
+    "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}"
+  },
+  "kit": {
+    "toasts": "通知",
+    "soon": "即将推出"
+  },
+  "connect": {
+    "failure": {
+      "passwordInvalid": "服务器未接受该密码。请向提供地址的人确认。",
+      "passwordRequired": "此服务器受密码保护，请输入密码。",
+      "tooMany": "连续尝试次数过多。请等待一分钟后重试。",
+      "serverError": "服务器返回错误 {{status}}。可能仍在启动中。",
+      "notCord": "此地址上运行的不是 Cord：缺少所需的 API。",
+      "timeout": "服务器在八秒内没有响应。请检查地址和网络连接。",
+      "unreachable": "无法连接到服务器。请检查地址、证书和网络连接。"
+    },
+    "address": {
+      "empty": "请输入服务器地址",
+      "notUrl": "地址看起来不像链接。示例：https://meet.example.com",
+      "credentials": "请从地址中删除用户名和密码",
+      "https": "地址必须以 https:// 开头。HTTP 仅适用于 localhost",
+      "path": "只需填写服务器地址，名称后不要带路径"
+    },
+    "note": "连接到服务器",
+    "searching": "正在查找服务器…",
+    "password": "服务器密码",
+    "passwordPlaceholder": "请向提供地址的人索取",
+    "autoConnect": "启动时自动连接",
+    "connecting": "正在连接…",
+    "connect": "连接",
+    "otherServer": "其他服务器…",
+    "connected": "已连接！",
+    "notConnected": "未连接"
+  },
+  "avatar": {
+    "errors": {
+      "notImage": "请选择图片文件",
+      "tooLarge": "图片太大",
+      "unreadable": "无法读取图片",
+      "noCanvas": "无法处理图片",
+      "tooDetailed": "无法将图片缩小到所需大小"
+    },
+    "cropper": {
+      "title": "圆圈里显示的内容",
+      "description": "拖动并缩放图片，按你喜欢的样子展示给房间里的人。",
+      "frame": "头像取景框",
+      "zoom": "缩放 · {{value}}×",
+      "zoomLabel": "图片缩放",
+      "apply": "应用",
+      "cancel": "取消"
+    }
+  },
+  "favorites": {
+    "errors": {
+      "orderUnsupported": "此服务器暂不支持调整收藏顺序。请更新服务器。",
+      "groupsUnsupported": "此服务器暂不支持收藏分组。请更新服务器。"
+    },
+    "settings": {
+      "open": "“{{title}}”的进入设置",
+      "description": "此设备上的进入设置。",
+      "autojoin": "自动进入",
+      "autojoinHint": "直接打开此房间，不显示预览。进入时开启麦克风，摄像头保持关闭。",
+      "remove": "从收藏中移除"
+    },
+    "room": {
+      "open": "打开",
+      "rename": "仅为我重命名",
+      "pin": "置顶",
+      "unpin": "取消置顶",
+      "group": "分组",
+      "noGroup": "无分组",
+      "newGroup": "新建分组…",
+      "copy": "复制代码",
+      "autojoin": "自动进入",
+      "remove": "从收藏中移除",
+      "here": "你在这里",
+      "forgotten": "房间已不再记得你",
+      "pinned": "已置顶",
+      "actions": "“{{name}}”的操作",
+      "renameField": "你为“{{name}}”设置的名称"
+    },
+    "nav": {
+      "title": "收藏",
+      "newGroup": "分组",
+      "newGroupLabel": "创建分组",
+      "groupField": "新分组名称",
+      "groupPlaceholder": "例如：工作",
+      "pinned": "已置顶",
+      "loose": "未分组",
+      "renameGroup": "重命名",
+      "collapse": "收起",
+      "expand": "展开",
+      "removeGroup": "删除分组",
+      "emptyGroup": "暂无内容。把房间拖到这里",
+      "emptyTitle": "你的会议会出现在这里",
+      "emptyText": "点按会议顶栏中的星标，以后就能从这里回到会议。",
+      "loading": "正在加载收藏…",
+      "failed": "无法加载收藏。",
+      "retry": "重试",
+      "copied": "代码已复制",
+      "copyFailed": "无法复制代码",
+      "removeText": "之后只能在该会议中通过顶栏的星标重新添加。",
+      "removeConfirm": "移除",
+      "cancel": "取消",
+      "failedAction": "操作未成功",
+      "count": "{{n}} / {{max}}",
+      "countLabel_other": "已保存 {{n}} / {{count}} 个房间",
+      "groupsFull": "最多 {{max}} 个分组",
+      "groupActions": "分组“{{title}}”的操作",
+      "renameGroupField": "分组“{{title}}”的新名称",
+      "groupRemoved": "分组“{{title}}”已删除，其中的房间已移至总列表",
+      "removeTitle": "要将“{{name}}”从收藏中移除吗？"
+    }
+  },
+  "chat": {
+    "uploadFailed": "上传失败",
+    "units": {
+      "kib": "{{value}} KiB",
+      "mib": "{{value}} MiB",
+      "gib": "{{value}} GiB"
+    },
+    "oversize": "“{{name}}”大小为 {{size}}。会议中可发送的文件最大为 {{max}}。",
+    "executable": "此文件可能会运行程序。仅在信任发送者时打开",
+    "link": {
+      "title": "打开链接",
+      "leadsTo": "链接将前往",
+      "question": "要打开吗？",
+      "open": "打开",
+      "cancel": "取消"
+    }
+  },
+  "sidebar": {
+    "panel": "会议面板",
+    "sections": "会议分区",
+    "close": "关闭面板",
+    "people": "成员",
+    "chat": "聊天和文件",
+    "services": "集成",
+    "invite": "邀请加入房间",
+    "search": "查找参与者",
+    "waiting": "等待批准",
+    "joining": "正在加入",
+    "recovering": "正在恢复连接",
+    "owner": "主持人",
+    "member": "参与者",
+    "you": "（你）",
+    "micOff": "麦克风已静音",
+    "retention": "消息和文件会在会议结束一小时后删除，最长保留一天。",
+    "attach": "添加附件",
+    "log": "消息和附件",
+    "emptyTitle": "一切就在对话旁边",
+    "emptyText": "发送消息或添加文件——也可以直接拖到这里。",
+    "copy": "复制消息",
+    "copied": "消息已复制",
+    "noClipboard": "此浏览器不支持复制",
+    "copyFailed": "无法复制消息",
+    "someone": "参与者",
+    "temporary": "临时文件",
+    "unfinished": "未完成的上传",
+    "filesFailed": "无法加载附件。消息仍可查看。",
+    "progress": "上传进度",
+    "paused": "已暂停",
+    "done": "已上传",
+    "failed": "上传失败",
+    "pause": "暂停上传",
+    "resume": "继续上传",
+    "hide": "隐藏已完成的上传",
+    "cancel": "取消上传",
+    "message": "消息",
+    "ended": "会议已结束",
+    "placeholder": "输入消息…",
+    "send": "发送消息",
+    "titles": {
+      "people": "参与者",
+      "chat": "聊天和文件",
+      "services": "机器人和集成"
+    },
+    "here": "本次会议 · {{count}}",
+    "hereOf": "本次会议 · {{count}} / {{seats}}",
+    "approve": "允许进入：{{name}}",
+    "remove": "移出：{{name}}",
+    "download": "下载 {{name}}",
+    "dropUnfinished": "删除未完成的上传：{{name}}"
+  },
+  "home": {
+    "entry": {
+      "title": "开始聊吧。",
+      "tagline": "一个房间，自己人都在。",
+      "label": "会议代码或链接",
+      "join": "加入",
+      "hint": "主持人提供的 9 位数字或邀请链接。",
+      "or": "或",
+      "create": "新建会议",
+      "creationClosed": "此服务器暂时无法创建会议。",
+      "unavailable": "服务器不可用。请检查网络连接。",
+      "retry": "重试"
+    },
+    "here": {
+      "title": "你正在另一个标签页中参加会议",
+      "back": "返回",
+      "backLabel": "在这里返回会议“{{title}}”",
+      "moving": "正在转移…"
+    },
+    "shell": {
+      "sidebar": "侧边栏",
+      "width": "侧边栏宽度",
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单",
+      "menu": "菜单",
+      "settings": "设置",
+      "privacy": "无需账号。运行在你的服务器上。",
+      "about": "关于"
+    }
+  },
+  "prejoin": {
+    "defaultTitle": "我们的会议",
+    "defaultName": "参与者",
+    "autoJoining": "正在进入房间…",
+    "cancel": "取消",
+    "elsewhereUnreachable": "此浏览器中没有打开这个会议——位置可能被已关闭的标签页或其他窗口占用。请从那里退出，再从这里加入。",
+    "deviceFailed": "无法访问设备。请检查浏览器权限。没有权限也可以作为听众加入。",
+    "home": "返回首页",
+    "preview": "你的摄像头预览",
+    "you": "你",
+    "cameraOff": "摄像头已关闭",
+    "previewLabel": "你 · 预览",
+    "micOn": "关闭麦克风",
+    "micOff": "开启麦克风",
+    "cameraOnLabel": "关闭摄像头",
+    "cameraOffLabel": "开启摄像头",
+    "settingsButton": "预览设置",
+    "headphones": "建议佩戴耳机以获得更好的音质",
+    "eyebrowJoin": "马上就好",
+    "eyebrowNew": "新会议",
+    "ready": "准备好开始了吗？",
+    "check": "看看别人眼中和耳中的你。",
+    "noDevices": "没有设备也可以加入。",
+    "name": "你的名字",
+    "namePlaceholder": "怎么称呼你？",
+    "title": "会议名称",
+    "titlePlaceholder": "例如：朋友之夜",
+    "titleLater": "名称可以在会议中修改。",
+    "access": "谁可以加入",
+    "open": "凭链接或代码直接进入",
+    "openHint": "打开邀请的人即可进入。适合熟人之间。",
+    "approval": "需经你批准",
+    "approvalHint": "每位加入者都要等你放行。",
+    "integrations": "允许所有参与者使用集成",
+    "integrationsHint": "否则只有你能添加和移除影院与音乐。",
+    "changeLater": "这些之后也可以在会议中更改。",
+    "permissionNote": "摄像头和麦克风可以在这里或会议中开启。首次开启时浏览器会请求权限。",
+    "connecting": "正在连接…",
+    "join": "加入会议",
+    "start": "开始会议",
+    "inviteLater": "邀请链接和二维码会显示在房间里。",
+    "settings": {
+      "title": "开始之前",
+      "description": "设备和画质设置保存在此设备上。摄像头和麦克风由你自己开启。",
+      "devices": "设备",
+      "devicesBusy": "要更换设备，请先关闭该设备的预览。",
+      "kinds": {
+        "audioinput": "麦克风",
+        "videoinput": "摄像头",
+        "audiooutput": "声音输出"
+      },
+      "default": "默认",
+      "numbered": "设备 {{n}}"
+    }
+  },
+  "loader": {
+    "slow": "网络较慢",
+    "retry": "重试"
+  },
+  "music": {
+    "sources": {
+      "upload": "音频文件",
+      "yandex": "Yandex Music",
+      "unknown": "音乐"
+    },
+    "platforms": {
+      "label": "平台",
+      "tiles": "音乐平台",
+      "none": "此服务器已关闭音乐平台——队列中已有的内容会继续播放。",
+      "playing": "正在播放：",
+      "paused": "已暂停：",
+      "youtube": {
+        "hint": "歌曲、MV 和演唱会",
+        "find": "在 YouTube 搜索或粘贴链接",
+        "link": "YouTube 视频链接"
+      },
+      "soundcloud": {
+        "hint": "曲目、混音和艺人现场",
+        "find": "在 SoundCloud 搜索或粘贴链接",
+        "link": "SoundCloud 曲目链接"
+      },
+      "yandex": {
+        "hint": "通过房间账号访问曲库",
+        "find": "在 Yandex Music 搜索或粘贴链接",
+        "link": "Yandex Music 曲目链接"
+      },
+      "upload": {
+        "name": "自己的文件",
+        "hint": "此设备上的音频文件",
+        "drop": "把音频文件拖到这里，或在设备上选择文件。"
+      }
+    },
+    "player": {
+      "label": "正在播放",
+      "status": {
+        "connecting": "正在连接音乐",
+        "empty": "队列为空",
+        "paused": "已暂停",
+        "playing": "正在播放"
+      },
+      "firstTrack": "添加第一首曲目",
+      "addedBy": "由 {{name}} 添加",
+      "emptyHint": "在下方查找曲目、粘贴链接或上传文件",
+      "position": "播放进度",
+      "shuffle": "随机播放队列",
+      "resume": "继续播放音乐",
+      "pause": "暂停音乐",
+      "next": "下一首",
+      "repeat": "循环队列",
+      "volume": "你听到的音乐音量"
+    },
+    "queue": {
+      "label": "音乐队列",
+      "next": "接下来",
+      "clear": "清空",
+      "empty": "后面没有曲目了：在上方找到的曲目会接着播放。",
+      "moved": "“{{title}}”排在当前曲目后第 {{position}} 位",
+      "reorder": "调整顺序：{{title}}",
+      "actions": "操作：{{title}}",
+      "playNext": "下一首播放",
+      "remove": "从队列中移除",
+      "hint": "拖动或按上下方向键调整曲目顺序"
+    },
+    "search": {
+      "notOurs": "音乐无法打开这类链接。支持 YouTube、SoundCloud 和 Yandex Music",
+      "added": "已添加：{{title}}",
+      "track": "曲目",
+      "refusals": {
+        "preview": "仅试听片段",
+        "unavailable": "无法添加",
+        "unavailableYandex": "不可用",
+        "denied": "无权限"
+      },
+      "yandexConnect": "要添加 Yandex Music 曲目，请先在上方连接房间账号",
+      "locked": "主持人仅允许自己添加曲目",
+      "sourceOff": "此服务器已关闭 {{name}} 链接",
+      "elsewhere": "这是 {{name}} 的链接——请在对应平台添加。",
+      "switchTo": "前往 {{name}}",
+      "connectToSearch": "在上方连接 Yandex Music 后即可搜索曲目",
+      "labelLink": "粘贴曲目链接",
+      "placeholderFind": "歌名、歌手或链接",
+      "clear": "清除搜索",
+      "adding": "正在添加曲目",
+      "found": "已找到：{{name}}",
+      "searching": "正在搜索",
+      "noAnswer": "平台没有响应",
+      "nothing": "未找到结果",
+      "add": "加入队列：{{title}}"
+    },
+    "upload": {
+      "failed": "无法添加曲目",
+      "tooBig": "“{{name}}”：每首曲目最大 {{limit}} MB",
+      "input": "添加音乐文件",
+      "button": "上传文件",
+      "cancel": "取消",
+      "hint": "也可以直接拖入：每首最大 {{limit}} MB、最长 60 分钟"
+    },
+    "yandex": {
+      "connected": "账号已连接",
+      "expired": "验证码已过期。请获取新的验证码",
+      "tokenConnected": "已使用保存的令牌连接",
+      "tokenStale": "保存的令牌已失效。请登录 Yandex 或输入新令牌。",
+      "checking": "正在检查连接…",
+      "hint": "房间账号：所有参与者都通过它搜索和播放曲目",
+      "badge": "已连接",
+      "connect": "连接",
+      "switch": "更换账号",
+      "disconnect": "断开",
+      "qr": "Yandex 登录页面二维码",
+      "openPage": "打开 Yandex 页面并输入验证码：",
+      "signIn": "登录 Yandex",
+      "waiting": "确认后会自动显示在这里。验证码 5 分钟内有效。",
+      "cancel": "取消登录",
+      "haveToken": "我已有访问令牌",
+      "tokenLabel": "Yandex Music 令牌",
+      "connectToken": "连接令牌",
+      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的开源 Yandex Music 连接器实现。"
+    }
+  },
+  "integrations": {
+    "title": "添加到会议",
+    "soon": "即将登陆 Cord",
+    "apart": "与群聊关联",
+    "blocked": "当前已有其他集成在运行：{{name}}",
+    "telegramNote": "由会议创建者连接",
+    "pick": "选择平台",
+    "last": "上次的选择",
+    "shelf": {
+      "games": {
+        "name": "游戏",
+        "hint": "扑克、Durak、国际象棋和 Gartic"
+      },
+      "cinema": {
+        "name": "影院",
+        "hint": "全房间一起看视频和直播"
+      },
+      "music": {
+        "name": "音乐",
+        "hint": "全体共享的播放队列"
+      },
+      "any-game": {
+        "name": "任意游戏",
+        "hint": "全会议一起玩网页游戏"
+      },
+      "standup": {
+        "name": "脱口秀舞台",
+        "hint": "一人表演，其他人观看并互动"
+      },
+      "board": {
+        "name": "白板",
+        "hint": "共享画布：所有人同时作画"
+      },
+      "telegram": {
+        "hint": "从你的 Telegram 群聊发起会议和音乐"
+      }
+    },
+    "music": {
+      "files": "自己的音频文件",
+      "queue": "全体共享的播放队列",
+      "withFiles": "{{list}}及自己的文件"
+    },
+    "telegram": {
+      "back": "返回集成",
+      "lead": "把会议关联到群聊：群里会出现置顶的“打开会议”按钮，群成员可以直接从 Telegram 全屏进入，并使用自己的名字。",
+      "chats": "已关联的群聊",
+      "pinned": "按钮已在群聊中置顶",
+      "notPinned": "按钮未置顶：请授予机器人置顶消息的权限",
+      "unlink": "解除关联",
+      "unlinkNamed": "解除与群聊“{{title}}”的关联",
+      "link": "关联到群聊",
+      "addBot": "把机器人添加到群组",
+      "orCommand": "或在有机器人的群组中发送：",
+      "copy": "复制命令",
+      "copied": "已复制",
+      "expires": "代码 15 分钟内有效，只能使用一次"
+    }
+  },
+  "services": {
+    "cinemaLive": "正在放映",
+    "music": {
+      "tokenFailed": "无法连接已保存的 Yandex Music 令牌。请在下方手动连接账号。",
+      "back": "集成",
+      "locked": "主持人仅允许自己管理集成。你仍可在下方调节自己听到的音乐音量。",
+      "needJoin": "加入会议后即可使用音乐。",
+      "down": "音乐暂时没有响应。",
+      "retry": "重试",
+      "connecting": "正在连接音乐…",
+      "title": "音乐",
+      "intro": "全体共享一个队列：{{sources}}。会占用会议中的一个位置。",
+      "queueKept_other": "队列还在：音乐回到会议后，{{count}} 首曲目会继续播放。",
+      "enable": "添加到会议",
+      "enableLocked": "主持人仅允许自己添加集成。",
+      "remove": "从会议中移除音乐"
+    },
+    "roster": {
+      "label": "机器人和集成",
+      "music": "音乐",
+      "open": "打开音乐播放器",
+      "check": "需要检查连接",
+      "add": "添加到会议",
+      "connecting": "正在连接…",
+      "paused": "已暂停",
+      "playing": "正在播放",
+      "empty": "队列为空"
+    },
+    "status": {
+      "unavailable": "状态不可用",
+      "loading": "正在加载状态",
+      "disabled": "已关闭",
+      "connecting": "正在连接",
+      "playing": "正在播放",
+      "paused": "已暂停",
+      "idle": "可以播放",
+      "empty": "队列为空",
+      "error": "出错"
+    },
+    "game": {
+      "label": "{{name}}：{{status}}",
+      "lobby": "大厅",
+      "over": "已结束",
+      "playing": "进行中"
+    },
+    "games": {
+      "poker": "扑克",
+      "durak": "Durak",
+      "chess": "国际象棋"
+    }
+  },
+  "diagnostics": {
+    "title": "诊断",
+    "description": "检查设备以及本次会议的实际连接情况。",
+    "network": "网络",
+    "media": {
+      "label": "音频和视频",
+      "connected": "已连接",
+      "recovering": "正在恢复",
+      "disconnected": "未连接"
+    },
+    "control": {
+      "label": "聊天和控制",
+      "connected": "已连接",
+      "closed": "已断开",
+      "connecting": "正在连接…"
+    },
+    "quality": {
+      "label": "媒体服务器报告的质量",
+      "values": {
+        "excellent": "极佳",
+        "good": "良好",
+        "poor": "较差",
+        "lost": "连接中断",
+        "unknown": "暂无数据"
+      }
+    },
+    "path": "媒体路径",
+    "jitter": {
+      "label": "数据包到达抖动",
+      "value": "{{ms}} 毫秒，峰值"
+    },
+    "noData": "无数据",
+    "buffer": {
+      "label": "客户端请求的缓冲",
+      "kinds": {
+        "conversation": "通话",
+        "media": "音乐和屏幕",
+        "video": "视频"
+      },
+      "target": "{{kind}} {{ms}} 毫秒",
+      "none": "没有已订阅的轨道"
+    },
+    "ordered": "媒体正通过 TCP/TLS 中继传输。这条路径不会丢包，而是重新请求丢失的包，之后到达的数据都要等它——听起来就像“先静音，然后语速变快”。缓冲已自动增大。如果反复出现，请检查网络是否允许 UDP 到达媒体服务器：直连路径会平稳得多。",
+    "checking": "正在检查…",
+    "check": "检查网络",
+    "result": {
+      "text": "服务器响应：{{answer}}。成功请求：{{ok}} / {{total}}。",
+      "average": "平均 {{average}} 毫秒 · {{min}}–{{max}} 毫秒",
+      "none": "未收到"
+    },
+    "footnote": "此检查测量的是应用服务器的响应时间。会议中有轨道传输时，下方会显示音视频路由、丢包率和到媒体服务器的 RTT。",
+    "details": "音视频详情",
+    "noTracks": "会议中暂无活动轨道。本地设备检测不会向媒体服务器发送测试数据。",
+    "audio": "音频",
+    "video": "视频",
+    "resolution": "分辨率",
+    "fps": "每秒帧数",
+    "bitrate": "码率",
+    "kbps": "{{value}} kbps",
+    "loss": "区间内丢包率",
+    "connection": "连接",
+    "rtt": "到媒体服务器的 RTT",
+    "ms": "{{value}} 毫秒",
+    "codec": "编解码器",
+    "bufferRx": "接收缓冲",
+    "encode": "单帧编码",
+    "decode": "单帧解码",
+    "implementation": "视频引擎",
+    "limitation": "限制因素",
+    "limits": {
+      "none": "未发现",
+      "cpu": "编码器 / CPU",
+      "bandwidth": "网络带宽",
+      "unknown": "发送方无数据"
+    },
+    "stuck": {
+      "title": "画面或声音卡住了？",
+      "text": "我们会刷新其他参与者轨道的接收，可能会短暂停顿。",
+      "button": "刷新音频和视频"
+    },
+    "sampler": {
+      "direct": "直连 SFU",
+      "protocolHidden": "未公开协议",
+      "unknownTransport": "未知",
+      "inbound": "接收",
+      "outbound": "发送",
+      "codecHidden": "未公开",
+      "implementationHidden": "浏览器未公开"
+    }
+  },
+  "download": {
+    "home": "Cord——返回首页",
+    "back": "首页",
+    "title": "Windows 版 Cord",
+    "checking": "正在查看已发布的版本…",
+    "unavailable": "Windows 版本暂时无法获取。请稍后再打开此页面。",
+    "requirements": "Windows 10 build 19041 或更高版本，x64",
+    "installer": "下载安装程序",
+    "installNote": "为当前用户安装——无需管理员权限。如果尚未安装 WebView2，会自动安装。",
+    "portable": "免安装便携版，ZIP",
+    "connect": {
+      "title": "安装后连接到哪里",
+      "text": "Cord 不会自动连接任何地方——首次启动时会询问服务器地址。就是这个页面的地址，也就是你现在下载应用的地方：",
+      "address": "此服务器的地址",
+      "copied": "地址已复制",
+      "copy": "复制地址",
+      "note": "在 Cord 中：“添加第一个服务器” → 粘贴地址 → “添加”。名字和密码视服务器要求填写；可以保存多个服务器并在它们之间切换。"
+    },
+    "warning": {
+      "title": "Windows 会显示警告",
+      "text": "安装程序没有使用发布者证书签名，所以 SmartScreen 会提示“Windows 已保护你的电脑”，并显示发布者未知。任何没有付费证书的新程序都会这样，并不是针对这个程序。",
+      "details": "在警告窗口中点击<b>更多信息</b>。",
+      "run": "然后点击<b>仍要运行</b>。",
+      "after": "这只会在安装时出现一次。之后 Cord 会正常启动：“从互联网下载”的标记在下载的文件上，而不在安装程序写入磁盘的内容上。便携版解压后的文件仍带有该标记，因此安装程序更省心。"
+    },
+    "install": {
+      "title": "把 Cord 添加到主屏幕",
+      "app": "像应用一样打开，没有地址栏。",
+      "ios": "点按 <share/>，然后选择 <plus/>“添加到主屏幕”。之后会像应用一样打开，没有地址栏。",
+      "share": "分享",
+      "install": "安装",
+      "hide": "隐藏提示",
+      "iosBackground": "iPhone 只有在 Safari 中才能保持后台通话：从主屏幕打开时，一离开应用麦克风就会关闭。"
+    },
+    "desktop": {
+      "settings": "声音和个人资料设置"
+    }
+  },
+  "telegram": {
+    "opening": "正在打开会议",
+    "outside": {
+      "title": "请从 Telegram 打开会议",
+      "body": "此页面需要通过会议所关联群聊中的“打开会议”按钮打开。",
+      "home": "打开 Cord"
+    },
+    "failed": {
+      "title": "无法打开会议",
+      "retry": "重试",
+      "close": "关闭",
+      "leaveOther": "离开那边，加入这里"
+    },
+    "media": {
+      "title": "在 Telegram 内无法使用麦克风",
+      "denied": "Telegram 没有向会议提供麦克风。请在弹出的请求中允许访问，或在浏览器中打开会议。",
+      "unsupported": "此 Telegram 客户端不允许页面使用麦克风和摄像头。在浏览器中可以使用会议的全部功能。",
+      "browser": "在浏览器中打开",
+      "listen": "不使用麦克风加入"
+    }
+  },
+  "errors": {
+    "ADMIN_DISABLED": "此服务器已关闭所有者页面",
+    "ADMIN_PASSWORD_INVALID": "所有者密码错误",
+    "ADMIN_REQUIRED": "请使用服务器所有者密码登录",
+    "ALREADY_IN_MEETING": "你已在另一个会议中",
+    "BLOCKED": "服务器所有者已关闭对此服务器的访问",
+    "BLOCK_NOT_FOUND": "封禁已解除或已过期",
+    "BLOCK_SUBJECT_UNKNOWN": "不知道此人的地址和资料：没有可封禁的对象",
+    "CHAT_RATE": "连续发送的消息太多。请等一分钟",
+    "CHAT_REPEAT": "这条消息已经发送过了。请稍候",
+    "CHESS_ACTION": "棋盘上的未知操作",
+    "CHESS_CLOSED": "棋盘已关闭",
+    "CHESS_MOVE": "走法无效",
+    "CHESS_PRESET": "请选择用时",
+    "CHESS_SEAT": "请选择执子颜色",
+    "CODE_INVALID": "请检查会议代码",
+    "CODE_MISSES": "错误代码输入次数过多。请稍后再试或通过链接加入",
+    "COMMAND_REUSED": "该命令标识已被使用",
+    "DRAINING": "服务器暂时不接受新房间",
+    "DURAK_ACTION": "不能这样出牌",
+    "DURAK_BEATEN": "只能在开始防守前转移",
+    "DURAK_BOUT_OVER": "这一轮进攻已经结束",
+    "DURAK_CARD": "未选择牌",
+    "DURAK_CLOSED": "主持人已关闭入座",
+    "DURAK_DECK": "牌组为 36 张或 52 张",
+    "DURAK_DEFENDER": "你正在防守",
+    "DURAK_EMPTY": "暂时没有可收的牌",
+    "DURAK_FIRST_BOUT": "第一轮进攻不能转移",
+    "DURAK_FULL": "牌桌已无空位",
+    "DURAK_IDLE": "当前没有进行中的对局",
+    "DURAK_IN_HAND": "这只能在两局之间更改",
+    "DURAK_LIMIT": "这一轮不能再追加牌了",
+    "DURAK_NEED_PLAYERS": "牌桌上至少需要两人",
+    "DURAK_NO_TRANSFER": "本桌不允许转移",
+    "DURAK_OPEN": "牌桌已经打开",
+    "DURAK_PAUSED": "游戏已暂停。请等待继续",
+    "DURAK_RANK": "桌上没有这个点数的牌",
+    "DURAK_REACTION": "未知的表情",
+    "DURAK_REACTION_COOLDOWN": "请稍后再发送表情",
+    "DURAK_SEAT": "牌桌上没有这个座位",
+    "DURAK_SEATED": "你已经入座",
+    "DURAK_SETTING": "未知的牌桌设置",
+    "DURAK_SMALL_DECK": "这么多玩家需要更大的牌组",
+    "DURAK_TAKEN": "座位已被占用",
+    "DURAK_TAKING": "你已经收牌了",
+    "DURAK_TARGET": "这张牌不需要防守",
+    "DURAK_TRANSFER": "没有可以转移的对象",
+    "DURAK_TURN": "只有轮到的人才能出牌进攻",
+    "DURAK_UNBEATEN": "桌上还有未压住的牌",
+    "DURAK_WAITING": "你不在这一局中",
+    "DURAK_WEAK": "这张牌压不住那张牌",
+    "EMPTY_MESSAGE": "请输入消息",
+    "FAVORITES_CHANGED": "房间列表已变化。请刷新收藏",
+    "FAVORITES_FULL": "收藏已满。移除一个房间后才能添加此房间",
+    "FAVORITE_GROUPS_CHANGED": "分组已变化。请刷新收藏",
+    "FAVORITE_GROUPS_FULL": "最多十个分组。删除一个后才能新建",
+    "FAVORITE_GROUP_MISSING": "该分组已不存在。请刷新收藏",
+    "FAVORITE_GROUP_ORDER_INVALID": "列表中的分组不能重复",
+    "FAVORITE_MISSING": "该房间不在收藏中",
+    "FAVORITE_ORDER_INVALID": "列表中的房间不能重复",
+    "FILE_EXPIRED": "文件不可用或已删除",
+    "FILE_NOT_FOUND": "未找到文件",
+    "FILE_NOT_READY": "文件仍在处理中",
+    "FILE_TOO_LARGE": "文件最大为 100 MiB",
+    "FILE_TYPE_BLOCKED": "此服务器不接受这类文件：它们可能会运行程序",
+    "FORBIDDEN": "访问不可用或已被撤销",
+    "GAME_HOST_ONLY": "只有游戏主持人可以执行此操作",
+    "GAME_OPTION_REQUIRED": "请选择游戏玩法",
+    "GAME_STALE": "游戏已经变化。请等待更新",
+    "GAME_TURN_REQUIRED": "未指定当前游戏阶段",
+    "GARTIC_CLOSED": "绘画游戏已关闭",
+    "GARTIC_DRAWING": "无法读取画作",
+    "HISTORY_EXPIRED": "会议记录已删除",
+    "INTEGRATION_BUSY": "已有其他集成在运行",
+    "INVALID_AVATAR": "无法读取图片",
+    "INVALID_COMMAND": "命令无效",
+    "INVALID_PING": "PING 无效",
+    "INVALID_REQUEST": "请检查请求数据",
+    "INVITE_INVALID": "邀请已过期或已撤销",
+    "INVITE_LIMIT": "邀请太多",
+    "MEDIA_UNAVAILABLE": "媒体服务器暂时不可用",
+    "NAME_INVALID": "请输入名字",
+    "NAME_RESERVED": "该名字已被保留：会议参与者不能使用",
+    "OPEN_ROOMS": "此地址已有多个会议在进行。请先结束其中一个",
+    "PASSWORD_MISSES": "密码错误次数过多。请稍后再试",
+    "POKER_ACTION": "未知操作",
+    "POKER_CAPPED": "面对不足额的全下只能跟注或弃牌",
+    "POKER_CHECK": "不能过牌：已有人下注",
+    "POKER_CLOSED": "主持人已关闭入座，直到游戏结束",
+    "POKER_FULL": "牌桌已无空位",
+    "POKER_IN_HAND": "可以在两手牌之间补码",
+    "POKER_MIN_RAISE": "加注额低于最小值",
+    "POKER_MODE": "没有这种游戏模式",
+    "POKER_NEED_PLAYERS": "至少需要两名已准备的玩家",
+    "POKER_NO_REBUY": "本桌不允许补码",
+    "POKER_OPEN": "牌桌已经打开",
+    "POKER_OPTION": "未知的牌桌设置",
+    "POKER_OVER": "游戏已结束",
+    "POKER_PAUSED": "游戏已暂停",
+    "POKER_RAISE": "下注额必须高于当前下注",
+    "POKER_SEAT": "牌桌上没有这个座位",
+    "POKER_SEATED": "你已经入座",
+    "POKER_STACK_FULL": "你还有筹码",
+    "POKER_TAKEN": "座位已被占用",
+    "POKER_TURN": "现在不是你的回合",
+    "PROOF_INVALID": "无法验证浏览器。请刷新页面后重试",
+    "QUOTA_EXCEEDED": "附件空间不足",
+    "RATE_LIMITED": "请求太多。请等一分钟",
+    "RATE_SERVICE_UNAVAILABLE": "登录服务暂时不可用",
+    "ROOMS_PER_HOUR": "一小时内新建的会议太多。请稍后再试",
+    "ROOM_CLOSED": "会议已结束",
+    "ROOM_FULL": "会议人数已满",
+    "ROOM_LIMIT": "所有房间都已占用。请稍后再试",
+    "ROOM_NOT_FOUND": "未找到房间",
+    "SCREEN_ENDED": "屏幕共享已结束",
+    "SCREEN_LIMIT": "已有两个屏幕正在共享",
+    "SERVER_PASSWORD_INVALID": "服务器密码错误",
+    "SERVER_PASSWORD_REQUIRED": "请连接服务器：需要密码",
+    "SERVICE_EXISTS": "音乐服务已连接",
+    "SESSION_ENDED": "会话已结束。请重新进入房间",
+    "SESSION_LIMIT": "已达到本次会议的进入次数上限",
+    "SESSION_REPLACED": "此会话已被新的会话取代",
+    "TELEGRAM_INIT_DATA": "链接已过期。请从群聊重新打开会议",
+    "TELEGRAM_LINK_REVOKED": "关联已解除。请让会议创建者重新关联",
+    "TELEGRAM_LINK_UNKNOWN": "请通过会议所关联群聊中的按钮打开会议",
+    "TELEGRAM_MEETING_GONE": "该会议已不存在。请在群聊中新建：/meet",
+    "TELEGRAM_NOT_MEMBER": "你不是会议所关联群聊的成员",
+    "TELEGRAM_WEBAPP_OFF": "此服务器已关闭从 Telegram 进入",
+    "TITLE_INVALID": "请输入会议名称",
+    "UNKNOWN_COMMAND": "未知命令",
+    "UPLOAD_BUSY": "请等待当前上传完成",
+    "UPLOAD_QUOTA_IP": "此地址上传的文件太多。请稍后再试",
+    "VIEW_CLOSED": "观看已关闭",
+    "WATCH_CLOSED": "一起看已结束",
+    "WATCH_INVALID": "没有可以打开的内容",
+    "WATCH_LIVE": "直播不能暂停或回放"
+  },
+  "activity": {
+    "title": "活动",
+    "signIn": "登录",
+    "signOut": "退出",
+    "password": "所有者密码",
+    "loginHint": "服务器所有者页面：会议、日志和封禁。密码为服务器设置中的 ADMIN_PASSWORD。",
+    "disabled": "此服务器已关闭所有者页面：请设置 ADMIN_PASSWORD 并重启核心服务。",
+    "refresh": "刷新",
+    "tabs": {
+      "now": "当前",
+      "meetings": "会议",
+      "audit": "日志",
+      "blocks": "封禁",
+      "server": "服务器"
+    },
+    "integrations": {
+      "watch": "影院",
+      "music": "音乐",
+      "poker": "扑克",
+      "durak": "Durak",
+      "chess": "国际象棋",
+      "gartic": "Gartic"
+    },
+    "now": {
+      "live": "进行中的会议",
+      "waiting": "等待第二人",
+      "humans": "在座人数",
+      "connected": "已连接",
+      "bots": "机器人",
+      "screens": "屏幕共享",
+      "empty": "当前没有会议。",
+      "code": "代码",
+      "duration": "已进行",
+      "people": "人数",
+      "integrations": "集成",
+      "actions": "操作",
+      "notStarted": "等待第二人",
+      "peopleValue": "{{humans}}，已连接 {{connected}}",
+      "close": "结束",
+      "closeAndBlock": "结束并封禁创建者",
+      "sure": "确定吗？再点一次",
+      "atDoor_other": "{{count}} 人在门口",
+      "botsValue_other": "{{count}} 个机器人"
+    },
+    "meetings": {
+      "period": "时间段",
+      "periods": {
+        "day": "24 小时",
+        "week": "7 天",
+        "month": "30 天"
+      },
+      "total": "会议数",
+      "humanHours": "人·小时",
+      "median": "时长中位数",
+      "peak": "单场会议最多人数",
+      "devices": "不同设备数",
+      "joins": "进入次数",
+      "joinsValue": "{{ok}} / 拒绝 {{failed}}",
+      "empty": "此时间段内没有会议。有两人连接才算一场会议。",
+      "byDay": "每日会议",
+      "byDuration": "会议时长分布",
+      "integrations": "使用集成的会议",
+      "upTo": "不超过 {{duration}}",
+      "longer": "超过 {{duration}}",
+      "count_other": "{{count}} 场会议",
+      "dayTip_other": "{{count}} 场会议，{{hours}} 人·小时，峰值 {{peak}}"
+    },
+    "audit": {
+      "group": "类型",
+      "groups": {
+        "all": "全部",
+        "room": "会议",
+        "participant": "进入和参与者",
+        "admin": "所有者",
+        "block": "封禁"
+      },
+      "outcome": "结果",
+      "outcomes": {
+        "all": "任意",
+        "ok": "成功",
+        "denied": "被拒绝"
+      },
+      "code": "会议代码",
+      "empty": "没有记录。",
+      "when": "时间",
+      "action": "事件",
+      "who": "执行者",
+      "meeting": "会议",
+      "address": "地址",
+      "addressHint": "地址指纹：服务器不保存地址本身",
+      "refused": "拒绝 {{code}}",
+      "block": "封禁",
+      "blocked": "已封禁",
+      "reason": "来自日志",
+      "more": "显示更多",
+      "actions": {
+        "room_created": "创建了会议",
+        "room_closed": "会议已结束",
+        "participant_joined": "加入了会议",
+        "participant_removed": "移出了参与者",
+        "attachment_reserved": "正在上传大文件",
+        "admin_login": "所有者登录",
+        "admin_room_closed": "所有者结束了会议",
+        "admin_shield_cleared": "所有者关闭了“防护盾”",
+        "block_created": "封禁",
+        "block_lifted": "已解除封禁",
+        "block_auto": "因频繁被拒而自动封禁",
+        "other": "其他"
+      },
+      "kinds": {
+        "participant": "参与者",
+        "creator": "创建者",
+        "host": "主持人",
+        "bot": "机器人",
+        "system": "服务器",
+        "admin": "所有者",
+        "anonymous": "未加入者"
+      }
+    },
+    "blocks": {
+      "hint": "封禁会对某个地址（IPv6 则为其 /64 网段）或某台设备关闭服务器。可在“当前”和“日志”标签页中添加。",
+      "empty": "没有封禁。",
+      "ip": "地址",
+      "profile": "设备",
+      "auto": "自动封禁",
+      "manual": "所有者",
+      "ended": "已解除或已过期",
+      "forever": "永久",
+      "until": "直到 {{date}}",
+      "lift": "解除"
+    },
+    "server": {
+      "shield": "防止猜代码的“防护盾”",
+      "shieldOn": "已开启：凭代码进入需经主持人",
+      "shieldOff": "已关闭",
+      "clearShield": "关闭“防护盾”",
+      "blocks": "生效中的封禁",
+      "autoBlock": "自动封禁",
+      "autoBlockValue": "{{window}} 内被拒 {{count}} 次——封禁 {{term}}",
+      "off": "已关闭",
+      "blockDefault": "默认封禁时长",
+      "retention": "保存期限",
+      "retentionValue": "日志——{{audit}}，会议——{{meetings}}，每日汇总——{{daily}}",
+      "build": "核心版本",
+      "never": "永久",
+      "grafana": "机器、SFU 的图表和告警在 monitoring 配置的 Grafana 中。它只在此服务器上监听；请从你的电脑通过隧道打开，然后访问 http://localhost:3000：",
+      "days_other": "{{count}} 天",
+      "hours_other": "{{count}} 小时",
+      "minutes_other": "{{count}} 分钟"
     }
   }
 }

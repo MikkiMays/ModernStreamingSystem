@@ -1,14 +1,3051 @@
 {
   "locale": "de",
+  "common": {
+    "close": "Schließen",
+    "guestInitial": "G"
+  },
   "language": {
     "label": "Sprache",
     "system": "Wie im Browser"
   },
   "settings": {
-    "rows": {
-      "appearance-language": {
-        "label": "Sprache der Oberfläche"
+    "groups": {
+      "app": "App",
+      "meetings": "Meetings",
+      "connections": "Verbindungen"
+    },
+    "sections": {
+      "profile": {
+        "title": "Profil",
+        "keywords": "Name Avatar Bild Foto"
+      },
+      "appearance": {
+        "title": "Darstellung",
+        "keywords": "Design Aussehen dunkel hell"
+      },
+      "hotkeys": {
+        "title": "Tastenkürzel",
+        "keywords": "Shortcuts Tasten Tastatur"
+      },
+      "voice": {
+        "title": "Sprache und Video",
+        "keywords": "Ton Audio Mikrofon Kamera"
+      },
+      "sounds": {
+        "title": "Töne",
+        "keywords": "Benachrichtigungen Signale Spiele"
+      },
+      "accounts": {
+        "title": "Konten",
+        "keywords": "Integrationen Dienste"
+      },
+      "server": {
+        "title": "Server",
+        "keywords": "Verbindung"
+      },
+      "about": {
+        "title": "Über Cord",
+        "keywords": "Version cord"
       }
+    },
+    "anchors": {
+      "microphone": "Mikrofon",
+      "output": "Lautsprecher",
+      "processing": "Audioverarbeitung",
+      "camera": "Kamera",
+      "screen": "Bildschirmfreigabe",
+      "reception": "Eingehendes Video",
+      "advanced": "Erweitert"
+    },
+    "rows": {
+      "profile-name": {
+        "label": "Name",
+        "hint": "Wird beim Beitritt zu einem Meeting verwendet",
+        "keywords": "Nickname Spitzname"
+      },
+      "profile-avatar": {
+        "label": "Profilbild",
+        "hint": "Für Teilnehmer des Meetings sichtbar",
+        "keywords": "Avatar Foto Bild"
+      },
+      "appearance-theme": {
+        "label": "Design",
+        "hint": "",
+        "keywords": "hell dunkel Nacht System Design Theme"
+      },
+      "appearance-bots": {
+        "label": "Bots neben dem Meeting",
+        "hint": "Aktive Integrationen neben der Bühne",
+        "keywords": "Integrationen Leiste Musik"
+      },
+      "hotkey-mic": {
+        "label": "Mikrofon",
+        "hint": "Ein- oder ausschalten",
+        "keywords": "Tastenkürzel Hotkey stumm mute"
+      },
+      "hotkey-other": {
+        "label": "Tasten für Kino und Spiele",
+        "hint": "",
+        "keywords": "Player Pause Poker"
+      },
+      "mic-device": {
+        "label": "Eingabegerät",
+        "hint": "",
+        "keywords": "Mikrofon Headset"
+      },
+      "mic-volume": {
+        "label": "Mikrofonlautstärke",
+        "hint": "",
+        "keywords": "Verstärkung Pegel Eingang gain"
+      },
+      "mic-auto": {
+        "label": "Lautstärke automatisch anpassen",
+        "hint": "Gleicht leise und laute Stimmen aus",
+        "keywords": "automatisch Pegel agc"
+      },
+      "mic-check": {
+        "label": "Mikrofontest",
+        "hint": "Sag etwas – der Balken zeigt den Pegel",
+        "keywords": "Test Anzeige Aufnahme"
+      },
+      "output-device": {
+        "label": "Ausgabegerät",
+        "hint": "",
+        "keywords": "Lautsprecher Kopfhörer Boxen Tonausgabe"
+      },
+      "output-volume": {
+        "label": "Ausgabelautstärke",
+        "hint": "",
+        "keywords": "Stimmen Ton"
+      },
+      "output-check": {
+        "label": "Soundtest",
+        "hint": "",
+        "keywords": "Lautsprechertest"
+      },
+      "noise": {
+        "label": "Rauschunterdrückung",
+        "hint": "Für Musik: „Aus“",
+        "keywords": "Rauschen rnnoise Sprachisolierung"
+      },
+      "echo": {
+        "label": "Echounterdrückung",
+        "hint": "Nötig, wenn du über Lautsprecher sprichst",
+        "keywords": "Echo"
+      },
+      "camera-device": {
+        "label": "Kamera",
+        "hint": "",
+        "keywords": "Webcam Gerät"
+      },
+      "camera-resolution": {
+        "label": "Kameraauflösung",
+        "hint": "",
+        "keywords": "Qualität 720p 1080p"
+      },
+      "camera-fps": {
+        "label": "Kamera-Bildrate",
+        "hint": "",
+        "keywords": "fps flüssig"
+      },
+      "camera-yields": {
+        "label": "Bildschirmfreigabe bevorzugen",
+        "hint": "Während du deinen Bildschirm teilst, läuft die Kamera mit 360p",
+        "keywords": "Freigabe Bandbreite sparen"
+      },
+      "camera-preview": {
+        "label": "Vorschau",
+        "hint": "Nur für dich sichtbar",
+        "keywords": "Kameratest"
+      },
+      "screen-resolution": {
+        "label": "Auflösung der Freigabe",
+        "hint": "",
+        "keywords": "Bildschirmfreigabe Qualität Stream"
+      },
+      "screen-fps": {
+        "label": "Bildrate der Freigabe",
+        "hint": "",
+        "keywords": "Bildschirmfreigabe fps flüssig Stream"
+      },
+      "reception": {
+        "label": "Qualität eingehender Videos",
+        "hint": "",
+        "keywords": "fremdes Video Datenverkehr"
+      },
+      "playout": {
+        "label": "Empfangspuffer",
+        "hint": "Nur Audio: wie gut er Latenzspitzen abfängt",
+        "keywords": "Latenz Puffer Ping Ruckler Netzwerk"
+      },
+      "sounds-on": {
+        "label": "Meeting-Signale",
+        "hint": "Beitritt und Verlassen, Beitrittsanfragen, Chat, Mikrofon",
+        "keywords": "Benachrichtigungen Töne"
+      },
+      "sounds-volume": {
+        "label": "Lautstärke für Signale und Spiele",
+        "hint": "",
+        "keywords": "Benachrichtigungslautstärke"
+      },
+      "sounds-samples": {
+        "label": "Anhören",
+        "hint": "",
+        "keywords": "Beispiel Signale"
+      },
+      "sounds-games": {
+        "label": "Spieltöne",
+        "hint": "",
+        "keywords": "Poker Durak Schach Gartic"
+      },
+      "account-yandex-music": {
+        "label": "Yandex Music",
+        "hint": "",
+        "keywords": "Token Musik yandex"
+      },
+      "account-telegram": {
+        "label": "Telegram",
+        "hint": "",
+        "keywords": "Telegram Bot"
+      },
+      "server-current": {
+        "label": "Server",
+        "hint": "",
+        "keywords": "Adresse trennen wechseln"
+      },
+      "server-autoconnect": {
+        "label": "Beim Start verbinden",
+        "hint": "",
+        "keywords": "automatisch verbinden"
+      },
+      "server-password": {
+        "label": "Gespeichertes Passwort",
+        "hint": "",
+        "keywords": "Passwort vergessen"
+      },
+      "server-ping": {
+        "label": "PING anzeigen",
+        "hint": "Serverlatenz auf der Startseite und im Meeting",
+        "keywords": "Latenz Ping"
+      },
+      "about-version": {
+        "label": "Version",
+        "hint": "",
+        "keywords": "Nummer Build"
+      },
+      "about-updates": {
+        "label": "Updates",
+        "hint": "",
+        "keywords": "prüfen aktualisieren herunterladen windows"
+      },
+      "about-author": {
+        "label": "Autor",
+        "hint": "",
+        "keywords": "Telegram Kontakt nikgers"
+      },
+      "appearance-language": {
+        "label": "Sprache der Oberfläche",
+        "hint": "",
+        "keywords": "language Sprache Übersetzung Oberfläche"
+      }
+    },
+    "title": "Einstellungen",
+    "navigation": "Bereiche der Einstellungen",
+    "search": "Einstellung suchen",
+    "nothing": "Nichts gefunden",
+    "found": "Gefunden",
+    "device": "Dieses Gerät",
+    "unnamed": "Ohne Namen",
+    "you": "Du",
+    "back": "Zu den Bereichen",
+    "subsections": "Unterbereiche: {{section}}",
+    "sectionHit": "Bereich",
+    "appearance": {
+      "theme": "Design",
+      "themes": {
+        "system": "Wie im System",
+        "light": "Hell",
+        "dark": "Dunkel"
+      },
+      "inMeeting": "Im Meeting"
+    },
+    "about": {
+      "checking": "Suche nach der neuesten Version…",
+      "unknown": "Die neueste Windows-Version konnte nicht ermittelt werden",
+      "webUpdates": "Die Web-App wird zusammen mit dem Server aktualisiert",
+      "latest": "Neueste Windows-Version: {{version}}",
+      "desktop": "Windows-App",
+      "web": "Web-App dieses Servers",
+      "desktopUpdate": "Ein App-Update ist verfügbar.",
+      "windowsUpdate": "Cord {{version}} für Windows ist da.",
+      "checkLabel": "Nach Updates suchen",
+      "check": "Prüfen",
+      "update": "Aktualisieren",
+      "download": "{{version}} herunterladen",
+      "author": "Cord wird von @nikgers entwickelt",
+      "telegram": "Telegram des Autors"
+    },
+    "accounts": {
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "connected": "Verbunden",
+      "disconnected": "Nicht verbunden",
+      "reset": "Zurücksetzen",
+      "resetLabel": "Zurücksetzen: {{name}}",
+      "connect": "Verbinden",
+      "connectLabel": "Verbinden: {{name}}",
+      "services": "Dienste"
+    },
+    "hotkeys": {
+      "browser": "Im Browser funktionieren Tastenkürzel nur, solange der Cord-Tab aktiv ist. In der App immer.",
+      "desktop": "In der App funktioniert das Tastenkürzel auch über anderen Programmen.",
+      "recording": "Tastenkürzel drücken…",
+      "meeting": "Meeting",
+      "cancel": "Esc – abbrechen",
+      "cancelLabel": "Esc – Aufnahme des Tastenkürzels abbrechen",
+      "change": "Ändern",
+      "changeLabel": "Mikrofon-Tastenkürzel ändern",
+      "assign": "Zuweisen",
+      "assignLabel": "Mikrofon-Tastenkürzel zuweisen",
+      "reset": "Standard",
+      "resetLabel": "Mikrofon-Tastenkürzel zurücksetzen",
+      "disable": "Deaktivieren",
+      "disableLabel": "Mikrofon-Tastenkürzel deaktivieren",
+      "groups": {
+        "cinema": "Kino",
+        "poker": "Poker, wenn du dran bist",
+        "home": "Start"
+      },
+      "actions": {
+        "pause": "Pause",
+        "playerSound": "Player-Ton",
+        "fullscreen": "Vollbild",
+        "seek": "10 s spulen, mit Umschalt – 30 s",
+        "volume": "Lautstärke",
+        "fold": "Fold",
+        "checkCall": "Check oder Call",
+        "bet": "Bet",
+        "allIn": "All-in",
+        "reorder": "Raum in den Favoriten verschieben"
+      }
+    },
+    "media": {
+      "kind": {
+        "screen": "Bildschirm",
+        "camera": "Kamera"
+      },
+      "quality": "{{label}}: Qualität",
+      "fps": "{{label}}: Bildrate",
+      "ceiling": "Dieser Server erlaubt bis zu {{resolution}}p · {{fps}} fps",
+      "group": {
+        "screen": "Bildschirmfreigabe",
+        "camera": "Kameravideo"
+      },
+      "reception": {
+        "fit": "An Fenster anpassen",
+        "best": "Immer beste"
+      },
+      "noise": {
+        "browser": "Standard",
+        "rnnoise": "RNNoise – verstärkt",
+        "voice": "Sprachisolierung",
+        "off": "Aus"
+      },
+      "auto": "Auto",
+      "voiceGroup": "Stimme und Mikrofon",
+      "playout": {
+        "modes": {
+          "auto": "Automatisch",
+          "low-latency": "Minimale Latenz",
+          "stable": "Maximale Stabilität"
+        },
+        "now": "Aktuell: {{path}} · {{grade}}",
+        "rtt": " · Round-Trip {{ms}} ms",
+        "tcp": ". Über TCP wird der Puffer automatisch erhöht; passiert das öfter, prüfe, ob dein Netzwerk UDP durchlässt."
+      }
+    },
+    "profile": {
+      "refused": "Der Raum hat das Bild nicht angenommen",
+      "pickLabel": "Profilbild auswählen",
+      "replace": "Ersetzen",
+      "pick": "Auswählen",
+      "remove": "Entfernen",
+      "about": "Über dich",
+      "namePlaceholder": "Wie sollen wir dich nennen?"
+    },
+    "server": {
+      "connection": "Verbindung",
+      "leaveFirst": "Verlasse zuerst das Meeting",
+      "change": "Server wechseln",
+      "disconnect": "Trennen",
+      "forget": "Passwort vergessen"
+    },
+    "sounds": {
+      "cues": "Signale",
+      "volume": "Lautstärke für Signale und Spieltöne",
+      "samplesLabel": "Signale anhören",
+      "samples": {
+        "self-join": "Dein Beitritt",
+        "join": "Jemand ist beigetreten",
+        "leave": "Jemand ist gegangen",
+        "knock": "Beitrittsanfrage",
+        "message": "Nachricht",
+        "screen": "Bildschirmfreigabe",
+        "mic-on": "Mikrofon an",
+        "mic-off": "Mikrofon aus"
+      },
+      "games": {
+        "poker": "Poker",
+        "durak": "Durak",
+        "chess": "Schach",
+        "gartic": "Gartic"
+      },
+      "gameLabel": "Spieltöne: {{game}}"
+    },
+    "voice": {
+      "systemOutputOnly": "Dieser Browser gibt Ton nur über das Systemgerät aus",
+      "defaultDevice": "Standard",
+      "device": "Gerät {{number}}",
+      "micInMeeting": "So hört man dich gerade im Meeting",
+      "recording": "Deine Testaufnahme",
+      "micLevel": "Mikrofonpegel",
+      "recordingLabel": "Mikrofonprobe wird aufgenommen",
+      "recordLabel": "5 s Mikrofonprobe aufnehmen",
+      "recordingNow": "Aufnahme…",
+      "record": "5 s aufnehmen",
+      "stopMicLabel": "Mikrofontest beenden",
+      "checkMicLabel": "Mikrofon testen",
+      "stop": "Beenden",
+      "check": "Testen",
+      "checkSpeakersLabel": "Lautsprecher testen",
+      "serverRule": "Von diesem Server festgelegt",
+      "previewLabel": "Kameravorschau, nur für dich",
+      "hidePreviewLabel": "Kameravorschau ausblenden",
+      "showPreviewLabel": "Kameravorschau einblenden",
+      "hide": "Ausblenden",
+      "show": "Einblenden",
+      "deviceFailed": "Gerät konnte nicht aktiviert werden",
+      "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
+      "toneFailed": "Testton konnte nicht abgespielt werden"
+    }
+  },
+  "meeting": {
+    "clock": {
+      "lessThanMinute": "weniger als eine Minute",
+      "minutes": "{{minutes}} Min.",
+      "hours": "{{hours}} Std.",
+      "hoursMinutes": "{{hours}} Std. {{minutes}} Min."
+    },
+    "header": {
+      "code": "Meeting-Code",
+      "invite": "Einladen",
+      "inviteAll": "Teilnehmer einladen",
+      "settings": "Meeting-Einstellungen",
+      "clock": "Meeting-Dauer",
+      "clockLabel": "Meeting-Dauer: {{duration}}",
+      "save": "Raum zu den Favoriten hinzufügen",
+      "unsave": "Raum aus den Favoriten entfernen",
+      "full_one": "In den Favoriten ist schon {{count}} Raum. Entferne einen, um diesen hinzuzufügen",
+      "full_other": "In den Favoriten sind schon {{count}} Räume. Entferne einen, um diesen hinzuzufügen",
+      "ended": "Beendet",
+      "waiting": "Warten auf Einlass",
+      "recovering": "Verbindung wird wiederhergestellt…",
+      "connecting": "Verbinden…"
+    },
+    "settings": {
+      "saveFailed": "Speichern fehlgeschlagen",
+      "title": "Meeting-Einstellungen",
+      "description": "Nur der Host kann sie ändern. Alle anderen sehen es sofort.",
+      "name": "Name des Meetings",
+      "namePlaceholder": "Zum Beispiel: Abend mit Freunden",
+      "access": "Wer beitreten darf",
+      "open": "Per Link und Code – sofort",
+      "openHint": "Wer die Einladung öffnet, ist drin. Gut für Leute, die du kennst.",
+      "approval": "Nur mit deiner Zustimmung",
+      "approvalHint": "Alle warten, bis du sie hereinlässt. Wer schon drin ist, bleibt.",
+      "linkStays": "Link und Code des Meetings ändern sich nicht. Um den Zugang über den alten Link zu sperren, widerrufe die Einladung und erstelle eine neue.",
+      "integrations": "Integrationen",
+      "integrationsAll": "Integrationen für alle Teilnehmer erlauben",
+      "integrationsHint": "Ohne Häkchen kannst nur du Kino und Musik hinzufügen und entfernen. Die Lautstärke stellt trotzdem jeder selbst ein.",
+      "saving": "Wird gespeichert…",
+      "save": "Speichern",
+      "unchanged": "Nichts geändert"
+    },
+    "elsewhere": {
+      "title": "Du bist bereits im Meeting „{{title}}“",
+      "description": "Mit einem Gerät kannst du immer nur an einem Meeting teilnehmen.",
+      "stay": "Bleiben",
+      "go": "Dorthin wechseln",
+      "move": "Dort verlassen und hier beitreten"
+    },
+    "view": {
+      "stage": "Meeting-Bühne",
+      "requests": "Beitrittsanfragen: {{n}} · Öffnen",
+      "recoveryTitle": "Zurück ins Gespräch",
+      "recoveryText": "Prüfe deine Verbindung. Wir verbinden automatisch neu.",
+      "seconds": "{{n}} s",
+      "controlRecovering": "Chat und Steuerung werden wiederhergestellt. Audio und Video laufen weiter.",
+      "thanks": "Danke für das Gespräch.",
+      "retention": "Nachrichten und Dateien sind bis zum Ende der Aufbewahrungsfrist verfügbar.",
+      "home": "Zur Startseite",
+      "history": "Verlauf öffnen",
+      "waitingTitle": "Der Host lässt dich gleich herein",
+      "waitingSettle": "Mach es dir bequem.",
+      "waitingMedia": "Ton und Kamera werden noch nicht übertragen.",
+      "returnToConversation": "Zurück zum Gespräch",
+      "inviteHint": "Zeit, deine Leute einzuladen",
+      "unlockAudio": "Meeting-Ton einschalten",
+      "dismissError": "Benachrichtigung ausblenden",
+      "collapseControls": "Steuerung einklappen",
+      "expandControls": "Steuerung ausklappen",
+      "controls": "Steuerung",
+      "panelWidth": "Breite der Seitenleiste"
+    },
+    "end": {
+      "session": "Diese Sitzung ist beendet. Nutze eine Einladung, um erneut beizutreten.",
+      "closed": "Das Meeting ist beendet",
+      "left": "Du hast das Meeting verlassen",
+      "revoked": "Dein Zugang zum Meeting ist beendet"
+    },
+    "handover": {
+      "unsupported": "Dieser Browser kann ein Meeting nicht zwischen Tabs übergeben",
+      "noAnswer": "Der Tab mit dem Meeting antwortet nicht. Wechsle dorthin oder schließe ihn"
+    },
+    "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer",
+    "presence": {
+      "title": "Bist du noch da?",
+      "text": "Ohne Antwort verlässt du das Meeting um {{time}} – so hält ein vergessener Tab keinen Platz belegt",
+      "confirm": "Ich bin da"
+    },
+    "background": {
+      "iosSafari": "Du kannst Safari minimieren oder den Bildschirm sperren – das Gespräch läuft weiter, solange oben der orange Mikrofonpunkt leuchtet. Die Kamera ist währenddessen aus. Das Gespräch bricht ab, wenn ein normaler Anruf kommt oder das iPhone Safari schließt. Um die anderen über anderen Apps zu sehen, nutze „Bild-im-Bild“ im Steuerungsmenü.",
+      "iosHome": "Hier schaltet das iPhone das Mikrofon aus, sobald du den Bildschirm verlässt oder das Telefon sperrst. Für Gespräche im Hintergrund öffne das Meeting in Safari.",
+      "android": "Du kannst den Browser minimieren oder den Bildschirm ausschalten: Solange in der Benachrichtigungsleiste „… verwendet das Mikrofon“ steht, läuft das Gespräch. Wenn das Telefon den Browser im Hintergrund schließt, hebe die Akkubeschränkungen für ihn auf.",
+      "noMicrophone": "Ohne Mikrofonzugriff kann das Telefon das Gespräch beenden, wenn du den Browser minimierst oder den Bildschirm ausschaltest. Erlaube das Mikrofon in den Website-Einstellungen: Per Taste stummgeschaltet sendet es nichts, hält das Gespräch aber im Hintergrund.",
+      "telegram": "In Telegram hält das Gespräch, solange Telegram geöffnet ist: Minimierst du es oder schaltest den Bildschirm aus, kann das Telefon das Gespräch beenden. Für Gespräche im Hintergrund öffne das Meeting im Browser.",
+      "gapClosed": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon ausgeschaltet – von {{from}} bis {{to}} hat dich niemand gehört.",
+      "gapOpen": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon um {{from}} ausgeschaltet, und du bist immer noch nicht zu hören. Schalte das Mikrofon aus und wieder ein.",
+      "copyLink": "Link kopieren",
+      "copied": "Link kopiert",
+      "hide": "Hinweis ausblenden"
+    }
+  },
+  "chess": {
+    "title": "Schach",
+    "pieces": {
+      "p": {
+        "white": "weißer Bauer",
+        "black": "schwarzer Bauer"
+      },
+      "r": {
+        "white": "weißer Turm",
+        "black": "schwarzer Turm"
+      },
+      "n": {
+        "white": "weißer Springer",
+        "black": "schwarzer Springer"
+      },
+      "b": {
+        "white": "weißer Läufer",
+        "black": "schwarzer Läufer"
+      },
+      "q": {
+        "white": "weiße Dame",
+        "black": "schwarze Dame"
+      },
+      "k": {
+        "white": "weißer König",
+        "black": "schwarzer König"
+      }
+    },
+    "presets": {
+      "untimed": "Ohne Uhr",
+      "3-2": "3 + 2",
+      "5-0": "5 + 0",
+      "10-5": "10 + 5",
+      "15-10": "15 + 10"
+    },
+    "results": {
+      "checkmate": "Schachmatt",
+      "stalemate": "Patt",
+      "insufficient-material": "Zu wenig Material für ein Matt",
+      "resignation": "Der Gegner hat aufgegeben",
+      "resignation-insufficient-material": "Der Gegner hat kein Material für ein Matt",
+      "agreement": "Remis durch Einigung",
+      "timeout": "Zeit abgelaufen",
+      "timeout-insufficient-material": "Zeit abgelaufen, Matt unmöglich",
+      "threefold": "Dreifache Stellungswiederholung",
+      "fivefold": "Fünffache Stellungswiederholung",
+      "fifty-move": "50-Züge-Regel",
+      "seventy-five-move": "75-Züge-Regel",
+      "unknown": "Partie beendet"
+    },
+    "promotion": {
+      "title": "Bauernumwandlung",
+      "description": "Wähle die Figur, in die sich der Bauer verwandelt.",
+      "pieces": {
+        "q": {
+          "label": "Dame",
+          "action": "In eine Dame umwandeln"
+        },
+        "r": {
+          "label": "Turm",
+          "action": "In einen Turm umwandeln"
+        },
+        "b": {
+          "label": "Läufer",
+          "action": "In einen Läufer umwandeln"
+        },
+        "n": {
+          "label": "Springer",
+          "action": "In einen Springer umwandeln"
+        }
+      }
+    },
+    "sendFailed": "Zug konnte nicht gesendet werden. Versuch es noch einmal.",
+    "status": {
+      "lobby": "Lade einen Gegner ans Brett ein",
+      "yourTurn": "Du bist am Zug",
+      "turn": {
+        "white": "Weiß am Zug",
+        "black": "Schwarz am Zug"
+      },
+      "check": "Schach",
+      "winner": {
+        "white": "Weiß gewinnt",
+        "black": "Schwarz gewinnt"
+      },
+      "draw": "Remis"
+    },
+    "sides": {
+      "white": "Weiß",
+      "black": "Schwarz"
+    },
+    "freeSeat": "freier Platz",
+    "away": "abwesend",
+    "captured": "Geschlagene Figuren: {{pieces}}",
+    "sit": {
+      "white": "Mit Weiß spielen",
+      "black": "Mit Schwarz spielen"
+    },
+    "flip": "Brett drehen",
+    "downloadPgn": "Partie als PGN herunterladen",
+    "close": "Schach schließen",
+    "board": "Schachbrett. Pfeiltasten bewegen, Enter wählt Figur und Feld",
+    "square": {
+      "empty": "leer",
+      "target": "möglicher Zug",
+      "check": "Schach"
+    },
+    "review": {
+      "start": "Stellung zu Beginn der Aufzeichnung",
+      "move": "Stellung nach dem {{move}}. Zug",
+      "back": "Zurück zur Partie"
+    },
+    "sidebar": "Partie und Züge",
+    "reconnecting": "Verbindung wird wiederhergestellt. Die Uhren laufen weiter.",
+    "lobby": {
+      "intro": "Zwei Spieler, ein Brett. Alle anderen können zuschauen und chatten.",
+      "start": "Partie starten",
+      "needPlayers": "Für beide Farben werden Spieler gebraucht.",
+      "hostStarts": "Der Host startet die Partie."
+    },
+    "rematch": {
+      "waiting": "Warten auf die Zustimmung des Gegners",
+      "accept": "Revanche annehmen",
+      "again": "Noch einmal spielen",
+      "swapColors": "In der neuen Partie tauschen die Spieler die Farben."
+    },
+    "notation": {
+      "title": "Züge",
+      "live": "Aktuelle Stellung",
+      "review": "Rückblick",
+      "history": "Zugverlauf",
+      "move": {
+        "white": "Zug {{number}} von Weiß: {{san}}",
+        "black": "Zug {{number}} von Schwarz: {{san}}"
+      },
+      "empty": "Der erste Zug erscheint hier.",
+      "start": "Ausgangsstellung",
+      "previous": "Vorheriger Zug",
+      "next": "Nächster Zug",
+      "liveButton": "Live"
+    },
+    "draw": {
+      "offered": "Dein Gegner bietet Remis an",
+      "accept": "Annehmen",
+      "decline": "Ablehnen",
+      "pending": "Remis angeboten",
+      "offer": "Remis anbieten",
+      "claimRepetition": "Remis beanspruchen (Wiederholung)",
+      "claimFiftyMoves": "Remis beanspruchen (50 Züge)"
+    },
+    "resign": "Aufgeben",
+    "stand": "Zuschauer werden",
+    "spectators": "Zuschauer",
+    "help": {
+      "title": "So wird gespielt",
+      "controls": "Tippe auf eine Figur und dann auf das Zielfeld oder zieh sie dorthin. Mit der Tastatur: Pfeiltasten wählen das Feld, Enter Figur und Zug, Escape hebt die Auswahl auf.",
+      "rules": "Die Rochade ist ein Königszug um zwei Felder. Bei der Bauernumwandlung wählst du die neue Figur. Ziel ist es, den gegnerischen König mattzusetzen.",
+      "clock": "Die Uhren laufen auch bei Verbindungsabbruch weiter. Remis durch dreifache Wiederholung oder die 50-Züge-Regel kannst du beanspruchen, sobald die Schaltfläche erscheint."
+    },
+    "claim": {
+      "title": "Mit diesem Zug kannst du Remis beanspruchen",
+      "description": "Du kannst die Partie nach der Wiederholungs- oder 50-Züge-Regel remis beenden oder weiterspielen.",
+      "continue": "Weiterspielen",
+      "claim": "Remis beanspruchen"
+    },
+    "confirm": {
+      "resignTitle": "Diese Partie aufgeben?",
+      "closeTitle": "Schach schließen?",
+      "resignDescription": "Dein Gegner gewinnt. Danach kannst du eine Revanche anbieten.",
+      "closeDescription": "Das Brett verschwindet für alle Teilnehmer. Lade die PGN herunter, wenn du die Partie behalten willst.",
+      "cancel": "Abbrechen",
+      "resign": "Aufgeben",
+      "close": "Schach schließen"
+    },
+    "clock": "{{side}}: {{time}}",
+    "untimed": "ohne Uhr"
+  },
+  "gartic": {
+    "phase": {
+      "lobby": "Wir sammeln uns am Tisch",
+      "choose": "Wähle ein Wort",
+      "artistChoosing": "Der Zeichner wählt ein Wort",
+      "roundReveal": "Das Wort ist aufgedeckt",
+      "finished": "Spiel beendet",
+      "reveal": "Mal sehen, was rausgekommen ist",
+      "submitted": "Fertig. Warten auf die anderen",
+      "prompt": "Denk dir den Anfang einer Geschichte aus",
+      "promptOthers": "Die Spieler denken sich Geschichten aus",
+      "describe": "Beschreibe die Zeichnung",
+      "describeOthers": "Die Spieler beschreiben Zeichnungen",
+      "draw": "Zeit zum Zeichnen",
+      "drawPhrases": "Wir zeichnen die erhaltenen Sätze",
+      "guess": "Errate das Wort"
+    },
+    "modes": {
+      "classic": "Zeichnen und Raten",
+      "telephone": "Stille Post"
+    },
+    "step": "Schritt {{step}} von {{total}}",
+    "round": "Runde {{round}} von {{rounds}}",
+    "rules": {
+      "title": "Regeln",
+      "telephone": "Jeder denkt sich einen Satz aus, der Nächste zeichnet ihn und der Übernächste beschreibt die Zeichnung. Du siehst nur den vorherigen Schritt. Am Ende zeigt der Host alle Geschichten.",
+      "classic": "Wählt und zeichnet abwechselnd ein Wort – ohne Buchstaben und Zahlen. Die anderen tippen ihre Antworten. Je schneller du rätst, desto mehr Punkte gibt es. Der Zeichner bekommt Punkte für jede richtige Antwort.",
+      "voice": "Der Sprachchat läuft weiter. Sag das gesuchte Wort nicht laut."
+    },
+    "close": "Gartic schließen",
+    "reconnecting": "Verbindung zum Spiel wird wiederhergestellt…",
+    "lobby": {
+      "sketchDraw": "Zeichne es.",
+      "sketchSurprise": "Überrasche deine Freunde.",
+      "headline": {
+        "telephone": "Ein Satz. Ein Dutzend unerwarteter Wendungen.",
+        "classic": "Verstehst du es ohne Worte?"
+      },
+      "intro": {
+        "telephone": "Gebt Zeichnungen und Beschreibungen im Kreis weiter und schaut euch dann gemeinsam an, was aus der ersten Idee geworden ist.",
+        "classic": "Einer zeichnet, die anderen raten. Selbst das seltsamste Gekritzel kann zum Sieg führen."
+      },
+      "modePicker": "Gartic-Modus",
+      "modeHint": {
+        "classic": "Ab 2 Spielern, Punkte für Antworten",
+        "telephone": "Ab 3 Spielern, gemeinsame Geschichten"
+      },
+      "rounds": "Runden",
+      "turnSeconds": "Zeit zum Zeichnen",
+      "seconds": "{{count}} s",
+      "telephoneTiming": "45 Sekunden pro Satz, 90 Sekunden pro Zeichnung. Jeder macht bei jeder Geschichte mit.",
+      "players": "{{count}} von 10 Spielern",
+      "joinFirst": "Sei der Erste",
+      "join": "Mitspielen",
+      "inGame": "Du bist dabei",
+      "start": "Spiel starten",
+      "needMore_one": "Zum Start fehlt noch {{count}} Spieler.",
+      "needMore_other": "Zum Start fehlen noch {{count}} Spieler.",
+      "hostStarts": "Der Host startet das Spiel."
+    },
+    "sidebar": {
+      "telephone": "Fortschritt der Spieler",
+      "classic": "Antworten und Punktestand"
+    },
+    "footer": {
+      "watching": "Du schaust zu",
+      "playNext": "Im nächsten Spiel mitspielen",
+      "joinedNext": "Du bist im nächsten Spiel dabei",
+      "leave": "Spiel verlassen",
+      "spectate": "Zuschauer werden",
+      "again": "Nochmal spielen",
+      "hostStartsNext": "Der Host startet das nächste Spiel"
+    },
+    "word": {
+      "was": "Das Wort war",
+      "youDraw": "Du zeichnest",
+      "guess": "Errate das Wort",
+      "onlyYou": "Nur du siehst das Wort",
+      "chooseTitle": "Was zeichnest du?",
+      "chooseHint": "Wähle eins von drei Wörtern."
+    },
+    "guesses": {
+      "title": "Tipps",
+      "log": "Tipps der Spieler",
+      "correct": "Hat das Wort erraten",
+      "first": "Der erste Tipp gehört dir",
+      "empty": "Hier erscheinen die Antworten der Spieler",
+      "input": "Dein Tipp",
+      "placeholder": "Was ist das?",
+      "send": "Tipp senden",
+      "youGuessed": "Richtig! Verrat es den anderen nicht.",
+      "drawer": "Zeichne – das Raten überlass den anderen.",
+      "guessersOnly": "Antworten können nur Spieler, die gerade raten."
+    },
+    "phone": {
+      "secretTitle": "Die Geschichten sind noch geheim",
+      "secretText": "Die Spieler zeichnen und beschreiben sie füreinander. Wenn alle fertig sind, schauen wir uns alle Alben gemeinsam an.",
+      "promptTitle": "Wie beginnt die Geschichte?",
+      "promptText": "Denk dir einen Satz aus, den man gut zeichnen kann. Zum Beispiel: „Ein Astronaut führt eine Schnecke Gassi“.",
+      "drawPhrase": "Zeichne diesen Satz",
+      "previousSkipped": "Der vorherige Spieler hat seinen Zug ausgelassen",
+      "describeDrawing": "Die Zeichnung, die du beschreiben sollst",
+      "missingDrawing": "Der vorherige Spieler hat es nicht rechtzeitig geschafft. Stell dir vor, was hier sein könnte.",
+      "yourPhrase": "Dein Satz",
+      "whatDrawn": "Was ist hier gezeichnet?",
+      "promptPlaceholder": "Eine unerwartete Idee…",
+      "describePlaceholder": "Beschreibe die Zeichnung in einem Satz…",
+      "sent": "Gesendet. Der nächste Schritt beginnt, wenn alle bereit sind.",
+      "finalDrawing": "Nach dem Senden kannst du die Zeichnung nicht mehr ändern.",
+      "finalPhrase": "Nach dem Senden kannst du den Satz nicht mehr ändern.",
+      "sending": "Wird gesendet…",
+      "drawingReady": "Zeichnung fertig",
+      "sendPhrase": "Satz senden",
+      "previousStep": "Vorheriger Schritt"
+    },
+    "status": {
+      "away": "Keine Verbindung",
+      "spectator": "Zuschauer",
+      "choosing": "Wählt ein Wort",
+      "drew": "Hat gezeichnet",
+      "drawing": "Zeichnet",
+      "ready": "Fertig",
+      "thinking": "Überlegt",
+      "guessed": "Erraten",
+      "waitingWord": "Wartet aufs Wort",
+      "waitingTurn": "Wartet auf den nächsten Zug",
+      "guessing": "Rät"
+    },
+    "scores": {
+      "ready": "{{ready}} von {{total}} fertig",
+      "players": "Spieler",
+      "completion": "Bereitschaft der Spieler",
+      "progress": "Fortschritt der Spieler",
+      "list": "Punktestand der Spieler"
+    },
+    "points_one": "{{count}} Punkt",
+    "points_other": "{{count}} Punkte",
+    "results": {
+      "rank": "Platz {{rank}}",
+      "you": "Das bist du",
+      "offline": "Offline",
+      "pointsWord": "Punkte",
+      "details": "Details: {{name}}",
+      "toFirst": "Abstand zu Platz 1",
+      "pointsValue_one": "{{points}} Punkt",
+      "pointsValue_other": "{{points}} Punkte",
+      "fromLeader": "Abstand zum Führenden",
+      "nobodyScored": "In diesem Spiel hat noch niemand Punkte gemacht.",
+      "section": "Spielergebnisse",
+      "noPoints": "Diesmal ohne Punkte",
+      "tie": "Gleichstand auf Platz 1",
+      "winner": "Sieg: {{name}}",
+      "noPointsText": "Hauptsache, es gab etwas zu zeichnen. Nochmal?",
+      "tieText_one": "{{names}} – je {{points}} Punkt.",
+      "tieText_other": "{{names}} – je {{points}} Punkte.",
+      "winnerText": "Die Wörter sind erraten. Zeit zu sehen, wer geglänzt hat.",
+      "podium": "Beste Ergebnisse",
+      "place": "Platz {{rank}}",
+      "players": "Spieler",
+      "total": "Punkte im Spiel",
+      "round": "Runde",
+      "ofRounds": "von {{rounds}}",
+      "ranking": "Endstand",
+      "compareHint": "Tippe auf den Pfeil zum Vergleichen",
+      "empty": "Noch keine Ergebnisse.",
+      "scoringTitle": "So werden Punkte vergeben",
+      "scoringText": "Eine richtige Antwort bringt 250 bis 500 Punkte: Je schneller du rätst, desto mehr bekommst du. Der Zeichner bekommt 100 Punkte für jeden, der richtig rät. Gleicher Punktestand heißt gleicher Platz."
+    },
+    "reveal": {
+      "nextStep": "Nächster Schritt",
+      "nextStory": "Nächste Geschichte",
+      "restart": "Von vorn ansehen",
+      "section": "Geschichten der Spieler",
+      "albums": "Alben der Spieler",
+      "title": "Unsere Geschichten",
+      "intro": "Mal sehen, wohin uns die Fantasie geführt hat.",
+      "albumSteps": "Schritte: {{count}}",
+      "stories": "Geschichten",
+      "totalSteps": "Schritte insgesamt",
+      "hostShowing": "Du zeigst die Geschichten dem ganzen Raum",
+      "hostFlipping": "Der Host blättert die Geschichten für alle durch",
+      "storyOf": "Geschichte {{index}} von {{total}}",
+      "start": "Angefangen von: {{name}}",
+      "unavailable": "Die Geschichten sind noch nicht verfügbar",
+      "steps": "Schritte der Geschichte",
+      "showStep": "Schritt {{step}} zeigen",
+      "stepN": "Schritt {{step}}",
+      "author": {
+        "drawing": "Zeichnung, Schritt {{step}}",
+        "text": "Satz, Schritt {{step}}"
+      },
+      "kind": {
+        "skipped": "Ausgelassen",
+        "drawing": "Zeichnung",
+        "text": "Satz"
+      },
+      "waitUpdate": "Warten auf ein Update des Spiels.",
+      "skippedTitle": "Dieser Schritt wurde ausgelassen",
+      "skippedText": "Manchmal braucht die Fantasie etwas mehr Zeit.",
+      "drawingBy": "Zeichnung von {{name}}",
+      "noText": "Ohne Beschreibung",
+      "announce": "Geschichte von {{owner}}. Schritt {{step}} von {{total}}. {{kind}} Autor: {{author}}.",
+      "announceKind": {
+        "skipped": "Schritt ausgelassen.",
+        "drawing": "Zeichnung.",
+        "text": "Satz."
+      },
+      "navigation": "Durch die Geschichte blättern",
+      "previous": "Vorheriger Schritt",
+      "back": "Zurück"
+    },
+    "canvas": {
+      "colors": {
+        "black": "Schwarz",
+        "white": "Weiß",
+        "red": "Rot",
+        "orange": "Orange",
+        "yellow": "Gelb",
+        "green": "Grün",
+        "teal": "Türkis",
+        "lightBlue": "Hellblau",
+        "blue": "Blau",
+        "violet": "Violett",
+        "pink": "Rosa",
+        "brown": "Braun"
+      },
+      "picture": "Zeichnung",
+      "tooManyStrokes": "Auf dem Blatt sind schon viele Striche. Mach den letzten rückgängig oder leere das Blatt.",
+      "tools": "Zeichenwerkzeuge",
+      "palette": "Pinselfarbe",
+      "brush": "Pinsel",
+      "eraser": "Radierer",
+      "width": "Stärke",
+      "widthLabel": "Pinselstärke",
+      "widths": {
+        "thin": "Dünn",
+        "medium": "Mittel",
+        "thick": "Dick",
+        "wide": "Breit"
+      },
+      "undo": "Letzten Strich rückgängig machen",
+      "undoTitle": "Letzten Strich rückgängig machen (Strg+Z)",
+      "clear": "Zeichnung löschen",
+      "editable": "Zeichenfläche",
+      "view": "Zeichnung auf dem Tisch",
+      "firstStroke": "Dein erster Strich",
+      "emptyView": "Hier erscheint die Zeichnung",
+      "offline": "Verbindung wird wiederhergestellt. Deine Striche sind auf diesem Gerät gespeichert.",
+      "retry": "Erneut senden"
+    },
+    "errors": {
+      "invalidStroke": "Ungültiger Strich. Fang noch einmal an.",
+      "strokeTooLong": "Der Strich ist zu lang.",
+      "roundOver": "Die Runde ist schon vorbei.",
+      "waitConnection": "Warte, bis die Verbindung wieder steht.",
+      "resendFirst": "Sende zuerst die Zeichnung erneut.",
+      "localDiscarded": "Lokale Striche wurden verworfen.",
+      "sendFailed": "Zeichnung konnte nicht gesendet werden."
+    }
+  },
+  "games": {
+    "list": {
+      "poker": {
+        "name": "Poker",
+        "hint": "No-Limit Hold'em, bis zu zehn Spieler"
+      },
+      "durak": {
+        "name": "Durak",
+        "hint": "Klassisch und mit Weitergeben, bis zu sechs Spieler"
+      },
+      "chess": {
+        "name": "Schach",
+        "hint": "Zwei Spieler, Bedenkzeit und Zuschauer"
+      },
+      "gartic": {
+        "name": "Gartic",
+        "hint": "Zeichnen, raten und Geschichten weitergeben"
+      }
+    },
+    "back": "Integrationen",
+    "seated": "Am Tisch: {{count}}",
+    "liveOnStage": "Das Spiel ist auf der Meeting-Bühne geöffnet. Stimme und Kameras bleiben bei dir.",
+    "closeGame": "Spiel schließen",
+    "timeControl": "Bedenkzeit",
+    "chessPresets": {
+      "untimed": "Ohne Uhr",
+      "3-2": "3 Minuten + 2 Sekunden",
+      "5-0": "5 Minuten",
+      "10-5": "10 Minuten + 5 Sekunden",
+      "15-10": "15 Minuten + 10 Sekunden"
+    },
+    "garticModes": {
+      "group": "Zeichenmodus",
+      "classic": "Errate die Zeichnung",
+      "telephone": "Stille Post",
+      "classicHint": "Einer zeichnet, die anderen erraten das Wort. Ab zwei Spielern.",
+      "telephoneHint": "Aus einem Satz wird eine Zeichnung, aus der Zeichnung ein neuer Satz. Ab drei Spielern."
+    },
+    "openChess": "Brett öffnen",
+    "openGartic": "Gartic öffnen",
+    "restricted": "Der Host hat das Hinzufügen von Integrationen eingeschränkt.",
+    "table": {
+      "seatedOf": "Am Tisch: {{count}} von {{total}}",
+      "startingStack": "Startstack {{chips}}",
+      "turnSeconds_one": "{{count}} Sekunde pro Zug",
+      "turnSeconds_other": "{{count}} Sekunden pro Zug",
+      "level": "Level {{level}}",
+      "deck_one": "Kartenspiel mit {{count}} Karte",
+      "deck_other": "Kartenspiel mit {{count}} Karten",
+      "deal": "Austeilen",
+      "remove": "Tisch aus dem Meeting entfernen",
+      "dealerOnly": "Austeilen dürfen, wer den Tisch geöffnet hat, und der Host des Meetings.",
+      "open": "Tisch öffnen"
+    },
+    "durak": {
+      "deck": "Kartenspiel",
+      "noJokers": "ohne Joker",
+      "deckSize_one": "{{count}} Karte",
+      "deckSize_other": "{{count}} Karten",
+      "rules": "Regeln",
+      "transferHint": "Weitergeben mit einer Karte gleichen Werts",
+      "podkidnoy": "Klassisch",
+      "perevodnoy": "Mit Weitergeben"
+    },
+    "rebuys": {
+      "label": "Rebuys pro Spieler",
+      "each": "je {{chips}}",
+      "none": "Ohne Rebuys",
+      "unlimited": "Unbegrenzt"
+    },
+    "stack": {
+      "label": "Startstack",
+      "input": "Startstack, Chips",
+      "blinds": "Blinds {{small}}/{{big}}",
+      "slider": "Startstack"
+    },
+    "history": {
+      "open": "Spielverlauf",
+      "title": "Spielverlauf",
+      "loading": "Verlauf wird geladen…",
+      "failed": "Verlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Noch keine gespielten Partien."
+    },
+    "durakHistory": {
+      "title": "Durak",
+      "games_one": "{{count}} Partie",
+      "games_other": "{{count}} Partien",
+      "fools_one": "{{count}}-mal",
+      "fools_other": "{{count}}-mal",
+      "game": "Partie {{number}}",
+      "draw": "Unentschieden",
+      "fool": "Durak: {{name}}",
+      "bouts_one": "{{count}} Angriff",
+      "bouts_other": "{{count}} Angriffe",
+      "columns": {
+        "player": "Spieler",
+        "fool": "Durak",
+        "took": "Aufgenommen",
+        "defended": "Abgewehrt",
+        "trumps": "Trümpfe"
+      }
+    },
+    "pokerHistory": {
+      "title": "Spielverlauf",
+      "hands_one": "{{count}} Hand",
+      "hands_other": "{{count}} Hände",
+      "leader": "{{name}} führt"
+    },
+    "people": {
+      "camera": "Kamera: {{name}}",
+      "freeSeat": "Freier Platz",
+      "speaking": "Spricht",
+      "list": "Teilnehmer des Meetings"
+    },
+    "turn": {
+      "remaining_one": "Noch {{count}} Sekunde",
+      "remaining_other": "Noch {{count}} Sekunden",
+      "seconds": "{{count}} s"
+    }
+  },
+  "hotkeys": {
+    "unassigned": "Nicht belegt",
+    "space": "Leertaste",
+    "player": {
+      "pause": "Pause",
+      "sound": "Ton",
+      "fullscreen": "Vollbild"
+    },
+    "poker": {
+      "fold": "Fold",
+      "checkCall": "Check oder Call",
+      "bet": "Bet",
+      "allIn": "All-in"
+    },
+    "notes": {
+      "altF4": "Alt + F4 schließt das Fenster – wähle ein anderes Tastenkürzel.",
+      "browser": "{{label}} ist für den Browser reserviert – wähle ein anderes Tastenkürzel.",
+      "windowsKey": "Die Windows-Taste gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
+      "f12": "F12 gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
+      "noModifier": "Ohne Strg oder Alt funktioniert das Tastenkürzel nur im Cord-Fenster. Mit ihnen auch über anderen Programmen.",
+      "player": "{{label}} ist im Kino-Player auch „{{action}}“: Bei geöffnetem Player wird das Mikrofon geschaltet.",
+      "poker": "{{label}} ist am Pokertisch auch „{{action}}“: Wenn du dran bist, wird beides ausgelöst."
+    }
+  },
+  "accounts": {
+    "yandex-music": {
+      "name": "Yandex Music",
+      "label": "Yandex-Music-Token",
+      "placeholder": "Token einfügen",
+      "hint": "Der Token wird auf diesem Gerät gespeichert und verwendet, wenn du Yandex Music zu einem Meeting hinzufügst."
+    },
+    "telegram": {
+      "name": "Telegram"
+    }
+  },
+  "media": {
+    "end": {
+      "duplicate": "Das Meeting ist in einem anderen Fenster geöffnet",
+      "removed": "Der Host hat das Meeting für dich beendet. Du kannst über den Link, den Code oder die Favoriten wieder beitreten",
+      "revoked": "Dein Zugang zum Meeting ist beendet",
+      "notRecovered_one": "Die Verbindung wurde nicht innerhalb von {{count}} Sekunde wiederhergestellt",
+      "notRecovered_other": "Die Verbindung wurde nicht innerhalb von {{count}} Sekunden wiederhergestellt",
+      "recoveryExpired": "Die Zeit für die Wiederherstellung ist abgelaufen"
+    },
+    "liveUpdating": "Livestream wird aktualisiert…",
+    "actionFailed": "Aktion fehlgeschlagen",
+    "participant": "Teilnehmer",
+    "screen": {
+      "unsupported": "Dieser Browser unterstützt keine Bildschirmfreigabe",
+      "noTrack": "Bildschirm konnte nicht erfasst werden",
+      "ownAudioLeaks": "Dieser Browser kann den Ton von Cord nicht aus dem Systemton herausfiltern: Zuschauer hören das Gespräch und ihre eigene Stimme. Teile ein Fenster oder einen Tab – oder aktualisiere den Browser.",
+      "cancelled": "Bildschirmfreigabe abgebrochen",
+      "noPermission": "Der Medienserver hat die Freigabe nicht erlaubt. Versuche es noch einmal."
+    },
+    "encoder": {
+      "screen": "Der Encoder ist überlastet. Der Bildschirm wechselt zu einem kompatiblen Codec.",
+      "camera": "Der Encoder ist überlastet. Die Kamera wechselt zu einem kompatiblen Codec."
+    },
+    "link": {
+      "paths": {
+        "direct-udp": "Direkt zum Medienserver · UDP",
+        "direct-tcp": "Direkt zum Medienserver · TCP",
+        "relay-udp": "Über TURN-Relay · UDP",
+        "relay-tcp": "Über TURN-Relay · TCP/TLS",
+        "unknown": "Pfad unbekannt"
+      },
+      "grades": {
+        "good": "Gut",
+        "fair": "Mittel",
+        "poor": "Schwach",
+        "unknown": "Noch keine Daten"
+      }
+    },
+    "outbound": {
+      "settling": "Kanal fährt hoch",
+      "bandwidth": "durch Bandbreite begrenzt",
+      "cpu": "durch Prozessor begrenzt",
+      "dormant": "niemand sieht es größer",
+      "screen": "Bildschirm ändert sich seltener",
+      "camera": "mehr liefert die Kamera nicht"
+    },
+    "ping": {
+      "screenTitle": "Latenz des Steuerkanals und was dein Bildschirm ins Netz sendet",
+      "cameraTitle": "Latenz des Steuerkanals und was deine Kamera ins Netz sendet",
+      "controlTitle": "RTT des Steuer-WebSockets",
+      "httpTitle": "Antwortzeit des Servers /api/v1/ping",
+      "offline": "Keine Verbindung",
+      "ms": "{{value}} ms",
+      "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · Meeting",
+      "untitled": "Meeting"
+    }
+  },
+  "poker": {
+    "millions": "{{value}} Mio.",
+    "actions": {
+      "fold": "Fold",
+      "check": "Check",
+      "call": "Call",
+      "bet": "Bet",
+      "raise": "Raise",
+      "allin": "All-in"
+    },
+    "phases": {
+      "lobby": "Warten auf die Hand",
+      "preflop": "Preflop",
+      "flop": "Flop",
+      "turn": "Turn",
+      "river": "River",
+      "showdown": "Showdown",
+      "over": "Spiel vorbei"
+    },
+    "steps": {
+      "third": "⅓ Pot",
+      "half": "½ Pot",
+      "threequarters": "¾ Pot",
+      "pot": "Pot"
+    },
+    "celebration": {
+      "knockout": "Knockout",
+      "huge": "Riesiger Pot",
+      "big": "Großer Pot"
+    },
+    "modes": {
+      "friendly": {
+        "name": "Freundschaftsspiel",
+        "hint": "Die Blinds bleiben gleich, nachkaufen kannst du zwischen den Händen. Niemand scheidet endgültig aus."
+      },
+      "tournament": {
+        "name": "Turnier",
+        "hint": "Ein Stack für das ganze Spiel, die Blinds steigen alle acht Minuten. Wer alles verliert, ist raus – der Tisch zählt die Plätze."
+      },
+      "turbo": {
+        "name": "Blitz",
+        "hint": "Dasselbe Turnier, nur schneller: Blinds alle drei Minuten und fünfzehn Sekunden pro Zug."
+      }
+    },
+    "handRanks": {
+      "royalFlush": {
+        "name": "Royal Flush",
+        "hint": "Straße bis zum Ass in einer Farbe"
+      },
+      "straightFlush": {
+        "name": "Straight Flush",
+        "hint": "Fünf in Folge in einer Farbe"
+      },
+      "quads": {
+        "name": "Vierling",
+        "hint": "Vier gleiche"
+      },
+      "fullHouse": {
+        "name": "Full House",
+        "hint": "Drilling und Paar"
+      },
+      "flush": {
+        "name": "Flush",
+        "hint": "Fünf Karten einer Farbe"
+      },
+      "straight": {
+        "name": "Straße",
+        "hint": "Fünf in Folge, beliebige Farben"
+      },
+      "set": {
+        "name": "Drilling",
+        "hint": "Drei gleiche"
+      },
+      "twoPair": {
+        "name": "Zwei Paare",
+        "hint": "Zwei Paare und ein Kicker"
+      },
+      "pair": {
+        "name": "Paar",
+        "hint": "Zwei gleiche"
+      },
+      "highCard": {
+        "name": "Höchste Karte",
+        "hint": "Nichts zusammengekommen"
+      }
+    },
+    "verdict": {
+      "ok_one": "Stimmt: {{cards}} Karte fiel genau so, wie der Fingerabdruck versprach",
+      "ok_other": "Stimmt: {{cards}} Karten fielen genau so, wie der Fingerabdruck versprach",
+      "unrevealed": "Der Seed wird aufgedeckt, wenn die Hand gespielt ist",
+      "commitment": "Der Fingerabdruck des Seeds passt nicht zu dem vor der Hand angekündigten",
+      "notStarted": "Die Hand hat noch nicht begonnen",
+      "hole": "Die Karte {{card}} ist nicht die, die sich aus dem Seed ergibt",
+      "board": "Die Tischkarte {{card}} ist nicht die, die sich aus dem Seed ergibt"
+    },
+    "gameOver": "Spiel vorbei",
+    "paused": "Pausiert",
+    "sit": "Hinsetzen",
+    "board": "Tischkarten",
+    "camera": "Kamera: {{name}}",
+    "slide": "{{label}} – nach rechts ziehen",
+    "linger": "Niemand am Tisch: Das Spiel endet in <time/>. Setz dich hin, dann stoppt der Countdown.",
+    "turn": {
+      "yours": "Du bist dran",
+      "yoursCall": "Du bist dran · {{amount}} callen oder erhöhen",
+      "yoursCheck": "Du bist dran · Check oder Bet",
+      "acting": "{{name}} ist dran"
+    },
+    "pots": {
+      "main": "Hauptpot",
+      "side": "Sidepot {{index}}"
+    },
+    "pause": {
+      "clocks": "Uhren angehalten"
+    },
+    "bar": {
+      "blinds": "Blinds {{small}}/{{big}}",
+      "ante": " · Ante {{amount}}",
+      "hand": " · Hand Nr. {{number}}",
+      "levelTitle": "Wann die Blinds steigen",
+      "level": "Level {{level}} ·",
+      "seated": "{{seated}} von 10 Plätzen",
+      "seatingClosed": " · keine neuen Spieler",
+      "results": "Ergebnisse",
+      "next": "Weiter",
+      "deal": "Austeilen",
+      "pause": "Pause",
+      "resume": "Fortsetzen",
+      "full": "Tisch vergrößern",
+      "exitFull": "Vollbild beenden"
+    },
+    "settings": {
+      "title": "Spieleinstellungen",
+      "scopeDealer": "Die unteren gelten für den ganzen Tisch",
+      "scopeSelf": "Nur für dich",
+      "hints": {
+        "title": "Hinweise",
+        "hint": "Was ich habe und was eine Antwort kostet"
+      },
+      "feedHint": "Wer was gemacht hat – als Liste am Tischrand",
+      "table": "Tisch",
+      "autoDeal": {
+        "title": "Automatisch austeilen",
+        "on": "Der Tisch teilt die nächste Hand selbst aus",
+        "off": "Jede Hand startest du mit „Austeilen“"
+      },
+      "seating": {
+        "title": "Neue Spieler hinsetzen lassen",
+        "on": "Plätze werden mit „Hinsetzen“ unter dem Tisch besetzt",
+        "off": "Nur wer schon sitzt, spielt zu Ende"
+      },
+      "rebuys": {
+        "title": "Rebuys pro Spieler",
+        "unlimited": "Unbegrenzt, je {{amount}}",
+        "none": "Nicht erlaubt: Ohne Chips ist man raus",
+        "limited_one": "{{count}} Rebuy zu {{amount}}",
+        "limited_other": "{{count}} Rebuys zu {{amount}}",
+        "zero": "keine"
+      },
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "pauseHint": "Die Uhren bleiben stehen, wo sie waren",
+      "close": {
+        "title": "Tisch aus dem Meeting entfernen",
+        "hint": "Das Spiel endet, die Ergebnisse bleiben im Verlauf"
+      }
+    },
+    "waiting": {
+      "winner": "{{name}} gewinnt alles",
+      "again": "Neu starten",
+      "pausedHint": "Der Geber hat das Spiel pausiert",
+      "needPlayer": "Noch ein Spieler fehlt",
+      "needPlayerHint": "„Hinsetzen“ findest du unter dem Tisch",
+      "dealIn": "Austeilen in <time/>",
+      "dealer": "Warten auf den Geber"
+    },
+    "seat": {
+      "dealer": "Dealer",
+      "smallBlind": "Small Blind",
+      "bigBlind": "Big Blind",
+      "place": "Platz {{place}}",
+      "folded": "Gefoldet",
+      "waiting": "Wartet auf die Hand",
+      "away": "Abwesend",
+      "busted": "Ausgeschieden"
+    },
+    "countdown": {
+      "minutes": "{{minutes}} Min.",
+      "seconds": "{{seconds}} s"
+    },
+    "controls": {
+      "waitNext": "Warten auf die nächste Hand",
+      "sitToPlay": "Setz dich hin, um zu spielen",
+      "timeBank": "Zeitbank {{seconds}} s",
+      "timeBankSpent": "Zeitbank aufgebraucht",
+      "betSize": "Einsatzhöhe",
+      "raiseTo": "Erhöhen auf {{amount}}",
+      "cancelRaise": "Erhöhung abbrechen",
+      "call": "Call {{amount}}",
+      "share": "{{share}} % des Pots",
+      "raise": "Erhöhen",
+      "allinAmount": "All-in {{amount}}",
+      "reveal": "Karten zeigen",
+      "stand": "Vom Tisch aufstehen",
+      "needTwo": "Austeilen geht ab zwei Spielern am Tisch"
+    },
+    "rebuy": {
+      "title": "Keine Chips mehr",
+      "unlimited": "Du kannst beliebig oft nachkaufen",
+      "left_one": "Noch {{count}} Rebuy übrig",
+      "left_other": "Noch {{count}} Rebuys übrig",
+      "pick": "<b>{{amount}}</b> nehmen",
+      "amount": "Wie viele Chips du nimmst",
+      "take": "{{amount}} nehmen"
+    },
+    "fair": {
+      "check": "Hand prüfen"
+    },
+    "feed": {
+      "label": "Tischereignisse",
+      "title": "Spielverlauf"
+    },
+    "combinations": {
+      "title": "Kombinationen",
+      "hint": "Zehn Zeilen vom Royal Flush bis zur höchsten Karte",
+      "order": "Oben die starken, unten die schwachen",
+      "note": "Eine Hand besteht aus fünf Karten: deinen zwei und den fünf Tischkarten, beliebige fünf von sieben. Gleiche Kombinationen teilen den Pot; zwischen Kombinationen gleichen Rangs entscheidet der Kicker – die höchste der übrigen Karten."
+    },
+    "results": {
+      "title": "Spielergebnisse",
+      "note": "Diese Ergebnisse bleiben im Gesprächsverlauf – im Bereich „Spiele“."
+    },
+    "cheer": {
+      "split": "teilt den Pot",
+      "takes": "gewinnt den Pot"
+    },
+    "result": {
+      "endings": {
+        "winner": "Nur noch einer am Tisch",
+        "closed": "Der Tisch wurde aus dem Meeting entfernt",
+        "idle": "Niemand mehr am Tisch",
+        "meeting": "Das Meeting ist beendet"
+      },
+      "minutes": "{{minutes}} Min.",
+      "hoursMinutes": "{{hours}} Std. {{minutes}} Min.",
+      "hours": "{{hours}} Std.",
+      "hands_one": "{{count}} Hand",
+      "hands_other": "{{count}} Hände",
+      "biggestPot": "Pot bis {{amount}}",
+      "blinds": "Blinds {{small}}/{{big}}",
+      "invested": "setzte {{amount}}",
+      "won": "gewann {{won}} von {{hands}}",
+      "allIns": "All-ins {{allIns}}",
+      "rebuys": "Rebuys {{rebuys}}",
+      "knockouts": "schaltete {{knockouts}} aus",
+      "showdowns": "Showdowns {{won}}/{{total}}",
+      "finalStack": "{{amount}} am Ende"
+    }
+  },
+  "durak": {
+    "title": "Durak",
+    "suits": {
+      "s": "Pik",
+      "h": "Herz",
+      "d": "Karo",
+      "c": "Kreuz"
+    },
+    "ranks": {
+      "J": "B",
+      "Q": "D",
+      "K": "K",
+      "A": "A"
+    },
+    "spoken": {
+      "T": "Zehn",
+      "J": "Bube",
+      "Q": "Dame",
+      "K": "König",
+      "A": "Ass"
+    },
+    "cardLabel": "{{suit}} {{rank}}",
+    "modes": {
+      "podkidnoy": "Klassisch",
+      "perevodnoy": "Mit Weitergeben"
+    },
+    "fool": "{{name}} ist der Durak",
+    "says": {
+      "lobby": "Der Tisch wartet aufs Austeilen",
+      "draw": "Unentschieden – niemand hat mehr Karten",
+      "over": "Partie gespielt",
+      "taken": "{{name}} nimmt auf",
+      "beaten": "Abgewehrt",
+      "dealing": "Der Tisch teilt aus",
+      "corneredMe": "Nichts zum Abwehren – Karten aufnehmen",
+      "cornered": "{{name}}: nichts zum Abwehren – nimmt auf",
+      "defend": "Du bist dran: abwehren oder aufnehmen",
+      "throw": "Du bist dran: nachlegen oder „Fertig“ sagen",
+      "lead": "Du bist dran: spiel aus",
+      "thinking": "Der Tisch überlegt",
+      "defends": "{{name}} wehrt ab",
+      "waiting": "Warten auf {{name}}",
+      "throwing": "Legen nach: {{names}}"
+    },
+    "verdict": {
+      "unrevealed": "Der Seed wird aufgedeckt, wenn die Partie gespielt ist",
+      "commitment": "Der Fingerabdruck des Seeds passt nicht zu dem vor dem Austeilen angekündigten",
+      "notStarted": "Das Austeilen hat noch nicht begonnen",
+      "trump": "Der Trumpf {{card}} ist nicht der, der sich aus dem Seed ergibt"
+    },
+    "cards_one": "{{count}} Karte",
+    "cards_other": "{{count}} Karten",
+    "deckSize_one": "{{size}} Karte",
+    "deckSize_other": "{{size}} Karten",
+    "seconds": "{{seconds}} s",
+    "camera": "Kamera: {{name}}",
+    "sit": "Hinsetzen",
+    "deal": "Austeilen",
+    "refused": "Diese Karte kannst du so nicht spielen. Wähle eine andere Karte oder ein anderes Ziel.",
+    "status": {
+      "reconnecting": "Verbindung wird wiederhergestellt…",
+      "paused": "Spiel pausiert"
+    },
+    "guidance": {
+      "beatOrTransfer": "Wehre die markierte Karte ab oder gib den Angriff weiter",
+      "beat": "Wähle eine Karte auf dem Tisch zum Abwehren",
+      "transfer": "Gib den Angriff an den nächsten Spieler weiter",
+      "place": "Leg die gewählte Karte auf den Tisch",
+      "none": "Mit dieser Karte gibt es keinen Zug – wähle eine andere"
+    },
+    "pause": {
+      "resume": "Spiel fortsetzen",
+      "pauseGame": "Spiel pausieren",
+      "pause": "Pausieren",
+      "stopped": "Zeit angehalten",
+      "left": " · noch {{seconds}} s",
+      "continue": "Weiter",
+      "hostWill": "Der Host setzt das Spiel fort, wenn alle zurück sind"
+    },
+    "full": "Tisch vergrößern",
+    "exitFull": "Tisch verkleinern",
+    "attack": {
+      "beat": "{{card}} abwehren",
+      "onTable": "Auf dem Tisch: {{card}}",
+      "beatShort": "Abwehren"
+    },
+    "place": {
+      "transfer": "Weitergeben",
+      "throw": "Nachlegen",
+      "put": "Auf den Tisch legen"
+    },
+    "center": {
+      "over": "Partie beendet",
+      "gather": "Treffen wir uns am Tisch",
+      "ready": "Es kann losgehen",
+      "again": "Noch eine Runde?",
+      "needTwo": "Es braucht mindestens zwei Spieler",
+      "dealHost": "Teil die Karten aus, wenn alle bereit sind",
+      "dealSoon": "Der Host teilt gleich aus"
+    },
+    "hand": {
+      "cancelSelection": "Auswahl aufheben",
+      "cancel": "Abbrechen",
+      "yours": "Deine Hand",
+      "watching": "Du schaust dem Spiel zu",
+      "waiting": "Warten aufs Austeilen",
+      "left": "Karten weiter links",
+      "label": "Deine Karten",
+      "right": "Karten weiter rechts",
+      "instruction": "{{guidance}}. Escape hebt die Auswahl auf."
+    },
+    "hint": {
+      "saving": "Zug wird gespeichert…",
+      "paused": "Die Karten bleiben, wo sie sind",
+      "target": "Wähle das markierte Ziel auf dem Tisch",
+      "turn": "Wähle eine Karte oder zieh sie auf den Tisch",
+      "watch": "Verfolge das Spiel"
+    },
+    "actions": {
+      "take": "Aufnehmen",
+      "pass": "Fertig"
+    },
+    "turn": {
+      "left_one": "Noch {{seconds}} Sekunde",
+      "left_other": "Noch {{seconds}} Sekunden",
+      "pausedLeft_one": "Pausiert, noch {{seconds}} Sekunde",
+      "pausedLeft_other": "Pausiert, noch {{seconds}} Sekunden"
+    },
+    "stock": {
+      "label": "Stapel: {{cards}}, Trumpf {{card}}",
+      "trump": "Trumpf: {{card}}",
+      "trumps": "Trümpfe · {{suit}}",
+      "inDeck": "im Stapel"
+    },
+    "discard": {
+      "label": "Ablage: {{cards}}",
+      "caption": "Ablage"
+    },
+    "role": {
+      "fool": "Durak",
+      "out": "Als {{place}}. raus",
+      "cornered": "Nichts zum Abwehren",
+      "nothing": "Nichts zum Nachlegen",
+      "takes": "Nimmt auf",
+      "defends": "Wehrt ab",
+      "passed": "Fertig",
+      "attacks": "Greift an",
+      "away": "Abwesend"
+    },
+    "seat": {
+      "mine": "{{name}} · du"
+    },
+    "settings": {
+      "title": "Spieleinstellungen",
+      "hostNote": "Änderungen gelten für den ganzen Tisch",
+      "guestNote": "Regeln dieses Tisches",
+      "pauseHint": "Die Uhren stoppen, die Karten bleiben auf dem Tisch",
+      "rules": "Tischregeln",
+      "deck": {
+        "label": "Kartenspiel",
+        "live": "Wird zwischen den Partien gewechselt",
+        "idle": "Ohne Joker"
+      },
+      "mode": {
+        "label": "Spielmodus",
+        "hint": "Der erste Angriff wird nicht weitergegeben"
+      },
+      "throwers": {
+        "label": "Wer nachlegt",
+        "all": "Alle",
+        "neighbours": "Nachbarn"
+      },
+      "first": {
+        "label": "Erster Angriff"
+      },
+      "turn": {
+        "label": "Zeit pro Zug",
+        "paused": "Setz das Spiel fort, um die Zeit zu ändern"
+      },
+      "seating": {
+        "label": "Neue Spieler hinsetzen lassen",
+        "open": "Freie Plätze sind offen",
+        "closed": "Es spielen nur die, die schon sitzen"
+      },
+      "guestOnly": "Regeln ändern und das Spiel pausieren kann nur der Host des Tisches oder des Meetings.",
+      "stand": {
+        "label": "Vom Tisch aufstehen",
+        "live": "Du verlässt die laufende Partie",
+        "idle": "Du bleibst als Zuschauer im Meeting"
+      },
+      "close": {
+        "label": "Tisch aus dem Meeting entfernen",
+        "hint": "Das Spiel endet, die Ergebnisse bleiben im Verlauf"
+      }
+    },
+    "score": {
+      "title": "Spielstand",
+      "description": "Ergebnisse in diesem Meeting",
+      "player": "Spieler",
+      "games": "Partien",
+      "fools": "Durak",
+      "streak": "Serie"
+    },
+    "result": {
+      "title": "Ergebnis der Partie",
+      "draw": "Unentschieden",
+      "bouts_one": "{{count}} Angriff",
+      "bouts_other": "{{count}} Angriffe",
+      "drawNote": "Alle sind ihre Karten losgeworden",
+      "foolNote": "Die anderen Spieler sind raus",
+      "back": "Zurück zum Tisch"
+    },
+    "reactions": {
+      "send": "Reaktion senden",
+      "title": "Reaktionen",
+      "player": "Spieler",
+      "bubble": "{{name}}: {{sticker}}",
+      "cooldown": "Nächste Reaktion in {{seconds}} s"
+    },
+    "stickers": {
+      "durak-online-01": "Tränen lachen",
+      "durak-online-02": "Facepalm",
+      "durak-online-03": "Müde",
+      "durak-online-04": "Zwei Sechsen",
+      "durak-online-05": "Wütend",
+      "durak-online-06": "Gelassen",
+      "durak-online-07": "Zwinkern",
+      "durak-online-08": "Spott",
+      "durak-online-09": "Nachdenklich",
+      "durak-online-10": "Blumen",
+      "durak-online-11": "Ausdruckslos",
+      "durak-online-12": "Traurig",
+      "durak-online-13": "Mund zu",
+      "durak-online-14": "Knopf drücken",
+      "durak-online-15": "Daumen hoch",
+      "durak-online-16": "Pfeifen",
+      "durak-online-17": "Besorgt",
+      "durak-online-18": "Salutieren",
+      "durak-online-19": "Hallo",
+      "durak-online-20": "Überrascht",
+      "durak-online-21": "Verschmitztes Lächeln",
+      "durak-online-22": "Lächeln",
+      "durak-online-23": "Mit Sonnenbrille",
+      "durak-online-24": "Kopf kratzen",
+      "durak-online-25": "Zunge rausstrecken",
+      "durak-online-26": "Kuss",
+      "durak-online-52": "Verwirrt wie im Meme",
+      "durak-online-53": "Umgedrehter Daumen",
+      "durak-online-54": "Widerwilliger Daumen"
+    }
+  },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}} Tsd.",
+      "millions": "{{value}} Mio."
+    },
+    "providers": {
+      "youtube": {
+        "hint": "Videos, Filme und Kanäle",
+        "search": "Video, Kanal oder Playlist"
+      },
+      "twitch": {
+        "hint": "Livestreams und Aufzeichnungen",
+        "search": "Kanal oder Spiel auf Twitch"
+      },
+      "rutube": {
+        "hint": "Live-TV, Serien und Shows",
+        "search": "Videos, Kanäle und TV"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "Rubriken, Communitys und Livestreams",
+        "search": "Videos und Communitys"
+      },
+      "ivi": {
+        "hint": "Filme, Serien und Zeichentrick – kostenlos",
+        "search": "Film, Serie oder Zeichentrick"
+      },
+      "link": {
+        "name": "Per Link",
+        "hint": "Video, Livestream oder Playlist per Link",
+        "search": "Videolink einfügen"
+      }
+    },
+    "linkCard": {
+      "vkStream": "VK-Video-Live-Stream: {{id}}",
+      "twitchStream": "Twitch-Stream: {{id}}",
+      "stream": "{{name}}-Stream per Link",
+      "twitchVideo": "Twitch-Aufzeichnung per Link",
+      "video": "{{name}}-Video per Link"
+    },
+    "group": {
+      "back": "Integrationen",
+      "platforms": "Kino-Plattformen",
+      "watching": "Gerade läuft:",
+      "closeForAll": "Für alle schließen",
+      "unavailable": "Gerade nicht verfügbar",
+      "noProviders": "Die Kino-Plattformen sind auf diesem Server ausgeschaltet.",
+      "closeCatalog": "Katalog schließen",
+      "locked": "Starten und Stoppen hat sich der Host vorbehalten."
+    },
+    "shell": {
+      "label": "Kino",
+      "back": "Zurück",
+      "clear": "Suche löschen",
+      "backToWatch": "Zurück zum Video",
+      "close": "Kino schließen",
+      "locked": "Integrationen hat sich der Host vorbehalten – zuschauen geht, starten nicht."
+    },
+    "more": {
+      "loading": "Wird geladen…",
+      "show": "Mehr anzeigen"
+    },
+    "notes": {
+      "offline": "Keine Verbindung zum Server – versuch es noch einmal",
+      "timeout": "Der Server hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+      "failed": "Die Anfrage ist fehlgeschlagen",
+      "asking": "Plattform wird abgefragt…",
+      "pressEnter": "Drück Enter, und das Kino öffnet diesen Link.",
+      "opening": "Link wird geöffnet…"
+    },
+    "meta": {
+      "live": "Live",
+      "channel": "Kanal",
+      "followers": "{{value}} Follower",
+      "watching": "{{value}} Zuschauer",
+      "watchingNow": "{{value}} Zuschauer gerade",
+      "liveWatching": "live, {{value}} Zuschauer",
+      "views": "{{value}} Aufrufe",
+      "updated": "Aktualisiert am {{date}}",
+      "videos_one": "{{count}} Video",
+      "videos_other": "{{count}} Videos"
+    },
+    "tiles": {
+      "watch": "Gemeinsam ansehen: {{title}}",
+      "details": "Details: {{title}}",
+      "open": "Öffnen: {{title}}",
+      "openPlaylist": "Playlist öffnen: {{title}}",
+      "openCategory": "Rubrik öffnen: {{title}}",
+      "openChannel": "Kanal öffnen: {{title}}",
+      "playlist": "Playlist"
+    },
+    "headings": {
+      "channels": "Kanäle",
+      "videos": "Videos",
+      "sections": "Rubriken"
+    },
+    "search": {
+      "nothing": "Nichts gefunden. Versuch es mit anderen Wörtern.",
+      "emptySection": "In dieser Rubrik gibt es noch nichts, was man dem Raum zeigen kann."
+    },
+    "category": {
+      "empty": "In dieser Rubrik ist gerade niemand live."
+    },
+    "channel": {
+      "tabsLabel": "Kanalbereiche",
+      "tabs": {
+        "videos": "Videos",
+        "streams": "Livestreams",
+        "shorts": "Shorts",
+        "playlists": "Playlists",
+        "about": "Kanalinfo"
+      },
+      "noAbout": "Der Kanal hat nichts über sich geschrieben.",
+      "empty": {
+        "playlists": "Der Kanal hat keine Playlists.",
+        "streams": "Der Kanal streamt nicht.",
+        "shorts": "Der Kanal hat keine Shorts.",
+        "other": "Hier gibt es noch nichts zu sehen."
+      }
+    },
+    "item": {
+      "watch": "Gemeinsam ansehen",
+      "openChannel": "Kanal öffnen",
+      "allEpisodes": "Alle Folgen"
+    },
+    "playlist": {
+      "empty": "Die Playlist ist leer."
+    },
+    "series": {
+      "untitled": "Serie",
+      "seasons_one": "{{count}} Staffel",
+      "seasons_other": "{{count}} Staffeln",
+      "seasonsLabel": "Staffeln"
+    },
+    "switcher": {
+      "tabsLabel": "Plattform",
+      "hints": {
+        "movies": "Ganze Filme",
+        "music": "Musik",
+        "podcasts": "Podcasts",
+        "documentaries": "Dokus",
+        "standup": "Stand-up",
+        "cartoons": "Zeichentrick"
+      },
+      "shelvesLabel": "Twitch-Schaufenster",
+      "live": "Livestreams",
+      "categories": "Kategorien",
+      "foundSections": "Gefundene Rubriken",
+      "popularSections": "Beliebte Rubriken",
+      "noSections": "Solche Rubriken gibt es auf Twitch nicht.",
+      "emptyTitle": "Was schauen wir im Raum?",
+      "emptyText": "Alles, was es auch auf YouTube gibt: ein Video, einen ganzen Film oder einen Kanal.",
+      "liveNow": "Gerade live",
+      "categoryNote": "Twitch-Rubrik"
+    },
+    "rutube": {
+      "home": "Start",
+      "sectionsLabel": "RUTUBE-Rubriken",
+      "live": "Live",
+      "allLive": "Alle Livestreams",
+      "shows": "Serien und Shows",
+      "allShows": "Alle Serien und Shows",
+      "videosAndLive": "Videos und Livestreams",
+      "seriesEmpty": "Hier gibt es nichts für den Raum: Die übrigen Folgen auf RUTUBE gibt es nur im Abo oder sie sind von hier nicht verfügbar."
+    },
+    "vk": {
+      "sectionsLabel": "VK-Video-Rubriken",
+      "down": "Der VK-Video-Katalog lässt sich gerade nicht öffnen",
+      "downHint": "{{error}}. Ein VK-Video oder -Stream öffnet sich trotzdem per Link – füge ihn in die Suche ein.",
+      "communities": "Communitys",
+      "nothing": "Nichts gefunden. Versuch es mit anderen Wörtern – oder füge einen Link zu einem VK-Video ein."
+    },
+    "ivi": {
+      "sectionsLabel": "ivi-Rubriken",
+      "emptySection": "In dieser Rubrik gibt es noch nichts für den Raum: Von hier aus bietet ivi keine kostenlosen Inhalte an.",
+      "seriesEmpty": "Hier gibt es nichts für den Raum: Die übrigen Folgen auf ivi sind kostenpflichtig oder von hier nicht verfügbar."
+    },
+    "linkScene": {
+      "recent": "Letzte Links",
+      "forget": "Aus den letzten entfernen: {{address}}",
+      "clear": "Alle löschen",
+      "clearLabel": "Letzte Links löschen",
+      "clipboardRefused": "Der Browser erlaubt keinen Zugriff auf die Zwischenablage – füg den Link selbst ins Feld ein.",
+      "clipboardEmpty": "In der Zwischenablage ist kein Link.",
+      "title": "Videolink einfügen",
+      "intro": "Ein Video, Livestream, Kanal oder eine Playlist von {{providers}} öffnet sich in ihrem Katalog – direkt auf der eigenen Seite.",
+      "paste": "Aus der Zwischenablage einfügen",
+      "confirmTitle": "Diesen Link öffnen?",
+      "confirmText": "Drück Enter oder die Schaltfläche, und das Kino schaut nach, was auf dieser Seite ist.",
+      "open": "Link öffnen",
+      "notLink": "Das sieht nicht nach einem Link aus: Nötig ist die Adresse einer Seite mit Video – zum Beispiel https://rutube.ru/video/…",
+      "searching": "Video wird gesucht…",
+      "providerLink": "Das ist ein {{name}}-Link",
+      "openIn": "In {{name}} öffnen",
+      "unknownProvider": "Der Server kennt diese Plattform, diese Version des Kinos aber noch nicht – lade die Seite neu.",
+      "playlistEmpty": "In dieser Playlist gibt es nichts für den Raum.",
+      "cannotOpen": "Dieser Link lässt sich noch nicht öffnen",
+      "untitled": "Ohne Titel",
+      "site": "Website",
+      "quality": "Qualität",
+      "audio": "Ton",
+      "captions": "Untertitel",
+      "recognised": "{{name}} (automatisch erstellt)"
+    },
+    "theater": {
+      "label": "Gemeinsam ansehen",
+      "untitled": "Gemeinsam ansehen",
+      "live": "Live · {{author}}",
+      "catchingUp": "Wir holen den Raum ein…",
+      "openedBySelf": "Von dir geöffnet",
+      "openedBy": "Geöffnet von {{name}}",
+      "together": "Wir schauen gemeinsam",
+      "catalog": "Katalog",
+      "closeForAll": "Wiedergabe für alle schließen",
+      "back15": "15 Sekunden zurück für alle",
+      "forward15": "15 Sekunden vor für alle",
+      "play": "Für alle abspielen",
+      "pause": "Für alle pausieren",
+      "position": "Position im Video",
+      "liveBehind": "Zurück zum Live-Bild, {{seconds}} s Rückstand",
+      "liveEdge": "Live",
+      "lag": "−{{seconds}} s",
+      "toStart": "Für alle an den Anfang",
+      "sync": "Mit dem Raum synchronisieren",
+      "skip": {
+        "intro": "85 Sekunden für alle überspringen",
+        "ad": "Werbung für alle überspringen",
+        "adShort": "Werbung überspringen",
+        "adLabel": "Werbung im Stream"
+      },
+      "adSkipped": "Werbung für alle übersprungen",
+      "exitFullscreen": "Vollbild beenden",
+      "fullscreen": "Player vergrößern",
+      "unmute": "Videoton einschalten",
+      "mute": "Videoton ausschalten",
+      "volume": "Videolautstärke",
+      "buffering": "Wird geladen",
+      "opening": "Wird geöffnet…",
+      "start": "Gemeinsam ansehen",
+      "next": "Nächste Folge",
+      "nextPlay": "Nächste Folge für alle starten",
+      "nextLocked": "Starten kann, wem der Host das Kino erlaubt hat",
+      "quality": {
+        "bitrate": "{{value}} kbit/s",
+        "source": "Original",
+        "menuLabel": "Bildqualität und Audiosprache",
+        "auto": "Auto",
+        "autoWith": "Auto · {{level}}",
+        "voice": "Synchronsprache",
+        "title": "Qualität",
+        "original": "Original",
+        "automatic": "Automatisch"
+      },
+      "captions": {
+        "label": "Untertitel",
+        "labelWith": "Untertitel: {{name}}",
+        "off": "Aus",
+        "recognised": "automatisch erstellt"
+      },
+      "errors": {
+        "streamBroken": "Der Stream wurde unterbrochen. Öffne das Video erneut",
+        "unsupported": "Dieser Browser kann kein Streaming-Video abspielen",
+        "streamFailed": "Der Stream ließ sich nicht öffnen. Versuch ein anderes Video",
+        "openFailed": "Video konnte nicht geöffnet werden",
+        "renewFailed": "Stream konnte nicht aktualisiert werden"
+      }
+    },
+    "keys": {
+      "locked": "Die Fernbedienung hat sich der Host vorbehalten – Pause und Spulen liegen bei ihm",
+      "live": "Livestreams lassen sich nicht pausieren oder zurückspulen",
+      "micPause": "{{label}} schaltet das Mikrofon – Pause mit K",
+      "micOther": "{{label}} schaltet das Mikrofon – im Player funktioniert diese Taste nicht",
+      "seek": "{{sign}}{{seconds}} s",
+      "muted": "Ton aus",
+      "volume": "Lautstärke {{volume}} %"
+    }
+  },
+  "devices": {
+    "lens": {
+      "front": "Frontkamera",
+      "main": "Hauptkamera",
+      "frontWide": "Frontkamera Weitwinkel",
+      "wide": "Weitwinkel",
+      "secondFront": "Zweite Frontkamera",
+      "secondMain": "Zweite Hauptkamera"
+    },
+    "camera": {
+      "flip": "Kamera wechseln",
+      "title": "Kamera",
+      "next": "Nächste Kamera",
+      "numbered": "Kamera {{n}}",
+      "lenses": "Kameraobjektiv"
+    },
+    "check": {
+      "label": "Gerätetest",
+      "title": "Teste dich selbst",
+      "privacy": "Vorschau und Aufnahme siehst und hörst nur du. Der Test endet, wenn du das Fenster schließt.",
+      "micStop": "Mikrofontest beenden",
+      "micStart": "Mikrofon testen",
+      "cameraStop": "Kameratest beenden",
+      "cameraStart": "Kamera testen",
+      "speakers": "Lautsprecher testen",
+      "micLevel": "Mikrofonpegel",
+      "recording": "5 Sekunden werden aufgenommen…",
+      "record": "5 Sekunden aufnehmen und anhören",
+      "recorded": "Deine Testaufnahme",
+      "cameraPreview": "Kameratest, nur für dich",
+      "startingCamera": "Kamera wird eingeschaltet…",
+      "startingMic": "Mikrofon wird eingeschaltet…"
+    }
+  },
+  "stage": {
+    "faceZoom": {
+      "reset": "Normale Größe: {{name}}",
+      "zoomIn": "Gesicht auf {{zoom}}× vergrößern: {{name}}"
+    },
+    "screenOf": "Bildschirm: {{name}}",
+    "cameraOf": "Kamera: {{name}}",
+    "streamConnecting": "Verbindung zum Stream…",
+    "zoomOut": "Verkleinern",
+    "zoomIn": "Vergrößern",
+    "fit": "Ganzen Bildschirm einpassen",
+    "micOff": "Mikrofon aus",
+    "you": " (du)",
+    "preparing": "Freigabe wird vorbereitet…",
+    "sharing": "Du teilst deinen Bildschirm",
+    "watch": "Stream ansehen",
+    "recovering": "Verbindung wird wiederhergestellt…",
+    "gameLoading": "Spiel wird geöffnet…",
+    "menu": {
+      "volume": "Deine Lautstärke · {{value}} %",
+      "volumeOf": "Lautstärke: {{name}}",
+      "unmute": "Lautstärke wiederherstellen",
+      "mute": "Für mich stummschalten",
+      "pin": "Kamera anheften",
+      "watch": "Stream ansehen",
+      "muteForAll": "Mikrofon für alle stummschalten",
+      "remove": "Aus dem Meeting entfernen",
+      "actions": "Aktionen: {{name}}"
+    }
+  },
+  "dock": {
+    "media": "Mikrofon und Kamera",
+    "call": "Meeting",
+    "panels": "Chat und Integrationen",
+    "micOn": "Mikrofon stummschalten",
+    "micOff": "Mikrofon einschalten",
+    "cameraOn": "Kamera ausschalten",
+    "cameraOff": "Kamera einschalten",
+    "share": "Bildschirm teilen",
+    "unshare": "Freigabe beenden",
+    "more": "Einstellungen und Aktionen",
+    "leave": "Meeting verlassen",
+    "chat": "Chat",
+    "chatAndFiles": "Chat und Dateien",
+    "people": "Teilnehmer",
+    "integrations": "Integrationen",
+    "deafen": "Meeting-Ton ausschalten",
+    "undeafen": "Meeting-Ton einschalten",
+    "fullscreen": "Vollbild",
+    "windowed": "Vollbild beenden",
+    "settings": "Einstellungen",
+    "diagnostics": "Diagnose",
+    "meetingSettings": "Meeting-Einstellungen",
+    "closeForAll": "Für alle beenden",
+    "layout": {
+      "label": "Anordnung der Teilnehmer",
+      "options": {
+        "grid": "Raster",
+        "speaker": "Sprecher"
+      }
+    },
+    "pip": "Bild-im-Bild",
+    "pipClose": "Bild-im-Bild beenden"
+  },
+  "invite": {
+    "dialog": {
+      "title": "Zum Meeting einladen",
+      "description": "Sende eine Einladung oder lass den QR-Code scannen. Ohne Registrierung.",
+      "code": "Meeting-Code",
+      "codeHint": "Mit dem Code bestätigt der Host jeden Beitritt.",
+      "qr": "QR-Code der Meeting-Einladung",
+      "link": "Einladungslink",
+      "copyManually": "Link markieren und manuell kopieren",
+      "copied": "Link kopiert",
+      "copy": "Einladung kopieren",
+      "create": "Erstelle eine Einladung für diesen Raum.",
+      "askOwner": "Bitte den Host, eine Einladung zu teilen.",
+      "renew": "Link widerrufen und neuen erstellen",
+      "createButton": "Einladung erstellen",
+      "validity": "Gültig für 24 Stunden oder bis zum Ende des Meetings.",
+      "ownerRights": "Die Host-Rechte bleiben nur bei dir."
+    },
+    "parseFailed": "Gib den 9-stelligen Code oder den vollständigen Einladungslink ein"
+  },
+  "app": {
+    "elsewhere": "Das Meeting läuft in einem anderen Tab weiter",
+    "notFavorite": "Der Raum ist nicht mehr in den Favoriten",
+    "noSession": "Sitzung nicht gefunden",
+    "opening": "Raum wird geöffnet…",
+    "closeNotice": "Benachrichtigung schließen",
+    "downloadTitle": "Cord für Windows",
+    "downloadLabel": "Cord herunterladen"
+  },
+  "api": {
+    "requestFailed": "Die Anfrage ist fehlgeschlagen",
+    "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
+    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt"
+  },
+  "kit": {
+    "toasts": "Benachrichtigungen",
+    "soon": "Bald"
+  },
+  "connect": {
+    "failure": {
+      "passwordInvalid": "Der Server hat das Passwort nicht akzeptiert. Frag bei der Person nach, die dir die Adresse gegeben hat.",
+      "passwordRequired": "Dieser Server ist passwortgeschützt. Gib das Passwort ein.",
+      "tooMany": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es erneut.",
+      "serverError": "Der Server hat mit Fehler {{status}} geantwortet. Vermutlich startet er noch.",
+      "notCord": "Unter dieser Adresse antwortet kein Cord: Die nötige API fehlt.",
+      "timeout": "Der Server hat nicht innerhalb von acht Sekunden geantwortet. Prüfe Adresse und Verbindung.",
+      "unreachable": "Server nicht erreichbar. Prüfe Adresse, Zertifikat und Verbindung."
+    },
+    "address": {
+      "empty": "Gib die Serveradresse ein",
+      "notUrl": "Die Adresse sieht nicht wie ein Link aus. Beispiel: https://meet.example.com",
+      "credentials": "Entferne Benutzername und Passwort aus der Adresse",
+      "https": "Die Adresse muss mit https:// beginnen. HTTP ist nur für localhost erlaubt",
+      "path": "Gib nur die Serveradresse an, ohne Pfad nach dem Namen"
+    },
+    "note": "Verbindung zu einem Server",
+    "searching": "Server wird gesucht…",
+    "password": "Serverpasswort",
+    "passwordPlaceholder": "Frag die Person, die dir die Adresse gegeben hat",
+    "autoConnect": "Beim Start automatisch verbinden",
+    "connecting": "Verbinden…",
+    "connect": "Verbinden",
+    "otherServer": "Anderer Server…",
+    "connected": "Verbunden!",
+    "notConnected": "Nicht verbunden"
+  },
+  "avatar": {
+    "errors": {
+      "notImage": "Wähle eine Bilddatei",
+      "tooLarge": "Das Bild ist zu groß",
+      "unreadable": "Das Bild konnte nicht gelesen werden",
+      "noCanvas": "Das Bild konnte nicht verarbeitet werden",
+      "tooDetailed": "Das Bild konnte nicht auf die nötige Größe verkleinert werden"
+    },
+    "cropper": {
+      "title": "Was im Kreis zu sehen ist",
+      "description": "Verschiebe und zoome das Bild so, wie du dich dem Raum zeigen möchtest.",
+      "frame": "Ausschnitt des Profilbilds",
+      "zoom": "Zoom · {{value}}×",
+      "zoomLabel": "Bildzoom",
+      "apply": "Übernehmen",
+      "cancel": "Abbrechen"
+    }
+  },
+  "favorites": {
+    "errors": {
+      "orderUnsupported": "Dieser Server kann die Reihenfolge der Favoriten noch nicht ändern. Aktualisiere den Server.",
+      "groupsUnsupported": "Dieser Server unterstützt noch keine Favoritengruppen. Aktualisiere den Server."
+    },
+    "settings": {
+      "open": "Beitrittseinstellungen für „{{title}}“",
+      "description": "Beitrittseinstellungen auf diesem Gerät.",
+      "autojoin": "Automatisch beitreten",
+      "autojoinHint": "Diesen Raum sofort öffnen, ohne Vorschau. Das Mikrofon geht beim Beitritt an, die Kamera bleibt aus.",
+      "remove": "Aus den Favoriten entfernen"
+    },
+    "room": {
+      "open": "Öffnen",
+      "rename": "Für mich umbenennen",
+      "pin": "Anheften",
+      "unpin": "Lösen",
+      "group": "Gruppe",
+      "noGroup": "Keine Gruppe",
+      "newGroup": "Neue Gruppe…",
+      "copy": "Code kopieren",
+      "autojoin": "Automatisch beitreten",
+      "remove": "Aus den Favoriten entfernen",
+      "here": "du bist hier",
+      "forgotten": "Der Raum kennt dich nicht mehr",
+      "pinned": "Angeheftet",
+      "actions": "Aktionen für „{{name}}“",
+      "renameField": "Dein Name für „{{name}}“"
+    },
+    "nav": {
+      "title": "Favoriten",
+      "newGroup": "Gruppe",
+      "newGroupLabel": "Gruppe erstellen",
+      "groupField": "Name der neuen Gruppe",
+      "groupPlaceholder": "Zum Beispiel: Arbeit",
+      "pinned": "Angeheftet",
+      "loose": "Ohne Gruppe",
+      "renameGroup": "Umbenennen",
+      "collapse": "Einklappen",
+      "expand": "Ausklappen",
+      "removeGroup": "Gruppe löschen",
+      "emptyGroup": "Noch leer. Zieh einen Raum hierher",
+      "emptyTitle": "Hier erscheinen deine Meetings",
+      "emptyText": "Tippe auf den Stern im Kopf eines Meetings, um von hier aus zurückzukehren.",
+      "loading": "Favoriten werden geladen…",
+      "failed": "Favoriten konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "copied": "Code kopiert",
+      "copyFailed": "Code konnte nicht kopiert werden",
+      "removeText": "Zurückholen kannst du ihn nur im Meeting selbst – mit dem Stern im Kopf.",
+      "removeConfirm": "Entfernen",
+      "cancel": "Abbrechen",
+      "failedAction": "Hat nicht geklappt",
+      "count": "{{n}} von {{max}}",
+      "countLabel_one": "{{n}} von {{count}} Raum gespeichert",
+      "countLabel_other": "{{n}} von {{count}} Räumen gespeichert",
+      "groupsFull": "Höchstens {{max}} Gruppen",
+      "groupActions": "Aktionen für die Gruppe „{{title}}“",
+      "renameGroupField": "Neuer Name für die Gruppe „{{title}}“",
+      "groupRemoved": "Gruppe „{{title}}“ gelöscht, ihre Räume sind jetzt in der allgemeinen Liste",
+      "removeTitle": "„{{name}}“ aus den Favoriten entfernen?"
+    }
+  },
+  "chat": {
+    "uploadFailed": "Upload fehlgeschlagen",
+    "units": {
+      "kib": "{{value}} KiB",
+      "mib": "{{value}} MiB",
+      "gib": "{{value}} GiB"
+    },
+    "oversize": "„{{name}}“ ist {{size}} groß. Ins Meeting kannst du Dateien bis {{max}} senden.",
+    "executable": "Diese Datei kann ein Programm starten. Öffne sie nur, wenn du dem Absender vertraust",
+    "link": {
+      "title": "Link öffnen",
+      "leadsTo": "Der Link führt zu",
+      "question": "Öffnen?",
+      "open": "Öffnen",
+      "cancel": "Abbrechen"
+    }
+  },
+  "sidebar": {
+    "panel": "Meeting-Leiste",
+    "sections": "Bereiche des Meetings",
+    "close": "Leiste schließen",
+    "people": "Personen",
+    "chat": "Chat und Dateien",
+    "services": "Integrationen",
+    "invite": "In den Raum einladen",
+    "search": "Teilnehmer suchen",
+    "waiting": "Wartet auf Zustimmung",
+    "joining": "Tritt bei",
+    "recovering": "Verbindung wird wiederhergestellt",
+    "owner": "Host",
+    "member": "Teilnehmer",
+    "you": " (du)",
+    "micOff": "Mikrofon aus",
+    "retention": "Nachrichten und Dateien verschwinden eine Stunde nach dem Meeting, spätestens nach einem Tag.",
+    "attach": "Datei anhängen",
+    "log": "Nachrichten und Anhänge",
+    "emptyTitle": "Alles direkt beim Gespräch",
+    "emptyText": "Schreib eine Nachricht oder häng eine Datei an – du kannst sie auch einfach hierher ziehen.",
+    "copy": "Nachricht kopieren",
+    "copied": "Nachricht kopiert",
+    "noClipboard": "Kopieren ist in diesem Browser nicht möglich",
+    "copyFailed": "Nachricht konnte nicht kopiert werden",
+    "someone": "Teilnehmer",
+    "temporary": "temporäre Datei",
+    "unfinished": "Unvollständiger Upload",
+    "filesFailed": "Anhänge konnten nicht geladen werden. Die Nachrichten sind weiter verfügbar.",
+    "progress": "Upload-Fortschritt",
+    "paused": "Pausiert",
+    "done": "Hochgeladen",
+    "failed": "Upload fehlgeschlagen",
+    "pause": "Upload pausieren",
+    "resume": "Upload fortsetzen",
+    "hide": "Abgeschlossenen Upload ausblenden",
+    "cancel": "Upload abbrechen",
+    "message": "Nachricht",
+    "ended": "Das Meeting ist beendet",
+    "placeholder": "Nachricht schreiben…",
+    "send": "Nachricht senden",
+    "titles": {
+      "people": "Teilnehmer",
+      "chat": "Chat und Dateien",
+      "services": "Bots und Integrationen"
+    },
+    "here": "In diesem Meeting · {{count}}",
+    "hereOf": "In diesem Meeting · {{count}} von {{seats}}",
+    "approve": "Hereinlassen: {{name}}",
+    "remove": "Entfernen: {{name}}",
+    "download": "{{name}} herunterladen",
+    "dropUnfinished": "Unvollständigen Upload löschen: {{name}}"
+  },
+  "home": {
+    "entry": {
+      "title": "Lass uns reden.",
+      "tagline": "Ein Raum. Alle deine Leute.",
+      "label": "Meeting-Code oder Link",
+      "join": "Beitreten",
+      "hint": "9 Ziffern vom Host oder ein Einladungslink.",
+      "or": "oder",
+      "create": "Neues Meeting",
+      "creationClosed": "Auf diesem Server können vorübergehend keine Meetings erstellt werden.",
+      "unavailable": "Der Server ist nicht erreichbar. Prüfe deine Verbindung.",
+      "retry": "Erneut versuchen"
+    },
+    "here": {
+      "title": "Du bist in einem anderen Tab in einem Meeting",
+      "back": "Zurückkehren",
+      "backLabel": "Hier ins Meeting „{{title}}“ zurückkehren",
+      "moving": "Wird verschoben…"
+    },
+    "shell": {
+      "sidebar": "Seitenleiste",
+      "width": "Breite der Seitenleiste",
+      "openMenu": "Menü öffnen",
+      "closeMenu": "Menü schließen",
+      "menu": "Menü",
+      "settings": "Einstellungen",
+      "privacy": "Ohne Konto. Auf deinem Server.",
+      "about": "Über Cord"
+    }
+  },
+  "prejoin": {
+    "defaultTitle": "Unser Meeting",
+    "defaultName": "Teilnehmer",
+    "autoJoining": "Raum wird betreten…",
+    "cancel": "Abbrechen",
+    "elsewhereUnreachable": "Dieses Meeting ist in diesem Browser nicht geöffnet – vermutlich hält ein geschlossener Tab oder ein anderes Fenster den Platz. Verlasse es dort und tritt hier bei.",
+    "deviceFailed": "Kein Zugriff auf das Gerät. Prüfe die Browserberechtigungen. Als Zuhörer kannst du auch ohne sie beitreten.",
+    "home": "Zur Startseite",
+    "preview": "Vorschau deiner Kamera",
+    "you": "Du",
+    "cameraOff": "Kamera aus",
+    "previewLabel": "Du · Vorschau",
+    "micOn": "Mikrofon stummschalten",
+    "micOff": "Mikrofon einschalten",
+    "cameraOnLabel": "Kamera ausschalten",
+    "cameraOffLabel": "Kamera einschalten",
+    "settingsButton": "Vorschau-Einstellungen",
+    "headphones": "Für besten Ton empfehlen wir Kopfhörer",
+    "eyebrowJoin": "FAST GESCHAFFT",
+    "eyebrowNew": "NEUES MEETING",
+    "ready": "Bereit zum Reden?",
+    "check": "Prüfe, wie man dich sieht und hört.",
+    "noDevices": "Du kannst auch ohne Geräte beitreten.",
+    "name": "Dein Name",
+    "namePlaceholder": "Wie sollen wir dich nennen?",
+    "title": "Name des Meetings",
+    "titlePlaceholder": "Zum Beispiel: Abend mit Freunden",
+    "titleLater": "Den Namen kannst du im Meeting noch ändern.",
+    "access": "Wer beitreten darf",
+    "open": "Per Link und Code – sofort",
+    "openHint": "Wer die Einladung öffnet, ist drin. Gut für Leute, die du kennst.",
+    "approval": "Nur mit deiner Zustimmung",
+    "approvalHint": "Alle warten, bis du sie hereinlässt.",
+    "integrations": "Integrationen für alle Teilnehmer erlauben",
+    "integrationsHint": "Sonst kannst nur du Kino und Musik hinzufügen und entfernen.",
+    "changeLater": "Das kannst du später im Meeting noch ändern.",
+    "permissionNote": "Kamera und Mikrofon kannst du hier oder im Meeting einschalten. Beim ersten Mal fragt der Browser nach der Berechtigung.",
+    "connecting": "Verbinden…",
+    "join": "Meeting beitreten",
+    "start": "Meeting starten",
+    "inviteLater": "Einladungslink und QR-Code erscheinen im Raum.",
+    "settings": {
+      "title": "Vor dem Gespräch",
+      "description": "Geräte und Qualität werden auf diesem Gerät gespeichert. Kamera und Mikrofon schaltest du selbst ein.",
+      "devices": "Geräte",
+      "devicesBusy": "Schalte die Gerätevorschau aus, um das Gerät zu wechseln.",
+      "kinds": {
+        "audioinput": "Mikrofon",
+        "videoinput": "Kamera",
+        "audiooutput": "Tonausgabe"
+      },
+      "default": "Standard",
+      "numbered": "Gerät {{n}}"
+    }
+  },
+  "loader": {
+    "slow": "Langsames Netzwerk",
+    "retry": "Erneut versuchen"
+  },
+  "music": {
+    "sources": {
+      "upload": "Audiodatei",
+      "yandex": "Yandex Music",
+      "unknown": "Musik"
+    },
+    "platforms": {
+      "label": "Plattform",
+      "tiles": "Musikplattformen",
+      "none": "Die Musikplattformen sind auf diesem Server ausgeschaltet – es läuft, was schon in der Warteschlange ist.",
+      "playing": "Läuft gerade:",
+      "paused": "Pausiert:",
+      "youtube": {
+        "hint": "Songs, Musikvideos und Konzerte",
+        "find": "Auf YouTube suchen oder Link einfügen",
+        "link": "Link zu einem YouTube-Video"
+      },
+      "soundcloud": {
+        "hint": "Tracks, Remixe und Sets von Künstlern",
+        "find": "Auf SoundCloud suchen oder Link einfügen",
+        "link": "Link zu einem SoundCloud-Track"
+      },
+      "yandex": {
+        "hint": "Katalog über das Konto des Raums",
+        "find": "In Yandex Music suchen oder Link einfügen",
+        "link": "Link zu einem Yandex-Music-Titel"
+      },
+      "upload": {
+        "name": "Eigene Dateien",
+        "hint": "Audiodateien von diesem Gerät",
+        "drop": "Zieh Audiodateien hierher oder wähle sie auf deinem Gerät aus."
+      }
+    },
+    "player": {
+      "label": "Läuft gerade",
+      "status": {
+        "connecting": "Musik wird verbunden",
+        "empty": "Warteschlange leer",
+        "paused": "Pausiert",
+        "playing": "Läuft gerade"
+      },
+      "firstTrack": "Füg den ersten Titel hinzu",
+      "addedBy": "Hinzugefügt von {{name}}",
+      "emptyHint": "Such unten einen Titel, füg einen Link ein oder lade eine Datei hoch",
+      "position": "Position im Titel",
+      "shuffle": "Warteschlange mischen",
+      "resume": "Musik fortsetzen",
+      "pause": "Musik pausieren",
+      "next": "Nächster Titel",
+      "repeat": "Warteschlange wiederholen",
+      "volume": "Deine Musiklautstärke"
+    },
+    "queue": {
+      "label": "Musik-Warteschlange",
+      "next": "Als Nächstes",
+      "clear": "Leeren",
+      "empty": "Danach kommt nichts: Der oben gefundene Titel läuft als Nächstes.",
+      "moved": "„{{title}}“ – Nr. {{position}} nach dem aktuellen",
+      "reorder": "Verschieben: {{title}}",
+      "actions": "Aktionen: {{title}}",
+      "playNext": "Als Nächstes abspielen",
+      "remove": "Aus der Warteschlange entfernen",
+      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben"
+    },
+    "search": {
+      "notOurs": "Solche Links öffnet die Musik nicht. YouTube, SoundCloud und Yandex Music funktionieren",
+      "added": "Hinzugefügt: {{title}}",
+      "track": "Titel",
+      "refusals": {
+        "preview": "Nur Ausschnitt",
+        "unavailable": "Nicht hinzufügbar",
+        "unavailableYandex": "Nicht verfügbar",
+        "denied": "Keine Rechte"
+      },
+      "yandexConnect": "Um einen Yandex-Music-Titel hinzuzufügen, verbinde oben das Konto des Raums",
+      "locked": "Titel hinzufügen hat sich der Host vorbehalten",
+      "sourceOff": "{{name}}-Links sind auf diesem Server ausgeschaltet",
+      "elsewhere": "Das ist ein {{name}}-Link – er wird auf seiner eigenen Plattform hinzugefügt.",
+      "switchTo": "Zu {{name}} wechseln",
+      "connectToSearch": "Verbinde oben Yandex Music, um Titel zu suchen",
+      "labelLink": "Link zu einem Titel einfügen",
+      "placeholderFind": "Titel, Künstler oder Link",
+      "clear": "Suche löschen",
+      "adding": "Titel wird hinzugefügt",
+      "found": "Gefunden: {{name}}",
+      "searching": "Suche läuft",
+      "noAnswer": "Die Plattform hat nicht geantwortet",
+      "nothing": "Nichts gefunden",
+      "add": "Zur Warteschlange hinzufügen: {{title}}"
+    },
+    "upload": {
+      "failed": "Titel konnte nicht hinzugefügt werden",
+      "tooBig": "„{{name}}“: höchstens {{limit}} MB pro Titel",
+      "input": "Musikdateien hinzufügen",
+      "button": "Dateien hochladen",
+      "cancel": "Abbrechen",
+      "hint": "Du kannst sie auch hineinziehen: bis zu {{limit}} MB und 60 Minuten pro Titel"
+    },
+    "yandex": {
+      "connected": "Konto verbunden",
+      "expired": "Der Code ist abgelaufen. Hol dir einen neuen",
+      "tokenConnected": "Mit gespeichertem Token verbunden",
+      "tokenStale": "Der gespeicherte Token funktioniert nicht mehr. Melde dich bei Yandex an oder gib einen neuen Token ein.",
+      "checking": "Verbindung wird geprüft…",
+      "hint": "Das Konto des Raums: Darüber suchen und spielen alle Teilnehmer Titel ab",
+      "badge": "Verbunden",
+      "connect": "Verbinden",
+      "switch": "Konto wechseln",
+      "disconnect": "Trennen",
+      "qr": "QR-Code der Yandex-Anmeldeseite",
+      "openPage": "Öffne die Yandex-Seite und gib den Code ein:",
+      "signIn": "Bei Yandex anmelden",
+      "waiting": "Die Bestätigung erscheint hier von selbst. Der Code gilt 5 Minuten.",
+      "cancel": "Anmeldung abbrechen",
+      "haveToken": "Ich habe schon einen Zugriffstoken",
+      "tokenLabel": "Yandex-Music-Token",
+      "connectToken": "Token verbinden",
+      "note": "Das Passwort gibst du auf der Yandex-Seite ein. Für ganze Titel brauchst du ein Konto mit Abo. Funktioniert über einen inoffiziellen Open-Source-Connector für Yandex Music."
+    }
+  },
+  "integrations": {
+    "title": "Zum Meeting hinzufügen",
+    "soon": "Bald in Cord",
+    "apart": "Mit deinem Chat verbunden",
+    "blocked": "Gerade ist eine andere Integration aktiv: {{name}}",
+    "telegramNote": "Verbindet der Ersteller des Meetings",
+    "pick": "Plattform wählen",
+    "last": "Letzte Auswahl",
+    "shelf": {
+      "games": {
+        "name": "Spiele",
+        "hint": "Poker, Durak, Schach und Gartic"
+      },
+      "cinema": {
+        "name": "Kino",
+        "hint": "Videos und Livestreams für den ganzen Raum"
+      },
+      "music": {
+        "name": "Musik",
+        "hint": "Eine gemeinsame Warteschlange für das ganze Meeting"
+      },
+      "any-game": {
+        "name": "Beliebiges Spiel",
+        "hint": "Browserspiele für das ganze Meeting"
+      },
+      "standup": {
+        "name": "Stand-up-Bühne",
+        "hint": "Einer tritt auf, die anderen schauen zu und reagieren"
+      },
+      "board": {
+        "name": "Whiteboard",
+        "hint": "Eine gemeinsame Leinwand: Alle zeichnen gleichzeitig"
+      },
+      "telegram": {
+        "hint": "Meetings und Musik aus deinem Telegram-Chat"
+      }
+    },
+    "music": {
+      "files": "Eigene Audiodateien",
+      "queue": "Eine gemeinsame Warteschlange für das ganze Meeting",
+      "withFiles": "{{list}} und eigene Dateien"
+    },
+    "telegram": {
+      "back": "Zu den Integrationen",
+      "lead": "Verknüpfe das Meeting mit einem Telegram-Chat: Im Chat erscheint die angeheftete Schaltfläche „Meeting öffnen“, und die Mitglieder treten direkt aus Telegram bei – im Vollbild, mit eigenem Namen.",
+      "chats": "Verknüpfte Chats",
+      "pinned": "Schaltfläche im Chat angeheftet",
+      "notPinned": "Schaltfläche nicht angeheftet: Gib dem Bot das Recht, Nachrichten anzuheften",
+      "unlink": "Trennen",
+      "unlinkNamed": "Chat „{{title}}“ trennen",
+      "link": "Mit einem Chat verknüpfen",
+      "addBot": "Bot zu einer Gruppe hinzufügen",
+      "orCommand": "Oder sende in einer Gruppe mit dem Bot:",
+      "copy": "Befehl kopieren",
+      "copied": "Kopiert",
+      "expires": "Der Code gilt 15 Minuten und funktioniert einmal"
+    }
+  },
+  "services": {
+    "cinemaLive": "Läuft gerade",
+    "music": {
+      "tokenFailed": "Der gespeicherte Yandex-Music-Token konnte nicht verbunden werden. Verbinde das Konto unten manuell.",
+      "back": "Integrationen",
+      "locked": "Der Host hat die Steuerung der Integrationen sich selbst vorbehalten. Die Musiklautstärke für dich kannst du unten ändern.",
+      "needJoin": "Musik ist verfügbar, sobald du dem Meeting beigetreten bist.",
+      "down": "Musik reagiert gerade nicht.",
+      "retry": "Erneut versuchen",
+      "connecting": "Musik wird verbunden…",
+      "title": "Musik",
+      "intro": "Eine Warteschlange für das ganze Meeting: {{sources}}. Belegt einen Platz im Meeting.",
+      "queueKept_one": "Die Warteschlange ist noch da: {{count}} Titel spielt weiter, sobald die Musik wieder im Meeting ist.",
+      "queueKept_other": "Die Warteschlange ist noch da: {{count}} Titel spielen weiter, sobald die Musik wieder im Meeting ist.",
+      "enable": "Zum Meeting hinzufügen",
+      "enableLocked": "Integrationen hinzufügen darf laut Host nur er selbst.",
+      "remove": "Musik aus dem Meeting entfernen"
+    },
+    "roster": {
+      "label": "Bots und Integrationen",
+      "music": "Musik",
+      "open": "Musikplayer öffnen",
+      "check": "Verbindung muss geprüft werden",
+      "add": "Zum Meeting hinzufügen",
+      "connecting": "Verbinden…",
+      "paused": "Pausiert",
+      "playing": "Läuft gerade",
+      "empty": "Warteschlange leer"
+    },
+    "status": {
+      "unavailable": "Status nicht verfügbar",
+      "loading": "Status wird geladen",
+      "disabled": "Aus",
+      "connecting": "Verbindet",
+      "playing": "Spielt",
+      "paused": "Pausiert",
+      "idle": "Bereit zur Wiedergabe",
+      "empty": "Warteschlange leer",
+      "error": "Fehler"
+    },
+    "game": {
+      "label": "{{name}}: {{status}}",
+      "lobby": "Lobby",
+      "over": "beendet",
+      "playing": "läuft"
+    },
+    "games": {
+      "poker": "Poker",
+      "durak": "Durak",
+      "chess": "Schach"
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnose",
+    "description": "Prüfe deine Geräte und die tatsächliche Verbindung dieses Meetings.",
+    "network": "Netzwerk",
+    "media": {
+      "label": "Audio und Video",
+      "connected": "Verbunden",
+      "recovering": "Werden wiederhergestellt",
+      "disconnected": "Nicht verbunden"
+    },
+    "control": {
+      "label": "Chat und Steuerung",
+      "connected": "Verbunden",
+      "closed": "Getrennt",
+      "connecting": "Verbinden…"
+    },
+    "quality": {
+      "label": "Qualität laut Medienserver",
+      "values": {
+        "excellent": "Ausgezeichnet",
+        "good": "Gut",
+        "poor": "Schwach",
+        "lost": "Verbindung verloren",
+        "unknown": "Noch keine Daten"
+      }
+    },
+    "path": "Medienpfad",
+    "jitter": {
+      "label": "Jitter beim Paketempfang",
+      "value": "{{ms}} ms, Spitze"
+    },
+    "noData": "Keine Daten",
+    "buffer": {
+      "label": "Puffer, den der Client anfordert",
+      "kinds": {
+        "conversation": "Gespräch",
+        "media": "Musik und Bildschirm",
+        "video": "Video"
+      },
+      "target": "{{kind}} {{ms}} ms",
+      "none": "Keine abonnierten Spuren"
+    },
+    "ordered": "Die Medien laufen über ein Relay per TCP/TLS. Dieser Weg verliert keine Pakete, sondern fordert sie neu an – und alles, was danach kommt, wartet auf den Nachzügler. Klingt wie „erst still, dann schneller geredet“. Der Puffer wurde automatisch erhöht. Passiert das öfter, prüfe, ob dein Netzwerk UDP bis zum Medienserver durchlässt: Der direkte Weg ist deutlich gleichmäßiger.",
+    "checking": "Wird geprüft…",
+    "check": "Netzwerk prüfen",
+    "result": {
+      "text": "Serverantwort: {{answer}}. Erfolgreiche Anfragen: {{ok}} von {{total}}.",
+      "average": "{{average}} ms im Schnitt · {{min}}–{{max}} ms",
+      "none": "nicht erhalten"
+    },
+    "footnote": "Der Test misst die Antwortzeit des App-Servers. Route von Audio und Video, Paketverlust und RTT zum Medienserver erscheinen unten, sobald im Meeting Spuren übertragen werden.",
+    "details": "Details zu Audio und Video",
+    "noTracks": "Im Meeting gibt es noch keine aktiven Spuren. Der lokale Gerätetest sendet nichts an den Medienserver.",
+    "audio": "Audio",
+    "video": "Video",
+    "resolution": "Auflösung",
+    "fps": "Bilder pro Sekunde",
+    "bitrate": "Bitrate",
+    "kbps": "{{value}} kbit/s",
+    "loss": "Paketverlust im Intervall",
+    "connection": "Verbindung",
+    "rtt": "RTT zum Medienserver",
+    "ms": "{{value}} ms",
+    "codec": "Codec",
+    "bufferRx": "Empfangspuffer",
+    "encode": "Kodierung pro Bild",
+    "decode": "Dekodierung pro Bild",
+    "implementation": "Video-Engine",
+    "limitation": "Begrenzung",
+    "limits": {
+      "none": "Keine erkannt",
+      "cpu": "Encoder / CPU",
+      "bandwidth": "Bandbreite",
+      "unknown": "Keine Daten vom Sender"
+    },
+    "stuck": {
+      "title": "Bild oder Ton hängt?",
+      "text": "Wir aktualisieren den Empfang der Spuren der anderen Teilnehmer. Eine kurze Pause ist möglich.",
+      "button": "Audio und Video aktualisieren"
+    },
+    "sampler": {
+      "direct": "Direkt zur SFU",
+      "protocolHidden": "Protokoll nicht angegeben",
+      "unknownTransport": "Unbekannt",
+      "inbound": "Empfang",
+      "outbound": "Senden",
+      "codecHidden": "Nicht angegeben",
+      "implementationHidden": "Vom Browser nicht angegeben"
+    }
+  },
+  "download": {
+    "home": "Cord – zur Startseite",
+    "back": "Startseite",
+    "title": "Cord für Windows",
+    "checking": "Wir schauen, was veröffentlicht ist…",
+    "unavailable": "Die Windows-Version ist gerade nicht verfügbar. Versuch es etwas später noch einmal.",
+    "requirements": "Windows 10 Build 19041 oder neuer, x64",
+    "installer": "Installer herunterladen",
+    "installNote": "Installation für den aktuellen Benutzer – keine Administratorrechte nötig. WebView2 wird automatisch installiert, falls es fehlt.",
+    "portable": "Portable Version ohne Installation, ZIP",
+    "connect": {
+      "title": "Womit du dich nach der Installation verbindest",
+      "text": "Cord verbindet sich nicht von selbst – beim ersten Start fragt es nach einer Serveradresse. Das ist die Adresse genau dieser Seite, von der du die App gerade herunterlädst:",
+      "address": "Adresse dieses Servers",
+      "copied": "Adresse kopiert",
+      "copy": "Adresse kopieren",
+      "note": "In Cord: „Ersten Server angeben“ → Adresse einfügen → „Hinzufügen“. Name und Passwort nur, wenn der Server sie verlangt; du kannst mehrere Server speichern und zwischen ihnen wechseln."
+    },
+    "warning": {
+      "title": "Windows zeigt eine Warnung an",
+      "text": "Der Installer ist nicht mit einem Herausgeberzertifikat signiert. Deshalb meldet SmartScreen „Der Computer wurde durch Windows geschützt“ und nennt den Herausgeber unbekannt. Das passiert bei jedem neuen Programm ohne kostenpflichtiges Zertifikat, nicht speziell bei diesem.",
+      "details": "Klick im Warnfenster auf <b>Weitere Informationen</b>.",
+      "run": "Dann auf <b>Trotzdem ausführen</b>.",
+      "after": "Das passiert nur einmal, bei der Installation. Danach startet Cord ganz normal: Der Vermerk „aus dem Internet heruntergeladen“ hängt an der heruntergeladenen Datei, nicht an dem, was der Installer auf die Festplatte legt. Bei der portablen Version bleibt der Vermerk an den entpackten Dateien – deshalb ist der Installer angenehmer."
+    },
+    "install": {
+      "title": "Cord auf dem Home-Bildschirm",
+      "app": "Öffnet sich wie eine App, ohne Adressleiste.",
+      "ios": "Tippe auf <share/> und wähle <plus/> „Zum Home-Bildschirm“. Es öffnet sich wie eine App, ohne Adressleiste.",
+      "share": "Teilen",
+      "install": "Installieren",
+      "hide": "Hinweis ausblenden",
+      "iosBackground": "Gespräche im Hintergrund hält das iPhone nur in Safari: Vom Home-Bildschirm aus geht das Mikrofon aus, sobald du die App verlässt."
+    },
+    "desktop": {
+      "settings": "Ton- und Profileinstellungen"
+    }
+  },
+  "telegram": {
+    "opening": "Meeting wird geöffnet",
+    "outside": {
+      "title": "Öffne das Meeting aus Telegram",
+      "body": "Diese Seite öffnet sich über die Schaltfläche „Meeting öffnen“ im Chat, mit dem das Meeting verknüpft ist.",
+      "home": "Cord öffnen"
+    },
+    "failed": {
+      "title": "Meeting konnte nicht geöffnet werden",
+      "retry": "Erneut versuchen",
+      "close": "Schließen",
+      "leaveOther": "Dort verlassen und hier beitreten"
+    },
+    "media": {
+      "title": "Das Mikrofon ist in Telegram nicht verfügbar",
+      "denied": "Telegram hat dem Meeting kein Mikrofon gegeben. Erlaube den Zugriff in der Anfrage oder öffne das Meeting im Browser.",
+      "unsupported": "Dieser Telegram-Client gibt der Seite keinen Zugriff auf Mikrofon und Kamera. Im Browser funktioniert das Meeting vollständig.",
+      "browser": "Im Browser öffnen",
+      "listen": "Ohne Mikrofon beitreten"
+    }
+  },
+  "errors": {
+    "ADMIN_DISABLED": "Die Inhaberseite ist auf diesem Server ausgeschaltet",
+    "ADMIN_PASSWORD_INVALID": "Falsches Inhaberpasswort",
+    "ADMIN_REQUIRED": "Melde dich mit dem Passwort des Serverinhabers an",
+    "ALREADY_IN_MEETING": "Du bist bereits in einem anderen Meeting",
+    "BLOCKED": "Der Inhaber hat den Zugang zu diesem Server gesperrt",
+    "BLOCK_NOT_FOUND": "Die Sperre wurde bereits aufgehoben oder ist abgelaufen",
+    "BLOCK_SUBJECT_UNKNOWN": "Adresse und Profil dieser Person sind unbekannt: Es gibt nichts zu sperren",
+    "CHAT_RATE": "Zu viele Nachrichten hintereinander. Warte eine Minute",
+    "CHAT_REPEAT": "Diese Nachricht wurde schon gesendet. Warte kurz",
+    "CHESS_ACTION": "Unbekannte Aktion am Schachbrett",
+    "CHESS_CLOSED": "Das Schachbrett ist bereits geschlossen",
+    "CHESS_MOVE": "Ungültiger Zug",
+    "CHESS_PRESET": "Wähle eine Bedenkzeit",
+    "CHESS_SEAT": "Wähle eine Farbe",
+    "CODE_INVALID": "Prüfe den Meeting-Code",
+    "CODE_MISSES": "Zu viele falsche Codes. Versuch es später oder tritt per Link bei",
+    "COMMAND_REUSED": "Diese Befehls-ID wurde bereits verwendet",
+    "DRAINING": "Der Server nimmt gerade keine neuen Räume an",
+    "DURAK_ACTION": "Dieser Zug ist nicht erlaubt",
+    "DURAK_BEATEN": "Weitergeben geht nur, bevor man mit dem Abwehren beginnt",
+    "DURAK_BOUT_OVER": "Dieser Angriff ist schon vorbei",
+    "DURAK_CARD": "Keine Karte ausgewählt",
+    "DURAK_CLOSED": "Der Host hat die Plätze geschlossen",
+    "DURAK_DECK": "Das Kartenspiel hat 36 oder 52 Karten",
+    "DURAK_DEFENDER": "Du wehrst ab",
+    "DURAK_EMPTY": "Noch gibt es nichts aufzunehmen",
+    "DURAK_FIRST_BOUT": "Der erste Angriff wird nicht weitergegeben",
+    "DURAK_FULL": "Am Tisch ist kein Platz mehr frei",
+    "DURAK_IDLE": "Keine Partie im Gange",
+    "DURAK_IN_HAND": "Das lässt sich nur zwischen den Partien ändern",
+    "DURAK_LIMIT": "In diesem Angriff kann nichts mehr nachgelegt werden",
+    "DURAK_NEED_PLAYERS": "Am Tisch müssen mindestens zwei sitzen",
+    "DURAK_NO_TRANSFER": "An diesem Tisch wird nicht weitergegeben",
+    "DURAK_OPEN": "Der Tisch ist bereits geöffnet",
+    "DURAK_PAUSED": "Das Spiel ist pausiert. Warte, bis es weitergeht",
+    "DURAK_RANK": "Eine Karte dieses Werts liegt nicht auf dem Tisch",
+    "DURAK_REACTION": "Unbekannte Reaktion",
+    "DURAK_REACTION_COOLDOWN": "Warte vor der nächsten Reaktion",
+    "DURAK_SEAT": "Diesen Platz gibt es am Tisch nicht",
+    "DURAK_SEATED": "Du sitzt bereits am Tisch",
+    "DURAK_SETTING": "Unbekannte Tischeinstellung",
+    "DURAK_SMALL_DECK": "Für so viele Spieler braucht es ein größeres Kartenspiel",
+    "DURAK_TAKEN": "Der Platz ist schon besetzt",
+    "DURAK_TAKING": "Du hast die Karten schon aufgenommen",
+    "DURAK_TARGET": "Diese Karte wartet nicht auf Abwehr",
+    "DURAK_TRANSFER": "Es gibt niemanden zum Weitergeben",
+    "DURAK_TURN": "Ausspielen darf nur, wer am Zug ist",
+    "DURAK_UNBEATEN": "Auf dem Tisch liegt eine nicht abgewehrte Karte",
+    "DURAK_WAITING": "Du spielst in dieser Partie nicht mit",
+    "DURAK_WEAK": "Diese Karte sticht die andere nicht",
+    "EMPTY_MESSAGE": "Gib eine Nachricht ein",
+    "FAVORITES_CHANGED": "Die Raumliste hat sich geändert. Aktualisiere die Favoriten",
+    "FAVORITES_FULL": "Die Favoriten sind voll. Entferne einen Raum, um diesen hinzuzufügen",
+    "FAVORITE_GROUPS_CHANGED": "Die Gruppen haben sich geändert. Aktualisiere die Favoriten",
+    "FAVORITE_GROUPS_FULL": "Höchstens zehn Gruppen. Lösche eine, um eine neue zu erstellen",
+    "FAVORITE_GROUP_MISSING": "Diese Gruppe gibt es nicht mehr. Aktualisiere die Favoriten",
+    "FAVORITE_GROUP_ORDER_INVALID": "Gruppen dürfen in der Liste nicht doppelt vorkommen",
+    "FAVORITE_MISSING": "Der Raum ist nicht in den Favoriten",
+    "FAVORITE_ORDER_INVALID": "Räume dürfen in der Liste nicht doppelt vorkommen",
+    "FILE_EXPIRED": "Die Datei ist nicht verfügbar oder wurde gelöscht",
+    "FILE_NOT_FOUND": "Datei nicht gefunden",
+    "FILE_NOT_READY": "Die Datei wird noch verarbeitet",
+    "FILE_TOO_LARGE": "Die maximale Dateigröße beträgt 100 MiB",
+    "FILE_TYPE_BLOCKED": "Dieser Server nimmt solche Dateien nicht an: Sie können ein Programm starten",
+    "FORBIDDEN": "Zugriff nicht verfügbar oder widerrufen",
+    "GAME_HOST_ONLY": "Das kann nur der Host des Spiels",
+    "GAME_OPTION_REQUIRED": "Wähle eine Spielvariante",
+    "GAME_STALE": "Das Spiel hat sich schon geändert. Warte auf die Aktualisierung",
+    "GAME_TURN_REQUIRED": "Die aktuelle Spielphase ist nicht angegeben",
+    "GARTIC_CLOSED": "Das Zeichenspiel ist bereits geschlossen",
+    "GARTIC_DRAWING": "Die Zeichnung konnte nicht gelesen werden",
+    "HISTORY_EXPIRED": "Der Meeting-Verlauf wurde gelöscht",
+    "INTEGRATION_BUSY": "Eine andere Integration ist bereits aktiv",
+    "INVALID_AVATAR": "Das Bild konnte nicht gelesen werden",
+    "INVALID_COMMAND": "Ungültiger Befehl",
+    "INVALID_PING": "Ungültiger PING",
+    "INVALID_REQUEST": "Prüfe die Anfragedaten",
+    "INVITE_INVALID": "Die Einladung ist abgelaufen oder wurde widerrufen",
+    "INVITE_LIMIT": "Zu viele Einladungen",
+    "MEDIA_UNAVAILABLE": "Der Medienserver ist vorübergehend nicht verfügbar",
+    "NAME_INVALID": "Gib einen Namen ein",
+    "NAME_RESERVED": "Dieser Name ist reserviert: So darf kein Teilnehmer heißen",
+    "OPEN_ROOMS": "Von dieser Adresse laufen bereits mehrere Meetings. Beende eines davon",
+    "PASSWORD_MISSES": "Zu viele falsche Passwörter. Versuch es später erneut",
+    "POKER_ACTION": "Unbekannte Aktion",
+    "POKER_CAPPED": "Auf ein kurzes All-in kann man nur antworten",
+    "POKER_CHECK": "Check nicht möglich: Es gibt einen Einsatz",
+    "POKER_CLOSED": "Der Host hat die Plätze bis zum Spielende geschlossen",
+    "POKER_FULL": "Am Tisch ist kein Platz mehr frei",
+    "POKER_IN_HAND": "Nachkaufen geht zwischen den Händen",
+    "POKER_MIN_RAISE": "Die Erhöhung liegt unter dem Minimum",
+    "POKER_MODE": "Diesen Spielmodus gibt es nicht",
+    "POKER_NEED_PLAYERS": "Es braucht mindestens zwei bereite Spieler",
+    "POKER_NO_REBUY": "An diesem Tisch sind keine Rebuys erlaubt",
+    "POKER_OPEN": "Der Tisch ist bereits geöffnet",
+    "POKER_OPTION": "Unbekannte Tischeinstellung",
+    "POKER_OVER": "Das Spiel ist vorbei",
+    "POKER_PAUSED": "Das Spiel ist pausiert",
+    "POKER_RAISE": "Der Einsatz muss höher als der aktuelle sein",
+    "POKER_SEAT": "Diesen Platz gibt es am Tisch nicht",
+    "POKER_SEATED": "Du sitzt bereits am Tisch",
+    "POKER_STACK_FULL": "Du hast noch Chips",
+    "POKER_TAKEN": "Der Platz ist schon besetzt",
+    "POKER_TURN": "Du bist nicht am Zug",
+    "PROOF_INVALID": "Der Browser konnte nicht geprüft werden. Lade die Seite neu und versuch es erneut",
+    "QUOTA_EXCEEDED": "Nicht genug Speicherplatz für den Anhang",
+    "RATE_LIMITED": "Zu viele Anfragen. Warte eine Minute",
+    "RATE_SERVICE_UNAVAILABLE": "Der Anmeldedienst ist vorübergehend nicht verfügbar",
+    "ROOMS_PER_HOUR": "Zu viele neue Meetings in einer Stunde. Versuch es später",
+    "ROOM_CLOSED": "Das Meeting ist beendet",
+    "ROOM_FULL": "Das Meeting ist voll",
+    "ROOM_LIMIT": "Alle Räume sind belegt. Versuch es später",
+    "ROOM_NOT_FOUND": "Raum nicht gefunden",
+    "SCREEN_ENDED": "Bildschirmfreigabe beendet",
+    "SCREEN_LIMIT": "Es werden bereits zwei Bildschirme geteilt",
+    "SERVER_PASSWORD_INVALID": "Falsches Serverpasswort",
+    "SERVER_PASSWORD_REQUIRED": "Verbinde dich mit dem Server: Ein Passwort ist erforderlich",
+    "SERVICE_EXISTS": "Der Musikdienst ist bereits verbunden",
+    "SESSION_ENDED": "Die Sitzung ist beendet. Betritt den Raum erneut",
+    "SESSION_LIMIT": "Das Beitrittslimit für dieses Meeting ist erreicht",
+    "SESSION_REPLACED": "Diese Sitzung wurde durch eine neue ersetzt",
+    "TELEGRAM_INIT_DATA": "Der Link ist abgelaufen. Öffne das Meeting erneut aus dem Chat",
+    "TELEGRAM_LINK_REVOKED": "Die Verknüpfung wurde aufgehoben. Bitte den Ersteller des Meetings, sie neu herzustellen",
+    "TELEGRAM_LINK_UNKNOWN": "Öffne das Meeting über die Schaltfläche im verknüpften Chat",
+    "TELEGRAM_MEETING_GONE": "Dieses Meeting gibt es nicht mehr. Erstelle im Chat ein neues: /meet",
+    "TELEGRAM_NOT_MEMBER": "Du bist nicht Mitglied des Chats, mit dem das Meeting verknüpft ist",
+    "TELEGRAM_WEBAPP_OFF": "Der Beitritt aus Telegram ist auf diesem Server ausgeschaltet",
+    "TITLE_INVALID": "Gib einen Namen für das Meeting ein",
+    "UNKNOWN_COMMAND": "Unbekannter Befehl",
+    "UPLOAD_BUSY": "Warte, bis der aktuelle Upload fertig ist",
+    "UPLOAD_QUOTA_IP": "Von dieser Adresse wurden zu viele Dateien hochgeladen. Versuch es später erneut",
+    "VIEW_CLOSED": "Die Ansicht ist geschlossen",
+    "WATCH_CLOSED": "Das gemeinsame Ansehen ist beendet",
+    "WATCH_INVALID": "Nichts zu öffnen",
+    "WATCH_LIVE": "Ein Livestream lässt sich nicht pausieren oder zurückspulen"
+  },
+  "activity": {
+    "title": "Aktivität",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "password": "Inhaberpasswort",
+    "loginHint": "Seite des Serverinhabers: Meetings, Protokoll und Sperren. Das Passwort ist ADMIN_PASSWORD aus den Servereinstellungen.",
+    "disabled": "Auf diesem Server ist die Inhaberseite ausgeschaltet: Setze ADMIN_PASSWORD und starte den Kern neu.",
+    "refresh": "Aktualisieren",
+    "tabs": {
+      "now": "Jetzt",
+      "meetings": "Meetings",
+      "audit": "Protokoll",
+      "blocks": "Sperren",
+      "server": "Server"
+    },
+    "integrations": {
+      "watch": "Kino",
+      "music": "Musik",
+      "poker": "Poker",
+      "durak": "Durak",
+      "chess": "Schach",
+      "gartic": "Gartic"
+    },
+    "now": {
+      "live": "Laufende Meetings",
+      "waiting": "Warten auf eine zweite Person",
+      "humans": "Anwesende Personen",
+      "connected": "Verbunden",
+      "bots": "Bots",
+      "screens": "Bildschirmfreigaben",
+      "empty": "Gerade keine Meetings.",
+      "code": "Code",
+      "duration": "Läuft seit",
+      "people": "Personen",
+      "integrations": "Integrationen",
+      "actions": "Aktionen",
+      "notStarted": "wartet auf eine zweite Person",
+      "peopleValue": "{{humans}}, verbunden {{connected}}",
+      "close": "Beenden",
+      "closeAndBlock": "Beenden und Ersteller sperren",
+      "sure": "Sicher? Noch einmal klicken",
+      "atDoor_one": "{{count}} an der Tür",
+      "atDoor_other": "{{count}} an der Tür",
+      "botsValue_one": "{{count}} Bot",
+      "botsValue_other": "{{count}} Bots"
+    },
+    "meetings": {
+      "period": "Zeitraum",
+      "periods": {
+        "day": "24 Stunden",
+        "week": "7 Tage",
+        "month": "30 Tage"
+      },
+      "total": "Meetings",
+      "humanHours": "Personenstunden",
+      "median": "Median der Dauer",
+      "peak": "Höchstzahl Personen in einem Meeting",
+      "devices": "Verschiedene Geräte",
+      "joins": "Beitritte",
+      "joinsValue": "{{ok}} / abgelehnt {{failed}}",
+      "empty": "In diesem Zeitraum gab es keine Meetings. Ein Meeting zählt, sobald zwei Personen verbunden sind.",
+      "byDay": "Meetings pro Tag",
+      "byDuration": "Wie lange die Meetings dauerten",
+      "integrations": "Meetings mit Integrationen",
+      "upTo": "bis {{duration}}",
+      "longer": "länger als {{duration}}",
+      "count_one": "{{count}} Meeting",
+      "count_other": "{{count}} Meetings",
+      "dayTip_one": "{{count}} Meeting, {{hours}} Personenstunden, Spitze {{peak}}",
+      "dayTip_other": "{{count}} Meetings, {{hours}} Personenstunden, Spitze {{peak}}"
+    },
+    "audit": {
+      "group": "Was",
+      "groups": {
+        "all": "Alles",
+        "room": "Meetings",
+        "participant": "Beitritte und Teilnehmer",
+        "admin": "Inhaber",
+        "block": "Sperren"
+      },
+      "outcome": "Ergebnis",
+      "outcomes": {
+        "all": "Beliebig",
+        "ok": "Erfolgreich",
+        "denied": "Abgelehnt"
+      },
+      "code": "Meeting-Code",
+      "empty": "Keine Einträge.",
+      "when": "Wann",
+      "action": "Was",
+      "who": "Wer",
+      "meeting": "Meeting",
+      "address": "Adresse",
+      "addressHint": "Fingerabdruck der Adresse: Die Adresse selbst speichert der Server nicht",
+      "refused": "abgelehnt {{code}}",
+      "block": "Sperren",
+      "blocked": "Gesperrt",
+      "reason": "Aus dem Protokoll",
+      "more": "Mehr anzeigen",
+      "actions": {
+        "room_created": "Hat ein Meeting erstellt",
+        "room_closed": "Meeting beendet",
+        "participant_joined": "Ist dem Meeting beigetreten",
+        "participant_removed": "Hat einen Teilnehmer entfernt",
+        "attachment_reserved": "Lädt eine große Datei hoch",
+        "admin_login": "Anmeldung des Inhabers",
+        "admin_room_closed": "Inhaber hat ein Meeting beendet",
+        "admin_shield_cleared": "Inhaber hat den „Schutzschild“ aufgehoben",
+        "block_created": "Sperre",
+        "block_lifted": "Sperre aufgehoben",
+        "block_auto": "Automatische Sperre wegen häufiger Ablehnungen",
+        "other": "Sonstiges"
+      },
+      "kinds": {
+        "participant": "Teilnehmer",
+        "creator": "Ersteller",
+        "host": "Host",
+        "bot": "Bot",
+        "system": "Server",
+        "admin": "Inhaber",
+        "anonymous": "nicht beigetreten"
+      }
+    },
+    "blocks": {
+      "hint": "Eine Sperre schließt den Server für eine Adresse (bei IPv6 für ihr /64-Netz) oder für ein Gerät. Setzen kannst du sie auf den Tabs „Jetzt“ und „Protokoll“.",
+      "empty": "Keine Sperren.",
+      "ip": "Adresse",
+      "profile": "Gerät",
+      "auto": "automatisch",
+      "manual": "Inhaber",
+      "ended": "aufgehoben oder abgelaufen",
+      "forever": "dauerhaft",
+      "until": "bis {{date}}",
+      "lift": "Aufheben"
+    },
+    "server": {
+      "shield": "„Schutzschild“ gegen Code-Raten",
+      "shieldOn": "an: Beitritt per Code läuft über den Host",
+      "shieldOff": "aus",
+      "clearShield": "„Schutzschild“ aufheben",
+      "blocks": "Aktive Sperren",
+      "autoBlock": "Automatische Sperre",
+      "autoBlockValue": "{{count}} Ablehnungen in {{window}} – Sperre für {{term}}",
+      "off": "aus",
+      "blockDefault": "Standarddauer einer Sperre",
+      "retention": "Aufbewahrung",
+      "retentionValue": "Protokoll – {{audit}}, Meetings – {{meetings}}, Tagesbilanzen – {{daily}}",
+      "build": "Version des Kerns",
+      "never": "immer",
+      "grafana": "Diagramme der Maschine, der SFU und Alarme gibt es in Grafana aus dem Profil monitoring. Sie lauscht nur auf diesem Server; öffne sie per Tunnel von deinem Computer und dann http://localhost:3000:",
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "hours_one": "{{count}} Stunde",
+      "hours_other": "{{count}} Stunden",
+      "minutes_one": "{{count}} Minute",
+      "minutes_other": "{{count}} Minuten"
     }
   }
 }
