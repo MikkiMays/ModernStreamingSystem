@@ -598,7 +598,7 @@ export type Verdict =
 export function verdictText(t: Translate, verdict: Verdict): string {
   switch (verdict.state) {
     case 'ok':
-      return t(($) => $.poker.verdict.ok, { cards: verdict.cards });
+      return t(($) => $.poker.verdict.ok, { cards: verdict.cards, count: verdict.cards });
     case 'unavailable':
       return t(($) => $.poker.verdict[verdict.reason]);
     default:

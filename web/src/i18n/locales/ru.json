@@ -828,7 +828,10 @@
       "progress": "Прогресс игроков",
       "list": "Счёт игроков"
     },
-    "points": "{{count}} очков",
+    "points_one": "{{count}} очко",
+    "points_few": "{{count}} очка",
+    "points_many": "{{count}} очков",
+    "points_other": "{{count}} очка",
     "results": {
       "rank": "Место {{rank}}",
       "you": "Это вы",
@@ -836,7 +839,10 @@
       "pointsWord": "очков",
       "details": "Подробности: {{name}}",
       "toFirst": "До первого места",
-      "pointsValue": "{{points}} очков",
+      "pointsValue_one": "{{points}} очко",
+      "pointsValue_few": "{{points}} очка",
+      "pointsValue_many": "{{points}} очков",
+      "pointsValue_other": "{{points}} очка",
       "fromLeader": "От результата лидера",
       "nobodyScored": "В этой партии пока никто не набрал очков.",
       "section": "Результаты игры",
@@ -844,7 +850,10 @@
       "tie": "Ничья на первом месте",
       "winner": "Победа: {{name}}",
       "noPointsText": "Главное — было что нарисовать. Попробуем ещё?",
-      "tieText": "{{names}} — по {{points}} очков.",
+      "tieText_one": "{{names}} — по {{points}} очку.",
+      "tieText_few": "{{names}} — по {{points}} очка.",
+      "tieText_many": "{{names}} — по {{points}} очков.",
+      "tieText_other": "{{names}} — по {{points}} очка.",
       "winnerText": "Слова угаданы. Время посмотреть, кто отличился.",
       "podium": "Лучшие результаты",
       "place": "{{rank}} место",
@@ -994,9 +1003,15 @@
     "table": {
       "seatedOf": "За столом {{count}} из {{total}}",
       "startingStack": "Стартовый стек {{chips}}",
-      "turnSeconds": "{{count}} секунд на ход",
+      "turnSeconds_one": "{{count}} секунда на ход",
+      "turnSeconds_few": "{{count}} секунды на ход",
+      "turnSeconds_many": "{{count}} секунд на ход",
+      "turnSeconds_other": "{{count}} секунды на ход",
       "level": "Уровень {{level}}",
-      "deck": "Колода {{count}} карт",
+      "deck_one": "Колода {{count}} карта",
+      "deck_few": "Колода {{count}} карты",
+      "deck_many": "Колода {{count}} карт",
+      "deck_other": "Колода {{count}} карты",
       "deal": "Раздать",
       "remove": "Убрать стол из встречи",
       "dealerOnly": "Раздаёт тот, кто принёс стол, и ведущий встречи.",
@@ -1005,7 +1020,10 @@
     "durak": {
       "deck": "Колода",
       "noJokers": "без джокеров",
-      "deckSize": "{{count}} карт",
+      "deckSize_one": "{{count}} карта",
+      "deckSize_few": "{{count}} карты",
+      "deckSize_many": "{{count}} карт",
+      "deckSize_other": "{{count}} карты",
       "rules": "Правила",
       "transferHint": "перевод — картой того же номинала",
       "podkidnoy": "Подкидной",
@@ -1071,7 +1089,10 @@
       "list": "Участники встречи"
     },
     "turn": {
-      "remaining": "Осталось {{count}} секунд",
+      "remaining_one": "Осталась {{count}} секунда",
+      "remaining_few": "Осталось {{count}} секунды",
+      "remaining_many": "Осталось {{count}} секунд",
+      "remaining_other": "Осталось {{count}} секунды",
       "seconds": "{{count}} с"
     }
   },
@@ -1255,7 +1276,10 @@
       }
     },
     "verdict": {
-      "ok": "Совпало: {{cards}} карт легли ровно так, как обещал отпечаток",
+      "ok_one": "Совпало: {{cards}} карта легла ровно так, как обещал отпечаток",
+      "ok_few": "Совпало: {{cards}} карты легли ровно так, как обещал отпечаток",
+      "ok_many": "Совпало: {{cards}} карт легли ровно так, как обещал отпечаток",
+      "ok_other": "Совпало: {{cards}} карты легли ровно так, как обещал отпечаток",
       "unrevealed": "Зерно раскрывается, когда раздача сыграна",
       "commitment": "Отпечаток зерна не совпал с объявленным до раздачи",
       "notStarted": "Раздача ещё не начиналась",
@@ -1486,7 +1510,10 @@
     "cards_few": "{{count}} карты",
     "cards_many": "{{count}} карт",
     "cards_other": "{{count}} карты",
-    "deckSize": "{{size}} карт",
+    "deckSize_one": "{{size}} карта",
+    "deckSize_few": "{{size}} карты",
+    "deckSize_many": "{{size}} карт",
+    "deckSize_other": "{{size}} карты",
     "seconds": "{{seconds}} с",
     "camera": "Камера: {{name}}",
     "sit": "Сесть за стол",
@@ -1556,8 +1583,14 @@
       "pass": "Бито"
     },
     "turn": {
-      "left": "Осталось {{seconds}} секунд",
-      "pausedLeft": "На паузе, осталось {{seconds}} секунд"
+      "left_one": "Осталась {{seconds}} секунда",
+      "left_few": "Осталось {{seconds}} секунды",
+      "left_many": "Осталось {{seconds}} секунд",
+      "left_other": "Осталось {{seconds}} секунды",
+      "pausedLeft_one": "На паузе, осталась {{seconds}} секунда",
+      "pausedLeft_few": "На паузе, осталось {{seconds}} секунды",
+      "pausedLeft_many": "На паузе, осталось {{seconds}} секунд",
+      "pausedLeft_other": "На паузе, осталось {{seconds}} секунды"
     },
     "stock": {
       "label": "Колода: {{cards}}, козырь {{card}}",

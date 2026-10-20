@@ -357,7 +357,8 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         <div className="durak-mode">
           <b>{t(($) => $.durak.title)}</b>
           <small>
-            {modeName(t, table.mode)} · {t(($) => $.durak.deckSize, { size: table.deckSize })}
+            {modeName(t, table.mode)} ·{' '}
+            {t(($) => $.durak.deckSize, { size: table.deckSize, count: table.deckSize })}
             {table.trumpSuit ? ` · ${trumpName(t, table)}` : ''}
           </small>
         </div>
@@ -877,8 +878,8 @@ function TurnStatus({
         <span
           aria-label={
             table.paused
-              ? t(($) => $.durak.turn.pausedLeft, { seconds })
-              : t(($) => $.durak.turn.left, { seconds })
+              ? t(($) => $.durak.turn.pausedLeft, { seconds, count: seconds })
+              : t(($) => $.durak.turn.left, { seconds, count: seconds })
           }
         >
           {table.paused && <Pause size={14} />}
@@ -1131,7 +1132,10 @@ function Settings({
         <SettingChoice
           label={t(($) => $.durak.settings.deck.label)}
           hint={live ? t(($) => $.durak.settings.deck.live) : t(($) => $.durak.settings.deck.idle)}
-          values={[36, 52].map((value) => ({ value, label: t(($) => $.durak.deckSize, { size: value }) }))}
+          values={[36, 52].map((value) => ({
+            value,
+            label: t(($) => $.durak.deckSize, { size: value, count: value }),
+          }))}
           value={table.deckSize}
           disabled={!host || disabled || live}
           onChange={(value) => set('deck', value)}

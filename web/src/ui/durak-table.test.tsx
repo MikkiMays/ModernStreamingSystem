@@ -198,9 +198,9 @@ it('paused snapshot freezes countdown, clears selection and disables playing', (
       table={{ ...table, paused: true, pausedAt: 10000, pausedRemaining: 31000, deadline: 0 }}
     />,
   );
-  expect(screen.getByLabelText('На паузе, осталось 31 секунд')).toHaveTextContent('31 с');
+  expect(screen.getByLabelText('На паузе, осталась 31 секунда')).toHaveTextContent('31 с');
   act(() => vi.advanceTimersByTime(60000));
-  expect(screen.getByLabelText('На паузе, осталось 31 секунд')).toHaveTextContent('31 с');
+  expect(screen.getByLabelText('На паузе, осталась 31 секунда')).toHaveTextContent('31 с');
   expect(screen.getByRole('button', { name: '8, трефы' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Перевести' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Продолжить' })).toBeEnabled();
