@@ -31,10 +31,28 @@ class PublicationTest(unittest.TestCase):
             assets.append(dict(name=name, size=len(data), digest='sha256:' + hashlib.sha256(data).hexdigest(), browser_download_url=f'https://github.com/{REPO}/releases/download/{tag}/{name}'))
         self.metadata.write_text(json.dumps(dict(tag_name=tag, draft=False, prerelease=False, html_url=f'https://github.com/{REPO}/releases/tag/{tag}', assets=assets)))
 
-    def publish(self, success=True, keep=None):
+    def prepare_desktop(self, version='1.0.0', body=b'electron installer'):
+        # Выпуск Electron (E01-B): релиз `desktop-vX.Y.Z`, установщик, blockmap и подписанный latest.yml.
+        tag = 'desktop-v' + version
+        installer = f'Cord-Setup-{version}.exe'
+        files = {installer: body, installer + '.blockmap': b'blockmap'}
+        for name, data in files.items():
+            (self.artifacts / name).write_bytes(data)
+            (self.artifacts / (name + '.sha256')).write_text(hashlib.sha256(data).hexdigest() + '  ' + name)
+        (self.artifacts / 'latest.yml').write_text(f'version: {version}\nfiles:\n  - url: {installer}\n    sha512: x\n    size: {len(body)}\npath: {installer}\nsha512: x\n')
+        (self.artifacts / 'latest.yml.sig').write_text('A' * 88 + '\n')
+        assets = []
+        for name in list(files) + [name + '.sha256' for name in files] + ['latest.yml', 'latest.yml.sig']:
+            data = (self.artifacts / name).read_bytes()
+            assets.append(dict(name=name, size=len(data), digest='sha256:' + hashlib.sha256(data).hexdigest(), browser_download_url=f'https://github.com/{REPO}/releases/download/{tag}/{name}'))
+        self.metadata.write_text(json.dumps(dict(tag_name=tag, draft=False, prerelease=False, html_url=f'https://github.com/{REPO}/releases/tag/{tag}', assets=assets)))
+
+    def publish(self, success=True, keep=None, desktop=False):
         command = [sys.executable, str(PUBLISH), str(self.metadata), str(self.artifacts), '--destination', str(self.destination)]
         if keep is not None:
             command += ['--keep', str(keep)]
+        if desktop:
+            command += ['--desktop']
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
 
@@ -96,6 +114,37 @@ class PublicationTest(unittest.TestCase):
         self.metadata.write_text(self.metadata.read_text().replace(REPO, 'someone/else'))
         self.publish(False)
         self.assertFalse(self.destination.exists())
+
+    def test_desktop_release_goes_into_the_channel_and_keeps_the_previous_installer(self):
+        self.prepare_desktop('1.0.0', b'first'); self.publish(desktop=True)
+        channel = self.destination / 'desktop'
+        self.assertEqual((channel / 'Cord-Setup-1.0.0.exe').read_bytes(), b'first')
+        self.assertTrue((channel / 'latest.yml.sig').exists())
+        page = json.loads((self.destination / 'download.json').read_text())
+        self.assertEqual(page['version'], '1.0.0')
+        self.assertEqual(page['tag'], 'v1.0.0')
+        self.assertEqual(page['files'], [dict(name='Cord-Setup-1.0.0.exe', kind='installer', size=5, sha256=hashlib.sha256(b'first').hexdigest(), path='desktop/')])
+        self.assertNotIn('github', (self.destination / 'download.json').read_text())
+        # Следующий выпуск: прежний установщик остаётся для дельт blockmap, третий — убирается.
+        self.prepare_desktop('1.0.1', b'second'); self.publish(desktop=True)
+        self.prepare_desktop('1.0.2', b'third'); self.publish(desktop=True)
+        self.assertFalse((channel / 'Cord-Setup-1.0.0.exe').exists())
+        self.assertTrue((channel / 'Cord-Setup-1.0.1.exe').exists())
+        self.assertIn('version: 1.0.2', (channel / 'latest.yml').read_text())
+        self.assertEqual(json.loads((self.destination / 'download.json').read_text())['version'], '1.0.2')
+
+    def test_desktop_release_refuses_a_manifest_for_another_installer(self):
+        self.prepare_desktop('1.0.0')
+        (self.artifacts / 'latest.yml').write_text('version: 1.0.1\nfiles:\n  - url: Cord-Setup-1.0.1.exe\n')
+        assets = json.loads(self.metadata.read_text())
+        for asset in assets['assets']:
+            if asset['name'] == 'latest.yml':
+                data = (self.artifacts / 'latest.yml').read_bytes()
+                asset['size'] = len(data); asset['digest'] = 'sha256:' + hashlib.sha256(data).hexdigest()
+        self.metadata.write_text(json.dumps(assets))
+        self.publish(success=False, desktop=True)
+        self.assertFalse((self.destination / 'download.json').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

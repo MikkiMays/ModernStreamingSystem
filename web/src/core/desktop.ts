@@ -47,8 +47,11 @@ export function isDesktop(): boolean {
   return !!v2() || !!window.chrome?.webview;
 }
 
-/** Возможности WinUI (v1), выраженные теми же флагами: сочетание, серверы, обновление, рукопожатие. */
-const V1_FEATURES = new Set(['hotkeys', 'servers', 'update', 'session']);
+/**
+ * Возможности WinUI (v1), выраженные теми же флагами: сочетание, серверы, обновление, рукопожатие и
+ * своя боковая панель с избранным (`sidebar`) — у Electron её нет, главную рисует веб целиком.
+ */
+const V1_FEATURES = new Set(['hotkeys', 'servers', 'update', 'session', 'sidebar']);
 
 export function desktopFeatures(): ReadonlySet<string> {
   const api = v2();

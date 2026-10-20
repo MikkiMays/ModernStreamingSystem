@@ -45,6 +45,7 @@ describe('мост v2 — адаптер', () => {
     expect(desktop.isDesktop()).toBe(true);
     expect(desktop.hasFeature('overlay')).toBe(true);
     expect(desktop.hasFeature('session')).toBe(false);
+    expect(desktop.hasFeature('sidebar')).toBe(false);
     expect(desktop.desktopVersion(desktop.desktopUpdate.get())).toBe('1.0.0');
   });
 
@@ -107,6 +108,7 @@ describe('мост v2 — адаптер', () => {
     const desktop = await import('./desktop');
     expect(desktop.isDesktop()).toBe(true);
     expect(desktop.hasFeature('session')).toBe(true);
+    expect(desktop.hasFeature('sidebar')).toBe(true);
     desktop.notifyDesktop('call-state', { inCall: false });
     expect(posted).toEqual([{ version: 1, type: 'call-state', inCall: false }]);
   });
