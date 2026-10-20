@@ -2,6 +2,9 @@
 	admin off
 	auto_https off
 	persist_config off
+	# Метрики HTTP шлюза для профиля `monitoring` (E10-B): запросы, статусы, задержки. Без `per_host`:
+	# имя хоста у Cord одно-два, а меток с чужими именами из заголовка Host быть не должно.
+	metrics
 	servers 127.0.0.1:{$GATEWAY_PORT:8091} {
 		listener_wrappers {
 			proxy_protocol {
@@ -105,6 +108,14 @@ http://:{$GATEWAY_PORT:8091} {
 		import signaling
 		respond 404
 	}
+	respond 404
+}
+
+# Выдача метрик шлюза — только на 127.0.0.1, только для VictoriaMetrics профиля `monitoring`. Снаружи до
+# неё не дойти: edge проксирует на `GATEWAY_PORT`, а не сюда. Admin API Caddy по-прежнему выключен.
+http://127.0.0.1:{$GATEWAY_METRICS_PORT:2019} {
+	bind 127.0.0.1
+	metrics /metrics
 	respond 404
 }
 

@@ -1,0 +1,15 @@
+# Единственный источник Grafana — VictoriaMetrics этого же сервера (язык запросов — PromQL).
+# Из файла, а не мышкой: переустановка или новый сервер Cord получают тот же источник с тем же uid,
+# и дашборды из infra/monitoring/grafana/dashboards находят его сами.
+apiVersion: 1
+datasources:
+  - name: VictoriaMetrics
+    uid: victoriametrics
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:8428
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 30s
+      prometheusType: Prometheus

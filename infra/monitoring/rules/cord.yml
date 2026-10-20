@@ -1,0 +1,114 @@
+# Алерты владельцу (vmalert → Alertmanager → Telegram), docs/observability.md §8.
+#
+# УРОК vm-host-stalls. Хост замирает на 20–55 с. Мониторинг не должен на каждое замирание кричать
+# «всё упало» и молчать об отбое:
+# - «не отвечает» — только если не отвечало все пять минут и ещё пять подряд (`max_over_time … for: 5m`);
+# - замирание — отдельный алерт HostStalled; пока он горит, Alertmanager гасит алерты `severity: page`
+#   (inhibit в infra/generated/alertmanager.yml): одно сообщение вместо десятка;
+# - отбой приходит всегда (`send_resolved`).
+#
+# Метки severity: page — сломано то, чем пользуются люди; warn — скоро сломается; info — знать.
+groups:
+  - name: cord
+    interval: 30s
+    rules:
+      # Вечно горящий алерт: Alertmanager раз в минуту пингует им внешнего сторожа (HEALTHCHECKS_URL).
+      # Пингов нет — машина или мониторинг мертвы, и об этом скажет сторож, а не они сами.
+      - alert: Watchdog
+        expr: vector(1)
+        labels: { severity: none }
+        annotations: { summary: 'Мониторинг Cord жив' }
+
+      - alert: HostStalled
+        expr: avg(rate(node_cpu_seconds_total{mode="steal"}[5m])) > 0.3
+        for: 10m
+        labels: { severity: warn }
+        annotations:
+          summary: 'Хост тормозит: ЦП отнимает гипервизор (steal {{ $value | humanizePercentage }}). Звонки могут замирать'
+
+      - alert: CoreDown
+        expr: max_over_time(up{job="core"}[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'Ядро Cord не отвечает десять минут: встречи не создаются и не открываются' }
+
+      - alert: SfuDown
+        expr: max_over_time(up{job="livekit"}[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'SFU (LiveKit) не отвечает десять минут: звук и видео не идут' }
+
+      - alert: GatewayDown
+        expr: max_over_time(up{job="gateway"}[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'Шлюз Cord не отвечает десять минут: сайт недоступен' }
+
+      - alert: ServicesDown
+        expr: max_over_time(up{job="services"}[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'Службы Cord (музыка, кинозал, бот) не отвечают десять минут' }
+
+      - alert: PostgresDown
+        expr: max_over_time(pg_up[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'PostgreSQL не отвечает десять минут' }
+
+      - alert: RedisDown
+        expr: max_over_time(redis_up[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'Redis не отвечает десять минут: входы и пределы не работают' }
+
+      - alert: SiteUnreachable
+        expr: max_over_time(gatus_results_endpoint_success[5m]) == 0
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: 'Проверка «{{ $labels.name }}» не проходит десять минут' }
+
+      - alert: CertificateExpiresSoon
+        expr: min by (name) (gatus_results_certificate_expiration_seconds) < 14 * 86400
+        for: 1h
+        labels: { severity: warn }
+        annotations: { summary: 'Сертификат «{{ $labels.name }}» истекает меньше чем через 14 дней' }
+
+      - alert: DiskAlmostFull
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.15
+        for: 15m
+        labels: { severity: warn }
+        annotations: { summary: 'На диске свободно меньше 15 %' }
+
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: 'Свободной памяти меньше 10 % десять минут' }
+
+      # Доля неудачных входов во встречу — при живом трафике, а не на двух попытках ночью.
+      - alert: JoinFailures
+        expr: |
+          sum(rate(cord_joins_total{result!="ok"}[10m])) / sum(rate(cord_joins_total[10m])) > 0.2
+          and sum(rate(cord_joins_total[10m])) > 0.02
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: 'Больше 20 % входов во встречи отказаны за десять минут' }
+
+      - alert: GatewayErrors5xx
+        expr: |
+          sum(rate(caddy_http_requests_total{code=~"5.."}[5m])) / sum(rate(caddy_http_requests_total[5m])) > 0.05
+          and sum(rate(caddy_http_requests_total[5m])) > 0.1
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: 'Больше 5 % ответов шлюза — ошибки 5xx' }
+
+      - alert: AutoBlock
+        expr: increase(cord_blocks_created_total{by="auto"}[15m]) > 0
+        labels: { severity: info }
+        annotations: { summary: 'Сервер сам закрыл адрес за частые отказы. Проверить и снять — страница «Активность»' }
+
+      - alert: ShieldOn
+        expr: increase(cord_errors_total{code="CODE_INVALID"}[5m]) > 1000
+        labels: { severity: info }
+        annotations: { summary: 'Перебор кодов встреч: включён «щит», вход по коду идёт через ведущего' }

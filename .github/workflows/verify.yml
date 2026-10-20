@@ -134,6 +134,20 @@ jobs:
       - run: python3 scripts/cohost_cutover_test.py
       - run: python3 scripts/publish_windows_release_test.py
       - run: docker compose config --quiet
+      # Профиль monitoring (E10-B): compose, сбор, правила алертов, Alertmanager и дашборды из своего
+      # генератора — проверяются теми же образами, что ставятся на сервер, без запуска профиля.
+      - name: Validate the monitoring profile
+        run: |
+          docker compose --profile monitoring config --quiet
+          node scripts/configure.mjs --refresh --monitoring
+          image() { docker compose --profile monitoring config --images "$1"; }
+          docker run --rm -e LIVEKIT_METRICS_PASSWORD=ci -v "$PWD/infra/monitoring/scrape.yml:/s.yml:ro" \
+            "$(image victoriametrics)" -promscrape.config=/s.yml -dryRun
+          docker run --rm -v "$PWD/infra/monitoring/rules:/r:ro" "$(image vmalert)" -rule='/r/*.yml' -dryRun
+          docker run --rm --user 0:0 --entrypoint /bin/amtool \
+            -v "$PWD/infra/generated/alertmanager.yml:/a.yml:ro" "$(image alertmanager)" check-config /a.yml
+          node infra/monitoring/grafana/dashboards.mjs
+          git diff --exit-code infra/monitoring/grafana/dashboards
       # Издателя музыки собирает тот же образ Go, что и рабочий Dockerfile, поэтому версия
       # здесь и в сборке не может разойтись. Отдельный шаг нужен ради тестов: расписание
       # кадров и разбор Ogg — это то, что слышно в комнате, а не то, что видно в логе.

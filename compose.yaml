@@ -212,11 +212,170 @@ services:
     restart: unless-stopped
     depends_on:
       volume-init: { condition: service_completed_successfully }
+  # ── Профиль `monitoring` (E10-B, docs/observability.md) ─────────────────────────────────────────────
+  # Выключен по умолчанию; включает `./setup.sh --monitoring` (или `node scripts/configure.mjs --refresh
+  # --monitoring`), который пишет в .env `COMPOSE_PROFILES=monitoring` и пароли. Всё — в сети хоста и
+  # только на 127.0.0.1: наружу не смотрит ни один порт, стена sniffer и CSP шлюза не тронуты. Grafana —
+  # через SSH-туннель (`ssh -L 3000:127.0.0.1:3000 <сервер>`), не через шлюз. Память — под потолками
+  # mem_limit, своя ≈ 410 МиБ в простое (замер E10-A на этой машине).
+  victoriametrics:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: victoriametrics/victoria-metrics:v1.154.0@sha256:4bd592341587d669b7f57d54bbb82bd21ac8675f4e24234b7703a7c0f85197d8
+    network_mode: host
+    command:
+      - -httpListenAddr=127.0.0.1:8428
+      - -storageDataPath=/storage
+      # Срок хранения: `90d`, `6M`/`6` (месяцы), `1y`. По умолчанию три месяца.
+      - -retentionPeriod=${METRICS_RETENTION:-90d}
+      - -promscrape.config=/etc/vm/scrape.yml
+      - -loggerLevel=WARN
+    # Пароль метрик LiveKit подставляется в scrape.yml как %{LIVEKIT_METRICS_PASSWORD}.
+    environment:
+      LIVEKIT_METRICS_PASSWORD: ${LIVEKIT_METRICS_PASSWORD:-}
+    volumes:
+      - metrics:/storage
+      - ./infra/monitoring/scrape.yml:/etc/vm/scrape.yml:ro
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 256m
+    restart: unless-stopped
+  vmalert:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: victoriametrics/vmalert:v1.154.0@sha256:f11d77f9ff68dfd63c871d0e59ae7b479f9c3fd0e8a685fef690fb88b794d938
+    network_mode: host
+    command:
+      - -httpListenAddr=127.0.0.1:8880
+      - -datasource.url=http://127.0.0.1:8428
+      - -remoteWrite.url=http://127.0.0.1:8428
+      - -remoteRead.url=http://127.0.0.1:8428
+      - -notifier.url=http://127.0.0.1:9093
+      - -rule=/etc/vmalert/*.yml
+      - -evaluationInterval=30s
+      - -loggerLevel=WARN
+    volumes: [./infra/monitoring/rules:/etc/vmalert:ro]
+    read_only: true
+    mem_limit: 64m
+    restart: unless-stopped
+  alertmanager:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    network_mode: host
+    # Конфигурация с токеном бота лежит только для root (0600, scripts/configure.mjs), поэтому процесс —
+    # root без единой привилегии и без записи вне своего тома.
+    user: '0:0'
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.listen-address=127.0.0.1:9093
+      - --cluster.listen-address=
+      - --log.level=warn
+    volumes:
+      - alerts:/alertmanager
+      - ./infra/generated/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    read_only: true
+    mem_limit: 64m
+    restart: unless-stopped
+  grafana:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
+    network_mode: host
+    # Без пароля в .env не стартует: иначе вход был бы admin/admin.
+    entrypoint: [sh, -c, 'test -n "$$GF_SECURITY_ADMIN_PASSWORD" || { echo "GRAFANA_PASSWORD пуст: node scripts/configure.mjs --refresh --monitoring" >&2; exit 1; }; exec /run.sh']
+    environment:
+      GF_SERVER_HTTP_ADDR: 127.0.0.1
+      GF_SERVER_HTTP_PORT: '3000'
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-}
+      GF_SECURITY_DISABLE_GRAVATAR: 'true'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      # Ничего не уходит наружу: ни отчётов, ни проверок обновлений, ни новостей, ни плагинов.
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/cord-meetings.json
+      GF_LOG_LEVEL: warn
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 384m
+    restart: unless-stopped
+  node-exporter:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=127.0.0.1:9100
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|run|sys|var/lib/docker/.+)($$|/)
+    volumes: ['/:/host:ro,rslave']
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    restart: unless-stopped
+  postgres-exporter:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+    network_mode: host
+    command: [--web.listen-address=127.0.0.1:9187]
+    environment:
+      DATA_SOURCE_URI: 127.0.0.1:5432/streaming?sslmode=disable
+      DATA_SOURCE_USER: streaming
+      DATA_SOURCE_PASS: ${DATABASE_PASSWORD:-}
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    restart: unless-stopped
+  redis-exporter:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: oliver006/redis_exporter:v1.94.0@sha256:0842ef7110e62b40bbde2d5c11f38c6fbd99f7100c75e3866637c1b335a1eff7
+    network_mode: host
+    environment:
+      REDIS_ADDR: redis://127.0.0.1:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_EXPORTER_WEB_LISTEN_ADDRESS: 127.0.0.1:9121
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    restart: unless-stopped
+  gatus:
+    profiles: [monitoring]
+    logging: *default-logging
+    image: twinproduction/gatus:v5.37.0@sha256:094eb186e55235db367e90e9d56140e5897b7044c41de23cde4cc18e6da1242e
+    network_mode: host
+    environment:
+      GATUS_CONFIG_PATH: /config/config.yaml
+      PUBLIC_URL: ${PUBLIC_URL:-}
+    volumes: [./infra/monitoring/gatus.yml:/config/config.yaml:ro]
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    restart: unless-stopped
 volumes:
   database:
   uploads:
   certificates:
   services-data:
+  # Профиль `monitoring`: ряды VictoriaMetrics, база Grafana (дашборды — из git), тишины Alertmanager.
+  metrics:
+  grafana:
+  alerts:
 networks:
   # Своя сеть плеера страниц: мост с выходом в интернет (подменой адреса хоста), но в подсети, которой
   # стена `infra/sniffer-firewall.sh` запрещает частные сети. Подсеть — та же, что у стены.

@@ -63,3 +63,40 @@ test('cohost custom ports agree between edge, gateway environment and SFU callba
     await rm(directory, { recursive: true });
   }
 });
+
+test('monitoring adds its secrets once, guards SFU metrics with a password and never rotates', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const base = ['--app=app.example.test', '--rtc=rtc.example.test', '--turn=turn.example.test', '--ip=192.0.2.1'];
+    const run = (...extra) =>
+      spawnSync(process.execPath, [script, ...base, ...extra], { cwd: directory, encoding: 'utf8' });
+    const first = run();
+    assert.equal(first.status, 0, first.stderr);
+    const plain = await readFile(join(directory, '.env'), 'utf8');
+    // Без профиля метрик SFU нет вовсе: их порт слушал бы 0.0.0.0.
+    let sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
+    assert.equal(sfu.prometheus, undefined);
+    assert.match(plain, /^ADMIN_PASSWORD=$/m);
+    const alerts = JSON.parse(await readFile(join(directory, 'infra/generated/alertmanager.yml'), 'utf8'));
+    assert.deepEqual(alerts.receivers.map((r) => r.name), ['owner', 'watchdog']);
+    assert.equal(alerts.receivers[0].telegram_configs, undefined);
+
+    const enabled = run('--refresh', '--monitoring');
+    assert.equal(enabled.status, 0, enabled.stderr);
+    const env = await readFile(join(directory, '.env'), 'utf8');
+    assert.ok(env.startsWith(plain), 'existing lines stay as they were');
+    const password = /^LIVEKIT_METRICS_PASSWORD=([a-f0-9]{64})$/m.exec(env)?.[1];
+    assert.ok(password);
+    assert.match(env, /^GRAFANA_PASSWORD=\S{20,}$/m);
+    assert.match(env, /^COMPOSE_PROFILES=monitoring$/m);
+    sfu = JSON.parse(await readFile(join(directory, 'infra/generated/livekit.json'), 'utf8'));
+    assert.deepEqual(sfu.prometheus, { port: 6789, username: 'metrics', password });
+
+    // Повтор ничего не вращает и не дописывает дважды.
+    assert.equal(run('--refresh', '--monitoring').status, 0);
+    assert.equal(await readFile(join(directory, '.env'), 'utf8'), env);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
