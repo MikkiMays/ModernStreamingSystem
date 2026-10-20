@@ -130,7 +130,9 @@ jobs:
         with:
           node-version: '24.11.1'
       - run: node scripts/configure.mjs --app=app.example.test --rtc=rtc.example.test --turn=turn.example.test --ip=192.0.2.1
-      - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs
+      - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs scripts/sign-catalog.test.mjs
+      # Каталог серверов (ADR 0001 §8): подписан ключом из contracts/catalog-keys.json и ещё не истёк.
+      - run: node scripts/sign-catalog.mjs verify
       - run: python3 scripts/cohost_cutover_test.py
       - run: python3 scripts/publish_windows_release_test.py
       - run: docker compose config --quiet
