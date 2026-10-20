@@ -14,7 +14,7 @@ import { locale, type Translate } from '../../i18n';
  * не даст завести строку без подписи.
  */
 export type SectionId =
-  'profile' | 'appearance' | 'hotkeys' | 'voice' | 'sounds' | 'accounts' | 'server' | 'about';
+  'profile' | 'appearance' | 'hotkeys' | 'desktop' | 'voice' | 'sounds' | 'accounts' | 'server' | 'about';
 
 export type GroupId = 'app' | 'meetings' | 'connections' | 'cord';
 
@@ -26,6 +26,8 @@ export interface SectionSpec {
   group: GroupId;
   /** Подразделы — якоря внутри страницы раздела, по порядку. */
   anchors: AnchorId[];
+  /** Раздел только для одного места: «Windows» есть лишь в клиенте и лишь со своими строками. */
+  only?: RowContext;
 }
 
 /** Группы разделов по порядку. «О программе» (`cord`) стоит особняком внизу, как у Discord: это не настройка, а справка. */
@@ -35,6 +37,7 @@ export const SECTIONS: SectionSpec[] = [
   { id: 'profile', group: 'app', anchors: [] },
   { id: 'appearance', group: 'app', anchors: [] },
   { id: 'hotkeys', group: 'app', anchors: [] },
+  { id: 'desktop', group: 'app', anchors: [], only: 'desktop' },
   {
     id: 'voice',
     group: 'meetings',
@@ -98,6 +101,36 @@ export interface RowSpec {
   section: SectionId;
   anchor?: AnchorId;
   only?: RowContext;
+  /**
+   * Флаг возможности оболочки (мост v2): строка видна, только если оболочка объявила и его, и
+   * `app.settings` — переключатель, которого нет в этой сборке или на этой машине, не рисуется.
+   */
+  feature?: string;
+}
+
+/** Есть ли у оболочки возможность — `hasFeature` моста; в тестах и в браузере — никаких. */
+export type Has = (feature: string) => boolean;
+const NOTHING: Has = () => false;
+
+/** Видна ли строка здесь: место (браузер или клиент) и флаги оболочки. */
+export function rowAvailable(spec: RowSpec, context: RowContext, has: Has = NOTHING): boolean {
+  if (spec.only && spec.only !== context) return false;
+  return !spec.feature || (has('app.settings') && has(spec.feature));
+}
+
+/** Виден ли раздел: раздел «только для клиента» — если в нём есть хоть одна видимая строка. */
+export function sectionAvailable(id: SectionId, context: RowContext, has: Has = NOTHING): boolean {
+  const spec = section(id);
+  if (!spec.only) return true;
+  if (spec.only !== context) return false;
+  return (Object.values(ROWS) as RowSpec[]).some(
+    (row) => row.section === id && rowAvailable(row, context, has),
+  );
+}
+
+/** Разделы, которые здесь есть, по порядку. */
+export function sectionsFor(context: RowContext, has: Has = NOTHING): SectionSpec[] {
+  return SECTIONS.filter((spec) => sectionAvailable(spec.id, context, has));
 }
 
 /**
@@ -112,6 +145,14 @@ export const ROWS = {
   'appearance-bots': { section: 'appearance' },
   'hotkey-mic': { section: 'hotkeys' },
   'hotkey-other': { section: 'hotkeys' },
+  'desktop-tray': { section: 'desktop', only: 'desktop', feature: 'tray' },
+  'desktop-thumbar': { section: 'desktop', only: 'desktop', feature: 'thumbar' },
+  'desktop-badge': { section: 'desktop', only: 'desktop', feature: 'badge' },
+  'desktop-flash': { section: 'desktop', only: 'desktop', feature: 'attention' },
+  'desktop-sleep': { section: 'desktop', only: 'desktop', feature: 'sleep' },
+  'desktop-overlay': { section: 'desktop', only: 'desktop', feature: 'overlay' },
+  'desktop-overlay-hotkey': { section: 'desktop', only: 'desktop', feature: 'overlay' },
+  'desktop-autostart': { section: 'desktop', only: 'desktop', feature: 'autostart' },
   'mic-device': { section: 'voice', anchor: 'microphone' },
   'mic-volume': { section: 'voice', anchor: 'microphone' },
   'mic-auto': { section: 'voice', anchor: 'microphone' },
@@ -206,18 +247,24 @@ function matches(query: string[], haystack: string, language: string) {
  * которых в этом месте нет (приложение и браузер), не находятся. Ищет по словам того языка, на
  * котором окно нарисовано.
  */
-export function searchSettings(t: Translate, query: string, context: RowContext, limit = 8): SearchHit[] {
+export function searchSettings(
+  t: Translate,
+  query: string,
+  context: RowContext,
+  limit = 8,
+  has: Has = NOTHING,
+): SearchHit[] {
   const language = locale(t);
   const parts = words(query, language);
   if (!parts.length) return [];
   const hits: SearchHit[] = [];
-  for (const spec of SECTIONS) {
+  for (const spec of sectionsFor(context, has)) {
     const title = sectionTitle(t, spec.id);
     if (matches(parts, `${title} ${t(($) => $.settings.sections[spec.id].keywords)}`, language))
       hits.push({ section: spec.id, title, where: t(($) => $.settings.sectionHit) });
   }
   for (const [id, spec] of Object.entries(ROWS) as [RowId, RowSpec][]) {
-    if (spec.only && spec.only !== context) continue;
+    if (!rowAvailable(spec, context, has) || !sectionAvailable(spec.section, context, has)) continue;
     const text = rowText(t, id);
     const home = sectionTitle(t, spec.section);
     const anchor = anchorTitle(t, spec.section, spec.anchor);

@@ -127,6 +127,12 @@ export interface Preferences {
   avatar: string;
   micHotkey: Hotkey | null;
   /**
+   * Сочетание оверлея в играх (`overlay.toggle`, клиент на Electron, E01-B2). По умолчанию не
+   * назначено: глобальное сочетание отбирается у всех программ, включая игру, — пусть человек
+   * выберет его сам.
+   */
+  overlayHotkey: Hotkey | null;
+  /**
    * Что показывать за карточным столом помимо самой игры.
    *
    * Своё у каждого, как громкость: одному нужна подсказка «что у меня собралось», другому она
@@ -231,6 +237,7 @@ export function readPreferences(): Preferences {
         : '',
     micHotkey:
       data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
+    overlayHotkey: validHotkey(data.overlayHotkey) ? data.overlayHotkey : null,
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {
