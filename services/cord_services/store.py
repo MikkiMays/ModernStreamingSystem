@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .covers import files_of
+
 
 # Сколько живёт принесённое в комнату: и сам файл в очереди, и запись о комнате после того,
 # как музыку в ней выключили. Сутки — один срок на оба, потому что вопрос один: «этим ещё
@@ -119,6 +121,8 @@ class Store:
                     k: track[k]
                     for k in ["id", "title", "artist", "duration", "addedBy", "source"]
                 }
+                # Обложка — имя файла `<uuid>.jpg`, по которому её отдаёт служба, или `None`.
+                | {"cover": track.get("cover")}
                 for track in value["queue"]
             ]
         }
@@ -175,8 +179,17 @@ class Store:
             (key, value),
         )
 
+    def referenced(self) -> set[str]:
+        """Файлы, которые держит хоть одна очередь: звук и обложки."""
+        return {
+            name
+            for room in self.cache.values()
+            for track in room["queue"]
+            for name in files_of(track)
+        }
+
     def prune_files(self, files: list[str]):
-        referenced = {track["file"] for room in self.rooms() for track in room["queue"]}
+        referenced = self.referenced()
         for name in files:
             if name not in referenced:
                 (self.files / name).unlink(missing_ok=True)
@@ -201,7 +214,9 @@ class Store:
                     track for track in room["queue"] if track not in expired
                 ]
                 self.save(room)
-                self.prune_files([track["file"] for track in expired])
+                self.prune_files(
+                    [name for track in expired for name in files_of(track)]
+                )
             # Пустая запись о музыке комнаты, которой давно не пользовались, не хранит
             # ничего: очередь пуста, музыка выключена, пропуск бота в комнату протух. А
             # запись остаётся — и не только в файле: весь ledger поднимается в память при
@@ -223,7 +238,7 @@ class Store:
         self.db.execute("DELETE FROM claims WHERE expires_at<=?", (now(),))
         self.db.execute("DELETE FROM receipts WHERE expires_at<=?", (now(),))
         self.links.sweep()
-        referenced = {track["file"] for room in self.rooms() for track in room["queue"]}
+        referenced = self.referenced()
         for path in self.files.iterdir():
             if (
                 path.name not in referenced

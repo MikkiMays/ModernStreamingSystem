@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from yandex_music import ClientAsync
 from yandex_music.exceptions import DeviceAuthError, UnauthorizedError, YandexMusicError
 
+from . import covers
 from .accounts import Vault
 from .media import MAX_FILE, probe
 from .store import now
@@ -243,6 +244,42 @@ class Yandex:
             raise HTTPException(502, "Яндекс вернул неизвестный адрес аудиофайла")
         return parsed._replace(scheme="https", netloc=host).geturl()
 
+    async def cover(self, track) -> str | None:
+        """Обложка альбома трека — своим файлом (`covers.py`) или `None`, если не вышло.
+
+        Адрес обложки Яндекс отдаёт шаблоном `avatars.yandex.net/…/%%`, размер подставляется вместо
+        `%%`. Хост проверяется тем же правилом, что и адрес звука; картинка не дороже звука: не
+        вышло за десять секунд — трек идёт без неё.
+        """
+        uri = getattr(track, "cover_uri", None)
+        if not isinstance(uri, str) or not uri:
+            albums = getattr(track, "albums", None)
+            uri = (
+                getattr(albums[0], "cover_uri", None)
+                if isinstance(albums, list) and albums
+                else None
+            )
+        if not isinstance(uri, str) or not uri:
+            return None
+        try:
+            url = self.download_url("https://" + uri.replace("%%", "400x400"))
+
+            async def fetch() -> bytes | None:
+                async with self.http.stream("GET", url) as response:
+                    if response.status_code != 200:
+                        return None
+                    data = bytearray()
+                    async for chunk in response.aiter_bytes(65536):
+                        data += chunk
+                        if len(data) > covers.SOURCE_LIMIT:
+                            return None
+                    return bytes(data)
+
+            data = await asyncio.wait_for(fetch(), 10)
+        except (HTTPException, httpx.HTTPError, TimeoutError):
+            return None
+        return await covers.from_bytes(data, self.store.files) if data else None
+
     async def enqueue(self, room_id, scope, track_id, command_id, actor):
         async with self.music.locks["yandex-enqueue:" + room_id]:
             receipt = self.store.receipt("yandex-enqueue:" + room_id, command_id)
@@ -284,6 +321,7 @@ class Yandex:
             self.music.check_quota(room_id, 0)
             key = str(uuid.uuid4())
             path = self.store.files / key
+            cover = None
             try:
                 for _ in range(4):
                     async with self.http.stream("GET", url) as response:
@@ -317,6 +355,7 @@ class Yandex:
                         "Яндекс вернул только фрагмент трека. Проверьте доступ аккаунта к полной версии",
                     )
                 public = self.track_public(track)
+                cover = await self.cover(track)
                 result = await self.music.enqueue(
                     room_id,
                     {
@@ -327,6 +366,7 @@ class Yandex:
                         "source": "yandex",
                         "addedBy": actor,
                         "createdAt": now(),
+                        "cover": cover,
                     },
                 )
                 self.store.remember(
@@ -338,6 +378,8 @@ class Yandex:
             except BaseException as error:
                 if not any(t["id"] == key for t in self.store.get(room_id)["queue"]):
                     path.unlink(missing_ok=True)
+                    if cover:
+                        (self.store.files / cover).unlink(missing_ok=True)
                 if isinstance(error, httpx.HTTPError):
                     raise HTTPException(
                         502, "Загрузка из Яндекс Музыки прервалась. Повторите"

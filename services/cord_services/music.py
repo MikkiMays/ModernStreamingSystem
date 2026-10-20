@@ -10,6 +10,7 @@ from collections import defaultdict
 from fastapi import HTTPException
 
 from .core import Core
+from .covers import files_of
 from .media import MAX_ROOM, MAX_TOTAL
 from .publisher import Publisher
 from .store import Store, now
@@ -130,7 +131,9 @@ class Music:
                     raise HTTPException(409, "Идентификатор команды уже использован")
                 return self.store.public(room_id)
             state = self.store.get(room_id)
-            previous_files = [track["file"] for track in state["queue"]]
+            previous_files = [
+                name for track in state["queue"] for name in files_of(track)
+            ]
             action = command["action"]
             if action == "pause":
                 state["paused"] = True
@@ -173,6 +176,21 @@ class Music:
                     if index == 0:
                         state["position"] = 0.0
                         state["epoch"] += 1
+            elif action == "move":
+                # Перетаскивание в очереди (T18): трек встаёт на место `index`. Играющий не
+                # переставляется — его место первое, и сдвинуть его значило бы переключить трек.
+                target = command.get("trackId")
+                index = next(
+                    (i for i, t in enumerate(state["queue"]) if t["id"] == target), None
+                )
+                if index is None:
+                    raise HTTPException(404, "Трек уже удалён")
+                if index == 0:
+                    raise HTTPException(409, "Играющий трек не переставляется")
+                place = min(
+                    max(1, int(command.get("index") or 1)), len(state["queue"]) - 1
+                )
+                state["queue"].insert(place, state["queue"].pop(index))
             else:
                 raise HTTPException(400, "Неизвестная музыкальная команда")
             if action in ("pause", "play", "skip", "stop", "seek"):
@@ -295,7 +313,7 @@ class Music:
                         latest["queue"].append(finished)
                     latest.update(position=0.0, epoch=latest["epoch"] + 1)
                     self.store.save(latest)
-                    self.store.prune_files([finished["file"]])
+                    self.store.prune_files(files_of(finished))
                     playing = None
                 elif kind == "failed":
                     await self.failed_track(
@@ -460,9 +478,10 @@ class Music:
         async with self.locks[room_id]:
             state = self.store.get(room_id)
             if state["queue"] and state["queue"][0]["id"] == track_id:
-                state["queue"].pop(0)
+                failed = state["queue"].pop(0)
                 state.update(position=0.0, epoch=state["epoch"] + 1, error=message)
                 self.store.save(state)
+                self.store.prune_files(files_of(failed))
 
     async def resume(self, room_id: str):
         state = self.store.get(room_id)
