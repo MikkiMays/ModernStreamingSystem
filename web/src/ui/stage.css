@@ -464,6 +464,47 @@ button.watch-stream:hover {
 .media-error > .ui-icon-button {
   margin-left: auto;
 }
+/* Разговор в фоне (E12): подсказка платформы и «телефон выключал микрофон» — там же, где ошибка,
+   но спокойнее: это не поломка, а правило телефона. */
+.background-note {
+  position: absolute;
+  z-index: 7;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: calc(var(--dock-space) + var(--space-2));
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--stage-tile-2);
+  color: var(--stage-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  box-shadow: var(--shadow-2);
+}
+.background-note > svg {
+  flex: none;
+  color: var(--stage-muted);
+}
+.background-note > span {
+  flex: 1;
+  min-width: 0;
+}
+.background-note > .ui-button {
+  flex: none;
+}
+/* Источник окна «картинка в картинке» (`media/pip.ts`): элемент обязан быть в документе и не
+   `display: none`, но на странице его не видно. */
+.pip-source {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
 .audio-unlock {
   position: absolute;
   z-index: 9;

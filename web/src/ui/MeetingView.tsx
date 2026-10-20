@@ -20,6 +20,8 @@ import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
+import { BackgroundNote } from './BackgroundNote';
+import { useCallInBackground } from './useCallInBackground';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 export function MeetingView({
@@ -123,6 +125,13 @@ export function MeetingView({
   const panelWidth = usePanelWidth('meeting-panel', { min: 320, max: 480, default: 360 });
   const [audioBlocked, setAudioBlocked] = useState(false);
   const audioNeedsGesture = useCallback(() => setAudioBlocked(true), []);
+  /** Свой `AudioContext` уснул (фон, обычный звонок, перезагрузка без касания) — нужна та же кнопка. */
+  const audioAsleep = useStore(meeting.media.audio.blocked);
+  const leaveMeeting = () => {
+    void meeting.leave();
+    onHome();
+  };
+  useCallInBackground(meeting, leaveMeeting);
   const showIntegrationPanel = preferences.showIntegrationPanel !== false;
   useEffect(() => {
     meeting.start();
@@ -307,17 +316,19 @@ export function MeetingView({
               )}
             </>
           )}
-          {audioBlocked && (
+          {(audioBlocked || audioAsleep) && !ended && (
             <Button
               variant="primary"
               size="lg"
               className="audio-unlock"
               icon={<Headphones />}
-              onClick={() => void meeting.media.room.startAudio().then(() => setAudioBlocked(false))}
+              onClick={() => void meeting.media.unlockAudio().then(() => setAudioBlocked(false))}
             >
               {t(($) => $.meeting.view.unlockAudio)}
             </Button>
           )}
+          {/* Кнопка «Включить звук» стоит на том же месте и важнее подсказки. */}
+          {!(audioBlocked || audioAsleep) && <BackgroundNote meeting={meeting} />}
           {media.error && !ended && (
             <div className="media-error media-stage" role="alert">
               <span>{media.error}</span>
@@ -362,10 +373,7 @@ export function MeetingView({
             people={people.length}
             fullscreen={fullscreen}
             toggleFullscreen={toggleFullscreen}
-            onLeave={() => {
-              void meeting.leave();
-              onHome();
-            }}
+            onLeave={leaveMeeting}
             onSettings={() => setSettings(true)}
             onDiagnostics={() => setDiagnostics(true)}
             onMeetingSettings={may('room.settings') ? () => setMeetingSettings(true) : undefined}

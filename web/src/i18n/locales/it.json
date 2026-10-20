@@ -512,7 +512,19 @@
       "unsupported": "Questo browser non può passare la riunione da una scheda all'altra",
       "noAnswer": "La scheda con la riunione non risponde. Passa a quella scheda o chiudila"
     },
-    "ceiling": "La riunione terminerà alle {{time}}: su questo server le riunioni hanno una durata massima"
+    "ceiling": "La riunione terminerà alle {{time}}: su questo server le riunioni hanno una durata massima",
+    "background": {
+      "iosSafari": "Puoi ridurre Safari o bloccare lo schermo: la conversazione continua finché in alto è acceso il puntino arancione del microfono. Nel frattempo la videocamera si spegne. La conversazione si interrompe se arriva una chiamata normale o se l'iPhone chiude Safari. Per vedere gli altri sopra le altre app, usa «Riduci in finestra» nel menu dei controlli.",
+      "iosHome": "Qui l'iPhone spegne il microfono appena esci dallo schermo o blocchi il telefono. Per parlare in background, apri la riunione in Safari.",
+      "android": "Puoi ridurre il browser o spegnere lo schermo: finché nella tendina delle notifiche c'è «… sta usando il microfono», la conversazione continua. Se il telefono chiude il browser in background, togli le restrizioni della batteria per il browser.",
+      "noMicrophone": "Senza accesso al microfono, il telefono può interrompere la conversazione quando riduci il browser o spegni lo schermo. Consenti il microfono nelle impostazioni del sito: disattivato con il pulsante non trasmette nulla, ma mantiene la conversazione in background.",
+      "telegram": "In Telegram la conversazione regge finché Telegram è aperto: se lo riduci o spegni lo schermo, il telefono può interromperla. Per parlare in background, apri la riunione nel browser.",
+      "gapClosed": "Mentre non eri sullo schermo, il telefono ha spento il microfono: non ti hanno sentito dalle {{from}} alle {{to}}.",
+      "gapOpen": "Mentre non eri sullo schermo, il telefono ha spento il microfono alle {{from}} e ancora non ti sentono. Disattiva e riattiva il microfono.",
+      "copyLink": "Copia il link",
+      "copied": "Link copiato",
+      "hide": "Nascondi il suggerimento"
+    }
   },
   "chess": {
     "title": "Scacchi",
@@ -1174,6 +1186,10 @@
       "offline": "Nessuna connessione",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · riunione",
+      "untitled": "Riunione"
     }
   },
   "poker": {
@@ -2068,7 +2084,9 @@
         "grid": "Griglia",
         "speaker": "Chi parla"
       }
-    }
+    },
+    "pip": "Riduci in finestra",
+    "pipClose": "Ripristina dalla finestra"
   },
   "invite": {
     "dialog": {
@@ -2728,7 +2746,8 @@
       "ios": "Tocca <share/> e scegli <plus/> «Aggiungi alla schermata Home». Si aprirà come un'app, senza barra degli indirizzi.",
       "share": "Condividi",
       "install": "Installa",
-      "hide": "Nascondi il suggerimento"
+      "hide": "Nascondi il suggerimento",
+      "iosBackground": "L'iPhone mantiene la conversazione in background solo in Safari: dalla schermata Home il microfono si spegne appena esci dall'app."
     },
     "desktop": {
       "settings": "Impostazioni audio e profilo"

@@ -512,7 +512,19 @@
       "unsupported": "Ce navigateur ne sait pas transférer une réunion d'un onglet à l'autre",
       "noAnswer": "L'onglet de la réunion ne répond pas. Passez-y ou fermez-le"
     },
-    "ceiling": "La réunion se terminera à {{time}} : les réunions de ce serveur ont une durée maximale"
+    "ceiling": "La réunion se terminera à {{time}} : les réunions de ce serveur ont une durée maximale",
+    "background": {
+      "iosSafari": "Vous pouvez réduire Safari ou verrouiller l'écran : la conversation continue tant que le point orange du micro est allumé en haut. La caméra se coupe pendant ce temps. La conversation s'interrompt si un appel classique arrive ou si l'iPhone ferme Safari. Pour voir les autres par-dessus d'autres apps, choisissez « Afficher en mini-fenêtre » dans le menu des commandes.",
+      "iosHome": "Ici, l'iPhone coupe le micro dès que vous quittez l'écran ou verrouillez le téléphone. Pour parler en arrière-plan, ouvrez la réunion dans Safari.",
+      "android": "Vous pouvez réduire le navigateur ou éteindre l'écran : tant que la notification « … utilise le micro » reste affichée, la conversation continue. Si le téléphone ferme le navigateur en arrière-plan, retirez-lui les restrictions de batterie.",
+      "noMicrophone": "Sans accès au micro, le téléphone peut interrompre la conversation quand vous réduisez le navigateur ou éteignez l'écran. Autorisez le micro dans les paramètres du site : coupé par le bouton, il ne transmet rien mais maintient la conversation en arrière-plan.",
+      "telegram": "Dans Telegram, la conversation tient tant que Telegram est ouvert : si vous le réduisez ou éteignez l'écran, le téléphone peut l'interrompre. Pour parler en arrière-plan, ouvrez la réunion dans un navigateur.",
+      "gapClosed": "Pendant votre absence de l'écran, le téléphone a coupé le micro : on ne vous a pas entendu de {{from}} à {{to}}.",
+      "gapOpen": "Pendant votre absence de l'écran, le téléphone a coupé le micro à {{from}}, et on ne vous entend toujours pas. Coupez puis réactivez le micro.",
+      "copyLink": "Copier le lien",
+      "copied": "Lien copié",
+      "hide": "Masquer l'astuce"
+    }
   },
   "chess": {
     "title": "Échecs",
@@ -1174,6 +1186,10 @@
       "offline": "Hors ligne",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · réunion",
+      "untitled": "Réunion"
     }
   },
   "poker": {
@@ -2068,7 +2084,9 @@
         "grid": "Grille",
         "speaker": "Intervenant"
       }
-    }
+    },
+    "pip": "Afficher en mini-fenêtre",
+    "pipClose": "Quitter la mini-fenêtre"
   },
   "invite": {
     "dialog": {
@@ -2728,7 +2746,8 @@
       "ios": "Touchez <share/> puis choisissez <plus/> « Sur l'écran d'accueil ». L'application s'ouvrira sans barre d'adresse.",
       "share": "Partager",
       "install": "Installer",
-      "hide": "Masquer l'astuce"
+      "hide": "Masquer l'astuce",
+      "iosBackground": "L'iPhone ne maintient une conversation en arrière-plan que dans Safari : depuis l'écran d'accueil, le micro se coupe dès que vous quittez l'application."
     },
     "desktop": {
       "settings": "Paramètres du son et du profil"

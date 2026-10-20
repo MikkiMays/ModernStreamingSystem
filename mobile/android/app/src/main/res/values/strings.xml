@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cord</string>
+    <string name="title_activity_main">Cord</string>
+    <string name="package_name">tech.nikg.cord</string>
+    <string name="custom_url_scheme">tech.nikg.cord</string>
+
+    <!-- Уведомление разговора (CallService) -->
+    <string name="call_channel">Разговор</string>
+    <string name="call_channel_description">Уведомление, пока идёт встреча: оно держит разговор при погашенном экране</string>
+    <string name="call_default_title">Встреча Cord</string>
+    <string name="call_text_microphone_on">Идёт разговор · микрофон включён</string>
+    <string name="call_text_microphone_off">Идёт разговор · микрофон выключен</string>
+    <string name="call_action_mute">Выключить микрофон</string>
+    <string name="call_action_unmute">Включить микрофон</string>
+    <string name="call_action_hangup">Завершить</string>
+</resources>

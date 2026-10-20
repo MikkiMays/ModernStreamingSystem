@@ -26,8 +26,8 @@
 | 3 | E07 Кинозал и плеер | `epics/E07-cinema-player.md` | T17 T19 T20 | готово в коде, выкачено (19.10.2026): T17 T19 T20; e2e — финальная волна |
 | 3 | E08 Игры: дурак, звуки, лица | `epics/E08-games.md` | T07 T51 T45 T11 T55 | готово в коде, выкачено (19.10.2026): T51 T07 T45 T11; визуальная волна — финальная |
 | 4 | E01-B Десктоп-приложение | `epics/E01-desktop-app.md` | T28 T39 T43 T53 T54 T05 T10 T23 T27 T42 T46 T55 | готово в коде (20.10.2026, Fable): `desktop/` (Electron), мост v2, заставка В-1 с Ed25519, захват, клавиши, оверлей, NSIS; CI зелёный, выпуск desktop-v1.0.0 на GitHub; на зеркало — после ключа подписи (OWNER-ACTIONS №6); остатки — журнал E01-B (cord-native, каталог в ядре, переключатели E03) |
-| 4 | E12 Телефоны: разговор в фоне | `epics/E12-mobile-background.md` | T16 | ждёт |
-| 4 | E09 Telegram Mini App | `epics/E09-telegram-webapp.md` | T04 T30 T55 | ждёт |
+| 4 | E12 Телефоны: разговор в фоне | `epics/E12-mobile-background.md` | T16 | готово в коде, выкачено (20.10.2026): веб держит разговор в фоне (Android, iPhone), Capacitor Android с сервисом звонка, CI собирает APK (`cord-android-debug`); проверка на телефоне — OWNER-ACTIONS №7 |
+| 4 | E09 Telegram Mini App | `epics/E09-telegram-webapp.md` | T04 T30 T55 | готово в коде, выкачено (20.10.2026): `/tg`, initData, членство в чате, кнопка startapp, CSP только для /tg; выключено флагом `TELEGRAM_WEBAPP_ENABLED` до настройки бота в BotFather |
 | 5 | E10-B Наблюдаемость: внедрение | `epics/E10-observability.md` | T32 | ждёт |
 | 5 | E11-B Антибот: внедрение | `epics/E11-antiabuse.md` | T37 T06 | готово, выкачено (20.10.2026): A1 A3 A6 A7 A8 A11 A13 A15 закрыты, A2 A4 A5 A12 A14 частично (см. `docs/abuse-model.md` §9); блокировки и рычаги владельца (V10) — в E10-B; A9 A10 открыты |
 | 5 | E13 Обучение и поддержка | `epics/E13-onboarding-support.md` | T34 T36 T54 | ждёт |

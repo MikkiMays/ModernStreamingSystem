@@ -512,7 +512,19 @@
       "unsupported": "Este navegador não consegue passar a reunião entre abas",
       "noAnswer": "A aba com a reunião não respondeu. Vá até ela ou feche-a"
     },
-    "ceiling": "A reunião vai terminar às {{time}}: as reuniões neste servidor têm duração máxima"
+    "ceiling": "A reunião vai terminar às {{time}}: as reuniões neste servidor têm duração máxima",
+    "background": {
+      "iosSafari": "Dá para minimizar o Safari ou bloquear a tela — a conversa continua enquanto o ponto laranja do microfone estiver aceso lá em cima. A câmera fica desligada nesse meio-tempo. A conversa cai se chegar uma ligação comum ou se o iPhone fechar o Safari. Para ver os outros por cima de outros apps, use “Abrir em janela flutuante” no menu de controles.",
+      "iosHome": "Aqui o iPhone desliga o microfone assim que você sai da tela ou bloqueia o celular. Para conversar em segundo plano, abra a reunião no Safari.",
+      "android": "Dá para minimizar o navegador ou apagar a tela: enquanto as notificações mostrarem “… está usando o microfone”, a conversa continua. Se o celular fechar o navegador em segundo plano, tire as restrições de bateria dele.",
+      "noMicrophone": "Sem acesso ao microfone, o celular pode derrubar a conversa quando você minimizar o navegador ou apagar a tela. Permita o microfone nas configurações do site: desligado pelo botão, ele não transmite nada, mas mantém a conversa em segundo plano.",
+      "telegram": "No Telegram, a conversa se mantém enquanto o Telegram estiver aberto: se você minimizar ou apagar a tela, o celular pode derrubá-la. Para conversar em segundo plano, abra a reunião no navegador.",
+      "gapClosed": "Enquanto você estava fora da tela, o celular desligou o microfone — ninguém te ouviu das {{from}} às {{to}}.",
+      "gapOpen": "Enquanto você estava fora da tela, o celular desligou o microfone às {{from}}, e você ainda não está sendo ouvido. Desligue e ligue o microfone de novo.",
+      "copyLink": "Copiar link",
+      "copied": "Link copiado",
+      "hide": "Ocultar a dica"
+    }
   },
   "chess": {
     "title": "Xadrez",
@@ -1174,6 +1186,10 @@
       "offline": "Sem conexão",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · reunião",
+      "untitled": "Reunião"
     }
   },
   "poker": {
@@ -2068,7 +2084,9 @@
         "grid": "Grade",
         "speaker": "Quem fala"
       }
-    }
+    },
+    "pip": "Abrir em janela flutuante",
+    "pipClose": "Sair da janela flutuante"
   },
   "invite": {
     "dialog": {
@@ -2728,7 +2746,8 @@
       "ios": "Toque em <share/> e escolha <plus/> “Adicionar à Tela de Início”. Vai abrir como um app, sem barra de endereços.",
       "share": "Compartilhar",
       "install": "Instalar",
-      "hide": "Ocultar a dica"
+      "hide": "Ocultar a dica",
+      "iosBackground": "O iPhone só mantém a conversa em segundo plano no Safari: pela Tela de Início, o microfone desliga assim que você sai do app."
     },
     "desktop": {
       "settings": "Configurações de som e perfil"

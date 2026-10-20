@@ -512,7 +512,19 @@
       "unsupported": "Este navegador no puede pasar la reunión de una pestaña a otra",
       "noAnswer": "La pestaña con la reunión no responde. Ve a ella o ciérrala"
     },
-    "ceiling": "La reunión terminará a las {{time}}: las reuniones de este servidor tienen una duración máxima"
+    "ceiling": "La reunión terminará a las {{time}}: las reuniones de este servidor tienen una duración máxima",
+    "background": {
+      "iosSafari": "Puedes minimizar Safari o bloquear la pantalla: la conversación sigue mientras arriba se vea el punto naranja del micrófono. Mientras tanto, la cámara se apaga. La conversación se corta si entra una llamada normal o el iPhone cierra Safari. Para ver a los demás sobre otras apps, usa «Ver en ventana flotante» en el menú de controles.",
+      "iosHome": "Aquí el iPhone apaga el micrófono en cuanto sales de la pantalla o bloqueas el teléfono. Para hablar en segundo plano, abre la reunión en Safari.",
+      "android": "Puedes minimizar el navegador o apagar la pantalla: mientras en las notificaciones aparezca «… está usando el micrófono», la conversación sigue. Si el teléfono cierra el navegador en segundo plano, quítale las restricciones de batería.",
+      "noMicrophone": "Sin acceso al micrófono, el teléfono puede cortar la conversación al minimizar el navegador o apagar la pantalla. Permite el micrófono en los ajustes del sitio: silenciado con el botón no transmite nada, pero mantiene la conversación en segundo plano.",
+      "telegram": "En Telegram, la conversación sigue mientras Telegram esté abierto: si lo minimizas o apagas la pantalla, el teléfono puede cortarla. Para hablar en segundo plano, abre la reunión en el navegador.",
+      "gapClosed": "Mientras no estabas en la pantalla, el teléfono apagó el micrófono: no se te oyó de {{from}} a {{to}}.",
+      "gapOpen": "Mientras no estabas en la pantalla, el teléfono apagó el micrófono a las {{from}} y todavía no se te oye. Desactiva y vuelve a activar el micrófono.",
+      "copyLink": "Copiar enlace",
+      "copied": "Enlace copiado",
+      "hide": "Ocultar la sugerencia"
+    }
   },
   "chess": {
     "title": "Ajedrez",
@@ -1174,6 +1186,10 @@
       "offline": "Sin conexión",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · reunión",
+      "untitled": "Reunión"
     }
   },
   "poker": {
@@ -2068,7 +2084,9 @@
         "grid": "Cuadrícula",
         "speaker": "Orador"
       }
-    }
+    },
+    "pip": "Ver en ventana flotante",
+    "pipClose": "Salir de la ventana flotante"
   },
   "invite": {
     "dialog": {
@@ -2728,7 +2746,8 @@
       "ios": "Toca <share/> y elige <plus/> «Añadir a pantalla de inicio». Se abrirá como una app, sin barra de direcciones.",
       "share": "Compartir",
       "install": "Instalar",
-      "hide": "Ocultar la sugerencia"
+      "hide": "Ocultar la sugerencia",
+      "iosBackground": "El iPhone solo mantiene la conversación en segundo plano en Safari: desde la pantalla de inicio, el micrófono se apaga en cuanto sales de la app."
     },
     "desktop": {
       "settings": "Ajustes de sonido y perfil"

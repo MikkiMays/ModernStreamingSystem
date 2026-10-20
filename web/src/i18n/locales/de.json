@@ -511,7 +511,19 @@
       "unsupported": "Dieser Browser kann ein Meeting nicht zwischen Tabs übergeben",
       "noAnswer": "Der Tab mit dem Meeting antwortet nicht. Wechsle dorthin oder schließe ihn"
     },
-    "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer"
+    "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer",
+    "background": {
+      "iosSafari": "Du kannst Safari minimieren oder den Bildschirm sperren – das Gespräch läuft weiter, solange oben der orange Mikrofonpunkt leuchtet. Die Kamera ist währenddessen aus. Das Gespräch bricht ab, wenn ein normaler Anruf kommt oder das iPhone Safari schließt. Um die anderen über anderen Apps zu sehen, nutze „Bild-im-Bild“ im Steuerungsmenü.",
+      "iosHome": "Hier schaltet das iPhone das Mikrofon aus, sobald du den Bildschirm verlässt oder das Telefon sperrst. Für Gespräche im Hintergrund öffne das Meeting in Safari.",
+      "android": "Du kannst den Browser minimieren oder den Bildschirm ausschalten: Solange in der Benachrichtigungsleiste „… verwendet das Mikrofon“ steht, läuft das Gespräch. Wenn das Telefon den Browser im Hintergrund schließt, hebe die Akkubeschränkungen für ihn auf.",
+      "noMicrophone": "Ohne Mikrofonzugriff kann das Telefon das Gespräch beenden, wenn du den Browser minimierst oder den Bildschirm ausschaltest. Erlaube das Mikrofon in den Website-Einstellungen: Per Taste stummgeschaltet sendet es nichts, hält das Gespräch aber im Hintergrund.",
+      "telegram": "In Telegram hält das Gespräch, solange Telegram geöffnet ist: Minimierst du es oder schaltest den Bildschirm aus, kann das Telefon das Gespräch beenden. Für Gespräche im Hintergrund öffne das Meeting im Browser.",
+      "gapClosed": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon ausgeschaltet – von {{from}} bis {{to}} hat dich niemand gehört.",
+      "gapOpen": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon um {{from}} ausgeschaltet, und du bist immer noch nicht zu hören. Schalte das Mikrofon aus und wieder ein.",
+      "copyLink": "Link kopieren",
+      "copied": "Link kopiert",
+      "hide": "Hinweis ausblenden"
+    }
   },
   "chess": {
     "title": "Schach",
@@ -1160,6 +1172,10 @@
       "offline": "Keine Verbindung",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
+    },
+    "background": {
+      "artist": "Cord · Meeting",
+      "untitled": "Meeting"
     }
   },
   "poker": {
@@ -2043,7 +2059,9 @@
         "grid": "Raster",
         "speaker": "Sprecher"
       }
-    }
+    },
+    "pip": "Bild-im-Bild",
+    "pipClose": "Bild-im-Bild beenden"
   },
   "invite": {
     "dialog": {
@@ -2701,7 +2719,8 @@
       "ios": "Tippe auf <share/> und wähle <plus/> „Zum Home-Bildschirm“. Es öffnet sich wie eine App, ohne Adressleiste.",
       "share": "Teilen",
       "install": "Installieren",
-      "hide": "Hinweis ausblenden"
+      "hide": "Hinweis ausblenden",
+      "iosBackground": "Gespräche im Hintergrund hält das iPhone nur in Safari: Vom Home-Bildschirm aus geht das Mikrofon aus, sobald du die App verlässt."
     },
     "desktop": {
       "settings": "Ton- und Profileinstellungen"

@@ -121,3 +121,23 @@ it('ignores handover requests meant for another tab or room', () => {
   expect(handedOver).not.toHaveBeenCalled();
   expect(thisTab).not.toBe('tab-b');
 });
+
+it('survives the back-forward cache: says goodbye on pagehide and comes back on pageshow (E12)', () => {
+  const seen: ActiveMeeting[][] = [];
+  const watcher = watchActiveMeetings((list) => seen.push(list));
+  const other = announceMeeting(info, { admission: () => admission, onHandedOver: () => {} }, 'tab-b');
+  const transition = (type: 'pagehide' | 'pageshow', persisted: boolean) =>
+    window.dispatchEvent(Object.assign(new Event(type), { persisted }));
+  transition('pagehide', true);
+  expect(seen.at(-1)).toEqual([]);
+  other.update({ ...info, title: 'Ретро' });
+  transition('pageshow', true);
+  expect(seen.at(-1)).toEqual([{ ...info, title: 'Ретро', tab: 'tab-b' }]);
+  // Настоящая выгрузка — конец: обратно вкладка уже не объявится.
+  transition('pagehide', false);
+  expect(seen.at(-1)).toEqual([]);
+  transition('pageshow', true);
+  expect(seen.at(-1)).toEqual([]);
+  other.stop();
+  watcher.close();
+});
