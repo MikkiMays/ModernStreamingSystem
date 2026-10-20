@@ -239,6 +239,8 @@ services:
     read_only: true
     tmpfs: [/tmp]
     mem_limit: 256m
+    # На медленной машине VictoriaMetrics не успевала сбросить ряды на диск за 10 с и умирала по SIGKILL.
+    stop_grace_period: 30s
     restart: unless-stopped
   vmalert:
     profiles: [monitoring]
@@ -285,6 +287,8 @@ services:
     logging: *default-logging
     image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
     network_mode: host
+    # Без init при остановке оставался процесс-зомби, и docker не мог остановить контейнер (замер E10-B).
+    init: true
     # Без пароля в .env не стартует: иначе вход был бы admin/admin.
     entrypoint: [sh, -c, 'test -n "$$GF_SECURITY_ADMIN_PASSWORD" || { echo "GRAFANA_PASSWORD пуст: node scripts/configure.mjs --refresh --monitoring" >&2; exit 1; }; exec /run.sh']
     environment:
