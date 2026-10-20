@@ -56,8 +56,7 @@
    `! gh auth login --hostname github.com --git-protocol https --with-token <<< 'ТОКЕН'` и
    `! gh auth setup-git`. Без этого не работают пуш, статус CI и релизы Windows (`gh auth status`
    показывает, сделано ли).
-   Ответ (20.10.2026): вариант (а) — ключ стенда положен в секрет `CORD_UPDATE_SIGN_KEY`; выпуск desktop-v1.0.0 подписан
-   тем же ключом и выложен на зеркало (`/downloads/windows/desktop/`).
+   Ответ:
 2. **Сменить токен GitHub после сессии.** Токен был вставлен в чат открытым текстом и у него права
    администратора (вплоть до `delete_repo` и `admin:enterprise`). Для работы хватает `repo` + `workflow`
    (fine-grained: Contents, Actions, Workflows — запись, только две репы Cord).
@@ -91,4 +90,5 @@
    выпуски; или (б) выпустить боевой ключ у себя и прислать публичную половину — заменю в `update-keys.json`. Без
    подписи CI собирает выпуск с предупреждением, а клиент такой выпуск не ставит (проверка «недоступна» → открывает
    приложение как есть). Сертификат Authenticode — как раньше (`CORD_SIGN_PFX_BASE64`, `CORD_SIGN_PASSWORD`).
-   Ответ:
+   Ответ (20.10.2026): вариант (а) — ключ стенда положен в секрет `CORD_UPDATE_SIGN_KEY`; выпуск desktop-v1.0.0 подписан
+   тем же ключом и выложен на зеркало (`/downloads/windows/desktop/`).
