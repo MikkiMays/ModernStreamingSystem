@@ -39,7 +39,11 @@ function Start-LocalService([string]$Name,[string]$Executable,[string[]]$Argumen
 Start-LocalService 'gateway' $caddy @('run','--config',(Join-Path $workspace 'infra/Caddyfile.local'),'--adapter','caddyfile') $workspace 7883
 Start-LocalService 'livekit' $livekit @('--config',(Join-Path $workspace 'infra/livekit.local.yaml')) $workspace 7880
 Start-LocalService 'tusd' $tusd @('-host','127.0.0.1','-port','1080','-base-path','/uploads/','-upload-dir',(Join-Path $workspace 'server/.local/uploads'),'-max-size','104857600','-behind-proxy','-disable-download','-disable-concatenation','-hooks-http','http://127.0.0.1:8090/internal/tus','-hooks-http-forward-headers','Authorization','-hooks-enabled-events','pre-create,post-finish','-verbose=false','-show-startup-logs=false') $workspace 1080
-Start-LocalService 'core' $java @('-jar',(Join-Path $workspace 'server/target/streaming-server-0.1.0-SNAPSHOT.jar'),'--spring.profiles.active=local') (Join-Path $workspace 'server') 8080
+# Локальный стенд (и CI) гоняет все e2e с одного адреса 127.0.0.1 — около 60 новых встреч за прогон,
+# а пределы адреса прода (E11-B: 10 в час, 3 открытых сразу) оборвали бы его на десятой. Пределы
+# профиля и задача «не бот» остаются как в проде. Не в application-local.yml: тесты ядра с профилем
+# local проверяют именно пределы по умолчанию.
+Start-LocalService 'core' $java @('-jar',(Join-Path $workspace 'server/target/streaming-server-0.1.0-SNAPSHOT.jar'),'--spring.profiles.active=local','--stream.abuse.per-ip.rooms-created=off','--stream.abuse.per-ip.open-rooms=1000') (Join-Path $workspace 'server') 8080
 if (-not $SkipWeb) {
     $node = (Get-Command node.exe).Source
     Start-LocalService 'web' $node @((Join-Path $workspace 'web/node_modules/vite/bin/vite.js'),'--host','127.0.0.1','--strictPort') (Join-Path $workspace 'web') 5173
