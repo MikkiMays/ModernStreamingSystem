@@ -23,8 +23,8 @@ function fakeMeeting(platform: Platform, captured = true) {
   };
 }
 
-const ANDROID: Platform = { os: 'android', mobile: true, standalone: false, app: false };
-const IOS_HOME: Platform = { os: 'ios', mobile: true, standalone: true, app: false };
+const ANDROID: Platform = { os: 'android', mobile: true, standalone: false, app: false, telegram: false };
+const IOS_HOME: Platform = { os: 'ios', mobile: true, standalone: true, app: false, telegram: false };
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -58,6 +58,14 @@ describe('честная подсказка о фоне', () => {
     expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
   });
 
+  it('Telegram: разговор держится, пока Telegram открыт, — и ссылка для браузера', () => {
+    const { meeting } = fakeMeeting({ ...ANDROID, telegram: true });
+    render(<BackgroundNote meeting={meeting} />);
+    act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
+    expect(screen.getByRole('note').textContent).toContain('пока Telegram открыт');
+    expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
+  });
+
   it('без захвата микрофона — честно о том, что фон не защищён', () => {
     const { meeting } = fakeMeeting(ANDROID, false);
     render(<BackgroundNote meeting={meeting} />);
@@ -77,7 +85,13 @@ describe('честная подсказка о фоне', () => {
   });
 
   it('ПК — подсказки нет', () => {
-    const { meeting } = fakeMeeting({ os: 'other', mobile: false, standalone: false, app: false });
+    const { meeting } = fakeMeeting({
+      os: 'other',
+      mobile: false,
+      standalone: false,
+      app: false,
+      telegram: false,
+    });
     render(<BackgroundNote meeting={meeting} />);
     act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
     expect(screen.queryByRole('note')).toBeNull();

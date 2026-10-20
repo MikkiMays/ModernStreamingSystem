@@ -90,19 +90,21 @@ export function BackgroundNote({ meeting }: { meeting: Meeting }) {
         ? t(($) => $.meeting.background.iosHome)
         : advice === 'android'
           ? t(($) => $.meeting.background.android)
-          : t(($) => $.meeting.background.noMicrophone);
+          : advice === 'telegram'
+            ? t(($) => $.meeting.background.telegram)
+            : t(($) => $.meeting.background.noMicrophone);
   const close = () => {
     remember(advice);
     setClosed(advice);
   };
-  // Ссылка той же области внутри веб-приложения «Домой» откроется в нём же, а не в Safari: её
-  // можно только скопировать и вставить в Safari руками.
+  // Ссылка той же области внутри веб-приложения «Домой» (и внутри Telegram) откроется там же, а не в
+  // браузере: её можно только скопировать и вставить в браузер руками.
   const link = invite ?? window.location.href;
   return (
     <div className="background-note media-stage" role="note">
       <Info size={18} aria-hidden="true" />
       <span>{text}</span>
-      {advice === 'ios-home' && (
+      {(advice === 'ios-home' || advice === 'telegram') && (
         <Button
           size="sm"
           variant="secondary"

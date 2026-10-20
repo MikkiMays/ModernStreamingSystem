@@ -26,6 +26,7 @@ describe('платформа для правил фона', () => {
       mobile: true,
       standalone: false,
       app: false,
+      telegram: false,
     });
   });
 
@@ -49,6 +50,11 @@ describe('платформа для правил фона', () => {
       signals({ userAgent: ANDROID, nativeBridge: true, displayStandalone: true }),
     );
     expect(bridged).toMatchObject({ app: true, standalone: false, os: 'android' });
+  });
+
+  it('Mini App Telegram узнаётся по входу tg.html; в приложении Cord Telegram не считается', () => {
+    expect(detectPlatform(signals({ userAgent: ANDROID, telegram: true })).telegram).toBe(true);
+    expect(detectPlatform(signals({ userAgent: ANDROID_APP, telegram: true })).telegram).toBe(false);
   });
 
   it('ПК — не телефон, даже в узком окне', () => {

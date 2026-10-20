@@ -198,6 +198,8 @@ export function wantsWakeLock(inputs: WakeLockInputs): boolean {
   if (!inputs.inCall || !inputs.visible) return false;
   if (inputs.video) return true;
   if (inputs.platform.app) return false;
+  // WebView Telegram в фоне не защищено ничем — погасший экран там и есть конец разговора.
+  if (inputs.platform.telegram && inputs.platform.mobile) return true;
   if (inputs.platform.os === 'ios' && inputs.platform.standalone) return true;
   return inputs.platform.mobile && !inputs.captured;
 }
@@ -209,14 +211,17 @@ export function wantsWakeLock(inputs: WakeLockInputs): boolean {
  * - `ios-home` — веб-приложение «Домой»: микрофон глушится при уходе с экрана, лучше Safari;
  * - `android` — держится, пока в шторке «… использует микрофон»;
  * - `no-microphone` — телефон без захвата: фон не защищён ничем;
+ * - `telegram` — Mini App: фоном распоряжается Telegram, разговор держится, пока Telegram открыт;
  * - `app` — приложение Cord: держит своя служба, говорить не о чем;
  * - `null` — ПК: фон не вопрос.
  */
-export type BackgroundAdvice = 'ios-safari' | 'ios-home' | 'android' | 'no-microphone' | 'app' | null;
+export type BackgroundAdvice =
+  'ios-safari' | 'ios-home' | 'android' | 'no-microphone' | 'telegram' | 'app' | null;
 
 export function backgroundAdvice(platform: Platform, captured: boolean): BackgroundAdvice {
   if (!platform.mobile) return null;
   if (platform.app) return 'app';
+  if (platform.telegram) return 'telegram';
   // «Домой» — первым: там и с микрофоном разговор в фоне не держится.
   if (platform.os === 'ios' && platform.standalone) return 'ios-home';
   if (!captured) return 'no-microphone';

@@ -16,11 +16,13 @@ import {
 } from './background';
 import type { Platform } from './platform';
 
-const IOS_SAFARI: Platform = { os: 'ios', mobile: true, standalone: false, app: false };
-const IOS_HOME: Platform = { os: 'ios', mobile: true, standalone: true, app: false };
-const ANDROID: Platform = { os: 'android', mobile: true, standalone: false, app: false };
-const ANDROID_APP: Platform = { os: 'android', mobile: true, standalone: false, app: true };
-const DESKTOP: Platform = { os: 'other', mobile: false, standalone: false, app: false };
+const IOS_SAFARI: Platform = { os: 'ios', mobile: true, standalone: false, app: false, telegram: false };
+const IOS_HOME: Platform = { os: 'ios', mobile: true, standalone: true, app: false, telegram: false };
+const ANDROID: Platform = { os: 'android', mobile: true, standalone: false, app: false, telegram: false };
+const ANDROID_APP: Platform = { os: 'android', mobile: true, standalone: false, app: true, telegram: false };
+const ANDROID_TELEGRAM: Platform = { ...ANDROID, telegram: true };
+const DESKTOP: Platform = { os: 'other', mobile: false, standalone: false, app: false, telegram: false };
+const DESKTOP_TELEGRAM: Platform = { ...DESKTOP, telegram: true };
 
 afterEach(() => {
   vi.useRealTimers();
@@ -186,6 +188,11 @@ describe('Wake Lock: когда держать экран', () => {
     expect(wantsWakeLock({ ...base, captured: false, platform: DESKTOP })).toBe(false);
   });
 
+  it('Telegram на телефоне держит экран: его WebView в фоне не защищено; Telegram на ПК — нет', () => {
+    expect(wantsWakeLock({ ...base, platform: ANDROID_TELEGRAM })).toBe(true);
+    expect(wantsWakeLock({ ...base, platform: DESKTOP_TELEGRAM })).toBe(false);
+  });
+
   it('в приложении Cord фон держит своя служба — экран только для видео', () => {
     expect(wantsWakeLock({ ...base, captured: false, platform: ANDROID_APP })).toBe(false);
   });
@@ -204,6 +211,11 @@ describe('что сказать про фон', () => {
     expect(backgroundAdvice(IOS_SAFARI, false)).toBe('no-microphone');
     expect(backgroundAdvice(ANDROID_APP, false)).toBe('app');
     expect(backgroundAdvice(DESKTOP, false)).toBeNull();
+  });
+
+  it('Mini App Telegram — свой случай: ни шторки Chrome, ни аудиосессии Safari', () => {
+    expect(backgroundAdvice(ANDROID_TELEGRAM, true)).toBe('telegram');
+    expect(backgroundAdvice(DESKTOP_TELEGRAM, true)).toBeNull();
   });
 
   it('iPhone «Домой» — первым: там и с микрофоном фон не держится', () => {

@@ -22,6 +22,11 @@ export interface Platform {
   standalone: boolean;
   /** Внутри приложения Cord для телефона (оболочка Capacitor, `mobile/`). */
   app: boolean;
+  /**
+   * Внутри Telegram — Mini App (`tg.html`, E09). WebView Telegram не держит разговор в фоне ни
+   * уведомлением Chrome, ни аудиосессией Safari: фоном там распоряжается Telegram.
+   */
+  telegram: boolean;
 }
 
 export interface PlatformSignals {
@@ -33,6 +38,8 @@ export interface PlatformSignals {
   displayStandalone: boolean;
   /** Мост оболочки Capacitor ответил, что это родная платформа. */
   nativeBridge: boolean;
+  /** Страница открыта как Mini App внутри Telegram. */
+  telegram?: boolean;
 }
 
 /** Метка приложения Cord в User-Agent (`appendUserAgent` в `mobile/capacitor.config.json`). */
@@ -51,6 +58,7 @@ export function detectPlatform(signals: PlatformSignals): Platform {
     // управляет сама оболочка, а не правила WebKit для веб-приложений.
     standalone: !app && (signals.iosStandalone === true || signals.displayStandalone),
     app,
+    telegram: !app && signals.telegram === true,
   };
 }
 
@@ -61,7 +69,7 @@ interface CapacitorProbe {
 /** Платформа этой страницы. Без `window` (тесты, сборка) — обычный ПК. */
 export function currentPlatform(): Platform {
   if (typeof window === 'undefined' || typeof navigator === 'undefined')
-    return { os: 'other', mobile: false, standalone: false, app: false };
+    return { os: 'other', mobile: false, standalone: false, app: false, telegram: false };
   let displayStandalone = false;
   try {
     displayStandalone = window.matchMedia?.('(display-mode: standalone)').matches ?? false;
@@ -80,5 +88,8 @@ export function currentPlatform(): Platform {
     iosStandalone: (navigator as { standalone?: boolean }).standalone,
     displayStandalone,
     nativeBridge,
+    // Вход Mini App ставит платформу Telegram, а вне Telegram — `outside` (`telegram/main.tsx`).
+    telegram:
+      !!document.documentElement.dataset.telegram && document.documentElement.dataset.telegram !== 'outside',
   });
 }
