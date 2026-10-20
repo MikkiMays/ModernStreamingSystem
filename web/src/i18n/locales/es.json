@@ -1695,6 +1695,285 @@
       "durak-online-54": "Pulgar a regañadientes"
     }
   },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}} mil",
+      "millions": "{{value}} M"
+    },
+    "providers": {
+      "youtube": {
+        "hint": "Vídeos, películas y canales",
+        "search": "Vídeo, canal o lista"
+      },
+      "twitch": {
+        "hint": "Directos y grabaciones",
+        "search": "Canal o juego en Twitch"
+      },
+      "rutube": {
+        "hint": "TV en directo, series y programas",
+        "search": "Vídeos, canales y TV"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "Secciones, comunidades y directos",
+        "search": "Vídeos y comunidades"
+      },
+      "ivi": {
+        "hint": "Películas, series y dibujos animados gratuitos",
+        "search": "Película, serie o dibujos"
+      },
+      "link": {
+        "name": "Por enlace",
+        "hint": "Vídeo, directo o lista desde un enlace",
+        "search": "Pega el enlace de un vídeo"
+      }
+    },
+    "linkCard": {
+      "vkStream": "Directo de VK Video Live: {{id}}",
+      "twitchStream": "Directo de Twitch: {{id}}",
+      "stream": "Directo de {{name}} por enlace",
+      "twitchVideo": "Grabación de Twitch por enlace",
+      "video": "Vídeo de {{name}} por enlace"
+    },
+    "group": {
+      "back": "Integraciones",
+      "platforms": "Plataformas del cine",
+      "watching": "Ahora vemos:",
+      "closeForAll": "Cerrar para todos",
+      "unavailable": "No disponible ahora",
+      "noProviders": "Las plataformas del cine están desactivadas en este servidor.",
+      "closeCatalog": "Cerrar el catálogo",
+      "locked": "El anfitrión se ha reservado poner y detener el contenido."
+    },
+    "shell": {
+      "label": "Cine",
+      "back": "Atrás",
+      "clear": "Borrar la búsqueda",
+      "backToWatch": "Volver a la reproducción",
+      "close": "Cerrar el cine",
+      "locked": "El anfitrión se ha reservado las integraciones: puedes mirar, pero no poner nada."
+    },
+    "more": {
+      "loading": "Cargando…",
+      "show": "Mostrar más"
+    },
+    "notes": {
+      "offline": "Sin conexión con el servidor: inténtalo de nuevo",
+      "timeout": "El servidor no respondió a tiempo: inténtalo de nuevo",
+      "failed": "No se pudo completar la solicitud",
+      "asking": "Consultando la plataforma…",
+      "pressEnter": "Pulsa Enter y el cine abrirá este enlace.",
+      "opening": "Abriendo el enlace…"
+    },
+    "meta": {
+      "live": "En directo",
+      "channel": "Canal",
+      "followers": "{{value}} seguidores",
+      "watching": "{{value}} viendo",
+      "watchingNow": "{{value}} viendo ahora mismo",
+      "liveWatching": "en directo, {{value}} viendo",
+      "views": "{{value}} visualizaciones",
+      "updated": "Actualizado el {{date}}",
+      "videos_one": "{{count}} vídeo",
+      "videos_many": "{{count}} vídeos",
+      "videos_other": "{{count}} vídeos"
+    },
+    "tiles": {
+      "watch": "Ver juntos: {{title}}",
+      "details": "Más detalles: {{title}}",
+      "open": "Abrir: {{title}}",
+      "openPlaylist": "Abrir la lista: {{title}}",
+      "openCategory": "Abrir la sección: {{title}}",
+      "openChannel": "Abrir el canal: {{title}}",
+      "playlist": "Lista"
+    },
+    "headings": {
+      "channels": "Canales",
+      "videos": "Vídeos",
+      "sections": "Secciones"
+    },
+    "search": {
+      "nothing": "No se encontró nada. Prueba con otras palabras.",
+      "emptySection": "En esta sección aún no hay nada que mostrar a la sala."
+    },
+    "category": {
+      "empty": "Ahora nadie está en directo en esta sección."
+    },
+    "channel": {
+      "tabsLabel": "Secciones del canal",
+      "tabs": {
+        "videos": "Vídeos",
+        "streams": "Directos",
+        "shorts": "Shorts",
+        "playlists": "Listas",
+        "about": "Información"
+      },
+      "noAbout": "El canal no ha escrito nada sobre sí mismo.",
+      "empty": {
+        "playlists": "El canal no tiene listas.",
+        "streams": "El canal no hace directos.",
+        "shorts": "El canal no tiene Shorts.",
+        "other": "Aquí aún no hay nada que ver."
+      }
+    },
+    "item": {
+      "watch": "Ver juntos",
+      "openChannel": "Abrir el canal",
+      "allEpisodes": "Todos los episodios"
+    },
+    "playlist": {
+      "empty": "La lista está vacía."
+    },
+    "series": {
+      "untitled": "Serie",
+      "seasons_one": "{{count}} temporada",
+      "seasons_many": "{{count}} temporadas",
+      "seasons_other": "{{count}} temporadas",
+      "seasonsLabel": "Temporadas"
+    },
+    "switcher": {
+      "tabsLabel": "Plataforma",
+      "hints": {
+        "movies": "Películas completas",
+        "music": "Música",
+        "podcasts": "Pódcasts",
+        "documentaries": "Documentales",
+        "standup": "Stand-up",
+        "cartoons": "Dibujos animados"
+      },
+      "shelvesLabel": "Escaparate de Twitch",
+      "live": "Directos",
+      "categories": "Categorías",
+      "foundSections": "Secciones encontradas",
+      "popularSections": "Secciones populares",
+      "noSections": "Twitch no tiene esas secciones.",
+      "emptyTitle": "¿Qué ponemos para la sala?",
+      "emptyText": "Encontrarás lo mismo que en YouTube: un vídeo, una película completa o un canal.",
+      "liveNow": "En directo ahora",
+      "categoryNote": "Sección de Twitch"
+    },
+    "rutube": {
+      "home": "Inicio",
+      "sectionsLabel": "Secciones de RUTUBE",
+      "live": "En directo",
+      "allLive": "Todos los directos",
+      "shows": "Series y programas",
+      "allShows": "Todas las series y programas",
+      "videosAndLive": "Vídeos y directos",
+      "seriesEmpty": "Aquí no hay nada que mostrar a la sala: los demás episodios en RUTUBE son de pago o no están disponibles desde aquí."
+    },
+    "vk": {
+      "sectionsLabel": "Secciones de VK Video",
+      "down": "El catálogo de VK Video no se abre ahora",
+      "downHint": "{{error}}. Un vídeo o directo de VK se abrirá igualmente por enlace: pégalo en la búsqueda.",
+      "communities": "Comunidades",
+      "nothing": "No se encontró nada. Prueba con otras palabras o pega el enlace de un vídeo de VK."
+    },
+    "ivi": {
+      "sectionsLabel": "Secciones de ivi",
+      "emptySection": "En esta sección aún no hay nada que mostrar a la sala: desde aquí ivi no ofrece contenido gratuito.",
+      "seriesEmpty": "Aquí no hay nada que mostrar a la sala: los demás episodios en ivi son de pago o no están disponibles desde aquí."
+    },
+    "linkScene": {
+      "recent": "Enlaces recientes",
+      "forget": "Quitar de recientes: {{address}}",
+      "clear": "Borrar todo",
+      "clearLabel": "Borrar los enlaces recientes",
+      "clipboardRefused": "El navegador no permitió leer el portapapeles: pega el enlace en el campo tú mismo.",
+      "clipboardEmpty": "No hay ningún enlace en el portapapeles.",
+      "title": "Pega el enlace de un vídeo",
+      "intro": "Un vídeo, directo, canal o lista de {{providers}} se abrirá en su catálogo, directamente en su página.",
+      "paste": "Pegar del portapapeles",
+      "confirmTitle": "¿Abrir este enlace?",
+      "confirmText": "Pulsa Enter o el botón y el cine comprobará qué hay en esta página.",
+      "open": "Abrir el enlace",
+      "notLink": "Esto no parece un enlace: hace falta la dirección de una página con vídeo, por ejemplo https://rutube.ru/video/…",
+      "searching": "Buscando el vídeo…",
+      "providerLink": "Es un enlace de {{name}}",
+      "openIn": "Abrir en {{name}}",
+      "unknownProvider": "El servidor conoce esta plataforma, pero esta versión del cine todavía no: recarga la página.",
+      "playlistEmpty": "En esta lista no hay nada que mostrar a la sala.",
+      "cannotOpen": "Este enlace aún no se puede abrir",
+      "untitled": "Sin título",
+      "site": "Sitio web",
+      "quality": "Calidad",
+      "audio": "Audio",
+      "captions": "Subtítulos",
+      "recognised": "{{name}} (automáticos)"
+    },
+    "theater": {
+      "label": "Vista conjunta",
+      "untitled": "Vista conjunta",
+      "live": "Directo · {{author}}",
+      "catchingUp": "Alcanzando a la sala…",
+      "openedBySelf": "Lo abriste tú",
+      "openedBy": "Lo abrió {{name}}",
+      "together": "Vemos juntos",
+      "catalog": "Catálogo",
+      "closeForAll": "Cerrar la reproducción para todos",
+      "back15": "Retroceder 15 segundos para todos",
+      "forward15": "Avanzar 15 segundos para todos",
+      "play": "Reproducir para todos",
+      "pause": "Pausar para todos",
+      "position": "Posición en el vídeo",
+      "liveBehind": "Volver al directo, vas {{seconds}} s por detrás",
+      "liveEdge": "En directo",
+      "lag": "−{{seconds}} s",
+      "toStart": "Al principio para todos",
+      "sync": "Sincronizar con la sala",
+      "skip": {
+        "intro": "Saltar 85 segundos para todos",
+        "ad": "Saltar el anuncio para todos",
+        "adShort": "Saltar anuncio",
+        "adLabel": "Anuncio en la emisión"
+      },
+      "adSkipped": "Anuncio saltado para todos",
+      "exitFullscreen": "Salir de pantalla completa",
+      "fullscreen": "Ampliar el reproductor",
+      "unmute": "Activar el sonido del vídeo",
+      "mute": "Silenciar el vídeo",
+      "volume": "Volumen del vídeo",
+      "buffering": "Cargando",
+      "opening": "Abriendo…",
+      "start": "Ver juntos",
+      "next": "Siguiente episodio",
+      "nextPlay": "Poner el siguiente para todos",
+      "nextLocked": "Lo pondrá quien tenga permiso del anfitrión para usar el cine",
+      "quality": {
+        "bitrate": "{{value}} kbit/s",
+        "source": "Original",
+        "menuLabel": "Calidad de imagen e idioma del audio",
+        "auto": "Auto",
+        "autoWith": "Auto · {{level}}",
+        "voice": "Idioma del doblaje",
+        "title": "Calidad",
+        "original": "original",
+        "automatic": "Automática"
+      },
+      "captions": {
+        "label": "Subtítulos",
+        "labelWith": "Subtítulos: {{name}}",
+        "off": "Desactivados",
+        "recognised": "automáticos"
+      },
+      "errors": {
+        "streamBroken": "La emisión se cortó. Prueba a abrir el vídeo de nuevo",
+        "unsupported": "Este navegador no puede reproducir vídeo en streaming",
+        "streamFailed": "La emisión no se abrió. Prueba otro vídeo",
+        "openFailed": "No se pudo abrir el vídeo",
+        "renewFailed": "No se pudo actualizar la emisión"
+      }
+    },
+    "keys": {
+      "locked": "El anfitrión se ha reservado el mando: la pausa y el avance son cosa suya",
+      "live": "Los directos no se pausan ni se rebobinan",
+      "micPause": "{{label}} activa el micrófono; pausa con K",
+      "micOther": "{{label}} activa el micrófono; esta tecla no funciona en el reproductor",
+      "seek": "{{sign}}{{seconds}} s",
+      "muted": "Sonido desactivado",
+      "volume": "Volumen {{volume}} %"
+    }
+  },
   "devices": {
     "lens": {
       "front": "Frontal",
@@ -2097,6 +2376,126 @@
     "slow": "Red lenta",
     "retry": "Reintentar"
   },
+  "music": {
+    "sources": {
+      "upload": "Archivo de audio",
+      "yandex": "Yandex Music",
+      "unknown": "Música"
+    },
+    "platforms": {
+      "label": "Plataforma",
+      "tiles": "Plataformas de música",
+      "none": "Las plataformas de música están desactivadas en este servidor; suena lo que ya está en la cola.",
+      "playing": "Sonando ahora:",
+      "paused": "En pausa:",
+      "youtube": {
+        "hint": "Canciones, videoclips y conciertos",
+        "find": "Buscar en YouTube o pegar un enlace",
+        "link": "Enlace a un vídeo de YouTube"
+      },
+      "soundcloud": {
+        "hint": "Canciones, remixes y sesiones de artistas",
+        "find": "Buscar en SoundCloud o pegar un enlace",
+        "link": "Enlace a una canción de SoundCloud"
+      },
+      "yandex": {
+        "hint": "Catálogo a través de la cuenta de la sala",
+        "find": "Buscar en Yandex Music o pegar un enlace",
+        "link": "Enlace a una canción de Yandex Music"
+      },
+      "upload": {
+        "name": "Tus archivos",
+        "hint": "Archivos de audio de este dispositivo",
+        "drop": "Arrastra aquí archivos de audio o elígelos en tu dispositivo."
+      }
+    },
+    "player": {
+      "label": "Sonando ahora",
+      "status": {
+        "connecting": "Conectando la música",
+        "empty": "La cola está vacía",
+        "paused": "En pausa",
+        "playing": "Sonando ahora"
+      },
+      "firstTrack": "Añade la primera canción",
+      "addedBy": "Añadida por {{name}}",
+      "emptyHint": "Busca una canción abajo, pega un enlace o sube un archivo",
+      "position": "Posición de la canción",
+      "shuffle": "Mezclar la cola",
+      "resume": "Reanudar la música",
+      "pause": "Pausar la música",
+      "next": "Siguiente canción",
+      "repeat": "Repetir la cola",
+      "volume": "Tu volumen de la música"
+    },
+    "queue": {
+      "label": "Cola de música",
+      "next": "A continuación",
+      "clear": "Vaciar",
+      "empty": "No hay nada después: la canción que encuentres arriba sonará a continuación.",
+      "moved": "«{{title}}»: n.º {{position}} después de la actual",
+      "reorder": "Reordenar: {{title}}",
+      "actions": "Acciones: {{title}}",
+      "playNext": "Reproducir a continuación",
+      "remove": "Quitar de la cola",
+      "hint": "Arrastra o usa las flechas arriba y abajo para mover la canción"
+    },
+    "search": {
+      "notOurs": "La música no abre este tipo de enlaces. Valen YouTube, SoundCloud y Yandex Music",
+      "added": "Añadida: {{title}}",
+      "track": "canción",
+      "refusals": {
+        "preview": "Solo un fragmento",
+        "unavailable": "No se puede añadir",
+        "unavailableYandex": "No disponible",
+        "denied": "Sin permisos"
+      },
+      "yandexConnect": "Para añadir una canción de Yandex Music, conecta arriba la cuenta de la sala",
+      "locked": "El anfitrión se ha reservado añadir canciones",
+      "sourceOff": "Los enlaces de {{name}} están desactivados en este servidor",
+      "elsewhere": "Es un enlace de {{name}}: se añade en su propia plataforma.",
+      "switchTo": "Ir a {{name}}",
+      "connectToSearch": "Conecta Yandex Music arriba para buscar canciones",
+      "labelLink": "Pegar el enlace de una canción",
+      "placeholderFind": "Título, artista o enlace",
+      "clear": "Borrar la búsqueda",
+      "adding": "Añadiendo la canción",
+      "found": "Encontrado: {{name}}",
+      "searching": "Buscando",
+      "noAnswer": "La plataforma no respondió",
+      "nothing": "No se encontró nada",
+      "add": "Añadir a la cola: {{title}}"
+    },
+    "upload": {
+      "failed": "No se pudo añadir la canción",
+      "tooBig": "«{{name}}»: máximo {{limit}} MB por canción",
+      "input": "Añadir archivos de música",
+      "button": "Subir archivos",
+      "cancel": "Cancelar",
+      "hint": "También puedes arrastrarlos: hasta {{limit}} MB y 60 minutos por canción"
+    },
+    "yandex": {
+      "connected": "Cuenta conectada",
+      "expired": "El código caducó. Obtén uno nuevo",
+      "tokenConnected": "Conectada con el token guardado",
+      "tokenStale": "El token guardado ya no sirve. Inicia sesión en Yandex o introduce un token nuevo.",
+      "checking": "Comprobando la conexión…",
+      "hint": "La cuenta de la sala: con ella todos buscan y ponen canciones",
+      "badge": "Conectada",
+      "connect": "Conectar",
+      "switch": "Cambiar de cuenta",
+      "disconnect": "Desconectar",
+      "qr": "Código QR de la página de inicio de sesión de Yandex",
+      "openPage": "Abre la página de Yandex e introduce el código:",
+      "signIn": "Iniciar sesión en Yandex",
+      "waiting": "La confirmación aparecerá aquí sola. El código es válido 5 minutos.",
+      "cancel": "Cancelar el inicio de sesión",
+      "haveToken": "Ya tengo un token de acceso",
+      "tokenLabel": "Token de Yandex Music",
+      "connectToken": "Conectar el token",
+      "note": "La contraseña se introduce en la página de Yandex. Para canciones completas hace falta una cuenta con suscripción. Funciona con un conector abierto no oficial de Yandex Music."
+    }
+  },
   "integrations": {
     "title": "Qué añadir a la reunión",
     "soon": "Próximamente en Cord",
@@ -2191,6 +2590,133 @@
       "poker": "Póker",
       "durak": "Durak",
       "chess": "Ajedrez"
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "description": "Comprueba tus dispositivos y la conexión real de esta reunión.",
+    "network": "Red",
+    "media": {
+      "label": "Audio y vídeo",
+      "connected": "Conectados",
+      "recovering": "Restableciéndose",
+      "disconnected": "Sin conectar"
+    },
+    "control": {
+      "label": "Chat y controles",
+      "connected": "Conectados",
+      "closed": "Desconectados",
+      "connecting": "Conectando…"
+    },
+    "quality": {
+      "label": "Calidad según el servidor de medios",
+      "values": {
+        "excellent": "Excelente",
+        "good": "Buena",
+        "poor": "Débil",
+        "lost": "Conexión perdida",
+        "unknown": "Aún no hay datos"
+      }
+    },
+    "path": "Ruta de los medios",
+    "jitter": {
+      "label": "Irregularidad en la llegada de paquetes",
+      "value": "{{ms}} ms, pico"
+    },
+    "noData": "Sin datos",
+    "buffer": {
+      "label": "Búfer que pide el cliente",
+      "kinds": {
+        "conversation": "conversación",
+        "media": "música y pantalla",
+        "video": "vídeo"
+      },
+      "target": "{{kind}} {{ms}} ms",
+      "none": "No hay pistas suscritas"
+    },
+    "ordered": "Los medios van por un relé sobre TCP/TLS. Esta ruta no pierde paquetes, sino que los vuelve a pedir, y todo lo que llega después espera al rezagado: al oído suena como «se calló y luego habló más rápido». El búfer se ha ampliado automáticamente. Si se repite, comprueba que tu red deja pasar UDP hasta el servidor de medios: la ruta directa es bastante más estable.",
+    "checking": "Comprobando…",
+    "check": "Comprobar la red",
+    "result": {
+      "text": "Respuesta del servidor: {{answer}}. Solicitudes correctas: {{ok}} de {{total}}.",
+      "average": "{{average}} ms de media · {{min}}–{{max}} ms",
+      "none": "no recibida"
+    },
+    "footnote": "La prueba mide el tiempo de respuesta del servidor de la aplicación. La ruta del audio y el vídeo, la pérdida de paquetes y el RTT al servidor de medios se muestran abajo cuando hay pistas activas en la reunión.",
+    "details": "Detalles de audio y vídeo",
+    "noTracks": "Aún no hay pistas activas en la reunión. La prueba local de dispositivos no envía nada al servidor de medios.",
+    "audio": "Audio",
+    "video": "Vídeo",
+    "resolution": "Resolución",
+    "fps": "Fotogramas por segundo",
+    "bitrate": "Tasa de bits",
+    "kbps": "{{value}} kbit/s",
+    "loss": "Pérdida de paquetes por intervalo",
+    "connection": "Conexión",
+    "rtt": "RTT al servidor de medios",
+    "ms": "{{value}} ms",
+    "codec": "Códec",
+    "bufferRx": "Búfer de recepción",
+    "encode": "Codificación del fotograma",
+    "decode": "Decodificación del fotograma",
+    "implementation": "Motor de vídeo",
+    "limitation": "Limitación",
+    "limits": {
+      "none": "No detectada",
+      "cpu": "Codificador / CPU",
+      "bandwidth": "Ancho de banda",
+      "unknown": "Sin datos del emisor"
+    },
+    "stuck": {
+      "title": "¿Se congeló la imagen o el sonido?",
+      "text": "Actualizaremos la recepción de pistas de los demás participantes. Puede haber una breve pausa.",
+      "button": "Actualizar audio y vídeo"
+    },
+    "sampler": {
+      "direct": "Directo al SFU",
+      "protocolHidden": "protocolo no revelado",
+      "unknownTransport": "Desconocido",
+      "inbound": "Recepción",
+      "outbound": "Envío",
+      "codecHidden": "No revelado",
+      "implementationHidden": "El navegador no lo revela"
+    }
+  },
+  "download": {
+    "home": "Cord: ir al inicio",
+    "back": "Inicio",
+    "title": "Cord para Windows",
+    "checking": "Comprobando qué hay publicado…",
+    "unavailable": "La versión para Windows no está disponible ahora. Vuelve a abrir la página un poco más tarde.",
+    "requirements": "Windows 10 build 19041 o posterior, x64",
+    "installer": "Descargar el instalador",
+    "installNote": "Se instala para el usuario actual, sin permisos de administrador. WebView2 se instala solo si aún no lo tienes.",
+    "portable": "Versión portátil sin instalación, ZIP",
+    "connect": {
+      "title": "Dónde conectarse tras la instalación",
+      "text": "Cord no se conecta a nada por su cuenta: al abrirlo por primera vez te pedirá la dirección del servidor. Es la dirección de esta misma página, desde la que descargas la app:",
+      "address": "Dirección de este servidor",
+      "copied": "Dirección copiada",
+      "copy": "Copiar la dirección",
+      "note": "En Cord: «Añadir el primer servidor» → pega la dirección → «Añadir». Nombre y contraseña, si el servidor los pide; puedes tener varios servidores y cambiar entre ellos."
+    },
+    "warning": {
+      "title": "Windows mostrará una advertencia",
+      "text": "El instalador no está firmado con un certificado de editor, así que SmartScreen dirá «Windows protegió su PC» y llamará al editor desconocido. Lo dice de cualquier programa nuevo sin certificado de pago, no de este en concreto.",
+      "details": "En la ventana de advertencia, haz clic en <b>Más información</b>.",
+      "run": "Después, en <b>Ejecutar de todas formas</b>.",
+      "after": "Solo pasa una vez, al instalar. Después Cord se abre con normalidad: la marca «descargado de internet» la lleva el archivo descargado, no lo que el instalador pone en el disco. En la versión portátil, la marca se queda en los archivos descomprimidos, por eso el instalador es más cómodo."
+    },
+    "install": {
+      "title": "Cord en la pantalla de inicio",
+      "app": "Se abre como una app, sin barra de direcciones.",
+      "ios": "Toca <share/> y elige <plus/> «Añadir a pantalla de inicio». Se abrirá como una app, sin barra de direcciones.",
+      "share": "Compartir",
+      "install": "Instalar",
+      "hide": "Ocultar la sugerencia"
+    },
+    "desktop": {
+      "settings": "Ajustes de sonido y perfil"
     }
   }
 }

@@ -1672,6 +1672,283 @@
       "durak-online-54": "Grudging thumbs up"
     }
   },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}}K",
+      "millions": "{{value}}M"
+    },
+    "providers": {
+      "youtube": {
+        "hint": "Videos, movies, and channels",
+        "search": "Video, channel, or playlist"
+      },
+      "twitch": {
+        "hint": "Live streams and VODs",
+        "search": "Channel or game on Twitch"
+      },
+      "rutube": {
+        "hint": "Live TV, series, and shows",
+        "search": "Videos, channels, and TV"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "Sections, communities, and live streams",
+        "search": "Videos and communities"
+      },
+      "ivi": {
+        "hint": "Movies, series, and cartoons — the free ones",
+        "search": "Movie, series, or cartoon"
+      },
+      "link": {
+        "name": "By link",
+        "hint": "A video, stream, or playlist from a link",
+        "search": "Paste a video link"
+      }
+    },
+    "linkCard": {
+      "vkStream": "VK Video Live stream: {{id}}",
+      "twitchStream": "Twitch stream: {{id}}",
+      "stream": "{{name}} stream from a link",
+      "twitchVideo": "Twitch VOD from a link",
+      "video": "{{name}} video from a link"
+    },
+    "group": {
+      "back": "Integrations",
+      "platforms": "Cinema platforms",
+      "watching": "Now watching:",
+      "closeForAll": "Close for everyone",
+      "unavailable": "Unavailable right now",
+      "noProviders": "Cinema platforms are turned off on this server.",
+      "closeCatalog": "Close catalog",
+      "locked": "The host has kept starting and stopping to themselves."
+    },
+    "shell": {
+      "label": "Cinema",
+      "back": "Back",
+      "clear": "Clear search",
+      "backToWatch": "Back to watching",
+      "close": "Close Cinema",
+      "locked": "The host has kept integrations to themselves — you can watch, but not start anything."
+    },
+    "more": {
+      "loading": "Loading…",
+      "show": "Show more"
+    },
+    "notes": {
+      "offline": "No connection to the server — try again",
+      "timeout": "The server didn't respond in time — try again",
+      "failed": "The request failed",
+      "asking": "Asking the platform…",
+      "pressEnter": "Press Enter and Cinema will open this link.",
+      "opening": "Opening the link…"
+    },
+    "meta": {
+      "live": "Live",
+      "channel": "Channel",
+      "followers": "{{value}} followers",
+      "watching": "{{value}} watching",
+      "watchingNow": "{{value}} watching right now",
+      "liveWatching": "live, {{value}} watching",
+      "views": "{{value}} views",
+      "updated": "Updated {{date}}",
+      "videos_one": "{{count}} video",
+      "videos_other": "{{count}} videos"
+    },
+    "tiles": {
+      "watch": "Watch together: {{title}}",
+      "details": "Details: {{title}}",
+      "open": "Open: {{title}}",
+      "openPlaylist": "Open playlist: {{title}}",
+      "openCategory": "Open section: {{title}}",
+      "openChannel": "Open channel: {{title}}",
+      "playlist": "Playlist"
+    },
+    "headings": {
+      "channels": "Channels",
+      "videos": "Videos",
+      "sections": "Sections"
+    },
+    "search": {
+      "nothing": "Nothing found. Try different words.",
+      "emptySection": "Nothing in this section to show the room yet."
+    },
+    "category": {
+      "empty": "Nobody is live in this section right now."
+    },
+    "channel": {
+      "tabsLabel": "Channel sections",
+      "tabs": {
+        "videos": "Videos",
+        "streams": "Live",
+        "shorts": "Shorts",
+        "playlists": "Playlists",
+        "about": "About"
+      },
+      "noAbout": "This channel hasn't written anything about itself.",
+      "empty": {
+        "playlists": "This channel has no playlists.",
+        "streams": "This channel doesn't stream.",
+        "shorts": "This channel has no Shorts.",
+        "other": "Nothing to watch here yet."
+      }
+    },
+    "item": {
+      "watch": "Watch together",
+      "openChannel": "Open channel",
+      "allEpisodes": "All episodes"
+    },
+    "playlist": {
+      "empty": "The playlist is empty."
+    },
+    "series": {
+      "untitled": "Series",
+      "seasons_one": "{{count}} season",
+      "seasons_other": "{{count}} seasons",
+      "seasonsLabel": "Seasons"
+    },
+    "switcher": {
+      "tabsLabel": "Platform",
+      "hints": {
+        "movies": "Full movies",
+        "music": "Music",
+        "podcasts": "Podcasts",
+        "documentaries": "Documentaries",
+        "standup": "Stand-up",
+        "cartoons": "Cartoons"
+      },
+      "shelvesLabel": "Twitch showcase",
+      "live": "Live",
+      "categories": "Categories",
+      "foundSections": "Sections found",
+      "popularSections": "Popular sections",
+      "noSections": "Twitch has no such sections.",
+      "emptyTitle": "What should we put on for the room?",
+      "emptyText": "Anything you'd find on YouTube: a video, a full movie, or a channel.",
+      "liveNow": "Live now",
+      "categoryNote": "Twitch section"
+    },
+    "rutube": {
+      "home": "Home",
+      "sectionsLabel": "RUTUBE sections",
+      "live": "Live",
+      "allLive": "All live streams",
+      "shows": "Series and shows",
+      "allShows": "All series and shows",
+      "videosAndLive": "Videos and live streams",
+      "seriesEmpty": "Nothing here to show the room: the other episodes on RUTUBE require a subscription or aren't available from here."
+    },
+    "vk": {
+      "sectionsLabel": "VK Video sections",
+      "down": "The VK Video catalog won't open right now",
+      "downHint": "{{error}}. A VK video or stream will still open from a link — paste it into search.",
+      "communities": "Communities",
+      "nothing": "Nothing found. Try different words — or paste a link to a VK video."
+    },
+    "ivi": {
+      "sectionsLabel": "ivi sections",
+      "emptySection": "Nothing in this section to show the room yet: ivi doesn't serve free content to this location.",
+      "seriesEmpty": "Nothing here to show the room: the other episodes on ivi are paid or aren't available from here."
+    },
+    "linkScene": {
+      "recent": "Recent links",
+      "forget": "Remove from recent: {{address}}",
+      "clear": "Clear all",
+      "clearLabel": "Clear recent links",
+      "clipboardRefused": "The browser wouldn't let us read the clipboard — paste the link into the field yourself.",
+      "clipboardEmpty": "There's no link in the clipboard.",
+      "title": "Paste a video link",
+      "intro": "A {{providers}} video, stream, channel, or playlist opens in their catalog — straight on its own page.",
+      "paste": "Paste from clipboard",
+      "confirmTitle": "Open this link?",
+      "confirmText": "Press Enter or the button and Cinema will check what's on this page.",
+      "open": "Open link",
+      "notLink": "That doesn't look like a link: we need the address of a page with a video — for example, https://rutube.ru/video/…",
+      "searching": "Looking for the video…",
+      "providerLink": "This is a {{name}} link",
+      "openIn": "Open in {{name}}",
+      "unknownProvider": "The server knows this platform, but this version of Cinema doesn't yet — reload the page.",
+      "playlistEmpty": "Nothing in this playlist to show the room.",
+      "cannotOpen": "This link can't be opened yet",
+      "untitled": "Untitled",
+      "site": "Website",
+      "quality": "Quality",
+      "audio": "Audio",
+      "captions": "Subtitles",
+      "recognised": "{{name}} (auto-generated)"
+    },
+    "theater": {
+      "label": "Watching together",
+      "untitled": "Watching together",
+      "live": "Live · {{author}}",
+      "catchingUp": "Catching up with the room…",
+      "openedBySelf": "Opened by you",
+      "openedBy": "Opened by {{name}}",
+      "together": "Watching together",
+      "catalog": "Catalog",
+      "closeForAll": "Stop watching for everyone",
+      "back15": "Back 15 seconds for everyone",
+      "forward15": "Forward 15 seconds for everyone",
+      "play": "Play for everyone",
+      "pause": "Pause for everyone",
+      "position": "Position in the video",
+      "liveBehind": "Back to live, {{seconds}} s behind",
+      "liveEdge": "Live",
+      "lag": "−{{seconds}} s",
+      "toStart": "Back to the start for everyone",
+      "sync": "Sync to the room",
+      "skip": {
+        "intro": "Skip 85 seconds for everyone",
+        "ad": "Skip the ad for everyone",
+        "adShort": "Skip ad",
+        "adLabel": "Ad in the stream"
+      },
+      "adSkipped": "Ad skipped for everyone",
+      "exitFullscreen": "Exit full screen",
+      "fullscreen": "Expand player",
+      "unmute": "Unmute the video",
+      "mute": "Mute the video",
+      "volume": "Video volume",
+      "buffering": "Loading",
+      "opening": "Opening…",
+      "start": "Watch together",
+      "next": "Next episode",
+      "nextPlay": "Play the next one for everyone",
+      "nextLocked": "Whoever the host allowed to use Cinema will start it",
+      "quality": {
+        "bitrate": "{{value}} kbps",
+        "source": "Original",
+        "menuLabel": "Picture quality and audio language",
+        "auto": "Auto",
+        "autoWith": "Auto · {{level}}",
+        "voice": "Audio language",
+        "title": "Quality",
+        "original": "original",
+        "automatic": "Automatic"
+      },
+      "captions": {
+        "label": "Subtitles",
+        "labelWith": "Subtitles: {{name}}",
+        "off": "Off",
+        "recognised": "auto-generated"
+      },
+      "errors": {
+        "streamBroken": "The stream was interrupted. Try opening the video again",
+        "unsupported": "This browser can't play streaming video",
+        "streamFailed": "The stream didn't open. Try another video",
+        "openFailed": "Couldn't open the video",
+        "renewFailed": "Couldn't refresh the stream"
+      }
+    },
+    "keys": {
+      "locked": "The host has kept the remote to themselves — pause and seeking are theirs",
+      "live": "Live streams can't be paused or rewound",
+      "micPause": "{{label}} toggles the microphone — pause with K",
+      "micOther": "{{label}} toggles the microphone — this key doesn't work in the player",
+      "seek": "{{sign}}{{seconds}} s",
+      "muted": "Muted",
+      "volume": "Volume {{volume}}%"
+    }
+  },
   "devices": {
     "lens": {
       "front": "Front",
@@ -2073,6 +2350,126 @@
     "slow": "Slow network",
     "retry": "Retry"
   },
+  "music": {
+    "sources": {
+      "upload": "Audio file",
+      "yandex": "Yandex Music",
+      "unknown": "Music"
+    },
+    "platforms": {
+      "label": "Platform",
+      "tiles": "Music platforms",
+      "none": "Music platforms are turned off on this server — what's already in the queue keeps playing.",
+      "playing": "Now playing:",
+      "paused": "Paused:",
+      "youtube": {
+        "hint": "Tracks, music videos, and concerts",
+        "find": "Search YouTube or paste a link",
+        "link": "YouTube video link"
+      },
+      "soundcloud": {
+        "hint": "Tracks, remixes, and artist sets",
+        "find": "Search SoundCloud or paste a link",
+        "link": "SoundCloud track link"
+      },
+      "yandex": {
+        "hint": "Catalog through the room's account",
+        "find": "Search Yandex Music or paste a link",
+        "link": "Yandex Music track link"
+      },
+      "upload": {
+        "name": "Your files",
+        "hint": "Audio files from this device",
+        "drop": "Drag audio files here or choose them on your device."
+      }
+    },
+    "player": {
+      "label": "Now playing",
+      "status": {
+        "connecting": "Connecting Music",
+        "empty": "Queue is empty",
+        "paused": "Paused",
+        "playing": "Now playing"
+      },
+      "firstTrack": "Add the first track",
+      "addedBy": "Added by {{name}}",
+      "emptyHint": "Find a track below, paste a link, or upload a file",
+      "position": "Track position",
+      "shuffle": "Shuffle queue",
+      "resume": "Resume music",
+      "pause": "Pause music",
+      "next": "Next track",
+      "repeat": "Repeat queue",
+      "volume": "Your music volume"
+    },
+    "queue": {
+      "label": "Music queue",
+      "next": "Up next",
+      "clear": "Clear",
+      "empty": "Nothing up next: the track you find above will play next.",
+      "moved": "“{{title}}” is #{{position}} after the current one",
+      "reorder": "Reorder: {{title}}",
+      "actions": "Actions: {{title}}",
+      "playNext": "Play next",
+      "remove": "Remove from queue",
+      "hint": "Drag or use the up and down arrows to reorder the track"
+    },
+    "search": {
+      "notOurs": "Music doesn't open links like this. YouTube, SoundCloud, and Yandex Music links work",
+      "added": "Added: {{title}}",
+      "track": "track",
+      "refusals": {
+        "preview": "Preview only",
+        "unavailable": "Can't add",
+        "unavailableYandex": "Unavailable",
+        "denied": "No rights"
+      },
+      "yandexConnect": "To add a Yandex Music track, connect the room's account above",
+      "locked": "The host has kept adding tracks to themselves",
+      "sourceOff": "{{name}} links are turned off on this server",
+      "elsewhere": "This is a {{name}} link — add it on its own platform.",
+      "switchTo": "Switch to {{name}}",
+      "connectToSearch": "Connect Yandex Music above to search for tracks",
+      "labelLink": "Paste a track link",
+      "placeholderFind": "Title, artist, or link",
+      "clear": "Clear search",
+      "adding": "Adding the track",
+      "found": "Found: {{name}}",
+      "searching": "Searching",
+      "noAnswer": "The platform didn't respond",
+      "nothing": "Nothing found",
+      "add": "Add to queue: {{title}}"
+    },
+    "upload": {
+      "failed": "Couldn't add the track",
+      "tooBig": "“{{name}}”: {{limit}} MB per track at most",
+      "input": "Add music files",
+      "button": "Upload files",
+      "cancel": "Cancel",
+      "hint": "You can also drag them in: up to {{limit}} MB and 60 minutes per track"
+    },
+    "yandex": {
+      "connected": "Account connected",
+      "expired": "The code expired. Get a new one",
+      "tokenConnected": "Connected with the saved token",
+      "tokenStale": "The saved token no longer works. Sign in to Yandex or enter a new token.",
+      "checking": "Checking the connection…",
+      "hint": "The room's account: everyone searches and adds tracks through it",
+      "badge": "Connected",
+      "connect": "Connect",
+      "switch": "Switch account",
+      "disconnect": "Disconnect",
+      "qr": "Yandex sign-in page QR code",
+      "openPage": "Open the Yandex page and enter the code:",
+      "signIn": "Sign in to Yandex",
+      "waiting": "Confirmation will appear here by itself. The code is valid for 5 minutes.",
+      "cancel": "Cancel sign-in",
+      "haveToken": "I already have an access token",
+      "tokenLabel": "Yandex Music token",
+      "connectToken": "Connect token",
+      "note": "You enter your password on the Yandex page. Full tracks require an account with a subscription. Works through an unofficial open-source Yandex Music connector."
+    }
+  },
   "integrations": {
     "title": "Add to the meeting",
     "soon": "Coming soon to Cord",
@@ -2166,6 +2563,133 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Chess"
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "description": "Check your devices and this meeting's actual connection.",
+    "network": "Network",
+    "media": {
+      "label": "Audio and video",
+      "connected": "Connected",
+      "recovering": "Recovering",
+      "disconnected": "Not connected"
+    },
+    "control": {
+      "label": "Chat and controls",
+      "connected": "Connected",
+      "closed": "Disconnected",
+      "connecting": "Connecting…"
+    },
+    "quality": {
+      "label": "Quality according to the media server",
+      "values": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "poor": "Poor",
+        "lost": "Connection lost",
+        "unknown": "No data yet"
+      }
+    },
+    "path": "Media path",
+    "jitter": {
+      "label": "Packet arrival jitter",
+      "value": "{{ms}} ms, peak"
+    },
+    "noData": "No data",
+    "buffer": {
+      "label": "Buffer the client asks for",
+      "kinds": {
+        "conversation": "conversation",
+        "media": "music and screen",
+        "video": "video"
+      },
+      "target": "{{kind}} {{ms}} ms",
+      "none": "No subscribed tracks"
+    },
+    "ordered": "Media goes through a relay over TCP/TLS. This path doesn't drop packets — it re-requests them, and everything that arrives after waits for the late one. To the ear it sounds like “went quiet, then talked faster”. The buffer has been raised automatically. If this keeps happening, check that your network lets UDP through to the media server: the direct path is noticeably smoother.",
+    "checking": "Checking…",
+    "check": "Check network",
+    "result": {
+      "text": "Server response: {{answer}}. Successful requests: {{ok}} of {{total}}.",
+      "average": "{{average}} ms on average · {{min}}–{{max}} ms",
+      "none": "not received"
+    },
+    "footnote": "This check measures the app server's response time. The audio and video route, packet loss, and RTT to the media server appear below once tracks are flowing in the meeting.",
+    "details": "Audio and video details",
+    "noTracks": "There are no active tracks in the meeting yet. The local device check doesn't send a test to the media server.",
+    "audio": "Audio",
+    "video": "Video",
+    "resolution": "Resolution",
+    "fps": "Frames per second",
+    "bitrate": "Bitrate",
+    "kbps": "{{value}} kbps",
+    "loss": "Packet loss per interval",
+    "connection": "Connection",
+    "rtt": "RTT to the media server",
+    "ms": "{{value}} ms",
+    "codec": "Codec",
+    "bufferRx": "Receive buffer",
+    "encode": "Frame encoding",
+    "decode": "Frame decoding",
+    "implementation": "Video engine",
+    "limitation": "Limitation",
+    "limits": {
+      "none": "None detected",
+      "cpu": "Encoder / CPU",
+      "bandwidth": "Bandwidth",
+      "unknown": "No data from the sender"
+    },
+    "stuck": {
+      "title": "Picture or sound frozen?",
+      "text": "We'll refresh the tracks you receive from other participants. There may be a short pause.",
+      "button": "Refresh audio and video"
+    },
+    "sampler": {
+      "direct": "Direct to SFU",
+      "protocolHidden": "protocol not disclosed",
+      "unknownTransport": "Unknown",
+      "inbound": "Receiving",
+      "outbound": "Sending",
+      "codecHidden": "Not disclosed",
+      "implementationHidden": "Not disclosed by the browser"
+    }
+  },
+  "download": {
+    "home": "Cord — home",
+    "back": "Home",
+    "title": "Cord for Windows",
+    "checking": "Checking what's published…",
+    "unavailable": "The Windows build isn't available right now. Try opening this page a bit later.",
+    "requirements": "Windows 10 build 19041 or later, x64",
+    "installer": "Download installer",
+    "installNote": "Installs for the current user — no administrator rights needed. WebView2 installs itself if it's not there yet.",
+    "portable": "Portable version without installation, ZIP",
+    "connect": {
+      "title": "Where to connect after installing",
+      "text": "Cord doesn't connect anywhere on its own — on first launch it asks for a server address. It's the address of this very page, the same one you're downloading the app from:",
+      "address": "This server's address",
+      "copied": "Address copied",
+      "copy": "Copy address",
+      "note": "In Cord: “Add your first server” → paste the address → “Add”. A name and password only if the server asks for them; you can keep several servers and switch between them."
+    },
+    "warning": {
+      "title": "Windows will show a warning",
+      "text": "The installer isn't signed with a publisher certificate, so SmartScreen will say “Windows protected your PC” and call the publisher unknown. It says this about any new program without a paid certificate, not about this one in particular.",
+      "details": "In the warning window, click <b>More info</b>.",
+      "run": "Then <b>Run anyway</b>.",
+      "after": "This happens once, during installation. After that Cord starts normally: the “downloaded from the internet” mark is on the downloaded file, not on what the installer puts on disk. With the portable version, the mark stays on the unpacked files, so the installer is the smoother option."
+    },
+    "install": {
+      "title": "Cord on your Home Screen",
+      "app": "Opens like an app, without the address bar.",
+      "ios": "Tap <share/> and choose <plus/> “Add to Home Screen”. It opens like an app, without the address bar.",
+      "share": "Share",
+      "install": "Install",
+      "hide": "Hide tip"
+    },
+    "desktop": {
+      "settings": "Sound and profile settings"
     }
   }
 }

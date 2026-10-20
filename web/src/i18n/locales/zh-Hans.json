@@ -1649,6 +1649,281 @@
       "durak-online-54": "勉强点赞"
     }
   },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}}千",
+      "millions": "{{value}}百万"
+    },
+    "providers": {
+      "youtube": {
+        "hint": "视频、电影和频道",
+        "search": "视频、频道或播放列表"
+      },
+      "twitch": {
+        "hint": "直播和录像",
+        "search": "Twitch 上的频道或游戏"
+      },
+      "rutube": {
+        "hint": "电视直播、剧集和节目",
+        "search": "视频、频道和电视"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "分区、社区和直播",
+        "search": "视频和社区"
+      },
+      "ivi": {
+        "hint": "电影、剧集和动画——免费内容",
+        "search": "电影、剧集或动画"
+      },
+      "link": {
+        "name": "通过链接",
+        "hint": "通过链接打开视频、直播或播放列表",
+        "search": "粘贴视频链接"
+      }
+    },
+    "linkCard": {
+      "vkStream": "VK Video Live 直播：{{id}}",
+      "twitchStream": "Twitch 直播：{{id}}",
+      "stream": "通过链接打开的 {{name}} 直播",
+      "twitchVideo": "通过链接打开的 Twitch 录像",
+      "video": "通过链接打开的 {{name}} 视频"
+    },
+    "group": {
+      "back": "集成",
+      "platforms": "影院平台",
+      "watching": "正在观看：",
+      "closeForAll": "为所有人关闭",
+      "unavailable": "暂不可用",
+      "noProviders": "此服务器已关闭影院平台。",
+      "closeCatalog": "关闭片库",
+      "locked": "主持人仅允许自己开始和停止播放。"
+    },
+    "shell": {
+      "label": "影院",
+      "back": "返回",
+      "clear": "清除搜索",
+      "backToWatch": "回到观看",
+      "close": "关闭影院",
+      "locked": "主持人仅允许自己使用集成——你可以观看，但不能播放内容。"
+    },
+    "more": {
+      "loading": "正在加载…",
+      "show": "显示更多"
+    },
+    "notes": {
+      "offline": "无法连接服务器——请重试",
+      "timeout": "服务器未及时响应——请重试",
+      "failed": "请求失败",
+      "asking": "正在查询平台…",
+      "pressEnter": "按 Enter，影院就会打开这个链接。",
+      "opening": "正在打开链接…"
+    },
+    "meta": {
+      "live": "直播中",
+      "channel": "频道",
+      "followers": "{{value}} 位关注者",
+      "watching": "{{value}} 人在看",
+      "watchingNow": "{{value}} 人正在观看",
+      "liveWatching": "直播中，{{value}} 人在看",
+      "views": "{{value}} 次观看",
+      "updated": "更新于 {{date}}",
+      "videos_other": "{{count}} 个视频"
+    },
+    "tiles": {
+      "watch": "一起看：{{title}}",
+      "details": "详情：{{title}}",
+      "open": "打开：{{title}}",
+      "openPlaylist": "打开播放列表：{{title}}",
+      "openCategory": "打开分区：{{title}}",
+      "openChannel": "打开频道：{{title}}",
+      "playlist": "播放列表"
+    },
+    "headings": {
+      "channels": "频道",
+      "videos": "视频",
+      "sections": "分区"
+    },
+    "search": {
+      "nothing": "未找到结果。试试其他关键词。",
+      "emptySection": "这个分区暂时没有可以给房间播放的内容。"
+    },
+    "category": {
+      "empty": "这个分区现在没有人在直播。"
+    },
+    "channel": {
+      "tabsLabel": "频道分区",
+      "tabs": {
+        "videos": "视频",
+        "streams": "直播",
+        "shorts": "短视频",
+        "playlists": "播放列表",
+        "about": "简介"
+      },
+      "noAbout": "该频道没有填写简介。",
+      "empty": {
+        "playlists": "该频道没有播放列表。",
+        "streams": "该频道不直播。",
+        "shorts": "该频道没有短视频。",
+        "other": "这里暂时没有可看的内容。"
+      }
+    },
+    "item": {
+      "watch": "一起看",
+      "openChannel": "打开频道",
+      "allEpisodes": "全部剧集"
+    },
+    "playlist": {
+      "empty": "播放列表为空。"
+    },
+    "series": {
+      "untitled": "剧集",
+      "seasons_other": "{{count}} 季",
+      "seasonsLabel": "季"
+    },
+    "switcher": {
+      "tabsLabel": "平台",
+      "hints": {
+        "movies": "完整电影",
+        "music": "音乐",
+        "podcasts": "播客",
+        "documentaries": "纪录片",
+        "standup": "脱口秀",
+        "cartoons": "动画"
+      },
+      "shelvesLabel": "Twitch 推荐",
+      "live": "直播",
+      "categories": "分类",
+      "foundSections": "找到的分区",
+      "popularSections": "热门分区",
+      "noSections": "Twitch 上没有这样的分区。",
+      "emptyTitle": "给房间放点什么？",
+      "emptyText": "YouTube 上有的这里都能找到：视频、完整电影或频道。",
+      "liveNow": "正在直播",
+      "categoryNote": "Twitch 分区"
+    },
+    "rutube": {
+      "home": "首页",
+      "sectionsLabel": "RUTUBE 分区",
+      "live": "直播",
+      "allLive": "全部直播",
+      "shows": "剧集和节目",
+      "allShows": "全部剧集和节目",
+      "videosAndLive": "视频和直播",
+      "seriesEmpty": "这里没有可以给房间播放的内容：RUTUBE 上的其余剧集需要订阅，或无法从这里访问。"
+    },
+    "vk": {
+      "sectionsLabel": "VK Video 分区",
+      "down": "VK Video 片库暂时无法打开",
+      "downHint": "{{error}}。VK 的视频或直播仍可通过链接打开——把链接粘贴到搜索框。",
+      "communities": "社区",
+      "nothing": "未找到结果。试试其他关键词，或粘贴 VK 视频链接。"
+    },
+    "ivi": {
+      "sectionsLabel": "ivi 分区",
+      "emptySection": "这个分区暂时没有可以给房间播放的内容：ivi 不向此处提供免费内容。",
+      "seriesEmpty": "这里没有可以给房间播放的内容：ivi 上的其余剧集需要付费，或无法从这里访问。"
+    },
+    "linkScene": {
+      "recent": "最近的链接",
+      "forget": "从最近记录中移除：{{address}}",
+      "clear": "全部清除",
+      "clearLabel": "清除最近的链接",
+      "clipboardRefused": "浏览器不允许读取剪贴板——请自行把链接粘贴到输入框。",
+      "clipboardEmpty": "剪贴板中没有链接。",
+      "title": "粘贴视频链接",
+      "intro": "{{providers}} 的视频、直播、频道或播放列表会在其片库中打开——直接进入对应页面。",
+      "paste": "从剪贴板粘贴",
+      "confirmTitle": "打开这个链接？",
+      "confirmText": "按 Enter 或点击按钮，影院会查看这个页面上的内容。",
+      "open": "打开链接",
+      "notLink": "这看起来不像链接：需要带有视频的页面地址，例如 https://rutube.ru/video/…",
+      "searching": "正在查找视频…",
+      "providerLink": "这是 {{name}} 的链接",
+      "openIn": "在 {{name}} 中打开",
+      "unknownProvider": "服务器支持这个平台，但当前版本的影院还不支持——请刷新页面。",
+      "playlistEmpty": "这个播放列表中没有可以给房间播放的内容。",
+      "cannotOpen": "暂时无法打开这个链接",
+      "untitled": "无标题",
+      "site": "网站",
+      "quality": "画质",
+      "audio": "音频",
+      "captions": "字幕",
+      "recognised": "{{name}}（自动生成）"
+    },
+    "theater": {
+      "label": "一起看",
+      "untitled": "一起看",
+      "live": "直播 · {{author}}",
+      "catchingUp": "正在追上房间进度…",
+      "openedBySelf": "由你打开",
+      "openedBy": "由 {{name}} 打开",
+      "together": "大家一起看",
+      "catalog": "片库",
+      "closeForAll": "为所有人停止观看",
+      "back15": "为所有人后退 15 秒",
+      "forward15": "为所有人前进 15 秒",
+      "play": "为所有人播放",
+      "pause": "为所有人暂停",
+      "position": "视频进度",
+      "liveBehind": "回到直播，已落后 {{seconds}} 秒",
+      "liveEdge": "直播中",
+      "lag": "−{{seconds}} 秒",
+      "toStart": "为所有人回到开头",
+      "sync": "与房间同步",
+      "skip": {
+        "intro": "为所有人跳过 85 秒",
+        "ad": "为所有人跳过广告",
+        "adShort": "跳过广告",
+        "adLabel": "流中的广告"
+      },
+      "adSkipped": "已为所有人跳过广告",
+      "exitFullscreen": "退出全屏",
+      "fullscreen": "展开播放器",
+      "unmute": "开启视频声音",
+      "mute": "关闭视频声音",
+      "volume": "视频音量",
+      "buffering": "正在加载",
+      "opening": "正在打开…",
+      "start": "一起看",
+      "next": "下一集",
+      "nextPlay": "为所有人播放下一集",
+      "nextLocked": "由主持人允许使用影院的人播放",
+      "quality": {
+        "bitrate": "{{value}} kbps",
+        "source": "原画",
+        "menuLabel": "画质和音频语言",
+        "auto": "自动",
+        "autoWith": "自动 · {{level}}",
+        "voice": "配音语言",
+        "title": "画质",
+        "original": "原声",
+        "automatic": "自动"
+      },
+      "captions": {
+        "label": "字幕",
+        "labelWith": "字幕：{{name}}",
+        "off": "关闭",
+        "recognised": "自动生成"
+      },
+      "errors": {
+        "streamBroken": "视频流中断了。请尝试重新打开视频",
+        "unsupported": "此浏览器无法播放流媒体视频",
+        "streamFailed": "视频流无法打开。请换一个视频",
+        "openFailed": "无法打开视频",
+        "renewFailed": "无法刷新视频流"
+      }
+    },
+    "keys": {
+      "locked": "主持人仅允许自己使用遥控——暂停和快进由主持人控制",
+      "live": "直播不能暂停或回放",
+      "micPause": "{{label}} 会切换麦克风——按 K 暂停",
+      "micOther": "{{label}} 会切换麦克风——此键在播放器中无效",
+      "seek": "{{sign}}{{seconds}} 秒",
+      "muted": "已静音",
+      "volume": "音量 {{volume}}%"
+    }
+  },
   "devices": {
     "lens": {
       "front": "前置",
@@ -2049,6 +2324,126 @@
     "slow": "网络较慢",
     "retry": "重试"
   },
+  "music": {
+    "sources": {
+      "upload": "音频文件",
+      "yandex": "Yandex Music",
+      "unknown": "音乐"
+    },
+    "platforms": {
+      "label": "平台",
+      "tiles": "音乐平台",
+      "none": "此服务器已关闭音乐平台——队列中已有的内容会继续播放。",
+      "playing": "正在播放：",
+      "paused": "已暂停：",
+      "youtube": {
+        "hint": "歌曲、MV 和演唱会",
+        "find": "在 YouTube 搜索或粘贴链接",
+        "link": "YouTube 视频链接"
+      },
+      "soundcloud": {
+        "hint": "曲目、混音和艺人现场",
+        "find": "在 SoundCloud 搜索或粘贴链接",
+        "link": "SoundCloud 曲目链接"
+      },
+      "yandex": {
+        "hint": "通过房间账号访问曲库",
+        "find": "在 Yandex Music 搜索或粘贴链接",
+        "link": "Yandex Music 曲目链接"
+      },
+      "upload": {
+        "name": "自己的文件",
+        "hint": "此设备上的音频文件",
+        "drop": "把音频文件拖到这里，或在设备上选择文件。"
+      }
+    },
+    "player": {
+      "label": "正在播放",
+      "status": {
+        "connecting": "正在连接音乐",
+        "empty": "队列为空",
+        "paused": "已暂停",
+        "playing": "正在播放"
+      },
+      "firstTrack": "添加第一首曲目",
+      "addedBy": "由 {{name}} 添加",
+      "emptyHint": "在下方查找曲目、粘贴链接或上传文件",
+      "position": "播放进度",
+      "shuffle": "随机播放队列",
+      "resume": "继续播放音乐",
+      "pause": "暂停音乐",
+      "next": "下一首",
+      "repeat": "循环队列",
+      "volume": "你听到的音乐音量"
+    },
+    "queue": {
+      "label": "音乐队列",
+      "next": "接下来",
+      "clear": "清空",
+      "empty": "后面没有曲目了：在上方找到的曲目会接着播放。",
+      "moved": "“{{title}}”排在当前曲目后第 {{position}} 位",
+      "reorder": "调整顺序：{{title}}",
+      "actions": "操作：{{title}}",
+      "playNext": "下一首播放",
+      "remove": "从队列中移除",
+      "hint": "拖动或按上下方向键调整曲目顺序"
+    },
+    "search": {
+      "notOurs": "音乐无法打开这类链接。支持 YouTube、SoundCloud 和 Yandex Music",
+      "added": "已添加：{{title}}",
+      "track": "曲目",
+      "refusals": {
+        "preview": "仅试听片段",
+        "unavailable": "无法添加",
+        "unavailableYandex": "不可用",
+        "denied": "无权限"
+      },
+      "yandexConnect": "要添加 Yandex Music 曲目，请先在上方连接房间账号",
+      "locked": "主持人仅允许自己添加曲目",
+      "sourceOff": "此服务器已关闭 {{name}} 链接",
+      "elsewhere": "这是 {{name}} 的链接——请在对应平台添加。",
+      "switchTo": "前往 {{name}}",
+      "connectToSearch": "在上方连接 Yandex Music 后即可搜索曲目",
+      "labelLink": "粘贴曲目链接",
+      "placeholderFind": "歌名、歌手或链接",
+      "clear": "清除搜索",
+      "adding": "正在添加曲目",
+      "found": "已找到：{{name}}",
+      "searching": "正在搜索",
+      "noAnswer": "平台没有响应",
+      "nothing": "未找到结果",
+      "add": "加入队列：{{title}}"
+    },
+    "upload": {
+      "failed": "无法添加曲目",
+      "tooBig": "“{{name}}”：每首曲目最大 {{limit}} MB",
+      "input": "添加音乐文件",
+      "button": "上传文件",
+      "cancel": "取消",
+      "hint": "也可以直接拖入：每首最大 {{limit}} MB、最长 60 分钟"
+    },
+    "yandex": {
+      "connected": "账号已连接",
+      "expired": "验证码已过期。请获取新的验证码",
+      "tokenConnected": "已使用保存的令牌连接",
+      "tokenStale": "保存的令牌已失效。请登录 Yandex 或输入新令牌。",
+      "checking": "正在检查连接…",
+      "hint": "房间账号：所有参与者都通过它搜索和播放曲目",
+      "badge": "已连接",
+      "connect": "连接",
+      "switch": "更换账号",
+      "disconnect": "断开",
+      "qr": "Yandex 登录页面二维码",
+      "openPage": "打开 Yandex 页面并输入验证码：",
+      "signIn": "登录 Yandex",
+      "waiting": "确认后会自动显示在这里。验证码 5 分钟内有效。",
+      "cancel": "取消登录",
+      "haveToken": "我已有访问令牌",
+      "tokenLabel": "Yandex Music 令牌",
+      "connectToken": "连接令牌",
+      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的开源 Yandex Music 连接器实现。"
+    }
+  },
   "integrations": {
     "title": "添加到会议",
     "soon": "即将登陆 Cord",
@@ -2141,6 +2536,133 @@
       "poker": "扑克",
       "durak": "Durak",
       "chess": "国际象棋"
+    }
+  },
+  "diagnostics": {
+    "title": "诊断",
+    "description": "检查设备以及本次会议的实际连接情况。",
+    "network": "网络",
+    "media": {
+      "label": "音频和视频",
+      "connected": "已连接",
+      "recovering": "正在恢复",
+      "disconnected": "未连接"
+    },
+    "control": {
+      "label": "聊天和控制",
+      "connected": "已连接",
+      "closed": "已断开",
+      "connecting": "正在连接…"
+    },
+    "quality": {
+      "label": "媒体服务器报告的质量",
+      "values": {
+        "excellent": "极佳",
+        "good": "良好",
+        "poor": "较差",
+        "lost": "连接中断",
+        "unknown": "暂无数据"
+      }
+    },
+    "path": "媒体路径",
+    "jitter": {
+      "label": "数据包到达抖动",
+      "value": "{{ms}} 毫秒，峰值"
+    },
+    "noData": "无数据",
+    "buffer": {
+      "label": "客户端请求的缓冲",
+      "kinds": {
+        "conversation": "通话",
+        "media": "音乐和屏幕",
+        "video": "视频"
+      },
+      "target": "{{kind}} {{ms}} 毫秒",
+      "none": "没有已订阅的轨道"
+    },
+    "ordered": "媒体正通过 TCP/TLS 中继传输。这条路径不会丢包，而是重新请求丢失的包，之后到达的数据都要等它——听起来就像“先静音，然后语速变快”。缓冲已自动增大。如果反复出现，请检查网络是否允许 UDP 到达媒体服务器：直连路径会平稳得多。",
+    "checking": "正在检查…",
+    "check": "检查网络",
+    "result": {
+      "text": "服务器响应：{{answer}}。成功请求：{{ok}} / {{total}}。",
+      "average": "平均 {{average}} 毫秒 · {{min}}–{{max}} 毫秒",
+      "none": "未收到"
+    },
+    "footnote": "此检查测量的是应用服务器的响应时间。会议中有轨道传输时，下方会显示音视频路由、丢包率和到媒体服务器的 RTT。",
+    "details": "音视频详情",
+    "noTracks": "会议中暂无活动轨道。本地设备检测不会向媒体服务器发送测试数据。",
+    "audio": "音频",
+    "video": "视频",
+    "resolution": "分辨率",
+    "fps": "每秒帧数",
+    "bitrate": "码率",
+    "kbps": "{{value}} kbps",
+    "loss": "区间内丢包率",
+    "connection": "连接",
+    "rtt": "到媒体服务器的 RTT",
+    "ms": "{{value}} 毫秒",
+    "codec": "编解码器",
+    "bufferRx": "接收缓冲",
+    "encode": "单帧编码",
+    "decode": "单帧解码",
+    "implementation": "视频引擎",
+    "limitation": "限制因素",
+    "limits": {
+      "none": "未发现",
+      "cpu": "编码器 / CPU",
+      "bandwidth": "网络带宽",
+      "unknown": "发送方无数据"
+    },
+    "stuck": {
+      "title": "画面或声音卡住了？",
+      "text": "我们会刷新其他参与者轨道的接收，可能会短暂停顿。",
+      "button": "刷新音频和视频"
+    },
+    "sampler": {
+      "direct": "直连 SFU",
+      "protocolHidden": "未公开协议",
+      "unknownTransport": "未知",
+      "inbound": "接收",
+      "outbound": "发送",
+      "codecHidden": "未公开",
+      "implementationHidden": "浏览器未公开"
+    }
+  },
+  "download": {
+    "home": "Cord——返回首页",
+    "back": "首页",
+    "title": "Windows 版 Cord",
+    "checking": "正在查看已发布的版本…",
+    "unavailable": "Windows 版本暂时无法获取。请稍后再打开此页面。",
+    "requirements": "Windows 10 build 19041 或更高版本，x64",
+    "installer": "下载安装程序",
+    "installNote": "为当前用户安装——无需管理员权限。如果尚未安装 WebView2，会自动安装。",
+    "portable": "免安装便携版，ZIP",
+    "connect": {
+      "title": "安装后连接到哪里",
+      "text": "Cord 不会自动连接任何地方——首次启动时会询问服务器地址。就是这个页面的地址，也就是你现在下载应用的地方：",
+      "address": "此服务器的地址",
+      "copied": "地址已复制",
+      "copy": "复制地址",
+      "note": "在 Cord 中：“添加第一个服务器” → 粘贴地址 → “添加”。名字和密码视服务器要求填写；可以保存多个服务器并在它们之间切换。"
+    },
+    "warning": {
+      "title": "Windows 会显示警告",
+      "text": "安装程序没有使用发布者证书签名，所以 SmartScreen 会提示“Windows 已保护你的电脑”，并显示发布者未知。任何没有付费证书的新程序都会这样，并不是针对这个程序。",
+      "details": "在警告窗口中点击<b>更多信息</b>。",
+      "run": "然后点击<b>仍要运行</b>。",
+      "after": "这只会在安装时出现一次。之后 Cord 会正常启动：“从互联网下载”的标记在下载的文件上，而不在安装程序写入磁盘的内容上。便携版解压后的文件仍带有该标记，因此安装程序更省心。"
+    },
+    "install": {
+      "title": "把 Cord 添加到主屏幕",
+      "app": "像应用一样打开，没有地址栏。",
+      "ios": "点按 <share/>，然后选择 <plus/>“添加到主屏幕”。之后会像应用一样打开，没有地址栏。",
+      "share": "分享",
+      "install": "安装",
+      "hide": "隐藏提示"
+    },
+    "desktop": {
+      "settings": "声音和个人资料设置"
     }
   }
 }

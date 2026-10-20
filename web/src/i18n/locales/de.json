@@ -1672,6 +1672,283 @@
       "durak-online-54": "Widerwilliger Daumen"
     }
   },
+  "cinema": {
+    "count": {
+      "thousands": "{{value}} Tsd.",
+      "millions": "{{value}} Mio."
+    },
+    "providers": {
+      "youtube": {
+        "hint": "Videos, Filme und Kanäle",
+        "search": "Video, Kanal oder Playlist"
+      },
+      "twitch": {
+        "hint": "Livestreams und Aufzeichnungen",
+        "search": "Kanal oder Spiel auf Twitch"
+      },
+      "rutube": {
+        "hint": "Live-TV, Serien und Shows",
+        "search": "Videos, Kanäle und TV"
+      },
+      "vk": {
+        "name": "VK Video",
+        "hint": "Rubriken, Communitys und Livestreams",
+        "search": "Videos und Communitys"
+      },
+      "ivi": {
+        "hint": "Filme, Serien und Zeichentrick – kostenlos",
+        "search": "Film, Serie oder Zeichentrick"
+      },
+      "link": {
+        "name": "Per Link",
+        "hint": "Video, Livestream oder Playlist per Link",
+        "search": "Videolink einfügen"
+      }
+    },
+    "linkCard": {
+      "vkStream": "VK-Video-Live-Stream: {{id}}",
+      "twitchStream": "Twitch-Stream: {{id}}",
+      "stream": "{{name}}-Stream per Link",
+      "twitchVideo": "Twitch-Aufzeichnung per Link",
+      "video": "{{name}}-Video per Link"
+    },
+    "group": {
+      "back": "Integrationen",
+      "platforms": "Kino-Plattformen",
+      "watching": "Gerade läuft:",
+      "closeForAll": "Für alle schließen",
+      "unavailable": "Gerade nicht verfügbar",
+      "noProviders": "Die Kino-Plattformen sind auf diesem Server ausgeschaltet.",
+      "closeCatalog": "Katalog schließen",
+      "locked": "Starten und Stoppen hat sich der Host vorbehalten."
+    },
+    "shell": {
+      "label": "Kino",
+      "back": "Zurück",
+      "clear": "Suche löschen",
+      "backToWatch": "Zurück zum Video",
+      "close": "Kino schließen",
+      "locked": "Integrationen hat sich der Host vorbehalten – zuschauen geht, starten nicht."
+    },
+    "more": {
+      "loading": "Wird geladen…",
+      "show": "Mehr anzeigen"
+    },
+    "notes": {
+      "offline": "Keine Verbindung zum Server – versuch es noch einmal",
+      "timeout": "Der Server hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+      "failed": "Die Anfrage ist fehlgeschlagen",
+      "asking": "Plattform wird abgefragt…",
+      "pressEnter": "Drück Enter, und das Kino öffnet diesen Link.",
+      "opening": "Link wird geöffnet…"
+    },
+    "meta": {
+      "live": "Live",
+      "channel": "Kanal",
+      "followers": "{{value}} Follower",
+      "watching": "{{value}} Zuschauer",
+      "watchingNow": "{{value}} Zuschauer gerade",
+      "liveWatching": "live, {{value}} Zuschauer",
+      "views": "{{value}} Aufrufe",
+      "updated": "Aktualisiert am {{date}}",
+      "videos_one": "{{count}} Video",
+      "videos_other": "{{count}} Videos"
+    },
+    "tiles": {
+      "watch": "Gemeinsam ansehen: {{title}}",
+      "details": "Details: {{title}}",
+      "open": "Öffnen: {{title}}",
+      "openPlaylist": "Playlist öffnen: {{title}}",
+      "openCategory": "Rubrik öffnen: {{title}}",
+      "openChannel": "Kanal öffnen: {{title}}",
+      "playlist": "Playlist"
+    },
+    "headings": {
+      "channels": "Kanäle",
+      "videos": "Videos",
+      "sections": "Rubriken"
+    },
+    "search": {
+      "nothing": "Nichts gefunden. Versuch es mit anderen Wörtern.",
+      "emptySection": "In dieser Rubrik gibt es noch nichts, was man dem Raum zeigen kann."
+    },
+    "category": {
+      "empty": "In dieser Rubrik ist gerade niemand live."
+    },
+    "channel": {
+      "tabsLabel": "Kanalbereiche",
+      "tabs": {
+        "videos": "Videos",
+        "streams": "Livestreams",
+        "shorts": "Shorts",
+        "playlists": "Playlists",
+        "about": "Kanalinfo"
+      },
+      "noAbout": "Der Kanal hat nichts über sich geschrieben.",
+      "empty": {
+        "playlists": "Der Kanal hat keine Playlists.",
+        "streams": "Der Kanal streamt nicht.",
+        "shorts": "Der Kanal hat keine Shorts.",
+        "other": "Hier gibt es noch nichts zu sehen."
+      }
+    },
+    "item": {
+      "watch": "Gemeinsam ansehen",
+      "openChannel": "Kanal öffnen",
+      "allEpisodes": "Alle Folgen"
+    },
+    "playlist": {
+      "empty": "Die Playlist ist leer."
+    },
+    "series": {
+      "untitled": "Serie",
+      "seasons_one": "{{count}} Staffel",
+      "seasons_other": "{{count}} Staffeln",
+      "seasonsLabel": "Staffeln"
+    },
+    "switcher": {
+      "tabsLabel": "Plattform",
+      "hints": {
+        "movies": "Ganze Filme",
+        "music": "Musik",
+        "podcasts": "Podcasts",
+        "documentaries": "Dokus",
+        "standup": "Stand-up",
+        "cartoons": "Zeichentrick"
+      },
+      "shelvesLabel": "Twitch-Schaufenster",
+      "live": "Livestreams",
+      "categories": "Kategorien",
+      "foundSections": "Gefundene Rubriken",
+      "popularSections": "Beliebte Rubriken",
+      "noSections": "Solche Rubriken gibt es auf Twitch nicht.",
+      "emptyTitle": "Was schauen wir im Raum?",
+      "emptyText": "Alles, was es auch auf YouTube gibt: ein Video, einen ganzen Film oder einen Kanal.",
+      "liveNow": "Gerade live",
+      "categoryNote": "Twitch-Rubrik"
+    },
+    "rutube": {
+      "home": "Start",
+      "sectionsLabel": "RUTUBE-Rubriken",
+      "live": "Live",
+      "allLive": "Alle Livestreams",
+      "shows": "Serien und Shows",
+      "allShows": "Alle Serien und Shows",
+      "videosAndLive": "Videos und Livestreams",
+      "seriesEmpty": "Hier gibt es nichts für den Raum: Die übrigen Folgen auf RUTUBE gibt es nur im Abo oder sie sind von hier nicht verfügbar."
+    },
+    "vk": {
+      "sectionsLabel": "VK-Video-Rubriken",
+      "down": "Der VK-Video-Katalog lässt sich gerade nicht öffnen",
+      "downHint": "{{error}}. Ein VK-Video oder -Stream öffnet sich trotzdem per Link – füge ihn in die Suche ein.",
+      "communities": "Communitys",
+      "nothing": "Nichts gefunden. Versuch es mit anderen Wörtern – oder füge einen Link zu einem VK-Video ein."
+    },
+    "ivi": {
+      "sectionsLabel": "ivi-Rubriken",
+      "emptySection": "In dieser Rubrik gibt es noch nichts für den Raum: Von hier aus bietet ivi keine kostenlosen Inhalte an.",
+      "seriesEmpty": "Hier gibt es nichts für den Raum: Die übrigen Folgen auf ivi sind kostenpflichtig oder von hier nicht verfügbar."
+    },
+    "linkScene": {
+      "recent": "Letzte Links",
+      "forget": "Aus den letzten entfernen: {{address}}",
+      "clear": "Alle löschen",
+      "clearLabel": "Letzte Links löschen",
+      "clipboardRefused": "Der Browser erlaubt keinen Zugriff auf die Zwischenablage – füg den Link selbst ins Feld ein.",
+      "clipboardEmpty": "In der Zwischenablage ist kein Link.",
+      "title": "Videolink einfügen",
+      "intro": "Ein Video, Livestream, Kanal oder eine Playlist von {{providers}} öffnet sich in ihrem Katalog – direkt auf der eigenen Seite.",
+      "paste": "Aus der Zwischenablage einfügen",
+      "confirmTitle": "Diesen Link öffnen?",
+      "confirmText": "Drück Enter oder die Schaltfläche, und das Kino schaut nach, was auf dieser Seite ist.",
+      "open": "Link öffnen",
+      "notLink": "Das sieht nicht nach einem Link aus: Nötig ist die Adresse einer Seite mit Video – zum Beispiel https://rutube.ru/video/…",
+      "searching": "Video wird gesucht…",
+      "providerLink": "Das ist ein {{name}}-Link",
+      "openIn": "In {{name}} öffnen",
+      "unknownProvider": "Der Server kennt diese Plattform, diese Version des Kinos aber noch nicht – lade die Seite neu.",
+      "playlistEmpty": "In dieser Playlist gibt es nichts für den Raum.",
+      "cannotOpen": "Dieser Link lässt sich noch nicht öffnen",
+      "untitled": "Ohne Titel",
+      "site": "Website",
+      "quality": "Qualität",
+      "audio": "Ton",
+      "captions": "Untertitel",
+      "recognised": "{{name}} (automatisch erstellt)"
+    },
+    "theater": {
+      "label": "Gemeinsam ansehen",
+      "untitled": "Gemeinsam ansehen",
+      "live": "Live · {{author}}",
+      "catchingUp": "Wir holen den Raum ein…",
+      "openedBySelf": "Von dir geöffnet",
+      "openedBy": "Geöffnet von {{name}}",
+      "together": "Wir schauen gemeinsam",
+      "catalog": "Katalog",
+      "closeForAll": "Wiedergabe für alle schließen",
+      "back15": "15 Sekunden zurück für alle",
+      "forward15": "15 Sekunden vor für alle",
+      "play": "Für alle abspielen",
+      "pause": "Für alle pausieren",
+      "position": "Position im Video",
+      "liveBehind": "Zurück zum Live-Bild, {{seconds}} s Rückstand",
+      "liveEdge": "Live",
+      "lag": "−{{seconds}} s",
+      "toStart": "Für alle an den Anfang",
+      "sync": "Mit dem Raum synchronisieren",
+      "skip": {
+        "intro": "85 Sekunden für alle überspringen",
+        "ad": "Werbung für alle überspringen",
+        "adShort": "Werbung überspringen",
+        "adLabel": "Werbung im Stream"
+      },
+      "adSkipped": "Werbung für alle übersprungen",
+      "exitFullscreen": "Vollbild beenden",
+      "fullscreen": "Player vergrößern",
+      "unmute": "Videoton einschalten",
+      "mute": "Videoton ausschalten",
+      "volume": "Videolautstärke",
+      "buffering": "Wird geladen",
+      "opening": "Wird geöffnet…",
+      "start": "Gemeinsam ansehen",
+      "next": "Nächste Folge",
+      "nextPlay": "Nächste Folge für alle starten",
+      "nextLocked": "Starten kann, wem der Host das Kino erlaubt hat",
+      "quality": {
+        "bitrate": "{{value}} kbit/s",
+        "source": "Original",
+        "menuLabel": "Bildqualität und Audiosprache",
+        "auto": "Auto",
+        "autoWith": "Auto · {{level}}",
+        "voice": "Synchronsprache",
+        "title": "Qualität",
+        "original": "Original",
+        "automatic": "Automatisch"
+      },
+      "captions": {
+        "label": "Untertitel",
+        "labelWith": "Untertitel: {{name}}",
+        "off": "Aus",
+        "recognised": "automatisch erstellt"
+      },
+      "errors": {
+        "streamBroken": "Der Stream wurde unterbrochen. Öffne das Video erneut",
+        "unsupported": "Dieser Browser kann kein Streaming-Video abspielen",
+        "streamFailed": "Der Stream ließ sich nicht öffnen. Versuch ein anderes Video",
+        "openFailed": "Video konnte nicht geöffnet werden",
+        "renewFailed": "Stream konnte nicht aktualisiert werden"
+      }
+    },
+    "keys": {
+      "locked": "Die Fernbedienung hat sich der Host vorbehalten – Pause und Spulen liegen bei ihm",
+      "live": "Livestreams lassen sich nicht pausieren oder zurückspulen",
+      "micPause": "{{label}} schaltet das Mikrofon – Pause mit K",
+      "micOther": "{{label}} schaltet das Mikrofon – im Player funktioniert diese Taste nicht",
+      "seek": "{{sign}}{{seconds}} s",
+      "muted": "Ton aus",
+      "volume": "Lautstärke {{volume}} %"
+    }
+  },
   "devices": {
     "lens": {
       "front": "Frontkamera",
@@ -2073,6 +2350,126 @@
     "slow": "Langsames Netzwerk",
     "retry": "Erneut versuchen"
   },
+  "music": {
+    "sources": {
+      "upload": "Audiodatei",
+      "yandex": "Yandex Music",
+      "unknown": "Musik"
+    },
+    "platforms": {
+      "label": "Plattform",
+      "tiles": "Musikplattformen",
+      "none": "Die Musikplattformen sind auf diesem Server ausgeschaltet – es läuft, was schon in der Warteschlange ist.",
+      "playing": "Läuft gerade:",
+      "paused": "Pausiert:",
+      "youtube": {
+        "hint": "Songs, Musikvideos und Konzerte",
+        "find": "Auf YouTube suchen oder Link einfügen",
+        "link": "Link zu einem YouTube-Video"
+      },
+      "soundcloud": {
+        "hint": "Tracks, Remixe und Sets von Künstlern",
+        "find": "Auf SoundCloud suchen oder Link einfügen",
+        "link": "Link zu einem SoundCloud-Track"
+      },
+      "yandex": {
+        "hint": "Katalog über das Konto des Raums",
+        "find": "In Yandex Music suchen oder Link einfügen",
+        "link": "Link zu einem Yandex-Music-Titel"
+      },
+      "upload": {
+        "name": "Eigene Dateien",
+        "hint": "Audiodateien von diesem Gerät",
+        "drop": "Zieh Audiodateien hierher oder wähle sie auf deinem Gerät aus."
+      }
+    },
+    "player": {
+      "label": "Läuft gerade",
+      "status": {
+        "connecting": "Musik wird verbunden",
+        "empty": "Warteschlange leer",
+        "paused": "Pausiert",
+        "playing": "Läuft gerade"
+      },
+      "firstTrack": "Füg den ersten Titel hinzu",
+      "addedBy": "Hinzugefügt von {{name}}",
+      "emptyHint": "Such unten einen Titel, füg einen Link ein oder lade eine Datei hoch",
+      "position": "Position im Titel",
+      "shuffle": "Warteschlange mischen",
+      "resume": "Musik fortsetzen",
+      "pause": "Musik pausieren",
+      "next": "Nächster Titel",
+      "repeat": "Warteschlange wiederholen",
+      "volume": "Deine Musiklautstärke"
+    },
+    "queue": {
+      "label": "Musik-Warteschlange",
+      "next": "Als Nächstes",
+      "clear": "Leeren",
+      "empty": "Danach kommt nichts: Der oben gefundene Titel läuft als Nächstes.",
+      "moved": "„{{title}}“ – Nr. {{position}} nach dem aktuellen",
+      "reorder": "Verschieben: {{title}}",
+      "actions": "Aktionen: {{title}}",
+      "playNext": "Als Nächstes abspielen",
+      "remove": "Aus der Warteschlange entfernen",
+      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben"
+    },
+    "search": {
+      "notOurs": "Solche Links öffnet die Musik nicht. YouTube, SoundCloud und Yandex Music funktionieren",
+      "added": "Hinzugefügt: {{title}}",
+      "track": "Titel",
+      "refusals": {
+        "preview": "Nur Ausschnitt",
+        "unavailable": "Nicht hinzufügbar",
+        "unavailableYandex": "Nicht verfügbar",
+        "denied": "Keine Rechte"
+      },
+      "yandexConnect": "Um einen Yandex-Music-Titel hinzuzufügen, verbinde oben das Konto des Raums",
+      "locked": "Titel hinzufügen hat sich der Host vorbehalten",
+      "sourceOff": "{{name}}-Links sind auf diesem Server ausgeschaltet",
+      "elsewhere": "Das ist ein {{name}}-Link – er wird auf seiner eigenen Plattform hinzugefügt.",
+      "switchTo": "Zu {{name}} wechseln",
+      "connectToSearch": "Verbinde oben Yandex Music, um Titel zu suchen",
+      "labelLink": "Link zu einem Titel einfügen",
+      "placeholderFind": "Titel, Künstler oder Link",
+      "clear": "Suche löschen",
+      "adding": "Titel wird hinzugefügt",
+      "found": "Gefunden: {{name}}",
+      "searching": "Suche läuft",
+      "noAnswer": "Die Plattform hat nicht geantwortet",
+      "nothing": "Nichts gefunden",
+      "add": "Zur Warteschlange hinzufügen: {{title}}"
+    },
+    "upload": {
+      "failed": "Titel konnte nicht hinzugefügt werden",
+      "tooBig": "„{{name}}“: höchstens {{limit}} MB pro Titel",
+      "input": "Musikdateien hinzufügen",
+      "button": "Dateien hochladen",
+      "cancel": "Abbrechen",
+      "hint": "Du kannst sie auch hineinziehen: bis zu {{limit}} MB und 60 Minuten pro Titel"
+    },
+    "yandex": {
+      "connected": "Konto verbunden",
+      "expired": "Der Code ist abgelaufen. Hol dir einen neuen",
+      "tokenConnected": "Mit gespeichertem Token verbunden",
+      "tokenStale": "Der gespeicherte Token funktioniert nicht mehr. Melde dich bei Yandex an oder gib einen neuen Token ein.",
+      "checking": "Verbindung wird geprüft…",
+      "hint": "Das Konto des Raums: Darüber suchen und spielen alle Teilnehmer Titel ab",
+      "badge": "Verbunden",
+      "connect": "Verbinden",
+      "switch": "Konto wechseln",
+      "disconnect": "Trennen",
+      "qr": "QR-Code der Yandex-Anmeldeseite",
+      "openPage": "Öffne die Yandex-Seite und gib den Code ein:",
+      "signIn": "Bei Yandex anmelden",
+      "waiting": "Die Bestätigung erscheint hier von selbst. Der Code gilt 5 Minuten.",
+      "cancel": "Anmeldung abbrechen",
+      "haveToken": "Ich habe schon einen Zugriffstoken",
+      "tokenLabel": "Yandex-Music-Token",
+      "connectToken": "Token verbinden",
+      "note": "Das Passwort gibst du auf der Yandex-Seite ein. Für ganze Titel brauchst du ein Konto mit Abo. Funktioniert über einen inoffiziellen Open-Source-Connector für Yandex Music."
+    }
+  },
   "integrations": {
     "title": "Zum Meeting hinzufügen",
     "soon": "Bald in Cord",
@@ -2166,6 +2563,133 @@
       "poker": "Poker",
       "durak": "Durak",
       "chess": "Schach"
+    }
+  },
+  "diagnostics": {
+    "title": "Diagnose",
+    "description": "Prüfe deine Geräte und die tatsächliche Verbindung dieses Meetings.",
+    "network": "Netzwerk",
+    "media": {
+      "label": "Audio und Video",
+      "connected": "Verbunden",
+      "recovering": "Werden wiederhergestellt",
+      "disconnected": "Nicht verbunden"
+    },
+    "control": {
+      "label": "Chat und Steuerung",
+      "connected": "Verbunden",
+      "closed": "Getrennt",
+      "connecting": "Verbinden…"
+    },
+    "quality": {
+      "label": "Qualität laut Medienserver",
+      "values": {
+        "excellent": "Ausgezeichnet",
+        "good": "Gut",
+        "poor": "Schwach",
+        "lost": "Verbindung verloren",
+        "unknown": "Noch keine Daten"
+      }
+    },
+    "path": "Medienpfad",
+    "jitter": {
+      "label": "Jitter beim Paketempfang",
+      "value": "{{ms}} ms, Spitze"
+    },
+    "noData": "Keine Daten",
+    "buffer": {
+      "label": "Puffer, den der Client anfordert",
+      "kinds": {
+        "conversation": "Gespräch",
+        "media": "Musik und Bildschirm",
+        "video": "Video"
+      },
+      "target": "{{kind}} {{ms}} ms",
+      "none": "Keine abonnierten Spuren"
+    },
+    "ordered": "Die Medien laufen über ein Relay per TCP/TLS. Dieser Weg verliert keine Pakete, sondern fordert sie neu an – und alles, was danach kommt, wartet auf den Nachzügler. Klingt wie „erst still, dann schneller geredet“. Der Puffer wurde automatisch erhöht. Passiert das öfter, prüfe, ob dein Netzwerk UDP bis zum Medienserver durchlässt: Der direkte Weg ist deutlich gleichmäßiger.",
+    "checking": "Wird geprüft…",
+    "check": "Netzwerk prüfen",
+    "result": {
+      "text": "Serverantwort: {{answer}}. Erfolgreiche Anfragen: {{ok}} von {{total}}.",
+      "average": "{{average}} ms im Schnitt · {{min}}–{{max}} ms",
+      "none": "nicht erhalten"
+    },
+    "footnote": "Der Test misst die Antwortzeit des App-Servers. Route von Audio und Video, Paketverlust und RTT zum Medienserver erscheinen unten, sobald im Meeting Spuren übertragen werden.",
+    "details": "Details zu Audio und Video",
+    "noTracks": "Im Meeting gibt es noch keine aktiven Spuren. Der lokale Gerätetest sendet nichts an den Medienserver.",
+    "audio": "Audio",
+    "video": "Video",
+    "resolution": "Auflösung",
+    "fps": "Bilder pro Sekunde",
+    "bitrate": "Bitrate",
+    "kbps": "{{value}} kbit/s",
+    "loss": "Paketverlust im Intervall",
+    "connection": "Verbindung",
+    "rtt": "RTT zum Medienserver",
+    "ms": "{{value}} ms",
+    "codec": "Codec",
+    "bufferRx": "Empfangspuffer",
+    "encode": "Kodierung pro Bild",
+    "decode": "Dekodierung pro Bild",
+    "implementation": "Video-Engine",
+    "limitation": "Begrenzung",
+    "limits": {
+      "none": "Keine erkannt",
+      "cpu": "Encoder / CPU",
+      "bandwidth": "Bandbreite",
+      "unknown": "Keine Daten vom Sender"
+    },
+    "stuck": {
+      "title": "Bild oder Ton hängt?",
+      "text": "Wir aktualisieren den Empfang der Spuren der anderen Teilnehmer. Eine kurze Pause ist möglich.",
+      "button": "Audio und Video aktualisieren"
+    },
+    "sampler": {
+      "direct": "Direkt zur SFU",
+      "protocolHidden": "Protokoll nicht angegeben",
+      "unknownTransport": "Unbekannt",
+      "inbound": "Empfang",
+      "outbound": "Senden",
+      "codecHidden": "Nicht angegeben",
+      "implementationHidden": "Vom Browser nicht angegeben"
+    }
+  },
+  "download": {
+    "home": "Cord – zur Startseite",
+    "back": "Startseite",
+    "title": "Cord für Windows",
+    "checking": "Wir schauen, was veröffentlicht ist…",
+    "unavailable": "Die Windows-Version ist gerade nicht verfügbar. Versuch es etwas später noch einmal.",
+    "requirements": "Windows 10 Build 19041 oder neuer, x64",
+    "installer": "Installer herunterladen",
+    "installNote": "Installation für den aktuellen Benutzer – keine Administratorrechte nötig. WebView2 wird automatisch installiert, falls es fehlt.",
+    "portable": "Portable Version ohne Installation, ZIP",
+    "connect": {
+      "title": "Womit du dich nach der Installation verbindest",
+      "text": "Cord verbindet sich nicht von selbst – beim ersten Start fragt es nach einer Serveradresse. Das ist die Adresse genau dieser Seite, von der du die App gerade herunterlädst:",
+      "address": "Adresse dieses Servers",
+      "copied": "Adresse kopiert",
+      "copy": "Adresse kopieren",
+      "note": "In Cord: „Ersten Server angeben“ → Adresse einfügen → „Hinzufügen“. Name und Passwort nur, wenn der Server sie verlangt; du kannst mehrere Server speichern und zwischen ihnen wechseln."
+    },
+    "warning": {
+      "title": "Windows zeigt eine Warnung an",
+      "text": "Der Installer ist nicht mit einem Herausgeberzertifikat signiert. Deshalb meldet SmartScreen „Der Computer wurde durch Windows geschützt“ und nennt den Herausgeber unbekannt. Das passiert bei jedem neuen Programm ohne kostenpflichtiges Zertifikat, nicht speziell bei diesem.",
+      "details": "Klick im Warnfenster auf <b>Weitere Informationen</b>.",
+      "run": "Dann auf <b>Trotzdem ausführen</b>.",
+      "after": "Das passiert nur einmal, bei der Installation. Danach startet Cord ganz normal: Der Vermerk „aus dem Internet heruntergeladen“ hängt an der heruntergeladenen Datei, nicht an dem, was der Installer auf die Festplatte legt. Bei der portablen Version bleibt der Vermerk an den entpackten Dateien – deshalb ist der Installer angenehmer."
+    },
+    "install": {
+      "title": "Cord auf dem Home-Bildschirm",
+      "app": "Öffnet sich wie eine App, ohne Adressleiste.",
+      "ios": "Tippe auf <share/> und wähle <plus/> „Zum Home-Bildschirm“. Es öffnet sich wie eine App, ohne Adressleiste.",
+      "share": "Teilen",
+      "install": "Installieren",
+      "hide": "Hinweis ausblenden"
+    },
+    "desktop": {
+      "settings": "Ton- und Profileinstellungen"
     }
   }
 }
