@@ -58,6 +58,7 @@ export function YandexIntegration({
         if (disposed) return;
         if (value.status === 'connected') {
           setAuth(null);
+          setError('');
           client.setQueryData(['yandex', roomId], { connected: value.connected, name: value.name });
           setNotice('Аккаунт подключён');
           return;

@@ -23,6 +23,27 @@ def now() -> int:
     return int(time.time() * 1000)
 
 
+def size_of(path: Path) -> int:
+    """Размер файла — или ноль, если его уже нет.
+
+    Каталог звука живой: скачивание с площадки (`sources.py`) пишет и удаляет свои куски из потока
+    пула, пока цикл событий считает место. Файл, пропавший между «есть ли он» и «сколько весит», —
+    это не ошибка запроса, а ноль байт.
+    """
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def older_than(path: Path, seconds: float) -> bool:
+    """Не менялся ли файл дольше `seconds`. Пропавший — не старый: убирать нечего."""
+    try:
+        return path.stat().st_mtime < time.time() - seconds
+    except OSError:
+        return False
+
+
 def initial(room_id: str) -> dict[str, Any]:
     return {
         "roomId": room_id,
@@ -48,6 +69,10 @@ class Store:
         self.root = root
         self.files = root / "audio"
         self.files.mkdir(mode=0o700, exist_ok=True)
+        # Недокачанное с площадок (`sources.py`): yt-dlp пишет сюда куски и миниатюру, а в `audio/`
+        # переезжает только готовый файл — уборка и подсчёт места не видят чужих полуфайлов.
+        self.incoming = root / "incoming"
+        self.incoming.mkdir(mode=0o700, exist_ok=True)
         self.db = sqlite3.connect(root / "services.sqlite", isolation_level=None)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -240,10 +265,11 @@ class Store:
         self.links.sweep()
         referenced = self.referenced()
         for path in self.files.iterdir():
-            if (
-                path.name not in referenced
-                and path.stat().st_mtime < time.time() - 3600
-            ):
+            if path.name not in referenced and older_than(path, 3600):
+                path.unlink(missing_ok=True)
+        # Куски скачивания, которое оборвалось вместе со службой или отменой, — тот же час.
+        for path in self.incoming.iterdir():
+            if older_than(path, 3600):
                 path.unlink(missing_ok=True)
 
 

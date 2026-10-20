@@ -182,6 +182,20 @@ describe('одно поле поиска', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Добавлено: Новый трек');
   });
 
+  it('пока ссылка скачивается, второй Enter её не повторяет', async () => {
+    let finish: (state: MusicState) => void = () => {};
+    const can = abilities({
+      addLink: vi.fn(() => new Promise<MusicState>((resolve) => (finish = resolve))),
+    });
+    render(<MusicSearch abilities={can} onAdded={() => {}} />);
+    await act(async () => type('https://youtu.be/dQw4w9WgXcQ'));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole('search'));
+    });
+    expect(can.addLink).toHaveBeenCalledTimes(1);
+    await act(async () => finish(music([song('a'), song('b')])));
+  });
+
   it('чужая ссылка получает ответ без запроса', () => {
     const can = abilities();
     render(<MusicSearch abilities={can} onAdded={() => {}} />);

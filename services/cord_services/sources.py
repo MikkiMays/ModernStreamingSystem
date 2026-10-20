@@ -20,7 +20,9 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
+import os
 import re
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -227,6 +229,9 @@ class Sources:
         self.pool = concurrent.futures.ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="music-download"
         )
+        # Скачиваний сейчас нет ни одного: всё в `incoming/` — остаток прошлого запуска.
+        for leftover in self.store.incoming.iterdir():
+            leftover.unlink(missing_ok=True)
 
     def close(self) -> None:
         self.pool.shutdown(wait=False, cancel_futures=True)
@@ -321,17 +326,24 @@ class Sources:
             self.music.check_quota(room_id, 0)
             key = str(uuid.uuid4())
             cover = None
+            path = None
+            # Поток yt-dlp снаружи не прервать — но он сам спрашивает этот флаг на каждом куске.
+            stop = threading.Event()
             loop = asyncio.get_running_loop()
+            work = loop.run_in_executor(
+                self.pool, self._download, platform, page, key, stop
+            )
             try:
                 try:
-                    found = await loop.run_in_executor(
-                        self.pool, self._download, platform, page, key
-                    )
+                    found = await asyncio.shield(work)
                 except TooBig:
                     raise HTTPException(413, TOO_BIG) from None
                 except TooSlow:
                     raise HTTPException(504, TOO_SLOW) from None
-                path = found["path"]
+                # Готовый файл переезжает к остальному звуку одним переименованием: до этого его
+                # не видят ни подсчёт места, ни уборка.
+                path = self.store.files / found["path"].name
+                os.replace(found["path"], path)
                 metadata = await probe(path)
                 if metadata["duration"] < found["duration"] - SHORTFALL:
                     raise HTTPException(403, FRAGMENT)
@@ -354,33 +366,45 @@ class Sources:
                 self.store.remember(scope, command_id, {"url": page})
                 return result
             except BaseException:
-                self._forget(key, cover)
+                stop.set()
+                if not work.done():
+                    # Отменили запрос, а поток ещё качает: подчищаем, когда он остановится.
+                    work.add_done_callback(lambda _: self._forget(key, path, cover))
+                else:
+                    self._forget(key, path, cover)
                 raise
             finally:
-                for leftover in self.store.files.glob(f"{key}.thumb.*"):
+                for leftover in self.store.incoming.glob(f"{key}*"):
                     leftover.unlink(missing_ok=True)
 
-    def _forget(self, key: str, cover: str | None) -> None:
-        """Не вошедшее в очередь — с диска: звук, недокачанные куски, миниатюра и обложка."""
+    def _forget(self, key: str, path: Path | None, cover: str | None) -> None:
+        """Не вошедшее в очередь — с диска: куски и миниатюра, переехавший звук, обложка."""
+        for leftover in self.store.incoming.glob(f"{key}*"):
+            leftover.unlink(missing_ok=True)
         referenced = self.store.referenced()
-        names = [path.name for path in self.store.files.glob(f"{key}*")] + (
-            [cover] if cover else []
-        )
-        for name in names:
-            if name not in referenced:
+        for name in [path.name if path else None, cover]:
+            if name and name not in referenced:
                 (self.store.files / name).unlink(missing_ok=True)
 
-    def _download(self, platform: Platform, page: str, key: str) -> dict[str, Any]:
-        """Разбор, проверки и скачивание — в потоке пула, одним открытым yt-dlp."""
+    def _download(
+        self,
+        platform: Platform,
+        page: str,
+        key: str,
+        stop: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Разбор, проверки и скачивание — в потоке пула, одним открытым yt-dlp, в `incoming/`."""
         started = time.monotonic()
 
         def hook(progress: dict[str, Any]) -> None:
             if (progress.get("downloaded_bytes") or 0) > MAX_FILE:
                 raise TooBig()
+            if stop is not None and stop.is_set():
+                raise TooSlow()
             if time.monotonic() - started > DOWNLOAD_SECONDS:
                 raise TooSlow()
 
-        files = self.store.files
+        files = self.store.incoming
         options = {
             "quiet": True,
             "no_warnings": True,
@@ -402,6 +426,9 @@ class Sources:
             # Кусками по 10 МБ: YouTube режет скорость длинным запросам целого файла.
             "http_chunk_size": 10 * 1024 * 1024,
             "overwrites": True,
+            # Время файла — время скачивания, а не `Last-Modified` площадки: по нему уборка
+            # отличает свежее от забытого.
+            "updatetime": False,
             "allowed_extractors": list(platform.extractors),
         }
 
@@ -432,22 +459,28 @@ class Sources:
                 "thumbnail": thumbnail,
             }
 
-        try:
-            return self._run(platform, options, work)
-        except (HTTPException, TooBig, TooSlow):
-            raise
-        except Exception as error:  # yt_dlp поднимает свои типы — решает текст
-            text = str(error)
-            if TooBig.__name__ in text or "max-filesize" in text:
-                raise TooBig() from None
-            if TooSlow.__name__ in text:
-                raise TooSlow() from None
-            logger.info(
-                "музыка: %s не отдал трек: %s", platform.id, self.ytdlp.explain(error)
-            )
-            raise HTTPException(
-                502, f"{platform.name} не отдал трек. Попробуйте другой"
-            ) from None
+        # Один повтор на необъяснённый отказ площадки: на живой пробе YouTube раз из трёх не отдал
+        # ролик, который со второго раза пришёл за две секунды. Срок — общий на обе попытки.
+        for attempt in (1, 2):
+            try:
+                return self._run(platform, options, work)
+            except (HTTPException, TooBig, TooSlow):
+                raise
+            except Exception as error:  # yt_dlp поднимает свои типы — решает текст
+                text = str(error)
+                if TooBig.__name__ in text or "max-filesize" in text:
+                    raise TooBig() from None
+                if TooSlow.__name__ in text:
+                    raise TooSlow() from None
+                reason = self.ytdlp.explain(error)
+                if attempt == 1 and time.monotonic() - started < DOWNLOAD_SECONDS / 2:
+                    logger.info("музыка: %s, повтор после: %s", platform.id, reason)
+                    continue
+                logger.info("музыка: %s не отдал трек: %s", platform.id, reason)
+                raise HTTPException(
+                    502, f"{platform.name} не отдал трек. Попробуйте другой"
+                ) from None
+        raise AssertionError("недостижимо")
 
     @staticmethod
     def _check(info: dict[str, Any]) -> float:

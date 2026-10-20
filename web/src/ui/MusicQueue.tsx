@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { GripVertical, ListStart, MoreHorizontal, Trash2 } from 'lucide-react';
 import { musicSourceName, type MusicState, type MusicTrack } from '../core/services';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
@@ -44,6 +44,15 @@ export function MusicQueue({
   const [drag, setDrag] = useState<Drag | null>(null);
   const [said, setSaid] = useState('');
   const upcoming = state.queue.slice(1);
+  /*
+    Строку, которую тянут, может унести опрос: трек заиграл, кончился или его убрал другой участник,
+    а с ним пропала и ручка — и её `pointerup` уже не придёт. Право могли отобрать посреди движения.
+    Тогда перетаскивание кончается само, а не висит до следующего нажатия.
+  */
+  const lost = !!drag && (!canUse || !upcoming.some((track) => track.id === drag.id));
+  useEffect(() => {
+    if (lost) setDrag(null);
+  }, [lost]);
   if (!state.queue.length) return null;
 
   const move = (track: MusicTrack, index: number) => {
@@ -147,6 +156,9 @@ export function MusicQueue({
                   onPointerMove={follow}
                   onPointerUp={(event) => drop(track, event)}
                   onPointerCancel={() => setDrag(null)}
+                  onLostPointerCapture={(event) => {
+                    if (drag?.pointer === event.pointerId) setDrag(null);
+                  }}
                   onKeyDown={(event) => step(track, index, event)}
                 >
                   <GripVertical size={16} aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Music2, Unplug } from 'lucide-react';
 import type { Meeting } from '../core/meeting';
@@ -98,6 +98,8 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [foresight, setForesight] = useState<Foresight | null>(null);
+  // Сколько команд очереди ушло и ещё без ответа — для предсказания (`command`).
+  const inFlight = useRef(0);
   const sources = useMemo(() => offeredSources(catalog.data?.sources), [catalog.data?.sources]);
   const served = music.data;
   const state = foresee(served, foresight);
@@ -131,8 +133,17 @@ export function Services({ meeting }: { meeting: Meeting }) {
     patch?: Partial<MusicState>,
   ) => {
     if (!canUse) return;
-    if (patch && state) setForesight({ base: state.revision, patch });
-    void run(() => api.command(action, extra));
+    /*
+      Каждая команда сдвигает ревизию службы на одну. Если до этой ещё не ответили прежние (две
+      перестановки стрелками подряд), предсказание живёт, пока служба не применит и их: иначе ответ
+      на первую сбросил бы его, и список на миг откатился бы ко второй половине пути.
+    */
+    const ahead = inFlight.current;
+    inFlight.current += 1;
+    if (patch && state) setForesight({ base: state.revision + ahead, patch });
+    void run(() => api.command(action, extra)).finally(() => {
+      inFlight.current -= 1;
+    });
   };
   /** Joining and leaving the room take seconds and change who is in it; those do wait. */
   const heavy = async (job: () => Promise<MusicState>, permitted: boolean) => {

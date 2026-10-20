@@ -125,6 +125,8 @@ export function MusicSearch({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    // Пока трек скачивается, второй Enter — не вторая просьба: та же ссылка встала бы в очередь дважды.
+    if (linking || adding) return;
     setNotice('');
     setError('');
     const what = classifyQuery(query);
@@ -168,6 +170,7 @@ export function MusicSearch({
   };
 
   const add = async (item: Found) => {
+    if (linking || adding) return;
     setAdding(item.key);
     setError('');
     setNotice('');
@@ -264,7 +267,7 @@ export function MusicSearch({
                       size="sm"
                       className="music-results__add"
                       label={`Добавить в очередь: ${item.title}`}
-                      disabled={!!adding}
+                      disabled={!!adding || linking}
                       onClick={() => void add(item)}
                     >
                       {adding === item.key ? <LoaderCircle size={16} className="spin" /> : <Plus size={16} />}

@@ -1,6 +1,8 @@
 """Музыка с площадок без аккаунта (T18): ссылки, поиск, скачивание, обложки — без сети."""
 
+import os
 import subprocess
+import time
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -12,7 +14,7 @@ from test_services import Fixture, ROOM, HOST, GUEST, audio, track
 from cord_services import covers
 from cord_services.app import create_app
 from cord_services.sources import TooBig, TooSlow, recognize
-from cord_services.store import Store
+from cord_services.store import Store, size_of
 
 SEARCH = f"/api/v1/services/rooms/{ROOM}/music/search"
 LINK = f"/api/v1/services/rooms/{ROOM}/music/link"
@@ -327,6 +329,12 @@ class LinkTests(Fixture):
         self.assertEqual(self.pages, [f"https://www.youtube.com/watch?v={VIDEO}"])
         self.assertEqual(self.options["allowed_extractors"], ["youtube"])
         self.assertTrue(self.options["noplaylist"])
+        # Куски и миниатюра — в `incoming/`, время файла — время скачивания, а не площадки.
+        self.assertTrue(
+            self.options["outtmpl"]["default"].startswith(str(self.store.incoming))
+        )
+        self.assertFalse(self.options["updatetime"])
+        self.assertEqual(list(self.store.incoming.iterdir()), [])
         stored = self.store.get(ROOM)["queue"][0]
         self.assertTrue((self.store.files / stored["file"]).is_file())
         self.assertTrue((self.store.files / stored["cover"]).is_file())
@@ -405,10 +413,27 @@ class LinkTests(Fixture):
             self.assertEqual((await self.add()).status_code, 413)
         with patch.object(
             self.sources, "_run", side_effect=RuntimeError("HTTP Error 403")
-        ):
+        ) as refused:
             failed = await self.add()
         self.assertEqual(failed.status_code, 502)
         self.assertIn("YouTube", failed.json()["detail"])
+        # Необъяснённый отказ повторяется один раз, не больше.
+        self.assertEqual(refused.call_count, 2)
+
+    async def test_one_flaky_refusal_is_retried(self):
+        real = self.sources._run
+        attempts = []
+
+        def flaky(platform, options, work):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise RuntimeError("ERROR: [youtube] Requested format is not available")
+            return real(platform, options, work)
+
+        with patch.object(self.sources, "_run", side_effect=flaky):
+            response = await self.add()
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(attempts), 2)
 
 
 class CoverTests(Fixture):
@@ -498,6 +523,35 @@ class CoverTests(Fixture):
         path = self.root / "art.png"
         picture(path)
         return path.read_bytes()
+
+
+class StorageRaceTests(Fixture):
+    async def test_vanished_files_count_as_nothing_instead_of_failing(self):
+        self.assertEqual(size_of(self.root / "missing"), 0)
+        queued = track(self.store, "One")
+        await self.music.enqueue(ROOM, queued)
+        # Файл трека пропал (его убрал соседний поток) — подсчёт места не падает.
+        (self.store.files / queued["file"]).unlink()
+        self.music.check_quota(ROOM, 1)
+
+    async def test_cleanup_sweeps_stale_downloads_but_not_fresh_ones(self):
+        stale = self.store.incoming / "stale.webm.part"
+        fresh = self.store.incoming / "fresh.webm.part"
+        for path in (stale, fresh):
+            path.write_bytes(b"x")
+        old = time.time() - 7200
+        os.utime(stale, (old, old))
+        self.store.cleanup()
+        self.assertFalse(stale.exists())
+        self.assertTrue(fresh.exists())
+
+    async def test_startup_forgets_downloads_of_the_previous_run(self):
+        leftover = self.store.incoming / "left.m4a.part"
+        leftover.write_bytes(b"x")
+        self.app.state.sources.__class__(
+            self.app.state.cinema.ytdlp, self.store, self.music
+        ).close()
+        self.assertFalse(leftover.exists())
 
 
 class MoveTests(Fixture):

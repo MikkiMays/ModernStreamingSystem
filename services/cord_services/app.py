@@ -141,7 +141,12 @@ def create_app(
         async def clean():
             while True:
                 await asyncio.sleep(300)
-                store.cleanup()
+                # Одна неудачная уборка не должна останавливать все следующие: без них не
+                # истекают сроки треков и не уходят осиротевшие файлы до перезапуска службы.
+                try:
+                    store.cleanup()
+                except Exception:
+                    logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
         background.append(asyncio.create_task(clean(), name="cleanup"))
         yield

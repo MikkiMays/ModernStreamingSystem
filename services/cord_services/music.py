@@ -13,7 +13,7 @@ from .core import Core
 from .covers import files_of
 from .media import MAX_ROOM, MAX_TOTAL
 from .publisher import Publisher
-from .store import Store, now
+from .store import Store, now, size_of
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +90,8 @@ class Music:
         state = self.store.get(room_id)
         if len(state["queue"]) >= 100:
             raise HTTPException(409, "В очереди уже 100 треков")
-        room_size = sum(
-            (self.store.files / t["file"]).stat().st_size
-            for t in state["queue"]
-            if (self.store.files / t["file"]).exists()
-        )
-        total = sum(p.stat().st_size for p in self.store.files.iterdir() if p.is_file())
+        room_size = sum(size_of(self.store.files / t["file"]) for t in state["queue"])
+        total = sum(size_of(p) for p in self.store.files.iterdir())
         if (
             room_size + incoming > MAX_ROOM
             or total + (0 if already_stored else incoming) > MAX_TOTAL
