@@ -127,7 +127,7 @@ describe('очередь', () => {
   });
 });
 
-describe('одно поле поиска', () => {
+describe('поле площадки (T59)', () => {
   const found = (
     source: PlatformTrack['source'],
     title: string,
@@ -142,7 +142,8 @@ describe('одно поле поиска', () => {
     ...patch,
   });
   const abilities = (patch: Partial<MusicSearchAbilities> = {}): MusicSearchAbilities => ({
-    platforms: ['youtube', 'soundcloud'],
+    platform: 'youtube',
+    offered: ['youtube', 'soundcloud', 'yandex', 'upload'],
     canSearch: true,
     searchPlatform: vi.fn(async (source: PlatformTrack['source']) =>
       source === 'youtube'
@@ -150,7 +151,7 @@ describe('одно поле поиска', () => {
         : [found('soundcloud', 'Go+', { duration: 30, available: false })],
     ),
     addLink: vi.fn(async () => music([song('a'), song('новый', { title: 'Новый трек' })])),
-    yandex: { connected: true, search: vi.fn(async () => []), add: vi.fn() },
+    yandex: null,
     ...patch,
   });
   const type = (value: string) => {
@@ -158,20 +159,30 @@ describe('одно поле поиска', () => {
     fireEvent.submit(screen.getByRole('search'));
   };
 
-  it('название ищется сразу во всех источниках, группами', async () => {
-    const can = abilities();
+  it('название ищется только на выбранной площадке', async () => {
+    const yandex = { connected: true, search: vi.fn(async () => []), add: vi.fn() };
+    const can = abilities({ yandex });
     render(<MusicSearch abilities={can} onAdded={() => {}} />);
+    expect(screen.getByLabelText('Найти на YouTube или вставить ссылку')).toBeInTheDocument();
     type('песня');
     expect(await screen.findByText('Песня')).toBeInTheDocument();
+    expect(can.searchPlatform).toHaveBeenCalledTimes(1);
     expect(can.searchPlatform).toHaveBeenCalledWith('youtube', 'песня');
-    expect(can.searchPlatform).toHaveBeenCalledWith('soundcloud', 'песня');
-    expect(can.yandex!.search).toHaveBeenCalledWith('песня');
+    expect(yandex.search).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Найдено: YouTube' })).toBeInTheDocument();
-    expect(screen.getByText('Только фрагмент')).toBeInTheDocument();
-    expect(await screen.findByText('Ничего не нашлось')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Найдено: SoundCloud' })).toBeNull();
   });
 
-  it('ссылка YouTube уходит сразу в очередь', async () => {
+  it('у SoundCloud фрагмент Go+ — «Только фрагмент», без «+»', async () => {
+    const can = abilities({ platform: 'soundcloud' });
+    render(<MusicSearch abilities={can} onAdded={() => {}} />);
+    type('песня');
+    expect(await screen.findByText('Только фрагмент')).toBeInTheDocument();
+    expect(can.searchPlatform).toHaveBeenCalledWith('soundcloud', 'песня');
+    expect(screen.queryByRole('button', { name: /^Добавить в очередь/ })).toBeNull();
+  });
+
+  it('ссылка своей площадки уходит сразу в очередь', async () => {
     const can = abilities();
     const onAdded = vi.fn();
     render(<MusicSearch abilities={can} onAdded={onAdded} />);
@@ -196,6 +207,25 @@ describe('одно поле поиска', () => {
     await act(async () => finish(music([song('a'), song('b')])));
   });
 
+  it('ссылка другой площадки здесь не добавляется — «Перейти» несёт её туда', () => {
+    const can = abilities();
+    const onSwitch = vi.fn();
+    render(<MusicSearch abilities={can} onAdded={() => {}} onSwitch={onSwitch} />);
+    type('https://soundcloud.com/artist/track');
+    expect(can.addLink).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Это ссылка SoundCloud');
+    fireEvent.click(screen.getByRole('button', { name: 'Перейти: SoundCloud' }));
+    expect(onSwitch).toHaveBeenCalledWith('soundcloud', 'https://soundcloud.com/artist/track');
+  });
+
+  it('ссылка площадки, выключенной на сервере, — отказ словами', () => {
+    const can = abilities({ offered: ['youtube', 'upload'] });
+    render(<MusicSearch abilities={can} onAdded={() => {}} onSwitch={vi.fn()} />);
+    type('https://soundcloud.com/artist/track');
+    expect(screen.getByRole('alert')).toHaveTextContent('Ссылки SoundCloud на этом сервере выключены');
+    expect(screen.queryByRole('button', { name: /^Перейти/ })).toBeNull();
+  });
+
   it('чужая ссылка получает ответ без запроса', () => {
     const can = abilities();
     render(<MusicSearch abilities={can} onAdded={() => {}} />);
@@ -204,12 +234,36 @@ describe('одно поле поиска', () => {
     expect(can.addLink).not.toHaveBeenCalled();
   });
 
-  it('без аккаунта Яндекса его группы нет, а его ссылка просит подключить аккаунт', () => {
-    const can = abilities({ yandex: { connected: false, search: vi.fn(), add: vi.fn() } });
-    render(<MusicSearch abilities={can} onAdded={() => {}} />);
-    type('песня');
-    expect(screen.queryByRole('region', { name: 'Найдено: Яндекс Музыка' })).toBeNull();
+  it('Яндекс: без аккаунта ссылка просит подключить аккаунт, с аккаунтом ищет только он', async () => {
+    const offline = abilities({
+      platform: 'yandex',
+      yandex: { connected: false, search: vi.fn(), add: vi.fn() },
+    });
+    const { unmount } = render(<MusicSearch abilities={offline} onAdded={() => {}} />);
     type('https://music.yandex.ru/album/1/track/2');
     expect(screen.getByRole('alert')).toHaveTextContent('подключите аккаунт комнаты');
+    unmount();
+
+    const yandex = { connected: true, search: vi.fn(async () => []), add: vi.fn() };
+    const online = abilities({ platform: 'yandex', yandex });
+    render(<MusicSearch abilities={online} onAdded={() => {}} />);
+    type('песня');
+    expect(await screen.findByText('Ничего не нашлось')).toBeInTheDocument();
+    expect(yandex.search).toHaveBeenCalledWith('песня');
+    expect(online.searchPlatform).not.toHaveBeenCalled();
+    expect(screen.getByRole('region', { name: 'Найдено: Яндекс Музыка' })).toBeInTheDocument();
+  });
+
+  it('ссылка, принесённая с другой площадки, ждёт в поле — добавить одним Enter', () => {
+    render(
+      <MusicSearch
+        abilities={abilities({ platform: 'soundcloud' })}
+        initialQuery="https://soundcloud.com/artist/track"
+        onAdded={() => {}}
+      />,
+    );
+    const field = screen.getByRole('searchbox');
+    expect(field).toHaveValue('https://soundcloud.com/artist/track');
+    expect(field).toHaveFocus();
   });
 });

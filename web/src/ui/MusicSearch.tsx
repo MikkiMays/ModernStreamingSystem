@@ -1,11 +1,12 @@
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { LoaderCircle, Plus, Search, X } from 'lucide-react';
+import { ArrowRight, LoaderCircle, Plus, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type PlatformTrack, type YandexTrack } from '../core/services';
-import { IconButton } from './kit';
+import { Button, IconButton } from './kit';
 import { classifyQuery, formatDuration } from './music-playback';
+import { routeQuery, type MusicPlatform, type SearchPlatform } from './music-platforms';
 
-type Searchable = 'yandex' | 'youtube' | 'soundcloud';
+type Searchable = SearchPlatform;
 
 interface Found {
   key: string;
@@ -26,9 +27,11 @@ interface Group {
 
 /** Что панель умеет искать и добавлять — уже с учётом прав (`you.can`) и того, что включено. */
 export interface MusicSearchAbilities {
-  /** Площадки без аккаунта, включённые на этом сервере (`catalog.sources`). */
-  platforms: PlatformTrack['source'][];
-  /** Можно ли искать на них (`music.search`). */
+  /** Площадка поля (T59): поиск и ссылки — только её. */
+  platform: SearchPlatform;
+  /** Площадки, включённые на этом сервере (`catalog.sources`): ссылка другой из них зовёт туда. */
+  offered: readonly MusicPlatform[];
+  /** Можно ли искать на YouTube и SoundCloud (`music.search`). */
   canSearch: boolean;
   searchPlatform: (source: PlatformTrack['source'], query: string) => Promise<PlatformTrack[]>;
   /** Добавить по ссылке или из найденного (`music.link`); `null` — нельзя. */
@@ -42,40 +45,49 @@ export interface MusicSearchAbilities {
 }
 
 /**
- * Одно поле на все источники (T18): название — поиск сразу везде, ссылка — сразу в очередь.
+ * Поле площадки (T59; прежде — одно поле на все источники, T18): название — поиск на этой площадке,
+ * её ссылка — сразу в очередь.
  *
- * Каждая площадка отвечает своим запросом и своей группой: медленный SoundCloud не держит готовый
- * YouTube, а отказ одной площадки не прячет ответы остальных. Ссылку YouTube и SoundCloud служба
- * скачивает и ставит в очередь без лишнего шага; ссылка Яндекс Музыки идёт в его поиск — трек там
- * проверяется на доступность аккаунту, и человек видит его до добавления.
+ * Ссылку YouTube и SoundCloud служба скачивает и ставит в очередь без лишнего шага; ссылка Яндекс
+ * Музыки идёт в его поиск — трек там проверяется на доступность аккаунту, и человек видит его до
+ * добавления. Ссылка другой включённой площадки молча не добавляется: под полем — «Перейти» туда,
+ * и ссылка переезжает в поле той площадки (`onSwitch`).
  */
 export function MusicSearch({
   abilities,
   onAdded,
+  onSwitch,
+  initialQuery = '',
   children,
 }: {
   abilities: MusicSearchAbilities;
   onAdded: (state: MusicState) => void;
-  /** Под полем: загрузка файлов. */
+  /** Перейти на другую площадку с этим текстом в её поле. */
+  onSwitch?: (platform: MusicPlatform, text: string) => void;
+  /** С чем поле открывается: ссылка, принесённая с другой площадки. */
+  initialQuery?: string;
+  /** Под полем. */
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const id = useId();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [groups, setGroups] = useState<Group[]>([]);
   const [adding, setAdding] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  /** Ссылка другой площадки — и куда с ней перейти. */
+  const [elsewhere, setElsewhere] = useState<{ platform: SearchPlatform; url: string } | null>(null);
   const asked = useRef(0);
-  const { platforms, canSearch, searchPlatform, addLink, yandex } = abilities;
-  const searchable = canSearch ? platforms : [];
-  const canFind = searchable.length > 0 || !!yandex;
+  const { platform, offered, canSearch, searchPlatform, addLink, yandex } = abilities;
+  const canFind = platform === 'yandex' ? !!yandex?.connected : canSearch;
 
   const reset = () => {
     asked.current += 1;
     setGroups([]);
     setError('');
+    setElsewhere(null);
   };
   const added = (state: MusicState, title?: string) => {
     onAdded(state);
@@ -136,42 +148,38 @@ export function MusicSearch({
     // Пока трек скачивается, второй Enter — не вторая просьба: та же ссылка встала бы в очередь дважды.
     if (linking || adding) return;
     setNotice('');
-    setError('');
-    const what = classifyQuery(query);
-    if (what.kind === 'empty') return reset();
-    if (what.kind === 'foreign') {
-      reset();
-      setError(t(($) => $.music.search.notOurs));
-      return;
+    reset();
+    const what = routeQuery(classifyQuery(query), platform, offered);
+    switch (what.kind) {
+      case 'empty':
+        return;
+      case 'foreign':
+        return setError(t(($) => $.music.search.notOurs));
+      case 'off':
+        return setError(t(($) => $.music.search.sourceOff, { name: musicSourceName(t, what.platform) }));
+      case 'elsewhere':
+        return setElsewhere({ platform: what.platform, url: what.url });
+      case 'search':
+        if (platform === 'yandex') {
+          if (!yandex?.connected) return setError(t(($) => $.music.search.connectToSearch));
+        } else if (!canSearch) return setError(t(($) => $.music.search.locked));
+        return run([platform], what.text);
+      case 'link':
+        if (platform === 'yandex') {
+          if (!yandex?.connected) return setError(t(($) => $.music.search.yandexConnect));
+          return run(['yandex'], what.url);
+        }
+        if (!addLink) return setError(t(($) => $.music.search.locked));
+        setLinking(true);
+        try {
+          added(await addLink(what.url));
+          setQuery('');
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setLinking(false);
+        }
     }
-    if (what.kind === 'link') {
-      const source = what.source;
-      if (source === 'yandex') {
-        if (!yandex) return setError(t(($) => $.music.search.yandexOff));
-        if (!yandex.connected) return setError(t(($) => $.music.search.yandexConnect));
-        return run(['yandex'], what.url);
-      }
-      reset();
-      if (!addLink) return setError(t(($) => $.music.search.locked));
-      if (!platforms.includes(source))
-        return setError(t(($) => $.music.search.sourceOff, { name: musicSourceName(t, source) }));
-      setLinking(true);
-      try {
-        added(await addLink(what.url));
-        setQuery('');
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        setLinking(false);
-      }
-      return;
-    }
-    const sources: Searchable[] = [...(yandex?.connected ? (['yandex'] as const) : []), ...searchable];
-    if (!sources.length) {
-      setError(yandex ? t(($) => $.music.search.connectToSearch) : t(($) => $.music.search.searchOff));
-      return;
-    }
-    run(sources, what.text);
   };
 
   const add = async (item: Found) => {
@@ -192,7 +200,7 @@ export function MusicSearch({
     <div className="music-search">
       <form className="music-search__form" role="search" onSubmit={submit}>
         <label className="music-search__label" htmlFor={`${id}-query`}>
-          {canFind ? t(($) => $.music.search.labelFind) : t(($) => $.music.search.labelLink)}
+          {canFind ? t(($) => $.music.platforms[platform].find) : t(($) => $.music.search.labelLink)}
         </label>
         <div className="music-search__field">
           <Search size={16} className="music-search__icon" aria-hidden="true" />
@@ -204,8 +212,10 @@ export function MusicSearch({
             autoComplete="off"
             maxLength={300}
             value={query}
+            // Ссылку, принесённую с другой площадки, добавляют одним Enter: поле ждёт в фокусе.
+            autoFocus={!!initialQuery}
             placeholder={
-              canFind ? t(($) => $.music.search.placeholderFind) : t(($) => $.music.search.placeholderLink)
+              canFind ? t(($) => $.music.search.placeholderFind) : t(($) => $.music.platforms[platform].link)
             }
             onChange={(e) => {
               setQuery(e.target.value);
@@ -245,6 +255,20 @@ export function MusicSearch({
         <p className="music-search__error" role="alert">
           {error}
         </p>
+      )}
+      {elsewhere && (
+        <div className="music-search__elsewhere" role="status">
+          <p>{t(($) => $.music.search.elsewhere, { name: musicSourceName(t, elsewhere.platform) })}</p>
+          {onSwitch && (
+            <Button
+              size="sm"
+              icon={<ArrowRight />}
+              onClick={() => onSwitch(elsewhere.platform, elsewhere.url)}
+            >
+              {t(($) => $.music.search.switchTo, { name: musicSourceName(t, elsewhere.platform) })}
+            </Button>
+          )}
+        </div>
       )}
       {groups.map((group) => (
         <section

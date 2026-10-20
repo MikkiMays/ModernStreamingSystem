@@ -124,7 +124,8 @@ const SCREENS = {
     const search = section.getByRole('searchbox');
     await search.fill('ночной город');
     await search.press('Enter');
-    await section.getByText('DJ Полночь').waitFor();
+    // Поле — площадки YouTube (T59): найденное приходит одной группой.
+    await section.getByText('Клуб', { exact: true }).waitFor();
     await section.scrollIntoViewIfNeeded();
     await page.waitForTimeout(300);
     await shoot('kit-integrations', section);

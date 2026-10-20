@@ -151,3 +151,16 @@ it('помнит недавние ссылки кинозала — только
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ cinemaLinks: 'https://youtu.be/x' }));
   expect(readPreferences().cinemaLinks).toEqual([]);
 });
+
+it('помнит прошлый выбор площадки у музыки и кинозала — только имя площадки (T59)', () => {
+  expect(readPreferences().lastPlatform).toEqual({});
+  savePreferences({ lastPlatform: { music: 'soundcloud', cinema: 'rutube' } });
+  expect(readPreferences().lastPlatform).toEqual({ music: 'soundcloud', cinema: 'rutube' });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ lastPlatform: { music: '<script>', cinema: 42, games: 'poker' } }),
+  );
+  expect(readPreferences().lastPlatform).toEqual({});
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ lastPlatform: 'youtube' }));
+  expect(readPreferences().lastPlatform).toEqual({});
+});
