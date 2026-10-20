@@ -18,8 +18,11 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { desktopPicker, selectCaptureSource } from '../core/desktop-capture';
 import type { Meeting } from '../core/meeting';
+import { CapturePicker, type CaptureChoice } from './CapturePicker';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip, CameraSubmenu } from './CameraMenu';
@@ -82,7 +85,24 @@ export function CallDock({
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
-  const share = () => meeting.media.share(profile);
+  /*
+    Показ экрана. В клиенте на Electron источник выбирают в нашем окне (E01-B2): выбор уходит
+    оболочке запросом с ответом, и только потом `getDisplayMedia` — оболочка отдаст ровно его.
+    Остановить показ и браузер — как раньше, прямо из нажатия.
+  */
+  const [picking, setPicking] = useState(false);
+  const share = () => {
+    if (!media.screen && desktopPicker()) {
+      setPicking(true);
+      return;
+    }
+    meeting.media.share(profile);
+  };
+  const shareChosen = async (choice: CaptureChoice) => {
+    setPicking(false);
+    await selectCaptureSource(choice.id, choice.audio);
+    meeting.media.share(profile);
+  };
   // Что уходит в сеть прямо сейчас — подсказкой у «Диагностики»: раньше это была метка в пульте.
   const sending = outbound && outbound.width > 0 ? `${outbound.height}p · ${outbound.fps} fps` : null;
   return (
@@ -257,6 +277,11 @@ export function CallDock({
           </IconButton>
         </div>
       )}
+      <CapturePicker
+        open={picking}
+        onOpenChange={setPicking}
+        onChoose={(choice) => void shareChosen(choice)}
+      />
     </footer>
   );
 }
