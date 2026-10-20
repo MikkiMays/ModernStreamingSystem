@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Share, SquarePlus, X } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useMediaQuery } from './primitives';
+import { isDesktop } from '../core/desktop';
 
 /**
  * «Вынести Cord на экран „Домой“».
@@ -49,7 +50,7 @@ export function InstallHint() {
   };
   // `navigator.standalone` — единственный признак установленного веб-приложения на iOS.
   const installed = standalone || (navigator as { standalone?: boolean }).standalone === true;
-  if (hidden || installed || !phone || !!window.chrome?.webview) return null;
+  if (hidden || installed || !phone || isDesktop()) return null;
   return (
     <aside className="install-hint" role="note">
       <div>

@@ -15,7 +15,7 @@ import { MeetingHeader } from './MeetingHeader';
 import { Button, IconButton, ResizeHandle, usePanelWidth } from './kit';
 import { humans } from '../core/people';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
-import { notifyDesktop, onDesktopCommand } from '../core/desktop';
+import { hasFeature, notifyDesktop, onDesktopCommand } from '../core/desktop';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
@@ -135,6 +135,13 @@ export function MeetingView({
     window.addEventListener('keydown', keyboard);
     const unsubscribe = onDesktopCommand((command) => {
       if (command.type === 'microphone.toggle') toggle();
+      // Кнопки на миниатюре в панели задач (T53): микрофон, камера, завершить.
+      if (command.type === 'thumbar') {
+        if (command.action === 'mic') toggle();
+        if (command.action === 'camera' && !meeting.ended.get() && meeting.media.state.get().status === 'connected')
+          void meeting.media.toggle('camera');
+        if (command.action === 'leave') void meeting.leave();
+      }
     });
     return () => {
       window.removeEventListener('keydown', keyboard);
@@ -142,6 +149,35 @@ export function MeetingView({
       notifyDesktop('hotkey.configure', { hotkey: null });
     };
   }, [meeting, preferences.micHotkey, ended]);
+  // Оверлей клиента (T23, E01): кто в комнате и кто говорит — не чаще 10 раз в секунду, без аватаров.
+  useEffect(() => {
+    if (!hasFeature('overlay') || ended) return;
+    let last = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const publish = () => {
+      timer = null;
+      last = Date.now();
+      const levels = meeting.media.levels.state.get();
+      const speaking = new Set(meeting.media.speaking.get());
+      notifyDesktop('overlay.state', {
+        participants: humans(meeting.snapshot.get().participants)
+          .slice(0, 20)
+          .map((p) => ({ name: p.name.slice(0, 40), tier: levels[p.id]?.tier ?? 0, speaking: speaking.has(p.id) })),
+      });
+    };
+    const schedule = () => {
+      if (timer) return;
+      const wait = Math.max(0, 100 - (Date.now() - last));
+      timer = setTimeout(publish, wait);
+    };
+    const stops = [meeting.media.levels.watchAll(schedule), meeting.snapshot.subscribe(schedule)];
+    schedule();
+    return () => {
+      stops.forEach((stop) => stop());
+      if (timer) clearTimeout(timer);
+      notifyDesktop('overlay.state', { participants: [] });
+    };
+  }, [meeting, ended]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   // Действия ведущего — по ответу ядра (`you.can`), а не по флажку `owner` в списке людей.
   const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);

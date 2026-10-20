@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Admission } from '../api/types';
 import { DesktopHome } from './DesktopHome';
+import { isDesktop } from '../core/desktop';
 import { HomeShell } from './home/HomeShell';
 import { Settings } from './Settings';
 import type { Theme } from './primitives';
@@ -34,7 +35,7 @@ export function Home(props: HomeProps) {
   };
   return (
     <>
-      {window.chrome?.webview ? (
+      {isDesktop() ? (
         <DesktopHome onCreate={props.onCreate} onJoin={props.onJoin} onSettings={() => open()} />
       ) : (
         <HomeShell

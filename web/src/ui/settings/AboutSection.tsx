@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, RefreshCw, Send, TriangleAlert } from 'lucide-react';
 import { isNewer, windowsRelease, type WindowsRelease } from '../../core/download';
-import { desktopUpdate, desktopVersion, notifyDesktop } from '../../core/desktop';
+import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../core/desktop';
 import { appLabel, appVersion } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
@@ -19,7 +19,7 @@ import { SettingGroup, SettingRow } from './Row';
  */
 export function AboutSection() {
   const { t } = useTranslation();
-  const desktop = !!window.chrome?.webview;
+  const desktop = isDesktop();
   const shell = useStore(desktopUpdate);
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
