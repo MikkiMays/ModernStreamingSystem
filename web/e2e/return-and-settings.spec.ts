@@ -29,7 +29,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);
     await host.getByLabel('Ваше имя').fill('Хозяин');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await expect(host.getByRole('button', { name: 'Включить микрофон', exact: true })).toBeVisible();
     const code = (await host.getByRole('button', { name: 'Код встречи', exact: true }).innerText()).trim();

@@ -215,18 +215,24 @@ export function GainRow({
   const percent = Math.round(audio.gain * 100);
   return (
     <SettingRow id="mic-volume" stack disabled={audio.autoGainControl}>
-      <div className="setting-slider">
-        <Slider
-          min={0}
-          max={200}
-          step={1}
-          disabled={audio.autoGainControl}
-          value={percent}
-          label={rowText(t, 'mic-volume').label}
-          onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
-        />
-        <SettingValue>{audio.autoGainControl ? t(($) => $.settings.media.auto) : `${percent}%`}</SettingValue>
-      </div>
+      {/* Имя ползунка — видимая подпись строки (`aria-labelledby`): так и диктор, и axe знают, что
+          бледная подпись принадлежит выключенному управлению, а не просто текст без контраста. */}
+      {(a11y) => (
+        <div className="setting-slider">
+          <Slider
+            {...a11y}
+            min={0}
+            max={200}
+            step={1}
+            disabled={audio.autoGainControl}
+            value={percent}
+            onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
+          />
+          <SettingValue>
+            {audio.autoGainControl ? t(($) => $.settings.media.auto) : `${percent}%`}
+          </SettingValue>
+        </div>
+      )}
     </SettingRow>
   );
 }

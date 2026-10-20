@@ -34,8 +34,11 @@ COPY --chmod=u=rwX,go=rX services/sniffer/sniffer ./sniffer
 FROM base AS test
 COPY --chmod=u=rwX,go=rX services/sniffer/tests/fixtures/hlsjs.py /tmp/hlsjs.py
 RUN python /tmp/hlsjs.py /opt/fixtures && rm /tmp/hlsjs.py
-COPY --chmod=u=rwX,go=rX web/e2e/fixtures/hls /opt/fixtures/hls
-COPY --chmod=u=rwX,go=rX services/sniffer/tests /tests
+COPY web/e2e/fixtures/hls /opt/fixtures/hls
+COPY services/sniffer/tests /tests
+# Права каталогов — `chmod`, а не `COPY --chmod=…X`: BuildKit раннера CI не ставил `x` вложенным
+# каталогам (`/tests/pages`), и пользователь 10001 получал `PermissionError` на каждой странице-фикстуре.
+RUN chmod -R u=rwX,go=rX /opt/fixtures /tests
 USER 10001:10001
 ENTRYPOINT ["python", "-m", "unittest", "discover", "-s", "/tests"]
 CMD ["-v"]

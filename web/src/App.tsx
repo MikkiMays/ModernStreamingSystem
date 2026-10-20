@@ -193,7 +193,8 @@ function Workspace() {
       }
       if (command.type === 'deeplink') {
         // `cord://room/<код>` — как ввод кода на главной. Приглашение без токена открыть нечем.
-        if (typeof command.code === 'string' && /^\d{9}$/.test(command.code)) openDestination({ kind: 'code', code: command.code });
+        if (typeof command.code === 'string' && /^\d{9}$/.test(command.code))
+          openDestination({ kind: 'code', code: command.code });
         return;
       }
       const navigate = async () => {

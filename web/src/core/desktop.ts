@@ -18,7 +18,13 @@ interface CordDesktop {
   readonly protocol: { major: number; minor: number };
   readonly features: readonly string[];
   readonly app: { version: string; arch: string };
-  readonly bootstrap: { profile: string; theme: string; showPing: boolean; notificationSounds: boolean; autoConnect: boolean };
+  readonly bootstrap: {
+    profile: string;
+    theme: string;
+    showPing: boolean;
+    notificationSounds: boolean;
+    autoConnect: boolean;
+  };
   send(type: string, payload?: object): void;
   invoke(method: string, payload?: object): Promise<unknown>;
   on(type: string, listener: (data: Record<string, unknown>) => void): () => void;
@@ -78,7 +84,11 @@ export interface DesktopUpdate {
   status: string;
   available: boolean;
 }
-export const desktopUpdate = new Store<DesktopUpdate>({ version: v2()?.app.version ?? '', status: '', available: false });
+export const desktopUpdate = new Store<DesktopUpdate>({
+  version: v2()?.app.version ?? '',
+  status: '',
+  available: false,
+});
 export function desktopVersion(state: DesktopUpdate) {
   return state.version;
 }
@@ -156,7 +166,9 @@ export function notifyDesktop(type: string, data: Record<string, unknown> = {}) 
   switch (type) {
     case 'hotkey.configure': {
       const hotkey = data.hotkey as Hotkey | null | undefined;
-      api.send('hotkeys.configure', { bindings: hotkey ? [{ action: 'mic.toggle', mode: 'toggle', key: hotkey }] : [] });
+      api.send('hotkeys.configure', {
+        bindings: hotkey ? [{ action: 'mic.toggle', mode: 'toggle', key: hotkey }] : [],
+      });
       return;
     }
     case 'update.version':
@@ -198,7 +210,8 @@ function hotkeyStatusText(status: unknown): string | null {
 export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
   const api = v2();
   if (api) {
-    const relay = (command: Partial<DesktopCommand>) => listener({ version: 1, ...command } as DesktopCommand);
+    const relay = (command: Partial<DesktopCommand>) =>
+      listener({ version: 1, ...command } as DesktopCommand);
     const stops = [
       api.on('hotkey', (data) => {
         if (data.action === 'mic.toggle' && data.phase !== 'up') relay({ type: 'microphone.toggle' });
@@ -223,7 +236,8 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         else if (typeof room?.roomId === 'string') relay({ type: 'deeplink', roomId: room.roomId });
       }),
       api.on('thumbar', (data) => {
-        if (data.action === 'mic' || data.action === 'camera' || data.action === 'leave') relay({ type: 'thumbar', action: data.action });
+        if (data.action === 'mic' || data.action === 'camera' || data.action === 'leave')
+          relay({ type: 'thumbar', action: data.action });
       }),
       ...(
         [

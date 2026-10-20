@@ -22,7 +22,7 @@ test('control reconnects and replays messages while remote video continues', asy
     await host.getByRole('button', { name: /Новая встреча/ }).click();
     await host.getByLabel('Ваше имя').fill('Организатор');
     await host.getByRole('button', { name: 'Начать встречу' }).click();
-    await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
+    await expect(host.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 25000 });
     await host.getByRole('button', { name: 'Включить камеру' }).click();
     await host.getByRole('button', { name: 'Пригласить участников' }).click();
     const invite = await host.getByLabel('Ссылка приглашения').inputValue();

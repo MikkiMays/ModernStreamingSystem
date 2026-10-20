@@ -107,6 +107,8 @@ export const PAIRS = {
     ['--muted', '--bg', 4.5],
     ['--muted', '--surface-1', 4.5],
     ['--muted', '--surface-2', 4.5],
+    // Меню, тосты и поднятые карточки — на `--surface-3`, подписи в них приглушённые.
+    ['--muted', '--surface-3', 4.5],
     ['--accent', '--bg', 4.5],
     ['--accent', '--surface-1', 4.5],
     ['--accent', '--surface-2', 4.5],
@@ -142,6 +144,8 @@ export const PAIRS = {
     ['--muted', '--bg', 4.5],
     ['--muted', '--surface-1', 4.5],
     ['--muted', '--surface-2', 4.5],
+    // Меню, тосты и поднятые карточки — на `--surface-3`, подписи в них приглушённые.
+    ['--muted', '--surface-3', 4.5],
     ['--accent', '--bg', 4.5],
     ['--accent', '--surface-1', 4.5],
     ['--accent', '--surface-2', 4.5],

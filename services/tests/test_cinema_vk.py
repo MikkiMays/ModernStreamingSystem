@@ -1005,7 +1005,9 @@ class ResolveTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(found["kind"], "hls")
         self.assertEqual(
             found["url"],
-            proxied(self.signer, recorded("master-vod.url").strip(), "playlist", SIGNATURE_TTL, provider="vk"),
+            proxied(
+                self.signer, recorded("master-vod.url").strip(), "playlist", SIGNATURE_TTL, provider="vk"
+            ),
         )
         self.assertEqual(
             found["captions"],

@@ -73,9 +73,10 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     /*
       Чужой руки в браузере нет вовсе.
 
-      У чужого места нет ни открытых карт, ни счётчика. Приватные карты доступны только владельцу.
+      У чужого места нет открытых карт — только число карт на руках, как и у своего (T07). Приватные
+      карты доступны только владельцу.
     */
-    await expect(host.locator('.durak-seat-count')).toHaveCount(0);
+    await expect(host.locator('.durak-seat-count')).toHaveText(['6', '6']);
     await expect(host.locator('.durak-seat:not([data-mine]) .durak-card')).toHaveCount(0);
 
     // Рука остаётся читаемой: выделение цели появляется после выбора карты.

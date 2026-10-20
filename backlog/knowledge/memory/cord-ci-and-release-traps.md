@@ -16,6 +16,11 @@ metadata:
 - `tsc --noEmit` **не заменяет** `npm run format:check` (prettier) — перенос строки в тесте
   валит всю сборку веба.
 - Прогон CI ничего не собирает из `docs/`: правка документации не требует выкатки.
+- `COPY --chmod=u=rwX,go=rX <каталог>` в Dockerfile: локальный BuildKit (Docker 29) ставит `x`
+  вложенным каталогам, BuildKit раннера CI — нет. С 19.10 по 20.10.2026 шаг «Verify the page player of
+  the cinema» падал на `PermissionError: /tests/pages/*.html` у пользователя 10001, хотя локально всё
+  проходило. Права каталогов — `RUN chmod -R u=rwX,go=rX …` после `COPY`.
+- Строгий ruff кинозала в CI — `--line-length 110 --extend-select E501`; простой `ruff check` его не ловит.
 
 **Ловушка выкладки (17.09.2026).** У обеих реп `concurrency: cancel-in-progress: true`. В
 репозитории Windows прогон на `main` **выкладывает релиз**: второй пуш подряд убил его посреди

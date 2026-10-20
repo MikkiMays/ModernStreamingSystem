@@ -122,9 +122,11 @@
   width: 18px;
   height: 18px;
 }
+/* Прозрачность, а не `visibility: hidden`: скрытая так подпись выпадает из дерева доступности, и
+   ждущая кнопка остаётся без имени (axe `button-name`). Ширину держит та же подпись. */
 .ui-button[data-loading] .ui-button__label,
 .ui-button[data-loading] .ui-button__icon {
-  visibility: hidden;
+  opacity: 0;
 }
 .ui-spinner {
   position: absolute;

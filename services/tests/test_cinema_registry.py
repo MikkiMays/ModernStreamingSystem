@@ -560,7 +560,7 @@ class RouteTests(unittest.TestCase):
                 ]
             },
         )
-        self.core.member.assert_awaited_once_with(ROOM, "Bearer member.secret")
+        self.core.member.assert_awaited_once_with(ROOM, "Bearer member.secret", action="cinema.browse")
 
     def test_the_list_is_for_members_of_the_room_only(self):
         client = self.serve()
