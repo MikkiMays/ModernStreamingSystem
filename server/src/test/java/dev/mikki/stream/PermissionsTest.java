@@ -42,6 +42,8 @@ class PermissionsTest {
           music.control       | ++ | +- | +- | -- | -- | --
           music.upload        | ++ | +- | +- | -- | -- | --
           music.remove        | ++ | +- | +- | -- | -- | --
+          music.search        | ++ | +- | +- | -- | -- | --
+          music.link          | ++ | +- | +- | -- | -- | --
           yandex.connect      | ++ | +- | +- | -- | -- | --
           yandex.search       | ++ | +- | +- | -- | -- | --
           yandex.queue        | ++ | +- | +- | -- | -- | --
@@ -98,7 +100,7 @@ class PermissionsTest {
     assertThat(Arrays.stream(Action.values()).map(Action::wire))
         .doesNotHaveDuplicates()
         .allSatisfy(name -> assertThat(name).matches("[a-z]+\\.[a-z]+"))
-        .hasSize(31);
+        .hasSize(33);
   }
 
   @Test
@@ -147,7 +149,8 @@ class PermissionsTest {
 
   @Test
   void anOrdinaryParticipantIsWhatTelegramChatGets() {
-    assertThat(Permissions.participant(room(true))).contains("music.control", "music.remove");
+    assertThat(Permissions.participant(room(true)))
+        .contains("music.control", "music.remove", "music.search", "music.link");
     assertThat(Permissions.participant(room(true))).doesNotContain("telegram.link", "room.close");
     assertThat(Permissions.participant(room(false))).doesNotContain("music.control");
     assertThat(Permissions.participant(room(false))).contains("music.view");
