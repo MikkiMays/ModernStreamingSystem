@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
@@ -46,6 +47,19 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
   server: { proxy },
   preview: { proxy },
+  /*
+    Два HTML-входа: приложение и Mini App Telegram (`tg.html`, E09). Mini App — отдельный документ, а не
+    маршрут: роутера в вебе нет (решение архитектора 13), а Telegram Web открывает `/tg` в рамке, которую
+    шлюз разрешает только этому пути (`infra/Caddyfile`). Общий код — общими чанками.
+  */
+  build: {
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        tg: fileURLToPath(new URL('./tg.html', import.meta.url)),
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
