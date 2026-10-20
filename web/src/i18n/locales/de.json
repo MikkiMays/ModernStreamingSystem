@@ -1,0 +1,14 @@
+{
+  "locale": "de",
+  "language": {
+    "label": "Sprache",
+    "system": "Wie im Browser"
+  },
+  "settings": {
+    "rows": {
+      "appearance-language": {
+        "label": "Sprache der Oberfläche"
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../i18n';
 import { formatDuration, readStartedAt, spokenDuration } from './meeting-clock';
 
 describe('readStartedAt', () => {
@@ -34,9 +35,9 @@ describe('formatDuration', () => {
 
 describe('spokenDuration', () => {
   it('reads naturally', () => {
-    expect(spokenDuration(20_000)).toBe('меньше минуты');
-    expect(spokenDuration(12 * 60_000)).toBe('12 мин');
-    expect(spokenDuration(65 * 60_000)).toBe('1 ч 5 мин');
-    expect(spokenDuration(120 * 60_000)).toBe('2 ч');
+    expect(spokenDuration(t, 20_000)).toBe('меньше минуты');
+    expect(spokenDuration(t, 12 * 60_000)).toBe('12 мин');
+    expect(spokenDuration(t, 65 * 60_000)).toBe('1 ч 5 мин');
+    expect(spokenDuration(t, 120 * 60_000)).toBe('2 ч');
   });
 });

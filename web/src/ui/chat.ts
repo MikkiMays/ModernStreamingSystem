@@ -1,3 +1,5 @@
+import { locale, type Translate } from '../i18n';
+
 /**
  * Правила поля чата и вложений (T02) — отдельно от разметки, чтобы проверяться без браузера.
  */
@@ -9,15 +11,13 @@ export const COMPOSER_MAX_ROWS = 6;
 export const DEFAULT_FILE_MAX_BYTES = 100 * 1024 * 1024;
 
 /** Размер по-человечески: КиБ до мебибайта, МиБ до гибибайта, дальше ГиБ. */
-export function formatBytes(value: number): string {
-  if (value >= 1024 ** 3) return `${trim(value / 1024 ** 3)} ГиБ`;
-  if (value >= 1024 ** 2) return `${trim(value / 1024 ** 2)} МиБ`;
-  return `${Math.max(1, Math.ceil(value / 1024))} КиБ`;
-}
-
-/** Одна цифра после запятой, и без «,0»: «100 МиБ», а не «100.0 МиБ». */
-function trim(value: number): string {
-  return (Math.round(value * 10) / 10).toString().replace('.', ',');
+export function formatBytes(t: Translate, value: number): string {
+  // Одна цифра после запятой, и без «,0»: «100 МиБ», а не «100.0 МиБ». Единиц двоичного размера
+  // в `Intl` нет — слово из каталога, число — по языку.
+  const number = new Intl.NumberFormat(locale(t), { maximumFractionDigits: 1 });
+  if (value >= 1024 ** 3) return t(($) => $.chat.units.gib, { value: number.format(value / 1024 ** 3) });
+  if (value >= 1024 ** 2) return t(($) => $.chat.units.mib, { value: number.format(value / 1024 ** 2) });
+  return t(($) => $.chat.units.kib, { value: number.format(Math.max(1, Math.ceil(value / 1024))) });
 }
 
 /**
@@ -29,9 +29,17 @@ function trim(value: number): string {
  *
  * @returns текст отказа или `null`, если файл помещается.
  */
-export function oversize(file: { name: string; size: number }, maxBytes: number): string | null {
+export function oversize(
+  t: Translate,
+  file: { name: string; size: number },
+  maxBytes: number,
+): string | null {
   if (file.size <= maxBytes) return null;
-  return `«${file.name}» — ${formatBytes(file.size)}. Во встречу можно отправить файл до ${formatBytes(maxBytes)}.`;
+  return t(($) => $.chat.oversize, {
+    name: file.name,
+    size: formatBytes(t, file.size),
+    max: formatBytes(t, maxBytes),
+  });
 }
 
 /**

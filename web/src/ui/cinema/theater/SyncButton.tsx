@@ -1,4 +1,5 @@
 import { RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { IconButton } from '../../primitives';
 
 /**
@@ -6,8 +7,13 @@ import { IconButton } from '../../primitives';
  * (`resync` в `useRoomSync.ts`). Жёлтой кнопка становится, когда отставание уже видно глазом.
  */
 export function SyncButton({ behind, onSync }: { behind: boolean; onSync: () => void }) {
+  const { t } = useTranslation();
   return (
-    <IconButton label="Встать на секунду комнаты" className={behind ? 'watch-behind' : ''} onClick={onSync}>
+    <IconButton
+      label={t(($) => $.cinema.theater.sync)}
+      className={behind ? 'watch-behind' : ''}
+      onClick={onSync}
+    >
       <RefreshCw size={17} />
     </IconButton>
   );

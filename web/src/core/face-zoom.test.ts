@@ -1,4 +1,5 @@
 import { beforeEach, expect, it } from 'vitest';
+import { t } from '../i18n';
 import { FACE_ZOOMS, nextZoom, readZooms, saveZoom, zoomLabel } from './face-zoom';
 
 beforeEach(() => localStorage.clear());
@@ -38,6 +39,6 @@ it('помнится не больше сорока лиц, старые ухо�
 });
 
 it('подпись говорит, что кнопка сделает', () => {
-  expect(zoomLabel(1, 'Аня')).toBe('Увеличить лицо до 1,25×: Аня');
-  expect(zoomLabel(1.5, 'Аня')).toBe('Вернуть обычный размер: Аня');
+  expect(zoomLabel(t, 1, 'Аня')).toBe('Увеличить лицо до 1,25×: Аня');
+  expect(zoomLabel(t, 1.5, 'Аня')).toBe('Вернуть обычный размер: Аня');
 });

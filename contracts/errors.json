@@ -1,7 +1,11 @@
 {
   "ALREADY_IN_MEETING": {
     "status": 409,
-    "ru": "Вы уже во встрече «{}»{}roomId{}title{}"
+    "ru": "Вы уже во встрече «{}»",
+    "params": [
+      "roomId",
+      "title"
+    ]
   },
   "CHAT_RATE": {
     "status": 429,
@@ -204,7 +208,7 @@
   },
   "DURAK_WEAK": {
     "status": 409,
-    "ru": " не бьёт {}"
+    "ru": "{} не бьёт {}"
   },
   "EMPTY_MESSAGE": {
     "status": 400,
@@ -216,7 +220,10 @@
   },
   "FAVORITES_FULL": {
     "status": 409,
-    "ru": "В избранном уже {} {}. Уберите одну, чтобы добавить эту{}max{}"
+    "ru": "В избранном уже {} {}. Уберите одну, чтобы добавить эту",
+    "params": [
+      "max"
+    ]
   },
   "FAVORITE_GROUPS_CHANGED": {
     "status": 409,
@@ -487,7 +494,7 @@
   },
   "SERVER_PASSWORD_REQUIRED": {
     "status": 401,
-    "ru": "Нужен пароль сервера"
+    "ru": "Подключитесь к серверу: нужен пароль"
   },
   "SERVICE_EXISTS": {
     "status": 409,

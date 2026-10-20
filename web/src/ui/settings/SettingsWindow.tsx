@@ -16,6 +16,7 @@ import {
   type LucideProps,
 } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
+import { useTranslation } from 'react-i18next';
 import { readPreferences, savePreferences, type Preferences } from '../../core/preferences';
 import { Store } from '../../core/store';
 import { unknownLink } from '../../media/link-quality';
@@ -25,11 +26,14 @@ import { IconButton } from '../kit';
 import { SettingsTargetContext, type SettingsTarget } from './Row';
 import {
   anchorDomId,
+  anchorTitle,
   GROUPS,
+  groupTitle,
   placeFor,
   rowDomId,
   searchSettings,
   section as sectionSpec,
+  sectionTitle,
   SECTIONS,
   type Place,
   type SearchHit,
@@ -54,17 +58,6 @@ const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   accounts: Plug,
   server: Server,
   about: Info,
-};
-
-const TEXT = {
-  title: 'Настройки',
-  navigation: 'Разделы настроек',
-  search: 'Найти настройку',
-  nothing: 'Ничего не нашлось',
-  device: 'Это устройство',
-  unnamed: 'Без имени',
-  back: 'К разделам',
-  close: 'Закрыть',
 };
 
 /**
@@ -93,6 +86,7 @@ export function SettingsWindow({
   theme?: Theme;
   setTheme?: (theme: Theme) => void;
 }) {
+  const { t } = useTranslation();
   const saved = useMemo(() => new Store(readPreferences()), []);
   const offline = useMemo(() => new Store(unknownLink), []);
   const preferences = useStore(meeting?.media.preferences ?? saved);
@@ -140,7 +134,7 @@ export function SettingsWindow({
         goal.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
       scroller.scrollTop = Math.max(0, top - 16);
     } else scroller.scrollTop = 0;
-    setSpy(target.anchor ?? sectionSpec(place.section).anchors[0]?.id);
+    setSpy(target.anchor ?? sectionSpec(place.section).anchors[0]);
     if (focusAfter.current) {
       focusAfter.current = false;
       // Фокус — на управление найденной строки; не вышло (строки здесь нет) — на заголовок раздела.
@@ -161,10 +155,10 @@ export function SettingsWindow({
     const measure = () => {
       frame = 0;
       const edge = scroller.getBoundingClientRect().top + 48;
-      let current = anchors[0]?.id;
+      let current = anchors[0];
       for (const anchor of anchors) {
-        const element = document.getElementById(anchorDomId(anchor.id));
-        if (element && element.getBoundingClientRect().top <= edge) current = anchor.id;
+        const element = document.getElementById(anchorDomId(anchor));
+        if (element && element.getBoundingClientRect().top <= edge) current = anchor;
       }
       setSpy(current);
     };
@@ -195,7 +189,7 @@ export function SettingsWindow({
     return Promise.resolve();
   };
 
-  const hits = query.trim() ? searchSettings(query, context) : null;
+  const hits = query.trim() ? searchSettings(t, query, context) : null;
   const current = sectionSpec(place.section);
   const body = (() => {
     switch (place.section) {
@@ -234,18 +228,23 @@ export function SettingsWindow({
         <Dialog.Backdrop className="ui-dialog__backdrop" />
         <Dialog.Viewport className="settings-viewport">
           <Dialog.Popup className="settings-window" data-view={phone ? view : undefined}>
-            <nav className="settings-nav" aria-label={TEXT.navigation}>
-              <Dialog.Title className="settings-nav__title">{TEXT.title}</Dialog.Title>
+            <nav className="settings-nav" aria-label={t(($) => $.settings.navigation)}>
+              <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
               <button
                 type="button"
                 className="settings-profile"
                 aria-current={place.section === 'profile' && !hits ? 'page' : undefined}
                 onClick={() => go({ section: 'profile' })}
               >
-                <Avatar name={preferences.name || 'Вы'} src={preferences.avatar || null} />
+                <Avatar
+                  name={preferences.name || t(($) => $.settings.you)}
+                  src={preferences.avatar || null}
+                />
                 <span className="settings-profile__text">
-                  <span className="settings-profile__name">{preferences.name.trim() || TEXT.unnamed}</span>
-                  <span className="settings-profile__hint">{TEXT.device}</span>
+                  <span className="settings-profile__name">
+                    {preferences.name.trim() || t(($) => $.settings.unnamed)}
+                  </span>
+                  <span className="settings-profile__hint">{t(($) => $.settings.device)}</span>
                 </span>
                 <ChevronRight size={16} aria-hidden="true" className="settings-profile__chevron" />
               </button>
@@ -254,8 +253,8 @@ export function SettingsWindow({
                 <input
                   type="search"
                   className="settings-search__input"
-                  placeholder={TEXT.search}
-                  aria-label={TEXT.search}
+                  placeholder={t(($) => $.settings.search)}
+                  aria-label={t(($) => $.settings.search)}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(event) => {
@@ -269,7 +268,12 @@ export function SettingsWindow({
                 />
               </label>
               {hits ? (
-                <div className="settings-results" role="region" aria-label="Найдено" aria-live="polite">
+                <div
+                  className="settings-results"
+                  role="region"
+                  aria-label={t(($) => $.settings.found)}
+                  aria-live="polite"
+                >
                   {hits.length ? (
                     <ul>
                       {hits.map((hit) => (
@@ -289,15 +293,17 @@ export function SettingsWindow({
                       ))}
                     </ul>
                   ) : (
-                    <p className="settings-results__empty">{TEXT.nothing}</p>
+                    <p className="settings-results__empty">{t(($) => $.settings.nothing)}</p>
                   )}
                 </div>
               ) : (
                 GROUPS.map((group) => (
-                  <div key={group.id} className="settings-nav__group" data-group={group.id}>
-                    {group.title && <h3 className="settings-nav__group-title">{group.title}</h3>}
+                  <div key={group} className="settings-nav__group" data-group={group}>
+                    {group !== 'cord' && (
+                      <h3 className="settings-nav__group-title">{groupTitle(t, group)}</h3>
+                    )}
                     <ul>
-                      {SECTIONS.filter((spec) => spec.group === group.id).map((spec) => {
+                      {SECTIONS.filter((spec) => spec.group === group).map((spec) => {
                         const Icon = ICONS[spec.id];
                         const active = spec.id === place.section;
                         return (
@@ -309,20 +315,25 @@ export function SettingsWindow({
                               onClick={() => go({ section: spec.id })}
                             >
                               <Icon size={18} aria-hidden="true" />
-                              <span>{spec.title}</span>
+                              <span>{sectionTitle(t, spec.id)}</span>
                               <ChevronRight size={16} aria-hidden="true" className="settings-nav__chevron" />
                             </button>
                             {active && !phone && spec.anchors.length > 0 && (
-                              <ul className="settings-nav__anchors" aria-label={`Подразделы: ${spec.title}`}>
+                              <ul
+                                className="settings-nav__anchors"
+                                aria-label={t(($) => $.settings.subsections, {
+                                  section: sectionTitle(t, spec.id),
+                                })}
+                              >
                                 {spec.anchors.map((anchor) => (
-                                  <li key={anchor.id}>
+                                  <li key={anchor}>
                                     <button
                                       type="button"
                                       className="settings-nav__anchor"
-                                      aria-current={spy === anchor.id ? 'location' : undefined}
-                                      onClick={() => go({ section: spec.id, anchor: anchor.id })}
+                                      aria-current={spy === anchor ? 'location' : undefined}
+                                      onClick={() => go({ section: spec.id, anchor })}
                                     >
-                                      {anchor.title}
+                                      {anchorTitle(t, spec.id, anchor)}
                                     </button>
                                   </li>
                                 ))}
@@ -340,7 +351,7 @@ export function SettingsWindow({
               <header className="settings-content__head">
                 {phone && (
                   <IconButton
-                    label={TEXT.back}
+                    label={t(($) => $.settings.back)}
                     className="settings-content__back"
                     onClick={() => setView('list')}
                   >
@@ -348,7 +359,7 @@ export function SettingsWindow({
                   </IconButton>
                 )}
                 <h2 className="settings-content__title" tabIndex={-1}>
-                  {current.title}
+                  {sectionTitle(t, current.id)}
                 </h2>
               </header>
               <SettingsTargetContext.Provider value={target}>
@@ -359,7 +370,7 @@ export function SettingsWindow({
             </div>
             <Dialog.Close
               render={
-                <IconButton label={TEXT.close} variant="solid" className="settings-close">
+                <IconButton label={t(($) => $.common.close)} variant="solid" className="settings-close">
                   <X size={18} />
                 </IconButton>
               }

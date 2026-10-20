@@ -4,6 +4,7 @@ import { nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import type { NetworkMode } from '../media/playout';
 import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
+import { isLanguage, type Language } from '../i18n/languages';
 
 export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 
@@ -122,6 +123,11 @@ export interface Preferences {
    */
   pokerHints: boolean;
   pokerFeed: boolean;
+  /**
+   * Язык интерфейса (E14), или `null` — как в браузере. Своё у каждого устройства, как тема: один
+   * и тот же человек на рабочем компьютере и дома может хотеть разного.
+   */
+  language: Language | null;
 }
 const key = 'cord:preferences:v1';
 /**
@@ -161,6 +167,7 @@ export function readPreferences(): Preferences {
     cameraYieldsToScreen: data.cameraYieldsToScreen === true,
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
+    language: isLanguage(data.language) ? data.language : null,
     showIntegrationPanel: data.showIntegrationPanel !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: profile(data.screen),

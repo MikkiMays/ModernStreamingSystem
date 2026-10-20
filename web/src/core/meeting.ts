@@ -12,6 +12,7 @@ import { readPreferences } from './preferences';
 import { volumeKey } from './volumes';
 import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
+import { t } from '../i18n';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
 const CLOCK_MEMORY = 10 * 60_000;
@@ -81,7 +82,7 @@ export class Meeting {
     this.control = new ControlChannel(this.api, this.accept, this.event, this.resolveRevocation);
     this.uploader = new Uploader(this.api, () => this.fileRevision.update((n) => n + 1));
     if (sessionStorage.getItem(`cord:ended:${admission.roomId}`) === admission.participantId)
-      this.ended.set('Эта сессия завершена. Для нового входа используйте приглашение.');
+      this.ended.set(t(($) => $.meeting.end.session));
   }
   start() {
     if (this.started || this.disposed) return;
@@ -176,13 +177,13 @@ export class Meeting {
     }
     if (!snapshot.participants.some((p) => p.id === this.pinnedCamera.get())) this.pinnedCamera.set(null);
     if (snapshot.closedAt) {
-      this.end('Встреча завершена');
+      this.end(t(($) => $.meeting.end.closed));
       return;
     }
     if (this.ended.get()) return;
     const self = snapshot.participants.find((p) => p.id === this.admission.participantId);
     if (!self) {
-      this.end('Вы вышли из встречи');
+      this.end(t(($) => $.meeting.end.left));
       return;
     }
     if (
@@ -192,7 +193,7 @@ export class Meeting {
       void this.media.start();
   };
   private resolveRevocation = () => {
-    void this.resolveEnd('Доступ к встрече завершён');
+    void this.resolveEnd(t(($) => $.meeting.end.revoked));
   };
   private async resolveEnd(reason: string, leave = false) {
     if (this.disposed || this.ended.get()) return;
@@ -401,7 +402,7 @@ export class Meeting {
   }
   async leave() {
     rememberMeeting({ ...this.admission, snapshot: this.snapshot.get(), inviteUrl: this.invite.get() });
-    this.end('Вы вышли из встречи');
+    this.end(t(($) => $.meeting.end.left));
     await this.api.command({ commandId: crypto.randomUUID(), type: 'leave' }).catch(() => {});
     // Closing the application with a meeting open should sound like leaving first and closing
     // second. The host waits for this call to return before it takes the window down.
@@ -409,7 +410,7 @@ export class Meeting {
   }
   private end(reason: string) {
     if (this.disposed || (this.ended.get() && !this.snapshot.get().closedAt)) return;
-    if (this.snapshot.get().closedAt) reason = 'Встреча завершена';
+    if (this.snapshot.get().closedAt) reason = t(($) => $.meeting.end.closed);
     sessionStorage.setItem(`cord:ended:${this.admission.roomId}`, this.admission.participantId);
     this.cinemaAt.set(null);
     this.cinema.set(null);

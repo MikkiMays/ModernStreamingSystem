@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export interface DrawingStroke {
   id: string;
   color: string;
@@ -44,13 +46,13 @@ export function drawingBatch(strokes: DrawingStroke[]): { text: string; count: n
           point.length !== 2 || point.some((value) => !Number.isInteger(value) || value < 0 || value > 1000),
       )
     )
-      throw new Error('Некорректный штрих. Начните рисовать снова.');
+      throw new Error(t(($) => $.gartic.errors.invalidStroke));
     const next = JSON.stringify({ strokes: [...batch, stroke] });
     if (next.length > DRAWING_LIMITS.payload) break;
     batch.push(stroke);
     text = next;
   }
-  if (strokes.length && !batch.length) throw new Error('Штрих слишком длинный.');
+  if (strokes.length && !batch.length) throw new Error(t(($) => $.gartic.errors.strokeTooLong));
   return { text, count: batch.length };
 }
 
@@ -103,10 +105,10 @@ export class DrawingQueue {
   }
 
   flush(): Promise<void> {
-    if (this.disposed) return Promise.reject(new Error('Раунд уже завершён.'));
+    if (this.disposed) return Promise.reject(new Error(t(($) => $.gartic.errors.roundOver)));
     if (!this.pending && !this.running) return Promise.resolve();
-    if (!this.connected) return Promise.reject(new Error('Дождитесь восстановления соединения.'));
-    if (this.paused) return Promise.reject(new Error('Сначала отправьте рисунок повторно.'));
+    if (!this.connected) return Promise.reject(new Error(t(($) => $.gartic.errors.waitConnection)));
+    if (this.paused) return Promise.reject(new Error(t(($) => $.gartic.errors.resendFirst)));
     const promise = new Promise<void>((resolve, reject) => this.waiters.push({ resolve, reject }));
     this.schedule();
     return promise;
@@ -122,7 +124,7 @@ export class DrawingQueue {
       const ids = this.strokes.map((stroke) => stroke.id);
       this.strokes = [];
       this.paused = false;
-      this.settle(new Error('Локальные штрихи отменены.'));
+      this.settle(new Error(t(($) => $.gartic.errors.localDiscarded)));
       if (!this.disposed) this.options.changed?.(0);
       return ids;
     } finally {
@@ -135,7 +137,7 @@ export class DrawingQueue {
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
     this.strokes = [];
-    this.settle(new Error('Раунд уже завершён.'));
+    this.settle(new Error(t(($) => $.gartic.errors.roundOver)));
   }
 
   private settle(error?: Error) {
@@ -172,7 +174,7 @@ export class DrawingQueue {
       this.options.acknowledged?.(ids);
     } catch (cause) {
       if (this.disposed) return;
-      const error = cause instanceof Error ? cause : new Error('Не удалось отправить рисунок.');
+      const error = cause instanceof Error ? cause : new Error(t(($) => $.gartic.errors.sendFailed));
       this.paused = true;
       if (!this.discarding) this.options.failed?.(error);
       this.settle(error);

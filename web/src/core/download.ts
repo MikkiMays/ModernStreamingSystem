@@ -7,6 +7,8 @@
  *
  * Нет манифеста — нет и кнопки: ответ `null`, и страница честно говорит, что сборки нет.
  */
+import { locale, type Translate } from '../i18n';
+
 export interface WindowsFile {
   name: string;
   kind: 'installer' | 'portable';
@@ -79,8 +81,17 @@ function file(entry: Partial<WindowsFile> & { sha256?: unknown }, tag: string): 
   };
 }
 
-export function megabytes(size: number): string {
-  return `${(size / 1024 / 1024).toFixed(0)} МБ`;
+/**
+ * Размер файла для глаз: «309 МБ». Единица и число — от `Intl` на языке каталога; без разрядных
+ * пробелов, как и было («1235 МБ»), — номер сборки рядом и так длинный.
+ */
+export function megabytes(t: Translate, size: number): string {
+  return new Intl.NumberFormat(locale(t), {
+    style: 'unit',
+    unit: 'megabyte',
+    maximumFractionDigits: 0,
+    useGrouping: false,
+  }).format(size / 1024 / 1024);
 }
 
 /** Больше ли `candidate`, чем `current`. Обе строки — `x.y.z`. */

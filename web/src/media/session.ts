@@ -55,6 +55,7 @@ import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { waitForPublishPermissions } from './publish-permissions';
 import { PreviewImages, ScreenPreviewSource, PREVIEW_TOPIC } from './screen-preview';
+import { t } from '../i18n';
 
 export interface MediaTile {
   id: string;
@@ -411,12 +412,12 @@ export class MediaSession {
           this.dispose();
           this.onEnd(
             reason === DisconnectReason.DUPLICATE_IDENTITY
-              ? 'Встреча открыта в другом окне'
+              ? t(($) => $.media.end.duplicate)
               : // Исключение — это конец встречи, а не запрет: войти снова можно тем же путём,
                 // что и в первый раз. Прежний вход при этом мёртв, и это разные вещи.
                 reason === DisconnectReason.PARTICIPANT_REMOVED
-                ? 'Ведущий завершил встречу для вас. Войти снова можно по ссылке, коду или из избранного'
-                : 'Доступ к встрече завершён',
+                ? t(($) => $.media.end.removed)
+                : t(($) => $.media.end.revoked),
           );
           return;
         }
@@ -831,7 +832,7 @@ export class MediaSession {
     if (!publications.length) return;
     this.resetting.add(key);
     this.lastLiveReset.set(key, Date.now());
-    this.patch({ liveStatus: 'Обновляем прямой эфир…' });
+    this.patch({ liveStatus: t(($) => $.media.liveUpdating) });
     try {
       await Promise.all(publications.map((p) => this.unsubscribeForRefresh(p)));
     } finally {
@@ -871,7 +872,7 @@ export class MediaSession {
     this.state.update((s) => ({ ...s, ...value }));
   }
   report(error: unknown) {
-    this.patch({ error: error instanceof Error ? error.message : 'Не удалось выполнить действие' });
+    this.patch({ error: error instanceof Error ? error.message : t(($) => $.media.actionFailed) });
   }
   clearError() {
     this.patch({ error: null });
@@ -984,7 +985,7 @@ export class MediaSession {
       this.patch({ remaining: Math.ceil(remaining / 1000) });
       if (remaining <= 0) {
         this.dispose();
-        this.onEnd(`Соединение не восстановилось за ${this.recovery.durationMs / 1000} секунд`);
+        this.onEnd(t(($) => $.media.end.notRecovered, { count: this.recovery.durationMs / 1000 }));
       }
     }, 100);
   };
@@ -992,7 +993,7 @@ export class MediaSession {
     if (this.disposed) return;
     if (this.recovery.active && this.recovery.remaining() <= 0) {
       this.dispose();
-      this.onEnd('Время восстановления истекло');
+      this.onEnd(t(($) => $.media.end.recoveryExpired));
       return;
     }
     this.syncSubscriptions();
@@ -1041,7 +1042,7 @@ export class MediaSession {
           tiles.push({
             id: publication.trackSid,
             participantId: participant.identity,
-            name: participant.name || 'Участник',
+            name: participant.name || t(($) => $.media.participant),
             source: publication.source,
             track: publication.track,
             local: participant.isLocal,
@@ -1352,7 +1353,7 @@ export class MediaSession {
       return;
     }
     if (!this.capture.supported()) {
-      this.report(new Error('Этот браузер не поддерживает демонстрацию экрана'));
+      this.report(new Error(t(($) => $.media.screen.unsupported)));
       return;
     }
     this.screenBusy = true;
@@ -1371,17 +1372,13 @@ export class MediaSession {
       stream = await capture;
       if (this.disposed || operation.signal.aborted) return;
       const video = stream.getVideoTracks()[0];
-      if (!video) throw new Error('Не удалось получить экран');
+      if (!video) throw new Error(t(($) => $.media.screen.noTrack));
       video.addEventListener('ended', captureEnded, { once: true });
       const settings = video.getSettings();
       // Звук всего экрана — это и звук самого Cord. Если браузер не умеет его вычесть, лучше
       // сказать об этом сразу, чем оставить зрителя гадать, почему он слышит сам себя.
       if (ownAudioLeaks(video, stream.getAudioTracks()[0]))
-        this.report(
-          new Error(
-            'Этот браузер не умеет убирать звук самого Cord из звука системы: зрители услышат и разговор, и собственный голос. Поделитесь окном или вкладкой — либо обновите браузер.',
-          ),
-        );
+        this.report(new Error(t(($) => $.media.screen.ownAudioLeaks)));
       this.captureSize = { width: settings.width ?? 1920, height: settings.height ?? 1080 };
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
       await video.applyConstraints({
@@ -1703,12 +1700,12 @@ export class MediaSession {
         if (leading.source === 'screen') {
           this.codec = 'vp8';
           void this.setProfile(this.profile);
-          this.report(new Error('Кодировщик перегружен. Переключаем экран на совместимый кодек.'));
+          this.report(new Error(t(($) => $.media.encoder.screen)));
         } else {
           this.cameraCodec = 'vp8';
           this.cameraCodecChosen = Promise.resolve('vp8' as VideoCodec);
           void this.setCameraProfile(this.cameraProfile);
-          this.report(new Error('Кодировщик перегружен. Переключаем камеру на совместимый кодек.'));
+          this.report(new Error(t(($) => $.media.encoder.camera)));
         }
         return;
       }

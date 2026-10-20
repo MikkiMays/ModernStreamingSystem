@@ -63,7 +63,7 @@ describe('authoritative card motion', () => {
     expect(screen.getByLabelText('Осталось 5 секунд')).toBeVisible();
     now = 12000;
     act(() => vi.advanceTimersByTime(250));
-    expect(screen.getByLabelText('Осталось 3 секунд')).toBeVisible();
+    expect(screen.getByLabelText('Осталось 3 секунды')).toBeVisible();
   });
 });
 

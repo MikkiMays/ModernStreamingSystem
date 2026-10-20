@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPreferences } from '../core/preferences';
+import { applyLanguage } from '../i18n';
 import { Settings } from './Settings';
 
 beforeEach(() => localStorage.clear());
@@ -178,6 +179,24 @@ describe('профиль и оформление (T41)', () => {
     expect(setTheme).toHaveBeenCalledWith('dark');
     fireEvent.click(screen.getByRole('switch', { name: 'Боты справа от встречи' }));
     expect(readPreferences().showIntegrationPanel).toBe(false);
+  });
+
+  it('язык выбирается в «Оформлении» самоназванием, запоминается и сразу меняет интерфейс (E14)', async () => {
+    render(<Settings open section="appearance" onOpenChange={vi.fn()} />);
+    const language = screen.getByRole('combobox', { name: 'Язык интерфейса' });
+    expect(language).toHaveValue('');
+    expect(within(language).getByRole('option', { name: 'Как в браузере' })).toBeInTheDocument();
+    expect(within(language).getByRole('option', { name: 'English' })).toHaveAttribute('lang', 'en');
+    fireEvent.change(language, { target: { value: 'en' } });
+    expect(readPreferences().language).toBe('en');
+    // Каталог английского приходит отдельным файлом; пока в нём только язык — остальное по-русски (E14-B).
+    // Файл каталога — отдельный модуль: на занятой машине его первая загрузка в тестах идёт секунды.
+    expect(await screen.findByRole('heading', { name: 'Language' }, { timeout: 30_000 })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe('en');
+    expect(heading()).toHaveTextContent('Оформление');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Interface language' }), { target: { value: '' } });
+    expect(readPreferences().language).toBeNull();
+    await act(() => applyLanguage('ru'));
   });
 });
 

@@ -1,0 +1,14 @@
+{
+  "locale": "zh-Hans",
+  "language": {
+    "label": "语言",
+    "system": "跟随浏览器"
+  },
+  "settings": {
+    "rows": {
+      "appearance-language": {
+        "label": "界面语言"
+      }
+    }
+  }
+}

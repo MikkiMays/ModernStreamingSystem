@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, Pencil, RotateCcw, Trophy } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { locale, type Translate } from '../i18n';
 import type { GarticTable as Table } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { GamePerson } from './GamePeople';
@@ -17,7 +19,7 @@ function rankedPlayers(players: Player[]) {
   }));
 }
 
-const number = (value: number) => value.toLocaleString('ru-RU');
+const number = (t: Translate, value: number) => value.toLocaleString(locale(t));
 
 function ResultRow({
   meeting,
@@ -30,6 +32,7 @@ function ResultRow({
   rank: number;
   topScore: number;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const share = topScore > 0 ? Math.round((player.score / topScore) * 100) : 0;
@@ -37,7 +40,7 @@ function ResultRow({
   return (
     <li className="gartic-result-row" data-self={you || undefined}>
       <div className="gartic-result-line">
-        <span className="gartic-rank" aria-label={`Место ${rank}`}>
+        <span className="gartic-rank" aria-label={t(($) => $.gartic.results.rank, { rank })}>
           {rank}
         </span>
         <GamePerson
@@ -45,16 +48,25 @@ function ResultRow({
           memberId={player.memberId}
           fallbackName={player.name}
           interactive={false}
-          label={you ? 'Это вы' : player.away ? 'Не в сети' : undefined}
+          label={
+            you
+              ? t(($) => $.gartic.results.you)
+              : player.away
+                ? t(($) => $.gartic.results.offline)
+                : undefined
+          }
         />
-        <strong className="gartic-result-score" aria-label={`${player.score} очков`}>
-          {number(player.score)}
-          <small>очков</small>
+        <strong
+          className="gartic-result-score"
+          aria-label={t(($) => $.gartic.points, { count: player.score })}
+        >
+          {number(t, player.score)}
+          <small>{t(($) => $.gartic.results.pointsWord, { count: player.score })}</small>
         </strong>
         <button
           type="button"
           className="gartic-result-toggle"
-          aria-label={`Подробности: ${player.name}`}
+          aria-label={t(($) => $.gartic.results.details, { name: player.name })}
           aria-expanded={expanded}
           aria-controls={detailsId}
           onClick={() => setExpanded(!expanded)}
@@ -65,24 +77,30 @@ function ResultRow({
       <div id={detailsId} className="gartic-result-detail" hidden={!expanded}>
         <dl>
           <div>
-            <dt>До первого места</dt>
-            <dd>{number(Math.max(0, topScore - player.score))} очков</dd>
+            <dt>{t(($) => $.gartic.results.toFirst)}</dt>
+            <dd>
+              {t(($) => $.gartic.results.pointsValue, {
+                count: Math.max(0, topScore - player.score),
+                points: number(t, Math.max(0, topScore - player.score)),
+              })}
+            </dd>
           </div>
           <div>
-            <dt>От результата лидера</dt>
+            <dt>{t(($) => $.gartic.results.fromLeader)}</dt>
             <dd>{share}%</dd>
           </div>
         </dl>
         <div className="gartic-score-track" aria-hidden="true">
           <span style={{ '--score-share': `${share}%` } as CSSProperties} />
         </div>
-        {topScore === 0 && <p>В этой партии пока никто не набрал очков.</p>}
+        {topScore === 0 && <p>{t(($) => $.gartic.results.nobodyScored)}</p>}
       </div>
     </li>
   );
 }
 
 export function ClassicResults({ table, meeting }: { table: Table; meeting: Meeting }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const ranked = rankedPlayers(table.players);
   const topScore = ranked[0]?.player.score ?? 0;
@@ -91,7 +109,7 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
   const tied = topScore > 0 && leaders.length > 1;
   const total = table.players.reduce((sum, player) => sum + player.score, 0);
   return (
-    <section className="gartic-finish" aria-label="Результаты игры">
+    <section className="gartic-finish" aria-label={t(($) => $.gartic.results.section)}>
       <header className="gartic-finish-heading">
         <span className="gartic-finish-emblem" aria-hidden="true">
           <Trophy size={28} strokeWidth={1.6} />
@@ -99,27 +117,35 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
         <div>
           <h3>
             {topScore === 0
-              ? 'В этот раз без очков'
+              ? t(($) => $.gartic.results.noPoints)
               : tied
-                ? 'Ничья на первом месте'
-                : `Победа: ${leaders[0]!.player.name}`}
+                ? t(($) => $.gartic.results.tie)
+                : t(($) => $.gartic.results.winner, { name: leaders[0]!.player.name })}
           </h3>
           <p>
             {topScore === 0
-              ? 'Главное — было что нарисовать. Попробуем ещё?'
+              ? t(($) => $.gartic.results.noPointsText)
               : tied
-                ? `${leaders.map(({ player }) => player.name).join(', ')} — по ${number(topScore)} очков.`
-                : 'Слова угаданы. Время посмотреть, кто отличился.'}
+                ? t(($) => $.gartic.results.tieText, {
+                    names: leaders.map(({ player }) => player.name).join(', '),
+                    count: topScore,
+                    points: number(t, topScore),
+                  })
+                : t(($) => $.gartic.results.winnerText)}
           </p>
         </div>
       </header>
       {podium.length > 0 && (
-        <div className="gartic-podium" aria-label="Лучшие результаты" data-count={podium.length}>
+        <div
+          className="gartic-podium"
+          aria-label={t(($) => $.gartic.results.podium)}
+          data-count={podium.length}
+        >
           {podium.map(({ player, rank }) => (
             <div key={player.memberId} className="gartic-podium-place" data-first={rank === 1 || undefined}>
               <span className="gartic-podium-rank">
                 {rank === 1 && <Trophy size={15} />}
-                {rank} место
+                {t(($) => $.gartic.results.place, { rank })}
               </span>
               <Avatar
                 name={player.name}
@@ -127,7 +153,8 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
               />
               <strong title={player.name}>{player.name}</strong>
               <span className="gartic-podium-score">
-                {number(player.score)} <small>очков</small>
+                {number(t, player.score)}{' '}
+                <small>{t(($) => $.gartic.results.pointsWord, { count: player.score })}</small>
               </span>
             </div>
           ))}
@@ -135,25 +162,25 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
       )}
       <dl className="gartic-result-summary">
         <div>
-          <dt>Игроков</dt>
+          <dt>{t(($) => $.gartic.results.players)}</dt>
           <dd>{table.players.length}</dd>
         </div>
         <div>
-          <dt>Очков за игру</dt>
-          <dd>{number(total)}</dd>
+          <dt>{t(($) => $.gartic.results.total)}</dt>
+          <dd>{number(t, total)}</dd>
         </div>
         <div>
-          <dt>Круг</dt>
+          <dt>{t(($) => $.gartic.results.round)}</dt>
           <dd>
-            {table.round} <span>из {table.rounds}</span>
+            {table.round} <span>{t(($) => $.gartic.results.ofRounds, { rounds: table.rounds })}</span>
           </dd>
         </div>
       </dl>
       <div className="gartic-ranking-heading">
-        <h4>Итоговый счёт</h4>
-        <span>Нажмите на стрелку, чтобы сравнить</span>
+        <h4>{t(($) => $.gartic.results.ranking)}</h4>
+        <span>{t(($) => $.gartic.results.compareHint)}</span>
       </div>
-      <ol className="gartic-ranking" aria-label="Итоговый счёт">
+      <ol className="gartic-ranking" aria-label={t(($) => $.gartic.results.ranking)}>
         {ranked.map(({ player, rank }) => (
           <ResultRow
             key={player.memberId}
@@ -164,16 +191,13 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
           />
         ))}
       </ol>
-      {ranked.length === 0 && <p className="gartic-small">Результатов участников пока нет.</p>}
+      {ranked.length === 0 && <p className="gartic-small">{t(($) => $.gartic.results.empty)}</p>}
       <details className="gartic-scoring-help">
         <summary>
-          Как считаются очки
+          {t(($) => $.gartic.results.scoringTitle)}
           <ChevronDown size={16} />
         </summary>
-        <p>
-          За верный ответ — от 250 до 500 очков: чем быстрее угадаете, тем больше получите. Художнику — 100
-          очков за каждого угадавшего. Одинаковый счёт означает одинаковое место.
-        </p>
+        <p>{t(($) => $.gartic.results.scoringText)}</p>
       </details>
     </section>
   );
@@ -194,6 +218,7 @@ export function AlbumReveal({
   pending: boolean;
   onReveal: (albumIndex: number, entryIndex: number) => void;
 }) {
+  const { t } = useTranslation();
   const albumIndex = table.albums.findIndex((item) => item.index === table.revealAlbum);
   const album = table.albums[albumIndex];
   const entry = table.revealed;
@@ -235,16 +260,21 @@ export function AlbumReveal({
       nextButton.current?.focus({ preventScroll: true });
   }, [disabled, previousDisabled]);
 
-  const nextLabel = !lastStep ? 'Следующий шаг' : nextAlbum ? 'Следующая история' : 'Смотреть сначала';
+  const nextLabel = !lastStep
+    ? t(($) => $.gartic.reveal.nextStep)
+    : nextAlbum
+      ? t(($) => $.gartic.reveal.nextStory)
+      : t(($) => $.gartic.reveal.restart);
+  const kind = (item: { kind: string }) => (item.kind === 'drawing' ? 'drawing' : 'text');
   return (
-    <section className="gartic-reveal" aria-label="Истории игроков">
-      <aside className="gartic-albums" aria-label="Альбомы игроков">
+    <section className="gartic-reveal" aria-label={t(($) => $.gartic.reveal.section)}>
+      <aside className="gartic-albums" aria-label={t(($) => $.gartic.reveal.albums)}>
         <div className="gartic-albums-heading">
           <BookOpen size={21} />
-          <h3>Наши истории</h3>
+          <h3>{t(($) => $.gartic.reveal.title)}</h3>
           <span>{table.albums.length}</span>
         </div>
-        <p className="gartic-albums-intro">Посмотрим, куда завела фантазия.</p>
+        <p className="gartic-albums-intro">{t(($) => $.gartic.reveal.intro)}</p>
         <div className="gartic-album-list">
           {table.albums.map((item, index) => {
             const contents = (
@@ -252,7 +282,7 @@ export function AlbumReveal({
                 <span className="gartic-album-number">{index + 1}</span>
                 <span className="gartic-album-copy">
                   <b>{item.ownerName}</b>
-                  <small>Шагов: {item.entries}</small>
+                  <small>{t(($) => $.gartic.reveal.albumSteps, { count: item.entries })}</small>
                 </span>
                 <ArrowRight size={16} />
               </>
@@ -281,25 +311,32 @@ export function AlbumReveal({
         </div>
         <dl className="gartic-album-summary">
           <div>
-            <dt>Историй</dt>
+            <dt>{t(($) => $.gartic.reveal.stories)}</dt>
             <dd>{table.albums.length}</dd>
           </div>
           <div>
-            <dt>Всего шагов</dt>
+            <dt>{t(($) => $.gartic.reveal.totalSteps)}</dt>
             <dd>{totalEntries}</dd>
           </div>
         </dl>
         <p className="gartic-reveal-follow">
-          {host ? 'Вы показываете истории всей комнате' : 'Ведущий листает истории для всех'}
+          {host ? t(($) => $.gartic.reveal.hostShowing) : t(($) => $.gartic.reveal.hostFlipping)}
         </p>
       </aside>
       <div className="gartic-album-page">
         <header className="gartic-story-heading">
           <div>
             <span>
-              История {Math.max(0, albumIndex + 1)} из {table.albums.length}
+              {t(($) => $.gartic.reveal.storyOf, {
+                index: Math.max(0, albumIndex + 1),
+                total: table.albums.length,
+              })}
             </span>
-            <h3>{album ? `Начало: ${album.ownerName}` : 'Истории пока недоступны'}</h3>
+            <h3>
+              {album
+                ? t(($) => $.gartic.reveal.start, { name: album.ownerName })
+                : t(($) => $.gartic.reveal.unavailable)}
+            </h3>
           </div>
           {album && (
             <span className="gartic-story-position">
@@ -309,13 +346,13 @@ export function AlbumReveal({
           )}
         </header>
         {album && (
-          <ol className="gartic-story-steps" aria-label="Шаги истории">
+          <ol className="gartic-story-steps" aria-label={t(($) => $.gartic.reveal.steps)}>
             {Array.from({ length: album.entries }, (_, index) => (
               <li key={index}>
                 {host ? (
                   <button
                     type="button"
-                    aria-label={`Показать шаг ${index + 1}`}
+                    aria-label={t(($) => $.gartic.reveal.showStep, { step: index + 1 })}
                     aria-current={index === table.revealEntry ? 'step' : undefined}
                     disabled={disabled || !entry}
                     onClick={() => change(album.index, index)}
@@ -324,7 +361,7 @@ export function AlbumReveal({
                   </button>
                 ) : (
                   <span
-                    aria-label={`Шаг ${index + 1}`}
+                    aria-label={t(($) => $.gartic.reveal.stepN, { step: index + 1 })}
                     aria-current={index === table.revealEntry ? 'step' : undefined}
                   >
                     {index + 1}
@@ -341,11 +378,11 @@ export function AlbumReveal({
                 meeting={meeting}
                 memberId={entry.authorId}
                 fallbackName={entry.authorName}
-                label={`${entry.kind === 'drawing' ? 'Рисунок' : 'Фраза'}, шаг ${entry.step + 1}`}
+                label={t(($) => $.gartic.reveal.author[kind(entry)], { step: entry.step + 1 })}
               />
               <span className="gartic-entry-kind">
                 {entry.kind === 'drawing' ? <Pencil size={16} /> : <BookOpen size={16} />}
-                {entry.skipped ? 'Пропущено' : entry.kind === 'drawing' ? 'Рисунок' : 'Фраза'}
+                {t(($) => $.gartic.reveal.kind[entry.skipped ? 'skipped' : kind(entry)])}
               </span>
             </div>
           )}
@@ -353,45 +390,58 @@ export function AlbumReveal({
             {!entry || !album ? (
               <div className="gartic-reveal-placeholder">
                 <BookOpen size={32} />
-                <p>Истории пока недоступны</p>
-                <span>Ждём обновления игры.</span>
+                <p>{t(($) => $.gartic.reveal.unavailable)}</p>
+                <span>{t(($) => $.gartic.reveal.waitUpdate)}</span>
               </div>
             ) : entry.skipped ? (
               <div className="gartic-reveal-placeholder">
                 <Pencil size={32} />
-                <p>Этот шаг пропущен</p>
-                <span>Иногда фантазии нужно чуть больше времени.</span>
+                <p>{t(($) => $.gartic.reveal.skippedTitle)}</p>
+                <span>{t(($) => $.gartic.reveal.skippedText)}</span>
               </div>
             ) : entry.kind === 'drawing' ? (
-              <GarticPicture strokes={entry.strokes} label={`Рисунок: ${entry.authorName}`} />
+              <GarticPicture
+                strokes={entry.strokes}
+                label={t(($) => $.gartic.reveal.drawingBy, { name: entry.authorName })}
+              />
             ) : (
               <blockquote>
                 <span className="gartic-quote-mark" aria-hidden="true">
                   “
                 </span>
-                {entry.text || 'Без описания'}
+                {entry.text || t(($) => $.gartic.reveal.noText)}
               </blockquote>
             )}
           </div>
         </div>
         <p className="gartic-sr-only" role="status" aria-live="polite" aria-atomic="true">
           {album && entry
-            ? `История: ${album.ownerName}. Шаг ${table.revealEntry + 1} из ${album.entries}. ${entry.skipped ? 'Шаг пропущен.' : entry.kind === 'drawing' ? 'Рисунок.' : 'Фраза.'} Автор: ${entry.authorName}.`
-            : 'Истории пока недоступны'}
+            ? t(($) => $.gartic.reveal.announce, {
+                owner: album.ownerName,
+                step: table.revealEntry + 1,
+                total: album.entries,
+                kind: t(($) => $.gartic.reveal.announceKind[entry.skipped ? 'skipped' : kind(entry)]),
+                author: entry.authorName,
+              })
+            : t(($) => $.gartic.reveal.unavailable)}
         </p>
 
         {host && (
-          <nav className="gartic-reveal-navigation" aria-label="Листать историю" onKeyDown={navigate}>
+          <nav
+            className="gartic-reveal-navigation"
+            aria-label={t(($) => $.gartic.reveal.navigation)}
+            onKeyDown={navigate}
+          >
             <button
               ref={previousButton}
               type="button"
               className="button secondary"
-              aria-label="Предыдущий шаг"
+              aria-label={t(($) => $.gartic.reveal.previous)}
               disabled={previousDisabled}
               onClick={previous}
             >
               <ArrowLeft size={18} />
-              <span>Назад</span>
+              <span>{t(($) => $.gartic.reveal.back)}</span>
             </button>
             <button
               ref={nextButton}

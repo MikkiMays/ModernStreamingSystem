@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrackEvent } from 'livekit-client';
 import {
   ArrowRightLeft,
@@ -39,7 +40,6 @@ import {
   faceOf,
   fanAngle,
   modeName,
-  plural,
   tableSays,
   trumpName,
   type Drop,
@@ -73,6 +73,7 @@ type Drag = {
 
 /** The server supplies legal destinations; local state owns only selection, dragging and pending feedback. */
 export default function DurakTable({ meeting, table }: { meeting: Meeting; table: Table }) {
+  const { t } = useTranslation();
   const tracks = useStore(meeting.media.tracks);
   const snapshot = useStore(meeting.snapshot);
   const connection = useStore(meeting.control.state);
@@ -226,7 +227,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
     if (!shape) return;
     if (!legal(card, target)) {
       setPendingDrag(null);
-      refuse('Этой картой так сходить нельзя. Выберите другую карту или цель.');
+      refuse(t(($) => $.durak.refused));
       return;
     }
     if (source) motion.capture(card, source);
@@ -326,21 +327,21 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
     return () => observer.disconnect();
   }, [hand.length]);
   const says = !connected
-    ? 'Восстанавливаем соединение…'
+    ? t(($) => $.durak.status.reconnecting)
     : paused
-      ? 'Игра на паузе'
-      : tableSays(table, mySeat);
+      ? t(($) => $.durak.status.paused)
+      : tableSays(t, table, mySeat);
   const guidance = !selected
     ? ''
     : selectedBeats.length && tableTarget && defending
-      ? 'Отбейте выделенную карту или переведите ход'
+      ? t(($) => $.durak.guidance.beatOrTransfer)
       : selectedBeats.length
-        ? 'Выберите карту на столе, чтобы отбить'
+        ? t(($) => $.durak.guidance.beat)
         : tableTarget
           ? defending
-            ? 'Переведите ход следующему игроку'
-            : 'Положите выбранную карту на стол'
-          : 'Для этой карты нет хода — выберите другую';
+            ? t(($) => $.durak.guidance.transfer)
+            : t(($) => $.durak.guidance.place)
+          : t(($) => $.durak.guidance.none);
   const seated = table.seats.filter((seat) => seat.memberId).length;
   const frozenSeconds = Math.max(0, Math.ceil((table.pausedRemaining ?? 0) / 1000));
 
@@ -354,14 +355,16 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
     >
       <header className="durak-bar">
         <div className="durak-mode">
-          <b>Дурак</b>
+          <b>{t(($) => $.durak.title)}</b>
           <small>
-            {modeName(table.mode)} · {table.deckSize} карт{table.trumpSuit ? ` · ${trumpName(table)}` : ''}
+            {modeName(t, table.mode)} ·{' '}
+            {t(($) => $.durak.deckSize, { size: table.deckSize, count: table.deckSize })}
+            {table.trumpSuit ? ` · ${trumpName(t, table)}` : ''}
           </small>
         </div>
         <span className="durak-bar-spacer" />
         {table.score.length > 0 && (
-          <IconButton label="Счёт игры" onClick={() => setSheet('score')}>
+          <IconButton label={t(($) => $.durak.score.title)} onClick={() => setSheet('score')}>
             <ListOrdered size={18} />
           </IconButton>
         )}
@@ -371,12 +374,12 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             disabled={!connected || pending || seated < 2}
             onClick={() => send('durak.deal')}
           >
-            <Play size={16} /> Раздать
+            <Play size={16} /> {t(($) => $.durak.deal)}
           </button>
         )}
         {host && pauseSupported && table.phase === 'bout' && (
           <IconButton
-            label={paused ? 'Продолжить игру' : 'Поставить игру на паузу'}
+            label={paused ? t(($) => $.durak.pause.resume) : t(($) => $.durak.pause.pauseGame)}
             disabled={!connected || pending}
             onClick={() => send('durak.settings', { option: paused ? 'resume' : 'pause' })}
           >
@@ -384,7 +387,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           </IconButton>
         )}
         <IconButton
-          label="Настройки игры"
+          label={t(($) => $.durak.settings.title)}
           onClick={() => {
             clearSelection();
             setSheet('settings');
@@ -392,7 +395,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         >
           <Settings2 size={18} />
         </IconButton>
-        <IconButton label={full ? 'Свернуть стол' : 'Развернуть стол'} onClick={toggleFull}>
+        <IconButton label={full ? t(($) => $.durak.exitFull) : t(($) => $.durak.full)} onClick={toggleFull}>
           {full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </IconButton>
       </header>
@@ -438,12 +441,16 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                           className="durak-attack"
                           disabled={!target}
                           onClick={() => place({ kind: 'beat', under: pair.attack })}
-                          aria-label={`${target ? 'Отбить' : 'На столе:'} ${faceOf(pair.attack).label}`}
+                          aria-label={
+                            target
+                              ? t(($) => $.durak.attack.beat, { card: faceOf(t, pair.attack).label })
+                              : t(($) => $.durak.attack.onTable, { card: faceOf(t, pair.attack).label })
+                          }
                         >
                           <Card card={pair.attack} board />
                           {target && (
                             <span className="durak-target-label">
-                              <Shield size={12} /> Отбить
+                              <Shield size={12} /> {t(($) => $.durak.attack.beatShort)}
                             </span>
                           )}
                         </button>
@@ -461,7 +468,11 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               {tableTarget && (
                 <button className="durak-place" data-drop="table" onClick={() => place({ kind: 'table' })}>
                   {defending ? <ArrowRightLeft size={16} /> : <Hand size={16} />}
-                  {defending ? 'Перевести' : table.table.length ? 'Подкинуть' : 'Положить на стол'}
+                  {defending
+                    ? t(($) => $.durak.place.transfer)
+                    : table.table.length
+                      ? t(($) => $.durak.place.throw)
+                      : t(($) => $.durak.place.put)}
                 </button>
               )}
               {table.phase !== 'bout' && (
@@ -471,19 +482,19 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                   </span>
                   <h3>
                     {table.phase === 'over'
-                      ? 'Партия завершена'
+                      ? t(($) => $.durak.center.over)
                       : seated < 2
-                        ? 'Соберёмся за столом'
-                        : 'Можно начинать'}
+                        ? t(($) => $.durak.center.gather)
+                        : t(($) => $.durak.center.ready)}
                   </h3>
                   <p>
                     {table.phase === 'over'
-                      ? 'Готовы сыграть ещё?'
+                      ? t(($) => $.durak.center.again)
                       : seated < 2
-                        ? 'Для игры нужны хотя бы двое'
+                        ? t(($) => $.durak.center.needTwo)
                         : host
-                          ? 'Раздайте карты, когда все будут готовы'
-                          : 'Организатор скоро раздаст карты'}
+                          ? t(($) => $.durak.center.dealHost)
+                          : t(($) => $.durak.center.dealSoon)}
                   </p>
                 </div>
               )}
@@ -526,18 +537,21 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             {paused && (
               <div className="durak-pause">
                 <Pause size={24} />
-                <b>Игра на паузе</b>
-                <span>Время остановлено{frozenSeconds ? ` · осталось ${frozenSeconds} с` : ''}</span>
+                <b>{t(($) => $.durak.status.paused)}</b>
+                <span>
+                  {t(($) => $.durak.pause.stopped)}
+                  {frozenSeconds ? t(($) => $.durak.pause.left, { seconds: frozenSeconds }) : ''}
+                </span>
                 {host ? (
                   <button
                     className="button primary"
                     disabled={!connected || pending}
                     onClick={() => send('durak.settings', { option: 'resume' })}
                   >
-                    <Play size={16} /> Продолжить
+                    <Play size={16} /> {t(($) => $.durak.pause.continue)}
                   </button>
                 ) : (
-                  <small>Организатор продолжит игру, когда все вернутся</small>
+                  <small>{t(($) => $.durak.pause.hostWill)}</small>
                 )}
               </div>
             )}
@@ -546,16 +560,20 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         <div className="durak-hand-band">
           <div className="durak-hand-caption">
             {picked ? (
-              <button aria-label="Отменить выбор" onClick={clearSelection}>
-                <X size={14} /> Отменить
+              <button aria-label={t(($) => $.durak.hand.cancelSelection)} onClick={clearSelection}>
+                <X size={14} /> {t(($) => $.durak.hand.cancel)}
               </button>
             ) : (
               <span>
-                {hand.length ? 'Ваша рука' : mySeat === null ? 'Вы наблюдаете за игрой' : 'Ждём раздачи'}
+                {hand.length
+                  ? t(($) => $.durak.hand.yours)
+                  : mySeat === null
+                    ? t(($) => $.durak.hand.watching)
+                    : t(($) => $.durak.hand.waiting)}
               </span>
             )}
             {mySeat !== null && table.phase === 'bout' && (
-              <span className="durak-hand-count">{plural(hand.length, 'карта', 'карты', 'карт')}</span>
+              <span className="durak-hand-count">{t(($) => $.durak.cards, { count: hand.length })}</span>
             )}
           </div>
           {focusChoice && (
@@ -566,7 +584,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           {handOverflow && (
             <button
               className="durak-hand-scroll is-left"
-              aria-label="Карты левее"
+              aria-label={t(($) => $.durak.hand.left)}
               onClick={() => handScroller.current?.scrollBy({ left: -220 })}
             >
               <ChevronLeft size={20} />
@@ -575,7 +593,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           <div
             ref={handScroller}
             className="durak-hand"
-            aria-label="Ваши карты"
+            aria-label={t(($) => $.durak.hand.label)}
             data-large={hand.length > 10 || undefined}
             data-dealing={fanning || undefined}
             style={{ '--dealt': `${dealtAgo}ms` } as CSSProperties}
@@ -603,7 +621,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                   onLostPointerCapture={() => {
                     if (dragRef.current) cancelDrag();
                   }}
-                  aria-label={faceOf(card).label}
+                  aria-label={faceOf(t, card).label}
                   aria-pressed={picked === card}
                   aria-describedby={picked === card ? 'durak-selection-instruction' : undefined}
                   style={{ '--angle': `${angle}deg`, '--lift': raise, '--i': index } as CSSProperties}
@@ -616,7 +634,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           {handOverflow && (
             <button
               className="durak-hand-scroll is-right"
-              aria-label="Карты правее"
+              aria-label={t(($) => $.durak.hand.right)}
               onClick={() => handScroller.current?.scrollBy({ left: 220 })}
             >
               <ChevronRight size={20} />
@@ -624,7 +642,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           )}
           {picked && (
             <span id="durak-selection-instruction" className="sr-only">
-              {guidance}. Escape — отменить выбор.
+              {t(($) => $.durak.hand.instruction, { guidance })}
             </span>
           )}
         </div>
@@ -636,19 +654,19 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             disabled={!table.seatingOpen || !connected || pending}
             onClick={() => send('durak.sit')}
           >
-            Сесть за стол
+            {t(($) => $.durak.sit)}
           </button>
         ) : (
           <span className="durak-controls-hint">
             {pending
-              ? 'Сохраняем ход…'
+              ? t(($) => $.durak.hint.saving)
               : paused
-                ? 'Карты останутся на своих местах'
+                ? t(($) => $.durak.hint.paused)
                 : picked
-                  ? 'Выберите выделенную цель на столе'
+                  ? t(($) => $.durak.hint.target)
                   : you?.turn
-                    ? 'Выберите карту или перетащите её на стол'
-                    : 'Следите за ходом игры'}
+                    ? t(($) => $.durak.hint.turn)
+                    : t(($) => $.durak.hint.watch)}
           </span>
         )}
         <div className="durak-actions">
@@ -658,7 +676,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               disabled={!canPlay}
               onClick={() => send('durak.act', { option: 'take' })}
             >
-              <Hand size={17} /> Беру
+              <Hand size={17} /> {t(($) => $.durak.actions.take)}
             </button>
           )}
           {you?.actions.includes('pass') && (
@@ -668,7 +686,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               disabled={!canPlay}
               onClick={() => send('durak.act', { option: 'pass' })}
             >
-              <Check size={17} /> Бито
+              <Check size={17} /> {t(($) => $.durak.actions.pass)}
             </button>
           )}
         </div>
@@ -699,19 +717,23 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             <header className="durak-sheet-head">
               <div>
                 <Dialog.Title>
-                  {sheet === 'settings' ? 'Настройки игры' : sheet === 'score' ? 'Счёт игры' : 'Итог партии'}
+                  {sheet === 'settings'
+                    ? t(($) => $.durak.settings.title)
+                    : sheet === 'score'
+                      ? t(($) => $.durak.score.title)
+                      : t(($) => $.durak.result.title)}
                 </Dialog.Title>
                 <Dialog.Description>
                   {sheet === 'settings'
                     ? host
-                      ? 'Изменения применяются для всего стола'
-                      : 'Правила этого стола'
-                    : 'Результаты за этой встречей'}
+                      ? t(($) => $.durak.settings.hostNote)
+                      : t(($) => $.durak.settings.guestNote)
+                    : t(($) => $.durak.score.description)}
                 </Dialog.Description>
               </div>
               <Dialog.Close
                 render={
-                  <IconButton label="Закрыть">
+                  <IconButton label={t(($) => $.common.close)}>
                     <X size={18} />
                   </IconButton>
                 }
@@ -832,6 +854,7 @@ function TurnStatus({
   error: boolean;
   connected: boolean;
 }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => meeting.serverNow());
   const running = connected && !table.paused && table.phase === 'bout' && table.deadline > 0;
   useEffect(() => {
@@ -852,9 +875,15 @@ function TurnStatus({
     >
       <strong role={error ? 'alert' : 'status'}>{label}</strong>
       {(table.paused || running) && (
-        <span aria-label={`${table.paused ? 'На паузе, осталось' : 'Осталось'} ${seconds} секунд`}>
+        <span
+          aria-label={
+            table.paused
+              ? t(($) => $.durak.turn.pausedLeft, { seconds, count: seconds })
+              : t(($) => $.durak.turn.left, { seconds, count: seconds })
+          }
+        >
           {table.paused && <Pause size={14} />}
-          {seconds} с
+          {t(($) => $.durak.seconds, { seconds })}
         </span>
       )}
     </div>
@@ -866,17 +895,22 @@ function TurnStatus({
  * остаток числом. Кончилась колода — остаётся лежать один козырь, чтобы масть было видно до конца.
  */
 function Stock({ table }: { table: Table }) {
+  const { t } = useTranslation();
   if (!table.trump) return null;
   const backs = Math.min(3, Math.max(0, table.deckLeft - 1));
+  const trump = faceOf(t, table.trump).label;
   return (
     <div
       className="durak-stock"
       data-empty={table.deckLeft === 0 || undefined}
       role="img"
-      aria-label={`Колода: ${plural(table.deckLeft, 'карта', 'карты', 'карт')}, козырь ${faceOf(table.trump).label}`}
+      aria-label={t(($) => $.durak.stock.label, {
+        cards: t(($) => $.durak.cards, { count: table.deckLeft }),
+        card: trump,
+      })}
     >
       <div className="durak-stock-cards">
-        <span className="durak-trump" aria-label={`Козырь: ${faceOf(table.trump).label}`}>
+        <span className="durak-trump" aria-label={t(($) => $.durak.stock.trump, { card: trump })}>
           <Card card={table.trump} />
         </span>
         {Array.from({ length: backs }, (_, index) => (
@@ -887,7 +921,11 @@ function Stock({ table }: { table: Table }) {
       </div>
       <div className="durak-stock-count">
         {table.deckLeft}
-        <small>{table.deckLeft === 0 ? `козыри · ${trumpName(table)}` : 'в колоде'}</small>
+        <small>
+          {table.deckLeft === 0
+            ? t(($) => $.durak.stock.trumps, { suit: trumpName(t, table) })
+            : t(($) => $.durak.stock.inDeck)}
+        </small>
       </div>
     </div>
   );
@@ -898,13 +936,14 @@ const DISCARD_TILT = [-9, 6, -3, 11];
 
 /** Отбой справа от боя: стопка растёт по мере «бито», рядом — сколько карт ушло. */
 function Discard({ count }: { count: number }) {
+  const { t } = useTranslation();
   const shown = count ? Math.min(DISCARD_TILT.length, Math.ceil(count / 6)) : 0;
   return (
     <div
       className="durak-discard"
       data-empty={count === 0 || undefined}
       role="img"
-      aria-label={`Бито: ${plural(count, 'карта', 'карты', 'карт')}`}
+      aria-label={t(($) => $.durak.discard.label, { cards: t(($) => $.durak.cards, { count }) })}
     >
       <div className="durak-discard-cards">
         {DISCARD_TILT.slice(0, shown).map((tilt) => (
@@ -915,7 +954,7 @@ function Discard({ count }: { count: number }) {
       </div>
       <div className="durak-stock-count">
         {count}
-        <small>бито</small>
+        <small>{t(($) => $.durak.discard.caption)}</small>
       </div>
     </div>
   );
@@ -929,7 +968,8 @@ function Discard({ count }: { count: number }) {
  * рубашка: так переворот остаётся одним элементом.
  */
 function Card({ card, board = false }: { card?: string; board?: boolean }) {
-  const face = card ? faceOf(card) : null;
+  const { t } = useTranslation();
+  const face = card ? faceOf(t, card) : null;
   return (
     <span
       className="durak-card"
@@ -956,6 +996,7 @@ function Card({ card, board = false }: { card?: string; board?: boolean }) {
 }
 
 function SeatCamera({ tile }: { tile: MediaTile }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const element = ref.current;
@@ -973,7 +1014,9 @@ function SeatCamera({ tile }: { tile: MediaTile }) {
       tile.track.detach(element);
     };
   }, [tile.track, tile.local]);
-  return <video ref={ref} autoPlay playsInline muted aria-label={`Камера: ${tile.name}`} />;
+  return (
+    <video ref={ref} autoPlay playsInline muted aria-label={t(($) => $.durak.camera, { name: tile.name })} />
+  );
 }
 
 function Seat({
@@ -993,26 +1036,27 @@ function Seat({
   avatar: string | null;
   meeting: Meeting;
 }) {
+  const { t } = useTranslation();
   const acting = table.acting.includes(seat.index);
   const zoom = useFaceZoom('durak', seat.memberId);
   const role = seat.fool
-    ? 'Дурак'
+    ? t(($) => $.durak.role.fool)
     : seat.out
-      ? `Вышел ${seat.place}-м`
+      ? t(($) => $.durak.role.out, { place: seat.place })
       : seat.auto === 'take'
-        ? 'Нечем отбиться'
+        ? t(($) => $.durak.role.cornered)
         : seat.auto === 'pass'
-          ? 'Нечего подкинуть'
+          ? t(($) => $.durak.role.nothing)
           : seat.defender
             ? table.taking
-              ? 'Берёт'
-              : 'Отбивается'
+              ? t(($) => $.durak.role.takes)
+              : t(($) => $.durak.role.defends)
             : seat.passed
-              ? 'Бито'
+              ? t(($) => $.durak.role.passed)
               : seat.attacker
-                ? 'Ходит'
+                ? t(($) => $.durak.role.attacks)
                 : seat.away
-                  ? 'Отошёл'
+                  ? t(($) => $.durak.role.away)
                   : '';
   // Сколько карт на руках — у каждого места, и у своего тоже (T07): одно число, без рубашек веером.
   const counted = table.phase === 'bout' && !seat.out;
@@ -1037,7 +1081,7 @@ function Seat({
           </span>
         </DurakReactions>
         {counted && (
-          <span className="durak-seat-count" aria-label={plural(seat.held, 'карта', 'карты', 'карт')}>
+          <span className="durak-seat-count" aria-label={t(($) => $.durak.cards, { count: seat.held })}>
             <i aria-hidden="true" />
             {seat.held}
           </span>
@@ -1045,7 +1089,7 @@ function Seat({
         <FaceZoomButton zoom={zoom.zoom} name={seat.name} onCycle={zoom.cycle} />
       </span>
       <span className="durak-seat-name" title={seat.name}>
-        {mine ? `${seat.name} · вы` : seat.name}
+        {mine ? t(($) => $.durak.seat.mine, { name: seat.name }) : seat.name}
       </span>
       <span className="durak-seat-role">{role}</span>
     </div>
@@ -1065,6 +1109,7 @@ function Settings({
   disabled: boolean;
   onSend: Command;
 }) {
+  const { t } = useTranslation();
   const set = (option: string, chips?: number) => onSend('durak.settings', { option, chips });
   const live = table.phase === 'bout';
   return (
@@ -1077,58 +1122,61 @@ function Settings({
         >
           {table.paused ? <Play size={18} /> : <Pause size={18} />}
           <span>
-            <b>{table.paused ? 'Продолжить игру' : 'Поставить на паузу'}</b>
-            <small>Часы остановятся, карты останутся на столе</small>
+            <b>{table.paused ? t(($) => $.durak.pause.resume) : t(($) => $.durak.pause.pause)}</b>
+            <small>{t(($) => $.durak.settings.pauseHint)}</small>
           </span>
         </button>
       )}
       <div className="durak-settings-group">
-        <h3>Правила стола</h3>
+        <h3>{t(($) => $.durak.settings.rules)}</h3>
         <SettingChoice
-          label="Колода"
-          hint={live ? 'Меняется между партиями' : 'Без джокеров'}
-          values={[36, 52].map((value) => ({ value, label: `${value} карт` }))}
+          label={t(($) => $.durak.settings.deck.label)}
+          hint={live ? t(($) => $.durak.settings.deck.live) : t(($) => $.durak.settings.deck.idle)}
+          values={[36, 52].map((value) => ({
+            value,
+            label: t(($) => $.durak.deckSize, { size: value, count: value }),
+          }))}
           value={table.deckSize}
           disabled={!host || disabled || live}
           onChange={(value) => set('deck', value)}
         />
         <SettingChoice
-          label="Режим игры"
-          hint="Первый бой не переводят"
+          label={t(($) => $.durak.settings.mode.label)}
+          hint={t(($) => $.durak.settings.mode.hint)}
           values={[
-            { value: 0, label: 'Подкидной' },
-            { value: 1, label: 'Переводной' },
+            { value: 0, label: t(($) => $.durak.modes.podkidnoy) },
+            { value: 1, label: t(($) => $.durak.modes.perevodnoy) },
           ]}
           value={table.mode === 'perevodnoy' ? 1 : 0}
           disabled={!host || disabled || live}
           onChange={(value) => set('rules', value)}
         />
         <SettingChoice
-          label="Подкидывают"
+          label={t(($) => $.durak.settings.throwers.label)}
           values={[
-            { value: 0, label: 'Все' },
-            { value: 1, label: 'Соседи' },
+            { value: 0, label: t(($) => $.durak.settings.throwers.all) },
+            { value: 1, label: t(($) => $.durak.settings.throwers.neighbours) },
           ]}
           value={table.neighbours ? 1 : 0}
           disabled={!host || disabled}
           onChange={() => set('neighbours')}
         />
         <SettingChoice
-          label="Первый бой"
+          label={t(($) => $.durak.settings.first.label)}
           values={[
-            { value: 0, label: '6 карт' },
-            { value: 1, label: '5 карт' },
+            { value: 0, label: t(($) => $.durak.cards, { count: 6 }) },
+            { value: 1, label: t(($) => $.durak.cards, { count: 5 }) },
           ]}
           value={table.firstFive ? 1 : 0}
           disabled={!host || disabled}
           onChange={() => set('first-five')}
         />
         <SettingChoice
-          label="Время на ход"
-          hint={table.paused ? 'Продолжите игру, чтобы изменить время' : undefined}
+          label={t(($) => $.durak.settings.turn.label)}
+          hint={table.paused ? t(($) => $.durak.settings.turn.paused) : undefined}
           values={[...new Set([20, 40, 60, table.turnSeconds])]
             .sort((a, b) => a - b)
-            .map((value) => ({ value, label: `${value} с` }))}
+            .map((value) => ({ value, label: t(($) => $.durak.seconds, { seconds: value }) }))}
           value={table.turnSeconds}
           disabled={!host || disabled || !!table.paused}
           onChange={(value) => set('turn', value)}
@@ -1143,17 +1191,17 @@ function Settings({
           onClick={() => set('seating')}
         >
           <span>
-            <b>Пускать новых за стол</b>
-            <small>{table.seatingOpen ? 'Свободные места открыты' : 'Играют только те, кто уже сел'}</small>
+            <b>{t(($) => $.durak.settings.seating.label)}</b>
+            <small>
+              {table.seatingOpen
+                ? t(($) => $.durak.settings.seating.open)
+                : t(($) => $.durak.settings.seating.closed)}
+            </small>
           </span>
           <i aria-hidden="true" />
         </button>
       )}
-      {!host && (
-        <p className="durak-settings-note">
-          Менять правила и ставить игру на паузу может организатор стола или ведущий встречи.
-        </p>
-      )}
+      {!host && <p className="durak-settings-note">{t(($) => $.durak.settings.guestOnly)}</p>}
       {seated && (
         <button
           className="durak-settings-action"
@@ -1162,8 +1210,10 @@ function Settings({
         >
           <LogOut size={18} />
           <span>
-            <b>Встать из-за стола</b>
-            <small>{live ? 'Вы выйдете из текущей партии' : 'Останетесь зрителем во встрече'}</small>
+            <b>{t(($) => $.durak.settings.stand.label)}</b>
+            <small>
+              {live ? t(($) => $.durak.settings.stand.live) : t(($) => $.durak.settings.stand.idle)}
+            </small>
           </span>
         </button>
       )}
@@ -1175,8 +1225,8 @@ function Settings({
         >
           <X size={18} />
           <span>
-            <b>Убрать стол из встречи</b>
-            <small>Игра закончится, итоги останутся в истории</small>
+            <b>{t(($) => $.durak.settings.close.label)}</b>
+            <small>{t(($) => $.durak.settings.close.hint)}</small>
           </span>
         </button>
       )}
@@ -1224,14 +1274,15 @@ function SettingChoice({
 }
 
 function Score({ table }: { table: Table }) {
+  const { t } = useTranslation();
   return (
     <table className="durak-score-table">
       <thead>
         <tr>
-          <th>Игрок</th>
-          <th>Партий</th>
-          <th>Дурак</th>
-          <th>Серия</th>
+          <th>{t(($) => $.durak.score.player)}</th>
+          <th>{t(($) => $.durak.score.games)}</th>
+          <th>{t(($) => $.durak.score.fools)}</th>
+          <th>{t(($) => $.durak.score.streak)}</th>
         </tr>
       </thead>
       <tbody>
@@ -1249,16 +1300,19 @@ function Score({ table }: { table: Table }) {
 }
 
 function Result({ table }: { table: Table }) {
+  const { t } = useTranslation();
   const result = table.result!;
   return (
     <div className="durak-over">
       <div className="durak-over-symbol" aria-hidden="true">
         {result.draw ? '♣' : '♠'}
       </div>
-      <h3>{result.draw ? 'Ничья' : `${result.foolName} — дурак`}</h3>
+      <h3>
+        {result.draw ? t(($) => $.durak.result.draw) : t(($) => $.durak.fool, { name: result.foolName })}
+      </h3>
       <p>
-        {plural(result.bouts, 'бой', 'боя', 'боёв')} ·{' '}
-        {result.draw ? 'Все остались без карт' : 'Остальные игроки вышли из партии'}
+        {t(($) => $.durak.result.bouts, { count: result.bouts })} ·{' '}
+        {result.draw ? t(($) => $.durak.result.drawNote) : t(($) => $.durak.result.foolNote)}
       </p>
       {result.places.length > 0 && (
         <ol className="durak-places">
@@ -1271,7 +1325,9 @@ function Result({ table }: { table: Table }) {
           ))}
         </ol>
       )}
-      <Dialog.Close render={<button className="button primary full" />}>К столу</Dialog.Close>
+      <Dialog.Close render={<button className="button primary full" />}>
+        {t(($) => $.durak.result.back)}
+      </Dialog.Close>
     </div>
   );
 }

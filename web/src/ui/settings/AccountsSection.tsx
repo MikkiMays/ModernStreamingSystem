@@ -1,6 +1,14 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Music, Send, type LucideIcon } from 'lucide-react';
-import { ACCOUNTS, connected, type AccountSpec, type TokenAccount } from '../../core/accounts';
+import {
+  accountName,
+  ACCOUNTS,
+  connected,
+  tokenText,
+  type AccountSpec,
+  type TokenAccount,
+} from '../../core/accounts';
 import type { Preferences } from '../../core/preferences';
 import { Badge, Button, Soon } from '../kit';
 import { SettingGroup } from './Row';
@@ -18,6 +26,8 @@ function TokenForm({
   onSave: (value: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
+  const text = tokenText(t, account);
   const [value, setValue] = useState('');
   const id = useId();
   const submit = (event: FormEvent) => {
@@ -28,7 +38,7 @@ function TokenForm({
     <form className="setting-account__form" onSubmit={submit}>
       <div className="setting-account__field">
         <label className="setting-row__label" htmlFor={`${id}-token`}>
-          {account.label}
+          {text.label}
         </label>
         <input
           id={`${id}-token`}
@@ -39,19 +49,19 @@ function TokenForm({
           autoFocus
           maxLength={account.maxLength}
           value={value}
-          placeholder={account.placeholder}
+          placeholder={text.placeholder}
           onChange={(e) => setValue(e.target.value)}
         />
         <span className="setting-row__hint" id={`${id}-hint`}>
-          {account.hint}
+          {text.hint}
         </span>
       </div>
       <div className="setting-account__actions">
         <Button size="sm" variant="primary" type="submit" disabled={!value.trim()}>
-          Сохранить
+          {t(($) => $.settings.accounts.save)}
         </Button>
         <Button size="sm" variant="quiet" onClick={onCancel}>
-          Отмена
+          {t(($) => $.settings.accounts.cancel)}
         </Button>
       </div>
     </form>
@@ -67,6 +77,7 @@ function AccountRow({
   preferences: Preferences;
   change: (patch: Partial<Preferences>) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   // Нажатая кнопка исчезает (форма закрылась, «Сбросить» сменилось «Подключить») — фокус
   // остаётся на строке сервиса, а не падает в начало страницы.
@@ -74,7 +85,12 @@ function AccountRow({
   const settle = () => requestAnimationFrame(() => self.current?.focus({ preventScroll: true }));
   const Icon = ICONS[account.id] ?? Music;
   const on = connected(account, preferences);
-  const state = account.soon ? null : on ? 'Подключено' : 'Не подключено';
+  const name = accountName(t, account);
+  const state = account.soon
+    ? null
+    : on
+      ? t(($) => $.settings.accounts.connected)
+      : t(($) => $.settings.accounts.disconnected);
   return (
     <div
       ref={self}
@@ -88,7 +104,7 @@ function AccountRow({
           <Icon size={18} />
         </span>
         <div className="setting-row__text">
-          <span className="setting-row__label">{account.name}</span>
+          <span className="setting-row__label">{name}</span>
           {state && <span className="setting-row__hint">{state}</span>}
         </div>
       </div>
@@ -97,17 +113,17 @@ function AccountRow({
           <Soon />
         ) : on ? (
           <>
-            <Badge variant="success">Подключено</Badge>
+            <Badge variant="success">{t(($) => $.settings.accounts.connected)}</Badge>
             <Button
               size="sm"
               variant="quiet"
-              aria-label={`Сбросить: ${account.name}`}
+              aria-label={t(($) => $.settings.accounts.resetLabel, { name })}
               onClick={() => {
                 void change({ [account.key]: '' } as Partial<Preferences>);
                 settle();
               }}
             >
-              Сбросить
+              {t(($) => $.settings.accounts.reset)}
             </Button>
           </>
         ) : (
@@ -115,10 +131,10 @@ function AccountRow({
             <Button
               size="sm"
               variant="primary"
-              aria-label={`Подключить: ${account.name}`}
+              aria-label={t(($) => $.settings.accounts.connectLabel, { name })}
               onClick={() => setEditing(true)}
             >
-              Подключить
+              {t(($) => $.settings.accounts.connect)}
             </Button>
           )
         )}
@@ -154,8 +170,9 @@ export function AccountsSection({
   preferences: Preferences;
   change: (patch: Partial<Preferences>) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   return (
-    <SettingGroup title="Сервисы" collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.accounts.services)} collapsible={false}>
       {ACCOUNTS.map((account) => (
         <AccountRow key={account.id} account={account} preferences={preferences} change={change} />
       ))}

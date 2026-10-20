@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { AudioLines, Pause, Play, Repeat2, Shuffle, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { coverUrl, musicSourceName, type MusicState } from '../core/services';
 import { Badge, IconButton, Slider } from './kit';
 import { MusicCover } from './MusicCover';
@@ -30,6 +31,7 @@ export function MusicPlayer({
   ) => void;
   onSeek: (position: number) => void;
 }) {
+  const { t } = useTranslation();
   const current = state.queue[0];
   const playing = !!current && state.status === 'playing' && !state.paused;
   const [dragging, setDragging] = useState<number | null>(null);
@@ -53,12 +55,12 @@ export function MusicPlayer({
   };
   const status =
     state.status === 'connecting'
-      ? 'Подключаем музыку'
+      ? t(($) => $.music.player.status.connecting)
       : !current
-        ? 'Очередь пуста'
+        ? t(($) => $.music.player.status.empty)
         : state.paused
-          ? 'На паузе'
-          : 'Сейчас играет';
+          ? t(($) => $.music.player.status.paused)
+          : t(($) => $.music.player.status.playing);
   const percent = Math.round(volume * 100);
   const backdrop = current?.cover
     ? ({ '--music-cover': `url("${coverUrl(current.cover)}")` } as CSSProperties)
@@ -66,7 +68,7 @@ export function MusicPlayer({
   return (
     <section
       className="music-now"
-      aria-label="Сейчас играет"
+      aria-label={t(($) => $.music.player.label)}
       data-playing={playing || undefined}
       data-backdrop={backdrop ? 'true' : undefined}
       style={backdrop}
@@ -81,13 +83,15 @@ export function MusicPlayer({
               {playing && <AudioLines size={14} aria-hidden="true" />}
               {status}
             </span>
-            {current && <Badge>{musicSourceName(current.source)}</Badge>}
+            {current && <Badge>{musicSourceName(t, current.source)}</Badge>}
           </span>
-          <strong className="music-now__title">{current?.title ?? 'Добавьте первый трек'}</strong>
+          <strong className="music-now__title">
+            {current?.title ?? t(($) => $.music.player.firstTrack)}
+          </strong>
           <span className="music-now__artist">
             {current
-              ? current.artist || `Добавил: ${current.addedBy}`
-              : 'Найдите трек ниже, вставьте ссылку или загрузите файл'}
+              ? current.artist || t(($) => $.music.player.addedBy, { name: current.addedBy })
+              : t(($) => $.music.player.emptyHint)}
           </span>
         </div>
       </div>
@@ -98,7 +102,7 @@ export function MusicPlayer({
             max={Math.max(1, current.duration)}
             step={1}
             disabled={!canUse}
-            label="Позиция трека"
+            label={t(($) => $.music.player.position)}
             value={dragging ?? position}
             onChange={(e) => setDragging(Number(e.target.value))}
             onPointerUp={(e) => commit(Number(e.currentTarget.value))}
@@ -115,7 +119,7 @@ export function MusicPlayer({
       )}
       <div className="music-now__controls">
         <IconButton
-          label="Перемешать очередь"
+          label={t(($) => $.music.player.shuffle)}
           className="music-now__toggle"
           disabled={!canUse || state.queue.length < 3}
           onClick={() => onCommand('shuffle')}
@@ -123,7 +127,7 @@ export function MusicPlayer({
           <Shuffle size={18} />
         </IconButton>
         <IconButton
-          label={state.paused ? 'Продолжить музыку' : 'Пауза музыки'}
+          label={state.paused ? t(($) => $.music.player.resume) : t(($) => $.music.player.pause)}
           size="lg"
           className="music-now__play"
           disabled={!canUse || !current}
@@ -137,7 +141,7 @@ export function MusicPlayer({
           {state.paused || !current ? <Play size={22} /> : <Pause size={22} />}
         </IconButton>
         <IconButton
-          label="Следующий трек"
+          label={t(($) => $.music.player.next)}
           className="music-now__toggle"
           disabled={!canUse || !current}
           onClick={() => onCommand('skip', undefined, afterSkip(state))}
@@ -145,7 +149,7 @@ export function MusicPlayer({
           <SkipForward size={20} />
         </IconButton>
         <IconButton
-          label="Повторять очередь"
+          label={t(($) => $.music.player.repeat)}
           className="music-now__toggle"
           aria-pressed={state.repeat}
           data-on={state.repeat || undefined}
@@ -172,7 +176,7 @@ export function MusicPlayer({
             max={100}
             step={1}
             value={percent}
-            label="Громкость музыки у вас"
+            label={t(($) => $.music.player.volume)}
             onChange={(e) => onVolume(Number(e.target.value) / 100)}
           />
           <output className="music-now__percent" aria-hidden="true">

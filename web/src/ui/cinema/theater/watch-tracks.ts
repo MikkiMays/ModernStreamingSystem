@@ -16,6 +16,7 @@
  * «日本語», «Korean (Original)»), а меню должно читаться на языке того, кто в него смотрит.
  */
 import type { CinemaCaption } from '../../../core/cinema';
+import { locale, t as translate, type Translate } from '../../../i18n';
 
 /** Столько от дорожки HLS нужно для выбора; остальное у `hls.js` своё. */
 export interface MediaTrack {
@@ -63,23 +64,31 @@ export function sameLanguage(one: string | undefined, other: string | undefined)
     : first.startsWith(second) || second.startsWith(first);
 }
 
-let display: Intl.DisplayNames | undefined | null;
+/** Названия языков — по одному `Intl.DisplayNames` на язык интерфейса; `null` — браузер не умеет. */
+const displays = new Map<string, Intl.DisplayNames | null>();
+function displayFor(language: string): Intl.DisplayNames | null {
+  let display = displays.get(language);
+  if (display === undefined) {
+    try {
+      display = new Intl.DisplayNames([language], { type: 'language' });
+    } catch {
+      display = null;
+    }
+    displays.set(language, display);
+  }
+  return display;
+}
+
 /**
- * Название языка по-русски: `ko` — «Корейский», `en-US` — «Английский (США)».
+ * Название языка на языке интерфейса: по-русски `ko` — «Корейский», `en-US` — «Английский (США)».
  *
  * Запасной вариант — подпись самой площадки: она есть всегда, просто написана на чужом
  * языке. Пустой ответ тоже бывает: у выдуманных кодов вроде `ko-orig` названия нет.
  */
-export function languageName(code: string | undefined, fallback = ''): string {
+export function languageName(t: Translate, code: string | undefined, fallback = ''): string {
   const clean = (code ?? '').replace(/-orig$/i, '');
   if (clean) {
-    if (display === undefined) {
-      try {
-        display = new Intl.DisplayNames(['ru'], { type: 'language' });
-      } catch {
-        display = null;
-      }
-    }
+    const display = displayFor(locale(t));
     try {
       const name = display?.of(clean);
       if (name && name.toLowerCase() !== clean.toLowerCase())
@@ -91,12 +100,15 @@ export function languageName(code: string | undefined, fallback = ''): string {
   return fallback || clean;
 }
 
-/** Дорожка озвучки в виде строки меню. */
+/**
+ * Дорожка озвучки в виде строки меню. Строки рождаются, когда плеер узнал дорожки, — поэтому
+ * язык названий тот, что стоит в эту минуту (глобальный `t`).
+ */
 export function audioChoices(tracks: MediaTrack[]): AudioChoice[] {
   return tracks.map((track, index) => ({
     index,
     original: ORIGINAL.test(track.name ?? ''),
-    label: languageName(track.lang, (track.name ?? '').replace(ORIGINAL, '').replace(DUBBED, '')),
+    label: languageName(translate, track.lang, (track.name ?? '').replace(ORIGINAL, '').replace(DUBBED, '')),
   }));
 }
 
@@ -126,13 +138,13 @@ export function pickAudio(tracks: MediaTrack[], wanted: string, original: string
 export function captionChoices(tracks: MediaTrack[], extra: CinemaCaption[]): CaptionChoice[] {
   const written = tracks.map((track, index) => ({
     id: `${track.lang || track.name || index}`,
-    label: languageName(track.lang, track.name ?? ''),
+    label: languageName(translate, track.lang, track.name ?? ''),
     auto: false,
     track: index,
   }));
   const recognised = extra.map((caption) => ({
     id: `${caption.lang}${caption.auto ? '~auto' : ''}`,
-    label: languageName(caption.lang, caption.label),
+    label: languageName(translate, caption.lang, caption.label),
     auto: caption.auto,
     track: -1,
     url: caption.url,

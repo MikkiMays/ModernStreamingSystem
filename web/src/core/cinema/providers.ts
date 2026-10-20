@@ -1,4 +1,5 @@
 import { Clapperboard, Link2, Radio, SquarePlay, Tv, Video, type LucideIcon } from 'lucide-react';
+import type { Translate } from '../../i18n';
 import type { CinemaProvidersResponse } from './types';
 
 /**
@@ -35,10 +36,13 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
  */
 export type SceneId = 'switcher' | 'rutube' | 'vk' | 'ivi' | 'link';
 
+/**
+ * Карточка площадки — её устройство. Слова о ней (имя по-русски, подсказка, приглашение в поиск) —
+ * в каталоге (`cinema.providers.<id>`): {@link providerName}, `t(($) => $.cinema.providers[id].hint)`
+ * и `….search`.
+ */
 export interface ProviderSpec {
   id: ProviderId;
-  name: string;
-  hint: string;
   /** Цвет вкладки-переключателя (`.cinema-service`) — тот же, что задавала CSS раньше; у площадки
    *  со своей сценой — её цвет в этой сцене. Значение CSS: hex площадки или переменная темы. */
   accent: string;
@@ -46,7 +50,6 @@ export interface ProviderSpec {
   tile: string;
   icon: LucideIcon;
   scene: SceneId;
-  searchPlaceholder: string;
 }
 
 // Площадки в этой задаче — только включённые в этом релизе; следующие задачи дописывают сюда
@@ -54,23 +57,17 @@ export interface ProviderSpec {
 export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   youtube: {
     id: 'youtube',
-    name: 'YouTube',
-    hint: 'Ролики, фильмы и каналы',
     accent: '#e33b3b',
     tile: '#ff3d3d',
     icon: Tv,
     scene: 'switcher',
-    searchPlaceholder: 'Ролик, канал или плейлист',
   },
   twitch: {
     id: 'twitch',
-    name: 'Twitch',
-    hint: 'Живые эфиры и записи',
     accent: '#8250e6',
     tile: '#9147ff',
     icon: Radio,
     scene: 'switcher',
-    searchPlaceholder: 'Канал или игра на Twitch',
   },
   /*
     Цвет — из их же CSS: `--rt-colors-base-brand-rutube-primary: #1c80e3` в дизайн-токенах сайта
@@ -80,13 +77,10 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   */
   rutube: {
     id: 'rutube',
-    name: 'Rutube',
-    hint: 'Эфиры ТВ, сериалы и шоу',
     accent: '#1c80e3',
     tile: '#1c80e3',
     icon: SquarePlay,
     scene: 'rutube',
-    searchPlaceholder: 'Видео, каналы и ТВ',
   },
   /*
     Цвет — из их же CSS: `--vkui--vkontakte_color_accent_alternate: #0077ff` в VKUI сайта
@@ -96,13 +90,10 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   */
   vk: {
     id: 'vk',
-    name: 'VK Видео',
-    hint: 'Разделы, сообщества и эфиры',
     accent: '#0077FF',
     tile: '#0077FF',
     icon: Video,
     scene: 'vk',
-    searchPlaceholder: 'Видео и сообщества',
   },
   /*
     Цвет — из их же CSS: `#ea003d` в `linear-gradient(270deg,#ea003d 0%,#c447ff 100%)`, живом
@@ -111,13 +102,10 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   */
   ivi: {
     id: 'ivi',
-    name: 'ivi',
-    hint: 'Фильмы, сериалы и мультфильмы — бесплатное',
     accent: '#EA003D',
     tile: '#EA003D',
     icon: Clapperboard,
     scene: 'ivi',
-    searchPlaceholder: 'Фильм, сериал или мультфильм',
   },
   /*
     Не площадка, а вход для ссылки — и потому нейтральный цвет: общий синий приложения (`--blue`,
@@ -126,15 +114,24 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   */
   link: {
     id: 'link',
-    name: 'По ссылке',
-    hint: 'Ролик, эфир или плейлист по ссылке',
     accent: 'var(--blue)',
     tile: 'var(--blue)',
     icon: Link2,
     scene: 'link',
-    searchPlaceholder: 'Вставьте ссылку на видео',
   },
 };
+
+/**
+ * Имена площадок, которые пишутся латиницей: так их пишут на любом языке, и в каталог они не идут.
+ * У остальных имя по-русски («VK Видео», «По ссылке») — в каталоге: у него есть перевод.
+ */
+const BRANDS = { youtube: 'YouTube', twitch: 'Twitch', rutube: 'Rutube', ivi: 'ivi' } as const;
+
+/** Имя площадки для глаз. */
+export function providerName(t: Translate, id: ProviderId): string {
+  if (id === 'vk' || id === 'link') return t(($) => $.cinema.providers[id].name);
+  return BRANDS[id];
+}
 
 /**
  * Площадки сцены-переключателя, в порядке вкладок.

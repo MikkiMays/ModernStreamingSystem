@@ -1,13 +1,21 @@
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link2 } from 'lucide-react';
-import { CinemaApi, PROVIDERS, QUERY_LONGEST, type CinemaItem } from '../../../core/cinema';
+import { useTranslation } from 'react-i18next';
+import {
+  CinemaApi,
+  PROVIDERS,
+  providerName,
+  QUERY_LONGEST,
+  type ChannelTab,
+  type CinemaItem,
+} from '../../../core/cinema';
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
 import { Empty, Failure, Following, Loading } from '../catalog/notes';
-import { ChannelPage, type ChannelTabSpec } from '../catalog/pages/ChannelPage';
+import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
 import { Shell } from '../catalog/Shell';
@@ -21,10 +29,7 @@ import { useTogether } from '../catalog/useTogether';
 import type { SceneProps } from '.';
 
 /** Вкладки сообщества VK: его ролики и его плейлисты — то, ради чего на него заходят. */
-const TABS: readonly ChannelTabSpec[] = [
-  { id: 'videos', name: 'Видео' },
-  { id: 'playlists', name: 'Плейлисты' },
-];
+const TABS: readonly ChannelTab[] = ['videos', 'playlists'];
 
 /** Смотрится ли это вместе прямо отсюда: ролик или идущий эфир. Сообщество и плейлист — двери. */
 function playable(item: CinemaItem): boolean {
@@ -49,6 +54,7 @@ function playable(item: CinemaItem): boolean {
  * её именем в полосе и на выбранном разделе, как у Rutube.
  */
 export default function VkScene({ provider, at, meeting, onClose }: SceneProps) {
+  const { t } = useTranslation();
   const spec = PROVIDERS[provider];
   const accent = { '--accent': spec.accent } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
@@ -144,11 +150,11 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
       tabs={
         <span className="cinema-platform" style={accent}>
           <spec.icon size={15} />
-          {spec.name}
+          {providerName(t, provider)}
         </span>
       }
       query={query}
-      placeholder={spec.searchPlaceholder}
+      placeholder={t(($) => $.cinema.providers[provider].search)}
       maxLength={QUERY_LONGEST}
       onSearch={(value, whole) => {
         setQuery(value);
@@ -178,7 +184,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
           {chips.length ? (
             <div className="cinema-strip">
               <Tabs
-                label="Разделы VK Видео"
+                label={t(($) => $.cinema.vk.sectionsLabel)}
                 items={chips}
                 selected={opened}
                 onSelect={setSection}
@@ -191,11 +197,8 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
           {sections.isError ? (
             <div className="cinema-empty" role="alert">
               <Link2 size={40} />
-              <b>Каталог VK Видео сейчас не открывается</b>
-              <small>
-                {(sections.error as Error).message}. Ролик или эфир VK всё равно откроется по ссылке —
-                вставьте её в поиск.
-              </small>
+              <b>{t(($) => $.cinema.vk.down)}</b>
+              <small>{t(($) => $.cinema.vk.downHint, { error: (sections.error as Error).message })}</small>
             </div>
           ) : null}
           {feed.isError ? <Failure problem={feed.error} /> : null}
@@ -209,7 +212,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
             onMore={() => void feed.fetchNextPage()}
           />
           {feed.data && !feed.isFetching && !feed.isError && inSection.length === 0 ? (
-            <Empty text="В этом разделе пока нечего показать комнате." />
+            <Empty text={t(($) => $.cinema.search.emptySection)} />
           ) : null}
         </>
       ) : null}
@@ -219,11 +222,13 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
           {/* Сообщества — полкой над роликами: набрав имя сообщества, ищут его само, а не ролики
               про него, — и находят первым. */}
           {first?.channels.length ? (
-            <Shelf kind="faces" title="Сообщества">
+            <Shelf kind="faces" title={t(($) => $.cinema.vk.communities)}>
               {first.channels.map(card)}
             </Shelf>
           ) : null}
-          {first?.channels.length ? <h4 className="cinema-heading">Видео</h4> : null}
+          {first?.channels.length ? (
+            <h4 className="cinema-heading">{t(($) => $.cinema.headings.videos)}</h4>
+          ) : null}
           {results.isError ? <Failure problem={results.error} /> : null}
           {results.data ? <Grid>{found.map(card)}</Grid> : null}
           {results.isFetching && !results.isFetchingNextPage ? <Loading /> : null}
@@ -233,7 +238,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
             onMore={() => void results.fetchNextPage()}
           />
           {first && !found.length && !first.channels.length && !results.isFetching ? (
-            <Empty text="Ничего не нашлось. Попробуйте другие слова — или вставьте ссылку на ролик VK." />
+            <Empty text={t(($) => $.cinema.vk.nothing)} />
           ) : null}
         </>
       ) : null}

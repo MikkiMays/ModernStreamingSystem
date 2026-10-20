@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Hash, Plus } from 'lucide-react';
 import { serverInfo } from '../core/session';
 import { formatCode, parseInvite, type Destination } from '../core/invitation';
@@ -16,6 +17,7 @@ export function HomeEntry({
   onJoin: (destination: Destination) => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
@@ -25,8 +27,8 @@ export function HomeEntry({
   return (
     <section className={`home-entry ${className}`} aria-labelledby={`${id}-title`}>
       <header className="home-entry__welcome">
-        <h1 id={`${id}-title`}>Начнём разговор.</h1>
-        <p>Одна комната. Все свои.</p>
+        <h1 id={`${id}-title`}>{t(($) => $.home.entry.title)}</h1>
+        <p>{t(($) => $.home.entry.tagline)}</p>
       </header>
       <form
         className="home-entry__form"
@@ -41,7 +43,7 @@ export function HomeEntry({
         }}
       >
         <label className="home-entry__label" htmlFor={`${id}-invite`}>
-          Код встречи или ссылка
+          {t(($) => $.home.entry.label)}
         </label>
         <div className="home-entry__row">
           <div className="home-entry__field">
@@ -67,14 +69,14 @@ export function HomeEntry({
           <button
             className="home-entry__join"
             type="submit"
-            aria-label="Присоединиться"
-            title="Присоединиться"
+            aria-label={t(($) => $.home.entry.join)}
+            title={t(($) => $.home.entry.join)}
           >
             <ArrowRight size={20} aria-hidden="true" />
           </button>
         </div>
         <small id={`${id}-hint`} className="home-entry__hint">
-          9 цифр от организатора или ссылка-приглашение.
+          {t(($) => $.home.entry.hint)}
         </small>
         {error && (
           <p id={`${id}-error`} role="alert" className="home-entry__error">
@@ -83,7 +85,7 @@ export function HomeEntry({
         )}
       </form>
       <div className="home-entry__divider" aria-hidden="true">
-        <span>или</span>
+        <span>{t(($) => $.home.entry.or)}</span>
       </div>
       <Button
         variant="primary"
@@ -95,23 +97,23 @@ export function HomeEntry({
         disabled={creationClosed}
         aria-describedby={creationClosed ? `${id}-unavailable` : undefined}
       >
-        Новая встреча
+        {t(($) => $.home.entry.create)}
       </Button>
       {creationClosed && (
         <p id={`${id}-unavailable`} className="home-entry__notice" role="status">
-          Создание встреч временно недоступно на этом сервере.
+          {t(($) => $.home.entry.creationClosed)}
         </p>
       )}
       {capabilities.isError && (
         <p className="home-entry__notice" role="status">
-          Сервер недоступен. Проверьте соединение.{' '}
+          {t(($) => $.home.entry.unavailable)}{' '}
           <button
             type="button"
             className="home-entry__retry"
             disabled={capabilities.isFetching}
             onClick={() => void capabilities.refetch()}
           >
-            Повторить
+            {t(($) => $.home.entry.retry)}
           </button>
         </p>
       )}

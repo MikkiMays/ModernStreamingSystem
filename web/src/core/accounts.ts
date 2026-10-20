@@ -1,3 +1,4 @@
+import type { Translate } from '../i18n';
 import type { Preferences } from './preferences';
 
 /**
@@ -12,6 +13,8 @@ import type { Preferences } from './preferences';
  * имя, ключ в Preferences, подсказка и вид входа. Пока вид входа один — вставленный вручную
  * токен; второй появится вместе со вторым сервисом, а не раньше. Сервис, который объявлен, но
  * ещё не подключается (Telegram до E09, П5), стоит в списке со значком «Скоро».
+ *
+ * Слова записи — имя, подпись поля, подсказка — в каталоге (`accounts.<id>`, E14), здесь — устройство.
  */
 export type AccountInputKind = 'token';
 
@@ -21,42 +24,40 @@ type StringPreferenceKey = {
 }[keyof Preferences];
 
 export interface TokenAccount {
-  readonly id: string;
-  /** Как сервис называется в строке. */
-  readonly name: string;
+  readonly id: 'yandex-music';
   readonly soon?: false;
-  /** Подпись поля входа. */
-  readonly label: string;
   /** Ключ в Preferences, где живёт значение — тот же, что читает автоподключение службы. */
   readonly key: StringPreferenceKey;
   readonly input: AccountInputKind;
-  readonly placeholder: string;
-  readonly hint: string;
   readonly maxLength: number;
 }
 
 export interface SoonAccount {
-  readonly id: string;
-  readonly name: string;
+  readonly id: 'telegram';
   readonly soon: true;
 }
 
 export type AccountSpec = TokenAccount | SoonAccount;
 
 export const ACCOUNTS: readonly AccountSpec[] = [
-  {
-    id: 'yandex-music',
-    name: 'Яндекс Музыка',
-    label: 'Токен Яндекс Музыки',
-    key: 'yandexMusicToken',
-    input: 'token',
-    placeholder: 'Вставьте токен',
-    hint: 'Токен хранится на этом устройстве и подставляется, когда вы добавляете Яндекс Музыку во встречу.',
-    maxLength: 1000,
-  },
+  { id: 'yandex-music', key: 'yandexMusicToken', input: 'token', maxLength: 1000 },
   // Привязка чата — E09, пока `TELEGRAM_WEBAPP_ENABLED` выключен (П5, T30).
-  { id: 'telegram', name: 'Telegram', soon: true },
+  { id: 'telegram', soon: true },
 ];
+
+/** Как сервис называется в строке. */
+export function accountName(t: Translate, account: AccountSpec): string {
+  return t(($) => $.accounts[account.id].name);
+}
+
+/** Подпись поля входа, заглушка и подсказка под ним. */
+export function tokenText(t: Translate, account: TokenAccount) {
+  return {
+    label: t(($) => $.accounts[account.id].label),
+    placeholder: t(($) => $.accounts[account.id].placeholder),
+    hint: t(($) => $.accounts[account.id].hint),
+  };
+}
 
 /** Подключён ли сервис на этом устройстве: для входа по токену — сохранён ли токен. */
 export function connected(account: AccountSpec, preferences: Preferences): boolean {

@@ -1,4 +1,5 @@
 import Hls from 'hls.js';
+import { t } from '../../../../i18n';
 import { adBreaks, type AdBreak, type AdFragment } from '../ad-breaks';
 import type { Level } from '../watch-levels';
 import { audioChoices, type AudioChoice, type MediaTrack } from '../watch-tracks';
@@ -150,7 +151,7 @@ export function attachHls(
     // чёрный кадр. Протухшую подпись чинит переоткрытие: адрес живёт пять часов.
     if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
     else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-    else callbacks.fail('Поток прервался. Попробуйте открыть видео заново');
+    else callbacks.fail(t(($) => $.cinema.theater.errors.streamBroken));
   });
   hls.loadSource(url);
   hls.attachMedia(video);

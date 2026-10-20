@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
 import {
   defaultMicHotkey,
@@ -9,58 +10,68 @@ import {
   type HotkeyNote,
 } from '../../core/hotkeys';
 import { desktopHotkeyStatus, notifyDesktop } from '../../core/desktop';
+import type { Translate } from '../../i18n';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
+import { rowText } from './sections';
 
-const TEXT = {
-  // T27, слова владельца: на сайте — только в активной вкладке, на устройстве — всегда.
-  browser: 'В браузере сочетания работают, только пока вкладка Cord активна. В приложении — всегда.',
-  desktop: 'В приложении сочетание работает и поверх других программ.',
-  recording: 'Нажмите сочетание…',
-  cancelHint: 'Esc — отмена',
-};
+/** Пробел называется словом, остальные клавиши — своим знаком. */
+const SPACE = 'Space';
+
+type OtherAction =
+  | 'pause'
+  | 'playerSound'
+  | 'fullscreen'
+  | 'seek'
+  | 'volume'
+  | 'fold'
+  | 'checkCall'
+  | 'bet'
+  | 'allIn'
+  | 'reorder';
 
 /** Клавиши, которые не настраиваются, — чтобы назначая своё, было видно, что уже занято. */
-const OTHER_KEYS: { title: string; keys: [string[], string][] }[] = [
+const OTHER_KEYS: { id: 'cinema' | 'poker' | 'home'; keys: [string[], OtherAction][] }[] = [
   {
-    title: 'Кинозал',
+    id: 'cinema',
     keys: [
-      [['Пробел'], 'пауза'],
-      [['K'], 'пауза'],
-      [['M'], 'звук плеера'],
-      [['F'], 'полный экран'],
-      [['←', '→'], 'перемотка на 10 с, с Shift — на 30 с'],
-      [['↑', '↓'], 'громкость'],
+      [[SPACE], 'pause'],
+      [['K'], 'pause'],
+      [['M'], 'playerSound'],
+      [['F'], 'fullscreen'],
+      [['←', '→'], 'seek'],
+      [['↑', '↓'], 'volume'],
     ],
   },
   {
-    title: 'Покер, в свой ход',
+    id: 'poker',
     keys: [
-      [['F'], 'пас'],
-      [['C'], 'чек или колл'],
-      [['R'], 'ставка'],
-      [['A'], 'ва-банк'],
+      [['F'], 'fold'],
+      [['C'], 'checkCall'],
+      [['R'], 'bet'],
+      [['A'], 'allIn'],
     ],
   },
   {
-    title: 'Главная',
-    keys: [[['Alt', '↑ ↓'], 'переставить комнату в избранном']],
+    id: 'home',
+    keys: [[['Alt', '↑ ↓'], 'reorder']],
   },
 ];
 
 function Keys({ parts }: { parts: string[] }) {
+  const { t } = useTranslation();
   return (
     <span className="setting-keys">
       {parts.map((part, index) => (
-        <kbd key={index}>{part}</kbd>
+        <kbd key={index}>{part === SPACE ? t(($) => $.hotkeys.space) : part}</kbd>
       ))}
     </span>
   );
 }
 
-function split(key: Hotkey | null) {
-  return key ? hotkeyLabel(key).split(' + ') : [];
+function split(t: Translate, key: Hotkey | null) {
+  return key ? hotkeyLabel(t, key).split(' + ') : [];
 }
 
 /** Сочетание собирается из нажатых модификаторов, пока не нажата сама клавиша. */
@@ -82,6 +93,7 @@ export function HotkeysSection({
   value: Hotkey | null;
   change: (key: Hotkey | null) => void;
 }) {
+  const { t } = useTranslation();
   const desktop = !!window.chrome?.webview;
   const place = desktop ? 'desktop' : 'browser';
   const nativeStatus = useStore(desktopHotkeyStatus);
@@ -101,19 +113,23 @@ export function HotkeysSection({
     notifyDesktop('hotkey.configure', { hotkey: null });
     return () => notifyDesktop('hotkey.configure', { hotkey: current.current });
   }, [recording]);
-  const notes = value ? hotkeyNotes(value, place) : [];
+  const notes = value ? hotkeyNotes(t, value, place) : [];
   const stop = () => {
     setRecording(false);
     setPending('');
   };
-  const isDefault = !!value && hotkeyLabel(value) === hotkeyLabel(defaultMicHotkey);
+  const isDefault = !!value && hotkeyLabel(t, value) === hotkeyLabel(t, defaultMicHotkey);
   return (
     <>
       <p className="setting-banner" role="note">
         <Info size={16} aria-hidden="true" />
-        <span>{desktop ? nativeStatus || TEXT.desktop : TEXT.browser}</span>
+        <span>
+          {desktop
+            ? nativeStatus || t(($) => $.settings.hotkeys.desktop)
+            : t(($) => $.settings.hotkeys.browser)}
+        </span>
       </p>
-      <SettingGroup title="Встреча" collapsible={false}>
+      <SettingGroup title={t(($) => $.settings.hotkeys.meeting)} collapsible={false}>
         <SettingRow
           id="hotkey-mic"
           below={
@@ -140,11 +156,13 @@ export function HotkeysSection({
               aria-live="polite"
             >
               {recording ? (
-                <span className="setting-hotkey__prompt">{pending ? `${pending} + …` : TEXT.recording}</span>
+                <span className="setting-hotkey__prompt">
+                  {pending ? `${pending} + …` : t(($) => $.settings.hotkeys.recording)}
+                </span>
               ) : value ? (
-                <Keys parts={split(value)} />
+                <Keys parts={split(t, value)} />
               ) : (
-                <span className="setting-hotkey__prompt">Не назначено</span>
+                <span className="setting-hotkey__prompt">{t(($) => $.hotkeys.unassigned)}</span>
               )}
             </span>
             <Button
@@ -153,10 +171,10 @@ export function HotkeysSection({
               data-hotkey-recorder
               aria-label={
                 recording
-                  ? `${TEXT.cancelHint} записи сочетания`
+                  ? t(($) => $.settings.hotkeys.cancelLabel)
                   : value
-                    ? 'Изменить сочетание микрофона'
-                    : 'Назначить сочетание микрофона'
+                    ? t(($) => $.settings.hotkeys.changeLabel)
+                    : t(($) => $.settings.hotkeys.assignLabel)
               }
               onClick={() => {
                 setRefused(null);
@@ -176,7 +194,7 @@ export function HotkeysSection({
                   setPending(held(event));
                   return;
                 }
-                const blocked = hotkeyNotes(next, place).find((note) => note.level === 'blocked');
+                const blocked = hotkeyNotes(t, next, place).find((note) => note.level === 'blocked');
                 stop();
                 if (blocked) {
                   setRefused(blocked);
@@ -189,45 +207,49 @@ export function HotkeysSection({
                 if (recording) setPending(held(event));
               }}
             >
-              {recording ? TEXT.cancelHint : value ? 'Изменить' : 'Назначить'}
+              {recording
+                ? t(($) => $.settings.hotkeys.cancel)
+                : value
+                  ? t(($) => $.settings.hotkeys.change)
+                  : t(($) => $.settings.hotkeys.assign)}
             </Button>
             {!recording && !isDefault && (
               <Button
                 size="sm"
                 variant="quiet"
-                aria-label="По умолчанию — сочетание микрофона"
+                aria-label={t(($) => $.settings.hotkeys.resetLabel)}
                 onClick={() => {
                   setRefused(null);
                   change({ ...defaultMicHotkey });
                 }}
               >
-                По умолчанию
+                {t(($) => $.settings.hotkeys.reset)}
               </Button>
             )}
             {!recording && value && (
               <Button
                 size="sm"
                 variant="quiet"
-                aria-label="Отключить сочетание микрофона"
+                aria-label={t(($) => $.settings.hotkeys.disableLabel)}
                 onClick={() => {
                   setRefused(null);
                   change(null);
                 }}
               >
-                Отключить
+                {t(($) => $.settings.hotkeys.disable)}
               </Button>
             )}
           </div>
         </SettingRow>
       </SettingGroup>
-      <SettingGroup title="Клавиши кинозала и игр" id="hotkey-other" defaultOpen={false}>
+      <SettingGroup title={rowText(t, 'hotkey-other').label} id="hotkey-other" defaultOpen={false}>
         {OTHER_KEYS.map((group) => (
-          <div key={group.title} className="setting-keymap">
-            <h4 className="setting-keymap__title">{group.title}</h4>
+          <div key={group.id} className="setting-keymap">
+            <h4 className="setting-keymap__title">{t(($) => $.settings.hotkeys.groups[group.id])}</h4>
             {group.keys.map(([parts, action]) => (
-              <div key={`${group.title}-${parts.join()}`} className="setting-keymap__row">
+              <div key={`${group.id}-${parts.join()}`} className="setting-keymap__row">
                 <Keys parts={parts} />
-                <span>{action}</span>
+                <span>{t(($) => $.settings.hotkeys.actions[action])}</span>
               </div>
             ))}
           </div>

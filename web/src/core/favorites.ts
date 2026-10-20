@@ -3,6 +3,7 @@ import type { Admission } from '../api/types';
 import type { components } from '../api/generated';
 import { notifyDesktop } from './desktop';
 import { entryHeaders, profileSecret } from './identity';
+import { t } from '../i18n';
 
 export type Favorite = components['schemas']['Favorite'];
 /** Ключ избранного — профиль устройства (`core/identity.ts`): тот же секрет, что `X-Cord-Profile`. */
@@ -31,7 +32,7 @@ export const favoriteApi = {
       );
     } catch (error) {
       if (error instanceof Error && 'status' in error && (error.status === 404 || error.status === 405))
-        throw new Error('Этот сервер ещё не поддерживает изменение порядка избранного. Обновите сервер.');
+        throw new Error(t(($) => $.favorites.errors.orderUnsupported));
       throw error;
     }
     notifyDesktop('favorites.changed');

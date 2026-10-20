@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LoaderCircle, Play, SkipForward } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
 import { CinemaApi } from '../../../core/cinema';
 import { useFullscreen } from '../../../core/fullscreen';
+import { t as translate } from '../../../i18n';
 import { targetPosition, VISIBLE_DRIFT } from '../../../core/watch';
 import { useStore } from '../../primitives';
 import { adAt, skipRank, SKIP_STEP_MS } from './ad-breaks';
@@ -20,13 +22,6 @@ import { KEY_TEXT, muteToggle, volumeAfter, type WatchAction } from './watch-key
 
 /** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором (T19). */
 const IDLE_MS = 2500;
-/** Строки плеера — в одном месте, до слоя переводов (E14). */
-const TEXT = {
-  adSkipped: 'Реклама пропущена для всех',
-  next: 'Следующая серия',
-  nextPlay: 'Включить следующую для всех',
-  nextLocked: 'Включит тот, кому ведущий разрешил кинозал',
-} as const;
 
 /** Сколько висит на кадре отклик клавиши («+10 с») или подсказка, почему она не сработала. */
 const HINT_MS = 1800;
@@ -65,6 +60,7 @@ export function WatchTheater({
   /** Открыть каталог, не закрывая просмотр. */
   onBrowse?: () => void;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const preferences = useStore(meeting.media.preferences);
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
@@ -166,7 +162,7 @@ export function WatchTheater({
   /** Клавиши плеера (T20): решает `watch-keys.ts`, здесь — только исполнение. */
   const act = (action: WatchAction) => {
     if (action.type === 'toggle') {
-      const toggle = playToggle({ paused: watch.paused, over: sync.over, playing });
+      const toggle = playToggle(t, { paused: watch.paused, over: sync.over, playing });
       command(toggle.command);
       say(toggle.label);
     } else if (action.type === 'seek') {
@@ -211,7 +207,8 @@ export function WatchTheater({
       // Комнату уже увёл кто-то раньше в очереди — второй раз не шлём.
       if (room < adStart || room >= adEnd - 0.5) return;
       now.command('watch.seek', Math.round(adEnd * 1000));
-      now.say(TEXT.adSkipped);
+      // Текст рождается по таймеру, вне отрисовки, — глобальным переводом.
+      now.say(translate(($) => $.cinema.theater.adSkipped));
     }, rank * SKIP_STEP_MS);
     return () => clearTimeout(timer);
   }, [adStart, adEnd, canControl, watch.paused, rank, meeting]);
@@ -244,7 +241,7 @@ export function WatchTheater({
   return (
     <section
       className="watch-theater"
-      aria-label="Совместный просмотр"
+      aria-label={t(($) => $.cinema.theater.label)}
       ref={screen}
       data-idle={showControls ? undefined : 'true'}
       data-full={targetFull ? 'true' : undefined}
@@ -265,7 +262,7 @@ export function WatchTheater({
             if (press === 'wake') wake();
             // Как кнопка «играть/пауза»: досмотренный ролик кадр включает заново, а не «ставит на паузу».
             if (press === 'toggle')
-              command(playToggle({ paused: watch.paused, over: sync.over, playing }).command);
+              command(playToggle(t, { paused: watch.paused, over: sync.over, playing }).command);
           }}
           onPlay={() => {
             setPlaying(true);
@@ -314,20 +311,20 @@ export function WatchTheater({
           </div>
         )}
         {status === 'ready' && waiting && playing && (
-          <div className="watch-buffering" role="status" aria-label="Загружаем">
+          <div className="watch-buffering" role="status" aria-label={t(($) => $.cinema.theater.buffering)}>
             <LoaderCircle size={34} />
           </div>
         )}
         {next && due && (
           <div className="watch-next">
-            <small>{TEXT.next}</small>
+            <small>{t(($) => $.cinema.theater.next)}</small>
             <b>{next.title}</b>
             {canOpen ? (
               <button className="button primary" onClick={openNext}>
-                <SkipForward size={16} /> {TEXT.nextPlay}
+                <SkipForward size={16} /> {t(($) => $.cinema.theater.nextPlay)}
               </button>
             ) : (
-              <small>{TEXT.nextLocked}</small>
+              <small>{t(($) => $.cinema.theater.nextLocked)}</small>
             )}
           </div>
         )}
@@ -341,7 +338,7 @@ export function WatchTheater({
             {status === 'loading' && (
               <span className="watch-loading">
                 <LoaderCircle size={30} />
-                Открываем…
+                {t(($) => $.cinema.theater.opening)}
               </span>
             )}
             {status === 'blocked' && (
@@ -353,7 +350,7 @@ export function WatchTheater({
                   setStatus('ready');
                 }}
               >
-                <Play size={18} /> Смотреть вместе
+                <Play size={18} /> {t(($) => $.cinema.theater.start)}
               </button>
             )}
             {status === 'failed' && <span className="watch-error">{error}</span>}

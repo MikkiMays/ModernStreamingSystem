@@ -1,4 +1,5 @@
-import { PROVIDER_IDS, PROVIDERS, type ProviderId } from './providers';
+import type { Translate } from '../../i18n';
+import { PROVIDER_IDS, providerName, type ProviderId } from './providers';
 import type { CinemaAt, CinemaItem, CinemaKind, CinemaRoute } from './types';
 
 /**
@@ -61,13 +62,17 @@ export function atOf(route: CinemaRoute): CinemaAt {
  * страницы ролика (`details`), а если площадка молчит — остаётся это, и «Смотреть вместе» работает
  * всё равно: поток служба разбирает и без каталога площадки.
  */
-export function linkCard(provider: ProviderId, at: { kind: CinemaKind; id: string }): CinemaItem {
+export function linkCard(
+  t: Translate,
+  provider: ProviderId,
+  at: { kind: CinemaKind; id: string },
+): CinemaItem {
   const live = at.kind === 'channel';
   return {
     provider,
     kind: at.kind,
     id: at.id,
-    title: live ? streamTitle(provider, at.id) : videoTitle(provider),
+    title: live ? streamTitle(t, provider, at.id) : videoTitle(t, provider),
     author: '',
     channelId: null,
     duration: null,
@@ -79,16 +84,16 @@ export function linkCard(provider: ProviderId, at: { kind: CinemaKind; id: strin
 }
 
 /** Эфир по имени канала узнают по имени; эфир Rutube — по номеру ролика, и номер ничего не скажет. */
-function streamTitle(provider: ProviderId, id: string): string {
-  if (provider === 'vk') return `Эфир VK Видео Live: ${id}`;
-  if (provider === 'twitch') return `Эфир Twitch: ${id}`;
-  return `Эфир ${PROVIDERS[provider].name} по ссылке`;
+function streamTitle(t: Translate, provider: ProviderId, id: string): string {
+  if (provider === 'vk') return t(($) => $.cinema.linkCard.vkStream, { id });
+  if (provider === 'twitch') return t(($) => $.cinema.linkCard.twitchStream, { id });
+  return t(($) => $.cinema.linkCard.stream, { name: providerName(t, provider) });
 }
 
-function videoTitle(provider: ProviderId): string {
-  if (provider === 'twitch') return 'Запись Twitch по ссылке';
+function videoTitle(t: Translate, provider: ProviderId): string {
+  if (provider === 'twitch') return t(($) => $.cinema.linkCard.twitchVideo);
   // «Видео VK», а не «Видео VK Видео».
-  return `Видео ${provider === 'vk' ? 'VK' : PROVIDERS[provider].name} по ссылке`;
+  return t(($) => $.cinema.linkCard.video, { name: provider === 'vk' ? 'VK' : providerName(t, provider) });
 }
 
 /**

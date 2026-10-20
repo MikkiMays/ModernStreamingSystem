@@ -31,8 +31,18 @@ dirty=$(git status --porcelain --untracked-files=no -- . ':!backlog' | head -1)
 exec 9>"$LOCK"
 flock -w 1800 9 || { echo "Другая выкатка держит $LOCK дольше 30 минут" >&2; exit 1; }
 
+# Без bake: compose 2.x отдаёт сборку BuildKit-у через bake, и под нагрузкой тот теряет задание
+# («NotFound: forwarding Ping: no such job») — сборка падает на ровном месте.
+export COMPOSE_BAKE=false
 echo "== сборка $* (коммит $head)"
-CORD_BUILD=$head docker compose build "$@"
+# Сеть хоста время от времени рвётся посреди загрузки (Maven, Go, npm — 19–20.10.2026); слои,
+# собранные до обрыва, остаются в кэше, поэтому повтор стоит минут, а не часа.
+for attempt in 1 2 3; do
+  CORD_BUILD=$head docker compose build "$@" && break
+  ((attempt < 3)) || { echo "Сборка не удалась трижды" >&2; exit 1; }
+  echo "== сборка упала (попытка $attempt) — повтор через 30 с" >&2
+  sleep 30
+done
 # Ядро — первым и отдельно: шлюз и службы ждут его здоровья (`depends_on: service_healthy`) даже
 # при `--no-deps`, если оно в той же команде, а на перегруженной машине Spring поднимается и за 14
 # минут. Каждая служба поднимается и ждётся по очереди.

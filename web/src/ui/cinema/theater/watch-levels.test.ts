@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../../../i18n';
 import { levelLabel, qualities, type Level } from './watch-levels';
 
 const level = (height: number, bitrate: number, fps = 25): Level => ({
@@ -30,17 +31,24 @@ const youtube: Level[] = [
 describe('меню качества', () => {
   it('одна запись на высоту, а не по одной на кодек', () => {
     // Жалоба была ровно про это: «постоянно дублирующиеся записи».
-    expect(qualities(youtube).map((q) => q.label)).toEqual(['1080p', '720p', '480p', '360p', '240p', '144p']);
+    expect(qualities(t, youtube).map((q) => q.label)).toEqual([
+      '1080p',
+      '720p',
+      '480p',
+      '360p',
+      '240p',
+      '144p',
+    ]);
   });
 
   it('не выбирает худший битрейт у неизвестного кодека', () => {
-    const chosen = qualities(youtube).find((q) => q.label === '1080p');
+    const chosen = qualities(t, youtube).find((q) => q.label === '1080p');
     expect(chosen?.level).toBe(6);
   });
 
   it('сохраняет выбор кодека и лучший битрейт в каждой группе', () => {
     expect(
-      qualities([
+      qualities(t, [
         { ...level(1440, 3_000_000), videoCodec: 'av01.0.12M.08' },
         { ...level(1440, 2_000_000), videoCodec: 'av01.0.12M.08' },
         { ...level(1440, 6_000_000), videoCodec: 'avc1.640032' },
@@ -52,17 +60,17 @@ describe('меню качества', () => {
   });
 
   it('шестьдесят кадров — это отдельное качество, а не то же самое', () => {
-    const list = qualities([level(1080, 3_000_000, 30), level(1080, 5_000_000, 60)]);
+    const list = qualities(t, [level(1080, 3_000_000, 30), level(1080, 5_000_000, 60)]);
     expect(list.map((q) => q.label)).toEqual(['1080p60', '1080p']);
   });
 
   it('поток без высоты называется битрейтом, а не пустотой', () => {
-    expect(levelLabel({ bitrate: 800_000 })).toBe('800 кбит/с');
-    expect(levelLabel({})).toBe('Как есть');
-    expect(levelLabel(undefined)).toBe('');
+    expect(levelLabel(t, { bitrate: 800_000 })).toBe('800 кбит/с');
+    expect(levelLabel(t, {})).toBe('Как есть');
+    expect(levelLabel(t, undefined)).toBe('');
   });
 
   it('один уровень — один выбор', () => {
-    expect(qualities([level(720, 1_000_000)])).toEqual([{ level: 0, label: '720p' }]);
+    expect(qualities(t, [level(720, 1_000_000)])).toEqual([{ level: 0, label: '720p' }]);
   });
 });

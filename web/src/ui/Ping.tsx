@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { readPreferences } from '../core/preferences';
 import { Store } from '../core/store';
@@ -19,6 +20,7 @@ const noVideo = new Store<OutboundVideo | null>(null);
  * запрошенные; если они не сходятся с настройкой — это и есть ответ.
  */
 export function Ping({ meeting }: { meeting?: Meeting | null }) {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(() => readPreferences().showPing);
   const [http, setHttp] = useState<number | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -71,27 +73,34 @@ export function Ping({ meeting }: { meeting?: Meeting | null }) {
   if (!enabled) return null;
   const disconnected = meeting ? control === 'recovering' || control === 'closed' : offline;
   const value = meeting ? rtt : http;
-  const note = video ? outboundNote(video) : '';
+  const note = video ? outboundNote(t, video) : '';
   return (
     <div
       className="ping-badge"
       role="status"
       title={
         video
-          ? `Задержка управляющего канала и то, что уходит в сеть с ${video.source === 'screen' ? 'экрана' : 'камеры'}`
+          ? video.source === 'screen'
+            ? t(($) => $.media.ping.screenTitle)
+            : t(($) => $.media.ping.cameraTitle)
           : meeting
-            ? 'RTT управляющего WebSocket'
-            : 'Время ответа сервера /api/v1/ping'
+            ? t(($) => $.media.ping.controlTitle)
+            : t(($) => $.media.ping.httpTitle)
       }
     >
-      PING · {disconnected ? 'Нет связи' : value === null ? '—' : `${value} мс`}
+      PING ·{' '}
+      {disconnected
+        ? t(($) => $.media.ping.offline)
+        : value === null
+          ? '—'
+          : t(($) => $.media.ping.ms, { value })}
       {video && video.width > 0 && (
         <>
           {' · '}
           {video.width}×{video.height}
           {' · '}
           {video.fps} fps
-          {video.mbps > 0 && ` · ${video.mbps.toFixed(1)} Мбит/с`}
+          {video.mbps > 0 && ` · ${t(($) => $.media.ping.mbps, { value: video.mbps.toFixed(1) })}`}
           {note && <span className="ping-limited"> · {note}</span>}
         </>
       )}

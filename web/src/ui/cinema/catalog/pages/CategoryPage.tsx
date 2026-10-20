@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Gamepad2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { viewers, type CinemaItem } from '../../../../core/cinema';
 import { More } from '../More';
 import { Empty, Failure, Loading } from '../notes';
@@ -25,6 +26,8 @@ export function CategoryPage({
   items: CinemaItem[];
   card: (item: CinemaItem) => ReactNode;
 }) {
+  const { t } = useTranslation();
+  const watching = viewers(t, category?.viewers);
   return (
     <>
       <header className="cinema-category-head">
@@ -37,9 +40,7 @@ export function CategoryPage({
         )}
         <div>
           <h3>{category?.title || title}</h3>
-          <small>
-            {viewers(category?.viewers) ? `${viewers(category?.viewers)} смотрят прямо сейчас` : note}
-          </small>
+          <small>{watching ? t(($) => $.cinema.meta.watchingNow, { value: watching }) : note}</small>
         </div>
       </header>
       {feed.isError && <Failure problem={feed.error} />}
@@ -50,7 +51,7 @@ export function CategoryPage({
         busy={feed.isFetchingNextPage}
         onMore={() => void feed.fetchNextPage()}
       />
-      {!feed.isFetching && items.length === 0 && <Empty text="В этом разделе сейчас никто не в эфире." />}
+      {!feed.isFetching && items.length === 0 && <Empty text={t(($) => $.cinema.category.empty)} />}
     </>
   );
 }

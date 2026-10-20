@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { LoaderCircle, Plus, Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type PlatformTrack, type YandexTrack } from '../core/services';
 import { IconButton } from './kit';
 import { classifyQuery, formatDuration } from './music-playback';
@@ -40,8 +41,6 @@ export interface MusicSearchAbilities {
   } | null;
 }
 
-const NOT_OURS = 'Такие ссылки музыка не открывает. Подойдут YouTube, SoundCloud и Яндекс Музыка';
-
 /**
  * Одно поле на все источники (T18): название — поиск сразу везде, ссылка — сразу в очередь.
  *
@@ -60,6 +59,7 @@ export function MusicSearch({
   /** Под полем: загрузка файлов. */
   children?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const [query, setQuery] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
@@ -79,7 +79,11 @@ export function MusicSearch({
   };
   const added = (state: MusicState, title?: string) => {
     onAdded(state);
-    setNotice(`Добавлено: ${title ?? state.queue.at(-1)?.title ?? 'трек'}`);
+    setNotice(
+      t(($) => $.music.search.added, {
+        title: title ?? state.queue.at(-1)?.title ?? t(($) => $.music.search.track),
+      }),
+    );
   };
   const platformFound = (track: PlatformTrack): Found => ({
     key: track.url,
@@ -88,11 +92,11 @@ export function MusicSearch({
     duration: track.duration,
     refusal: !track.available
       ? track.source === 'soundcloud' && track.duration === 30
-        ? 'Только фрагмент'
-        : 'Не добавить'
+        ? t(($) => $.music.search.refusals.preview)
+        : t(($) => $.music.search.refusals.unavailable)
       : addLink
         ? null
-        : 'Нет прав',
+        : t(($) => $.music.search.refusals.denied),
     add: () => addLink!(track.url),
   });
   const yandexFound = (track: YandexTrack): Found => ({
@@ -100,7 +104,11 @@ export function MusicSearch({
     title: track.title,
     artist: track.artist,
     duration: track.duration,
-    refusal: !track.available ? 'Недоступен' : yandex?.add ? null : 'Нет прав',
+    refusal: !track.available
+      ? t(($) => $.music.search.refusals.unavailableYandex)
+      : yandex?.add
+        ? null
+        : t(($) => $.music.search.refusals.denied),
     add: () => yandex!.add!(track.id),
   });
   const run = (sources: Searchable[], text: string) => {
@@ -133,21 +141,20 @@ export function MusicSearch({
     if (what.kind === 'empty') return reset();
     if (what.kind === 'foreign') {
       reset();
-      setError(NOT_OURS);
+      setError(t(($) => $.music.search.notOurs));
       return;
     }
     if (what.kind === 'link') {
       const source = what.source;
       if (source === 'yandex') {
-        if (!yandex) return setError('Яндекс Музыка на этом сервере выключена');
-        if (!yandex.connected)
-          return setError('Чтобы добавить трек Яндекс Музыки, подключите аккаунт комнаты ниже');
+        if (!yandex) return setError(t(($) => $.music.search.yandexOff));
+        if (!yandex.connected) return setError(t(($) => $.music.search.yandexConnect));
         return run(['yandex'], what.url);
       }
       reset();
-      if (!addLink) return setError('Добавлять треки организатор разрешил только себе');
+      if (!addLink) return setError(t(($) => $.music.search.locked));
       if (!platforms.includes(source))
-        return setError(`Ссылки ${musicSourceName(source)} на этом сервере выключены`);
+        return setError(t(($) => $.music.search.sourceOff, { name: musicSourceName(t, source) }));
       setLinking(true);
       try {
         added(await addLink(what.url));
@@ -161,9 +168,7 @@ export function MusicSearch({
     }
     const sources: Searchable[] = [...(yandex?.connected ? (['yandex'] as const) : []), ...searchable];
     if (!sources.length) {
-      setError(
-        yandex ? 'Подключите Яндекс Музыку ниже, чтобы искать треки' : 'Поиск на этом сервере выключен',
-      );
+      setError(yandex ? t(($) => $.music.search.connectToSearch) : t(($) => $.music.search.searchOff));
       return;
     }
     run(sources, what.text);
@@ -187,7 +192,7 @@ export function MusicSearch({
     <div className="music-search">
       <form className="music-search__form" role="search" onSubmit={submit}>
         <label className="music-search__label" htmlFor={`${id}-query`}>
-          {canFind ? 'Найти трек или вставить ссылку' : 'Вставить ссылку на трек'}
+          {canFind ? t(($) => $.music.search.labelFind) : t(($) => $.music.search.labelLink)}
         </label>
         <div className="music-search__field">
           <Search size={16} className="music-search__icon" aria-hidden="true" />
@@ -199,7 +204,9 @@ export function MusicSearch({
             autoComplete="off"
             maxLength={300}
             value={query}
-            placeholder={canFind ? 'Название, исполнитель или ссылка' : 'Ссылка YouTube или SoundCloud'}
+            placeholder={
+              canFind ? t(($) => $.music.search.placeholderFind) : t(($) => $.music.search.placeholderLink)
+            }
             onChange={(e) => {
               setQuery(e.target.value);
               if (!e.target.value) reset();
@@ -208,7 +215,7 @@ export function MusicSearch({
           {query && !linking && (
             <IconButton
               size="sm"
-              label="Очистить поиск"
+              label={t(($) => $.music.search.clear)}
               className="music-search__clear"
               onClick={() => {
                 setQuery('');
@@ -220,7 +227,11 @@ export function MusicSearch({
             </IconButton>
           )}
           {linking && (
-            <LoaderCircle size={16} className="spin music-search__busy" aria-label="Добавляем трек" />
+            <LoaderCircle
+              size={16}
+              className="spin music-search__busy"
+              aria-label={t(($) => $.music.search.adding)}
+            />
           )}
         </div>
       </form>
@@ -239,16 +250,18 @@ export function MusicSearch({
         <section
           key={group.source}
           className="music-results"
-          aria-label={`Найдено: ${musicSourceName(group.source)}`}
+          aria-label={t(($) => $.music.search.found, { name: musicSourceName(t, group.source) })}
         >
           <h5 className="music-results__source">
-            {musicSourceName(group.source)}
-            {group.status === 'loading' && <LoaderCircle size={12} className="spin" aria-label="Ищем" />}
+            {musicSourceName(t, group.source)}
+            {group.status === 'loading' && (
+              <LoaderCircle size={12} className="spin" aria-label={t(($) => $.music.search.searching)} />
+            )}
           </h5>
           {group.status === 'error' ? (
-            <p className="music-results__empty">{group.error || 'Площадка не ответила'}</p>
+            <p className="music-results__empty">{group.error || t(($) => $.music.search.noAnswer)}</p>
           ) : group.status === 'done' && !group.found.length ? (
-            <p className="music-results__empty">Ничего не нашлось</p>
+            <p className="music-results__empty">{t(($) => $.music.search.nothing)}</p>
           ) : (
             <ol className="music-results__list">
               {group.found.map((item) => (
@@ -266,7 +279,7 @@ export function MusicSearch({
                     <IconButton
                       size="sm"
                       className="music-results__add"
-                      label={`Добавить в очередь: ${item.title}`}
+                      label={t(($) => $.music.search.add, { title: item.title })}
                       disabled={!!adding || linking}
                       onClick={() => void add(item)}
                     >

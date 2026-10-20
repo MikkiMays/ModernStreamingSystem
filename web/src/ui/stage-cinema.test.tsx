@@ -85,7 +85,8 @@ const stage = (room: Meeting) =>
 it('комната смотрит незнакомую площадку: плеер говорит отказ службы, «Каталога» у него нет', async () => {
   const room = meeting(watching('jellyfin'));
   stage(room);
-  expect(await screen.findByText(REFUSAL, undefined, { timeout: 5000 })).toBeVisible();
+  // Первый тест файла грузит ленивый плеер с нуля: на занятой машине это 5–11 с, следующим — доли секунды.
+  expect(await screen.findByText(REFUSAL, undefined, { timeout: 30_000 })).toBeVisible();
   expect(screen.getByRole('region', { name: 'Совместный просмотр' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Каталог' })).toBeNull();
 });

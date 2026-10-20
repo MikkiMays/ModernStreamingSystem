@@ -3,6 +3,7 @@ import type { Watch } from '../../../api/types';
 import type { CinemaApi } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import type { Preferences } from '../../../core/preferences';
+import { t } from '../../../i18n';
 import type { AdBreak } from './ad-breaks';
 import { attachDash } from './engines/dash';
 import { attachFile } from './engines/file';
@@ -132,7 +133,7 @@ export function usePlayback({
     } else if (element.canPlayType('application/vnd.apple.mpegurl')) {
       playback.current = attachFile(element, source.url);
     } else {
-      fail('Этот браузер не умеет играть потоковое видео');
+      fail(t(($) => $.cinema.theater.errors.unsupported));
     }
     return () => {
       alive = false;
@@ -158,7 +159,7 @@ export function usePlayback({
     if (player.status !== 'failed' && source?.kind === 'file') {
       if (player.fileFailed()) return;
       setStatus('failed');
-      setError('Поток не открылся. Попробуйте другое видео');
+      setError(t(($) => $.cinema.theater.errors.streamFailed));
     }
   };
 

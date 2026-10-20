@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /**
  * What this device remembers about the server it is on.
  *
@@ -28,19 +30,19 @@ export function currentServerUrl(): string {
 /** Mirrors `ServerEndpoint.Parse` in the Windows client so one address cannot become two. */
 export function normalizeServerUrl(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed) throw new Error('Укажите адрес сервера');
+  if (!trimmed) throw new Error(t(($) => $.connect.address.empty));
   let url: URL;
   try {
     url = new URL(/^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`);
   } catch {
-    throw new Error('Адрес не похож на ссылку. Пример: https://meet.example.com');
+    throw new Error(t(($) => $.connect.address.notUrl));
   }
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (url.username || url.password) throw new Error('Уберите имя и пароль из адреса');
+  if (url.username || url.password) throw new Error(t(($) => $.connect.address.credentials));
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback))
-    throw new Error('Адрес должен начинаться с https://. HTTP допустим только для localhost');
+    throw new Error(t(($) => $.connect.address.https));
   if ((url.pathname && url.pathname !== '/') || url.search || url.hash)
-    throw new Error('Укажите только адрес сервера, без пути после имени');
+    throw new Error(t(($) => $.connect.address.path));
   return url.origin + '/';
 }
 

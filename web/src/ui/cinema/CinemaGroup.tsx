@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../../core/meeting';
-import { CinemaApi, PROVIDERS } from '../../core/cinema';
+import { CinemaApi, PROVIDERS, providerName } from '../../core/cinema';
 import { allowed } from '../../core/permissions';
 import { useStore } from '../primitives';
 import { useProviders } from './useProviders';
@@ -20,6 +21,7 @@ import { useProviders } from './useProviders';
  * на этой установке, не рисуется вовсе — любая её кнопка отвечала бы «выключена на этом сервере».
  */
 export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () => void }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const cinema = useStore(meeting.cinema);
   const canUse = allowed(snapshot, meeting.admission.participantId, 'watch.close');
@@ -32,19 +34,19 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
   return (
     <div className="cinema-group">
       <button className="text-button cinema-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Интеграции
+        <ArrowLeft size={16} /> {t(($) => $.cinema.group.back)}
       </button>
       {watch && (
         <div className="cinema-open-now">
           <p>
-            Сейчас смотрим: <b>{watch.title ?? watch.contentId}</b>
+            {t(($) => $.cinema.group.watching)} <b>{watch.title ?? watch.contentId}</b>
           </p>
           {canUse && (
             <button
               className="button"
               onClick={() => void meeting.command('watch.close').catch((e) => setError((e as Error).message))}
             >
-              <X size={16} /> Закрыть для всех
+              <X size={16} /> {t(($) => $.cinema.group.closeForAll)}
             </button>
           )}
         </div>
@@ -65,25 +67,27 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
                 <provider.icon size={22} />
               </span>
               <span>
-                <b>{provider.name}</b>
+                <b>{providerName(t, id)}</b>
                 {/* Почему площадка недоступна — строкой на самой плитке, на месте подсказки:
                     подсказку по наведению палец не покажет никогда, а серая плитка без
                     объяснения выглядит поломкой. */}
-                <small>{available ? provider.hint : entry?.reason || 'Сейчас недоступна'}</small>
+                <small>
+                  {available
+                    ? t(($) => $.cinema.providers[id].hint)
+                    : entry?.reason || t(($) => $.cinema.group.unavailable)}
+                </small>
               </span>
             </button>
           );
         })}
       </div>
-      {!providers.listed.length && (
-        <p className="form-footnote">Площадки кинозала на этом сервере выключены.</p>
-      )}
+      {!providers.listed.length && <p className="form-footnote">{t(($) => $.cinema.group.noProviders)}</p>}
       {cinema && (
         <button className="button secondary full" onClick={() => meeting.openCinema(null)}>
-          <X size={17} /> Закрыть каталог
+          <X size={17} /> {t(($) => $.cinema.group.closeCatalog)}
         </button>
       )}
-      {!canUse && <p className="form-footnote">Ведущий разрешил включать и останавливать только себе.</p>}
+      {!canUse && <p className="form-footnote">{t(($) => $.cinema.group.locked)}</p>}
       {error && (
         <p className="form-error" role="alert">
           {error}

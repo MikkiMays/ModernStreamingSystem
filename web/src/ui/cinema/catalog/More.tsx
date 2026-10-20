@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Конец ленты, который сам просит продолжения.
@@ -10,6 +11,7 @@ import { LoaderCircle } from 'lucide-react';
  * порция успела приехать до того, как в ленте кончатся карточки.
  */
 export function More({ shown, busy, onMore }: { shown: boolean; busy: boolean; onMore: () => void }) {
+  const { t } = useTranslation();
   const [node, setNode] = useState<HTMLButtonElement | null>(null);
   const latest = useRef(onMore);
   latest.current = onMore;
@@ -28,7 +30,7 @@ export function More({ shown, busy, onMore }: { shown: boolean; busy: boolean; o
   return (
     <button ref={setNode} className="cinema-more" disabled={busy} onClick={onMore}>
       {busy ? <LoaderCircle size={17} /> : null}
-      {busy ? 'Загружаем…' : 'Показать ещё'}
+      {busy ? t(($) => $.cinema.more.loading) : t(($) => $.cinema.more.show)}
     </button>
   );
 }

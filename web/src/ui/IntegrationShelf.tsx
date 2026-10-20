@@ -1,9 +1,10 @@
 import { ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Soon } from './kit';
-import { SHELF, telegramNote, type ShelfId, type ShelfItem } from './integration-shelf';
+import { SHELF, shelfHint, shelfName, telegramNote, type ShelfId, type ShelfItem } from './integration-shelf';
 
 export interface ShelfView {
-  /** Подсказка вместо записанной в `SHELF` (у музыки — включённые источники). */
+  /** Подсказка вместо обычной (`shelfHint`; у музыки — включённые источники). */
   hints?: Partial<Record<ShelfId, string>>;
   /** Что идёт сейчас — строкой под подсказкой («Играет», «Покер: игра идёт»). */
   live?: Partial<Record<ShelfId, string>>;
@@ -27,6 +28,7 @@ export function IntegrationShelf({
   canLinkTelegram,
   onOpen,
 }: ShelfView) {
+  const { t } = useTranslation();
   const ready = SHELF.filter((item) => !item.soon);
   const soon = SHELF.filter((item) => item.soon && !item.apart);
   const apart = SHELF.filter((item) => item.apart);
@@ -47,9 +49,11 @@ export function IntegrationShelf({
           <item.icon size={22} />
         </span>
         <span className="service-group__text">
-          <b>{item.name}</b>
+          <b>{shelfName(t, item.id)}</b>
           <small>
-            {blocked ? `Сейчас активна другая интеграция — ${blocked}` : (hints[item.id] ?? item.hint)}
+            {blocked
+              ? t(($) => $.integrations.blocked, { name: blocked })
+              : (hints[item.id] ?? shelfHint(t, item.id))}
           </small>
           {now && <span className="service-group__live">{now}</span>}
         </span>
@@ -59,7 +63,7 @@ export function IntegrationShelf({
   };
 
   const soonCard = (item: ShelfItem) => {
-    const note = item.id === 'telegram' ? telegramNote(canLinkTelegram) : null;
+    const note = item.id === 'telegram' ? telegramNote(t, canLinkTelegram) : null;
     return (
       <li key={item.id} className="service-group service-group--soon">
         <span className="service-group__icon" aria-hidden="true">
@@ -67,10 +71,10 @@ export function IntegrationShelf({
         </span>
         <span className="service-group__text">
           <span className="service-group__name">
-            <b>{item.name}</b>
+            <b>{shelfName(t, item.id)}</b>
             <Soon />
           </span>
-          <small>{item.hint}</small>
+          <small>{shelfHint(t, item.id)}</small>
           {note && <small className="service-group__note">{note}</small>}
         </span>
       </li>
@@ -79,12 +83,15 @@ export function IntegrationShelf({
 
   return (
     <div className="integration-shelf">
-      <h3 className="integration-shelf__title">Что добавить во встречу</h3>
+      <h3 className="integration-shelf__title">{t(($) => $.integrations.title)}</h3>
       <div className="integration-shelf__ready">{ready.map(readyCard)}</div>
-      <ul className="integration-shelf__soon" aria-label="Скоро в Cord">
+      <ul className="integration-shelf__soon" aria-label={t(($) => $.integrations.soon)}>
         {soon.map(soonCard)}
       </ul>
-      <ul className="integration-shelf__soon integration-shelf__apart" aria-label="Связь с беседой">
+      <ul
+        className="integration-shelf__soon integration-shelf__apart"
+        aria-label={t(($) => $.integrations.apart)}
+      >
         {apart.map(soonCard)}
       </ul>
     </div>

@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { ApiError } from '../../../api/client';
+import { t } from '../../../i18n';
 import { Failure, problemText } from './notes';
 
 /*
@@ -17,18 +18,18 @@ it('обрыв сети — по-русски, какими бы словами 
     'Load failed',
     'Network request failed',
   ])
-    expect(problemText(new TypeError(message))).toBe('Нет связи с сервером — попробуйте ещё раз');
-  expect(problemText(new DOMException('signal timed out', 'TimeoutError'))).toBe(
+    expect(problemText(t, new TypeError(message))).toBe('Нет связи с сервером — попробуйте ещё раз');
+  expect(problemText(t, new DOMException('signal timed out', 'TimeoutError'))).toBe(
     'Сервер не ответил вовремя — попробуйте ещё раз',
   );
 });
 
 it('отказ службы остаётся её словами, а прочие ошибки — своим текстом', () => {
-  expect(problemText(new ApiError(429, 'REQUEST_FAILED', 'Комната слишком часто разбирает ссылки'))).toBe(
+  expect(problemText(t, new ApiError(429, 'REQUEST_FAILED', 'Комната слишком часто разбирает ссылки'))).toBe(
     'Комната слишком часто разбирает ссылки',
   );
-  expect(problemText(new TypeError('x is not a function'))).toBe('x is not a function');
-  expect(problemText(null)).toBe('Не удалось выполнить запрос');
+  expect(problemText(t, new TypeError('x is not a function'))).toBe('x is not a function');
+  expect(problemText(t, null)).toBe('Не удалось выполнить запрос');
 });
 
 it('Failure показывает то же, что problemText', () => {

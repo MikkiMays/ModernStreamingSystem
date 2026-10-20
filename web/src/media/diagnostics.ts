@@ -1,7 +1,14 @@
 import type { Track } from 'livekit-client';
+import { t } from '../i18n';
 
+/**
+ * Замер одной дорожки. Подписи (`direction`, `transport`, `codec`, `implementation`) рождаются в
+ * момент замера — раз в секунду, вне отрисовки, — поэтому глобальным переводом (`diagnostics.sampler`).
+ */
 export interface Sample {
   kind: 'audio' | 'video';
+  /** Своя передача, а не получение: от этого зависят подписи, а не от слов `direction`. */
+  outbound: boolean;
   direction: string;
   width: number;
   height: number;
@@ -72,8 +79,8 @@ export class StatsSampler {
       const protocol =
         local?.candidateType === 'relay' ? local.relayProtocol : (local?.protocol ?? remote?.protocol);
       const transport = pair
-        ? `${relay ? 'TURN' : 'Прямой к SFU'} · ${typeof protocol === 'string' ? protocol.toUpperCase() : 'протокол не раскрыт'}`
-        : 'Не определено';
+        ? `${relay ? 'TURN' : t(($) => $.diagnostics.sampler.direct)} · ${typeof protocol === 'string' ? protocol.toUpperCase() : t(($) => $.diagnostics.sampler.protocolHidden)}`
+        : t(($) => $.diagnostics.sampler.unknownTransport);
       const current: Counters = {
         timestamp: stat.timestamp,
         bytes: Number(stat.bytesReceived ?? stat.bytesSent ?? 0),
@@ -98,7 +105,10 @@ export class StatsSampler {
       const packets = prior ? Math.max(0, current.received - prior.received) : 0;
       result.push({
         kind: stat.kind ?? stat.mediaType,
-        direction: receiving ? 'Получение' : 'Передача',
+        outbound: !receiving,
+        direction: receiving
+          ? t(($) => $.diagnostics.sampler.inbound)
+          : t(($) => $.diagnostics.sampler.outbound),
         width: Number(stat.frameWidth ?? 0),
         height: Number(stat.frameHeight ?? 0),
         fps: dt > 0 ? frames / dt : 0,
@@ -110,11 +120,12 @@ export class StatsSampler {
         limitation: String(stat.qualityLimitationReason ?? (receiving ? 'unknown' : 'none')),
         transport,
         rttMs: finite(pair?.currentRoundTripTime) === undefined ? null : pair.currentRoundTripTime * 1000,
-        codec: String(report.get(stat.codecId)?.mimeType ?? 'Не раскрыт'),
+        codec: String(report.get(stat.codecId)?.mimeType ?? t(($) => $.diagnostics.sampler.codecHidden)),
         processingMs: averageMs(current.processing, prior?.processing, frames),
         bufferMs: averageMs(current.buffer, prior?.buffer, (current.emitted ?? 0) - (prior?.emitted ?? 0)),
         implementation: String(
-          (receiving ? stat.decoderImplementation : stat.encoderImplementation) ?? 'Не раскрыт браузером',
+          (receiving ? stat.decoderImplementation : stat.encoderImplementation) ??
+            t(($) => $.diagnostics.sampler.implementationHidden),
         ),
         at: stat.timestamp,
       });

@@ -1,4 +1,5 @@
 import { Settings2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Destination } from '../core/invitation';
 import { IconButton } from './kit';
 import { HomeEntry } from './HomeEntry';
@@ -12,9 +13,14 @@ export function DesktopHome({
   onCreate: () => void;
   onJoin: (destination: Destination) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <main className="desktop-home">
-      <IconButton label="Настройки звука и профиля" className="desktop-home-settings" onClick={onSettings}>
+      <IconButton
+        label={t(($) => $.download.desktop.settings)}
+        className="desktop-home-settings"
+        onClick={onSettings}
+      >
         <Settings2 size={18} />
       </IconButton>
       <HomeEntry className="desktop-connect" onCreate={onCreate} onJoin={onJoin} />

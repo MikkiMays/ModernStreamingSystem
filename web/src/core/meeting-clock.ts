@@ -1,3 +1,5 @@
+import type { Translate } from '../i18n';
+
 /**
  * Время встречи в шапке (T35, П7).
  *
@@ -28,11 +30,13 @@ export function formatDuration(ms: number): string {
 }
 
 /** Для диктора и подсказки: «1 ч 5 мин», «12 мин», «меньше минуты». */
-export function spokenDuration(ms: number): string {
+export function spokenDuration(t: Translate, ms: number): string {
   const minutes = Math.floor(Math.max(0, ms) / 60000);
-  if (minutes < 1) return 'меньше минуты';
+  if (minutes < 1) return t(($) => $.meeting.clock.lessThanMinute);
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  if (!hours) return `${rest} мин`;
-  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+  if (!hours) return t(($) => $.meeting.clock.minutes, { minutes: rest });
+  return rest
+    ? t(($) => $.meeting.clock.hoursMinutes, { hours, minutes: rest })
+    : t(($) => $.meeting.clock.hours, { hours });
 }

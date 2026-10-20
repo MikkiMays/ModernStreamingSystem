@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Watch } from '../../../api/types';
 import type { CinemaApi, CinemaSource } from '../../../core/cinema';
+import { t } from '../../../i18n';
 import type { Echo } from './useRoomSync';
 
 export type Status = 'loading' | 'ready' | 'blocked' | 'failed';
@@ -48,7 +49,7 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
       .catch((e: unknown) => {
         if (!alive) return;
         setStatus('failed');
-        setError((e as Error).message || 'Не удалось открыть видео');
+        setError((e as Error).message || t(($) => $.cinema.theater.errors.openFailed));
       });
     return () => {
       alive = false;
@@ -75,7 +76,7 @@ export function useSource(api: CinemaApi, watch: Watch, echo: Echo, renewed: () 
       } catch (e) {
         if (generation === sourceGeneration.current) {
           setStatus('failed');
-          setError((e as Error).message || 'Не удалось обновить поток');
+          setError((e as Error).message || t(($) => $.cinema.theater.errors.renewFailed));
         }
       } finally {
         if (generation === sourceGeneration.current) refreshing.current = false;

@@ -11,6 +11,7 @@ import type {
 import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import type { Challenge } from '../core/proof-solve';
+import { errorText, t } from '../i18n';
 
 export class ApiError extends Error {
   constructor(
@@ -53,15 +54,16 @@ export function useSession(token?: string) {
 /**
  * Отказ сервера словами для человека.
  *
- * Строку `detail` пишут ядро и служба сами — её и показываем. Но FastAPI на неверный ввод (запрос
+ * Строку `detail` пишут ядро и служба сами — её и показываем (на другом языке — перевод по `code`,
+ * `errorText`). Но FastAPI на неверный ввод (запрос
  * длиннее разрешённого, не то число) отвечает 422 со списком ошибок проверки в том же `detail`, и
  * `new Error(массив)` показывал человеку «[object Object]». Такой список — про форму запроса, а не про
  * смысл отказа, поэтому вместо него одна фраза.
  */
 function detailOf(detail: unknown): string {
   if (typeof detail === 'string') return detail;
-  if (detail === undefined || detail === null) return 'Не удалось выполнить запрос';
-  return 'Проверьте данные запроса';
+  if (detail === undefined || detail === null) return t(($) => $.api.requestFailed);
+  return t(($) => $.errors.INVALID_REQUEST);
 }
 
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
@@ -93,7 +95,7 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
     throw new ApiError(
       response.status,
       body.code ?? 'REQUEST_FAILED',
-      detailOf(body.detail),
+      errorText(body.code, detailOf(body.detail)),
       body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
     );
   }
@@ -224,7 +226,7 @@ export class RoomApi {
         ...(bearer ? { 'X-Cord-Session': bearer } : {}),
       },
     });
-    if (!response.ok) throw new Error('Файл недоступен или срок хранения истёк');
+    if (!response.ok) throw new Error(t(($) => $.api.fileUnavailable));
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement('a');
     anchor.href = url;

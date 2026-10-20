@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { listedProviders, PROVIDER_IDS, PROVIDERS, SWITCHER_TABS } from './providers';
+import { t } from '../../i18n';
+import { listedProviders, PROVIDER_IDS, providerName, PROVIDERS, SWITCHER_TABS } from './providers';
 import type { CinemaProvidersResponse } from './types';
 
 describe('реестр площадок', () => {
@@ -15,9 +16,9 @@ describe('реестр площадок', () => {
     for (const id of PROVIDER_IDS) {
       const spec = PROVIDERS[id];
       expect(spec.id).toBe(id);
-      expect(spec.name).toBeTruthy();
-      expect(spec.hint).toBeTruthy();
-      expect(spec.searchPlaceholder).toBeTruthy();
+      expect(providerName(t, id)).toBeTruthy();
+      expect(t(($) => $.cinema.providers[id].hint)).toBeTruthy();
+      expect(t(($) => $.cinema.providers[id].search)).toBeTruthy();
       expect(spec.scene).toBeTruthy();
       // У площадки-компонента должен быть render — так отличают настоящую иконку от «забыли».
       expect(typeof spec.icon).toBe('object');
@@ -37,7 +38,7 @@ describe('реестр площадок', () => {
   it('у Rutube своя сцена и цвет из их CSS', () => {
     expect(PROVIDERS.rutube.scene).toBe('rutube');
     expect(PROVIDERS.rutube.accent).toBe('#1c80e3');
-    expect(PROVIDERS.rutube.searchPlaceholder).toBe('Видео, каналы и ТВ');
+    expect(t(($) => $.cinema.providers.rutube.search)).toBe('Видео, каналы и ТВ');
   });
 
   it('у VK Видео своя сцена, цвет из их VKUI и поиск по видео и сообществам', () => {
@@ -45,18 +46,18 @@ describe('реестр площадок', () => {
     expect(PROVIDERS.vk.scene).toBe('vk');
     expect(PROVIDERS.vk.accent).toBe('#0077FF');
     expect(PROVIDERS.vk.tile).toBe(PROVIDERS.vk.accent);
-    expect(PROVIDERS.vk.searchPlaceholder).toBe('Видео и сообщества');
+    expect(t(($) => $.cinema.providers.vk.search)).toBe('Видео и сообщества');
   });
 
   it('«По ссылке» — последняя плитка, своя сцена и общий синий приложения, а не цвет площадки', () => {
     expect(PROVIDER_IDS.at(-1)).toBe('link');
     expect(PROVIDERS.link).toMatchObject({
-      name: 'По ссылке',
       scene: 'link',
       accent: 'var(--blue)',
       tile: 'var(--blue)',
-      searchPlaceholder: 'Вставьте ссылку на видео',
     });
+    expect(providerName(t, 'link')).toBe('По ссылке');
+    expect(t(($) => $.cinema.providers.link.search)).toBe('Вставьте ссылку на видео');
   });
 
   it('вкладки переключателя — площадки сцены switcher, тем же порядком, что в реестре', () => {

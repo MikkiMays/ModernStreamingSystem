@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DoorOpen, Puzzle, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { Modal, useStore } from './primitives';
 
@@ -23,6 +24,7 @@ export function MeetingSettings({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const [title, setTitle] = useState(snapshot.title);
   const [approval, setApproval] = useState(snapshot.approvalRequired);
@@ -52,7 +54,7 @@ export function MeetingSettings({
       await meeting.refresh();
       onOpenChange(false);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : 'Не удалось сохранить');
+      setError(problem instanceof Error ? problem.message : t(($) => $.meeting.settings.saveFailed));
     } finally {
       setBusy(false);
     }
@@ -61,43 +63,42 @@ export function MeetingSettings({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Настройки встречи"
-      description="Меняет только организатор. Остальные увидят это сразу."
+      title={t(($) => $.meeting.settings.title)}
+      description={t(($) => $.meeting.settings.description)}
     >
       <div className="settings-form">
         <label>
-          Название встречи
+          {t(($) => $.meeting.settings.name)}
           <input
             value={title}
             maxLength={80}
             autoComplete="off"
-            placeholder="Например, Вечер с друзьями"
+            placeholder={t(($) => $.meeting.settings.namePlaceholder)}
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-        <section className="audio-settings" aria-label="Кто может войти">
+        <section className="audio-settings" aria-label={t(($) => $.meeting.settings.access)}>
           <h3>
-            <DoorOpen size={19} /> Кто может войти
+            <DoorOpen size={19} /> {t(($) => $.meeting.settings.access)}
           </h3>
-          <div role="radiogroup" aria-label="Кто может войти" className="network-modes">
+          <div role="radiogroup" aria-label={t(($) => $.meeting.settings.access)} className="network-modes">
             <label className="check-setting">
               <input type="radio" name="admission" checked={!approval} onChange={() => setApproval(false)} />
               <span>
-                По ссылке и коду — сразу
-                <small>Кто открыл приглашение, тот и вошёл. Подходит для своих.</small>
+                {t(($) => $.meeting.settings.open)}
+                <small>{t(($) => $.meeting.settings.openHint)}</small>
               </span>
             </label>
             <label className="check-setting">
               <input type="radio" name="admission" checked={approval} onChange={() => setApproval(true)} />
               <span>
-                Только с вашего подтверждения
-                <small>Каждый входящий ждёт, пока вы его впустите. Уже вошедших это не выгоняет.</small>
+                {t(($) => $.meeting.settings.approval)}
+                <small>{t(($) => $.meeting.settings.approvalHint)}</small>
               </span>
             </label>
           </div>
           <p className="form-footnote">
-            <ShieldCheck size={14} /> Ссылка и код у встречи не меняются. Чтобы закрыть доступ по старой
-            ссылке, отзовите приглашение и создайте новое.
+            <ShieldCheck size={14} /> {t(($) => $.meeting.settings.linkStays)}
           </p>
         </section>
         {/*
@@ -106,9 +107,9 @@ export function MeetingSettings({
           интеграций — то есть её видел только тот, кто и так туда зашёл, и находилась она
           дважды: и на витрине, и внутри музыки.
         */}
-        <section className="audio-settings" aria-label="Интеграции">
+        <section className="audio-settings" aria-label={t(($) => $.meeting.settings.integrations)}>
           <h3>
-            <Puzzle size={19} /> Интеграции
+            <Puzzle size={19} /> {t(($) => $.meeting.settings.integrations)}
           </h3>
           <label className="check-setting">
             <input
@@ -117,11 +118,8 @@ export function MeetingSettings({
               onChange={(e) => setIntegrations(e.target.checked)}
             />
             <span>
-              Разрешить интеграции всем участникам
-              <small>
-                Без галочки кинозал и музыку добавляете и убираете только вы. Громкость каждый всё равно
-                ставит себе сам.
-              </small>
+              {t(($) => $.meeting.settings.integrationsAll)}
+              <small>{t(($) => $.meeting.settings.integrationsHint)}</small>
             </span>
           </label>
         </section>
@@ -135,7 +133,11 @@ export function MeetingSettings({
           disabled={busy || !changed || !title.trim()}
           onClick={() => void save()}
         >
-          {busy ? 'Сохраняем…' : changed ? 'Сохранить' : 'Ничего не поменялось'}
+          {busy
+            ? t(($) => $.meeting.settings.saving)
+            : changed
+              ? t(($) => $.meeting.settings.save)
+              : t(($) => $.meeting.settings.unchanged)}
         </button>
       </div>
     </Modal>

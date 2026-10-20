@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
+import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
@@ -47,6 +48,7 @@ function VideoTrack({
   screen?: boolean;
   onPlaying?: () => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const element = ref.current;
@@ -98,7 +100,11 @@ function VideoTrack({
       playsInline
       muted
       className={screen ? 'screen-video' : 'camera-video'}
-      aria-label={screen ? `Экран: ${tile.name}` : `Камера: ${tile.name}`}
+      aria-label={
+        screen
+          ? t(($) => $.stage.screenOf, { name: tile.name })
+          : t(($) => $.stage.cameraOf, { name: tile.name })
+      }
     />
   );
 }
@@ -176,6 +182,7 @@ export function Stage({
   onOpenServices: () => void;
   showServices: boolean;
 }) {
+  const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const participants = snapshot.participants;
   const tracks = useStore(meeting.media.tracks);
@@ -283,14 +290,14 @@ export function Stage({
             </div>
           ) : (
             <div className="stream-loading" role="status">
-              Подключаемся к стриму…
+              {t(($) => $.stage.streamConnecting)}
             </div>
           )}
         </div>
         <div className="screen-tools">
           <IconButton
             tone="stage"
-            label="Уменьшить"
+            label={t(($) => $.stage.zoomOut)}
             disabled={zoom <= 1}
             onClick={() => {
               setZoom((z) => Math.max(1, z - 0.5));
@@ -302,7 +309,7 @@ export function Stage({
           <span>{Math.round(zoom * 100)}%</span>
           <IconButton
             tone="stage"
-            label="Увеличить"
+            label={t(($) => $.stage.zoomIn)}
             disabled={zoom >= 4}
             onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
           >
@@ -310,7 +317,7 @@ export function Stage({
           </IconButton>
           <IconButton
             tone="stage"
-            label="Вписать весь экран"
+            label={t(($) => $.stage.fit)}
             onClick={() => {
               setZoom(1);
               setPan({ x: 0, y: 0 });
@@ -383,34 +390,36 @@ export function Stage({
             рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
         <VoiceRing meeting={meeting} id={person.id} />
         <div className="person-caption">
-          {!mic && <MicOff size={14} aria-label="Микрофон выключен" />}
+          {!mic && <MicOff size={14} aria-label={t(($) => $.stage.micOff)} />}
           <span>
             {person.name}
-            {self ? ' (Вы)' : ''}
+            {self ? t(($) => $.stage.you) : ''}
           </span>
         </div>
         {self && camera && <LensSwitch meeting={meeting} tile={camera} />}
         {preparing && (
           <span className="watch-stream is-preparing" role="status">
             <MonitorUp size={16} />
-            <span>Готовится показ…</span>
+            <span>{t(($) => $.stage.preparing)}</span>
           </span>
         )}
         {sharing &&
           (self ? (
             <span className="watch-stream is-own">
               <MonitorUp size={16} />
-              <span>Вы показываете экран</span>
+              <span>{t(($) => $.stage.sharing)}</span>
               <span className="live-badge">LIVE</span>
             </span>
           ) : (
             <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
               <MonitorUp size={16} />
-              <span>Смотреть стрим</span>
+              <span>{t(($) => $.stage.watch)}</span>
               <span className="live-badge">LIVE</span>
             </button>
           ))}
-        {person.status === 'RECOVERING' && <div className="tile-recovery">Восстанавливаем связь…</div>}
+        {person.status === 'RECOVERING' && (
+          <div className="tile-recovery">{t(($) => $.stage.recovering)}</div>
+        )}
       </ParticipantMenu>
     );
   };
@@ -425,7 +434,7 @@ export function Stage({
         <Suspense
           fallback={
             <div role="status" className="poker-loading">
-              Открываем игру…
+              {t(($) => $.stage.gameLoading)}
             </div>
           }
         >

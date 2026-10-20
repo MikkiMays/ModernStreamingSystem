@@ -1,5 +1,6 @@
 import type { Admission } from '../api/types';
 import type { Favorite } from './favorites';
+import { t } from '../i18n';
 
 export type Destination =
   | { kind: 'invite'; roomId: string; invite: string }
@@ -27,6 +28,6 @@ export function parseInvite(value: string): Destination {
   const match = /^\/join\/([0-9a-f-]{36})$/.exec(url.pathname);
   const invite = new URLSearchParams(url.hash.slice(1)).get('invite');
   if (!match?.[1] || !invite || !/^[A-Za-z0-9_-]{43}$/.test(invite))
-    throw new Error('Введите 9 цифр кода или полную ссылку приглашения');
+    throw new Error(t(($) => $.invite.parseFailed));
   return { kind: 'invite', roomId: match[1], invite };
 }

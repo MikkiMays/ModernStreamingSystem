@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { t } from '../../../i18n';
 import {
   audioChoices,
   captionChoices,
@@ -62,8 +63,8 @@ describe('язык озвучки', () => {
   });
 
   it('язык без названия остаётся подписью площадки', () => {
-    expect(languageName('zz-orig', 'Klingon')).toBe('Klingon');
-    expect(languageName('', 'Korean (Original)')).toBe('Korean (Original)');
+    expect(languageName(t, 'zz-orig', 'Klingon')).toBe('Klingon');
+    expect(languageName(t, '', 'Korean (Original)')).toBe('Korean (Original)');
   });
 
   it('код языка сравнивается так же, как это делает плеер', () => {

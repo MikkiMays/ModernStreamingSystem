@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { ApiError, publicApi, request, RoomApi } from './client';
 import { profileSecret } from '../core/identity';
 import { sha256 } from '../core/proof-solve';
+import { i18next } from '../i18n';
 
 /*
   Отказ сервера — словами для человека.
@@ -67,6 +68,21 @@ it('отказ словами сервера остаётся его слова�
   expect((await refusal()).message).toBe('Не удалось выполнить запрос');
   answer(500, { detail: null });
   expect((await refusal()).message).toBe('Не удалось выполнить запрос');
+});
+
+it('на другом языке отказ говорит переводом по коду, а без перевода — словами сервера (E14)', async () => {
+  await i18next.changeLanguage('en');
+  try {
+    i18next.addResourceBundle('en', 'translation', { errors: { ROOM_FULL: 'The meeting is full' } }, true);
+    answer(409, { code: 'ROOM_FULL', detail: 'Во встрече уже 20 участников' });
+    const error = await refusal();
+    expect(error.message).toBe('The meeting is full');
+    expect(error.code).toBe('ROOM_FULL');
+    answer(400, { code: 'WATCH_INVALID', detail: 'Эта площадка выключена на этом сервере' });
+    expect((await refusal()).message).toBe('Эта площадка выключена на этом сервере');
+  } finally {
+    await i18next.changeLanguage('ru');
+  }
 });
 
 /*

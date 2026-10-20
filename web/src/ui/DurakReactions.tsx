@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DurakTable } from '../api/types';
 import type { Meeting } from '../core/meeting';
-import { DURAK_STICKERS } from '../core/durak-stickers';
+import { DURAK_STICKERS, stickerLabel } from '../core/durak-stickers';
 import { Modal } from './primitives';
 const UNIQUE = DURAK_STICKERS.filter((item) => item.id === item.canonicalId);
 function StickerImage({ src, label }: { src: string; label: string }) {
@@ -25,6 +26,7 @@ export function DurakReactions({
   mine?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const supported = table.reactions !== undefined;
   const [now, setNow] = useState(() => meeting.serverNow());
@@ -65,7 +67,7 @@ export function DurakReactions({
       {mine && supported ? (
         <button
           className="durak-reaction-trigger"
-          aria-label="Отправить реакцию"
+          aria-label={t(($) => $.durak.reactions.send)}
           aria-haspopup="dialog"
           onClick={() => setOpen(true)}
         >
@@ -78,13 +80,16 @@ export function DurakReactions({
         <span
           className="durak-reaction-bubble"
           role="img"
-          aria-label={`${table.seats.find((item) => item.index === seat)?.name ?? 'Игрок'}: ${sticker.label}`}
+          aria-label={t(($) => $.durak.reactions.bubble, {
+            name: table.seats.find((item) => item.index === seat)?.name ?? t(($) => $.durak.reactions.player),
+            sticker: stickerLabel(t, sticker),
+          })}
         >
-          <StickerImage key={reaction.id} src={sticker.asset} label={sticker.label} />
+          <StickerImage key={reaction.id} src={sticker.asset} label={stickerLabel(t, sticker)} />
         </span>
       )}
       {mine && supported && (
-        <Modal open={open} onOpenChange={setOpen} title="Реакции">
+        <Modal open={open} onOpenChange={setOpen} title={t(($) => $.durak.reactions.title)}>
           <div
             className="durak-reaction-picker"
             ref={picker}
@@ -119,15 +124,17 @@ export function DurakReactions({
               <button
                 key={item.id}
                 disabled={pending || now < cooldown}
-                aria-label={item.label}
-                title={item.label}
+                aria-label={stickerLabel(t, item)}
+                title={stickerLabel(t, item)}
                 onClick={() => void send(item.id)}
               >
-                <StickerImage src={item.asset} label={item.label} />
+                <StickerImage src={item.asset} label={stickerLabel(t, item)} />
               </button>
             ))}
           </div>
-          {now < cooldown && <p>Следующая реакция через {((cooldown - now) / 1000).toFixed(1)} с</p>}
+          {now < cooldown && (
+            <p>{t(($) => $.durak.reactions.cooldown, { seconds: ((cooldown - now) / 1000).toFixed(1) })}</p>
+          )}
           {error && (
             <p className="form-error" role="alert">
               {error}

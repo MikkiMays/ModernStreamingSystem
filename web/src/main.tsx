@@ -1,4 +1,6 @@
 import { createRoot } from 'react-dom/client';
+// Слой переводов — раньше всего остального: модули ниже уже говорят через него (E14).
+import { applyLanguage } from './i18n';
 import '@fontsource-variable/inter';
 import './styles.css';
 import './accessibility.css';
@@ -20,6 +22,7 @@ import './desktop-home.css';
 import './poker.css';
 import './durak.css';
 import App from './App';
+import { readPreferences } from './core/preferences';
 import { unlockNotificationAudio } from './core/sounds';
 import { installPointerFocus } from './ui/pointer-focus';
 unlockNotificationAudio();
@@ -37,4 +40,10 @@ if ('serviceWorker' in navigator && !window.chrome?.webview && import.meta.env.P
     void navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 
-createRoot(document.getElementById('root')!).render(<App />);
+/*
+  Первая отрисовка — уже на языке человека: выбор из настроек, иначе язык браузера. Русский встроен
+  и ставится сразу; другой язык — один файл каталога, и интерфейс ждёт его, а не мигает русским.
+*/
+void applyLanguage(readPreferences().language).then(() =>
+  createRoot(document.getElementById('root')!).render(<App />),
+);

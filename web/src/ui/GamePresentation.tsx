@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { GameVisualEvent } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import type { GameSeatSpot } from '../core/game-layout';
@@ -31,6 +32,7 @@ export function GameTurn({
   active: boolean;
   label: string;
 }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => meeting.serverNow());
   useEffect(() => {
     setNow(meeting.serverNow());
@@ -46,7 +48,11 @@ export function GameTurn({
       data-urgent={(active && seconds <= 5) || undefined}
     >
       <strong role="status">{label}</strong>
-      {active && <span aria-label={`Осталось ${seconds} секунд`}>{seconds} с</span>}
+      {active && (
+        <span aria-label={t(($) => $.games.turn.remaining, { count: seconds })}>
+          {t(($) => $.games.turn.seconds, { count: seconds })}
+        </span>
+      )}
     </div>
   );
 }
@@ -62,6 +68,7 @@ export function CardMotion({
   events?: GameVisualEvent[];
   spots: GameSeatSpot[];
 }) {
+  const { t } = useTranslation();
   const connection = useStore(meeting.control.state);
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
   const cursor = useRef<number | null>(null);
@@ -148,7 +155,7 @@ export function CardMotion({
         const { from, to } = event;
         return Array.from({ length: Math.min(event.count, 12) }, (_, index) => {
           const card = event.cards[index];
-          const face = card ? faceOf(card) : null;
+          const face = card ? faceOf(t, card) : null;
           return (
             <span
               className="game-card-flight"

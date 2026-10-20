@@ -1,6 +1,7 @@
 import { request } from '../api/client';
 import { favoriteProfile, type Favorite } from './favorites';
 import { notifyDesktop } from './desktop';
+import { t } from '../i18n';
 
 /**
  * Группы избранного и то, как комнаты в них лежат (T40, П3).
@@ -178,7 +179,7 @@ function unknownRoute(error: unknown) {
   );
 }
 function olderServer(error: unknown): never {
-  if (unknownRoute(error)) throw new Error('Этот сервер ещё не умеет группы избранного. Обновите сервер.');
+  if (unknownRoute(error)) throw new Error(t(($) => $.favorites.errors.groupsUnsupported));
   throw error;
 }
 

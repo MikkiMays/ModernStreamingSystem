@@ -5,6 +5,7 @@ import { rememberServer, thisServer } from './servers';
 import { notifyDesktop } from './desktop';
 import { signal } from './sounds';
 import { rememberQuality } from '../media/capabilities';
+import { t } from '../i18n';
 
 /**
  * The handshake with the server itself, before any room exists.
@@ -214,17 +215,16 @@ async function attempt(password: string, keep: boolean): Promise<Attempt> {
 }
 export function describeFailure(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.code === 'SERVER_PASSWORD_INVALID')
-      return 'Сервер не принял пароль. Проверьте его у того, кто дал адрес.';
-    if (error.code === 'SERVER_PASSWORD_REQUIRED') return 'Этот сервер закрыт паролем — введите его.';
-    if (error.status === 429) return 'Слишком много попыток подряд. Подождите минуту и повторите.';
-    if (error.status >= 500) return `Сервер ответил ошибкой ${error.status}. Похоже, он ещё запускается.`;
-    if (error.status === 404) return 'По этому адресу отвечает не Cord: нужного API там нет.';
+    if (error.code === 'SERVER_PASSWORD_INVALID') return t(($) => $.connect.failure.passwordInvalid);
+    if (error.code === 'SERVER_PASSWORD_REQUIRED') return t(($) => $.connect.failure.passwordRequired);
+    if (error.status === 429) return t(($) => $.connect.failure.tooMany);
+    if (error.status >= 500) return t(($) => $.connect.failure.serverError, { status: error.status });
+    if (error.status === 404) return t(($) => $.connect.failure.notCord);
     return error.message;
   }
   if (error instanceof DOMException && error.name === 'TimeoutError')
-    return 'Сервер не ответил за восемь секунд. Проверьте адрес и соединение.';
-  return 'Не удалось связаться с сервером. Проверьте адрес, сертификат и соединение.';
+    return t(($) => $.connect.failure.timeout);
+  return t(($) => $.connect.failure.unreachable);
 }
 
 export function expiringSoon(): boolean {

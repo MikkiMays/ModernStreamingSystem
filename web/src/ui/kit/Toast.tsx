@@ -1,6 +1,7 @@
 import { Toast as BaseToast } from '@base-ui/react/toast';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconButton } from './IconButton';
 
 /**
@@ -12,11 +13,12 @@ import { IconButton } from './IconButton';
 export const useToast = BaseToast.useToastManager;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <BaseToast.Provider>
       {children}
       <BaseToast.Portal>
-        <BaseToast.Viewport className="ui-toast__viewport" aria-label="Уведомления">
+        <BaseToast.Viewport className="ui-toast__viewport" aria-label={t(($) => $.kit.toasts)}>
           <ToastList />
         </BaseToast.Viewport>
       </BaseToast.Portal>
@@ -25,6 +27,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastList() {
+  const { t } = useTranslation();
   const { toasts } = BaseToast.useToastManager();
   return toasts.map((toast) => (
     <BaseToast.Root key={toast.id} toast={toast} className="ui-toast" data-type={toast.type}>
@@ -36,7 +39,7 @@ function ToastList() {
       <BaseToast.Close
         className="ui-toast__close"
         render={
-          <IconButton label="Закрыть" size="sm">
+          <IconButton label={t(($) => $.common.close)} size="sm">
             <X size={16} />
           </IconButton>
         }
