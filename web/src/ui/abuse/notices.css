@@ -25,3 +25,60 @@
   color: var(--muted);
   font-size: var(--text-xs);
 }
+
+/*
+  «Вы ещё здесь?» — единственная плашка на сцене, которая спрашивает, поэтому нажатия она ловит. Место
+  и вид — как у плашки о связи (stage.css), цвет — предупреждение: без ответа человек выйдет.
+*/
+.presence-ask {
+  position: absolute;
+  z-index: 5;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  width: max-content;
+  max-width: calc(100% - var(--space-8));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
+  background: color-mix(in srgb, var(--warning) 16%, var(--stage-tile));
+  color: var(--stage-text);
+}
+
+.presence-ask > svg {
+  flex: none;
+  color: var(--warning);
+}
+
+.presence-ask strong {
+  display: block;
+  font-size: var(--text-base);
+}
+
+.presence-ask span {
+  display: block;
+  margin-top: 2px;
+  color: var(--stage-muted);
+  font-size: var(--text-sm);
+}
+
+.presence-ask__button {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.presence-ask__button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

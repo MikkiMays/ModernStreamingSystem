@@ -513,6 +513,11 @@
       "noAnswer": "La pestaña con la reunión no responde. Ve a ella o ciérrala"
     },
     "ceiling": "La reunión terminará a las {{time}}: las reuniones de este servidor tienen una duración máxima",
+    "presence": {
+      "title": "¿Sigues ahí?",
+      "text": "Si no respondes, saldrás de la reunión a las {{time}}: así una pestaña olvidada no ocupa un lugar",
+      "confirm": "Sigo aquí"
+    },
     "background": {
       "iosSafari": "Puedes minimizar Safari o bloquear la pantalla: la conversación sigue mientras arriba se vea el punto naranja del micrófono. Mientras tanto, la cámara se apaga. La conversación se corta si entra una llamada normal o el iPhone cierra Safari. Para ver a los demás sobre otras apps, usa «Ver en ventana flotante» en el menú de controles.",
       "iosHome": "Aquí el iPhone apaga el micrófono en cuanto sales de la pantalla o bloqueas el teléfono. Para hablar en segundo plano, abre la reunión en Safari.",
@@ -2119,7 +2124,8 @@
   },
   "api": {
     "requestFailed": "No se pudo completar la solicitud",
-    "fileUnavailable": "El archivo no está disponible o ha caducado"
+    "fileUnavailable": "El archivo no está disponible o ha caducado",
+    "blockedUntil": "El propietario ha cerrado el acceso a este servidor hasta el {{date}}"
   },
   "kit": {
     "toasts": "Notificaciones",
@@ -2775,7 +2781,13 @@
     }
   },
   "errors": {
+    "ADMIN_DISABLED": "La página del propietario está desactivada en este servidor",
+    "ADMIN_PASSWORD_INVALID": "Contraseña de propietario incorrecta",
+    "ADMIN_REQUIRED": "Inicia sesión con la contraseña del propietario del servidor",
     "ALREADY_IN_MEETING": "Ya estás en otra reunión",
+    "BLOCKED": "El propietario ha cerrado el acceso a este servidor",
+    "BLOCK_NOT_FOUND": "El bloqueo ya se quitó o caducó",
+    "BLOCK_SUBJECT_UNKNOWN": "No se conocen la dirección ni el perfil de esta persona: no hay nada que bloquear",
     "CHAT_RATE": "Demasiados mensajes seguidos. Espera un minuto",
     "CHAT_REPEAT": "Este mensaje ya se envió. Espera un poco",
     "CHESS_ACTION": "Acción desconocida en el tablero",
@@ -2899,9 +2911,175 @@
     "TITLE_INVALID": "Escribe el nombre de la reunión",
     "UNKNOWN_COMMAND": "Comando desconocido",
     "UPLOAD_BUSY": "Espera a que termine la subida actual",
+    "UPLOAD_QUOTA_IP": "Se han subido demasiados archivos desde esta dirección. Inténtalo más tarde",
     "VIEW_CLOSED": "La visualización está cerrada",
     "WATCH_CLOSED": "La vista conjunta ha terminado",
     "WATCH_INVALID": "No hay nada que abrir",
     "WATCH_LIVE": "Un directo no se puede pausar ni rebobinar"
+  },
+  "activity": {
+    "title": "Actividad",
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "password": "Contraseña del propietario",
+    "loginHint": "Página del propietario del servidor: reuniones, registro y bloqueos. La contraseña es ADMIN_PASSWORD de la configuración del servidor.",
+    "disabled": "En este servidor la página del propietario está desactivada: define ADMIN_PASSWORD y reinicia el núcleo.",
+    "refresh": "Actualizar",
+    "tabs": {
+      "now": "Ahora",
+      "meetings": "Reuniones",
+      "audit": "Registro",
+      "blocks": "Bloqueos",
+      "server": "Servidor"
+    },
+    "integrations": {
+      "watch": "Cine",
+      "music": "Música",
+      "poker": "Póker",
+      "durak": "Durak",
+      "chess": "Ajedrez",
+      "gartic": "Gartic"
+    },
+    "now": {
+      "live": "Reuniones en curso",
+      "waiting": "Esperan a alguien más",
+      "humans": "Personas presentes",
+      "connected": "Conectadas",
+      "bots": "Bots",
+      "screens": "Pantallas compartidas",
+      "empty": "Ahora no hay reuniones.",
+      "code": "Código",
+      "duration": "Duración",
+      "people": "Personas",
+      "integrations": "Integraciones",
+      "actions": "Acciones",
+      "notStarted": "espera a alguien más",
+      "peopleValue": "{{humans}}, conectadas {{connected}}",
+      "close": "Finalizar",
+      "closeAndBlock": "Finalizar y bloquear al creador",
+      "sure": "¿Seguro? Pulsa otra vez",
+      "atDoor_one": "{{count}} en la puerta",
+      "atDoor_many": "{{count}} en la puerta",
+      "atDoor_other": "{{count}} en la puerta",
+      "botsValue_one": "{{count}} bot",
+      "botsValue_many": "{{count}} bots",
+      "botsValue_other": "{{count}} bots"
+    },
+    "meetings": {
+      "period": "Periodo",
+      "periods": {
+        "day": "24 horas",
+        "week": "7 días",
+        "month": "30 días"
+      },
+      "total": "Reuniones",
+      "humanHours": "Horas-persona",
+      "median": "Duración mediana",
+      "peak": "Pico de personas en una reunión",
+      "devices": "Dispositivos distintos",
+      "joins": "Entradas",
+      "joinsValue": "{{ok}} / rechazadas {{failed}}",
+      "empty": "No hubo reuniones en este periodo. Una reunión cuenta cuando hay dos personas conectadas.",
+      "byDay": "Reuniones por día",
+      "byDuration": "Cuánto duraron las reuniones",
+      "integrations": "Reuniones con integraciones",
+      "upTo": "hasta {{duration}}",
+      "longer": "más de {{duration}}",
+      "count_one": "{{count}} reunión",
+      "count_many": "{{count}} reuniones",
+      "count_other": "{{count}} reuniones",
+      "dayTip_one": "{{count}} reunión, {{hours}} h-persona, pico {{peak}}",
+      "dayTip_many": "{{count}} reuniones, {{hours}} h-persona, pico {{peak}}",
+      "dayTip_other": "{{count}} reuniones, {{hours}} h-persona, pico {{peak}}"
+    },
+    "audit": {
+      "group": "Qué",
+      "groups": {
+        "all": "Todo",
+        "room": "Reuniones",
+        "participant": "Entradas y participantes",
+        "admin": "Propietario",
+        "block": "Bloqueos"
+      },
+      "outcome": "Resultado",
+      "outcomes": {
+        "all": "Cualquiera",
+        "ok": "Correcto",
+        "denied": "Rechazado"
+      },
+      "code": "Código de la reunión",
+      "empty": "No hay registros.",
+      "when": "Cuándo",
+      "action": "Qué",
+      "who": "Quién",
+      "meeting": "Reunión",
+      "address": "Dirección",
+      "addressHint": "Huella de la dirección: el servidor no guarda la dirección",
+      "refused": "rechazo {{code}}",
+      "block": "Bloquear",
+      "blocked": "Bloqueado",
+      "reason": "Desde el registro",
+      "more": "Mostrar más",
+      "actions": {
+        "room_created": "Creó una reunión",
+        "room_closed": "La reunión terminó",
+        "participant_joined": "Entró en la reunión",
+        "participant_removed": "Expulsó a un participante",
+        "attachment_reserved": "Sube un archivo grande",
+        "admin_login": "Inicio de sesión del propietario",
+        "admin_room_closed": "El propietario finalizó una reunión",
+        "admin_shield_cleared": "El propietario quitó el «escudo»",
+        "block_created": "Bloqueo",
+        "block_lifted": "Bloqueo quitado",
+        "block_auto": "Bloqueo automático por rechazos frecuentes",
+        "other": "Otro"
+      },
+      "kinds": {
+        "participant": "participante",
+        "creator": "creador",
+        "host": "anfitrión",
+        "bot": "bot",
+        "system": "servidor",
+        "admin": "propietario",
+        "anonymous": "sin entrar"
+      }
+    },
+    "blocks": {
+      "hint": "Un bloqueo cierra el servidor para una dirección (en IPv6, su red /64) o para un dispositivo. Se pone desde las pestañas «Ahora» y «Registro».",
+      "empty": "No hay bloqueos.",
+      "ip": "Dirección",
+      "profile": "Dispositivo",
+      "auto": "automático",
+      "manual": "propietario",
+      "ended": "quitado o caducado",
+      "forever": "para siempre",
+      "until": "hasta el {{date}}",
+      "lift": "Quitar"
+    },
+    "server": {
+      "shield": "«Escudo» contra la adivinación de códigos",
+      "shieldOn": "activado: la entrada por código pasa por el anfitrión",
+      "shieldOff": "desactivado",
+      "clearShield": "Quitar el «escudo»",
+      "blocks": "Bloqueos activos",
+      "autoBlock": "Bloqueo automático",
+      "autoBlockValue": "{{count}} rechazos en {{window}}: bloqueo de {{term}}",
+      "off": "desactivado",
+      "blockDefault": "Duración predeterminada del bloqueo",
+      "retention": "Conservación",
+      "retentionValue": "registro: {{audit}}, reuniones: {{meetings}}, resúmenes diarios: {{daily}}",
+      "build": "Versión del núcleo",
+      "never": "siempre",
+      "grafana": "Los gráficos de la máquina, del SFU y las alertas están en Grafana del perfil monitoring. Solo escucha en este servidor; ábrela con un túnel desde tu ordenador y luego entra en http://localhost:3000:",
+      "days_one": "{{count}} día",
+      "days_many": "{{count}} días",
+      "days_other": "{{count}} días",
+      "hours_one": "{{count}} hora",
+      "hours_many": "{{count}} horas",
+      "hours_other": "{{count}} horas",
+      "minutes_one": "{{count}} minuto",
+      "minutes_many": "{{count}} minutos",
+      "minutes_other": "{{count}} minutos"
+    }
   }
 }

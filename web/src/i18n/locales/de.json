@@ -512,6 +512,11 @@
       "noAnswer": "Der Tab mit dem Meeting antwortet nicht. Wechsle dorthin oder schließe ihn"
     },
     "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer",
+    "presence": {
+      "title": "Bist du noch da?",
+      "text": "Ohne Antwort verlässt du das Meeting um {{time}} – so hält ein vergessener Tab keinen Platz belegt",
+      "confirm": "Ich bin da"
+    },
     "background": {
       "iosSafari": "Du kannst Safari minimieren oder den Bildschirm sperren – das Gespräch läuft weiter, solange oben der orange Mikrofonpunkt leuchtet. Die Kamera ist währenddessen aus. Das Gespräch bricht ab, wenn ein normaler Anruf kommt oder das iPhone Safari schließt. Um die anderen über anderen Apps zu sehen, nutze „Bild-im-Bild“ im Steuerungsmenü.",
       "iosHome": "Hier schaltet das iPhone das Mikrofon aus, sobald du den Bildschirm verlässt oder das Telefon sperrst. Für Gespräche im Hintergrund öffne das Meeting in Safari.",
@@ -2094,7 +2099,8 @@
   },
   "api": {
     "requestFailed": "Die Anfrage ist fehlgeschlagen",
-    "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen"
+    "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
+    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt"
   },
   "kit": {
     "toasts": "Benachrichtigungen",
@@ -2748,7 +2754,13 @@
     }
   },
   "errors": {
+    "ADMIN_DISABLED": "Die Inhaberseite ist auf diesem Server ausgeschaltet",
+    "ADMIN_PASSWORD_INVALID": "Falsches Inhaberpasswort",
+    "ADMIN_REQUIRED": "Melde dich mit dem Passwort des Serverinhabers an",
     "ALREADY_IN_MEETING": "Du bist bereits in einem anderen Meeting",
+    "BLOCKED": "Der Inhaber hat den Zugang zu diesem Server gesperrt",
+    "BLOCK_NOT_FOUND": "Die Sperre wurde bereits aufgehoben oder ist abgelaufen",
+    "BLOCK_SUBJECT_UNKNOWN": "Adresse und Profil dieser Person sind unbekannt: Es gibt nichts zu sperren",
     "CHAT_RATE": "Zu viele Nachrichten hintereinander. Warte eine Minute",
     "CHAT_REPEAT": "Diese Nachricht wurde schon gesendet. Warte kurz",
     "CHESS_ACTION": "Unbekannte Aktion am Schachbrett",
@@ -2872,9 +2884,168 @@
     "TITLE_INVALID": "Gib einen Namen für das Meeting ein",
     "UNKNOWN_COMMAND": "Unbekannter Befehl",
     "UPLOAD_BUSY": "Warte, bis der aktuelle Upload fertig ist",
+    "UPLOAD_QUOTA_IP": "Von dieser Adresse wurden zu viele Dateien hochgeladen. Versuch es später erneut",
     "VIEW_CLOSED": "Die Ansicht ist geschlossen",
     "WATCH_CLOSED": "Das gemeinsame Ansehen ist beendet",
     "WATCH_INVALID": "Nichts zu öffnen",
     "WATCH_LIVE": "Ein Livestream lässt sich nicht pausieren oder zurückspulen"
+  },
+  "activity": {
+    "title": "Aktivität",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "password": "Inhaberpasswort",
+    "loginHint": "Seite des Serverinhabers: Meetings, Protokoll und Sperren. Das Passwort ist ADMIN_PASSWORD aus den Servereinstellungen.",
+    "disabled": "Auf diesem Server ist die Inhaberseite ausgeschaltet: Setze ADMIN_PASSWORD und starte den Kern neu.",
+    "refresh": "Aktualisieren",
+    "tabs": {
+      "now": "Jetzt",
+      "meetings": "Meetings",
+      "audit": "Protokoll",
+      "blocks": "Sperren",
+      "server": "Server"
+    },
+    "integrations": {
+      "watch": "Kino",
+      "music": "Musik",
+      "poker": "Poker",
+      "durak": "Durak",
+      "chess": "Schach",
+      "gartic": "Gartic"
+    },
+    "now": {
+      "live": "Laufende Meetings",
+      "waiting": "Warten auf eine zweite Person",
+      "humans": "Anwesende Personen",
+      "connected": "Verbunden",
+      "bots": "Bots",
+      "screens": "Bildschirmfreigaben",
+      "empty": "Gerade keine Meetings.",
+      "code": "Code",
+      "duration": "Läuft seit",
+      "people": "Personen",
+      "integrations": "Integrationen",
+      "actions": "Aktionen",
+      "notStarted": "wartet auf eine zweite Person",
+      "peopleValue": "{{humans}}, verbunden {{connected}}",
+      "close": "Beenden",
+      "closeAndBlock": "Beenden und Ersteller sperren",
+      "sure": "Sicher? Noch einmal klicken",
+      "atDoor_one": "{{count}} an der Tür",
+      "atDoor_other": "{{count}} an der Tür",
+      "botsValue_one": "{{count}} Bot",
+      "botsValue_other": "{{count}} Bots"
+    },
+    "meetings": {
+      "period": "Zeitraum",
+      "periods": {
+        "day": "24 Stunden",
+        "week": "7 Tage",
+        "month": "30 Tage"
+      },
+      "total": "Meetings",
+      "humanHours": "Personenstunden",
+      "median": "Median der Dauer",
+      "peak": "Höchstzahl Personen in einem Meeting",
+      "devices": "Verschiedene Geräte",
+      "joins": "Beitritte",
+      "joinsValue": "{{ok}} / abgelehnt {{failed}}",
+      "empty": "In diesem Zeitraum gab es keine Meetings. Ein Meeting zählt, sobald zwei Personen verbunden sind.",
+      "byDay": "Meetings pro Tag",
+      "byDuration": "Wie lange die Meetings dauerten",
+      "integrations": "Meetings mit Integrationen",
+      "upTo": "bis {{duration}}",
+      "longer": "länger als {{duration}}",
+      "count_one": "{{count}} Meeting",
+      "count_other": "{{count}} Meetings",
+      "dayTip_one": "{{count}} Meeting, {{hours}} Personenstunden, Spitze {{peak}}",
+      "dayTip_other": "{{count}} Meetings, {{hours}} Personenstunden, Spitze {{peak}}"
+    },
+    "audit": {
+      "group": "Was",
+      "groups": {
+        "all": "Alles",
+        "room": "Meetings",
+        "participant": "Beitritte und Teilnehmer",
+        "admin": "Inhaber",
+        "block": "Sperren"
+      },
+      "outcome": "Ergebnis",
+      "outcomes": {
+        "all": "Beliebig",
+        "ok": "Erfolgreich",
+        "denied": "Abgelehnt"
+      },
+      "code": "Meeting-Code",
+      "empty": "Keine Einträge.",
+      "when": "Wann",
+      "action": "Was",
+      "who": "Wer",
+      "meeting": "Meeting",
+      "address": "Adresse",
+      "addressHint": "Fingerabdruck der Adresse: Die Adresse selbst speichert der Server nicht",
+      "refused": "abgelehnt {{code}}",
+      "block": "Sperren",
+      "blocked": "Gesperrt",
+      "reason": "Aus dem Protokoll",
+      "more": "Mehr anzeigen",
+      "actions": {
+        "room_created": "Hat ein Meeting erstellt",
+        "room_closed": "Meeting beendet",
+        "participant_joined": "Ist dem Meeting beigetreten",
+        "participant_removed": "Hat einen Teilnehmer entfernt",
+        "attachment_reserved": "Lädt eine große Datei hoch",
+        "admin_login": "Anmeldung des Inhabers",
+        "admin_room_closed": "Inhaber hat ein Meeting beendet",
+        "admin_shield_cleared": "Inhaber hat den „Schutzschild“ aufgehoben",
+        "block_created": "Sperre",
+        "block_lifted": "Sperre aufgehoben",
+        "block_auto": "Automatische Sperre wegen häufiger Ablehnungen",
+        "other": "Sonstiges"
+      },
+      "kinds": {
+        "participant": "Teilnehmer",
+        "creator": "Ersteller",
+        "host": "Host",
+        "bot": "Bot",
+        "system": "Server",
+        "admin": "Inhaber",
+        "anonymous": "nicht beigetreten"
+      }
+    },
+    "blocks": {
+      "hint": "Eine Sperre schließt den Server für eine Adresse (bei IPv6 für ihr /64-Netz) oder für ein Gerät. Setzen kannst du sie auf den Tabs „Jetzt“ und „Protokoll“.",
+      "empty": "Keine Sperren.",
+      "ip": "Adresse",
+      "profile": "Gerät",
+      "auto": "automatisch",
+      "manual": "Inhaber",
+      "ended": "aufgehoben oder abgelaufen",
+      "forever": "dauerhaft",
+      "until": "bis {{date}}",
+      "lift": "Aufheben"
+    },
+    "server": {
+      "shield": "„Schutzschild“ gegen Code-Raten",
+      "shieldOn": "an: Beitritt per Code läuft über den Host",
+      "shieldOff": "aus",
+      "clearShield": "„Schutzschild“ aufheben",
+      "blocks": "Aktive Sperren",
+      "autoBlock": "Automatische Sperre",
+      "autoBlockValue": "{{count}} Ablehnungen in {{window}} – Sperre für {{term}}",
+      "off": "aus",
+      "blockDefault": "Standarddauer einer Sperre",
+      "retention": "Aufbewahrung",
+      "retentionValue": "Protokoll – {{audit}}, Meetings – {{meetings}}, Tagesbilanzen – {{daily}}",
+      "build": "Version des Kerns",
+      "never": "immer",
+      "grafana": "Diagramme der Maschine, der SFU und Alarme gibt es in Grafana aus dem Profil monitoring. Sie lauscht nur auf diesem Server; öffne sie per Tunnel von deinem Computer und dann http://localhost:3000:",
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "hours_one": "{{count}} Stunde",
+      "hours_other": "{{count}} Stunden",
+      "minutes_one": "{{count}} Minute",
+      "minutes_other": "{{count}} Minuten"
+    }
   }
 }

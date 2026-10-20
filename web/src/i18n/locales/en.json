@@ -512,6 +512,11 @@
       "noAnswer": "The tab with the meeting didn't respond. Switch to it or close it"
     },
     "ceiling": "The meeting will end at {{time}}: meetings on this server have a maximum length",
+    "presence": {
+      "title": "Are you still here?",
+      "text": "If you don't respond, you'll leave the meeting at {{time}} — so a forgotten tab doesn't hold a seat",
+      "confirm": "I'm here"
+    },
     "background": {
       "iosSafari": "You can minimize Safari or lock the screen — the conversation continues while the orange microphone dot is lit at the top. The camera turns off meanwhile. The conversation ends if a regular call comes in or iPhone closes Safari. To see others on top of other apps, use “Pop out” in the controls menu.",
       "iosHome": "Here, iPhone turns off the microphone as soon as you leave the screen or lock the phone. To talk in the background, open the meeting in Safari.",
@@ -2094,7 +2099,8 @@
   },
   "api": {
     "requestFailed": "The request failed",
-    "fileUnavailable": "The file is unavailable or has expired"
+    "fileUnavailable": "The file is unavailable or has expired",
+    "blockedUntil": "The owner has closed access to this server until {{date}}"
   },
   "kit": {
     "toasts": "Notifications",
@@ -2748,7 +2754,13 @@
     }
   },
   "errors": {
+    "ADMIN_DISABLED": "The owner page is turned off on this server",
+    "ADMIN_PASSWORD_INVALID": "Wrong owner password",
+    "ADMIN_REQUIRED": "Sign in with the server owner's password",
     "ALREADY_IN_MEETING": "You're already in another meeting",
+    "BLOCKED": "The owner has closed access to this server",
+    "BLOCK_NOT_FOUND": "The block has already been lifted or has expired",
+    "BLOCK_SUBJECT_UNKNOWN": "This person's address and profile are unknown: there's nothing to block",
     "CHAT_RATE": "Too many messages in a row. Wait a minute",
     "CHAT_REPEAT": "This message has already been sent. Wait a moment",
     "CHESS_ACTION": "Unknown action at the chessboard",
@@ -2872,9 +2884,168 @@
     "TITLE_INVALID": "Enter a meeting name",
     "UNKNOWN_COMMAND": "Unknown command",
     "UPLOAD_BUSY": "Wait for the current upload to finish",
+    "UPLOAD_QUOTA_IP": "Too many files have been uploaded from this address. Try again later",
     "VIEW_CLOSED": "Viewing is closed",
     "WATCH_CLOSED": "Watching together has ended",
     "WATCH_INVALID": "Nothing to open",
     "WATCH_LIVE": "A live stream can't be paused or rewound"
+  },
+  "activity": {
+    "title": "Activity",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "password": "Owner password",
+    "loginHint": "The server owner's page: meetings, log, and blocks. The password is ADMIN_PASSWORD from the server settings.",
+    "disabled": "The owner page is turned off on this server: set ADMIN_PASSWORD and restart the core.",
+    "refresh": "Refresh",
+    "tabs": {
+      "now": "Now",
+      "meetings": "Meetings",
+      "audit": "Log",
+      "blocks": "Blocks",
+      "server": "Server"
+    },
+    "integrations": {
+      "watch": "Cinema",
+      "music": "Music",
+      "poker": "Poker",
+      "durak": "Durak",
+      "chess": "Chess",
+      "gartic": "Gartic"
+    },
+    "now": {
+      "live": "Meetings in progress",
+      "waiting": "Waiting for a second person",
+      "humans": "People seated",
+      "connected": "Connected",
+      "bots": "Bots",
+      "screens": "Screen shares",
+      "empty": "No meetings right now.",
+      "code": "Code",
+      "duration": "Running",
+      "people": "People",
+      "integrations": "Integrations",
+      "actions": "Actions",
+      "notStarted": "waiting for a second person",
+      "peopleValue": "{{humans}}, connected {{connected}}",
+      "close": "End",
+      "closeAndBlock": "End and block the creator",
+      "sure": "Sure? Click again",
+      "atDoor_one": "{{count}} at the door",
+      "atDoor_other": "{{count}} at the door",
+      "botsValue_one": "{{count}} bot",
+      "botsValue_other": "{{count}} bots"
+    },
+    "meetings": {
+      "period": "Period",
+      "periods": {
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days"
+      },
+      "total": "Meetings",
+      "humanHours": "Person-hours",
+      "median": "Median duration",
+      "peak": "Peak people in a meeting",
+      "devices": "Unique devices",
+      "joins": "Joins",
+      "joinsValue": "{{ok}} / denied {{failed}}",
+      "empty": "No meetings in this period. A meeting counts once two people are connected.",
+      "byDay": "Meetings by day",
+      "byDuration": "How long meetings lasted",
+      "integrations": "Meetings with integrations",
+      "upTo": "up to {{duration}}",
+      "longer": "longer than {{duration}}",
+      "count_one": "{{count}} meeting",
+      "count_other": "{{count}} meetings",
+      "dayTip_one": "{{count}} meeting, {{hours}} person-hours, peak {{peak}}",
+      "dayTip_other": "{{count}} meetings, {{hours}} person-hours, peak {{peak}}"
+    },
+    "audit": {
+      "group": "What",
+      "groups": {
+        "all": "Everything",
+        "room": "Meetings",
+        "participant": "Joins and participants",
+        "admin": "Owner",
+        "block": "Blocks"
+      },
+      "outcome": "Outcome",
+      "outcomes": {
+        "all": "Any",
+        "ok": "Succeeded",
+        "denied": "Denied"
+      },
+      "code": "Meeting code",
+      "empty": "No entries.",
+      "when": "When",
+      "action": "What",
+      "who": "Who",
+      "meeting": "Meeting",
+      "address": "Address",
+      "addressHint": "Address fingerprint: the server doesn't store the address itself",
+      "refused": "refused {{code}}",
+      "block": "Block",
+      "blocked": "Blocked",
+      "reason": "From the log",
+      "more": "Show more",
+      "actions": {
+        "room_created": "Created a meeting",
+        "room_closed": "Meeting ended",
+        "participant_joined": "Joined a meeting",
+        "participant_removed": "Removed a participant",
+        "attachment_reserved": "Uploading a large file",
+        "admin_login": "Owner sign-in",
+        "admin_room_closed": "Owner ended a meeting",
+        "admin_shield_cleared": "Owner turned off the shield",
+        "block_created": "Block",
+        "block_lifted": "Block lifted",
+        "block_auto": "Auto-block for repeated refusals",
+        "other": "Other"
+      },
+      "kinds": {
+        "participant": "participant",
+        "creator": "creator",
+        "host": "host",
+        "bot": "bot",
+        "system": "server",
+        "admin": "owner",
+        "anonymous": "not joined"
+      }
+    },
+    "blocks": {
+      "hint": "A block closes the server to an address (for IPv6, its /64 network) or to a device. Add one from the “Now” and “Log” tabs.",
+      "empty": "No blocks.",
+      "ip": "Address",
+      "profile": "Device",
+      "auto": "auto-block",
+      "manual": "owner",
+      "ended": "lifted or expired",
+      "forever": "forever",
+      "until": "until {{date}}",
+      "lift": "Lift"
+    },
+    "server": {
+      "shield": "Code-guessing shield",
+      "shieldOn": "on: joining by code goes through the host",
+      "shieldOff": "off",
+      "clearShield": "Turn off the shield",
+      "blocks": "Active blocks",
+      "autoBlock": "Auto-block",
+      "autoBlockValue": "{{count}} refusals in {{window}} — blocked for {{term}}",
+      "off": "off",
+      "blockDefault": "Default block duration",
+      "retention": "Retention",
+      "retentionValue": "log — {{audit}}, meetings — {{meetings}}, daily totals — {{daily}}",
+      "build": "Core version",
+      "never": "forever",
+      "grafana": "Machine and SFU charts and alerts are in Grafana from the monitoring profile. It only listens on this server; open it through a tunnel from your computer, then go to http://localhost:3000:",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes"
+    }
   }
 }

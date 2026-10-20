@@ -6,6 +6,7 @@
 #   sudo ./setup.sh --app meet.example.com \      three DNS names, TURN/TLS shares 443
 #                   --rtc rtc.example.com \
 #                   --turn turn.example.com
+#   add --monitoring to any of them               metrics, dashboards and alerts (~410 MB RAM)
 #
 # Safe to re-run: an existing .env is never overwritten, so secrets and live sessions
 # survive. Docker is the only thing this needs on the host; the configuration generator
@@ -13,7 +14,7 @@
 set -euo pipefail
 
 MODE="" DOMAIN="" APP="" RTC="" TURN="" PUBLIC_IP="" SSH_PORT="${SSH_PORT:-22}"
-SKIP_FIREWALL=0 SKIP_DOCKER=0
+SKIP_FIREWALL=0 SKIP_DOCKER=0 MONITORING=0
 NODE_IMAGE="node:22-alpine"
 
 die() { printf '\n\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -31,7 +32,8 @@ while [[ $# -gt 0 ]]; do
     --ssh-port) SSH_PORT="${2:-}"; shift 2 ;;
     --skip-firewall) SKIP_FIREWALL=1; shift ;;
     --skip-docker-install) SKIP_DOCKER=1; shift ;;
-    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    --monitoring) MONITORING=1; shift ;;
+    -h|--help) sed -n '2,13p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac
 done
@@ -110,24 +112,35 @@ if [[ "$MODE" != ip ]]; then
   fi
 fi
 
+configure() {
+  if command -v node >/dev/null && command -v openssl >/dev/null \
+     && [[ "$(node -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)" -ge 20 ]]; then
+    node scripts/configure.mjs "$@"
+  else
+    note "Using $NODE_IMAGE to generate the configuration."
+    docker run --rm -v "$PWD:/w" -w /w "$NODE_IMAGE" \
+      sh -c "apk add --no-cache openssl >/dev/null && node scripts/configure.mjs $(printf '%q ' "$@")"
+  fi
+}
+
 step "Generating configuration"
+MONITORING_ARGS=()
+[[ $MONITORING -eq 1 ]] && MONITORING_ARGS=(--monitoring)
 if [[ -f .env ]]; then
   note ".env already exists — keeping the existing secrets and configuration."
   note "To start over: stop the stack, remove .env and infra/generated, then re-run."
+  if [[ $MONITORING -eq 1 ]]; then
+    # Only the missing monitoring keys are appended; every existing secret stays as it is.
+    note "Adding the monitoring profile to the existing configuration."
+    configure --refresh --monitoring
+  fi
 else
   case "$MODE" in
     simple) ARGS=(--domain="$DOMAIN" --ip="$PUBLIC_IP") ;;
     strict) ARGS=(--app="$APP" --rtc="$RTC" --turn="$TURN" --ip="$PUBLIC_IP") ;;
     ip)     ARGS=(--mode=ip --ip="$PUBLIC_IP") ;;
   esac
-  if command -v node >/dev/null && command -v openssl >/dev/null \
-     && [[ "$(node -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)" -ge 20 ]]; then
-    node scripts/configure.mjs "${ARGS[@]}"
-  else
-    note "Using $NODE_IMAGE to generate the configuration."
-    docker run --rm -v "$PWD:/w" -w /w "$NODE_IMAGE" \
-      sh -c "apk add --no-cache openssl >/dev/null && node scripts/configure.mjs $(printf '%q ' "${ARGS[@]}")"
-  fi
+  configure "${ARGS[@]}" "${MONITORING_ARGS[@]}"
 fi
 
 if [[ $SKIP_FIREWALL -eq 0 ]] && command -v ufw >/dev/null; then
@@ -255,6 +268,22 @@ if [[ "$MODE" == simple ]]; then
   any call in progress at that moment. Pick an hour when nobody is talking.
 
 RENEWAL
+fi
+
+if grep -q '^COMPOSE_PROFILES=.*monitoring' .env 2>/dev/null; then
+  cat <<MONITORING
+  Monitoring is on: metrics, dashboards and alerts listen on this machine
+  only. Open Grafana through an SSH tunnel from your own computer:
+
+    ssh -L 3000:127.0.0.1:3000 root@${PUBLIC_IP}
+    then http://localhost:3000 — user admin, password GRAFANA_PASSWORD in .env
+
+  Alerts go to Telegram once ALERT_TELEGRAM_CHAT_ID is set in .env, and to an
+  outside watchdog (Healthchecks.io) once HEALTHCHECKS_URL is set. After that:
+
+    node scripts/configure.mjs --refresh && docker compose up -d --force-recreate alertmanager
+
+MONITORING
 fi
 
 note "Logs:    docker compose logs -f core"

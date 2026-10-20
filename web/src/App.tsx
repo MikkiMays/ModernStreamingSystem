@@ -30,6 +30,10 @@ const MeetingView = lazy(() =>
 );
 // Витрина набора примитивов (E16): без сервера, сессии и кэша — как `/download`.
 const Showcase = lazy(() => import('./ui/kit/Showcase').then((module) => ({ default: module.Showcase })));
+// «Активность» владельца сервера (E10-B) — отдельным чанком: гостям встречи он не нужен.
+const Activity = lazy(() =>
+  import('./ui/activity/Activity').then((module) => ({ default: module.Activity })),
+);
 function initialDestination() {
   try {
     return parseInvite(location.href);
@@ -401,6 +405,14 @@ export default function App() {
         <Downloads />
         <BootGate />
       </>
+    );
+  // Страница владельца сервера (E10-B): своя дверь — пароль владельца, без сессии встречи и кэша.
+  if (location.pathname === '/activity')
+    return (
+      <Suspense fallback={null}>
+        <Activity />
+        <BootGate />
+      </Suspense>
     );
   if (location.pathname === '/kit')
     return (

@@ -126,7 +126,18 @@ if touched '^compose\.yaml$'; then
 fi
 (( FORCE )) && INFRA=1
 
+# Профиль monitoring (E10-B): его настройки — файлы (infra/monitoring/, infra/generated/alertmanager.yml), и
+# хеш compose их правку не видит — такие службы пересоздаются здесь. Профиль выключен — не трогается ничего:
+# названная по имени служба профиля запустилась бы и без него.
+MONITORING_SERVICES=()
+if grep -q '^COMPOSE_PROFILES=.*monitoring' .env 2>/dev/null; then
+  if touched '^infra/monitoring/' || (( REGENERATE || FORCE )); then
+    MONITORING_SERVICES=(victoriametrics vmalert alertmanager grafana gatus)
+  fi
+fi
+
 if (( ${#REBUILD[@]} )); then note "Пересобрать: ${REBUILD[*]}"; else note "Пересобирать нечего."; fi
+(( ${#MONITORING_SERVICES[@]} )) && note "Перечитать настройки мониторинга: ${MONITORING_SERVICES[*]}"
 (( ${#RECREATE[@]} )) && note "Пересоздать по новой конфигурации: ${RECREATE[*]}"
 (( REGENERATE )) && note "Перевыпустить конфигурацию: да (генератор изменился)"
 (( WALL )) && note "Поставить заново стену сети плеера страниц: да (скрипт или единицы изменились)"
@@ -151,7 +162,7 @@ fi
 
 NOTHING_TO_DO=0
 (( ! ${#REBUILD[@]} )) && (( ! ${#RECREATE[@]} )) && (( ! REGENERATE )) && (( ! INFRA )) && (( ! WALL )) \
-  && NOTHING_TO_DO=1
+  && (( ! ${#MONITORING_SERVICES[@]} )) && NOTHING_TO_DO=1
 
 # Стену сети плеера страниц проверяет iptables, а ставит systemd — это root. Без root проверка «не прошла» бы,
 # и работающий плеер страниц остановился бы зря, — поэтому отказ сразу, пока ничего не тронуто.
@@ -295,6 +306,10 @@ for service in "${REBUILD[@]}"; do
   docker compose up -d --no-deps "$service"
   note "$service"
 done
+if (( ${#MONITORING_SERVICES[@]} )); then
+  docker compose up -d --no-deps --force-recreate "${MONITORING_SERVICES[@]}"
+  note "мониторинг: ${MONITORING_SERVICES[*]}"
+fi
 if (( RESTART_MEDIA )) && (( ! KEEP_CALLS )); then
   # Конфигурацию читают edge и SFU при старте; без пересоздания новые файлы не увидит никто.
   docker compose up -d --force-recreate edge livekit
