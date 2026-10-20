@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Cord — нет связи</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+        font: 16px/1.5 system-ui, sans-serif;
+        background: #101114;
+        color: #e8e9ec;
+        text-align: center;
+      }
+      button {
+        margin-top: 16px;
+        min-height: 44px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 10px;
+        background: #5865f2;
+        color: #fff;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Нет связи с сервером Cord</h1>
+      <p>Проверьте интернет и попробуйте снова.</p>
+      <button type="button" onclick="location.replace('https://cord.nikg.tech/')">Повторить</button>
+    </main>
+  </body>
+</html>

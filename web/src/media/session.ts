@@ -13,6 +13,7 @@ import {
   type Participant,
   type LocalTrack,
   type VideoCodec,
+  createLocalAudioTrack,
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
@@ -55,6 +56,17 @@ import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { waitForPublishPermissions } from './publish-permissions';
 import { PreviewImages, ScreenPreviewSource, PREVIEW_TOPIC } from './screen-preview';
+import { currentPlatform, type Platform } from './platform';
+import {
+  AudioWaker,
+  MicInterruptions,
+  PageLifecycle,
+  ScreenWake,
+  wantsWakeLock,
+  type MicGap,
+  type ReturnInfo,
+} from './background';
+import { choosePipSource, PictureInPicture } from './pip';
 import { t } from '../i18n';
 
 export interface MediaTile {
@@ -117,6 +129,28 @@ export interface OutboundVideo {
    * расписание, а не поломка, и плашка называет её разгоном (`outbound-note.ts`).
    */
   settling: boolean;
+}
+
+/**
+ * Свой `AudioContext` для звука собеседников, а не созданный SDK.
+ *
+ * ЗАЧЕМ (E12). SDK создаёт контекст сам при каждом подключении и закрывает его при обрыве: после
+ * полного переподключения — а на телефоне оно случается после фона — новый контекст рождается без
+ * жеста человека и на iOS молчит до первого касания. Свой контекст живёт всю встречу, переживает
+ * переподключения, и разбудить его после фона или обычного звонка можем мы сами (`AudioWaker`).
+ * `latencyHint` — как у SDK.
+ */
+function createAudioContext(): AudioContext | null {
+  const Context =
+    typeof window !== 'undefined'
+      ? (window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+      : undefined;
+  if (!Context) return null;
+  try {
+    return new Context({ latencyHint: 'interactive' });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -190,6 +224,26 @@ export class MediaSession {
   readonly screenPreviews = new Store<Record<string, string>>({});
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
+  /** На какой платформе идёт встреча — для правил фона (E12, `media/background.ts`). */
+  readonly platform: Platform = currentPlatform();
+  /**
+   * Микрофон захвачен: включён или удержан выключенным ({@link holdMicrophone}). Именно захват держит
+   * разговор в фоне на телефоне — Android поднимает на него свой foreground service, Safari оставляет
+   * аудиосессию (`docs/mobile.md` §1).
+   */
+  readonly captured = new Store(false);
+  /** Телефон глушил включённый микрофон, пока страница была не на экране (W4). Плашка гасит сама. */
+  readonly micGap = new Store<MicGap | null>(null);
+  /** «Свернуть в окно» (W2). */
+  readonly pip = new PictureInPicture();
+  private audioContext = createAudioContext();
+  /** Звук собеседников стоит и ждёт касания — после фона, обычного звонка, перезагрузки. */
+  readonly audio = new AudioWaker(this.audioContext);
+  private wake = new ScreenWake();
+  private micGaps = new MicInterruptions();
+  private watchedMic: MediaStreamTrack | null = null;
+  private micGapTimer?: ReturnType<typeof setTimeout>;
+  private lifecycle: PageLifecycle;
   private previousVolumes = new Map<string, number>();
   /** Номер участника → устойчивый ключ в памяти громкостей. См. `core/volumes.ts`. */
   private volumeKeys = new Map<string, string>();
@@ -198,6 +252,7 @@ export class MediaSession {
   watchScreen(participantId: string | null) {
     this.watchedParticipant = participantId;
     this.syncSubscriptions();
+    this.syncBackground();
   }
   private shouldSubscribe(identity: string, source: Track.Source) {
     return (
@@ -367,6 +422,7 @@ export class MediaSession {
    * состав служебных участников приходит снаружи, из снимка комнаты.
    */
   private serviceParticipants = new Set<string>();
+  private subscriptions: (() => void)[] = [];
   constructor(
     private api: RoomApi,
     private onEnd: (reason: string) => void,
@@ -383,7 +439,7 @@ export class MediaSession {
       // масштабом 150 % занимает 1110 настоящих, и без этого выбор всегда на слой ниже.
       adaptiveStream: { pixelDensity: 'screen' },
       dynacast: true,
-      webAudioMix: true,
+      webAudioMix: this.audioContext ? { audioContext: this.audioContext } : true,
       stopLocalTrackOnUnpublish: false,
       videoCaptureDefaults: {
         ...cameraCapture(this.cameraProfile),
@@ -466,8 +522,14 @@ export class MediaSession {
       })
       .on(RoomEvent.TrackUnmuted, this.refreshTracks);
     window.addEventListener('online', this.network);
-    // Экран погас или снова зажёгся: окно восстановления встаёт и идёт дальше (`screenAwake`).
-    document.addEventListener('visibilitychange', this.screenAwake);
+    // Экран погас, браузер свёрнут или заморожен — и вернулся: см. «звонок в кармане» ниже.
+    this.lifecycle = new PageLifecycle({ hidden: this.wentAway, returned: this.cameBack });
+    this.subscriptions.push(
+      this.tracks.subscribe(this.syncBackground),
+      this.state.subscribe(this.syncBackground),
+      this.speaking.subscribe(this.syncBackground),
+      this.captured.subscribe(this.syncBackground),
+    );
     window.addEventListener('cord:preferences', this.settingsChanged);
     this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
@@ -961,12 +1023,122 @@ export class MediaSession {
     Вернулись к экрану — окно идёт дальше с того же остатка, а если связь так и не вернулась,
     человек увидит честный отсчёт и сможет что-то сделать. Заодно возвращение — хороший повод
     попробовать подключиться прямо сейчас, не дожидаясь очередной попытки по расписанию.
+
+    Дорожки при уходе не трогаются вовсе (E12): микрофон остаётся захваченным — это и держит
+    разговор в фоне, — подписки остаются, камеру на телефоне гасит и поднимает сам SDK. Если
+    страницу замораживали (`ReturnInfo.frozen`), сигнальный сокет SDK, скорее всего, уже мёртв, и
+    вместо ожидания таймаута пинга сразу просим бесшовный resume (`reconnect-plan.ts`, `woke`).
+    Звук собеседников после фона и обычного звонка спит — будим его тут же.
   */
-  private screenAwake = () => {
-    const hidden = typeof document !== 'undefined' && document.hidden;
-    this.recovery.hold(hidden);
-    if (!hidden) this.nudge('visible');
+  private wentAway = () => {
+    this.recovery.hold(true);
   };
+  private cameBack = (info: ReturnInfo) => {
+    if (this.disposed) return;
+    this.recovery.hold(false);
+    this.nudge(info.frozen ? 'woke' : 'visible');
+    if (info.frozen)
+      console.info('[cord] page returned from a freeze', {
+        awayMs: Math.round(info.awayMs),
+        restored: info.restored,
+      });
+    if (this.state.get().status === 'connected') void this.audio.wake();
+    this.wake.refresh();
+    // SDK по возвращении перезапускает заглушённый телефоном микрофон; рассказ о перерыве — когда
+    // новая дорожка уже живая.
+    clearTimeout(this.micGapTimer);
+    this.micGapTimer = setTimeout(this.tellMicGap, 1500);
+  };
+  /**
+   * Правила фона на каждое изменение: держать ли экран (`wantsWakeLock`) и что лежит в окне PiP.
+   * Зовётся часто — оба получателя сами ничего не делают, если ответ не изменился.
+   */
+  private syncBackground = () => {
+    if (this.disposed) return;
+    const status = this.state.get().status;
+    const tiles = this.tracks.get();
+    this.wake.want(
+      wantsWakeLock({
+        inCall: status === 'connected' || status === 'recovering',
+        visible: typeof document === 'undefined' || !document.hidden,
+        video: tiles.some((tile) => tile.track.kind === Track.Kind.Video && !tile.muted),
+        captured: this.captured.get(),
+        platform: this.platform,
+      }),
+    );
+    this.pip.update(
+      choosePipSource(tiles, { watching: this.watchedParticipant, speaking: this.speaking.get() }),
+    );
+  };
+  /** Следить за событиями ОС у дорожки микрофона: `mute` — телефон забрал звук (W4). */
+  private watchMic(track: MediaStreamTrack | null) {
+    if (track === this.watchedMic) return;
+    this.watchedMic?.removeEventListener('mute', this.micMuted);
+    this.watchedMic?.removeEventListener('unmute', this.micUnmuted);
+    this.watchedMic = track;
+    if (!track) return;
+    track.addEventListener('mute', this.micMuted);
+    track.addEventListener('unmute', this.micUnmuted);
+    if (track.readyState === 'live' && !track.muted) this.micGaps.unmuted(Date.now());
+  }
+  private micMuted = () => this.micGaps.muted(Date.now(), this.wanted.microphone);
+  private micUnmuted = () => this.micGaps.unmuted(Date.now());
+  private tellMicGap = () => {
+    if (this.disposed) return;
+    this.collectTracks();
+    const gap = this.micGaps.take(Date.now());
+    if (gap) {
+      console.info('[cord] the phone muted the microphone while away', gap);
+      this.micGap.set(gap);
+    }
+  };
+  /**
+   * Нажатие «Включить звук»: разбудить свой контекст и элементы SDK. Звать из обработчика нажатия —
+   * Safari будит звук только жестом.
+   */
+  async unlockAudio() {
+    await Promise.all([this.audio.wake(), this.room.startAudio().catch(() => {})]);
+    return this.audio.running;
+  }
+  /**
+   * Телефон: захватить микрофон сразу, но выключенным (W5, решение архитектора 16).
+   *
+   * Вошедший с выключенным микрофоном раньше не захватывал его вовсе — и его вкладку в фоне не
+   * держало ничто: ни foreground service Chrome, ни аудиосессия Safari (`docs/mobile.md` §3). Теперь
+   * дорожка публикуется сразу заглушённой: в комнату не уходит ни звука, а «включить микрофон» —
+   * это `unmute` той же дорожки, без нового запроса доступа. Так ведут себя нативные звонилки; цена —
+   * индикатор микрофона ОС горит и при выключенном звуке.
+   *
+   * На ПК ничего не делает. Отказ в доступе — не ошибка встречи: разговор идёт как раньше, а плашка
+   * честно говорит, что фон теперь не защищён (`backgroundAdvice` → `no-microphone`).
+   */
+  async holdMicrophone(deviceId?: string) {
+    if (!this.platform.mobile || this.disposed || this.deviceBusy.has('microphone')) return;
+    if (this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track) return;
+    this.deviceBusy.add('microphone');
+    try {
+      const track = await createLocalAudioTrack(
+        audioCapture(this.preferences.get().audio, deviceId || this.preferences.get().devices.microphone),
+      );
+      if (this.disposed) {
+        track.stop();
+        return;
+      }
+      // Заглушить до публикации: в запросе на публикацию уходит `muted`, и сервер ни мгновения не
+      // считает микрофон включённым.
+      await track.mute();
+      await this.room.localParticipant.publishTrack(track, {
+        ...microphoneOptions(),
+        source: Track.Source.Microphone,
+      });
+      if (this.disposed) track.stop();
+    } catch (error) {
+      console.warn('[cord] microphone was not held for the background', error);
+    } finally {
+      this.deviceBusy.delete('microphone');
+      this.refreshTracks();
+    }
+  }
   private lost = () => {
     if (this.disposed) return;
     this.liveHealth.clear();
@@ -1008,6 +1180,8 @@ export class MediaSession {
       () => cycle === this.connectionCycle && this.room.state === 'connected',
     );
     void this.restoreTracks(cycle);
+    // Звук собеседников: свой контекст переживает переподключение, но мог уснуть, пока его не было.
+    if (typeof document === 'undefined' || !document.hidden) void this.audio.wake();
     this.patch({ status: 'connected', remaining: this.recovery.durationMs / 1000, error: null });
     this.startUpstreamMonitor();
     this.refreshTracks();
@@ -1059,6 +1233,9 @@ export class MediaSession {
     this.room.remoteParticipants.forEach(collect);
     this.tracks.set(tiles);
     const local = this.room.localParticipant;
+    const mic = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack ?? null;
+    this.watchMic(mic);
+    this.captured.set(mic?.readyState === 'live');
     this.patch({
       microphone: local.isMicrophoneEnabled,
       camera: local.isCameraEnabled,
@@ -1094,6 +1271,23 @@ export class MediaSession {
           );
           await this.applyAudioProcessor();
         }
+      }
+      // Выключенный, но захваченный микрофон (W5 или выключенный кнопкой) после полного
+      // переподключения публикуется снова — заглушённым. Иначе захват жил бы вне комнаты, а
+      // «включить» захватило бы микрофон второй раз и первый остался бы гореть до конца встречи.
+      const heldMic = this.deviceTracks.get(Track.Source.Microphone);
+      if (
+        !this.wanted.microphone &&
+        heldMic instanceof LocalAudioTrack &&
+        heldMic.mediaStreamTrack.readyState === 'live' &&
+        !this.room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
+      ) {
+        if (this.disposed || cycle !== this.connectionCycle) return;
+        if (!heldMic.isMuted) await heldMic.mute();
+        await this.room.localParticipant.publishTrack(heldMic, {
+          ...microphoneOptions(),
+          source: Track.Source.Microphone,
+        });
       }
       for (const track of this.screenTracks) {
         if (this.disposed || cycle !== this.connectionCycle) return;
@@ -1159,6 +1353,7 @@ export class MediaSession {
         kind === 'microphone'
           ? this.room.localParticipant.isMicrophoneEnabled
           : this.room.localParticipant.isCameraEnabled;
+      if (kind === 'microphone' && !this.wanted.microphone) this.micGaps.forget();
       if (kind === 'microphone' && announce)
         signal(this.room.localParticipant.isMicrophoneEnabled ? 'mic-on' : 'mic-off');
       if (kind === 'camera' && !reusedCamera) this.cameraProfilePending = false;
@@ -1735,7 +1930,13 @@ export class MediaSession {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
     window.removeEventListener('online', this.network);
-    document.removeEventListener('visibilitychange', this.screenAwake);
+    this.lifecycle.dispose();
+    this.subscriptions.forEach((off) => off());
+    clearTimeout(this.micGapTimer);
+    this.watchMic(null);
+    this.wake.dispose();
+    this.pip.dispose();
+    this.audio.dispose();
     window.removeEventListener('cord:preferences', this.settingsChanged);
     this.previewSource.stop();
     this.previewImages.clear();
@@ -1747,7 +1948,10 @@ export class MediaSession {
     this.deviceTracks.clear();
     this.screenTracks = [];
     void this.room.disconnect(true);
+    // Контекст свой, а не SDK: SDK закрывает только те, что создал сам.
+    void this.audioContext?.close().catch(() => {});
     this.tracks.set([]);
+    this.captured.set(false);
     this.patch({ status: 'ended', screen: false, camera: false, microphone: false });
   }
 }

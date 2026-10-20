@@ -26,6 +26,7 @@ from .metrics import render as render_metrics
 from .music import Music
 from .sources import PLATFORMS, Sources
 from .store import Store, now
+from .webapp import Refusal, enabled, max_age, release, startgroup_url
 from .yandex import Yandex, routes
 
 # Источники музыки по порядку, в котором их видит человек. `MUSIC_SOURCES` — включённые через
@@ -74,6 +75,12 @@ class MusicLink(BaseModel):
     commandId: uuid.UUID
 
 
+class WebAppEntry(BaseModel):
+    # `Telegram.WebApp.initData` как есть. Telegram кладёт туда пользователя, чат и подпись — это
+    # сотни байт; потолок с запасом, но не «любой длины».
+    initData: str = Field(min_length=1, max_length=4096)
+
+
 class Claim(BaseModel):
     token: str = Field(min_length=20, max_length=100)
     name: str = Field(default="", max_length=40)
@@ -81,7 +88,11 @@ class Claim(BaseModel):
 
 
 def create_app(
-    root: Path | None = None, core: Core | None = None, *, telegram_enabled: bool = True
+    root: Path | None = None,
+    core: Core | None = None,
+    *,
+    telegram_enabled: bool = True,
+    webapp: bool | None = None,
 ):
     if core is None and len(os.environ.get("INTERNAL_SECRET", "")) < 32:
         # Без секрета служба не может доказать ядру, что она своя, а подписи кинозала считались бы на
@@ -121,6 +132,9 @@ def create_app(
     )
     telegram = None
     background = []
+    # Mini App Telegram (E09): кнопка «Открыть встречу» в беседе и вход по ней. По умолчанию выключен —
+    # витрина тогда показывает Telegram «Скоро» (T30, П5).
+    webapp_on = enabled(os.environ.get("TELEGRAM_WEBAPP_ENABLED")) if webapp is None else webapp
 
     @asynccontextmanager
     async def lifespan(app):
@@ -140,7 +154,11 @@ def create_app(
                 music,
                 public_url,
                 yandex=yandex,
+                webapp=webapp_on,
+                short_name=os.environ.get("TELEGRAM_WEBAPP_SHORT_NAME", "").strip(),
+                init_data_age=max_age(os.environ.get("TELEGRAM_INITDATA_MAX_AGE")),
             )
+            app.state.telegram = telegram
             background.append(asyncio.create_task(telegram.run(), name="telegram"))
 
         async def clean():
@@ -176,6 +194,8 @@ def create_app(
     )
     app.state.store, app.state.core, app.state.music = store, core, music
     app.state.yandex = yandex
+    app.state.telegram = None
+    app.state.webapp = webapp_on
     app.state.cinema = cinema
     app.state.sources = sources
     app.include_router(routes(yandex, core))
@@ -204,6 +224,17 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
+    @app.exception_handler(Refusal)
+    async def refused(_: Request, error: Refusal):
+        # Отказ с кодом — как у ядра: `code` для перевода, `detail` по-русски (E14).
+        return JSONResponse(
+            {"code": error.code, "detail": error.detail}, status_code=error.status_code
+        )
+
+    def bot_ready() -> bool:
+        bot = app.state.telegram
+        return bool(bot and bot.ready and store.state("bot_status") == "polling")
+
     @app.get("/health")
     async def health():
         return {"status": "UP"}
@@ -226,11 +257,9 @@ def create_app(
             ],
             "telegram": {
                 "username": store.state("bot_username") or None,
-                "connected": bool(
-                    telegram
-                    and telegram.ready
-                    and store.state("bot_status") == "polling"
-                ),
+                "connected": bot_ready(),
+                # Витрина включает Telegram по этому полю (E06-B-5): флаг установки и живой бот.
+                "webapp": app.state.webapp and bot_ready(),
             },
             "sources": sources_on,
             "maxFileBytes": MAX_FILE,
@@ -356,6 +385,7 @@ def create_app(
             {"roomCredential": authorization.removeprefix("Bearer ")},
             profile,
         )
+        # 24 символа base64url: годится и для `/bind <код>`, и для `startgroup=` (до 64 символов).
         token = secrets.token_urlsafe(18)
         store.put_claim(
             token,
@@ -367,10 +397,51 @@ def create_app(
                 "ownerName": member["name"],
             },
         )
+        username = store.state("bot_username")
         return {
-            "command": "/bind@" + store.state("bot_username") + " " + token,
+            "command": "/bind@" + username + " " + token,
             "expiresAt": now() + 900000,
+            # Одной кнопкой: Telegram добавит бота в выбранную группу и пришлёт туда `/start <код>`.
+            "startgroupUrl": startgroup_url(username, token),
         }
+
+    @app.get("/api/v1/services/rooms/{room_id}/telegram")
+    async def telegram_links(room_id: str, authorization: str = Header()):
+        """Какие беседы открывают эту встречу кнопкой Mini App — видит тот, кто может привязать."""
+        await core.member(room_id, authorization, action="telegram.link")
+        return {
+            "links": [
+                {
+                    "id": link["id"],
+                    "chatTitle": link["chatTitle"],
+                    "since": link["createdAt"],
+                    "pinned": bool(link.get("pinned")),
+                }
+                for link in store.room_telegram_links(room_id)
+            ]
+        }
+
+    @app.delete("/api/v1/services/rooms/{room_id}/telegram/links/{link_id}")
+    async def telegram_unlink(room_id: str, link_id: str, authorization: str = Header()):
+        """Отвязать беседу из встречи — то же право, что привязать (T30)."""
+        await core.member(room_id, authorization, action="telegram.link")
+        link = store.telegram_link(link_id)
+        if not link or link["roomId"] != room_id or link["revokedAt"]:
+            raise HTTPException(404, "Эта беседа уже отвязана")
+        bot = app.state.telegram
+        await release(store, link, bot.api if bot else None)
+        return await telegram_links(room_id, authorization)
+
+    @app.post("/api/v1/services/telegram/webapp/enter")
+    async def webapp_enter(entry: WebAppEntry):
+        """
+        Вход из Mini App: без заголовка входа — пропуск здесь `initData`, подписанная токеном бота.
+        Ответ — приглашение и имя; во встречу браузер входит сам (`web/src/telegram`).
+        """
+        bot = app.state.telegram
+        if not app.state.webapp or not bot:
+            raise Refusal(404, "TELEGRAM_WEBAPP_OFF", "Вход из Telegram на этом сервере выключен")
+        return await bot.webapp_enter(entry.initData)
 
     @app.post("/api/v1/services/claims/preview")
     async def preview(claim: Claim):

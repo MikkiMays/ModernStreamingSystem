@@ -3,6 +3,7 @@ import { Share, SquarePlus, X } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useMediaQuery } from './primitives';
 import { isDesktop } from '../core/desktop';
+import { currentPlatform } from '../media/platform';
 
 /**
  * «Вынести Cord на экран „Домой“».
@@ -15,6 +16,9 @@ import { isDesktop } from '../core/desktop';
  *
  * Не показывается: в оболочке Windows, в уже установленном виде и на устройствах с мышью —
  * там ярлык на рабочем столе решает другую задачу, для которой есть отдельное приложение.
+ *
+ * На iPhone честно предупреждает (E12): веб-приложение с экрана «Домой» глушит микрофон, как только
+ * из него уходят, — свёрнутый разговор там не держится, а в Safari держится (`docs/mobile.md` §2).
  */
 const DISMISSED = 'cord:install-hint:dismissed';
 
@@ -48,9 +52,12 @@ export function InstallHint() {
       /* Приватное окно забудет об этом само. */
     }
   };
-  // `navigator.standalone` — единственный признак установленного веб-приложения на iOS.
-  const installed = standalone || (navigator as { standalone?: boolean }).standalone === true;
+  const platform = currentPlatform();
+  // `navigator.standalone` — единственный признак установленного веб-приложения на iOS; в приложении
+  // Cord для телефона ставить уже нечего.
+  const installed = standalone || (navigator as { standalone?: boolean }).standalone === true || platform.app;
   if (hidden || installed || !phone || isDesktop()) return null;
+  const iphone = platform.os === 'ios';
   return (
     <aside className="install-hint" role="note">
       <div>
@@ -68,6 +75,7 @@ export function InstallHint() {
             />
           </small>
         )}
+        {iphone && <small>{t(($) => $.download.install.iosBackground)}</small>}
       </div>
       {prompt && (
         <button

@@ -92,6 +92,53 @@ L4 Caddy завершает TLS на 443 и направляет `turn.*` к 534
 | --- | --- | --- |
 | `MUSIC_SOURCES` | пусто → включены все | Источники музыки через запятую: `upload`, `telegram`, `yandex`, `youtube`, `soundcloud`. Выключенного нет в подсказке витрины и в поиске панели; поиск и ссылка выключенной площадки отвечают 400. YouTube и SoundCloud ходят наружу тем же путём, что кинозал: `CINEMA_PROXY_YOUTUBE` (или общий `CINEMA_PROXY`) и запасные cookies `CINEMA_COOKIES_YOUTUBE`. |
 
+## Telegram Mini App
+
+Встреча, привязанная к беседе, открывается прямо в Telegram — кнопкой «Открыть встречу», на весь экран,
+с именем из Telegram (E09, спецификация `docs/superpowers/specs/2026-10-19-telegram-mini-app.md`). По
+умолчанию выключено: витрина показывает Telegram «Скоро», бот работает как раньше (`/bind`, `/meet`,
+музыка).
+
+| Переменная | По умолчанию | Что делает |
+| --- | --- | --- |
+| `TELEGRAM_WEBAPP_ENABLED` | `false` | Включает Mini App: вход `POST /api/v1/services/telegram/webapp/enter`, кнопку `startapp` в беседе (закреп при привязке, первая строка ответа `/meet`) и Telegram в витрине (`catalog.telegram.webapp` — флаг и бот на связи). |
+| `TELEGRAM_WEBAPP_SHORT_NAME` | пусто | Пусто — главный Mini App бота (`t.me/<бот>?startapp=…`). Имя из `/newapp` — Mini App по прямой ссылке `t.me/<бот>/<имя>?startapp=…`. |
+| `TELEGRAM_INITDATA_MAX_AGE` | `3600` | Сколько секунд принимается подписанная `initData`; короче — можно, дольше часа — нет. |
+
+Переменные — службы `services`, рядом с `CORD_MEET_TELEGRAM_BOT_TOKEN` (`.env` или `.local/telegram.env`).
+Адрес Mini App — `PUBLIC_URL` + `/tg`: шлюз отдаёт там `tg.html` и только этому пути разрешает рамку
+`frame-ancestors https://web.telegram.org` (Telegram Web открывает Mini App в iframe); у всех остальных
+путей — `frame-ancestors 'none'` и `X-Frame-Options DENY`. Проверка — `bash infra/csp-check.sh`.
+
+Включение:
+
+1. @BotFather → `/mybots` → бот → **Bot Settings → Configure Mini App → Enable Mini App**, адрес
+   `https://<домен>/tg`. Это главный Mini App: кнопка «Открыть» в профиле бота и ссылки
+   `t.me/<бот>?startapp=…`. Вместо него можно `/newapp` (название, описание, картинка 640×360, короткое
+   имя, тот же адрес) — тогда `TELEGRAM_WEBAPP_SHORT_NAME=<короткое имя>`.
+2. Там же → **Configure Splash Screen**: иконка Cord и цвет фона `#111419` для светлой **и** тёмной темы —
+   первый кадр `tg.html` того же цвета, шва между заставкой Telegram и загрузкой Cord нет.
+3. По желанию — **Edit Description Picture** (картинка над описанием бота в пустом чате; текст описания бот
+   ставит сам) и превью Main Mini App.
+4. `/setjoingroups` — включено. `/setdomain` не нужен (он для Login Widget). Защиту Mini App по источнику
+   (Bot API 10.2) не отключать.
+5. `TELEGRAM_WEBAPP_ENABLED=true`, затем `docker compose up -d --no-deps services` (и `gateway`, если он
+   собран до `/tg`).
+
+Привязка: создатель встречи → «Интеграции» → Telegram → «Привязать к беседе» — код на 15 минут, кнопка
+«Добавить бота в группу» (`startgroup`: Telegram добавит бота админом с правом закрепа и пришлёт код) или
+команда `/bind@<бот> <код>`. Бот отвечает сообщением с кнопкой и закрепляет его; без права закрепа кнопка
+остаётся в сообщении. Вход по кнопке: служба проверяет подпись `initData` токеном бота (HMAC,
+`auth_date` не старше часа), номер привязки из `start_param` и членство человека в беседе
+(`getChatMember`, кэш 5 минут), и отдаёт приглашение во встречу. Отвязка — из встречи (создатель),
+`/unbind` в чате или удаление бота из беседы.
+
+Ограничения платформы: камера и микрофон во встроенном браузере Telegram зависят от клиента — iOS
+спрашивает разрешение каждый сеанс (бывает чёрный кадр камеры), Android — своим окном на каждый запрос,
+Desktop и Web — как браузер. Демонстрации экрана в WebView телефонов нет, а Telegram Web не даёт её в
+рамке. Свёрнутый Mini App ОС может лишить микрофона и камеры. Если микрофона нет, Mini App предлагает
+«Открыть в браузере» или «Войти без микрофона».
+
 ## Кинозал: выход наружу площадок
 
 Все переменные — необязательные (`services/cord_services/cinema/net.py`, читаются один раз при
@@ -279,7 +326,7 @@ curl --fail https://meet.example.org/api/v1/capabilities
 | `stream.abuse.human-check` | `HUMAN_CHECK` | `proof-of-work` | невидимая задача «не бот» (ALTCHA) на создании встречи и входе по коду; `off` — выключить |
 | `stream.abuse.proof-cost` | `PROOF_COST` | `50000` | сколько чисел браузер перебирает в худшем случае (в среднем — половину) |
 | `stream.abuse.per-ip.rooms-created` | `ABUSE_IP_ROOMS_CREATED` | `10 per hour` | новых встреч с адреса; отказ предел не съедает |
-| `stream.abuse.per-ip.open-rooms` | `ABUSE_IP_OPEN_ROOMS` | `3` | встреч с адреса, одновременно занимающих место на сервере |
+| `stream.abuse.per-ip.open-rooms` | `ABUSE_IP_OPEN_ROOMS` | `8` | встреч с адреса, одновременно занимающих место на сервере; 8 — чтобы офис или мобильный NAT не упирался в три встречи (решение владельца, 20.10.2026) |
 | `stream.abuse.per-ip.admissions` | `ABUSE_IP_ADMISSIONS` | `30 per minute` | входов (создать, по ссылке, вернуться) |
 | `stream.abuse.per-ip.code-joins` | `ABUSE_IP_CODE_JOINS` | `10 per minute` | попыток входа по коду |
 | `stream.abuse.per-ip.code-misses` | `ABUSE_IP_CODE_MISSES` | `20 per hour` | промахов кодом; выбравший ждёт конца окна |

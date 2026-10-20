@@ -120,6 +120,9 @@ export class Meeting {
           // Без сигнала: человек включил микрофон ещё на предпросмотре, а услышал только что
           // собственный вход — два звука подряд об одном и том же событии.
           if (this.choices.micOn) void this.media.toggle('microphone', this.choices.microphone, false);
+          // Телефон: микрофон захватывается и выключенным — иначе разговор в фоне не держит ничто
+          // (W5, E12). На ПК `holdMicrophone` ничего не делает.
+          else void this.media.holdMicrophone(this.choices.microphone);
           if (this.choices.cameraOn) void this.media.toggle('camera', this.choices.camera);
         }
       }),

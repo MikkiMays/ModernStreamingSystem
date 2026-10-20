@@ -1,6 +1,6 @@
 import type { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomEvent, DisconnectReason, Track, type RoomOptions } from 'livekit-client';
+import { RoomEvent, DisconnectReason, Track, createLocalAudioTrack, type RoomOptions } from 'livekit-client';
 import { MediaSession } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter } from './capture';
@@ -20,6 +20,7 @@ vi.mock('livekit-client', async (importOriginal) => {
       getTrackPublication(source: Track.Source) {
         return this.trackPublications.get(source);
       },
+      publishTrack: vi.fn(async () => ({})),
     };
     constructor(readonly options: RoomOptions) {
       super();
@@ -31,7 +32,7 @@ vi.mock('livekit-client', async (importOriginal) => {
     connect = vi.fn(async () => {});
     simulateScenario = vi.fn(async () => {});
   }
-  return { ...sdk, Room: FakeRoom };
+  return { ...sdk, Room: FakeRoom, createLocalAudioTrack: vi.fn() };
 });
 
 function fixture(capture?: CaptureAdapter) {
@@ -356,4 +357,122 @@ describe('знак сети', () => {
       media.dispose();
     }
   });
+});
+
+/** Телефон в кармане (E12): уход с экрана ничего не рвёт, возвращение из заморозки — сразу resume. */
+describe('разговор в фоне', () => {
+  const setHidden = (hidden: boolean) => {
+    Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+  afterEach(() => {
+    delete (document as { hidden?: boolean }).hidden;
+  });
+
+  it('свернули и развернули — resume не нужен: JS работал, обрыв SDK заметил бы сам', () => {
+    const { media, room } = fixture();
+    const resume = (room as unknown as { simulateScenario: ReturnType<typeof vi.fn> }).simulateScenario;
+    try {
+      setHidden(true);
+      setHidden(false);
+      expect(resume).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('вернулись из заморозки — сразу resume, не дожидаясь таймаута пинга', () => {
+    const { media, room } = fixture();
+    const resume = (room as unknown as { simulateScenario: ReturnType<typeof vi.fn> }).simulateScenario;
+    try {
+      setHidden(true);
+      document.dispatchEvent(new Event('freeze'));
+      setHidden(false);
+      expect(resume).toHaveBeenCalledWith('signal-reconnect');
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('пока страница скрыта, окно восстановления стоит', () => {
+    vi.useFakeTimers();
+    const { media, room } = fixture();
+    try {
+      room.emit(RoomEvent.Reconnecting);
+      setHidden(true);
+      vi.advanceTimersByTime(60_000);
+      expect(media.state.get().status).toBe('recovering');
+      expect(media.recovery.holding).toBe(true);
+      setHidden(false);
+      expect(media.recovery.holding).toBe(false);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  function withUserAgent(userAgent: string, run: () => Promise<void>) {
+    const original = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
+    Object.defineProperty(navigator, 'userAgent', { value: userAgent, configurable: true });
+    return run().finally(() => {
+      delete (navigator as { userAgent?: string }).userAgent;
+      if (original) Object.defineProperty(Navigator.prototype, 'userAgent', original);
+    });
+  }
+
+  it('телефон: вошедший с выключенным микрофоном захватывает его заглушённым — до публикации', () =>
+    withUserAgent('Mozilla/5.0 (Linux; Android 15; Pixel 8) Chrome/141.0 Mobile Safari/537.36', async () => {
+      const order: string[] = [];
+      const track = {
+        mute: vi.fn(async () => {
+          order.push('mute');
+        }),
+        stop: vi.fn(),
+      };
+      vi.mocked(createLocalAudioTrack).mockResolvedValueOnce(track as never);
+      const { media } = fixture();
+      const publish = (media.room.localParticipant as unknown as { publishTrack: ReturnType<typeof vi.fn> })
+        .publishTrack;
+      publish.mockImplementationOnce(async () => {
+        order.push('publish');
+        return {};
+      });
+      try {
+        expect(media.platform.mobile).toBe(true);
+        await media.holdMicrophone();
+        expect(order).toEqual(['mute', 'publish']);
+        expect(publish).toHaveBeenCalledWith(
+          track,
+          expect.objectContaining({ source: Track.Source.Microphone }),
+        );
+      } finally {
+        media.dispose();
+      }
+    }));
+
+  it('ПК: выключенный микрофон не захватывается, как и раньше', async () => {
+    vi.mocked(createLocalAudioTrack).mockClear();
+    const { media } = fixture();
+    try {
+      expect(media.platform.mobile).toBe(false);
+      await media.holdMicrophone();
+      expect(createLocalAudioTrack).not.toHaveBeenCalled();
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('телефон без доступа к микрофону: встреча идёт, ошибки на сцене нет', () =>
+    withUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X) Safari/604.1', async () => {
+      vi.mocked(createLocalAudioTrack).mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'));
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { media } = fixture();
+      try {
+        await media.holdMicrophone();
+        expect(media.state.get().error).toBeNull();
+        expect(media.captured.get()).toBe(false);
+      } finally {
+        warn.mockRestore();
+        media.dispose();
+      }
+    }));
 });

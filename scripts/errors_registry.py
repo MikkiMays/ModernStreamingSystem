@@ -4,7 +4,8 @@
 Ядро отвечает RFC 7807 с русским `detail` и стабильным `code`. Тексты для других языков собирает
 клиент по коду (E14), поэтому список кодов должен быть один и проверяемый. Скрипт находит в
 исходниках ядра `new Problem(статус, "КОД", текст[, Map.of(...)])`, `Problem.conflict("КОД", текст)`
-и готовый JSON отказа (`{"code":"КОД","detail":"текст"}` в фильтре запросов) и пишет реестр: код →
+и готовый JSON отказа (`{"code":"КОД","detail":"текст"}` в фильтре запросов), а в службах —
+`Refusal(статус, "КОД", "текст")` (`services/cord_services`, E09), и пишет реестр: код →
 статус, русский текст и, если есть, имена значений, которые отказ несёт рядом с кодом (`params`).
 Текст, склеенный из переменных, остаётся шаблоном с `{}` на месте вставок — по нему видно, какие
 вставки у сообщения.
@@ -19,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "server" / "src" / "main" / "java"
+SERVICES = ROOT / "services" / "cord_services"
 TARGET = ROOT / "contracts" / "errors.json"
 
 START = re.compile(r"new\s+Problem\s*\(|Problem\.conflict\s*\(")
@@ -26,6 +28,8 @@ LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
 CODE = re.compile(r'^"([A-Z][A-Z0-9_]+)"$')
 RAW = re.compile(r'\\"code\\":\\"(?P<code>[A-Z][A-Z0-9_]+)\\",\\"detail\\":\\"(?P<message>(?:[^"\\]|\\[^"])*)\\"')
 STATUS = re.compile(r"setStatus\(\s*(\d{3})\s*\)")
+# Отказ службы с кодом (`cord_services/webapp.py`): тот же порядок аргументов, что у `new Problem`.
+REFUSAL = re.compile(r"\bRefusal\s*\(")
 
 
 def arguments(text: str, start: int) -> tuple[list[str], int]:
@@ -116,6 +120,15 @@ def collect() -> dict:
             status = STATUS.findall(text, 0, match.start())
             entry = {"status": int(status[-1]) if status else 400, "ru": unescape(match.group("message"))}
             add(registry, match.group("code"), entry)
+    for path in sorted(SERVICES.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        for match in REFUSAL.finditer(text):
+            args, _ = arguments(text, match.end())
+            if len(args) < 3 or not args[0].isdigit():
+                continue  # объявление класса и прочие упоминания
+            code = CODE.match(args[1])
+            if code:
+                add(registry, code.group(1), {"status": int(args[0]), "ru": message_template(args[2])})
     return dict(sorted(registry.items()))
 
 

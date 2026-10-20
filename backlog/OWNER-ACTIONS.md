@@ -38,8 +38,11 @@
   умеет рисовать на холсте, агент напишет плагин Figma — его нужно будет один раз запустить в
   этом файле (Plugins → Development → Import plugin from manifest). Без доступа E15 готовит всё
   к импорту и не стоит.
-- **Telegram (E09):** BotFather — описание бота, картинка «что умеет бот», Mini App и домен
-  (`/newapp`, `/setdomain`), если Bot API это не позволяет сделать запросом.
+- **Telegram (E09):** код готов и выключен (`TELEGRAM_WEBAPP_ENABLED=false`). Чтобы включить — BotFather:
+  Configure Mini App → Enable Mini App с адресом `https://<домен>/tg`, Splash Screen цветом `#111419` для
+  обеих тем, по желанию Description Picture; затем флаг в `.local/telegram.env` и перезапуск `services`
+  (`docs/deployment.md` → «Telegram Mini App»). `/setdomain` не нужен. Проверка на телефоне — iOS и Android:
+  камера и микрофон внутри Telegram, полный экран, закреп кнопки в группе и в теме форума.
 - **Мобильные приложения (E12), если E12 решит, что без нативной оболочки нельзя:** Apple
   Developer Program ($99/год), Google Play Console ($25 разово).
 - **Подпись Windows-установщика / Electron (E01):** сертификат издателя (или Azure Trusted
@@ -92,3 +95,12 @@
    приложение как есть). Сертификат Authenticode — как раньше (`CORD_SIGN_PFX_BASE64`, `CORD_SIGN_PASSWORD`).
    Ответ (20.10.2026): вариант (а) — ключ стенда положен в секрет `CORD_UPDATE_SIGN_KEY`; выпуск desktop-v1.0.0 подписан
    тем же ключом и выложен на зеркало (`/downloads/windows/desktop/`).
+
+7. **Телефоны (20.10.2026, E12).** Без телефона фон не проверить — нужен владелец:
+   - **Android:** после пуша `main` CI «Android app» соберёт отладочный APK (артефакт `cord-android-debug`;
+     вручную — Actions → Android app → Run workflow). Поставить на свой телефон и пройти `docs/mobile.md` §8
+     «Проверка на телефоне», а в Chrome — §6 и шаги 13–17 из §7. Результат — таблицей в ответе ниже: модель,
+     Android, шаг, что получилось, минута, когда сломалось. Приложение смотрит на стенд `cord.nikg.tech` (В-6).
+   - **iPhone:** §6 и шаги 13–17 в Safari и с экрана «Домой». Для опыта с WKWebView (`docs/mobile.md` §9) —
+     есть ли Mac с Xcode; аккаунт Apple ($99) понадобится только для TestFlight и входящих (П1).
+   Ответ:
