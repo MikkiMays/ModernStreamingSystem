@@ -1,5 +1,3 @@
-import { t } from '../i18n';
-
 /**
  * What this device remembers about the server it is on.
  *
@@ -25,25 +23,6 @@ export interface ServerPreference {
 
 export function currentServerUrl(): string {
   return location.origin + '/';
-}
-
-/** Mirrors `ServerEndpoint.Parse` in the Windows client so one address cannot become two. */
-export function normalizeServerUrl(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) throw new Error(t(($) => $.connect.address.empty));
-  let url: URL;
-  try {
-    url = new URL(/^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`);
-  } catch {
-    throw new Error(t(($) => $.connect.address.notUrl));
-  }
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (url.username || url.password) throw new Error(t(($) => $.connect.address.credentials));
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback))
-    throw new Error(t(($) => $.connect.address.https));
-  if ((url.pathname && url.pathname !== '/') || url.search || url.hash)
-    throw new Error(t(($) => $.connect.address.path));
-  return url.origin + '/';
 }
 
 /** What is remembered about this server, with sane answers when nothing has been saved yet. */
