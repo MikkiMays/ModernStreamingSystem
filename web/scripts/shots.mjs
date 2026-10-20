@@ -202,6 +202,8 @@ for (const [screen, open] of Object.entries(SCREENS)) {
         hasTouch: width < 768,
         isMobile: width < 768,
         permissions: ['camera', 'microphone'],
+        // Экраны ищутся по русским подписям; без языка Chromium взял бы en-US, и Cord — английский.
+        locale: 'ru-RU',
       });
       await context.addInitScript((value) => localStorage.setItem('cord:theme', value), theme);
       const page = await context.newPage();

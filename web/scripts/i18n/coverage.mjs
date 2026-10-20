@@ -15,8 +15,7 @@
 //   с `{{count}}`, язык может дать формами: русскому они были не нужны («52 карт» не склонялось);
 // - лишних ключей нет; кириллицы в тексте нет (кроме `CYRILLIC_ALLOWED` — русский пример по смыслу).
 import { readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import ts from 'typescript';
+import { pathToFileURL } from 'node:url';
 
 const PLURAL = /_(zero|one|two|few|many|other)$/;
 const CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other'];
@@ -37,7 +36,8 @@ export function leaves(node, prefix = '', out = new Map()) {
 }
 
 const variables = (text) => [...String(text).matchAll(/\{\{\s*([^}\s,]+)[^}]*\}\}/g)].map((m) => m[1]);
-const tags = (text) => [...String(text).matchAll(/<\/?[a-zA-Z][\w-]*\s*\/?>/g)].map((m) => m[0].replace(/\s/g, ''));
+const tags = (text) =>
+  [...String(text).matchAll(/<\/?[a-zA-Z][\w-]*\s*\/?>/g)].map((m) => m[0].replace(/\s/g, ''));
 const sameSet = (a, b) => {
   const x = new Set(a);
   const y = new Set(b);
@@ -99,10 +99,18 @@ export function audit(ruCatalog, catalog, language) {
     }
     const all = texts.map(([, text]) => text).join('\n');
     if (!sameSet(variables(all), variables(ruText)))
-      problems.push(`${base}: вставки ${[...new Set(variables(all))]} вместо ${[...new Set(variables(ruText))]}`);
+      problems.push(
+        `${base}: вставки ${[...new Set(variables(all))]} вместо ${[...new Set(variables(ruText))]}`,
+      );
     const ruTags = group.texts.flatMap(tags);
     if (group.plural || pluralHere) {
-      if (!sameSet(texts.flatMap(([, t]) => tags(t)), ruTags)) problems.push(`${base}: разметка не та`);
+      if (
+        !sameSet(
+          texts.flatMap(([, t]) => tags(t)),
+          ruTags,
+        )
+      )
+        problems.push(`${base}: разметка не та`);
     } else if (!sameBag(tags(all), ruTags)) problems.push(`${base}: разметка ${tags(all)} вместо ${ruTags}`);
     if (problems.length === before) covered++;
   }
@@ -112,6 +120,7 @@ export function audit(ruCatalog, catalog, language) {
 
 /** `LANGUAGES` и `TRANSLATED` из `src/i18n/languages.ts` — без своей копии списка. */
 export async function languages() {
+  const { default: ts } = await import('typescript');
   const source = readFileSync(new URL('../../src/i18n/languages.ts', import.meta.url), 'utf8');
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
@@ -133,7 +142,9 @@ async function main() {
     const { total, covered, problems } = audit(ru, catalog(language), language);
     const translated = TRANSLATED.includes(language);
     const mark = problems.length ? (translated ? 'ОШИБКА' : 'не готов') : 'готов';
-    console.log(`${language}: ${covered}/${total} ключей, замечаний ${problems.length} — ${mark}${translated ? ' (TRANSLATED)' : ''}`);
+    console.log(
+      `${language}: ${covered}/${total} ключей, замечаний ${problems.length} — ${mark}${translated ? ' (TRANSLATED)' : ''}`,
+    );
     if (problems.length && translated) {
       failed = true;
       for (const problem of problems.slice(0, 50)) console.error(`  ${language} ${problem}`);
@@ -148,4 +159,3 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
-export const localesDir = fileURLToPath(locales);

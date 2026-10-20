@@ -189,13 +189,18 @@ describe('профиль и оформление (T41)', () => {
     expect(within(language).getByRole('option', { name: 'English' })).toHaveAttribute('lang', 'en');
     fireEvent.change(language, { target: { value: 'en' } });
     expect(readPreferences().language).toBe('en');
-    // Каталог английского приходит отдельным файлом; пока в нём только язык — остальное по-русски (E14-B).
+    // Каталог английского приходит отдельным файлом и переведён целиком (E14-B).
     // Файл каталога — отдельный модуль: на занятой машине его первая загрузка в тестах идёт секунды.
     expect(await screen.findByRole('heading', { name: 'Language' }, { timeout: 30_000 })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('en');
-    expect(heading()).toHaveTextContent('Оформление');
+    expect(heading()).toHaveTextContent('Appearance');
+    // «Как в браузере» сразу берёт язык браузера — он переведён, значит, интерфейс снова русский.
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['ru-RU']);
     fireEvent.change(screen.getByRole('combobox', { name: 'Interface language' }), { target: { value: '' } });
     expect(readPreferences().language).toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Язык' })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe('ru');
+    vi.restoreAllMocks();
     await act(() => applyLanguage('ru'));
   });
 });
