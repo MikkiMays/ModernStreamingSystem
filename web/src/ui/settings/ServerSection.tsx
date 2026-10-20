@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plug } from 'lucide-react';
-import { notifyDesktop } from '../../core/desktop';
+import { notifyDesktop, isDesktop } from '../../core/desktop';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../../core/servers';
 import { disconnect, session } from '../../core/session';
 import { useStore } from '../primitives';
@@ -25,7 +25,7 @@ export function ServerSection({
   inCall: boolean;
 }) {
   const { t } = useTranslation();
-  const desktop = !!window.chrome?.webview;
+  const desktop = isDesktop();
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
   return (

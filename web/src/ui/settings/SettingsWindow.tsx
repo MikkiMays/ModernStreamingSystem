@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import { useTranslation } from 'react-i18next';
+import { isDesktop } from '../../core/desktop';
 import { readPreferences, savePreferences, type Preferences } from '../../core/preferences';
 import { Store } from '../../core/store';
 import { unknownLink } from '../../media/link-quality';
@@ -104,7 +105,7 @@ export function SettingsWindow({
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   // Куда отдать фокус после перехода из поиска: нажатая строка результата исчезает.
   const focusAfter = useRef(false);
-  const context = window.chrome?.webview ? 'desktop' : 'browser';
+  const context = isDesktop() ? 'desktop' : 'browser';
 
   const go = (next: Place, row?: SearchHit['row'], focus = false) => {
     focusAfter.current = focus;

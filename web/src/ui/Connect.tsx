@@ -8,7 +8,7 @@ import './shell.css';
 import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../core/servers';
 import { describeFailure, openConnection, serverInfo, type Attempt } from '../core/session';
 import { ensureNotificationAudio } from '../core/sounds';
-import { notifyDesktop } from '../core/desktop';
+import { notifyDesktop, isDesktop } from '../core/desktop';
 
 /**
  * The first screen, and until the handshake succeeds the only one. Nothing about meetings is
@@ -24,7 +24,7 @@ import { notifyDesktop } from '../core/desktop';
  */
 export function Connect({ onConnected }: { onConnected: () => void }) {
   const { t } = useTranslation();
-  const desktop = !!window.chrome?.webview;
+  const desktop = isDesktop();
   const here = currentServerUrl();
   const saved = thisServer();
   const [password, setPassword] = useState(saved.password);

@@ -8,7 +8,7 @@ import { Home, parseInvite, type Destination, type Theme } from './ui/Home';
 import { Prejoin } from './ui/Prejoin';
 import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
-import { notifyDesktop, onDesktopCommand } from './core/desktop';
+import { isDesktop, notifyDesktop, onDesktopCommand } from './core/desktop';
 import { favoriteApi } from './core/favorites';
 import { Ping } from './ui/Ping';
 import { FavoriteSettings } from './ui/FavoriteSettings';
@@ -107,7 +107,7 @@ function Workspace() {
     setPage('prejoin');
   };
   useEffect(() => {
-    document.documentElement.dataset.desktop = String(!!window.chrome?.webview);
+    document.documentElement.dataset.desktop = String(isDesktop());
     notifyDesktop('state', {
       page,
       inCall: page === 'room' && !!meeting && !meeting.ended.get(),
@@ -189,6 +189,11 @@ function Workspace() {
       }
       if (command.type === 'network.changed') {
         window.dispatchEvent(new Event('online'));
+        return;
+      }
+      if (command.type === 'deeplink') {
+        // `cord://room/<код>` — как ввод кода на главной. Приглашение без токена открыть нечем.
+        if (typeof command.code === 'string' && /^\d{9}$/.test(command.code)) openDestination({ kind: 'code', code: command.code });
         return;
       }
       const navigate = async () => {

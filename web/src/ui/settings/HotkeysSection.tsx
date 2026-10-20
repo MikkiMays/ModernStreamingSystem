@@ -9,7 +9,7 @@ import {
   type Hotkey,
   type HotkeyNote,
 } from '../../core/hotkeys';
-import { desktopHotkeyStatus, notifyDesktop } from '../../core/desktop';
+import { desktopHotkeyStatus, notifyDesktop, isDesktop } from '../../core/desktop';
 import type { Translate } from '../../i18n';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
@@ -94,7 +94,7 @@ export function HotkeysSection({
   change: (key: Hotkey | null) => void;
 }) {
   const { t } = useTranslation();
-  const desktop = !!window.chrome?.webview;
+  const desktop = isDesktop();
   const place = desktop ? 'desktop' : 'browser';
   const nativeStatus = useStore(desktopHotkeyStatus);
   const [recording, setRecording] = useState(false);

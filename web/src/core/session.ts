@@ -2,7 +2,7 @@ import { ApiError, publicApi, request, useSession, SESSION_KEY } from '../api/cl
 import type { Capabilities } from '../api/types';
 import { Store } from './store';
 import { rememberServer, thisServer } from './servers';
-import { notifyDesktop } from './desktop';
+import { notifyDesktop, hasFeature } from './desktop';
 import { signal } from './sounds';
 import { rememberQuality } from '../media/capabilities';
 import { t } from '../i18n';
@@ -155,7 +155,7 @@ export function renew(): Promise<boolean> {
   renewal ??= (async () => {
     const saved = thisServer();
     try {
-      if (window.chrome?.webview) return await askTheHost();
+      if (hasFeature('session')) return await askTheHost();
       const info = await serverInfo();
       if (info.passwordRequired && !saved.password) {
         // Nothing to offer: stop claiming to be connected so the connect screen can ask. A

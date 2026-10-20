@@ -23,6 +23,7 @@ import './poker.css';
 import './durak.css';
 import App from './App';
 import { readPreferences } from './core/preferences';
+import { isDesktop } from './core/desktop';
 import { unlockNotificationAudio } from './core/sounds';
 import { installPointerFocus } from './ui/pointer-focus';
 unlockNotificationAudio();
@@ -35,7 +36,7 @@ installPointerFocus();
  * `localhost` мешал бы разработке: свежая сборка соревновалась бы с копией предыдущей.
  * Отказ ничего не ломает: без него Cord остаётся обычной страницей.
  */
-if ('serviceWorker' in navigator && !window.chrome?.webview && import.meta.env.PROD)
+if ('serviceWorker' in navigator && !isDesktop() && import.meta.env.PROD)
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js').catch(() => {});
   });

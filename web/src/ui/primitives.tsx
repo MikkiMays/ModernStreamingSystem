@@ -1,5 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { useTranslation } from 'react-i18next';
+import { isDesktop } from '../core/desktop';
 import { X } from 'lucide-react';
 import {
   useSyncExternalStore,
@@ -22,7 +23,7 @@ export { AppIcon, Logo } from './brand/Logo';
  */
 export function DownloadLink({ className = 'shell-download' }: { className?: string }) {
   const { t } = useTranslation();
-  if (window.chrome?.webview) return null;
+  if (isDesktop()) return null;
   return (
     <a className={className} href="/download" title={t(($) => $.app.downloadTitle)}>
       <AppIcon size={22} />
