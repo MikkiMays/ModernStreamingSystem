@@ -23,6 +23,9 @@ public record StreamProperties(
     // Blank leaves the server open, which is what every installation did before the gate
     // existed. A value here is asked for once per visit, before any room is reachable.
     @Size(max = 200) String accessPassword,
+    // Пароль владельца сервера — страница «Активность» и рычаги (E10-B, {@code AdminAccess}). Пусто
+    // — страница выключена: ни входа, ни ответа о том, что она есть.
+    @Size(max = 200) String adminPassword,
     @Size(max = 60) String serverName,
     boolean redisEnabled,
     // Сколько людей во встрече; боты (музыка) не считаются (T06, П3). Выше пятидесяти не пускаем:
@@ -64,7 +67,16 @@ public record StreamProperties(
    * без потолка. Вернуться из избранного можно — это новая встреча и действие человека.
    */
   public record Meeting(
-      boolean oneActivePerProfile, @NotNull Duration maxDuration, @NotNull Duration warnBefore) {
+      boolean oneActivePerProfile,
+      @NotNull Duration maxDuration,
+      @NotNull Duration warnBefore,
+      // «Вы ещё здесь?» (A2): сколько человек может молчать — ни голоса, ни ввода, ни щелчка, —
+      // прежде чем его спросят, и сколько ждать ответа до обычного выхода. `never` — не спрашивать.
+      @NotNull Duration presenceCheck,
+      @NotNull Duration presenceAnswer,
+      // Кино и музыка гаснут, если столько времени ни один человек не на связи (A2): места заняты,
+      // а слушать некому — вкладка, держащая встречу без медиа, или скрипт.
+      @NotNull Duration idleIntegrations) {
     @AssertTrue(message = "stream.meeting.warn-before must be shorter than max-duration")
     public boolean isWarningInsideMeeting() {
       return maxDuration != null && warnBefore != null && warnBefore.compareTo(maxDuration) < 0;
@@ -110,7 +122,8 @@ public record StreamProperties(
       @NotNull @Valid PerIp perIp,
       @NotNull @Valid PerProfile perProfile,
       @NotNull @Valid PerMember perMember,
-      @NotNull @Valid Server server) {
+      @NotNull @Valid Server server,
+      @NotNull @Valid Blocks blocks) {
     public enum HumanCheck {
       PROOF_OF_WORK,
       OFF
@@ -125,7 +138,9 @@ public record StreamProperties(
         @Min(1) int sockets,
         @NotNull Rate socketOpens,
         @NotNull Rate passwordMisses,
-        @NotNull Rate signaling) {}
+        @NotNull Rate signaling,
+        // Сколько байт адрес загружает за срок (A10); не больше пятой части `total-max-bytes`.
+        @NotNull Allowance uploads) {}
 
     public record PerProfile(@NotNull Rate roomsCreated, @Min(1) int openRooms) {}
 
@@ -138,6 +153,18 @@ public record StreamProperties(
 
     /** {@code codeMisses} — промахи кодом по всему серверу; выше — «щит» (A3). */
     public record Server(@NotNull Rate codeMisses) {}
+
+    /**
+     * Блокировки владельца сервера ({@code docs/abuse-model.md} §5, V10).
+     *
+     * <p>{@code defaultTerm} — срок блока, когда владелец его не выбрал. {@code autoBlock} —
+     * сколько отказов 429 за окно получает адрес, прежде чем сервер закроет его сам на {@code
+     * autoBlockTerm} ({@code off} — сам не закрывает). Считаются только отказы, которые про адрес,
+     * а не про сервер или встречу: «все комнаты заняты» и частота чата одного человека офис за NAT
+     * не закрывают.
+     */
+    public record Blocks(
+        @NotNull Duration defaultTerm, @NotNull Rate autoBlock, @NotNull Duration autoBlockTerm) {}
   }
 
   /**
@@ -203,7 +230,13 @@ public record StreamProperties(
       // Сколько после завершения хранится переписка и события встречи.
       @NotNull Duration closedHistory,
       // Сколько живут сообщения, события, расписки, приглашения и вложения идущей встречи.
-      @NotNull Duration messages) {}
+      @NotNull Duration messages,
+      // Журнал аудита: кто что сделал во встрече и на сервере (E10-B).
+      @NotNull Duration audit,
+      // Строки встреч для «Активности» за период: длительность, пик, человеко-минуты.
+      @NotNull Duration meetingStats,
+      // Итоги дня — только числа, без людей.
+      @NotNull Duration activityDaily) {}
 
   @AssertTrue(message = "File quota must not exceed room quota, which must not exceed total quota")
   public boolean isQuotaOrderValid() {

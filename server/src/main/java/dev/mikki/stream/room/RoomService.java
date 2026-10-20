@@ -28,6 +28,7 @@ public class RoomService {
   private final GameClock games;
   private final ApplicationEventPublisher events;
   private final RateLimits limits;
+  private final List<RoomObserver> observers;
   private final SecureRandom codeRandom = new SecureRandom();
 
   /**
@@ -46,7 +47,8 @@ public class RoomService {
       Clock clock,
       GameClock games,
       ApplicationEventPublisher events,
-      RateLimits limits) {
+      RateLimits limits,
+      List<RoomObserver> observers) {
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
@@ -54,6 +56,7 @@ public class RoomService {
     this.games = games;
     this.events = events;
     this.limits = limits;
+    this.observers = List.copyOf(observers);
   }
 
   public long now() {
@@ -133,7 +136,7 @@ public class RoomService {
    * нему считается, сколько встреч с этого адреса сейчас открыто, и блокирует владелец сервера.
    */
   private String origin(Entrant entrant) {
-    return entrant.address() == null ? null : secrets.derive("origin:" + entrant.address());
+    return secrets.address(entrant.address());
   }
 
   /**
@@ -630,7 +633,7 @@ public class RoomService {
   /**
    * Человек ушёл сам: место свободно, показ и срок восстановления сняты, старые вызовы отсечены.
    */
-  private static void depart(RoomState.Member member) {
+  static void depart(RoomState.Member member) {
     member.status = LEFT;
     member.generation++;
     member.screen = false;
@@ -815,9 +818,24 @@ public class RoomService {
         lastDurakAt(room),
         room.chess == null ? null : room.chess.view(viewer == null ? null : viewer.id, now()),
         room.gartic == null ? null : room.gartic.view(viewer == null ? null : viewer.id, now()),
-        viewer == null ? null : new RoomYou(Permissions.granted(room, viewer)),
+        viewer == null
+            ? null
+            : new RoomYou(Permissions.granted(room, viewer), presenceBy(room, viewer)),
         room.startedAt,
         room.endsAt);
+  }
+
+  /**
+   * До какого момента человеку ответить на «Вы ещё здесь?», или null, если его не спрашивали (A2).
+   * Срок — от последнего присутствия: {@code presence-check} молчания и {@code presence-answer} на
+   * ответ.
+   */
+  private Long presenceBy(RoomState room, RoomState.Member viewer) {
+    if (!room.presenceAsked.contains(viewer.id)) return null;
+    var meeting = config.meeting();
+    return room.presence.getOrDefault(viewer.id, viewer.joinedAt)
+        + meeting.presenceCheck().toMillis()
+        + meeting.presenceAnswer().toMillis();
   }
 
   /**
@@ -919,7 +937,17 @@ public class RoomService {
             }
             case "close" -> {
               Permissions.require(room, member, Action.ROOM_CLOSE);
-              close(room);
+              close(room, "host");
+            }
+            /*
+             «Я здесь» (A2): человек ответил на «Вы ещё здесь?» или браузер сам сказал, что за ним
+             кто-то есть — говорил, двигал мышь, жал клавиши, держал камеру. Срок присутствия
+             начинается заново, плашка гаснет.
+            */
+            case "presence.confirm" -> {
+              requireActive(room, member);
+              room.presence.put(member.id, now());
+              room.presenceAsked.remove(member.id);
             }
             case "invite.create" -> {
               Permissions.require(room, member, Action.INVITE_MANAGE);
@@ -949,6 +977,8 @@ public class RoomService {
                 target.screen = false;
                 target.generation++;
                 target.recoveryDeadline = null;
+                for (var observer : observers)
+                  observer.acted(room, member, "participant.removed", target, now());
               } else if (target.status == WAITING) {
                 target.approved = true;
                 target.status = JOINING;
@@ -1629,7 +1659,12 @@ public class RoomService {
     return text;
   }
 
-  public void close(RoomState room) {
+  /**
+   * Завершить встречу. {@code reason} — почему: {@code host} (ведущий), {@code empty} (все ушли),
+   * {@code unused} (никто не вышел на связь), {@code ceiling} (потолок длительности), {@code
+   * server} (владелец сервера). Причину видят статистика и журнал, участникам она не показывается.
+   */
+  public void close(RoomState room, String reason) {
     if (room.closedAt != null) return;
     room.closedAt = now();
     // Смотреть и играть вместе больше некому: закрытая комната не должна открывать ни плеер,
@@ -1652,6 +1687,25 @@ public class RoomService {
               m.screen = false;
               m.recoveryDeadline = null;
             });
+    room.presence.clear();
+    room.presenceAsked.clear();
+    room.idleSince = null;
+    for (var observer : observers) observer.closed(room, reason, room.closedAt);
+  }
+
+  /**
+   * Владелец сервера завершает встречу со страницы «Активность» (E10-B): то же, что «Завершить для
+   * всех» у ведущего, — гаснут кино, музыка и столы, все выходят.
+   */
+  @Transactional
+  public RoomState closeByServer(String roomId) {
+    var room = lock(roomId);
+    if (room.closedAt != null) return room;
+    close(room, "server");
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
+    events.publishEvent(new RoomChanged(room.id));
+    return room;
   }
 
   private void freezeHistory(RoomState room, long endedAt) {
@@ -1694,6 +1748,7 @@ public class RoomService {
         .sql("INSERT INTO room_events(room_id,sequence,body,expires_at) VALUES(?,?,?,?)")
         .params(room.id, event.sequence(), Json.write(event), now() + 3600000L)
         .update();
+    for (var observer : observers) observer.changed(room, type, event.occurredAt());
     rooms
         .jdbc()
         .sql("DELETE FROM room_events WHERE room_id=? AND sequence<=?")
