@@ -47,11 +47,16 @@ class ServerAccessTest {
             30,
             minute,
             Rate.parse("10 per hour"),
-            minute),
+            minute,
+            dev.mikki.stream.config.Allowance.parse("2GB per 1 day")),
         new StreamProperties.Abuse.PerProfile(Rate.parse("6 per hour"), 2),
         new StreamProperties.Abuse.PerMember(
             Rate.parse("20 per minute"), java.time.Duration.ofSeconds(30), 3),
-        new StreamProperties.Abuse.Server(Rate.parse("300 per minute")));
+        new StreamProperties.Abuse.Server(Rate.parse("300 per minute")),
+        new StreamProperties.Abuse.Blocks(
+            java.time.Duration.ofDays(1),
+            Rate.parse("10 per 10 minutes"),
+            java.time.Duration.ofMinutes(30)));
   }
 
   private static ServerAccess access(String password) {

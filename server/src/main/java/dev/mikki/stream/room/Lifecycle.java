@@ -319,9 +319,17 @@ public class Lifecycle {
               && room.everConnected
               && room.emptySince != null
               && now - room.emptySince >= config.emptyRoomSeconds() * 1000L)) {
-        service.close(room);
+        service.close(room, room.everConnected ? "empty" : "unused");
         changed = true;
       } else if (ceiling(room, opened, now)) changed = true;
+      else {
+        if (presence(room, now)) changed = true;
+        switch (idleIntegrations(room, now)) {
+          case STOPPED -> changed = true;
+          case MARKED -> dirty = true;
+          case NONE -> {}
+        }
+      }
     }
     if (changed) {
       service.emit(room, "room.changed", Contracts.EventPayload.changed());
@@ -391,13 +399,95 @@ public class Lifecycle {
     if (meeting.maxDuration().compareTo(dev.mikki.stream.config.Term.FOREVER) >= 0) return false;
     long ends = opened + meeting.maxDuration().toMillis();
     if (now >= ends) {
-      service.close(room);
+      service.close(room, "ceiling");
       return true;
     }
     if (room.endsAt != null || now < ends - meeting.warnBefore().toMillis()) return false;
     room.endsAt = ends;
     service.emit(room, "meeting.warning", Contracts.EventPayload.changed());
     return true;
+  }
+
+  /**
+   * «Вы ещё здесь?» ({@code stream.meeting.presence-check}, A2 модели угроз).
+   *
+   * <p>Браузер сам говорит ядру, что за ним кто-то есть ({@code presence.confirm}), когда человек
+   * говорит, двигает мышь, жмёт клавиши или держит камеру. Кто молчит дольше {@code
+   * presence-check}, того спрашивают — один раз, полем {@code you.presenceBy} в снимке; кто не
+   * ответил и за {@code presence-answer}, выходит обычным выходом, как по кнопке. Забытая вкладка
+   * больше не держит место и встречу сутки до потолка длительности.
+   *
+   * <p>Спрашивают только людей, которым можно на связь: ожидающих у двери и ботов — нет. Записи
+   * ушедших уходят из комнаты в том же проходе — снимок не растёт от каждого входа.
+   *
+   * @return спросили или вывели кого-то — участникам есть что узнать
+   */
+  private boolean presence(RoomState room, long now) {
+    var meeting = config.meeting();
+    boolean changed = false;
+    room.presence.keySet().removeIf(id -> !asked(room, id));
+    room.presenceAsked.removeIf(id -> !asked(room, id));
+    if (meeting.presenceCheck().compareTo(dev.mikki.stream.config.Term.FOREVER) >= 0) return false;
+    long check = meeting.presenceCheck().toMillis();
+    long answer = meeting.presenceAnswer().toMillis();
+    for (var member : room.members.values()) {
+      if (!member.human() || !member.mediaAllowed()) continue;
+      long last = room.presence.getOrDefault(member.id, member.joinedAt);
+      if (now - last >= check + answer) {
+        RoomService.depart(member);
+        room.presence.remove(member.id);
+        room.presenceAsked.remove(member.id);
+        changed = true;
+      } else if (now - last >= check && room.presenceAsked.add(member.id)) changed = true;
+    }
+    return changed;
+  }
+
+  /** Есть ли у этого участника что спрашивать: человек, которому можно на связь. */
+  private static boolean asked(RoomState room, String memberId) {
+    var member = room.members.get(memberId);
+    return member != null && member.human() && member.mediaAllowed();
+  }
+
+  private enum Idle {
+    NONE,
+    MARKED,
+    STOPPED
+  }
+
+  /**
+   * Кино и музыка без людей на связи ({@code stream.meeting.idle-integrations}, A2).
+   *
+   * <p>Пустой зал кино гасит сразу (выше), а музыку бот выключает сам, не слыша людей минуту. Но
+   * «людьми» обе считали занятые места — и вкладка, которая держит место без единого
+   * медиасоединения (или скрипт, зовущий {@code rejoin}), держала и кино, и музыку часами. Здесь
+   * сигнал присутствия — сама связь: если за {@code idle-integrations} ни один человек не был на
+   * связи (CONNECTED), кино закрывается, а бот музыки уходит со встречи — служба видит это и
+   * выключает плеер.
+   */
+  private Idle idleIntegrations(RoomState room, long now) {
+    var bots =
+        room.members.values().stream()
+            .filter(m -> "music".equals(m.service) && m.occupiesSeat())
+            .toList();
+    boolean playing = room.watch != null || !bots.isEmpty();
+    boolean online =
+        room.members.values().stream()
+            .anyMatch(m -> m.human() && m.status == RoomState.Status.CONNECTED);
+    if (!playing || online) {
+      if (room.idleSince == null) return Idle.NONE;
+      room.idleSince = null;
+      return Idle.MARKED;
+    }
+    if (room.idleSince == null) {
+      room.idleSince = now;
+      return Idle.MARKED;
+    }
+    if (now - room.idleSince < config.meeting().idleIntegrations().toMillis()) return Idle.NONE;
+    room.watch = null;
+    bots.forEach(RoomService::depart);
+    room.idleSince = null;
+    return Idle.STOPPED;
   }
 
   /**

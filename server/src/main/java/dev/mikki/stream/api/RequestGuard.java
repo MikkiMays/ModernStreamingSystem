@@ -111,6 +111,9 @@ public class RequestGuard extends OncePerRequestFilter {
     return access.required()
         && uri.startsWith("/api/v1/")
         && !OPEN.contains(uri)
+        // Страница владельца — за своим паролем (`AdminAccess`), сильнее пароля входа: владельцу не
+        // нужно знать ещё и пароль для гостей, чтобы закрыть встречу или снять блок.
+        && !uri.startsWith("/api/v1/admin/")
         && !Secrets.equal(request.getHeader("X-Service-Secret"), config.internalSecret())
         && !access.valid(request.getHeader("X-Cord-Session"));
   }

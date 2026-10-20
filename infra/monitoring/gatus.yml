@@ -1,0 +1,57 @@
+# Проверки «как видно снаружи» (Gatus, профиль `monitoring`, docs/observability.md §2.5).
+#
+# Gatus ходит по внешнему адресу сервера (`PUBLIC_URL` из .env) — тем же путём, что браузер, — и
+# по внутренним адресам служб. Свои результаты он отдаёт VictoriaMetrics (`metrics: true`), а алерты
+# по ним держат vmalert и Alertmanager (infra/monitoring/rules/cord.yml): у Gatus своих оповещений нет.
+#
+# Смерть самой машины отсюда не видна — для неё внешний сторож (HEALTHCHECKS_URL).
+metrics: true
+web:
+  address: 127.0.0.1
+  port: 8084
+storage:
+  type: memory
+
+endpoints:
+  - name: Главная
+    group: снаружи
+    url: ${PUBLIC_URL}
+    interval: 1m
+    client:
+      # В режиме без домена сертификат самоподписанный; срок его всё равно проверяется.
+      insecure: true
+    conditions:
+      - '[STATUS] == 200'
+      - '[RESPONSE_TIME] < 5000'
+      - '[CERTIFICATE_EXPIRATION] > 336h'
+
+  - name: API
+    group: снаружи
+    url: ${PUBLIC_URL}/api/v1/capabilities
+    interval: 1m
+    client:
+      insecure: true
+    conditions:
+      - '[STATUS] == 200'
+
+  - name: Ядро
+    group: внутри
+    url: http://127.0.0.1:8080/actuator/health
+    interval: 30s
+    conditions:
+      - '[STATUS] == 200'
+      - '[BODY].status == UP'
+
+  - name: Службы
+    group: внутри
+    url: http://127.0.0.1:18100/health
+    interval: 30s
+    conditions:
+      - '[STATUS] == 200'
+
+  - name: SFU по TCP
+    group: внутри
+    url: tcp://127.0.0.1:7881
+    interval: 1m
+    conditions:
+      - '[CONNECTED] == true'

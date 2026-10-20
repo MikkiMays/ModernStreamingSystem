@@ -19,13 +19,19 @@ public class FavoriteController {
   private final RateLimits limits;
   private final Identity identity;
   private final ClientAddress address;
+  private final Entries entries;
 
   public FavoriteController(
-      FavoriteService favorites, RateLimits limits, Identity identity, ClientAddress address) {
+      FavoriteService favorites,
+      RateLimits limits,
+      Identity identity,
+      ClientAddress address,
+      Entries entries) {
     this.favorites = favorites;
     this.limits = limits;
     this.identity = identity;
     this.address = address;
+    this.entries = entries;
   }
 
   @GetMapping
@@ -61,7 +67,14 @@ public class FavoriteController {
       @Valid @RequestBody Contracts.Rejoin request,
       HttpServletRequest http) {
     limits.check("favorite:" + Secrets.hash(profile), 60);
-    return favorites.join(
-        profile, id.toString(), request, identity.entrant(http).from(address.entrant(http)));
+    return entries.admit(
+        "saved",
+        http,
+        () ->
+            favorites.join(
+                profile,
+                id.toString(),
+                request,
+                identity.entrant(http).from(address.entrant(http))));
   }
 }

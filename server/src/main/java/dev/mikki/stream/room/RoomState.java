@@ -82,6 +82,30 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, String> profiles = new LinkedHashMap<>();
 
+  /**
+   * Когда каждый человек на связи последний раз дал знать, что он здесь (A2, «Вы ещё здесь?»):
+   * участник → мс. Нет записи — отсчёт от входа. Браузер сам шлёт {@code presence.confirm}, когда
+   * человек говорит, двигает мышь, жмёт клавиши или держит камеру; молчание дольше {@code
+   * stream.meeting.presence-check} — вопрос, а без ответа за {@code presence-answer} — обычный
+   * выход.
+   *
+   * <p>Рядом, а не в {@link Member}, по той же причине, что {@link #profiles}: откат образа ядра.
+   * {@code NON_EMPTY} — комната без этого пишется ровно как раньше.
+   */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, Long> presence = new LinkedHashMap<>();
+
+  /** Кого уже спросили «Вы ещё здесь?» — чтобы спросить один раз и сказать об этом один раз. */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Set<String> presenceAsked = new LinkedHashSet<>();
+
+  /**
+   * С какого момента кино или музыка идут, а ни одного человека на связи нет (A2, {@code
+   * stream.meeting.idle-integrations}); null — кто-то на связи или играть нечему.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long idleSince;
+
   public Map<String, Invite> invites = new LinkedHashMap<>();
 
   /** Приглашение, которое раздаёт бот Telegram, — одно на комнату, пока живо (A11). */

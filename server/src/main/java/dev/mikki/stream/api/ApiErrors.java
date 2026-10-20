@@ -7,8 +7,22 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class ApiErrors {
+  /**
+   * Атрибут запроса с кодом отказа: его читает {@code BlockGuard} после ответа — чтобы посчитать
+   * отказ в метрах и, если он про адрес, в автоблоке. Код здесь, а не в разборе тела ответа: тело к
+   * тому времени уже ушло.
+   */
+  public static final String CODE = "cord.problem.code";
+
   @ExceptionHandler(Problem.class)
   public ResponseEntity<ProblemDetail> problem(Problem error) {
+    var attributes =
+        org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+    if (attributes != null)
+      attributes.setAttribute(
+          CODE,
+          error.code(),
+          org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST);
     var body =
         ProblemDetail.forStatusAndDetail(
             HttpStatusCode.valueOf(error.status()), error.getMessage());
