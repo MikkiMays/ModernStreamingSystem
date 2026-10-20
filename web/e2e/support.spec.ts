@@ -27,7 +27,9 @@ test('the support page answers common questions and sends a ticket with the visi
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
   ).toEqual([]);
 
-  await page.getByRole('textbox', { name: 'Что случилось' }).fill('Установщик не запускается после «Подробнее»');
+  await page
+    .getByRole('textbox', { name: 'Что случилось' })
+    .fill('Установщик не запускается после «Подробнее»');
   await page.getByRole('textbox', { name: 'Как с вами связаться' }).fill('@someone');
   await page.getByRole('checkbox', { name: /Приложить диагностику/ }).check();
   await page.getByText('Что будет отправлено').click();
@@ -58,6 +60,8 @@ for (const width of [360, 1440, 2560])
       await page.addInitScript((value) => localStorage.setItem('cord:theme', value), theme);
       await page.goto('/support');
       await expect(page.getByRole('heading', { level: 1, name: 'Помощь' })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+      ).toBeLessThanOrEqual(0);
     }
   });
