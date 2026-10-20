@@ -13,16 +13,33 @@
 	}
 }
 
+# Одна политика на все страницы; меняется только то, кому можно показать страницу в рамке
+# (`frame-ancestors`, аргумент снипета).
+(csp) {
+	# Совместный просмотр ничего здесь не просит, и это следствие того, как он устроен:
+	# видео достаёт сервер и отдаёт его со своего адреса, а страница играет обычный
+	# `<video>`. Чужих скриптов и рамок нет — значит, и послаблений не нужно.
+	Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors {args[0]}"
+}
+
 (headers) {
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
-		X-Frame-Options DENY
 		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
-		# Совместный просмотр ничего здесь не просит, и это следствие того, как он устроен:
-		# видео достаёт сервер и отдаёт его со своего адреса, а страница играет обычный
-		# `<video>`. Чужих скриптов и рамок нет — значит, и послаблений не нужно.
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://{$RTC_HOST} wss://{$RTC_HOST}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	}
+	# В рамку — никому, кроме одного документа. Mini App Telegram (`/tg`, E09, решение архитектора 17)
+	# Telegram Web (Web A и Web K на web.telegram.org) открывает в iframe; телефоны и Desktop — в своём
+	# WebView, им рамка не нужна. Политика та же, `script-src 'self'` тоже: SDK Mini App — в нашем
+	# бандле, а не скриптом с telegram.org. Проверка — `infra/csp-check.sh`.
+	@framed not path /tg /tg/
+	header @framed {
+		X-Frame-Options DENY
+		import csp 'none'
+	}
+	@telegram path /tg /tg/
+	header @telegram {
+		import csp https://web.telegram.org
 	}
 }
 
@@ -83,6 +100,16 @@ http://:{$GATEWAY_PORT:8091} {
 				header_up X-Forwarded-Proto https
 				header_up -X-HTTP-Method-Override
 			}
+		}
+		# Mini App Telegram — отдельный HTML-вход сборки (`web/tg.html`), а не SPA с роутером
+		# (решение архитектора 13). Как и index.html, без кэша: он называет хэши текущей сборки.
+		@miniapp path /tg /tg/
+		handle @miniapp {
+			root * /srv
+			header Cache-Control "no-cache"
+			rewrite * /tg.html
+			encode zstd gzip
+			file_server
 		}
 		handle {
 			root * /srv
