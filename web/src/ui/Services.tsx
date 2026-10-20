@@ -24,6 +24,14 @@ import { GamesGroup } from './GamesGroup';
 import { IntegrationShelf } from './IntegrationShelf';
 import { musicHint, shelfName, type ShelfId } from './integration-shelf';
 import { foresee, foresightSpent, offeredSources, type Foresight } from './music-playback';
+import {
+  lastPlatform,
+  offeredPlatforms,
+  openPlatform,
+  platformTiles,
+  type MusicPlatform,
+} from './music-platforms';
+import { PlatformPicker, PlatformTabs, useLastPlatform } from './PlatformPicker';
 import { gameActivity, musicActivity } from './services-status';
 
 /**
@@ -34,6 +42,11 @@ import { gameActivity, musicActivity } from './services-status';
  * такую очередь и правда складывались — но играть их было некому, и человек оставался с
  * полным списком и тишиной. Поэтому сначала плеер: пока его нет, панель предлагает ровно одно
  * действие, а всё, что относится к содержимому и источникам, появляется после него.
+ *
+ * ВХОД В МУЗЫКУ — ВЫБОР ПЛОЩАДКИ, КАК В КИНОЗАЛЕ (T59). Сначала экран площадок (`PlatformPicker`,
+ * общий с кинозалом), потом музыка выбранной площадки: поиск и ссылки — только её, вкладки сверху
+ * меняют площадку на месте. Плеер и очередь — одни на встречу и от площадки не зависят: смена
+ * площадки не шлёт службе ничего.
  */
 type Group = 'cinema' | 'music' | 'games';
 const OPENS: readonly ShelfId[] = ['cinema', 'music', 'games'];
@@ -45,6 +58,14 @@ export function Services({ meeting }: { meeting: Meeting }) {
    */
   const { t } = useTranslation();
   const [group, setGroup] = useState<Group | null>(null);
+  /**
+   * Площадка музыки, выбранная после входа. `null` — экран выбора: так музыка открывается каждый
+   * раз, как и кинозал. Прошлый выбор помнит устройство и отмечает его на этом экране.
+   */
+  const [chosen, setChosen] = useState<MusicPlatform | null>(null);
+  /** Ссылка, принесённая с другой площадки, — в поле только что открытой. */
+  const [carried, setCarried] = useState('');
+  const memory = useLastPlatform(meeting, 'music');
   const api = useMemo(() => new MusicApi(meeting.admission), [meeting]);
   const yandexApi = useMemo(() => new YandexApi(meeting.admission), [meeting]);
   const snapshot = useStore(meeting.snapshot);
@@ -106,6 +127,15 @@ export function Services({ meeting }: { meeting: Meeting }) {
   const state = foresee(served, foresight);
   const yandexOn = sources.includes('yandex') && can('yandex.connect');
   const yandexAccount = useYandexAccount(yandexApi, meeting.admission.roomId, yandexOn && !!state?.enabled);
+  /** Площадки музыки этого сервера; YouTube и SoundCloud включены, пока `MUSIC_SOURCES` их не убрал. */
+  const platforms = useMemo(() => offeredPlatforms(sources), [sources]);
+  const platform = openPlatform(chosen, platforms);
+  /** Открыть площадку — с экрана выбора, вкладкой или «Перейти» под полем — и запомнить выбор. */
+  const choose = (next: MusicPlatform, text = '') => {
+    setChosen(next);
+    setCarried(text);
+    memory.remember(next);
+  };
   useEffect(() => {
     if (foresightSpent(served, foresight)) setForesight(null);
   }, [served, foresight]);
@@ -187,7 +217,10 @@ export function Services({ meeting }: { meeting: Meeting }) {
           blockedBy={blocked}
           canLinkTelegram={can('telegram.link')}
           onOpen={(id) => {
-            if ((OPENS as readonly string[]).includes(id)) setGroup(id as Group);
+            if (!(OPENS as readonly string[]).includes(id)) return;
+            // Музыка, как и кинозал, каждый раз открывается выбором площадки.
+            if (id === 'music') setChosen(null);
+            setGroup(id as Group);
           }}
         />
         {error && (
@@ -213,8 +246,88 @@ export function Services({ meeting }: { meeting: Meeting }) {
       </div>
     );
 
-  const platforms = sources.filter((source) => source === 'youtube' || source === 'soundcloud');
   const yandexReady = yandexOn && can('yandex.search');
+  const tiles = platformTiles(t, platforms);
+  const current = state?.enabled ? state.queue[0] : undefined;
+
+  /*
+    Вход в музыку — выбор площадки, как в кинозале (T59). Если сервер не оставил ни одной площадки
+    (только Telegram), выбирать нечего: сразу плеер и очередь.
+  */
+  if (!platform && platforms.length)
+    return (
+      <div className="services-panel music-panel" key="music-pick">
+        <PlatformPicker
+          className="music-picker"
+          title={shelfName(t, 'music')}
+          backLabel={t(($) => $.services.music.back)}
+          onBack={() => setGroup(null)}
+          label={t(($) => $.music.platforms.tiles)}
+          tiles={tiles}
+          last={lastPlatform(memory.last, platforms)}
+          onPick={(id) => choose(id)}
+          now={
+            current && (
+              <p>
+                {state?.paused ? t(($) => $.music.platforms.paused) : t(($) => $.music.platforms.playing)}{' '}
+                <b>{current.title}</b>
+                {current.artist && <small>{current.artist}</small>}
+              </p>
+            )
+          }
+        />
+      </div>
+    );
+
+  /** Чем добавлять на открытой площадке: поле поиска и ссылок или, у своих файлов, загрузка. */
+  const adder =
+    platform === 'upload' ? (
+      <MusicUpload
+        canUse={can('music.upload')}
+        maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
+        upload={(file, signal) => api.upload(file, signal)}
+        onAdded={update}
+        onError={setError}
+      >
+        <p className="music-add__lead">{t(($) => $.music.platforms.upload.drop)}</p>
+      </MusicUpload>
+    ) : platform ? (
+      <>
+        {/* Аккаунт Яндекса — на его площадке, над полем: без аккаунта там искать нечем. */}
+        {platform === 'yandex' && yandexOn && (
+          <YandexIntegration
+            api={yandexApi}
+            roomId={meeting.admission.roomId}
+            storedToken={preferences.yandexMusicToken}
+            onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
+          />
+        )}
+        {(platform !== 'yandex' || (yandexReady && yandexAccount.data?.connected)) && (
+          <MusicSearch
+            key={platform}
+            abilities={{
+              platform,
+              offered: platforms,
+              canSearch: can('music.search'),
+              searchPlatform: api.search,
+              addLink: can('music.link') ? api.addLink : null,
+              yandex:
+                platform === 'yandex' && yandexReady
+                  ? {
+                      connected: !!yandexAccount.data?.connected,
+                      search: yandexApi.search,
+                      add: can('yandex.queue') ? yandexApi.enqueue : null,
+                    }
+                  : null,
+            }}
+            initialQuery={carried}
+            onSwitch={choose}
+            onAdded={update}
+          />
+        )}
+      </>
+    ) : null;
+
   return (
     <div className="services-panel music-panel" key="music">
       <Button
@@ -226,6 +339,16 @@ export function Services({ meeting }: { meeting: Meeting }) {
       >
         {t(($) => $.services.music.back)}
       </Button>
+      {platform ? (
+        <PlatformTabs
+          label={t(($) => $.music.platforms.label)}
+          tiles={tiles}
+          current={platform}
+          onPick={(id) => choose(id)}
+        />
+      ) : (
+        <p className="music-panel__note">{t(($) => $.music.platforms.none)}</p>
+      )}
       {active && !can('integrations.use') && (
         <p className="music-panel__note">{t(($) => $.services.music.locked)}</p>
       )}
@@ -289,32 +412,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
             </p>
           )}
           {/* Добавлять — тем, кому разрешены интеграции; остальным поле только обещало бы отказ. */}
-          {can('integrations.use') && (
-            <MusicUpload
-              canUse={can('music.upload')}
-              maxFileBytes={catalog.data?.maxFileBytes ?? 50 * 1024 * 1024}
-              upload={(file, signal) => api.upload(file, signal)}
-              onAdded={update}
-              onError={setError}
-            >
-              <MusicSearch
-                abilities={{
-                  platforms,
-                  canSearch: can('music.search'),
-                  searchPlatform: api.search,
-                  addLink: can('music.link') ? api.addLink : null,
-                  yandex: yandexReady
-                    ? {
-                        connected: !!yandexAccount.data?.connected,
-                        search: yandexApi.search,
-                        add: can('yandex.queue') ? yandexApi.enqueue : null,
-                      }
-                    : null,
-                }}
-                onAdded={update}
-              />
-            </MusicUpload>
-          )}
+          {can('integrations.use') && adder}
           <MusicQueue
             state={state}
             canUse={canUse}
@@ -323,14 +421,6 @@ export function Services({ meeting }: { meeting: Meeting }) {
             onRemove={(track: MusicTrack, patch) => command('remove', { trackId: track.id }, patch)}
             onMove={(track: MusicTrack, index, patch) => command('move', { trackId: track.id, index }, patch)}
           />
-          {yandexOn && (
-            <YandexIntegration
-              api={yandexApi}
-              roomId={meeting.admission.roomId}
-              storedToken={preferences.yandexMusicToken}
-              onStoredTokenChange={(next) => meeting.media.saveSettings({ yandexMusicToken: next })}
-            />
-          )}
           {canRemove && (
             <Button
               variant="quiet"

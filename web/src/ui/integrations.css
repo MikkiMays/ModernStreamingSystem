@@ -2,8 +2,8 @@
   Интеграции в панели встречи: витрина и музыка (E06-B, T18 T30 T08 T12 T13). Только токены E16.
 
   Витрина — список, а не плитки: готовые группы — карточками на подложке со стрелкой (ведут внутрь),
-  «Скоро» — строками без подложки и без действия, Telegram — за чертой в самом низу. Плитки кинозала
-  (`cinema/CinemaGroup.tsx`) говорят тем же языком, что и карточки витрины.
+  «Скоро» — строками без подложки и без действия, Telegram — за чертой в самом низу. Плитки площадок
+  (`PlatformPicker.tsx`: кинозал и музыка, T59) говорят тем же языком, что и карточки витрины.
 
   Музыка — карточка «Сейчас играет» с единственным украшением панели: светом обложки под самой
   обложкой. Остальное тихо: поле поиска, группы найденного, очередь строками.
@@ -114,8 +114,13 @@
   background: var(--accent-fill);
   color: var(--on-accent);
 }
+/* Плитка площадки — на цвете самой площадки (`--platform` ставит `PlatformPicker`). */
+.service-tile-icon {
+  background: var(--platform, var(--accent-fill));
+  color: var(--platform-ink, var(--on-accent));
+}
 .service-group__text,
-.service-tile > span:last-child {
+.service-tile__text {
   display: grid;
   flex: 1;
   gap: 2px;
@@ -173,7 +178,8 @@
   background: var(--surface-2);
   color: var(--muted);
 }
-.service-group__name {
+.service-group__name,
+.service-tile__name {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -184,6 +190,103 @@
 }
 .service-group__note {
   color: var(--text-secondary);
+}
+
+/* ---------- выбор площадки: кинозал и музыка (T59) ---------- */
+.platform-picker {
+  display: grid;
+  gap: var(--space-3);
+}
+.ui-button.platform-picker__back {
+  justify-self: start;
+  margin-inline-start: calc(var(--space-3) * -1);
+}
+.platform-picker__head {
+  display: grid;
+  gap: 2px;
+}
+.platform-picker__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+.platform-picker__lead,
+.platform-picker__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.platform-picker__now {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-4);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.platform-picker__now p {
+  display: grid;
+  margin: 0;
+  min-width: 0;
+}
+.platform-picker__now b {
+  overflow-wrap: anywhere;
+}
+.platform-picker__now small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/*
+  Вкладки площадок над музыкой: перенос строки вместо прокрутки — имена видны всегда. Вкладки
+  растягиваются по строке: два ряда по две читаются ровной сеткой, а не лесенкой.
+*/
+.platform-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.platform-tab {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--control-sm);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+.platform-tab:hover {
+  background: color-mix(in srgb, var(--surface-2), var(--text) 5%);
+  color: var(--text);
+}
+.platform-tab[aria-selected='true'] {
+  background: var(--platform, var(--accent-fill));
+  color: var(--platform-ink, var(--on-accent));
+}
+.platform-tab:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+@media (pointer: coarse) {
+  .platform-tab {
+    height: var(--control-touch);
+  }
 }
 
 /* ---------- музыка ---------- */
@@ -431,9 +534,32 @@
   color: var(--muted);
   font-size: var(--text-xs);
 }
+/* «Свои файлы»: поля нет, и место для перетаскивания видно сразу, а не только под файлами. */
+.music-add__lead {
+  margin: 0;
+  padding: var(--space-4) var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-3);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  text-align: center;
+}
 .music-search {
   display: grid;
   gap: var(--space-2);
+}
+/* Ссылка другой площадки: что это и куда с ней перейти. */
+.music-search__elsewhere {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+.music-search__elsewhere p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
 }
 .music-search__form {
   display: grid;
