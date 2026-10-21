@@ -69,6 +69,17 @@ LOOPBACK = ip_network("127.0.0.0/8")
 
 
 class PageCase(unittest.IsolatedAsyncioTestCase):
+    """
+    Срок страницы считается с начала визита и включает холодный запуск браузера — так и в бою, после
+    простоя `IDLE`. Но срок теста (`SECONDS`) втрое короче боевого, а у каждого теста свой `Pages`: холодный
+    запуск Chromium и первый разговор с драйвером в процессе (секунда-другая на спокойном хосте и до восьми
+    под нагрузкой) съедали ожидание плеера и нажатие, и тест краснел по сроку, а не по делу. Классы, которые
+    проверяют не сам холодный запуск, греют браузер до страницы (`warm`); холодный — `Budget`, `Launch`,
+    `TheBrowserItself`.
+    """
+
+    warm = False
+
     @classmethod
     def setUpClass(cls):
         cls.a = Site("127.0.0.1")
@@ -92,10 +103,21 @@ class PageCase(unittest.IsolatedAsyncioTestCase):
         self.egress = Egress(guard, sessions=2, wait=1.0, tunnels=192, per_lease=96, pending=64)
         self.egress.seconds = SECONDS + TEARDOWN
         self.pages = Pages(self.egress, seconds=SECONDS, look=LOOK, idle=60.0)
+        if self.warm:
+            await self.pages._browser_ready()
 
     async def asyncTearDown(self):
         await self.pages.close()
         await self.egress.close()
+
+    async def sniff_again(self):
+        """
+        Следующая страница после закрытого или убитого браузера. Новый запуск — до неё, как у `warm`:
+        проверяется, что браузер поднимается снова и страница открывается, а не скорость холодного запуска в
+        срок теста.
+        """
+        await self.pages._browser_ready()
+        return await self.sniff("/pages/hls.html")
 
     async def sniff(self, path, site=None):
         started = time.monotonic()
@@ -105,6 +127,8 @@ class PageCase(unittest.IsolatedAsyncioTestCase):
 
 
 class ThePlayerOfThePage(PageCase):
+    warm = True
+
     async def test_the_player_is_caught_with_the_cookie_and_the_referer_it_sent(self):
         found = await self.sniff("/pages/hls.html")
         stream = found["streams"][0]
@@ -161,6 +185,8 @@ class ThePlayerOfThePage(PageCase):
 
 
 class Drm(PageCase):
+    warm = True
+
     async def test_a_page_that_asks_for_widevine_and_has_nothing_open_is_drm(self):
         found = await self.sniff("/pages/widevine.html")
         self.assertTrue(found["drm"])
@@ -181,6 +207,8 @@ class Drm(PageCase):
 
 
 class Walls(PageCase):
+    warm = True
+
     async def test_popups_and_new_tabs_never_open(self):
         found = await self.sniff("/pages/popups.html")
         self.assertTrue(found["clicked"])
@@ -230,6 +258,22 @@ class Budget(PageCase):
 
     async def test_a_page_that_never_loads_still_ends_at_its_budget(self):
         found = await self.sniff("/pages/hang.html")
+        self.assertEqual(found["streams"], [])
+        self.assertLessEqual(found["seconds"], SECONDS + 0.5)
+        self.assertLess(found["took"], SECONDS + TEARDOWN)
+
+    async def test_a_navigation_the_driver_does_not_answer_still_ends_at_its_budget(self):
+        # Ответ драйвера о сроке навигации идёт той же трубой, что и всё, что страница шлёт привязке:
+        # страница, которая заваливает её (`signals.html`), задерживала его за срок страницы. Здесь он не
+        # приходит вовсе.
+        async def unanswered(page, *args, **kwargs):
+            await asyncio.sleep(3600)
+
+        # Браузер тёплый: здесь проверяется срок навигации, а не запуска.
+        await self.pages._browser_ready()
+        with patch.object(page_module.Page, "goto", unanswered):
+            async with asyncio.timeout(SECONDS + TEARDOWN):
+                found = await self.sniff("/pages/hls.html")
         self.assertEqual(found["streams"], [])
         self.assertLessEqual(found["seconds"], SECONDS + 0.5)
         self.assertLess(found["took"], SECONDS + TEARDOWN)
@@ -407,8 +451,14 @@ class TheBrowserItself(PageCase):
             self.assertGreater(int(score), server)
         self.assertNotIn("CINEMA_SNIFFER_KEY", os.environ)
 
+    def test_killing_finds_only_the_browser(self):
+        # Без браузера убивать нечего — и сам процесс теста цел.
+        self.assertEqual(kill_browsers(), 0)
+
 
 class Bounds(PageCase):
+    warm = True
+
     async def test_a_flood_of_playlists_reads_at_most_as_many_bodies_as_streams_are_kept(self):
         reads = []
         original = page_module.Watch._playlist
@@ -435,12 +485,14 @@ class Bounds(PageCase):
 
 
 class Wall(PageCase):
+    warm = True
+
     async def test_a_page_that_hangs_its_own_thread_is_answered_within_the_budget(self):
         found = await self.sniff("/pages/busy.html")
         self.assertLessEqual(found["seconds"], SECONDS + 0.5)
         # Вкладку с занятым потоком закрыли — или убили браузер; следующая страница открывается.
         self.assertLess(found["took"], SECONDS + 2 * TEARDOWN + 1)
-        again = await self.sniff("/pages/hls.html")
+        again = await self.sniff_again()
         self.assertEqual(again["streams"][0]["type"], "hls")
 
     async def test_a_browser_that_does_not_close_in_time_is_killed(self):
@@ -460,14 +512,19 @@ class Wall(PageCase):
             await asyncio.sleep(0.1)
         self.assertEqual(chromium(), {})
         self.pages._browser = None
-        again = await self.sniff("/pages/hls.html")
+        again = await self.sniff_again()
         self.assertEqual(again["streams"][0]["type"], "hls")
 
     async def test_every_process_of_a_browser_with_a_stuck_renderer_is_killed(self):
+        opened = len(self.a.seen("/pages/busy.html"))
         visit = asyncio.ensure_future(self.pages.sniff(self.a.url("/pages/busy.html")))
         try:
-            # Страница заняла свой поток навсегда через секунду после загрузки: рендерер крутится.
-            await asyncio.sleep(2.5)
+            # Страница заняла свой поток навсегда через секунду после загрузки: рендерер крутится. Ждать, пока
+            # сайт её отдал, а не паузу наугад.
+            async with asyncio.timeout(SECONDS):
+                while len(self.a.seen("/pages/busy.html")) == opened:
+                    await asyncio.sleep(0.05)
+            await asyncio.sleep(1.5)
             before = chromium()
             self.assertTrue(any(b"--type=renderer" in command for command in before.values()))
             # По первому слову нашёлся бы один браузер: остальные переписали свой заголовок.
@@ -485,15 +542,13 @@ class Wall(PageCase):
             with contextlib.suppress(Exception):
                 await visit
         await self.pages.settled()
-        again = await self.sniff("/pages/hls.html")
+        again = await self.sniff_again()
         self.assertEqual(again["streams"][0]["type"], "hls")
-
-    def test_killing_finds_only_the_browser(self):
-        # Без браузера убивать нечего — и сам процесс теста цел.
-        self.assertEqual(kill_browsers(), 0)
 
 
 class Answer(PageCase):
+    warm = True
+
     async def test_the_answer_does_not_wait_for_a_tab_that_will_not_close(self):
         async def stuck(context, *args, **kwargs):
             await asyncio.sleep(3600)
@@ -510,7 +565,7 @@ class Answer(PageCase):
         # Вкладка не закрылась за срок — браузер закрыт (или убит), место в выходе свободно.
         self.assertGreaterEqual(time.monotonic() - started, 1.0)
         self.assertEqual(self.egress._leases, {})
-        again = await self.sniff("/pages/hls.html")
+        again = await self.sniff_again()
         self.assertEqual(again["streams"][0]["type"], "hls")
 
 
