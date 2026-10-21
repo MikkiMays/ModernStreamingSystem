@@ -17,7 +17,9 @@ public class RequestGuard extends OncePerRequestFilter {
    * What a client may reach before it has passed the door. Everything here either says whether the
    * server is alive and what it wants, or is the handshake itself. The events socket is on the list
    * because a browser cannot put a header on a WebSocket upgrade; its first packet carries a room
-   * credential, and a room credential can only be obtained through a guarded endpoint.
+   * credential, and a room credential can only be obtained through a guarded endpoint. The server
+   * catalog is public by design: it is signed offline and the client needs it before it knows any
+   * server's password (ADR 0001 §8).
    *
    * <p>Поддержка (E13) — тоже до двери: помощь нужнее всего тому, кто у неё застрял. Форму держат
    * задача «не бот» ({@code /api/v1/proof} — она ничего не открывает сама) и пределы обращений.
@@ -29,7 +31,8 @@ public class RequestGuard extends OncePerRequestFilter {
           "/api/v1/session",
           "/api/v1/events",
           "/api/v1/proof",
-          "/api/v1/support");
+          "/api/v1/support",
+          "/api/v1/catalog");
 
   private final StreamProperties config;
   private final ServerAccess access;

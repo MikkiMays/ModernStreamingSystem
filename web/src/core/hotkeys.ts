@@ -112,7 +112,13 @@ function signature(key: Hotkey) {
  * программ только сочетания с Ctrl или Alt, без клавиши Windows и F12 (`MicrophoneHotkey.TryNative`);
  * плеер кинозала и покерный стол слушают голые буквы и пробел.
  */
-export function hotkeyNotes(t: Translate, key: Hotkey, place: HotkeyPlace): HotkeyNote[] {
+export function hotkeyNotes(
+  t: Translate,
+  key: Hotkey,
+  place: HotkeyPlace,
+  /** Предупреждать о голых клавишах плеера и покера — у микрофона да; у оверлея (только приложение, только в звонке) — нет. */
+  shared = true,
+): HotkeyNote[] {
   const label = hotkeyLabel(t, key);
   if (key.alt && !key.ctrl && !key.meta && key.code === 'F4')
     return [{ level: 'blocked', text: t(($) => $.hotkeys.notes.altF4) }];
@@ -129,6 +135,7 @@ export function hotkeyNotes(t: Translate, key: Hotkey, place: HotkeyPlace): Hotk
           : null;
     if (local) notes.push({ level: 'warning', text: local });
   }
+  if (!shared) return notes;
   const bare = !key.ctrl && !key.alt && !key.meta;
   const player = bare ? PLAYER_KEYS[key.code] : undefined;
   if (player)

@@ -17,6 +17,7 @@ import { Button, IconButton, ResizeHandle, usePanelWidth } from './kit';
 import { humans } from '../core/people';
 import { isTyping, matchesHotkey } from '../core/hotkeys';
 import { hasFeature, notifyDesktop, onDesktopCommand } from '../core/desktop';
+import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
@@ -109,9 +110,16 @@ export function MeetingView({
   }, [live]);
   // «Вы ещё здесь?» (A2): браузер сам говорит ядру, что за ним кто-то есть, пока встреча идёт.
   const presence = usePresence(meeting, !ended);
+  // Оболочке — не только «во встрече», но и микрофон, камера и показ: по ним кнопки на миниатюре,
+  // значок поверх иконки («микрофон выключен»), пункт трея и запрет сна (T53).
   useEffect(() => {
-    notifyDesktop('call-state', { inCall: !ended });
-  }, [ended]);
+    notifyDesktop('call-state', {
+      inCall: !ended,
+      mic: !ended && media.microphone,
+      camera: !ended && media.camera,
+      screen: !ended && media.screen,
+    });
+  }, [ended, media.microphone, media.camera, media.screen]);
   const [panel, setPanel] = useState<Panel | null>(null);
   /*
     Каталог и фильм, открытые самим человеком, не остаются под панелью интеграций, из которой их
@@ -159,9 +167,16 @@ export function MeetingView({
       if (matchesHotkey(event, preferences.micHotkey)) {
         event.preventDefault();
         toggle();
+      } else if (matchesHotkey(event, preferences.overlayHotkey) && desktopSettingsAvailable()) {
+        // Сочетание оверлея без Ctrl/Alt в системе не регистрируется — в окне встречи оно всё равно работает.
+        event.preventDefault();
+        void toggleDesktopOverlay();
       }
     };
-    notifyDesktop('hotkey.configure', { hotkey: ended ? null : preferences.micHotkey });
+    notifyDesktop('hotkey.configure', {
+      hotkey: ended ? null : preferences.micHotkey,
+      overlay: ended ? null : preferences.overlayHotkey,
+    });
     window.addEventListener('keydown', keyboard);
     const unsubscribe = onDesktopCommand((command) => {
       if (command.type === 'microphone.toggle') toggle();
@@ -180,9 +195,9 @@ export function MeetingView({
     return () => {
       window.removeEventListener('keydown', keyboard);
       unsubscribe();
-      notifyDesktop('hotkey.configure', { hotkey: null });
+      notifyDesktop('hotkey.configure', { hotkey: null, overlay: null });
     };
-  }, [meeting, preferences.micHotkey, ended]);
+  }, [meeting, preferences.micHotkey, preferences.overlayHotkey, ended]);
   // Оверлей клиента (T23, E01): кто в комнате и кто говорит — не чаще 10 раз в секунду, без аватаров.
   useEffect(() => {
     if (!hasFeature('overlay') || ended) return;

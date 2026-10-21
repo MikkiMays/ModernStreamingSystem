@@ -1,0 +1,93 @@
+/*
+  Окно выбора источника показа (E01-B2, ADR 0001 §4.1) — только в клиенте на Electron. Плитки по
+  образцу Discord: миниатюра 16:9, под ней значок приложения и имя; выбранная — обводка цветом
+  акцента. Всё на токенах E16, тема и reduced motion — из них же.
+*/
+.capture-picker {
+  width: min(100%, 760px);
+}
+.capture-picker .ui-dialog__body {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 320px;
+}
+.capture-picker .ui-tabs__panel {
+  padding-top: var(--space-3);
+}
+.capture-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--space-3);
+}
+.capture-picker__empty {
+  margin: 0;
+  padding: var(--space-8) var(--space-4);
+  color: var(--muted);
+  text-align: center;
+}
+.capture-picker .ui-dialog__footer {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.capture-picker__audio {
+  flex: 1 1 280px;
+  margin-right: auto;
+}
+
+.capture-tile {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px transparent;
+  transition:
+    background var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+.capture-tile:hover {
+  background: var(--surface-hover);
+}
+.capture-tile:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.capture-tile[aria-pressed='true'] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.capture-tile__thumb {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-2);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.capture-tile__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.capture-tile__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+.capture-tile__label img {
+  flex: none;
+}
+.capture-tile__label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
