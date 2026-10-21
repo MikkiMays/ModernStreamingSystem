@@ -43,6 +43,14 @@ for (const line of source.split('\n')) {
     continue;
   }
   if (/^## 4\./.test(line)) current = null;
+  // Дополнение E15-B (раздел 6 перечня) — своя область 15.
+  const addendum = /^## 6\. (.+)$/.exec(line);
+  if (addendum) {
+    heading = { n: 15, title: 'Дополнение E15-B: интеграции (T59), Telegram, Electron' };
+    current = { ...heading, rows: [], header: null, notes: [] };
+    areas.push(current);
+    continue;
+  }
   if (!current) continue;
   const sub = /^#### (.+)$/.exec(line);
   if (sub) {
