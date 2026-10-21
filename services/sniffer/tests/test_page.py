@@ -9,7 +9,11 @@
 
 import asyncio
 import contextlib
+import json
 import os
+import signal
+import subprocess
+import sys
 import time
 import unittest
 from ipaddress import ip_network
@@ -22,7 +26,7 @@ from cord_services.cinema.egress import Busy, Egress
 from cord_services.cinema.net import Allowance, Guard
 from sniffer import page as page_module
 from sniffer.capture import STREAMS, SYSTEMS
-from sniffer.page import TEARDOWN, Pages, kill_browsers
+from sniffer.page import LAUNCH, TEARDOWN, Pages, kill_browsers
 from sites import Site, Trap
 
 
@@ -41,6 +45,21 @@ def chromium() -> dict[int, bytes]:
             continue
         if b"chrome-headless-shell" in command:
             found[int(entry.name)] = command
+    return found
+
+
+def drivers() -> set[int]:
+    """Драйверы Playwright (node `run-driver`) в контейнере теста."""
+    found = set()
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            command = (entry / "cmdline").read_bytes()
+        except OSError:
+            continue
+        if b"run-driver" in command.split(b"\0"):
+            found.add(int(entry.name))
     return found
 
 
@@ -234,8 +253,14 @@ class Budget(PageCase):
         await asyncio.gather(first, second)
 
     async def test_a_page_given_up_closes_at_once(self):
+        # Бросить открытую страницу: сайт её уже отдал браузеру. Пауза наугад не годится — холодный запуск
+        # Chromium на нагруженном хосте дольше любой паузы. Брошенную посреди запуска — `Launch` ниже.
+        opened = len(self.a.seen("/pages/empty.html"))
         task = asyncio.ensure_future(self.pages.sniff(self.a.url("/pages/empty.html")))
-        await asyncio.sleep(1.5)
+        async with asyncio.timeout(LAUNCH + SECONDS):
+            while len(self.a.seen("/pages/empty.html")) == opened:
+                await asyncio.sleep(0.05)
+        self.assertFalse(task.done())
         started = time.monotonic()
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
@@ -243,6 +268,103 @@ class Budget(PageCase):
         self.assertLess(time.monotonic() - started, TEARDOWN)
         self.assertEqual(self.egress._leases, {})
         self.assertEqual(self.pages._browser.contexts, [])
+
+
+async def given_up_while_starting(phase: str) -> None:
+    """
+    Процесс-ребёнок `Launch`: холодный `Pages`, страница брошена посреди запуска — пока стартует драйвер
+    Playwright (`driver`) или уже Chromium (`browser`), — затем `close()`. Печатает отчёт одной строкой JSON;
+    выйти процесс должен сам — `asyncio.run` отменяет и дожидается всех задач цикла.
+    """
+    site = Site("127.0.0.1")
+    egress = Egress(Guard((Allowance(network=LOOPBACK, port=site.port),)), sessions=2, wait=1.0)
+    egress.seconds = SECONDS + TEARDOWN
+    pages = Pages(egress, seconds=SECONDS, look=LOOK, idle=60.0)
+    before = drivers()
+
+    def reached() -> bool:
+        if phase == "driver":
+            return bool(drivers() - before) and pages._playwright is None
+        return pages._playwright is not None and pages._browser is None
+
+    task = asyncio.ensure_future(pages.sniff(site.url("/pages/empty.html")))
+    async with asyncio.timeout(LAUNCH):
+        while not reached():
+            await asyncio.sleep(0.005)
+    report: dict[str, object] = {
+        "playwright": pages._playwright is not None,
+        "browser": pages._browser is not None,
+    }
+    started = time.monotonic()
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    report["cancel"] = time.monotonic() - started
+    report["leases"] = len(egress._leases)
+    started = time.monotonic()
+    await pages.close()
+    await egress.close()
+    report["close"] = time.monotonic() - started
+    for _ in range(100):
+        if not drivers() - before and not chromium():
+            break
+        await asyncio.sleep(0.1)
+    report["drivers"] = len(drivers() - before)
+    report["chromium"] = len(chromium())
+    current = asyncio.current_task()
+    report["tasks"] = [repr(left.get_coro()) for left in asyncio.all_tasks() if left is not current]
+    site.close()
+    print(json.dumps(report), flush=True)
+
+
+class Launch(unittest.TestCase):
+    """
+    SNIF-2: страница, брошенная посреди холодного запуска браузера (в бою он — после каждого простоя `IDLE`),
+    не оставляет ни драйвера Playwright, ни Chromium, и процесс выходит. Отдельным процессом: ничейный
+    драйвер вешал цикл событий на выходе навсегда, и в своём процессе тест не покраснел бы, а повис.
+    """
+
+    def given_up(self, phase: str) -> dict:
+        before = drivers()
+        script = f"import asyncio, test_page; asyncio.run(test_page.given_up_while_starting({phase!r}))"
+        tests = str(Path(__file__).resolve().parent)
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([os.getcwd(), tests])}
+        try:
+            done = subprocess.run(
+                [sys.executable, "-c", script],
+                cwd=os.getcwd(),
+                env=env,
+                capture_output=True,
+                timeout=LAUNCH + 4 * TEARDOWN + 30,
+            )
+        except subprocess.TimeoutExpired:
+            # Ребёнка убил `run`, а его драйвер и браузер остались бы следующим тестам.
+            for pid in drivers() - before:
+                with contextlib.suppress(OSError):
+                    os.kill(pid, signal.SIGKILL)
+            kill_browsers()
+            self.fail(f"страница брошена посреди запуска ({phase}) — процесс не вышел")
+        self.assertEqual(done.returncode, 0, done.stderr.decode(errors="replace")[-2000:])
+        return json.loads(done.stdout.decode().strip().splitlines()[-1])
+
+    def assert_clean(self, report: dict) -> None:
+        # Брошенную страницу не ждут: место в выходе свободно сразу.
+        self.assertLess(report["cancel"], TEARDOWN)
+        self.assertEqual(report["leases"], 0)
+        # Запуск дошёл до конца и закрыт: ни драйвера, ни браузера, ни задачи, которой ждал бы выход.
+        self.assertLess(report["close"], LAUNCH + 2 * TEARDOWN)
+        self.assertEqual((report["drivers"], report["chromium"]), (0, 0))
+        self.assertEqual(report["tasks"], [])
+
+    def test_a_page_given_up_while_the_driver_starts_leaves_nothing_running(self):
+        report = self.given_up("driver")
+        self.assertFalse(report["playwright"])
+        self.assert_clean(report)
+
+    def test_a_page_given_up_while_chromium_launches_leaves_nothing_running(self):
+        report = self.given_up("browser")
+        self.assertEqual((report["playwright"], report["browser"]), (True, False))
+        self.assert_clean(report)
 
 
 class TheBrowserItself(PageCase):

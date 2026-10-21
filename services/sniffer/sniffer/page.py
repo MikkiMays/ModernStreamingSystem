@@ -65,6 +65,8 @@ TEARDOWN = 5.0
 QUESTION = 2.0
 # Браузер без работы столько времени закрывается: он держит сотню-другую мегабайт.
 IDLE = 300.0
+# Срок запуска браузера Playwright; столько же `close` ждёт запуск, брошенный страницей (`_browser_ready`).
+LAUNCH = 30.0
 # Плейлист HLS, у которого смотрим, мастер ли он: мастер — килобайты.
 PLAYLIST_BYTES = 256 * 1024
 # Сколько раз страница может сказать о своём EME: дальше её не слушаем.
@@ -211,8 +213,9 @@ PLAYING = """
 class Pages:
     """
     Один Chromium на процесс (запускается к первой странице, закрывается после `IDLE` без работы) и свой
-    контекст на каждую страницу. Сколько страниц разом, решает выход (`Egress.sessions`): место ждётся не
-    дольше `Egress.wait`, потом `Busy`.
+    контекст на каждую страницу. Запуск не отменяется вместе со страницей — его ждут, а не прерывают
+    (`_browser_ready`): иначе драйвер Playwright оставался бы ничьим. Сколько страниц разом, решает выход
+    (`Egress.sessions`): место ждётся не дольше `Egress.wait`, потом `Busy`.
 
     Ответ отдаётся, как только готов, а вкладка закрывается уже после него (`_visit`): место в выходе
     держится до конца закрытия, но зависшее закрытие (до `TEARDOWN`, а с перезапуском браузера — вдвое) не
@@ -236,6 +239,7 @@ class Pages:
         self._playwright: Playwright | None = None
         self._browser: Browser | None = None
         self._launching = asyncio.Lock()
+        self._launch: asyncio.Task[Browser] | None = None
         self._active = 0
         self._resting: asyncio.Task[None] | None = None
         self._visits: set[asyncio.Task[None]] = set()
@@ -267,6 +271,15 @@ class Pages:
             await asyncio.wait(set(self._visits), timeout=2 * TEARDOWN + 1)
         if self._resting is not None:
             self._resting.cancel()
+        # Запуск, который бросила страница, доходит до конца сам — и его драйвер и браузер закрываются здесь
+        # же. Не дошёл и за свой срок — он отменяется: дольше закрытие процесса не ждёт.
+        launch = self._launch
+        if launch is not None and not launch.done():
+            await asyncio.wait({launch}, timeout=LAUNCH + TEARDOWN)
+            if not launch.done():
+                logger.warning("плеер страниц: запуск браузера не кончился за %s с — отменён", LAUNCH)
+                launch.cancel()
+                await asyncio.wait({launch}, timeout=TEARDOWN)
         await self._restart()
         playwright, self._playwright = self._playwright, None
         if playwright is not None:
@@ -274,6 +287,18 @@ class Pages:
                 await playwright.stop()
 
     async def _browser_ready(self) -> Browser:
+        """
+        Запущенный браузер — или запуск в своей задаче (`_launch`), которого страница ждёт через `shield`.
+        Страница, брошенная посреди холодного запуска (после `IDLE` простоя он — у каждой первой), перестаёт
+        ждать сразу, а сам запуск доходит до конца: драйвер Playwright и браузер остаются у `Pages`, и их
+        закрывают `_rest` и `close`. Отменённый посреди `start()` Playwright оставил бы драйвер (node) ничьим:
+        закрыть его некому, а отмена его первого вопроса ждёт ответа драйвера вечно — процесс не выходит.
+        """
+        if self._launch is None or self._launch.done():
+            self._launch = asyncio.ensure_future(self._launched())
+        return await asyncio.shield(self._launch)
+
+    async def _launched(self) -> Browser:
         async with self._launching:
             if self._browser is not None and self._browser.is_connected():
                 return self._browser
@@ -287,7 +312,7 @@ class Pages:
                 args=list(ARGS),
                 proxy={"server": f"http://127.0.0.1:{self.egress.port}"},
                 env=BROWSER_ENV,
-                timeout=30_000,
+                timeout=LAUNCH * 1000,
             )
             return self._browser
 
