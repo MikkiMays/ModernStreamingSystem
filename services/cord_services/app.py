@@ -123,6 +123,8 @@ def create_app(
         # досматривает его и после выкатки.
         links=store.links,
         sniffer=Sniffer(sniffer_url, key_for(core.secret)) if sniffer_url and core.secret else None,
+        # Сайты, ссылки с которых владелец закрыл после жалобы (A9): через запятую.
+        deny_hosts=os.environ.get("CINEMA_LINK_HOSTS_DENY"),
     )
     sources_on = music_sources(os.environ.get("MUSIC_SOURCES"))
     sources = Sources(

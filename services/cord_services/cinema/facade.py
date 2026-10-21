@@ -21,7 +21,7 @@ import time
 import uuid
 from dataclasses import asdict
 from typing import Any, Callable, Literal
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from fastapi import HTTPException
@@ -84,6 +84,19 @@ REWRITE_WAITING = 8
 FOREIGN_READS = 8
 REWRITES_BUSY = "Сервер сейчас переписывает много плейлистов — попробуйте ещё раз"
 NOT_A_LINK = "Это не ссылка на страницу: нужен адрес, который начинается с https:// или http://"
+DENIED_HOST = "Ссылки с этого сайта владелец сервера закрыл"
+
+
+def deny_list(text: str | None) -> frozenset[str]:
+    """Хосты из `CINEMA_LINK_HOSTS_DENY` (через запятую или пробел): строчными, без `www.` и точки в конце."""
+    hosts = (part.strip().lower().rstrip(".") for part in re.split(r"[,\s]+", text or ""))
+    return frozenset(host.removeprefix("www.") for host in hosts if host)
+
+
+def denied(url: str, hosts: frozenset[str]) -> bool:
+    """Закрыт ли хост ссылки (или домен над ним): `films.example` закрывает и `cdn.films.example`."""
+    host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    return any(host == item or host.endswith("." + item) for item in hosts)
 NO_PLAYLIST = "Площадка не отдала плейлист"
 # Поток плеера страниц (`sniffer.py`) не отдаётся с его профилем — или профиля уже нет (служба
 # перезапустилась). 410 плеер комнаты понимает как «подпись устарела» и просит поток заново (`refresh`).
@@ -173,6 +186,7 @@ class Cinema:
         net: NetConfig | None = None,
         links: Any = None,
         sniffer: Sniffer | None = None,
+        deny_hosts: str | None = None,
     ):
         """
         `enabled` — какие площадки включены, строкой как в `CINEMA_PROVIDERS`; пусто — все.
@@ -181,7 +195,10 @@ class Cinema:
         `links` — где помнить номера ссылок «По ссылке» (`store.Links`); пусто — память процесса.
         `sniffer` — плеер страниц (`CINEMA_SNIFFER_URL`, контейнер `sniffer`); без него страницу, которую не
         понял yt-dlp, кинозал не открывает.
+        `deny_hosts` — сайты, ссылки с которых «По ссылке» не открывает (`CINEMA_LINK_HOSTS_DENY`, A9): рычаг
+        владельца после жалобы правообладателя или хостера.
         """
+        self.denied_hosts = deny_list(deny_hosts)
         config = net or NetConfig()
         # Площадки с любыми хостами («По ссылке») без секрета не регистрируются вовсе (M14).
         # Их подпись держится на `INTERNAL_SECRET`; пустой — все подписи считаются на запасном «cord-cinema»,
@@ -500,6 +517,9 @@ class Cinema:
         found = self._route(url)
         if found is not None:
             return found
+        # Сайт, который владелец закрыл после жалобы (A9), — отказ до yt-dlp: наружу не уходит ни запроса.
+        if denied(url, self.denied_hosts):
+            return {"item": None, "reason": DENIED_HOST}
         general = self.registry.find(General.id)
         if not isinstance(general, General):
             names = [source.name for source in self.registry]
