@@ -68,6 +68,11 @@ public class ApiController {
   private final Entries entries;
   private final dev.mikki.stream.activity.Audit audit;
   private final dev.mikki.stream.access.UploadQuota uploads;
+  private final dev.mikki.stream.activity.ClientQuality quality;
+
+  /** Итог звонка — один на вход во встречу: второй с того же входа — отказ «слишком часто». */
+  private static final dev.mikki.stream.config.Rate ONE_REPORT =
+      new dev.mikki.stream.config.Rate(1, java.time.Duration.ofDays(1));
 
   public ApiController(
       RoomService rooms,
@@ -83,7 +88,8 @@ public class ApiController {
       ProofOfWork proofs,
       Entries entries,
       dev.mikki.stream.activity.Audit audit,
-      dev.mikki.stream.access.UploadQuota uploads) {
+      dev.mikki.stream.access.UploadQuota uploads,
+      dev.mikki.stream.activity.ClientQuality quality) {
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
@@ -98,6 +104,7 @@ public class ApiController {
     this.entries = entries;
     this.audit = audit;
     this.uploads = uploads;
+    this.quality = quality;
   }
 
   @GetMapping("/ping")
@@ -263,6 +270,26 @@ public class ApiController {
       @Valid @RequestBody Contracts.Command command) {
     limits.command(credential, command.type());
     return commands.execute(id.toString(), credential, command);
+  }
+
+  /**
+   * Итог звонка от браузера ({@code docs/observability.md} §15): оборот, потери, джиттер, битрейт
+   * приёма, замирания, путь и кодек — числами и словами из перечислений, в строку встречи. Пропуск
+   * — участника, как у остальных дверей комнаты; годится и после выхода (итог шлют, уходя). Один
+   * итог на вход и не больше тридцати в минуту с адреса.
+   */
+  @PostMapping("/rooms/{id}/client-report")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void clientReport(
+      @PathVariable UUID id,
+      @RequestHeader("Authorization") String credential,
+      @Valid @RequestBody dev.mikki.stream.activity.ClientQuality.Report report,
+      HttpServletRequest http) {
+    limits.check("client-report-ip:" + address.of(http), 30);
+    var room = rooms.read(id.toString());
+    var member = rooms.authenticate(room, credential);
+    limits.check("client-report:" + room.id + ":" + member.id, ONE_REPORT);
+    quality.record(room, member, report);
   }
 
   @PostMapping("/rooms/{id}/media/token")

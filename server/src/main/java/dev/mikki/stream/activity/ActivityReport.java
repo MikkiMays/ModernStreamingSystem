@@ -125,6 +125,180 @@ public class ActivityReport {
       Map<String, Integer> integrations,
       Map<String, Integer> endReasons) {}
 
+  /** Качество связи за день: итогов, средний оборот и потери. */
+  public record QualityDay(String day, int reports, Integer rttMs, Double lossPercent) {}
+
+  /** Встреча в «Качестве»: код (пока комната жива), начало и её средние. */
+  public record QualityMeeting(
+      String code,
+      long startedAt,
+      int reports,
+      Integer rttMs,
+      Integer rttMaxMs,
+      Double lossPercent,
+      Integer jitterMs,
+      int freezes,
+      boolean relay) {}
+
+  /**
+   * Качество связи за период — из итогов браузеров ({@link ClientQuality}, V12). Средние — по
+   * итогам, где величина была; доли — {@code null}, если итогов нет.
+   */
+  public record Quality(
+      long from,
+      long to,
+      int meetings,
+      int reports,
+      long seconds,
+      Integer rttMs,
+      Integer rttMaxMs,
+      Double lossPercent,
+      Integer jitterMs,
+      Integer bitrateKbps,
+      int freezes,
+      Double freezesPerHour,
+      Double lossyShare,
+      Double relayShare,
+      Map<String, Integer> codecs,
+      List<QualityDay> days,
+      List<QualityMeeting> recent) {}
+
+  /** Сколько встреч показывает «Качество» поимённо — последние с итогами. */
+  static final int RECENT = 20;
+
+  /** Встречи, начавшиеся в промежутке, — только те, о которых браузеры прислали итоги. */
+  public Quality quality(long from, long to, int offsetMinutes) {
+    record Row(
+        long startedAt,
+        String code,
+        int reports,
+        long seconds,
+        long lossy,
+        long rttSum,
+        int rttReports,
+        int rttMax,
+        long lossSum,
+        int lossReports,
+        long jitterSum,
+        int jitterReports,
+        long bitrateSum,
+        int bitrateReports,
+        int freezes,
+        int relay,
+        String codecs) {}
+    var list =
+        jdbc.sql(
+                "SELECT s.started_at, r.room_code, s.quality_reports, s.quality_seconds,"
+                    + " s.lossy_seconds, s.rtt_ms_sum, s.rtt_reports, s.rtt_ms_max,"
+                    + " s.loss_permille_sum, s.loss_reports, s.jitter_ms_sum, s.jitter_reports,"
+                    + " s.bitrate_kbps_sum, s.bitrate_reports, s.freezes, s.relay_reports, s.codecs"
+                    + " FROM meeting_stats s LEFT JOIN rooms r ON r.id=s.room_id"
+                    + " WHERE s.started_at>=? AND s.started_at<? AND s.quality_reports>0"
+                    + " ORDER BY s.started_at DESC")
+            .params(from, to)
+            .query(
+                (rs, i) ->
+                    new Row(
+                        rs.getLong(1),
+                        rs.getString(2),
+                        rs.getInt(3),
+                        rs.getLong(4),
+                        rs.getLong(5),
+                        rs.getLong(6),
+                        rs.getInt(7),
+                        rs.getInt(8),
+                        rs.getLong(9),
+                        rs.getInt(10),
+                        rs.getLong(11),
+                        rs.getInt(12),
+                        rs.getLong(13),
+                        rs.getInt(14),
+                        rs.getInt(15),
+                        rs.getInt(16),
+                        rs.getString(17)))
+            .list();
+    var offset = ZoneOffset.ofTotalSeconds(Math.clamp(offsetMinutes, -14 * 60, 14 * 60) * 60);
+    var days = new TreeMap<LocalDate, long[]>();
+    var codecs = new TreeMap<String, Integer>();
+    var recent = new ArrayList<QualityMeeting>();
+    long reports = 0, seconds = 0, lossy = 0, rttSum = 0, rttReports = 0, lossSum = 0;
+    long lossReports = 0, jitterSum = 0, jitterReports = 0, bitrateSum = 0, bitrateReports = 0;
+    long relay = 0;
+    int rttMax = 0, freezes = 0;
+    for (var row : list) {
+      reports += row.reports();
+      seconds += row.seconds();
+      lossy += row.lossy();
+      rttSum += row.rttSum();
+      rttReports += row.rttReports();
+      rttMax = Math.max(rttMax, row.rttMax());
+      lossSum += row.lossSum();
+      lossReports += row.lossReports();
+      jitterSum += row.jitterSum();
+      jitterReports += row.jitterReports();
+      bitrateSum += row.bitrateSum();
+      bitrateReports += row.bitrateReports();
+      freezes += row.freezes();
+      relay += row.relay();
+      if (row.codecs() != null && !row.codecs().isBlank())
+        for (var codec : row.codecs().split(" ")) codecs.merge(codec, 1, Integer::sum);
+      var day = LocalDate.ofInstant(Instant.ofEpochMilli(row.startedAt()), offset);
+      var totals = days.computeIfAbsent(day, d -> new long[5]);
+      totals[0] += row.reports();
+      totals[1] += row.rttSum();
+      totals[2] += row.rttReports();
+      totals[3] += row.lossSum();
+      totals[4] += row.lossReports();
+      if (recent.size() < RECENT)
+        recent.add(
+            new QualityMeeting(
+                row.code(),
+                row.startedAt(),
+                row.reports(),
+                mean(row.rttSum(), row.rttReports()),
+                row.rttReports() > 0 ? row.rttMax() : null,
+                percent(row.lossSum(), row.lossReports()),
+                mean(row.jitterSum(), row.jitterReports()),
+                row.freezes(),
+                row.relay() > 0));
+    }
+    return new Quality(
+        from,
+        to,
+        list.size(),
+        (int) reports,
+        seconds,
+        mean(rttSum, rttReports),
+        rttReports > 0 ? rttMax : null,
+        percent(lossSum, lossReports),
+        mean(jitterSum, jitterReports),
+        mean(bitrateSum, bitrateReports),
+        freezes,
+        seconds > 0 ? freezes * 3600.0 / seconds : null,
+        seconds > 0 ? (double) lossy / seconds : null,
+        reports > 0 ? (double) relay / reports : null,
+        codecs,
+        days.entrySet().stream()
+            .map(
+                e ->
+                    new QualityDay(
+                        e.getKey().toString(),
+                        (int) e.getValue()[0],
+                        mean(e.getValue()[1], e.getValue()[2]),
+                        percent(e.getValue()[3], e.getValue()[4])))
+            .toList(),
+        recent);
+  }
+
+  private static Integer mean(long sum, long count) {
+    return count > 0 ? (int) Math.round((double) sum / count) : null;
+  }
+
+  /** Потери — из десятых долей процента: среднее с одним знаком после запятой. */
+  private static Double percent(long permille, long count) {
+    return count > 0 ? Math.round((double) permille / count) / 10.0 : null;
+  }
+
   /** Границы корзин длительности: до 5 мин, 15, 30, часа, двух, четырёх и дольше. */
   static final long[] BUCKETS = {300, 900, 1800, 3600, 7200, 14400, Long.MAX_VALUE};
 

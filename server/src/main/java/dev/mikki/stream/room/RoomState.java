@@ -63,6 +63,14 @@ public class RoomState {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Long endsAt;
 
+  /**
+   * Встречу завершил владелец сервера («Активность», {@code docs/abuse-model.md} §5): до этого
+   * момента (мс) её не открыть из избранного — ни создателю, ни кому-то ещё. null — завершена не
+   * владельцем или срок вышел. {@code NON_NULL} — комната без метки пишется как раньше: откат.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Long closedByServer;
+
   public boolean mediaDrained;
   public boolean approvalRequired;
   public boolean integrationsAllowed = true;
