@@ -137,6 +137,8 @@ class ThePlayerOfThePage(PageCase):
         found = await self.sniff("/pages/native.html")
         self.assertEqual(found["streams"][0]["url"], self.a.url("/media/master.m3u8"))
         self.assertEqual(found["streams"][0]["type"], "hls")
+        # Кусочки `.m2ts`, которые тег спросил сам (видом `media`), — не файлы и мест улова не занимают.
+        self.assertEqual({stream["type"] for stream in found["streams"]}, {"hls"})
 
 
 class Drm(PageCase):

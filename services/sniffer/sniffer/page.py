@@ -456,7 +456,11 @@ class Watch:
                 return
             # Новый ли это поток — до всякого чтения: знакомый адрес, уже читаемый, полный улов или страница
             # ушла — ни заголовков ради него, ни тела.
-            wanted = kind is not None and url not in self.reading and self.catch.wants(url, len(self.reading))
+            wanted = (
+                kind is not None
+                and url not in self.reading
+                and self.catch.wants(url, len(self.reading), kind)
+            )
             if not wanted and not self._cookie_due(url):
                 return
             if self.asked >= HEADERS:
@@ -475,7 +479,9 @@ class Watch:
                 advert = False
                 if kind == "hls":
                     async with self.bodies:
-                        master, heights, seconds, advert = await self._playlist(response)
+                        master, heights, seconds, advert, pieces = await self._playlist(response)
+                    # Кусочки этого списка — не файлы, даже если их спросит сам `<video>` (`Catch.listed`).
+                    self.catch.listed(pieces)
                 ext = capture.file_extension(url, kind_header) if kind == "file" else ""
                 fresh = self.catch.stream(
                     url,
@@ -503,23 +509,25 @@ class Watch:
             return
 
     @staticmethod
-    async def _playlist(response: Response) -> tuple[bool | None, tuple[int, ...], float | None, bool]:
+    async def _playlist(
+        response: Response,
+    ) -> tuple[bool | None, tuple[int, ...], float | None, bool, tuple[str, ...]]:
         """
-        Мастер ли это, его ступени, длина законченного списка и реклама ли он целиком (преролл, E07) —
-        только у маленького плейлиста с объявленной длиной.
+        Мастер ли это, его ступени, длина законченного списка, реклама ли он целиком (преролл, E07) и его
+        кусочки — только у маленького плейлиста с объявленной длиной.
         """
         length = response.headers.get("content-length", "")
         if not length.isdigit() or int(length) > PLAYLIST_BYTES:
-            return None, (), None, False
+            return None, (), None, False, ()
         try:
             async with asyncio.timeout(BODY_WAIT):
                 body = await response.body()
         except (PlaywrightError, TimeoutError):
-            return None, (), None, False
+            return None, (), None, False, ()
         text = body[:PLAYLIST_BYTES].decode("utf-8", errors="replace")
         master, heights = capture.playlist_facts(text)
         seconds, advert = capture.advert_facts(text, response.url)
-        return master, heights, seconds, advert
+        return master, heights, seconds, advert, capture.playlist_pieces(text, response.url)
 
     def _cookie_due(self, url: str) -> bool:
         """Спросить ли cookie этого хоста снова: новый хост — да, знакомый — не чаще раза в секунду."""
