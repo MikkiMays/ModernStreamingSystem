@@ -1,0 +1,58 @@
+# Что собирает VictoriaMetrics профиля `monitoring` (E10-B, docs/observability.md §5).
+#
+# Все цели — на 127.0.0.1 этой машины: контейнеры Cord работают в сети хоста и наружу метрик не
+# публикуют. Исключение одно — LiveKit: его порт метрик слушает тот же 0.0.0.0, что и сигналинг, поэтому
+# он закрыт паролем (`LIVEKIT_METRICS_PASSWORD` из .env, `scripts/configure.mjs`). `%{…}` VictoriaMetrics
+# подставляет из своего окружения — пароль не лежит в git.
+#
+# Раз в 30 с: этого хватает для графиков и алертов «не отвечает пять минут» и вдвое дешевле 15 с.
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+scrape_configs:
+  # Ядро: встречи, люди, входы, отказы, блоки (cord_*), JVM, HTTP, пул базы.
+  - job_name: core
+    metrics_path: /actuator/prometheus
+    static_configs: [{ targets: ['127.0.0.1:8080'] }]
+
+  # SFU: комнаты, участники (боты считаются — людей говорит ядро), пакеты, потери.
+  - job_name: livekit
+    static_configs: [{ targets: ['127.0.0.1:6789'] }]
+    basic_auth:
+      username: metrics
+      password: '%{LIVEKIT_METRICS_PASSWORD}'
+
+  # Шлюз Caddy: запросы, статусы, задержки (`metrics` в infra/Caddyfile).
+  - job_name: gateway
+    static_configs: [{ targets: ['127.0.0.1:2019'] }]
+
+  # Загрузки файлов.
+  - job_name: tusd
+    static_configs: [{ targets: ['127.0.0.1:1080'] }]
+
+  # Службы: музыка, Telegram-бот.
+  - job_name: services
+    static_configs: [{ targets: ['127.0.0.1:18100'] }]
+
+  # Машина: ЦП (и steal — главный признак замирания хоста), память, диск, сеть.
+  - job_name: node
+    static_configs: [{ targets: ['127.0.0.1:9100'] }]
+
+  - job_name: postgres
+    static_configs: [{ targets: ['127.0.0.1:9187'] }]
+
+  - job_name: redis
+    static_configs: [{ targets: ['127.0.0.1:9121'] }]
+
+  # Проверки «как видно снаружи»: главная по внешнему имени, срок сертификата.
+  - job_name: gatus
+    static_configs: [{ targets: ['127.0.0.1:8084'] }]
+
+  # Сам мониторинг — чтобы видеть его цену на графике «Сервер».
+  - job_name: victoriametrics
+    static_configs: [{ targets: ['127.0.0.1:8428'] }]
+  - job_name: vmalert
+    static_configs: [{ targets: ['127.0.0.1:8880'] }]
+  - job_name: alertmanager
+    static_configs: [{ targets: ['127.0.0.1:9093'] }]

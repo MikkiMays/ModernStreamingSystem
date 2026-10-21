@@ -58,6 +58,8 @@ const LEGACY: Record<string, { section: SectionId; anchor?: AnchorId }> = {
   video: { section: 'voice', anchor: 'camera' },
   connection: { section: 'server' },
   theme: { section: 'appearance' },
+  // `cord://settings/help` и «Помощь» оболочки: частые вопросы, обращение и знакомство — в «О программе».
+  help: { section: 'about' },
 };
 
 export interface Place {
@@ -143,6 +145,8 @@ export const ROWS = {
   'about-version': { section: 'about' },
   'about-updates': { section: 'about' },
   'about-author': { section: 'about' },
+  'about-help': { section: 'about' },
+  'about-tour': { section: 'about' },
 } satisfies Record<string, RowSpec>;
 
 export type RowId = keyof typeof ROWS;

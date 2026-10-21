@@ -1,5 +1,6 @@
 /**
- * Невидимая проверка «не бот» на создании встречи и входе по коду (E11-B, решение 15 архитектуры).
+ * Невидимая проверка «не бот» на создании встречи, входе по коду (E11-B, решение 15 архитектуры) и
+ * обращении в поддержку (E13).
  *
  * Сервер выдаёт задачу proof-of-work (`GET /api/v1/proof?for=create|code`), браузер решает её в
  * фоновом потоке и прикладывает ответ заголовком `X-Cord-Proof`. Человек этого не видит: решение
@@ -11,7 +12,7 @@
  */
 import { solveChallenge, type Challenge } from './proof-solve';
 
-export type ProofAction = 'create' | 'code';
+export type ProofAction = 'create' | 'code' | 'support';
 /** Задача от сервера; `undefined` — проверка на сервере выключена (`204`). */
 export type FetchChallenge = () => Promise<Challenge | undefined>;
 

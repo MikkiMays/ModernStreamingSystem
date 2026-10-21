@@ -1,0 +1,264 @@
+/*
+  «Помощь» (E13, T36): страница `/support` и окно «?». Одна разметка: на странице — карточки в две
+  колонки от 1024 px (вопросы слева, проверка и форма справа), в окне — одна колонка без карточек,
+  разделы через линию. Только токены `styles/tokens.css`.
+*/
+.help-main {
+  align-content: start;
+  justify-items: stretch;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-top: var(--space-4);
+}
+.help-hero {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 640px;
+}
+.help-hero h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+.help-hero p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+}
+
+.help-center {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.help-side {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .help-page .help-center {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.help-section {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.help-page .help-section {
+  padding: var(--space-6);
+  border-radius: var(--radius-4);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+}
+.help-dialog .help-section + .help-side,
+.help-dialog .help-side > .help-section + .help-section {
+  padding-top: var(--space-5);
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.help-section__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+.help-section__lead {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+
+/* ---------- частые вопросы ---------- */
+.help-faq__list {
+  display: grid;
+}
+.help-faq__item {
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.help-faq__item:last-child {
+  box-shadow: none;
+}
+.help-faq__item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--control-touch);
+  padding: var(--space-3) var(--space-1);
+  border-radius: var(--radius-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  cursor: pointer;
+  list-style: none;
+}
+.help-faq__item summary::-webkit-details-marker {
+  display: none;
+}
+.help-faq__item summary:hover {
+  color: var(--accent);
+}
+.help-faq__item summary:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.help-faq__chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+.help-faq__item[open] .help-faq__chevron {
+  transform: rotate(180deg);
+}
+.help-faq__steps {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-1) var(--space-4);
+  list-style: none;
+}
+.help-faq__steps li {
+  position: relative;
+  padding-left: var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  overflow-wrap: anywhere;
+}
+.help-faq__steps li::before {
+  content: '';
+  position: absolute;
+  left: var(--space-1);
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent-fill);
+}
+
+/* ---------- проверка ---------- */
+/* Заголовок проверки — у раздела; свой заголовок `DeviceCheck` здесь лишний. */
+.help-check .device-check {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.help-check .device-check > h3 {
+  display: none;
+}
+.help-check > .ui-button {
+  justify-self: start;
+}
+
+/* ---------- форма ---------- */
+.help-form {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.help-form .ui-input--area {
+  min-height: 120px;
+  resize: vertical;
+}
+.help-form > .ui-button {
+  justify-self: start;
+}
+.help-consent {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  cursor: pointer;
+}
+.help-consent input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent-fill);
+}
+.help-consent > span {
+  display: grid;
+  gap: 2px;
+}
+.help-consent__label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+.help-consent__hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.help-preview summary {
+  width: fit-content;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.help-preview pre {
+  max-height: 200px;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  overflow: auto;
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.help-sent {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+.help-sent__icon {
+  color: var(--success);
+}
+.help-sent__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+.help-sent__text {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  line-height: var(--leading-base);
+}
+
+/* ---------- автор ---------- */
+.help-author {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.help-author__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-1);
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+.help-author__link:hover {
+  text-decoration: underline;
+}
+
+.help-loading {
+  min-height: 320px;
+}

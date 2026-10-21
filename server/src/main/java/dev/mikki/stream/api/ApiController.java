@@ -61,9 +61,13 @@ public class ApiController {
   private final StreamProperties config;
   private final RateLimits limits;
   private final ServerAccess access;
+  private final Secrets secrets;
   private final ClientAddress address;
   private final Identity identity;
   private final ProofOfWork proofs;
+  private final Entries entries;
+  private final dev.mikki.stream.activity.Audit audit;
+  private final dev.mikki.stream.access.UploadQuota uploads;
 
   public ApiController(
       RoomService rooms,
@@ -73,9 +77,13 @@ public class ApiController {
       StreamProperties config,
       RateLimits limits,
       ServerAccess access,
+      Secrets secrets,
       ClientAddress address,
       Identity identity,
-      ProofOfWork proofs) {
+      ProofOfWork proofs,
+      Entries entries,
+      dev.mikki.stream.activity.Audit audit,
+      dev.mikki.stream.access.UploadQuota uploads) {
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
@@ -83,9 +91,13 @@ public class ApiController {
     this.config = config;
     this.limits = limits;
     this.access = access;
+    this.secrets = secrets;
     this.address = address;
     this.identity = identity;
     this.proofs = proofs;
+    this.entries = entries;
+    this.audit = audit;
+    this.uploads = uploads;
   }
 
   @GetMapping("/ping")
@@ -123,7 +135,8 @@ public class ApiController {
   */
 
   /**
-   * Задача «не бот» на действие {@code create} или {@code code} (E11-B, {@link ProofOfWork}).
+   * Задача «не бот» на действие {@code create}, {@code code} (E11-B, {@link ProofOfWork}) или
+   * {@code support} — форма «Помощи» (E13).
    *
    * <p>Браузер просит её, как только открыта форма, и решает в фоне — к нажатию ответ готов. Задача
    * дорожает вчетверо, если адрес уже выбрал половину своего предела, и ввосьмеро, пока включён
@@ -132,7 +145,7 @@ public class ApiController {
   @GetMapping("/proof")
   public ResponseEntity<ProofOfWork.Challenge> proof(
       @RequestParam("for") String action, HttpServletRequest http) {
-    if (!action.equals("create") && !action.equals("code"))
+    if (!action.equals("create") && !action.equals("code") && !action.equals("support"))
       throw new IllegalArgumentException("Unknown proof action");
     var abuse = config.abuse();
     if (abuse.humanCheck() == StreamProperties.Abuse.HumanCheck.OFF)
@@ -140,11 +153,15 @@ public class ApiController {
     var key = address.of(http);
     limits.check("proof-issue:" + key, 60);
     var pressure =
-        action.equals("create")
-            ? limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
-                >= abuse.perIp().roomsCreated().count()
-            : limits.count("code-miss:" + key, abuse.perIp().codeMisses()) * 2
-                >= abuse.perIp().codeMisses().count();
+        switch (action) {
+          case "create" ->
+              limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
+                  >= abuse.perIp().roomsCreated().count();
+          case "code" ->
+              limits.count("code-miss:" + key, abuse.perIp().codeMisses()) * 2
+                  >= abuse.perIp().codeMisses().count();
+          default -> false;
+        };
     long cost = (long) abuse.proofCost() * (rooms.shielded() ? 8 : 1) * (pressure ? 4 : 1);
     return ResponseEntity.ok(proofs.issue(action, key, cost));
   }
@@ -167,13 +184,14 @@ public class ApiController {
   @PostMapping("/rooms")
   public Contracts.Admission create(
       @Valid @RequestBody Contracts.Create request, HttpServletRequest http) {
-    return rooms.create(request, entrant(http, "create"));
+    return entries.admit("create", http, () -> rooms.create(request, entrant(http, "create")));
   }
 
   @PostMapping("/rooms/{id}/join")
   public Contracts.Admission join(
       @PathVariable UUID id, @Valid @RequestBody Contracts.Join request, HttpServletRequest http) {
-    return rooms.join(id.toString(), request, entrant(http, null));
+    return entries.admit(
+        "link", http, () -> rooms.join(id.toString(), request, entrant(http, null)));
   }
 
   @GetMapping("/rooms/{id}")
@@ -204,7 +222,7 @@ public class ApiController {
   @PostMapping("/rooms/join-by-code")
   public Contracts.Admission joinCode(
       @Valid @RequestBody Contracts.JoinCode request, HttpServletRequest http) {
-    return rooms.joinCode(request, entrant(http, "code"));
+    return entries.admit("code", http, () -> rooms.joinCode(request, entrant(http, "code")));
   }
 
   @PostMapping("/rooms/{id}/rejoin")
@@ -213,7 +231,10 @@ public class ApiController {
       @RequestHeader("Authorization") String credential,
       @Valid @RequestBody Contracts.Rejoin request,
       HttpServletRequest http) {
-    return rooms.rejoin(id.toString(), credential, request, entrant(http, null));
+    return entries.admit(
+        "rejoin",
+        http,
+        () -> rooms.rejoin(id.toString(), credential, request, entrant(http, null)));
   }
 
   @GetMapping("/rooms/{id}/events")
@@ -265,13 +286,36 @@ public class ApiController {
     return files.list(id.toString(), credential);
   }
 
+  /** Крупнее этого резерв файла пишется в журнал: размер и класс, без имени (A10). */
+  private static final long LARGE_UPLOAD = 10L * 1024 * 1024;
+
+  /**
+   * Резерв файла. Сверх пределов на файл, встречу и сервер — квота на адрес за срок (A10): один
+   * адрес не держит больше {@code per-ip.uploads} и больше пятой части {@code total-max-bytes}.
+   * Сверка до резерва, засчитывание — после удачи: отказ квоту не тратит. Наши службы квоты не
+   * знают.
+   */
   @PostMapping("/rooms/{id}/attachments")
   public AttachmentService.Attachment reserve(
       @PathVariable UUID id,
       @RequestHeader("Authorization") String credential,
-      @Valid @RequestBody AttachmentService.Reserve request) {
+      @Valid @RequestBody AttachmentService.Reserve request,
+      HttpServletRequest http) {
     limits.check("file:" + Secrets.hash(credential), 30);
-    return files.reserve(id.toString(), credential, request);
+    var key = address.entrant(http);
+    uploads.check(key, request.size());
+    var reserved = files.reserve(id.toString(), credential, request);
+    uploads.count(key, request.size());
+    if (request.size() >= LARGE_UPLOAD)
+      audit.record(
+          dev.mikki.stream.activity.Audit.Entry.of("attachment.reserved")
+              .room(reserved.roomId(), null)
+              .actor("participant", reserved.ownerId(), null)
+              .target(reserved.id())
+              .from(secrets.address(key), null)
+              .detail("bytes", request.size())
+              .detail("executable", reserved.executable() ? true : null));
+    return reserved;
   }
 
   @DeleteMapping("/attachments/{id}")

@@ -31,6 +31,7 @@ import { useVoiceTier } from './useVoice';
 import { ExecutableNote } from './abuse/Notices';
 import { ChatText } from './abuse/ChatText';
 import { locale } from '../i18n';
+import { OnceHint } from './onboarding/Onboarding';
 
 export type Panel = 'people' | 'chat' | 'services';
 export function Sidebar({
@@ -62,6 +63,8 @@ export function Sidebar({
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
+  // Первое открытие интеграций (T34): подсказка у заголовка панели, что они общие для всех.
+  const [heading, setHeading] = useState<HTMLHeadingElement | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -186,7 +189,14 @@ export function Sidebar({
   return (
     <aside className="side-panel" aria-label={t(($) => $.sidebar.panel)}>
       <div className="panel-heading">
-        <h2>{t(($) => $.sidebar.titles[panel])}</h2>
+        <h2 ref={setHeading}>{t(($) => $.sidebar.titles[panel])}</h2>
+        <OnceHint
+          id="integrations"
+          anchor={heading}
+          ready={panel === 'services'}
+          side="bottom"
+          align="start"
+        />
         <IconButton label={t(($) => $.sidebar.close)} onClick={onClose}>
           <X size={20} />
         </IconButton>

@@ -48,6 +48,7 @@ import { HotkeysSection } from './HotkeysSection';
 import { AccountsSection } from './AccountsSection';
 import { ServerSection } from './ServerSection';
 import { AboutSection } from './AboutSection';
+import { replayOnboarding } from '../../core/onboarding';
 import './settings.css';
 
 const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
@@ -219,7 +220,15 @@ export function SettingsWindow({
           />
         );
       case 'about':
-        return <AboutSection />;
+        return (
+          <AboutSection
+            onTour={() => {
+              // «Пройти знакомство» (T34): подсказки — снова, окно закрывается, чтобы их было видно.
+              replayOnboarding();
+              onOpenChange(false);
+            }}
+          />
+        );
     }
   })();
 

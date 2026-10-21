@@ -100,6 +100,8 @@ public class OpenApiConfig {
           .get("Snapshot")
           .getRequired()
           .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt"));
+      // «Вы ещё здесь?» спрашивают не всегда (A2, E10-B).
+      schemas.get("RoomYou").getRequired().remove("presenceBy");
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")
@@ -170,6 +172,7 @@ public class OpenApiConfig {
               // Карта лежит неотбитой ровно до тех пор, пока её не побили.
               Map.entry("CardPair", List.of("beat")),
               Map.entry("Ack", List.of("value")),
+              Map.entry("RoomYou", List.of("presenceBy")),
               // Комната без группы и без своего имени — обычное дело; null в настройках и
               // означает «убрать из группы», «вернуть название комнаты».
               Map.entry("Favorite", List.of("groupId", "alias")),

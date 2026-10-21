@@ -9,6 +9,7 @@ import { currentServerUrl, rememberServer, serverLabel, thisServer } from '../co
 import { describeFailure, openConnection, serverInfo, type Attempt } from '../core/session';
 import { ensureNotificationAudio } from '../core/sounds';
 import { notifyDesktop, isDesktop } from '../core/desktop';
+import { HelpButton } from './support/HelpButton';
 
 /**
  * The first screen, and until the handshake succeeds the only one. Nothing about meetings is
@@ -81,6 +82,8 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
         <Logo />
         <div className="shell-header__end">
           <span className="shell-header__note">{t(($) => $.connect.note)}</span>
+          {/* Застрял у двери — помощь здесь же (T36): форма открыта и до пароля сервера. */}
+          <HelpButton faq="network" />
           <DownloadLink className="shell-download" />
         </div>
       </header>

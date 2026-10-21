@@ -7,8 +7,9 @@ description: Use when writing or changing any user-visible text in the Cord web 
 
 С E14-A каждая строка, которую видит человек, живёт в каталоге `web/src/i18n/locales/ru.json`, а не в
 коде. Русский — исходный язык и запасной для любого ключа; другие языки (`en.json`, … — П9) приходят
-отдельными файлами и пока несут только часть ключей (E14-B). CI держит храповик: строк с кириллицей в
-`.ts/.tsx` вне каталога не становится больше (`scripts/i18n/check.mjs`, база — `scripts/i18n/baseline.json`).
+отдельными файлами и с E14-B переведены целиком. CI держит два замка: строк с кириллицей в `.ts/.tsx` вне
+каталога не становится больше (`scripts/i18n/check.mjs`, база — `scripts/i18n/baseline.json`), и у каждого
+языка из `TRANSLATED` есть каждый ключ ru (`scripts/i18n/coverage.mjs`).
 
 ## Как сказать текст
 
@@ -56,6 +57,22 @@ description: Use when writing or changing any user-visible text in the Cord web 
   (`new Intl.DateTimeFormat(locale(t), {...})`, `value.toLocaleString(locale(t))`). Единицы размера,
   которых нет в `Intl` (КиБ), — словом из каталога, число — через `Intl`.
 
+## Другие языки (E14-B)
+
+- **Новый ключ ru — сразу на все семь языков** (`en`, `es`, `fr`, `it`, `zh-Hans`, `de`, `pt-BR`), в том же
+  изменении и в том же месте файла. Иначе `node scripts/i18n/coverage.mjs` и тест `src/i18n/coverage.test.ts`
+  падают: язык из `TRANSLATED` с дырой показал бы человеку русскую строку посреди своего интерфейса.
+- Слова — по глоссарию `web/src/i18n/GLOSSARY.md` (встреча, комната, ведущий, кинозал…; обращение: en you,
+  es tú, fr vous, it tu, de du, pt-BR você, zh 你). Новый термин — сначала в глоссарий.
+- Вставки `{{name}}` и разметка `<b>…</b>`, `<time/>` — те же имена, что в ru; «Cord» и имена площадок не
+  переводятся (Яндекс Музыка → Yandex Music, VK Видео → VK Video).
+- Формы числа — свои у языка, не русские: en/de `_one`/`_other`, es/fr/it/pt-BR `_one`/`_many`/`_other`
+  (`many` = `other`), zh-Hans только `_other`. Лишняя или недостающая форма — замечание проверки.
+- Ошибки ядра в других языках — `errors.<КОД>` общими словами, без «…» и без чисел из сообщения: по-русски
+  человек видит точный `detail`, на другом языке — этот текст (E14-A-6). Новый код в реестре — перевести и его.
+- Французский: неразрывный пробел (U+00A0) перед `:` `?` `!` `;` и внутри « » — в JSON это `\u00a0` при
+  записи скриптом, в файле — символ.
+
 ## Проверка
 
 Из `web/`:
@@ -66,6 +83,7 @@ npx tsc -b
 npx prettier --check <файлы>
 node scripts/i18n/check.mjs                 # храповик; вынесли строки — node scripts/i18n/check.mjs --update
 node scripts/i18n/sync-errors.mjs --check   # ошибки ядра в каталоге совпадают с реестром
+node scripts/i18n/coverage.mjs              # у каждого языка все ключи ru, те же вставки, свои формы числа
 python3 ../scripts/errors_registry.py --check   # реестр совпадает с кодом ядра (новый Problem — перезапустить без --check)
 ```
 

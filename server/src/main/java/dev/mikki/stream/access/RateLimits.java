@@ -1,5 +1,6 @@
 package dev.mikki.stream.access;
 
+import dev.mikki.stream.config.Allowance;
 import dev.mikki.stream.config.Rate;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.shared.Problem;
@@ -28,7 +29,7 @@ public class RateLimits {
   private final Map<String, long[]> local = new ConcurrentHashMap<>();
   private static final DefaultRedisScript<Long> STEP =
       new DefaultRedisScript<>(
-          "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('PEXPIRE',KEYS[1],ARGV[1]) end; return n",
+          "local n=redis.call('INCRBY',KEYS[1],ARGV[2]); if n==tonumber(ARGV[2]) then redis.call('PEXPIRE',KEYS[1],ARGV[1]) end; return n",
           Long.class);
 
   @Autowired
@@ -67,17 +68,35 @@ public class RateLimits {
 
   /** Шаг счётчика: сколько стало в текущем окне. */
   public long hit(String key, Rate rate) {
-    return step(key, rate, 1);
+    return step(key, rate.period(), 1);
   }
 
   /** Сколько уже набрано в текущем окне — без шага. */
   public long count(String key, Rate rate) {
-    return step(key, rate, 0);
+    return step(key, rate.period(), 0);
   }
 
   /** Превышен ли предел уже сейчас — без шага. Нужен там, где считаются только промахи. */
   public boolean exhausted(String key, Rate rate) {
     return !rate.unlimited() && count(key, rate) >= rate.count();
+  }
+
+  /**
+   * Войдёт ли ещё {@code amount} в квоту объёма ({@link Allowance}) — без шага. Квота загрузок на
+   * адрес (A10): сверка до резерва, засчитывание — после удачи ({@link #add}).
+   */
+  public boolean fits(String key, Allowance quota, long amount) {
+    return quota.unlimited() || used(key, quota) + amount <= quota.bytes();
+  }
+
+  /** Засчитать объём в квоту. */
+  public void add(String key, Allowance quota, long amount) {
+    if (!quota.unlimited() && amount > 0) step(key, quota.period(), amount);
+  }
+
+  /** Сколько уже засчитано в текущем окне квоты. */
+  public long used(String key, Allowance quota) {
+    return step(key, quota.period(), 0);
   }
 
   /** Обнулить счётчик до конца окна — рычаг владельца сервера («снять щит», «снять блок»). */
@@ -92,8 +111,8 @@ public class RateLimits {
     } else local.remove(period + ":" + key);
   }
 
-  private long step(String key, Rate rate, int by) {
-    long period = rate.period().toMillis();
+  private long step(String key, java.time.Duration window, long by) {
+    long period = window.toMillis();
     if (redisEnabled) {
       var name = "rate:" + period + ":" + Secrets.hash(key);
       try {
@@ -101,7 +120,8 @@ public class RateLimits {
           var value = redis.opsForValue().get(name);
           return value == null ? 0 : Long.parseLong(value);
         }
-        return Objects.requireNonNull(redis.execute(STEP, List.of(name), Long.toString(period)));
+        return Objects.requireNonNull(
+            redis.execute(STEP, List.of(name), Long.toString(period), Long.toString(by)));
       } catch (Exception e) {
         throw new Problem(503, "RATE_SERVICE_UNAVAILABLE", "Сервис входа временно недоступен");
       }

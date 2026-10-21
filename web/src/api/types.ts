@@ -20,7 +20,11 @@ export type Snapshot = Omit<
   you?: RoomYou | null;
 };
 /** Что участник может во встрече: имена действий матрицы ядра (`room/Permissions.java`). */
-export type RoomYou = { can: string[] };
+export type RoomYou = {
+  can: string[];
+  /** «Вы ещё здесь?» (A2): до какого момента ответить, мс по часам сервера; нет — не спрашивали. */
+  presenceBy?: number | null;
+};
 /** Снимок сужен (см. `Watch`), поэтому всё, что его содержит, сужается вместе с ним. */
 export type Admission = Omit<components['schemas']['Admission'], 'snapshot'> & { snapshot: Snapshot };
 export type Ack = components['schemas']['Ack'];

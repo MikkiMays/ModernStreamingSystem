@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Copy, Download as DownloadIcon, ShieldAlert, Server } from 'lucide-react';
+import { ArrowLeft, Download as DownloadIcon, ShieldAlert } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { AppIcon, Logo } from './primitives';
-import { Button } from './kit';
 import { megabytes, windowsRelease, type WindowsRelease } from '../core/download';
 import './shell.css';
 
@@ -14,19 +13,13 @@ import './shell.css';
  * Кнопка ведёт на последний опубликованный установщик, а его номер не печатается (T58): версию
  * показывает только «О программе». Номер остаётся там, где его читает не человек, а браузер и
  * Windows, — в адресе файла и в его имени.
+ *
+ * Раздела «куда подключаться» больше нет (T54, П4): серверы приходят из каталога Cord, и первый
+ * запуск ничего не спрашивает.
  */
 export function Download() {
   const { t } = useTranslation();
   const [release, setRelease] = useState<WindowsRelease | null | undefined>(undefined);
-  const [copied, setCopied] = useState(false);
-  /**
-   * Адрес, который спросит Cord при первом запуске, — это адрес **вот этой** страницы.
-   *
-   * Приложение не знает никакого сервера заранее и ничего не угадывает; единственное место,
-   * где этот адрес заведомо известен, — сервер, с которого человек сейчас качает установщик.
-   * Поэтому он написан здесь, целиком и с кнопкой «скопировать».
-   */
-  const address = typeof location === 'undefined' ? '' : location.origin + '/';
   useEffect(() => {
     let active = true;
     void windowsRelease().then((found) => {
@@ -80,36 +73,6 @@ export function Download() {
               )}
             </>
           )}
-        </section>
-        <section className="shell-card download-section">
-          <h2>
-            <Server size={18} aria-hidden="true" /> {t(($) => $.download.connect.title)}
-          </h2>
-          <p>{t(($) => $.download.connect.text)}</p>
-          <div className="download-address">
-            <Server size={16} aria-hidden="true" />
-            <input
-              aria-label={t(($) => $.download.connect.address)}
-              value={address}
-              readOnly
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-          <Button
-            full
-            icon={copied ? <Check size={16} /> : <Copy size={16} />}
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(address);
-                setCopied(true);
-              } catch {
-                setCopied(false);
-              }
-            }}
-          >
-            {copied ? t(($) => $.download.connect.copied) : t(($) => $.download.connect.copy)}
-          </Button>
-          <p className="download-card__note">{t(($) => $.download.connect.note)}</p>
         </section>
         <section className="shell-card download-section">
           <h2>

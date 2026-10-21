@@ -18,9 +18,18 @@ public class RequestGuard extends OncePerRequestFilter {
    * server is alive and what it wants, or is the handshake itself. The events socket is on the list
    * because a browser cannot put a header on a WebSocket upgrade; its first packet carries a room
    * credential, and a room credential can only be obtained through a guarded endpoint.
+   *
+   * <p>Поддержка (E13) — тоже до двери: помощь нужнее всего тому, кто у неё застрял. Форму держат
+   * задача «не бот» ({@code /api/v1/proof} — она ничего не открывает сама) и пределы обращений.
    */
   private static final Set<String> OPEN =
-      Set.of("/api/v1/ping", "/api/v1/capabilities", "/api/v1/session", "/api/v1/events");
+      Set.of(
+          "/api/v1/ping",
+          "/api/v1/capabilities",
+          "/api/v1/session",
+          "/api/v1/events",
+          "/api/v1/proof",
+          "/api/v1/support");
 
   private final StreamProperties config;
   private final ServerAccess access;
@@ -111,6 +120,9 @@ public class RequestGuard extends OncePerRequestFilter {
     return access.required()
         && uri.startsWith("/api/v1/")
         && !OPEN.contains(uri)
+        // Страница владельца — за своим паролем (`AdminAccess`), сильнее пароля входа: владельцу не
+        // нужно знать ещё и пароль для гостей, чтобы закрыть встречу или снять блок.
+        && !uri.startsWith("/api/v1/admin/")
         && !Secrets.equal(request.getHeader("X-Service-Secret"), config.internalSecret())
         && !access.valid(request.getHeader("X-Cord-Session"));
   }
