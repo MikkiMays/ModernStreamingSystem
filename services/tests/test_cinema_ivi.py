@@ -509,9 +509,20 @@ class DetailsTests(Stage):
         self.serve_genres()
         info = avod(recorded("videoinfo-episode.json")["result"])
         self.answer("/mobileapi/videoinfo/v7/", {"result": info}, id="567680", fields=SINGLE_FIELDS)
+        # Сериал, где эта серия — единственная бесплатная: «следующей» нет.
+        show = recorded("compilationinfo-molodezhka.json")
+        show["result"]["seasons"] = [{"season_id": 1, "number": 1}]
+        self.answer("/mobileapi/compilationinfo/v7/", show, id="18701", fields=COMPILATION_FIELDS)
+        self.answer(
+            "/mobileapi/videofromcompilation/v7/",
+            {"result": [{**info, "id": 567680}]},
+            id="18701", season="1", fields=EPISODE_FIELDS, paid_type="AVOD",
+            **{"from": "0", "to": "19"},
+        )
         found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
         self.assertEqual(found["series"], "18701")
         self.assertEqual(found["duration"], info["localizations"][0]["duration"])
+        self.assertNotIn("next", found)
 
     async def test_a_paid_video_is_refused_before_anything_is_shown(self):
         self.serve_genres()
@@ -531,6 +542,89 @@ class DetailsTests(Stage):
         await self.refused(
             self.cinema.details("ivi", "1", "video", room=ROOM), 404, "Такого видео на ivi нет"
         )
+
+
+class NextEpisodeTests(Stage):
+    """
+    «Следующая серия» (T17) у ivi: страница серии отдаёт `next` — следующую бесплатную серию того же
+    сериала, по тем же запросам, что и список серий (`compilationinfo`, `videofromcompilation`).
+    """
+
+    def serve_episode(self, season=1, episode=1):
+        """Серия «Молодёжки» (17830): снятая карточка серии, где поменяны сериал, сезон и номер."""
+        self.answer("/mobileapi/categories/v7/", recorded("categories.json"))
+        info = avod(recorded("videoinfo-episode.json")["result"], season=season, episode=episode)
+        info["compilation"]["id"] = 17830
+        self.answer("/mobileapi/videoinfo/v7/", {"result": info}, id="567680", fields=SINGLE_FIELDS)
+        self.answer(
+            "/mobileapi/compilationinfo/v7/", recorded("compilationinfo-molodezhka.json"),
+            id="17830", fields=COMPILATION_FIELDS,
+        )
+        return info
+
+    def season(self, number, items, start=0):
+        self.answer(
+            "/mobileapi/videofromcompilation/v7/",
+            {"result": items},
+            id="17830", season=str(number), fields=EPISODE_FIELDS, paid_type="AVOD",
+            **{"from": str(start), "to": str(start + 19)},
+        )
+
+    def episodes(self, season):
+        found = recorded("videofromcompilation-molodezhka-s2.json")["result"]
+        return [avod(item, season=season) for item in found]
+
+    async def test_the_next_episode_of_the_same_season(self):
+        self.serve_episode()
+        episodes = self.episodes(1)
+        episodes[0]["id"] = 567680
+        self.season(1, episodes)
+        found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
+        self.assertEqual(found["next"]["id"], str(episodes[1]["id"]))
+        self.assertEqual(found["next"]["badge"], "2 серия")
+        self.assertEqual(found["next"]["series"], "17830")
+
+    async def test_after_the_last_free_episode_of_a_season_comes_the_first_of_the_next(self):
+        self.serve_episode()
+        self.season(1, [{**self.episodes(1)[0], "id": 567680}])
+        second = self.episodes(2)
+        self.season(2, second)
+        found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
+        self.assertEqual(found["next"]["id"], str(second[0]["id"]))
+
+    async def test_a_full_portion_continues_on_the_next_one(self):
+        self.serve_episode()
+        filler = [{**self.episodes(1)[0], "id": 700000 + number} for number in range(19)]
+        self.season(1, [*filler, {**self.episodes(1)[0], "id": 567680}])
+        later = self.episodes(1)[2]
+        self.season(1, [later], start=20)
+        found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
+        self.assertEqual(found["next"]["id"], str(later["id"]))
+
+    async def test_the_last_episode_of_the_last_season_has_no_next(self):
+        self.serve_episode(season=2)
+        self.season(2, [{**self.episodes(2)[0], "id": 567680}])
+        found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
+        self.assertNotIn("next", found)
+
+    async def test_the_platform_failing_leaves_the_page_without_next(self):
+        self.serve_episode()
+        self.answer(
+            "/mobileapi/videofromcompilation/v7/", {}, status=500,
+            id="17830", season="1", fields=EPISODE_FIELDS, paid_type="AVOD", **{"from": "0", "to": "19"},
+        )
+        found = await self.cinema.details("ivi", "567680", "video", room=ROOM)
+        self.assertEqual(found["series"], "17830")
+        self.assertNotIn("next", found)
+
+    async def test_a_film_asks_for_nothing_but_itself(self):
+        self.answer("/mobileapi/categories/v7/", recorded("categories.json"))
+        info = avod(recorded("videoinfo-movie.json")["result"])
+        self.answer("/mobileapi/videoinfo/v7/", {"result": info}, id="53141", fields=SINGLE_FIELDS)
+        found = await self.cinema.details("ivi", "53141", "video", room=ROOM)
+        self.assertNotIn("next", found)
+        paths = sorted(key.split("?")[0] for key in self.asked())
+        self.assertEqual(paths, ["/mobileapi/categories/v7/", "/mobileapi/videoinfo/v7/"])
 
 
 class SourceTests(Stage):
