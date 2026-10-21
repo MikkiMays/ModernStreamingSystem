@@ -78,7 +78,9 @@ it('на другом языке отказ говорит переводом п
     const error = await refusal();
     expect(error.message).toBe('The meeting is full');
     expect(error.code).toBe('ROOM_FULL');
-    answer(400, { code: 'WATCH_INVALID', detail: 'Эта площадка выключена на этом сервере' });
+    // Код, которого в каталоге языка ещё нет (сервер новее клиента), — словами сервера. WATCH_INVALID с E14-B
+    // переведён, поэтому здесь — код, которого нет нигде.
+    answer(400, { code: 'NOT_IN_CATALOG_YET', detail: 'Эта площадка выключена на этом сервере' });
     expect((await refusal()).message).toBe('Эта площадка выключена на этом сервере');
   } finally {
     await i18next.changeLanguage('ru');
