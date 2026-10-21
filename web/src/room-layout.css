@@ -6,11 +6,11 @@
   position: absolute;
   bottom: 18px;
   right: 18px;
-  color: #f0f3fa;
-  background: #171b27ce;
+  color: var(--stage-text);
+  background: var(--stage-veil-3);
 }
 .preview-settings:hover {
-  background: #313a4d;
+  background: var(--stage-tile-2);
 }
 .prejoin-form h1 {
   overflow-wrap: anywhere;
@@ -48,10 +48,10 @@
   position: fixed;
   top: 5px;
   left: 6px;
-  z-index: 80;
-  border-radius: 5px;
-  background: #141821dd;
-  color: #e9efff;
+  z-index: var(--z-toast);
+  border-radius: var(--radius-1);
+  background: var(--stage-veil-3);
+  color: var(--stage-text);
   padding: 3px 7px;
   font: 11px/1.4 monospace;
   pointer-events: auto;
@@ -60,12 +60,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Почему кадр меньше заявленного. Жёлтым, потому что это не ошибка, а объяснение. */
+/* Почему кадр меньше заявленного. Жёлтым, потому что это не ошибка, а объяснение; плашка тёмная
+   в обеих темах, поэтому янтарь — сценный (`--gold` = `--warning` сцены). */
 .ping-limited {
-  color: #edbd64;
+  color: var(--gold);
 }
 
 .music-source {
   color: var(--blue);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }

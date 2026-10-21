@@ -191,8 +191,39 @@ export const PAIRS = {
     ['--warning', '--surface-1', 4.5],
     ['--accent-fill', '--stage-bg', 3],
     ['--on-live', '--live', 4.5],
+    // Столы игр и кинозал на сцене (визуальная волна): подписи на панелях стола и на сукне,
+    // масти на карте, золото покера, подписи доски, чернила и бумага Gartic.
+    ['--text-secondary', '--surface-1', 4.5],
+    ['--muted', '--surface-3', 4.5],
+    ['--success', '--surface-1', 4.5],
+    ['--danger', '--danger-soft', 4.5],
+    ['--text', '--accent-soft', 4.5],
+    ['--text', '--felt', 4.5],
+    ['--text', '--felt-teal', 4.5],
+    ['--text-secondary', '--felt-teal', 4.5],
+    ['--accent', '--felt-teal', 3],
+    ['--gold', '--surface-1', 4.5],
+    ['--gold-soft', '--surface-1', 4.5],
+    ['--gold', '--felt-deep', 3],
+    ['--on-gold', '--gold', 4.5],
+    ['--on-gold', '--gold-deep', 4.5],
+    ['--card-red', '--card-face', 4.5],
+    ['--card-black', '--card-face', 4.5],
+    ['--chess-ink', '--chess-light', 4.5],
+    ['--chess-ink-dark', '--chess-dark', 4.5],
+    ['--chess-focus', '--chess-light', 3],
+    ['--gartic-ink', '--bg', 4.5],
+    ['--gartic-ink', '--surface-1', 4.5],
+    ['--gartic-ink', '--surface-2', 4.5],
+    ['--surface-1', '--gartic-ink', 4.5],
+    ['--paper-muted', '--paper', 4.5],
+    // Кольцо вокруг образца чернил: видно и вокруг чёрного образца, и на сцене.
+    ['--muted', '--stage-tile', 3],
+    ['--on-accent', '--accent-fill', 4.5],
   ],
 };
+// Лица без картинки — в обеих темах одни и те же пять пар.
+PAIRS.light.push(...[0, 1, 2, 3, 4].map((n) => [`--avatar-${n}-fg`, `--avatar-${n}-bg`, 4.5]));
 
 export function check(css = readFileSync(TOKENS_PATH, 'utf8')) {
   const rows = [];

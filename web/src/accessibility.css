@@ -5,23 +5,23 @@ textarea,
 .input-icon input,
 .device-fields select,
 .settings-form select {
-  font-size: 16px;
+  font-size: var(--text-md);
 }
 
 .join-card p,
 .prejoin-form > .muted {
-  font-size: 16px;
+  font-size: var(--text-md);
 }
 
 .upload-area strong,
 .action-menu [role='menuitem'],
 .settings-form label {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .form-footnote,
 .preview-caption,
 .file-footnote {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .modal-heading > .icon-button {

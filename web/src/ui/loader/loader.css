@@ -109,18 +109,18 @@
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.12);
 }
 .fl-card__face {
-  background: #fff;
-  color: #1b1f27;
+  background: var(--card-face);
+  color: var(--card-black);
   font: 600 18px / 1 var(--font-sans);
   letter-spacing: -0.02em;
 }
 .fl-card__face[data-red] {
-  color: #c21f29;
+  color: var(--card-red);
 }
 .fl-card__back {
   transform: rotateY(180deg);
   background: var(--fl-accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .fl-card__back > svg {
   width: 46%;

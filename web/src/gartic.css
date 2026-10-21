@@ -1,6 +1,7 @@
+/* Gartic живёт на тёмной сцене в обеих темах (`.media-stage` на `.room-game-stage`): чернила
+   `--gartic-ink` одни, бумага — белая, как лист на тёмном столе. */
 .gartic {
-  --gartic-ink: #7250c8;
-  --gartic-soft: color-mix(in srgb, var(--gartic-ink) 8%, var(--surface));
+  --gartic-soft: color-mix(in srgb, var(--gartic-ink) 12%, var(--surface));
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -11,14 +12,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-:root[data-theme='dark'] .gartic {
-  --gartic-ink: #bca6ff;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .gartic {
-    --gartic-ink: #bca6ff;
-  }
 }
 .gartic button,
 .gartic input,
@@ -41,19 +34,19 @@
 }
 .gartic-heading h2 {
   margin: 0;
-  font-size: 23px;
+  font-size: var(--text-xl);
   letter-spacing: -0.6px;
 }
 .gartic-heading span {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-round {
   padding: 6px 10px;
   border-left: 1px solid var(--line);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-header-actions {
   margin-left: auto;
@@ -63,7 +56,7 @@
 }
 .gartic-rules {
   position: relative;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-rules summary {
   display: flex;
@@ -71,7 +64,7 @@
   gap: 6px;
   cursor: pointer;
   padding: 9px;
-  border-radius: 8px;
+  border-radius: var(--radius-2);
 }
 .gartic-rules summary:focus-visible {
   outline: 2px solid var(--blue);
@@ -82,12 +75,12 @@
   right: 0;
   top: 100%;
   width: min(340px, 80vw);
-  z-index: 8;
+  z-index: var(--z-menu);
   padding: 14px 18px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
   line-height: 1.6;
 }
 .gartic-rules p {
@@ -100,14 +93,14 @@
   flex-shrink: 0;
 }
 .gartic .game-turn strong {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .gartic-connection {
   padding: 10px 14px;
   background: var(--surface-2);
   color: var(--muted);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: var(--radius-2);
+  font-size: var(--text-sm);
 }
 .gartic-error {
   display: flex;
@@ -116,10 +109,10 @@
   gap: 8px;
   padding: 10px 12px;
   margin: 0;
-  border-left: 3px solid #d46a38;
+  border-left: 3px solid var(--warning);
   background: var(--surface-2);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 .gartic-error button {
@@ -149,26 +142,26 @@
   gap: 20px;
   padding: 35px 28px;
   margin-bottom: 24px;
-  background: #fff;
-  color: #7250c8;
-  border: 1px solid #ded8ef;
-  border-radius: 5px 24px 5px 5px;
-  box-shadow: 5px 6px 0 #7250c810;
+  background: var(--surface-1);
+  color: var(--gartic-ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1) var(--radius-5) var(--radius-1) var(--radius-1);
+  box-shadow: 5px 6px 0 var(--gartic-soft);
 }
 .gartic-sketch span {
-  font-size: clamp(21px, 2.5vw, 29px);
+  font-size: var(--text-xl);
   font-weight: 650;
   line-height: 1.35;
   letter-spacing: -0.8px;
 }
 .gartic-lobby h3 {
-  font-size: 24px;
+  font-size: var(--text-xl);
   line-height: 1.25;
   letter-spacing: -0.65px;
   margin: 0 0 14px;
 }
 .gartic-lobby-intro p {
-  font-size: 14px;
+  font-size: var(--text-base);
   line-height: 1.7;
   color: var(--muted);
   margin: 0;
@@ -194,7 +187,7 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-3);
 }
 .gartic-mode-picker button[aria-pressed='true'] {
   border-color: var(--gartic-ink);
@@ -209,11 +202,11 @@
   color: var(--gartic-ink);
 }
 .gartic-mode-picker b {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .gartic-mode-picker span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .gartic-settings {
   display: flex;
@@ -222,7 +215,7 @@
 .gartic-settings label {
   flex: 1;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -232,7 +225,7 @@
   color: var(--text);
   background-color: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-2);
   padding: 9px 25px 9px 10px;
 }
 .gartic-lobby-players {
@@ -241,7 +234,7 @@
   flex-wrap: wrap;
   column-gap: 8px;
   row-gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-lobby-players > span {
   flex-basis: 100%;
@@ -259,7 +252,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--speaking);
   margin: 0;
   line-height: 1.6;
@@ -268,7 +261,7 @@
   flex-shrink: 0;
 }
 .gartic-small {
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
   color: var(--muted);
   margin: 0;
@@ -306,27 +299,27 @@
   text-align: center;
 }
 .gartic-word > span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-word strong {
-  font-size: clamp(20px, 3vw, 30px);
+  font-size: var(--text-xl);
   font-weight: 650;
   letter-spacing: 2px;
   overflow-wrap: anywhere;
 }
 .gartic-word small {
   flex-basis: 100%;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-paper {
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid #d4d8e1;
-  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius-2);
   color-scheme: light;
 }
 .gartic-paper > svg {
@@ -351,9 +344,9 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #9297a3;
+  color: var(--paper-muted);
   pointer-events: none;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-tools {
   display: flex;
@@ -378,7 +371,7 @@
   height: 28px;
   border-radius: 50%;
   background: var(--ink);
-  border: 1px solid #22263130;
+  border: 1px solid var(--muted);
   padding: 0;
 }
 .gartic-palette button[aria-pressed='true'] {
@@ -394,7 +387,7 @@
   background: var(--surface);
   color: var(--muted);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-2);
 }
 .gartic-tool[aria-pressed='true'] {
   color: var(--gartic-ink);
@@ -404,13 +397,13 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-brush select {
   padding-top: 7px;
   padding-bottom: 7px;
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .gartic-canvas-status {
   min-height: 19px;
@@ -418,7 +411,7 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .gartic-choose {
   min-height: 310px;
@@ -430,20 +423,20 @@
   padding: 28px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-2);
 }
 .gartic-choose > svg {
   color: var(--gartic-ink);
 }
 .gartic-choose h3 {
   margin: 0;
-  font-size: 23px;
+  font-size: var(--text-xl);
   letter-spacing: -0.6px;
 }
 .gartic-choose p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-choose > div {
   display: flex;
@@ -456,9 +449,9 @@
   border: 1px solid var(--gartic-ink);
   background: var(--surface);
   color: var(--text);
-  font-size: 17px;
+  font-size: var(--text-md);
   padding: 14px 18px;
-  border-radius: 9px;
+  border-radius: var(--radius-2);
 }
 .gartic-choose button:hover:not(:disabled) {
   background: var(--blue-soft);
@@ -472,7 +465,7 @@
 .gartic-scores h3,
 .gartic-guesses h3,
 .gartic-albums h3 {
-  font-size: 14px;
+  font-size: var(--text-base);
   margin: 0 0 10px;
   font-weight: 650;
 }
@@ -489,7 +482,7 @@
   min-height: 66px;
   border-bottom: 1px solid var(--line);
   padding: 8px 10px;
-  border-radius: 9px;
+  border-radius: var(--radius-2);
 }
 .gartic-scores li[data-current] {
   box-shadow: inset 3px 0 var(--gartic-ink);
@@ -511,10 +504,10 @@
   height: 44px;
 }
 .gartic-scores .game-person-copy b {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .gartic-scores .game-person-copy small {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .gartic-score {
   position: relative;
@@ -522,7 +515,7 @@
   justify-content: flex-end;
   align-items: center;
   padding-right: 17px;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 .gartic-score svg {
@@ -545,7 +538,7 @@
   height: 4px;
   margin: 0 0 12px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-1);
   accent-color: var(--gartic-ink);
   overflow: hidden;
 }
@@ -575,7 +568,7 @@
   list-style: none;
   padding: 0;
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .gartic-guesses li {
   padding: 7px 0;
@@ -607,16 +600,16 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-2);
   padding: 11px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .gartic-guesses form button {
   flex-shrink: 0;
-  background: var(--blue);
-  color: var(--surface);
+  background: var(--accent-fill);
+  color: var(--on-accent);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-2);
   min-width: 39px;
   display: grid;
   place-items: center;
@@ -626,7 +619,7 @@
   align-items: flex-start;
   gap: 7px;
   color: var(--speaking);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.5;
   margin: 0;
 }
@@ -659,11 +652,11 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-right: auto;
 }
 .gartic-footer .text-button {
-  font-size: 12px;
+  font-size: var(--text-xs);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -686,7 +679,7 @@
 .gartic-phone-wait {
   min-height: 320px;
   border: 1px dashed var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-3);
 }
 .gartic-phone-wait > svg,
 .gartic-prompt-intro > svg {
@@ -694,7 +687,7 @@
 }
 .gartic-phone-wait h3,
 .gartic-prompt-intro h3 {
-  font-size: 25px;
+  font-size: var(--text-xl);
   font-weight: 650;
   letter-spacing: -0.7px;
   margin: 0;
@@ -703,7 +696,7 @@
 .gartic-prompt-intro p {
   max-width: 430px;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--muted);
 }
@@ -713,12 +706,12 @@
   background: var(--surface);
 }
 .gartic-phone-prompt > span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-phone-prompt blockquote {
   margin: 7px 0 0;
-  font-size: clamp(20px, 2.4vw, 28px);
+  font-size: clamp(var(--text-lg), 2.4vw, var(--text-xl));
   font-weight: 550;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -727,7 +720,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--text);
 }
 .gartic-text-entry textarea {
@@ -737,15 +730,15 @@
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text);
-  border-radius: 10px;
+  border-radius: var(--radius-2);
   padding: 15px;
   line-height: 1.5;
-  font-size: 17px;
+  font-size: var(--text-md);
 }
 .gartic-text-entry > span {
   color: var(--muted);
   text-align: right;
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .gartic-submit-row {
   display: flex;
@@ -779,13 +772,13 @@
   flex: 0 0 60px;
   height: 60px;
   border: 1px solid color-mix(in srgb, var(--gartic-ink) 24%, var(--line));
-  border-radius: 18px;
+  border-radius: var(--radius-4);
   color: var(--gartic-ink);
   background: var(--gartic-soft);
 }
 .gartic-finish-heading h3 {
   margin: 0 0 6px;
-  font-size: clamp(24px, 2.5vw, 32px);
+  font-size: clamp(var(--text-xl), 2.5vw, var(--text-2xl));
   font-weight: 650;
   letter-spacing: -0.8px;
   line-height: 1.2;
@@ -793,7 +786,7 @@
 }
 .gartic-finish-heading p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-base);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -817,7 +810,7 @@
   min-width: 0;
   padding: 20px 14px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-4);
   background: var(--surface);
 }
 .gartic-podium-place[data-first] {
@@ -828,7 +821,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 550;
   color: var(--muted);
 }
@@ -839,22 +832,22 @@
   width: 52px;
   height: 52px;
   flex: 0 0 52px;
-  font-size: 22px;
+  font-size: var(--text-lg);
 }
 .gartic-podium-place > strong {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: var(--text-base);
 }
 .gartic-podium-score {
-  font-size: 26px;
+  font-size: var(--text-xl);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .gartic-podium-score small {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 450;
   color: var(--muted);
 }
@@ -875,18 +868,18 @@
   border-left: 1px solid var(--line);
 }
 .gartic-result-summary dt {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-bottom: 5px;
 }
 .gartic-result-summary dd {
   margin: 0;
-  font-size: 23px;
+  font-size: var(--text-xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .gartic-result-summary dd span {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 450;
   color: var(--muted);
 }
@@ -900,11 +893,11 @@
 }
 .gartic-ranking-heading h4 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 650;
 }
 .gartic-ranking-heading > span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-ranking {
@@ -917,7 +910,7 @@
 }
 .gartic-result-row[data-self] {
   background: var(--gartic-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-2);
 }
 .gartic-result-line {
   display: grid;
@@ -929,7 +922,7 @@
 }
 .gartic-rank {
   text-align: center;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -941,7 +934,7 @@
   padding: 0;
 }
 .gartic .game-person-copy b {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 600;
 }
 .gartic .game-person-copy {
@@ -949,17 +942,17 @@
   gap: 2px;
 }
 .gartic .game-person-copy small {
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 16px;
 }
 .gartic-result-score {
   display: grid;
   text-align: right;
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
 }
 .gartic-result-score small {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 450;
   color: var(--muted);
 }
@@ -968,7 +961,7 @@
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-2);
   background: transparent;
   color: var(--muted);
 }
@@ -992,23 +985,23 @@
   margin: 0 0 14px;
 }
 .gartic-result-detail dt {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-bottom: 4px;
 }
 .gartic-result-detail dd {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 600;
   margin: 0;
 }
 .gartic-result-detail > p {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-score-track {
   height: 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-2);
   overflow: hidden;
   background: var(--line);
 }
@@ -1022,7 +1015,7 @@
 .gartic-scoring-help {
   margin-top: 20px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .gartic-scoring-help summary {
   display: flex;
@@ -1039,7 +1032,7 @@
 .gartic-scoring-help summary:focus-visible {
   outline: 3px solid var(--blue);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: var(--radius-1);
 }
 .gartic-scoring-help[open] summary svg {
   transform: rotate(180deg);
@@ -1076,18 +1069,18 @@
 }
 .gartic-albums-heading h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--text-md);
   font-weight: 650;
 }
 .gartic-albums-heading > span {
   margin-left: auto;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .gartic-albums-intro {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 .gartic-album-list {
@@ -1103,7 +1096,7 @@
   min-height: 76px;
   padding: 12px;
   border: 1px solid transparent;
-  border-radius: 13px;
+  border-radius: var(--radius-3);
   text-align: left;
   background: transparent;
   color: var(--text);
@@ -1123,7 +1116,7 @@ button.gartic-album-option:hover:not(:disabled) {
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 .gartic-album-option[aria-current='true'] .gartic-album-number {
@@ -1137,14 +1130,14 @@ button.gartic-album-option:hover:not(:disabled) {
   gap: 4px;
 }
 .gartic-album-copy b {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .gartic-album-copy small {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-album-option > svg {
@@ -1159,19 +1152,19 @@ button.gartic-album-option:hover:not(:disabled) {
   border-top: 1px solid var(--line);
 }
 .gartic-album-summary dt {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-bottom: 4px;
 }
 .gartic-album-summary dd {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .gartic-reveal-follow {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 .gartic-album-page {
@@ -1192,32 +1185,32 @@ button.gartic-album-option:hover:not(:disabled) {
   min-width: 0;
 }
 .gartic-story-heading > div > span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .gartic-story-heading h3 {
   margin: 5px 0 0;
-  font-size: 17px;
+  font-size: var(--text-md);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .gartic-story-position {
   flex-shrink: 0;
-  font-size: 20px;
+  font-size: var(--text-lg);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .gartic-story-position > span {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 450;
   color: var(--muted);
 }
 .gartic-reveal-stage {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-4);
   overflow: hidden;
   background: var(--surface);
-  box-shadow: 0 8px 28px #17223405;
+  box-shadow: var(--shadow-1);
 }
 .gartic-reveal-entry {
   animation: gartic-reveal 220ms ease-out;
@@ -1237,7 +1230,7 @@ button.gartic-album-option:hover:not(:disabled) {
   margin: 0;
   padding: clamp(24px, 3vw, 42px);
   text-align: center;
-  font-size: clamp(22px, 2.7vw, 34px);
+  font-size: clamp(var(--text-lg), 2.7vw, var(--text-2xl));
   font-weight: 550;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -1262,12 +1255,12 @@ button.gartic-album-option:hover:not(:disabled) {
   color: var(--gartic-ink);
 }
 .gartic-reveal-placeholder > p {
-  font-size: 21px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .gartic-reveal-placeholder > span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 .gartic-reveal-author {
@@ -1290,10 +1283,10 @@ button.gartic-album-option:hover:not(:disabled) {
   gap: 6px;
   flex-shrink: 0;
   padding: 7px 9px;
-  border-radius: 7px;
+  border-radius: var(--radius-2);
   color: var(--muted);
   background: var(--surface-2);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .gartic-story-steps {
   display: flex;
@@ -1314,7 +1307,7 @@ button.gartic-album-option:hover:not(:disabled) {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 550;
 }
 .gartic-story-steps [aria-current='step'] {
@@ -1334,7 +1327,7 @@ button.gartic-album-option:hover:not(:disabled) {
 .gartic-reveal-navigation .button {
   min-width: 0;
   padding: 12px 18px;
-  font-size: 14px;
+  font-size: var(--text-base);
   white-space: normal;
 }
 .gartic-reveal-navigation .button svg {
@@ -1400,7 +1393,7 @@ button.gartic-album-option:hover:not(:disabled) {
     padding: 4px;
   }
   .gartic-word strong {
-    font-size: 24px;
+    font-size: var(--text-xl);
     line-height: 1.2;
   }
   .gartic-tools {
@@ -1447,7 +1440,7 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-phone-prompt blockquote {
     margin-top: 4px;
-    font-size: 22px;
+    font-size: var(--text-lg);
     line-height: 1.3;
   }
   .gartic-assignment-author {
@@ -1493,13 +1486,13 @@ button.gartic-album-option:hover:not(:disabled) {
     gap: 8px;
   }
   .gartic-heading h2 {
-    font-size: 21px;
+    font-size: var(--text-lg);
   }
   .gartic-heading span {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .gartic-round {
-    font-size: 11px;
+    font-size: var(--text-xs);
     padding: 5px 7px;
   }
   .gartic-rules summary {
@@ -1524,10 +1517,10 @@ button.gartic-album-option:hover:not(:disabled) {
     display: none;
   }
   .gartic-lobby h3 {
-    font-size: 22px;
+    font-size: var(--text-lg);
   }
   .gartic-lobby-intro p {
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   .gartic-play {
     grid-template-columns: 1fr;
@@ -1555,7 +1548,7 @@ button.gartic-album-option:hover:not(:disabled) {
     min-height: 40px;
   }
   .gartic-word strong {
-    font-size: 22px;
+    font-size: var(--text-lg);
   }
   .gartic-tools {
     padding: 4px 0;
@@ -1573,7 +1566,7 @@ button.gartic-album-option:hover:not(:disabled) {
     margin: 0;
   }
   .gartic-brush {
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
   .gartic-tool-group:last-child {
     margin-left: auto;
@@ -1617,7 +1610,7 @@ button.gartic-album-option:hover:not(:disabled) {
     display: none;
   }
   .gartic-reveal-follow {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   .gartic-album-page {
     gap: 12px;
@@ -1637,7 +1630,7 @@ button.gartic-album-option:hover:not(:disabled) {
     min-width: 44px;
   }
   .gartic-reveal-entry > blockquote {
-    font-size: 23px;
+    font-size: var(--text-xl);
     padding: 24px;
     min-height: 220px;
   }
@@ -1656,10 +1649,10 @@ button.gartic-album-option:hover:not(:disabled) {
   .gartic-finish-emblem {
     flex-basis: 46px;
     height: 46px;
-    border-radius: 13px;
+    border-radius: var(--radius-3);
   }
   .gartic-finish-heading h3 {
-    font-size: 25px;
+    font-size: var(--text-xl);
   }
   .gartic-podium {
     gap: 8px;
@@ -1672,13 +1665,13 @@ button.gartic-album-option:hover:not(:disabled) {
     width: 42px;
     height: 42px;
     flex-basis: 42px;
-    font-size: 18px;
+    font-size: var(--text-lg);
   }
   .gartic-podium-place > strong {
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   .gartic-podium-score {
-    font-size: 22px;
+    font-size: var(--text-lg);
   }
   .gartic-podium-score small {
     display: block;
@@ -1688,7 +1681,7 @@ button.gartic-album-option:hover:not(:disabled) {
     padding-inline: 12px;
   }
   .gartic-result-summary dd {
-    font-size: 22px;
+    font-size: var(--text-lg);
   }
   .gartic-result-line {
     grid-template-columns: 24px minmax(0, 1fr) 56px 44px;
@@ -1708,14 +1701,14 @@ button.gartic-album-option:hover:not(:disabled) {
     padding: 0 12px 18px 34px;
   }
   .gartic-result-score {
-    font-size: 16px;
+    font-size: var(--text-md);
   }
   .gartic-choose {
     min-height: 260px;
     padding: 20px 12px;
   }
   .gartic-choose button {
-    font-size: 15px;
+    font-size: var(--text-base);
     padding: 12px 14px;
   }
 }

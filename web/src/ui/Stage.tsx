@@ -427,10 +427,14 @@ export function Stage({
     Карточный стол. В отличие от кинозала, лента под ним — не все, а **только зрители**: лица
     играющих уже на столе, в кружках их мест, и показывать их вторым рядом значило бы отобрать
     у стола половину сцены ради повторения.
+
+    Столы и кинозал — медиасцена (E16): `.media-stage` на обёртке делает смысловые токены внутри
+    сценными в обеих темах, как у разговорной сцены. Шахматы и рисование раньше нарочно жили в
+    теме человека (E04-3); визуальная волна перевела их CSS на токены, и сцена у всех одна.
   */
   if (snapshot.chess || snapshot.gartic) {
     return (
-      <div className="stage room-game-stage">
+      <div className="stage room-game-stage media-stage">
         <Suspense
           fallback={
             <div role="status" className="poker-loading">
@@ -447,7 +451,7 @@ export function Stage({
     const table = snapshot.poker;
     const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
     return (
-      <div className="stage poker-stage">
+      <div className="stage poker-stage media-stage">
         <div className="poker-main">
           <Suspense fallback={<div className="poker-loading" />}>
             <PokerTable meeting={meeting} table={table} />
@@ -467,7 +471,7 @@ export function Stage({
     const table = snapshot.durak;
     const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
     return (
-      <div className="stage poker-stage">
+      <div className="stage poker-stage media-stage">
         <div className="poker-main">
           <Suspense fallback={<div className="durak-loading" />}>
             <DurakTable meeting={meeting} table={table} />
@@ -506,7 +510,7 @@ export function Stage({
   */
   if (watch || Scene) {
     return (
-      <div className="stage watch-together-stage">
+      <div className="stage watch-together-stage media-stage">
         <div className="watch-main">
           {watch && (
             <Suspense fallback={<div className="watch-screen" />}>
