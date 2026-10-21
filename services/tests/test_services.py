@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 from fastapi import HTTPException
 
+from cord_services import keys
 from cord_services.app import create_app
 from cord_services.core import Core
 from cord_services.media import probe, stop_process
@@ -100,7 +101,9 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
             )
         )
         self.actors.append((request.url.path, request.headers.get("x-cord-actor")))
-        assert request.headers["x-internal-secret"] == "internal-test"
+        # Служба называет себя ключом службы, а не самим секретом, и шлюзовой заголовок не шлёт (A14).
+        assert request.headers["x-service-secret"] == keys.text("internal-test", keys.SERVICE)
+        assert "x-internal-secret" not in request.headers
         path = request.url.path
         if path.endswith("/media/token"):
             return httpx.Response(200, json={"token": "test"})
