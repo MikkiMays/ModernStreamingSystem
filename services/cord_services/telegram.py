@@ -19,6 +19,7 @@ from .core import Core
 from .media import MAX_FILE, probe
 from .music import Music
 from .store import Store, now
+from .support import CALLBACK, STATUSES, keyboard
 from .webapp import (
     LINK_PREFIX,
     InitDataError,
@@ -674,7 +675,55 @@ class Telegram:
         for link in self.store.chat_telegram_links(chat_id):
             await release(self.store, link)
 
+    async def support_status(self, update: dict):
+        """
+        Кнопка «В работу» или «Решено» под обращением в чате владельца (E13).
+
+        Статус меняет ядро тем же путём, что «Активность», и только если кнопку нажали в чате поддержки —
+        чат служба передаёт ядру как есть. Телеграму всегда отвечаем `answerCallbackQuery`: иначе у
+        кнопки крутятся часики.
+        """
+        query = update["callback_query"]
+        update_id = str(update["update_id"])
+        if self.store.receipt("telegram-update", update_id):
+            return
+        message = query.get("message") or {}
+        chat = (message.get("chat") or {}).get("id")
+        found = CALLBACK.fullmatch(query.get("data") or "")
+        answer = {"callback_query_id": query["id"]}
+        if found and chat is not None:
+            ticket, status = found.groups()
+            try:
+                moved = await self.core.request(
+                    "PUT",
+                    f"/internal/support/{ticket}/status",
+                    {"status": status.upper(), "chat": str(chat)},
+                )
+                await self.api(
+                    "editMessageReplyMarkup",
+                    {
+                        "chat_id": chat,
+                        "message_id": message.get("message_id"),
+                        "reply_markup": keyboard(ticket, status),
+                    },
+                )
+                answer["text"] = f"Обращение {moved['number']}: {STATUSES[status][1]}"
+            except HTTPException as error:
+                answer["text"] = (
+                    "Статус обращения меняется только в чате поддержки"
+                    if error.status_code == 403
+                    else str(error.detail)
+                )
+        try:
+            await self.api("answerCallbackQuery", answer)
+        except HTTPException:
+            pass  # Кнопка и так сработала или нет; часики у неё погаснут сами.
+        self.store.remember("telegram-update", update_id, {"done": True})
+
     async def handle(self, update: dict):
+        if update.get("callback_query"):
+            await self.support_status(update)
+            return
         if update.get("my_chat_member"):
             await self.left(update["my_chat_member"])
             return
@@ -1006,7 +1055,8 @@ class Telegram:
                         "timeout": 25,
                         # `my_chat_member` — бота убрали из беседы: её кнопка Mini App больше не
                         # ведёт никуда, и привязка отзывается (E09).
-                        "allowed_updates": ["message", "channel_post", "my_chat_member"],
+                        # `callback_query` — кнопки статуса под обращениями в поддержку (E13).
+                        "allowed_updates": ["message", "channel_post", "my_chat_member", "callback_query"],
                         "limit": 20,
                     },
                 )
