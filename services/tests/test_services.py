@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import tempfile
 import unittest
@@ -13,7 +14,7 @@ from fastapi import HTTPException
 from cord_services.app import create_app
 from cord_services.core import Core
 from cord_services.media import probe, stop_process
-from cord_services.music import Music
+from cord_services.music import Music, present
 from cord_services.store import Store, now
 from cord_services.telegram import COMMANDS, Telegram
 
@@ -54,6 +55,7 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
         # Кому ядро засчитывает запрос бота (`X-Cord-Actor`, A11): путь и значение заголовка.
         self.actors = []
         self.guest_status = "CONNECTED"
+        self.host_status = "CONNECTED"
         self.closed = False
         self.integrations_allowed = False
         self.owner_present = False
@@ -128,7 +130,7 @@ class Fixture(unittest.IsolatedAsyncioTestCase):
                         {
                             "id": HOST,
                             "name": "Host",
-                            "status": "CONNECTED",
+                            "status": self.host_status,
                             "owner": True,
                             "service": None,
                         },
@@ -648,6 +650,63 @@ class QueueTests(Fixture):
         # Забытая комната — это чистый лист, а не отказ: включат музыку снова, и запись
         # заведётся заново.
         self.assertEqual(self.store.get(ROOM)["queue"], [])
+
+    def test_joining_without_media_counts_as_a_person_for_thirty_seconds_only(self):
+        """A2 (docs/abuse-model.md): забытая вкладка в JOINING не держит музыку во встрече."""
+        seen = {}
+        people = [
+            {"id": HOST, "status": "JOINING", "generation": 1, "service": None},
+            {"id": GUEST, "status": "WAITING", "generation": 1, "service": None},
+            {"id": BOT, "status": "CONNECTED", "generation": 1, "service": "music"},
+        ]
+        self.assertEqual([p["id"] for p in present(people, BOT, seen, 1_000)], [HOST])
+        self.assertEqual([p["id"] for p in present(people, BOT, seen, 30_999)], [HOST])
+        self.assertEqual(present(people, BOT, seen, 31_000), [])
+        # Новый вход (другое поколение) — новый отсчёт; на связи — человек без всякого срока.
+        people[0] = {**people[0], "generation": 2}
+        self.assertEqual([p["id"] for p in present(people, BOT, seen, 40_000)], [HOST])
+        people[0] = {**people[0], "status": "CONNECTED"}
+        self.assertEqual([p["id"] for p in present(people, BOT, seen, 999_000)], [HOST])
+        # Ушедшего из JOINING служба забывает: память не растёт со встречей.
+        self.assertEqual(seen, {})
+        recovering = [{"id": GUEST, "status": "RECOVERING", "generation": 3, "service": None}]
+        self.assertEqual(len(present(recovering, BOT, seen, 0)), 1)
+
+    async def test_music_leaves_a_meeting_where_people_only_hang_in_joining(self):
+        self.host_status = self.guest_status = "JOINING"
+        self.bot_present = True
+        clock = [1_000_000]
+        respond = self.respond
+
+        def ticking(request):
+            if request.url.path == "/api/v1/rooms/" + ROOM:
+                clock[0] += 5_000
+            return respond(request)
+
+        self.core.client = httpx.AsyncClient(transport=httpx.MockTransport(ticking))
+        state = self.store.get(ROOM)
+        state.update(enabled=True, lastHumanAt=clock[0])
+        self.store.save(state)
+        publisher = AsyncMock()
+        publisher.connected = False
+        admission = {"participantId": BOT, "credential": "bot.secret"}
+        with patch("cord_services.music.now", lambda: clock[0]), patch(
+            "cord_services.music.WATCH_SECONDS", 0
+        ):
+            watch = asyncio.create_task(self.music.watch(ROOM, admission, publisher))
+            try:
+                for _ in range(200):
+                    await asyncio.sleep(0)
+                    if not self.store.get(ROOM)["enabled"]:
+                        break
+            finally:
+                watch.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await watch
+        self.assertFalse(self.store.get(ROOM)["enabled"])
+        # Тридцать секунд JOINING считались людьми, затем ещё минута без людей — и музыка ушла.
+        self.assertGreaterEqual(clock[0] - 1_000_000, 90_000)
+        self.assertLess(clock[0] - 1_000_000, 120_000)
 
     async def test_cleanup_keeps_a_room_that_is_still_playing(self):
         await self.music.enqueue(ROOM, track(self.store, "New"))

@@ -46,6 +46,10 @@
       "about": {
         "title": "About",
         "keywords": "version cord help support tour"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "app tray taskbar thumbnail badge flash sleep overlay autostart"
       }
     },
     "anchors": {
@@ -257,6 +261,46 @@
         "label": "Cord tour",
         "hint": "Short tips next to the main buttons",
         "keywords": "tour tips onboarding guide"
+      },
+      "desktop-tray": {
+        "label": "Tray icon",
+        "hint": "Open Cord and toggle the mic next to the clock",
+        "keywords": "tray notification area"
+      },
+      "desktop-thumbar": {
+        "label": "Thumbnail buttons",
+        "hint": "Mic, camera and leave in the taskbar",
+        "keywords": "taskbar thumbnail buttons"
+      },
+      "desktop-badge": {
+        "label": "Icon badge",
+        "hint": "Mic in a meeting and unread messages",
+        "keywords": "taskbar badge indicator"
+      },
+      "desktop-flash": {
+        "label": "Flash the window button",
+        "hint": "When you’re mentioned and Cord is in the background",
+        "keywords": "flash mention attention"
+      },
+      "desktop-sleep": {
+        "label": "Stay awake during a meeting",
+        "hint": "The screen stays on during calls and sharing",
+        "keywords": "sleep screen power saving"
+      },
+      "desktop-overlay": {
+        "label": "In-game overlay",
+        "hint": "Who’s in the call and who’s speaking — on top of the game",
+        "keywords": "overlay game on top participants"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "Overlay shortcut",
+        "hint": "",
+        "keywords": "key overlay hotkey shortcut"
+      },
+      "desktop-autostart": {
+        "label": "Start with Windows",
+        "hint": "Cord opens minimized",
+        "keywords": "autostart startup launch"
       }
     },
     "title": "Settings",
@@ -439,6 +483,17 @@
       "deviceFailed": "Couldn't turn on the device",
       "recordUnsupported": "This browser can't record a sample. The level bar still works.",
       "toneFailed": "Couldn't play the test sound"
+    },
+    "desktop": {
+      "taskbar": "Taskbar and tray",
+      "meeting": "During a meeting",
+      "start": "Startup",
+      "overlayNote": "The overlay is visible in windowed and borderless modes; Windows won’t show it in exclusive fullscreen.",
+      "overlayTaken": "This shortcut is already used by the mic — pick another.",
+      "micTaken": "This shortcut is already used by the overlay — pick another.",
+      "changeLabel": "Change overlay shortcut",
+      "assignLabel": "Assign overlay shortcut",
+      "disableLabel": "Turn off overlay shortcut"
     }
   },
   "meeting": {
@@ -2112,7 +2167,8 @@
   "api": {
     "requestFailed": "The request failed",
     "fileUnavailable": "The file is unavailable or has expired",
-    "blockedUntil": "The owner has closed access to this server until {{date}}"
+    "blockedUntil": "The owner has closed access to this server until {{date}}",
+    "closedByServerUntil": "The server owner ended this meeting — you can reopen it after {{date}}"
   },
   "kit": {
     "toasts": "Notifications",
@@ -2892,7 +2948,8 @@
     "SUPPORT_NOT_FOUND": "Request not found",
     "SUPPORT_OFF": "Requests aren’t being accepted right now. Message the author of Cord on Telegram — the link is next to this",
     "SUPPORT_RATE": "Several requests have already come from this address. Try again in an hour or message the author of Cord on Telegram",
-    "SUPPORT_TEXT": "Describe what happened — at least one sentence"
+    "SUPPORT_TEXT": "Describe what happened — at least one sentence",
+    "CLOSED_BY_SERVER": "The server owner ended this meeting — it can't be reopened yet"
   },
   "activity": {
     "title": "Activity",
@@ -2905,6 +2962,7 @@
     "tabs": {
       "now": "Now",
       "meetings": "Meetings",
+      "quality": "Quality",
       "audit": "Log",
       "blocks": "Blocks",
       "server": "Server",
@@ -2965,6 +3023,42 @@
       "count_other": "{{count}} meetings",
       "dayTip_one": "{{count}} meeting, {{hours}} person-hours, peak {{peak}}",
       "dayTip_other": "{{count}} meetings, {{hours}} person-hours, peak {{peak}}"
+    },
+    "quality": {
+      "hint": "Call summaries that browsers send when a call ends: numbers only — no names or addresses.",
+      "empty": "No call summaries for this period. A browser sends one when it leaves a meeting where two people were connected.",
+      "meetings": "Meetings with summaries",
+      "calls": "Call summaries",
+      "rtt": "Average round trip",
+      "rttMax": "Worst round trip",
+      "loss": "Average packet loss",
+      "lossy": "Time with loss above 5%",
+      "jitter": "Average jitter",
+      "bitrate": "Average receive rate",
+      "freezes": "Video freezes per hour",
+      "relay": "Through a relay (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}}%",
+      "mbps": "{{value}} Mbps",
+      "byDay": "Round trip by day",
+      "dayTip": "round trip {{rtt}}, loss {{loss}}, summaries: {{count}}",
+      "codecs": "Video codecs in meetings",
+      "codecTip": "meetings: {{count}}",
+      "recent": "Latest meetings with summaries",
+      "gone": "deleted",
+      "worst": "worst {{value}}",
+      "yes": "yes",
+      "no": "no",
+      "columns": {
+        "code": "Code",
+        "started": "Started",
+        "calls": "Summaries",
+        "rtt": "Round trip",
+        "loss": "Loss",
+        "jitter": "Jitter",
+        "freezes": "Freezes",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "What",
@@ -3185,5 +3279,20 @@
       "text": "You can also message the author of Cord on Telegram",
       "link": "@nikgers on Telegram"
     }
+  },
+  "capture": {
+    "title": "What to share",
+    "kinds": "What to share",
+    "screens": "Screens",
+    "windows": "Windows",
+    "sources": "Sources",
+    "loading": "Looking for screens and windows…",
+    "noScreens": "No screens found.",
+    "noWindows": "No open windows.",
+    "untitled": "Untitled",
+    "systemAudio": "Share system audio",
+    "systemAudioHint": "Participants will hear all of your computer’s audio — including this meeting’s voices. Sharing a single app’s audio is coming later.",
+    "share": "Share",
+    "cancel": "Cancel"
   }
 }

@@ -46,6 +46,10 @@
       "about": {
         "title": "Acerca de",
         "keywords": "versión cord ayuda soporte recorrido"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "aplicación bandeja barra de tareas miniatura distintivo parpadeo suspensión superposición inicio automático"
       }
     },
     "anchors": {
@@ -257,6 +261,46 @@
         "label": "Recorrido por Cord",
         "hint": "Consejos breves junto a los botones principales",
         "keywords": "recorrido consejos guía introducción"
+      },
+      "desktop-tray": {
+        "label": "Icono en la bandeja",
+        "hint": "Abrir Cord y el micrófono junto al reloj",
+        "keywords": "bandeja área de notificación"
+      },
+      "desktop-thumbar": {
+        "label": "Botones en la miniatura",
+        "hint": "Micrófono, cámara y salir en la barra de tareas",
+        "keywords": "barra de tareas miniatura botones"
+      },
+      "desktop-badge": {
+        "label": "Distintivo en el icono",
+        "hint": "Micrófono en la reunión y mensajes sin leer",
+        "keywords": "barra de tareas distintivo indicador"
+      },
+      "desktop-flash": {
+        "label": "Parpadeo del botón de la ventana",
+        "hint": "Cuando te mencionan y Cord está en segundo plano",
+        "keywords": "parpadear mención atención"
+      },
+      "desktop-sleep": {
+        "label": "No suspender durante la reunión",
+        "hint": "La pantalla no se apaga en llamadas ni al compartir",
+        "keywords": "suspensión pantalla ahorro de energía"
+      },
+      "desktop-overlay": {
+        "label": "Superposición en juegos",
+        "hint": "Quién está en la llamada y quién habla, sobre el juego",
+        "keywords": "superposición juego encima participantes"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "Atajo de la superposición",
+        "hint": "",
+        "keywords": "tecla superposición atajo combinación"
+      },
+      "desktop-autostart": {
+        "label": "Iniciar con Windows",
+        "hint": "Cord se abrirá minimizado",
+        "keywords": "inicio automático arranque"
       }
     },
     "title": "Ajustes",
@@ -439,6 +483,17 @@
       "deviceFailed": "No se pudo activar el dispositivo",
       "recordUnsupported": "Este navegador no puede grabar la prueba. La barra de nivel sí funciona.",
       "toneFailed": "No se pudo reproducir el sonido de prueba"
+    },
+    "desktop": {
+      "taskbar": "Barra de tareas y bandeja",
+      "meeting": "Durante la reunión",
+      "start": "Inicio",
+      "overlayNote": "La superposición se ve en modo ventana y sin bordes; en pantalla completa exclusiva Windows no la muestra.",
+      "overlayTaken": "Este atajo ya lo usa el micrófono; elige otro.",
+      "micTaken": "Este atajo ya lo usa la superposición; elige otro.",
+      "changeLabel": "Cambiar el atajo de la superposición",
+      "assignLabel": "Asignar atajo a la superposición",
+      "disableLabel": "Desactivar el atajo de la superposición"
     }
   },
   "meeting": {
@@ -2137,7 +2192,8 @@
   "api": {
     "requestFailed": "No se pudo completar la solicitud",
     "fileUnavailable": "El archivo no está disponible o ha caducado",
-    "blockedUntil": "El propietario ha cerrado el acceso a este servidor hasta el {{date}}"
+    "blockedUntil": "El propietario ha cerrado el acceso a este servidor hasta el {{date}}",
+    "closedByServerUntil": "El propietario del servidor finalizó esta reunión: podrás volver a abrirla después del {{date}}"
   },
   "kit": {
     "toasts": "Notificaciones",
@@ -2919,7 +2975,8 @@
     "SUPPORT_NOT_FOUND": "Solicitud no encontrada",
     "SUPPORT_OFF": "Ahora no se aceptan solicitudes. Escribe al autor de Cord en Telegram — el enlace está al lado",
     "SUPPORT_RATE": "Ya llegaron varias solicitudes desde esta dirección. Inténtalo dentro de una hora o escribe al autor de Cord en Telegram",
-    "SUPPORT_TEXT": "Describe qué ha pasado — al menos en una frase"
+    "SUPPORT_TEXT": "Describe qué ha pasado — al menos en una frase",
+    "CLOSED_BY_SERVER": "El propietario del servidor finalizó esta reunión: todavía no se puede volver a abrir"
   },
   "activity": {
     "title": "Actividad",
@@ -2932,6 +2989,7 @@
     "tabs": {
       "now": "Ahora",
       "meetings": "Reuniones",
+      "quality": "Calidad",
       "audit": "Registro",
       "blocks": "Bloqueos",
       "server": "Servidor",
@@ -2996,6 +3054,42 @@
       "dayTip_one": "{{count}} reunión, {{hours}} h-persona, pico {{peak}}",
       "dayTip_many": "{{count}} reuniones, {{hours}} h-persona, pico {{peak}}",
       "dayTip_other": "{{count}} reuniones, {{hours}} h-persona, pico {{peak}}"
+    },
+    "quality": {
+      "hint": "Resúmenes de llamadas que envían los navegadores al terminar: solo números, sin nombres ni direcciones.",
+      "empty": "No hay resúmenes de llamadas en este periodo. El navegador envía uno al salir de una reunión en la que había dos personas conectadas.",
+      "meetings": "Reuniones con resúmenes",
+      "calls": "Resúmenes de llamadas",
+      "rtt": "Ida y vuelta media",
+      "rttMax": "Peor ida y vuelta",
+      "loss": "Pérdida media",
+      "lossy": "Tiempo con pérdida superior al 5 %",
+      "jitter": "Jitter medio",
+      "bitrate": "Recepción media",
+      "freezes": "Congelaciones de vídeo por hora",
+      "relay": "A través de un relé (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}} %",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "Ida y vuelta por día",
+      "dayTip": "ida y vuelta {{rtt}}, pérdida {{loss}}, resúmenes: {{count}}",
+      "codecs": "Códecs de vídeo en las reuniones",
+      "codecTip": "reuniones: {{count}}",
+      "recent": "Últimas reuniones con resúmenes",
+      "gone": "eliminada",
+      "worst": "peor {{value}}",
+      "yes": "sí",
+      "no": "no",
+      "columns": {
+        "code": "Código",
+        "started": "Inicio",
+        "calls": "Resúmenes",
+        "rtt": "Ida y vuelta",
+        "loss": "Pérdida",
+        "jitter": "Jitter",
+        "freezes": "Congelaciones",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "Qué",
@@ -3219,5 +3313,20 @@
       "text": "También puedes escribir al autor de Cord en Telegram",
       "link": "@nikgers en Telegram"
     }
+  },
+  "capture": {
+    "title": "Qué compartir",
+    "kinds": "Qué compartir",
+    "screens": "Pantallas",
+    "windows": "Ventanas",
+    "sources": "Fuentes",
+    "loading": "Buscando pantallas y ventanas…",
+    "noScreens": "No se encontraron pantallas.",
+    "noWindows": "No hay ventanas abiertas.",
+    "untitled": "Sin título",
+    "systemAudio": "Con el audio del sistema",
+    "systemAudioHint": "Los participantes oirán todo el audio del ordenador, incluidas las voces de esta reunión. El audio de una sola aplicación llegará más adelante.",
+    "share": "Compartir",
+    "cancel": "Cancelar"
   }
 }

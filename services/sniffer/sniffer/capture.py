@@ -15,13 +15,20 @@
 как их послал Chromium; cookies — по хосту, ровно тем хостам, которым браузер их послал сам, и только у
 запросов потока (плейлисты, кусочки, ключи). Всё — печатными ASCII и с пределом длины: значения пришли со
 страницы, а дальше они станут заголовками запроса службы.
+
+ПРЕРОЛЛ (E07). Реклама перед фильмом — тоже поток, и страница часто спрашивает её первой. Поэтому в
+порядке потоков сомнительные идут последними: поток с хоста рекламной сети или из её рамки, список, все
+сегменты которого — с таких хостов (`cord_services.cinema.ads`, общий со службой), — и короткий законченный
+ролик (до `PREROLL_SECONDS`), если есть что-то длиннее. Рекламный поток служба узнаёт по `ad` в ответе.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
+
+from cord_services.cinema.ads import ad_host, ad_url
 
 HLS_TYPES = frozenset(
     {
@@ -74,6 +81,9 @@ HEIGHTS = 12
 PRINTABLE = re.compile(r"[\x20-\x7e]*")
 ORIGIN = re.compile(r"https?://[A-Za-z0-9.\-\[\]:]+")
 RESOLUTION = re.compile(r"RESOLUTION=(\d{1,5})x(\d{1,5})")
+EXTINF = re.compile(r"#EXTINF:\s*([0-9]{1,6}(?:\.[0-9]{1,6})?)")
+# Законченный ролик не длиннее этого — похож на рекламу перед фильмом: прероллы — 5–30 с, реже минута.
+PREROLL_SECONDS = 60.0
 
 # Ключ ClearKey — шифрование с ключом в открытую, не DRM: сам по себе он отказа не значит.
 CLEAR_KEY = "org.w3.clearkey"
@@ -198,6 +208,28 @@ def playlist_facts(text: str) -> tuple[bool | None, tuple[int, ...]]:
     return master, tuple(sorted((side for side in sides if 0 < side <= 8640), reverse=True))[:HEIGHTS]
 
 
+def advert_facts(text: str, base: str) -> tuple[float | None, bool]:
+    """
+    Длина законченного списка сегментов (`None` — мастер, край эфира или не плейлист) и реклама ли он
+    целиком: все его адреса (варианты мастера, сегменты) — на хостах рекламных сетей, по адресу списка.
+    """
+    if "#EXTM3U" not in text[:1024]:
+        return None, False
+    targets = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            try:
+                targets.append(urljoin(base, line))
+            except ValueError:
+                return None, False
+    advert = bool(targets) and all(ad_url(target) for target in targets)
+    if "#EXT-X-STREAM-INF" in text or "#EXT-X-ENDLIST" not in text:
+        return None, advert
+    seconds = sum(float(found) for found in EXTINF.findall(text))
+    return (round(seconds, 3) if seconds > 0 else None), advert
+
+
 @dataclass
 class Stream:
     url: str
@@ -209,6 +241,15 @@ class Stream:
     master: bool | None = None
     heights: tuple[int, ...] = ()
     ext: str = ""
+    # Длина законченного списка сегментов и «весь список — с рекламных хостов» (`advert_facts`).
+    seconds: float | None = None
+    advert: bool = False
+
+    @property
+    def ad(self) -> bool:
+        """Реклама: хост рекламной сети, её рамка или список целиком с её хостов."""
+        framed = bool(self.frame) and ad_host(urlsplit(self.frame).hostname)
+        return self.advert or ad_url(self.url) or framed
 
     def wire(self) -> dict[str, object]:
         found: dict[str, object] = {"url": self.url, "type": self.kind, "headers": dict(self.headers)}
@@ -220,6 +261,8 @@ class Stream:
             found["ext"] = self.ext
         if self.frame and web(self.frame):
             found["frame"] = self.frame
+        if self.ad:
+            found["ad"] = True
         return found
 
 
@@ -263,12 +306,16 @@ class Catch:
         master: bool | None = None,
         heights: tuple[int, ...] = (),
         ext: str = "",
+        seconds: float | None = None,
+        advert: bool = False,
     ) -> bool:
         """Запомнить поток (первый раз — с его заголовками); `True` — он новый."""
         if self.closed or not web(url) or url in self.streams or len(self.streams) >= STREAMS:
             return False
         order = order or self.ticket()
-        self.streams[url] = Stream(url, kind, order, profile_of(headers), frame, master, heights, ext)
+        self.streams[url] = Stream(
+            url, kind, order, profile_of(headers), frame, master, heights, ext, seconds, advert
+        )
         return True
 
     def cookie(self, url: str, value: object) -> None:
@@ -289,17 +336,30 @@ class Catch:
         elif signal in ("encrypted", "keys", "license"):
             self.used = True
 
-    def ranked(self, playing: list[str] | tuple[str, ...] = ()) -> list[Stream]:
+    def ranked(
+        self, playing: list[str] | tuple[str, ...] = (), lengths: dict[str, float] | None = None
+    ) -> list[Stream]:
         """
         Лучший первым: мастер HLS, другой HLS, DASH, готовый файл. Среди файлов — тот, что играет в самом
         большом `<video>` страницы (реклама перед фильмом — тоже файл, но в другом элементе или раньше).
+
+        Раньше вида — сомнение (преролл): реклама — последней, короткий законченный ролик (по своему списку
+        или по длине `<video>`, где он играет, — `lengths`) — после остальных. Один короткий ролик на странице
+        так и остаётся первым: сомнение только сравнивает, а не отбрасывает.
         """
         order = {"hls": 0, "dash": 1, "file": 2}
+        lengths = lengths or {}
 
-        def rank(stream: Stream) -> tuple[int, int, int, int]:
+        def doubt(stream: Stream) -> int:
+            if stream.ad:
+                return 2
+            seconds = stream.seconds if stream.seconds is not None else lengths.get(stream.url)
+            return 1 if seconds is not None and 0 < seconds <= PREROLL_SECONDS else 0
+
+        def rank(stream: Stream) -> tuple[int, int, int, int, int]:
             master = 0 if stream.master else 1 if stream.master is None else 2
             shown = playing.index(stream.url) if stream.url in playing else len(playing)
-            return (order[stream.kind], master, shown, stream.order)
+            return (doubt(stream), order[stream.kind], master, shown, stream.order)
 
         return sorted(self.streams.values(), key=rank)
 

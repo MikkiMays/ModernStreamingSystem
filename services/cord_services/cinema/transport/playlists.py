@@ -13,6 +13,7 @@ from urllib.parse import urljoin
 
 from fastapi import HTTPException
 
+from ..ads import mark_breaks
 from .signer import SIGNATURE_TTL, Signer, proxied
 
 
@@ -258,7 +259,13 @@ def rewrite(
     Какие ссылки проксировать, решает политика хостов площадки, чей это плейлист: чужой хост
     остаётся в строке как был, и через наш прокси за ним никто не пойдёт. `profile` — номер профиля
     заголовков потока: он уходит в подпись каждого адреса внутри, и дальше списка его не потерять.
+
+    До переписывания список сегментов получает разметку рекламы, которой поток не размечает сам:
+    отрезки между `DISCONTINUITY` с рекламных хостов (`ads.mark_breaks`). После переписывания адресов
+    браузер хостов уже не видит — помечать можно только здесь.
     """
+    if not master_playlist(body):
+        body = mark_breaks(body, base)
     if reels is not None and not master_playlist(body) and finished_playlist(body):
         return _numbered(body, base, signer, reels, provider, profile)
     route = "playlist" if master_playlist(body) else "fetch"

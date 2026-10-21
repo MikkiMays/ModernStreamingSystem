@@ -13,6 +13,7 @@ import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.activity.ActivityReport;
 import dev.mikki.stream.activity.ActivityRollup;
 import dev.mikki.stream.activity.Audit;
+import dev.mikki.stream.activity.ClientQuality;
 import dev.mikki.stream.activity.Metrics;
 import dev.mikki.stream.api.ActivityController;
 import dev.mikki.stream.api.ApiController;
@@ -376,6 +377,162 @@ class ActivityTest {
             Problem.class, p -> assertThat(p.code()).isEqualTo("ADMIN_REQUIRED"));
   }
 
+  /**
+   * Встреча, которую завершил владелец сервера, не открывается из избранного до конца срока ({@code
+   * closedByServer}) — ни создателем, ни кем-то ещё; после срока открывается как обычно.
+   */
+  @Test
+  void aMeetingClosedByTheOwnerDoesNotReopenFromFavoritesUntilItsTerm() throws Exception {
+    var owner = owner();
+    var http = new MockHttpServletRequest("POST", "/api/v1/admin/session");
+    http.setRemoteAddr(fresh());
+    var token = owner.login(new ActivityController.Login("пароль владельца"), http).token();
+    var host = host(Entrant.UNKNOWN);
+    var guest = guest(host);
+    present(host.roomId(), host, guest);
+
+    owner.close(
+        token, UUID.fromString(host.roomId()), new ActivityController.Close(false, "1 hour"), http);
+    var closed = rooms.read(host.roomId());
+    assertThat(closed.closedByServer).isEqualTo(now.get() + Duration.ofHours(1).toMillis());
+
+    for (var who : List.of(host, guest))
+      assertThatThrownBy(
+              () ->
+                  rooms.joinSaved(
+                      host.roomId(), who.participantId(), new Rejoin(UUID.randomUUID(), "Снова")))
+          .isInstanceOfSatisfying(
+              Problem.class,
+              p -> {
+                assertThat(p.status()).isEqualTo(403);
+                assertThat(p.code()).isEqualTo("CLOSED_BY_SERVER");
+                assertThat(p.properties()).containsEntry("until", closed.closedByServer);
+              });
+    assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
+
+    now.addAndGet(Duration.ofHours(1).toMillis() + 1);
+    rooms.joinSaved(host.roomId(), host.participantId(), new Rejoin(UUID.randomUUID(), "Снова"));
+    var reopened = rooms.read(host.roomId());
+    assertThat(reopened.closedAt).isNull();
+    assertThat(reopened.closedByServer).isNull();
+  }
+
+  /** Срок, которого владелец не выбрал, — срок блока по умолчанию ({@code default-term}). */
+  @Test
+  void withoutATermTheMeetingStaysClosedForTheDefaultOne() throws Exception {
+    var owner = owner();
+    var http = new MockHttpServletRequest("POST", "/api/v1/admin/session");
+    http.setRemoteAddr(fresh());
+    var token = owner.login(new ActivityController.Login("пароль владельца"), http).token();
+    var host = host(Entrant.UNKNOWN);
+    owner.close(token, UUID.fromString(host.roomId()), null, http);
+    assertThat(rooms.read(host.roomId()).closedByServer)
+        .isEqualTo(now.get() + config.abuse().blocks().defaultTerm().toMillis());
+  }
+
+  // Качество связи от браузеров (client-report) ---------------------------------------------------
+
+  static ClientQuality.Report call(
+      int seconds, Integer rtt, Double loss, Integer jitter, String path, String codec) {
+    return new ClientQuality.Report(seconds, rtt, loss, jitter, 1800, 2, 3, 40, path, codec);
+  }
+
+  MockHttpServletRequest reporter() {
+    var http = new MockHttpServletRequest("POST", "/api/v1/rooms/x/client-report");
+    http.setRemoteAddr(fresh());
+    return http;
+  }
+
+  /**
+   * Итог звонка от браузера ложится в строку его встречи — числами и словами из перечислений, без
+   * имён, адресов и номеров. Один итог на вход; второй — отказ «слишком часто».
+   */
+  @Test
+  void aCallSummaryIsAddedToItsMeetingOncePerEntry() {
+    var host = host(Entrant.UNKNOWN);
+    var guest = guest(host);
+    present(host.roomId(), host, guest);
+    var room = UUID.fromString(host.roomId());
+
+    api.clientReport(
+        room,
+        "Bearer " + guest.credential(),
+        call(600, 40, 1.5, 12, "relay-udp", "vp8"),
+        reporter());
+    assertThatThrownBy(
+            () ->
+                api.clientReport(
+                    room,
+                    "Bearer " + guest.credential(),
+                    call(600, 40, 1.5, 12, "relay-udp", "vp8"),
+                    reporter()))
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.code()).isEqualTo("RATE_LIMITED"));
+    api.clientReport(
+        room,
+        "Bearer " + host.credential(),
+        call(300, null, null, null, "direct-udp", "h264"),
+        reporter());
+
+    var row = stats(host.roomId());
+    assertThat(number(row.get("quality_reports"))).isEqualTo(2);
+    assertThat(number(row.get("quality_seconds"))).isEqualTo(900);
+    assertThat(number(row.get("rtt_ms_sum"))).isEqualTo(40);
+    assertThat(number(row.get("rtt_reports"))).isEqualTo(1);
+    assertThat(number(row.get("loss_permille_sum"))).isEqualTo(15);
+    assertThat(number(row.get("relay_reports"))).isEqualTo(1);
+    assertThat(number(row.get("freezes"))).isEqualTo(4);
+    assertThat(row.get("codecs")).isEqualTo("h264 vp8");
+
+    var quality = report.quality(now.get() - 60_000, now.get() + 60_000, 0);
+    assertThat(quality.reports()).isEqualTo(2);
+    assertThat(quality.meetings()).isEqualTo(1);
+    assertThat(quality.rttMs()).isEqualTo(40);
+    assertThat(quality.lossPercent()).isEqualTo(1.5);
+    assertThat(quality.relayShare()).isEqualTo(0.5);
+    assertThat(quality.lossyShare()).isCloseTo(80.0 / 900, within(1e-9));
+    assertThat(quality.codecs()).containsEntry("vp8", 1).containsEntry("h264", 1);
+    assertThat(quality.days()).hasSize(1);
+    assertThat(quality.recent())
+        .singleElement()
+        .satisfies(
+            m -> {
+              assertThat(m.code()).isEqualTo(rooms.read(host.roomId()).code);
+              assertThat(m.reports()).isEqualTo(2);
+            });
+
+    assertThatThrownBy(
+            () ->
+                api.clientReport(
+                    room, "Bearer nobody.secret", call(1, 1, 0.0, 1, "unknown", null), reporter()))
+        .isInstanceOfSatisfying(Problem.class, p -> assertThat(p.status()).isEqualTo(403));
+  }
+
+  /** Один человек в комнате — ещё не встреча (П7): итог принят, но лечь ему некуда. */
+  @Test
+  void aCallAloneIsNotAMeetingAndLeavesNoTrace() {
+    var alone = host(Entrant.UNKNOWN);
+    present(alone.roomId(), alone);
+    api.clientReport(
+        UUID.fromString(alone.roomId()),
+        "Bearer " + alone.credential(),
+        call(60, 20, 0.0, 3, "direct-udp", "vp8"),
+        reporter());
+    assertThat(jdbc.sql("SELECT COUNT(*) FROM meeting_stats").query(Long.class).single()).isZero();
+  }
+
+  /** Что браузер может прислать — только числа в пределах и слова из перечислений. */
+  @Test
+  void aSummaryIsNumbersInBoundsAndWordsFromALongList() {
+    var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+    assertThat(validator.validate(call(600, 40, 1.5, 12, "relay-tcp", "av1"))).isEmpty();
+    assertThat(validator.validate(call(600, 40, 1.5, 12, "Иван", "av1"))).isNotEmpty();
+    assertThat(validator.validate(call(600, 40, 1.5, 12, "direct-udp", "x264-my-camera")))
+        .isNotEmpty();
+    assertThat(validator.validate(call(-1, 40, 1.5, 12, "direct-udp", null))).isNotEmpty();
+    assertThat(validator.validate(call(600, 40, 101.0, 12, "direct-udp", null))).isNotEmpty();
+    assertThat(validator.validate(call(90_000, 40, 1.0, 12, "direct-udp", null))).isNotEmpty();
+  }
+
   /** Итоги за период и итоги дня: встреча, человеко-секунды, пик. */
   @Test
   void thePeriodAndTheDayAddUp() {
@@ -488,7 +645,8 @@ class ActivityTest {
     metrics.joined("link", "ok");
     metrics.refused("ROOM_FULL", 409);
     var allowed =
-        Set.of("state", "kind", "reason", "door", "result", "code", "status", "by", "version");
+        Set.of(
+            "state", "kind", "reason", "door", "result", "code", "status", "by", "version", "path");
     var cord =
         registry.getMeters().stream().filter(m -> m.getId().getName().startsWith("cord.")).toList();
     assertThat(cord).isNotEmpty();
