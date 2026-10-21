@@ -10,6 +10,7 @@ import type {
 } from './types';
 import { entryHeaders } from '../core/identity';
 import { prepareProof, takeProof, type ProofAction } from '../core/proof';
+import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
 
@@ -110,6 +111,10 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
       detail?: unknown;
       until?: unknown;
     };
+    // Код отказа — в последние ошибки для обращения в поддержку; адреса и тексты туда не идут.
+    noteError(
+      `${response.status} ${body.code ?? 'REQUEST_FAILED'} ${init.method ?? 'GET'} ${path.split('?')[0]!.replace(/[0-9a-f-]{36}/g, ':id')}`,
+    );
     throw new ApiError(
       response.status,
       body.code ?? 'REQUEST_FAILED',
@@ -174,6 +179,8 @@ export const publicApi = {
     request<Admission>(`/rooms/${roomId}/join`, entry(data, leave)),
   joinCode: (data: { commandId: string; code: string; name: string }, leave?: string) =>
     human<Admission>('code', '/rooms/join-by-code', entry(data, leave)),
+  /** Обращение в поддержку (E13) — за той же задачей «не бот», открыто и до пароля сервера. */
+  support: (data: SupportTicket) => human<SupportReceipt>('support', '/support', post(data)),
 };
 export class RoomApi {
   readonly base: string;

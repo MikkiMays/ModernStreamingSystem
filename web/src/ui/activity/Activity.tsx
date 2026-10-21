@@ -21,6 +21,7 @@ import {
   type ServerInfo,
   type Summary,
 } from '../../core/activity';
+import { SupportTab } from './SupportTab';
 import { Button, Field, Input, Select, Tab, TabList, TabPanel, Tabs } from '../kit';
 import { Logo } from '../primitives';
 import { Bars } from './Bars';
@@ -110,7 +111,7 @@ function Login({ onDone }: { onDone: () => void }) {
 }
 
 /** Запрос к странице владельца: истёкший токен возвращает на вход, остальное — текстом отказа. */
-function useAdmin(onExpired: () => void) {
+export function useAdmin(onExpired: () => void) {
   const [error, setError] = useState<string | null>(null);
   const run = useCallback(
     async <T,>(call: () => Promise<T>): Promise<T | undefined> => {
@@ -131,7 +132,7 @@ function useAdmin(onExpired: () => void) {
 
 function Board({ onExpired }: { onExpired: () => void }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'now' | 'meetings' | 'audit' | 'blocks' | 'server'>('now');
+  const [tab, setTab] = useState<'now' | 'meetings' | 'audit' | 'blocks' | 'support' | 'server'>('now');
   return (
     <Tabs variant="line" value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
       <TabList className="activity-tabs" aria-label={t(($) => $.activity.title)}>
@@ -139,12 +140,14 @@ function Board({ onExpired }: { onExpired: () => void }) {
         <Tab value="meetings">{t(($) => $.activity.tabs.meetings)}</Tab>
         <Tab value="audit">{t(($) => $.activity.tabs.audit)}</Tab>
         <Tab value="blocks">{t(($) => $.activity.tabs.blocks)}</Tab>
+        <Tab value="support">{t(($) => $.activity.tabs.support)}</Tab>
         <Tab value="server">{t(($) => $.activity.tabs.server)}</Tab>
       </TabList>
       <TabPanel value="now">{tab === 'now' && <NowTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="meetings">{tab === 'meetings' && <MeetingsTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="audit">{tab === 'audit' && <AuditTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="blocks">{tab === 'blocks' && <BlocksTab onExpired={onExpired} />}</TabPanel>
+      <TabPanel value="support">{tab === 'support' && <SupportTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="server">{tab === 'server' && <ServerTab onExpired={onExpired} />}</TabPanel>
     </Tabs>
   );
@@ -159,7 +162,7 @@ function Tile({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function Failure({ text }: { text: string | null }) {
+export function Failure({ text }: { text: string | null }) {
   return text ? (
     <p className="activity-error" role="alert">
       {text}
@@ -381,7 +384,7 @@ function MeetingsTab({ onExpired }: { onExpired: () => void }) {
   );
 }
 
-function when(t: Translate, at: number) {
+export function when(t: Translate, at: number) {
   return new Date(at).toLocaleString(locale(t), {
     day: 'numeric',
     month: 'short',

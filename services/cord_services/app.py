@@ -160,6 +160,12 @@ def create_app(
             )
             app.state.telegram = telegram
             background.append(asyncio.create_task(telegram.run(), name="telegram"))
+            # Обращения в поддержку — в Telegram владельца (E13): тем же ботом, из очереди ядра.
+            from .support import SupportRelay
+
+            background.append(
+                asyncio.create_task(SupportRelay(telegram.api, core).run(), name="support")
+            )
 
         async def clean():
             while True:

@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
 export default defineConfig({
   testDir: './e2e',
+  // Все сценарии, кроме знакомства, — от лица уже знакомого человека (E13, `e2e/global-setup.ts`).
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,
   timeout: 45000,
@@ -16,6 +18,7 @@ export default defineConfig({
       },
   use: {
     baseURL: deployedUrl ?? 'http://localhost:5173',
+    storageState: '.local/e2e/returning.json',
     // Сценарии читают русский текст. Язык браузера выбирается сам из переведённых (E14-B), а
     // Playwright по умолчанию — en-US: без этой строки e2e увидели бы английский интерфейс.
     locale: 'ru-RU',

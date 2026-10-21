@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "Informazioni",
-        "keywords": "versione cord"
+        "keywords": "versione cord aiuto assistenza tour"
       }
     },
     "anchors": {
@@ -247,6 +247,16 @@
         "label": "Lingua dell'interfaccia",
         "hint": "",
         "keywords": "language lingua traduzione interfaccia"
+      },
+      "about-help": {
+        "label": "Aiuto e assistenza",
+        "hint": "Domande frequenti, prova dei dispositivi e contatti",
+        "keywords": "aiuto assistenza domanda problema richiesta"
+      },
+      "about-tour": {
+        "label": "Tour di Cord",
+        "hint": "Brevi suggerimenti accanto ai pulsanti principali",
+        "keywords": "tour suggerimenti guida introduzione"
       }
     },
     "title": "Impostazioni",
@@ -272,7 +282,7 @@
     "about": {
       "checking": "Cerchiamo l'ultima versione…",
       "unknown": "Impossibile sapere l'ultima versione per Windows",
-      "webUpdates": "La versione web si aggiorna insieme al server",
+      "webUpdates": "Nel browser Cord è sempre all'ultima versione",
       "latest": "Ultima versione per Windows: {{version}}",
       "desktop": "App per Windows",
       "web": "Versione web di questo server",
@@ -283,7 +293,9 @@
       "update": "Aggiorna",
       "download": "Scarica {{version}}",
       "author": "Cord è creato e sviluppato da @nikgers",
-      "telegram": "Telegram dell'autore"
+      "telegram": "Telegram dell'autore",
+      "help": "Apri",
+      "tour": "Rifai il tour"
     },
     "accounts": {
       "save": "Salva",
@@ -1187,7 +1199,7 @@
       "screenTitle": "Latenza del canale di controllo e dati che lo schermo invia in rete",
       "cameraTitle": "Latenza del canale di controllo e dati che la videocamera invia in rete",
       "controlTitle": "RTT del WebSocket di controllo",
-      "httpTitle": "Tempo di risposta del server /api/v1/ping",
+      "httpTitle": "Tempo di risposta del server",
       "offline": "Nessuna connessione",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbit/s"
@@ -2133,25 +2145,18 @@
   },
   "connect": {
     "failure": {
-      "passwordInvalid": "Il server non ha accettato la password. Verificala con chi ti ha dato l'indirizzo.",
+      "passwordInvalid": "La password non è valida. Verificala con chi ti ha invitato.",
       "passwordRequired": "Questo server è protetto da password. Inseriscila.",
       "tooMany": "Troppi tentativi di fila. Attendi un minuto e riprova.",
       "serverError": "Il server ha risposto con l'errore {{status}}. Forse si sta ancora avviando.",
-      "notCord": "A questo indirizzo non risponde Cord: manca l'API necessaria.",
-      "timeout": "Il server non ha risposto entro otto secondi. Controlla l'indirizzo e la connessione.",
-      "unreachable": "Impossibile contattare il server. Controlla indirizzo, certificato e connessione."
-    },
-    "address": {
-      "empty": "Inserisci l'indirizzo del server",
-      "notUrl": "L'indirizzo non sembra un link. Esempio: https://meet.example.com",
-      "credentials": "Rimuovi nome utente e password dall'indirizzo",
-      "https": "L'indirizzo deve iniziare con https://. HTTP è ammesso solo per localhost",
-      "path": "Inserisci solo l'indirizzo del server, senza percorso dopo il nome"
+      "notCord": "Cord non risponde a questo indirizzo. Ricarica la pagina tra poco.",
+      "timeout": "Cord non ha risposto entro otto secondi. Controlla la connessione a internet e riprova.",
+      "unreachable": "Impossibile raggiungere Cord. Controlla la connessione a internet e riprova."
     },
     "note": "Connessione a un server",
     "searching": "Cerchiamo il server…",
     "password": "Password del server",
-    "passwordPlaceholder": "Chiedila a chi ti ha dato l'indirizzo",
+    "passwordPlaceholder": "Chiedila a chi ti ha invitato",
     "autoConnect": "Connetti automaticamente all'avvio",
     "connecting": "Connessione…",
     "connect": "Connetti",
@@ -2179,8 +2184,8 @@
   },
   "favorites": {
     "errors": {
-      "orderUnsupported": "Questo server non permette ancora di riordinare i Preferiti. Aggiorna il server.",
-      "groupsUnsupported": "Questo server non supporta ancora i gruppi nei Preferiti. Aggiorna il server."
+      "orderUnsupported": "L'ordine dei preferiti non è ancora stato salvato. Riprova tra poco.",
+      "groupsUnsupported": "I gruppi dei preferiti non sono ancora disponibili. Riprova tra poco."
     },
     "settings": {
       "open": "Impostazioni di accesso a «{{title}}»",
@@ -2337,8 +2342,9 @@
       "closeMenu": "Chiudi il menu",
       "menu": "Menu",
       "settings": "Impostazioni",
-      "privacy": "Senza account. Sul tuo server.",
-      "about": "Informazioni"
+      "privacy": "Senza account. Le riunioni non vengono registrate.",
+      "about": "Informazioni",
+      "help": "Aiuto"
     }
   },
   "prejoin": {
@@ -2517,7 +2523,7 @@
       "haveToken": "Ho già un token di accesso",
       "tokenLabel": "Token di Yandex Music",
       "connectToken": "Collega il token",
-      "note": "La password si inserisce sulla pagina di Yandex. Per i brani completi serve un account con abbonamento. Funziona tramite un connettore open source non ufficiale di Yandex Music."
+      "note": "La password si inserisce sulla pagina di Yandex. Per i brani completi serve un account con abbonamento. Funziona tramite un connettore non ufficiale di Yandex Music."
     }
   },
   "integrations": {
@@ -2719,7 +2725,8 @@
       "outbound": "Invio",
       "codecHidden": "Non indicato",
       "implementationHidden": "Non indicato dal browser"
-    }
+    },
+    "help": "Non è servito? Domande frequenti e contatti:"
   },
   "download": {
     "home": "Cord — torna alla Home",
@@ -2729,16 +2736,8 @@
     "unavailable": "La versione per Windows non è disponibile al momento. Riprova ad aprire la pagina tra poco.",
     "requirements": "Windows 10 build 19041 o successivo, x64",
     "installer": "Scarica il programma di installazione",
-    "installNote": "Si installa per l'utente corrente, senza diritti di amministratore. WebView2 si installa da solo se manca.",
+    "installNote": "Si installa per l'utente attuale — non servono diritti di amministratore. Cord installa da solo gli aggiornamenti all'avvio.",
     "portable": "Versione portatile senza installazione, ZIP",
-    "connect": {
-      "title": "Dove connettersi dopo l'installazione",
-      "text": "Cord non si connette da solo da nessuna parte: al primo avvio chiede l'indirizzo di un server. È l'indirizzo di questa stessa pagina, da cui stai scaricando l'app:",
-      "address": "Indirizzo di questo server",
-      "copied": "Indirizzo copiato",
-      "copy": "Copia l'indirizzo",
-      "note": "In Cord: «Aggiungi il primo server» → incolla l'indirizzo → «Aggiungi». Nome e password se il server li chiede; puoi tenere più server e passare dall'uno all'altro."
-    },
     "warning": {
       "title": "Windows mostrerà un avviso",
       "text": "Il programma di installazione non è firmato con un certificato dell'editore, quindi SmartScreen dirà «PC protetto da Windows» e definirà l'editore sconosciuto. Lo dice di qualsiasi programma nuovo senza un certificato a pagamento, non di questo in particolare.",
@@ -2915,7 +2914,12 @@
     "VIEW_CLOSED": "La visione è chiusa",
     "WATCH_CLOSED": "La visione insieme è terminata",
     "WATCH_INVALID": "Niente da aprire",
-    "WATCH_LIVE": "Una diretta non si può mettere in pausa né riavvolgere"
+    "WATCH_LIVE": "Una diretta non si può mettere in pausa né riavvolgere",
+    "SUPPORT_BUSY": "In questo momento arrivano molte richieste. Riprova tra poco",
+    "SUPPORT_NOT_FOUND": "Richiesta non trovata",
+    "SUPPORT_OFF": "Al momento le richieste non vengono accettate. Scrivi all'autore di Cord su Telegram — il link è qui accanto",
+    "SUPPORT_RATE": "Da questo indirizzo sono già arrivate diverse richieste. Riprova tra un'ora o scrivi all'autore di Cord su Telegram",
+    "SUPPORT_TEXT": "Descrivi cosa è successo — almeno con una frase"
   },
   "activity": {
     "title": "Attività",
@@ -2930,7 +2934,8 @@
       "meetings": "Riunioni",
       "audit": "Registro",
       "blocks": "Blocchi",
-      "server": "Server"
+      "server": "Server",
+      "support": "Richieste"
     },
     "integrations": {
       "watch": "Cinema",
@@ -3080,6 +3085,139 @@
       "minutes_one": "{{count}} minuto",
       "minutes_many": "{{count}} minuti",
       "minutes_other": "{{count}} minuti"
+    },
+    "support": {
+      "hint": "Richieste dall'Aiuto. Rispondi al contatto lasciato dalla persona; lo stato lo vedi solo tu.",
+      "empty": "Nessuna richiesta.",
+      "status": "Stato della richiesta {{number}}",
+      "statuses": {
+        "NEW": "Nuova",
+        "OPEN": "In corso",
+        "DONE": "Risolta"
+      },
+      "contact": "Contatto: {{contact}}",
+      "noContact": "Nessun contatto",
+      "diagnostics": "Diagnostica",
+      "sent": "Su Telegram",
+      "waiting": "In attesa del bot",
+      "more": "Altro"
+    }
+  },
+  "onboarding": {
+    "progress": "{{step}} di {{total}}",
+    "next": "Avanti",
+    "done": "Fatto",
+    "skip": "Salta",
+    "gotIt": "Ho capito",
+    "tour": {
+      "create": {
+        "title": "Nuova riunione",
+        "text": "Crea una riunione con un clic — codice e link di invito sono subito pronti."
+      },
+      "join": {
+        "title": "Ti hanno invitato?",
+        "text": "Incolla qui il codice di nove cifre o il link di invito."
+      },
+      "favorites": {
+        "title": "Preferiti",
+        "text": "Segna con la stella nell'intestazione le riunioni a cui torni — si raccoglieranno qui."
+      },
+      "settings": {
+        "title": "Impostazioni",
+        "text": "Videocamera, microfono, audio, tema e lingua. In «Informazioni» puoi rifare questo tour."
+      },
+      "help": {
+        "title": "Aiuto",
+        "text": "Qualcosa non funziona? Qui trovi le risposte alle domande frequenti e i contatti."
+      },
+      "menu": {
+        "title": "Menu",
+        "text": "Preferiti, impostazioni e aiuto sono qui."
+      }
+    },
+    "meeting": {
+      "title": "Sei nella riunione",
+      "text": "Microfono, videocamera e schermo — questi pulsanti. Per invitare, usa il codice della riunione in alto."
+    },
+    "integrations": {
+      "title": "Le integrazioni sono per tutti",
+      "text": "Cinema, musica e giochi sono condivisi: attivane uno e comparirà per tutti nella riunione."
+    }
+  },
+  "support": {
+    "title": "Aiuto",
+    "lead": "Risposte alle domande frequenti, prova di videocamera e microfono e contatti.",
+    "back": "Home",
+    "home": "Cord — home",
+    "open": "Aiuto",
+    "faq": {
+      "title": "Domande frequenti",
+      "items": {
+        "camera": {
+          "q": "La videocamera non si accende o mostra uno schermo nero",
+          "a": "Consenti l'accesso alla videocamera: icona della videocamera nella barra degli indirizzi → «Consenti», poi ricarica la pagina.\nChiudi le app che usano la videocamera: Zoom, Teams, OBS o un'altra scheda con una riunione.\nIn «Impostazioni → Voce e video» scegli la videocamera giusta — un portatile con videocamera esterna ne ha due.\nNell'app per Windows controlla «Impostazioni → Privacy → Fotocamera»: l'accesso alla fotocamera per le app deve essere attivo."
+        },
+        "microphone": {
+          "q": "Non mi sentono",
+          "a": "Guarda il pulsante del microfono in basso: barrato significa che il microfono è spento.\nIn «Impostazioni → Voce e video» scegli un microfono e di' qualcosa — la barra del livello dovrebbe muoversi.\nIl browser potrebbe aver bloccato l'accesso: icona nella barra degli indirizzi → «Consenti».\nCon un microfono debole, una soppressione del rumore severa taglia la voce — provane un'altra nelle stesse impostazioni."
+        },
+        "silent": {
+          "q": "Non sento nessuno",
+          "a": "Se sul palco c'è il pulsante «Attiva l'audio della riunione», fai clic: il browser non riproduce suoni prima del primo clic sulla pagina.\nControlla «Impostazioni e azioni» — l'audio di tutta la riunione potrebbe essere disattivato.\nIl volume di una persona è nel menu del clic destro su di lei, quello generale in «Impostazioni → Voce e video».\nLì scegli anche cuffie o altoparlanti e avvia la prova."
+        },
+        "screen": {
+          "q": "Non riesco a condividere lo schermo",
+          "a": "Fai clic sul pulsante dello schermo in basso e scegli una finestra, una scheda o l'intero schermo.\nSu macOS consenti la registrazione dello schermo: «Impostazioni di Sistema → Privacy e sicurezza → Registrazione schermo», poi riavvia il browser.\nPerché gli altri sentano l'audio, condividi una scheda o l'intero schermo e spunta l'audio nella finestra di scelta.\nI browser dei telefoni non sempre condividono lo schermo — dal computer va meglio."
+        },
+        "smartscreen": {
+          "q": "Windows dice «PC protetto da Windows»",
+          "a": "È l'avviso di SmartScreen: Cord non ha ancora un certificato di editore a pagamento, e Windows lo dice di ogni programma nuovo.\nFai clic su «Ulteriori informazioni», poi su «Esegui comunque». Serve solo una volta, durante l'installazione."
+        },
+        "network": {
+          "q": "La connessione si interrompe, il video è a blocchi",
+          "a": "Metti in pausa download e streaming sulla stessa connessione; un cavo o il Wi‑Fi vicino al router sono molto più stabili.\nVPN e reti aziendali a volte ostacolano la connessione diretta — senza di esse audio e video arrivano con meno ritardo.\nNella riunione apri «Impostazioni e azioni → Diagnostica»: lì vedi percorso, perdite e ritardo — puoi allegarli alla richiesta."
+        }
+      }
+    },
+    "check": {
+      "title": "Prova videocamera e microfono",
+      "text": "La prova avviene solo su questo dispositivo — nulla viene inviato alla riunione.",
+      "start": "Avvia la prova",
+      "diagnostics": "Apri la diagnostica",
+      "diagnosticsText": "Il percorso fino al server, le perdite, il ritardo e la qualità di ogni traccia di questa riunione."
+    },
+    "form": {
+      "title": "Scrivici",
+      "intro": "Non hai trovato una risposta? Descrivi cosa è successo. Leggiamo ogni richiesta e rispondiamo al contatto che lasci, se ne lasci uno.",
+      "topic": "Argomento",
+      "topics": {
+        "camera": "Videocamera e microfono",
+        "sound": "Audio",
+        "screen": "Condivisione schermo",
+        "network": "Connessione e qualità",
+        "windows": "App per Windows",
+        "idea": "Idea o suggerimento",
+        "other": "Altro"
+      },
+      "message": "Cosa è successo",
+      "messagePlaceholder": "Per esempio: nella riunione la videocamera non si accende, ma nell'anteprima si vede",
+      "contact": "Come contattarti",
+      "contactPlaceholder": "Telegram, email o telefono",
+      "contactHint": "Facoltativo. Senza contatto non possiamo rispondere, ma leggeremo la richiesta.",
+      "consent": "Allega la diagnostica",
+      "consentHint": "Versione di Cord, browser, sistema ed errori recenti — senza nome, riunioni né messaggi.",
+      "preview": "Cosa verrà inviato",
+      "send": "Invia",
+      "sending": "Invio…",
+      "tooShort": "Descrivi cosa è successo — almeno con una frase",
+      "sent": "Richiesta {{number}} inviata",
+      "sentContact": "Risponderemo al contatto che hai lasciato.",
+      "sentNoContact": "Non hai lasciato un contatto — non potremo rispondere, ma leggeremo la richiesta.",
+      "again": "Scrivine un'altra"
+    },
+    "author": {
+      "text": "Puoi anche scrivere all'autore di Cord su Telegram",
+      "link": "@nikgers su Telegram"
     }
   }
 }

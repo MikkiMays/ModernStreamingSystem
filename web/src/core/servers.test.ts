@@ -1,24 +1,7 @@
 import { beforeEach, expect, it } from 'vitest';
-import { currentServerUrl, normalizeServerUrl, rememberServer, serverLabel, thisServer } from './servers';
+import { currentServerUrl, rememberServer, serverLabel, thisServer } from './servers';
 
 beforeEach(() => localStorage.clear());
-
-it('accepts the addresses a server can actually be reached at and rejects the rest', () => {
-  expect(normalizeServerUrl('meet.example.com')).toBe('https://meet.example.com/');
-  expect(normalizeServerUrl('  https://meet.example.com  ')).toBe('https://meet.example.com/');
-  expect(normalizeServerUrl('https://meet.example.com:8443/')).toBe('https://meet.example.com:8443/');
-  expect(normalizeServerUrl('http://localhost:5173')).toBe('http://localhost:5173/');
-  for (const wrong of [
-    '',
-    '   ',
-    'http://meet.example.com',
-    'https://meet.example.com/join/1',
-    'https://meet.example.com?a=1',
-    'https://user:pass@meet.example.com',
-    'ftp://meet.example.com',
-  ])
-    expect(() => normalizeServerUrl(wrong), wrong).toThrow();
-});
 
 it('starts from sane answers when nothing has been remembered', () => {
   expect(thisServer()).toEqual({

@@ -45,7 +45,7 @@ export function HomeEntry({
         <label className="home-entry__label" htmlFor={`${id}-invite`}>
           {t(($) => $.home.entry.label)}
         </label>
-        <div className="home-entry__row">
+        <div className="home-entry__row" data-tour="join">
           <div className="home-entry__field">
             <Hash size={18} aria-hidden="true" />
             <input
@@ -92,6 +92,7 @@ export function HomeEntry({
         size="lg"
         full
         className="home-entry__create"
+        data-tour="create"
         icon={<Plus size={18} />}
         onClick={onCreate}
         disabled={creationClosed}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ApiError, request } from '../../api/client';
 import { ADMIN_KEY } from '../../core/activity';
@@ -117,4 +117,42 @@ it('отказ BLOCKED называет срок словами по часам 
   expect(error.code).toBe('BLOCKED');
   expect(error.message).toMatch(/^Доступ к этому серверу закрыт владельцем до 21 октября/);
   expect(error.message).toContain('14:30');
+});
+
+it('«Обращения» (E13): номер, тема, контакт, донёс ли бот — и статус, который ведёт владелец', async () => {
+  cleanup(); // прежние сценарии файла оставили свои страницы в документе
+  sessionStorage.setItem(ADMIN_KEY, JSON.stringify({ token: 't0k', expiresAt: Date.now() / 1000 + 3600 }));
+  const ticket = {
+    id: '1a2b3c4d-0000-4000-8000-000000000000',
+    number: '1A2B3C4D',
+    createdAt: 9_000_000,
+    topic: 'camera',
+    message: 'Камера чёрная во встрече',
+    contact: '@someone',
+    diagnostics: 'cord: 0.7.0\nclient: web',
+    status: 'NEW',
+    statusAt: 9_000_000,
+    notifiedAt: null,
+  };
+  server((url, init) =>
+    url.includes('/admin/support/') && init.method === 'PUT'
+      ? { status: 204 }
+      : url.includes('/admin/support')
+        ? { status: 200, body: [ticket] }
+        : { status: 200, body: now },
+  );
+  render(<Activity />);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Обращения' }));
+  expect(await screen.findByText('Камера чёрная во встрече')).toBeTruthy();
+  expect(screen.getByText('Камера и микрофон')).toBeTruthy();
+  expect(screen.getByText('Контакт: @someone')).toBeTruthy();
+  expect(screen.getByText('Ждёт бота')).toBeTruthy();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Статус обращения 1A2B3C4D' }), {
+    target: { value: 'DONE' },
+  });
+  await waitFor(() => expect(calls.some((c) => c.init.method === 'PUT')).toBe(true));
+  const put = calls.find((c) => c.init.method === 'PUT')!;
+  expect(put.url).toContain('/admin/support/1a2b3c4d-0000-4000-8000-000000000000/status');
+  expect(JSON.parse(String(put.init.body))).toEqual({ status: 'DONE' });
+  expect((put.init.headers as Record<string, string>)['X-Cord-Admin']).toBe('t0k');
 });

@@ -1,0 +1,7 @@
+# Cord: главная, скачивание и помощь — для поиска; встречи, файлы и служебное — нет.
+User-agent: *
+Disallow: /room/
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /downloads/
+Disallow: /kit

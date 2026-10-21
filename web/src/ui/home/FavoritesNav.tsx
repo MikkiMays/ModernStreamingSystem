@@ -221,7 +221,7 @@ export function FavoritesNav({
       aria-label={t(($) => $.favorites.nav.title)}
       data-dragging={drag?.active || undefined}
     >
-      <div className="home-nav__heading">
+      <div className="home-nav__heading" data-tour="favorites">
         <h2 className="home-nav__title">{t(($) => $.favorites.nav.title)}</h2>
         <span
           className="home-nav__count"

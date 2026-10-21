@@ -119,6 +119,21 @@ export type BlockRequest = {
 
 type Session = { token: string; expiresAt: number };
 
+/** Обращение в поддержку (E13) так, как его видит владелец. */
+export type SupportStatus = 'NEW' | 'OPEN' | 'DONE';
+export type SupportTicket = {
+  id: string;
+  number: string;
+  createdAt: number;
+  topic: string;
+  message: string;
+  contact: string | null;
+  diagnostics: string | null;
+  status: SupportStatus;
+  statusAt: number;
+  notifiedAt: number | null;
+};
+
 export function adminToken(): string | null {
   try {
     const saved = JSON.parse(sessionStorage.getItem(ADMIN_KEY) ?? 'null') as Session | null;
@@ -187,6 +202,9 @@ export const activityApi = {
   close: (roomId: string, blockCreator: boolean) =>
     admin<Now>(`/rooms/${roomId}/close`, { method: 'POST', body: JSON.stringify({ blockCreator }) }),
   clearShield: () => admin<void>('/shield', { method: 'DELETE' }),
+  support: (before?: number) => admin<SupportTicket[]>(`/support?${query({ before })}`),
+  supportStatus: (id: string, status: SupportStatus) =>
+    admin<void>(`/support/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
 };
 
 /** Слово действия журнала для каталога: точки ключей i18next не любят. */

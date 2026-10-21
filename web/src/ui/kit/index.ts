@@ -33,3 +33,4 @@ export { Separator } from './Separator';
 export { ResizeHandle, type ResizeHandleProps } from './ResizeHandle';
 export { usePanelWidth, forgetPanelWidths, type PanelWidthOptions } from './usePanelWidth';
 export { Logo, CordMark, CordWordmark, AppIcon } from '../brand/Logo';
+export { Coachmark, type CoachmarkProps } from './Coachmark';

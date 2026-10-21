@@ -1,0 +1,23 @@
+/* Кнопка «Помощь» (E13): грузится вместе с кнопкой, а не с окном помощи — окно ленивое. */
+.help-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--control-radius);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.help-link:hover {
+  background: var(--surface-hover);
+}
+.help-link:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}

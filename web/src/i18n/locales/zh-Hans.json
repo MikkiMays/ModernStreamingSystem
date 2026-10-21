@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "关于",
-        "keywords": "版本 cord"
+        "keywords": "版本 cord 帮助 支持 导览"
       }
     },
     "anchors": {
@@ -247,6 +247,16 @@
         "label": "界面语言",
         "hint": "",
         "keywords": "language 语言 翻译 界面"
+      },
+      "about-help": {
+        "label": "帮助与支持",
+        "hint": "常见问题、设备检测和联系我们",
+        "keywords": "帮助 支持 问题 故障 反馈"
+      },
+      "about-tour": {
+        "label": "Cord 入门导览",
+        "hint": "主要按钮旁的简短提示",
+        "keywords": "导览 提示 入门 指南"
       }
     },
     "title": "设置",
@@ -272,7 +282,7 @@
     "about": {
       "checking": "正在查询最新版本…",
       "unknown": "无法获取 Windows 最新版本",
-      "webUpdates": "网页版随服务器一同更新",
+      "webUpdates": "在浏览器中，Cord 始终是最新版本",
       "latest": "Windows 最新版本：{{version}}",
       "desktop": "Windows 应用",
       "web": "此服务器的网页版",
@@ -283,7 +293,9 @@
       "update": "更新",
       "download": "下载 {{version}}",
       "author": "Cord 由 @nikgers 创建和开发",
-      "telegram": "作者的 Telegram"
+      "telegram": "作者的 Telegram",
+      "help": "打开",
+      "tour": "开始导览"
     },
     "accounts": {
       "save": "保存",
@@ -1159,7 +1171,7 @@
       "screenTitle": "控制通道延迟及屏幕的上行数据",
       "cameraTitle": "控制通道延迟及摄像头的上行数据",
       "controlTitle": "控制 WebSocket 的 RTT",
-      "httpTitle": "服务器 /api/v1/ping 的响应时间",
+      "httpTitle": "服务器响应时间",
       "offline": "无连接",
       "ms": "{{value}} 毫秒",
       "mbps": "{{value}} Mbps"
@@ -2083,25 +2095,18 @@
   },
   "connect": {
     "failure": {
-      "passwordInvalid": "服务器未接受该密码。请向提供地址的人确认。",
+      "passwordInvalid": "密码不正确。请向邀请你的人确认。",
       "passwordRequired": "此服务器受密码保护，请输入密码。",
       "tooMany": "连续尝试次数过多。请等待一分钟后重试。",
       "serverError": "服务器返回错误 {{status}}。可能仍在启动中。",
-      "notCord": "此地址上运行的不是 Cord：缺少所需的 API。",
-      "timeout": "服务器在八秒内没有响应。请检查地址和网络连接。",
-      "unreachable": "无法连接到服务器。请检查地址、证书和网络连接。"
-    },
-    "address": {
-      "empty": "请输入服务器地址",
-      "notUrl": "地址看起来不像链接。示例：https://meet.example.com",
-      "credentials": "请从地址中删除用户名和密码",
-      "https": "地址必须以 https:// 开头。HTTP 仅适用于 localhost",
-      "path": "只需填写服务器地址，名称后不要带路径"
+      "notCord": "此地址上的 Cord 没有响应。请稍后刷新页面。",
+      "timeout": "Cord 在八秒内没有响应。请检查网络后重试。",
+      "unreachable": "无法连接到 Cord。请检查网络后重试。"
     },
     "note": "连接到服务器",
     "searching": "正在查找服务器…",
     "password": "服务器密码",
-    "passwordPlaceholder": "请向提供地址的人索取",
+    "passwordPlaceholder": "向邀请你的人索取",
     "autoConnect": "启动时自动连接",
     "connecting": "正在连接…",
     "connect": "连接",
@@ -2129,8 +2134,8 @@
   },
   "favorites": {
     "errors": {
-      "orderUnsupported": "此服务器暂不支持调整收藏顺序。请更新服务器。",
-      "groupsUnsupported": "此服务器暂不支持收藏分组。请更新服务器。"
+      "orderUnsupported": "收藏的顺序暂未保存。请稍后重试。",
+      "groupsUnsupported": "收藏分组暂不可用。请稍后重试。"
     },
     "settings": {
       "open": "“{{title}}”的进入设置",
@@ -2285,8 +2290,9 @@
       "closeMenu": "关闭菜单",
       "menu": "菜单",
       "settings": "设置",
-      "privacy": "无需账号。运行在你的服务器上。",
-      "about": "关于"
+      "privacy": "无需账号。会议不会被录制。",
+      "about": "关于",
+      "help": "帮助"
     }
   },
   "prejoin": {
@@ -2465,7 +2471,7 @@
       "haveToken": "我已有访问令牌",
       "tokenLabel": "Yandex Music 令牌",
       "connectToken": "连接令牌",
-      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的开源 Yandex Music 连接器实现。"
+      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的 Yandex Music 连接器实现。"
     }
   },
   "integrations": {
@@ -2665,7 +2671,8 @@
       "outbound": "发送",
       "codecHidden": "未公开",
       "implementationHidden": "浏览器未公开"
-    }
+    },
+    "help": "没有解决？常见问题和联系我们："
   },
   "download": {
     "home": "Cord——返回首页",
@@ -2675,16 +2682,8 @@
     "unavailable": "Windows 版本暂时无法获取。请稍后再打开此页面。",
     "requirements": "Windows 10 build 19041 或更高版本，x64",
     "installer": "下载安装程序",
-    "installNote": "为当前用户安装——无需管理员权限。如果尚未安装 WebView2，会自动安装。",
+    "installNote": "为当前用户安装——无需管理员权限。Cord 会在启动时自行安装更新。",
     "portable": "免安装便携版，ZIP",
-    "connect": {
-      "title": "安装后连接到哪里",
-      "text": "Cord 不会自动连接任何地方——首次启动时会询问服务器地址。就是这个页面的地址，也就是你现在下载应用的地方：",
-      "address": "此服务器的地址",
-      "copied": "地址已复制",
-      "copy": "复制地址",
-      "note": "在 Cord 中：“添加第一个服务器” → 粘贴地址 → “添加”。名字和密码视服务器要求填写；可以保存多个服务器并在它们之间切换。"
-    },
     "warning": {
       "title": "Windows 会显示警告",
       "text": "安装程序没有使用发布者证书签名，所以 SmartScreen 会提示“Windows 已保护你的电脑”，并显示发布者未知。任何没有付费证书的新程序都会这样，并不是针对这个程序。",
@@ -2861,7 +2860,12 @@
     "VIEW_CLOSED": "观看已关闭",
     "WATCH_CLOSED": "一起看已结束",
     "WATCH_INVALID": "没有可以打开的内容",
-    "WATCH_LIVE": "直播不能暂停或回放"
+    "WATCH_LIVE": "直播不能暂停或回放",
+    "SUPPORT_BUSY": "当前请求太多。请稍后重试",
+    "SUPPORT_NOT_FOUND": "未找到该反馈",
+    "SUPPORT_OFF": "目前不接收反馈。请在 Telegram 上联系 Cord 的作者——链接就在旁边",
+    "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试，或在 Telegram 上联系 Cord 的作者",
+    "SUPPORT_TEXT": "请描述发生了什么——至少写一句话"
   },
   "activity": {
     "title": "活动",
@@ -2876,7 +2880,8 @@
       "meetings": "会议",
       "audit": "日志",
       "blocks": "封禁",
-      "server": "服务器"
+      "server": "服务器",
+      "support": "反馈"
     },
     "integrations": {
       "watch": "影院",
@@ -3012,6 +3017,139 @@
       "days_other": "{{count}} 天",
       "hours_other": "{{count}} 小时",
       "minutes_other": "{{count}} 分钟"
+    },
+    "support": {
+      "hint": "来自“帮助”的反馈。请通过对方留下的联系方式回复；状态只有你能看到。",
+      "empty": "暂无反馈。",
+      "status": "反馈 {{number}} 的状态",
+      "statuses": {
+        "NEW": "新反馈",
+        "OPEN": "处理中",
+        "DONE": "已解决"
+      },
+      "contact": "联系方式：{{contact}}",
+      "noContact": "未留下联系方式",
+      "diagnostics": "诊断信息",
+      "sent": "已发到 Telegram",
+      "waiting": "等待机器人",
+      "more": "更多"
+    }
+  },
+  "onboarding": {
+    "progress": "第 {{step}} 步，共 {{total}} 步",
+    "next": "下一步",
+    "done": "完成",
+    "skip": "跳过",
+    "gotIt": "知道了",
+    "tour": {
+      "create": {
+        "title": "新建会议",
+        "text": "一键创建会议——会议代码和邀请链接立即可用。"
+      },
+      "join": {
+        "title": "收到邀请了？",
+        "text": "在这里粘贴九位会议代码或邀请链接。"
+      },
+      "favorites": {
+        "title": "收藏",
+        "text": "在会议顶栏用星标收藏常去的会议——它们会汇集在这里。"
+      },
+      "settings": {
+        "title": "设置",
+        "text": "摄像头、麦克风、声音、主题和语言。在“关于”中可以重新开始导览。"
+      },
+      "help": {
+        "title": "帮助",
+        "text": "遇到问题？常见问题解答和联系方式都在这里。"
+      },
+      "menu": {
+        "title": "菜单",
+        "text": "收藏、设置和帮助都在这里。"
+      }
+    },
+    "meeting": {
+      "title": "你已加入会议",
+      "text": "麦克风、摄像头和屏幕——就是这些按钮。邀请他人请使用顶部的会议代码。"
+    },
+    "integrations": {
+      "title": "集成对所有人生效",
+      "text": "影院、音乐和游戏是共享的：开启后，会议中的每个人都能看到。"
+    }
+  },
+  "support": {
+    "title": "帮助",
+    "lead": "常见问题解答、摄像头和麦克风检测，以及联系我们。",
+    "back": "返回首页",
+    "home": "Cord——返回首页",
+    "open": "帮助",
+    "faq": {
+      "title": "常见问题",
+      "items": {
+        "camera": {
+          "q": "摄像头无法开启或显示黑屏",
+          "a": "允许访问摄像头：点击地址栏中的摄像头图标 →“允许”，然后刷新页面。\n关闭占用摄像头的应用：Zoom、Teams、OBS 或另一个有会议的标签页。\n在“设置 → 语音和视频”中选择正确的摄像头——带外接摄像头的笔记本有两个。\n在 Windows 应用中检查“设置 → 隐私 → 摄像头”：必须允许应用访问摄像头。"
+        },
+        "microphone": {
+          "q": "别人听不到我",
+          "a": "看看底部的麦克风按钮：带斜线表示麦克风已关闭。\n在“设置 → 语音和视频”中选择麦克风并说几句话——音量条应该会跳动。\n浏览器可能阻止了访问：点击地址栏中的图标 →“允许”。\n麦克风音量较小时，过强的降噪会切掉语音——在同一设置中换一种试试。"
+        },
+        "silent": {
+          "q": "我听不到任何人",
+          "a": "如果舞台上有“开启会议声音”按钮，请点击：浏览器在页面首次点击前不会播放声音。\n检查“设置和操作”——整个会议的声音可能被关闭了。\n单个人的音量在其右键菜单中，整体音量在“设置 → 语音和视频”中。\n在那里也选择耳机或扬声器并进行测试。"
+        },
+        "screen": {
+          "q": "无法共享屏幕",
+          "a": "点击底部的屏幕按钮，选择一个窗口、标签页或整个屏幕。\n在 macOS 上允许屏幕录制：“系统设置 → 隐私与安全性 → 屏幕录制”，然后重启浏览器。\n要让他人听到声音，请共享标签页或整个屏幕，并在选择窗口中勾选音频。\n手机浏览器不一定能共享屏幕——用电脑更方便。"
+        },
+        "smartscreen": {
+          "q": "Windows 提示“Windows 已保护你的电脑”",
+          "a": "这是 SmartScreen 警告：Cord 还没有付费的发布者证书，Windows 对任何新程序都会这样提示。\n点击“更多信息”，再点击“仍要运行”。只需在安装时操作一次。"
+        },
+        "network": {
+          "q": "连接中断，视频出现马赛克",
+          "a": "暂停同一网络上的下载和直播；使用网线或靠近路由器的 Wi‑Fi 会稳定得多。\nVPN 和公司网络有时会妨碍直连——不用它们，声音和视频的延迟会更低。\n在会议中打开“设置和操作 → 诊断”：可以看到线路、丢包和延迟——可以附在反馈中。"
+        }
+      }
+    },
+    "check": {
+      "title": "检测摄像头和麦克风",
+      "text": "检测只在本设备上进行——不会向会议发送任何内容。",
+      "start": "开始检测",
+      "diagnostics": "打开诊断",
+      "diagnosticsText": "到服务器的线路、丢包、延迟，以及本次会议中每条音视频轨道的质量。"
+    },
+    "form": {
+      "title": "联系我们",
+      "intro": "没有找到答案？请描述发生了什么。我们会阅读每条反馈，并通过你留下的联系方式回复。",
+      "topic": "主题",
+      "topics": {
+        "camera": "摄像头和麦克风",
+        "sound": "声音",
+        "screen": "屏幕共享",
+        "network": "连接和质量",
+        "windows": "Windows 应用",
+        "idea": "想法或建议",
+        "other": "其他"
+      },
+      "message": "发生了什么",
+      "messagePlaceholder": "例如：会议中摄像头打不开，但预览里能正常看到",
+      "contact": "如何联系你",
+      "contactPlaceholder": "Telegram、邮箱或电话",
+      "contactHint": "选填。没有联系方式我们无法回复，但会阅读你的反馈。",
+      "consent": "附上诊断信息",
+      "consentHint": "Cord 版本、浏览器、系统和最近的错误——不含姓名、会议和消息。",
+      "preview": "将发送的内容",
+      "send": "发送",
+      "sending": "正在发送…",
+      "tooShort": "请描述发生了什么——至少写一句话",
+      "sent": "反馈 {{number}} 已发送",
+      "sentContact": "我们会通过你留下的联系方式回复。",
+      "sentNoContact": "你没有留下联系方式——我们无法回复，但会阅读你的反馈。",
+      "again": "再写一条"
+    },
+    "author": {
+      "text": "也可以在 Telegram 上联系 Cord 的作者",
+      "link": "Telegram 上的 @nikgers"
     }
   }
 }

@@ -135,7 +135,8 @@ public class ApiController {
   */
 
   /**
-   * Задача «не бот» на действие {@code create} или {@code code} (E11-B, {@link ProofOfWork}).
+   * Задача «не бот» на действие {@code create}, {@code code} (E11-B, {@link ProofOfWork}) или
+   * {@code support} — форма «Помощи» (E13).
    *
    * <p>Браузер просит её, как только открыта форма, и решает в фоне — к нажатию ответ готов. Задача
    * дорожает вчетверо, если адрес уже выбрал половину своего предела, и ввосьмеро, пока включён
@@ -144,7 +145,7 @@ public class ApiController {
   @GetMapping("/proof")
   public ResponseEntity<ProofOfWork.Challenge> proof(
       @RequestParam("for") String action, HttpServletRequest http) {
-    if (!action.equals("create") && !action.equals("code"))
+    if (!action.equals("create") && !action.equals("code") && !action.equals("support"))
       throw new IllegalArgumentException("Unknown proof action");
     var abuse = config.abuse();
     if (abuse.humanCheck() == StreamProperties.Abuse.HumanCheck.OFF)
@@ -152,11 +153,15 @@ public class ApiController {
     var key = address.of(http);
     limits.check("proof-issue:" + key, 60);
     var pressure =
-        action.equals("create")
-            ? limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
-                >= abuse.perIp().roomsCreated().count()
-            : limits.count("code-miss:" + key, abuse.perIp().codeMisses()) * 2
-                >= abuse.perIp().codeMisses().count();
+        switch (action) {
+          case "create" ->
+              limits.count("rooms:ip:" + key, abuse.perIp().roomsCreated()) * 2
+                  >= abuse.perIp().roomsCreated().count();
+          case "code" ->
+              limits.count("code-miss:" + key, abuse.perIp().codeMisses()) * 2
+                  >= abuse.perIp().codeMisses().count();
+          default -> false;
+        };
     long cost = (long) abuse.proofCost() * (rooms.shielded() ? 8 : 1) * (pressure ? 4 : 1);
     return ResponseEntity.ok(proofs.issue(action, key, cost));
   }

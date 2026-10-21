@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "About",
-        "keywords": "version cord"
+        "keywords": "version cord help support tour"
       }
     },
     "anchors": {
@@ -247,6 +247,16 @@
         "label": "Interface language",
         "hint": "",
         "keywords": "language translation interface"
+      },
+      "about-help": {
+        "label": "Help and support",
+        "hint": "Common questions, device check and contacting us",
+        "keywords": "help support question problem request"
+      },
+      "about-tour": {
+        "label": "Cord tour",
+        "hint": "Short tips next to the main buttons",
+        "keywords": "tour tips onboarding guide"
       }
     },
     "title": "Settings",
@@ -272,7 +282,7 @@
     "about": {
       "checking": "Checking for the latest version…",
       "unknown": "Couldn't get the latest Windows version",
-      "webUpdates": "The web app updates together with the server",
+      "webUpdates": "In the browser, Cord is always the latest version",
       "latest": "Latest Windows version: {{version}}",
       "desktop": "Windows app",
       "web": "This server's web app",
@@ -283,7 +293,9 @@
       "update": "Update",
       "download": "Download {{version}}",
       "author": "Cord is made by @nikgers",
-      "telegram": "Author's Telegram"
+      "telegram": "Author's Telegram",
+      "help": "Open",
+      "tour": "Take the tour"
     },
     "accounts": {
       "save": "Save",
@@ -1173,7 +1185,7 @@
       "screenTitle": "Control channel latency and what your screen sends to the network",
       "cameraTitle": "Control channel latency and what your camera sends to the network",
       "controlTitle": "Control WebSocket RTT",
-      "httpTitle": "Server response time for /api/v1/ping",
+      "httpTitle": "Server response time",
       "offline": "Offline",
       "ms": "{{value}} ms",
       "mbps": "{{value}} Mbps"
@@ -2108,25 +2120,18 @@
   },
   "connect": {
     "failure": {
-      "passwordInvalid": "The server didn't accept the password. Check it with whoever gave you the address.",
+      "passwordInvalid": "That password didn’t work. Check it with the person who invited you.",
       "passwordRequired": "This server is password-protected. Enter the password.",
       "tooMany": "Too many attempts in a row. Wait a minute and try again.",
       "serverError": "The server responded with error {{status}}. It may still be starting up.",
-      "notCord": "This address isn't a Cord server: the required API isn't there.",
-      "timeout": "The server didn't respond within eight seconds. Check the address and your connection.",
-      "unreachable": "Couldn't reach the server. Check the address, certificate, and connection."
-    },
-    "address": {
-      "empty": "Enter the server address",
-      "notUrl": "That doesn't look like a link. Example: https://meet.example.com",
-      "credentials": "Remove the username and password from the address",
-      "https": "The address must start with https://. HTTP is only allowed for localhost",
-      "path": "Enter just the server address, without a path after the name"
+      "notCord": "Cord isn’t responding at this address. Reload the page a bit later.",
+      "timeout": "Cord didn’t respond within eight seconds. Check your internet connection and try again.",
+      "unreachable": "Couldn’t reach Cord. Check your internet connection and try again."
     },
     "note": "Connecting to a server",
     "searching": "Looking for the server…",
     "password": "Server password",
-    "passwordPlaceholder": "Ask whoever gave you the address",
+    "passwordPlaceholder": "Ask the person who invited you",
     "autoConnect": "Connect automatically on startup",
     "connecting": "Connecting…",
     "connect": "Connect",
@@ -2154,8 +2159,8 @@
   },
   "favorites": {
     "errors": {
-      "orderUnsupported": "This server doesn't support reordering Favorites yet. Update the server.",
-      "groupsUnsupported": "This server doesn't support Favorites groups yet. Update the server."
+      "orderUnsupported": "The favorites order wasn’t saved yet. Try again a bit later.",
+      "groupsUnsupported": "Favorite groups aren’t available yet. Try again a bit later."
     },
     "settings": {
       "open": "Joining settings for “{{title}}”",
@@ -2311,8 +2316,9 @@
       "closeMenu": "Close menu",
       "menu": "Menu",
       "settings": "Settings",
-      "privacy": "No account. On your server.",
-      "about": "About"
+      "privacy": "No account. Meetings aren’t recorded.",
+      "about": "About",
+      "help": "Help"
     }
   },
   "prejoin": {
@@ -2491,7 +2497,7 @@
       "haveToken": "I already have an access token",
       "tokenLabel": "Yandex Music token",
       "connectToken": "Connect token",
-      "note": "You enter your password on the Yandex page. Full tracks require an account with a subscription. Works through an unofficial open-source Yandex Music connector."
+      "note": "You enter your password on the Yandex page. Full tracks require an account with a subscription. Works through an unofficial Yandex Music connector."
     }
   },
   "integrations": {
@@ -2692,7 +2698,8 @@
       "outbound": "Sending",
       "codecHidden": "Not disclosed",
       "implementationHidden": "Not disclosed by the browser"
-    }
+    },
+    "help": "Didn’t help? Common questions and contacting us:"
   },
   "download": {
     "home": "Cord — home",
@@ -2702,16 +2709,8 @@
     "unavailable": "The Windows build isn't available right now. Try opening this page a bit later.",
     "requirements": "Windows 10 build 19041 or later, x64",
     "installer": "Download installer",
-    "installNote": "Installs for the current user — no administrator rights needed. WebView2 installs itself if it's not there yet.",
+    "installNote": "Installs for the current user — no administrator rights needed. Cord installs its updates itself at startup.",
     "portable": "Portable version without installation, ZIP",
-    "connect": {
-      "title": "Where to connect after installing",
-      "text": "Cord doesn't connect anywhere on its own — on first launch it asks for a server address. It's the address of this very page, the same one you're downloading the app from:",
-      "address": "This server's address",
-      "copied": "Address copied",
-      "copy": "Copy address",
-      "note": "In Cord: “Add your first server” → paste the address → “Add”. A name and password only if the server asks for them; you can keep several servers and switch between them."
-    },
     "warning": {
       "title": "Windows will show a warning",
       "text": "The installer isn't signed with a publisher certificate, so SmartScreen will say “Windows protected your PC” and call the publisher unknown. It says this about any new program without a paid certificate, not about this one in particular.",
@@ -2888,7 +2887,12 @@
     "VIEW_CLOSED": "Viewing is closed",
     "WATCH_CLOSED": "Watching together has ended",
     "WATCH_INVALID": "Nothing to open",
-    "WATCH_LIVE": "A live stream can't be paused or rewound"
+    "WATCH_LIVE": "A live stream can't be paused or rewound",
+    "SUPPORT_BUSY": "There are a lot of requests right now. Try again a bit later",
+    "SUPPORT_NOT_FOUND": "Request not found",
+    "SUPPORT_OFF": "Requests aren’t being accepted right now. Message the author of Cord on Telegram — the link is next to this",
+    "SUPPORT_RATE": "Several requests have already come from this address. Try again in an hour or message the author of Cord on Telegram",
+    "SUPPORT_TEXT": "Describe what happened — at least one sentence"
   },
   "activity": {
     "title": "Activity",
@@ -2903,7 +2907,8 @@
       "meetings": "Meetings",
       "audit": "Log",
       "blocks": "Blocks",
-      "server": "Server"
+      "server": "Server",
+      "support": "Requests"
     },
     "integrations": {
       "watch": "Cinema",
@@ -3046,6 +3051,139 @@
       "hours_other": "{{count}} hours",
       "minutes_one": "{{count}} minute",
       "minutes_other": "{{count}} minutes"
+    },
+    "support": {
+      "hint": "Requests from Help. Reply to the contact the person left; only you see the status.",
+      "empty": "No requests.",
+      "status": "Status of request {{number}}",
+      "statuses": {
+        "NEW": "New",
+        "OPEN": "In progress",
+        "DONE": "Resolved"
+      },
+      "contact": "Contact: {{contact}}",
+      "noContact": "No contact left",
+      "diagnostics": "Diagnostics",
+      "sent": "On Telegram",
+      "waiting": "Waiting for the bot",
+      "more": "More"
+    }
+  },
+  "onboarding": {
+    "progress": "{{step}} of {{total}}",
+    "next": "Next",
+    "done": "Done",
+    "skip": "Skip",
+    "gotIt": "Got it",
+    "tour": {
+      "create": {
+        "title": "New meeting",
+        "text": "Create a meeting in one click — you get the code and the invite link right away."
+      },
+      "join": {
+        "title": "Were you invited?",
+        "text": "Paste the nine-digit code or the invite link here."
+      },
+      "favorites": {
+        "title": "Favorites",
+        "text": "Star the meetings you come back to in the meeting header — they’ll gather here."
+      },
+      "settings": {
+        "title": "Settings",
+        "text": "Camera, microphone, sound, theme and language. In “About” you can take this tour again."
+      },
+      "help": {
+        "title": "Help",
+        "text": "Something not working? Answers to common questions and a way to reach us are here."
+      },
+      "menu": {
+        "title": "Menu",
+        "text": "Favorites, settings and help are here."
+      }
+    },
+    "meeting": {
+      "title": "You’re in the meeting",
+      "text": "Microphone, camera and screen — these buttons. To invite people, use the meeting code at the top."
+    },
+    "integrations": {
+      "title": "Integrations are for everyone",
+      "text": "Cinema, music and games are shared: turn one on and it appears for everyone in the meeting."
+    }
+  },
+  "support": {
+    "title": "Help",
+    "lead": "Answers to common questions, a camera and microphone check, and a way to reach us.",
+    "back": "Home",
+    "home": "Cord — home",
+    "open": "Help",
+    "faq": {
+      "title": "Common questions",
+      "items": {
+        "camera": {
+          "q": "The camera won’t turn on or shows a black screen",
+          "a": "Allow camera access: the camera icon in the address bar → “Allow”, then reload the page.\nClose apps that hold the camera: Zoom, Teams, OBS or another tab with a meeting.\nIn “Settings → Voice and video”, pick the right camera — a laptop with an external camera has two.\nIn the Windows app, check “Settings → Privacy → Camera”: camera access for apps must be on."
+        },
+        "microphone": {
+          "q": "People can’t hear me",
+          "a": "Look at the microphone button at the bottom: crossed out means the microphone is off.\nIn “Settings → Voice and video”, pick a microphone and say something — the level bar should move.\nThe browser may have blocked access: the icon in the address bar → “Allow”.\nOn a quiet microphone, strict noise suppression cuts speech — try another option in the same settings."
+        },
+        "silent": {
+          "q": "I can’t hear anyone",
+          "a": "If the stage shows a “Turn on meeting sound” button, click it: the browser plays no sound until the first click on the page.\nCheck “Settings and actions” — the sound of the whole meeting may be turned off.\nOne person’s volume is in the right-click menu on them; the overall volume is in “Settings → Voice and video”.\nThere, also pick your headphones or speakers and run the test."
+        },
+        "screen": {
+          "q": "I can’t share my screen",
+          "a": "Click the screen button at the bottom and pick a window, a tab or the entire screen.\nOn macOS, allow screen recording: “System Settings → Privacy & Security → Screen Recording”, then restart the browser.\nFor others to hear the sound, share a tab or the entire screen and tick the audio option in the picker.\nPhone browsers can’t always share the screen — a computer works better."
+        },
+        "smartscreen": {
+          "q": "Windows says “Windows protected your PC”",
+          "a": "This is the SmartScreen warning: Cord doesn’t have a paid publisher certificate yet, and Windows says this about any new program.\nClick “More info”, then “Run anyway”. You only need to do this once, during installation."
+        },
+        "network": {
+          "q": "The connection drops, video looks blocky",
+          "a": "Pause downloads and streams on the same connection; a cable or Wi‑Fi close to the router is noticeably steadier.\nVPNs and corporate networks sometimes get in the way of a direct connection — without them, sound and video lag less.\nIn the meeting, open “Settings and actions → Diagnostics”: it shows the path, loss and delay — you can attach them to your request."
+        }
+      }
+    },
+    "check": {
+      "title": "Check camera and microphone",
+      "text": "The check runs on this device only — nothing goes to the meeting.",
+      "start": "Start the check",
+      "diagnostics": "Open diagnostics",
+      "diagnosticsText": "The path to the server, loss, delay and the quality of every track in this meeting."
+    },
+    "form": {
+      "title": "Contact us",
+      "intro": "Didn’t find an answer? Describe what happened. We read every request and reply to the contact you leave, if you leave one.",
+      "topic": "Topic",
+      "topics": {
+        "camera": "Camera and microphone",
+        "sound": "Sound",
+        "screen": "Screen share",
+        "network": "Connection and quality",
+        "windows": "Windows app",
+        "idea": "Idea or suggestion",
+        "other": "Other"
+      },
+      "message": "What happened",
+      "messagePlaceholder": "For example: in the meeting the camera won’t turn on, but the preview shows it fine",
+      "contact": "How to reach you",
+      "contactPlaceholder": "Telegram, email or phone",
+      "contactHint": "Optional. Without a contact we can’t reply, but we’ll read your request.",
+      "consent": "Attach diagnostics",
+      "consentHint": "Cord version, browser, system and recent errors — no name, meetings or messages.",
+      "preview": "What will be sent",
+      "send": "Send",
+      "sending": "Sending…",
+      "tooShort": "Describe what happened — at least one sentence",
+      "sent": "Request {{number}} sent",
+      "sentContact": "We’ll reply to the contact you left.",
+      "sentNoContact": "You didn’t leave a contact — we can’t reply, but we’ll read your request.",
+      "again": "Write another"
+    },
+    "author": {
+      "text": "You can also message the author of Cord on Telegram",
+      "link": "@nikgers on Telegram"
     }
   }
 }

@@ -12,6 +12,7 @@ import { Logo } from '../brand/Logo';
 import { DownloadLink, useMediaQuery } from '../primitives';
 import { ActiveMeetingNotice, useActiveMeetings } from './ActiveMeetingNotice';
 import { FavoritesNav } from './FavoritesNav';
+import { HelpButton } from '../support/HelpButton';
 import './home.css';
 
 /**
@@ -65,6 +66,7 @@ export function HomeShell({
         <button
           type="button"
           className="home-nav__link"
+          data-tour="settings"
           onClick={() => {
             setDrawer(false);
             onSettings();
@@ -73,6 +75,8 @@ export function HomeShell({
           <Settings2 size={18} aria-hidden="true" />
           {t(($) => $.home.shell.settings)}
         </button>
+        {/* «Помощь» — рядом с настройками, как «?» в шапке Discord (T36). */}
+        <HelpButton look="nav" tour="help" />
         <DownloadLink className="home-nav__link" />
       </div>
     </>
@@ -102,11 +106,13 @@ export function HomeShell({
               <IconButton
                 label={t(($) => $.home.shell.openMenu)}
                 aria-expanded={drawer}
+                data-tour="menu"
                 onClick={() => setDrawer(true)}
               >
                 <MenuIcon size={20} />
               </IconButton>
               <Logo />
+              <HelpButton className="home-bar__help" />
             </header>
             <BaseDialog.Root open={drawer} onOpenChange={setDrawer}>
               <BaseDialog.Portal>

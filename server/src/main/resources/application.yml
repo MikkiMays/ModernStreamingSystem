@@ -118,6 +118,17 @@ stream:
     # Файлы, которые могут запустить программу (exe, msi, bat, js, apk, архивы…): `warn` — пометка и
     # предупреждение при скачивании, `block` — не принимать (415 FILE_TYPE_BLOCKED), `allow` — как все.
     executable-attachments: ${CHAT_EXECUTABLE_ATTACHMENTS:warn}
+  # Обращения в поддержку (E13): форма на странице «Помощь» и в окне «?». Обращение хранится в базе,
+  # бот доносит его в Telegram владельца Cord: `SUPPORT_TELEGRAM_CHAT_ID`, без него — чат оповещений
+  # мониторинга (`ALERT_TELEGRAM_CHAT_ID`, E10); нет обоих — обращения только в базе.
+  support:
+    enabled: ${SUPPORT_ENABLED:true}
+    notify-telegram-chat: ${SUPPORT_TELEGRAM_CHAT_ID:${ALERT_TELEGRAM_CHAT_ID:}}
+    # С одного адреса и со всех вместе — словами, как пределы антибота.
+    per-ip: ${SUPPORT_PER_IP:5 per hour}
+    per-server: ${SUPPORT_PER_SERVER:60 per hour}
+    # В обращении может быть контакт человека — дольше нужного его не держим.
+    retention: ${SUPPORT_RETENTION:6 months}
   # Антибот (E11, `docs/abuse-model.md` §4). Пределы — словами: `10 per hour`, `20 per minute`,
   # `2 per 10 minutes`, `off`. Ключ адреса — IPv4 целиком или сеть /64 для IPv6. Числа — для машины
   # на 6 vCPU; пересчитываются по метрикам E10 и замеру ёмкости E05.
