@@ -1270,6 +1270,10 @@ def _candidates(sight: Sight) -> list[Seen]:
     упорядочил плеер страниц), DASH (наш плеер соберёт его, если он «по требованию», — `mpd.py`), готовый
     файл того вида, что играет браузер. По одному каждого вида: остальные того же вида — варианты первого
     или реклама.
+
+    Реклама, которую узнал плеер страниц (`Seen.ad`: хост или рамка рекламной сети, список из её сегментов),
+    не пробуется вовсе — даже если кроме неё ничего нет: показать комнате преролл вместо фильма хуже, чем
+    честное «видео не нашлось» (E07).
     """
     found: list[Seen] = []
     for kind in ("hls", "dash", "file"):
@@ -1277,7 +1281,9 @@ def _candidates(sight: Sight) -> list[Seen]:
             (
                 seen
                 for seen in sight.streams
-                if seen.kind == kind and (kind != "file" or seen.ext in PLAYABLE + AUDIO_FILES)
+                if seen.kind == kind
+                and not seen.ad
+                and (kind != "file" or seen.ext in PLAYABLE + AUDIO_FILES)
             ),
             None,
         )

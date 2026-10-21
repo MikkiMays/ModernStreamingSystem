@@ -157,6 +157,8 @@ class Seen:
     referer: str = ""
     origin: str = ""
     agent: str = ""
+    # Плеер страниц счёл поток рекламой (преролл, E07): хост или рамка рекламной сети, список из её сегментов.
+    ad: bool = False
 
 
 @dataclass(frozen=True)
@@ -234,6 +236,7 @@ def _streams(value: Any) -> tuple[Seen, ...]:
                 master=master if isinstance(master, bool) else None,
                 heights=_heights(item.get("heights")),
                 ext=item["ext"] if item.get("ext") in EXTENSIONS else "",
+                ad=item.get("ad") is True,
                 **_headers(headers.get("referer"), headers.get("origin"), headers.get("user-agent")),
             )
         )

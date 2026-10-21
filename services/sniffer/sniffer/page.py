@@ -471,9 +471,11 @@ class Watch:
                     return
                 master: bool | None = None
                 heights: tuple[int, ...] = ()
+                seconds: float | None = None
+                advert = False
                 if kind == "hls":
                     async with self.bodies:
-                        master, heights = await self._playlist(response)
+                        master, heights, seconds, advert = await self._playlist(response)
                 ext = capture.file_extension(url, kind_header) if kind == "file" else ""
                 fresh = self.catch.stream(
                     url,
@@ -484,6 +486,8 @@ class Watch:
                     master=master,
                     heights=heights,
                     ext=ext,
+                    seconds=seconds,
+                    advert=advert,
                 )
             finally:
                 self.reading.discard(url)
@@ -499,17 +503,23 @@ class Watch:
             return
 
     @staticmethod
-    async def _playlist(response: Response) -> tuple[bool | None, tuple[int, ...]]:
-        """Мастер ли это и его ступени — только у маленького плейлиста с объявленной длиной."""
+    async def _playlist(response: Response) -> tuple[bool | None, tuple[int, ...], float | None, bool]:
+        """
+        Мастер ли это, его ступени, длина законченного списка и реклама ли он целиком (преролл, E07) —
+        только у маленького плейлиста с объявленной длиной.
+        """
         length = response.headers.get("content-length", "")
         if not length.isdigit() or int(length) > PLAYLIST_BYTES:
-            return None, ()
+            return None, (), None, False
         try:
             async with asyncio.timeout(BODY_WAIT):
                 body = await response.body()
         except (PlaywrightError, TimeoutError):
-            return None, ()
-        return capture.playlist_facts(body[:PLAYLIST_BYTES].decode("utf-8", errors="replace"))
+            return None, (), None, False
+        text = body[:PLAYLIST_BYTES].decode("utf-8", errors="replace")
+        master, heights = capture.playlist_facts(text)
+        seconds, advert = capture.advert_facts(text, response.url)
+        return master, heights, seconds, advert
 
     def _cookie_due(self, url: str) -> bool:
         """Спросить ли cookie этого хоста снова: новый хост — да, знакомый — не чаще раза в секунду."""
@@ -645,12 +655,17 @@ class Watch:
         title = capture.title_of(facts.get("title"))
         poster = str(facts.get("poster") or "")
         shown = [str(item.get("src") or "") for item in playing]
-        streams = self.catch.ranked(shown)
-        durations = [
-            float(item["duration"])
+        lengths = {
+            str(item.get("src") or ""): float(item["duration"])
             for item in playing
             if isinstance(item.get("duration"), (int, float)) and 0 < float(item["duration"]) < 7 * 86400
-        ]
+        }
+        streams = self.catch.ranked(shown, lengths)
+        # Длина — того `<video>`, где играет выбранный поток, а без него — самого большого: в нём мог
+        # играть преролл, и его полминуты не должны стать длиной фильма.
+        durations = [lengths[src] for src in shown if src in lengths]
+        if streams and streams[0].url in lengths:
+            durations.insert(0, lengths[streams[0].url])
         return {
             "page": page,
             "status": status,
