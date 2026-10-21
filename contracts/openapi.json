@@ -1427,6 +1427,49 @@
         ],
         "type": "object"
       },
+      "Entry": {
+        "properties": {
+          "contact": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "diagnostics": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "notifiedAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "number": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "NEW",
+              "OPEN",
+              "DONE"
+            ],
+            "type": "string"
+          },
+          "statusAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Event": {
         "properties": {
           "eventId": {
@@ -2458,6 +2501,20 @@
         ],
         "type": "object"
       },
+      "Outgoing": {
+        "properties": {
+          "chat": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Page": {
         "properties": {
           "items": {
@@ -2716,6 +2773,17 @@
         ],
         "type": "object"
       },
+      "Receipt": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Rejoin": {
         "properties": {
           "commandId": {
@@ -2760,6 +2828,37 @@
           "events",
           "reset",
           "snapshot"
+        ],
+        "type": "object"
+      },
+      "Request": {
+        "properties": {
+          "consent": {
+            "type": "boolean"
+          },
+          "contact": {
+            "maxLength": 400,
+            "minLength": 0,
+            "type": "string"
+          },
+          "diagnostics": {
+            "maxLength": 8000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 6000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "topic": {
+            "pattern": "[a-z]{2,16}",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "topic"
         ],
         "type": "object"
       },
@@ -3240,6 +3339,22 @@
           "serverTime",
           "title",
           "watch"
+        ],
+        "type": "object"
+      },
+      "StatusChange": {
+        "properties": {
+          "status": {
+            "enum": [
+              "NEW",
+              "OPEN",
+              "DONE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
         ],
         "type": "object"
       },
@@ -4080,6 +4195,90 @@
         ]
       }
     },
+    "/api/v1/admin/support": {
+      "get": {
+        "operationId": "tickets",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Entry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/support/{id}/status": {
+      "put": {
+        "operationId": "status",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
+        ]
+      }
+    },
     "/api/v1/attachments/{id}": {
       "delete": {
         "operationId": "cancel",
@@ -4169,6 +4368,27 @@
         },
         "tags": [
           "api-controller"
+        ]
+      }
+    },
+    "/api/v1/catalog": {
+      "get": {
+        "operationId": "catalog",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "catalog-controller"
         ]
       }
     },
@@ -5314,6 +5534,36 @@
         },
         "tags": [
           "session-controller"
+        ]
+      }
+    },
+    "/api/v1/support": {
+      "post": {
+        "operationId": "submit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "support-controller"
         ]
       }
     }
