@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
-import { defaultMicHotkey, hotkeyNotes, type Hotkey } from '../../core/hotkeys';
-import { desktopHotkeyStatus, notifyDesktop, isDesktop } from '../../core/desktop';
+import { defaultMicHotkey, hotkeyNotes, type Hotkey, type MicHotkeyMode } from '../../core/hotkeys';
+import { desktopHotkeyStatus, hasFeature, notifyDesktop, isDesktop } from '../../core/desktop';
 import { useStore } from '../primitives';
-import { SettingGroup } from './Row';
+import { Switch } from '../kit';
+import { SettingGroup, SettingRow } from './Row';
 import { HotkeyField, Keys } from './HotkeyField';
-import { rowText } from './sections';
+import { ROWS, rowAvailable, rowText } from './sections';
 
 /** Пробел называется словом, остальные клавиши — своим знаком. */
 const SPACE = 'Space';
@@ -54,21 +55,32 @@ const OTHER_KEYS: { id: 'cinema' | 'poker' | 'home'; keys: [string[], OtherActio
  * «Горячие клавиши» (T27). Модель сочетаний общая для веба и приложения: браузер слушает их, пока
  * вкладка активна, оболочка Windows регистрирует то же сочетание в системе. Что помешает
  * сочетанию, видно сразу при назначении (`hotkeyNotes`), а не когда оно молча не сработало.
+ *
+ * С Raw Input оболочки (флаг `ptt`, `cord-native`, E01-B3) — «Нажми и говори» (микрофон включён,
+ * пока сочетание удерживается) и запись кнопок мыши Mouse3–Mouse5; без флага всё как раньше.
  */
 export function HotkeysSection({
   value,
   change,
   overlay = null,
+  mode = 'toggle',
+  changeMode = () => {},
 }: {
   value: Hotkey | null;
   change: (key: Hotkey | null) => void;
   /** Сочетание оверлея (клиент на Electron): то же назначить микрофону нельзя. */
   overlay?: Hotkey | null;
+  /** Как работает сочетание микрофона: переключение или удержание. */
+  mode?: MicHotkeyMode;
+  changeMode?: (mode: MicHotkeyMode) => void;
 }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
-  const place = desktop ? 'desktop' : 'browser';
+  const native = desktop && hasFeature('ptt');
+  const place = native ? 'native' : desktop ? 'desktop' : 'browser';
   const nativeStatus = useStore(desktopHotkeyStatus);
+  const ptt = rowAvailable(ROWS['hotkey-ptt'], desktop ? 'desktop' : 'browser', hasFeature);
+  const hold = ptt && mode === 'hold';
   return (
     <>
       <p className="setting-banner" role="note">
@@ -98,7 +110,18 @@ export function HotkeysSection({
             start: () => notifyDesktop('hotkey.configure', { hotkey: null, paused: true }),
             end: (current) => notifyDesktop('hotkey.configure', { hotkey: current, paused: false }),
           }}
+          mouse={native}
+          hint={hold ? t(($) => $.settings.hotkeys.holdHint) : undefined}
         />
+        {ptt && (
+          <SettingRow id="hotkey-ptt">
+            <Switch
+              checked={mode === 'hold'}
+              ariaLabel={rowText(t, 'hotkey-ptt').label}
+              onCheckedChange={(on) => changeMode(on ? 'hold' : 'toggle')}
+            />
+          </SettingRow>
+        )}
       </SettingGroup>
       <SettingGroup title={rowText(t, 'hotkey-other').label} id="hotkey-other" defaultOpen={false}>
         {OTHER_KEYS.map((group) => (

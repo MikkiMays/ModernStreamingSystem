@@ -1,5 +1,5 @@
 import { Store } from './store';
-import type { Hotkey } from './hotkeys';
+import type { Hotkey, MicHotkeyMode } from './hotkeys';
 
 /**
  * Мост с оболочкой Windows.
@@ -78,23 +78,41 @@ export const desktopOverlayHotkeyStatus = new Store<string | null>(null);
  * (`hotkeys.configure` заменяет его целиком), поэтому адаптер помнит оба: экран встречи называет
  * оба, настройки — то, что меняют, и «паузу» на время записи нового сочетания — чтобы нажатие
  * самого сочетания записалось, а не включило микрофон или оверлей.
+ *
+ * Микрофон в режиме «нажми и говори» (`mode: 'hold'`) уходит действием `ptt` с удержанием — только
+ * при флаге `ptt` (Raw Input в `cord-native`): `globalShortcut` фазы «отпустил» не знает, и
+ * удержание без неё оставило бы микрофон включённым. Без флага — прежнее переключение.
  */
-const desktopHotkeys: { mic: Hotkey | null; overlay: Hotkey | null; paused: boolean } = {
+const desktopHotkeys: {
+  mic: Hotkey | null;
+  overlay: Hotkey | null;
+  paused: boolean;
+  micMode: MicHotkeyMode;
+} = {
   mic: null,
   overlay: null,
   paused: false,
+  micMode: 'toggle',
 };
 
 function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   if ('hotkey' in data) desktopHotkeys.mic = (data.hotkey as Hotkey | null | undefined) ?? null;
   if ('overlay' in data) desktopHotkeys.overlay = (data.overlay as Hotkey | null | undefined) ?? null;
   if ('paused' in data) desktopHotkeys.paused = data.paused === true;
-  const { mic, overlay, paused } = desktopHotkeys;
+  if ('mode' in data) desktopHotkeys.micMode = data.mode === 'hold' ? 'hold' : 'toggle';
+  const { mic, overlay, paused, micMode } = desktopHotkeys;
+  const hold = micMode === 'hold' && api.features.includes('ptt');
   api.send('hotkeys.configure', {
     bindings: paused
       ? []
       : [
-          ...(mic ? [{ action: 'mic.toggle', mode: 'toggle', key: mic }] : []),
+          ...(mic
+            ? [
+                hold
+                  ? { action: 'ptt', mode: 'hold', key: mic }
+                  : { action: 'mic.toggle', mode: 'toggle', key: mic },
+              ]
+            : []),
           ...(overlay ? [{ action: 'overlay.toggle', mode: 'toggle', key: overlay }] : []),
         ],
   });
@@ -133,6 +151,7 @@ export interface DesktopCommand {
     | 'close-request'
     | 'theme.changed'
     | 'microphone.toggle'
+    | 'microphone.hold'
     | 'hotkey.status'
     | 'session.token'
     | 'settings.open'
@@ -140,6 +159,8 @@ export interface DesktopCommand {
     | 'update.status'
     | 'deeplink'
     | 'thumbar';
+  /** «Нажми и говори» (`microphone.hold`, только v2 с флагом `ptt`): нажали или отпустили. */
+  phase?: 'down' | 'up';
   showPing?: boolean;
   notificationSounds?: boolean;
   page?: 'home' | 'create' | 'favorite';
@@ -246,9 +267,12 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
     const stops = [
       api.on('hotkey', (data) => {
         if (data.action === 'mic.toggle' && data.phase !== 'up') relay({ type: 'microphone.toggle' });
+        if (data.action === 'ptt' && (data.phase === 'down' || data.phase === 'up'))
+          relay({ type: 'microphone.hold', phase: data.phase });
       }),
       api.on('hotkeys.status', (data) => {
-        const detail = hotkeyStatusText(data.status);
+        // В наборе микрофон — одним из двух действий: переключение или «нажми и говори».
+        const detail = hotkeyStatusText(data.status) ?? hotkeyStatusText(data.status, 'ptt');
         desktopHotkeyStatus.set(detail);
         desktopOverlayHotkeyStatus.set(hotkeyStatusText(data.status, 'overlay.toggle'));
         relay({ type: 'hotkey.status', detail: detail ?? undefined });

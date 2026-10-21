@@ -87,6 +87,11 @@
         "hint": "Mute or unmute",
         "keywords": "shortcut hotkey mute"
       },
+      "hotkey-ptt": {
+        "label": "Push to talk",
+        "hint": "The microphone is on only while the shortcut is held",
+        "keywords": "push-to-talk ptt walkie-talkie hold"
+      },
       "hotkey-other": {
         "label": "Cinema and game keys",
         "hint": "",
@@ -367,6 +372,7 @@
       "resetLabel": "Reset microphone shortcut to default",
       "disable": "Disable",
       "disableLabel": "Disable microphone shortcut",
+      "holdHint": "Hold the shortcut to talk",
       "groups": {
         "cinema": "Cinema",
         "poker": "Poker, on your turn",
@@ -1158,6 +1164,11 @@
   "hotkeys": {
     "unassigned": "Not set",
     "space": "Space",
+    "mouse": {
+      "Mouse3": "Middle mouse button",
+      "Mouse4": "Mouse button 4",
+      "Mouse5": "Mouse button 5"
+    },
     "player": {
       "pause": "pause",
       "sound": "sound",
@@ -1175,6 +1186,7 @@
       "windowsKey": "The Windows key is reserved by the system: the shortcut will only work in the Cord window.",
       "f12": "F12 is reserved by the system: the shortcut will only work in the Cord window.",
       "noModifier": "Without Ctrl or Alt, the shortcut only works in the Cord window. With them, it works over other programs too.",
+      "rawBare": "{{label}} without Ctrl or Alt will also fire while you type in other programs.",
       "player": "{{label}} is also “{{action}}” in the Cinema player: while the player is open, it will toggle the microphone.",
       "poker": "{{label}} is also “{{action}}” at the poker table: on your turn, both will trigger."
     }
@@ -1206,6 +1218,12 @@
       "unsupported": "This browser doesn't support screen sharing",
       "noTrack": "Couldn't capture the screen",
       "ownAudioLeaks": "This browser can't remove Cord's own audio from system sound: viewers will hear the conversation and their own voices. Share a window or a tab instead, or update your browser.",
+      "audio": {
+        "unavailable": "Cord’s Windows sound module isn’t running — sharing without sound.",
+        "notWindow": "App sound is only available for a window — the screen is shared without sound.",
+        "failed": "Share sound didn’t start ({{reason}}) — sharing without sound.",
+        "stopped": "Share sound stopped ({{reason}}) — the share continues without sound."
+      },
       "cancelled": "Screen share canceled",
       "noPermission": "The media server didn't grant permission. Try sharing again."
     },
@@ -3291,7 +3309,20 @@
     "noWindows": "No open windows.",
     "untitled": "Untitled",
     "systemAudio": "Share system audio",
-    "systemAudioHint": "Participants will hear all of your computer’s audio — including this meeting’s voices. Sharing a single app’s audio is coming later.",
+    "systemAudioHint": "Participants will hear all of your computer’s audio — including this meeting’s voices.",
+    "audio": "Sound",
+    "audioModes": {
+      "none": "No sound",
+      "system": "System sound",
+      "app": "App sound",
+      "system-except-cord": "System except Cord"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "Participants will also hear this meeting’s voices. For sound without echo, choose “System except Cord”.",
+      "app": "Only the selected app’s sound — the meeting’s voices won’t get into the share.",
+      "system-except-cord": "All of your computer’s sound except Cord itself."
+    },
     "share": "Share",
     "cancel": "Cancel"
   }

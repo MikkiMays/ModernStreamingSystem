@@ -87,6 +87,11 @@
         "hint": "Ein- oder ausschalten",
         "keywords": "Tastenkürzel Hotkey stumm mute"
       },
+      "hotkey-ptt": {
+        "label": "Push-to-Talk",
+        "hint": "Das Mikrofon ist nur an, solange das Tastenkürzel gehalten wird",
+        "keywords": "push-to-talk ptt sprechtaste funk halten"
+      },
       "hotkey-other": {
         "label": "Tasten für Kino und Spiele",
         "hint": "",
@@ -367,6 +372,7 @@
       "resetLabel": "Mikrofon-Tastenkürzel zurücksetzen",
       "disable": "Deaktivieren",
       "disableLabel": "Mikrofon-Tastenkürzel deaktivieren",
+      "holdHint": "Halte das Tastenkürzel gedrückt, um zu sprechen",
       "groups": {
         "cinema": "Kino",
         "poker": "Poker, wenn du dran bist",
@@ -1158,6 +1164,11 @@
   "hotkeys": {
     "unassigned": "Nicht belegt",
     "space": "Leertaste",
+    "mouse": {
+      "Mouse3": "Mittlere Maustaste",
+      "Mouse4": "Maustaste 4",
+      "Mouse5": "Maustaste 5"
+    },
     "player": {
       "pause": "Pause",
       "sound": "Ton",
@@ -1175,6 +1186,7 @@
       "windowsKey": "Die Windows-Taste gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
       "f12": "F12 gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
       "noModifier": "Ohne Strg oder Alt funktioniert das Tastenkürzel nur im Cord-Fenster. Mit ihnen auch über anderen Programmen.",
+      "rawBare": "{{label}} ohne Strg oder Alt wird auch beim Tippen in anderen Programmen ausgelöst.",
       "player": "{{label}} ist im Kino-Player auch „{{action}}“: Bei geöffnetem Player wird das Mikrofon geschaltet.",
       "poker": "{{label}} ist am Pokertisch auch „{{action}}“: Wenn du dran bist, wird beides ausgelöst."
     }
@@ -1206,6 +1218,12 @@
       "unsupported": "Dieser Browser unterstützt keine Bildschirmfreigabe",
       "noTrack": "Bildschirm konnte nicht erfasst werden",
       "ownAudioLeaks": "Dieser Browser kann den Ton von Cord nicht aus dem Systemton herausfiltern: Zuschauer hören das Gespräch und ihre eigene Stimme. Teile ein Fenster oder einen Tab – oder aktualisiere den Browser.",
+      "audio": {
+        "unavailable": "Das Tonmodul von Cord für Windows läuft nicht – es wird ohne Ton geteilt.",
+        "notWindow": "App-Ton gibt es nur für ein Fenster – der Bildschirm wird ohne Ton geteilt.",
+        "failed": "Der Ton der Freigabe ist nicht gestartet ({{reason}}) – es wird ohne Ton geteilt.",
+        "stopped": "Der Ton der Freigabe ist abgebrochen ({{reason}}) – es wird ohne Ton weiter geteilt."
+      },
       "cancelled": "Bildschirmfreigabe abgebrochen",
       "noPermission": "Der Medienserver hat die Freigabe nicht erlaubt. Versuche es noch einmal."
     },
@@ -3291,7 +3309,20 @@
     "noWindows": "Keine geöffneten Fenster.",
     "untitled": "Ohne Titel",
     "systemAudio": "Mit Systemton",
-    "systemAudioHint": "Die Teilnehmenden hören den gesamten Ton des Computers – auch die Stimmen dieses Meetings. Ton einzelner Apps folgt später.",
+    "systemAudioHint": "Die Teilnehmenden hören den gesamten Ton des Computers – auch die Stimmen dieses Meetings.",
+    "audio": "Ton",
+    "audioModes": {
+      "none": "Ohne Ton",
+      "system": "Systemton",
+      "app": "App-Ton",
+      "system-except-cord": "System außer Cord"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "Die Teilnehmenden hören auch die Stimmen dieses Meetings. Für Ton ohne Echo wähle „System außer Cord“.",
+      "app": "Nur der Ton der gewählten App – die Stimmen des Meetings gelangen nicht in die Freigabe.",
+      "system-except-cord": "Der gesamte Ton des Computers außer Cord selbst."
+    },
     "share": "Teilen",
     "cancel": "Abbrechen"
   }

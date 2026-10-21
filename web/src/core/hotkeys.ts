@@ -8,12 +8,67 @@ export interface Hotkey {
   meta: boolean;
 }
 export const defaultMicHotkey: Hotkey = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+/**
+ * Как работает сочетание микрофона: `toggle` — нажатие включает и выключает; `hold` — «нажми и
+ * говори», микрофон включён, пока сочетание удерживается. Удержание — только с Raw Input оболочки
+ * (флаг `ptt`, `cord-native`): без фазы «отпустил» оно оставило бы микрофон включённым.
+ */
+export type MicHotkeyMode = 'toggle' | 'hold';
+/**
+ * Кнопки мыши Mouse3 (средняя), Mouse4 и Mouse5 (боковые) — коды те же, что у оболочки
+ * (`messages.ts`, `keys.rs` в `cord-native`). Записываются только при Raw Input (флаг `ptt`):
+ * `globalShortcut` их не умеет.
+ */
+const MOUSE_CODES: Record<number, string> = { 1: 'Mouse3', 3: 'Mouse4', 4: 'Mouse5' };
 export function validHotkey(value: unknown): value is Hotkey {
   if (!value || typeof value !== 'object') return false;
   const key = value as Hotkey;
   return (
-    /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9]|2[0-4])|Space)$/.test(key.code) &&
+    /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9]|2[0-4])|Space|Mouse[3-5])$/.test(key.code) &&
     ['ctrl', 'alt', 'shift', 'meta'].every((k) => typeof key[k as keyof Hotkey] === 'boolean')
+  );
+}
+export function isMouseHotkey(key: Hotkey): boolean {
+  return key.code.startsWith('Mouse');
+}
+/** Нажатая кнопка мыши как сочетание; левая и правая — не сочетания. */
+export function hotkeyFromMouse(
+  event: Pick<MouseEvent, 'button' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey'>,
+): Hotkey | null {
+  const code = MOUSE_CODES[event.button];
+  return code
+    ? { code, ctrl: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, meta: event.metaKey }
+    : null;
+}
+export function sameHotkey(a: Hotkey | null | undefined, b: Hotkey | null | undefined): boolean {
+  return (
+    !!a &&
+    !!b &&
+    a.code === b.code &&
+    a.ctrl === b.ctrl &&
+    a.alt === b.alt &&
+    a.shift === b.shift &&
+    a.meta === b.meta
+  );
+}
+export function matchesMouseHotkey(
+  event: Pick<MouseEvent, 'button' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey'>,
+  key: Hotkey | null,
+): boolean {
+  return sameHotkey(hotkeyFromMouse(event), key);
+}
+/**
+ * Отпустили ли сочетание: саму клавишу или любой его модификатор — как отпускание у оболочки
+ * (`matcher.rs`): Ctrl отпущен раньше буквы — «нажми и говори» уже закончилось.
+ */
+export function releasesHotkey(event: Pick<KeyboardEvent, 'code'>, key: Hotkey | null): boolean {
+  if (!key) return false;
+  return (
+    event.code === key.code ||
+    (key.ctrl && event.code.startsWith('Control')) ||
+    (key.alt && event.code.startsWith('Alt')) ||
+    (key.shift && event.code.startsWith('Shift')) ||
+    (key.meta && event.code.startsWith('Meta'))
   );
 }
 export function hotkeyFromEvent(
@@ -38,6 +93,11 @@ export function matchesHotkey(event: KeyboardEvent, key: Hotkey | null) {
     event.metaKey === key.meta
   );
 }
+function keyName(t: Translate, code: string) {
+  if (code === 'Space') return t(($) => $.hotkeys.space);
+  if (code === 'Mouse3' || code === 'Mouse4' || code === 'Mouse5') return t(($) => $.hotkeys.mouse[code]);
+  return code.replace(/^(Key|Digit)/, '');
+}
 export function hotkeyLabel(t: Translate, key: Hotkey | null) {
   if (!key) return t(($) => $.hotkeys.unassigned);
   return [
@@ -45,7 +105,7 @@ export function hotkeyLabel(t: Translate, key: Hotkey | null) {
     key.alt && 'Alt',
     key.shift && 'Shift',
     key.meta && 'Meta',
-    key.code === 'Space' ? t(($) => $.hotkeys.space) : key.code.replace(/^(Key|Digit)/, ''),
+    keyName(t, key.code),
   ]
     .filter(Boolean)
     .join(' + ');
@@ -58,10 +118,12 @@ export function isTyping(target: EventTarget | null) {
 }
 
 /**
- * Где сочетание будет жить: в браузере (только пока вкладка Cord активна) или в приложении
- * (поверх других программ — через системную регистрацию оболочки).
+ * Где сочетание будет жить: в браузере (только пока вкладка Cord активна), в приложении
+ * (поверх других программ — через системную регистрацию оболочки, только с Ctrl или Alt) или в
+ * приложении с Raw Input (`native`, флаг `ptt`): любая клавиша и кнопки мыши поверх всего, но
+ * нажатие не отбирается у других программ.
  */
-export type HotkeyPlace = 'browser' | 'desktop';
+export type HotkeyPlace = 'browser' | 'desktop' | 'native';
 
 /**
  * Заметка о назначаемом сочетании: `blocked` — назначить нельзя, сработает не Cord, а браузер
@@ -135,8 +197,11 @@ export function hotkeyNotes(
           : null;
     if (local) notes.push({ level: 'warning', text: local });
   }
-  if (!shared) return notes;
   const bare = !key.ctrl && !key.alt && !key.meta;
+  // Raw Input видит клавишу везде и не отбирает её: голая буква сработает и посреди набора текста.
+  if (place === 'native' && bare && /^(Key|Digit|Space$)/.test(key.code))
+    notes.push({ level: 'warning', text: t(($) => $.hotkeys.notes.rawBare, { label }) });
+  if (!shared) return notes;
   const player = bare ? PLAYER_KEYS[key.code] : undefined;
   if (player)
     notes.push({

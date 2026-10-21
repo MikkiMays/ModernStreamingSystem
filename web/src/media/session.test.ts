@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RoomEvent, DisconnectReason, Track, createLocalAudioTrack, type RoomOptions } from 'livekit-client';
 import { MediaSession } from './session';
 import type { RoomApi } from '../api/client';
-import type { CaptureAdapter } from './capture';
+import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
 import { fakeCameraTrack } from './fake-track';
 
 vi.mock('livekit-client', async (importOriginal) => {
@@ -115,6 +115,146 @@ describe('screen publication handoff', () => {
     await vi.waitFor(() => expect(api.screen).toHaveBeenCalledWith(false));
     expect(video.stop).toHaveBeenCalled();
     expect(publishTrack).not.toHaveBeenCalled();
+  });
+});
+
+/*
+  Звук приложения и «система кроме Cord» в клиенте на Electron (E01-B3): дорожка приходит не из
+  getDisplayMedia, а событием оболочки — и публикуется рядом с экраном как ScreenShareAudio.
+*/
+describe('звук показа от оболочки', () => {
+  function audioFixture() {
+    const f = screenFixture();
+    f.permissions.canPublishSources.push(
+      Track.sourceToProto(Track.Source.ScreenShare),
+      Track.sourceToProto(Track.Source.ScreenShareAudio),
+    );
+    const audio = { kind: 'audio', readyState: 'live', stop: vi.fn() } as unknown as MediaStreamTrack;
+    const publishTrack = vi.fn(async (track: MediaStreamTrack, _options?: { source?: Track.Source }) => ({
+      track: {
+        source: track.kind === 'audio' ? Track.Source.ScreenShareAudio : Track.Source.ScreenShare,
+        kind: track.kind === 'audio' ? Track.Kind.Audio : Track.Kind.Video,
+        mediaStreamTrack: track,
+        stop: () => track.stop(),
+      },
+    }));
+    Object.assign(f.media.room.localParticipant, { publishTrack });
+    let listener: ((event: ScreenAudioEvent) => void) | undefined;
+    const unwatch = vi.fn();
+    const source: ScreenAudioSource = {
+      watch: vi.fn((next: (event: ScreenAudioEvent) => void) => {
+        listener = next;
+        return unwatch;
+      }),
+    };
+    const audioPublished = () => publishTrack.mock.calls.filter(([track]) => track === audio);
+    return {
+      ...f,
+      publishTrack,
+      audio,
+      source,
+      unwatch,
+      audioPublished,
+      emit: (e: ScreenAudioEvent) => listener!(e),
+    };
+  }
+
+  it('подписка — до getDisplayMedia; ready раньше видео — публикуется после него как ScreenShareAudio', async () => {
+    const f = audioFixture();
+    try {
+      f.media.share(f.media.requestedProfile, f.source);
+      expect(f.source.watch).toHaveBeenCalledOnce();
+      f.emit({ state: 'ready', track: f.audio });
+      await vi.waitFor(() => expect(f.audioPublished()).toHaveLength(1));
+      expect(f.publishTrack.mock.calls[0]![0]).toBe(f.video);
+      expect(f.audioPublished()[0]![1]).toMatchObject({ source: Track.Source.ScreenShareAudio, dtx: false });
+      // Своя дорожка оболочки — не звук системы: заметки «зрители услышат разговор» нет.
+      expect(f.media.state.get().error).toBeNull();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('ready после видео — сразу; конец показа — track.stop() и отписка', async () => {
+    const f = audioFixture();
+    try {
+      f.media.share(f.media.requestedProfile, f.source);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalledOnce());
+      f.emit({ state: 'ready', track: f.audio });
+      await vi.waitFor(() => expect(f.audioPublished()).toHaveLength(1));
+      await f.media.stopScreen();
+      expect(f.audio.stop).toHaveBeenCalled();
+      expect(f.unwatch).toHaveBeenCalled();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('failed — подсказка, показ идёт дальше без звука', async () => {
+    const f = audioFixture();
+    try {
+      f.media.share(f.media.requestedProfile, f.source);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalledOnce());
+      f.emit({ state: 'failed', message: 'Звук показа не включился. Показ идёт без звука.' });
+      expect(f.media.state.get().error).toBe('Звук показа не включился. Показ идёт без звука.');
+      expect(f.audioPublished()).toHaveLength(0);
+      expect(f.video.stop).not.toHaveBeenCalled();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('показ отменили раньше, чем пришёл звук, — опоздавшая дорожка останавливается, а не публикуется', async () => {
+    const f = audioFixture();
+    try {
+      f.media.share(f.media.requestedProfile, f.source);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalledOnce());
+      await f.media.stopScreen();
+      f.emit({ state: 'ready', track: f.audio });
+      expect(f.audio.stop).toHaveBeenCalled();
+      expect(f.audioPublished()).toHaveLength(0);
+    } finally {
+      f.media.dispose();
+    }
+  });
+});
+
+describe('нажми и говори: setMicrophone', () => {
+  function micFixture(delay = 20) {
+    const f = fixture();
+    const toggle = vi.spyOn(f.media, 'toggle').mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      f.media.state.set({ ...f.media.state.get(), microphone: !f.media.state.get().microphone });
+    });
+    return { ...f, toggle };
+  }
+
+  it('короткое нажатие: отпускание во время включения всё равно выключает', async () => {
+    const { media, toggle } = micFixture();
+    try {
+      const down = media.setMicrophone(true);
+      const up = media.setMicrophone(false);
+      await Promise.all([down, up]);
+      expect(toggle).toHaveBeenCalledTimes(2);
+      expect(media.state.get().microphone).toBe(false);
+      // Без звуковых сигналов на каждое нажатие.
+      expect(toggle.mock.calls.every((call) => call[2] === false)).toBe(true);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  it('уже в нужном состоянии — ничего не делает', async () => {
+    const { media, toggle } = micFixture();
+    try {
+      await media.setMicrophone(false);
+      expect(toggle).not.toHaveBeenCalled();
+      await media.setMicrophone(true);
+      await media.setMicrophone(true);
+      expect(toggle).toHaveBeenCalledOnce();
+    } finally {
+      media.dispose();
+    }
   });
 });
 

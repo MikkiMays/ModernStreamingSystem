@@ -15,7 +15,15 @@ import { MeetingHeader } from './MeetingHeader';
 import { PresenceAsk, usePresence } from './abuse/Presence';
 import { Button, IconButton, ResizeHandle, usePanelWidth } from './kit';
 import { humans } from '../core/people';
-import { isTyping, matchesHotkey } from '../core/hotkeys';
+import {
+  hotkeyFromMouse,
+  isMouseHotkey,
+  isTyping,
+  matchesHotkey,
+  matchesMouseHotkey,
+  releasesHotkey,
+} from '../core/hotkeys';
+import { MicHotkey } from '../core/mic-hotkey';
 import { hasFeature, notifyDesktop, onDesktopCommand } from '../core/desktop';
 import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
 import { useFullscreen } from '../core/fullscreen';
@@ -158,28 +166,70 @@ export function MeetingView({
     return () => meeting.dispose();
   }, [meeting]);
   useEffect(() => {
+    const live = () => !meeting.ended.get() && meeting.media.state.get().status === 'connected';
     const toggle = () => {
-      if (!meeting.ended.get() && meeting.media.state.get().status === 'connected')
-        void meeting.media.toggle('microphone');
+      if (live()) void meeting.media.toggle('microphone');
     };
+    /*
+      «Нажми и говори» (E01-B3) — только с Raw Input оболочки (флаг `ptt`): без фазы «отпустил»
+      микрофон остался бы включённым. Raw Input видит и нажатия в окне Cord, не отбирая их у
+      страницы, — `MicHotkey` сводит пару «страница + оболочка» в одно нажатие.
+    */
+    const native = hasFeature('ptt');
+    const mode = native ? preferences.micHotkeyMode : 'toggle';
+    const mic = new MicHotkey(mode, {
+      toggle,
+      set: (on) => {
+        if (live()) void meeting.media.setMicrophone(on);
+      },
+    });
+    const micKey = preferences.micHotkey;
+    let held = false;
     const keyboard = (event: KeyboardEvent) => {
       if (event.repeat || isTyping(event.target) || document.querySelector('[role="dialog"]')) return;
-      if (matchesHotkey(event, preferences.micHotkey)) {
+      if (matchesHotkey(event, micKey)) {
         event.preventDefault();
-        toggle();
-      } else if (matchesHotkey(event, preferences.overlayHotkey) && desktopSettingsAvailable()) {
-        // Сочетание оверлея без Ctrl/Alt в системе не регистрируется — в окне встречи оно всё равно работает.
+        held = true;
+        mic.press('page', 'down');
+      } else if (!native && matchesHotkey(event, preferences.overlayHotkey) && desktopSettingsAvailable()) {
+        // Сочетание оверлея без Ctrl/Alt в системе не регистрируется — в окне встречи оно всё равно
+        // работает. С Raw Input оболочка ловит его и в окне Cord сама: второй раз переключать нельзя.
         event.preventDefault();
         void toggleDesktopOverlay();
       }
     };
+    const release = (event: KeyboardEvent) => {
+      if (!held || !releasesHotkey(event, micKey)) return;
+      held = false;
+      mic.press('page', 'up');
+    };
+    // Кнопка мыши в сочетании (Mouse3–Mouse5) — в окне встречи так же, как клавиша.
+    const mouseDown = (event: MouseEvent) => {
+      if (!matchesMouseHotkey(event, micKey) || document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
+      held = true;
+      mic.press('page', 'down');
+    };
+    const mouseUp = (event: MouseEvent) => {
+      if (!held || hotkeyFromMouse(event)?.code !== micKey?.code) return;
+      held = false;
+      mic.press('page', 'up');
+    };
     notifyDesktop('hotkey.configure', {
-      hotkey: ended ? null : preferences.micHotkey,
+      hotkey: ended ? null : micKey,
       overlay: ended ? null : preferences.overlayHotkey,
+      mode,
     });
     window.addEventListener('keydown', keyboard);
+    window.addEventListener('keyup', release);
+    const mouse = !!micKey && isMouseHotkey(micKey);
+    if (mouse) {
+      window.addEventListener('mousedown', mouseDown);
+      window.addEventListener('mouseup', mouseUp);
+    }
     const unsubscribe = onDesktopCommand((command) => {
-      if (command.type === 'microphone.toggle') toggle();
+      if (command.type === 'microphone.toggle') mic.press('shell', 'down');
+      if (command.type === 'microphone.hold' && command.phase) mic.press('shell', command.phase);
       // Кнопки на миниатюре в панели задач (T53): микрофон, камера, завершить.
       if (command.type === 'thumbar') {
         if (command.action === 'mic') toggle();
@@ -194,10 +244,15 @@ export function MeetingView({
     });
     return () => {
       window.removeEventListener('keydown', keyboard);
+      window.removeEventListener('keyup', release);
+      if (mouse) {
+        window.removeEventListener('mousedown', mouseDown);
+        window.removeEventListener('mouseup', mouseUp);
+      }
       unsubscribe();
       notifyDesktop('hotkey.configure', { hotkey: null, overlay: null });
     };
-  }, [meeting, preferences.micHotkey, preferences.overlayHotkey, ended]);
+  }, [meeting, preferences.micHotkey, preferences.micHotkeyMode, preferences.overlayHotkey, ended]);
   // Оверлей клиента (T23, E01): кто в комнате и кто говорит — не чаще 10 раз в секунду, без аватаров.
   useEffect(() => {
     if (!hasFeature('overlay') || ended) return;
