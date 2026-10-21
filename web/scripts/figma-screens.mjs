@@ -18,6 +18,43 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { writeCamera } from './fake-camera.mjs';
+import { domToSvg, auditPage } from './dom-svg.mjs';
+
+/** Чужие картинки без CORS страница в SVG не впишет — их скачивает Node и вставляет data-URL. */
+async function inlineRemoteImages(page, svg) {
+  // Картинка-SVG (знак в оболочке, значки в /assets) — векторной группой, а не растром: Figma
+  // вложенный SVG в <image> не раскрывает.
+  const vectors = [...svg.matchAll(/<image id="([^"]*)" x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)" preserveAspectRatio="[^"]*" href="((?:file|https?):[^"]+?\.svg(?:\?[^"]*)?)"\/>/g)];
+  for (const [tag, name, x, y, w, h, href] of vectors) {
+    try {
+      const text = href.startsWith('file:')
+        ? readFileSync(new URL(href), 'utf8')
+        : await (await page.request.get(href.replace(/&amp;/g, '&'), { timeout: 10000 })).text();
+      const vb = /viewBox="([\d.\s-]+)"/.exec(text)?.[1].trim().split(/\s+/).map(Number) ?? [0, 0, Number(w), Number(h)];
+      const inner = text.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+      const s = Math.min(Number(w) / vb[2], Number(h) / vb[3]);
+      const tx = Number(x) + (Number(w) - vb[2] * s) / 2 - vb[0] * s;
+      const ty = Number(y) + (Number(h) - vb[3] * s) / 2 - vb[1] * s;
+      svg = svg.split(tag).join(`<g id="${name}" transform="matrix(${s} 0 0 ${s} ${tx} ${ty})">${inner}</g>`);
+    } catch {
+      /* останется ссылкой */
+    }
+  }
+  const urls = [...new Set([...svg.matchAll(/href="(https?:[^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&')))];
+  for (const url of urls) {
+    try {
+      const response = await page.request.get(url, { timeout: 10000 });
+      if (!response.ok()) continue;
+      const type = response.headers()['content-type']?.split(';')[0] || 'image/png';
+      if (!type.startsWith('image/')) continue;
+      const data = `data:${type};base64,${(await response.body()).toString('base64')}`;
+      svg = svg.split(`href="${url.replace(/&/g, '&amp;')}"`).join(`href="${data}"`);
+    } catch {
+      /* картинка останется ссылкой — Figma покажет пустой прямоугольник */
+    }
+  }
+  return svg;
+}
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, value, index, all) => {
@@ -69,15 +106,18 @@ const browser = await chromium.launch({
   ],
 });
 
-async function newContext(width, theme, { name = 'Ника', storage } = {}) {
+async function newContext(width, theme, { name = 'Ника', storage, userAgent, height, desktop, permissions } = {}) {
+  // `desktop` — окно оболочки (Electron) узкой ширины: без касания и мобильного масштаба.
+  const phone = mobile(width) && !desktop;
   const context = await browser.newContext({
-    viewport: { width, height: VIEW[width] ?? 900 },
-    deviceScaleFactor: mobile(width) ? 2 : 1,
-    hasTouch: mobile(width),
-    isMobile: mobile(width),
+    viewport: { width, height: height ?? VIEW[width] ?? 900 },
+    deviceScaleFactor: phone ? 2 : 1,
+    hasTouch: phone,
+    isMobile: phone,
+    ...(userAgent ? { userAgent } : {}),
     colorScheme: theme,
     locale: 'ru-RU',
-    permissions: ['camera', 'microphone', 'clipboard-read', 'clipboard-write'],
+    permissions: permissions ?? ['camera', 'microphone', 'clipboard-read', 'clipboard-write'],
     // Рабочий sw.js отдаёт /assets/ и навигации сам — подмены `page.route` его бы не видели.
     serviceWorkers: 'block',
   });
@@ -240,14 +280,29 @@ async function shoot(page, id, width, theme, { fullPage = true } = {}) {
     }),
     overlay === 0,
   );
+  // --svg (E15-B): тот же кадр слоями — `<id>-<ширина>-<тема>.svg` для импорта в Figma, и аудит чёткости.
+  let svgInfo = null;
+  if (args.svg) {
+    try {
+      const audit = await page.evaluate(auditPage);
+      const result = await page.evaluate(domToSvg, { fullPage: overlay === 0 });
+      const svgFile = `${id}-${width}-${theme}.svg`;
+      const svg = await inlineRemoteImages(page, result.svg);
+      writeFileSync(path.join(out, svgFile), svg);
+      svgInfo = { svgFile, svgNodes: result.nodes, svgBytes: svg.length, audit };
+      console.log(`  ✓ ${svgFile} ${result.w}×${result.h} ${result.nodes} узлов ${Math.round(svg.length / 1024)} КиБ`);
+    } catch (error) {
+      console.log(`  ✗ ${id}-${width}-${theme}.svg: ${String(error).split('\n')[0]}`);
+    }
+  }
   await page.screenshot({ path: path.join(out, file), fullPage: overlay === 0, caret: 'hide' });
   // Размер кадра — по самому PNG (ширина и высота в заголовке IHDR), а не по окну: у страницы шире
   // окна телефон уменьшает масштаб, и `innerHeight` перестаёт совпадать со снимком.
   const png = readFileSync(path.join(out, file));
-  const scale = mobile(width) ? 2 : 1;
+  const scale = await page.evaluate(() => devicePixelRatio);
   size.w = png.readUInt32BE(16) / scale;
   size.h = png.readUInt32BE(20) / scale;
-  record({ id, width, theme, file, cssWidth: size.w, cssHeight: size.h, overflowX: size.overflowX });
+  record({ id, width, theme, file, cssWidth: size.w, cssHeight: size.h, overflowX: size.overflowX, ...svgInfo });
   console.log(
     `  ✓ ${file} ${size.w}×${size.h}${size.overflowX > 0 ? ` (шире окна на ${size.overflowX})` : ''}`,
   );
@@ -957,6 +1012,391 @@ const SINGLE = {
 };
 
 // ---------------------------------------------------------------------------------------------
+// E15-B: то, что вышло после E15-A — выбор площадки (T59), предупреждения антибота (E11-B), фон на
+// телефоне (E12), язык (E14-A), Telegram Mini App (E09), клиент на Electron (E01-B).
+
+const SHELL = process.env.CORD_SHELL ?? '/opt/ModernStreamingSystem.Windows/desktop/src/shell';
+const IPHONE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const ANDROID =
+  'Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
+
+/** Шаг многокадрового рецепта: сбой одного состояния не губит остальные. */
+async function step(name, job) {
+  try {
+    await job();
+  } catch (error) {
+    console.log(`  ✗ ${name}: ${String(error).split('\n')[0]}`);
+  }
+}
+
+/** Встреча, созданная на главной, и её приглашение из ответа ядра (`inviteUrl`). */
+async function createWithInvite(page, options) {
+  const answer = page.waitForResponse((r) => /\/api\/v1\/rooms$/.test(r.url()) && r.request().method() === 'POST');
+  await createMeeting(page, options);
+  const body = await (await answer).json().catch(() => ({}));
+  return body.inviteUrl ?? null;
+}
+
+/** Окружение Telegram без Telegram: параметры запуска в hash и мост WebView, отвечающий на запросы. */
+function telegramUrl(theme, { platform = 'android' } = {}) {
+  const user = { id: 7, first_name: 'Ника', last_name: 'Петрова', language_code: 'ru', allows_write_to_pm: true };
+  const initData = new URLSearchParams({
+    user: JSON.stringify(user),
+    chat_instance: '-4402981',
+    chat_type: 'group',
+    start_param: '4821',
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    signature: 'c2lnbmF0dXJl',
+    hash: 'a'.repeat(64),
+  }).toString();
+  const params =
+    theme === 'dark'
+      ? { bg_color: '#17212b', text_color: '#f5f5f5', hint_color: '#708499', link_color: '#6ab3f3', button_color: '#5288c1', button_text_color: '#ffffff', secondary_bg_color: '#232e3c', header_bg_color: '#17212b', bottom_bar_bg_color: '#17212b', section_bg_color: '#17212b', accent_text_color: '#6ab2f2', destructive_text_color: '#ec3942', subtitle_text_color: '#708499', section_header_text_color: '#6ab3f3' }
+      : { bg_color: '#ffffff', text_color: '#000000', hint_color: '#999999', link_color: '#2481cc', button_color: '#2481cc', button_text_color: '#ffffff', secondary_bg_color: '#efeff3', header_bg_color: '#ffffff', bottom_bar_bg_color: '#ffffff', section_bg_color: '#ffffff', accent_text_color: '#2481cc', destructive_text_color: '#e53935', subtitle_text_color: '#999999', section_header_text_color: '#6d6d72' };
+  const hash = new URLSearchParams({
+    tgWebAppData: initData,
+    tgWebAppVersion: '8.0',
+    tgWebAppPlatform: platform,
+    tgWebAppThemeParams: JSON.stringify(params),
+  }).toString();
+  return { url: new URL(`/tg#${hash}`, base).href, params };
+}
+function telegramBridge(params) {
+  const send = (type, data) =>
+    setTimeout(() => {
+      try {
+        window.Telegram?.WebView?.receiveEvent?.(type, data);
+      } catch {
+        /* нет приёмника — живём без ответа */
+      }
+    }, 20);
+  window.TelegramWebviewProxy = {
+    postEvent(type) {
+      if (type === 'web_app_request_viewport')
+        send('viewport_changed', { height: innerHeight, width: innerWidth, is_expanded: true, is_state_stable: true });
+      if (type === 'web_app_request_safe_area') send('safe_area_changed', { top: 44, bottom: 20, left: 0, right: 0 });
+      if (type === 'web_app_request_content_safe_area') send('content_safe_area_changed', { top: 46, bottom: 0, left: 0, right: 0 });
+      if (type === 'web_app_request_fullscreen') send('fullscreen_changed', { is_fullscreen: true });
+      if (type === 'web_app_request_theme') send('theme_changed', { theme_params: params });
+    },
+  };
+}
+async function openTelegram(page, context, theme, enter) {
+  const { url, params } = telegramUrl(theme);
+  await context.addInitScript(telegramBridge, params);
+  if (enter)
+    await context.route(/\/api\/v1\/services\/telegram\/webapp\/enter/, (route) =>
+      enter.status ? json(route, enter.body, enter.status) : json(route, enter),
+    );
+  await page.goto(url);
+}
+
+/** Мост клиента на Electron (ADR 0001, протокол 2) — без оболочки. */
+function electronBridge() {
+  window.cordDesktop = {
+    protocol: { major: 2, minor: 0 },
+    features: ['hotkeys', 'capture', 'capture.system-audio', 'overlay', 'notify', 'thumbar', 'badge', 'progress', 'attention', 'deeplink', 'servers', 'update', 'power', 'app.settings', 'tray', 'sleep', 'autostart'],
+    app: { version: '1.0.0', arch: 'x64' },
+    bootstrap: { profile: '', theme: 'system', showPing: false, notificationSounds: true, autoConnect: true },
+    send() {},
+    invoke: () => Promise.resolve(null),
+    on: () => () => {},
+  };
+}
+
+/** Страница оболочки (`desktop/src/shell/*.html`) с подставным `window.cordShell`. */
+function shellStub(answers) {
+  const handlers = {};
+  window.__emit = (type, data) => handlers[type]?.(data);
+  window.cordShell = {
+    on(type, handler) {
+      handlers[type] = handler;
+      if (answers.events?.[type]) setTimeout(() => handler(answers.events[type]), 0);
+      return () => {};
+    },
+    emit() {},
+    call(name, payload) {
+      const value = answers.calls?.[name];
+      if (name === 'servers.ping') return Promise.resolve(answers.pings?.[payload?.url] ?? null);
+      if (name === 'capture.sources') return Promise.resolve(window.__sources?.() ?? value ?? null);
+      return Promise.resolve(value ?? null);
+    },
+  };
+}
+function thumbnails() {
+  const draw = (w, h, paint) => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    paint(c.getContext('2d'), w, h);
+    return c.toDataURL('image/png');
+  };
+  const desk = (title, hue) =>
+    draw(320, 180, (g, w, h) => {
+      const grad = g.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, `hsl(${hue} 45% 32%)`);
+      grad.addColorStop(1, `hsl(${hue + 40} 45% 18%)`);
+      g.fillStyle = grad;
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(255,255,255,.92)';
+      g.fillRect(36, 30, 170, 104);
+      g.fillStyle = '#3564f3';
+      g.fillRect(36, 30, 170, 14);
+      g.fillStyle = 'rgba(0,0,0,.45)';
+      g.fillRect(0, h - 14, w, 14);
+      g.fillStyle = '#1b1f27';
+      g.font = '600 12px sans-serif';
+      g.fillText(title, 46, 66);
+    });
+  const icon = (color) =>
+    draw(24, 24, (g) => {
+      g.fillStyle = color;
+      g.beginPath();
+      g.roundRect(2, 2, 20, 20, 5);
+      g.fill();
+    });
+  window.__sources = () => ({
+    systemAudio: true,
+    sources: [
+      { id: 's1', kind: 'screen', name: 'Экран 1', thumbnail: desk('План на неделю', 215) },
+      { id: 's2', kind: 'screen', name: 'Экран 2', thumbnail: desk('Таблица продаж', 150) },
+      { id: 'w1', kind: 'window', name: 'План на неделю — Документы', thumbnail: desk('План на неделю', 215), icon: icon('#2b7de9') },
+      { id: 'w2', kind: 'window', name: 'Figma — Cord · карта продукта', thumbnail: desk('Cord', 265), icon: icon('#a259ff') },
+      { id: 'w3', kind: 'window', name: 'Терминал', thumbnail: desk('$ npm run build', 200), icon: icon('#2c3340') },
+    ],
+  });
+}
+
+Object.assign(SINGLE, {
+  // --- Интеграции: выбор площадки (T59) и музыка -----------------------------------------------
+  // --- Предупреждения антибота во встрече (E11-B) --------------------------------------------
+  // --- Язык интерфейса (E14-A) -----------------------------------------------------------------
+  'settings-language': {
+    group: 'Настройки',
+    title: 'Настройки — «Оформление», язык интерфейса English (E14-A)',
+    src: 'ui/settings/AppearanceSection.tsx, i18n/languages.ts, i18n/index.ts',
+    widths: [360, 1440],
+    async open(page) {
+      await home(page);
+      const burger = page.getByRole('button', { name: 'Открыть меню' });
+      if (await burger.isVisible()) await burger.click();
+      await page.getByRole('button', { name: /^Настройки$/ }).first().click();
+      await page.locator('.settings-nav__item').filter({ hasText: 'Оформление' }).first().click();
+      await page.waitForTimeout(500);
+      const select = page.locator('#appearance-language select, select').filter({ has: page.locator('option[value="en"]') }).first();
+      await select.selectOption('en');
+      await page.waitForTimeout(800);
+      await select.scrollIntoViewIfNeeded();
+    },
+  },
+
+  // --- Телефон: разговор в фоне (E12) ------------------------------------------------------------
+  'install-hint-ios': {
+    group: 'Телефон',
+    title: 'Телефон — главная на iPhone: «Cord на экране „Домой“» (InstallHint)',
+    src: 'ui/InstallHint.tsx, ui/home/HomeShell.tsx',
+    widths: [360],
+    context: { userAgent: IPHONE },
+    async open(page) {
+      await home(page);
+      await page.waitForTimeout(800);
+    },
+  },
+
+  // --- Telegram Mini App (E09) ---------------------------------------------------------------
+  'tg-outside': {
+    group: 'Telegram',
+    title: 'Mini App вне Telegram — «Откройте из Telegram»',
+    src: 'web/tg.html, telegram/main.tsx, telegram/TelegramApp.tsx (Outside)',
+    widths: [360, 1024],
+    async open(page) {
+      await page.goto(new URL('/tg', base).href);
+      await page.locator('.tg-screen').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(500);
+    },
+  },
+  'tg-loading': {
+    group: 'Telegram',
+    title: 'Mini App — статичная загрузка tg.html',
+    src: 'web/tg.html',
+    widths: [360],
+    reload: true,
+    async open(page, { context, theme }) {
+      await context.route(/\/assets\/.*\.js$/, (route) => route.abort());
+      const { url, params } = telegramUrl(theme);
+      await context.addInitScript(telegramBridge, params);
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(1500);
+    },
+  },
+  'tg-failed': {
+    group: 'Telegram',
+    title: 'Mini App — отказ: «Вы не состоите в чате…» (TELEGRAM_NOT_MEMBER)',
+    src: 'telegram/TelegramApp.tsx (failed), services/cord_services/webapp.py',
+    widths: [360],
+    reload: true,
+    async open(page, { context, theme }) {
+      await openTelegram(page, context, theme, {
+        status: 403,
+        body: { status: 403, code: 'TELEGRAM_NOT_MEMBER', detail: 'Вы не состоите в чате, к которому привязана встреча' },
+      });
+      await page.locator('.tg-screen').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(600);
+    },
+  },
+  'tg-media': {
+    group: 'Telegram',
+    title: 'Mini App — нет доступа к микрофону',
+    src: 'telegram/TelegramApp.tsx (media), telegram/media-probe.ts',
+    widths: [360],
+    reload: true,
+    context: { userAgent: ANDROID, permissions: [] },
+    async open(page, { context, theme }) {
+      await context.addInitScript(() => {
+        navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+      });
+      await openTelegram(page, context, theme, { roomId: '00000000-0000-4000-8000-000000000001', title: 'Планёрка', name: 'Ника Петрова', inviteUrl: new URL('/i/x', base).href });
+      await page.locator('.tg-screen').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(600);
+    },
+  },
+  // --- Клиент Windows на Electron (E01-B) -----------------------------------------------------
+  'electron-splash': {
+    multi: true,
+    group: 'Клиент Windows',
+    title: 'Заставка обновления (Electron): проверка, загрузка, установка, сбой',
+    src: 'desktop/src/shell/splash.html, splash.js, main/windows/splash.ts, update/splash-flow.ts',
+    sizes: [[300, 360]],
+    themes: ['dark'],
+    context: { desktop: true },
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, { events: { 'splash.state': { stage: 'checking' } } });
+      await page.goto(`file://${SHELL}/splash.html`);
+      await page.waitForTimeout(400);
+      const states = [
+        ['electron-splash-checking', { stage: 'checking' }],
+        ['electron-splash-downloading', { stage: 'downloading', progress: 0.42 }],
+        ['electron-splash-installing', { stage: 'installing' }],
+        ['electron-splash-failed', { stage: 'failed', problem: 'Не удалось загрузить обновление: сервер не ответил.' }],
+      ];
+      for (const [as, state] of states) {
+        await page.evaluate((s) => window.__emit('splash.state', s), state);
+        await page.addStyleTag({ content: '.bar.busy > i { animation: none !important; left: 30% !important; }' });
+        await page.waitForTimeout(300);
+        await shoot(page, as, 300, 'dark', { fullPage: false });
+      }
+    },
+  },
+  'electron-loading': {
+    group: 'Клиент Windows',
+    title: 'Загрузка интерфейса в окне клиента (Electron, T55)',
+    src: 'desktop/src/shell/loading.html, main/windows/main.ts (showLoading)',
+    sizes: [[1180, 760]],
+    themes: ['dark'],
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, {});
+      await page.goto(`file://${SHELL}/loading.html`);
+      await page.addStyleTag({ content: '.mark { animation: none !important; }' });
+      await page.waitForTimeout(300);
+    },
+  },
+  'electron-offline': {
+    group: 'Клиент Windows',
+    title: 'Нет связи с сервером (Electron)',
+    src: 'desktop/src/shell/offline.html, offline.js',
+    sizes: [[1180, 760]],
+    themes: ['dark'],
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, {});
+      await page.goto(`file://${SHELL}/offline.html?server=${encodeURIComponent('https://cord.nikg.tech/')}`);
+      await page.waitForTimeout(300);
+    },
+  },
+  'electron-picker': {
+    multi: true,
+    group: 'Клиент Windows',
+    title: 'Выбор источника показа (Electron, T10)',
+    src: 'desktop/src/shell/picker.html, picker.js, main/capture.ts',
+    sizes: [[760, 560]],
+    themes: ['dark'],
+    context: { desktop: true },
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, {});
+      await context.addInitScript(thumbnails);
+      await page.goto(`file://${SHELL}/picker.html`);
+      await page.locator('.source').first().waitFor();
+      await page.locator('.source').first().click();
+      await page.waitForTimeout(300);
+      await shoot(page, 'electron-picker-screen', 760, 'dark', { fullPage: false });
+      await page.getByRole('tab', { name: 'Окно' }).click();
+      await page.locator('.source').nth(1).click();
+      await page.waitForTimeout(300);
+      await shoot(page, 'electron-picker-window', 760, 'dark', { fullPage: false });
+    },
+  },
+  'electron-servers': {
+    group: 'Клиент Windows',
+    title: 'Серверы (Electron, T05): флаг, имя, пинг',
+    src: 'desktop/src/shell/servers.html, servers.js, main/catalog.ts',
+    sizes: [[440, 520]],
+    themes: ['dark'],
+    context: { desktop: true },
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, {
+        calls: {
+          'servers.list': [
+            { name: { ru: 'Нидерланды', en: 'Netherlands' }, url: 'https://cord.nikg.tech/', country: 'NL', current: true },
+            { name: { ru: 'Германия', en: 'Germany' }, url: 'https://de.cord.example/', country: 'DE', current: false },
+            { name: { ru: 'Финляндия', en: 'Finland' }, url: 'https://fi.cord.example/', country: 'FI', current: false },
+            { name: { ru: 'Казахстан', en: 'Kazakhstan' }, url: 'https://kz.cord.example/', country: 'KZ', current: false },
+          ],
+        },
+        pings: { 'https://cord.nikg.tech/': 38, 'https://de.cord.example/': 52, 'https://fi.cord.example/': 96, 'https://kz.cord.example/': 214 },
+      });
+      await page.goto(`file://${SHELL}/servers.html`);
+      await page.waitForTimeout(500);
+    },
+  },
+  'electron-overlay': {
+    group: 'Клиент Windows',
+    title: 'Оверлей поверх игры (Electron, T23): кто говорит',
+    src: 'desktop/src/shell/overlay.html, overlay.js, main/windows/overlay.ts',
+    sizes: [[320, 360]],
+    themes: ['dark'],
+    context: { desktop: true },
+    async open(page, { context }) {
+      await context.addInitScript(shellStub, {
+        events: {
+          'overlay.state': {
+            participants: [
+              { name: 'Ника', tier: 4, speaking: true },
+              { name: 'Марк', tier: 2, speaking: true },
+              { name: 'Аня', tier: 0, speaking: false },
+              { name: 'Борис Константинопольский', tier: 1, speaking: false },
+            ],
+          },
+        },
+      });
+      await page.goto(`file://${SHELL}/overlay.html`);
+      // Окно прозрачное, под ним игра — здесь вместо игры тёмная картинка.
+      await page.addStyleTag({ content: 'html { background: linear-gradient(140deg, #3b4a2a, #1f2a3a 55%, #3a2a2a) !important; }' });
+      await page.waitForTimeout(300);
+    },
+  },
+  'electron-home': {
+    group: 'Клиент Windows',
+    title: 'Главная в клиенте на Electron (веб целиком, мост v2)',
+    src: 'ui/Home.tsx, ui/home/HomeShell.tsx, core/desktop.ts',
+    widths: [1024, 1440],
+    async open(page, { context }) {
+      await context.addInitScript(electronBridge);
+      await home(page);
+    },
+  },
+});
+
+// ---------------------------------------------------------------------------------------------
 // Сценарии со встречей. Каждый — функция (stage) → список шагов { id, title, group, prepare };
 // stage даёт настольную страницу (D), телефонную (M) и хелперов.
 
@@ -1270,6 +1710,257 @@ SCENARIOS.meeting = async ({ titles }) => {
     }
   }
   for (const p of stage.people) await p.context.close();
+  await phone.close();
+  await desk.close();
+};
+
+/**
+ * E15-B: всё новое во встрече одной встречей — сервер считает созданные встречи с адреса (E11-B:
+ * 10 в час), а входы по коду и приглашению — нет. Создатель «Ника» (стол 1440/1024), телефон «Марк»
+ * (Android), дальше на минуту заходят: телефоны iPhone/Android для подсказок о фоне, зрители с
+ * «встреча завершится в …», Mini App Telegram. `--steps` — как у meeting.
+ */
+SCENARIOS['meeting-b'] = async ({ titles }) => {
+  const want = args.steps?.split(',');
+  const needs = (id) => !want || want.includes(id);
+  const desk = await newContext(1440, THEMES[0], { name: 'Ника' });
+  const D = await desk.newPage();
+  const inviteUrl = await createWithInvite(D, { camera: true });
+  const code = await meetingCode(D);
+  console.log(`  встреча ${code}`);
+  const phone = await newContext(360, THEMES[0], {
+    name: 'Марк',
+    userAgent: ANDROID,
+    storage: { 'cord:background-note:android': '1' },
+  });
+  const M = await phone.newPage();
+  await joinByCode(M, code);
+  await D.waitForTimeout(1500);
+  const stage = { D, M };
+  const both = async (fn) => {
+    await fn(D);
+    await fn(M);
+  };
+  const run = async (id, title, src, job, opts) => {
+    if (!needs(id)) return;
+    titles[id] = { group: 'E15-B', title, src };
+    console.log(` шаг ${id}`);
+    await step(id, async () => {
+      if ((await job()) !== false) await shootBoth(stage, id, opts ?? {});
+    });
+  };
+  /** Отдельный зритель: снять в обеих темах на своей ширине (стол — 1024 и 1440). */
+  const shootViewer = async (page, id, width) => {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      if (width < 768) await shoot(page, id, 360, theme);
+      else
+        for (const w of WIDTHS.filter((x) => x >= 768)) {
+          await page.setViewportSize({ width: w, height: VIEW[w] });
+          await page.waitForTimeout(500);
+          await shoot(page, id, w, theme);
+        }
+    }
+  };
+  const group = (page, name) =>
+    page.locator('.services-panel .service-group').filter({ has: page.getByText(name, { exact: true }) }).first();
+
+  // --- Выбор площадки и музыка (T59, E06-B) ---
+  await run('music-picker', 'Музыка — «Выберите площадку» (T59)', 'ui/PlatformPicker.tsx, ui/Services.tsx', () =>
+    both(async (p) => {
+      await openPanel(p, 'Интеграции');
+      await group(p, 'Музыка').click();
+      await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
+      await p.waitForTimeout(500);
+    }),
+  );
+  await run('music-youtube', 'Музыка — YouTube', 'ui/Services.tsx (music), ui/integrations.css', () =>
+    both(async (p) => {
+      await p.locator('.platform-picker .service-tile').filter({ hasText: 'YouTube' }).first().click();
+      await p.locator('.platform-tab').first().waitFor({ timeout: 15000 });
+      await p.waitForTimeout(600);
+    }),
+  );
+  await run('music-search', 'Музыка — найденные треки YouTube', 'ui/Services.tsx, services/cord_services/sources.py', () =>
+    both(async (p) => {
+      const field = p.getByPlaceholder(/Найти на YouTube/).first();
+      await field.fill('lofi hip hop');
+      await field.press('Enter');
+      await p.waitForTimeout(6000);
+    }),
+  );
+  await run('music-files', 'Музыка — «Свои файлы»', 'ui/MusicUpload.tsx', () =>
+    both(async (p) => {
+      await p.locator('.platform-tab').filter({ hasText: 'Свои файлы' }).first().click();
+      await p.waitForTimeout(700);
+    }),
+  );
+  await run('music-yandex', 'Музыка — Яндекс Музыка', 'ui/YandexIntegration.tsx', () =>
+    both(async (p) => {
+      const tab = p.locator('.platform-tab').filter({ hasText: 'Яндекс' }).first();
+      if (await tab.isVisible().catch(() => false)) await tab.click();
+      await p.waitForTimeout(700);
+    }),
+  );
+  await run('cinema-picker', 'Кинозал — «Выберите площадку» (T59)', 'ui/PlatformPicker.tsx, ui/cinema/CinemaGroup.tsx', () =>
+    both(async (p) => {
+      const back = p.getByRole('button', { name: /Интеграции/ }).first();
+      await back.click().catch(() => {});
+      await p.waitForTimeout(600);
+      if (!(await p.locator('.services-panel').isVisible().catch(() => false))) await openPanel(p, 'Интеграции');
+      await group(p, 'Кинозал').click();
+      await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
+      await p.waitForTimeout(600);
+    }),
+  );
+  for (const p of [D, M]) {
+    await closeOverlays(p);
+    await closePanel(p).catch(() => {});
+  }
+
+  // --- Чат: файл-программа и переход по ссылке (E11-B) ---
+  await run('chat-executable', 'Чат — файл может запустить программу (E11-B)', 'ui/abuse/Notices.tsx, ui/Sidebar.tsx', async () => {
+    await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
+    await D.locator('input[type=file][aria-label="Прикрепить файл"]').setInputFiles({
+      name: 'Установщик.exe',
+      mimeType: 'application/x-msdownload',
+      buffer: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(4096, 1)]),
+    });
+    await both((p) => p.getByText('Установщик.exe').first().waitFor({ timeout: 30000 }));
+    await D.waitForTimeout(1500);
+  });
+  await run('chat-link-dialog', 'Чат — «Переход по ссылке» (E11-B)', 'ui/abuse/ChatText.tsx', async () => {
+    const input = D.getByLabel('Сообщение');
+    await input.fill('План на неделю: https://example.org/plan');
+    await input.press('Enter');
+    await both(async (p) => {
+      const link = p.locator('.messages a').filter({ hasText: 'example.org' }).last();
+      await link.waitFor({ timeout: 10000 });
+      await link.click();
+      await p.getByRole('dialog').waitFor({ timeout: 5000 });
+      await p.waitForTimeout(400);
+    });
+  });
+  for (const p of [D, M]) {
+    await closeOverlays(p);
+    await closePanel(p).catch(() => {});
+  }
+
+  // --- Телефон: «Свернуть в окно» (E12) ---
+  if (needs('meeting-more-phone')) {
+    titles['meeting-more-phone'] = { group: 'E15-B', title: 'Телефон — меню пульта с «Свернуть в окно»', src: 'ui/CallDock.tsx, media/pip.ts' };
+    await step('meeting-more-phone', async () => {
+      await M.getByRole('button', { name: 'Настройки и действия' }).click();
+      await M.getByRole('menuitem').first().waitFor({ timeout: 5000 });
+      await M.waitForTimeout(400);
+      for (const theme of THEMES) {
+        await setTheme(M, theme);
+        await shoot(M, 'meeting-more-phone', 360, theme);
+      }
+      await closeOverlays(M);
+    });
+  }
+
+  // --- «Встреча завершится в …» (E11-B): endsAt вписан в ответ входа зрителя ---
+  if (needs('meeting-ceiling')) {
+    titles['meeting-ceiling'] = { group: 'E15-B', title: 'Встреча — «Встреча завершится в …»', src: 'ui/abuse/Notices.tsx' };
+    for (const [width, name] of [
+      [1440, 'Борис'],
+      [360, 'Аня'],
+    ]) {
+      const ctx = await newContext(width, THEMES[0], { name, userAgent: width < 768 ? ANDROID : undefined, storage: { 'cord:background-note:android': '1' } });
+      await ctx.route(/\/api\/v1\/rooms\/(join-by-code|[^/]+\/join)$/, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        const response = await route.fetch();
+        const body = await response.json().catch(() => null);
+        if (body?.snapshot) body.snapshot.endsAt = body.snapshot.serverTime + 14 * 60_000;
+        await route.fulfill({ response, json: body });
+      });
+      const page = await ctx.newPage();
+      await step(`meeting-ceiling-${width}`, async () => {
+        await joinByCode(page, code);
+        await page.locator('.abuse-notice').first().waitFor({ timeout: 10000 });
+        await shootViewer(page, 'meeting-ceiling', width);
+      });
+      await ctx.close();
+    }
+  }
+
+  // --- Подсказки о фоне на телефоне (E12) ---
+  const notes = [
+    ['background-android', ANDROID, null],
+    ['background-ios', IPHONE, null],
+    ['background-ios-home', IPHONE, 'standalone'],
+    ['background-no-mic', ANDROID, 'nomic'],
+  ];
+  for (const [id, userAgent, mode] of notes) {
+    if (!needs(id)) continue;
+    console.log(` шаг ${id}`);
+    const ctx = await newContext(360, THEMES[0], { name: 'Лена', userAgent });
+    if (mode === 'standalone') await ctx.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
+    if (mode === 'nomic')
+      await ctx.addInitScript(() => {
+        const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = (c) =>
+          c && c.audio ? Promise.reject(new DOMException('Permission denied', 'NotAllowedError')) : real(c);
+      });
+    const page = await ctx.newPage();
+    await step(id, async () => {
+      await joinByCode(page, code);
+      await page.locator('.background-note').waitFor({ timeout: 15000 });
+      await page.waitForTimeout(300);
+      await shootViewer(page, id, 360);
+    });
+    await ctx.close();
+  }
+
+  // --- Mini App Telegram во встрече (E09): вход по приглашению этой встречи ---
+  if (needs('tg-meeting') && inviteUrl) {
+    for (const theme of THEMES) {
+      const ctx = await newContext(360, theme, { name: 'Ника', userAgent: ANDROID });
+      const page = await ctx.newPage();
+      await step(`tg-meeting-${theme}`, async () => {
+        await openTelegram(page, ctx, theme, { roomId: 'x', title: 'Наша встреча', name: 'Ника Петрова', inviteUrl });
+        await connected(page);
+        await page.locator('.background-note').waitFor({ timeout: 12000 }).catch(() => {});
+        await page.waitForTimeout(500);
+        await shoot(page, 'tg-meeting-note', 360, theme);
+        await page.getByRole('button', { name: 'Скрыть подсказку' }).click().catch(() => {});
+        await page.waitForTimeout(500);
+        await shoot(page, 'tg-meeting', 360, theme);
+      });
+      await ctx.close();
+    }
+  }
+
+  // --- Интеграции → Telegram у создателя (E09, T30): каталог службы с включённым Mini App ---
+  if (needs('integrations-telegram')) {
+    console.log(' шаг integrations-telegram');
+    await step('integrations-telegram', async () => {
+      await desk.route(/\/api\/v1\/services\/catalog/, async (route) => {
+        const response = await route.fetch();
+        const body = await response.json();
+        body.telegram = { username: 'cord_meet_bot', connected: true, webapp: true };
+        await route.fulfill({ response, json: body });
+      });
+      await desk.route(/\/telegram\/link$/, (route) =>
+        json(route, { command: '/bind 482913', expiresAt: Date.now() + 600_000, startgroupUrl: 'https://t.me/cord_meet_bot?startgroup=482913' }),
+      );
+      await desk.route(/\/telegram$/, (route) =>
+        route.request().method() === 'GET'
+          ? json(route, { links: [{ id: 'l1', chatTitle: 'Команда дизайна', since: Date.now() - 3 * 86_400_000, pinned: true }] })
+          : route.continue(),
+      );
+      await D.reload();
+      await connected(D);
+      await D.waitForTimeout(1500);
+      await openPanel(D, 'Интеграции');
+      await D.locator('.services-panel .service-group').filter({ hasText: 'Telegram' }).first().click();
+      await D.waitForTimeout(1500);
+      await shootViewer(D, 'integrations-telegram', 1440);
+    });
+  }
+
   await phone.close();
   await desk.close();
 };
@@ -1783,6 +2474,60 @@ const SCENARIO_STEPS = [
 
 const singleTitles = {};
 async function runSingle(id, spec) {
+  // --toggle-theme: одно открытие на ширину, вторая тема — атрибутом без перезагрузки (вдвое меньше
+  // контекстов на нагруженной машине). Многокадровые рецепты и `spec.reload` снимаются по-старому.
+  const themes = spec.themes ?? THEMES;
+  // Окна оболочки — своих размеров (`spec.sizes`: [[ширина, высота]]), остальное — общие ширины.
+  const targets = spec.sizes
+    ? spec.sizes.filter(([w]) => !args.widths || WIDTHS.includes(w))
+    : WIDTHS.filter((w) => !spec.widths || spec.widths.includes(w)).map((w) => [w, undefined]);
+  if (args['toggle-theme'] && spec.multi && !spec.reload) {
+    // Многокадровый рецепт: каждое его состояние снимается во всех темах сменой атрибута.
+    for (const [width, height] of targets) {
+      const context = await newContext(width, themes[0], { ...spec.context, height });
+      const page = await context.newPage();
+      const shootAs = async (as, title) => {
+        if (title) singleTitles[as] = { group: spec.group, title, src: spec.src };
+        for (const [index, theme] of themes.entries()) {
+          if (index > 0) await setTheme(page, theme);
+          await shoot(page, as, width, theme, spec);
+        }
+        if (themes.length > 1) await setTheme(page, themes[0]);
+      };
+      try {
+        await spec.open(page, { width, theme: themes[0], context, shootAs });
+      } catch (error) {
+        await page.screenshot({ path: path.join(out, `_fail-${id}-${width}.png`) }).catch(() => {});
+        console.log(`  ✗ ${id}-${width}: ${String(error).split('\n')[0]}`);
+        record({ id, width, theme: themes[0], error: String(error).split('\n')[0] });
+      } finally {
+        await context.close();
+      }
+    }
+    return;
+  }
+  if (args['toggle-theme'] && !spec.multi && !spec.reload) {
+    for (const [width, height] of targets) {
+      const context = await newContext(width, themes[0], { ...spec.context, height });
+      const page = await context.newPage();
+      try {
+        await spec.open(page, { width, theme: themes[0], context, shootAs: null }).catch(async (error) => {
+          await page.screenshot({ path: path.join(out, `_fail-${id}-${width}.png`) }).catch(() => {});
+          throw error;
+        });
+        for (const [index, theme] of themes.entries()) {
+          if (index > 0) await setTheme(page, theme);
+          await shoot(page, id, width, theme, spec);
+        }
+      } catch (error) {
+        console.log(`  ✗ ${id}-${width}: ${String(error).split('\n')[0]}`);
+        for (const theme of themes) record({ id, width, theme, error: String(error).split('\n')[0] });
+      } finally {
+        await context.close();
+      }
+    }
+    return;
+  }
   for (const theme of THEMES) {
     for (const width of WIDTHS) {
       if (spec.widths && !spec.widths.includes(width)) continue;
