@@ -1,6 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { hotkeyFromEvent, hotkeyLabel, type Hotkey, type HotkeyNote } from '../../core/hotkeys';
+import {
+  hotkeyFromEvent,
+  hotkeyFromMouse,
+  hotkeyLabel,
+  sameHotkey,
+  type Hotkey,
+  type HotkeyNote,
+} from '../../core/hotkeys';
 import type { Translate } from '../../i18n';
 import { Button } from '../kit';
 import { SettingRow } from './Row';
@@ -31,18 +38,6 @@ function held(event: KeyboardEvent) {
     .join(' + ');
 }
 
-function same(a: Hotkey | null | undefined, b: Hotkey | null | undefined) {
-  return (
-    !!a &&
-    !!b &&
-    a.code === b.code &&
-    a.ctrl === b.ctrl &&
-    a.alt === b.alt &&
-    a.shift === b.shift &&
-    a.meta === b.meta
-  );
-}
-
 /**
  * Строка «сочетание — изменить / по умолчанию / отключить» (T27): запись нажатием, отказ и
  * предупреждения сразу при назначении. Общая для микрофона («Горячие клавиши») и оверлея («Windows»).
@@ -57,6 +52,8 @@ export function HotkeyField({
   taken,
   pause,
   status,
+  mouse = false,
+  hint,
 }: {
   id: RowId;
   value: Hotkey | null;
@@ -76,6 +73,13 @@ export function HotkeyField({
   pause: { start(): void; end(current: Hotkey | null): void };
   /** Ответ оболочки про это сочетание. */
   status?: ReactNode;
+  /**
+   * Записывать и кнопки мыши Mouse3–Mouse5 (E01-B3) — только при Raw Input оболочки (флаг `ptt`):
+   * без него кнопку мыши поверх других программ никто не поймает.
+   */
+  mouse?: boolean;
+  /** Своё пояснение строки вместо записанного в `ROWS` («Удерживайте, чтобы говорить»). */
+  hint?: string;
 }) {
   const { t } = useTranslation();
   const [recording, setRecording] = useState(false);
@@ -84,24 +88,53 @@ export function HotkeyField({
   // Слой раскладки идёт раньше пассивных эффектов: к уборке записи ссылка уже новая.
   const current = useRef(value);
   const paused = useRef(pause);
+  const stop = () => {
+    setRecording(false);
+    setPending('');
+  };
+  /** Записать сочетание — с той же проверкой «нельзя» для клавиши и для кнопки мыши. */
+  const commit = (next: Hotkey) => {
+    const blocked =
+      notes(next).find((note) => note.level === 'blocked') ??
+      (taken && sameHotkey(next, taken.key) ? { level: 'blocked' as const, text: taken.text } : undefined);
+    stop();
+    if (blocked) {
+      setRefused(blocked);
+      return;
+    }
+    setRefused(null);
+    change(next);
+  };
+  const committed = useRef(commit);
   useLayoutEffect(() => {
     current.current = value;
     paused.current = pause;
+    committed.current = commit;
   });
   useEffect(() => {
     if (!recording) return;
     paused.current.start();
     return () => paused.current.end(current.current);
   }, [recording]);
+  useEffect(() => {
+    if (!recording || !mouse) return;
+    // Кнопку жмут где угодно, не обязательно над полем: слушает окно, до того как фокус уйдёт.
+    const press = (event: MouseEvent) => {
+      const next = hotkeyFromMouse(event);
+      if (!next) return;
+      event.preventDefault();
+      event.stopPropagation();
+      committed.current(next);
+    };
+    window.addEventListener('mousedown', press, true);
+    return () => window.removeEventListener('mousedown', press, true);
+  }, [recording, mouse]);
   const shown = value ? notes(value) : [];
-  const stop = () => {
-    setRecording(false);
-    setPending('');
-  };
-  const isDefault = !defaultValue || (!!value && same(value, defaultValue));
+  const isDefault = !defaultValue || (!!value && sameHotkey(value, defaultValue));
   return (
     <SettingRow
       id={id}
+      hint={hint}
       below={
         refused || shown.length || status ? (
           <>
@@ -157,16 +190,7 @@ export function HotkeyField({
               setPending(held(event));
               return;
             }
-            const blocked =
-              notes(next).find((note) => note.level === 'blocked') ??
-              (taken && same(next, taken.key) ? { level: 'blocked' as const, text: taken.text } : undefined);
-            stop();
-            if (blocked) {
-              setRefused(blocked);
-              return;
-            }
-            setRefused(null);
-            change(next);
+            commit(next);
           }}
           onKeyUp={(event) => {
             if (recording) setPending(held(event));

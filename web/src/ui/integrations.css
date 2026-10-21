@@ -275,8 +275,15 @@
   background: color-mix(in srgb, var(--surface-2), var(--text) 5%);
   color: var(--text);
 }
+/* Белая подпись на цвете площадки — на цвете, темнее на пятую часть: на ярком красном YouTube и
+   оранжевом SoundCloud она не дотягивала до AA (3,5:1, аудит чёткости E15-B), а затемнённые — 5,1 и
+   4,7. Тёмной подписи (`--platform-fill`, Яндекс Музыка) затемнять нечего. Значок плитки — не текст,
+   ему 3:1 хватает и на чистом цвете. Пары — в `scripts/check-contrast.mjs` (`BRAND`). */
 .platform-tab[aria-selected='true'] {
-  background: var(--platform, var(--accent-fill));
+  background: var(
+    --platform-fill,
+    color-mix(in srgb, var(--platform, var(--accent-fill)) 80%, var(--stage-bg))
+  );
   color: var(--platform-ink, var(--on-accent));
 }
 .platform-tab:focus-visible {

@@ -46,6 +46,10 @@
       "about": {
         "title": "Über Cord",
         "keywords": "version cord hilfe support einführung"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
       }
     },
     "anchors": {
@@ -82,6 +86,11 @@
         "label": "Mikrofon",
         "hint": "Ein- oder ausschalten",
         "keywords": "Tastenkürzel Hotkey stumm mute"
+      },
+      "hotkey-ptt": {
+        "label": "Push-to-Talk",
+        "hint": "Das Mikrofon ist nur an, solange das Tastenkürzel gehalten wird",
+        "keywords": "push-to-talk ptt sprechtaste funk halten"
       },
       "hotkey-other": {
         "label": "Tasten für Kino und Spiele",
@@ -257,6 +266,46 @@
         "label": "Einführung in Cord",
         "hint": "Kurze Hinweise an den wichtigsten Schaltflächen",
         "keywords": "einführung hinweise tour anleitung"
+      },
+      "desktop-tray": {
+        "label": "Symbol im Infobereich",
+        "hint": "Cord öffnen und Mikrofon schalten – neben der Uhr",
+        "keywords": "Infobereich Benachrichtigungsbereich"
+      },
+      "desktop-thumbar": {
+        "label": "Schaltflächen in der Miniatur",
+        "hint": "Mikrofon, Kamera und Verlassen in der Taskleiste",
+        "keywords": "Taskleiste Miniatur Schaltflächen"
+      },
+      "desktop-badge": {
+        "label": "Badge am Symbol",
+        "hint": "Mikrofon im Meeting und Ungelesenes",
+        "keywords": "Taskleiste Badge Anzeige"
+      },
+      "desktop-flash": {
+        "label": "Fensterschaltfläche blinken lassen",
+        "hint": "Wenn Sie erwähnt werden und Cord im Hintergrund ist",
+        "keywords": "blinken Erwähnung Aufmerksamkeit"
+      },
+      "desktop-sleep": {
+        "label": "Während des Meetings nicht in den Ruhezustand",
+        "hint": "Der Bildschirm bleibt bei Anrufen und Freigaben an",
+        "keywords": "Ruhezustand Bildschirm Energiesparen"
+      },
+      "desktop-overlay": {
+        "label": "Overlay in Spielen",
+        "hint": "Wer im Anruf ist und wer spricht – über dem Spiel",
+        "keywords": "Overlay Spiel darüber Teilnehmer"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "Overlay-Tastenkürzel",
+        "hint": "",
+        "keywords": "Taste Overlay Hotkey Tastenkürzel"
+      },
+      "desktop-autostart": {
+        "label": "Mit Windows starten",
+        "hint": "Cord öffnet sich minimiert",
+        "keywords": "Autostart Systemstart"
       }
     },
     "title": "Einstellungen",
@@ -323,6 +372,7 @@
       "resetLabel": "Mikrofon-Tastenkürzel zurücksetzen",
       "disable": "Deaktivieren",
       "disableLabel": "Mikrofon-Tastenkürzel deaktivieren",
+      "holdHint": "Halte das Tastenkürzel gedrückt, um zu sprechen",
       "groups": {
         "cinema": "Kino",
         "poker": "Poker, wenn du dran bist",
@@ -439,6 +489,17 @@
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
+    },
+    "desktop": {
+      "taskbar": "Taskleiste und Infobereich",
+      "meeting": "Während des Meetings",
+      "start": "Start",
+      "overlayNote": "Das Overlay ist im Fenster- und randlosen Modus sichtbar; im exklusiven Vollbild zeigt Windows es nicht an.",
+      "overlayTaken": "Dieses Tastenkürzel nutzt bereits das Mikrofon – wählen Sie ein anderes.",
+      "micTaken": "Dieses Tastenkürzel nutzt bereits das Overlay – wählen Sie ein anderes.",
+      "changeLabel": "Overlay-Tastenkürzel ändern",
+      "assignLabel": "Overlay-Tastenkürzel festlegen",
+      "disableLabel": "Overlay-Tastenkürzel deaktivieren"
     }
   },
   "meeting": {
@@ -1103,6 +1164,11 @@
   "hotkeys": {
     "unassigned": "Nicht belegt",
     "space": "Leertaste",
+    "mouse": {
+      "Mouse3": "Mittlere Maustaste",
+      "Mouse4": "Maustaste 4",
+      "Mouse5": "Maustaste 5"
+    },
     "player": {
       "pause": "Pause",
       "sound": "Ton",
@@ -1120,6 +1186,7 @@
       "windowsKey": "Die Windows-Taste gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
       "f12": "F12 gehört dem System: Das Tastenkürzel funktioniert nur im Cord-Fenster.",
       "noModifier": "Ohne Strg oder Alt funktioniert das Tastenkürzel nur im Cord-Fenster. Mit ihnen auch über anderen Programmen.",
+      "rawBare": "{{label}} ohne Strg oder Alt wird auch beim Tippen in anderen Programmen ausgelöst.",
       "player": "{{label}} ist im Kino-Player auch „{{action}}“: Bei geöffnetem Player wird das Mikrofon geschaltet.",
       "poker": "{{label}} ist am Pokertisch auch „{{action}}“: Wenn du dran bist, wird beides ausgelöst."
     }
@@ -1151,6 +1218,12 @@
       "unsupported": "Dieser Browser unterstützt keine Bildschirmfreigabe",
       "noTrack": "Bildschirm konnte nicht erfasst werden",
       "ownAudioLeaks": "Dieser Browser kann den Ton von Cord nicht aus dem Systemton herausfiltern: Zuschauer hören das Gespräch und ihre eigene Stimme. Teile ein Fenster oder einen Tab – oder aktualisiere den Browser.",
+      "audio": {
+        "unavailable": "Das Tonmodul von Cord für Windows läuft nicht – es wird ohne Ton geteilt.",
+        "notWindow": "App-Ton gibt es nur für ein Fenster – der Bildschirm wird ohne Ton geteilt.",
+        "failed": "Der Ton der Freigabe ist nicht gestartet ({{reason}}) – es wird ohne Ton geteilt.",
+        "stopped": "Der Ton der Freigabe ist abgebrochen ({{reason}}) – es wird ohne Ton weiter geteilt."
+      },
       "cancelled": "Bildschirmfreigabe abgebrochen",
       "noPermission": "Der Medienserver hat die Freigabe nicht erlaubt. Versuche es noch einmal."
     },
@@ -2112,7 +2185,8 @@
   "api": {
     "requestFailed": "Die Anfrage ist fehlgeschlagen",
     "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
-    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt"
+    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt",
+    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen"
   },
   "kit": {
     "toasts": "Benachrichtigungen",
@@ -2892,7 +2966,8 @@
     "SUPPORT_NOT_FOUND": "Anfrage nicht gefunden",
     "SUPPORT_OFF": "Anfragen werden gerade nicht angenommen. Schreib dem Autor von Cord auf Telegram — der Link ist daneben",
     "SUPPORT_RATE": "Von dieser Adresse kamen schon mehrere Anfragen. Versuch es in einer Stunde erneut oder schreib dem Autor von Cord auf Telegram",
-    "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz"
+    "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz",
+    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen"
   },
   "activity": {
     "title": "Aktivität",
@@ -2905,6 +2980,7 @@
     "tabs": {
       "now": "Jetzt",
       "meetings": "Meetings",
+      "quality": "Qualität",
       "audit": "Protokoll",
       "blocks": "Sperren",
       "server": "Server",
@@ -2965,6 +3041,42 @@
       "count_other": "{{count}} Meetings",
       "dayTip_one": "{{count}} Meeting, {{hours}} Personenstunden, Spitze {{peak}}",
       "dayTip_other": "{{count}} Meetings, {{hours}} Personenstunden, Spitze {{peak}}"
+    },
+    "quality": {
+      "hint": "Anrufbilanzen, die Browser am Ende eines Anrufs senden: nur Zahlen – keine Namen und Adressen.",
+      "empty": "Für diesen Zeitraum gibt es keine Anrufbilanzen. Ein Browser sendet eine, wenn er ein Meeting verlässt, in dem zwei Personen verbunden waren.",
+      "meetings": "Meetings mit Bilanzen",
+      "calls": "Anrufbilanzen",
+      "rtt": "Round-Trip im Schnitt",
+      "rttMax": "Schlechtester Round-Trip",
+      "loss": "Paketverlust im Schnitt",
+      "lossy": "Zeit mit über 5 % Verlust",
+      "jitter": "Jitter im Schnitt",
+      "bitrate": "Empfang im Schnitt",
+      "freezes": "Bildaussetzer pro Stunde",
+      "relay": "Über ein Relay (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}} %",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "Round-Trip pro Tag",
+      "dayTip": "Round-Trip {{rtt}}, Verlust {{loss}}, Bilanzen: {{count}}",
+      "codecs": "Video-Codecs in Meetings",
+      "codecTip": "Meetings: {{count}}",
+      "recent": "Letzte Meetings mit Bilanzen",
+      "gone": "gelöscht",
+      "worst": "schlechtester {{value}}",
+      "yes": "ja",
+      "no": "nein",
+      "columns": {
+        "code": "Code",
+        "started": "Beginn",
+        "calls": "Bilanzen",
+        "rtt": "Round-Trip",
+        "loss": "Verlust",
+        "jitter": "Jitter",
+        "freezes": "Aussetzer",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "Was",
@@ -3185,5 +3297,33 @@
       "text": "Du kannst dem Autor von Cord auch auf Telegram schreiben",
       "link": "@nikgers auf Telegram"
     }
+  },
+  "capture": {
+    "title": "Was teilen",
+    "kinds": "Was geteilt wird",
+    "screens": "Bildschirme",
+    "windows": "Fenster",
+    "sources": "Quellen",
+    "loading": "Bildschirme und Fenster werden gesucht …",
+    "noScreens": "Keine Bildschirme gefunden.",
+    "noWindows": "Keine geöffneten Fenster.",
+    "untitled": "Ohne Titel",
+    "systemAudio": "Mit Systemton",
+    "systemAudioHint": "Die Teilnehmenden hören den gesamten Ton des Computers – auch die Stimmen dieses Meetings.",
+    "audio": "Ton",
+    "audioModes": {
+      "none": "Ohne Ton",
+      "system": "Systemton",
+      "app": "App-Ton",
+      "system-except-cord": "System außer Cord"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "Die Teilnehmenden hören auch die Stimmen dieses Meetings. Für Ton ohne Echo wähle „System außer Cord“.",
+      "app": "Nur der Ton der gewählten App – die Stimmen des Meetings gelangen nicht in die Freigabe.",
+      "system-except-cord": "Der gesamte Ton des Computers außer Cord selbst."
+    },
+    "share": "Teilen",
+    "cancel": "Abbrechen"
   }
 }

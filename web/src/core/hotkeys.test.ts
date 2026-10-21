@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
-import { defaultMicHotkey, hotkeyLabel, hotkeyNotes, type Hotkey } from './hotkeys';
+import {
+  defaultMicHotkey,
+  hotkeyFromMouse,
+  hotkeyLabel,
+  hotkeyNotes,
+  matchesMouseHotkey,
+  releasesHotkey,
+  validHotkey,
+  type Hotkey,
+} from './hotkeys';
 
 const key = (code: string, mods: Partial<Omit<Hotkey, 'code'>> = {}): Hotkey => ({
   code,
@@ -83,5 +92,71 @@ describe('hotkeyNotes — что мешает сочетанию, проверя
 
   it('подписывает пробел словом, а не кодом', () => {
     expect(hotkeyNotes(t, key('Space'), 'browser')[0]?.text).toMatch(/^Пробел/);
+  });
+});
+
+describe('кнопки мыши и Raw Input (E01-B3, cord-native)', () => {
+  it('Mouse3–Mouse5 — допустимые сочетания, остальные кнопки — нет', () => {
+    for (const code of ['Mouse3', 'Mouse4', 'Mouse5']) expect(validHotkey(key(code))).toBe(true);
+    expect(validHotkey(key('Mouse1'))).toBe(false);
+    expect(validHotkey(key('Mouse6'))).toBe(false);
+  });
+
+  it('кнопка события → сочетание: средняя — Mouse3, боковые — Mouse4 и Mouse5, левая и правая — ничего', () => {
+    const press = (button: number, mods: Partial<MouseEventInit> = {}) =>
+      hotkeyFromMouse({ button, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+    expect(press(1)).toEqual(key('Mouse3'));
+    expect(press(3, { ctrlKey: true })).toEqual(key('Mouse4', { ctrl: true }));
+    expect(press(4)).toEqual(key('Mouse5'));
+    expect(press(0)).toBeNull();
+    expect(press(2)).toBeNull();
+    const event = { button: 3, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false };
+    expect(matchesMouseHotkey(event, key('Mouse4'))).toBe(true);
+    expect(matchesMouseHotkey(event, key('Mouse4', { shift: true }))).toBe(false);
+    expect(matchesMouseHotkey(event, key('KeyM'))).toBe(false);
+  });
+
+  it('подписывает кнопки мыши словами', () => {
+    expect(hotkeyLabel(t, key('Mouse3'))).toBe('Средняя кнопка мыши');
+    expect(hotkeyLabel(t, key('Mouse4', { ctrl: true }))).toBe('Ctrl + Кнопка мыши 4');
+  });
+
+  it('отпускание: сама клавиша или любой модификатор сочетания', () => {
+    const combo = key('KeyV', { ctrl: true });
+    const up = (code: string) => releasesHotkey({ code } as KeyboardEvent, combo);
+    expect(up('KeyV')).toBe(true);
+    expect(up('ControlLeft')).toBe(true);
+    expect(up('ShiftLeft')).toBe(false);
+    expect(up('KeyB')).toBe(false);
+    expect(releasesHotkey({ code: 'KeyV' } as KeyboardEvent, null)).toBe(false);
+  });
+
+  it('Raw Input: без Ctrl/Alt, с F12 и с клавишей Windows работает и поверх программ — заметок «только в окне» нет', () => {
+    for (const any of [
+      key('KeyM', { shift: true }),
+      key('F12'),
+      key('KeyM', { ctrl: true, meta: true }),
+      key('Mouse4'),
+    ])
+      expect(
+        hotkeyNotes(t, any, 'native')
+          .map((note) => note.text)
+          .join(' '),
+        hotkeyLabel(t, any),
+      ).not.toMatch(/только в окне Cord/);
+  });
+
+  it('Raw Input: голая буква предупреждает, что сработает и при наборе текста; кнопка мыши и F-клавиша — нет', () => {
+    const notes = hotkeyNotes(t, key('KeyV'), 'native');
+    expect(notes).toEqual([{ level: 'warning', text: expect.stringMatching(/набор/) }]);
+    expect(hotkeyNotes(t, key('Mouse5'), 'native')).toEqual([]);
+    expect(hotkeyNotes(t, key('F8'), 'native')).toEqual([]);
+    expect(hotkeyNotes(t, key('KeyV', { ctrl: true }), 'native')).toEqual([]);
+    // Клавиши плеера предупреждают и здесь: правило E03-7 то же.
+    expect(
+      hotkeyNotes(t, key('Space'), 'native')
+        .map((note) => note.text)
+        .join(' '),
+    ).toMatch(/плеер/);
   });
 });

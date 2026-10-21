@@ -76,7 +76,9 @@ export function DesktopSection({
               id="desktop-overlay-hotkey"
               value={preferences.overlayHotkey}
               change={(overlayHotkey: Hotkey | null) => void change({ overlayHotkey })}
-              notes={(key) => hotkeyNotes(t, key, 'desktop', false)}
+              // Raw Input (флаг `ptt`): любая клавиша и кнопки мыши поверх всего — заметки другие.
+              notes={(key) => hotkeyNotes(t, key, hasFeature('ptt') ? 'native' : 'desktop', false)}
+              mouse={hasFeature('ptt')}
               taken={{ key: preferences.micHotkey, text: t(($) => $.settings.desktop.overlayTaken) }}
               labels={{
                 change: t(($) => $.settings.desktop.changeLabel),

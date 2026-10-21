@@ -27,9 +27,14 @@ export function Invite({
   useEffect(() => {
     let active = true;
     setQr('');
+    /*
+      Рисунком, а не растром: PNG в 256 px на телефоне с плотностью 2–3 растягивался вдвое и мылился
+      (аудит чёткости E15-B на 360), а камера читает код по резким краям модулей. SVG чёткий при
+      любой плотности экрана и масштабе.
+    */
     if (link)
-      void QRCode.toDataURL(link, { width: 256, margin: 2, errorCorrectionLevel: 'M' }).then((data) => {
-        if (active) setQr(data);
+      void QRCode.toString(link, { type: 'svg', margin: 2, errorCorrectionLevel: 'M' }).then((svg) => {
+        if (active) setQr(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
       });
     return () => {
       active = false;

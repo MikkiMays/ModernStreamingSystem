@@ -61,9 +61,35 @@
   --palette-green-500: #2f9e5f;
   --palette-green-600: #2b7d4f;
   --palette-green-700: #176c3e;
-  /* янтарь: предупреждение */
+  /* янтарь: предупреждение; 100 и 500 — золото покерного стола */
+  --palette-amber-100: #f7dd9a;
   --palette-amber-300: #f2c14e;
+  --palette-amber-500: #c08f22;
   --palette-amber-700: #9a6700;
+  /* предметы столов (E08): сукно покера и дурака, борт, рубашка колоды Cord, доска, чернила */
+  --palette-felt-500: #1e7a57;
+  --palette-felt-900: #0c3c2c;
+  --palette-teal-400: #254a59;
+  --palette-teal-500: #183a48;
+  --palette-teal-700: #102d3a;
+  --palette-wood-500: #3a2c22;
+  --palette-wood-900: #16100c;
+  --palette-blue-750: #2a3f8f;
+  --palette-blue-800: #223478;
+  --palette-steel-100: #dce5ee;
+  --palette-steel-400: #7590ad;
+  --palette-steel-600: #3b506a;
+  --palette-steel-900: #0f2238;
+  --palette-violet-300: #bca6ff;
+  /* лица без картинки: пять пар «фон — буква» */
+  --palette-face-blue-bg: #d9e4fc;
+  --palette-face-blue: #315589;
+  --palette-face-violet-bg: #e7dcf6;
+  --palette-face-violet: #72528d;
+  --palette-face-green-bg: #d8ede8;
+  --palette-face-green: #2f6a5a;
+  --palette-face-sand-bg: #f2e4d8;
+  --palette-face-sand: #7a5a40;
 
   /* ---------- шкалы (одинаковы в темах) ---------- */
   --font-sans: 'Inter Variable', system-ui, sans-serif;
@@ -133,7 +159,7 @@
   --tile-radius: var(--radius-4);
   --tile-ring: var(--voice);
   --tile-ring-width: 3px;
-  --dock-bg: #1a1f28;
+  --dock-bg: var(--palette-ink-800);
   --dock-text: var(--stage-text);
   --voice: var(--palette-green-400);
   /* Ступени громкости (T23): тихо, речь, громко, пик — от глубокого зелёного к светлому, все ≥ 3:1
@@ -144,6 +170,66 @@
   --voice-4: var(--palette-green-200);
   --live: var(--palette-red-500);
   --on-live: var(--palette-white);
+  /* Стекло и свет на сцене: подложки подписей поверх кадра и сукна, блики на предметах. Три
+     ступени тени и четыре — света вместо десятков прозрачностей, у каждого стола своих. */
+  --stage-veil-1: rgb(10 12 17 / 0.35);
+  --stage-veil-2: rgb(10 12 17 / 0.55);
+  --stage-veil-3: rgb(10 12 17 / 0.86);
+  --stage-glint-1: rgb(255 255 255 / 0.08);
+  --stage-glint-2: rgb(255 255 255 / 0.16);
+  --stage-glint-3: rgb(255 255 255 / 0.32);
+  --stage-glint-4: rgb(255 255 255 / 0.68);
+  /* Тени предметов на сцене: карта на сукне и то, что над ним поднято (фишка, банк, лицо). */
+  --shadow-card: 0 2px 6px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 10px 24px rgb(0 0 0 / 0.45);
+
+  /* ---------- столы игр: предметы, одинаковые в обеих темах (E08, визуальная волна) ----------
+     Стол стоит на `.media-stage`, поэтому панели, текст и кнопки у него — смысловые токены сцены.
+     Здесь только то, чего у сцены нет: сукно, борт, золото покера, карты, доска и чернила. */
+  --felt: var(--palette-felt-500);
+  --felt-deep: var(--palette-felt-900);
+  --felt-teal-light: var(--palette-teal-400);
+  --felt-teal: var(--palette-teal-500);
+  --felt-teal-deep: var(--palette-teal-700);
+  --rail: var(--palette-wood-500);
+  --rail-deep: var(--palette-wood-900);
+  --gold: var(--palette-amber-300);
+  --gold-soft: var(--palette-amber-100);
+  --gold-deep: var(--palette-amber-500);
+  --on-gold: var(--palette-ink-950);
+  /* Колода одна на все столы — «колода заведения»: белое лицо, масти двумя цветами, синяя рубашка. */
+  --card-face: var(--palette-white);
+  --card-face-shade: var(--palette-mist-100);
+  --card-edge: var(--palette-ink-100);
+  --card-black: var(--palette-ink-800);
+  --card-red: var(--palette-red-500);
+  --card-back: var(--palette-blue-800);
+  --card-back-deep: var(--palette-blue-900);
+  --card-back-pattern:
+    repeating-linear-gradient(45deg, var(--palette-blue-750) 0 4px, var(--palette-blue-800) 4px 8px),
+    var(--palette-blue-800);
+  --chess-light: var(--palette-steel-100);
+  --chess-dark: var(--palette-steel-400);
+  --chess-edge: var(--palette-steel-600);
+  --chess-ink: var(--palette-steel-600);
+  --chess-ink-dark: var(--palette-steel-900);
+  --chess-focus: var(--palette-blue-700);
+  --gartic-ink: var(--palette-violet-300);
+  /* Бумага Gartic белая в обеих темах: рисуют по ней чернилами из набора, и чёрный должен быть чёрным. */
+  --paper: var(--palette-white);
+  --paper-line: var(--palette-ink-100);
+  --paper-muted: var(--palette-slate-600);
+  /* Лица без картинки (`Avatar`): пять пар, буква к фону ≥ 4,5:1, в обеих темах одни. */
+  --avatar-0-bg: var(--palette-face-blue-bg);
+  --avatar-0-fg: var(--palette-face-blue);
+  --avatar-1-bg: var(--palette-face-violet-bg);
+  --avatar-1-fg: var(--palette-face-violet);
+  --avatar-2-bg: var(--palette-face-green-bg);
+  --avatar-2-fg: var(--palette-face-green);
+  --avatar-3-bg: var(--palette-face-sand-bg);
+  --avatar-3-fg: var(--palette-face-sand);
+  --avatar-4-bg: var(--palette-mist-200);
+  --avatar-4-fg: var(--palette-slate-700);
 }
 
 /* ---------- смысловые: светлая тема ---------- */
@@ -200,7 +286,7 @@
   --text: var(--palette-ink-50);
   --text-secondary: var(--palette-ink-200);
   --muted: var(--palette-ink-300);
-  --text-disabled: #5f6878;
+  --text-disabled: var(--palette-slate-600);
   --line: var(--palette-ink-600);
   --line-strong: var(--palette-ink-500);
   --accent: var(--palette-blue-400);
@@ -240,7 +326,7 @@
     --text: var(--palette-ink-50);
     --text-secondary: var(--palette-ink-200);
     --muted: var(--palette-ink-300);
-    --text-disabled: #5f6878;
+    --text-disabled: var(--palette-slate-600);
     --line: var(--palette-ink-600);
     --line-strong: var(--palette-ink-500);
     --accent: var(--palette-blue-400);
@@ -310,6 +396,7 @@
   --text: var(--stage-text);
   --text-secondary: var(--palette-ink-200);
   --muted: var(--stage-muted);
+  --text-disabled: var(--palette-slate-600);
   --line: var(--stage-line);
   --line-strong: var(--palette-ink-500);
   --accent: var(--palette-blue-400);
@@ -323,7 +410,11 @@
   --shadow-2:
     0 12px 32px -12px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.06),
     inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-3:
+    0 40px 100px -24px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
   --scrim: rgb(0 0 0 / 0.6);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   color: var(--text);
   background: var(--bg);
 }

@@ -56,6 +56,20 @@ class WhatIsAStream(unittest.TestCase):
         self.assertEqual(capture.playlist_facts("#EXTM3U\n#EXTINF:6,\na.ts\n"), (False, ()))
         self.assertEqual(capture.playlist_facts("<html>not a playlist</html>"), (None, ()))
 
+    def test_a_playlist_says_how_long_a_finished_list_is_and_whether_it_is_all_ads(self):
+        film = "#EXTM3U\n#EXTINF:6.5,\na.ts\n#EXTINF:4,\nb.ts\n#EXT-X-ENDLIST\n"
+        self.assertEqual(capture.advert_facts(film, "https://cdn.example/v/"), (10.5, False))
+        # Край живого эфира — длины у него нет: список растёт.
+        live = film.replace("#EXT-X-ENDLIST\n", "")
+        self.assertEqual(capture.advert_facts(live, "https://cdn.example/v/"), (None, False))
+        ad = "#EXTM3U\n#EXTINF:15,\nhttps://s0.2mdn.net/ads/1.ts\n#EXT-X-ENDLIST\n"
+        self.assertEqual(capture.advert_facts(ad, "https://cdn.example/v/"), (15.0, True))
+        # Относительные адреса — по адресу самого списка.
+        self.assertEqual(capture.advert_facts(film, "https://v.fwmrm.net/ad/"), (10.5, True))
+        master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhttps://pubads.g.doubleclick.net/hi.m3u8\n"
+        self.assertEqual(capture.advert_facts(master, "https://site.example/"), (None, True))
+        self.assertEqual(capture.advert_facts("<html>", "https://v.fwmrm.net/"), (None, False))
+
 
 class WhatGoesToTheService(unittest.TestCase):
     def test_referer_origin_and_the_browser_name_go_as_the_browser_sent_them(self):
@@ -134,6 +148,62 @@ class WhatIsBest(unittest.TestCase):
         best = catch.ranked(["https://cdn.example/film.mp4", "https://ads.example/ad.mp4"])[0]
         self.assertEqual(best.url, "https://cdn.example/film.mp4")
         self.assertEqual(catch.ranked()[0].url, "https://ads.example/ad.mp4")
+
+
+class Preroll(unittest.TestCase):
+    """Основной поток, а не преролл (E07): реклама перед фильмом — тоже поток, и часто первый."""
+
+    def test_a_master_from_an_ad_network_loses_to_the_film_master(self):
+        catch = Catch()
+        catch.stream("https://pubads.g.doubleclick.net/ad/master.m3u8", "hls", {}, order=1, master=True)
+        catch.stream("https://cdn.example/film/master.m3u8", "hls", {}, order=2, master=True)
+        self.assertEqual(catch.ranked()[0].url, "https://cdn.example/film/master.m3u8")
+
+    def test_a_stream_asked_from_an_ad_frame_loses_too(self):
+        catch = Catch()
+        frame = "https://imasdk.googleapis.com/js/core/bridge3.html"
+        catch.stream("https://cdn.example/ad/master.m3u8", "hls", {}, order=1, master=True, frame=frame)
+        catch.stream("https://cdn.example/film/master.m3u8", "hls", {}, order=2, master=True, frame=PAGE)
+        self.assertEqual(catch.ranked()[0].url, "https://cdn.example/film/master.m3u8")
+
+    def test_a_list_of_ads_on_the_site_cdn_loses_by_its_segments(self):
+        catch = Catch()
+        catch.stream("https://cdn.example/a.m3u8", "hls", {}, order=1, master=False, advert=True, seconds=15)
+        catch.stream("https://cdn.example/b.m3u8", "hls", {}, order=2, master=False, seconds=5400)
+        self.assertEqual(catch.ranked()[0].url, "https://cdn.example/b.m3u8")
+
+    def test_a_short_finished_list_loses_to_a_long_one_but_wins_alone(self):
+        catch = Catch()
+        catch.stream("https://cdn.example/pre.m3u8", "hls", {}, order=1, master=False, seconds=20)
+        catch.stream("https://cdn.example/film.m3u8", "hls", {}, order=2, master=False, seconds=5400)
+        self.assertEqual(catch.ranked()[0].url, "https://cdn.example/film.m3u8")
+        alone = Catch()
+        alone.stream("https://cdn.example/clip.m3u8", "hls", {}, order=1, master=False, seconds=20)
+        self.assertEqual(alone.ranked()[0].url, "https://cdn.example/clip.m3u8")
+
+    def test_a_film_file_beats_an_ad_playlist_whatever_the_kinds(self):
+        catch = Catch()
+        catch.stream("https://v.fwmrm.net/ad/master.m3u8", "hls", {}, order=1, master=True)
+        catch.stream("https://cdn.example/film.mp4", "file", {}, order=2, ext="mp4")
+        self.assertEqual(catch.ranked()[0].url, "https://cdn.example/film.mp4")
+
+    def test_a_file_playing_fifteen_seconds_loses_to_the_long_one(self):
+        catch = Catch()
+        catch.stream("https://cdn.example/pre.mp4", "file", {}, order=1, ext="mp4")
+        catch.stream("https://cdn.example/film.mp4", "file", {}, order=2, ext="mp4")
+        lengths = {"https://cdn.example/pre.mp4": 15.0, "https://cdn.example/film.mp4": 5400.0}
+        best = catch.ranked(["https://cdn.example/pre.mp4", "https://cdn.example/film.mp4"], lengths)[0]
+        self.assertEqual(best.url, "https://cdn.example/film.mp4")
+
+    def test_the_service_is_told_which_stream_is_an_ad(self):
+        catch = Catch()
+        catch.stream("https://s0.2mdn.net/ad.mp4", "file", {}, order=1, ext="mp4")
+        catch.stream("https://cdn.example/a.m3u8", "hls", {}, order=2, advert=True)
+        catch.stream("https://cdn.example/film.mp4", "file", {}, order=3, ext="mp4")
+        wired = {stream.url: stream.wire() for stream in catch.ranked()}
+        self.assertIs(wired["https://s0.2mdn.net/ad.mp4"]["ad"], True)
+        self.assertIs(wired["https://cdn.example/a.m3u8"]["ad"], True)
+        self.assertNotIn("ad", wired["https://cdn.example/film.mp4"])
 
 
 class Drm(unittest.TestCase):

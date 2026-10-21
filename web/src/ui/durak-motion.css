@@ -7,12 +7,15 @@
   overflow: visible;
 }
 
-.durak .durak-motion-card {
+/* Копия карты летит анимацией WAAPI (`DurakMotion.tsx`): свои CSS-анимации и переходы у копии
+   гаснут. Вес — от слоя, а не от `!important`: копия живёт только внутри `.durak-motion-layer`, и
+   правила стола, которые могли бы её двигать, держатся за предков руки и боя, которых у неё нет. */
+.durak .durak-motion-layer > .durak-motion-card {
   position: absolute;
   margin: 0;
   transform-origin: center;
-  animation: none !important;
-  transition: none !important;
+  animation: none;
+  transition: none;
   rotate: none;
   translate: none;
   scale: none;

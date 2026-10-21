@@ -2749,6 +2749,145 @@
         ],
         "type": "object"
       },
+      "Quality": {
+        "properties": {
+          "bitrateKbps": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "codecs": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/QualityDay"
+            },
+            "type": "array"
+          },
+          "freezes": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "freezesPerHour": {
+            "format": "double",
+            "type": "number"
+          },
+          "from": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "jitterMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "lossPercent": {
+            "format": "double",
+            "type": "number"
+          },
+          "lossyShare": {
+            "format": "double",
+            "type": "number"
+          },
+          "meetings": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/QualityMeeting"
+            },
+            "type": "array"
+          },
+          "relayShare": {
+            "format": "double",
+            "type": "number"
+          },
+          "reports": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rttMaxMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rttMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "to": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "QualityDay": {
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "lossPercent": {
+            "format": "double",
+            "type": "number"
+          },
+          "reports": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rttMs": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "QualityMeeting": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "freezes": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "jitterMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "lossPercent": {
+            "format": "double",
+            "type": "number"
+          },
+          "relay": {
+            "type": "boolean"
+          },
+          "reports": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rttMaxMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rttMs": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "QualityRules": {
         "properties": {
           "cameraYieldsToScreen": {
@@ -2828,6 +2967,70 @@
           "events",
           "reset",
           "snapshot"
+        ],
+        "type": "object"
+      },
+      "Report": {
+        "properties": {
+          "bitrateKbps": {
+            "format": "int32",
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "codec": {
+            "pattern": "vp8|vp9|h264|h265|av1|other",
+            "type": "string"
+          },
+          "freezes": {
+            "format": "int32",
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "freezeSeconds": {
+            "format": "int32",
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "jitterMs": {
+            "format": "int32",
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lossPercent": {
+            "format": "double",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "lossySeconds": {
+            "format": "int32",
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "pattern": "direct-udp|direct-tcp|relay-udp|relay-tcp|unknown",
+            "type": "string"
+          },
+          "rttMs": {
+            "format": "int32",
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seconds": {
+            "format": "int32",
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path"
         ],
         "type": "object"
       },
@@ -4064,6 +4267,64 @@
         ]
       }
     },
+    "/api/v1/admin/quality": {
+      "get": {
+        "operationId": "quality",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quality"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
     "/api/v1/admin/rooms/{id}/close": {
       "post": {
         "operationId": "close",
@@ -4964,6 +5225,48 @@
               }
             },
             "description": "OK"
+          }
+        },
+        "tags": [
+          "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/client-report": {
+      "post": {
+        "operationId": "clientReport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Report"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         },
         "tags": [

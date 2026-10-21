@@ -1,18 +1,11 @@
 /* Cord scene chrome follows Poker; the bright hand and paired cards belong to Durak.
-   The root scope wins over the older cross-game polish rules without changing Poker. */
+   The root scope wins over the older cross-game polish rules without changing Poker.
+   Стол стоит на `.media-stage` (обёртка в `Stage.tsx`): панели, текст и кнопки — смысловые токены
+   сцены, своё у дурака — сукно `--felt-teal*` и колода `--card-*` из `styles/tokens.css`. */
 .durak.durak-refined[data-phase] {
-  --bg: #0a121a;
-  --surface: #101b26;
-  --surface-2: #17222f;
-  --text: #eef2f8;
-  --muted: #aab9cb;
-  --line: #ffffff21;
-  --brass: #91b5ff;
-  --brass-soft: #c1d5ff;
-  --alarm: #ff9c9c;
   --card-w: clamp(48px, 6.6cqw, 76px);
-  --card-r: 8px;
-  --game-accent: #91b5ff;
+  --card-r: var(--radius-2);
+  --game-accent: var(--accent);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -21,7 +14,7 @@
   min-height: 0;
   overflow: auto;
   gap: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-4);
   color: var(--text);
   background: var(--bg);
   user-select: none;
@@ -34,7 +27,7 @@
     cursor: default;
   }
   & button:focus-visible {
-    outline: 3px solid #a8c4ff;
+    outline: 3px solid var(--accent);
     outline-offset: 3px;
   }
   & .durak-bar {
@@ -52,14 +45,14 @@
     min-width: 0;
   }
   & .durak-mode b {
-    font-size: 16px;
+    font-size: var(--text-md);
     font-weight: 650;
   }
   & .durak-mode small {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
+    font-size: var(--text-xs);
     color: var(--muted);
   }
   & .durak-bar-spacer {
@@ -71,7 +64,7 @@
     min-height: 42px;
     height: 42px;
     flex-shrink: 0;
-    border-radius: 11px;
+    border-radius: var(--radius-3);
     color: var(--muted);
   }
   & .durak-bar .icon-button:hover {
@@ -90,7 +83,7 @@
     min-height: 46px;
     padding: 10px 18px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   & .durak-turn strong {
     font-weight: 500;
@@ -100,16 +93,16 @@
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
-    font-size: 15px;
+    font-size: var(--text-base);
     font-variant-numeric: tabular-nums;
   }
   & .durak-turn[data-active] {
-    color: #d3e2ff;
-    background: #16273d;
+    color: var(--text);
+    background: var(--accent-soft);
   }
   & .durak-turn[data-error] {
-    color: #ffb2b2;
-    background: #351f29;
+    color: var(--danger);
+    background: var(--danger-soft);
   }
   & .durak-table {
     position: relative;
@@ -156,24 +149,29 @@
     min-height: 250px;
     overflow: visible;
     border-radius: 46% / 45%;
-    border: 6px solid #1a2939;
-    background: radial-gradient(ellipse at 50% 35%, #254a59 0%, #183a48 52%, #102d3a 100%);
+    border: 6px solid var(--surface-1);
+    background: radial-gradient(
+      ellipse at 50% 35%,
+      var(--felt-teal-light) 0%,
+      var(--felt-teal) 52%,
+      var(--felt-teal-deep) 100%
+    );
     box-shadow:
-      inset 0 0 0 1px #9dc0d133,
-      inset 0 0 45px #07192360,
-      0 8px 20px #0003;
+      inset 0 0 0 1px var(--stage-glint-2),
+      inset 0 0 45px var(--stage-veil-1),
+      var(--shadow-card);
   }
   & .durak-felt::before {
     content: '';
     position: absolute;
     inset: 20px;
-    border: 1px solid #cce8ef18;
+    border: 1px solid var(--stage-glint-1);
     border-radius: inherit;
     pointer-events: none;
   }
   /* Знак Cord, вытканный в середине сукна: под картами боя, приглушён до тени. */
   & .durak-felt-mark {
-    --brand-accent: #d5ecf3;
+    --brand-accent: var(--stage-text);
     position: absolute;
     left: 50%;
     top: 50%;
@@ -187,7 +185,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: #020b17;
+    background: var(--stage-bg);
     opacity: 0;
     pointer-events: none;
     z-index: 4;
@@ -271,8 +269,8 @@
   }
   & .durak-pair[data-target] .durak-attack .durak-card {
     box-shadow:
-      0 0 0 3px #a8c9ff,
-      0 5px 20px #0005;
+      0 0 0 3px var(--accent),
+      var(--shadow-lift);
   }
   & .durak-target-label {
     position: absolute;
@@ -285,10 +283,10 @@
     gap: 3px;
     padding: 3px 6px;
     white-space: nowrap;
-    background: #d6e5ff;
-    color: #122c52;
-    border-radius: 5px;
-    font-size: 11px;
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    border-radius: var(--radius-1);
+    font-size: var(--text-xs);
     font-weight: 650;
     pointer-events: none;
   }
@@ -300,17 +298,17 @@
     gap: 8px;
     min-height: 44px;
     padding: 10px 18px;
-    border-radius: 11px;
-    border: 1px solid #a8c9ff;
-    background: #d6e5ff;
-    color: #152f55;
+    border-radius: var(--radius-3);
+    border: 1px solid var(--accent);
+    background: var(--accent-fill);
+    color: var(--on-accent);
     font-weight: 650;
-    font-size: 13px;
+    font-size: var(--text-sm);
     cursor: pointer;
     z-index: 6;
   }
   & .durak-place:hover {
-    background: #edf4ff;
+    background: var(--accent-fill-hover);
   }
 
   & .durak-card {
@@ -319,16 +317,16 @@
     width: var(--card-w);
     height: calc(var(--card-w) * 1.42);
     border-radius: var(--card-r);
-    background: #fffefa;
-    color: #182231;
+    background: var(--card-face);
+    color: var(--card-black);
     box-shadow:
-      inset 0 0 0 1px #e0e3e8,
-      0 3px 8px #0004;
+      inset 0 0 0 1px var(--card-edge),
+      var(--shadow-card);
     overflow: hidden;
     font-family: inherit;
   }
   & .durak-card[data-red] {
-    color: #d82342;
+    color: var(--card-red);
   }
   & .durak-card-rank {
     position: absolute;
@@ -364,22 +362,22 @@
     text-decoration: none;
   }
   & .durak-card[data-back] {
-    background: repeating-linear-gradient(45deg, #45688e 0 2px, #2d4d73 2px 5px);
-    border: 3px solid #dce3ee;
+    background: var(--card-back-pattern);
+    border: 3px solid var(--card-face);
     box-shadow:
-      inset 0 0 0 1px #7d98b7,
-      0 3px 8px #0004;
+      inset 0 0 0 1px var(--card-back-deep),
+      var(--shadow-card);
   }
   /* Марка Cord на рубашке — колода своего заведения. */
   & .durak-card-mark {
-    --brand-accent: #e9f0fa;
+    --brand-accent: var(--stage-text);
     position: absolute;
     left: 50%;
     top: 50%;
     translate: -50% -50%;
     width: 58%;
     height: auto;
-    filter: drop-shadow(0 1px 1px #0006);
+    filter: drop-shadow(0 1px 1px var(--stage-veil-1));
   }
   & .durak-stock,
   & .durak-discard {
@@ -417,7 +415,7 @@
     content: '';
     position: absolute;
     inset: 0 calc(var(--card-w) * 0.25);
-    border: 1px dashed #cce8ef3d;
+    border: 1px dashed var(--stage-glint-3);
     border-radius: var(--card-r);
   }
   & .durak-trump {
@@ -447,10 +445,10 @@
   & .durak-stock-count {
     min-width: 44px;
     padding: 3px 8px;
-    border-radius: 9px;
-    background: #0d1c29cc;
-    color: #eef4fb;
-    font-size: 16px;
+    border-radius: var(--radius-2);
+    background: var(--stage-veil-3);
+    color: var(--text);
+    font-size: var(--text-md);
     font-weight: 700;
     line-height: 1.15;
     font-variant-numeric: tabular-nums;
@@ -458,9 +456,9 @@
   }
   & .durak-stock-count small {
     display: block;
-    font-size: 10px;
+    font-size: var(--text-xs);
     font-weight: 500;
-    color: #b4c8d8;
+    color: var(--text-secondary);
     white-space: nowrap;
   }
   & .durak-seat {
@@ -490,12 +488,12 @@
     place-items: center;
     overflow: hidden;
     border-radius: 50%;
-    color: #dce7f5;
-    background: #283b51;
+    color: var(--text);
+    background: var(--surface-2);
     box-shadow:
-      0 0 0 3px #172939,
-      0 3px 10px #0004;
-    font-size: 21px;
+      0 0 0 3px var(--surface-1),
+      var(--shadow-card);
+    font-size: var(--text-lg);
   }
   & .durak-seat-face > .avatar {
     width: 100%;
@@ -520,8 +518,8 @@
   }
   & .durak-seat[data-acting] .durak-seat-face {
     box-shadow:
-      0 0 0 3px #aacbff,
-      0 3px 10px #0004;
+      0 0 0 3px var(--accent),
+      var(--shadow-card);
   }
   /* Сколько карт на руках: значок с рубашкой у правого нижнего края лица. */
   & .durak-seat-count {
@@ -535,39 +533,39 @@
     min-width: 28px;
     height: 20px;
     padding: 0 6px 0 5px;
-    border: 1px solid #ffffff2e;
-    border-radius: 10px;
-    background: #0d1a27;
-    color: #eef3fb;
-    font-size: 11px;
+    border: 1px solid var(--stage-glint-2);
+    border-radius: var(--radius-2);
+    background: var(--surface-1);
+    color: var(--text);
+    font-size: var(--text-xs);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    box-shadow: 0 2px 6px #0006;
+    box-shadow: var(--shadow-card);
   }
   & .durak-seat-count i {
     width: 8px;
     height: 11px;
-    border: 1px solid #dce3ee;
+    border: 1px solid var(--card-face);
     border-radius: 2px;
-    background: repeating-linear-gradient(45deg, #45688e 0 2px, #2d4d73 2px 4px);
+    background: var(--card-back);
   }
   /* Решение стола за игрока (T07) видно всем: подпись другим цветом, у «нечем отбиться» — кольцо. */
   & .durak-seat[data-auto] .durak-seat-role {
-    color: #ffd59a;
+    color: var(--warning);
     font-weight: 600;
   }
   & .durak-seat[data-auto='take'] .durak-seat-face {
     box-shadow:
-      0 0 0 3px #ffb35c,
-      0 3px 10px #0004;
+      0 0 0 3px var(--warning),
+      var(--shadow-card);
   }
   & .durak-seat[data-fool] .durak-seat-face {
     box-shadow:
-      0 0 0 3px #ff8f8f,
-      0 3px 10px #0004;
+      0 0 0 3px var(--danger),
+      var(--shadow-card);
   }
   & .durak-seat[data-fool] .durak-seat-role {
-    color: #ffb2b2;
+    color: var(--danger);
     font-weight: 700;
   }
   @media (prefers-reduced-motion: no-preference) {
@@ -590,17 +588,17 @@
     gap: 5px;
     max-width: 40%;
     padding: 5px 10px;
-    border-radius: 99px;
-    background: #d6e5ff;
-    color: #122c52;
-    font-size: 12px;
+    border-radius: var(--radius-full);
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    font-size: var(--text-xs);
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     pointer-events: none;
     opacity: 0;
-    box-shadow: 0 4px 14px #0006;
+    box-shadow: var(--shadow-lift);
   }
   @media (prefers-reduced-motion: no-preference) {
     & .durak-transfer-cue {
@@ -611,10 +609,10 @@
     display: block;
     max-width: 100%;
     padding: 3px 7px;
-    border-radius: 6px;
-    background: #101e2ddb;
-    color: #eef3fb;
-    font-size: 12px;
+    border-radius: var(--radius-2);
+    background: var(--stage-veil-3);
+    color: var(--text);
+    font-size: var(--text-xs);
     font-weight: 550;
     line-height: 1.25;
     white-space: nowrap;
@@ -623,9 +621,9 @@
   }
   & .durak-seat-role {
     min-height: 15px;
-    font-size: 11px;
+    font-size: var(--text-xs);
     line-height: 1.3;
-    color: #c9dcee;
+    color: var(--text-secondary);
   }
   & .durak-seat[data-away] .durak-seat-face {
     opacity: 0.6;
@@ -641,11 +639,11 @@
     gap: 7px;
     justify-items: center;
     text-align: center;
-    color: #d9e5ef;
+    color: var(--text);
   }
   & .durak-center-suit {
-    font-size: 34px;
-    color: #bfd3e3;
+    font-size: var(--text-2xl);
+    color: var(--text-secondary);
   }
   & .durak-center h3 {
     margin: 0;
@@ -655,9 +653,9 @@
   & .durak-center p {
     max-width: 28ch;
     margin: 0;
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.5;
-    color: #b3c9d8;
+    color: var(--text-secondary);
   }
   & .durak-pause {
     position: absolute;
@@ -670,16 +668,16 @@
     gap: 10px;
     padding: 24px;
     border-radius: inherit;
-    background: #07121bea;
+    background: var(--stage-veil-3);
     text-align: center;
   }
   & .durak-pause b {
-    font-size: 20px;
+    font-size: var(--text-lg);
   }
   & .durak-pause > span,
   & .durak-pause > small {
     max-width: 32ch;
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.5;
     color: var(--muted);
   }
@@ -690,7 +688,7 @@
   & .durak-hand-band {
     position: relative;
     min-width: 0;
-    border-top: 1px solid #ffffff0d;
+    border-top: 1px solid var(--line);
   }
   & .durak-hand-caption {
     display: flex;
@@ -700,7 +698,7 @@
     min-height: 46px;
     padding-top: 7px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   & .durak-hand-caption button {
     display: inline-flex;
@@ -709,9 +707,9 @@
     border: 0;
     padding: 0 6px;
     min-height: 28px;
-    color: #c8dcff;
+    color: var(--accent);
     background: none;
-    font-size: 12px;
+    font-size: var(--text-xs);
     cursor: pointer;
   }
   & .durak-guidance {
@@ -722,8 +720,8 @@
     margin: 0;
     padding: 5px 12px;
     background: var(--bg);
-    color: #c8dcff;
-    font-size: 12px;
+    color: var(--accent);
+    font-size: var(--text-xs);
     text-align: center;
     z-index: 10;
   }
@@ -744,7 +742,7 @@
     scroll-padding-inline: 30px;
     overscroll-behavior-x: contain;
     scrollbar-width: thin;
-    scrollbar-color: #45617e transparent;
+    scrollbar-color: var(--line-strong) transparent;
   }
   & .durak-hand-card {
     --card-w: 106px;
@@ -777,8 +775,8 @@
   }
   & .durak-hand-card .durak-card {
     box-shadow:
-      inset 0 0 0 1px #e4e7eb,
-      0 4px 10px #0005;
+      inset 0 0 0 1px var(--card-edge),
+      var(--shadow-card);
   }
   & .durak-hand-card:hover:not(:disabled),
   & .durak-hand-card:focus-visible {
@@ -786,8 +784,8 @@
   }
   & .durak-hand-card:hover:not(:disabled) .durak-card {
     box-shadow:
-      inset 0 0 0 2px #b7cff5,
-      0 4px 10px #0005;
+      inset 0 0 0 2px var(--accent),
+      var(--shadow-card);
   }
   & .durak-hand-card[data-picked] {
     translate: 0 -12px;
@@ -795,8 +793,8 @@
   }
   & .durak-hand-card[data-picked] .durak-card {
     box-shadow:
-      0 0 0 3px #9fc5ff,
-      0 6px 14px #0005;
+      0 0 0 3px var(--accent),
+      var(--shadow-lift);
   }
   & .durak-hand-card[data-held] {
     opacity: 0.12;
@@ -822,11 +820,11 @@
     place-items: center;
     width: 38px;
     height: 44px;
-    border: 1px solid #617998;
-    border-radius: 11px;
-    color: #e0ebff;
-    background: #172838;
-    box-shadow: 0 2px 8px #0005;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-3);
+    color: var(--text);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-card);
     z-index: 12;
     cursor: pointer;
   }
@@ -848,7 +846,7 @@
   }
   & .durak-controls-hint {
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.4;
   }
   & .durak-actions {
@@ -863,22 +861,22 @@
     gap: 8px;
     min-width: 102px;
     min-height: 44px;
-    border: 1px solid #547191;
-    border-radius: 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-3);
     padding: 10px 20px;
-    background: #24394f;
-    color: #eaf2ff;
-    font-size: 14px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
   }
   & .durak-act[data-kind='pass'] {
-    color: #c9dcff;
-    background: #213655;
-    border-color: #7793be;
+    color: var(--text);
+    background: var(--accent-soft);
+    border-color: var(--accent);
   }
   & .durak-act:hover:not(:disabled) {
-    background: #314963;
+    background: var(--surface-3);
   }
   & .durak-act:disabled {
     opacity: 0.45;
@@ -896,13 +894,13 @@
     --card-w: 100%;
     width: 100%;
     height: 100%;
-    box-shadow: 0 14px 24px #0005;
+    box-shadow: var(--shadow-lift);
   }
   & .durak-drag-card .durak-card-rank {
-    font-size: 25px;
+    font-size: var(--text-xl);
   }
   & .durak-drag-card .durak-card-rank i {
-    font-size: 21px;
+    font-size: var(--text-lg);
   }
   & .durak-drag-card .durak-card-pip {
     font-size: 50px;
@@ -918,7 +916,7 @@
     z-index: 0;
     position: absolute;
     inset: 0;
-    background: #03091370;
+    background: var(--scrim);
     pointer-events: auto;
   }
   & .durak-sheet {
@@ -932,11 +930,11 @@
     flex-direction: column;
     padding: 14px;
     gap: 14px;
-    border-radius: 18px;
+    border-radius: var(--radius-4);
     border: 1px solid var(--line);
-    background: #0e1925;
+    background: var(--surface-1);
     color: var(--text);
-    box-shadow: -16px 0 40px #0005;
+    box-shadow: var(--shadow-3);
     pointer-events: auto;
     user-select: text;
   }
@@ -950,12 +948,12 @@
   }
   & .durak-sheet-head h2 {
     margin: 0 0 5px;
-    font-size: 16px;
+    font-size: var(--text-md);
     line-height: 1.3;
   }
   & .durak-sheet-head p {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--text-xs);
     line-height: 1.4;
     color: var(--muted);
   }
@@ -984,21 +982,21 @@
   & .durak-settings-group h3 {
     margin: 4px 0 2px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 500;
   }
   & .durak-settings-choice {
     display: grid;
     gap: 9px;
     padding: 11px;
-    border-radius: 12px;
+    border-radius: var(--radius-3);
     background: var(--surface-2);
     border: 1px solid var(--line);
   }
   & .durak-settings-choice b,
   & .durak-toggle b,
   & .durak-settings-action b {
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 600;
   }
   & .durak-settings-choice small,
@@ -1007,7 +1005,7 @@
     display: block;
     margin-top: 3px;
     color: var(--muted);
-    font-size: 11px;
+    font-size: var(--text-xs);
     line-height: 1.45;
   }
   & .durak-choice {
@@ -1021,16 +1019,16 @@
     min-width: 54px;
     padding: 7px 9px;
     border: 1px solid var(--line);
-    border-radius: 9px;
-    background: #101b28;
+    border-radius: var(--radius-2);
+    background: var(--surface-1);
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
     cursor: pointer;
   }
   & .durak-choice button[aria-pressed='true'] {
-    border-color: #91b5ff;
-    color: #d5e4ff;
-    background: #24374f;
+    border-color: var(--accent);
+    color: var(--text);
+    background: var(--accent-soft);
   }
   & .durak-choice button:disabled {
     opacity: 0.6;
@@ -1049,7 +1047,7 @@
     width: 100%;
     padding: 12px 11px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius-3);
     background: var(--surface-2);
     color: var(--text);
     text-align: left;
@@ -1060,21 +1058,21 @@
   }
   & .durak-settings-action:hover:not(:disabled),
   & .durak-toggle:hover:not(:disabled) {
-    border-color: #6984a6;
+    border-color: var(--muted);
   }
   & .durak-settings-action:disabled,
   & .durak-toggle:disabled {
     opacity: 0.5;
   }
   & .durak-settings-action.is-danger {
-    color: #ff9c9c;
+    color: var(--danger);
   }
   & .durak-toggle i {
     position: relative;
     width: 40px;
     height: 24px;
-    background: #0b131a;
-    border-radius: 99px;
+    background: var(--stage-bg);
+    border-radius: var(--radius-full);
     border: 1px solid var(--line);
   }
   & .durak-toggle i::after {
@@ -1085,39 +1083,39 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #8796a9;
+    background: var(--muted);
   }
   & .durak-toggle[aria-checked='true'] i {
-    background: #305582;
-    border-color: #91b5ff;
+    background: var(--accent-soft);
+    border-color: var(--accent);
   }
   & .durak-toggle[aria-checked='true'] i::after {
     left: 19px;
-    background: #c8ddff;
+    background: var(--accent);
   }
   & .durak-settings-note {
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.5;
   }
   & .durak-sheet-error {
     padding: 10px;
     margin: 0;
-    border-radius: 10px;
-    color: #ffb2b2;
-    background: #351f29;
-    font-size: 12px;
+    border-radius: var(--radius-2);
+    color: var(--danger);
+    background: var(--danger-soft);
+    font-size: var(--text-xs);
     line-height: 1.5;
   }
   & .durak-score-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   & .durak-score-table th {
     padding: 10px 5px;
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 500;
     color: var(--muted);
   }
@@ -1142,18 +1140,18 @@
   }
   & .durak-over-symbol {
     font-size: 50px;
-    color: #b5cef4;
+    color: var(--accent);
   }
   & .durak-over h3 {
     margin: 0;
-    font-size: 24px;
+    font-size: var(--text-xl);
     font-weight: 600;
     overflow-wrap: anywhere;
   }
   & .durak-over p {
     margin: 0;
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.5;
   }
   & .durak-places {
@@ -1169,9 +1167,9 @@
     align-items: center;
     gap: 8px;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--radius-3);
     background: var(--surface-2);
-    font-size: 13px;
+    font-size: var(--text-sm);
     text-align: left;
   }
   & .durak-places li b {
@@ -1180,7 +1178,7 @@
   }
   & .durak-places li > span,
   & .durak-places li > svg {
-    color: #b5cef4;
+    color: var(--accent);
   }
 }
 
@@ -1244,13 +1242,13 @@
   0%,
   100% {
     box-shadow:
-      0 0 0 3px #aacbff,
-      0 3px 10px #0004;
+      0 0 0 3px var(--accent),
+      var(--shadow-card);
   }
   50% {
     box-shadow:
-      0 0 0 5px #d3e3ff,
-      0 0 30px #9ec0ff;
+      0 0 0 5px var(--accent-hover),
+      0 0 30px var(--accent);
   }
 }
 
@@ -1266,10 +1264,10 @@
       margin-right: 4px;
     }
     & .durak-mode b {
-      font-size: 14px;
+      font-size: var(--text-base);
     }
     & .durak-mode small {
-      font-size: 10px;
+      font-size: var(--text-xs);
     }
     & .durak-bar .icon-button {
       width: 38px;
@@ -1280,7 +1278,7 @@
     & .durak-turn {
       padding: 9px 12px;
       gap: 10px;
-      font-size: 12px;
+      font-size: var(--text-xs);
     }
     & .durak-table {
       min-height: min-content;
@@ -1345,20 +1343,20 @@
     }
     & .durak-seat-face {
       width: 42px;
-      font-size: 17px;
+      font-size: var(--text-md);
     }
     & .durak-seat-name {
-      font-size: 11px;
+      font-size: var(--text-xs);
       padding: 3px 5px;
     }
     & .durak-seat-role {
-      font-size: 10px;
+      font-size: var(--text-xs);
     }
     & .durak-stock-count {
-      font-size: 13px;
+      font-size: var(--text-sm);
     }
     & .durak-stock-count small {
-      font-size: 9px;
+      font-size: var(--text-xs);
     }
     & .durak-hand {
       min-height: 160px;
@@ -1386,19 +1384,19 @@
       gap: 8px;
     }
     & .durak-controls-hint {
-      font-size: 11px;
+      font-size: var(--text-xs);
       max-width: 25ch;
     }
     & .durak-act {
       min-width: 82px;
       padding: 10px 13px;
-      font-size: 13px;
+      font-size: var(--text-sm);
     }
     & .durak-drag-card .durak-card-rank {
-      font-size: 20px;
+      font-size: var(--text-lg);
     }
     & .durak-drag-card .durak-card-rank i {
-      font-size: 17px;
+      font-size: var(--text-md);
     }
     & .durak-drag-card .durak-card-pip {
       font-size: 40px;
@@ -1425,10 +1423,10 @@
       width: 64%;
     }
     & .durak-guidance {
-      font-size: 11px;
+      font-size: var(--text-xs);
     }
     & .durak-seat-name {
-      font-size: 10px;
+      font-size: var(--text-xs);
     }
     & .durak-seat-face {
       width: 38px;
@@ -1441,9 +1439,9 @@
   margin: 0 0 10px;
   padding: 10px 12px;
   list-style: none;
-  border-radius: 12px;
-  background: color-mix(in oklab, var(--brass, #c9a227) 8%, transparent);
-  font-size: 13px;
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
 }
 .games-score li {
   display: flex;
@@ -1451,13 +1449,13 @@
   gap: 10px;
 }
 .games-score span {
-  color: var(--muted, #92a8ad);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 /* Таблица партии — та же, что на сцене; дурак в ней подсвечен строкой, а не значком. */
 .games-body .durak-score-table td[data-fool],
 .games-body .durak-score-table tr[data-fool] td {
-  color: #d9654a;
+  color: var(--danger);
 }
 .games-highlights {
   display: grid;
@@ -1469,15 +1467,14 @@
 .games-highlights li {
   display: grid;
   gap: 1px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .games-highlights b {
-  color: #e8cf7c;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 .games-highlights small {
-  color: var(--muted, #92a8ad);
-  font-size: 12px;
+  color: var(--muted);
+  font-size: var(--text-xs);
 }

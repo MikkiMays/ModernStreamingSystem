@@ -46,6 +46,10 @@
       "about": {
         "title": "关于",
         "keywords": "版本 cord 帮助 支持 导览"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "应用 托盘 任务栏 缩略图 徽标 闪烁 睡眠 叠加层 开机启动"
       }
     },
     "anchors": {
@@ -82,6 +86,11 @@
         "label": "麦克风",
         "hint": "开启或静音",
         "keywords": "快捷键 热键 静音 mute"
+      },
+      "hotkey-ptt": {
+        "label": "按住说话",
+        "hint": "仅在按住快捷键时开启麦克风",
+        "keywords": "push-to-talk ptt 对讲 按住"
       },
       "hotkey-other": {
         "label": "影院和游戏按键",
@@ -257,6 +266,46 @@
         "label": "Cord 入门导览",
         "hint": "主要按钮旁的简短提示",
         "keywords": "导览 提示 入门 指南"
+      },
+      "desktop-tray": {
+        "label": "托盘图标",
+        "hint": "在时钟旁打开 Cord 并切换麦克风",
+        "keywords": "托盘 通知区域"
+      },
+      "desktop-thumbar": {
+        "label": "缩略图按钮",
+        "hint": "任务栏中的麦克风、摄像头和离开",
+        "keywords": "任务栏 缩略图 按钮"
+      },
+      "desktop-badge": {
+        "label": "图标徽标",
+        "hint": "会议中的麦克风和未读消息",
+        "keywords": "任务栏 徽标 指示器"
+      },
+      "desktop-flash": {
+        "label": "闪烁窗口按钮",
+        "hint": "有人提到你且 Cord 在后台时",
+        "keywords": "闪烁 提及 注意"
+      },
+      "desktop-sleep": {
+        "label": "会议期间不进入睡眠",
+        "hint": "通话和共享时屏幕保持常亮",
+        "keywords": "睡眠 屏幕 节能"
+      },
+      "desktop-overlay": {
+        "label": "游戏内叠加层",
+        "hint": "谁在通话、谁在说话——显示在游戏上方",
+        "keywords": "叠加层 游戏 上方 参与者"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "叠加层快捷键",
+        "hint": "",
+        "keywords": "按键 叠加层 热键 快捷键"
+      },
+      "desktop-autostart": {
+        "label": "随 Windows 启动",
+        "hint": "Cord 将以最小化方式打开",
+        "keywords": "开机启动 自启动 启动"
       }
     },
     "title": "设置",
@@ -323,6 +372,7 @@
       "resetLabel": "恢复默认麦克风快捷键",
       "disable": "停用",
       "disableLabel": "停用麦克风快捷键",
+      "holdHint": "按住快捷键说话",
       "groups": {
         "cinema": "影院",
         "poker": "扑克（轮到你时）",
@@ -439,6 +489,17 @@
       "deviceFailed": "无法启用设备",
       "recordUnsupported": "此浏览器不支持测试录音。电平条仍可使用。",
       "toneFailed": "无法播放测试音"
+    },
+    "desktop": {
+      "taskbar": "任务栏和托盘",
+      "meeting": "会议期间",
+      "start": "启动",
+      "overlayNote": "叠加层在窗口化和无边框模式下可见；在独占全屏模式下 Windows 不会显示它。",
+      "overlayTaken": "此快捷键已被麦克风使用——请选择其他快捷键。",
+      "micTaken": "此快捷键已被叠加层使用——请选择其他快捷键。",
+      "changeLabel": "更改叠加层快捷键",
+      "assignLabel": "设置叠加层快捷键",
+      "disableLabel": "关闭叠加层快捷键"
     }
   },
   "meeting": {
@@ -1090,6 +1151,11 @@
   "hotkeys": {
     "unassigned": "未设置",
     "space": "空格",
+    "mouse": {
+      "Mouse3": "鼠标中键",
+      "Mouse4": "鼠标按键 4",
+      "Mouse5": "鼠标按键 5"
+    },
     "player": {
       "pause": "暂停",
       "sound": "声音",
@@ -1107,6 +1173,7 @@
       "windowsKey": "Windows 键由系统占用：该快捷键只在 Cord 窗口中有效。",
       "f12": "F12 由系统占用：该快捷键只在 Cord 窗口中有效。",
       "noModifier": "不带 Ctrl 或 Alt 时，快捷键只在 Cord 窗口中有效；带上它们，在其他程序前台时也有效。",
+      "rawBare": "不带 Ctrl 或 Alt 的 {{label}} 在其他程序中打字时也会触发。",
       "player": "{{label}} 在影院播放器中也是“{{action}}”：播放器打开时，会切换麦克风。",
       "poker": "{{label}} 在扑克牌桌上也是“{{action}}”：轮到你时，两者都会触发。"
     }
@@ -1137,6 +1204,12 @@
       "unsupported": "此浏览器不支持屏幕共享",
       "noTrack": "无法获取屏幕画面",
       "ownAudioLeaks": "此浏览器无法从系统声音中去除 Cord 自身的声音：观众会同时听到对话和自己的声音。请改为共享窗口或标签页，或更新浏览器。",
+      "audio": {
+        "unavailable": "Cord 的 Windows 声音模块未运行——共享将不带声音。",
+        "notWindow": "应用声音仅适用于窗口——屏幕共享将不带声音。",
+        "failed": "共享声音未能开启（{{reason}}）——共享将不带声音。",
+        "stopped": "共享声音已中断（{{reason}}）——共享将继续，但不带声音。"
+      },
       "cancelled": "屏幕共享已取消",
       "noPermission": "未获得媒体服务器的许可。请重新尝试共享屏幕。"
     },
@@ -2087,7 +2160,8 @@
   "api": {
     "requestFailed": "请求失败",
     "fileUnavailable": "文件不可用或已过期",
-    "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}"
+    "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}",
+    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开"
   },
   "kit": {
     "toasts": "通知",
@@ -2865,7 +2939,8 @@
     "SUPPORT_NOT_FOUND": "未找到该反馈",
     "SUPPORT_OFF": "目前不接收反馈。请在 Telegram 上联系 Cord 的作者——链接就在旁边",
     "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试，或在 Telegram 上联系 Cord 的作者",
-    "SUPPORT_TEXT": "请描述发生了什么——至少写一句话"
+    "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
+    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开"
   },
   "activity": {
     "title": "活动",
@@ -2878,6 +2953,7 @@
     "tabs": {
       "now": "当前",
       "meetings": "会议",
+      "quality": "质量",
       "audit": "日志",
       "blocks": "封禁",
       "server": "服务器",
@@ -2934,6 +3010,42 @@
       "longer": "超过 {{duration}}",
       "count_other": "{{count}} 场会议",
       "dayTip_other": "{{count}} 场会议，{{hours}} 人·小时，峰值 {{peak}}"
+    },
+    "quality": {
+      "hint": "浏览器在通话结束时发送的通话摘要：只有数字，不含姓名和地址。",
+      "empty": "此期间没有通话摘要。浏览器在离开有两人在线的会议时发送摘要。",
+      "meetings": "有摘要的会议",
+      "calls": "通话摘要",
+      "rtt": "平均往返",
+      "rttMax": "最差往返",
+      "loss": "平均丢包",
+      "lossy": "丢包超过 5% 的时间",
+      "jitter": "平均抖动",
+      "bitrate": "平均接收速率",
+      "freezes": "每小时画面卡顿",
+      "relay": "经中继（TURN）",
+      "ms": "{{value}} 毫秒",
+      "percent": "{{value}}%",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "每日往返",
+      "dayTip": "往返 {{rtt}}，丢包 {{loss}}，摘要：{{count}}",
+      "codecs": "会议中的视频编码",
+      "codecTip": "会议：{{count}}",
+      "recent": "最近有摘要的会议",
+      "gone": "已删除",
+      "worst": "最差 {{value}}",
+      "yes": "是",
+      "no": "否",
+      "columns": {
+        "code": "代码",
+        "started": "开始",
+        "calls": "摘要",
+        "rtt": "往返",
+        "loss": "丢包",
+        "jitter": "抖动",
+        "freezes": "卡顿",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "类型",
@@ -3151,5 +3263,33 @@
       "text": "也可以在 Telegram 上联系 Cord 的作者",
       "link": "Telegram 上的 @nikgers"
     }
+  },
+  "capture": {
+    "title": "共享内容",
+    "kinds": "共享内容类型",
+    "screens": "屏幕",
+    "windows": "窗口",
+    "sources": "来源",
+    "loading": "正在查找屏幕和窗口…",
+    "noScreens": "未找到屏幕。",
+    "noWindows": "没有打开的窗口。",
+    "untitled": "无标题",
+    "systemAudio": "包含系统声音",
+    "systemAudioHint": "参与者将听到电脑的全部声音，包括本次会议的语音。",
+    "audio": "声音",
+    "audioModes": {
+      "none": "无声音",
+      "system": "系统声音",
+      "app": "应用声音",
+      "system-except-cord": "系统声音（不含 Cord）"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "参与者也会听到本次会议的语音。如需无回声的声音，请选择“系统声音（不含 Cord）”。",
+      "app": "仅共享所选应用的声音——会议中的语音不会进入共享。",
+      "system-except-cord": "电脑的全部声音，Cord 本身除外。"
+    },
+    "share": "共享",
+    "cancel": "取消"
   }
 }

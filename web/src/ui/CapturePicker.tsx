@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AppWindow, Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
+  captureAudioModes,
   listCaptureSources,
   systemAudioAvailable,
   type CaptureAudio,
@@ -24,6 +25,9 @@ export interface CaptureChoice {
  * оболочки, по дизайну E16, как в Discord: вкладки «Экраны» и «Окна», плитки с миниатюрой и значком
  * приложения, «Со звуком системы» (только Windows) и «Показать». Двойной щелчок по плитке — сразу
  * показать. Свои окна Cord оболочка в список не кладёт.
+ *
+ * С `cord-native` (флаг `capture.app-audio`, E01-B3) вместо выключателя — режимы звука, как в окне
+ * оболочки: «Без звука», «Звук системы», «Звук приложения» (только у окна) и «Система кроме Cord».
  */
 export function CapturePicker({
   open,
@@ -39,6 +43,9 @@ export function CapturePicker({
   const [kind, setKind] = useState<CaptureSource['kind']>('screen');
   const [chosen, setChosen] = useState<string | null>(null);
   const [audio, setAudio] = useState(false);
+  /** Режим звука (E01-B3, флаг `capture.app-audio`): что выбрал человек; доступность — ниже. */
+  const [mode, setMode] = useState<CaptureAudio>('none');
+  const radioName = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -65,9 +72,21 @@ export function CapturePicker({
   // Закрытое за это время окно из выбора пропадает само, а не остаётся невидимой «выбранной» плиткой.
   const selected = sources.some((source) => source.id === chosen) ? chosen : null;
   const withSound = systemAudioAvailable() && found?.systemAudio === true;
+  const kindOf = (id: string | null) => sources.find((source) => source.id === id)?.kind;
+  // «Звук приложения» — у выбранного окна; пока ничего не выбрано — по открытой вкладке.
+  const modes = found ? captureAudioModes(kindOf(selected) ?? kind, found) : null;
+  const current: CaptureAudio = modes?.includes(mode) ? mode : 'none';
   const choose = (id: string | null) => {
     if (!id) return;
-    onChoose({ id, audio: withSound && audio ? 'system' : 'none' });
+    const allowed = found ? captureAudioModes(kindOf(id) ?? kind, found) : null;
+    const picked: CaptureAudio = allowed
+      ? allowed.includes(mode)
+        ? mode
+        : 'none'
+      : withSound && audio
+        ? 'system'
+        : 'none';
+    onChoose({ id, audio: picked });
   };
 
   const grid = (which: CaptureSource['kind']) => {
@@ -123,7 +142,7 @@ export function CapturePicker({
       className="capture-picker"
       footer={
         <>
-          {withSound && (
+          {!modes && withSound && (
             <Switch
               className="capture-picker__audio"
               checked={audio}
@@ -153,6 +172,27 @@ export function CapturePicker({
         <TabPanel value="screen">{grid('screen')}</TabPanel>
         <TabPanel value="window">{grid('window')}</TabPanel>
       </Tabs>
+      {modes && (
+        <div className="capture-picker__sound">
+          <div role="radiogroup" aria-label={t(($) => $.capture.audio)} className="capture-picker__modes">
+            {modes.map((value) => (
+              <label key={value} className="capture-picker__mode">
+                <input
+                  type="radio"
+                  name={radioName}
+                  value={value}
+                  checked={current === value}
+                  onChange={() => setMode(value)}
+                />
+                <span>{t(($) => $.capture.audioModes[value])}</span>
+              </label>
+            ))}
+          </div>
+          {current !== 'none' && (
+            <p className="capture-picker__hint">{t(($) => $.capture.audioHints[current])}</p>
+          )}
+        </div>
+      )}
     </Dialog>
   );
 }

@@ -57,6 +57,8 @@ AVAILABILITY_TTL = 3600
 # Сколько площадка кладёт в одну порцию сериала — как у Rutube: сезон полсотни серий длиннее, чем
 # долистывают за раз.
 EPISODES_PAGE = 20
+# Сколько порций сериала служба смотрит, ища «следующую серию» (T17), — двести серий на весь поиск.
+NEXT_PORTIONS = 10
 
 # Поля карточки каталога и поиска: номер, вид, год, длительность (секунды), жанры (номерами —
 # имена отдельным списком, `_genre_names`), постеры, рейтинг и платность — ради неё карточка и
@@ -324,11 +326,15 @@ class Ivi(Provider):
         info, names = await asyncio.gather(self._videoinfo(ctx, item_id), self._genres(ctx))
         self._allow(info)
         compilation = info.get("compilation")
-        extra = (
+        extra: dict[str, Any] = (
             {"series": str(compilation["id"])}
             if isinstance(compilation, dict) and isinstance(compilation.get("id"), int)
             else {}
         )
+        if extra:
+            following = await self._following(ctx, extra["series"], item_id, info)
+            if following is not None:
+                extra["next"] = following
         return wire.details(
             self.id,
             kind,
@@ -341,6 +347,57 @@ class Ivi(Provider):
             poster=self.image(_poster_url(info.get("posters"))),
             **extra,
         )
+
+    async def _following(
+        self, ctx: Ctx, series_id: str, item_id: str, info: dict[str, Any]
+    ) -> wire.Card | None:
+        """
+        Следующая серия — для «Следующая серия» в плеере (T17): следующая бесплатная в сезоне этой
+        серии, а после последней — первая бесплатная из следующих сезонов. Запросы и ключи памяти — те
+        же, что у страницы сериала (`compilationinfo`, порции `videofromcompilation` по двадцать), и
+        платное сюда не попадает тем же двойным отбором. Неудача у площадки — просто нет кнопки.
+        """
+        try:
+            show = await self.memo.get(
+                f"compilation:{series_id}", lambda: self._compilationinfo(ctx, series_id), 600
+            )
+            numbers = [
+                str(entry["number"])
+                for entry in show.get("seasons") or []
+                if isinstance(entry, dict) and isinstance(entry.get("number"), int)
+            ]
+            line: list[str | None] = [None]
+            if numbers:
+                own = str(info["season"]) if isinstance(info.get("season"), int) else None
+                if own not in numbers:
+                    return None
+                line = numbers[numbers.index(own) :]
+            budget = NEXT_PORTIONS
+            seen = False
+            for season in line:
+                offset: str | None = "0"
+                while offset is not None and budget > 0:
+                    budget -= 1
+                    params: dict[str, str] = {"id": series_id, "fields": EPISODE_FIELDS}
+                    if season is not None:
+                        params["season"] = season
+                    raw, offset = await self._raw_page(
+                        ctx, VIDEO_FROM_COMPILATION, params, EPISODES_PAGE, int(offset),
+                        memo=(f"episodes:{series_id}:{season}", 300), season=season,
+                    )
+                    for item in raw:
+                        if not seen:
+                            seen = str(item.get("id")) == item_id
+                            continue
+                        card = self._episode(item, series_id)
+                        if card is not None:
+                            return card
+                if not seen:
+                    # Своей серии в своём сезоне не нашлось — гадать, какая «следующая», незачем.
+                    return None
+        except HTTPException:
+            return None
+        return None
 
     # --- поток --------------------------------------------------------------------------
 

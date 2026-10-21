@@ -17,6 +17,38 @@ from .store import Store, now, size_of
 
 logger = logging.getLogger(__name__)
 
+# Как часто бот музыки смотрит на комнату: кто в ней остался и жив ли он сам.
+WATCH_SECONDS = 5
+# Сколько участник может висеть в JOINING без медиа и всё ещё считаться человеком (A2,
+# `docs/abuse-model.md`): дольше — забытая вкладка или скрипт, и музыка ради него не играет.
+JOINING_GRACE_MS = 30_000
+
+
+def present(participants: list[dict], own_id: str, joining: dict[str, int], at: int) -> list[dict]:
+    """
+    Люди во встрече глазами бота музыки: не боты, на связи или восстанавливают её — и вошедшие (JOINING),
+    но только первые `JOINING_GRACE_MS`. Ядро не говорит, с какого момента человек входит, поэтому
+    отсчёт — с первого раза, когда бот увидел его в JOINING (`joining`: участник и поколение → когда);
+    новый вход — новое поколение и новый отсчёт. Ушедших из JOINING словарь забывает здесь же.
+    """
+    found = []
+    waiting = set()
+    for person in participants:
+        if person.get("id") == own_id or person.get("service"):
+            continue
+        status = person.get("status")
+        if status in ("CONNECTED", "RECOVERING"):
+            found.append(person)
+        elif status == "JOINING":
+            key = f"{person.get('id')}:{person.get('generation')}"
+            waiting.add(key)
+            since = joining.setdefault(key, at)
+            if at - since < JOINING_GRACE_MS:
+                found.append(person)
+    for key in [key for key in joining if key not in waiting]:
+        del joining[key]
+    return found
+
 
 class Music:
     def __init__(self, store: Store, core: Core, rtc_url: str):
@@ -26,6 +58,8 @@ class Music:
         self.locks = defaultdict(asyncio.Lock)
         self.tasks: dict[str, asyncio.Task] = {}
         self.stopping = False
+        # С какого момента бот видит каждого вошедшего без медиа (`present`), по комнатам.
+        self.joining: dict[str, dict[str, int]] = defaultdict(dict)
 
     def start(self, room_id: str):
         if room_id not in self.tasks or self.tasks[room_id].done():
@@ -414,8 +448,14 @@ class Music:
         return None
 
     async def watch(self, room_id: str, admission: dict, publisher: Publisher):
+        try:
+            await self._watch(room_id, admission, publisher)
+        finally:
+            self.joining.pop(room_id, None)
+
+    async def _watch(self, room_id: str, admission: dict, publisher: Publisher):
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(WATCH_SECONDS)
             try:
                 snapshot = await self.core.request(
                     "GET",
@@ -435,13 +475,12 @@ class Music:
                     state["enabled"] = False
                     self.store.save(state)
                     return
-                humans = [
-                    p
-                    for p in snapshot["participants"]
-                    if p["id"] != admission["participantId"]
-                    and not p.get("service")
-                    and p["status"] != "WAITING"
-                ]
+                humans = present(
+                    snapshot["participants"],
+                    admission["participantId"],
+                    self.joining[room_id],
+                    now(),
+                )
                 if (
                     member["status"] in ("JOINING", "RECOVERING")
                     and publisher.connected

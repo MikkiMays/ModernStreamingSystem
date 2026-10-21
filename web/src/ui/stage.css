@@ -996,11 +996,34 @@ button.watch-stream:hover {
     padding: 2px 6px;
     font-size: 10px;
   }
+  /* «…» у плитки в полосе лиц не нужен: те же действия — у строки человека в открытом листе рядом
+     и долгим нажатием по самой плитке. Кнопка ростом в полполосы заслоняла лицо, а у плиток за
+     краем полосы оставалась за краем экрана (аудит чёткости E15-B на 360). */
   .meeting-body.panel-open .lens-switch,
   .meeting-body.panel-open .integration-roster,
   .meeting-body.panel-open .stage-wrap .invite-hint,
-  .meeting-body.panel-open .screen-tools {
+  .meeting-body.panel-open .screen-tools,
+  .meeting-body.panel-open .stage .people-grid .person-tile > .participant-more {
     display: none;
+  }
+}
+/*
+  Панель встречи ниже 1200 px — полоса поверх сцены (`meeting-panel.css`), и плитки под ней теряли
+  имена и «…» (аудит чёткости E15-B на 1024). Сцена отодвигается от полосы так же, как кинозал
+  (`cinema/cinema.css`): ширина полосы и тот же зазор 12 px за вычетом собственного поля сцены.
+  Разговору и показу экрана места хватает с 768 px, где полоса ещё не стала листом снизу; столам —
+  с 960, как кинозалу: уже этого стол рядом с полосой был бы мельче ногтя, и там он остаётся под ней.
+*/
+@media (min-width: 768px) and (max-width: 1199px) {
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open
+    .stage:is(.conversation-stage, .watch-stage) {
+    padding-right: calc(360px + 12px - 16px);
+  }
+}
+@media (min-width: 960px) and (max-width: 1199px) {
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .stage:is(.poker-stage, .room-game-stage) {
+    padding-right: calc(360px + 12px - 16px);
   }
 }
 @media (max-height: 600px) and (min-width: 768px) {

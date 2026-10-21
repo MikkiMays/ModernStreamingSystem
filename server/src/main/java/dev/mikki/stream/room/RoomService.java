@@ -336,6 +336,13 @@ public class RoomService {
         Admission.class,
         () -> {
           if (saved && room.closedAt != null) {
+            if (room.closedByServer != null && now() < room.closedByServer)
+              throw new Problem(
+                  403,
+                  "CLOSED_BY_SERVER",
+                  "Встречу завершил владелец сервера — открыть её снова пока нельзя",
+                  Map.of("until", room.closedByServer));
+            room.closedByServer = null;
             freezeHistory(room, room.closedAt);
             room.closedAt = null;
             room.mediaDrained = false;
@@ -1698,9 +1705,17 @@ public class RoomService {
    * всех» у ведущего, — гаснут кино, музыка и столы, все выходят.
    */
   @Transactional
-  public RoomState closeByServer(String roomId) {
+  /**
+   * Завершить встречу рычагом владельца сервера. {@code hold} — на сколько её не открыть из
+   * избранного ({@link RoomState#closedByServer}); ставится и у уже завершённой встречи.
+   */
+  public RoomState closeByServer(String roomId, java.time.Duration hold) {
     var room = lock(roomId);
-    if (room.closedAt != null) return room;
+    room.closedByServer = now() + hold.toMillis();
+    if (room.closedAt != null) {
+      rooms.save(room, now());
+      return room;
+    }
     close(room, "server");
     emit(room, "room.changed", EventPayload.changed());
     rooms.save(room, now());

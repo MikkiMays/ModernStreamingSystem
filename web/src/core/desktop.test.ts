@@ -134,6 +134,48 @@ describe('мост v2 — адаптер', () => {
     expect(seen).toEqual([{ overlay: true }]);
   });
 
+  it('«нажми и говори» с флагом ptt — действие ptt с удержанием; без флага — прежнее переключение', async () => {
+    const mic = { code: 'Mouse4', ctrl: false, alt: false, shift: false, meta: false };
+    let api = fakeDesktop(['hotkeys', 'ptt']);
+    let desktop = await import('./desktop');
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, overlay: null, mode: 'hold' });
+    // Пауза записи и её конец режим не теряют.
+    desktop.notifyDesktop('hotkey.configure', { hotkey: null, paused: true });
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, paused: false });
+    desktop.notifyDesktop('hotkey.configure', { mode: 'toggle' });
+    expect(api.send.mock.calls).toEqual([
+      ['hotkeys.configure', { bindings: [{ action: 'ptt', mode: 'hold', key: mic }] }],
+      ['hotkeys.configure', { bindings: [] }],
+      ['hotkeys.configure', { bindings: [{ action: 'ptt', mode: 'hold', key: mic }] }],
+      ['hotkeys.configure', { bindings: [{ action: 'mic.toggle', mode: 'toggle', key: mic }] }],
+    ]);
+    vi.resetModules();
+    api = fakeDesktop(['hotkeys']);
+    desktop = await import('./desktop');
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, mode: 'hold' });
+    expect(api.send.mock.calls).toEqual([
+      ['hotkeys.configure', { bindings: [{ action: 'mic.toggle', mode: 'toggle', key: mic }] }],
+    ]);
+  });
+
+  it('hotkey {action: ptt, phase} → microphone.hold с фазой; состояние сочетания — и для ptt', async () => {
+    const api = fakeDesktop(['hotkeys', 'ptt']);
+    const desktop = await import('./desktop');
+    const seen: unknown[] = [];
+    const stop = desktop.onDesktopCommand((command) => seen.push(command));
+    api.emit('hotkey', { action: 'ptt', phase: 'down' });
+    api.emit('hotkey', { action: 'ptt', phase: 'up' });
+    api.emit('hotkey', { action: 'ptt', phase: 'sideways' });
+    api.emit('hotkeys.status', { status: { ptt: 'Работает поверх других программ всегда.' } });
+    stop();
+    expect(seen).toEqual([
+      { version: 1, type: 'microphone.hold', phase: 'down' },
+      { version: 1, type: 'microphone.hold', phase: 'up' },
+      { version: 1, type: 'hotkey.status', detail: 'Работает поверх других программ всегда.' },
+    ]);
+    expect(desktop.desktopHotkeyStatus.get()).toBe('Работает поверх других программ всегда.');
+  });
+
   it('update.version — запрос состояния обновления', async () => {
     const api = fakeDesktop();
     const desktop = await import('./desktop');

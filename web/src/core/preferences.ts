@@ -3,7 +3,7 @@ import type { ScreenProfile } from '../media/profiles';
 import { nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import type { NetworkMode } from '../media/playout';
-import { defaultMicHotkey, validHotkey, type Hotkey } from './hotkeys';
+import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
 import { isLanguage, type Language } from '../i18n/languages';
 
 export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
@@ -127,6 +127,12 @@ export interface Preferences {
   avatar: string;
   micHotkey: Hotkey | null;
   /**
+   * «Нажми и говори» (`hold`) или «включать и выключать» (`toggle`, по умолчанию) — у сочетания
+   * микрофона (E01-B3). Удержание действует только в клиенте с Raw Input (флаг `ptt`); в браузере и
+   * без модуля сочетание переключает, как раньше, а выбор хранится до следующего раза.
+   */
+  micHotkeyMode: MicHotkeyMode;
+  /**
    * Сочетание оверлея в играх (`overlay.toggle`, клиент на Electron, E01-B2). По умолчанию не
    * назначено: глобальное сочетание отбирается у всех программ, включая игру, — пусть человек
    * выберет его сам.
@@ -237,6 +243,7 @@ export function readPreferences(): Preferences {
         : '',
     micHotkey:
       data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
+    micHotkeyMode: data.micHotkeyMode === 'hold' ? 'hold' : 'toggle',
     overlayHotkey: validHotkey(data.overlayHotkey) ? data.overlayHotkey : null,
   };
 }

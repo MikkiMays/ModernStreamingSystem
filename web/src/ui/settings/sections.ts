@@ -146,6 +146,7 @@ export const ROWS = {
   'appearance-language': { section: 'appearance' },
   'appearance-bots': { section: 'appearance' },
   'hotkey-mic': { section: 'hotkeys' },
+  'hotkey-ptt': { section: 'hotkeys', only: 'desktop', feature: 'ptt' },
   'hotkey-other': { section: 'hotkeys' },
   'desktop-tray': { section: 'desktop', only: 'desktop', feature: 'tray' },
   'desktop-thumbar': { section: 'desktop', only: 'desktop', feature: 'thumbar' },

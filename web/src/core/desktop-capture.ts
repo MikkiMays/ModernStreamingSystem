@@ -1,4 +1,6 @@
-import { hasFeature, invokeDesktop, isDesktop, notifyDesktop } from './desktop';
+import { t } from '../i18n';
+import type { ScreenAudioEvent, ScreenAudioSource } from '../media/capture';
+import { hasFeature, invokeDesktop, isDesktop, notifyDesktop, onDesktopEvent } from './desktop';
 
 /**
  * Своё окно выбора источника показа в клиенте на Electron (T10, E01-B2, ADR 0001 §4.1).
@@ -8,10 +10,12 @@ import { hasFeature, invokeDesktop, isDesktop, notifyDesktop } from './desktop';
  * с ответом; только потом `getDisplayMedia`, и оболочка отдаёт ровно выбранный источник. Выбор
  * живёт у оболочки 10 секунд и один запрос — без него она покажет своё окно выбора.
  *
- * Звук: «Со звуком системы» — весь звук компьютера (loopback, только Windows, флаг
- * `capture.system-audio`); звук отдельного приложения ждёт `cord-native`.
+ * Звук: «Звук системы» — весь звук компьютера (loopback Electron, только Windows, флаг
+ * `capture.system-audio`), в него попадают и голоса встречи. «Звук приложения» (только у окна) и
+ * «Система кроме Cord» — process loopback в `cord-native` (флаг `capture.app-audio`, E01-B3):
+ * дорожка приходит не из `getDisplayMedia`, а отдельно — см. `desktopCaptureAudio`.
  */
-export type CaptureAudio = 'none' | 'system';
+export type CaptureAudio = 'none' | 'system' | 'app' | 'system-except-cord';
 
 export interface CaptureSource {
   id: string;
@@ -24,6 +28,8 @@ export interface CaptureSource {
 
 export interface CaptureSources {
   systemAudio: boolean;
+  /** Оболочка готова к звуку приложения сейчас (модуль жив), а не только при запуске. */
+  appAudio: boolean;
   sources: CaptureSource[];
 }
 
@@ -37,6 +43,21 @@ export function desktopPicker(): boolean {
 /** «Со звуком системы» есть только там, где оболочка его объявила (Windows). */
 export function systemAudioAvailable(): boolean {
   return hasFeature('capture.system-audio');
+}
+
+/**
+ * Режимы звука в окне выбора — при флаге `capture.app-audio` и согласии оболочки в этом ответе
+ * (модуль мог упасть после запуска). «Звук приложения» — только у окна: у экрана нет одного
+ * приложения. `null` — режимов нет, окно показывает прежний выключатель звука системы.
+ */
+export function captureAudioModes(kind: CaptureSource['kind'], found: CaptureSources): CaptureAudio[] | null {
+  if (!hasFeature('capture.app-audio') || !found.appAudio) return null;
+  return [
+    'none',
+    ...(systemAudioAvailable() && found.systemAudio ? (['system'] as const) : []),
+    ...(kind === 'window' ? (['app'] as const) : []),
+    'system-except-cord',
+  ];
 }
 
 function picture(value: unknown): string {
@@ -62,7 +83,12 @@ export function parseCaptureSources(answer: unknown): CaptureSources {
       icon: picture(source.icon),
     });
   }
-  return { systemAudio: !Array.isArray(answer) && data.systemAudio === true, sources };
+  const object = !Array.isArray(answer);
+  return {
+    systemAudio: object && data.systemAudio === true,
+    appAudio: object && data.appAudio === true,
+    sources,
+  };
 }
 
 /** Экраны и окна от оболочки; не ответила — пустой список, окно скажет «не найдено». */
@@ -70,7 +96,7 @@ export async function listCaptureSources(): Promise<CaptureSources> {
   try {
     return parseCaptureSources(await invokeDesktop('capture.sources', {}));
   } catch {
-    return { systemAudio: false, sources: [] };
+    return { systemAudio: false, appAudio: false, sources: [] };
   }
 }
 
@@ -84,4 +110,72 @@ export async function selectCaptureSource(id: string, audio: CaptureAudio): Prom
   } catch {
     notifyDesktop('capture.select', { id, audio });
   }
+}
+
+/** Элемент, через который preload отдаёт дорожку (`CAPTURE_AUDIO_ELEMENT` моста). */
+const CAPTURE_AUDIO_ELEMENT = 'cord-desktop-capture-audio';
+
+/**
+ * Живая дорожка из скрытого `<audio>` preload. Передать `MediaStreamTrack` между мирами Chromium
+ * не даёт, а DOM у них общий: preload кладёт поток в `srcObject`, страница берёт его оттуда.
+ */
+function captureAudioTrack(): MediaStreamTrack | null {
+  const element = document.getElementById(CAPTURE_AUDIO_ELEMENT) as Partial<HTMLMediaElement> | null;
+  const stream = element?.srcObject as Partial<MediaStream> | null | undefined;
+  const track = stream?.getAudioTracks?.()[0];
+  return track && track.readyState === 'live' ? track : null;
+}
+
+/** Причина отказа оболочки → короткая подсказка; показ при этом идёт без звука. */
+function audioProblem(reason: unknown, started: boolean): string {
+  if (reason === 'not-a-window') return t(($) => $.media.screen.audio.notWindow);
+  if (reason === 'unavailable' || reason === 'native') return t(($) => $.media.screen.audio.unavailable);
+  const text = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 120) : '—';
+  return started
+    ? t(($) => $.media.screen.audio.stopped, { reason: text })
+    : t(($) => $.media.screen.audio.failed, { reason: text });
+}
+
+/**
+ * Звук показа от `cord-native` (E01-B3): для «Звук приложения» и «Система кроме Cord» — источник,
+ * на который подписывается встреча; для остальных режимов своей дорожки нет — `undefined`.
+ *
+ * Оболочка шлёт `capture.audio {state, mode, reason?}`: `ready` — дорожка в элементе preload,
+ * `failed` — показ без звука, `ended` — дорожки больше нет.
+ *
+ * ПРОШЛЫЙ ПОКАЗ. Новому подписчику preload сразу (микрозадачей) отдаёт последнее своё состояние, а
+ * подписка идёт до `getDisplayMedia` — значит, это состояние прошлого показа. Отказ или конец,
+ * пришедшие до первой макрозадачи после подписки, не считаются: события этого показа идут по IPC
+ * после того, как оболочка отдаст экран, — заметно позже. Готовность проверяется по самому элементу:
+ * без живой дорожки её нет.
+ */
+export function desktopCaptureAudio(mode: CaptureAudio): ScreenAudioSource | undefined {
+  if (mode !== 'app' && mode !== 'system-except-cord') return undefined;
+  return {
+    watch(listener: (event: ScreenAudioEvent) => void) {
+      let replay = true;
+      let started = false;
+      const timer = setTimeout(() => (replay = false), 0);
+      const stop = onDesktopEvent('capture.audio', (data) => {
+        if (typeof data.mode === 'string' && data.mode && data.mode !== mode) return;
+        if (data.state === 'ready') {
+          const track = captureAudioTrack();
+          if (!track) return;
+          started = true;
+          listener({ state: 'ready', track });
+          return;
+        }
+        if (replay) return;
+        if (data.state === 'failed')
+          listener({ state: 'failed', message: audioProblem(data.reason, started) });
+        else if (data.state === 'ended') listener({ state: 'ended' });
+        else return;
+        started = false;
+      });
+      return () => {
+        clearTimeout(timer);
+        stop();
+      };
+    },
+  };
 }

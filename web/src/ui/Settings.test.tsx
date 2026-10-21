@@ -265,6 +265,84 @@ describe('«Горячие клавиши» (T27)', () => {
   });
 });
 
+describe('«Нажми и говори» и кнопки мыши (E01-B3, флаг ptt)', () => {
+  function fakeV2(features: string[]) {
+    const api = {
+      protocol: { major: 2, minor: 0 },
+      features,
+      app: { version: '1.0.2', arch: 'x64' },
+      bootstrap: {
+        profile: 'x'.repeat(43),
+        theme: 'system',
+        showPing: false,
+        notificationSounds: true,
+        autoConnect: true,
+      },
+      send: vi.fn(),
+      invoke: vi.fn(async () => null),
+      on: vi.fn(() => () => {}),
+    };
+    (window as { cordDesktop?: unknown }).cordDesktop = api;
+    return api;
+  }
+  afterEach(() => {
+    delete (window as { cordDesktop?: unknown }).cordDesktop;
+  });
+  const change = () => screen.getByRole('button', { name: 'Изменить сочетание микрофона' });
+
+  it('с флагом ptt — переключатель «Нажми и говори»: режим удержания хранится в профиле', async () => {
+    fakeV2(['hotkeys', 'app.settings', 'ptt']);
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    const ptt = screen.getByRole('switch', { name: 'Нажми и говори' });
+    expect(ptt).not.toBeChecked();
+    fireEvent.click(ptt);
+    await act(async () => {});
+    expect(readPreferences().micHotkeyMode).toBe('hold');
+    expect(screen.getByRole('switch', { name: 'Нажми и говори' })).toBeChecked();
+    expect(screen.getByText('Удерживайте сочетание, чтобы говорить')).toBeInTheDocument();
+  });
+
+  it('без флага ptt и в браузере переключателя нет — поведение прежнее', () => {
+    fakeV2(['hotkeys', 'app.settings']);
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    expect(screen.queryByRole('switch', { name: 'Нажми и говори' })).toBeNull();
+    cleanup();
+    delete (window as { cordDesktop?: unknown }).cordDesktop;
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    expect(screen.queryByRole('switch', { name: 'Нажми и говори' })).toBeNull();
+  });
+
+  it('с флагом ptt запись берёт боковую кнопку мыши; без флага — нет', async () => {
+    fakeV2(['hotkeys', 'app.settings', 'ptt']);
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    fireEvent.click(change());
+    fireEvent.mouseDown(document.body, { button: 3, ctrlKey: true });
+    await act(async () => {});
+    expect(readPreferences().micHotkey).toEqual({
+      code: 'Mouse4',
+      ctrl: true,
+      alt: false,
+      shift: false,
+      meta: false,
+    });
+    expect(screen.getByText('Кнопка мыши 4')).toBeInTheDocument();
+    // Голая буква при Raw Input — предупреждение о наборе текста, а не «только в окне Cord».
+    fireEvent.click(change());
+    fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, { code: 'KeyV', key: 'v' });
+    await act(async () => {});
+    expect(screen.getByText(/набор/)).toBeInTheDocument();
+    expect(screen.queryByText(/только в окне Cord/)).toBeNull();
+    cleanup();
+    localStorage.clear();
+    fakeV2(['hotkeys', 'app.settings']);
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    fireEvent.click(change());
+    fireEvent.mouseDown(document.body, { button: 3 });
+    await act(async () => {});
+    expect(readPreferences().micHotkey?.code).toBe('KeyM');
+  });
+});
+
 describe('телефон: список разделов → раздел своим экраном', () => {
   it('без раздела открывается список; раздел — своим экраном с «назад»', () => {
     vi.stubGlobal(

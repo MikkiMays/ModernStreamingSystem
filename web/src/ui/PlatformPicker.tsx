@@ -43,9 +43,16 @@ export function useLastPlatform(meeting: Meeting, area: PlatformArea) {
   return { last, remember };
 }
 
-/** Цвет площадки для CSS: плитка и выбранная вкладка красятся одним и тем же. */
+/**
+ * Цвет площадки для CSS: плитка и выбранная вкладка красятся одним и тем же. Под белой подписью
+ * вкладки цвет темнеет (`integrations.css`), под тёмной (`ink`, жёлтая Яндекс Музыка) — остаётся
+ * чистым: `--platform-fill` говорит CSS, что затемнять не нужно.
+ */
 function paint(tile: PlatformTile<string>): CSSProperties {
-  return { '--platform': tile.color, ...(tile.ink && { '--platform-ink': tile.ink }) } as CSSProperties;
+  return {
+    '--platform': tile.color,
+    ...(tile.ink && { '--platform-ink': tile.ink, '--platform-fill': tile.color }),
+  } as CSSProperties;
 }
 
 export function PlatformPicker<Id extends string>({
