@@ -593,6 +593,17 @@
         ],
         "type": "object"
       },
+      "CinemaTraffic": {
+        "properties": {
+          "percent": {
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Close": {
         "properties": {
           "blockCreator": {
@@ -2413,6 +2424,25 @@
         ],
         "type": "object"
       },
+      "Moved": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "NEW",
+              "OPEN",
+              "DONE"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "NoteView": {
         "properties": {
           "amount": {
@@ -3409,6 +3439,13 @@
               }
             ]
           },
+          "cinemaTraffic": {
+            "format": "int32",
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
           "closedAt": {
             "format": "int64",
             "type": [
@@ -3847,6 +3884,28 @@
           "summary",
           "turnSeconds",
           "you"
+        ],
+        "type": "object"
+      },
+      "TelegramStatus": {
+        "properties": {
+          "chat": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "NEW",
+              "OPEN",
+              "DONE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "chat",
+          "status"
         ],
         "type": "object"
       },

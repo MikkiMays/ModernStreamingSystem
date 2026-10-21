@@ -872,6 +872,10 @@ export interface components {
             whiteMs: number;
             winner: string | null;
         };
+        CinemaTraffic: {
+            /** Format: int32 */
+            percent?: number;
+        };
         Close: {
             blockCreator?: boolean;
             term?: string;
@@ -1366,6 +1370,12 @@ export interface components {
             participantId: string;
             text: string;
         };
+        Moved: {
+            id?: string;
+            number?: string;
+            /** @enum {string} */
+            status?: "NEW" | "OPEN" | "DONE";
+        };
         NoteView: {
             /** Format: int64 */
             amount: number;
@@ -1693,6 +1703,8 @@ export interface components {
         Snapshot: {
             approvalRequired: boolean;
             chess?: components["schemas"]["ChessView"] | null;
+            /** Format: int32 */
+            cinemaTraffic?: null | number;
             /** Format: int64 */
             closedAt: null | number;
             code: string;
@@ -1815,6 +1827,11 @@ export interface components {
             turnSeconds: number;
             visualEvents?: components["schemas"]["GameVisualEvent"][];
             you: components["schemas"]["YouView"] | null;
+        };
+        TelegramStatus: {
+            chat: string;
+            /** @enum {string} */
+            status: "NEW" | "OPEN" | "DONE";
         };
         Watch: {
             /** Format: int64 */
