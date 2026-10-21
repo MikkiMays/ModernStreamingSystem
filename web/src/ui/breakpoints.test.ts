@@ -69,6 +69,27 @@ describe('границы раскладки: CSS и код считают по �
     expect(beside).toContain(`padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`);
   });
 
+  /*
+    Аудит чёткости E15-B: на 1024 полоса панели накрывала «…» и имена плиток. Разговор и показ экрана
+    отодвигаются от полосы с первой ширины после листа (`SHEET` + 1), столы — с `ROOMY`, как кинозал.
+  */
+  it('плитки и столы отодвигаются от полосы панели на её ширину, а не лежат под ней', () => {
+    const afterSheet = `(min-width: ${Number(/\d+/.exec(SHEET)![0]) + 1}px)`;
+    const beside = `padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`;
+    const talk = media(stage, `${afterSheet} and ${DRAWER}`);
+    expect(talk).toContain('.stage:is(.conversation-stage, .watch-stage) {');
+    expect(talk).toContain(beside);
+    const tables = media(stage, `${ROOMY} and ${DRAWER}`);
+    expect(tables).toContain('.stage:is(.poker-stage, .room-game-stage) {');
+    expect(tables).toContain(beside);
+  });
+
+  it('в полосе лиц над листом панели у плиток нет «…»: действия — в строке человека рядом', () => {
+    expect(media(stage, SHEET)).toMatch(
+      /\.meeting-body\.panel-open \.stage \.people-grid \.person-tile > \.participant-more \{\s*display: none;/,
+    );
+  });
+
   it('панель поверх сцены кончается над пультом звонка — там же, где кончается сцена', () => {
     expect(rule(media(panel, DRAWER), '.side-panel')).toContain('bottom: var(--dock-space);');
     expect(rule(stage, '.stage-wrap')).toContain('padding: var(--space-3) var(--space-3) var(--dock-space);');

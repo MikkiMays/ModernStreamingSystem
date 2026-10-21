@@ -48,7 +48,8 @@
   padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--surface-hover);
-  color: var(--muted);
+  /* `--muted` на подложке поверх вкладок давал 4,48:1 (аудит чёткости E15-B) — на сотую ниже AA. */
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   line-height: 18px;

@@ -93,7 +93,33 @@ export function contrast(fg, bg) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
-/** Пары: [передний, фон, порог]. Текст — 4,5; элементы управления и кольца — 3. */
+/** Непрозрачный цвет `#rrggbb` из [r, g, b] в 0..1. */
+const hex = (rgb) =>
+  '#' +
+  rgb
+    .slice(0, 3)
+    .map((c) =>
+      Math.round(c * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('');
+
+/** Полупрозрачный слой поверх непрозрачного фона: `--surface-hover` поверх `--surface-2`. */
+export function layer(top, base) {
+  return hex(over(parse(top), parse(base)));
+}
+
+/** `color-mix(in srgb, a k, b)` для непрозрачных цветов — так CSS затемняет цвет площадки. */
+export function mix(a, b, k) {
+  const [x, y] = [parse(a), parse(b)];
+  return hex(x.map((c, i) => c * k + y[i] * (1 - k)));
+}
+
+/**
+ * Пары: [передний, фон, порог]. Текст — 4,5; элементы управления и кольца — 3. Фон вида
+ * `--верх over --низ` — полупрозрачный слой поверх непрозрачного (счётчик на подложке вкладки).
+ */
 export const PAIRS = {
   light: [
     ['--text', '--bg', 4.5],
@@ -131,6 +157,10 @@ export const PAIRS = {
     ['--accent', '--surface-2', 3],
     ['--handle', '--surface-1', 3],
     ['--on-live', '--live', 4.5],
+    // Счётчик вкладок панели встречи: подложка `--surface-hover` поверх переключателя и выбранной
+    // вкладки (аудит чёткости E15-B: `--muted` давал 4,48).
+    ['--text-secondary', '--surface-hover over --surface-2', 4.5],
+    ['--text-secondary', '--surface-hover over --surface-1', 4.5],
   ],
   dark: [
     ['--text', '--bg', 4.5],
@@ -168,6 +198,10 @@ export const PAIRS = {
     ['--accent', '--surface-2', 3],
     ['--handle', '--surface-1', 3],
     ['--on-live', '--live', 4.5],
+    // Счётчик вкладок панели встречи: подложка `--surface-hover` поверх переключателя и выбранной
+    // вкладки (аудит чёткости E15-B: `--muted` давал 4,48).
+    ['--text-secondary', '--surface-hover over --surface-2', 4.5],
+    ['--text-secondary', '--surface-hover over --surface-1', 4.5],
   ],
   stage: [
     ['--text', '--bg', 4.5],
@@ -225,14 +259,51 @@ export const PAIRS = {
 // Лица без картинки — в обеих темах одни и те же пять пар.
 PAIRS.light.push(...[0, 1, 2, 3, 4].map((n) => [`--avatar-${n}-fg`, `--avatar-${n}-bg`, 4.5]));
 
+/**
+ * Цвета площадок под белой подписью (вкладки и плашки кинозала, вкладки музыки). Сами цвета живут в
+ * реестрах (`core/cinema/providers.ts`, `ui/music-platforms.ts`) — с этим списком их сверяет
+ * `ui/platform-contrast.test.ts`. Под подписью CSS темнит цвет на пятую часть к фону сцены
+ * (`color-mix(in srgb, цвет 80%, var(--stage-bg))`), и AA считается для затемнённого.
+ */
+export const BRAND_DARKEN = 0.8;
+export const BRAND = {
+  'youtube (кинозал)': '#e33b3b',
+  'twitch (кинозал)': '#8250e6',
+  rutube: '#1c80e3',
+  vk: '#0077FF',
+  ivi: '#EA003D',
+  'twitch (панель)': '#9147ff',
+  'youtube (панель)': '#ff3d3d',
+  soundcloud: '#ff5500',
+};
+
+function value(vars, name) {
+  const [top, base] = name.split(' over ');
+  const color = (n) => resolve(vars, vars[n] ?? n);
+  return base ? layer(color(top), color(base)) : color(top);
+}
+
 export function check(css = readFileSync(TOKENS_PATH, 'utf8')) {
   const rows = [];
   for (const [name, pairs] of Object.entries(PAIRS)) {
     const vars = theme(css, name);
     for (const [fg, bg, min] of pairs) {
-      const ratio = contrast(resolve(vars, vars[fg]), resolve(vars, vars[bg]));
+      const ratio = contrast(value(vars, fg), value(vars, bg));
       rows.push({ theme: name, fg, bg, min, ratio, ok: ratio >= min });
     }
+  }
+  const stage = theme(css, 'stage');
+  for (const [name, color] of Object.entries(BRAND)) {
+    const fill = mix(color, resolve(stage, stage['--stage-bg']), BRAND_DARKEN);
+    const ratio = contrast(resolve(stage, stage['--on-accent']), fill);
+    rows.push({
+      theme: 'brand',
+      fg: '--on-accent',
+      bg: `${name} ${color}→${fill}`,
+      min: 4.5,
+      ratio,
+      ok: ratio >= 4.5,
+    });
   }
   return rows;
 }

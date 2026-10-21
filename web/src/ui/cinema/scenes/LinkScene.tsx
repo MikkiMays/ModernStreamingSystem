@@ -85,7 +85,11 @@ function listed(t: Translate): string {
 export default function LinkScene({ provider, at, meeting, onClose }: SceneProps) {
   const { t } = useTranslation();
   const spec = PROVIDERS[provider];
-  const accent = { '--accent': spec.accent } as CSSProperties;
+  /*
+    Своего цвета у ссылки нет: `PROVIDERS.link.accent` — цвет приложения (`--blue`), а на сцене это
+    светлый синий текста, и белая подпись плашки на нём — 2,6:1. Под подписью — заливка кнопок.
+  */
+  const accent = { '--accent': 'var(--accent-fill)' } as CSSProperties;
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const watching = !!useStore(meeting.snapshot).watch;
   const recent = useStore(meeting.media.preferences).cinemaLinks;

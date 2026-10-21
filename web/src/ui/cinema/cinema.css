@@ -202,10 +202,14 @@
   Выбранная площадка узнаётся цветом самой площадки, а не одной общей обводкой. Цвет приходит
   переменной `--accent` с самой кнопки (реестр площадок, `core/cinema/providers.ts`) — раньше
   тут было по правилу на `[data-id]` с тем же hex-ом внутри, второй копией того же числа.
+
+  Под белой подписью цвет площадки темнеет на пятую часть: красный YouTube давал 4,2:1 (аудит
+  чёткости E15-B), затемнённый — 5,9. Так же плашка площадки и выбранный раздел ниже; пары — в
+  `scripts/check-contrast.mjs` (`BRAND`).
 */
 .cinema-service[aria-selected='true'] {
   color: var(--on-accent);
-  background: var(--accent, var(--accent-fill));
+  background: color-mix(in srgb, var(--accent, var(--accent-fill)) 80%, var(--stage-bg));
 }
 .cinema-bar .cinema-search {
   flex: 1 1 auto;
@@ -746,7 +750,7 @@
   padding: 0 14px;
   border-radius: var(--radius-full);
   color: var(--on-accent);
-  background: var(--accent, var(--accent-fill));
+  background: color-mix(in srgb, var(--accent, var(--accent-fill)) 80%, var(--stage-bg));
   font-size: var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
@@ -784,7 +788,7 @@
 .cinema-chip-button[aria-selected='true'] {
   color: var(--on-accent);
   border-color: transparent;
-  background: var(--accent, var(--accent-fill));
+  background: color-mix(in srgb, var(--accent, var(--accent-fill)) 80%, var(--stage-bg));
 }
 /* Полка: заголовок слева, дверь на полку целиком справа, на одной строке. */
 .cinema-shelf-block {
