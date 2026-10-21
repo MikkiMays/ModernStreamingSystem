@@ -57,9 +57,7 @@
       "output": "Lautsprecher",
       "processing": "Audioverarbeitung",
       "camera": "Kamera",
-      "screen": "Bildschirmfreigabe",
-      "reception": "Eingehendes Video",
-      "advanced": "Erweitert"
+      "screen": "Bildschirmfreigabe"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps flüssig"
       },
-      "camera-yields": {
-        "label": "Bildschirmfreigabe bevorzugen",
-        "hint": "Während du deinen Bildschirm teilst, läuft die Kamera mit 360p",
-        "keywords": "Freigabe Bandbreite sparen"
-      },
       "camera-preview": {
         "label": "Vorschau",
         "hint": "Nur für dich sichtbar",
@@ -176,16 +169,6 @@
         "label": "Bildrate der Freigabe",
         "hint": "",
         "keywords": "Bildschirmfreigabe fps flüssig Stream"
-      },
-      "reception": {
-        "label": "Qualität eingehender Videos",
-        "hint": "",
-        "keywords": "fremdes Video Datenverkehr"
-      },
-      "playout": {
-        "label": "Empfangspuffer",
-        "hint": "Nur Audio: wie gut er Latenzspitzen abfängt",
-        "keywords": "Latenz Puffer Ping Ruckler Netzwerk"
       },
       "sounds-on": {
         "label": "Meeting-Signale",
@@ -403,10 +386,6 @@
         "screen": "Bildschirmfreigabe",
         "camera": "Kameravideo"
       },
-      "reception": {
-        "fit": "An Fenster anpassen",
-        "best": "Immer beste"
-      },
       "noise": {
         "browser": "Standard",
         "rnnoise": "RNNoise – verstärkt",
@@ -414,17 +393,7 @@
         "off": "Aus"
       },
       "auto": "Auto",
-      "voiceGroup": "Stimme und Mikrofon",
-      "playout": {
-        "modes": {
-          "auto": "Automatisch",
-          "low-latency": "Minimale Latenz",
-          "stable": "Maximale Stabilität"
-        },
-        "now": "Aktuell: {{path}} · {{grade}}",
-        "rtt": " · Round-Trip {{ms}} ms",
-        "tcp": ". Über TCP wird der Puffer automatisch erhöht; passiert das öfter, prüfe, ob dein Netzwerk UDP durchlässt."
-      }
+      "voiceGroup": "Stimme und Mikrofon"
     },
     "profile": {
       "refused": "Der Raum hat das Bild nicht angenommen",
@@ -480,7 +449,6 @@
       "stop": "Beenden",
       "check": "Testen",
       "checkSpeakersLabel": "Lautsprecher testen",
-      "serverRule": "Von diesem Server festgelegt",
       "previewLabel": "Kameravorschau, nur für dich",
       "hidePreviewLabel": "Kameravorschau ausblenden",
       "showPreviewLabel": "Kameravorschau einblenden",

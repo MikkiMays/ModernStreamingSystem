@@ -3,4 +3,4 @@
  * здесь — вход, которым пользуются главная, встреча и предпросмотр.
  */
 export { SettingsWindow as Settings } from './settings/SettingsWindow';
-export { AudioFields, QualityFields, ReceptionFields } from './settings/media-fields';
+export { AudioFields, QualityFields, } from './settings/media-fields';

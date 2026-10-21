@@ -33,15 +33,7 @@ describe('окно настроек (T26)', () => {
       within(anchors)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual([
-      'Микрофон',
-      'Динамики',
-      'Обработка звука',
-      'Камера',
-      'Демонстрация экрана',
-      'Чужое видео',
-      'Дополнительно',
-    ]);
+    ).toEqual(['Микрофон', 'Динамики', 'Обработка звука', 'Камера', 'Демонстрация экрана']);
     openSection('О программе');
     expect(heading()).toHaveTextContent('О программе');
     expect(within(nav()).queryByRole('list', { name: /Подразделы/ })).not.toBeInTheDocument();
@@ -69,18 +61,16 @@ describe('окно настроек (T26)', () => {
       target: { value: '45' },
     });
     expect(readPreferences().outputVolume).toBe(45);
-    fireEvent.click(screen.getByRole('switch', { name: 'Уступать показу экрана' }));
-    expect(readPreferences().cameraYieldsToScreen).toBe(true);
-    // «Дополнительно» свёрнуто: по умолчанию буфер не трогают.
-    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: false })).toBeInTheDocument();
+    // «Чужое видео», «Дополнительно» и «Уступать показу экрана» убраны (R06/R08): оптимум зашит.
+    expect(screen.queryByRole('switch', { name: 'Уступать показу экрана' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Дополнительно' })).not.toBeInTheDocument();
   });
 
-  it('якорь слева раскрывает свёрнутый подраздел', () => {
+  it('якорь слева ведёт к подразделу', () => {
     render(<Settings open section="voice" onOpenChange={vi.fn()} />);
     const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
-    fireEvent.click(within(anchors).getByRole('button', { name: 'Дополнительно' }));
-    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: true })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Запас буфера приёма' })).toBeVisible();
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Демонстрация экрана' }));
+    expect(screen.getByRole('combobox', { name: 'Экран: качество' })).toBeVisible();
   });
 
   it('поиск находит строку и открывает её раздел', () => {
@@ -93,17 +83,6 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('searchbox', { name: 'Найти настройку' })).toHaveValue('');
   });
 
-  it('найденная строка в свёрнутой группе раскрывает группу и получает фокус', () => {
-    render(<Settings open onOpenChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: false })).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
-      target: { value: 'буфер' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Запас буфера приёма/ }));
-    expect(screen.getByRole('button', { name: 'Дополнительно', expanded: true })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Запас буфера приёма' })).toHaveFocus();
-  });
-
   it('группа без подраздела раскрывается по своей строке поиска', () => {
     render(<Settings open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
@@ -114,23 +93,6 @@ describe('окно настроек (T26)', () => {
     expect(
       screen.getByRole('button', { name: 'Клавиши кинозала и игр', expanded: true }),
     ).toBeInTheDocument();
-  });
-
-  it('если камере велит уступать сервер, выключатель включён и не нажимается', () => {
-    localStorage.setItem(
-      'cord:quality:v1',
-      JSON.stringify({
-        default: { resolution: 720, fps: 30 },
-        ceiling: { resolution: 1080, fps: 60 },
-        settleMs: 4000,
-        cameraYieldsToScreen: true,
-      }),
-    );
-    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
-    const yields = screen.getByRole('switch', { name: 'Уступать показу экрана' });
-    expect(yields).toBeChecked();
-    expect(yields).toHaveAttribute('data-disabled');
-    expect(screen.getByText('Так настроен этот сервер')).toBeInTheDocument();
   });
 });
 

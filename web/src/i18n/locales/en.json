@@ -57,9 +57,7 @@
       "output": "Speakers",
       "processing": "Audio processing",
       "camera": "Camera",
-      "screen": "Screen share",
-      "reception": "Incoming video",
-      "advanced": "Advanced"
+      "screen": "Screen share"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps smoothness"
       },
-      "camera-yields": {
-        "label": "Prioritize screen share",
-        "hint": "While you share your screen, the camera drops to 360p",
-        "keywords": "screen share bandwidth saving"
-      },
       "camera-preview": {
         "label": "Preview",
         "hint": "Only you can see it",
@@ -176,16 +169,6 @@
         "label": "Screen share frame rate",
         "hint": "",
         "keywords": "screen share fps smoothness stream"
-      },
-      "reception": {
-        "label": "Incoming video quality",
-        "hint": "",
-        "keywords": "other video traffic bandwidth"
-      },
-      "playout": {
-        "label": "Receive buffer",
-        "hint": "Audio only: how it handles latency spikes",
-        "keywords": "latency buffer ping stutter network"
       },
       "sounds-on": {
         "label": "Meeting alerts",
@@ -403,10 +386,6 @@
         "screen": "Screen share",
         "camera": "Camera video"
       },
-      "reception": {
-        "fit": "Fit to window",
-        "best": "Always best"
-      },
       "noise": {
         "browser": "Standard",
         "rnnoise": "RNNoise — enhanced",
@@ -414,17 +393,7 @@
         "off": "Off"
       },
       "auto": "Auto",
-      "voiceGroup": "Voice and microphone",
-      "playout": {
-        "modes": {
-          "auto": "Automatic",
-          "low-latency": "Lowest latency",
-          "stable": "Most stable"
-        },
-        "now": "Now: {{path}} · {{grade}}",
-        "rtt": " · round trip {{ms}} ms",
-        "tcp": ". Over TCP the buffer is raised automatically; if this keeps happening, check that your network allows UDP."
-      }
+      "voiceGroup": "Voice and microphone"
     },
     "profile": {
       "refused": "The room didn't accept the picture",
@@ -480,7 +449,6 @@
       "stop": "Stop",
       "check": "Test",
       "checkSpeakersLabel": "Test speakers",
-      "serverRule": "Set by this server",
       "previewLabel": "Camera preview, only for you",
       "hidePreviewLabel": "Hide camera preview",
       "showPreviewLabel": "Show camera preview",

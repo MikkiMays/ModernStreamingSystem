@@ -20,7 +20,7 @@ import { Avatar, IconButton, Logo, Modal } from './primitives';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
-import { AudioFields, QualityFields, ReceptionFields } from './Settings';
+import { AudioFields, QualityFields } from './Settings';
 import { SettingGroup, SettingRow } from './settings/Row';
 import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
@@ -551,10 +551,6 @@ export function Prejoin({
             kind="screen"
             profile={preferences.screen}
             change={(p) => setPreferences(savePreferences({ screen: p }))}
-          />
-          <ReceptionFields
-            mode={preferences.reception}
-            change={(reception) => setPreferences(savePreferences({ reception }))}
           />
         </div>
       </Modal>

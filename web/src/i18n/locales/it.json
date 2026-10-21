@@ -57,9 +57,7 @@
       "output": "Altoparlanti",
       "processing": "Elaborazione audio",
       "camera": "Videocamera",
-      "screen": "Condivisione schermo",
-      "reception": "Video in arrivo",
-      "advanced": "Avanzate"
+      "screen": "Condivisione schermo"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps fluidità"
       },
-      "camera-yields": {
-        "label": "Priorità alla condivisione schermo",
-        "hint": "Mentre condividi lo schermo, la videocamera passa a 360p",
-        "keywords": "condivisione risparmio banda"
-      },
       "camera-preview": {
         "label": "Anteprima",
         "hint": "Visibile solo a te",
@@ -176,16 +169,6 @@
         "label": "Frame rate della condivisione",
         "hint": "",
         "keywords": "condivisione fps fluidità stream"
-      },
-      "reception": {
-        "label": "Qualità del video in arrivo",
-        "hint": "",
-        "keywords": "video altrui traffico"
-      },
-      "playout": {
-        "label": "Buffer di ricezione",
-        "hint": "Solo audio: come regge i picchi di latenza",
-        "keywords": "latenza buffer ping scatti rete"
       },
       "sounds-on": {
         "label": "Segnali della riunione",
@@ -403,10 +386,6 @@
         "screen": "Condivisione schermo",
         "camera": "Video della videocamera"
       },
-      "reception": {
-        "fit": "Adatta alla finestra",
-        "best": "Sempre la migliore"
-      },
       "noise": {
         "browser": "Standard",
         "rnnoise": "RNNoise — avanzata",
@@ -414,17 +393,7 @@
         "off": "Disattivata"
       },
       "auto": "Auto",
-      "voiceGroup": "Voce e microfono",
-      "playout": {
-        "modes": {
-          "auto": "Automatico",
-          "low-latency": "Latenza minima",
-          "stable": "Massima stabilità"
-        },
-        "now": "Ora: {{path}} · {{grade}}",
-        "rtt": " · andata e ritorno {{ms}} ms",
-        "tcp": ". Via TCP il buffer viene aumentato automaticamente; se succede spesso, verifica che la rete lasci passare UDP."
-      }
+      "voiceGroup": "Voce e microfono"
     },
     "profile": {
       "refused": "La stanza non ha accettato l'immagine",
@@ -480,7 +449,6 @@
       "stop": "Interrompi",
       "check": "Prova",
       "checkSpeakersLabel": "Prova gli altoparlanti",
-      "serverRule": "Impostato da questo server",
       "previewLabel": "Anteprima della videocamera, visibile solo a te",
       "hidePreviewLabel": "Nascondi l'anteprima della videocamera",
       "showPreviewLabel": "Mostra l'anteprima della videocamera",

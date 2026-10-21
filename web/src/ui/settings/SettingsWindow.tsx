@@ -21,7 +21,6 @@ import { useTranslation } from 'react-i18next';
 import { hasFeature, isDesktop } from '../../core/desktop';
 import { readPreferences, savePreferences, type Preferences } from '../../core/preferences';
 import { Store } from '../../core/store';
-import { unknownLink } from '../../media/link-quality';
 import { SHEET } from '../breakpoints';
 import { Avatar, useMediaQuery, useStore, type Theme } from '../primitives';
 import { IconButton } from '../kit';
@@ -101,10 +100,7 @@ export function SettingsWindow({
 }) {
   const { t } = useTranslation();
   const saved = useMemo(() => new Store(readPreferences()), []);
-  const offline = useMemo(() => new Store(unknownLink), []);
   const preferences = useStore(meeting?.media.preferences ?? saved);
-  // Вне встречи о канале сказать нечего, но хук должен вызываться всегда.
-  const link = useStore(meeting?.media.link ?? offline);
   const phone = useMediaQuery(SHEET);
   const [place, setPlace] = useState<Place>(() => reachable(placeFor(section)));
   const [target, setTarget] = useState<SettingsTarget>({ nonce: 0 });
@@ -207,7 +203,7 @@ export function SettingsWindow({
   const body = (() => {
     switch (place.section) {
       case 'voice':
-        return <VoiceSection preferences={preferences} change={change} meeting={meeting} link={link} />;
+        return <VoiceSection preferences={preferences} change={change} meeting={meeting} />;
       case 'sounds':
         return <SoundsSection preferences={preferences} change={change} />;
       case 'profile':

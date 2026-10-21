@@ -57,9 +57,7 @@
       "output": "Altavoces",
       "processing": "Procesamiento de audio",
       "camera": "Cámara",
-      "screen": "Compartir pantalla",
-      "reception": "Vídeo entrante",
-      "advanced": "Avanzado"
+      "screen": "Compartir pantalla"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps fluidez"
       },
-      "camera-yields": {
-        "label": "Priorizar la pantalla compartida",
-        "hint": "Mientras compartes pantalla, la cámara baja a 360p",
-        "keywords": "compartir pantalla ahorro ancho de banda"
-      },
       "camera-preview": {
         "label": "Vista previa",
         "hint": "Solo la ves tú",
@@ -176,16 +169,6 @@
         "label": "Fotogramas al compartir pantalla",
         "hint": "",
         "keywords": "compartir pantalla fps fluidez stream"
-      },
-      "reception": {
-        "label": "Calidad del vídeo entrante",
-        "hint": "",
-        "keywords": "vídeo ajeno tráfico"
-      },
-      "playout": {
-        "label": "Búfer de recepción",
-        "hint": "Solo audio: cómo aguanta los picos de latencia",
-        "keywords": "latencia búfer ping cortes red"
       },
       "sounds-on": {
         "label": "Avisos de la reunión",
@@ -403,10 +386,6 @@
         "screen": "Compartir pantalla",
         "camera": "Vídeo de la cámara"
       },
-      "reception": {
-        "fit": "Ajustar a la ventana",
-        "best": "Siempre la mejor"
-      },
       "noise": {
         "browser": "Estándar",
         "rnnoise": "RNNoise — mejorada",
@@ -414,17 +393,7 @@
         "off": "Desactivada"
       },
       "auto": "Auto",
-      "voiceGroup": "Voz y micrófono",
-      "playout": {
-        "modes": {
-          "auto": "Automático",
-          "low-latency": "Latencia mínima",
-          "stable": "Máxima estabilidad"
-        },
-        "now": "Ahora: {{path}} · {{grade}}",
-        "rtt": " · ida y vuelta {{ms}} ms",
-        "tcp": ". Por TCP el búfer se amplía solo; si se repite, comprueba que tu red permita UDP."
-      }
+      "voiceGroup": "Voz y micrófono"
     },
     "profile": {
       "refused": "La sala no aceptó la imagen",
@@ -480,7 +449,6 @@
       "stop": "Detener",
       "check": "Probar",
       "checkSpeakersLabel": "Probar los altavoces",
-      "serverRule": "Así lo configuró este servidor",
       "previewLabel": "Vista previa de la cámara, solo para ti",
       "hidePreviewLabel": "Ocultar la vista previa de la cámara",
       "showPreviewLabel": "Mostrar la vista previa de la cámara",

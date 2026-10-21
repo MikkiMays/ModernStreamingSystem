@@ -57,9 +57,7 @@
       "output": "Haut-parleurs",
       "processing": "Traitement audio",
       "camera": "Caméra",
-      "screen": "Partage d'écran",
-      "reception": "Vidéo reçue",
-      "advanced": "Avancé"
+      "screen": "Partage d'écran"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps fluidité"
       },
-      "camera-yields": {
-        "label": "Priorité au partage d'écran",
-        "hint": "Pendant votre partage d'écran, la caméra passe en 360p",
-        "keywords": "partage économie bande passante"
-      },
       "camera-preview": {
         "label": "Aperçu",
         "hint": "Visible par vous seul",
@@ -176,16 +169,6 @@
         "label": "Fréquence d'images du partage",
         "hint": "",
         "keywords": "partage d'écran fps fluidité stream"
-      },
-      "reception": {
-        "label": "Qualité de la vidéo reçue",
-        "hint": "",
-        "keywords": "vidéo des autres trafic"
-      },
-      "playout": {
-        "label": "Tampon de réception",
-        "hint": "Audio uniquement : résistance aux pics de latence",
-        "keywords": "latence tampon buffer ping saccades réseau"
       },
       "sounds-on": {
         "label": "Signaux de réunion",
@@ -403,10 +386,6 @@
         "screen": "Partage d'écran",
         "camera": "Vidéo de la caméra"
       },
-      "reception": {
-        "fit": "Adaptée à la fenêtre",
-        "best": "Toujours la meilleure"
-      },
       "noise": {
         "browser": "Standard",
         "rnnoise": "RNNoise — renforcée",
@@ -414,17 +393,7 @@
         "off": "Désactivée"
       },
       "auto": "Auto",
-      "voiceGroup": "Voix et micro",
-      "playout": {
-        "modes": {
-          "auto": "Automatique",
-          "low-latency": "Latence minimale",
-          "stable": "Stabilité maximale"
-        },
-        "now": "Actuellement : {{path}} · {{grade}}",
-        "rtt": " · aller-retour {{ms}} ms",
-        "tcp": ". Via TCP, le tampon est augmenté automatiquement ; si cela se répète, vérifiez que votre réseau laisse passer l'UDP."
-      }
+      "voiceGroup": "Voix et micro"
     },
     "profile": {
       "refused": "La salle a refusé l'image",
@@ -480,7 +449,6 @@
       "stop": "Arrêter",
       "check": "Tester",
       "checkSpeakersLabel": "Tester les haut-parleurs",
-      "serverRule": "Réglé par ce serveur",
       "previewLabel": "Aperçu de la caméra, visible par vous seul",
       "hidePreviewLabel": "Masquer l'aperçu de la caméra",
       "showPreviewLabel": "Afficher l'aperçu de la caméra",

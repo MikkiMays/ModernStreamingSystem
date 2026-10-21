@@ -57,9 +57,7 @@
       "output": "扬声器",
       "processing": "音频处理",
       "camera": "摄像头",
-      "screen": "屏幕共享",
-      "reception": "接收的视频",
-      "advanced": "高级"
+      "screen": "屏幕共享"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps 流畅"
       },
-      "camera-yields": {
-        "label": "优先屏幕共享",
-        "hint": "你共享屏幕时，摄像头降为 360p",
-        "keywords": "屏幕共享 节省带宽"
-      },
       "camera-preview": {
         "label": "预览",
         "hint": "仅你可见",
@@ -176,16 +169,6 @@
         "label": "屏幕共享帧率",
         "hint": "",
         "keywords": "屏幕共享 fps 流畅 直播"
-      },
-      "reception": {
-        "label": "接收视频画质",
-        "hint": "",
-        "keywords": "他人视频 流量"
-      },
-      "playout": {
-        "label": "接收缓冲",
-        "hint": "仅音频：应对延迟波动的能力",
-        "keywords": "延迟 缓冲 ping 卡顿 网络"
       },
       "sounds-on": {
         "label": "会议提示音",
@@ -403,10 +386,6 @@
         "screen": "屏幕共享",
         "camera": "摄像头视频"
       },
-      "reception": {
-        "fit": "适应窗口",
-        "best": "始终最佳"
-      },
       "noise": {
         "browser": "标准",
         "rnnoise": "RNNoise — 增强",
@@ -414,17 +393,7 @@
         "off": "关闭"
       },
       "auto": "自动",
-      "voiceGroup": "语音和麦克风",
-      "playout": {
-        "modes": {
-          "auto": "自动",
-          "low-latency": "最低延迟",
-          "stable": "最高稳定性"
-        },
-        "now": "当前：{{path}} · {{grade}}",
-        "rtt": " · 往返 {{ms}} 毫秒",
-        "tcp": "。经由 TCP 时缓冲会自动增大；如果反复出现，请检查网络是否允许 UDP。"
-      }
+      "voiceGroup": "语音和麦克风"
     },
     "profile": {
       "refused": "房间未接受该图片",
@@ -480,7 +449,6 @@
       "stop": "停止",
       "check": "测试",
       "checkSpeakersLabel": "测试扬声器",
-      "serverRule": "由此服务器设定",
       "previewLabel": "摄像头预览，仅你可见",
       "hidePreviewLabel": "隐藏摄像头预览",
       "showPreviewLabel": "显示摄像头预览",
