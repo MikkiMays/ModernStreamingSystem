@@ -146,6 +146,19 @@ public class ActivityController {
     return report.summary(from, to, tz);
   }
 
+  /** Качество связи за период — из итогов звонков, которые прислали браузеры (client-report). */
+  @GetMapping("/quality")
+  public ActivityReport.Quality quality(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @RequestParam long from,
+      @RequestParam long to,
+      @RequestParam(defaultValue = "0") int tz) {
+    admin.require(token);
+    if (to <= from || to - from > Duration.ofDays(400).toMillis())
+      throw new IllegalArgumentException("period");
+    return report.quality(from, to, tz);
+  }
+
   @GetMapping("/audit")
   public Audit.Page audit(
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
@@ -264,7 +277,11 @@ public class ActivityController {
       @Valid @RequestBody(required = false) Close request,
       HttpServletRequest http) {
     admin.require(token);
-    var room = rooms.closeByServer(id.toString());
+    // Срок, на который встреча не открывается из избранного, — тот же, что у блока создателя:
+    // выбранный словами или срок блока по умолчанию.
+    var term = term(request == null ? null : request.term());
+    var hold = term != null ? term : config.abuse().blocks().defaultTerm();
+    var room = rooms.closeByServer(id.toString(), hold);
     audit.record(
         Audit.Entry.of("admin.room_closed")
             .actor("admin", null, null)

@@ -55,6 +55,9 @@ EPISODES_PAGE = 20
 # Сезон по подписке — это страница за страницей пустоты, и листать её должна служба, а не
 # «Показать ещё» у зрителя, мигая «нечего показать» между запросами.
 READ_AHEAD = 3
+# Сколько страниц сериала служба смотрит, ища «следующую серию» (T17): двести серий. Телешоу бывают
+# длиннее — тогда кнопки нет, а не десяток запросов к площадке на каждый конец серии.
+NEXT_PAGES = 10
 
 # Номер канала, сериала и сезона у Rutube — просто число. `[0-9]`, а не `\d`: `\d` пропустил бы и
 # арабско-индийские цифры, а в адрес площадки уходит строка.
@@ -94,6 +97,7 @@ SUBSCRIPTION = "Это видео Rutube показывает только по 
 DRM = "Видео Rutube защищено DRM — показать его комнате нельзя"
 BLOCKED = "Rutube не показывает это видео с нашего сервера: ограничение страны или прав на показ"
 DENIED = "Rutube не разрешает показать это видео"
+NO_SERIES = "Такого сериала на Rutube нет"
 
 
 class Missing(Exception):
@@ -285,7 +289,7 @@ class Rutube(Provider):
         show, numbers = await asyncio.gather(
             self.memo.get(
                 f"tv:{series_id}",
-                lambda: self._get(ctx, f"metainfo/tv/{series_id}/", missing="Такого сериала на Rutube нет"),
+                lambda: self._get(ctx, f"metainfo/tv/{series_id}/", missing=NO_SERIES),
                 600,
             ),
             self.memo.get(f"seasons:{series_id}", lambda: self._seasons(ctx, series_id), 600),
@@ -325,7 +329,13 @@ class Rutube(Provider):
         author = info.get("author") or {}
         # Дверь ко всем сериям — только у серии: у идущего эфира `tv_show_id` площадка тоже
         # держит, но «все серии» эфира ничего не значат.
-        extra = {"series": str(info["tv_show_id"])} if info.get("tv_show_id") and not live else {}
+        extra: dict[str, Any] = (
+            {"series": str(info["tv_show_id"])} if info.get("tv_show_id") and not live else {}
+        )
+        if extra:
+            following = await self._following(ctx, info)
+            if following is not None:
+                extra["next"] = following
         return wire.details(
             self.id,
             kind,
@@ -345,6 +355,118 @@ class Rutube(Provider):
             poster=self.image(sized(info.get("thumbnail_url"), "l")),
             **extra,
         )
+
+    # --- следующая серия ----------------------------------------------------------------
+
+    async def _following(self, ctx: Ctx, info: dict[str, Any]) -> wire.Card | None:
+        """
+        Следующая серия — для «Следующая серия» в плеере (T17): та, что идёт за этой в её сезоне, а
+        после последней — первая из следующих сезонов. Только то, что можно показать комнате: серии по
+        подписке и платные пропускаются, как в списке серий. Сезон «Другое» (`0` — нарезки и анонсы) в
+        общую очередь не встаёт: после анонса «следующей» не бывает первой серии сериала.
+
+        Данные — те же, что у страницы сериала (`metainfo/tv/<id>/video` по сезону, страницами по
+        двадцать), и под теми же ключами памяти: кто пришёл к серии со страницы сериала, площадку второй
+        раз не спрашивает. Неудача у площадки — просто нет кнопки: страница серии важнее.
+        """
+        series_id = str(info.get("tv_show_id") or "")
+        item_id = info.get("id")
+        if not NUMBER.fullmatch(series_id) or not isinstance(item_id, str):
+            return None
+        try:
+            show, numbers = await asyncio.gather(
+                self.memo.get(
+                    f"tv:{series_id}",
+                    lambda: self._get(ctx, f"metainfo/tv/{series_id}/", missing=NO_SERIES),
+                    600,
+                ),
+                self.memo.get(f"seasons:{series_id}", lambda: self._seasons(ctx, series_id), 600),
+            )
+            word = EPISODES.get((self._object(show).get("type") or {}).get("name"), "серия")
+            # Сериал без сезонов — один список, и сезон у запроса не называется (как у страницы сериала).
+            line: list[str | None] = [None]
+            if numbers:
+                own = str(info["season"]) if isinstance(info.get("season"), int) else None
+                if own not in numbers:
+                    return None
+                # Порядок сезонов — площадки (так их показывает и страница сериала).
+                line = [own] + [
+                    number
+                    for number in numbers[numbers.index(own) + 1 :]
+                    if own != "0" and number != "0"
+                ]
+            episode = info.get("episode")
+            start = (episode - 1) // EPISODES_PAGE + 1 if isinstance(episode, int) and episode > 0 else 1
+            budget = [NEXT_PAGES]
+            found = await self._after(ctx, series_id, line[0], item_id, start, word, budget)
+            if found is False:
+                return None
+            if found is not None:
+                return found
+            for season in line[1:]:
+                if budget[0] <= 0:
+                    return None
+                found = await self._after(ctx, series_id, season, None, 1, word, budget)
+                if found:
+                    return found
+        except HTTPException:
+            return None
+        return None
+
+    async def _after(
+        self,
+        ctx: Ctx,
+        series_id: str,
+        season: str | None,
+        item_id: str | None,
+        start: int,
+        word: str,
+        budget: list[int],
+    ) -> wire.Card | None | bool:
+        """
+        Первая серия сезона, которую можно показать, — после `item_id` или, без него, с начала.
+        `False` — серия `item_id` в сезоне не нашлась (дальше искать незачем), `None` — после неё
+        показать нечего. Номер серии подсказывает страницу (`start`); не там — ищется с первой.
+        `budget` — сколько страниц ещё можно спросить на весь поиск.
+        """
+        seen = item_id is None
+        page = start
+        while budget[0] > 0:
+            budget[0] -= 1
+            data = await self._episodes(ctx, series_id, season, page)
+            items = results(data)
+            if not seen:
+                ids = [item.get("id") for item in items]
+                if item_id in ids:
+                    seen = True
+                    items = items[ids.index(item_id) + 1 :]
+                elif page == start and start > 1:
+                    page = 1
+                    continue
+                else:
+                    items = []
+            for item in items:
+                card = self._video(item, series=series_id, episode=word)
+                if card is not None and card["kind"] == "video":
+                    return card
+            if not (isinstance(data, dict) and data.get("has_next")):
+                break
+            page += 1
+        return None if seen else False
+
+    async def _episodes(self, ctx: Ctx, series_id: str, season: str | None, page: int) -> Any:
+        """Страница серий сезона как есть — с памятью: её же листает и страница сериала."""
+
+        async def fetch() -> Any:
+            params = {"page": str(page)}
+            if season is not None:
+                params["season"] = season
+            try:
+                return await self._get(ctx, f"metainfo/tv/{series_id}/video", params, absent=True)
+            except Missing:
+                return {"results": [], "has_next": False}
+
+        return await self.memo.get(f"episodes:{series_id}:{season}:{page}", fetch, 300)
 
     # --- поток --------------------------------------------------------------------------
 

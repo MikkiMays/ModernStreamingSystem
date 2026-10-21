@@ -23,7 +23,7 @@ from fastapi import HTTPException
 
 from cord_services.cinema import Cinema, Resolve, mpd
 from cord_services.cinema.drm import DRM
-from cord_services.cinema.providers.link import FORBIDDEN, LOGIN, NOTHING, ROBOT
+from cord_services.cinema.providers.link import FORBIDDEN, LOGIN, NOTHING, ROBOT, _candidates
 from cord_services.cinema.resolve import BUSY, DASH_ONLY, INSIDE, LOCKED, Inside, Protected
 from cord_services.cinema.sniffer import (
     ANSWER_LIMIT,
@@ -338,6 +338,26 @@ class WhatThePagePlayerSaw(SniffCase):
         self.assertEqual(found.title, "Фильм со страницы")
         self.assertEqual(found.poster, "")
         self.assertEqual(Sight.parse(["not", "a", "dict"]), Sight())
+
+    def test_an_ad_the_page_player_saw_is_never_the_stream_of_the_room(self):
+        # Плеер страниц метит рекламу (`ad`): поток рекламной сети или её рамки, список из её сегментов.
+        found = Sight.parse(
+            sight(
+                hls("https://pubads.g.doubleclick.net/ad/master.m3u8", ad=True),
+                hls(f"{CDN}/ad-on-site.m3u8", ad="yes"),
+                film(),
+            )
+        )
+        self.assertEqual([seen.ad for seen in found.streams], [True, False, False])
+        # Реклама — мимо, даже если она HLS, а фильм — файл: комнате показывают фильм.
+        chosen = _candidates(found)
+        self.assertEqual([seen.url for seen in chosen], [f"{CDN}/ad-on-site.m3u8", f"{CDN}/film.mp4"])
+        only_ads = Sight.parse(sight(hls("https://v.fwmrm.net/a.m3u8", ad=True)))
+        self.assertEqual(_candidates(only_ads), [])
+
+    async def test_a_page_with_only_an_ad_says_there_is_nothing_to_show(self):
+        answer = await self.said(sight(hls("https://v.fwmrm.net/a/master.m3u8", ad=True)))
+        self.assertEqual(answer, {"item": None, "reason": NOTHING})
 
 
 class TheProfileOfTheStream(SniffCase):

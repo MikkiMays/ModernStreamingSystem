@@ -13,6 +13,7 @@ import { prepareProof, takeProof, type ProofAction } from '../core/proof';
 import { noteError, type SupportReceipt, type SupportTicket } from '../core/support';
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
+import type { CallReport } from '../media/call-quality';
 
 export class ApiError extends Error {
   constructor(
@@ -68,17 +69,20 @@ function detailOf(detail: unknown): string {
 }
 
 /**
- * Владелец сервера закрыл этот адрес или устройство (`403 BLOCKED`, E10-B): ядро называет срок
- * числом, а словами и по часам этого устройства его называет клиент.
+ * Срок отказа владельца сервера словами и по часам этого устройства — ядро называет его числом:
+ * закрытый адрес или устройство (`403 BLOCKED`, E10-B) и встреча, которую он завершил и которую пока
+ * не открыть из избранного (`403 CLOSED_BY_SERVER`).
  */
-function blockedUntil(until: number): string {
+function ownerUntil(code: 'BLOCKED' | 'CLOSED_BY_SERVER', until: number): string {
   const date = new Date(until).toLocaleString(locale(t), {
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
   });
-  return t(($) => $.api.blockedUntil, { date });
+  return code === 'BLOCKED'
+    ? t(($) => $.api.blockedUntil, { date })
+    : t(($) => $.api.closedByServerUntil, { date });
 }
 
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
@@ -118,8 +122,8 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
     throw new ApiError(
       response.status,
       body.code ?? 'REQUEST_FAILED',
-      body.code === 'BLOCKED' && typeof body.until === 'number'
-        ? blockedUntil(body.until)
+      (body.code === 'BLOCKED' || body.code === 'CLOSED_BY_SERVER') && typeof body.until === 'number'
+        ? ownerUntil(body.code, body.until)
         : errorText(body.code, detailOf(body.detail)),
       body && typeof body === 'object' ? (body as Record<string, unknown>) : {},
     );
@@ -200,6 +204,12 @@ export class RoomApi {
       this.credential,
     );
   command = (command: Command) => request<Ack>(`${this.base}/commands`, post(command), this.credential);
+  /**
+   * Итог звонка для владельца сервера (docs/observability.md §15): шлётся уходя, поэтому `keepalive` —
+   * запрос переживёт закрытие вкладки. Один на вход; ответ никому не нужен.
+   */
+  clientReport = (report: CallReport) =>
+    request<void>(`${this.base}/client-report`, { ...post(report), keepalive: true }, this.credential);
   /** Название и режим входа встречи, которая уже идёт. Только у ведущего. */
   settings = (settings: { title: string; approvalRequired: boolean }) =>
     request<Snapshot>(

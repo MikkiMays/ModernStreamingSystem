@@ -2167,7 +2167,8 @@
   "api": {
     "requestFailed": "Die Anfrage ist fehlgeschlagen",
     "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
-    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt"
+    "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt",
+    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen"
   },
   "kit": {
     "toasts": "Benachrichtigungen",
@@ -2947,7 +2948,8 @@
     "SUPPORT_NOT_FOUND": "Anfrage nicht gefunden",
     "SUPPORT_OFF": "Anfragen werden gerade nicht angenommen. Schreib dem Autor von Cord auf Telegram — der Link ist daneben",
     "SUPPORT_RATE": "Von dieser Adresse kamen schon mehrere Anfragen. Versuch es in einer Stunde erneut oder schreib dem Autor von Cord auf Telegram",
-    "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz"
+    "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz",
+    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen"
   },
   "activity": {
     "title": "Aktivität",
@@ -2960,6 +2962,7 @@
     "tabs": {
       "now": "Jetzt",
       "meetings": "Meetings",
+      "quality": "Qualität",
       "audit": "Protokoll",
       "blocks": "Sperren",
       "server": "Server",
@@ -3020,6 +3023,42 @@
       "count_other": "{{count}} Meetings",
       "dayTip_one": "{{count}} Meeting, {{hours}} Personenstunden, Spitze {{peak}}",
       "dayTip_other": "{{count}} Meetings, {{hours}} Personenstunden, Spitze {{peak}}"
+    },
+    "quality": {
+      "hint": "Anrufbilanzen, die Browser am Ende eines Anrufs senden: nur Zahlen – keine Namen und Adressen.",
+      "empty": "Für diesen Zeitraum gibt es keine Anrufbilanzen. Ein Browser sendet eine, wenn er ein Meeting verlässt, in dem zwei Personen verbunden waren.",
+      "meetings": "Meetings mit Bilanzen",
+      "calls": "Anrufbilanzen",
+      "rtt": "Round-Trip im Schnitt",
+      "rttMax": "Schlechtester Round-Trip",
+      "loss": "Paketverlust im Schnitt",
+      "lossy": "Zeit mit über 5 % Verlust",
+      "jitter": "Jitter im Schnitt",
+      "bitrate": "Empfang im Schnitt",
+      "freezes": "Bildaussetzer pro Stunde",
+      "relay": "Über ein Relay (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}} %",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "Round-Trip pro Tag",
+      "dayTip": "Round-Trip {{rtt}}, Verlust {{loss}}, Bilanzen: {{count}}",
+      "codecs": "Video-Codecs in Meetings",
+      "codecTip": "Meetings: {{count}}",
+      "recent": "Letzte Meetings mit Bilanzen",
+      "gone": "gelöscht",
+      "worst": "schlechtester {{value}}",
+      "yes": "ja",
+      "no": "nein",
+      "columns": {
+        "code": "Code",
+        "started": "Beginn",
+        "calls": "Bilanzen",
+        "rtt": "Round-Trip",
+        "loss": "Verlust",
+        "jitter": "Jitter",
+        "freezes": "Aussetzer",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "Was",

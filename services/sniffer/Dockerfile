@@ -18,13 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certifi
     && test -x /opt/chrome-headless-shell \
     && rm -rf /var/lib/apt/lists/* /tmp/* \
     && groupadd --gid 10001 cord && useradd --uid 10001 --gid cord --no-create-home cord
-# Из кинозала службы — только выход, его защита и разбор ссылки; пакеты с пустыми `__init__`, чтобы не
-# тянуть за ними фасад кинозала со всеми его зависимостями.
+# Из кинозала службы — только выход, его защита, разбор ссылки и рекламные хосты (`ads.py`, преролл E07);
+# пакеты с пустыми `__init__`, чтобы не тянуть за ними фасад кинозала со всеми его зависимостями.
 # Права задаются здесь, а не берутся из рабочей копии: клон под `umask 077` даёт файлы 0600, и
 # пользователь 10001 не может прочитать собственный код. Кэш слоёв BuildKit смену одних прав не
 # замечает, так что исправленная потом рабочая копия слой не пересобрала бы.
 COPY --chmod=u=rwX,go=rX services/cord_services/cinema/net.py services/cord_services/cinema/egress.py \
-    services/cord_services/cinema/address.py ./cord_services/cinema/
+    services/cord_services/cinema/address.py services/cord_services/cinema/ads.py ./cord_services/cinema/
 RUN touch cord_services/__init__.py cord_services/cinema/__init__.py
 COPY --chmod=0755 services/sniffer/chrome.sh ./chrome.sh
 COPY --chmod=u=rwX,go=rX services/sniffer/sniffer ./sniffer

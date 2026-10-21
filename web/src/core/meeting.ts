@@ -65,6 +65,8 @@ export class Meeting {
   private refreshAgain = false;
   private started = false;
   private disposed = false;
+  /** Итог звонка уже ушёл: он один на вход, что бы ни закончило звонок первым. */
+  private reported = false;
   private initialDevicesApplied = false;
   private syncTimer?: ReturnType<typeof setInterval>;
   private subscriptions: (() => void)[] = [];
@@ -106,6 +108,7 @@ export class Meeting {
         void this.refresh();
     }, 2000);
     window.addEventListener('online', this.refreshOnReturn);
+    window.addEventListener('pagehide', this.report);
     document.addEventListener('visibilitychange', this.refreshOnReturn);
     this.subscriptions.push(
       this.media.state.subscribe(() => {
@@ -419,15 +422,29 @@ export class Meeting {
     this.cinema.set(null);
     this.cue('self-leave');
     this.sounds.dispose();
+    this.report();
     this.media.dispose();
     this.ended.set(reason);
     clearInterval(this.syncTimer);
     void this.uploader.pause();
   }
+  /**
+   * Итог звонка — владельцу сервера, один раз: при конце встречи, уходе со страницы или закрытии вкладки
+   * (`pagehide`). Короткий заход итога не даёт (`CallQuality.summary`).
+   */
+  private report = () => {
+    if (this.reported) return;
+    const summary = this.media.callReport();
+    if (!summary) return;
+    this.reported = true;
+    void this.api.clientReport(summary).catch(() => {});
+  };
   dispose() {
+    this.report();
     this.disposed = true;
     clearInterval(this.syncTimer);
     window.removeEventListener('online', this.refreshOnReturn);
+    window.removeEventListener('pagehide', this.report);
     document.removeEventListener('visibilitychange', this.refreshOnReturn);
     this.control.dispose();
     this.sounds.dispose();

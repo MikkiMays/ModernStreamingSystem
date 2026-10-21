@@ -718,10 +718,21 @@ class SeriesTests(Stage):
 
 
 class DetailsTests(Stage):
+    def serve_last_episode_of_its_series(self, series):
+        """Сериал, где эта серия — последняя из бесплатных: «следующей» у неё нет."""
+        self.answer(f"/api/metainfo/tv/{series}/", recorded("tv-891161.json"))
+        self.answer(f"/api/metainfo/tv/{series}/season/", [])
+        self.answer(
+            f"/api/metainfo/tv/{series}/video",
+            {"results": [], "has_next": False},
+            page="1",
+        )
+
     async def test_an_episode_page_knows_its_author_numbers_and_series(self):
         video = "2ef6c76f797a803f88980667635aa3db"
         info = recorded(f"video-{video}.json")
         self.answer(f"/api/video/{video}/", info)
+        self.serve_last_episode_of_its_series(info["tv_show_id"])
         found = await self.cinema.details("rutube", video, "video")
         self.assertEqual(
             found,
@@ -783,6 +794,123 @@ class DetailsTests(Stage):
         await self.refused(
             self.cinema.details("rutube", "aqz-KE-bpKQ", "video"), 400, "Непонятный адрес видео"
         )
+
+
+class NextEpisodeTests(Stage):
+    """
+    «Следующая серия» (T17) у Rutube: страница серии отдаёт `next` — следующую серию того же сериала,
+    которую можно показать комнате. Данные — те же, что у списка серий (`metainfo/tv/<id>/video`).
+    """
+
+    VIDEO = "2ef6c76f797a803f88980667635aa3db"
+
+    def serve_episode(self, season=1, episode=1):
+        """Серия «Универа» (891161): снятая карточка ролика, где поменяны сериал, сезон и номер."""
+        info = recorded(f"video-{self.VIDEO}.json")
+        info.update(tv_show_id=891161, season=season, episode=episode)
+        self.answer(f"/api/video/{self.VIDEO}/", info)
+        self.answer("/api/metainfo/tv/891161/", recorded("tv-891161.json"))
+        self.answer("/api/metainfo/tv/891161/season/", recorded("tv-891161-season.json"))
+
+    def season_page(self, season, page, items, more=False):
+        self.answer(
+            "/api/metainfo/tv/891161/video",
+            {"results": items, "has_next": more},
+            season=str(season),
+            page=str(page),
+        )
+
+    def episodes(self):
+        """Первая страница первого сезона: серия 1 бесплатна, 2 и 3 — по подписке PREMIER."""
+        found = recorded("tv-891161-video-season-1-page-1.json")["results"]
+        found[0]["id"] = self.VIDEO
+        return found
+
+    async def test_the_next_free_episode_of_the_same_season(self):
+        self.serve_episode()
+        episodes = self.episodes()
+        episodes[2]["common_subscription_product_codes"] = []
+        self.season_page(1, 1, episodes)
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        # Вторая серия — по подписке: показать её комнате нельзя, поэтому «следующая» — третья.
+        self.assertEqual(found["next"], video_card(episodes[2], badge="3 серия", series="891161"))
+
+    async def test_the_search_goes_on_to_the_next_page_of_the_season(self):
+        self.serve_episode()
+        self.season_page(1, 1, self.episodes(), more=True)
+        second = recorded("tv-891161-video-season-1-page-2.json")["results"]
+        second[1]["common_subscription_product_codes"] = []
+        self.season_page(1, 2, second)
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertEqual(found["next"]["id"], second[1]["id"])
+        self.assertEqual(found["next"]["badge"], "22 серия")
+
+    async def test_after_the_last_episode_of_a_season_comes_the_first_of_the_next(self):
+        self.serve_episode()
+        self.season_page(1, 1, self.episodes())
+        second = recorded("tv-891161-video-season-1-page-2.json")["results"]
+        for item in second:
+            item["season"] = 2
+        second[0]["common_subscription_product_codes"] = []
+        self.season_page(2, 1, second)
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertEqual(found["next"]["id"], second[0]["id"])
+
+    async def test_a_season_with_nothing_free_is_passed_over(self):
+        self.serve_episode()
+        self.season_page(1, 1, self.episodes())
+        sold = recorded("tv-891161-video-season-1-page-2.json")["results"]
+        self.season_page(2, 1, sold)
+        third = copy.deepcopy(sold)
+        third[0]["common_subscription_product_codes"] = []
+        self.season_page(3, 1, third)
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertEqual(found["next"]["id"], third[0]["id"])
+
+    async def test_the_last_episode_of_the_last_season_has_no_next(self):
+        self.serve_episode(season=4, episode=1)
+        episodes = self.episodes()
+        self.season_page(4, 1, episodes[:1])
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertNotIn("next", found)
+
+    async def test_a_late_episode_is_looked_for_on_its_own_page_first(self):
+        # Серия 21 — на второй странице сезона (по двадцать): первую страницу не спрашивают.
+        self.serve_episode(episode=21)
+        second = recorded("tv-891161-video-season-1-page-2.json")["results"]
+        second[0]["id"] = self.VIDEO
+        second[1]["common_subscription_product_codes"] = []
+        self.season_page(1, 2, second)
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertEqual(found["next"]["id"], second[1]["id"])
+        self.assertNotIn("/api/metainfo/tv/891161/video?page=1&season=1", self.asked())
+
+    async def test_leftovers_do_not_lead_into_the_real_seasons(self):
+        # Сезон «0» — нарезки и анонсы: после последней из них «следующая» — не первая серия сериала.
+        self.serve_episode(season=0, episode=0)
+        seasons = recorded("tv-891161-season.json")
+        seasons.insert(0, {**seasons[0], "number": 0})
+        self.answer("/api/metainfo/tv/891161/season/", seasons)
+        self.season_page(0, 1, self.episodes()[:1])
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertNotIn("next", found)
+        self.assertNotIn("/api/metainfo/tv/891161/video?page=1&season=1", self.asked())
+
+    async def test_the_platform_failing_on_the_list_leaves_the_page_without_next(self):
+        self.serve_episode()
+        self.answer(
+            "/api/metainfo/tv/891161/video", {"detail": "boom"}, status=500, season="1", page="1"
+        )
+        found = await self.cinema.details("rutube", self.VIDEO, "video")
+        self.assertEqual(found["series"], "891161")
+        self.assertNotIn("next", found)
+
+    async def test_a_live_channel_and_a_plain_video_do_not_look_for_a_next(self):
+        video = "c58f502c7bb34a8fcdd976b221fca292"
+        self.answer(f"/api/video/{video}/", {**recorded(f"video-{video}.json"), "tv_show_id": 24022})
+        found = await self.cinema.details("rutube", video, "channel")
+        self.assertNotIn("next", found)
+        self.assertEqual(self.asked(), [f"/api/video/{video}/"])
 
 
 class SourceTests(Stage):

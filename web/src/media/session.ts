@@ -54,6 +54,7 @@ import { LiveHealth } from './live-health';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
+import { CallQuality, type CallReport } from './call-quality';
 import { waitForPublishPermissions } from './publish-permissions';
 import { PreviewImages, ScreenPreviewSource, PREVIEW_TOPIC } from './screen-preview';
 import { currentPlatform, type Platform } from './platform';
@@ -412,6 +413,8 @@ export class MediaSession {
   private resetting = new Set<string>();
   private liveAbort = new AbortController();
   private playout = new PlayoutController();
+  /** Итог звонка для владельца сервера (`client-report`): копится из того же опроса, что и буфер. */
+  private callQuality = new CallQuality();
   private previewSource = new ScreenPreviewSource();
   private previewImages = new PreviewImages();
   private playoutTimer?: ReturnType<typeof setInterval>;
@@ -594,6 +597,7 @@ export class MediaSession {
     try {
       await this.playout.tick(this.playoutTracks());
       if (this.disposed || cycle !== this.connectionCycle) return;
+      this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
       // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
       if (linkChanged(this.link.get(), this.playout.link)) this.link.set(this.playout.link);
@@ -662,6 +666,10 @@ export class MediaSession {
     } finally {
       this.liveSampling = false;
     }
+  }
+  /** Итог звонка: числа и слова из перечислений, без имён и адресов; `null` — звонка не было. */
+  callReport(): CallReport | null {
+    return this.callQuality.summary();
   }
   /** Какой запас буфера мы сейчас просим по каждой дорожке. Для диагностики. */
   playoutTargets() {
