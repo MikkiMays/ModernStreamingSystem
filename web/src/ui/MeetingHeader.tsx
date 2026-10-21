@@ -9,7 +9,7 @@ import { formatCode } from '../core/invitation';
 import { formatDuration, readStartedAt, spokenDuration } from '../core/meeting-clock';
 import type { Translate } from '../i18n';
 import { IconButton } from './kit';
-import { MeetingEnds } from './abuse/Notices';
+import { CinemaTraffic, MeetingEnds } from './abuse/Notices';
 import { HelpButton } from './support/HelpButton';
 import { Logo } from './brand/Logo';
 import { useStore } from './primitives';
@@ -151,6 +151,7 @@ export function MeetingHeader({
             )}
           </div>
           {!ended && <MeetingEnds snapshot={snapshot} />}
+          {!ended && <CinemaTraffic snapshot={snapshot} />}
         </div>
       </div>
       <div className="meeting-header__actions">

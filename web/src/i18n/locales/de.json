@@ -585,6 +585,8 @@
       "noAnswer": "Der Tab mit dem Meeting antwortet nicht. Wechsle dorthin oder schließe ihn"
     },
     "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer",
+    "cinemaTraffic": "Das Kino hat {{percent}} % des Datenvolumens dieses Meetings verbraucht. Ist es aufgebraucht, stoppt der Film bis zum Ende des Meetings",
+    "cinemaStopped": "Das Kino hat das Datenvolumen dieses Meetings aufgebraucht – der Film ist bis zum Ende des Meetings gestoppt",
     "presence": {
       "title": "Bist du noch da?",
       "text": "Ohne Antwort verlässt du das Meeting um {{time}} – so hält ein vergessener Tab keinen Platz belegt",
@@ -2835,6 +2837,7 @@
     "BLOCK_NOT_FOUND": "Die Sperre wurde bereits aufgehoben oder ist abgelaufen",
     "BLOCK_SUBJECT_UNKNOWN": "Adresse und Profil dieser Person sind unbekannt: Es gibt nichts zu sperren",
     "CHAT_RATE": "Zu viele Nachrichten hintereinander. Warte eine Minute",
+    "CHAT_RATE_IP": "Zu viele Nachrichten aus diesem Netzwerk. Warte eine Minute",
     "CHAT_REPEAT": "Diese Nachricht wurde schon gesendet. Warte kurz",
     "CHESS_ACTION": "Unbekannte Aktion am Schachbrett",
     "CHESS_CLOSED": "Das Schachbrett ist bereits geschlossen",
@@ -2959,6 +2962,8 @@
     "UPLOAD_BUSY": "Warte, bis der aktuelle Upload fertig ist",
     "UPLOAD_QUOTA_IP": "Von dieser Adresse wurden zu viele Dateien hochgeladen. Versuch es später erneut",
     "VIEW_CLOSED": "Die Ansicht ist geschlossen",
+    "WAITING_FULL": "Der Warteraum ist voll. Versuch es etwas später noch einmal",
+    "WAITING_LIMIT": "Aus diesem Netzwerk wartet schon jemand im Warteraum dieses Meetings",
     "WATCH_CLOSED": "Das gemeinsame Ansehen ist beendet",
     "WATCH_INVALID": "Nichts zu öffnen",
     "WATCH_LIVE": "Ein Livestream lässt sich nicht pausieren oder zurückspulen",

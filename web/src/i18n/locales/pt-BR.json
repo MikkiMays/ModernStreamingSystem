@@ -586,6 +586,8 @@
       "noAnswer": "A aba com a reunião não respondeu. Vá até ela ou feche-a"
     },
     "ceiling": "A reunião vai terminar às {{time}}: as reuniões neste servidor têm duração máxima",
+    "cinemaTraffic": "O Cinema já usou {{percent}}% do tráfego desta reunião. Quando acabar, o filme vai parar até o fim da reunião",
+    "cinemaStopped": "O Cinema esgotou o tráfego desta reunião — o filme está parado até o fim da reunião",
     "presence": {
       "title": "Você ainda está aí?",
       "text": "Sem resposta, você vai sair da reunião às {{time}}: assim uma aba esquecida não segura um lugar",
@@ -2862,6 +2864,7 @@
     "BLOCK_NOT_FOUND": "O bloqueio já foi removido ou expirou",
     "BLOCK_SUBJECT_UNKNOWN": "O endereço e o perfil desta pessoa são desconhecidos: não há o que bloquear",
     "CHAT_RATE": "Muitas mensagens seguidas. Espere um minuto",
+    "CHAT_RATE_IP": "Muitas mensagens desta rede. Espere um minuto",
     "CHAT_REPEAT": "Esta mensagem já foi enviada. Espere um pouco",
     "CHESS_ACTION": "Ação desconhecida no tabuleiro",
     "CHESS_CLOSED": "O tabuleiro já foi fechado",
@@ -2986,6 +2989,8 @@
     "UPLOAD_BUSY": "Espere o envio atual terminar",
     "UPLOAD_QUOTA_IP": "Muitos arquivos foram enviados deste endereço. Tente mais tarde",
     "VIEW_CLOSED": "A visualização foi fechada",
+    "WAITING_FULL": "A sala de espera está cheia. Tente de novo daqui a pouco",
+    "WAITING_LIMIT": "Já tem alguém desta rede na sala de espera desta reunião",
     "WATCH_CLOSED": "A sessão conjunta terminou",
     "WATCH_INVALID": "Não há nada para abrir",
     "WATCH_LIVE": "Uma transmissão ao vivo não pode ser pausada nem retrocedida",
