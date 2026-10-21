@@ -6,6 +6,7 @@ import {
   Info,
   Keyboard,
   Mic,
+  MonitorCog,
   Palette,
   Plug,
   Search,
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import { useTranslation } from 'react-i18next';
-import { isDesktop } from '../../core/desktop';
+import { hasFeature, isDesktop } from '../../core/desktop';
 import { readPreferences, savePreferences, type Preferences } from '../../core/preferences';
 import { Store } from '../../core/store';
 import { unknownLink } from '../../media/link-quality';
@@ -34,8 +35,10 @@ import {
   rowDomId,
   searchSettings,
   section as sectionSpec,
+  sectionAvailable,
+  sectionsFor,
   sectionTitle,
-  SECTIONS,
+  DEFAULT_SECTION,
   type Place,
   type SearchHit,
   type SectionId,
@@ -49,18 +52,26 @@ import { AccountsSection } from './AccountsSection';
 import { ServerSection } from './ServerSection';
 import { AboutSection } from './AboutSection';
 import { replayOnboarding } from '../../core/onboarding';
+import { DesktopSection } from './DesktopSection';
 import './settings.css';
 
 const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   profile: User,
   appearance: Palette,
   hotkeys: Keyboard,
+  desktop: MonitorCog,
   voice: Mic,
   sounds: Volume2,
   accounts: Plug,
   server: Server,
   about: Info,
 };
+
+/** Раздел, которого здесь нет («Windows» в браузере или в оболочке без него), — раздел по умолчанию. */
+function reachable(place: Place): Place {
+  const context = isDesktop() ? 'desktop' : 'browser';
+  return sectionAvailable(place.section, context, hasFeature) ? place : { section: DEFAULT_SECTION };
+}
 
 /**
  * Окно настроек (T26): фиксированного размера на любой ширине стола — переключение раздела не
@@ -95,7 +106,7 @@ export function SettingsWindow({
   // Вне встречи о канале сказать нечего, но хук должен вызываться всегда.
   const link = useStore(meeting?.media.link ?? offline);
   const phone = useMediaQuery(SHEET);
-  const [place, setPlace] = useState<Place>(() => placeFor(section));
+  const [place, setPlace] = useState<Place>(() => reachable(placeFor(section)));
   const [target, setTarget] = useState<SettingsTarget>({ nonce: 0 });
   // На телефоне видно что-то одно: список разделов или раздел. Попросили раздел — сразу он.
   const [view, setView] = useState<'list' | 'section'>(section ? 'section' : 'list');
@@ -117,7 +128,7 @@ export function SettingsWindow({
   useEffect(() => {
     if (!open) return;
     if (!meeting) saved.set(readPreferences());
-    const next = placeFor(section);
+    const next = reachable(placeFor(section));
     setPlace(next);
     setView(section ? 'section' : 'list');
     setQuery('');
@@ -191,7 +202,7 @@ export function SettingsWindow({
     return Promise.resolve();
   };
 
-  const hits = query.trim() ? searchSettings(t, query, context) : null;
+  const hits = query.trim() ? searchSettings(t, query, context, 8, hasFeature) : null;
   const current = sectionSpec(place.section);
   const body = (() => {
     switch (place.section) {
@@ -207,8 +218,14 @@ export function SettingsWindow({
         );
       case 'hotkeys':
         return (
-          <HotkeysSection value={preferences.micHotkey} change={(micHotkey) => void change({ micHotkey })} />
+          <HotkeysSection
+            value={preferences.micHotkey}
+            overlay={preferences.overlayHotkey}
+            change={(micHotkey) => void change({ micHotkey })}
+          />
         );
+      case 'desktop':
+        return <DesktopSection preferences={preferences} change={change} />;
       case 'accounts':
         return <AccountsSection preferences={preferences} change={change} />;
       case 'server':
@@ -313,45 +330,51 @@ export function SettingsWindow({
                       <h3 className="settings-nav__group-title">{groupTitle(t, group)}</h3>
                     )}
                     <ul>
-                      {SECTIONS.filter((spec) => spec.group === group).map((spec) => {
-                        const Icon = ICONS[spec.id];
-                        const active = spec.id === place.section;
-                        return (
-                          <li key={spec.id}>
-                            <button
-                              type="button"
-                              className="settings-nav__item"
-                              aria-current={active ? 'page' : undefined}
-                              onClick={() => go({ section: spec.id })}
-                            >
-                              <Icon size={18} aria-hidden="true" />
-                              <span>{sectionTitle(t, spec.id)}</span>
-                              <ChevronRight size={16} aria-hidden="true" className="settings-nav__chevron" />
-                            </button>
-                            {active && !phone && spec.anchors.length > 0 && (
-                              <ul
-                                className="settings-nav__anchors"
-                                aria-label={t(($) => $.settings.subsections, {
-                                  section: sectionTitle(t, spec.id),
-                                })}
+                      {sectionsFor(context, hasFeature)
+                        .filter((spec) => spec.group === group)
+                        .map((spec) => {
+                          const Icon = ICONS[spec.id];
+                          const active = spec.id === place.section;
+                          return (
+                            <li key={spec.id}>
+                              <button
+                                type="button"
+                                className="settings-nav__item"
+                                aria-current={active ? 'page' : undefined}
+                                onClick={() => go({ section: spec.id })}
                               >
-                                {spec.anchors.map((anchor) => (
-                                  <li key={anchor}>
-                                    <button
-                                      type="button"
-                                      className="settings-nav__anchor"
-                                      aria-current={spy === anchor ? 'location' : undefined}
-                                      onClick={() => go({ section: spec.id, anchor })}
-                                    >
-                                      {anchorTitle(t, spec.id, anchor)}
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </li>
-                        );
-                      })}
+                                <Icon size={18} aria-hidden="true" />
+                                <span>{sectionTitle(t, spec.id)}</span>
+                                <ChevronRight
+                                  size={16}
+                                  aria-hidden="true"
+                                  className="settings-nav__chevron"
+                                />
+                              </button>
+                              {active && !phone && spec.anchors.length > 0 && (
+                                <ul
+                                  className="settings-nav__anchors"
+                                  aria-label={t(($) => $.settings.subsections, {
+                                    section: sectionTitle(t, spec.id),
+                                  })}
+                                >
+                                  {spec.anchors.map((anchor) => (
+                                    <li key={anchor}>
+                                      <button
+                                        type="button"
+                                        className="settings-nav__anchor"
+                                        aria-current={spy === anchor ? 'location' : undefined}
+                                        onClick={() => go({ section: spec.id, anchor })}
+                                      >
+                                        {anchorTitle(t, spec.id, anchor)}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
                 ))

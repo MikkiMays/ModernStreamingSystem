@@ -70,6 +70,35 @@ export function hasFeature(name: string): boolean {
 }
 
 export const desktopHotkeyStatus = new Store<string | null>(null);
+/** Что оболочка ответила про сочетание оверлея (`overlay.toggle`) — строкой, как и для микрофона. */
+export const desktopOverlayHotkeyStatus = new Store<string | null>(null);
+
+/**
+ * Сочетания, которые страница отдала оболочке. Микрофон и оверлей уходят одним набором
+ * (`hotkeys.configure` заменяет его целиком), поэтому адаптер помнит оба: экран встречи называет
+ * оба, настройки — то, что меняют, и «паузу» на время записи нового сочетания — чтобы нажатие
+ * самого сочетания записалось, а не включило микрофон или оверлей.
+ */
+const desktopHotkeys: { mic: Hotkey | null; overlay: Hotkey | null; paused: boolean } = {
+  mic: null,
+  overlay: null,
+  paused: false,
+};
+
+function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
+  if ('hotkey' in data) desktopHotkeys.mic = (data.hotkey as Hotkey | null | undefined) ?? null;
+  if ('overlay' in data) desktopHotkeys.overlay = (data.overlay as Hotkey | null | undefined) ?? null;
+  if ('paused' in data) desktopHotkeys.paused = data.paused === true;
+  const { mic, overlay, paused } = desktopHotkeys;
+  api.send('hotkeys.configure', {
+    bindings: paused
+      ? []
+      : [
+          ...(mic ? [{ action: 'mic.toggle', mode: 'toggle', key: mic }] : []),
+          ...(overlay ? [{ action: 'overlay.toggle', mode: 'toggle', key: overlay }] : []),
+        ],
+  });
+}
 
 /**
  * Что оболочка рассказала странице про обновление себя самой.
@@ -160,17 +189,19 @@ const SEND_V2: Record<string, string> = {
 export function notifyDesktop(type: string, data: Record<string, unknown> = {}) {
   const api = v2();
   if (!api) {
+    // WinUI знает только сочетание микрофона: оверлея и паузы у него нет.
+    if (type === 'hotkey.configure') {
+      if ('hotkey' in data)
+        window.chrome?.webview?.postMessage({ version: 1, type, hotkey: data.hotkey ?? null });
+      return;
+    }
     window.chrome?.webview?.postMessage({ version: 1, type, ...data });
     return;
   }
   switch (type) {
-    case 'hotkey.configure': {
-      const hotkey = data.hotkey as Hotkey | null | undefined;
-      api.send('hotkeys.configure', {
-        bindings: hotkey ? [{ action: 'mic.toggle', mode: 'toggle', key: hotkey }] : [],
-      });
+    case 'hotkey.configure':
+      configureHotkeys(api, data);
       return;
-    }
     case 'update.version':
       void refreshUpdate(api);
       return;
@@ -200,10 +231,10 @@ async function refreshUpdate(api: CordDesktop) {
   }
 }
 
-/** Строка состояния сочетания из ответа v2 — по действию микрофона. */
-function hotkeyStatusText(status: unknown): string | null {
+/** Строка состояния сочетания из ответа v2 — по действию (`mic.toggle`, `overlay.toggle`). */
+function hotkeyStatusText(status: unknown, action = 'mic.toggle'): string | null {
   if (!status || typeof status !== 'object') return null;
-  const text = (status as Record<string, unknown>)['mic.toggle'];
+  const text = (status as Record<string, unknown>)[action];
   return typeof text === 'string' ? text : null;
 }
 
@@ -219,6 +250,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
       api.on('hotkeys.status', (data) => {
         const detail = hotkeyStatusText(data.status);
         desktopHotkeyStatus.set(detail);
+        desktopOverlayHotkeyStatus.set(hotkeyStatusText(data.status, 'overlay.toggle'));
         relay({ type: 'hotkey.status', detail: detail ?? undefined });
       }),
       api.on('update.status', (data) => {
@@ -273,6 +305,12 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
   const bridge = window.chrome?.webview;
   bridge?.addEventListener('message', receive);
   return () => bridge?.removeEventListener('message', receive);
+}
+
+/** Подписка на событие оболочки v2 под его собственным именем (`app.settings`); в v1 и в браузере — ничего. */
+export function onDesktopEvent(type: string, listener: (data: Record<string, unknown>) => void): () => void {
+  const api = v2();
+  return api ? api.on(type, listener) : () => {};
 }
 
 /** Запрос к оболочке v2 с ответом; в v1 и в браузере — null. */

@@ -63,6 +63,15 @@ it('migrates the display name and validates stored audio and hotkeys', () => {
   expect(readPreferences().micHotkey).toBeNull();
 });
 
+it('overlay hotkey (E01-B2): unassigned by default, a valid one is kept, a broken one is dropped', () => {
+  expect(readPreferences().overlayHotkey).toBeNull();
+  const key = { code: 'KeyO', ctrl: true, alt: false, shift: true, meta: false };
+  savePreferences({ overlayHotkey: key });
+  expect(readPreferences().overlayHotkey).toEqual(key);
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ overlayHotkey: { code: 'Escape' } }));
+  expect(readPreferences().overlayHotkey).toBeNull();
+});
+
 it('defaults to silent PING display and enabled notifications, then saves both independently', () => {
   expect(readPreferences()).toMatchObject({
     showPing: false,

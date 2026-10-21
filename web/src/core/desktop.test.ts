@@ -73,6 +73,67 @@ describe('мост v2 — адаптер', () => {
     ]);
   });
 
+  it('сочетания микрофона и оверлея уходят одним набором; на время записи — пустым', async () => {
+    const api = fakeDesktop();
+    const desktop = await import('./desktop');
+    const mic = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+    const overlay = { code: 'KeyO', ctrl: true, alt: false, shift: true, meta: false };
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, overlay });
+    desktop.notifyDesktop('hotkey.configure', { paused: true });
+    desktop.notifyDesktop('hotkey.configure', { overlay: null, paused: false });
+    desktop.notifyDesktop('hotkey.configure', { hotkey: null });
+    expect(api.send.mock.calls).toEqual([
+      [
+        'hotkeys.configure',
+        {
+          bindings: [
+            { action: 'mic.toggle', mode: 'toggle', key: mic },
+            { action: 'overlay.toggle', mode: 'toggle', key: overlay },
+          ],
+        },
+      ],
+      ['hotkeys.configure', { bindings: [] }],
+      ['hotkeys.configure', { bindings: [{ action: 'mic.toggle', mode: 'toggle', key: mic }] }],
+      ['hotkeys.configure', { bindings: [] }],
+    ]);
+  });
+
+  it('WinUI получает только сочетание микрофона — об оверлее и паузе он не знает', async () => {
+    const posted: unknown[] = [];
+    (window as unknown as { chrome?: unknown }).chrome = {
+      webview: {
+        postMessage: (m: unknown) => posted.push(m),
+        addEventListener() {},
+        removeEventListener() {},
+      },
+    };
+    const desktop = await import('./desktop');
+    const mic = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+    desktop.notifyDesktop('hotkey.configure', { hotkey: null, paused: true });
+    desktop.notifyDesktop('hotkey.configure', { overlay: mic, paused: false });
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, overlay: null });
+    expect(posted).toEqual([
+      { version: 1, type: 'hotkey.configure', hotkey: null },
+      { version: 1, type: 'hotkey.configure', hotkey: mic },
+    ]);
+  });
+
+  it('состояние сочетания оверлея — своей строкой; события app.settings — подпиской', async () => {
+    const api = fakeDesktop(['hotkeys', 'overlay', 'app.settings']);
+    const desktop = await import('./desktop');
+    const stop = desktop.onDesktopCommand(() => {});
+    api.emit('hotkeys.status', { status: { 'mic.toggle': 'М', 'overlay.toggle': 'О' } });
+    expect(desktop.desktopHotkeyStatus.get()).toBe('М');
+    expect(desktop.desktopOverlayHotkeyStatus.get()).toBe('О');
+    stop();
+    const seen: unknown[] = [];
+    const off = desktop.onDesktopEvent('app.settings', (data) => seen.push(data));
+    api.emit('app.settings', { overlay: true });
+    off();
+    api.emit('app.settings', { overlay: false });
+    expect(seen).toEqual([{ overlay: true }]);
+  });
+
   it('update.version — запрос состояния обновления', async () => {
     const api = fakeDesktop();
     const desktop = await import('./desktop');

@@ -195,7 +195,11 @@ class ServerAccessTest {
   void theConnectScreenCanReachWhatItNeedsBeforeTheHandshake() throws Exception {
     for (var open :
         new String[] {
-          "/api/v1/ping", "/api/v1/capabilities", "/api/v1/session", "/api/v1/events"
+          "/api/v1/ping",
+          "/api/v1/capabilities",
+          "/api/v1/session",
+          "/api/v1/events",
+          "/api/v1/catalog"
         }) {
       var request = get(open);
       assertThat(through("тайна", request).getStatus()).as(open).isEqualTo(200);

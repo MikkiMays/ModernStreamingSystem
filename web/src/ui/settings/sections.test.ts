@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../../i18n';
-import { ROWS, SECTIONS, placeFor, rowText, searchSettings, type RowId, type RowSpec } from './sections';
+import {
+  ROWS,
+  SECTIONS,
+  placeFor,
+  rowAvailable,
+  rowText,
+  searchSettings,
+  sectionsFor,
+  type RowId,
+  type RowSpec,
+} from './sections';
 
 describe('куда ведёт имя раздела (мост settings.open, ссылка «О программе», прежние вкладки)', () => {
   it('прежние вкладки открывают свои новые разделы, а не пустоту', () => {
@@ -74,5 +84,36 @@ describe('поиск по настройкам', () => {
   it('не больше восьми ответов', () => {
     expect(searchSettings(t, 'голос', 'browser', 3)).toHaveLength(3);
     expect(searchSettings(t, 'в', 'browser').length).toBeLessThanOrEqual(8);
+  });
+});
+
+describe('раздел «Windows» (E01-B2): только в клиенте и только со своими флагами', () => {
+  const has = (flags: string[]) => (feature: string) => flags.includes(feature);
+  const ids = (context: 'browser' | 'desktop', flags: string[]) =>
+    sectionsFor(context, has(flags)).map((spec) => spec.id);
+
+  it('в браузере и в оболочке без app.settings раздела нет', () => {
+    expect(ids('browser', ['app.settings', 'tray'])).not.toContain('desktop');
+    expect(ids('desktop', ['tray', 'overlay'])).not.toContain('desktop');
+    expect(ids('desktop', ['app.settings'])).not.toContain('desktop');
+  });
+
+  it('с app.settings — раздел и ровно те строки, чьи флаги объявлены', () => {
+    const flags = has(['app.settings', 'tray', 'overlay']);
+    expect(ids('desktop', ['app.settings', 'tray', 'overlay'])).toContain('desktop');
+    const shown = (Object.entries(ROWS) as [RowId, RowSpec][])
+      .filter(([, spec]) => spec.section === 'desktop' && rowAvailable(spec, 'desktop', flags))
+      .map(([id]) => id);
+    expect(shown).toEqual(['desktop-tray', 'desktop-overlay', 'desktop-overlay-hotkey']);
+  });
+
+  it('поиск находит переключатель только там, где он есть', () => {
+    const flags = has(['app.settings', 'tray', 'autostart']);
+    const rows = (query: string, context: 'browser' | 'desktop', with_ = flags) =>
+      searchSettings(t, query, context, 8, with_).map((hit) => hit.row ?? hit.section);
+    expect(rows('автозапуск', 'desktop')).toContain('desktop-autostart');
+    expect(rows('автозапуск', 'browser')).toEqual([]);
+    expect(rows('трей', 'desktop')).toContain('desktop-tray');
+    expect(rows('трей', 'desktop', has(['app.settings', 'autostart']))).not.toContain('desktop-tray');
   });
 });
