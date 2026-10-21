@@ -87,6 +87,11 @@
         "hint": "Ativar ou desativar",
         "keywords": "atalho tecla mudo mute"
       },
+      "hotkey-ptt": {
+        "label": "Aperte para falar",
+        "hint": "O microfone fica ligado só enquanto o atalho estiver pressionado",
+        "keywords": "push-to-talk ptt walkie-talkie segurar"
+      },
       "hotkey-other": {
         "label": "Teclas do cinema e dos jogos",
         "hint": "",
@@ -367,6 +372,7 @@
       "resetLabel": "Restaurar o atalho padrão do microfone",
       "disable": "Desativar",
       "disableLabel": "Desativar o atalho do microfone",
+      "holdHint": "Segure o atalho para falar",
       "groups": {
         "cinema": "Cinema",
         "poker": "Pôquer, na sua vez",
@@ -1171,6 +1177,11 @@
   "hotkeys": {
     "unassigned": "Não definido",
     "space": "Espaço",
+    "mouse": {
+      "Mouse3": "Botão do meio do mouse",
+      "Mouse4": "Botão 4 do mouse",
+      "Mouse5": "Botão 5 do mouse"
+    },
     "player": {
       "pause": "pausa",
       "sound": "som",
@@ -1188,6 +1199,7 @@
       "windowsKey": "A tecla Windows é usada pelo sistema: o atalho só vai funcionar na janela do Cord.",
       "f12": "F12 é usada pelo sistema: o atalho só vai funcionar na janela do Cord.",
       "noModifier": "Sem Ctrl ou Alt, o atalho só funciona na janela do Cord. Com eles, também por cima de outros programas.",
+      "rawBare": "{{label}} sem Ctrl ou Alt também vai disparar enquanto você digita em outros programas.",
       "player": "{{label}} também é “{{action}}” no player do cinema: com o player aberto, o microfone será acionado.",
       "poker": "{{label}} também é “{{action}}” na mesa de pôquer: na sua vez, os dois serão acionados."
     }
@@ -1220,6 +1232,12 @@
       "unsupported": "Este navegador não suporta compartilhamento de tela",
       "noTrack": "Não foi possível capturar a tela",
       "ownAudioLeaks": "Este navegador não consegue remover o som do próprio Cord do áudio do sistema: os espectadores vão ouvir a conversa e a própria voz. Compartilhe uma janela ou aba — ou atualize o navegador.",
+      "audio": {
+        "unavailable": "O módulo de som do Cord para Windows não está rodando — compartilhando sem som.",
+        "notWindow": "O som de um app só existe para uma janela — a tela é compartilhada sem som.",
+        "failed": "O som do compartilhamento não começou ({{reason}}) — compartilhando sem som.",
+        "stopped": "O som do compartilhamento parou ({{reason}}) — o compartilhamento continua sem som."
+      },
       "cancelled": "Compartilhamento de tela cancelado",
       "noPermission": "O servidor de mídia não deu permissão. Tente compartilhar de novo."
     },
@@ -3325,7 +3343,20 @@
     "noWindows": "Nenhuma janela aberta.",
     "untitled": "Sem título",
     "systemAudio": "Com o áudio do sistema",
-    "systemAudioHint": "Os participantes ouvirão todo o áudio do computador — inclusive as vozes desta reunião. O áudio de um único app chegará depois.",
+    "systemAudioHint": "Os participantes ouvirão todo o áudio do computador — inclusive as vozes desta reunião.",
+    "audio": "Som",
+    "audioModes": {
+      "none": "Sem som",
+      "system": "Som do sistema",
+      "app": "Som do app",
+      "system-except-cord": "Sistema exceto o Cord"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "Os participantes também vão ouvir as vozes da reunião. Para som sem eco, escolha “Sistema exceto o Cord”.",
+      "app": "Só o som do app escolhido — as vozes da reunião não entram no compartilhamento.",
+      "system-except-cord": "Todo o som do computador, exceto o próprio Cord."
+    },
     "share": "Compartilhar",
     "cancel": "Cancelar"
   }

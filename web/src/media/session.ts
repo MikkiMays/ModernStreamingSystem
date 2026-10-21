@@ -48,7 +48,13 @@ import { signal } from '../core/sounds';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { VoiceLevels } from './levels';
-import { browserCapture, ownAudioLeaks, type CaptureAdapter } from './capture';
+import {
+  browserCapture,
+  ownAudioLeaks,
+  type CaptureAdapter,
+  type ScreenAudioEvent,
+  type ScreenAudioSource,
+} from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
@@ -193,6 +199,20 @@ class WideOpen {
     document.removeEventListener('visibilitychange', this.changed);
   }
   private changed = () => this.handleVisibilityChanged?.();
+}
+
+/** Звук показа от оболочки (E01-B3) на время одного показа. */
+interface ScreenAudioLink {
+  unwatch: () => void;
+  /** Дорожка от оболочки; пока видео не опубликовано — ждёт его. */
+  track?: MediaStreamTrack;
+  published?: LocalTrack;
+  /** Видео показа опубликовано — звук можно публиковать рядом. */
+  live: boolean;
+  /** Показ кончился: опоздавшая дорожка останавливается. */
+  closed: boolean;
+  abort: AbortController;
+  linger?: ReturnType<typeof setTimeout>;
 }
 
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
@@ -393,6 +413,12 @@ export class MediaSession {
   private cameraCodecChosen?: Promise<VideoCodec>;
   private screenBusy = false;
   private screenPublishAbort?: AbortController;
+  /** Звук показа от оболочки (E01-B3) — у идущего показа и у кончившегося, что ждёт опоздавшую дорожку. */
+  private screenAudio?: ScreenAudioLink;
+  private lingeringAudio?: ScreenAudioLink;
+  /** «Нажми и говори»: каким микрофон должен стать — побеждает последнее нажатие или отпускание. */
+  private micTarget = false;
+  private micSetting?: Promise<void>;
   private deviceBusy = new Set<string>();
   private wanted = { microphone: false, camera: false };
   private connectionCycle = 0;
@@ -1319,6 +1345,36 @@ export class MediaSession {
     }
   }
   /**
+   * «Нажми и говори» (E01-B3): привести микрофон к нужному состоянию.
+   *
+   * ЗАЧЕМ НЕ `toggle`. Нажатие и отпускание приходят быстрее, чем публикуется дорожка, а `toggle`
+   * во время работы молча отказывает — короткое нажатие оставило бы микрофон включённым. Здесь
+   * побеждает последнее желание: пока идёт одно переключение, следующее ждёт и сверяется заново.
+   * Без сигналов: щелчок на каждое нажатие клавиши рации мешал бы, а удержание человек и так чувствует.
+   */
+  setMicrophone(on: boolean): Promise<void> {
+    this.micTarget = on;
+    this.micSetting ??= this.reconcileMicrophone().finally(() => {
+      this.micSetting = undefined;
+    });
+    return this.micSetting;
+  }
+  private async reconcileMicrophone() {
+    // Переключение руками (кнопка в пульте) ещё идёт — подождать его, но не бесконечно.
+    for (let waited = 0; !this.disposed && waited < 100;) {
+      if (this.micTarget === this.state.get().microphone) return;
+      if (this.deviceBusy.has('microphone')) {
+        waited++;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        continue;
+      }
+      const before = this.state.get().microphone;
+      await this.toggle('microphone', undefined, false);
+      // Не переключился (нет доступа, нет устройства) — ошибку уже показали, не долбим.
+      if (this.state.get().microphone === before) return;
+    }
+  }
+  /**
    * Включает или выключает устройство.
    *
    * `announce` — звучать ли сигналом. По умолчанию да: нажатие на микрофон слышно своим ухом
@@ -1548,8 +1604,14 @@ export class MediaSession {
     }
   }
 
-  /** Must be called directly from the click handler, before any await. */
-  share(profile: ScreenProfile): void {
+  /**
+   * Must be called directly from the click handler, before any await.
+   *
+   * `audio` — звук показа, который оболочка пришлёт отдельно (E01-B3: звук приложения, «система
+   * кроме Cord»). Подписка — до `getDisplayMedia`: отказ оболочка шлёт сразу, как отдаст экран, и
+   * подписка после захвата могла бы его пропустить.
+   */
+  share(profile: ScreenProfile, audio?: ScreenAudioSource): void {
     if (this.screenBusy || this.disposed) return;
     if (this.state.get().screen) {
       void this.stopScreen();
@@ -1560,12 +1622,117 @@ export class MediaSession {
       return;
     }
     this.screenBusy = true;
+    const link = audio ? this.linkScreenAudio(audio) : undefined;
     const capture = this.capture.capture(profile);
-    void this.publishScreen(capture, profile).finally(() => {
+    void this.publishScreen(capture, profile, link).finally(() => {
       this.screenBusy = false;
     });
   }
-  private async publishScreen(capture: Promise<MediaStream>, profile: ScreenProfile) {
+
+  /**
+   * Звук показа от оболочки на время одного показа. Дорожка может прийти раньше видео (ждёт его),
+   * после (публикуется сразу) или уже после конца показа — тогда она останавливается: захват в
+   * оболочке гаснет по остановке дорожки.
+   */
+  private linkScreenAudio(source: ScreenAudioSource): ScreenAudioLink {
+    // Прежний показ ещё ждал опоздавшую дорожку — дорожка нового показа ему не принадлежит.
+    if (this.lingeringAudio) this.endScreenAudioWatch(this.lingeringAudio);
+    const link: ScreenAudioLink = {
+      unwatch: () => {},
+      live: false,
+      closed: false,
+      abort: new AbortController(),
+    };
+    this.screenAudio = link;
+    link.unwatch = source.watch((event) => this.onScreenAudio(link, event));
+    return link;
+  }
+  private onScreenAudio(link: ScreenAudioLink, event: ScreenAudioEvent) {
+    if (link.closed) {
+      if (event.state === 'ready') {
+        event.track.stop();
+        this.endScreenAudioWatch(link);
+      }
+      return;
+    }
+    if (event.state === 'ready') {
+      if (link.track === event.track) return;
+      void this.dropScreenAudio(link);
+      link.track = event.track;
+      if (link.live) void this.publishScreenAudio(link);
+      return;
+    }
+    // Своя дорожка оболочки, а не звук системы: заметки «зрители услышат разговор» здесь нет.
+    if (event.state === 'failed') this.report(new Error(event.message));
+    void this.dropScreenAudio(link);
+  }
+  private async publishScreenAudio(link: ScreenAudioLink) {
+    const track = link.track;
+    if (!track || track.readyState !== 'live' || link.published) return;
+    const stale = () => this.disposed || link.closed || link.track !== track;
+    try {
+      await waitForPublishPermissions(this.room, [Track.Source.ScreenShareAudio], link.abort.signal);
+      if (stale()) return;
+      const publication = await this.room.localParticipant.publishTrack(track, {
+        ...screenOptions(this.profile, this.codec),
+        source: Track.Source.ScreenShareAudio,
+        audioPreset: { maxBitrate: 128000 },
+        forceStereo: true,
+        dtx: false,
+      });
+      const published = publication.track;
+      if (!published) return;
+      if (stale()) {
+        await this.room.localParticipant.unpublishTrack(published, true).catch(() => published.stop());
+        return;
+      }
+      link.published = published;
+      this.screenTracks.push(published);
+      this.refreshTracks();
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) this.report(error);
+    }
+  }
+  /** Дорожки оболочки больше нет (отказ, конец, замена): снять с публикации и остановить. */
+  private async dropScreenAudio(link: ScreenAudioLink) {
+    const { track, published } = link;
+    link.track = undefined;
+    link.published = undefined;
+    if (!published) {
+      track?.stop();
+      return;
+    }
+    this.screenTracks = this.screenTracks.filter((item) => item !== published);
+    try {
+      await this.room.localParticipant.unpublishTrack(published, true);
+    } catch {
+      published.stop();
+    }
+    this.refreshTracks();
+  }
+  /** Показ кончился: дорожка — `stop()`; не пришла ещё — подождать её 15 с, чтобы остановить. */
+  private closeScreenAudio(link = this.screenAudio) {
+    if (!link || link.closed) return;
+    link.closed = true;
+    link.abort.abort();
+    if (this.screenAudio === link) this.screenAudio = undefined;
+    const track = link.track;
+    link.track = undefined;
+    link.published = undefined;
+    if (track) {
+      track.stop();
+      link.unwatch();
+      return;
+    }
+    this.lingeringAudio = link;
+    link.linger = setTimeout(() => this.endScreenAudioWatch(link), 15000);
+  }
+  private endScreenAudioWatch(link: ScreenAudioLink) {
+    clearTimeout(link.linger);
+    link.unwatch();
+    if (this.lingeringAudio === link) this.lingeringAudio = undefined;
+  }
+  private async publishScreen(capture: Promise<MediaStream>, profile: ScreenProfile, link?: ScreenAudioLink) {
     let stream: MediaStream | undefined;
     let reserved = false;
     const operation = new AbortController();
@@ -1580,7 +1747,8 @@ export class MediaSession {
       const settings = video.getSettings();
       // Звук всего экрана — это и звук самого Cord. Если браузер не умеет его вычесть, лучше
       // сказать об этом сразу, чем оставить зрителя гадать, почему он слышит сам себя.
-      if (ownAudioLeaks(video, stream.getAudioTracks()[0]))
+      // Звук приложения и «кроме Cord» идут своей дорожкой оболочки — Cord в них нет по построению.
+      if (!link && ownAudioLeaks(video, stream.getAudioTracks()[0]))
         this.report(new Error(t(($) => $.media.screen.ownAudioLeaks)));
       this.captureSize = { width: settings.width ?? 1920, height: settings.height ?? 1080 };
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
@@ -1630,6 +1798,11 @@ export class MediaSession {
         },
         { once: true },
       );
+      // Звук оболочки, пришедший раньше видео, ждал его; пришедший позже опубликуется сразу.
+      if (link && !link.closed) {
+        link.live = true;
+        void this.publishScreenAudio(link);
+      }
       this.videoChangedAt.screen = performance.now();
       this.refreshTracks();
       // Камера уступает место здесь же (если сервер велел ей уступать), а не после первой
@@ -1662,6 +1835,7 @@ export class MediaSession {
       if (stream) {
         stream.getVideoTracks()[0]?.removeEventListener('ended', captureEnded);
         stream.getTracks().forEach((t) => t.stop());
+        this.closeScreenAudio(link);
         if (reserved) await this.api.screen(false).catch(() => {});
       }
     }
@@ -1701,6 +1875,7 @@ export class MediaSession {
   }
   async stopScreen() {
     this.screenPublishAbort?.abort();
+    this.closeScreenAudio();
     this.screenGeneration++;
     // Счётчики байтов принадлежали экрану; следующий интервал должен считаться заново,
     // иначе первый замер камеры вычтет из своих байтов чужие.
@@ -1951,6 +2126,7 @@ export class MediaSession {
     this.screenPreviews.set({});
     this.speaking.set([]);
     this.levels.dispose();
+    this.closeScreenAudio();
     this.screenTracks.forEach((t) => t.stop());
     this.deviceTracks.forEach((t) => t.stop());
     this.deviceTracks.clear();

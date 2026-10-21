@@ -87,6 +87,59 @@ describe('окно выбора источника', () => {
     expect(screen.queryByRole('switch', { name: /Со звуком системы/ })).toBeNull();
   });
 
+  it('с capture.app-audio — четыре режима звука; «Звук приложения» — только у окна', async () => {
+    const { onChoose } = await open(['capture', 'capture.system-audio', 'capture.app-audio'], {
+      ...list,
+      appAudio: true,
+    });
+    expect(screen.queryByRole('switch', { name: /Со звуком системы/ })).toBeNull();
+    const sound = screen.getByRole('radiogroup', { name: 'Звук' });
+    const names = () =>
+      within(sound)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')!.textContent);
+    expect(names()).toEqual(['Без звука', 'Звук системы', 'Система кроме Cord']);
+    expect(within(sound).getByRole('radio', { name: 'Без звука' })).toBeChecked();
+    fireEvent.click(within(sound).getByRole('radio', { name: 'Система кроме Cord' }));
+    expect(screen.getByText('Весь звук компьютера, кроме самого Cord.')).toBeInTheDocument();
+    fireEvent.doubleClick(within(sourcesGroup()).getAllByRole('button')[0]!);
+    expect(onChoose).toHaveBeenLastCalledWith({ id: 'screen:0:0', audio: 'system-except-cord' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Окна' }));
+    await act(async () => {});
+    fireEvent.click(within(sourcesGroup()).getByRole('button', { name: /Counter-Strike 2/ }));
+    expect(names()).toEqual(['Без звука', 'Звук системы', 'Звук приложения', 'Система кроме Cord']);
+    fireEvent.click(within(sound).getByRole('radio', { name: 'Звук приложения' }));
+    expect(screen.getByText(/голоса встречи в показ не попадут/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Показать' }));
+    expect(onChoose).toHaveBeenLastCalledWith({ id: 'window:42:0', audio: 'app' });
+  });
+
+  it('«Звук приложения» у экрана не уходит: выбор экрана возвращает «Без звука»', async () => {
+    const { onChoose } = await open(['capture', 'capture.app-audio'], {
+      ...list,
+      systemAudio: false,
+      appAudio: true,
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Окна' }));
+    await act(async () => {});
+    fireEvent.click(within(sourcesGroup()).getByRole('button', { name: /Counter-Strike 2/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Звук приложения' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Экраны' }));
+    await act(async () => {});
+    fireEvent.click(within(sourcesGroup()).getAllByRole('button')[0]!);
+    expect(screen.queryByRole('radio', { name: 'Звук приложения' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Звук системы' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Без звука' })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Показать' }));
+    expect(onChoose).toHaveBeenLastCalledWith({ id: 'screen:0:0', audio: 'none' });
+  });
+
+  it('без capture.app-audio режимов нет — прежний выключатель системного звука', async () => {
+    await open(['capture', 'capture.system-audio'], { ...list, appAudio: true });
+    expect(screen.queryByRole('radiogroup', { name: 'Звук' })).toBeNull();
+    expect(screen.getByRole('switch', { name: /Со звуком системы/ })).toBeInTheDocument();
+  });
+
   it('пусто — понятная строка, «Отмена» закрывает', async () => {
     const { onOpenChange } = await open(['capture'], { systemAudio: false, sources: [] });
     expect(screen.getByText('Экраны не найдены.')).toBeInTheDocument();

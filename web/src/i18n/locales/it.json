@@ -87,6 +87,11 @@
         "hint": "Attiva o disattiva",
         "keywords": "scorciatoia tasto muto mute"
       },
+      "hotkey-ptt": {
+        "label": "Premi per parlare",
+        "hint": "Il microfono è attivo solo finché tieni premuta la scorciatoia",
+        "keywords": "push-to-talk ptt walkie-talkie tenere premuto"
+      },
       "hotkey-other": {
         "label": "Tasti del cinema e dei giochi",
         "hint": "",
@@ -367,6 +372,7 @@
       "resetLabel": "Ripristina la scorciatoia predefinita del microfono",
       "disable": "Disattiva",
       "disableLabel": "Disattiva la scorciatoia del microfono",
+      "holdHint": "Tieni premuta la scorciatoia per parlare",
       "groups": {
         "cinema": "Cinema",
         "poker": "Poker, al tuo turno",
@@ -1171,6 +1177,11 @@
   "hotkeys": {
     "unassigned": "Non assegnata",
     "space": "Spazio",
+    "mouse": {
+      "Mouse3": "Tasto centrale del mouse",
+      "Mouse4": "Tasto 4 del mouse",
+      "Mouse5": "Tasto 5 del mouse"
+    },
     "player": {
       "pause": "pausa",
       "sound": "audio",
@@ -1188,6 +1199,7 @@
       "windowsKey": "Il tasto Windows è riservato al sistema: la scorciatoia funzionerà solo nella finestra di Cord.",
       "f12": "F12 è riservato al sistema: la scorciatoia funzionerà solo nella finestra di Cord.",
       "noModifier": "Senza Ctrl o Alt la scorciatoia funziona solo nella finestra di Cord. Con questi tasti, anche sopra gli altri programmi.",
+      "rawBare": "{{label}} senza Ctrl o Alt scatterà anche mentre scrivi in altri programmi.",
       "player": "{{label}} è anche «{{action}}» nel player del cinema: con il player aperto si attiverà il microfono.",
       "poker": "{{label}} è anche «{{action}}» al tavolo da poker: al tuo turno scatteranno entrambi."
     }
@@ -1220,6 +1232,12 @@
       "unsupported": "Questo browser non supporta la condivisione dello schermo",
       "noTrack": "Impossibile acquisire lo schermo",
       "ownAudioLeaks": "Questo browser non riesce a togliere l'audio di Cord dall'audio di sistema: chi guarda sentirà la conversazione e la propria voce. Condividi una finestra o una scheda, oppure aggiorna il browser.",
+      "audio": {
+        "unavailable": "Il modulo audio di Cord per Windows non è avviato: condivisione senza audio.",
+        "notWindow": "L’audio di un’app esiste solo per una finestra: lo schermo viene condiviso senza audio.",
+        "failed": "L’audio della condivisione non è partito ({{reason}}): condivisione senza audio.",
+        "stopped": "L’audio della condivisione si è interrotto ({{reason}}): la condivisione continua senza audio."
+      },
       "cancelled": "Condivisione annullata",
       "noPermission": "Il server multimediale non ha dato l'autorizzazione. Riprova a condividere lo schermo."
     },
@@ -3325,7 +3343,20 @@
     "noWindows": "Nessuna finestra aperta.",
     "untitled": "Senza titolo",
     "systemAudio": "Con l’audio di sistema",
-    "systemAudioHint": "I partecipanti sentiranno tutto l’audio del computer — comprese le voci di questa riunione. L’audio di una singola app arriverà più avanti.",
+    "systemAudioHint": "I partecipanti sentiranno tutto l’audio del computer — comprese le voci di questa riunione.",
+    "audio": "Audio",
+    "audioModes": {
+      "none": "Senza audio",
+      "system": "Audio di sistema",
+      "app": "Audio dell’app",
+      "system-except-cord": "Sistema tranne Cord"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "I partecipanti sentiranno anche le voci della riunione. Per un audio senza eco scegli «Sistema tranne Cord».",
+      "app": "Solo l’audio dell’app scelta: le voci della riunione non finiranno nella condivisione.",
+      "system-except-cord": "Tutto l’audio del computer, tranne Cord stesso."
+    },
     "share": "Condividi",
     "cancel": "Annulla"
   }

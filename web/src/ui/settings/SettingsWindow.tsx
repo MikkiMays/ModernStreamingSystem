@@ -222,6 +222,8 @@ export function SettingsWindow({
             value={preferences.micHotkey}
             overlay={preferences.overlayHotkey}
             change={(micHotkey) => void change({ micHotkey })}
+            mode={preferences.micHotkeyMode}
+            changeMode={(micHotkeyMode) => void change({ micHotkeyMode })}
           />
         );
       case 'desktop':

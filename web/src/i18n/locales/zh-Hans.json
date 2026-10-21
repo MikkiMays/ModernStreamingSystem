@@ -87,6 +87,11 @@
         "hint": "开启或静音",
         "keywords": "快捷键 热键 静音 mute"
       },
+      "hotkey-ptt": {
+        "label": "按住说话",
+        "hint": "仅在按住快捷键时开启麦克风",
+        "keywords": "push-to-talk ptt 对讲 按住"
+      },
       "hotkey-other": {
         "label": "影院和游戏按键",
         "hint": "",
@@ -367,6 +372,7 @@
       "resetLabel": "恢复默认麦克风快捷键",
       "disable": "停用",
       "disableLabel": "停用麦克风快捷键",
+      "holdHint": "按住快捷键说话",
       "groups": {
         "cinema": "影院",
         "poker": "扑克（轮到你时）",
@@ -1145,6 +1151,11 @@
   "hotkeys": {
     "unassigned": "未设置",
     "space": "空格",
+    "mouse": {
+      "Mouse3": "鼠标中键",
+      "Mouse4": "鼠标按键 4",
+      "Mouse5": "鼠标按键 5"
+    },
     "player": {
       "pause": "暂停",
       "sound": "声音",
@@ -1162,6 +1173,7 @@
       "windowsKey": "Windows 键由系统占用：该快捷键只在 Cord 窗口中有效。",
       "f12": "F12 由系统占用：该快捷键只在 Cord 窗口中有效。",
       "noModifier": "不带 Ctrl 或 Alt 时，快捷键只在 Cord 窗口中有效；带上它们，在其他程序前台时也有效。",
+      "rawBare": "不带 Ctrl 或 Alt 的 {{label}} 在其他程序中打字时也会触发。",
       "player": "{{label}} 在影院播放器中也是“{{action}}”：播放器打开时，会切换麦克风。",
       "poker": "{{label}} 在扑克牌桌上也是“{{action}}”：轮到你时，两者都会触发。"
     }
@@ -1192,6 +1204,12 @@
       "unsupported": "此浏览器不支持屏幕共享",
       "noTrack": "无法获取屏幕画面",
       "ownAudioLeaks": "此浏览器无法从系统声音中去除 Cord 自身的声音：观众会同时听到对话和自己的声音。请改为共享窗口或标签页，或更新浏览器。",
+      "audio": {
+        "unavailable": "Cord 的 Windows 声音模块未运行——共享将不带声音。",
+        "notWindow": "应用声音仅适用于窗口——屏幕共享将不带声音。",
+        "failed": "共享声音未能开启（{{reason}}）——共享将不带声音。",
+        "stopped": "共享声音已中断（{{reason}}）——共享将继续，但不带声音。"
+      },
       "cancelled": "屏幕共享已取消",
       "noPermission": "未获得媒体服务器的许可。请重新尝试共享屏幕。"
     },
@@ -3257,7 +3275,20 @@
     "noWindows": "没有打开的窗口。",
     "untitled": "无标题",
     "systemAudio": "包含系统声音",
-    "systemAudioHint": "参与者将听到电脑的全部声音，包括本次会议的语音。单个应用的声音稍后推出。",
+    "systemAudioHint": "参与者将听到电脑的全部声音，包括本次会议的语音。",
+    "audio": "声音",
+    "audioModes": {
+      "none": "无声音",
+      "system": "系统声音",
+      "app": "应用声音",
+      "system-except-cord": "系统声音（不含 Cord）"
+    },
+    "audioHints": {
+      "none": "",
+      "system": "参与者也会听到本次会议的语音。如需无回声的声音，请选择“系统声音（不含 Cord）”。",
+      "app": "仅共享所选应用的声音——会议中的语音不会进入共享。",
+      "system-except-cord": "电脑的全部声音，Cord 本身除外。"
+    },
     "share": "共享",
     "cancel": "取消"
   }

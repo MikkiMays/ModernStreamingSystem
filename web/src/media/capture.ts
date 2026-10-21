@@ -7,6 +7,19 @@ export interface CaptureAdapter {
 }
 
 /**
+ * Звук показа, который приходит не из `getDisplayMedia`, а отдельно и позже (E01-B3): звук
+ * приложения и «система кроме Cord» в клиенте на Electron. `ready` — живая дорожка; `failed` —
+ * готовая подсказка для человека (показ идёт без звука); `ended` — дорожки больше нет.
+ */
+export type ScreenAudioEvent =
+  { state: 'ready'; track: MediaStreamTrack } | { state: 'failed'; message: string } | { state: 'ended' };
+
+export interface ScreenAudioSource {
+  /** Подписаться — до `getDisplayMedia`, чтобы не пропустить отказ; вернуть отписку. */
+  watch(listener: (event: ScreenAudioEvent) => void): () => void;
+}
+
+/**
  * ЗАЧЕМ ЗДЕСЬ РАЗМЕР КАДРА. Раньше у `getDisplayMedia` спрашивалась только частота, а про
  * размер не говорилось ничего — и браузер брал его на своё усмотрение. На практике это
  * означало 1920×1080 и вопрос «почему показ идёт в 1080, если выбрано 1440»: выбор доезжал
