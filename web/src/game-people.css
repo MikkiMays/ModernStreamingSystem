@@ -11,7 +11,7 @@
   min-width: 0;
   max-width: 220px;
   padding: 5px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-3);
   color: var(--text);
 }
 /* Лицо и кнопка увеличения рядом: само лицо круглое и обрезает всё, что в него положить. */
@@ -34,9 +34,9 @@
   outline: 2px solid transparent;
   outline-offset: 2px;
   transition:
-    outline-color 150ms ease,
-    width 160ms ease,
-    height 160ms ease;
+    outline-color var(--motion-fast) var(--ease-standard),
+    width var(--motion-fast) var(--ease-standard),
+    height var(--motion-fast) var(--ease-standard);
 }
 .game-person-face video,
 .game-person-face .avatar {
@@ -47,6 +47,20 @@
 .game-person[data-speaking] .game-person-face {
   outline-color: var(--speaking);
 }
+/* Громкость ступенями (T23, решение E04-4): тот же источник, что у плиток сцены, и те же четыре
+   оттенка `--voice-1..4` — от глубокого зелёного к светлому. */
+.game-person[data-voice='1'] .game-person-face {
+  outline-color: var(--voice-1);
+}
+.game-person[data-voice='2'] .game-person-face {
+  outline-color: var(--voice-2);
+}
+.game-person[data-voice='3'] .game-person-face {
+  outline-color: var(--voice-3);
+}
+.game-person[data-voice='4'] .game-person-face {
+  outline-color: var(--voice-4);
+}
 .game-person[data-away] {
   color: var(--muted);
 }
@@ -56,14 +70,14 @@
   line-height: 1.3;
 }
 .game-person-copy b {
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .game-person-copy small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .game-person-copy .game-person-speaking {
   color: var(--speaking);
@@ -85,18 +99,18 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid #ffffff3d;
+  border: 1px solid var(--stage-glint-3);
   border-radius: 50%;
-  background: #0b1520e0;
-  color: #eef3fb;
-  box-shadow: 0 2px 6px #0006;
+  background: var(--stage-veil-3);
+  color: var(--stage-text);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) var(--ease-standard);
 }
 .face-zoom:focus-visible {
   opacity: 1;
-  outline: 2px solid #a8c4ff;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 :is(.game-person-avatar, .durak-seat-avatar, .poker-face):hover > .face-zoom {
@@ -119,8 +133,4 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-}
-.stage-wrap:has(.room-game-stage) {
-  background: var(--bg);
-  color: var(--text);
 }

@@ -20,7 +20,11 @@ const files = [];
   }
 })(root);
 
-const sources = files.map((path) => ({ path: relative(root, path), text: readFileSync(path, 'utf8') }));
+// Комментарии не считаются: в них живут объяснения вида «`z-index: 12` у полосы», а не правила.
+const sources = files.map((path) => ({
+  path: relative(root, path),
+  text: readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''),
+}));
 const normalize = (value) => value.replace(/\s+/g, ' ').trim().toLowerCase();
 
 function count(pattern) {

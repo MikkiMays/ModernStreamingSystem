@@ -204,6 +204,14 @@ Linear/Raycast (плотность 36–40 px, сегментные вкладк
 `Prejoin.tsx:182`, `MeetingView.tsx:188`, `Connect.tsx:85`, `Download.tsx:42`, сукно покера
 `PokerTable.tsx:239-244`, `primitives.tsx` `Logo` (текст) → `ui/brand/Logo`.
 
+**Выполнено визуальной волной 21.10.2026** (`backlog/journal/2026-10-21-visual-wave.md`, решения VW-1…10): столы
+игр и кинозал — на `.media-stage` (обёртки в `Stage.tsx`), шахматы и Gartic — на сцене; предметы столов — компонентный
+слой `tokens.css` (`--felt*`, `--rail*`, `--gold*`, `--card-*`, `--chess-*`, `--gartic-ink`, `--paper*`), стекло сцены —
+`--stage-veil-1..3`/`--stage-glint-1..4`. Аудит: hex 371 → 72 разных (вне `tokens.css` — один, сверяемый с
+`index.html`), `font-size` 71 → 44, `border-radius` 53 → 38, `box-shadow` 105 → 89, `z-index` 34 → 30, `!important`
+15 → 3 (общий сброс reduced-motion). Не сделано: слияние `game-polish.css` в файлы столов и числа ниже целей — причины
+в журнале.
+
 ## 8. Проверка
 
 - `node scripts/check-contrast.mjs` — 79 пар, 0 нарушений.
