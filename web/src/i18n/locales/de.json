@@ -46,6 +46,10 @@
       "about": {
         "title": "Über Cord",
         "keywords": "version cord hilfe support einführung"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
       }
     },
     "anchors": {
@@ -257,6 +261,46 @@
         "label": "Einführung in Cord",
         "hint": "Kurze Hinweise an den wichtigsten Schaltflächen",
         "keywords": "einführung hinweise tour anleitung"
+      },
+      "desktop-tray": {
+        "label": "Symbol im Infobereich",
+        "hint": "Cord öffnen und Mikrofon schalten – neben der Uhr",
+        "keywords": "Infobereich Benachrichtigungsbereich"
+      },
+      "desktop-thumbar": {
+        "label": "Schaltflächen in der Miniatur",
+        "hint": "Mikrofon, Kamera und Verlassen in der Taskleiste",
+        "keywords": "Taskleiste Miniatur Schaltflächen"
+      },
+      "desktop-badge": {
+        "label": "Badge am Symbol",
+        "hint": "Mikrofon im Meeting und Ungelesenes",
+        "keywords": "Taskleiste Badge Anzeige"
+      },
+      "desktop-flash": {
+        "label": "Fensterschaltfläche blinken lassen",
+        "hint": "Wenn Sie erwähnt werden und Cord im Hintergrund ist",
+        "keywords": "blinken Erwähnung Aufmerksamkeit"
+      },
+      "desktop-sleep": {
+        "label": "Während des Meetings nicht in den Ruhezustand",
+        "hint": "Der Bildschirm bleibt bei Anrufen und Freigaben an",
+        "keywords": "Ruhezustand Bildschirm Energiesparen"
+      },
+      "desktop-overlay": {
+        "label": "Overlay in Spielen",
+        "hint": "Wer im Anruf ist und wer spricht – über dem Spiel",
+        "keywords": "Overlay Spiel darüber Teilnehmer"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "Overlay-Tastenkürzel",
+        "hint": "",
+        "keywords": "Taste Overlay Hotkey Tastenkürzel"
+      },
+      "desktop-autostart": {
+        "label": "Mit Windows starten",
+        "hint": "Cord öffnet sich minimiert",
+        "keywords": "Autostart Systemstart"
       }
     },
     "title": "Einstellungen",
@@ -439,6 +483,17 @@
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
+    },
+    "desktop": {
+      "taskbar": "Taskleiste und Infobereich",
+      "meeting": "Während des Meetings",
+      "start": "Start",
+      "overlayNote": "Das Overlay ist im Fenster- und randlosen Modus sichtbar; im exklusiven Vollbild zeigt Windows es nicht an.",
+      "overlayTaken": "Dieses Tastenkürzel nutzt bereits das Mikrofon – wählen Sie ein anderes.",
+      "micTaken": "Dieses Tastenkürzel nutzt bereits das Overlay – wählen Sie ein anderes.",
+      "changeLabel": "Overlay-Tastenkürzel ändern",
+      "assignLabel": "Overlay-Tastenkürzel festlegen",
+      "disableLabel": "Overlay-Tastenkürzel deaktivieren"
     }
   },
   "meeting": {
@@ -3224,5 +3279,20 @@
       "text": "Du kannst dem Autor von Cord auch auf Telegram schreiben",
       "link": "@nikgers auf Telegram"
     }
+  },
+  "capture": {
+    "title": "Was teilen",
+    "kinds": "Was geteilt wird",
+    "screens": "Bildschirme",
+    "windows": "Fenster",
+    "sources": "Quellen",
+    "loading": "Bildschirme und Fenster werden gesucht …",
+    "noScreens": "Keine Bildschirme gefunden.",
+    "noWindows": "Keine geöffneten Fenster.",
+    "untitled": "Ohne Titel",
+    "systemAudio": "Mit Systemton",
+    "systemAudioHint": "Die Teilnehmenden hören den gesamten Ton des Computers – auch die Stimmen dieses Meetings. Ton einzelner Apps folgt später.",
+    "share": "Teilen",
+    "cancel": "Abbrechen"
   }
 }

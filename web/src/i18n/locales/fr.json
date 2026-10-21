@@ -46,6 +46,10 @@
       "about": {
         "title": "À propos",
         "keywords": "version cord aide assistance découverte"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "application zone de notification barre des tâches miniature badge clignotement veille superposition démarrage automatique"
       }
     },
     "anchors": {
@@ -257,6 +261,46 @@
         "label": "Découverte de Cord",
         "hint": "De courts conseils à côté des boutons principaux",
         "keywords": "découverte conseils visite guide"
+      },
+      "desktop-tray": {
+        "label": "Icône dans la zone de notification",
+        "hint": "Ouvrir Cord et le micro à côté de l’horloge",
+        "keywords": "zone de notification"
+      },
+      "desktop-thumbar": {
+        "label": "Boutons de la miniature",
+        "hint": "Micro, caméra et quitter dans la barre des tâches",
+        "keywords": "barre des tâches miniature boutons"
+      },
+      "desktop-badge": {
+        "label": "Badge sur l’icône",
+        "hint": "Micro en réunion et messages non lus",
+        "keywords": "barre des tâches badge indicateur"
+      },
+      "desktop-flash": {
+        "label": "Faire clignoter le bouton de la fenêtre",
+        "hint": "Quand on vous mentionne et que Cord est en arrière-plan",
+        "keywords": "clignoter mention attention"
+      },
+      "desktop-sleep": {
+        "label": "Ne pas mettre en veille pendant la réunion",
+        "hint": "L’écran reste allumé en appel et en partage",
+        "keywords": "veille écran économie d’énergie"
+      },
+      "desktop-overlay": {
+        "label": "Superposition en jeu",
+        "hint": "Qui est dans l’appel et qui parle — par-dessus le jeu",
+        "keywords": "superposition jeu par-dessus participants"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "Raccourci de la superposition",
+        "hint": "",
+        "keywords": "touche superposition raccourci combinaison"
+      },
+      "desktop-autostart": {
+        "label": "Lancer avec Windows",
+        "hint": "Cord s’ouvrira réduit",
+        "keywords": "démarrage automatique lancement"
       }
     },
     "title": "Paramètres",
@@ -439,6 +483,17 @@
       "deviceFailed": "Impossible d'activer le périphérique",
       "recordUnsupported": "Ce navigateur ne permet pas d'enregistrer un test. La barre de niveau fonctionne.",
       "toneFailed": "Impossible de lire le son de test"
+    },
+    "desktop": {
+      "taskbar": "Barre des tâches et zone de notification",
+      "meeting": "Pendant la réunion",
+      "start": "Démarrage",
+      "overlayNote": "La superposition est visible en mode fenêtré et sans bordure ; en plein écran exclusif, Windows ne l’affiche pas.",
+      "overlayTaken": "Ce raccourci est déjà utilisé par le micro — choisissez-en un autre.",
+      "micTaken": "Ce raccourci est déjà utilisé par la superposition — choisissez-en un autre.",
+      "changeLabel": "Modifier le raccourci de la superposition",
+      "assignLabel": "Attribuer un raccourci à la superposition",
+      "disableLabel": "Désactiver le raccourci de la superposition"
     }
   },
   "meeting": {
@@ -3258,5 +3313,20 @@
       "text": "Vous pouvez aussi écrire à l'auteur de Cord sur Telegram",
       "link": "@nikgers sur Telegram"
     }
+  },
+  "capture": {
+    "title": "Que partager",
+    "kinds": "Que partager",
+    "screens": "Écrans",
+    "windows": "Fenêtres",
+    "sources": "Sources",
+    "loading": "Recherche des écrans et des fenêtres…",
+    "noScreens": "Aucun écran trouvé.",
+    "noWindows": "Aucune fenêtre ouverte.",
+    "untitled": "Sans titre",
+    "systemAudio": "Avec le son du système",
+    "systemAudioHint": "Les participants entendront tout le son de l’ordinateur — y compris les voix de cette réunion. Le son d’une seule application arrivera plus tard.",
+    "share": "Partager",
+    "cancel": "Annuler"
   }
 }

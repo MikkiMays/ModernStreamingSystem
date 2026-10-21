@@ -46,6 +46,10 @@
       "about": {
         "title": "关于",
         "keywords": "版本 cord 帮助 支持 导览"
+      },
+      "desktop": {
+        "title": "Windows",
+        "keywords": "应用 托盘 任务栏 缩略图 徽标 闪烁 睡眠 叠加层 开机启动"
       }
     },
     "anchors": {
@@ -257,6 +261,46 @@
         "label": "Cord 入门导览",
         "hint": "主要按钮旁的简短提示",
         "keywords": "导览 提示 入门 指南"
+      },
+      "desktop-tray": {
+        "label": "托盘图标",
+        "hint": "在时钟旁打开 Cord 并切换麦克风",
+        "keywords": "托盘 通知区域"
+      },
+      "desktop-thumbar": {
+        "label": "缩略图按钮",
+        "hint": "任务栏中的麦克风、摄像头和离开",
+        "keywords": "任务栏 缩略图 按钮"
+      },
+      "desktop-badge": {
+        "label": "图标徽标",
+        "hint": "会议中的麦克风和未读消息",
+        "keywords": "任务栏 徽标 指示器"
+      },
+      "desktop-flash": {
+        "label": "闪烁窗口按钮",
+        "hint": "有人提到你且 Cord 在后台时",
+        "keywords": "闪烁 提及 注意"
+      },
+      "desktop-sleep": {
+        "label": "会议期间不进入睡眠",
+        "hint": "通话和共享时屏幕保持常亮",
+        "keywords": "睡眠 屏幕 节能"
+      },
+      "desktop-overlay": {
+        "label": "游戏内叠加层",
+        "hint": "谁在通话、谁在说话——显示在游戏上方",
+        "keywords": "叠加层 游戏 上方 参与者"
+      },
+      "desktop-overlay-hotkey": {
+        "label": "叠加层快捷键",
+        "hint": "",
+        "keywords": "按键 叠加层 热键 快捷键"
+      },
+      "desktop-autostart": {
+        "label": "随 Windows 启动",
+        "hint": "Cord 将以最小化方式打开",
+        "keywords": "开机启动 自启动 启动"
       }
     },
     "title": "设置",
@@ -439,6 +483,17 @@
       "deviceFailed": "无法启用设备",
       "recordUnsupported": "此浏览器不支持测试录音。电平条仍可使用。",
       "toneFailed": "无法播放测试音"
+    },
+    "desktop": {
+      "taskbar": "任务栏和托盘",
+      "meeting": "会议期间",
+      "start": "启动",
+      "overlayNote": "叠加层在窗口化和无边框模式下可见；在独占全屏模式下 Windows 不会显示它。",
+      "overlayTaken": "此快捷键已被麦克风使用——请选择其他快捷键。",
+      "micTaken": "此快捷键已被叠加层使用——请选择其他快捷键。",
+      "changeLabel": "更改叠加层快捷键",
+      "assignLabel": "设置叠加层快捷键",
+      "disableLabel": "关闭叠加层快捷键"
     }
   },
   "meeting": {
@@ -3190,5 +3245,20 @@
       "text": "也可以在 Telegram 上联系 Cord 的作者",
       "link": "Telegram 上的 @nikgers"
     }
+  },
+  "capture": {
+    "title": "共享内容",
+    "kinds": "共享内容类型",
+    "screens": "屏幕",
+    "windows": "窗口",
+    "sources": "来源",
+    "loading": "正在查找屏幕和窗口…",
+    "noScreens": "未找到屏幕。",
+    "noWindows": "没有打开的窗口。",
+    "untitled": "无标题",
+    "systemAudio": "包含系统声音",
+    "systemAudioHint": "参与者将听到电脑的全部声音，包括本次会议的语音。单个应用的声音稍后推出。",
+    "share": "共享",
+    "cancel": "取消"
   }
 }
