@@ -227,7 +227,7 @@ public class RoomService {
         Admission.class,
         () -> {
           requireOpen(room);
-          checkSeat(room, true);
+          checkDoor(room);
           oneMeeting(room.id, entrant);
           var member = newMember(room, request.name(), false, request.commandId(), entrant);
           // «Щит»: пока сервер отбивается от перебора, верный код ведёт к двери ведущего, а не
@@ -242,6 +242,7 @@ public class RoomService {
           // коду — сразу» не значил ничего: правильный номер не открывал дверь, пока хозяин
           // не нажмёт кнопку. Теперь ждёт ровно тот, кого попросили подождать.
           member.codeRequest = !member.approved;
+          seat(room, member, entrant.address());
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -276,7 +277,7 @@ public class RoomService {
    * и то же сообщение подряд не чаще, чем раз в {@code chat-repeat}. Отказ получает только он —
    * остальные пишут дальше.
    */
-  private void chatAllowed(RoomState room, RoomState.Member member, String text) {
+  private void chatAllowed(RoomState room, RoomState.Member member, String text, String address) {
     var abuse = config.abuse().perMember();
     var last =
         rooms
@@ -293,6 +294,12 @@ public class RoomService {
       throw new Problem(429, "CHAT_REPEAT", "Это сообщение уже отправлено. Подождите немного");
     if (limits.exceeded("chat:" + member.id, abuse.chatMessages()))
       throw new Problem(429, "CHAT_RATE", "Слишком много сообщений подряд. Подождите минуту");
+    // То же на адрес (A6): у каждой вкладки свой предел участника, и десяток вкладок одного скрипта
+    // писали бы вдесятеро больше человека. Предел адреса щедрее — за NAT офис.
+    if (address != null
+        && limits.exceeded("chat-ip:" + address, config.abuse().perIp().chatMessages()))
+      throw new Problem(
+          429, "CHAT_RATE_IP", "С этого адреса пишут слишком часто. Подождите минуту");
   }
 
   /** Снять «щит» досрочно — рычаг владельца сервера (E10) и уборка в тестах. */
@@ -351,6 +358,7 @@ public class RoomService {
             room.startedAt = null;
             room.openedAt = now();
             room.endsAt = null;
+            room.cinemaTraffic = null;
           }
           requireOpen(room);
           if (previous.replacedBy != null)
@@ -359,7 +367,7 @@ public class RoomService {
           // The room, conversation and host rights survive an explicit return.
           var status = previous.status;
           previous.status = LEFT;
-          checkSeat(room, true);
+          checkDoor(room);
           oneMeeting(room.id, entrant);
           // Старый клиент профиля не присылает — вернувшийся остаётся тем профилем, каким был.
           var member =
@@ -392,6 +400,8 @@ public class RoomService {
                   || (!previous.codeRequest && !room.approvalRequired && status != WAITING);
           member.status = member.approved ? JOINING : WAITING;
           member.recoveryDeadline = member.approved ? now() + config.joinSeconds() * 1000L : null;
+          room.waitingFrom.remove(previous.id);
+          seat(room, member, entrant.address());
           previous.owner = false;
           previous.replacedBy = member.id;
           previous.generation++;
@@ -417,23 +427,17 @@ public class RoomService {
   }
 
   /**
-   * Есть ли место для входящего: сервер принимает, у сервера есть слот для встречи, во встрече есть
-   * место.
-   *
-   * <p>Место — только для людей ({@code human}). Бот его не занимает: иначе встреча с музыкой
-   * вмещала бы на одного человека меньше, чем написано в настройках (T06, П3). SFU пускает на
-   * четыре подключения больше предела — как раз для ботов и переходных сессий.
+   * Открыта ли дверь для входящего: сервер принимает, у сервера есть слот для встречи, у встречи не
+   * кончились входы. Место во встрече или очередь у двери решает {@link #seat} — когда уже ясно,
+   * войдёт человек сразу или будет ждать допуска.
    */
-  private void checkSeat(RoomState room, boolean human) {
+  private void checkDoor(RoomState room) {
     if (!config.admissionOpen())
       throw new Problem(503, "DRAINING", "Сервер завершает действующие встречи");
     if (!room.busy(now())
         && rooms.all().stream().filter(r -> !r.id.equals(room.id) && r.busy(now())).count()
             >= config.maxRooms())
       throw new Problem(429, "ROOM_LIMIT", "Все комнаты заняты. Попробуйте позже");
-    if (human && room.seatedHumans() >= config.maxParticipants())
-      throw Problem.conflict(
-          "ROOM_FULL", "Во встрече нет свободных мест (предел — " + config.maxParticipants() + ")");
     if (room.members.size() >= 500) {
       var retained =
           new HashSet<>(
@@ -454,6 +458,53 @@ public class RoomService {
     }
     if (room.members.size() >= 500)
       throw new Problem(429, "SESSION_LIMIT", "Достигнут лимит входов за время встречи");
+  }
+
+  /**
+   * Место во встрече или очередь у двери для только что вошедшего {@code member} (уже в комнате, со
+   * своим статусом).
+   *
+   * <p>Место — только для людей. Бот его не занимает: иначе встреча с музыкой вмещала бы на одного
+   * человека меньше, чем написано в настройках (T06, П3). SFU пускает на четыре подключения больше
+   * предела — как раз для ботов и переходных сессий.
+   *
+   * <p>Ожидающий допуска места не занимает (A5): у двери свой потолок {@code meeting.waiting} и не
+   * больше {@code per-ip.waiting-per-room} заявок с одного адреса. Место он получает, когда ведущий
+   * его впустит, — и только если оно есть ({@link #admitWaiting}).
+   */
+  private void seat(RoomState room, RoomState.Member member, String address) {
+    if (!member.human()) return;
+    if (member.status != WAITING) {
+      if (room.seatedHumans() > config.maxParticipants()) throw roomFull();
+      return;
+    }
+    room.waitingFrom
+        .keySet()
+        .removeIf(id -> room.members.get(id) == null || room.members.get(id).status != WAITING);
+    if (room.waitingHumans() > config.meeting().waiting())
+      throw Problem.conflict(
+          "WAITING_FULL", "Зал ожидания встречи заполнен. Попробуйте чуть позже");
+    if (address == null) return;
+    var from = secrets.address(address);
+    if (room.waitingFrom.values().stream().filter(from::equals).count()
+        >= config.abuse().perIp().waitingPerRoom())
+      throw new Problem(
+          429, "WAITING_LIMIT", "С этого адреса уже ждут в зале ожидания этой встречи");
+    room.waitingFrom.put(member.id, from);
+  }
+
+  /** Ведущий впускает ожидающего — если во встрече есть место (A5). */
+  private void admitWaiting(RoomState room, RoomState.Member target) {
+    target.approved = true;
+    target.status = JOINING;
+    target.recoveryDeadline = now() + config.joinSeconds() * 1000L;
+    room.waitingFrom.remove(target.id);
+    if (target.human() && room.seatedHumans() > config.maxParticipants()) throw roomFull();
+  }
+
+  private Problem roomFull() {
+    return Problem.conflict(
+        "ROOM_FULL", "Во встрече нет свободных мест (предел — " + config.maxParticipants() + ")");
   }
 
   @Transactional
@@ -482,9 +533,10 @@ public class RoomService {
                               && i.expiresAt() > now()
                               && Secrets.equal(i.secretHash(), Secrets.hash(request.invite())));
           if (!valid) throw new Problem(403, "INVITE_INVALID", "Приглашение истекло или отозвано");
-          checkSeat(room, true);
+          checkDoor(room);
           oneMeeting(room.id, entrant);
           var member = newMember(room, request.name(), false, request.commandId(), entrant);
+          seat(room, member, entrant.address());
           room.emptySince = null;
           emit(room, "room.changed", EventPayload.changed());
           rooms.save(room, now());
@@ -512,6 +564,23 @@ public class RoomService {
     emit(room, "room.changed", EventPayload.changed());
     rooms.save(room, now());
     return url;
+  }
+
+  /**
+   * Служба кинозала: встреча выбрала {@code percent} процентов своего потолка трафика (A8).
+   *
+   * <p>Ядро трафик не считает — считает служба, она же и отказывает сверх потолка. Здесь только
+   * память для снимка: всем во встрече — плашка, и тем, кто войдёт позже. Доля только растёт,
+   * повтор ничего не меняет; завершённой встрече сообщать нечего.
+   */
+  @Transactional
+  public void cinemaTraffic(String roomId, int percent) {
+    var room = lock(roomId);
+    if (room.closedAt != null) return;
+    if (room.cinemaTraffic != null && room.cinemaTraffic >= percent) return;
+    room.cinemaTraffic = percent;
+    emit(room, "room.changed", EventPayload.changed());
+    rooms.save(room, now());
   }
 
   /**
@@ -566,7 +635,7 @@ public class RoomService {
             throw Problem.conflict("SERVICE_EXISTS", "Музыкальный сервис уже подключён");
           // Та же граница с другой стороны: пока комната смотрит кино, музыке в ней места нет.
           stageBusy(room, Occupant.CINEMA);
-          checkSeat(room, false);
+          checkDoor(room);
           var member = newMember(room, "Музыка", false, commandId, Entrant.UNKNOWN);
           member.service = "music";
           member.approved = true;
@@ -674,7 +743,8 @@ public class RoomService {
             current.gartic(),
             current.you(),
             current.startedAt(),
-            current.endsAt());
+            current.endsAt(),
+            current.cinemaTraffic());
     return new Admission(
         room.id,
         member.id,
@@ -829,7 +899,8 @@ public class RoomService {
             ? null
             : new RoomYou(Permissions.granted(room, viewer), presenceBy(room, viewer)),
         room.startedAt,
-        room.endsAt);
+        room.endsAt,
+        room.cinemaTraffic);
   }
 
   /**
@@ -922,11 +993,21 @@ public class RoomService {
         current.you(),
         // Сколько встреча идёт — не её жизнь, а её часы: их видно и из-за двери.
         current.startedAt(),
-        current.endsAt());
+        current.endsAt(),
+        current.cinemaTraffic());
   }
 
   @Transactional
   public Ack command(String roomId, String credential, Command command) {
+    return command(roomId, credential, command, null);
+  }
+
+  /**
+   * Команда участника; {@code address} — ключ пределов того, кто её прислал ({@code
+   * ClientAddress}), или null у служб и тестов: по нему чат считается и на адрес (A6).
+   */
+  @Transactional
+  public Ack command(String roomId, String credential, Command command, String address) {
     var room = lock(roomId);
     var member = authenticate(room, credential);
     return receipt(
@@ -987,9 +1068,7 @@ public class RoomService {
                 for (var observer : observers)
                   observer.acted(room, member, "participant.removed", target, now());
               } else if (target.status == WAITING) {
-                target.approved = true;
-                target.status = JOINING;
-                target.recoveryDeadline = now() + config.joinSeconds() * 1000L;
+                admitWaiting(room, target);
               }
             }
             case "screen.started" -> {
@@ -1334,7 +1413,7 @@ public class RoomService {
               requireActive(room, member);
               if (command.text() == null || command.text().isBlank())
                 throw new Problem(400, "EMPTY_MESSAGE", "Введите сообщение");
-              if (member.human()) chatAllowed(room, member, command.text().strip());
+              if (member.human()) chatAllowed(room, member, command.text().strip(), address);
               // Кольцо, а не стена (A6): сверх потолка уходят старейшие. Раньше на тысячном
               // сообщении сервер отказывал всем, и один участник мог заглушить чат на сутки.
               long stored =

@@ -123,7 +123,9 @@ class OwnerAccessTest {
             ip.socketOpens(),
             ip.passwordMisses(),
             ip.signaling(),
-            Allowance.parse("50GB per 1 day"));
+            Allowance.parse("50GB per 1 day"),
+            ip.waitingPerRoom(),
+            ip.chatMessages());
     when(config.abuse())
         .thenReturn(
             new StreamProperties.Abuse(

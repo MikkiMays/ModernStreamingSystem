@@ -232,6 +232,22 @@ public class SupportService {
         == 0) throw new Problem(404, "SUPPORT_NOT_FOUND", "Обращение не найдено");
   }
 
+  /** Обращение после кнопки в Telegram: номер и новый статус. */
+  public record Moved(String id, String number, Status status) {}
+
+  /**
+   * Кнопка в Telegram владельца (E13): тот же {@link #setStatus}, но только из чата, куда обращения
+   * доносятся. Сообщение с кнопками можно переслать, а бота — добавить в другую беседу; нажатие там
+   * статуса не меняет.
+   */
+  public Moved moveFromChat(String id, Status status, String chat) {
+    var owners = config.chat();
+    if (owners.isEmpty() || !owners.equals(chat == null ? "" : chat.trim()))
+      throw Problem.forbidden();
+    setStatus(id, status);
+    return new Moved(id, number(id), status);
+  }
+
   /** Забыть обращения старше срока хранения; сколько забыто. */
   public int forgetOld() {
     return jdbc.sql("DELETE FROM support_tickets WHERE created_at < ?")

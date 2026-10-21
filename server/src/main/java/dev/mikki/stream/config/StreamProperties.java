@@ -76,7 +76,10 @@ public record StreamProperties(
       @NotNull Duration presenceAnswer,
       // Кино и музыка гаснут, если столько времени ни один человек не на связи (A2): места заняты,
       // а слушать некому — вкладка, держащая встречу без медиа, или скрипт.
-      @NotNull Duration idleIntegrations) {
+      @NotNull Duration idleIntegrations,
+      // Сколько человек ждут допуска у двери встречи (A5). Ожидающие мест не занимают: десяток
+      // заявок не держит встречу полной, — но и очередь у двери не бесконечна.
+      @Min(1) @Max(100) int waiting) {
     @AssertTrue(message = "stream.meeting.warn-before must be shorter than max-duration")
     public boolean isWarningInsideMeeting() {
       return maxDuration != null && warnBefore != null && warnBefore.compareTo(maxDuration) < 0;
@@ -140,7 +143,12 @@ public record StreamProperties(
         @NotNull Rate passwordMisses,
         @NotNull Rate signaling,
         // Сколько байт адрес загружает за срок (A10); не больше пятой части `total-max-bytes`.
-        @NotNull Allowance uploads) {}
+        @NotNull Allowance uploads,
+        // Сколько заявок с адреса ждут допуска у двери одной встречи (A5).
+        @Min(1) int waitingPerRoom,
+        // Сообщения чата со всех участников адреса вместе (A6): вкладки одного скрипта не пишут
+        // вдесятеро больше одного человека. Щедрее предела участника — за NAT офис.
+        @NotNull Rate chatMessages) {}
 
     public record PerProfile(@NotNull Rate roomsCreated, @Min(1) int openRooms) {}
 

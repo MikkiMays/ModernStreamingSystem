@@ -121,7 +121,7 @@ public class RoomSocket extends TextWebSocketHandler {
           limits.command(c.credential, command.type());
           if (!validator.validate(command).isEmpty())
             throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
-          var ack = commands.execute(c.roomId, c.credential, command);
+          var ack = commands.execute(c.roomId, c.credential, command, c.address);
           send(c, Map.of("type", "ack", "ack", ack));
           if (config.redisEnabled()) redis.convertAndSend("room-events", c.roomId);
           flush(c);

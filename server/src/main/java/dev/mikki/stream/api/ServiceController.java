@@ -4,10 +4,13 @@ import dev.mikki.stream.room.Contracts;
 import dev.mikki.stream.room.Permissions;
 import dev.mikki.stream.room.RoomService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /** Not routed publicly. RequestGuard requires the dedicated internal secret. */
@@ -63,6 +66,20 @@ public class ServiceController {
   @PostMapping("/{roomId}/invite")
   public Map<String, String> invite(@PathVariable UUID roomId) {
     return Map.of("url", rooms.serviceInvite(roomId.toString()));
+  }
+
+  /** Доля потолка трафика кинозала, выбранная встречей, в процентах (A8). */
+  public record CinemaTraffic(@Min(1) @Max(100) int percent) {}
+
+  /**
+   * Служба кинозала: встреча выбрала порог предупреждения или весь потолок трафика (A8). Встреча
+   * видит это в снимке ({@code cinemaTraffic}).
+   */
+  @PostMapping("/{roomId}/cinema-traffic")
+  public ResponseEntity<Void> cinemaTraffic(
+      @PathVariable UUID roomId, @Valid @RequestBody CinemaTraffic report) {
+    rooms.cinemaTraffic(roomId.toString(), report.percent());
+    return ResponseEntity.noContent().build();
   }
 
   @PostMapping("/{roomId}/music")

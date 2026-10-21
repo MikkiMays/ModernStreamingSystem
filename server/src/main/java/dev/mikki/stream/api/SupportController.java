@@ -84,6 +84,22 @@ public class SupportController {
     return ResponseEntity.noContent().build();
   }
 
+  /** Кнопка под обращением в Telegram владельца: новый статус и чат, где её нажали. */
+  public record TelegramStatus(
+      @NotNull SupportService.Status status, @NotNull @Size(max = 64) String chat) {}
+
+  /**
+   * Кнопки «В работу» и «Решено» под обращением в Telegram владельца (E13). Бот — служба с ключом
+   * службы, пароля владельца у него нет; доверие — чат: статус меняется, только если кнопку нажали
+   * в том чате, куда обращения доносятся ({@code stream.support.notify-telegram-chat}). Ответ —
+   * номер и статус для новой подписи под сообщением.
+   */
+  @PutMapping("/internal/support/{id}/status")
+  public SupportService.Moved telegramStatus(
+      @PathVariable java.util.UUID id, @Valid @RequestBody TelegramStatus change) {
+    return support.moveFromChat(id.toString(), change.status(), change.chat());
+  }
+
   /**
    * Обращения для «Активности», новые первыми; {@code before} — время последнего на прошлой
    * странице.

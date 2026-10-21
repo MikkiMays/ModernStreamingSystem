@@ -49,7 +49,9 @@ class ServerAccessTest {
             minute,
             Rate.parse("10 per hour"),
             minute,
-            dev.mikki.stream.config.Allowance.parse("2GB per 1 day")),
+            dev.mikki.stream.config.Allowance.parse("2GB per 1 day"),
+            2,
+            Rate.parse("60 per minute")),
         new StreamProperties.Abuse.PerProfile(Rate.parse("6 per hour"), 2),
         new StreamProperties.Abuse.PerMember(
             Rate.parse("20 per minute"), java.time.Duration.ofSeconds(30), 3),

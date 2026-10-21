@@ -295,7 +295,15 @@ public final class Contracts {
        */
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          Long endsAt) {}
+          Long endsAt,
+      /**
+       * Какую долю потолка трафика кинозала встреча выбрала, в процентах (A8 модели угроз): порог
+       * предупреждения ({@code CINEMA_TRAFFIC_WARN_AT}, 80) или сам потолок (100 — кино в этой
+       * встрече остановлено до её конца). До порога {@code null}, и поля в ответе нет.
+       */
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          Integer cinemaTraffic) {}
 
   /**
    * Права участника — готовым ответом, а не правилом для пересчёта.

@@ -394,6 +394,31 @@ class AbuseLimitsTest {
     assertThat(closed(host.roomId())).isTrue();
   }
 
+  // A8: трафик кинозала ---------------------------------------------------------------------
+
+  /**
+   * Служба кинозала говорит, какую долю потолка трафика встреча выбрала; встреча видит это в снимке
+   * и узнаёт сразу ({@code room.changed}). Доля только растёт; повтор того же — без нового события.
+   */
+  @Test
+  void theCinemaTrafficShareReachesTheRoom() {
+    var host = create("Хозяин");
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).cinemaTraffic()).isNull();
+    int before = events(host.roomId()).size();
+    rooms.cinemaTraffic(host.roomId(), 80);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).cinemaTraffic()).isEqualTo(80);
+    assertThat(events(host.roomId())).hasSize(before + 1).last().isEqualTo("room.changed");
+    rooms.cinemaTraffic(host.roomId(), 80);
+    assertThat(events(host.roomId())).hasSize(before + 1);
+    rooms.cinemaTraffic(host.roomId(), 100);
+    rooms.cinemaTraffic(host.roomId(), 80);
+    assertThat(rooms.snapshot(host.roomId(), host.credential()).cinemaTraffic()).isEqualTo(100);
+    // Завершённой встрече сообщать нечего — и не ошибка: служба узнаёт о конце позже встречи.
+    rooms.command(
+        host.roomId(), host.credential(), new Command(UUID.randomUUID(), "close", null, null, 0));
+    rooms.cinemaTraffic(host.roomId(), 100);
+  }
+
   /** Встреча завершена — или уже удалена: несохранённая уходит вместе с разговором. */
   boolean closed(String roomId) {
     try {
@@ -525,6 +550,106 @@ class AbuseLimitsTest {
     jdbc.sql("DELETE FROM rooms WHERE id=?").param(host.roomId()).update();
     for (int i = 0; i < 3; i++) socket.catchUp();
     verify(session, never()).close(any(CloseStatus.class));
+  }
+
+  // A5: ожидающие у двери не занимают мест ---------------------------------------------------
+
+  Admission byInvite(Admission host, Entrant entrant) {
+    return rooms.join(
+        host.roomId(),
+        new Join(UUID.randomUUID(), host.inviteUrl().split("invite=")[1], "Гость"),
+        entrant);
+  }
+
+  void approval(Admission host, boolean required) {
+    rooms.roomSettings(host.roomId(), host.credential(), new RoomSettings("Встреча", required));
+  }
+
+  Ack approve(Admission host, String memberId) {
+    return rooms.command(
+        host.roomId(),
+        host.credential(),
+        new Command(UUID.randomUUID(), "participant.approve", null, memberId, 0));
+  }
+
+  /**
+   * Полная встреча: двадцать человек внутри. Ожидающие допуска встают у двери вне мест — до своего
+   * потолка, — а ведущий не может впустить сверх мест, пока кто-то не выйдет.
+   */
+  @Test
+  void waitingPeopleStandOutsideTheSeats() {
+    var host = create(at(fresh()));
+    var seated = new ArrayList<Admission>();
+    for (int i = 1; i < config.maxParticipants(); i++) seated.add(byInvite(host, at(fresh())));
+    refused(() -> byInvite(host, at(fresh())), 409, "ROOM_FULL");
+    approval(host, true);
+    var waiting = new ArrayList<Admission>();
+    for (int i = 0; i < config.meeting().waiting(); i++) waiting.add(byInvite(host, at(fresh())));
+    assertThat(rooms.read(host.roomId()).seatedHumans()).isEqualTo(config.maxParticipants());
+    refused(() -> byInvite(host, at(fresh())), 409, "WAITING_FULL");
+    // Мест нет — ведущий не впускает; ушёл один — впускает.
+    refused(() -> approve(host, waiting.getFirst().participantId()), 409, "ROOM_FULL");
+    rooms.command(
+        seated.getFirst().roomId(),
+        seated.getFirst().credential(),
+        new Command(UUID.randomUUID(), "leave", null, null, 0));
+    approve(host, waiting.getFirst().participantId());
+    assertThat(rooms.read(host.roomId()).members.get(waiting.getFirst().participantId()).status)
+        .isEqualTo(RoomState.Status.JOINING);
+  }
+
+  /** Ожидающие не мешают войти тому, кого пускают без допуска (модель угроз A5). */
+  @Test
+  void tenWaitingDoNotKeepAnInvitedPersonOut() {
+    var host = create(at(fresh()));
+    for (int i = 2; i < config.maxParticipants(); i++) byInvite(host, at(fresh()));
+    approval(host, true);
+    for (int i = 0; i < config.meeting().waiting(); i++) byInvite(host, at(fresh()));
+    approval(host, false);
+    var invited = byInvite(host, at(fresh()));
+    assertThat(rooms.read(host.roomId()).members.get(invited.participantId()).status)
+        .isEqualTo(RoomState.Status.JOINING);
+  }
+
+  /** С одного адреса у двери одной встречи — не больше двух заявок; соседний адрес ждёт. */
+  @Test
+  void oneAddressQueuesAtMostTwiceAtOneDoor() {
+    var host = rooms.create(new Create(UUID.randomUUID(), "Встреча", "Хозяин", true), at(fresh()));
+    var address = at(fresh());
+    for (int i = 0; i < config.abuse().perIp().waitingPerRoom(); i++) byInvite(host, address);
+    refused(() -> byInvite(host, address), 429, "WAITING_LIMIT");
+    assertThat(byInvite(host, at(fresh())).participantId()).isNotBlank();
+  }
+
+  // A6: чат с одного адреса ------------------------------------------------------------------
+
+  Ack sayFrom(Admission admission, String text, String address) {
+    return rooms.command(
+        admission.roomId(),
+        admission.credential(),
+        new Command(UUID.randomUUID(), "message.send", text, null, 0),
+        address);
+  }
+
+  /**
+   * Свой предел сообщений есть у каждого участника, а у адреса — общий: десяток вкладок одного
+   * скрипта не пишут вдесятеро больше. Сосед с другого адреса пишет дальше.
+   */
+  @Test
+  void oneAddressHasAChatRateOfItsOwn() {
+    var host = create(at(fresh()));
+    var address = fresh();
+    int perMember = config.abuse().perMember().chatMessages().count();
+    int perIp = config.abuse().perIp().chatMessages().count();
+    int sent = 0;
+    while (sent < perIp) {
+      var tab = byInvite(host, at(address));
+      for (int i = 0; i < perMember && sent < perIp; i++, sent++)
+        sayFrom(tab, "Сообщение " + sent, address);
+    }
+    var another = byInvite(host, at(address));
+    refused(() -> sayFrom(another, "Ещё", address), 429, "CHAT_RATE_IP");
+    assertThat(sayFrom(host, "А я пишу", fresh()).ok()).isTrue();
   }
 
   // A5, A7: имена ----------------------------------------------------------------------------

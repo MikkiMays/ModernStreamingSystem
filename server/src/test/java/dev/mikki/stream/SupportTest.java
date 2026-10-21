@@ -247,6 +247,36 @@ class SupportTest {
         .containsExactly(fresher);
   }
 
+  /**
+   * Кнопки «В работу» и «Решено» под обращением в Telegram владельца: бот зовёт внутренний путь с
+   * чатом, где кнопку нажали. Ядро меняет статус тем же {@code setStatus}, что «Активность», — но
+   * только если чат тот самый, куда обращения доносятся.
+   */
+  @Test
+  void theOwnersTelegramButtonsMoveATicket() throws Exception {
+    var id = submit(fresh(), "Не приходит звук от собеседника");
+    mvc.perform(
+            put("/internal/support/" + id + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"OPEN\",\"chat\":\"-100123\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.number").value(id.substring(0, 8).toUpperCase(Locale.ROOT)))
+        .andExpect(jsonPath("$.status").value("OPEN"));
+    assertThat(support.recent(10, null).getFirst().status()).isEqualTo(Status.OPEN);
+    // Кнопка из чужого чата (сообщение переслали, бота добавили в другую беседу) статуса не меняет.
+    mvc.perform(
+            put("/internal/support/" + id + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\",\"chat\":\"-100999\"}"))
+        .andExpect(status().isForbidden());
+    assertThat(support.recent(10, null).getFirst().status()).isEqualTo(Status.OPEN);
+    mvc.perform(
+            put("/internal/support/" + UUID.randomUUID() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\",\"chat\":\"-100123\"}"))
+        .andExpect(status().isNotFound());
+  }
+
   /** Новые сверху, страницами по времени — так их листает «Активность». */
   @Test
   void recentTicketsComeNewestFirstInPages() throws Exception {

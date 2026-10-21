@@ -64,6 +64,14 @@ public class RoomState {
   public Long endsAt;
 
   /**
+   * Какую долю потолка трафика кинозала встреча выбрала, в процентах (A8): служба сообщает порог
+   * {@code CINEMA_TRAFFIC_WARN_AT} (80) и сам потолок (100), снимок показывает плашку. Только
+   * растёт; null — встреча до порога не дошла. Новая встреча (открыта заново) считает заново.
+   */
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Integer cinemaTraffic;
+
+  /**
    * Встречу завершил владелец сервера («Активность», {@code docs/abuse-model.md} §5): до этого
    * момента (мс) её не открыть из избранного — ни создателю, ни кому-то ещё. null — завершена не
    * владельцем или срок вышел. {@code NON_NULL} — комната без метки пишется как раньше: откат.
@@ -102,6 +110,14 @@ public class RoomState {
    */
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public Map<String, Long> presence = new LinkedHashMap<>();
+
+  /**
+   * Откуда пришёл каждый, кто ждёт допуска: участник → отпечаток адреса ({@code Secrets.address},
+   * П8). По нему у двери одной встречи не больше {@code per-ip.waiting-per-room} заявок с адреса
+   * (A5). Запись живёт, пока человек ждёт; карта рядом, а не в {@link Member} — ради отката.
+   */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> waitingFrom = new LinkedHashMap<>();
 
   /** Кого уже спросили «Вы ещё здесь?» — чтобы спросить один раз и сказать об этом один раз. */
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -222,9 +238,20 @@ public class RoomState {
     return seen;
   }
 
-  /** Сколько людей занимают места — ровно то, что ограничивает {@code stream.max-participants}. */
+  /**
+   * Сколько людей занимают места — ровно то, что ограничивает {@code stream.max-participants}.
+   *
+   * <p>Ожидающие допуска (WAITING) мест не занимают (A5 модели угроз): раньше десяток заявок с
+   * одного адреса держал встречу полной пять минут даже при включённом допуске. У двери свой
+   * потолок — {@code stream.meeting.waiting}, — а ведущий впускает, только пока есть место.
+   */
   public long seatedHumans() {
-    return members.values().stream().filter(m -> m.human() && m.occupiesSeat()).count();
+    return members.values().stream().filter(m -> m.human() && m.mediaAllowed()).count();
+  }
+
+  /** Сколько людей ждут допуска у двери ({@code stream.meeting.waiting}). */
+  public long waitingHumans() {
+    return members.values().stream().filter(m -> m.human() && m.status == Status.WAITING).count();
   }
 
   /** Сколько встреча считается новой и занимает место на сервере, даже если на связи никого. */

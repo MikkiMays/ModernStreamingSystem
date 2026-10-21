@@ -99,7 +99,7 @@ public class OpenApiConfig {
       schemas
           .get("Snapshot")
           .getRequired()
-          .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt"));
+          .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt", "cinemaTraffic"));
       // «Вы ещё здесь?» спрашивают не всегда (A2, E10-B).
       schemas.get("RoomYou").getRequired().remove("presenceBy");
       schemas.get("TableView").getRequired().remove("visualEvents");
@@ -151,7 +151,8 @@ public class OpenApiConfig {
                       "gartic",
                       "you",
                       "startedAt",
-                      "endsAt")),
+                      "endsAt",
+                      "cinemaTraffic")),
               Map.entry("ChessView", List.of("white", "black", "result", "winner", "drawOffer")),
               Map.entry("GarticView", List.of("drawerId", "you", "answer", "hint", "revealed")),
               Map.entry("GarticYou", List.of("prompt", "previous")),

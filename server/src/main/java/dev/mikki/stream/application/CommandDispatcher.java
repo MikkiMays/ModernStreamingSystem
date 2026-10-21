@@ -17,10 +17,16 @@ public class CommandDispatcher {
   }
 
   public Contracts.Ack execute(String roomId, String credential, Contracts.Command command) {
+    return execute(roomId, credential, command, null);
+  }
+
+  /** {@code address} — ключ пределов отправителя (A6: чат считается и на адрес), или null. */
+  public Contracts.Ack execute(
+      String roomId, String credential, Contracts.Command command, String address) {
     if (command.type().equals("microphone.mute"))
       return rooms.muteMicrophone(
           roomId, credential, command, () -> media.muteMicrophone(roomId, command.targetId()));
-    var ack = rooms.command(roomId, credential, command);
+    var ack = rooms.command(roomId, credential, command, address);
     try {
       switch (command.type()) {
         case "leave" ->
