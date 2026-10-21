@@ -25,8 +25,6 @@ export interface QualityRules {
   ceiling: Level;
   /** Окно разгона полосы после публикации, миллисекунды. */
   settleMs: number;
-  /** Ужимать ли камеру до маленького слоя на время демонстрации экрана. */
-  cameraYieldsToScreen: boolean;
 }
 
 export const RESOLUTIONS: Resolution[] = [720, 1080, 1440];
@@ -36,7 +34,6 @@ export const builtinRules: QualityRules = {
   default: { resolution: 720, fps: 30 },
   ceiling: { resolution: 1080, fps: 60 },
   settleMs: 4000,
-  cameraYieldsToScreen: false,
 };
 
 const KEY = 'cord:quality:v1';
@@ -65,7 +62,6 @@ export function readRules(raw: unknown): QualityRules | null {
       typeof value.settleMs === 'number' && Number.isFinite(value.settleMs)
         ? Math.max(0, Math.min(60000, value.settleMs))
         : builtinRules.settleMs,
-    cameraYieldsToScreen: value.cameraYieldsToScreen === true,
   };
 }
 
@@ -127,13 +123,4 @@ export function nearestLevel(
 
 export function settleMs(rules = qualityRules()) {
   return rules.settleMs;
-}
-
-/**
- * Уступает ли камера показу экрана. Сервер может велеть это всем; человек может попросить это для
- * себя (настройки → «Голос и видео» → «Уступать показу экрана», по П2 по умолчанию выключено).
- * Отказаться от того, что велел сервер, нельзя: потолок отдачи — его решение.
- */
-export function cameraYieldsToScreen(rules = qualityRules(), chosen = false) {
-  return rules.cameraYieldsToScreen || chosen;
 }

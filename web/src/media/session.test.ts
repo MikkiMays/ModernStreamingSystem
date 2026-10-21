@@ -336,65 +336,6 @@ describe('selective screen subscriptions', () => {
 });
 
 /**
- * «Камера моргает». Шаг лестницы качества раньше снимал камеру с публикации и публиковал заново:
- * у всех, кто смотрит, пропадала дорожка и начиналась новая — с нижнего слоя и разгона полосы.
- * Теперь ступень удержания — это параметры слоёв у той же дорожки. Удержание здесь зовётся
- * напрямую: его входы (жалобы кодировщика) проверены в upstream/hold, а здесь важно, ЧЕМ ступень
- * исполняется.
- */
-describe('ступень удержания камеры', () => {
-  function cameraFixture(
-    camera: { resolution: number; fps: number },
-    size?: { width: number; height: number },
-  ) {
-    localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera }));
-    const { media: session } = fixture();
-    const track = fakeCameraTrack(size);
-    const unpublishTrack = vi.fn(async () => {});
-    const publishTrack = vi.fn(async () => ({}));
-    const local = session.room.localParticipant as unknown as {
-      trackPublications: Map<Track.Source, { track?: unknown }>;
-    };
-    local.trackPublications.set(Track.Source.Camera, { track: track.track });
-    Object.assign(session.room.localParticipant, { unpublishTrack, publishTrack });
-    const inner = session as unknown as {
-      wanted: { camera: boolean };
-      applyUpstream(change: { cameraLevel?: { resolution: number; fps: number } }): void;
-    };
-    inner.wanted.camera = true;
-    return {
-      session,
-      capture: track.media,
-      sender: track.sender,
-      layers: track.layers,
-      unpublishTrack,
-      publishTrack,
-      step: (resolution: number, fps: number) => inner.applyUpstream({ cameraLevel: { resolution, fps } }),
-    };
-  }
-  afterEach(() => localStorage.clear());
-
-  it('меняет слои той же дорожки, не трогает захват и не переписывает выбор', async () => {
-    const f = cameraFixture({ resolution: 1080, fps: 60 }, { width: 1920, height: 1080 });
-    try {
-      f.step(720, 60);
-      await vi.waitFor(() => expect(f.sender.setParameters).toHaveBeenCalledOnce());
-      expect(f.layers().at(-1)).toMatchObject({ maxBitrate: 5000000, maxFramerate: 60 });
-      expect(f.capture.applyConstraints).not.toHaveBeenCalled();
-      expect(f.unpublishTrack).not.toHaveBeenCalled();
-      expect(f.publishTrack).not.toHaveBeenCalled();
-      // Ступень — не выбор: в настройках по-прежнему то, что выбрал человек.
-      expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!).camera).toEqual({
-        resolution: 1080,
-        fps: 60,
-      });
-    } finally {
-      f.session.dispose();
-    }
-  });
-});
-
-/**
  * Показ открывается зрителям после кадра целевого качества (T48): `screen.started` уходит, когда
  * верхний слой закодировал кадр того размера, что просили, — или когда кончилось окно разгона.
  */

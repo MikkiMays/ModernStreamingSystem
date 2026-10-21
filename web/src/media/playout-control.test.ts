@@ -32,6 +32,8 @@ function inbound(seconds: number, extra: Record<string, unknown> = {}): Stat {
     totalSamplesReceived: Math.round(seconds * RATE),
     concealedSamples: 0,
     silentConcealedSamples: 0,
+    concealmentEvents: 0,
+    packetsLost: 0,
     removedSamplesForAcceleration: 0,
     jitterBufferEmittedCount: Math.round(seconds * RATE),
     jitterBufferDelay: 0,
@@ -72,8 +74,8 @@ describe('контроллер запаса', () => {
     await controller.tick([voice, music], 0);
     seconds = 2;
     await controller.tick([voice, music], 2000);
-    expect(voice.receiver.jitterBufferTarget).toBe(profileFor('conversation', 'auto').startMs);
-    expect(music.receiver.jitterBufferTarget).toBe(profileFor('media', 'auto').startMs);
+    expect(voice.receiver.jitterBufferTarget).toBe(profileFor('conversation').startMs);
+    expect(music.receiver.jitterBufferTarget).toBe(profileFor('media').startMs);
     expect(music.receiver.jitterBufferTarget).toBeGreaterThan(voice.receiver.jitterBufferTarget * 4);
   });
 
@@ -99,7 +101,13 @@ describe('контроллер запаса', () => {
     let broken = false;
     const good = track('good', 'conversation', () => statsOf([...path(), inbound(seconds())]));
     const bad = track('bad', 'conversation', () =>
-      statsOf([...path(), inbound(seconds(), broken ? { concealedSamples: 0.02 * seconds() * RATE } : {})]),
+      statsOf([
+        ...path(),
+        inbound(
+          seconds(),
+          broken ? { concealedSamples: 0.02 * seconds() * RATE, concealmentEvents: 5 * seconds() } : {},
+        ),
+      ]),
     );
     let tickAt = 0;
     const seconds = () => tickAt / 1000;
@@ -107,7 +115,7 @@ describe('контроллер запаса', () => {
     broken = true;
     tickAt = 2000;
     const reports = await controller.tick([good, bad], tickAt);
-    expect(reports.find((r) => r.id === 'bad')!.concealRatio).toBeGreaterThan(0.004);
+    expect(reports.find((r) => r.id === 'bad')!.trouble).toBe('jitter');
     expect(bad.receiver.jitterBufferTarget).toBeGreaterThan(good.receiver.jitterBufferTarget);
   });
 
@@ -170,8 +178,8 @@ describe('контроллер запаса', () => {
   it('новую дорожку обеспечивает запасом сразу, не дожидаясь первой статистики', () => {
     const controller = new PlayoutController();
     const music = track('music', 'media', () => statsOf([]));
-    expect(controller.prime(music, 0)).toBe(profileFor('media', 'auto').startMs);
-    expect(music.receiver.jitterBufferTarget).toBe(profileFor('media', 'auto').startMs);
+    expect(controller.prime(music, 0)).toBe(profileFor('media').startMs);
+    expect(music.receiver.jitterBufferTarget).toBe(profileFor('media').startMs);
   });
 
   it('переподписка сохраняет уже набранный запас, а не начинает с нуля', async () => {
@@ -180,14 +188,17 @@ describe('контроллер запаса', () => {
     const music = track('music', 'media', () =>
       statsOf([
         ...path(),
-        inbound(tickAt / 1000, tickAt ? { concealedSamples: 0.05 * (tickAt / 1000) * RATE } : {}),
+        inbound(
+          tickAt / 1000,
+          tickAt ? { concealedSamples: 0.05 * (tickAt / 1000) * RATE, concealmentEvents: 10 } : {},
+        ),
       ]),
     );
     await controller.tick([music], 0);
     tickAt = 2000;
     await controller.tick([music], tickAt);
     const raised = controller.targetFor('music');
-    expect(raised).toBeGreaterThan(profileFor('media', 'auto').startMs);
+    expect(raised).toBeGreaterThan(profileFor('media').startMs);
     const again = track('music', 'media', () => statsOf([]));
     expect(controller.prime(again, 4000)).toBe(raised);
   });
@@ -199,10 +210,10 @@ describe('контроллер запаса', () => {
     await controller.tick([track('one', 'media', stats)], 0);
     tickAt = 2000;
     await controller.tick([track('one', 'media', stats)], tickAt);
-    expect(controller.targetFor('one')).toBe(profileFor('media', 'auto').startMs);
+    expect(controller.targetFor('one')).toBe(profileFor('media').startMs);
     tickAt = 4000;
     await controller.tick([track('one', 'conversation', stats)], tickAt);
-    expect(controller.targetFor('one')).toBe(profileFor('conversation', 'auto').startMs);
+    expect(controller.targetFor('one')).toBe(profileFor('conversation').startMs);
   });
 
   it('ушедшую дорожку забывает, чтобы не копить состояние комнаты', async () => {
@@ -212,19 +223,6 @@ describe('контроллер запаса', () => {
     expect(controller.targets()).toHaveLength(2);
     await controller.tick([track('a', 'conversation', stats)], 2000);
     expect(controller.targets().map((t) => t.id)).toEqual(['a']);
-  });
-
-  it('смена режима применяется на месте, без переподписки', async () => {
-    const controller = new PlayoutController();
-    let tickAt = 0;
-    const music = track('music', 'media', () => statsOf([...path(), inbound(tickAt / 1000)]));
-    await controller.tick([music], 0);
-    tickAt = 2000;
-    await controller.tick([music], tickAt);
-    const auto = controller.targetFor('music');
-    controller.setMode('low-latency');
-    expect(controller.targetFor('music')).toBeLessThan(auto);
-    expect(controller.targetFor('music')).toBeGreaterThan(0);
   });
 
   it('дорожка без статистики никого не роняет и ничего не портит', async () => {

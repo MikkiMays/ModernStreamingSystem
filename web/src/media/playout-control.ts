@@ -11,7 +11,6 @@ import {
   applyPlayoutTarget,
   PlayoutBuffer,
   profileFor,
-  type NetworkMode,
   type PlayoutClass,
   type PlayoutDecision,
   type PlayoutSample,
@@ -63,7 +62,6 @@ function readInbound(report: RTCStatsReport, kind: PlayoutClass): PlayoutSample 
 export class PlayoutController {
   private buffers = new Map<string, { buffer: PlayoutBuffer; appliedMs: number | null }>();
   private monitor = new LinkMonitor();
-  private mode: NetworkMode = 'auto';
   private linkState: LinkState = unknownLink;
   private lastReports: RTCStatsReport[] = [];
 
@@ -74,12 +72,6 @@ export class PlayoutController {
   /** Отчёты getStats последнего опроса — их же читает итог звонка (`call-quality.ts`). */
   get reports(): readonly RTCStatsReport[] {
     return this.lastReports;
-  }
-
-  setMode(mode: NetworkMode) {
-    if (mode === this.mode) return;
-    this.mode = mode;
-    this.retune(true);
   }
 
   /** Соединение пересобрано: прежние счётчики и прежний путь больше ни о чём не говорят. */
@@ -93,9 +85,9 @@ export class PlayoutController {
     this.buffers.delete(id);
   }
 
-  private retune(reseat = false) {
+  private retune() {
     for (const [, entry] of this.buffers) {
-      entry.buffer.retune(profileFor(entry.buffer.kind, this.mode, this.linkState), reseat);
+      entry.buffer.retune(profileFor(entry.buffer.kind, this.linkState));
       // Приёмнику придётся сказать заново: без этого он останется с прежней цифрой до
       // следующего заметного изменения, то есть режим переключился бы только на словах.
       entry.appliedMs = null;
@@ -138,7 +130,7 @@ export class PlayoutController {
       let entry = this.buffers.get(track.id);
       if (!entry) {
         entry = {
-          buffer: new PlayoutBuffer(track.kind, profileFor(track.kind, this.mode, this.linkState), now),
+          buffer: new PlayoutBuffer(track.kind, profileFor(track.kind, this.linkState), now),
           appliedMs: null,
         };
         this.buffers.set(track.id, entry);
@@ -146,7 +138,7 @@ export class PlayoutController {
         // Дорожка сменила роль: музыкального бота выключили, участник остался. Начинаем
         // заново, иначе разговор унаследует запас, набранный для музыки.
         entry = {
-          buffer: new PlayoutBuffer(track.kind, profileFor(track.kind, this.mode, this.linkState), now),
+          buffer: new PlayoutBuffer(track.kind, profileFor(track.kind, this.linkState), now),
           appliedMs: null,
         };
         this.buffers.set(track.id, entry);
@@ -158,7 +150,7 @@ export class PlayoutController {
       // в границах, где это для видео вообще имеет смысл. Свой счёт остаётся только у
       // дорожки без звука: у демонстрации экрана, которую показывают молча.
       const together = track.kind === 'video' && track.group ? heard.get(track.group) : undefined;
-      const profile = profileFor(track.kind, this.mode, this.linkState);
+      const profile = profileFor(track.kind, this.linkState);
       const targetMs =
         together === undefined
           ? decision.targetMs
@@ -179,7 +171,7 @@ export class PlayoutController {
    * которого всё это и было затеяно.
    */
   prime(track: PlayoutTrack, now = Date.now()) {
-    const profile = profileFor(track.kind, this.mode, this.linkState);
+    const profile = profileFor(track.kind, this.linkState);
     const entry = this.buffers.get(track.id);
     if (!entry || entry.buffer.kind !== track.kind) {
       this.buffers.set(track.id, {

@@ -35,7 +35,6 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
       default: { resolution: 720, fps: 30 },
       ceiling: { resolution: 1440, fps: 60 },
       settleMs: 4000,
-      cameraYieldsToScreen: false,
     }),
   );
   expect(readPreferences().screen).toEqual({ resolution: 1440, fps: 60 });
@@ -100,42 +99,33 @@ it('читает запись до E03 без потерь и даёт новы�
     yandexMusicToken: 'kept-token',
   };
   localStorage.setItem('cord:preferences:v1', JSON.stringify(before));
-  expect(readPreferences()).toMatchObject({
-    ...before,
-    outputVolume: 100,
-    cameraYieldsToScreen: false,
-  });
-  savePreferences({ outputVolume: 35, cameraYieldsToScreen: true });
-  expect(readPreferences()).toMatchObject({ ...before, outputVolume: 35, cameraYieldsToScreen: true });
-  localStorage.setItem(
-    'cord:preferences:v1',
-    JSON.stringify({ outputVolume: 400, cameraYieldsToScreen: 'yes' }),
-  );
-  expect(readPreferences()).toMatchObject({ outputVolume: 100, cameraYieldsToScreen: false });
+  expect(readPreferences()).toMatchObject({ ...before, outputVolume: 100 });
+  savePreferences({ outputVolume: 35 });
+  expect(readPreferences()).toMatchObject({ ...before, outputVolume: 35 });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ outputVolume: 400 }));
+  expect(readPreferences()).toMatchObject({ outputVolume: 100 });
 });
 
-it('keeps the network mode automatic until asked otherwise, and rejects an unknown one', () => {
-  expect(readPreferences().network).toBe('auto');
-  savePreferences({ network: 'stable' });
-  expect(readPreferences().network).toBe('stable');
-  localStorage.setItem('cord:preferences:v1', JSON.stringify({ network: 'as-fast-as-possible' }));
-  expect(readPreferences().network).toBe('auto');
+it('забывает убранные настройки — режим сети, приём, уступку камеры — без ошибок и без следа (R06/R08)', () => {
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ network: 'stable', reception: 'best', cameraYieldsToScreen: true, outputVolume: 50 }),
+  );
+  const read = readPreferences() as Record<string, unknown>;
+  expect(read.outputVolume).toBe(50);
+  expect('network' in read).toBe(false);
+  expect('reception' in read).toBe(false);
+  expect('cameraYieldsToScreen' in read).toBe(false);
+  savePreferences({ outputVolume: 60 });
+  const stored = JSON.parse(localStorage.getItem('cord:preferences:v1')!) as Record<string, unknown>;
+  expect('network' in stored).toBe(false);
+  expect('cameraYieldsToScreen' in stored).toBe(false);
 });
 
 /**
  * Приём и отдача — разные решения. Раньше второе задавалось первым: выставил уровень камеры
  * руками, и вместе с ним выключалась адаптация приёма. Теперь у приёма своя память.
  */
-it('помнит качество приёма отдельно от качества отдачи', () => {
-  expect(readPreferences().reception).toBe('fit');
-  savePreferences({ camera: { resolution: 1080, fps: 60 } });
-  expect(readPreferences().reception).toBe('fit');
-  savePreferences({ reception: 'best' });
-  expect(readPreferences().reception).toBe('best');
-  expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 60 });
-  localStorage.setItem('cord:preferences:v1', JSON.stringify({ reception: 'как можно лучше' }));
-  expect(readPreferences().reception).toBe('fit');
-});
 
 it('stores the integration roster choice and Yandex token for this browser profile', () => {
   savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });

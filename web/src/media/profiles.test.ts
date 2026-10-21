@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cameraOptions,
-  companionCameraCapture,
-  companionCameraOptions,
-  fitSource,
-  forcedCameraConstraints,
-  screenOptions,
-} from './profiles';
+import { cameraOptions, fitSource, forcedCameraConstraints, screenHint, screenOptions } from './profiles';
 
 describe('screen profiles', () => {
   it('preserves portrait, ultrawide and conventional source geometry', () => {
@@ -16,48 +9,43 @@ describe('screen profiles', () => {
     expect(fitSource(640, 480, 1080)).toEqual({ width: 640, height: 480 });
   });
   /**
-   * Выбранный уровень — это верхний слой, а не единственный. Слои под ним ничего у него не
-   * отнимают: кто тянет, тот получает верхний, а кто не тянет — мелкий вместо замершей
-   * картинки. Раньше здесь стояло `simulcast: false`, и второму не доставалось ничего.
+   * Выбранное — нижняя граница (R91, X10): один слой, screencast-режим, разрешение никогда не
+   * понижается ни нашим кодом, ни браузером. Зритель со слабым каналом получает меньше кадров того
+   * же размера — временные слои у VP9/AV1.
    */
-  it('отдаёт выбранный уровень верхним слоем и оставляет подпорки для тех, кто не тянет', () => {
+  it('отдаёт выбранный уровень одним слоем без понижения разрешения', () => {
     const options = screenOptions({ resolution: 1440, fps: 60 }, 'av1');
     expect(options.screenShareEncoding?.maxBitrate).toBe(16000000);
     expect(options.screenShareEncoding?.maxFramerate).toBe(60);
+    expect(options.screenShareEncoding?.priority).toBe('high');
     expect(options.backupCodec).toEqual({ codec: 'vp8' });
-    expect(options.simulcast).toBe(true);
-    expect(options.degradationPreference).toBe('maintain-framerate');
-    const layers = options.screenShareSimulcastLayers ?? [];
-    expect(layers.length).toBeGreaterThan(0);
-    // Подпорки обязаны быть мельче выбранного и заметно дешевле его самого.
-    for (const layer of layers) expect(layer.height).toBeLessThan(1440);
-    expect(layers.reduce((sum, layer) => sum + layer.encoding.maxBitrate, 0)).toBeLessThan(
-      options.screenShareEncoding!.maxBitrate! / 5,
-    );
+    expect(options.simulcast).toBe(false);
+    expect(options.screenShareSimulcastLayers).toBeUndefined();
+    expect(options.degradationPreference).toBe('maintain-resolution');
+    expect(options.scalabilityMode).toBe('L1T3');
+    expect(screenHint).toBe('detail');
   });
 
-  /**
-   * Между выбранным уровнем и подпоркой не должно быть пропасти: приёмник выбирает слой под
-   * размер плитки и падает на её дно. С парой 1080p/360p плитка в семьсот пикселей получала
-   * 360p — вдвое меньше того, что в неё влезает.
-   */
-  it('под выбранный уровень кладёт ступень 720p — и экрану, и камере', () => {
-    const screen = screenOptions({ resolution: 1440, fps: 60 }, 'vp8');
-    expect(screen.screenShareSimulcastLayers?.map((layer) => layer.height)).toEqual([360, 720]);
+  it('у H.264 и VP8 временных слоёв не просит, но и разрешение не трогает', () => {
+    for (const codec of ['h264', 'vp8'] as const) {
+      const options = screenOptions({ resolution: 1080, fps: 30 }, codec);
+      expect(options.scalabilityMode).toBeUndefined();
+      expect(options.simulcast).toBe(false);
+      expect(options.degradationPreference).toBe('maintain-resolution');
+      expect(options.backupCodec).toBe(false);
+    }
+  });
+
+  it('камера по-прежнему кладёт под выбранный уровень ступень 720p', () => {
     const camera = cameraOptions({ resolution: 1080, fps: 60 });
     expect(camera.videoSimulcastLayers?.map((layer) => layer.height)).toEqual([360, 720]);
-  });
-
-  it('под 720p не подкладывает слой почти того же размера', () => {
-    const layers = screenOptions({ resolution: 720, fps: 30 }, 'vp8').screenShareSimulcastLayers;
-    expect(layers?.map((layer) => layer.height)).toEqual([360]);
   });
 
   /** «Авто» нет: любой уровень — выбранный, и держит частоту, а не торгуется ею. */
   it('публикует выбранное сразу и держит частоту у экрана и у камеры', () => {
     const screen = screenOptions({ resolution: 720, fps: 30 }, 'vp8');
-    expect(screen.screenShareEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
-    expect(screen.degradationPreference).toBe('maintain-framerate');
+    expect(screen.screenShareEncoding).toMatchObject({ maxBitrate: 3000000, maxFramerate: 30 });
+    expect(screen.degradationPreference).toBe('maintain-resolution');
     const camera = cameraOptions({ resolution: 720, fps: 30 });
     expect(camera.videoEncoding).toEqual({ maxBitrate: 3000000, maxFramerate: 30 });
     expect(camera.degradationPreference).toBe('maintain-framerate');
@@ -106,14 +94,5 @@ describe('screen profiles', () => {
       height: { min: 720, ideal: 720 },
       frameRate: { min: 30, ideal: 30 },
     });
-  });
-
-  it('камера рядом с показом (если сервер велел уступать) идёт одним слоем и дешевле самой скромной обычной', () => {
-    const companion = companionCameraOptions();
-    const smallest = cameraOptions({ resolution: 720, fps: 15 });
-    expect(companion.simulcast).toBe(false);
-    expect(companion.videoSimulcastLayers).toBeUndefined();
-    expect(companion.videoEncoding!.maxBitrate).toBeLessThan(smallest.videoEncoding!.maxBitrate!);
-    expect(companionCameraCapture().resolution.height).toBe(360);
   });
 });

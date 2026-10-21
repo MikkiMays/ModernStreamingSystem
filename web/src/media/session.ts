@@ -23,18 +23,15 @@ import {
   chooseCameraCodec,
   cameraHint,
   fitSource,
+  screenHint,
   screenOptions,
   cameraCapture,
   cameraOptions,
   forcedCameraConstraints,
-  companionCamera,
-  companionCameraCapture,
-  companionCameraOptions,
   type ScreenProfile,
 } from './profiles';
 import { rememberLayout, retune } from './retune';
-import { UpstreamBudget, type CameraRole, type UpstreamChange } from './upstream';
-import { cameraYieldsToScreen, settleMs } from './capabilities';
+import { settleMs } from './capabilities';
 import { readScreenSample, ScreenReadiness } from './screen-ready';
 import { reconnectAction, type ReconnectTrigger } from './reconnect-plan';
 import {
@@ -42,7 +39,6 @@ import {
   savePreferences,
   type AudioPreferences,
   type Preferences,
-  type Reception,
 } from '../core/preferences';
 import { signal } from '../core/sounds';
 import { recallVolume, rememberVolume } from '../core/volumes';
@@ -160,47 +156,6 @@ function createAudioContext(): AudioContext | null {
   }
 }
 
-/**
- * Наблюдатель, который всегда просит у комнаты лучший слой.
- *
- * ЗАЧЕМ ИМЕННО ТАК. Режим «Всегда максимум» — это отключённая адаптация приёма, а она
- * задаётся при создании комнаты, то есть при входе. Переподписка не помогает: дорожка
- * пересоздаётся, но размеры плитки кэшируются на **публикации** и после отписки остаются
- * от последнего измерения — проверено, приём после переключения падал до 360p вместо 720p.
- * Лезть в это поле руками значит держаться за внутренность SDK, которая молча переименуется.
- *
- * Адаптация берёт **наибольший** из наблюдаемых элементов (`updateDimensions`). Значит,
- * ничего выключать не надо: достаточно добавить к настоящей плитке ещё одного наблюдателя,
- * который сообщает заведомо большой размер. Это публичный `observeElementInfo`, переключение
- * мгновенное, и ни комнату, ни подписки трогать не приходится.
- *
- * Видимость остаётся честной: свёрнутая вкладка по-прежнему не тянет чужое видео.
- */
-class WideOpen {
-  readonly element = {};
-  pictureInPicture = false;
-  visibilityChangedAt: number | undefined = 0;
-  handleResize?: () => void;
-  handleVisibilityChanged?: () => void;
-  get visible() {
-    return typeof document === 'undefined' || !document.hidden;
-  }
-  // Заведомо больше любого слоя: сервер отдаст самый крупный, какой есть.
-  width() {
-    return 7680;
-  }
-  height() {
-    return 4320;
-  }
-  observe() {
-    document.addEventListener('visibilitychange', this.changed);
-  }
-  stopObserving() {
-    document.removeEventListener('visibilitychange', this.changed);
-  }
-  private changed = () => this.handleVisibilityChanged?.();
-}
-
 /** Звук показа от оболочки (E01-B3) на время одного показа. */
 interface ScreenAudioLink {
   unwatch: () => void;
@@ -288,39 +243,6 @@ export class MediaSession {
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
   };
-  /** Каждая подписанная видеодорожка. */
-  private *remoteVideo() {
-    for (const participant of this.room.remoteParticipants.values())
-      for (const publication of participant.videoTrackPublications.values())
-        if (publication.isSubscribed) yield publication;
-  }
-  /** Держит режим приёма на каждой подписанной дорожке. Вызывается и при смене, и при подписке. */
-  private applyReception = () => {
-    const wanted = this.preferences.get().reception === 'best';
-    for (const publication of this.remoteVideo()) {
-      const track = publication.track;
-      if (!(track instanceof RemoteVideoTrack)) continue;
-      const watcher = this.wideOpen.get(publication.trackSid);
-      if (wanted && !watcher) {
-        const opened = new WideOpen();
-        this.wideOpen.set(publication.trackSid, opened);
-        track.observeElementInfo(opened);
-      } else if (!wanted && watcher) {
-        this.wideOpen.delete(publication.trackSid);
-        track.stopObservingElementInfo(watcher);
-      }
-    }
-  };
-  /**
-   * Сменить режим приёма посреди разговора — сразу, без перезахода во встречу.
-   *
-   * Раньше выбор приёма был следствием выбора отдачи и доезжал только при следующем входе;
-   * в настройках про это честно висела приписка, то есть настройка, которая не работает.
-   */
-  setReception(reception: Reception) {
-    this.preferences.set(savePreferences({ reception }));
-    this.applyReception();
-  }
   private receivePreview = (payload: Uint8Array, participant?: Participant, _?: unknown, topic?: string) => {
     if (topic !== PREVIEW_TOPIC || !participant || this.disposed || !payload.byteLength) return;
     const url = this.previewImages.accept(participant.identity, payload);
@@ -359,7 +281,6 @@ export class MediaSession {
     } else this.setVolume(id, this.previousVolumes.get(id) ?? 1);
   }
   private audioChange: Promise<void> = Promise.resolve();
-  private wideOpen = new Map<string, WideOpen>();
   readonly recovery: RecoveryWindow;
   readonly room: Room;
   private disposed = false;
@@ -373,32 +294,10 @@ export class MediaSession {
   private profile = this.preferences.get().screen;
   /** Что человек выбрал для камеры. Меняется только им, и только это попадает в настройки. */
   private cameraProfile = this.preferences.get().camera;
-  /**
-   * Чем камера идёт в сеть прямо сейчас.
-   *
-   * ЗАЧЕМ ОТДЕЛЬНО ОТ ВЫБОРА. Выбранный уровень — это потолок и обещание, а не гарантия:
-   * бывают машины, которым 1080p60 не по силам, и каналы, в которые он не проходит. Пока
-   * эти два числа были одним, у такой пары был единственный исход — замерший кадр у всех,
-   * кто смотрит, до самого конца разговора. Теперь лестница может временно спуститься ниже
-   * выбора и вернуться обратно, а сам выбор остаётся записанным и показанным как выбранный.
-   */
-  private cameraSending = this.preferences.get().camera;
   private cameraChange: Promise<void> = Promise.resolve();
   private cameraProfilePending = false;
-  /**
-   * Каким кадром сейчас идёт камера. Рядом с демонстрацией экрана — маленьким: причина и
-   * счёт мегабитам в `upstream.ts`. Это не настройка человека, а следствие того, что
-   * включено, поэтому и живёт рядом с медиа, а не в предпочтениях.
-   */
-  private cameraRole: CameraRole = 'full';
-  /**
-   * Окно разгона — с сервера (`capabilities.quality.settleMs`). Опрос отдачи идёт раз в три
-   * секунды, поэтому удержанию оно отдаётся числом опросов, а готовности показа — временем.
-   */
+  /** Окно разгона — с сервера (`capabilities.quality.settleMs`): готовность показа ждёт не дольше него. */
   private readonly settleMs = settleMs();
-  private budget = new UpstreamBudget(Math.max(1, Math.ceil(this.settleMs / 3000)));
-  /** Чем экран идёт в сеть прямо сейчас: выбор или ступень удержания под ним. */
-  private screenSending = this.preferences.get().screen;
   /** Когда дорожку в последний раз опубликовали или сменили ей уровень — для окна разгона. */
   private videoChangedAt = { camera: 0, screen: 0 };
   /** Когда в последний раз просили SDK пройти resume по знаку сети (`reconnect-plan.ts`). */
@@ -516,12 +415,10 @@ export class MediaSession {
       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
-      .on(RoomEvent.TrackSubscribed, this.applyReception)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
       .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
         if (publication) {
           this.playout.forget(publication.trackSid);
-          this.wideOpen.delete(publication.trackSid);
         }
       })
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
@@ -560,7 +457,6 @@ export class MediaSession {
       this.captured.subscribe(this.syncBackground),
     );
     window.addEventListener('cord:preferences', this.settingsChanged);
-    this.playout.setMode(this.preferences.get().network);
     this.liveTimer = setInterval(() => void this.checkLive(), 2000);
     // Буфер подстраивается и когда вкладка скрыта: звук там продолжает играть, и именно
     // свёрнутое окно с музыкой чаще всего и слушают.
@@ -726,14 +622,10 @@ export class MediaSession {
   }
   /** Чем захватывать камеру и как её публиковать при нынешнем составе отдачи. */
   private cameraCaptureNow() {
-    return this.cameraRole === 'companion'
-      ? companionCameraCapture()
-      : cameraCapture(this.cameraProfile, this.cameraCapabilities());
+    return cameraCapture(this.cameraProfile, this.cameraCapabilities());
   }
   private cameraOptionsNow() {
-    return this.cameraRole === 'companion'
-      ? companionCameraOptions(this.cameraCodec)
-      : cameraOptions(this.cameraSending, this.cameraCodec);
+    return cameraOptions(this.cameraProfile, this.cameraCodec);
   }
   /** Подсказать кодировщику, что в этом кадре важнее — движение или резкость. */
   private applyCameraHint() {
@@ -749,7 +641,7 @@ export class MediaSession {
    */
   private async enforceCameraRate() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    if (!(track instanceof LocalVideoTrack) || this.cameraRole === 'companion') return;
+    if (!(track instanceof LocalVideoTrack)) return;
     // Просьбы идут от самой строгой к самой мягкой; первая исполненная и остаётся. Отказ
     // ничего не ломает: дорожка такая же, какой была, а недобор виден в плашке.
     for (const wanted of forcedCameraConstraints(this.cameraProfile, this.cameraCapabilities())) {
@@ -761,91 +653,7 @@ export class MediaSession {
       }
     }
   }
-  /** Что мы сейчас отдаём — для решения, кому уступать. */
-  private upstreamInputs(limitation = 'none') {
-    return {
-      sharing: this.screenTracks.some((track) => track instanceof LocalVideoTrack),
-      camera: !!this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track,
-      limitation,
-      screenLevel: this.profile,
-      cameraLevel: this.cameraProfile,
-      // Уступает ли камера показу: велел сервер или попросил сам человек (П2: по умолчанию — нет).
-      cameraYields: cameraYieldsToScreen(undefined, this.preferences.get().cameraYieldsToScreen),
-    };
-  }
-  /**
-   * Пересчитать бюджет отдачи после изменения состава дорожек.
-   *
-   * Вызывается там, где состав меняется по воле человека — включил камеру, начал или
-   * закончил показ, — а не только по таймеру: ждать следующего опроса значит несколько
-   * секунд отдавать лишние три мегабита ровно в тот момент, когда их меньше всего.
-   */
-  private syncUpstream() {
-    try {
-      this.applyUpstream(this.budget.observe(this.upstreamInputs()));
-    } catch (error) {
-      // Бюджет — это экономия, а не право говорить. Его отказ не должен отменять показ
-      // экрана, к которому он прицеплен: лишние мегабиты лучше сорванной демонстрации.
-      this.report(error);
-    }
-  }
-  private applyUpstream(change: UpstreamChange) {
-    if (change.camera) void this.applyCameraRole(change.camera);
-    // Ступень удержания — не выбор: в настройки она не пишется, а применяется на месте.
-    if (change.screen) void this.stepScreen(change.screen);
-    if (change.cameraLevel) void this.setCameraSending(change.cameraLevel);
-  }
-  /**
-   * Сменить то, чем камера идёт в сеть, не трогая выбор человека.
-   *
-   * НА МЕСТЕ, А НЕ ПЕРЕОПУБЛИКАЦИЕЙ. Здесь стояло «переопубликовать всё же приходится: слои
-   * simulcast считаются при публикации и на месте не меняются». Число слоёв — да; их кадр,
-   * битрейт и частота — меняются, и браузер делает это в работающем кодировщике. А
-   * переопубликация стоила каждого шага лестницы: у зрителей дорожка пропадала и появлялась
-   * заново с нижнего слоя — «моргнула, полсекунды мыло, потом нормально». Замерено на стенде:
-   * после шага SSRC у зрителя менялся и 0,3 с не было кадра вовсе; после `setParameters` тот же
-   * SSRC и новый размер кадра внутри потока (`retune.ts`).
-   *
-   * Захват остаётся прежним — тем, что выбрано, — пока ступень в него помещается. «Авто»
-   * снимает под свою ступень, и если лестница поднялась выше, захват растёт той же дорожкой
-   * (`applyConstraints`): камера не перезапускается и не переопубликовывается. Переопубликация
-   * осталась только запасным путём — если браузер не дал подстроить слои на месте.
-   */
-  private setCameraSending(level: ScreenProfile) {
-    if (level.resolution === this.cameraSending.resolution && level.fps === this.cameraSending.fps)
-      return this.cameraChange;
-    this.cameraSending = level;
-    this.cameraChange = this.cameraChange.then(async () => {
-      if (this.disposed || !this.wanted.camera || this.cameraRole === 'companion') return;
-      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-      if (!(track instanceof LocalVideoTrack)) return;
-      const applied = this.cameraSending;
-      // Пока очередь ждала, лестница шагнула ещё раз: этот шаг уже никому не нужен.
-      if (applied !== level) return;
-      if (await this.retuneCamera(track, applied).catch(() => false)) return;
-      this.deviceBusy.add('camera');
-      try {
-        await this.room.localParticipant.unpublishTrack(track, false);
-        if (this.disposed || applied !== this.cameraSending) return;
-        await this.room.localParticipant.publishTrack(track, {
-          ...this.cameraOptionsNow(),
-          source: Track.Source.Camera,
-        });
-        this.applyCameraHint();
-        if (this.disposed) track.stop();
-        this.refreshTracks();
-      } catch (error) {
-        this.report(error);
-      } finally {
-        this.deviceBusy.delete('camera');
-      }
-    });
-    return this.cameraChange;
-  }
-  /**
-   * Ступень удержания на работающей дорожке. Захват не трогается: выбранный уровень снимается
-   * целиком, а ступень всегда не выше его, — меняются только слои.
-   */
+  /** Подстроить слои работающей камеры под выбранный уровень, не трогая захват. */
   private async retuneCamera(track: LocalVideoTrack, level: ScreenProfile): Promise<boolean> {
     if (!rememberLayout(track)) return false;
     if (!(await retune(track, level))) return false;
@@ -860,48 +668,8 @@ export class MediaSession {
    */
   private async reapplyCameraLevel() {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    if (!(track instanceof LocalVideoTrack) || this.cameraRole === 'companion') return;
-    await this.retuneCamera(track, this.cameraSending).catch(() => false);
-  }
-  /**
-   * Переопубликовать камеру другим кадром.
-   *
-   * Дорожка пересобирается целиком — так же, как при смене профиля камеры: `restartTrack`
-   * меняет источник, а повторная публикация даёт кодировщику новые параметры. Сменить
-   * только битрейт на месте нельзя: слои simulcast считаются при публикации.
-   */
-  private applyCameraRole(role: CameraRole) {
-    if (this.cameraRole === role) return this.cameraChange;
-    this.cameraRole = role;
-    this.cameraChange = this.cameraChange.then(async () => {
-      if (this.disposed || !this.wanted.camera) return;
-      const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-      if (!(track instanceof LocalVideoTrack)) return;
-      // Роль могла смениться обратно, пока очередь ждала: применяем только последнюю.
-      const applied = this.cameraRole;
-      this.deviceBusy.add('camera');
-      try {
-        await track.restartTrack({
-          ...this.cameraCaptureNow(),
-          deviceId: this.preferences.get().devices.camera || undefined,
-        });
-        if (this.disposed || applied !== this.cameraRole) return;
-        await this.room.localParticipant.unpublishTrack(track, false);
-        if (this.disposed) return;
-        await this.room.localParticipant.publishTrack(track, {
-          ...this.cameraOptionsNow(),
-          source: Track.Source.Camera,
-        });
-        this.applyCameraHint();
-        if (this.disposed) track.stop();
-        this.refreshTracks();
-      } catch (error) {
-        this.report(error);
-      } finally {
-        this.deviceBusy.delete('camera');
-      }
-    });
-    return this.cameraChange;
+    if (!(track instanceof LocalVideoTrack)) return;
+    await this.retuneCamera(track, this.cameraProfile).catch(() => false);
   }
   async returnToLive() {
     if (this.disposed || this.state.get().status !== 'connected') return;
@@ -1339,7 +1107,6 @@ export class MediaSession {
         });
       }
       this.refreshTracks();
-      this.syncUpstream();
     } catch (error) {
       if (!this.disposed) this.report(error);
     }
@@ -1401,9 +1168,6 @@ export class MediaSession {
         // картинке, а ответ платформы от момента вопроса не зависит.
         if (!this.state.get().camera) {
           await this.ensureCameraCodec();
-          // Каждое включение начинается с выбранного уровня: прежняя уступка не наследуется.
-          this.cameraSending = this.cameraProfile;
-          this.budget.resetCamera();
         }
         await this.room.localParticipant.setCameraEnabled(
           !this.state.get().camera,
@@ -1423,9 +1187,6 @@ export class MediaSession {
       if (kind === 'camera' && !reusedCamera) this.cameraProfilePending = false;
       if (kind === 'camera' && this.wanted.camera && this.cameraProfilePending)
         await this.setCameraProfile(this.cameraProfile);
-      // Камеру включили посреди показа — она сразу идёт маленьким кадром; выключили —
-      // бюджет узнаёт об этом и вернёт полный кадр, когда камера появится снова.
-      if (kind === 'camera') this.syncUpstream();
       this.refreshTracks();
     } catch (error) {
       this.report(error);
@@ -1448,13 +1209,6 @@ export class MediaSession {
   saveSettings(patch: Partial<Preferences>) {
     const next = savePreferences(patch);
     this.preferences.set(next);
-    // Режим сети меняет только запас буфера, поэтому применяется на месте: ни переподписка,
-    // ни тем более переподключение для этого не нужны.
-    this.playout.setMode(next.network);
-    if (patch.network !== undefined) void this.tunePlayout();
-    // Камера, уступающая показу, пересчитывается сразу: идёт демонстрация — роль камеры меняется
-    // на месте, без ожидания следующего опроса.
-    if (patch.cameraYieldsToScreen !== undefined) this.syncUpstream();
   }
   setVolume(participantId: string, volume: number) {
     if (!Number.isFinite(volume)) return;
@@ -1757,12 +1511,11 @@ export class MediaSession {
         height: { max: size.height },
         frameRate: { max: profile.fps },
       });
-      // The hint follows the same rule as the degradation preference: a chosen level holds its
-      // frame rate, so the encoder is told to favour motion.
-      video.contentHint = 'motion';
+      // Screencast-режим Chromium (R91): кодировщик не понижает разрешение и не включает
+      // quality scaler — при нехватке полосы сбрасывает кадры, а не чёткость.
+      video.contentHint = screenHint;
       this.codec = await chooseCodec(profile);
       this.profile = profile;
-      this.screenSending = profile;
       if (this.disposed || operation.signal.aborted || video.readyState !== 'live') return;
       const reservation = await this.api.screen(true);
       reserved = true;
@@ -1805,9 +1558,6 @@ export class MediaSession {
       }
       this.videoChangedAt.screen = performance.now();
       this.refreshTracks();
-      // Камера уступает место здесь же (если сервер велел ей уступать), а не после первой
-      // жалобы кодировщика: жалоба означала бы, что экран уже успел испортиться.
-      this.syncUpstream();
       this.syncPreview();
       this.upstreamCounters = undefined;
       stream = undefined;
@@ -1892,23 +1642,15 @@ export class MediaSession {
     }
     await this.api.screen(false).catch(() => {});
     this.refreshTracks();
-    // Показа больше нет — камера возвращается к своему профилю, а лестница экрана
-    // начинается с начала: следующий показ может идти по другому каналу.
-    this.budget.reset();
-    this.syncUpstream();
   }
   setProfile(profile: ScreenProfile) {
     this.profile = profile;
-    this.screenSending = profile;
     this.preferences.set(savePreferences({ screen: profile }));
     this.profileChange = this.profileChange.then(() => this.applyProfile(this.profile));
     return this.profileChange;
   }
   setCameraProfile(profile: ScreenProfile) {
     this.cameraProfile = profile;
-    // Новый выбор отменяет прежнюю уступку: отдаём то, что назвали, и только если не выйдет —
-    // удержание спустится снова, уже под новым выбором.
-    this.cameraSending = profile;
     this.cameraProfilePending = true;
     this.videoChangedAt.camera = performance.now();
     this.preferences.set(savePreferences({ camera: profile }));
@@ -1950,28 +1692,20 @@ export class MediaSession {
    * переопубликация на каждом шаге означала, что зрители теряли показ на время подписки
    * заново — ровно тогда, когда канал и так тесный.
    */
-  private stepScreen(level: ScreenProfile) {
-    this.screenSending = level;
-    this.profileChange = this.profileChange.then(() => this.applyProfile(level, true));
-    return this.profileChange;
-  }
-  private async applyProfile(profile: ScreenProfile, inPlace = false) {
+  private async applyProfile(profile: ScreenProfile) {
     const track = this.screenTracks.find((t) => t instanceof LocalVideoTrack);
     if (!(track instanceof LocalVideoTrack)) return;
     const generation = this.screenGeneration;
     try {
-      // Слои запоминаются до смены захвата: подпорки записаны в пикселях того кадра.
-      if (inPlace) rememberLayout(track);
       const size = fitSource(this.captureSize.width, this.captureSize.height, profile.resolution);
       await track.mediaStreamTrack.applyConstraints({
         width: { max: size.width },
         height: { max: size.height },
         frameRate: { max: profile.fps },
       });
-      track.mediaStreamTrack.contentHint = 'motion';
+      track.mediaStreamTrack.contentHint = screenHint;
       if (this.disposed || generation !== this.screenGeneration) return;
       this.videoChangedAt.screen = performance.now();
-      if (inPlace && (await retune(track, profile).catch(() => false))) return;
       await this.room.localParticipant.unpublishTrack(track, false);
       if (this.disposed || generation !== this.screenGeneration) return;
       await this.room.localParticipant.publishTrack(track, {
@@ -2057,14 +1791,7 @@ export class MediaSession {
           fps: Math.round(fps),
           mbps: seconds > 0 ? Math.max(0, ((bytes - previous!.bytes) * 8) / seconds / 1000000) : 0,
           limitation,
-          targetFps:
-            leading.source === 'screen'
-              ? this.screenSending.fps
-              : this.cameraRole === 'companion'
-                ? companionCamera.fps
-                : // Сравнивать надо с тем, что просили у кодировщика сейчас, а не с выбором:
-                  // иначе временная уступка читалась бы как «камера не даёт столько кадров».
-                  this.cameraSending.fps,
+          targetFps: leading.source === 'screen' ? this.profile.fps : this.cameraProfile.fps,
           dormant,
           settling: performance.now() - this.videoChangedAt[leading.source] < this.settleMs,
         });
@@ -2087,9 +1814,8 @@ export class MediaSession {
         }
         return;
       }
-      // Кодировщику тесно — удержание (`hold.ts`) решает, уступать ли кадром на ступень; в
-      // окне разгона жалобы не считаются, а выбор человека не меняется никогда.
-      this.applyUpstream(this.budget.observe(this.upstreamInputs(limitation)));
+      // Жалобы кодировщика (`bandwidth`/`cpu`) ничего не понижают (R91/X10): выбранные
+      // разрешение и частота — нижняя граница, они видны в плашке отдачи и остаются.
     } catch {
       // Статистика — не право говорить: её отсутствие ничего не должно остановить.
     } finally {
