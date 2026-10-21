@@ -142,7 +142,11 @@ http://:{$GATEWAY_PORT:8091} {
 # неё не дойти: edge проксирует на `GATEWAY_PORT`, а не сюда. Admin API Caddy по-прежнему выключен.
 http://127.0.0.1:{$GATEWAY_METRICS_PORT:2019} {
 	bind 127.0.0.1
-	metrics /metrics
+	# `respond` в порядке директив Caddy стоит раньше `metrics`: без `handle` любой запрос, и /metrics
+	# тоже, получал 404.
+	handle /metrics {
+		metrics
+	}
 	respond 404
 }
 
