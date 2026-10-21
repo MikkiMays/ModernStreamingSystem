@@ -2137,7 +2137,8 @@
   "api": {
     "requestFailed": "Richiesta non riuscita",
     "fileUnavailable": "File non disponibile o scaduto",
-    "blockedUntil": "Il proprietario ha chiuso l'accesso a questo server fino al {{date}}"
+    "blockedUntil": "Il proprietario ha chiuso l'accesso a questo server fino al {{date}}",
+    "closedByServerUntil": "Il proprietario del server ha terminato questa riunione: potrai riaprirla dopo il {{date}}"
   },
   "kit": {
     "toasts": "Notifiche",
@@ -2919,7 +2920,8 @@
     "SUPPORT_NOT_FOUND": "Richiesta non trovata",
     "SUPPORT_OFF": "Al momento le richieste non vengono accettate. Scrivi all'autore di Cord su Telegram — il link è qui accanto",
     "SUPPORT_RATE": "Da questo indirizzo sono già arrivate diverse richieste. Riprova tra un'ora o scrivi all'autore di Cord su Telegram",
-    "SUPPORT_TEXT": "Descrivi cosa è successo — almeno con una frase"
+    "SUPPORT_TEXT": "Descrivi cosa è successo — almeno con una frase",
+    "CLOSED_BY_SERVER": "Il proprietario del server ha terminato questa riunione: per ora non si può riaprire"
   },
   "activity": {
     "title": "Attività",
@@ -2932,6 +2934,7 @@
     "tabs": {
       "now": "Adesso",
       "meetings": "Riunioni",
+      "quality": "Qualità",
       "audit": "Registro",
       "blocks": "Blocchi",
       "server": "Server",
@@ -2996,6 +2999,42 @@
       "dayTip_one": "{{count}} riunione, {{hours}} ore-persona, picco {{peak}}",
       "dayTip_many": "{{count}} riunioni, {{hours}} ore-persona, picco {{peak}}",
       "dayTip_other": "{{count}} riunioni, {{hours}} ore-persona, picco {{peak}}"
+    },
+    "quality": {
+      "hint": "Riepiloghi delle chiamate inviati dai browser alla fine della chiamata: solo numeri, senza nomi né indirizzi.",
+      "empty": "Nessun riepilogo di chiamata in questo periodo. Il browser ne invia uno quando esce da una riunione con due persone connesse.",
+      "meetings": "Riunioni con riepiloghi",
+      "calls": "Riepiloghi delle chiamate",
+      "rtt": "Andata e ritorno medio",
+      "rttMax": "Andata e ritorno peggiore",
+      "loss": "Perdita media",
+      "lossy": "Tempo con perdita oltre il 5%",
+      "jitter": "Jitter medio",
+      "bitrate": "Ricezione media",
+      "freezes": "Blocchi del video all'ora",
+      "relay": "Tramite relay (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}}%",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "Andata e ritorno per giorno",
+      "dayTip": "andata e ritorno {{rtt}}, perdita {{loss}}, riepiloghi: {{count}}",
+      "codecs": "Codec video nelle riunioni",
+      "codecTip": "riunioni: {{count}}",
+      "recent": "Ultime riunioni con riepiloghi",
+      "gone": "eliminata",
+      "worst": "peggiore {{value}}",
+      "yes": "sì",
+      "no": "no",
+      "columns": {
+        "code": "Codice",
+        "started": "Inizio",
+        "calls": "Riepiloghi",
+        "rtt": "Andata e ritorno",
+        "loss": "Perdita",
+        "jitter": "Jitter",
+        "freezes": "Blocchi",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "Cosa",

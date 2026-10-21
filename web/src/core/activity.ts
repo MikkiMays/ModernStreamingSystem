@@ -57,6 +57,38 @@ export type Summary = {
   endReasons: Record<string, number>;
 };
 
+/** Качество связи за период — итоги звонков от браузеров (`ActivityReport.Quality`, client-report). */
+export type Quality = {
+  from: number;
+  to: number;
+  meetings: number;
+  reports: number;
+  seconds: number;
+  rttMs: number | null;
+  rttMaxMs: number | null;
+  lossPercent: number | null;
+  jitterMs: number | null;
+  bitrateKbps: number | null;
+  freezes: number;
+  freezesPerHour: number | null;
+  /** Доли от 0 до 1; `null` — итогов нет. */
+  lossyShare: number | null;
+  relayShare: number | null;
+  codecs: Record<string, number>;
+  days: { day: string; reports: number; rttMs: number | null; lossPercent: number | null }[];
+  recent: {
+    code: string | null;
+    startedAt: number;
+    reports: number;
+    rttMs: number | null;
+    rttMaxMs: number | null;
+    lossPercent: number | null;
+    jitterMs: number | null;
+    freezes: number;
+    relay: boolean;
+  }[];
+};
+
 export type AuditEvent = {
   id: number;
   at: number;
@@ -191,6 +223,8 @@ export const activityApi = {
   now: () => admin<Now>('/now'),
   meetings: (from: number, to: number) =>
     admin<Summary>(`/meetings?${query({ from, to, tz: -new Date().getTimezoneOffset() })}`),
+  quality: (from: number, to: number) =>
+    admin<Quality>(`/quality?${query({ from, to, tz: -new Date().getTimezoneOffset() })}`),
   audit: (filter: AuditFilter) =>
     admin<AuditPage>(
       `/audit?${query({ group: filter.group, outcome: filter.outcome, code: filter.code, cursor: filter.cursor })}`,

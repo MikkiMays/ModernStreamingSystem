@@ -65,9 +65,15 @@ export class PlayoutController {
   private monitor = new LinkMonitor();
   private mode: NetworkMode = 'auto';
   private linkState: LinkState = unknownLink;
+  private lastReports: RTCStatsReport[] = [];
 
   get link() {
     return this.linkState;
+  }
+
+  /** Отчёты getStats последнего опроса — их же читает итог звонка (`call-quality.ts`). */
+  get reports(): readonly RTCStatsReport[] {
+    return this.lastReports;
   }
 
   setMode(mode: NetworkMode) {
@@ -112,6 +118,7 @@ export class PlayoutController {
     const collected = reports.filter((value): value is { track: PlayoutTrack; report: RTCStatsReport } =>
       Boolean(value),
     );
+    this.lastReports = collected.map((value) => value.report);
     // Все подписки живут на одном соединении, поэтому путь и оборот берутся из любого
     // отчёта. Первый попавшийся — такой же, как любой другой, и стоит дешевле остальных.
     const previousOrdered = this.linkState.ordered;

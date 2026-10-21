@@ -233,9 +233,15 @@
   background: var(--surface-1);
 }
 
-.activity-bars figcaption {
+.activity-bars figcaption,
+.activity-subtitle {
   margin-bottom: var(--space-3);
   font-weight: 600;
+}
+
+.activity-subtitle {
+  margin-top: 0;
+  font-size: inherit;
 }
 
 .activity-bars ul {

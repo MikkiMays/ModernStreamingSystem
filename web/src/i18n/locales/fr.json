@@ -2137,7 +2137,8 @@
   "api": {
     "requestFailed": "La requête a échoué",
     "fileUnavailable": "Fichier indisponible ou expiré",
-    "blockedUntil": "Le propriétaire a fermé l'accès à ce serveur jusqu'au {{date}}"
+    "blockedUntil": "Le propriétaire a fermé l'accès à ce serveur jusqu'au {{date}}",
+    "closedByServerUntil": "Le propriétaire du serveur a mis fin à cette réunion — vous pourrez la rouvrir après le {{date}}"
   },
   "kit": {
     "toasts": "Notifications",
@@ -2919,7 +2920,8 @@
     "SUPPORT_NOT_FOUND": "Demande introuvable",
     "SUPPORT_OFF": "Les demandes ne sont pas acceptées pour le moment. Écrivez à l'auteur de Cord sur Telegram — le lien est juste à côté",
     "SUPPORT_RATE": "Plusieurs demandes sont déjà venues de cette adresse. Réessayez dans une heure ou écrivez à l'auteur de Cord sur Telegram",
-    "SUPPORT_TEXT": "Décrivez ce qui s'est passé — au moins en une phrase"
+    "SUPPORT_TEXT": "Décrivez ce qui s'est passé — au moins en une phrase",
+    "CLOSED_BY_SERVER": "Le propriétaire du serveur a mis fin à cette réunion — impossible de la rouvrir pour l'instant"
   },
   "activity": {
     "title": "Activité",
@@ -2932,6 +2934,7 @@
     "tabs": {
       "now": "En ce moment",
       "meetings": "Réunions",
+      "quality": "Qualité",
       "audit": "Journal",
       "blocks": "Blocages",
       "server": "Serveur",
@@ -2996,6 +2999,42 @@
       "dayTip_one": "{{count}} réunion, {{hours}} h-personnes, pic {{peak}}",
       "dayTip_many": "{{count}} réunions, {{hours}} h-personnes, pic {{peak}}",
       "dayTip_other": "{{count}} réunions, {{hours}} h-personnes, pic {{peak}}"
+    },
+    "quality": {
+      "hint": "Bilans d'appel envoyés par les navigateurs à la fin d'un appel : uniquement des chiffres, sans noms ni adresses.",
+      "empty": "Aucun bilan d'appel sur cette période. Le navigateur en envoie un en quittant une réunion où deux personnes étaient connectées.",
+      "meetings": "Réunions avec bilans",
+      "calls": "Bilans d'appel",
+      "rtt": "Aller-retour moyen",
+      "rttMax": "Pire aller-retour",
+      "loss": "Perte moyenne",
+      "lossy": "Temps avec plus de 5 % de perte",
+      "jitter": "Gigue moyenne",
+      "bitrate": "Débit reçu moyen",
+      "freezes": "Gels de l'image par heure",
+      "relay": "Via un relais (TURN)",
+      "ms": "{{value}} ms",
+      "percent": "{{value}} %",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "Aller-retour par jour",
+      "dayTip": "aller-retour {{rtt}}, perte {{loss}}, bilans : {{count}}",
+      "codecs": "Codecs vidéo dans les réunions",
+      "codecTip": "réunions : {{count}}",
+      "recent": "Dernières réunions avec bilans",
+      "gone": "supprimée",
+      "worst": "pire {{value}}",
+      "yes": "oui",
+      "no": "non",
+      "columns": {
+        "code": "Code",
+        "started": "Début",
+        "calls": "Bilans",
+        "rtt": "Aller-retour",
+        "loss": "Perte",
+        "jitter": "Gigue",
+        "freezes": "Gels",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "Quoi",

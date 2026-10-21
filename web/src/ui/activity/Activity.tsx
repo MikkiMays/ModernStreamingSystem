@@ -22,6 +22,7 @@ import {
   type Summary,
 } from '../../core/activity';
 import { SupportTab } from './SupportTab';
+import { QualityTab } from './QualityTab';
 import { Button, Field, Input, Select, Tab, TabList, TabPanel, Tabs } from '../kit';
 import { Logo } from '../primitives';
 import { Bars } from './Bars';
@@ -132,12 +133,15 @@ export function useAdmin(onExpired: () => void) {
 
 function Board({ onExpired }: { onExpired: () => void }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'now' | 'meetings' | 'audit' | 'blocks' | 'support' | 'server'>('now');
+  const [tab, setTab] = useState<'now' | 'meetings' | 'quality' | 'audit' | 'blocks' | 'support' | 'server'>(
+    'now',
+  );
   return (
     <Tabs variant="line" value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
       <TabList className="activity-tabs" aria-label={t(($) => $.activity.title)}>
         <Tab value="now">{t(($) => $.activity.tabs.now)}</Tab>
         <Tab value="meetings">{t(($) => $.activity.tabs.meetings)}</Tab>
+        <Tab value="quality">{t(($) => $.activity.tabs.quality)}</Tab>
         <Tab value="audit">{t(($) => $.activity.tabs.audit)}</Tab>
         <Tab value="blocks">{t(($) => $.activity.tabs.blocks)}</Tab>
         <Tab value="support">{t(($) => $.activity.tabs.support)}</Tab>
@@ -145,6 +149,7 @@ function Board({ onExpired }: { onExpired: () => void }) {
       </TabList>
       <TabPanel value="now">{tab === 'now' && <NowTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="meetings">{tab === 'meetings' && <MeetingsTab onExpired={onExpired} />}</TabPanel>
+      <TabPanel value="quality">{tab === 'quality' && <QualityTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="audit">{tab === 'audit' && <AuditTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="blocks">{tab === 'blocks' && <BlocksTab onExpired={onExpired} />}</TabPanel>
       <TabPanel value="support">{tab === 'support' && <SupportTab onExpired={onExpired} />}</TabPanel>
@@ -153,7 +158,7 @@ function Board({ onExpired }: { onExpired: () => void }) {
   );
 }
 
-function Tile({ label, value }: { label: string; value: string | number }) {
+export function Tile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="activity-tile">
       <span className="activity-tile__value">{value}</span>

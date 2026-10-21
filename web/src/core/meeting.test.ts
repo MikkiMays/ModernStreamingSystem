@@ -19,10 +19,12 @@ vi.mock('../media/session', async () => {
       setServiceParticipants = vi.fn();
       rememberPeople = vi.fn();
       watchScreen = vi.fn();
+      callReport = vi.fn(() => callReport.value);
       dispose = vi.fn();
     },
   };
 });
+const { callReport } = vi.hoisted(() => ({ callReport: { value: null as unknown } }));
 vi.mock('./control', async () => {
   const { Store } = await import('./store');
   return {
@@ -214,6 +216,24 @@ it('sounds your own entrance, then a knock, an arrival and a departure, then you
   expect(cues).toEqual(['self-join', 'knock', 'join', 'leave', 'self-leave']);
 });
 
+it('итог звонка уходит владельцу один раз, уходя и с keepalive, а короткий заход итога не даёт', async () => {
+  const sent = () =>
+    fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/rooms/room/client-report'));
+  callReport.value = null;
+  window.dispatchEvent(new Event('pagehide'));
+  expect(sent()).toHaveLength(0);
+  callReport.value = { seconds: 600, rttMs: 40, path: 'direct-udp' };
+  await meeting.leave();
+  window.dispatchEvent(new Event('pagehide'));
+  meeting.dispose();
+  expect(sent()).toHaveLength(1);
+  const [, init] = sent()[0]! as [string, RequestInit];
+  expect(init.keepalive).toBe(true);
+  expect(init.method).toBe('POST');
+  expect(JSON.parse(String(init.body))).toEqual({ seconds: 600, rttMs: 40, path: 'direct-udp' });
+  expect((init.headers as Record<string, string>).Authorization).toBe('Bearer guest.secret');
+  callReport.value = null;
+});
 it('stays quiet when this device asked for no notification sounds', async () => {
   meeting.media.preferences.set({ ...meeting.media.preferences.get(), notificationSounds: false });
   meeting.start();

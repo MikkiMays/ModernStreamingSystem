@@ -2087,7 +2087,8 @@
   "api": {
     "requestFailed": "请求失败",
     "fileUnavailable": "文件不可用或已过期",
-    "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}"
+    "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}",
+    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开"
   },
   "kit": {
     "toasts": "通知",
@@ -2865,7 +2866,8 @@
     "SUPPORT_NOT_FOUND": "未找到该反馈",
     "SUPPORT_OFF": "目前不接收反馈。请在 Telegram 上联系 Cord 的作者——链接就在旁边",
     "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试，或在 Telegram 上联系 Cord 的作者",
-    "SUPPORT_TEXT": "请描述发生了什么——至少写一句话"
+    "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
+    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开"
   },
   "activity": {
     "title": "活动",
@@ -2878,6 +2880,7 @@
     "tabs": {
       "now": "当前",
       "meetings": "会议",
+      "quality": "质量",
       "audit": "日志",
       "blocks": "封禁",
       "server": "服务器",
@@ -2934,6 +2937,42 @@
       "longer": "超过 {{duration}}",
       "count_other": "{{count}} 场会议",
       "dayTip_other": "{{count}} 场会议，{{hours}} 人·小时，峰值 {{peak}}"
+    },
+    "quality": {
+      "hint": "浏览器在通话结束时发送的通话摘要：只有数字，不含姓名和地址。",
+      "empty": "此期间没有通话摘要。浏览器在离开有两人在线的会议时发送摘要。",
+      "meetings": "有摘要的会议",
+      "calls": "通话摘要",
+      "rtt": "平均往返",
+      "rttMax": "最差往返",
+      "loss": "平均丢包",
+      "lossy": "丢包超过 5% 的时间",
+      "jitter": "平均抖动",
+      "bitrate": "平均接收速率",
+      "freezes": "每小时画面卡顿",
+      "relay": "经中继（TURN）",
+      "ms": "{{value}} 毫秒",
+      "percent": "{{value}}%",
+      "mbps": "{{value}} Mbit/s",
+      "byDay": "每日往返",
+      "dayTip": "往返 {{rtt}}，丢包 {{loss}}，摘要：{{count}}",
+      "codecs": "会议中的视频编码",
+      "codecTip": "会议：{{count}}",
+      "recent": "最近有摘要的会议",
+      "gone": "已删除",
+      "worst": "最差 {{value}}",
+      "yes": "是",
+      "no": "否",
+      "columns": {
+        "code": "代码",
+        "started": "开始",
+        "calls": "摘要",
+        "rtt": "往返",
+        "loss": "丢包",
+        "jitter": "抖动",
+        "freezes": "卡顿",
+        "relay": "TURN"
+      }
     },
     "audit": {
       "group": "类型",
