@@ -30,13 +30,17 @@ if (argv.includes('--latest')) {
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line.includes('submitUrl') || !line.includes('tool_result')) continue;
-    const found = [...line.matchAll(/mcp\/upload\/([0-9a-f-]{36})\/submit\?scaleMode=FILL(?:&|\\u0026)currentPageId=(\d+)%3A(\d+)/g)];
+    const found = [
+      ...line.matchAll(
+        /mcp\/upload\/([0-9a-f-]{36})\/submit\?scaleMode=FILL(?:(?:&|\\u0026)currentPageId=(\d+)%3A(\d+))?/g,
+      ),
+    ];
     if (!found.length) continue;
     const used = existsSync(log) ? readFileSync(log, 'utf8') : '';
     const seen = new Set();
     const fresh = found.filter((m) => !used.includes(m[1]) && !seen.has(m[1]) && seen.add(m[1]));
     if (!fresh.length) throw new Error('последние адреса уже использованы');
-    latestPage = `${found[0][2]}:${found[0][3]}`;
+    latestPage = found[0][2] ? `${found[0][2]}:${found[0][3]}` : null;
     argv.push('--uuids', fresh.map((m) => m[1]).join(','));
     page ??= latestPage;
     break;

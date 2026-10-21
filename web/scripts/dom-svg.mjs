@@ -62,7 +62,15 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     const p = m[1].split(',').map(Number);
     const a = p[3] ?? 1;
     if (a === 0 && !keep) return null;
-    return { hex: '#' + p.slice(0, 3).map((x) => Math.round(x).toString(16).padStart(2, '0')).join(''), a };
+    return {
+      hex:
+        '#' +
+        p
+          .slice(0, 3)
+          .map((x) => Math.round(x).toString(16).padStart(2, '0'))
+          .join(''),
+      a,
+    };
   }
   // Импорт Figma теряет stroke-opacity, поэтому прозрачность обводки — прозрачностью фигуры (обводки
   // рисуются только у фигур без заливки); дообработка переносит её обратно в краску.
@@ -78,10 +86,19 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       const val = (s, d) => (s.endsWith('%') ? (parseFloat(s) / 100) * d : parseFloat(s) || 0);
       return horizontal ? val(parts[0], w) : val(parts[1] ?? parts[0], h);
     };
-    let r = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(
-      (v) => Math.min(one(v, true), one(v, false)),
+    let r = [
+      cs.borderTopLeftRadius,
+      cs.borderTopRightRadius,
+      cs.borderBottomRightRadius,
+      cs.borderBottomLeftRadius,
+    ].map((v) => Math.min(one(v, true), one(v, false)));
+    const f = Math.min(
+      1,
+      w / (r[0] + r[1] || 1),
+      w / (r[2] + r[3] || 1),
+      h / (r[0] + r[3] || 1),
+      h / (r[1] + r[2] || 1),
     );
-    const f = Math.min(1, w / (r[0] + r[1] || 1), w / (r[2] + r[3] || 1), h / (r[0] + r[3] || 1), h / (r[1] + r[2] || 1));
     if (f < 1) r = r.map((v) => v * f);
     return r;
   }
@@ -108,7 +125,12 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       const cm = /(rgba?\([^)]*\)|#[0-9a-f]+|color\([^)]*\))/i.exec(s);
       const c = color(cm ? cm[1] : 'rgba(0,0,0,0.3)');
       if (!c) continue;
-      const nums = s.replace(cm ? cm[1] : '', '').replace('inset', '').match(/-?[\d.]+px|-?[\d.]+(?=\s|$)/g)?.map(parseFloat) ?? [];
+      const nums =
+        s
+          .replace(cm ? cm[1] : '', '')
+          .replace('inset', '')
+          .match(/-?[\d.]+px|-?[\d.]+(?=\s|$)/g)
+          ?.map(parseFloat) ?? [];
       const [dx = 0, dy = 0, blur = 0, spread = 0] = nums;
       // Внутренние тени без размытия — это рамки и полоски (набор E16 рисует ими границы полей).
       if (inset) {
@@ -125,8 +147,12 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     drops.forEach((d, i) => {
       body +=
         `<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>` +
-        (d.spread > 0 ? `<feMorphology radius="${n(d.spread)}" operator="dilate" in="SourceAlpha" result="effect${i + 1}_dropShadow"/>` : '') +
-        (d.spread < 0 ? `<feMorphology radius="${n(-d.spread)}" operator="erode" in="SourceAlpha" result="effect${i + 1}_dropShadow"/>` : '') +
+        (d.spread > 0
+          ? `<feMorphology radius="${n(d.spread)}" operator="dilate" in="SourceAlpha" result="effect${i + 1}_dropShadow"/>`
+          : '') +
+        (d.spread < 0
+          ? `<feMorphology radius="${n(-d.spread)}" operator="erode" in="SourceAlpha" result="effect${i + 1}_dropShadow"/>`
+          : '') +
         `<feOffset dx="${n(d.dx)}" dy="${n(d.dy)}"/>` +
         `<feGaussianBlur stdDeviation="${n(d.blur / 2)}"/>` +
         `<feComposite in2="hardAlpha" operator="out"/>` +
@@ -162,7 +188,21 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       if (/deg$/.test(first)) angle = parseFloat(first);
       else if (/^to /.test(first)) {
         const dir = first.slice(3);
-        angle = { top: 0, right: 90, bottom: 180, left: 270, 'top right': 45, 'right top': 45, 'bottom right': 135, 'right bottom': 135, 'bottom left': 225, 'left bottom': 225, 'top left': 315, 'left top': 315 }[dir] ?? 180;
+        angle =
+          {
+            top: 0,
+            right: 90,
+            bottom: 180,
+            left: 270,
+            'top right': 45,
+            'right top': 45,
+            'bottom right': 135,
+            'right bottom': 135,
+            'bottom left': 225,
+            'left bottom': 225,
+            'top left': 315,
+            'left top': 315,
+          }[dir] ?? 180;
       }
       if (/deg$|^to /.test(first)) parts.shift();
     } else if (!/^(rgba?|#|color)/.test(parts[0])) parts.shift();
@@ -171,7 +211,10 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
         const cm = /(rgba?\([^)]*\)|#[0-9a-f]+|color\([^)]*\)|transparent)/i.exec(p);
         if (!cm) return null;
         const off = /(-?[\d.]+)%/.exec(p.replace(cm[1], ''));
-        return { c: color(cm[1], true) ?? { hex: '#000000', a: 0 }, off: off ? parseFloat(off[1]) / 100 : null };
+        return {
+          c: color(cm[1], true) ?? { hex: '#000000', a: 0 },
+          off: off ? parseFloat(off[1]) / 100 : null,
+        };
       })
       .filter(Boolean);
     if (!stops.length) return null;
@@ -180,7 +223,10 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     });
     const gid = id('g');
     const st = stops
-      .map((s) => `<stop offset="${n(s.off)}" stop-color="${s.c.hex}"${s.c.a < 1 ? ` stop-opacity="${n(s.c.a)}"` : ''}/>`)
+      .map(
+        (s) =>
+          `<stop offset="${n(s.off)}" stop-color="${s.c.hex}"${s.c.a < 1 ? ` stop-opacity="${n(s.c.a)}"` : ''}/>`,
+      )
       .join('');
     if (m[1] === 'radial') {
       defs.push(
@@ -206,7 +252,7 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       const sw = source.videoWidth || source.naturalWidth || source.width;
       const sh = source.videoHeight || source.naturalHeight || source.height;
       if (!sw || !sh) return null;
-      const k = Math.min(1, maxImage / Math.max(sw, sh), Math.max(2 * w / sw, 2 * h / sh, 0.05));
+      const k = Math.min(1, maxImage / Math.max(sw, sh), Math.max((2 * w) / sw, (2 * h) / sh, 0.05));
       const cv = document.createElement('canvas');
       cv.width = Math.max(1, Math.round(sw * k));
       cv.height = Math.max(1, Math.round(sh * k));
@@ -228,19 +274,74 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     });
   }
 
-  const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'META', 'LINK', 'TITLE', 'BR', 'WBR']);
+  const SKIP = new Set([
+    'SCRIPT',
+    'STYLE',
+    'NOSCRIPT',
+    'TEMPLATE',
+    'HEAD',
+    'META',
+    'LINK',
+    'TITLE',
+    'BR',
+    'WBR',
+  ]);
   const KIND = {
-    BUTTON: 'кнопка', A: 'ссылка', INPUT: 'поле', TEXTAREA: 'поле', SELECT: 'список', H1: 'заголовок', H2: 'заголовок',
-    H3: 'заголовок', H4: 'заголовок', IMG: 'картинка', VIDEO: 'видео', CANVAS: 'холст', NAV: 'навигация', HEADER: 'шапка',
-    ASIDE: 'панель', MAIN: 'основное', FOOTER: 'подвал', DIALOG: 'окно', UL: 'список', OL: 'список', LI: 'пункт',
-    LABEL: 'подпись', FORM: 'форма', SECTION: 'раздел', ARTICLE: 'карточка', IFRAME: 'встройка',
+    BUTTON: 'кнопка',
+    A: 'ссылка',
+    INPUT: 'поле',
+    TEXTAREA: 'поле',
+    SELECT: 'список',
+    H1: 'заголовок',
+    H2: 'заголовок',
+    H3: 'заголовок',
+    H4: 'заголовок',
+    IMG: 'картинка',
+    VIDEO: 'видео',
+    CANVAS: 'холст',
+    NAV: 'навигация',
+    HEADER: 'шапка',
+    ASIDE: 'панель',
+    MAIN: 'основное',
+    FOOTER: 'подвал',
+    DIALOG: 'окно',
+    UL: 'список',
+    OL: 'список',
+    LI: 'пункт',
+    LABEL: 'подпись',
+    FORM: 'форма',
+    SECTION: 'раздел',
+    ARTICLE: 'карточка',
+    IFRAME: 'встройка',
   };
   const ROLE = {
-    dialog: 'окно', alertdialog: 'окно', menu: 'меню', menuitem: 'пункт меню', menuitemcheckbox: 'пункт меню',
-    menuitemradio: 'пункт меню', tab: 'вкладка', tablist: 'вкладки', tabpanel: 'вкладка', switch: 'переключатель',
-    slider: 'ползунок', status: 'статус', alert: 'предупреждение', listbox: 'список', option: 'вариант', toolbar: 'панель',
-    navigation: 'навигация', group: 'группа', region: 'область', button: 'кнопка', checkbox: 'флажок', radio: 'выбор',
-    tooltip: 'подсказка', progressbar: 'полоса', note: 'заметка', img: 'картинка', separator: 'разделитель',
+    dialog: 'окно',
+    alertdialog: 'окно',
+    menu: 'меню',
+    menuitem: 'пункт меню',
+    menuitemcheckbox: 'пункт меню',
+    menuitemradio: 'пункт меню',
+    tab: 'вкладка',
+    tablist: 'вкладки',
+    tabpanel: 'вкладка',
+    switch: 'переключатель',
+    slider: 'ползунок',
+    status: 'статус',
+    alert: 'предупреждение',
+    listbox: 'список',
+    option: 'вариант',
+    toolbar: 'панель',
+    navigation: 'навигация',
+    group: 'группа',
+    region: 'область',
+    button: 'кнопка',
+    checkbox: 'флажок',
+    radio: 'выбор',
+    tooltip: 'подсказка',
+    progressbar: 'полоса',
+    note: 'заметка',
+    img: 'картинка',
+    separator: 'разделитель',
   };
   function label(el) {
     const role = el.getAttribute('role');
@@ -248,10 +349,15 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     let text =
       el.getAttribute('aria-label') ||
       (el.tagName === 'IMG' && el.alt) ||
-      (['BUTTON', 'A', 'H1', 'H2', 'H3', 'H4', 'LABEL'].includes(el.tagName) || role === 'menuitem' || role === 'tab' || role === 'option'
+      (['BUTTON', 'A', 'H1', 'H2', 'H3', 'H4', 'LABEL'].includes(el.tagName) ||
+      role === 'menuitem' ||
+      role === 'tab' ||
+      role === 'option'
         ? (el.textContent || '').trim().replace(/\s+/g, ' ')
         : '') ||
-      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? el.placeholder || el.getAttribute('aria-label') || '' : '');
+      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+        ? el.placeholder || el.getAttribute('aria-label') || ''
+        : '');
     text = (text || '').slice(0, 40);
     const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '';
     if (kind && text) return `${kind} «${text}»`;
@@ -261,12 +367,29 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
   }
   const meaningful = (el) =>
     !!(el.getAttribute('role') || el.getAttribute('aria-label') || KIND[el.tagName]) ||
-    (typeof el.className === 'string' && /(^|\s)(ui-|tile|dock|panel|card|stage|header|menu|dialog|sheet|row|group|toast|badge|chip|avatar|seat|board|table)/.test(el.className));
+    (typeof el.className === 'string' &&
+      /(^|\s)(ui-|tile|dock|panel|card|stage|header|menu|dialog|sheet|row|group|toast|badge|chip|avatar|seat|board|table)/.test(
+        el.className,
+      ));
 
   function fontStyle(cs) {
     const w = Number(cs.fontWeight) || 400;
     const name =
-      w >= 850 ? 'Black' : w >= 750 ? 'Extra Bold' : w >= 650 ? 'Bold' : w >= 550 ? 'Semi Bold' : w >= 450 ? 'Medium' : w >= 350 ? 'Regular' : w >= 250 ? 'Light' : 'Extra Light';
+      w >= 850
+        ? 'Black'
+        : w >= 750
+          ? 'Extra Bold'
+          : w >= 650
+            ? 'Bold'
+            : w >= 550
+              ? 'Semi Bold'
+              : w >= 450
+                ? 'Medium'
+                : w >= 350
+                  ? 'Regular'
+                  : w >= 250
+                    ? 'Light'
+                    : 'Extra Light';
     const italic = cs.fontStyle === 'italic' ? (name === 'Regular' ? 'Italic' : `${name} Italic`) : name;
     return italic;
   }
@@ -306,9 +429,19 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           if (!r) continue;
           if (cur && Math.abs(r.top - cur.r.top) < 2) {
             cur.e = i + 1;
-            cur.r = { left: cur.r.left, top: cur.r.top, right: r.right, bottom: r.bottom, height: cur.r.height };
+            cur.r = {
+              left: cur.r.left,
+              top: cur.r.top,
+              right: r.right,
+              bottom: r.bottom,
+              height: cur.r.height,
+            };
           } else {
-            cur = { r: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, height: r.height }, s: i, e: i + 1 };
+            cur = {
+              r: { left: r.left, top: r.top, right: r.right, bottom: r.bottom, height: r.height },
+              s: i,
+              e: i + 1,
+            };
             pieces.push(cur);
           }
         }
@@ -319,7 +452,8 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           last.e = p.e;
           last.right = Math.max(last.right, p.r.right);
           last.left = Math.min(last.left, p.r.left);
-        } else lines.push({ s: p.s, e: p.e, left: p.r.left, right: p.r.right, top: p.r.top, height: p.r.height });
+        } else
+          lines.push({ s: p.s, e: p.e, left: p.r.left, right: p.r.right, top: p.r.top, height: p.r.height });
       }
     }
     return lines.map((l) => ({
@@ -345,12 +479,23 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
 
   function textSvg(el, cs, out, clipRight) {
     const fs = parseFloat(cs.fontSize) || 14;
-    const c = color(cs.webkitTextFillColor && cs.webkitTextFillColor !== cs.color ? cs.webkitTextFillColor : cs.color);
+    const c = color(
+      cs.webkitTextFillColor && cs.webkitTextFillColor !== cs.color ? cs.webkitTextFillColor : cs.color,
+    );
     if (!c) return;
     const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) || 0;
     const lh = cs.lineHeight === 'normal' ? null : parseFloat(cs.lineHeight);
-    const align = cs.textAlign === 'center' ? 'center' : cs.textAlign === 'right' || cs.textAlign === 'end' ? 'right' : 'left';
-    const deco = /underline/.test(cs.textDecorationLine) ? ' u' : /line-through/.test(cs.textDecorationLine) ? ' s' : '';
+    const align =
+      cs.textAlign === 'center'
+        ? 'center'
+        : cs.textAlign === 'right' || cs.textAlign === 'end'
+          ? 'right'
+          : 'left';
+    const deco = /underline/.test(cs.textDecorationLine)
+      ? ' u'
+      : /line-through/.test(cs.textDecorationLine)
+        ? ' s'
+        : '';
     const ellipsis = cs.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1;
     for (const node of el.childNodes) {
       if (node.nodeType !== 3 || !node.textContent.trim()) continue;
@@ -419,7 +564,11 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           if (!c) v = 'none';
           else {
             v = c.hex;
-            if (c.a < 1) d.setAttribute(`${attr}-opacity`, String(n(c.a * Number(cs[prop === 'fill' ? 'fillOpacity' : 'strokeOpacity'] || 1))));
+            if (c.a < 1)
+              d.setAttribute(
+                `${attr}-opacity`,
+                String(n(c.a * Number(cs[prop === 'fill' ? 'fillOpacity' : 'strokeOpacity'] || 1))),
+              );
           }
         }
         if (prop === 'opacity' && v === '1') continue;
@@ -428,7 +577,11 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       if (d.id) d.id = prefix + d.id;
       for (const a of ['clip-path', 'mask', 'filter']) {
         const v = d.getAttribute(a);
-        if (v) d.setAttribute(a, v.replace(/url\("?#([^")]+)"?\)/, (mm, ref) => `url(#${prefix}${ref})`));
+        if (v)
+          d.setAttribute(
+            a,
+            v.replace(/url\("?#([^")]+)"?\)/, (mm, ref) => `url(#${prefix}${ref})`),
+          );
       }
       if (i > 0) d.removeAttribute('class');
       d.removeAttribute('style');
@@ -490,9 +643,20 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
     const bw = parseFloat(p.borderTopWidth) || 0;
     const bc = color(p.borderTopColor);
     if (bw && bc && p.borderTopStyle !== 'none')
-      parts.push(shape(px0 + ox + bw / 2, py0 + oy + bw / 2, pw - bw, ph - bw, r.map((v) => Math.max(0, v - bw / 2)), ` fill="none"${paint('stroke', bc)} stroke-width="${n(bw)}"`));
+      parts.push(
+        shape(
+          px0 + ox + bw / 2,
+          py0 + oy + bw / 2,
+          pw - bw,
+          ph - bw,
+          r.map((v) => Math.max(0, v - bw / 2)),
+          ` fill="none"${paint('stroke', bc)} stroke-width="${n(bw)}"`,
+        ),
+      );
     if (parts.length) {
-      out.push(`<g id="${which === '::before' ? 'до' : 'после'} ${esc(label(el))}"${Number(p.opacity) < 1 ? ` opacity="${n(Number(p.opacity))}"` : ''}>${parts.join('')}</g>`);
+      out.push(
+        `<g id="${which === '::before' ? 'до' : 'после'} ${esc(label(el))}"${Number(p.opacity) < 1 ? ` opacity="${n(Number(p.opacity))}"` : ''}>${parts.join('')}</g>`,
+      );
       count++;
     }
   }
@@ -512,7 +676,12 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       const before = el.getBoundingClientRect();
       const m = new DOMMatrix(cs.transform === 'none' ? undefined : cs.transform);
       const rot = cs.rotate && cs.rotate !== 'none' ? parseFloat(cs.rotate) : 0;
-      const prev = [el.style.getPropertyValue('transform'), el.style.getPropertyPriority('transform'), el.style.getPropertyValue('rotate'), el.style.getPropertyValue('transition')];
+      const prev = [
+        el.style.getPropertyValue('transform'),
+        el.style.getPropertyPriority('transform'),
+        el.style.getPropertyValue('rotate'),
+        el.style.getPropertyValue('transition'),
+      ];
       el.style.setProperty('transition', 'none', 'important');
       el.style.setProperty('transform', 'none', 'important');
       el.style.setProperty('rotate', 'none', 'important');
@@ -522,7 +691,13 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       const cy = flat.top + oy + toy;
       const full = new DOMMatrix().translate(cx, cy).rotate(rot).multiply(m).translate(-cx, -cy);
       matrix = `matrix(${[full.a, full.b, full.c, full.d, full.e, full.f].map(n).join(' ')})`;
-      if (Math.abs(before.width - flat.width) < 0.5 && Math.abs(before.height - flat.height) < 0.5 && !rot && Math.abs(m.b) < 0.001) matrix = null;
+      if (
+        Math.abs(before.width - flat.width) < 0.5 &&
+        Math.abs(before.height - flat.height) < 0.5 &&
+        !rot &&
+        Math.abs(m.b) < 0.001
+      )
+        matrix = null;
       restore = () => {
         el.style.setProperty('transform', prev[0], prev[1]);
         el.style.setProperty('rotate', prev[2]);
@@ -545,11 +720,22 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
       if (visible && w > 0 && h > 0) {
         const { filter, rings, insets } = shadows(cs);
         for (const ring of rings)
-          parts.push(shape(x - ring.spread / 2, y - ring.spread / 2, w + ring.spread, h + ring.spread, r.map((v) => v + ring.spread / 2), ` fill="none"${paint('stroke', ring.c)} stroke-width="${n(ring.spread)}"`));
+          parts.push(
+            shape(
+              x - ring.spread / 2,
+              y - ring.spread / 2,
+              w + ring.spread,
+              h + ring.spread,
+              r.map((v) => v + ring.spread / 2),
+              ` fill="none"${paint('stroke', ring.c)} stroke-width="${n(ring.spread)}"`,
+            ),
+          );
         const bg = color(cs.backgroundColor);
         filterId = filter;
-        if (bg) parts.push(shape(x, y, w, h, r, paint('fill', bg) + (filter ? ` filter="url(#${filter})"` : '')));
-        else if (filter) parts.push(shape(x, y, w, h, r, ` fill="#000000" fill-opacity="0.001" filter="url(#${filter})"`));
+        if (bg)
+          parts.push(shape(x, y, w, h, r, paint('fill', bg) + (filter ? ` filter="url(#${filter})"` : '')));
+        else if (filter)
+          parts.push(shape(x, y, w, h, r, ` fill="#000000" fill-opacity="0.001" filter="url(#${filter})"`));
         if (cs.backgroundImage && cs.backgroundImage !== 'none') {
           const layers = splitTop(cs.backgroundImage).reverse();
           for (const layer of layers) {
@@ -575,13 +761,16 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
                 iw = a;
                 ih = b || a;
                 const [pxp, pyp] = cs.backgroundPosition.split(' ');
-                const pos = (v, room) => (v?.endsWith('%') ? (parseFloat(v) / 100) * room : parseFloat(v) || 0);
+                const pos = (v, room) =>
+                  v?.endsWith('%') ? (parseFloat(v) / 100) * room : parseFloat(v) || 0;
                 ix = x + pos(pxp, w - iw);
                 iy = y + pos(pyp, h - ih);
               }
               const cid = id('c');
               defs.push(`<clipPath id="${cid}">${shape(x, y, w, h, r)}</clipPath>`);
-              parts.push(`<g id="фон-картинка" clip-path="url(#${cid})"><image x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" preserveAspectRatio="${par}" href="${href}"/></g>`);
+              parts.push(
+                `<g id="фон-картинка" clip-path="url(#${cid})"><image x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" preserveAspectRatio="${par}" href="${href}"/></g>`,
+              );
             }
           }
         }
@@ -591,32 +780,68 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           c: color(cs[`border${s}Color`]),
           dashed: /dash|dot/.test(cs[`border${s}Style`]),
         }));
-        const same = sides.every((s) => s.w === sides[0].w && s.c?.hex === sides[0].c?.hex && s.c?.a === sides[0].c?.a);
+        const same = sides.every(
+          (s) => s.w === sides[0].w && s.c?.hex === sides[0].c?.hex && s.c?.a === sides[0].c?.a,
+        );
         if (same && sides[0].w > 0 && sides[0].c) {
           const bw = sides[0].w;
           parts.push(
-            shape(x + bw / 2, y + bw / 2, w - bw, h - bw, r.map((v) => Math.max(0, v - bw / 2)), ` fill="none"${paint('stroke', sides[0].c)} stroke-width="${n(bw)}"${sides[0].dashed ? ' stroke-dasharray="4 3"' : ''}`),
+            shape(
+              x + bw / 2,
+              y + bw / 2,
+              w - bw,
+              h - bw,
+              r.map((v) => Math.max(0, v - bw / 2)),
+              ` fill="none"${paint('stroke', sides[0].c)} stroke-width="${n(bw)}"${sides[0].dashed ? ' stroke-dasharray="4 3"' : ''}`,
+            ),
           );
         } else {
           const [t, rr, b, l] = sides;
-          if (t.w && t.c) parts.push(`<rect id="рамка сверху" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(t.w)}"${paint('fill', t.c)}/>`);
-          if (b.w && b.c) parts.push(`<rect id="рамка снизу" x="${n(x)}" y="${n(y + h - b.w)}" width="${n(w)}" height="${n(b.w)}"${paint('fill', b.c)}/>`);
-          if (l.w && l.c) parts.push(`<rect id="рамка слева" x="${n(x)}" y="${n(y)}" width="${n(l.w)}" height="${n(h)}"${paint('fill', l.c)}/>`);
-          if (rr.w && rr.c) parts.push(`<rect id="рамка справа" x="${n(x + w - rr.w)}" y="${n(y)}" width="${n(rr.w)}" height="${n(h)}"${paint('fill', rr.c)}/>`);
+          if (t.w && t.c)
+            parts.push(
+              `<rect id="рамка сверху" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(t.w)}"${paint('fill', t.c)}/>`,
+            );
+          if (b.w && b.c)
+            parts.push(
+              `<rect id="рамка снизу" x="${n(x)}" y="${n(y + h - b.w)}" width="${n(w)}" height="${n(b.w)}"${paint('fill', b.c)}/>`,
+            );
+          if (l.w && l.c)
+            parts.push(
+              `<rect id="рамка слева" x="${n(x)}" y="${n(y)}" width="${n(l.w)}" height="${n(h)}"${paint('fill', l.c)}/>`,
+            );
+          if (rr.w && rr.c)
+            parts.push(
+              `<rect id="рамка справа" x="${n(x + w - rr.w)}" y="${n(y)}" width="${n(rr.w)}" height="${n(h)}"${paint('fill', rr.c)}/>`,
+            );
         }
         for (const ins of insets) {
           if (!ins.dx && !ins.dy && ins.spread > 0)
-            parts.push(shape(x + ins.spread / 2, y + ins.spread / 2, w - ins.spread, h - ins.spread, r.map((v) => Math.max(0, v - ins.spread / 2)), ` fill="none"${paint('stroke', ins.c)} stroke-width="${n(ins.spread)}"`));
+            parts.push(
+              shape(
+                x + ins.spread / 2,
+                y + ins.spread / 2,
+                w - ins.spread,
+                h - ins.spread,
+                r.map((v) => Math.max(0, v - ins.spread / 2)),
+                ` fill="none"${paint('stroke', ins.c)} stroke-width="${n(ins.spread)}"`,
+              ),
+            );
           else if (ins.dy && !ins.dx)
-            parts.push(`<rect id="полоска ${ins.dy > 0 ? 'сверху' : 'снизу'}" x="${n(x + r[0] / 2)}" y="${n(ins.dy > 0 ? y : y + h + ins.dy)}" width="${n(w - r[0])}" height="${n(Math.abs(ins.dy) + Math.max(0, ins.spread))}"${paint('fill', ins.c)}/>`);
+            parts.push(
+              `<rect id="полоска ${ins.dy > 0 ? 'сверху' : 'снизу'}" x="${n(x + r[0] / 2)}" y="${n(ins.dy > 0 ? y : y + h + ins.dy)}" width="${n(w - r[0])}" height="${n(Math.abs(ins.dy) + Math.max(0, ins.spread))}"${paint('fill', ins.c)}/>`,
+            );
           else if (ins.dx && !ins.dy)
-            parts.push(`<rect id="полоска ${ins.dx > 0 ? 'слева' : 'справа'}" x="${n(ins.dx > 0 ? x : x + w + ins.dx)}" y="${n(y)}" width="${n(Math.abs(ins.dx) + Math.max(0, ins.spread))}" height="${n(h)}"${paint('fill', ins.c)}/>`);
+            parts.push(
+              `<rect id="полоска ${ins.dx > 0 ? 'слева' : 'справа'}" x="${n(ins.dx > 0 ? x : x + w + ins.dx)}" y="${n(y)}" width="${n(Math.abs(ins.dx) + Math.max(0, ins.spread))}" height="${n(h)}"${paint('fill', ins.c)}/>`,
+            );
         }
       }
 
       const inner = [];
       const clips = cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || /paint/.test(cs.contain);
-      const childClipRight = clips ? Math.min(clipRight, rect.right - (parseFloat(cs.paddingRight) || 0) * 0) : clipRight;
+      const childClipRight = clips
+        ? Math.min(clipRight, rect.right - (parseFloat(cs.paddingRight) || 0) * 0)
+        : clipRight;
       const tag = el.tagName;
 
       if (visible && (tag === 'svg' || el instanceof SVGSVGElement)) {
@@ -626,8 +851,17 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
         const src = tag === 'IMG' ? el.currentSrc || el.src : '';
         // Картинка-SVG по адресу — ссылкой: Node впишет её векторной группой (figma-screens.mjs).
         const vectorSrc = /\.svg(\?|$)/.test(src) && !src.startsWith('data:');
-        const href = vectorSrc ? null : src.startsWith('data:image/svg') ? src : await raster(el, w, h, tag !== 'IMG');
-        const fit = cs.objectFit === 'cover' ? 'xMidYMid slice' : cs.objectFit === 'contain' || tag === 'VIDEO' ? 'xMidYMid meet' : 'none';
+        const href = vectorSrc
+          ? null
+          : src.startsWith('data:image/svg')
+            ? src
+            : await raster(el, w, h, tag !== 'IMG');
+        const fit =
+          cs.objectFit === 'cover'
+            ? 'xMidYMid slice'
+            : cs.objectFit === 'contain' || tag === 'VIDEO'
+              ? 'xMidYMid meet'
+              : 'none';
         if (href) {
           const cid = id('c');
           defs.push(`<clipPath id="${cid}">${shape(x, y, w, h, r)}</clipPath>`);
@@ -639,15 +873,28 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           );
         } else if (tag === 'IMG' && (el.currentSrc || el.src)) {
           // Чужая картинка без CORS: Node подставит её сам по ссылке.
-          inner.push(`<image id="${esc(label(el))}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" preserveAspectRatio="${fit}" href="${esc(el.currentSrc || el.src)}"/>`);
+          inner.push(
+            `<image id="${esc(label(el))}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" preserveAspectRatio="${fit}" href="${esc(el.currentSrc || el.src)}"/>`,
+          );
         } else {
-          inner.push(`<rect id="${esc(label(el))} (пусто)" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="#000000" fill-opacity="0.2"/>`);
+          inner.push(
+            `<rect id="${esc(label(el))} (пусто)" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="#000000" fill-opacity="0.2"/>`,
+          );
         }
         count++;
-      } else if (visible && tag === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio') && cs.appearance !== 'none') {
+      } else if (
+        visible &&
+        tag === 'INPUT' &&
+        (el.type === 'checkbox' || el.type === 'radio') &&
+        cs.appearance !== 'none'
+      ) {
         // Родные флажок и переключатель: рисуем, как Chromium, в цвете accent-color.
         const accent = color(cs.accentColor && cs.accentColor !== 'auto' ? cs.accentColor : '#3564f3');
-        const line = color(cs.colorScheme === 'dark' || /dark/.test(document.documentElement.dataset.theme || '') ? '#8a93a5' : '#767676');
+        const line = color(
+          cs.colorScheme === 'dark' || /dark/.test(document.documentElement.dataset.theme || '')
+            ? '#8a93a5'
+            : '#767676',
+        );
         const s = Math.min(w, h);
         const cx = x + w / 2;
         const cy = y + h / 2;
@@ -666,18 +913,29 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
         }
         count++;
       } else if (tag === 'IFRAME') {
-        inner.push(`<rect id="встройка ${esc(el.title || el.src || '')}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="#000000"/>`);
+        inner.push(
+          `<rect id="встройка ${esc(el.title || el.src || '')}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="#000000"/>`,
+        );
       } else {
-        if (visible && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') && !['checkbox', 'radio', 'range', 'hidden', 'color', 'file'].includes(el.type)) {
-          const value = tag === 'SELECT' ? el.selectedOptions?.[0]?.textContent ?? '' : el.value;
+        if (
+          visible &&
+          (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') &&
+          !['checkbox', 'radio', 'range', 'hidden', 'color', 'file'].includes(el.type)
+        ) {
+          const value = tag === 'SELECT' ? (el.selectedOptions?.[0]?.textContent ?? '') : el.value;
           const ph = !value && el.placeholder;
-          const shown = (ph ? el.placeholder : el.type === 'password' ? '•'.repeat(value.length) : value).split('\n')[0];
+          const shown = (
+            ph ? el.placeholder : el.type === 'password' ? '•'.repeat(value.length) : value
+          ).split('\n')[0];
           if (shown) {
             const pcs = ph ? getComputedStyle(el, '::placeholder') : cs;
             const c = color(pcs.color) ?? color(cs.color);
             const fs = parseFloat(cs.fontSize) || 14;
             const px0 = x + (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.paddingLeft) || 0);
-            const top = tag === 'TEXTAREA' ? y + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0) : y + h / 2 - (fs * 1.21) / 2;
+            const top =
+              tag === 'TEXTAREA'
+                ? y + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0)
+                : y + h / 2 - (fs * 1.21) / 2;
             const meta = `⟦${fontStyle(cs)}|0|0|left⟧`;
             if (c)
               inner.push(
@@ -701,11 +959,20 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
           const bt = parseFloat(cs.borderTopWidth) || 0;
           const br = parseFloat(cs.borderRightWidth) || 0;
           const bb = parseFloat(cs.borderBottomWidth) || 0;
-          defs.push(`<clipPath id="${cid}">${shape(x + bl, y + bt, w - bl - br, h - bt - bb, r.map((v) => Math.max(0, v - Math.max(bl, bt))))}</clipPath>`);
+          defs.push(
+            `<clipPath id="${cid}">${shape(
+              x + bl,
+              y + bt,
+              w - bl - br,
+              h - bt - bb,
+              r.map((v) => Math.max(0, v - Math.max(bl, bt))),
+            )}</clipPath>`,
+          );
           body += `<g id="содержимое" clip-path="url(#${cid})">${inner.join('')}</g>`;
         } else body += inner.join('');
       }
-      const needGroup = parts.length > 1 || opacity < 1 || matrix || meaningful(el) || (parts.length && inner.length);
+      const needGroup =
+        parts.length > 1 || opacity < 1 || matrix || meaningful(el) || (parts.length && inner.length);
       if (!needGroup) {
         out.push(body);
         return;
@@ -719,8 +986,8 @@ export async function domToSvg({ fullPage = true, maxImage = 1600 } = {}) {
   }
 
   const out = [];
-  const bodyBg =
-    color(getComputedStyle(document.body).backgroundColor) ?? color(getComputedStyle(de).backgroundColor) ?? { hex: '#ffffff', a: 1 };
+  const bodyBg = color(getComputedStyle(document.body).backgroundColor) ??
+    color(getComputedStyle(de).backgroundColor) ?? { hex: '#ffffff', a: 1 };
   await render(document.body, out, W);
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
@@ -740,13 +1007,25 @@ export function auditPage() {
   const de = document.documentElement;
   const W = de.clientWidth;
   const dpr = devicePixelRatio || 1;
-  const out = { overflowX: Math.max(0, de.scrollWidth - de.clientWidth), offscreen: [], clipped: [], truncated: [], covered: [], blurry: [], fractional: [], contrast: [] };
+  const out = {
+    overflowX: Math.max(0, de.scrollWidth - de.clientWidth),
+    offscreen: [],
+    clipped: [],
+    truncated: [],
+    covered: [],
+    blurry: [],
+    fractional: [],
+    contrast: [],
+  };
   const push = (list, item) => {
     if (list.length < 8) list.push(item);
     list.n = (list.n ?? 0) + 1;
   };
   const name = (el) => {
-    const t = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    const t = (el.getAttribute('aria-label') || el.textContent || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .slice(0, 40);
     const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '';
     return `${el.tagName.toLowerCase()}${cls ? '.' + cls : ''}${t ? ` «${t}»` : ''}`;
   };
@@ -759,7 +1038,10 @@ export function auditPage() {
   const rgb = (c) => {
     const m = /rgba?\(([^)]+)\)/.exec(c);
     if (!m) return null;
-    const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+    const p = m[1]
+      .split(/[ ,/]+/)
+      .filter(Boolean)
+      .map(Number);
     return { r: p[0], g: p[1], b: p[2], a: p[3] ?? 1 };
   };
   const lum = ({ r, g, b }) => {
@@ -779,40 +1061,68 @@ export function auditPage() {
       if (/VIDEO|CANVAS|IMG/.test(e.tagName)) return null;
     }
     let base = { r: 255, g: 255, b: 255 };
-    for (const c of stack.reverse()) base = { r: c.r * c.a + base.r * (1 - c.a), g: c.g * c.a + base.g * (1 - c.a), b: c.b * c.a + base.b * (1 - c.a) };
+    for (const c of stack.reverse())
+      base = {
+        r: c.r * c.a + base.r * (1 - c.a),
+        g: c.g * c.a + base.g * (1 - c.a),
+        b: c.b * c.a + base.b * (1 - c.a),
+      };
     return base;
   };
   for (const el of document.body.querySelectorAll('*')) {
     if (!visible(el)) continue;
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
-    const interactive = el.matches('button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [role="tab"]');
-    if (interactive && (r.right > W + 1 || r.left < -1) && cs.position !== 'fixed') push(out.offscreen, name(el));
+    const interactive = el.matches(
+      'button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [role="tab"]',
+    );
+    if (interactive && (r.right > W + 1 || r.left < -1) && cs.position !== 'fixed')
+      push(out.offscreen, name(el));
     const ownText = [...el.childNodes].some((x) => x.nodeType === 3 && x.textContent.trim());
     if (ownText) {
       if (el.scrollWidth > el.clientWidth + 1 && cs.overflowX !== 'visible')
         push(cs.textOverflow === 'ellipsis' ? out.truncated : out.clipped, name(el));
-      else if (el.scrollHeight > el.clientHeight + 2 && cs.overflowY === 'hidden' && !cs.webkitLineClamp?.match(/\d/)) push(out.clipped, name(el));
+      else if (
+        el.scrollHeight > el.clientHeight + 2 &&
+        cs.overflowY === 'hidden' &&
+        !cs.webkitLineClamp?.match(/\d/)
+      )
+        push(out.clipped, name(el));
       const fg = rgb(cs.color);
       const bg = bgOf(el);
       if (fg && bg && fg.a > 0.5) {
         const a = lum(fg);
         const b = lum(bg);
         const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-        const large = parseFloat(cs.fontSize) >= 24 || (parseFloat(cs.fontSize) >= 18.66 && Number(cs.fontWeight) >= 700);
+        const large =
+          parseFloat(cs.fontSize) >= 24 || (parseFloat(cs.fontSize) >= 18.66 && Number(cs.fontWeight) >= 700);
         const disabled = el.closest('[disabled], [aria-disabled="true"]');
         if (ratio < (large ? 3 : 4.5) && !disabled) push(out.contrast, `${name(el)} ${ratio.toFixed(2)}:1`);
       }
     }
     if (interactive && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= W) {
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      if (hit && hit !== el && !el.contains(hit) && !hit.contains(el)) push(out.covered, `${name(el)} ← ${name(hit)}`);
+      if (hit && hit !== el && !el.contains(hit) && !hit.contains(el))
+        push(out.covered, `${name(el)} ← ${name(hit)}`);
     }
-    if (el.tagName === 'IMG' && el.naturalWidth && !/\.svg/.test(el.currentSrc) && el.naturalWidth < r.width * dpr * 0.9) push(out.blurry, `${name(el)} ${el.naturalWidth}px < ${Math.round(r.width * dpr)}`);
+    if (
+      el.tagName === 'IMG' &&
+      el.naturalWidth &&
+      !/\.svg/.test(el.currentSrc) &&
+      el.naturalWidth < r.width * dpr * 0.9
+    )
+      push(out.blurry, `${name(el)} ${el.naturalWidth}px < ${Math.round(r.width * dpr)}`);
     const bw = parseFloat(cs.borderTopWidth);
-    if ((bw > 0 && bw < 1 && bw * dpr < 1) || (r.height > 0 && r.height < 2 && Math.abs(r.top * dpr - Math.round(r.top * dpr)) > 0.05 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)'))
+    if (
+      (bw > 0 && bw < 1 && bw * dpr < 1) ||
+      (r.height > 0 &&
+        r.height < 2 &&
+        Math.abs(r.top * dpr - Math.round(r.top * dpr)) > 0.05 &&
+        cs.backgroundColor !== 'rgba(0, 0, 0, 0)')
+    )
       push(out.fractional, `${name(el)} y=${r.top.toFixed(2)}`);
   }
-  for (const k of ['offscreen', 'clipped', 'truncated', 'covered', 'blurry', 'fractional', 'contrast']) out[k] = { n: out[k].n ?? 0, samples: [...out[k]] };
+  for (const k of ['offscreen', 'clipped', 'truncated', 'covered', 'blurry', 'fractional', 'contrast'])
+    out[k] = { n: out[k].n ?? 0, samples: [...out[k]] };
   return out;
 }

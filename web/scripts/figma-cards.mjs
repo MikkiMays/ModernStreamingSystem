@@ -13,10 +13,14 @@ import { domToSvg } from './dom-svg.mjs';
 import { STATES, PAGES, COVER, FILES } from './screens-catalog.mjs';
 
 const require = createRequire(import.meta.url);
-const font = path.dirname(require.resolve('@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2'));
+const font = path.dirname(
+  require.resolve('@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2'),
+);
 const out = path.resolve('../backlog/screens/figma/cards');
 mkdirSync(out, { recursive: true });
-const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
+const only = process.argv.includes('--only')
+  ? process.argv[process.argv.indexOf('--only') + 1].split(',')
+  : null;
 
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 const CSS = `
@@ -71,12 +75,17 @@ function card(id, s) {
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
 async function render(name, html) {
-  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${html}</body></html>`);
+  await page.setContent(
+    `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${html}</body></html>`,
+  );
   await page.evaluate(() => document.fonts.ready);
   const box = await page.locator('body > *').first().boundingBox();
   await page.setViewportSize({ width: Math.ceil(box.width), height: Math.ceil(box.height) });
   const { svg } = await page.evaluate(domToSvg, { fullPage: false });
-  writeFileSync(path.join(out, `${name}.svg`), svg.replace('<rect id="фон страницы"', '<rect id="фон страницы" fill-opacity="0"'));
+  writeFileSync(
+    path.join(out, `${name}.svg`),
+    svg.replace('<rect id="фон страницы"', '<rect id="фон страницы" fill-opacity="0"'),
+  );
   await page.setViewportSize({ width: 1700, height: 1200 });
 }
 
@@ -94,17 +103,24 @@ if (!only) {
       `page-${p.slug}`,
       `<div class="head"><div class="kicker">${esc(file.name)}</div><h1>${esc(name)}</h1><p>${esc(p.about)}</p><ol>${p.sections
         .map((x) => `<li>${esc(x.name)} — ${x.states.length}</li>`)
-        .join('')}</ol><p style="margin-top:14px;font-size:14px">Состояний: ${count}. Ряд — одно состояние: карточка описания слева, кадры 360 / 1024 / 1440 в светлой и тёмной теме. Кадры — слои из живого стенда (SVG), цвета привязаны к переменным «Цвет · светлая/тёмная».</p></div>`,
+        .join(
+          '',
+        )}</ol><p style="margin-top:14px;font-size:14px">Состояний: ${count}. Ряд — одно состояние: карточка описания слева, кадры 360 / 1024 / 1440 в светлой и тёмной теме. Кадры — слои из живого стенда (SVG), цвета привязаны к переменным «Цвет · светлая/тёмная».</p></div>`,
     );
     for (const [i, x] of p.sections.entries())
-      await render(`section-${p.slug}-${i + 1}`, `<div class="section"><h3>${esc(x.name)}</h3><p>${esc(x.states.map((id) => STATES[id]?.title ?? id).join(' · '))}</p></div>`);
+      await render(
+        `section-${p.slug}-${i + 1}`,
+        `<div class="section"><h3>${esc(x.name)}</h3><p>${esc(x.states.map((id) => STATES[id]?.title ?? id).join(' · '))}</p></div>`,
+      );
     n += 1 + p.sections.length;
   }
   await render(
     'cover',
     `<div class="cover"><div><div class="mark">${MARK}</div><h1>${esc(COVER.title)}</h1><p>${esc(COVER.lead)}</p></div><div><div class="map">${FILES.map(
       (f) => `<div class="file"><b>${esc(f.name)}</b><span>${f.pages.map(esc).join('<br>')}</span></div>`,
-    ).join('')}</div><div class="date">Карта продукта · E15-B · 20.10.2026 · снято со стенда, main</div></div></div>`,
+    ).join(
+      '',
+    )}</div><div class="date">Карта продукта · E15-B · 20.10.2026 · снято со стенда, main</div></div></div>`,
   );
   n++;
 }

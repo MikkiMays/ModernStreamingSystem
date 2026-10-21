@@ -7,7 +7,10 @@ import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { PAGES } from './screens-catalog.mjs';
 
-export const DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../backlog/screens/figma');
+export const DIR = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  '../../backlog/screens/figma',
+);
 
 /** Кадры состояния: `<id>-<ширина>-<тема>.svg`, по ширине, светлая раньше тёмной. */
 export function framesOf(id, dir = DIR) {
@@ -37,7 +40,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = (n) => process.argv[process.argv.indexOf(`--${n}`) + 1];
   const page = arg('page');
   if (process.argv.includes('--json')) {
-    console.log(JSON.stringify({ page, slug: PAGES[page].slug, sections: PAGES[page].sections.map((s) => ({ name: s.name, states: s.states })) }));
+    console.log(
+      JSON.stringify({
+        page,
+        slug: PAGES[page].slug,
+        sections: PAGES[page].sections.map((s) => ({ name: s.name, states: s.states })),
+      }),
+    );
   } else {
     const files = filesFor(page);
     const missing = PAGES[page].sections.flatMap((s) => s.states).filter((id) => framesOf(id).length === 0);

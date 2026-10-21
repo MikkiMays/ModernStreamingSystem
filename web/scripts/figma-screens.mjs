@@ -24,13 +24,22 @@ import { domToSvg, auditPage } from './dom-svg.mjs';
 async function inlineRemoteImages(page, svg) {
   // Картинка-SVG (знак в оболочке, значки в /assets) — векторной группой, а не растром: Figma
   // вложенный SVG в <image> не раскрывает.
-  const vectors = [...svg.matchAll(/<image id="([^"]*)" x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)" preserveAspectRatio="[^"]*" href="((?:file|https?):[^"]+?\.svg(?:\?[^"]*)?)"\/>/g)];
+  const vectors = [
+    ...svg.matchAll(
+      /<image id="([^"]*)" x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)" preserveAspectRatio="[^"]*" href="((?:file|https?):[^"]+?\.svg(?:\?[^"]*)?)"\/>/g,
+    ),
+  ];
   for (const [tag, name, x, y, w, h, href] of vectors) {
     try {
       const text = href.startsWith('file:')
         ? readFileSync(new URL(href), 'utf8')
         : await (await page.request.get(href.replace(/&amp;/g, '&'), { timeout: 10000 })).text();
-      const vb = /viewBox="([\d.\s-]+)"/.exec(text)?.[1].trim().split(/\s+/).map(Number) ?? [0, 0, Number(w), Number(h)];
+      const vb = /viewBox="([\d.\s-]+)"/.exec(text)?.[1].trim().split(/\s+/).map(Number) ?? [
+        0,
+        0,
+        Number(w),
+        Number(h),
+      ];
       const inner = text.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
       const s = Math.min(Number(w) / vb[2], Number(h) / vb[3]);
       const tx = Number(x) + (Number(w) - vb[2] * s) / 2 - vb[0] * s;
@@ -40,7 +49,9 @@ async function inlineRemoteImages(page, svg) {
       /* останется ссылкой */
     }
   }
-  const urls = [...new Set([...svg.matchAll(/href="(https?:[^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&')))];
+  const urls = [
+    ...new Set([...svg.matchAll(/href="(https?:[^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&'))),
+  ];
   for (const url of urls) {
     try {
       const response = await page.request.get(url, { timeout: 10000 });
@@ -106,7 +117,11 @@ const browser = await chromium.launch({
   ],
 });
 
-async function newContext(width, theme, { name = 'Ника', storage, userAgent, height, desktop, permissions } = {}) {
+async function newContext(
+  width,
+  theme,
+  { name = 'Ника', storage, userAgent, height, desktop, permissions } = {},
+) {
   // `desktop` — окно оболочки (Electron) узкой ширины: без касания и мобильного масштаба.
   const phone = mobile(width) && !desktop;
   const context = await browser.newContext({
@@ -290,7 +305,9 @@ async function shoot(page, id, width, theme, { fullPage = true } = {}) {
       const svg = await inlineRemoteImages(page, result.svg);
       writeFileSync(path.join(out, svgFile), svg);
       svgInfo = { svgFile, svgNodes: result.nodes, svgBytes: svg.length, audit };
-      console.log(`  ✓ ${svgFile} ${result.w}×${result.h} ${result.nodes} узлов ${Math.round(svg.length / 1024)} КиБ`);
+      console.log(
+        `  ✓ ${svgFile} ${result.w}×${result.h} ${result.nodes} узлов ${Math.round(svg.length / 1024)} КиБ`,
+      );
     } catch (error) {
       console.log(`  ✗ ${id}-${width}-${theme}.svg: ${String(error).split('\n')[0]}`);
     }
@@ -302,7 +319,16 @@ async function shoot(page, id, width, theme, { fullPage = true } = {}) {
   const scale = await page.evaluate(() => devicePixelRatio);
   size.w = png.readUInt32BE(16) / scale;
   size.h = png.readUInt32BE(20) / scale;
-  record({ id, width, theme, file, cssWidth: size.w, cssHeight: size.h, overflowX: size.overflowX, ...svgInfo });
+  record({
+    id,
+    width,
+    theme,
+    file,
+    cssWidth: size.w,
+    cssHeight: size.h,
+    overflowX: size.overflowX,
+    ...svgInfo,
+  });
   console.log(
     `  ✓ ${file} ${size.w}×${size.h}${size.overflowX > 0 ? ` (шире окна на ${size.overflowX})` : ''}`,
   );
@@ -1032,7 +1058,9 @@ async function step(name, job) {
 
 /** Встреча, созданная на главной, и её приглашение из ответа ядра (`inviteUrl`). */
 async function createWithInvite(page, options) {
-  const answer = page.waitForResponse((r) => /\/api\/v1\/rooms$/.test(r.url()) && r.request().method() === 'POST');
+  const answer = page.waitForResponse(
+    (r) => /\/api\/v1\/rooms$/.test(r.url()) && r.request().method() === 'POST',
+  );
   await createMeeting(page, options);
   const body = await (await answer).json().catch(() => ({}));
   return body.inviteUrl ?? null;
@@ -1040,7 +1068,13 @@ async function createWithInvite(page, options) {
 
 /** Окружение Telegram без Telegram: параметры запуска в hash и мост WebView, отвечающий на запросы. */
 function telegramUrl(theme, { platform = 'android' } = {}) {
-  const user = { id: 7, first_name: 'Ника', last_name: 'Петрова', language_code: 'ru', allows_write_to_pm: true };
+  const user = {
+    id: 7,
+    first_name: 'Ника',
+    last_name: 'Петрова',
+    language_code: 'ru',
+    allows_write_to_pm: true,
+  };
   const initData = new URLSearchParams({
     user: JSON.stringify(user),
     chat_instance: '-4402981',
@@ -1052,8 +1086,38 @@ function telegramUrl(theme, { platform = 'android' } = {}) {
   }).toString();
   const params =
     theme === 'dark'
-      ? { bg_color: '#17212b', text_color: '#f5f5f5', hint_color: '#708499', link_color: '#6ab3f3', button_color: '#5288c1', button_text_color: '#ffffff', secondary_bg_color: '#232e3c', header_bg_color: '#17212b', bottom_bar_bg_color: '#17212b', section_bg_color: '#17212b', accent_text_color: '#6ab2f2', destructive_text_color: '#ec3942', subtitle_text_color: '#708499', section_header_text_color: '#6ab3f3' }
-      : { bg_color: '#ffffff', text_color: '#000000', hint_color: '#999999', link_color: '#2481cc', button_color: '#2481cc', button_text_color: '#ffffff', secondary_bg_color: '#efeff3', header_bg_color: '#ffffff', bottom_bar_bg_color: '#ffffff', section_bg_color: '#ffffff', accent_text_color: '#2481cc', destructive_text_color: '#e53935', subtitle_text_color: '#999999', section_header_text_color: '#6d6d72' };
+      ? {
+          bg_color: '#17212b',
+          text_color: '#f5f5f5',
+          hint_color: '#708499',
+          link_color: '#6ab3f3',
+          button_color: '#5288c1',
+          button_text_color: '#ffffff',
+          secondary_bg_color: '#232e3c',
+          header_bg_color: '#17212b',
+          bottom_bar_bg_color: '#17212b',
+          section_bg_color: '#17212b',
+          accent_text_color: '#6ab2f2',
+          destructive_text_color: '#ec3942',
+          subtitle_text_color: '#708499',
+          section_header_text_color: '#6ab3f3',
+        }
+      : {
+          bg_color: '#ffffff',
+          text_color: '#000000',
+          hint_color: '#999999',
+          link_color: '#2481cc',
+          button_color: '#2481cc',
+          button_text_color: '#ffffff',
+          secondary_bg_color: '#efeff3',
+          header_bg_color: '#ffffff',
+          bottom_bar_bg_color: '#ffffff',
+          section_bg_color: '#ffffff',
+          accent_text_color: '#2481cc',
+          destructive_text_color: '#e53935',
+          subtitle_text_color: '#999999',
+          section_header_text_color: '#6d6d72',
+        };
   const hash = new URLSearchParams({
     tgWebAppData: initData,
     tgWebAppVersion: '8.0',
@@ -1074,9 +1138,16 @@ function telegramBridge(params) {
   window.TelegramWebviewProxy = {
     postEvent(type) {
       if (type === 'web_app_request_viewport')
-        send('viewport_changed', { height: innerHeight, width: innerWidth, is_expanded: true, is_state_stable: true });
-      if (type === 'web_app_request_safe_area') send('safe_area_changed', { top: 44, bottom: 20, left: 0, right: 0 });
-      if (type === 'web_app_request_content_safe_area') send('content_safe_area_changed', { top: 46, bottom: 0, left: 0, right: 0 });
+        send('viewport_changed', {
+          height: innerHeight,
+          width: innerWidth,
+          is_expanded: true,
+          is_state_stable: true,
+        });
+      if (type === 'web_app_request_safe_area')
+        send('safe_area_changed', { top: 44, bottom: 20, left: 0, right: 0 });
+      if (type === 'web_app_request_content_safe_area')
+        send('content_safe_area_changed', { top: 46, bottom: 0, left: 0, right: 0 });
       if (type === 'web_app_request_fullscreen') send('fullscreen_changed', { is_fullscreen: true });
       if (type === 'web_app_request_theme') send('theme_changed', { theme_params: params });
     },
@@ -1096,7 +1167,25 @@ async function openTelegram(page, context, theme, enter) {
 function electronBridge() {
   window.cordDesktop = {
     protocol: { major: 2, minor: 0 },
-    features: ['hotkeys', 'capture', 'capture.system-audio', 'overlay', 'notify', 'thumbar', 'badge', 'progress', 'attention', 'deeplink', 'servers', 'update', 'power', 'app.settings', 'tray', 'sleep', 'autostart'],
+    features: [
+      'hotkeys',
+      'capture',
+      'capture.system-audio',
+      'overlay',
+      'notify',
+      'thumbar',
+      'badge',
+      'progress',
+      'attention',
+      'deeplink',
+      'servers',
+      'update',
+      'power',
+      'app.settings',
+      'tray',
+      'sleep',
+      'autostart',
+    ],
     app: { version: '1.0.0', arch: 'x64' },
     bootstrap: { profile: '', theme: 'system', showPing: false, notificationSounds: true, autoConnect: true },
     send() {},
@@ -1161,9 +1250,27 @@ function thumbnails() {
     sources: [
       { id: 's1', kind: 'screen', name: 'Экран 1', thumbnail: desk('План на неделю', 215) },
       { id: 's2', kind: 'screen', name: 'Экран 2', thumbnail: desk('Таблица продаж', 150) },
-      { id: 'w1', kind: 'window', name: 'План на неделю — Документы', thumbnail: desk('План на неделю', 215), icon: icon('#2b7de9') },
-      { id: 'w2', kind: 'window', name: 'Figma — Cord · карта продукта', thumbnail: desk('Cord', 265), icon: icon('#a259ff') },
-      { id: 'w3', kind: 'window', name: 'Терминал', thumbnail: desk('$ npm run build', 200), icon: icon('#2c3340') },
+      {
+        id: 'w1',
+        kind: 'window',
+        name: 'План на неделю — Документы',
+        thumbnail: desk('План на неделю', 215),
+        icon: icon('#2b7de9'),
+      },
+      {
+        id: 'w2',
+        kind: 'window',
+        name: 'Figma — Cord · карта продукта',
+        thumbnail: desk('Cord', 265),
+        icon: icon('#a259ff'),
+      },
+      {
+        id: 'w3',
+        kind: 'window',
+        name: 'Терминал',
+        thumbnail: desk('$ npm run build', 200),
+        icon: icon('#2c3340'),
+      },
     ],
   });
 }
@@ -1181,10 +1288,16 @@ Object.assign(SINGLE, {
       await home(page);
       const burger = page.getByRole('button', { name: 'Открыть меню' });
       if (await burger.isVisible()) await burger.click();
-      await page.getByRole('button', { name: /^Настройки$/ }).first().click();
+      await page
+        .getByRole('button', { name: /^Настройки$/ })
+        .first()
+        .click();
       await page.locator('.settings-nav__item').filter({ hasText: 'Оформление' }).first().click();
       await page.waitForTimeout(500);
-      const select = page.locator('#appearance-language select, select').filter({ has: page.locator('option[value="en"]') }).first();
+      const select = page
+        .locator('#appearance-language select, select')
+        .filter({ has: page.locator('option[value="en"]') })
+        .first();
       await select.selectOption('en');
       await page.waitForTimeout(800);
       await select.scrollIntoViewIfNeeded();
@@ -1239,7 +1352,11 @@ Object.assign(SINGLE, {
     async open(page, { context, theme }) {
       await openTelegram(page, context, theme, {
         status: 403,
-        body: { status: 403, code: 'TELEGRAM_NOT_MEMBER', detail: 'Вы не состоите в чате, к которому привязана встреча' },
+        body: {
+          status: 403,
+          code: 'TELEGRAM_NOT_MEMBER',
+          detail: 'Вы не состоите в чате, к которому привязана встреча',
+        },
       });
       await page.locator('.tg-screen').waitFor({ timeout: 30000 });
       await page.waitForTimeout(600);
@@ -1254,9 +1371,15 @@ Object.assign(SINGLE, {
     context: { userAgent: ANDROID, permissions: [] },
     async open(page, { context, theme }) {
       await context.addInitScript(() => {
-        navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+        navigator.mediaDevices.getUserMedia = () =>
+          Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
       });
-      await openTelegram(page, context, theme, { roomId: '00000000-0000-4000-8000-000000000001', title: 'Планёрка', name: 'Ника Петрова', inviteUrl: new URL('/i/x', base).href });
+      await openTelegram(page, context, theme, {
+        roomId: '00000000-0000-4000-8000-000000000001',
+        title: 'Планёрка',
+        name: 'Ника Петрова',
+        inviteUrl: new URL('/i/x', base).href,
+      });
       await page.locator('.tg-screen').waitFor({ timeout: 30000 });
       await page.waitForTimeout(600);
     },
@@ -1278,11 +1401,16 @@ Object.assign(SINGLE, {
         ['electron-splash-checking', { stage: 'checking' }],
         ['electron-splash-downloading', { stage: 'downloading', progress: 0.42 }],
         ['electron-splash-installing', { stage: 'installing' }],
-        ['electron-splash-failed', { stage: 'failed', problem: 'Не удалось загрузить обновление: сервер не ответил.' }],
+        [
+          'electron-splash-failed',
+          { stage: 'failed', problem: 'Не удалось загрузить обновление: сервер не ответил.' },
+        ],
       ];
       for (const [as, state] of states) {
         await page.evaluate((s) => window.__emit('splash.state', s), state);
-        await page.addStyleTag({ content: '.bar.busy > i { animation: none !important; left: 30% !important; }' });
+        await page.addStyleTag({
+          content: '.bar.busy > i { animation: none !important; left: 30% !important; }',
+        });
         await page.waitForTimeout(300);
         await shoot(page, as, 300, 'dark', { fullPage: false });
       }
@@ -1346,13 +1474,38 @@ Object.assign(SINGLE, {
       await context.addInitScript(shellStub, {
         calls: {
           'servers.list': [
-            { name: { ru: 'Нидерланды', en: 'Netherlands' }, url: 'https://cord.nikg.tech/', country: 'NL', current: true },
-            { name: { ru: 'Германия', en: 'Germany' }, url: 'https://de.cord.example/', country: 'DE', current: false },
-            { name: { ru: 'Финляндия', en: 'Finland' }, url: 'https://fi.cord.example/', country: 'FI', current: false },
-            { name: { ru: 'Казахстан', en: 'Kazakhstan' }, url: 'https://kz.cord.example/', country: 'KZ', current: false },
+            {
+              name: { ru: 'Нидерланды', en: 'Netherlands' },
+              url: 'https://cord.nikg.tech/',
+              country: 'NL',
+              current: true,
+            },
+            {
+              name: { ru: 'Германия', en: 'Germany' },
+              url: 'https://de.cord.example/',
+              country: 'DE',
+              current: false,
+            },
+            {
+              name: { ru: 'Финляндия', en: 'Finland' },
+              url: 'https://fi.cord.example/',
+              country: 'FI',
+              current: false,
+            },
+            {
+              name: { ru: 'Казахстан', en: 'Kazakhstan' },
+              url: 'https://kz.cord.example/',
+              country: 'KZ',
+              current: false,
+            },
           ],
         },
-        pings: { 'https://cord.nikg.tech/': 38, 'https://de.cord.example/': 52, 'https://fi.cord.example/': 96, 'https://kz.cord.example/': 214 },
+        pings: {
+          'https://cord.nikg.tech/': 38,
+          'https://de.cord.example/': 52,
+          'https://fi.cord.example/': 96,
+          'https://kz.cord.example/': 214,
+        },
       });
       await page.goto(`file://${SHELL}/servers.html`);
       await page.waitForTimeout(500);
@@ -1380,7 +1533,9 @@ Object.assign(SINGLE, {
       });
       await page.goto(`file://${SHELL}/overlay.html`);
       // Окно прозрачное, под ним игра — здесь вместо игры тёмная картинка.
-      await page.addStyleTag({ content: 'html { background: linear-gradient(140deg, #3b4a2a, #1f2a3a 55%, #3a2a2a) !important; }' });
+      await page.addStyleTag({
+        content: 'html { background: linear-gradient(140deg, #3b4a2a, #1f2a3a 55%, #3a2a2a) !important; }',
+      });
       await page.waitForTimeout(300);
     },
   },
@@ -1414,7 +1569,9 @@ Object.assign(SINGLE, {
       const next = page.getByRole('button', { name: /^(Далее|Готово|Понятно)$/ }).first();
       await next.waitFor({ timeout: 15000 });
       await page.waitForTimeout(700);
-      const steps = mobile(width) ? ['tour-create', 'tour-join', 'tour-menu'] : ['tour-create', 'tour-join', 'tour-favorites', 'tour-settings', 'tour-help'];
+      const steps = mobile(width)
+        ? ['tour-create', 'tour-join', 'tour-menu']
+        : ['tour-create', 'tour-join', 'tour-favorites', 'tour-settings', 'tour-help'];
       for (const [i, id] of steps.entries()) {
         await shootAs(id, `Знакомство — шаг ${i + 1}`);
         if (i === steps.length - 1) break;
@@ -1458,7 +1615,10 @@ Object.assign(SINGLE, {
     context: { storage: { ...SEEN, 'cord:preferences:v1': JSON.stringify({ language: 'en' }) } },
     async open(page) {
       await page.goto(base);
-      await page.getByRole('button', { name: /New meeting/i }).first().waitFor({ timeout: 60000 });
+      await page
+        .getByRole('button', { name: /New meeting/i })
+        .first()
+        .waitFor({ timeout: 60000 });
       await page.waitForTimeout(600);
     },
   },
@@ -1483,7 +1643,10 @@ Object.assign(SINGLE, {
     async open(page, { context }) {
       await context.addInitScript(electronBridge);
       await home(page);
-      await page.getByRole('button', { name: /^Настройки$/ }).first().click();
+      await page
+        .getByRole('button', { name: /^Настройки$/ })
+        .first()
+        .click();
       await page.locator('.settings-nav__item').filter({ hasText: 'Windows' }).first().click();
       await page.waitForTimeout(800);
     },
@@ -1496,7 +1659,11 @@ Object.assign(SINGLE, {
     context: { storage: SEEN },
     async open(page) {
       await page.goto(new URL('/activity', base).href);
-      await page.getByRole('button', { name: /Войти/ }).first().waitFor({ timeout: 20000 }).catch(() => {});
+      await page
+        .getByRole('button', { name: /Войти/ })
+        .first()
+        .waitFor({ timeout: 20000 })
+        .catch(() => {});
       await page.waitForTimeout(800);
     },
   },
@@ -1504,17 +1671,44 @@ Object.assign(SINGLE, {
 
 /** Мост Electron с окном выбора источника (E01-B2): `capture.sources` отдаёт экраны и окна. */
 function electronCaptureBridge() {
-  const ids = { s1: 'screen:1:0', s2: 'screen:2:0', w1: 'window:101:0', w2: 'window:102:0', w3: 'window:103:0' };
+  const ids = {
+    s1: 'screen:1:0',
+    s2: 'screen:2:0',
+    w1: 'window:101:0',
+    w2: 'window:102:0',
+    w3: 'window:103:0',
+  };
   window.cordDesktop = {
     protocol: { major: 2, minor: 0 },
-    features: ['hotkeys', 'capture', 'capture.system-audio', 'overlay', 'notify', 'thumbar', 'badge', 'progress', 'attention', 'deeplink', 'servers', 'update', 'power', 'app.settings', 'tray', 'sleep', 'autostart'],
+    features: [
+      'hotkeys',
+      'capture',
+      'capture.system-audio',
+      'overlay',
+      'notify',
+      'thumbar',
+      'badge',
+      'progress',
+      'attention',
+      'deeplink',
+      'servers',
+      'update',
+      'power',
+      'app.settings',
+      'tray',
+      'sleep',
+      'autostart',
+    ],
     app: { version: '1.0.0', arch: 'x64' },
     bootstrap: { profile: '', theme: 'system', showPing: false, notificationSounds: true, autoConnect: true },
     send() {},
     invoke(method) {
       if (method === 'capture.sources') {
         const answer = window.__sources();
-        return Promise.resolve({ ...answer, sources: answer.sources.map((s) => ({ ...s, id: ids[s.id], icon: s.icon ?? '' })) });
+        return Promise.resolve({
+          ...answer,
+          sources: answer.sources.map((s) => ({ ...s, id: ids[s.id], icon: s.icon ?? '' })),
+        });
       }
       return Promise.resolve(null);
     },
@@ -1534,7 +1728,10 @@ Object.assign(SINGLE, {
       await context.addInitScript(thumbnails);
       await context.addInitScript(electronCaptureBridge);
       await home(page);
-      await page.getByRole('button', { name: /Новая встреча/ }).first().click();
+      await page
+        .getByRole('button', { name: /Новая встреча/ })
+        .first()
+        .click();
       await page.getByLabel('Ваше имя').waitFor();
       await page.getByRole('button', { name: 'Начать встречу' }).click();
       // Медиа через dev-сервер не поднимется — окну выбора оно и не нужно.
@@ -1542,12 +1739,25 @@ Object.assign(SINGLE, {
       await share.waitFor({ timeout: 30000 });
       await share.click();
       await page.locator('.capture-picker__grid').first().waitFor({ timeout: 10000 });
-      await page.locator('.capture-picker__grid button').first().click().catch(() => {});
+      await page
+        .locator('.capture-picker__grid button')
+        .first()
+        .click()
+        .catch(() => {});
       await page.waitForTimeout(600);
       await shootAs('capture-picker-screen', 'Выбор источника — экраны (E01-B2)');
-      await page.getByRole('tab').filter({ hasText: /Окн/ }).first().click().catch(() => {});
+      await page
+        .getByRole('tab')
+        .filter({ hasText: /Окн/ })
+        .first()
+        .click()
+        .catch(() => {});
       await page.waitForTimeout(500);
-      await page.locator('.capture-picker__grid button').nth(1).click().catch(() => {});
+      await page
+        .locator('.capture-picker__grid button')
+        .nth(1)
+        .click()
+        .catch(() => {});
       await page.waitForTimeout(400);
       await shootAs('capture-picker-window', 'Выбор источника — окна (E01-B2)');
     },
@@ -1921,16 +2131,23 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
     }
   };
   const group = (page, name) =>
-    page.locator('.services-panel .service-group').filter({ has: page.getByText(name, { exact: true }) }).first();
+    page
+      .locator('.services-panel .service-group')
+      .filter({ has: page.getByText(name, { exact: true }) })
+      .first();
 
   // --- Выбор площадки и музыка (T59, E06-B) ---
-  await run('music-picker', 'Музыка — «Выберите площадку» (T59)', 'ui/PlatformPicker.tsx, ui/Services.tsx', () =>
-    both(async (p) => {
-      await openPanel(p, 'Интеграции');
-      await group(p, 'Музыка').click();
-      await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
-      await p.waitForTimeout(500);
-    }),
+  await run(
+    'music-picker',
+    'Музыка — «Выберите площадку» (T59)',
+    'ui/PlatformPicker.tsx, ui/Services.tsx',
+    () =>
+      both(async (p) => {
+        await openPanel(p, 'Интеграции');
+        await group(p, 'Музыка').click();
+        await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
+        await p.waitForTimeout(500);
+      }),
   );
   await run('music-youtube', 'Музыка — YouTube', 'ui/Services.tsx (music), ui/integrations.css', () =>
     both(async (p) => {
@@ -1939,13 +2156,21 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       await p.waitForTimeout(600);
     }),
   );
-  await run('music-search', 'Музыка — найденные треки YouTube', 'ui/Services.tsx, services/cord_services/sources.py', () =>
-    both(async (p) => {
-      const field = p.locator('.services-panel input[type="search"], .services-panel input[type="text"], .services-panel input:not([type])').first();
-      await field.fill('lofi hip hop');
-      await field.press('Enter');
-      await p.waitForTimeout(6000);
-    }),
+  await run(
+    'music-search',
+    'Музыка — найденные треки YouTube',
+    'ui/Services.tsx, services/cord_services/sources.py',
+    () =>
+      both(async (p) => {
+        const field = p
+          .locator(
+            '.services-panel input[type="search"], .services-panel input[type="text"], .services-panel input:not([type])',
+          )
+          .first();
+        await field.fill('lofi hip hop');
+        await field.press('Enter');
+        await p.waitForTimeout(6000);
+      }),
   );
   await run('music-files', 'Музыка — «Свои файлы»', 'ui/MusicUpload.tsx', () =>
     both(async (p) => {
@@ -1960,16 +2185,26 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       await p.waitForTimeout(700);
     }),
   );
-  await run('cinema-picker', 'Кинозал — «Выберите площадку» (T59)', 'ui/PlatformPicker.tsx, ui/cinema/CinemaGroup.tsx', () =>
-    both(async (p) => {
-      const back = p.getByRole('button', { name: /Интеграции/ }).first();
-      await back.click().catch(() => {});
-      await p.waitForTimeout(600);
-      if (!(await p.locator('.services-panel').isVisible().catch(() => false))) await openPanel(p, 'Интеграции');
-      await group(p, 'Кинозал').click();
-      await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
-      await p.waitForTimeout(600);
-    }),
+  await run(
+    'cinema-picker',
+    'Кинозал — «Выберите площадку» (T59)',
+    'ui/PlatformPicker.tsx, ui/cinema/CinemaGroup.tsx',
+    () =>
+      both(async (p) => {
+        const back = p.getByRole('button', { name: /Интеграции/ }).first();
+        await back.click().catch(() => {});
+        await p.waitForTimeout(600);
+        if (
+          !(await p
+            .locator('.services-panel')
+            .isVisible()
+            .catch(() => false))
+        )
+          await openPanel(p, 'Интеграции');
+        await group(p, 'Кинозал').click();
+        await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
+        await p.waitForTimeout(600);
+      }),
   );
   for (const p of [D, M]) {
     await closeOverlays(p);
@@ -1977,18 +2212,28 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
   }
 
   // --- Чат: файл-программа и переход по ссылке (E11-B) ---
-  await run('chat-executable', 'Чат — файл может запустить программу (E11-B)', 'ui/abuse/Notices.tsx, ui/Sidebar.tsx', async () => {
-    await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
-    await D.locator('input[type=file][aria-label="Прикрепить файл"]').setInputFiles({
-      name: 'Установщик.exe',
-      mimeType: 'application/x-msdownload',
-      buffer: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(4096, 1)]),
-    });
-    await both((p) => p.getByText('Установщик.exe').first().waitFor({ timeout: 30000 }));
-    await D.waitForTimeout(1500);
-  });
+  await run(
+    'chat-executable',
+    'Чат — файл может запустить программу (E11-B)',
+    'ui/abuse/Notices.tsx, ui/Sidebar.tsx',
+    async () => {
+      await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
+      await D.locator('input[type=file][aria-label="Прикрепить файл"]').setInputFiles({
+        name: 'Установщик.exe',
+        mimeType: 'application/x-msdownload',
+        buffer: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(4096, 1)]),
+      });
+      await both((p) => p.getByText('Установщик.exe').first().waitFor({ timeout: 30000 }));
+      await D.waitForTimeout(1500);
+    },
+  );
   await run('chat-link-dialog', 'Чат — «Переход по ссылке» (E11-B)', 'ui/abuse/ChatText.tsx', async () => {
-    if (!(await D.locator('.composer__input').isVisible().catch(() => false))) await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
+    if (
+      !(await D.locator('.composer__input')
+        .isVisible()
+        .catch(() => false))
+    )
+      await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
     const input = D.locator('.composer__input').first();
     await input.fill('План на неделю: https://example.org/plan');
     await input.press('Enter');
@@ -2007,7 +2252,11 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
 
   // --- Телефон: «Свернуть в окно» (E12) ---
   if (needs('meeting-more-phone')) {
-    titles['meeting-more-phone'] = { group: 'E15-B', title: 'Телефон — меню пульта с «Свернуть в окно»', src: 'ui/CallDock.tsx, media/pip.ts' };
+    titles['meeting-more-phone'] = {
+      group: 'E15-B',
+      title: 'Телефон — меню пульта с «Свернуть в окно»',
+      src: 'ui/CallDock.tsx, media/pip.ts',
+    };
     await step('meeting-more-phone', async () => {
       await M.getByRole('button', { name: 'Настройки и действия' }).click();
       await M.getByRole('menuitem').first().waitFor({ timeout: 5000 });
@@ -2022,17 +2271,26 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
 
   // --- «Встреча завершится в …» (E11-B): endsAt вписан в ответ входа зрителя ---
   if (needs('meeting-ceiling')) {
-    titles['meeting-ceiling'] = { group: 'E15-B', title: 'Встреча — «Встреча завершится в …»', src: 'ui/abuse/Notices.tsx' };
+    titles['meeting-ceiling'] = {
+      group: 'E15-B',
+      title: 'Встреча — «Встреча завершится в …»',
+      src: 'ui/abuse/Notices.tsx',
+    };
     for (const [width, name] of [
       [1440, 'Борис'],
       [360, 'Аня'],
     ]) {
-      const ctx = await newContext(width, THEMES[0], { name, userAgent: width < 768 ? ANDROID : undefined, storage: { 'cord:background-note:android': '1' } });
+      const ctx = await newContext(width, THEMES[0], {
+        name,
+        userAgent: width < 768 ? ANDROID : undefined,
+        storage: { 'cord:background-note:android': '1' },
+      });
       // Снимки встречи приходят и каналом событий — в каждый вписывается тот же endsAt.
       let endsAt = null;
       const mark = (value) => {
         if (!value || typeof value !== 'object') return;
-        if ('serverTime' in value && 'participants' in value) value.endsAt = endsAt ?? (endsAt = value.serverTime + 14 * 60_000);
+        if ('serverTime' in value && 'participants' in value)
+          value.endsAt = endsAt ?? (endsAt = value.serverTime + 14 * 60_000);
         for (const v of Object.values(value)) mark(v);
       };
       await ctx.routeWebSocket(/\/api\/v1\/events/, (ws) => {
@@ -2076,7 +2334,8 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
     if (!needs(id)) continue;
     console.log(` шаг ${id}`);
     const ctx = await newContext(360, THEMES[0], { name: 'Лена', userAgent });
-    if (mode === 'standalone') await ctx.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
+    if (mode === 'standalone')
+      await ctx.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
     if (mode === 'nomic')
       await ctx.addInitScript(() => {
         const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -2099,12 +2358,23 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       const ctx = await newContext(360, theme, { name: 'Ника', userAgent: ANDROID });
       const page = await ctx.newPage();
       await step(`tg-meeting-${theme}`, async () => {
-        await openTelegram(page, ctx, theme, { roomId: 'x', title: 'Наша встреча', name: 'Ника Петрова', inviteUrl });
+        await openTelegram(page, ctx, theme, {
+          roomId: 'x',
+          title: 'Наша встреча',
+          name: 'Ника Петрова',
+          inviteUrl,
+        });
         await connected(page);
-        await page.locator('.background-note').waitFor({ timeout: 12000 }).catch(() => {});
+        await page
+          .locator('.background-note')
+          .waitFor({ timeout: 12000 })
+          .catch(() => {});
         await page.waitForTimeout(500);
         await shoot(page, 'tg-meeting-note', 360, theme);
-        await page.getByRole('button', { name: 'Скрыть подсказку' }).click().catch(() => {});
+        await page
+          .getByRole('button', { name: 'Скрыть подсказку' })
+          .click()
+          .catch(() => {});
         await page.waitForTimeout(500);
         await shoot(page, 'tg-meeting', 360, theme);
       });
@@ -2123,11 +2393,19 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
         await route.fulfill({ response, json: body });
       });
       await desk.route(/\/telegram\/link$/, (route) =>
-        json(route, { command: '/bind 482913', expiresAt: Date.now() + 600_000, startgroupUrl: 'https://t.me/cord_meet_bot?startgroup=482913' }),
+        json(route, {
+          command: '/bind 482913',
+          expiresAt: Date.now() + 600_000,
+          startgroupUrl: 'https://t.me/cord_meet_bot?startgroup=482913',
+        }),
       );
       await desk.route(/\/telegram$/, (route) =>
         route.request().method() === 'GET'
-          ? json(route, { links: [{ id: 'l1', chatTitle: 'Команда дизайна', since: Date.now() - 3 * 86_400_000, pinned: true }] })
+          ? json(route, {
+              links: [
+                { id: 'l1', chatTitle: 'Команда дизайна', since: Date.now() - 3 * 86_400_000, pinned: true },
+              ],
+            })
           : route.continue(),
       );
       await D.reload();

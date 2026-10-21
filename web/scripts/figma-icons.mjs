@@ -22,7 +22,13 @@ for (const name of NAMES) {
   }
   const items = Function(`return ${node}`)();
   const body = items
-    .map(([tag, attrs]) => `<${tag} ${Object.entries(attrs).filter(([k]) => k !== 'key').map(([k, v]) => `${k}="${v}"`).join(' ')}/>`)
+    .map(
+      ([tag, attrs]) =>
+        `<${tag} ${Object.entries(attrs)
+          .filter(([k]) => k !== 'key')
+          .map(([k, v]) => `${k}="${v}"`)
+          .join(' ')}/>`,
+    )
     .join('');
   writeFileSync(
     path.join(out, `${name}.svg`),

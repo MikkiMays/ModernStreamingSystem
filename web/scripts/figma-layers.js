@@ -12,11 +12,24 @@ const LIMIT = 40;
 const page = figma.root.children.find((p) => p.name === PAGE);
 await figma.setCurrentPageAsync(page);
 const tops = page.children.flatMap((n) => (n.type === 'SECTION' ? n.children : [n]));
-const isNew = (n) => n.type === 'FRAME' && (/-(light|dark)$/.test(n.name) || /^(card|section|page)-/.test(n.name) || n.name === 'cover');
+const isNew = (n) =>
+  n.type === 'FRAME' &&
+  (/-(light|dark)$/.test(n.name) || /^(card|section|page)-/.test(n.name) || n.name === 'cover');
 const frames = tops.filter(isNew).slice(0, LIMIT);
-const STYLES = ['Regular', 'Medium', 'Semi Bold', 'Bold', 'Italic', 'Medium Italic', 'Light', 'Extra Bold', 'Black'];
+const STYLES = [
+  'Regular',
+  'Medium',
+  'Semi Bold',
+  'Bold',
+  'Italic',
+  'Medium Italic',
+  'Light',
+  'Extra Bold',
+  'Black',
+];
 for (const s of STYLES) await figma.loadFontAsync({ family: 'Inter', style: s }).catch(() => {});
-for (const s of ['Regular', 'Medium', 'Bold']) await figma.loadFontAsync({ family: 'Roboto Mono', style: s }).catch(() => {});
+for (const s of ['Regular', 'Medium', 'Bold'])
+  await figma.loadFontAsync({ family: 'Roboto Mono', style: s }).catch(() => {});
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
 const cname = Object.fromEntries(cols.map((c) => [c.id, c.name]));
 const vars = await figma.variables.getLocalVariablesAsync('COLOR');
@@ -55,7 +68,11 @@ function bindPaints(paints, map) {
     if (!v) return p;
     n++;
     const alphaInVar = (resolve(v).a ?? 1) < 1;
-    const bound = figma.variables.setBoundVariableForPaint({ ...p, opacity: alphaInVar ? 1 : p.opacity ?? 1 }, 'color', v);
+    const bound = figma.variables.setBoundVariableForPaint(
+      { ...p, opacity: alphaInVar ? 1 : (p.opacity ?? 1) },
+      'color',
+      v,
+    );
     return bound;
   });
   return [out, n];
@@ -80,7 +97,17 @@ for (const frame of frames) {
       continue;
     }
     const family = texts[0].fontName.family === 'Roboto Mono' ? 'Roboto Mono' : 'Inter';
-    const fontName = { family, style: family === 'Inter' ? style : style.includes('Bold') ? 'Bold' : style.includes('Medium') ? 'Medium' : 'Regular' };
+    const fontName = {
+      family,
+      style:
+        family === 'Inter'
+          ? style
+          : style.includes('Bold')
+            ? 'Bold'
+            : style.includes('Medium')
+              ? 'Medium'
+              : 'Regular',
+    };
     const apply = (t) => {
       const before = { x: t.x, w: t.width };
       t.fontName = fontName;
@@ -124,7 +151,7 @@ for (const frame of frames) {
   // 2. Цвет
   for (const n of frame.findAll((x) => 'fills' in x || 'strokes' in x)) {
     // Прозрачность обводки пришла прозрачностью фигуры (см. dom-svg.mjs) — вернуть её в краску.
-    if (n.type === 'VECTOR' && n.opacity < 1 && !(n.fills?.length) && n.strokes?.length === 1) {
+    if (n.type === 'VECTOR' && n.opacity < 1 && !n.fills?.length && n.strokes?.length === 1) {
       n.strokes = [{ ...n.strokes[0], opacity: n.opacity }];
       n.opacity = 1;
     }

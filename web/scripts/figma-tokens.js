@@ -3,15 +3,48 @@
 // «Цвет · светлая» и «Цвет · тёмная» — смысловые (псевдонимы палитры, как в CSS; одна мода на коллекцию — предел Starter), «Размеры» и
 // «Движение» — числа. Синтаксис кода — имя CSS-переменной в var().
 const P = {
-  'ink/950': '0a0c11', 'ink/900': '111419', 'ink/800': '1a1f28', 'ink/700': '222834', 'ink/600': '2c3340',
-  'ink/500': '3a4250', 'ink/400': '525b6b', 'ink/300': '939daf', 'ink/200': 'b3bbc9', 'ink/100': 'd3d8e1',
-  'ink/50': 'eef0f4', white: 'ffffff', 'mist/50': 'f6f7fa', 'mist/100': 'eef0f5', 'mist/200': 'e1e4eb',
-  'mist/300': 'c6ccd6', 'slate/700': '4d5566', 'slate/600': '5f6878', 'slate/900': '1b1f27', 'blue/50': 'eaf0ff',
-  'blue/300': 'a8bbff', 'blue/400': '7d9bff', 'blue/500': '3564f3', 'blue/600': '2d59df', 'blue/650': '2b55d9',
-  'blue/700': '2347b8', 'blue/900': '1c2a4e', 'red/50': 'fdeeee', 'red/300': 'ff8a8f', 'red/500': 'd4323a',
-  'red/600': 'b8262e', 'red/700': 'c21f29', 'red/900': '4a1b1f', 'green/200': '8ff0b8', 'green/300': '4fd48a',
-  'green/400': '45d17f', 'green/450': '33a865', 'green/500': '2f9e5f', 'green/600': '2b7d4f', 'green/700': '176c3e',
-  'amber/300': 'f2c14e', 'amber/700': '9a6700',
+  'ink/950': '0a0c11',
+  'ink/900': '111419',
+  'ink/800': '1a1f28',
+  'ink/700': '222834',
+  'ink/600': '2c3340',
+  'ink/500': '3a4250',
+  'ink/400': '525b6b',
+  'ink/300': '939daf',
+  'ink/200': 'b3bbc9',
+  'ink/100': 'd3d8e1',
+  'ink/50': 'eef0f4',
+  white: 'ffffff',
+  'mist/50': 'f6f7fa',
+  'mist/100': 'eef0f5',
+  'mist/200': 'e1e4eb',
+  'mist/300': 'c6ccd6',
+  'slate/700': '4d5566',
+  'slate/600': '5f6878',
+  'slate/900': '1b1f27',
+  'blue/50': 'eaf0ff',
+  'blue/300': 'a8bbff',
+  'blue/400': '7d9bff',
+  'blue/500': '3564f3',
+  'blue/600': '2d59df',
+  'blue/650': '2b55d9',
+  'blue/700': '2347b8',
+  'blue/900': '1c2a4e',
+  'red/50': 'fdeeee',
+  'red/300': 'ff8a8f',
+  'red/500': 'd4323a',
+  'red/600': 'b8262e',
+  'red/700': 'c21f29',
+  'red/900': '4a1b1f',
+  'green/200': '8ff0b8',
+  'green/300': '4fd48a',
+  'green/400': '45d17f',
+  'green/450': '33a865',
+  'green/500': '2f9e5f',
+  'green/600': '2b7d4f',
+  'green/700': '176c3e',
+  'amber/300': 'f2c14e',
+  'amber/700': '9a6700',
 };
 const BG = ['FRAME_FILL', 'SHAPE_FILL'];
 const TX = ['TEXT_FILL'];
@@ -74,11 +107,41 @@ const C = [
   ['component/brand-accent', '--brand-accent', BG, 'accent/fill'],
 ];
 const N = [
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16].map((k) => [`space/${k}`, `--space-${k}`, ['GAP'], [4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 64][[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16].indexOf(k)]]),
-  ...[['1', 4], ['2', 8], ['3', 12], ['4', 16], ['5', 20], ['6', 28], ['full', 999]].map(([k, v]) => [`radius/${k}`, `--radius-${k}`, ['CORNER_RADIUS'], v]),
-  ...[['sm', 32], ['md', 36], ['lg', 40], ['touch', 48]].map(([k, v]) => [`control/${k}`, `--control-${k}`, ['WIDTH_HEIGHT'], v]),
-  ...[['xs', 12], ['sm', 13], ['base', 14], ['md', 16], ['lg', 20], ['xl', 24], ['2xl', 32]].map(([k, v]) => [`font-size/${k}`, `--text-${k}`, ['FONT_SIZE'], v]),
-  ...[['regular', 400], ['medium', 500], ['semibold', 600]].map(([k, v]) => [`font-weight/${k}`, `--weight-${k}`, ['FONT_WEIGHT'], v]),
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16].map((k) => [
+    `space/${k}`,
+    `--space-${k}`,
+    ['GAP'],
+    [4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 64][[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16].indexOf(k)],
+  ]),
+  ...[
+    ['1', 4],
+    ['2', 8],
+    ['3', 12],
+    ['4', 16],
+    ['5', 20],
+    ['6', 28],
+    ['full', 999],
+  ].map(([k, v]) => [`radius/${k}`, `--radius-${k}`, ['CORNER_RADIUS'], v]),
+  ...[
+    ['sm', 32],
+    ['md', 36],
+    ['lg', 40],
+    ['touch', 48],
+  ].map(([k, v]) => [`control/${k}`, `--control-${k}`, ['WIDTH_HEIGHT'], v]),
+  ...[
+    ['xs', 12],
+    ['sm', 13],
+    ['base', 14],
+    ['md', 16],
+    ['lg', 20],
+    ['xl', 24],
+    ['2xl', 32],
+  ].map(([k, v]) => [`font-size/${k}`, `--text-${k}`, ['FONT_SIZE'], v]),
+  ...[
+    ['regular', 400],
+    ['medium', 500],
+    ['semibold', 600],
+  ].map(([k, v]) => [`font-weight/${k}`, `--weight-${k}`, ['FONT_WEIGHT'], v]),
   ['tile/ring-width', '--tile-ring-width', ['STROKE_FLOAT'], 3],
   ['tile/radius', '--tile-radius', ['CORNER_RADIUS'], 16],
 ];
@@ -174,4 +237,9 @@ for (const [name, css, value] of E) {
   v.setVariableCodeSyntax('WEB', `var(${css})`);
 }
 const out = await figma.variables.getLocalVariableCollectionsAsync();
-return out.map((c) => ({ id: c.id, name: c.name, n: c.variableIds.length, modes: c.modes.map((m) => `${m.name}=${m.modeId}`) }));
+return out.map((c) => ({
+  id: c.id,
+  name: c.name,
+  n: c.variableIds.length,
+  modes: c.modes.map((m) => `${m.name}=${m.modeId}`),
+}));

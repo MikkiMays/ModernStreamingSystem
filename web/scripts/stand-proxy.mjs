@@ -20,7 +20,14 @@ const server = http.createServer((req, res) => {
   const headers = { ...req.headers, host: target.host, origin: target.origin };
   if (headers.referer) headers.referer = headers.referer.replace(/^https?:\/\/[^/]+/, target.origin);
   const upstream = https.request(
-    { host: target.hostname, port: 443, path: req.url, method: req.method, headers, servername: target.hostname },
+    {
+      host: target.hostname,
+      port: 443,
+      path: req.url,
+      method: req.method,
+      headers,
+      servername: target.hostname,
+    },
     (answer) => {
       res.writeHead(answer.statusCode ?? 502, answer.headers);
       answer.pipe(res);
@@ -37,7 +44,12 @@ const server = http.createServer((req, res) => {
 server.on('upgrade', (req, socket, head) => {
   const tlsSocket = tls.connect(443, target.hostname, { servername: target.hostname }, () => {
     const headers = { ...req.headers, host: target.host, origin: target.origin };
-    const lines = [`${req.method} ${req.url} HTTP/1.1`, ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`), '', ''];
+    const lines = [
+      `${req.method} ${req.url} HTTP/1.1`,
+      ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`),
+      '',
+      '',
+    ];
     tlsSocket.write(lines.join('\r\n'));
     if (head?.length) tlsSocket.write(head);
     tlsSocket.pipe(socket);

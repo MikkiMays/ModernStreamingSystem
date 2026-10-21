@@ -7,7 +7,15 @@ const page = figma.root.children.find((p) => p.name === PLAN.page);
 await figma.setCurrentPageAsync(page);
 await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
 await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' });
-const all = page.children.flatMap((n) => (n.type === 'SECTION' ? n.children.flatMap((c) => (c.name.startsWith('ряд · ') ? c.children.flatMap((k) => (k.type === 'FRAME' && k.name.startsWith('кадр · ') ? k.children : [k])) : [c])) : [n]));
+const all = page.children.flatMap((n) =>
+  n.type === 'SECTION'
+    ? n.children.flatMap((c) =>
+        c.name.startsWith('ряд · ')
+          ? c.children.flatMap((k) => (k.type === 'FRAME' && k.name.startsWith('кадр · ') ? k.children : [k]))
+          : [c],
+      )
+    : [n],
+);
 const byName = new Map();
 for (const n of all) byName.set(n.name, n);
 const GAP = 64;
@@ -41,9 +49,18 @@ for (const [i, s] of PLAN.sections.entries()) {
   let maxW = 1400;
   for (const id of s.states) {
     const frames = [...byName.values()]
-      .filter((n) => n.type === 'FRAME' && n.name.startsWith(`${id} · `) && /^\S+ · \d+ · (светлая|тёмная)$/.test(n.name))
+      .filter(
+        (n) =>
+          n.type === 'FRAME' &&
+          n.name.startsWith(`${id} · `) &&
+          /^\S+ · \d+ · (светлая|тёмная)$/.test(n.name),
+      )
       .filter((n) => n.name.split(' · ')[0] === id)
-      .sort((a, b) => Number(a.name.split(' · ')[1]) - Number(b.name.split(' · ')[1]) || (a.name.endsWith('светлая') ? -1 : 1));
+      .sort(
+        (a, b) =>
+          Number(a.name.split(' · ')[1]) - Number(b.name.split(' · ')[1]) ||
+          (a.name.endsWith('светлая') ? -1 : 1),
+      );
     const card = byName.get(`карточка · ${id}`);
     if (!frames.length && !card) continue;
     let row = section.children.find((n) => n.name === `ряд · ${id}`);
@@ -85,4 +102,10 @@ for (const [i, s] of PLAN.sections.entries()) {
 }
 const rows = page.findAll((n) => n.name.startsWith('ряд · ')).length;
 const shots = page.findAll((n) => n.type === 'FRAME' && /^\S+ · \d+ · (светлая|тёмная)$/.test(n.name)).length;
-return { sections: PLAN.sections.length, rows, frames: shots, created: created.length, height: Math.round(y) };
+return {
+  sections: PLAN.sections.length,
+  rows,
+  frames: shots,
+  created: created.length,
+  height: Math.round(y),
+};
