@@ -425,14 +425,15 @@ class Watch:
         page.on("crash", lambda _: self._crash())
         status: int | None = None
         failed = False
+        navigation = max(1.0, min(NAVIGATION, self._left() - FINISH))
         try:
-            response = await page.goto(
-                self.url,
-                wait_until="domcontentloaded",
-                timeout=self._ms(min(NAVIGATION, self._left() - FINISH)),
-            )
+            # Срок навигации — и у драйвера, и здесь: ответ драйвера о сроке идёт той же трубой, что и всё,
+            # что страница шлёт привязке, и страница, которая заваливает её сотнями мегабайт, задержала бы
+            # его за срок страницы. Брошенный ответ Playwright потом просто выбрасывает.
+            async with asyncio.timeout(navigation):
+                response = await page.goto(self.url, wait_until="domcontentloaded", timeout=navigation * 1000)
             status = response.status if response is not None else None
-        except PlaywrightError:
+        except (PlaywrightError, TimeoutError):
             # Текст ошибки не пишется: в нём адрес страницы, а в адресе бывают ключи.
             failed = True
         await self._wait(min(self.deadline - FINISH, time.monotonic() + self.look))
@@ -594,10 +595,6 @@ class Watch:
 
     def _left(self) -> float:
         return self.deadline - time.monotonic()
-
-    @staticmethod
-    def _ms(seconds: float) -> float:
-        return max(1.0, seconds) * 1000
 
     async def _wait(self, until: float) -> None:
         """
