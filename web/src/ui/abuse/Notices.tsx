@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShieldAlert, TimerOff } from 'lucide-react';
+import { Clapperboard, ShieldAlert, TimerOff } from 'lucide-react';
 import type { Attachment, Snapshot } from '../../api/types';
 import { locale } from '../../i18n';
 import './notices.css';
 
-/* Предупреждения антибота во встрече (E11-B). Тексты — в каталоге: `meeting.ceiling`, `chat.executable`. */
+/* Предупреждения антибота во встрече (E11-B). Тексты — в каталоге: `meeting.ceiling`, `meeting.cinema*`, `chat.executable`. */
 
 /** Когда встреча завершится по потолку длительности, или `null`, пока ядро об этом не сказало. */
 export function readEndsAt(snapshot: Snapshot): number | null {
@@ -36,6 +36,28 @@ export function MeetingEnds({ snapshot }: { snapshot: Snapshot }) {
     <p className="abuse-notice" role="status">
       <TimerOff size={14} aria-hidden="true" />
       {t(($) => $.meeting.ceiling, { time })}
+    </p>
+  );
+}
+
+/** Какую долю потолка трафика кинозала встреча выбрала (`Snapshot.cinemaTraffic`, %), или `null`. */
+export function readCinemaTraffic(snapshot: Snapshot): number | null {
+  const value = (snapshot as Snapshot & { cinemaTraffic?: number | null }).cinemaTraffic;
+  return typeof value === 'number' ? value : null;
+}
+
+/**
+ * Плашка о трафике кинозала (A8 модели угроз): служба кинозала сообщает ядру порог предупреждения
+ * (`CINEMA_TRAFFIC_WARN_AT`, 80 %) и сам потолок; на потолке кино в этой встрече остановлено до её конца.
+ */
+export function CinemaTraffic({ snapshot }: { snapshot: Snapshot }) {
+  const { t } = useTranslation();
+  const percent = readCinemaTraffic(snapshot);
+  if (percent === null) return null;
+  return (
+    <p className="abuse-notice" role="status">
+      <Clapperboard size={14} aria-hidden="true" />
+      {percent >= 100 ? t(($) => $.meeting.cinemaStopped) : t(($) => $.meeting.cinemaTraffic, { percent })}
     </p>
   );
 }

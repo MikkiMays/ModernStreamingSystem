@@ -58,6 +58,12 @@ def routes(cinema: Cinema, core, traffic: Traffic | None = None) -> APIRouter:
     # Прокси — не бесплатный канал (A8): адреса под встречей живут, пока она смотрит кино, а байты
     # считаются на встречу и на сервер за сутки (`guard.py`).
     traffic = traffic or Traffic.from_env()
+    if traffic.notify is None:
+        # Порог и потолок встречи — ядру, а оно покажет плашку всем во встрече (A8).
+        async def tell(room: str, percent: int) -> None:
+            await core.request("POST", f"/internal/services/{room}/cinema-traffic", {"percent": percent})
+
+        traffic.notify = tell
     watching = Watching(core)
 
     @router.get("/api/v1/services/rooms/{room_id}/cinema/providers")

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Awaitable, Callable
 
 from fastapi import HTTPException
@@ -21,6 +22,25 @@ log = logging.getLogger(__name__)
 INTERVAL = 20
 # Отказ Telegram (чат не найден, бот не в чате) повторять каждые 20 секунд бессмысленно.
 BACKOFF = 300
+
+
+# Кнопки под обращением в Telegram владельца: статус, которым он ведёт обращение, — тот же, что на
+# «Активности» (`/internal/support/{id}/status`, ядро меняет его, только если кнопку нажали в чате
+# поддержки). `callback_data` — `support:<номер>:<статус>`, не больше 64 байт у Telegram.
+STATUSES = {"open": ("В работу", "в работе"), "done": ("Решено", "решено")}
+CALLBACK = re.compile(r"support:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(open|done)")
+
+
+def keyboard(ticket: str, status: str = "new") -> dict:
+    """Кнопки статуса; выбранный отмечен «✓», другой остаётся кнопкой (можно вернуть)."""
+    row = [
+        {
+            "text": ("✓ " if status == key else "") + label,
+            "callback_data": f"support:{ticket}:{key}",
+        }
+        for key, (label, _) in STATUSES.items()
+    ]
+    return {"inline_keyboard": [row]}
 
 
 class SupportRelay:
@@ -39,6 +59,7 @@ class SupportRelay:
                     "chat_id": ticket["chat"],
                     "text": ticket["text"],
                     "disable_web_page_preview": True,
+                    "reply_markup": keyboard(ticket["id"]),
                 },
             )
             await self.core.request("POST", f"/internal/support/{ticket['id']}/sent")

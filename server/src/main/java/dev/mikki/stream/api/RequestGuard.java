@@ -1,5 +1,6 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.InternalKeys;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
 import dev.mikki.stream.config.StreamProperties;
@@ -53,8 +54,12 @@ public class RequestGuard extends OncePerRequestFilter {
       response.sendError(403);
       return;
     }
+    // Внутренние пути — шлюзу (его заголовок — сам секрет: Caddy ключей не выводит) и нашим службам
+    // (их заголовок — ключ службы, A14).
     if (request.getRequestURI().startsWith("/internal/")
-        && !Secrets.equal(request.getHeader("X-Internal-Secret"), config.internalSecret())) {
+        && !Secrets.equal(request.getHeader("X-Internal-Secret"), config.internalSecret())
+        && !InternalKeys.isService(
+            request.getHeader("X-Service-Secret"), config.internalSecret())) {
       response.sendError(403);
       return;
     }
@@ -114,9 +119,9 @@ public class RequestGuard extends OncePerRequestFilter {
    *
    * <p>The bots are the one caller that never performs it. They cannot be recognised by {@code
    * X-Internal-Secret}: the gateway stamps that on every browser request it forwards, so it says
-   * "arrived through the front door", not "is one of ours". A second header carrying the same
-   * secret does say that — the gateway never sets it, and a caller who could guess it would already
-   * hold everything the gate protects.
+   * "arrived through the front door", not "is one of ours". A second header does say that — the
+   * gateway never sets it (and strips it from browsers). Its value is the service key derived from
+   * the internal secret ({@link InternalKeys}, A14), so the secret itself never travels in it.
    */
   private boolean closed(HttpServletRequest request) {
     var uri = request.getRequestURI();
@@ -126,7 +131,7 @@ public class RequestGuard extends OncePerRequestFilter {
         // Страница владельца — за своим паролем (`AdminAccess`), сильнее пароля входа: владельцу не
         // нужно знать ещё и пароль для гостей, чтобы закрыть встречу или снять блок.
         && !uri.startsWith("/api/v1/admin/")
-        && !Secrets.equal(request.getHeader("X-Service-Secret"), config.internalSecret())
+        && !InternalKeys.isService(request.getHeader("X-Service-Secret"), config.internalSecret())
         && !access.valid(request.getHeader("X-Cord-Session"));
   }
 }

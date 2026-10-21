@@ -574,6 +574,9 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class);
     var guest = guest(host);
     command(guest, "leave", null, 0);
+    // Ожидающие допуска мест не занимают (A5): места заполняют вошедшие без допуска.
+    rooms.roomSettings(
+        host.roomId(), host.credential(), new RoomSettings("С подтверждением", false));
     for (int i = 1; i < config.maxParticipants(); i++) guest(host);
     assertThatThrownBy(
             () ->

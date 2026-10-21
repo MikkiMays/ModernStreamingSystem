@@ -1,5 +1,6 @@
 package dev.mikki.stream.api;
 
+import dev.mikki.stream.access.InternalKeys;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.config.StreamProperties;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,9 +20,10 @@ import org.springframework.stereotype.Component;
  * Считай пределы по полному адресу — одна квартира получила бы бесконечно много «разных» людей.
  *
  * <p>Бот Telegram ходит в ядро со своего адреса 127.0.0.1, и все его пользователи попадали в одну
- * корзину (A11). Поэтому служба, доказавшая себя {@code X-Service-Secret}, называет, от чьего имени
- * действует, — заголовком {@code X-Cord-Actor} ({@code tg:<HMAC номера>}), и пределы считаются по
- * нему. Без верного секрета этот заголовок ничего не значит.
+ * корзину (A11). Поэтому служба, доказавшая себя {@code X-Service-Secret} (ключ службы, {@link
+ * InternalKeys}), называет, от чьего имени действует, — заголовком {@code X-Cord-Actor} ({@code
+ * tg:<HMAC номера>}), и пределы считаются по нему. Без верного ключа этот заголовок ничего не
+ * значит.
  */
 @Component
 public class ClientAddress {
@@ -49,7 +51,7 @@ public class ClientAddress {
     var actor = header.apply(ACTOR);
     if (actor != null
         && ACTOR_VALUE.matcher(actor).matches()
-        && Secrets.equal(header.apply("X-Service-Secret"), config.internalSecret()))
+        && InternalKeys.isService(header.apply("X-Service-Secret"), config.internalSecret()))
       return "actor:" + actor;
     String forwarded = header.apply("X-Real-IP");
     return network(
@@ -70,7 +72,7 @@ public class ClientAddress {
 
   /** Пришёл ли запрос от нашей службы (бот, музыка): у неё свои пределы по актору. */
   public boolean service(HttpServletRequest request) {
-    return Secrets.equal(request.getHeader("X-Service-Secret"), config.internalSecret());
+    return InternalKeys.isService(request.getHeader("X-Service-Secret"), config.internalSecret());
   }
 
   /**

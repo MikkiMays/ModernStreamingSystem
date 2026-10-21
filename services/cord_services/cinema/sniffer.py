@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import hmac
 import json
 import logging
 import re
@@ -34,6 +33,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from .. import keys
 from . import address
 from .transport.signer import SIGNATURE_TTL
 
@@ -71,10 +71,11 @@ HOST = re.compile(r"[a-z0-9.\-:\[\]]{1,253}")
 
 def key_for(secret: str) -> str:
     """
-    Ключ входа службы в плеер страниц: HMAC-SHA256 от секрета установки с меткой назначения. Та же формула
-    у контейнера (`services/sniffer/sniffer/entry.py`): сам секрет туда не попадает, только этот ключ.
+    Ключ входа службы в плеер страниц: ключ назначения `sniffer` из секрета установки (HKDF, `keys.py`, A14).
+    Та же формула у контейнера (`services/sniffer/sniffer/entry.py`): сам секрет туда не попадает, только
+    этот ключ.
     """
-    return hmac.new(secret.encode(), b"cord-cinema-sniffer", hashlib.sha256).hexdigest()
+    return keys.derive(secret, keys.SNIFFER).hex()
 
 
 def _safe(value: Any, limit: int) -> str:

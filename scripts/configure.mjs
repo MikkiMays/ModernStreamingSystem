@@ -8,6 +8,7 @@ import {
   TURN_CERT,
   TURN_KEY,
 } from "./edge-config.mjs";
+import { peerRules } from "./turn-guard.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")),
@@ -217,6 +218,10 @@ const livekit = {
     // unconditionally, so it may only hold its own certificate in the other modes.
     ...(topology.externalTls ? {} : { cert_file: TURN_CERT, key_file: TURN_KEY }),
     per_user_relay_allocation_limit: 12,
+    // Relay — только к SFU этой машины, не в интернет (A12, `turn-guard.mjs`): иначе учётка TURN любого
+    // вошедшего пересылала бы UDP куда угодно с адреса сервера. Проверка живым LiveKit —
+    // `scripts/turn-relay-check.sh`.
+    ...peerRules(ip),
   },
   webhook: {
     api_key: key,

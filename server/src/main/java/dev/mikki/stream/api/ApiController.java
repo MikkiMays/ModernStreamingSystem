@@ -267,9 +267,10 @@ public class ApiController {
   public Contracts.Ack command(
       @PathVariable UUID id,
       @RequestHeader("Authorization") String credential,
-      @Valid @RequestBody Contracts.Command command) {
+      @Valid @RequestBody Contracts.Command command,
+      HttpServletRequest http) {
     limits.command(credential, command.type());
-    return commands.execute(id.toString(), credential, command);
+    return commands.execute(id.toString(), credential, command, address.entrant(http));
   }
 
   /**

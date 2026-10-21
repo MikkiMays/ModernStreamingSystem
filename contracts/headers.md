@@ -43,12 +43,19 @@
 
 | | |
 | --- | --- |
-| Значение | `tg:<32 hex>` — HMAC номера пользователя Telegram секретом службы |
+| Значение | `tg:<32 hex>` — HMAC номера пользователя Telegram ключом актора (`actor`, HKDF из `INTERNAL_SECRET`, A14) |
 | Куда | запросы бота, сделанные по команде пользователя: создание встречи, открытие её из избранного |
 | Когда ядро ему верит | только вместе с верным `X-Service-Secret`; иначе заголовок ничего не значит |
 | Что делает | пределы на адрес (`stream.abuse.per-ip.*`) считаются по нему, а не по 127.0.0.1 службы |
 
 Шлюз срезает `X-Service-Secret` и `X-Cord-Actor` у запросов снаружи (`infra/Caddyfile`, `/api/v1/*`).
+
+## `X-Service-Secret` и `X-Internal-Secret` — свои (A14)
+
+| | |
+| --- | --- |
+| `X-Service-Secret` | ставит служба (бот, музыка, кинозал): ключ `service` — HKDF-SHA256 от `INTERNAL_SECRET`, соль `cord-internal-secret`, base64url без `=` (`server/.../access/InternalKeys.java`, `services/cord_services/keys.py`). Открывает `/internal/`, проходит пароль сервера, делает `X-Cord-Actor` правдой. Сам секрет в этом заголовке — `403` на `/internal/` и не служба |
+| `X-Internal-Secret` | ставит только шлюз — сам `INTERNAL_SECRET` (Caddy ключей не выводит): «пришло через нашу дверь», открывает `/internal/` и `X-Real-IP`, но не пароль сервера и не актора. Службы его не шлют |
 
 ## Ответы
 

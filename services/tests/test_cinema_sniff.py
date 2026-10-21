@@ -548,7 +548,7 @@ class Parts(SniffCase):
         # Тот же образец, что у контейнера (`services/sniffer/tests/test_capture.py`).
         self.assertEqual(
             key_for("local-development-internal-secret-32bytes"),
-            "de15ca6b425f4cfddf100152f4835ca2de15a2fb6278e7a779a0ba4c98842f05",
+            "64c7335b9f98d139169be2c3a4bdc43aa6377edfe614b1a9913624ea41ef17e8",
         )
 
     def test_a_cookie_goes_only_to_the_host_the_browser_sent_it_to(self):

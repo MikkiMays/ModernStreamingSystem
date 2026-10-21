@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, relative, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { permits } from './turn-guard.mjs';
 
 test('configuration keeps media internal, shares external 443, and cannot overwrite secrets', async () => {
   const root = resolve(tmpdir());
@@ -29,6 +30,10 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
     assert.equal(sfu.rtc.udp_port, 7882);
     // Двадцать людей ядра и четыре места ботам и переходным сессиям (T06).
     assert.equal(sfu.room.max_participants, 24);
+    // TURN — не открытый relay (A12): к SFU этой машины можно, в интернет и внутрь — нет.
+    assert.equal(permits(sfu.turn, '192.0.2.1'), true);
+    for (const peer of ['8.8.8.8', '192.0.2.2', '127.0.0.1', '10.0.0.1', '169.254.169.254', '100.64.0.1'])
+      assert.equal(permits(sfu.turn, peer), false, peer);
     assert.deepEqual(edge.apps.layer4.servers.main.listen, [':443']);
     assert.equal(edge.apps.layer4.servers.main.routes[1].handle[1].proxy_protocol, 'v2');
     assert.match(env, /SESSION_SECRET=[a-f0-9]{64}/);

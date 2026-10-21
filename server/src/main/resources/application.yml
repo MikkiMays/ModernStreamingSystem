@@ -112,6 +112,9 @@ stream:
     # Кино и музыка гаснут, если столько времени ни один человек не на связи: места заняты, а
     # смотреть и слушать некому.
     idle-integrations: ${MEETING_IDLE_INTEGRATIONS:10 minutes}
+    # Сколько человек ждут допуска у двери (A5). Ожидающие мест не занимают: заявки не держат
+    # встречу полной, а ведущий впускает, только пока есть место.
+    waiting: ${MEETING_WAITING:10}
   chat:
     # Сколько сообщений держит комната. Сверх этого уходят старейшие — кольцо, а не отказ всем.
     room-history: ${CHAT_ROOM_HISTORY:1000}
@@ -158,6 +161,10 @@ stream:
       # Сколько байт загружает один адрес за срок (`2GB per 1 day`, `off`). Выше пятой части
       # `total-max-bytes` не бывает: один адрес не займёт место всего сервера (A10).
       uploads: ${ABUSE_IP_UPLOADS:2GB per 1 day}
+      # Заявки с адреса у двери одной встречи (A5): десяток вкладок не забьёт очередь допуска.
+      waiting-per-room: ${ABUSE_IP_WAITING_PER_ROOM:2}
+      # Сообщения чата со всех участников адреса вместе (A6). Щедрее предела участника — за NAT офис.
+      chat-messages: ${ABUSE_IP_CHAT_MESSAGES:60 per minute}
     per-profile:
       rooms-created: ${ABUSE_PROFILE_ROOMS_CREATED:6 per hour}
       open-rooms: ${ABUSE_PROFILE_OPEN_ROOMS:2}

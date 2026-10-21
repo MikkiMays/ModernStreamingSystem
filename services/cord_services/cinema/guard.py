@@ -10,13 +10,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 import re
 import time
 import uuid
 from collections import defaultdict
 from html import escape, unescape
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 from urllib.parse import parse_qs, urlencode
 
 from fastapi import HTTPException, Response
@@ -82,19 +84,31 @@ class Traffic:
     начинается заново — это щедрость, а не дыра: перезапуск не в руках зрителя.
     """
 
+    # Отказ сверх потолка напоминает ядру не чаще этого (с): ядро могло перезапуститься, встречу — открыть
+    # заново, а служба помнит прежнее «уже сказала».
+    RETELL = 300
+
     def __init__(
         self,
         per_meeting: int,
         per_day: int,
         warn_at: float = 0.8,
         today: Callable[[], int] = lambda: int(time.time() // 86400),
+        clock: Callable[[], float] = time.monotonic,
     ):
         self.per_meeting = per_meeting
         self.per_day = per_day
         self.warn_at = warn_at
         self.today = today
+        self.clock = clock
         self._rooms: dict[str, int] = defaultdict(int)
         self._day: tuple[int, int] = (today(), 0)
+        # Кому сказать, что встреча дошла до порога или потолка (A8): `notify(встреча, проценты)` —
+        # маршруты кинозала ставят сюда запрос к ядру, и встреча видит плашку. Что уже сказано —
+        # `_told`: встреча → (проценты, когда).
+        self.notify: Callable[[str, int], Awaitable[Any]] | None = None
+        self._told: dict[str, tuple[int, float]] = {}
+        self._telling: set[asyncio.Task] = set()
 
     @classmethod
     def from_env(cls) -> Traffic:
@@ -110,6 +124,9 @@ class Traffic:
 
     def admit(self, room: str) -> None:
         if room and self._rooms[room] >= self.per_meeting:
+            told = self._told.get(room)
+            if told is None or self.clock() - told[1] >= self.RETELL:
+                self._tell(room, 100)
             raise HTTPException(429, "Встреча выбрала потолок трафика кинозала. Кино остановлено до её конца")
         if self._spent_today() >= self.per_day:
             raise HTTPException(429, "Кинозал на сегодня выбрал трафик сервера. Попробуйте завтра")
@@ -123,7 +140,38 @@ class Traffic:
                 # Самые скромные встречи забываются первыми: потолок защищает от тяжёлых.
                 for key in sorted(self._rooms, key=self._rooms.get)[:1024]:
                     del self._rooms[key]
+                    self._told.pop(key, None)
+            level = self._level(room)
+            if level and level > self._told.get(room, (0, 0.0))[0]:
+                self._tell(room, level)
         self._day = (self.today(), self._spent_today() + amount)
+
+    def _level(self, room: str) -> int:
+        """Сколько процентов потолка встречи пора сказать: 100, порог `warn_at` или 0 — ещё рано."""
+        used = self._rooms.get(room, 0)
+        if used >= self.per_meeting:
+            return 100
+        return round(self.warn_at * 100) if used >= self.per_meeting * self.warn_at else 0
+
+    def _tell(self, room: str, level: int) -> None:
+        """Сказать ядру о доле потолка — в фоне: зритель не ждёт ядра, отказ ядра кино не ломает."""
+        if self.notify is None:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        self._told[room] = (level, self.clock())
+        task = loop.create_task(self._send(room, level))
+        self._telling.add(task)
+        task.add_done_callback(self._telling.discard)
+
+    async def _send(self, room: str, level: int) -> None:
+        try:
+            await self.notify(room, level)
+        except Exception:
+            # Не сказали — скажем при следующем отказе сверх потолка (`RETELL`); кино от этого не зависит.
+            logging.getLogger(__name__).warning("кинозал: ядро не узнало о трафике встречи")
 
     def used(self, room: str) -> int:
         return self._rooms.get(room, 0)

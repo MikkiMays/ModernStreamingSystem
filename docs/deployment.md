@@ -222,8 +222,8 @@ Desktop и Web — как браузер. Демонстрации экрана 
    `GET /isolation` (200 — изолирован, 503 — нет; `walled` — метка, `reached` — дотянулся).
 
 Наружу браузер ходит только через охраняемый выход внутри контейнера (публичные адреса, проверка на
-соединении). Служба ходит к плееру страниц на `127.0.0.1:18103`; ключ входа — HMAC от `INTERNAL_SECRET`,
-самого секрета в контейнере нет (производный ключ в нём есть и читается его процессами). У стенда
+соединении). Служба ходит к плееру страниц на `127.0.0.1:18103`; ключ входа — ключ назначения `sniffer` из
+`INTERNAL_SECRET` (HKDF, A14 — ниже, «Антибот и пределы»), самого секрета в контейнере нет (производный ключ в нём есть и читается его процессами). У стенда
 разработчика (`web/.local/stack.sh up --services`) плеер страниц — на `127.0.0.1:18113` и в подсети
 `10.231.1.0/24`, чтобы не спорить с продом.
 
@@ -271,9 +271,10 @@ docker network inspect modern-streaming_sniffer -f '{{(index .IPAM.Config 0).Sub
 curl -s http://127.0.0.1:18103/isolation                 # 200 {"isolated": true, ...}
 curl -s http://127.0.0.1:18103/health                    # {"status": "UP", "isolated": true}
 curl -s http://127.0.0.1:18100/health                    # служба
-# Одна страница через сам плеер страниц. Ключ — HMAC от INTERNAL_SECRET; секрет читается из .env внутри
-# python и в командную строку не попадает (у curl в ней — только производный ключ, открывающий один /sniff):
-KEY=$(python3 -c "import hmac,hashlib;s=[l.split('=',1)[1].strip() for l in open('.env') if l.startswith('INTERNAL_SECRET=')][-1];print(hmac.new(s.encode(),b'cord-cinema-sniffer',hashlib.sha256).hexdigest())")
+# Одна страница через сам плеер страниц. Ключ — HKDF от INTERNAL_SECRET (назначение `sniffer`); секрет читается
+# из .env внутри python и в командную строку не попадает (у curl в ней — только производный ключ, открывающий
+# один /sniff):
+KEY=$(python3 -c "import hmac,hashlib;s=[l.split('=',1)[1].strip() for l in open('.env') if l.startswith('INTERNAL_SECRET=')][-1];p=hmac.new(b'cord-internal-secret',s.encode(),hashlib.sha256).digest();print(hmac.new(p,b'sniffer\x01',hashlib.sha256).hexdigest())")
 curl -s -X POST http://127.0.0.1:18103/sniff -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   -d '{"url": "https://www.w3.org/2010/05/video/mediaevents.html", "room": "rollout"}'   # streams: file trailer.mp4
 docker compose logs --tail 20 sniffer                    # строка «плеер страниц: www.w3.org — потоки file, …»
@@ -337,6 +338,9 @@ curl --fail https://meet.example.org/api/v1/capabilities
 | `stream.abuse.per-profile.rooms-created` | `ABUSE_PROFILE_ROOMS_CREATED` | `6 per hour` | новых встреч с профиля устройства |
 | `stream.abuse.per-profile.open-rooms` | `ABUSE_PROFILE_OPEN_ROOMS` | `2` | встреч профиля, занимающих место |
 | `stream.abuse.per-member.chat-messages` | `ABUSE_MEMBER_CHAT_MESSAGES` | `20 per minute` | сообщений участника |
+| `stream.abuse.per-ip.chat-messages` | `ABUSE_IP_CHAT_MESSAGES` | `60 per minute` | сообщений со всех участников адреса вместе (A6, `429 CHAT_RATE_IP`): вкладки одного скрипта не пишут вдесятеро больше человека |
+| `stream.abuse.per-ip.waiting-per-room` | `ABUSE_IP_WAITING_PER_ROOM` | `2` | заявок с адреса в зале ожидания одной встречи (A5, `429 WAITING_LIMIT`) |
+| `stream.meeting.waiting` | `MEETING_WAITING` | `10` | сколько человек ждут допуска; ожидающие мест не занимают, ведущий впускает, только пока есть место (A5, `409 WAITING_FULL`) |
 | `stream.abuse.per-member.chat-repeat` | `ABUSE_MEMBER_CHAT_REPEAT` | `30 seconds` | то же сообщение подряд — не чаще |
 | `stream.abuse.per-member.sockets` | `ABUSE_MEMBER_SOCKETS` | `3` | сокетов участника; лишний закрывает старый |
 | `stream.abuse.server.code-misses` | `ABUSE_SERVER_CODE_MISSES` | `300 per minute` | промахов кодом по серверу; выше — «щит»: вход по коду через допуск ведущего, задача «не бот» дороже ×8 |
@@ -365,13 +369,28 @@ curl --fail https://meet.example.org/api/v1/capabilities
 | `CINEMA_LINK_TTL` | `1 hour` | сколько живёт подписанный адрес прокси кинозала (было пять часов) |
 | `CINEMA_TRAFFIC_PER_MEETING` | `100GB` | байтов к зрителям на встречу; сверх — кино в ней останавливается до конца встречи |
 | `CINEMA_TRAFFIC_PER_DAY` | `500GB` | байтов прокси на сервер за сутки (UTC) |
-| `CINEMA_TRAFFIC_WARN_AT` | `80%` | доля потолка встречи, после которой она считается «на пределе» |
+| `CINEMA_TRAFFIC_WARN_AT` | `80%` | доля потолка встречи, на которой всем во встрече приходит плашка «Кинозал выбрал 80 % трафика» (A8); на потолке — «кино остановлено до конца встречи» |
+| `CINEMA_LINK_HOSTS_DENY` | пусто | сайты через запятую, ссылки с которых «По ссылке» не открывает (A9): рычаг владельца после жалобы правообладателя или хостера; закрывает и поддомены, отказ — до yt-dlp. Правка — `docker compose up -d --no-deps services` |
 | `TELEGRAM_MEETINGS_PER_USER` | `3` | новых встреч от пользователя бота в час; `/new` в личке при идущей встрече отвечает ею |
 | `TELEGRAM_COMMANDS_PER_CHAT` | `20` | команд в минуту в одном чате; лишние — без ответа |
 
 Служба не стартует без `INTERNAL_SECRET` длиной от 32 символов. Шлюз передаёт ядру адрес клиента и для
 сигналинга (`X-Real-IP` в `forward_auth`) и срезает у запросов снаружи `X-Service-Secret` и
-`X-Cord-Actor`. Числа по умолчанию — для машины на 6 vCPU; правьте их под тариф канала и метрики
+`X-Cord-Actor`.
+
+**Ключи из `INTERNAL_SECRET` (A14).** Сам секрет по сети ходит только от шлюза: Caddy ставит его в
+`X-Internal-Secret` (выводить ключи Caddy не умеет). Всё остальное — свои ключи HKDF-SHA256 (соль
+`cord-internal-secret`, назначение — `info`, 32 байта): `service` — заголовок `X-Service-Secret` службы к
+ядру (base64url), `actor` — HMAC номера пользователя бота в `X-Cord-Actor`, `cinema-sign` — подписи адресов
+прокси кинозала и номера ссылок «По ссылке», `sniffer` — вход службы в плеер страниц, `fernet` — сейф входов
+(Яндекс Музыка; записи, сохранённые прежним ключом, читаются и дальше). Новой переменной нет: смена
+`INTERNAL_SECRET` меняет все ключи разом. Выкатывать ядро и службы вместе — служба со старым образом ядра
+(или наоборот) не узнает себя: `/internal/` ответит 403, бот и музыка остановятся до выкатки второго.
+
+**TURN — не открытый relay (A12).** `scripts/configure.mjs` пишет в `turn` LiveKit `deny_peer_cidrs`: всё
+IPv4, кроме адреса узла (`--ip`), и весь IPv6 — relay ведёт только к SFU этой машины. Проверка настоящим
+LiveKit — `bash scripts/turn-relay-check.sh` (одноразовый контейнер в изолированной сети, шаг CI); на
+работающем сервере правила появятся после `node scripts/configure.mjs --refresh` и перезапуска `livekit`. Числа по умолчанию — для машины на 6 vCPU; правьте их под тариф канала и метрики
 страницы «Активность». Счётчики пределов ядра — в Redis (без него — в памяти процесса), кинозала — в
 памяти службы: перезапуск обнуляет их, это щедрость, а не дыра.
 

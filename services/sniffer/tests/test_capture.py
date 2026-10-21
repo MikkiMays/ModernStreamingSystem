@@ -262,10 +262,10 @@ class WhatThePageAsks(unittest.TestCase):
 
 
 class Key(unittest.TestCase):
-    # Тот же образец, что у службы (`services/tests/test_cinema_sniff.py`): ключ одной формулы с обеих сторон.
+    # Тот же образец, что у службы (`services/tests/test_keys.py`): одна формула HKDF (A14) у обеих сторон.
     SAMPLE = (
         "local-development-internal-secret-32bytes",
-        "de15ca6b425f4cfddf100152f4835ca2de15a2fb6278e7a779a0ba4c98842f05",
+        "64c7335b9f98d139169be2c3a4bdc43aa6377edfe614b1a9913624ea41ef17e8",
     )
 
     def test_the_key_is_the_one_the_service_computes(self):

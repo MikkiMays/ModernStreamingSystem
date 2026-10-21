@@ -586,6 +586,8 @@
       "noAnswer": "La scheda con la riunione non risponde. Passa a quella scheda o chiudila"
     },
     "ceiling": "La riunione terminerà alle {{time}}: su questo server le riunioni hanno una durata massima",
+    "cinemaTraffic": "Il Cinema ha usato il {{percent}}% del traffico di questa riunione. Quando finisce, il film si fermerà fino alla fine della riunione",
+    "cinemaStopped": "Il Cinema ha esaurito il traffico di questa riunione: il film è fermo fino alla fine della riunione",
     "presence": {
       "title": "Sei ancora qui?",
       "text": "Se non rispondi, uscirai dalla riunione alle {{time}}: così una scheda dimenticata non occupa un posto",
@@ -2862,6 +2864,7 @@
     "BLOCK_NOT_FOUND": "Il blocco è già stato rimosso o è scaduto",
     "BLOCK_SUBJECT_UNKNOWN": "Indirizzo e profilo di questa persona sono sconosciuti: non c'è nulla da bloccare",
     "CHAT_RATE": "Troppi messaggi di fila. Attendi un minuto",
+    "CHAT_RATE_IP": "Troppi messaggi da questa rete. Attendi un minuto",
     "CHAT_REPEAT": "Questo messaggio è già stato inviato. Attendi un po'",
     "CHESS_ACTION": "Azione sconosciuta sulla scacchiera",
     "CHESS_CLOSED": "La scacchiera è già chiusa",
@@ -2986,6 +2989,8 @@
     "UPLOAD_BUSY": "Attendi la fine del caricamento in corso",
     "UPLOAD_QUOTA_IP": "Da questo indirizzo sono stati caricati troppi file. Riprova più tardi",
     "VIEW_CLOSED": "La visione è chiusa",
+    "WAITING_FULL": "La sala d'attesa è piena. Riprova tra poco",
+    "WAITING_LIMIT": "Qualcuno di questa rete è già nella sala d'attesa di questa riunione",
     "WATCH_CLOSED": "La visione insieme è terminata",
     "WATCH_INVALID": "Niente da aprire",
     "WATCH_LIVE": "Una diretta non si può mettere in pausa né riavvolgere",

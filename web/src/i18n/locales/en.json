@@ -585,6 +585,8 @@
       "noAnswer": "The tab with the meeting didn't respond. Switch to it or close it"
     },
     "ceiling": "The meeting will end at {{time}}: meetings on this server have a maximum length",
+    "cinemaTraffic": "The Cinema has used {{percent}}% of this meeting's traffic. When it runs out, the film stops until the meeting ends",
+    "cinemaStopped": "The Cinema has used up this meeting's traffic — the film is stopped until the meeting ends",
     "presence": {
       "title": "Are you still here?",
       "text": "If you don't respond, you'll leave the meeting at {{time}} — so a forgotten tab doesn't hold a seat",
@@ -2835,6 +2837,7 @@
     "BLOCK_NOT_FOUND": "The block has already been lifted or has expired",
     "BLOCK_SUBJECT_UNKNOWN": "This person's address and profile are unknown: there's nothing to block",
     "CHAT_RATE": "Too many messages in a row. Wait a minute",
+    "CHAT_RATE_IP": "Too many messages from this network. Wait a minute",
     "CHAT_REPEAT": "This message has already been sent. Wait a moment",
     "CHESS_ACTION": "Unknown action at the chessboard",
     "CHESS_CLOSED": "The chessboard is already closed",
@@ -2959,6 +2962,8 @@
     "UPLOAD_BUSY": "Wait for the current upload to finish",
     "UPLOAD_QUOTA_IP": "Too many files have been uploaded from this address. Try again later",
     "VIEW_CLOSED": "Viewing is closed",
+    "WAITING_FULL": "The waiting room is full. Try again a bit later",
+    "WAITING_LIMIT": "Someone from this network is already in this meeting's waiting room",
     "WATCH_CLOSED": "Watching together has ended",
     "WATCH_INVALID": "Nothing to open",
     "WATCH_LIVE": "A live stream can't be paused or rewound",

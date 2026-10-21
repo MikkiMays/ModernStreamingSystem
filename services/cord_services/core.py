@@ -5,6 +5,8 @@ import uuid
 import httpx
 from fastapi import HTTPException
 
+from . import keys
+
 # Права решает ядро (`server/.../room/Permissions.java`): снимок участника несёт готовый список
 # `you.can`, и служба спрашивает его по имени действия. Своего правила у службы нет.
 #
@@ -65,7 +67,9 @@ def granted(room: dict) -> list[str] | None:
 class Core:
     def __init__(self, url: str, secret: str):
         self.url = url.rstrip("/")
+        # Сам секрет — только для вывода ключей по назначению (`keys.py`); к ядру уходит ключ службы.
         self.secret = secret
+        self.service_key = keys.text(secret, keys.SERVICE) if secret else ""
         self.client = httpx.AsyncClient(timeout=8, follow_redirects=False)
 
     async def request(
@@ -76,14 +80,15 @@ class Core:
         credential: str | None = None,
         headers=None,
     ):
-        # Two headers, one secret, two different statements. X-Internal-Secret means
-        # "this request arrived through our own gateway" — the gateway stamps it on
-        # everything it forwards, including a browser's. X-Service-Secret means "the
-        # caller is one of our services", which is what lets the bots past a server
-        # access password: they never see the connect screen and have no one to ask.
+        # X-Service-Secret means "the caller is one of our services": it opens /internal/
+        # and lets the bots past a server access password — they never see the connect
+        # screen and have no one to ask. Its value is the service key derived from
+        # INTERNAL_SECRET (A14), not the secret itself: a header can end up in someone's
+        # log, and the secret also signs cinema addresses and seals stored accounts.
+        # X-Internal-Secret is the gateway's own statement ("arrived through the front
+        # door"); a service has no business sending it.
         combined = {
-            "X-Internal-Secret": self.secret,
-            "X-Service-Secret": self.secret,
+            "X-Service-Secret": self.service_key,
             **(headers or {}),
         }
         if credential:
