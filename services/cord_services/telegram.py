@@ -13,7 +13,7 @@ import uuid
 import httpx
 from fastapi import HTTPException
 
-from . import covers
+from . import covers, keys
 from .cinema.limits import Window
 from .core import Core
 from .media import MAX_FILE, probe
@@ -286,7 +286,8 @@ class Telegram:
         return self.actor_header(message.get("from", {}).get("id") or message["chat"]["id"])
 
     def actor_header(self, who: int) -> dict:
-        mark = hmac.new(self.core.secret.encode(), f"telegram-actor:{who}".encode(), hashlib.sha256)
+        # HMAC номера — своим ключом актора, а не самим секретом установки (A14, `keys.py`).
+        mark = hmac.new(keys.derive(self.core.secret, keys.ACTOR), f"telegram:{who}".encode(), hashlib.sha256)
         return {"X-Cord-Actor": "tg:" + mark.hexdigest()[:32]}
 
     async def reopen(self, binding: dict, headers: dict) -> dict:

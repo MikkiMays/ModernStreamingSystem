@@ -14,13 +14,12 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 from typing import Any
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import InvalidToken
 
+from . import keys
 from .store import now
 
 
@@ -34,7 +33,8 @@ class Vault:
 
     def __init__(self, db, secret: str):
         self.db = db
-        self.fernet = Fernet(base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest()))
+        # Ключ сейфа — свой, из секрета (A14); прежний (SHA-256 секрета) только читает старые записи.
+        self.fernet = keys.vault_cipher(secret)
         db.execute(
             "CREATE TABLE IF NOT EXISTS integrations"
             "(provider TEXT, scope TEXT, body TEXT NOT NULL, PRIMARY KEY(provider,scope))"

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import dev.mikki.stream.access.Entrant;
 import dev.mikki.stream.access.Identity;
+import dev.mikki.stream.access.InternalKeys;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.api.ClientAddress;
 import dev.mikki.stream.attachment.AttachmentService;
@@ -228,6 +229,10 @@ class AbuseLimitsTest {
     request.addHeader(ClientAddress.ACTOR, "tg:abcdefgh12345678");
     assertThat(address.of(request)).isEqualTo("127.0.0.1");
     request.addHeader("X-Service-Secret", config.internalSecret());
+    // Сам секрет — не ключ службы (A14): актор остаётся без веры.
+    assertThat(address.of(request)).isEqualTo("127.0.0.1");
+    request.removeHeader("X-Service-Secret");
+    request.addHeader("X-Service-Secret", InternalKeys.service(config.internalSecret()));
     assertThat(address.of(request)).isEqualTo("actor:tg:abcdefgh12345678");
   }
 

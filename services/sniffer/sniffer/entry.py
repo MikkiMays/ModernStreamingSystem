@@ -45,8 +45,14 @@ TINI = "/usr/bin/tini"
 
 
 def key_for(secret: str) -> str:
-    """Ключ входа службы в плеер страниц: HMAC-SHA256 от секрета установки с меткой назначения."""
-    return hmac.new(secret.encode(), b"cord-cinema-sniffer", hashlib.sha256).hexdigest()
+    """
+    Ключ входа службы в плеер страниц: HKDF-SHA256 (RFC 5869) от секрета установки, назначение `sniffer`.
+
+    Копия формулы `cord_services/keys.py` (A14): этот образ службы не содержит, а тянуть её ради десяти строк
+    в контейнер с чужими страницами незачем. Сверка двух копий — общим образцом в тестах обеих сторон.
+    """
+    prk = hmac.new(b"cord-internal-secret", secret.encode(), hashlib.sha256).digest()
+    return hmac.new(prk, b"sniffer\x01", hashlib.sha256).hexdigest()
 
 
 def environment(source: dict[str, str]) -> dict[str, str]:

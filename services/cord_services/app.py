@@ -15,7 +15,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from . import covers
+from . import covers, keys
 from .cinema import Cinema
 from .cinema import routes as cinema_routes
 from .cinema.net import NetConfig
@@ -115,7 +115,8 @@ def create_app(
     # него — из внутреннего секрета, сам секрет туда не уходит (`cinema/sniffer.py`).
     sniffer_url = os.environ.get("CINEMA_SNIFFER_URL", "").strip()
     cinema = Cinema(
-        core.secret,
+        # Подписи адресов прокси — своим ключом, а не самим секретом установки (A14, `keys.py`).
+        keys.derive(core.secret, keys.CINEMA).hex() if core.secret else "",
         enabled=os.environ.get("CINEMA_PROVIDERS"),
         net=NetConfig.from_env(os.environ),
         # Номера ссылок «По ссылке» переживают перезапуск: комната, открывшая фильм по ссылке,

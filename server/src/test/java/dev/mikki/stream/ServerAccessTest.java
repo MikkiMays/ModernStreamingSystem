@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.*;
 
+import dev.mikki.stream.access.InternalKeys;
 import dev.mikki.stream.access.RateLimits;
 import dev.mikki.stream.access.Secrets;
 import dev.mikki.stream.access.ServerAccess;
@@ -241,10 +242,37 @@ class ServerAccessTest {
     guessing.addHeader("X-Service-Secret", "not-the-secret");
     assertThat(through("тайна", guessing).getStatus()).isEqualTo(401);
 
+    // Сам секрет в заголовке службы больше не пропуск (A14): служба шлёт ключ службы.
+    var raw = get("/api/v1/favorites");
+    raw.addHeader("X-Service-Secret", INTERNAL_SECRET);
+    assertThat(through("тайна", raw).getStatus()).isEqualTo(401);
+
     var service = get("/api/v1/favorites");
-    service.addHeader("X-Internal-Secret", INTERNAL_SECRET);
-    service.addHeader("X-Service-Secret", INTERNAL_SECRET);
+    service.addHeader("X-Service-Secret", InternalKeys.service(INTERNAL_SECRET));
     assertThat(through("тайна", service).getStatus()).isEqualTo(200);
     assertThat(service.getAttribute("reached")).isEqualTo(true);
+  }
+
+  /**
+   * Внутренние пути открывают двое: шлюз своим заголовком (сам секрет — Caddy ключей не выводит) и
+   * служба ключом службы. Сам секрет в заголовке службы — нет (A14).
+   */
+  @Test
+  void internalPathsAcceptTheGatewayAndTheServiceKeyOnly() throws Exception {
+    var gateway = get("/internal/services/x");
+    gateway.addHeader("X-Internal-Secret", INTERNAL_SECRET);
+    assertThat(through("", gateway).getStatus()).isEqualTo(200);
+
+    var service = get("/internal/services/x");
+    service.addHeader("X-Service-Secret", InternalKeys.service(INTERNAL_SECRET));
+    assertThat(through("", service).getStatus()).isEqualTo(200);
+
+    var raw = get("/internal/services/x");
+    raw.addHeader("X-Service-Secret", INTERNAL_SECRET);
+    assertThat(through("", raw).getStatus()).isEqualTo(403);
+
+    var stranger = get("/internal/services/x");
+    stranger.addHeader("X-Internal-Secret", InternalKeys.service(INTERNAL_SECRET));
+    assertThat(through("", stranger).getStatus()).isEqualTo(403);
   }
 }
