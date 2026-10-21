@@ -1397,6 +1397,164 @@ Object.assign(SINGLE, {
 });
 
 // ---------------------------------------------------------------------------------------------
+// E15-B, невыкаченное на стенд (на 21.10 стенд без E13, E14-B, E01-B2): снимается dev-сервером
+// ветки с прокси к стенду (`scripts/stand-proxy.mjs`, скилл verify):
+//   node … figma-screens.mjs --base http://127.0.0.1:5199 --only tour,help-center,…
+const SEEN = { 'cord:onboarding:v1': JSON.stringify({ tour: true, meeting: true, integrations: true }) };
+
+Object.assign(SINGLE, {
+  tour: {
+    multi: true,
+    group: 'Главная',
+    title: 'Знакомство на главной (E13, T34)',
+    src: 'ui/onboarding/Onboarding.tsx, ui/kit/Coachmark.tsx, core/onboarding.ts',
+    widths: [360, 1440],
+    async open(page, { width, shootAs }) {
+      await home(page);
+      const next = page.getByRole('button', { name: /^(Далее|Готово|Понятно)$/ }).first();
+      await next.waitFor({ timeout: 15000 });
+      await page.waitForTimeout(700);
+      const steps = mobile(width) ? ['tour-create', 'tour-join', 'tour-menu'] : ['tour-create', 'tour-join', 'tour-favorites', 'tour-settings', 'tour-help'];
+      for (const [i, id] of steps.entries()) {
+        await shootAs(id, `Знакомство — шаг ${i + 1}`);
+        if (i === steps.length - 1) break;
+        await next.click();
+        await page.waitForTimeout(700);
+      }
+    },
+  },
+  'help-center': {
+    group: 'Главная',
+    title: 'Помощь «?» — частые вопросы и связь (E13, T36)',
+    src: 'ui/support/HelpButton.tsx, ui/support/HelpCenter.tsx',
+    widths: [360, 1440],
+    context: { storage: SEEN },
+    async open(page) {
+      await home(page);
+      const burger = page.getByRole('button', { name: 'Открыть меню' });
+      if (await burger.isVisible()) await burger.click();
+      await page.getByRole('button', { name: 'Помощь' }).first().click();
+      await page.locator('.help-center').first().waitFor({ timeout: 10000 });
+      await page.waitForTimeout(600);
+    },
+  },
+  'support-page': {
+    group: 'Главная',
+    title: '/support — обращение в поддержку (E13, T36)',
+    src: 'ui/support/SupportPage.tsx, ui/support/SupportForm.tsx',
+    widths: [360, 1440],
+    context: { storage: SEEN },
+    async open(page) {
+      await page.goto(new URL('/support', base).href);
+      await page.locator('form, .support-page').first().waitFor({ timeout: 20000 });
+      await page.waitForTimeout(800);
+    },
+  },
+  'home-en': {
+    group: 'Главная',
+    title: 'Главная по-английски (E14-B, T03)',
+    src: 'i18n/locales/en.json, i18n/index.ts',
+    widths: [360, 1440],
+    context: { storage: { ...SEEN, 'cord:preferences:v1': JSON.stringify({ language: 'en' }) } },
+    async open(page) {
+      await page.goto(base);
+      await page.getByRole('button', { name: /New meeting/i }).first().waitFor({ timeout: 60000 });
+      await page.waitForTimeout(600);
+    },
+  },
+  'home-zh': {
+    group: 'Главная',
+    title: 'Главная по-китайски (E14-B, T03)',
+    src: 'i18n/locales/zh-Hans.json',
+    widths: [360, 1440],
+    context: { storage: { ...SEEN, 'cord:preferences:v1': JSON.stringify({ language: 'zh-Hans' }) } },
+    async open(page) {
+      await page.goto(base);
+      await page.locator('.home-entry, main').first().waitFor({ timeout: 60000 });
+      await page.waitForTimeout(1500);
+    },
+  },
+  'settings-desktop': {
+    group: 'Клиент Windows',
+    title: 'Настройки — раздел «Windows» в клиенте (E01-B2)',
+    src: 'ui/settings/DesktopSection.tsx, ui/settings/sections.ts, core/desktop.ts',
+    widths: [1024, 1440],
+    context: { storage: SEEN },
+    async open(page, { context }) {
+      await context.addInitScript(electronBridge);
+      await home(page);
+      await page.getByRole('button', { name: /^Настройки$/ }).first().click();
+      await page.locator('.settings-nav__item').filter({ hasText: 'Windows' }).first().click();
+      await page.waitForTimeout(800);
+    },
+  },
+  'activity-login': {
+    group: 'Главная',
+    title: '«Активность» — вход владельца (E10-B)',
+    src: 'ui/activity/Activity.tsx',
+    widths: [360, 1440],
+    context: { storage: SEEN },
+    async open(page) {
+      await page.goto(new URL('/activity', base).href);
+      await page.getByRole('button', { name: /Войти/ }).first().waitFor({ timeout: 20000 }).catch(() => {});
+      await page.waitForTimeout(800);
+    },
+  },
+});
+
+/** Мост Electron с окном выбора источника (E01-B2): `capture.sources` отдаёт экраны и окна. */
+function electronCaptureBridge() {
+  const ids = { s1: 'screen:1:0', s2: 'screen:2:0', w1: 'window:101:0', w2: 'window:102:0', w3: 'window:103:0' };
+  window.cordDesktop = {
+    protocol: { major: 2, minor: 0 },
+    features: ['hotkeys', 'capture', 'capture.system-audio', 'overlay', 'notify', 'thumbar', 'badge', 'progress', 'attention', 'deeplink', 'servers', 'update', 'power', 'app.settings', 'tray', 'sleep', 'autostart'],
+    app: { version: '1.0.0', arch: 'x64' },
+    bootstrap: { profile: '', theme: 'system', showPing: false, notificationSounds: true, autoConnect: true },
+    send() {},
+    invoke(method) {
+      if (method === 'capture.sources') {
+        const answer = window.__sources();
+        return Promise.resolve({ ...answer, sources: answer.sources.map((s) => ({ ...s, id: ids[s.id], icon: s.icon ?? '' })) });
+      }
+      return Promise.resolve(null);
+    },
+    on: () => () => {},
+  };
+}
+
+Object.assign(SINGLE, {
+  'capture-picker': {
+    multi: true,
+    group: 'Клиент Windows',
+    title: 'Окно выбора источника показа в вебе клиента (E01-B2)',
+    src: 'ui/CapturePicker.tsx, core/desktop-capture.ts, ui/CallDock.tsx',
+    widths: [1440],
+    context: { storage: SEEN },
+    async open(page, { context, shootAs }) {
+      await context.addInitScript(thumbnails);
+      await context.addInitScript(electronCaptureBridge);
+      await home(page);
+      await page.getByRole('button', { name: /Новая встреча/ }).first().click();
+      await page.getByLabel('Ваше имя').waitFor();
+      await page.getByRole('button', { name: 'Начать встречу' }).click();
+      // Медиа через dev-сервер не поднимется — окну выбора оно и не нужно.
+      const share = page.getByRole('button', { name: /Показать экран/ }).first();
+      await share.waitFor({ timeout: 30000 });
+      await share.click();
+      await page.locator('.capture-picker__grid').first().waitFor({ timeout: 10000 });
+      await page.locator('.capture-picker__grid button').first().click().catch(() => {});
+      await page.waitForTimeout(600);
+      await shootAs('capture-picker-screen', 'Выбор источника — экраны (E01-B2)');
+      await page.getByRole('tab').filter({ hasText: /Окн/ }).first().click().catch(() => {});
+      await page.waitForTimeout(500);
+      await page.locator('.capture-picker__grid button').nth(1).click().catch(() => {});
+      await page.waitForTimeout(400);
+      await shootAs('capture-picker-window', 'Выбор источника — окна (E01-B2)');
+    },
+  },
+});
+
+// ---------------------------------------------------------------------------------------------
 // Сценарии со встречей. Каждый — функция (stage) → список шагов { id, title, group, prepare };
 // stage даёт настольную страницу (D), телефонную (M) и хелперов.
 
@@ -1783,7 +1941,7 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
   );
   await run('music-search', 'Музыка — найденные треки YouTube', 'ui/Services.tsx, services/cord_services/sources.py', () =>
     both(async (p) => {
-      const field = p.getByPlaceholder(/Найти на YouTube/).first();
+      const field = p.locator('.services-panel input[type="search"], .services-panel input[type="text"], .services-panel input:not([type])').first();
       await field.fill('lofi hip hop');
       await field.press('Enter');
       await p.waitForTimeout(6000);
@@ -1830,7 +1988,8 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
     await D.waitForTimeout(1500);
   });
   await run('chat-link-dialog', 'Чат — «Переход по ссылке» (E11-B)', 'ui/abuse/ChatText.tsx', async () => {
-    const input = D.getByLabel('Сообщение');
+    if (!(await D.locator('.composer__input').isVisible().catch(() => false))) await both((p) => openPanel(p, 'Чат', 'Чат и файлы'));
+    const input = D.locator('.composer__input').first();
     await input.fill('План на неделю: https://example.org/plan');
     await input.press('Enter');
     await both(async (p) => {
@@ -1869,11 +2028,31 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       [360, 'Аня'],
     ]) {
       const ctx = await newContext(width, THEMES[0], { name, userAgent: width < 768 ? ANDROID : undefined, storage: { 'cord:background-note:android': '1' } });
+      // Снимки встречи приходят и каналом событий — в каждый вписывается тот же endsAt.
+      let endsAt = null;
+      const mark = (value) => {
+        if (!value || typeof value !== 'object') return;
+        if ('serverTime' in value && 'participants' in value) value.endsAt = endsAt ?? (endsAt = value.serverTime + 14 * 60_000);
+        for (const v of Object.values(value)) mark(v);
+      };
+      await ctx.routeWebSocket(/\/api\/v1\/events/, (ws) => {
+        const server = ws.connectToServer();
+        server.onMessage((message) => {
+          try {
+            const data = JSON.parse(String(message));
+            mark(data);
+            ws.send(JSON.stringify(data));
+          } catch {
+            ws.send(message);
+          }
+        });
+        ws.onMessage((message) => server.send(message));
+      });
       await ctx.route(/\/api\/v1\/rooms\/(join-by-code|[^/]+\/join)$/, async (route) => {
         if (route.request().method() !== 'POST') return route.continue();
         const response = await route.fetch();
         const body = await response.json().catch(() => null);
-        if (body?.snapshot) body.snapshot.endsAt = body.snapshot.serverTime + 14 * 60_000;
+        if (body) mark(body);
         await route.fulfill({ response, json: body });
       });
       const page = await ctx.newPage();

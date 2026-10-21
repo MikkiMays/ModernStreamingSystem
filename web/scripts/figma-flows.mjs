@@ -260,6 +260,123 @@ const FLOWS = {
       ['b', 'c', 'то же на телефоне: «ещё» → «Чат и файлы»'],
     ],
   },
+  // --- E15-B: новое после E15-A. Превью экранов, которых нет на странице «Как есть», кладутся PNG по
+  // ответу (`pending`) — figma-svg-upload.mjs по nodeIds.
+  telegram: {
+    title: '14 · Telegram Mini App (T04, E09)',
+    note: 'Создатель привязывает беседу в «Интеграциях»; бот закрепляет сообщение с кнопкой. Кнопка открывает Mini App на весь экран Telegram: связь, вход службы, микрофон — и та же встреча, что в браузере. Ошибки — экранами, не алертами.',
+    nodes: [
+      ['h', 'integrations-telegram', 0, 0, 'Интеграции → Telegram (создатель)'],
+      ['i', 'box:Бот закрепляет в беседе сообщение с кнопкой «Открыть встречу»', 1, 0, 'Беседа'],
+      ['b', 'tg-loading@360', 2, 0, 'Загрузка tg.html'],
+      ['n', 'tg-meeting-note@360', 3, 0, 'Встреча + подсказка о фоне'],
+      ['d', 'tg-meeting@360', 4, 0, 'Встреча в Telegram'],
+      ['e', 'tg-failed@360', 2, 1, 'Отказ: не участник беседы'],
+      ['f', 'tg-media@360', 3, 1, 'Нет микрофона'],
+      ['g', 'tg-outside@360', 2, 2, 'Открыто не в Telegram'],
+    ],
+    edges: [
+      ['h', 'i', '«Добавить бота в группу» / /bind <код>'],
+      ['i', 'b', 'участник жмёт кнопку'],
+      ['b', 'n', 'подпись initData верна, член беседы'],
+      ['n', 'd', '«Скрыть подсказку»'],
+      ['b', 'e', 'TELEGRAM_NOT_MEMBER / привязка отозвана'],
+      ['b', 'f', 'микрофон запрещён'],
+      ['f', 'd', 'войти без микрофона'],
+      ['i', 'g', 'ссылку открыли в браузере'],
+    ],
+  },
+  'phone-background': {
+    title: '15 · Телефон: разговор в фоне (T16, E12)',
+    note: 'Через 3 с после подключения — один раз на устройстве — честно, что будет, если свернуть браузер. «Свернуть в окно» — собеседник поверх других приложений. Вернулся — если телефон глушил микрофон, сказано, когда вас не слышали.',
+    nodes: [
+      ['a', 'meeting-solo@360', 0, 0, 'Встреча на телефоне'],
+      ['b', 'background-android@360', 1, 0, 'Android: шторка «использует микрофон»'],
+      ['c', 'background-ios@360', 1, 1, 'iPhone, Safari: оранжевая точка'],
+      ['d', 'background-ios-home@360', 1, 2, 'iPhone, «Домой»: фона нет'],
+      ['e', 'background-no-mic@360', 1, -1, 'Нет доступа к микрофону'],
+      ['f', 'meeting-more-phone@360', 2, 0, '«…» → «Свернуть в окно»'],
+      ['g', 'box:Окно поверх приложений (картинка в картинке); свёрнутый браузер держит разговор', 3, 0, 'В фоне'],
+      ['h', 'box:Вернулся на экран: «телефон выключал микрофон с … по …»', 4, 0, 'Возврат'],
+    ],
+    edges: [
+      ['a', 'b', 'Android, микрофон есть'],
+      ['a', 'c', 'iPhone в Safari'],
+      ['a', 'd', 'с экрана «Домой»'],
+      ['a', 'e', 'микрофон запрещён'],
+      ['b', 'f', 'подсказку закрыл, «…»'],
+      ['f', 'g', '«Свернуть в окно» / «Домой»'],
+      ['g', 'h', 'вернулся в браузер'],
+    ],
+  },
+  'electron-update': {
+    title: '16 · Клиент на Electron: запуск, плашка обновления, окно (В-1, T58, T55)',
+    note: 'Плашка 300×360 до приложения: проверка ≤ 5 с → загрузка с сервера Cord (подпись Ed25519, sha256) → установка → перезапуск. Дальше окно грузит веб («дышащий» знак) или говорит, что сервера нет.',
+    nodes: [
+      ['s', 'box:Запуск Cord', 0, 0, 'Запуск'],
+      ['a', 'electron-splash-checking@300', 1, 0, 'Проверяем обновления…'],
+      ['b', 'electron-splash-downloading@300', 2, 0, 'Загружаем… 42%'],
+      ['c', 'electron-splash-installing@300', 3, 0, 'Устанавливаем…'],
+      ['r', 'box:Тихая установка и перезапуск новой версии', 4, 0, 'Перезапуск'],
+      ['l', 'electron-loading@1180', 2, 1, 'Окно: загрузка интерфейса'],
+      ['h', 'electron-home@1440', 3, 1, 'Главная в клиенте'],
+      ['f', 'electron-splash-failed@300', 3, 2, 'Сбой: «Повторить» / «Открыть Cord»'],
+      ['o', 'electron-offline@1180', 3, -1, 'Нет связи с сервером'],
+    ],
+    edges: [
+      ['s', 'a', 'плашка до приложения'],
+      ['a', 'b', 'есть новее'],
+      ['b', 'c', 'пакет проверен'],
+      ['c', 'r', 'установщик готов'],
+      ['a', 'l', 'новее нет / 5 с тишины'],
+      ['l', 'h', 'веб загрузился'],
+      ['l', 'o', 'сервер не отвечает'],
+      ['b', 'f', 'минута тишины / подпись не сошлась'],
+      ['f', 'l', '«Открыть Cord»'],
+    ],
+  },
+  'electron-capture': {
+    title: '17 · Клиент: показ экрана, оверлей, серверы (T10, T23, T05)',
+    note: 'В клиенте источник показа выбирают своим окном до getDisplayMedia; оверлей поверх игры показывает, кто говорит; серверы — только каталог Cord с пингом.',
+    nodes: [
+      ['h', 'electron-home@1440', 0, 0, 'Главная в клиенте'],
+      ['m', 'meeting-grid', 1, 0, 'Встреча'],
+      ['p', 'electron-picker-screen@760', 2, 0, '«Что показать»: экраны'],
+      ['w', 'electron-picker-window@760', 3, 1, 'Вкладка «Окно»'],
+      ['s', 'meeting-screen', 3, 0, 'Экран у всех'],
+      ['o', 'electron-overlay@320', 2, 1, 'Оверлей поверх игры'],
+      ['v', 'electron-servers@440', 1, -1, 'Серверы'],
+    ],
+    edges: [
+      ['h', 'm', '«Новая встреча» → «Начать»'],
+      ['m', 'p', '«Показать экран»'],
+      ['p', 's', 'выбрал экран, «Показать»'],
+      ['p', 'w', 'вкладка «Окно»'],
+      ['m', 'o', 'запустил игру во весь экран'],
+      ['h', 'v', 'меню клиента → «Серверы»'],
+    ],
+  },
+  'platform-choice': {
+    title: '18 · Выбор площадки: музыка и кинозал (T59)',
+    note: 'И в музыку, и в кинозал — каждый раз через выбор площадки; прошлый выбор отмечен «Последний выбор» и получает фокус. Площадки — только включённые на сервере.',
+    nodes: [
+      ['a', 'meeting-integrations', 0, 0, 'Панель «Интеграции»'],
+      ['b', 'music-picker', 1, 0, 'Музыка: выберите площадку'],
+      ['c', 'music-youtube', 2, 0, 'Музыка · YouTube'],
+      ['d', 'music-files', 3, 0, 'Свои файлы'],
+      ['e', 'cinema-picker', 1, 1, 'Кинозал: выберите площадку'],
+      ['f', 'cinema-catalog', 2, 1, 'Каталог YouTube'],
+      ['g', 'cinema-player', 3, 1, 'Смотреть вместе'],
+    ],
+    edges: [
+      ['a', 'b', '«Музыка»'],
+      ['b', 'c', 'плитка YouTube'],
+      ['c', 'd', 'вкладка «Свои файлы» (плеер и очередь те же)'],
+      ['a', 'e', '«Кинозал»'],
+      ['e', 'f', 'плитка YouTube'],
+      ['f', 'g', '«Смотреть вместе»'],
+    ],
+  },
 };
 
 if (args.list) {
@@ -281,10 +398,14 @@ const flows = wanted.map((id) => {
         return { key, kind: 'splash', ref: SPLASH[state.slice(7)], col, row, label };
       if (state.startsWith('box:')) return { key, kind: 'box', text: state.slice(4), col, row, label };
       const [id, width = '1440'] = state.split('@');
+      // Окна клиента своих размеров: превью той же высоты, что телефон, или той же ширины, что стол.
+      const DIMS = { 300: [282, 338], 320: [300, 338], 440: [286, 338], 760: [432, 318], 1180: [432, 278] };
       return {
         key,
         kind: 'shot',
         ref: `${id} / ${width} / dark`,
+        dims: DIMS[width] ?? null,
+        width,
         mobile: width === '360',
         col,
         row,
@@ -316,6 +437,8 @@ const text = (chars, size, style, color = ink, width) => {
 };
 const TW = 432, TH = 270, MW = 156, MH = 338, GAP = 300, ROW = 470, PAD = 120, TOP = 360;
 const out = [];
+const pending = [];
+const starts = [];
 let y0 = ${args.y ?? 'Math.max(0, ...page.children.filter((n) => n.type === "SECTION").map((n) => n.y + n.height)) + 300'};
 for (const flow of FLOWS) {
   // Пересборка встаёт на прежнее место, новый флоу — под остальными.
@@ -329,21 +452,23 @@ for (const flow of FLOWS) {
   const note = text(flow.note, 24, 'Regular', muted, 2200); section.appendChild(note); note.x = PAD; note.y = 196;
   const minRow = Math.min(...flow.nodes.map((n) => n.row));
   const box = {};
+  const nodeIds = {};
   for (const n of flow.nodes) {
     const x = PAD + n.col * (TW + GAP), y = TOP + (n.row - minRow) * ROW;
     let node;
     if (n.kind === 'shot') {
       const src = byName.get(n.ref);
       node = figma.createFrame();
-      node.name = n.state + (n.mobile ? ' · 360' : ' · 1440') + ' · тёмная';
-      const w = n.mobile ? MW : TW, h = n.mobile ? MH : TH;
+      node.name = n.state + ' · ' + n.width + ' · тёмная';
+      const w = n.dims ? n.dims[0] : n.mobile ? MW : TW, h = n.dims ? n.dims[1] : n.mobile ? MH : TH;
       node.resize(w, h);
       node.cornerRadius = n.mobile ? 16 : 8;
       node.clipsContent = true;
       const fill = src && Array.isArray(src.fills) ? src.fills.find((f) => f.type === 'IMAGE') : null;
       node.fills = fill ? [{ type: 'IMAGE', imageHash: fill.imageHash, scaleMode: 'FILL' }] : [{ type: 'SOLID', color: { r: 0.85, g: 0.86, b: 0.88 } }];
+      if (!fill) pending.push({ node: node.id, png: n.state + '-' + n.width + '-dark.png' });
       node.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.16 }, offset: { x: 0, y: 6 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
-      node.x = x + (n.mobile ? (TW - MW) / 2 : 0); node.y = y + (n.mobile ? 0 : (MH - TH) / 2);
+      node.x = x + (TW - w) / 2; node.y = y + (MH - h) / 2;
     } else if (n.kind === 'splash') {
       const comp = await figma.getNodeByIdAsync(n.ref);
       node = comp.createInstance();
@@ -366,6 +491,7 @@ for (const flow of FLOWS) {
     section.appendChild(cap); cap.x = x; cap.y = node.y + node.height + 16;
     if (n.kind === 'shot') { const sub = text(n.state, 16, 'Regular', muted, TW); sub.textAlignHorizontal = 'CENTER'; section.appendChild(sub); sub.x = x; sub.y = cap.y + cap.height + 4; }
     box[n.key] = { x: node.x, y: node.y, w: node.width, h: node.height, col: n.col, row: n.row, cx: x + TW / 2 };
+    nodeIds[n.key] = node.id;
   }
   for (const [from, to, label] of flow.edges) {
     const a = box[from], b = box[to];
@@ -409,11 +535,32 @@ for (const flow of FLOWS) {
     else if (p0[1] === p1[1]) { lab.x = Math.min(p0[0], p1[0]) + 8; lab.y = p0[1] - lab.height - 8; }
     else { lab.x = p0[0] + 12; lab.y = (p0[1] + p1[1]) / 2 - lab.height / 2; }
   }
+  // Прототип: нажатие на экран ведёт по первой стрелке из него; флоу начинается с первого узла.
+  const byKey = {};
+  for (const n of flow.nodes) byKey[n.key] = section.children.find((c) => c.id === nodeIds[n.key]);
+  const linked = new Set();
+  for (const [from, to] of flow.edges) {
+    const a = byKey[from], b = byKey[to];
+    if (!a || !b || linked.has(from) || b.type !== 'FRAME') continue;
+    await a.setReactionsAsync([{ actions: [{ type: 'NODE', destinationId: b.id, navigation: 'NAVIGATE', transition: { type: 'SMART_ANIMATE', easing: { type: 'EASE_OUT' }, duration: 0.3 }, preserveScrollPosition: false }], trigger: { type: 'ON_CLICK' } }]);
+    linked.add(from);
+  }
+  const start = byKey[flow.nodes[0].key];
+  if (start && start.type === 'FRAME') starts.push({ nodeId: start.id, name: flow.title });
   const right = Math.max(...section.children.map((n) => n.x + n.width)), bottom = Math.max(...section.children.map((n) => n.y + n.height));
   section.resizeWithoutConstraints(right + PAD, bottom + PAD);
-  out.push({ flow: flow.id, section: section.id, nodes: flow.nodes.length, edges: flow.edges.length });
+  out.push({ flow: flow.id, section: section.id, nodes: flow.nodes.length, edges: flow.edges.length, links: linked.size });
   if (at === y0) y0 += section.height + 300;
 }
-return out;
+// Начала флоу — одним присваиванием, без повторов узлов.
+let startError = null;
+try {
+  const keep = page.flowStartingPoints.filter((p) => !starts.some((s) => s.name === p.name || s.nodeId === p.nodeId));
+  const seen = new Set();
+  page.flowStartingPoints = [...keep, ...starts].filter((p) => !seen.has(p.nodeId) && seen.add(p.nodeId));
+} catch (error) {
+  startError = String(error);
+}
+return { out, pending: pending.map((p) => p.node + '=' + p.png).join(','), startError };
 `;
 process.stdout.write(code);
