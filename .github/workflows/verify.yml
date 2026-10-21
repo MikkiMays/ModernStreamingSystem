@@ -135,7 +135,11 @@ jobs:
         with:
           node-version: '24.11.1'
       - run: node scripts/configure.mjs --app=app.example.test --rtc=rtc.example.test --turn=turn.example.test --ip=192.0.2.1
-      - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs scripts/product-voice.test.mjs scripts/sign-catalog.test.mjs
+      - run: node --test scripts/configure.test.mjs scripts/edge-config.test.mjs scripts/product-voice.test.mjs scripts/sign-catalog.test.mjs scripts/turn-guard.test.mjs
+      # TURN — не открытый relay (A12): одноразовый LiveKit образа compose с порождённой конфигурацией —
+      # relay только к SFU; та же без правил — проверка видит открытый relay.
+      - name: Verify TURN is not an open relay
+        run: bash scripts/turn-relay-check.sh
       # Cord — продукт (T54): тексты веба, отказов ядра и бота не ведут к исходникам и не зовут «поставить себе».
       - name: Verify the product voice
         run: node scripts/product-voice.mjs
