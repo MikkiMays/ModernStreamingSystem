@@ -103,7 +103,11 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await guest!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     // Свою демонстрацию открыть нельзя: у показывающего на своей плитке подпись, а не кнопка.
     // Единственная кнопка, которую видит guest, — на чужой плитке.
-    await expect(guest!.getByText('Вы показываете экран')).toBeVisible();
+    // Подпись — тот же `screen.started`, что и кнопка у зрителя выше (T48): до неё «Готовится
+    // показ…», пока кодировщик не дал кадр целевого размера или не кончилось окно разгона
+    // (`settleMs`, 4 с). Раннер CI без GPU целевого кадра не даёт — окно истекает всегда, и подпись
+    // приходит через 4 с + публикация + круг команды, на полсекунды позже умолчания `expect`.
+    await expect(guest!.getByText('Вы показываете экран')).toBeVisible({ timeout: 20000 });
     await expect(guest!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(1);
     await expect(third!.getByRole('button', { name: /Смотреть стрим/ })).toHaveCount(2);
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
