@@ -547,6 +547,19 @@
     0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
     var(--shadow-lift);
 }
+/* Громкость ступенями (T23, решение E04-4): кольцо лица берёт оттенок ступени, как плитки сцены. */
+.poker-seat[data-voice='1'] {
+  --speaking: var(--voice-1);
+}
+.poker-seat[data-voice='2'] {
+  --speaking: var(--voice-2);
+}
+.poker-seat[data-voice='3'] {
+  --speaking: var(--voice-3);
+}
+.poker-seat[data-voice='4'] {
+  --speaking: var(--voice-4);
+}
 .poker-seat[data-active] .poker-face {
   box-shadow:
     0 0 0 2px var(--gold),
@@ -1901,6 +1914,10 @@
 /*
   Одна и та же таблица на сцене в конце игры и в истории беседы. Числа в ней — «сколько», а
   строчки выше — «кто»: их и обсуждают, вставая из-за стола.
+
+  Поэтому только смысловые токены: в истории таблица стоит в панели, в теме человека, и золото
+  стола (`--gold*`) на белой панели не читалось бы. `--warning` — янтарь, на сцене тот же, что
+  золото, в светлой теме — тёмный, AA.
 */
 .poker-result {
   display: grid;
@@ -1911,7 +1928,7 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  color: var(--gold-soft);
+  color: var(--warning);
 }
 .poker-result-crown b {
   font-size: var(--text-base);
@@ -1969,7 +1986,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   text-decoration: none;
-  color: var(--gold-soft);
+  color: var(--warning);
 }
 .poker-result-highlights small {
   font-size: var(--text-xs);
@@ -1988,7 +2005,7 @@
   border-color: transparent;
 }
 .poker-result-players li[data-top] {
-  border-color: color-mix(in oklab, var(--gold) 45%, transparent);
+  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
 }
 .poker-result-place {
   display: grid;
@@ -2372,9 +2389,10 @@
   color: var(--muted);
   white-space: nowrap;
 }
+/* Панель — в теме человека: зелёный голоса на белом не читается (1,9:1), «идёт» — `--success`. */
 .games-state[data-live] {
-  background: color-mix(in oklab, var(--speaking) 25%, transparent);
-  color: var(--speaking);
+  background: color-mix(in oklab, var(--success) 14%, transparent);
+  color: var(--success);
 }
 .games-body {
   display: grid;
