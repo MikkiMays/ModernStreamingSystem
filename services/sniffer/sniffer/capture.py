@@ -9,7 +9,11 @@
 Плейлист HLS и манифест DASH — кто бы их ни спросил (плеер на MSE спрашивает их `fetch`/XHR, тег
 `<video>` — сам). Готовый файл — только если его спросил сам тег `<video>`/`<audio>` (вид запроса
 `media`): кусочки потока плеер на MSE спрашивает тем же `fetch` и с тем же `video/mp4`, и принять их за
-фильм значило бы показать комнате две секунды. Разборщиков под чужие плееры нет — и быть не должно.
+фильм значило бы показать комнате две секунды. Но и сам тег спрашивает кусочки: HLS Chromium играет и без
+hls.js, и тогда сегменты идут видом `media`. Поэтому кусочек — не файл ни при каком запросе: TS и
+фрагменты fMP4/CMAF — по виду адреса или типу (`SEGMENT_*`: целым файлом их браузер не играет), а `.mp4`
+и `.aac`, которые бывают и тем и другим, — по прочитанному списку HLS, где они названы (`Catch.listed`).
+Разборщиков под чужие плееры нет — и быть не должно.
 
 ЗАГОЛОВКИ. Служба повторит их, спрашивая поток сама (профиль заголовков): Referer, Origin и имя браузера —
 как их послал Chromium; cookies — по хосту, ровно тем хостам, которым браузер их послал сам, и только у
@@ -20,6 +24,8 @@
 порядке потоков сомнительные идут последними: поток с хоста рекламной сети или из её рамки, список, все
 сегменты которого — с таких хостов (`cord_services.cinema.ads`, общий со службой), — и короткий законченный
 ролик (до `PREROLL_SECONDS`), если есть что-то длиннее. Рекламный поток служба узнаёт по `ad` в ответе.
+Длина ролика — у списка HLS его собственная, у файла — длина `<video>`, где он играет: мастер, который
+играет сам тег, — не файл, и длина тега не делает его сомнительнее его же вариантов.
 """
 
 from __future__ import annotations
@@ -64,6 +70,10 @@ PIECE_EXTENSIONS = frozenset(
     {"ts", "m2ts", "m4s", "mp4", "m4v", "m4a", "aac", "cmfv", "cmfa", "key", "vtt", "webvtt", "m3u8", "mpd"}
 )
 PIECE_TYPES = frozenset({"application/octet-stream", "binary/octet-stream", "text/vtt"})
+# Кусочки, которые бывают только кусочками: TS и фрагменты fMP4/CMAF целым файлом браузер не играет. Тег
+# `<video>`, который играет HLS сам, спрашивает их видом `media` и с типом `video/*` — это не фильм.
+SEGMENT_EXTENSIONS = frozenset({"ts", "m2ts", "mts", "m4s", "cmfv", "cmfa"})
+SEGMENT_TYPES = frozenset({"video/mp2t", "audio/mp2t", "video/iso.segment"})
 # Какие запросы вообще бывают у плеера: свой `fetch`/XHR, сам тег `<video>` и «прочее» (так Chromium
 # называет, например, запросы воркера).
 PLAYER_REQUESTS = frozenset({"xhr", "fetch", "media", "other"})
@@ -78,10 +88,15 @@ STREAMS = 16
 HOSTS = 16
 SYSTEMS = 8
 HEIGHTS = 12
+# Сколько адресов кусочков из прочитанных списков помнится за страницу: тег спрашивает первые из них (у
+# эфира — последние, но его список и так короткий).
+PIECES = 4096
 PRINTABLE = re.compile(r"[\x20-\x7e]*")
 ORIGIN = re.compile(r"https?://[A-Za-z0-9.\-\[\]:]+")
 RESOLUTION = re.compile(r"RESOLUTION=(\d{1,5})x(\d{1,5})")
 EXTINF = re.compile(r"#EXTINF:\s*([0-9]{1,6}(?:\.[0-9]{1,6})?)")
+# Кусочки, названные тегом, а не строкой: начало fMP4 (`EXT-X-MAP`) и части LL-HLS.
+PIECE_TAG = re.compile(r'#EXT-X-(?:MAP|PART|PRELOAD-HINT):.*?\bURI="([^"]{1,2000})"')
 # Законченный ролик не длиннее этого — похож на рекламу перед фильмом: прероллы — 5–30 с, реже минута.
 PREROLL_SECONDS = 60.0
 
@@ -141,7 +156,8 @@ def web(url: str) -> bool:
 def kind_of(url: str, kind: str | None, request: str) -> str | None:
     """
     Поток ли это и какой: `hls`, `dash`, `file` — или `None`. `kind` — тип ответа, `request` — вид запроса
-    у Chromium (`media` — его спросил сам тег `<video>`/`<audio>`).
+    у Chromium (`media` — его спросил сам тег `<video>`/`<audio>`). Кусочек TS или fMP4 — не файл, даже
+    если его спросил тег: так тег играет HLS сам.
     """
     kind = content_type(kind)
     ext = extension(url)
@@ -149,6 +165,8 @@ def kind_of(url: str, kind: str | None, request: str) -> str | None:
         return "hls"
     if kind in DASH_TYPES or ext == "mpd":
         return "dash"
+    if ext in SEGMENT_EXTENSIONS or kind in SEGMENT_TYPES:
+        return None
     if request == "media" and (kind.startswith(("video/", "audio/")) or ext in FILE_EXTENSIONS):
         return "file"
     return None
@@ -230,6 +248,32 @@ def advert_facts(text: str, base: str) -> tuple[float | None, bool]:
     return (round(seconds, 3) if seconds > 0 else None), advert
 
 
+def playlist_pieces(text: str, base: str) -> tuple[str, ...]:
+    """
+    Адреса кусочков списка сегментов — строками и тегами (`PIECE_TAG`), по адресу списка; у мастера и не
+    плейлиста — ничего (строки мастера — его варианты, а они и так HLS). Не больше `PIECES`.
+    """
+    if "#EXTM3U" not in text[:1024] or "#EXT-X-STREAM-INF" in text:
+        return ()
+    found: list[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("#"):
+            tagged = PIECE_TAG.match(line)
+            line = tagged.group(1) if tagged else ""
+        if not line:
+            continue
+        try:
+            url = urljoin(base, line)
+        except ValueError:
+            continue
+        if web(url):
+            found.append(url)
+            if len(found) >= PIECES:
+                break
+    return tuple(found)
+
+
 @dataclass
 class Stream:
     url: str
@@ -282,13 +326,18 @@ class Catch:
     used: bool = False
     counter: int = 0
     closed: bool = False
+    # Кусочки из прочитанных списков HLS (`listed`): такой адрес — не файл, кто бы его ни спросил.
+    pieces: set[str] = field(default_factory=set)
 
-    def wants(self, url: str, reading: int = 0) -> bool:
+    def wants(self, url: str, reading: int = 0, kind: str = "") -> bool:
         """
-        Нужен ли улову этот поток: страница не ушла, адрес новый, и место есть — считая потоки, которые ещё
-        читаются (`reading`): ответы приходят разом, и без этого прочитали бы все, прежде чем записать первый.
+        Нужен ли улову этот поток: страница не ушла, адрес новый, не кусочек прочитанного списка под видом
+        файла, и место есть — считая потоки, которые ещё читаются (`reading`): ответы приходят разом, и без
+        этого прочитали бы все, прежде чем записать первый.
         """
-        return not self.closed and url not in self.streams and len(self.streams) + reading < STREAMS
+        if self.closed or url in self.streams or (kind == "file" and url in self.pieces):
+            return False
+        return len(self.streams) + reading < STREAMS
 
     def ticket(self) -> int:
         """Номер запроса — в момент, когда браузер о нём сказал, а не когда мы дочитали его заголовки."""
@@ -312,11 +361,27 @@ class Catch:
         """Запомнить поток (первый раз — с его заголовками); `True` — он новый."""
         if self.closed or not web(url) or url in self.streams or len(self.streams) >= STREAMS:
             return False
+        if kind == "file" and url in self.pieces:
+            return False
         order = order or self.ticket()
         self.streams[url] = Stream(
             url, kind, order, profile_of(headers), frame, master, heights, ext, seconds, advert
         )
         return True
+
+    def listed(self, pieces: tuple[str, ...] | list[str]) -> None:
+        """
+        Кусочки прочитанного списка HLS (`playlist_pieces`): `.mp4`/`.aac`, который спросил тег, по запросу
+        от фильма не отличить, а список его называет. Файлы, пойманные раньше списка (ответы идут разом), —
+        убираются: место в улове — потокам.
+        """
+        for url in pieces:
+            if len(self.pieces) >= PIECES:
+                break
+            self.pieces.add(url)
+        for url in [url for url, stream in self.streams.items() if stream.kind == "file"]:
+            if url in self.pieces:
+                del self.streams[url]
 
     def cookie(self, url: str, value: object) -> None:
         """Cookie, которую браузер послал хосту потока, — последняя, как у самого браузера."""
@@ -343,9 +408,11 @@ class Catch:
         Лучший первым: мастер HLS, другой HLS, DASH, готовый файл. Среди файлов — тот, что играет в самом
         большом `<video>` страницы (реклама перед фильмом — тоже файл, но в другом элементе или раньше).
 
-        Раньше вида — сомнение (преролл): реклама — последней, короткий законченный ролик (по своему списку
-        или по длине `<video>`, где он играет, — `lengths`) — после остальных. Один короткий ролик на странице
-        так и остаётся первым: сомнение только сравнивает, а не отбрасывает.
+        Раньше вида — сомнение (преролл): реклама — последней, короткий законченный ролик — после остальных.
+        Длина ролика у списка HLS — по нему самому (`seconds`), у файла — по длине `<video>`, где он играет
+        (`lengths`). Длина тега — только файлу: мастер, который тег играет сам, она сделала бы сомнительнее
+        его же вариантов, у которых длины нет (список не прочитан). Один короткий ролик на странице так и
+        остаётся первым: сомнение только сравнивает, а не отбрасывает.
         """
         order = {"hls": 0, "dash": 1, "file": 2}
         lengths = lengths or {}
@@ -353,7 +420,9 @@ class Catch:
         def doubt(stream: Stream) -> int:
             if stream.ad:
                 return 2
-            seconds = stream.seconds if stream.seconds is not None else lengths.get(stream.url)
+            seconds = stream.seconds
+            if seconds is None and stream.kind == "file":
+                seconds = lengths.get(stream.url)
             return 1 if seconds is not None and 0 < seconds <= PREROLL_SECONDS else 0
 
         def rank(stream: Stream) -> tuple[int, int, int, int, int]:

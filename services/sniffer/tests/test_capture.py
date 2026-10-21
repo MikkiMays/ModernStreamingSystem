@@ -33,6 +33,39 @@ class WhatIsAStream(unittest.TestCase):
         self.assertIsNone(capture.kind_of("https://cdn.example/seg-1.m4s", "video/iso.segment", "xhr"))
         self.assertIsNone(capture.kind_of("https://cdn.example/page.html", "text/html", "document"))
 
+    def test_a_piece_the_video_tag_asks_for_itself_is_not_a_file(self):
+        # Тег `<video src=master.m3u8>` играет HLS сам (Chromium 153) и спрашивает кусочки видом `media`.
+        self.assertIsNone(capture.kind_of("https://cdn.example/144p_0.m2ts", "video/mp2t", "media"))
+        self.assertIsNone(capture.kind_of("https://cdn.example/seg-1.ts", "video/mp2t", "media"))
+        self.assertIsNone(capture.kind_of("https://cdn.example/seg-1.m4s", "video/iso.segment", "media"))
+        self.assertIsNone(capture.kind_of("https://cdn.example/seg-1.cmfv", "video/mp4", "media"))
+        self.assertIsNone(capture.kind_of("https://cdn.example/get?seg=1", "video/MP2T", "media"))
+        # Cookies кусочков всё равно нужны прокси.
+        self.assertTrue(capture.streamish("https://cdn.example/144p_0.m2ts", "video/mp2t", "media"))
+        self.assertTrue(capture.streamish("https://cdn.example/seg-1.m4s", "video/iso.segment", "media"))
+        # Готовый файл тега — по-прежнему файл.
+        self.assertEqual(capture.kind_of("https://cdn.example/film.mp4", "video/mp4", "media"), "file")
+        self.assertEqual(capture.kind_of("https://cdn.example/song.aac", "audio/aac", "media"), "file")
+
+    def test_a_list_names_its_pieces_and_a_master_names_none(self):
+        media = (
+            '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6,\nseg-0.mp4\n'
+            "#EXTINF:6,\nhttps://cdn2.example/v/seg-1.mp4?t=1\n#EXT-X-ENDLIST\n"
+        )
+        self.assertEqual(
+            capture.playlist_pieces(media, "https://cdn.example/v/720.m3u8"),
+            (
+                "https://cdn.example/v/init.mp4",
+                "https://cdn.example/v/seg-0.mp4",
+                "https://cdn2.example/v/seg-1.mp4?t=1",
+            ),
+        )
+        master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nhi.m3u8\n"
+        self.assertEqual(capture.playlist_pieces(master, "https://cdn.example/v/master.m3u8"), ())
+        self.assertEqual(capture.playlist_pieces("<html>a.mp4</html>", "https://cdn.example/"), ())
+        many = "#EXTM3U\n" + "".join(f"#EXTINF:1,\n{n}.aac\n" for n in range(capture.PIECES + 10))
+        self.assertEqual(len(capture.playlist_pieces(many, "https://cdn.example/")), capture.PIECES)
+
     def test_the_pieces_of_a_stream_are_what_the_player_asks_for(self):
         self.assertTrue(capture.streamish("https://cdn.example/seg-1.ts", "video/mp2t", "xhr"))
         self.assertTrue(capture.streamish("https://cdn.example/key", "application/octet-stream", "xhr"))
@@ -127,6 +160,24 @@ class WhatGoesToTheService(unittest.TestCase):
         catch.closed = True
         self.assertFalse(catch.stream("https://ads.example/ad.mp4", "file", {}))
 
+    def test_a_file_the_list_names_as_its_piece_is_not_kept(self):
+        catch = Catch()
+        # Ответ кусочка пришёл раньше, чем дочитан список, который его называет.
+        catch.stream("https://cdn.example/v/seg-0.mp4", "file", {}, order=3, ext="mp4")
+        catch.stream("https://cdn.example/film.mp4", "file", {}, order=4, ext="mp4")
+        catch.listed(("https://cdn.example/v/init.mp4", "https://cdn.example/v/seg-0.mp4"))
+        catch.stream("https://cdn.example/v/720.m3u8", "hls", {}, order=2, master=False, seconds=5400)
+        self.assertEqual(
+            sorted(catch.streams), ["https://cdn.example/film.mp4", "https://cdn.example/v/720.m3u8"]
+        )
+        # Кусочки после списка — ни места в улове, ни чтения заголовков ради них.
+        self.assertFalse(catch.wants("https://cdn.example/v/init.mp4", 0, "file"))
+        self.assertFalse(catch.stream("https://cdn.example/v/init.mp4", "file", {}, ext="mp4"))
+        self.assertTrue(catch.wants("https://cdn.example/other.mp4", 0, "file"))
+        for number in range(capture.PIECES + 10):
+            catch.listed((f"https://cdn.example/v/{number}.aac",))
+        self.assertEqual(len(catch.pieces), capture.PIECES)
+
 
 class WhatIsBest(unittest.TestCase):
     def test_a_master_playlist_then_other_hls_then_dash_then_a_file(self):
@@ -194,6 +245,28 @@ class Preroll(unittest.TestCase):
         lengths = {"https://cdn.example/pre.mp4": 15.0, "https://cdn.example/film.mp4": 5400.0}
         best = catch.ranked(["https://cdn.example/pre.mp4", "https://cdn.example/film.mp4"], lengths)[0]
         self.assertEqual(best.url, "https://cdn.example/film.mp4")
+
+    def test_a_short_master_the_video_tag_plays_itself_stays_first(self):
+        # SNIF-1: `<video src=master.m3u8>` с роликом в 6 с; тег спросил и кусочек — видом `media`.
+        master = "https://site.example/media/master.m3u8"
+        piece = "https://site.example/media/144p_0.m2ts"
+        self.assertIsNone(capture.kind_of(piece, "video/mp2t", "media"))
+        catch = Catch()
+        catch.stream(master, "hls", {}, order=1, master=True)
+        catch.stream("https://site.example/media/144p.m3u8", "hls", {}, order=2, master=False, seconds=6.0)
+        # Даже кусочек, который прошёл бы файлом (`.mp4` из непрочитанного списка), мастера не обгоняет:
+        # длина тега — длина файла, который он играет, а не мастера.
+        catch.stream("https://site.example/media/144p_0.mp4", "file", {}, order=3, ext="mp4")
+        for lengths in ({master: 6.0}, {}, {master: 6000.0}):
+            self.assertEqual(catch.ranked([master], lengths)[0].url, master, lengths)
+
+    def test_the_length_of_the_tag_does_not_put_a_master_behind_its_own_variant(self):
+        # Список варианта не прочитан (без `Content-Length`, не успел) — длины у него нет, а у тега есть.
+        master = "https://cdn.example/clip/master.m3u8"
+        catch = Catch()
+        catch.stream(master, "hls", {}, order=1, master=True)
+        catch.stream("https://cdn.example/clip/720.m3u8", "hls", {}, order=2)
+        self.assertEqual(catch.ranked([master], {master: 30.0})[0].url, master)
 
     def test_the_service_is_told_which_stream_is_an_ad(self):
         catch = Catch()
