@@ -136,7 +136,10 @@ test('музыка: запас в одной секунде у всех, зам�
     if (await add.isVisible({ timeout: 5000 }).catch(() => false)) await add.click({ timeout: 15000 });
     await expect(host!.locator('input[type="file"]')).toBeAttached({ timeout: 60000 });
     await host!.locator('input[type="file"]').setInputFiles(TRACK);
-    await expect(host!.getByText('Сейчас играет:')).toBeVisible({ timeout: 90000 });
+    // Признак «играет» — карточка музыки в слое интеграций, а не строка раскрытой панели плеера.
+    await expect(host!.getByRole('button', { name: 'Открыть плеер музыки' })).toContainText('Сейчас играет', {
+      timeout: 90000,
+    });
     console.log('music playing at', new Date().toISOString());
     mark('playing');
 
