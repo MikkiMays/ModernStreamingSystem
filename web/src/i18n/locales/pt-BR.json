@@ -2489,7 +2489,9 @@
         "connecting": "Conectando a música",
         "empty": "A fila está vazia",
         "paused": "Pausada",
-        "playing": "Tocando agora"
+        "playing": "Tocando agora",
+        "starved": "A fonte não está acompanhando",
+        "reconnecting": "Reconectando a música"
       },
       "firstTrack": "Adicione a primeira faixa",
       "addedBy": "Adicionada por {{name}}",
@@ -2667,7 +2669,9 @@
       "paused": "Pausada",
       "idle": "Pronta para tocar",
       "empty": "A fila está vazia",
-      "error": "Erro"
+      "error": "Erro",
+      "starved": "A fonte não acompanha",
+      "reconnecting": "Reconectando"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2714,7 +2718,7 @@
     },
     "noData": "Sem dados",
     "buffer": {
-      "label": "Buffer que o cliente pede",
+      "label": "Buffer de recepção",
       "kinds": {
         "conversation": "conversa",
         "media": "música e tela",

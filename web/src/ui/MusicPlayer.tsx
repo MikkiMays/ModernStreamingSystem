@@ -53,14 +53,20 @@ export function MusicPlayer({
     setDragging(null);
     onSeek(value);
   };
+  // «Сейчас играет» — только когда звук и правда идёт: голодающий источник и переподключение
+  // издателя (R09/R04) на слух — тишина, и подпись обязана это говорить.
   const status =
     state.status === 'connecting'
       ? t(($) => $.music.player.status.connecting)
-      : !current
-        ? t(($) => $.music.player.status.empty)
-        : state.paused
-          ? t(($) => $.music.player.status.paused)
-          : t(($) => $.music.player.status.playing);
+      : state.status === 'reconnecting'
+        ? t(($) => $.music.player.status.reconnecting)
+        : !current
+          ? t(($) => $.music.player.status.empty)
+          : state.paused
+            ? t(($) => $.music.player.status.paused)
+            : state.status === 'starved'
+              ? t(($) => $.music.player.status.starved)
+              : t(($) => $.music.player.status.playing);
   const percent = Math.round(volume * 100);
   const backdrop = current?.cover
     ? ({ '--music-cover': `url("${coverUrl(current.cover)}")` } as CSSProperties)

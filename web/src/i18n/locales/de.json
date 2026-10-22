@@ -2463,7 +2463,9 @@
         "connecting": "Musik wird verbunden",
         "empty": "Warteschlange leer",
         "paused": "Pausiert",
-        "playing": "Läuft gerade"
+        "playing": "Läuft gerade",
+        "starved": "Quelle kommt nicht nach",
+        "reconnecting": "Musik wird neu verbunden"
       },
       "firstTrack": "Füg den ersten Titel hinzu",
       "addedBy": "Hinzugefügt von {{name}}",
@@ -2640,7 +2642,9 @@
       "paused": "Pausiert",
       "idle": "Bereit zur Wiedergabe",
       "empty": "Warteschlange leer",
-      "error": "Fehler"
+      "error": "Fehler",
+      "starved": "Quelle kommt nicht nach",
+      "reconnecting": "Verbindet neu"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2687,7 +2691,7 @@
     },
     "noData": "Keine Daten",
     "buffer": {
-      "label": "Puffer, den der Client anfordert",
+      "label": "Empfangspuffer",
       "kinds": {
         "conversation": "Gespräch",
         "media": "Musik und Bildschirm",

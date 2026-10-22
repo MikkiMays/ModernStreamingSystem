@@ -2437,7 +2437,9 @@
         "connecting": "正在连接音乐",
         "empty": "队列为空",
         "paused": "已暂停",
-        "playing": "正在播放"
+        "playing": "正在播放",
+        "starved": "音源跟不上",
+        "reconnecting": "正在重新连接音乐"
       },
       "firstTrack": "添加第一首曲目",
       "addedBy": "由 {{name}} 添加",
@@ -2613,7 +2615,9 @@
       "paused": "已暂停",
       "idle": "可以播放",
       "empty": "队列为空",
-      "error": "出错"
+      "error": "出错",
+      "starved": "音源跟不上",
+      "reconnecting": "正在重新连接"
     },
     "game": {
       "label": "{{name}}：{{status}}",
@@ -2660,7 +2664,7 @@
     },
     "noData": "无数据",
     "buffer": {
-      "label": "客户端请求的缓冲",
+      "label": "接收缓冲",
       "kinds": {
         "conversation": "通话",
         "media": "音乐和屏幕",

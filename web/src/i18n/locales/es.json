@@ -2489,7 +2489,9 @@
         "connecting": "Conectando la música",
         "empty": "La cola está vacía",
         "paused": "En pausa",
-        "playing": "Sonando ahora"
+        "playing": "Sonando ahora",
+        "starved": "La fuente no da abasto",
+        "reconnecting": "Reconectando la música"
       },
       "firstTrack": "Añade la primera canción",
       "addedBy": "Añadida por {{name}}",
@@ -2667,7 +2669,9 @@
       "paused": "En pausa",
       "idle": "Lista para reproducir",
       "empty": "La cola está vacía",
-      "error": "Error"
+      "error": "Error",
+      "starved": "La fuente no da abasto",
+      "reconnecting": "Reconectando"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2714,7 +2718,7 @@
     },
     "noData": "Sin datos",
     "buffer": {
-      "label": "Búfer que pide el cliente",
+      "label": "Búfer de recepción",
       "kinds": {
         "conversation": "conversación",
         "media": "música y pantalla",

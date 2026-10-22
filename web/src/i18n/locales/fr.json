@@ -2489,7 +2489,9 @@
         "connecting": "Connexion de la musique",
         "empty": "File vide",
         "paused": "En pause",
-        "playing": "En lecture"
+        "playing": "En lecture",
+        "starved": "La source ne suit pas",
+        "reconnecting": "Reconnexion de la musique"
       },
       "firstTrack": "Ajoutez le premier titre",
       "addedBy": "Ajouté par {{name}}",
@@ -2667,7 +2669,9 @@
       "paused": "En pause",
       "idle": "Prête à jouer",
       "empty": "File vide",
-      "error": "Erreur"
+      "error": "Erreur",
+      "starved": "La source ne suit pas",
+      "reconnecting": "Reconnexion"
     },
     "game": {
       "label": "{{name}} : {{status}}",
@@ -2714,7 +2718,7 @@
     },
     "noData": "Aucune donnée",
     "buffer": {
-      "label": "Tampon demandé par le client",
+      "label": "Tampon de réception",
       "kinds": {
         "conversation": "conversation",
         "media": "musique et écran",

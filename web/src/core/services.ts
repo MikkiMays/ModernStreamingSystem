@@ -51,7 +51,7 @@ export interface MusicState {
   paused: boolean;
   position: number;
   revision: number;
-  status: 'disabled' | 'connecting' | 'idle' | 'playing' | 'paused' | 'error';
+  status: 'disabled' | 'connecting' | 'idle' | 'playing' | 'paused' | 'error' | 'starved' | 'reconnecting';
   error: string | null;
   participantId: string | null;
   repeat: boolean;

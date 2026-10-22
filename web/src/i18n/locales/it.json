@@ -2489,7 +2489,9 @@
         "connecting": "Colleghiamo la musica",
         "empty": "La coda è vuota",
         "paused": "In pausa",
-        "playing": "In riproduzione"
+        "playing": "In riproduzione",
+        "starved": "La sorgente non sta al passo",
+        "reconnecting": "Riconnessione della musica"
       },
       "firstTrack": "Aggiungi il primo brano",
       "addedBy": "Aggiunto da {{name}}",
@@ -2667,7 +2669,9 @@
       "paused": "In pausa",
       "idle": "Pronta a suonare",
       "empty": "La coda è vuota",
-      "error": "Errore"
+      "error": "Errore",
+      "starved": "La sorgente non sta al passo",
+      "reconnecting": "Riconnessione"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2714,7 +2718,7 @@
     },
     "noData": "Nessun dato",
     "buffer": {
-      "label": "Buffer richiesto dal client",
+      "label": "Buffer di ricezione",
       "kinds": {
         "conversation": "conversazione",
         "media": "musica e schermo",

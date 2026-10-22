@@ -2463,7 +2463,9 @@
         "connecting": "Connecting Music",
         "empty": "Queue is empty",
         "paused": "Paused",
-        "playing": "Now playing"
+        "playing": "Now playing",
+        "starved": "Source is falling behind",
+        "reconnecting": "Reconnecting music"
       },
       "firstTrack": "Add the first track",
       "addedBy": "Added by {{name}}",
@@ -2640,7 +2642,9 @@
       "paused": "Paused",
       "idle": "Ready to play",
       "empty": "Queue is empty",
-      "error": "Error"
+      "error": "Error",
+      "starved": "Source falling behind",
+      "reconnecting": "Reconnecting"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2687,7 +2691,7 @@
     },
     "noData": "No data",
     "buffer": {
-      "label": "Buffer the client asks for",
+      "label": "Playout buffer",
       "kinds": {
         "conversation": "conversation",
         "media": "music and screen",
