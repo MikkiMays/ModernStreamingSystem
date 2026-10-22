@@ -78,11 +78,6 @@
         "hint": "",
         "keywords": "claro escuro noturno sistema tema"
       },
-      "appearance-bots": {
-        "label": "Bots ao lado da reunião",
-        "hint": "Integrações ativas ao lado do palco",
-        "keywords": "integrações painel música"
-      },
       "hotkey-mic": {
         "label": "Microfone",
         "hint": "Ativar ou desativar",
@@ -306,8 +301,7 @@
         "system": "Igual ao sistema",
         "light": "Claro",
         "dark": "Escuro"
-      },
-      "inMeeting": "Na reunião"
+      }
     },
     "about": {
       "checking": "Verificando a versão mais recente…",

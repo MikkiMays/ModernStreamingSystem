@@ -78,11 +78,6 @@
         "hint": "",
         "keywords": "light dark night system theme"
       },
-      "appearance-bots": {
-        "label": "Bots next to the meeting",
-        "hint": "Active integrations listed beside the stage",
-        "keywords": "integrations panel music"
-      },
       "hotkey-mic": {
         "label": "Microphone",
         "hint": "Mute or unmute",
@@ -306,8 +301,7 @@
         "system": "System",
         "light": "Light",
         "dark": "Dark"
-      },
-      "inMeeting": "In meetings"
+      }
     },
     "about": {
       "checking": "Checking for the latest version…",

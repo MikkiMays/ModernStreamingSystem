@@ -178,10 +178,11 @@ it('забывает убранные настройки — режим сети
  * руками, и вместе с ним выключалась адаптация приёма. Теперь у приёма своя память.
  */
 
-it('stores the integration roster choice and Yandex token for this browser profile', () => {
+it('stores the Yandex token; integrations over the call are always shown (R21: the switch is gone)', () => {
   savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });
+  // Выключенное раньше «Боты справа» не прячет интеграции навсегда: переключателя больше нет.
   expect(readPreferences()).toMatchObject({
-    showIntegrationPanel: false,
+    showIntegrationPanel: true,
     yandexMusicToken: 'saved-yandex-token',
   });
 });

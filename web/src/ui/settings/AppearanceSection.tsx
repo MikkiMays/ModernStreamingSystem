@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import type { Preferences } from '../../core/preferences';
 import { applyLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES } from '../../i18n';
 import type { Theme } from '../primitives';
-import { Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
 import { rowDomId, rowText } from './sections';
 
@@ -98,15 +97,6 @@ export function AppearanceSection({
               ))}
             </select>
           )}
-        </SettingRow>
-      </SettingGroup>
-      <SettingGroup title={t(($) => $.settings.appearance.inMeeting)}>
-        <SettingRow id="appearance-bots">
-          <Switch
-            checked={preferences.showIntegrationPanel}
-            ariaLabel={rowText(t, 'appearance-bots').label}
-            onCheckedChange={(showIntegrationPanel) => void change({ showIntegrationPanel })}
-          />
         </SettingRow>
       </SettingGroup>
     </>

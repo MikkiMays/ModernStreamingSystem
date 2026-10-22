@@ -78,11 +78,6 @@
         "hint": "",
         "keywords": "clair sombre nuit système thème"
       },
-      "appearance-bots": {
-        "label": "Bots à côté de la réunion",
-        "hint": "Intégrations actives à côté de la scène",
-        "keywords": "intégrations panneau musique"
-      },
       "hotkey-mic": {
         "label": "Micro",
         "hint": "Activer ou couper",
@@ -306,8 +301,7 @@
         "system": "Comme le système",
         "light": "Clair",
         "dark": "Sombre"
-      },
-      "inMeeting": "En réunion"
+      }
     },
     "about": {
       "checking": "Recherche de la dernière version…",

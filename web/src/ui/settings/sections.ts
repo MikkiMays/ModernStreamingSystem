@@ -165,7 +165,6 @@ export const ROWS = {
   'profile-avatar': { section: 'profile' },
   'appearance-theme': { section: 'appearance' },
   'appearance-language': { section: 'appearance' },
-  'appearance-bots': { section: 'appearance' },
   'hotkey-mic': { section: 'hotkeys' },
   'hotkey-ptt': { section: 'hotkeys', only: 'desktop', feature: 'ptt' },
   'hotkey-other': { section: 'hotkeys' },

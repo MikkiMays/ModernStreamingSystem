@@ -48,6 +48,11 @@ describe('карта строк', () => {
     }
   });
 
+  it('лишних строк нет (R21, X3): ни «Чужого видео», ни «Уступать показу», ни «Ботов справа»', () => {
+    for (const gone of ['camera-yields', 'reception', 'playout', 'appearance-bots'])
+      expect(Object.keys(ROWS), gone).not.toContain(gone);
+  });
+
   it('пояснения короткие: одна строка, без точки в конце (T29)', () => {
     for (const id of Object.keys(ROWS) as RowId[]) {
       const { hint } = rowText(t, id);

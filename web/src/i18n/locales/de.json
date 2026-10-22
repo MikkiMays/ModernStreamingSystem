@@ -78,11 +78,6 @@
         "hint": "",
         "keywords": "hell dunkel Nacht System Design Theme"
       },
-      "appearance-bots": {
-        "label": "Bots neben dem Meeting",
-        "hint": "Aktive Integrationen neben der Bühne",
-        "keywords": "Integrationen Leiste Musik"
-      },
       "hotkey-mic": {
         "label": "Mikrofon",
         "hint": "Ein- oder ausschalten",
@@ -306,8 +301,7 @@
         "system": "Wie im System",
         "light": "Hell",
         "dark": "Dunkel"
-      },
-      "inMeeting": "Im Meeting"
+      }
     },
     "about": {
       "checking": "Suche nach der neuesten Version…",

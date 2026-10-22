@@ -168,7 +168,9 @@ export function readPreferences(): Preferences {
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
     language: isLanguage(data.language) ? data.language : null,
-    showIntegrationPanel: data.showIntegrationPanel !== false,
+    // Переключателя «Боты справа от встречи» больше нет (R21, R30): интеграции видны всегда, и
+    // выключенное раньше не прячет их навсегда. Поле уберёт сцена встречи (W3).
+    showIntegrationPanel: true,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: screenPrefs(data.screen),
     camera: cameraLevel(data.camera),

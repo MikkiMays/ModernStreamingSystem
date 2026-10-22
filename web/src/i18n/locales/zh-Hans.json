@@ -78,11 +78,6 @@
         "hint": "",
         "keywords": "浅色 深色 夜间 系统 主题"
       },
-      "appearance-bots": {
-        "label": "会议旁的机器人",
-        "hint": "在舞台旁列出正在使用的集成",
-        "keywords": "集成 面板 音乐"
-      },
       "hotkey-mic": {
         "label": "麦克风",
         "hint": "开启或静音",
@@ -306,8 +301,7 @@
         "system": "跟随系统",
         "light": "浅色",
         "dark": "深色"
-      },
-      "inMeeting": "会议中"
+      }
     },
     "about": {
       "checking": "正在查询最新版本…",

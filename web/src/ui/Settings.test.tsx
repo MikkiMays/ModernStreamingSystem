@@ -286,15 +286,15 @@ describe('профиль и оформление (T41)', () => {
     expect(within(nav()).getByRole('button', { name: /Полина/ })).toBeInTheDocument();
   });
 
-  it('тема выбирается образцом в «Оформлении», боты справа — переключателем', () => {
+  it('тема выбирается образцом в «Оформлении»; переключателя «Боты справа» нет — интеграции поверх звонка видны всегда (R21, R30)', () => {
     const setTheme = vi.fn();
     render(<Settings open section="appearance" theme="system" setTheme={setTheme} onOpenChange={vi.fn()} />);
     const themes = screen.getByRole('radiogroup', { name: 'Тема' });
     expect(within(themes).getByRole('radio', { name: 'Как в системе' })).toBeChecked();
     fireEvent.click(within(themes).getByRole('radio', { name: 'Тёмная' }));
     expect(setTheme).toHaveBeenCalledWith('dark');
-    fireEvent.click(screen.getByRole('switch', { name: 'Боты справа от встречи' }));
-    expect(readPreferences().showIntegrationPanel).toBe(false);
+    expect(screen.queryByRole('switch', { name: 'Боты справа от встречи' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Во встрече' })).not.toBeInTheDocument();
   });
 
   it('язык выбирается в «Оформлении» самоназванием, запоминается и сразу меняет интерфейс (E14)', async () => {
