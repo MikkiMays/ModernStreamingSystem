@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
@@ -110,6 +110,31 @@ it('defaults to silent PING display and enabled notifications, then saves both i
     showIntegrationPanel: true,
     yandexMusicToken: '',
   });
+});
+
+/**
+ * R14: перетаскивание ползунка громкости не должно на каждом шаге будить оболочку Windows (IPC
+ * `preferences.changed`) — ей нужны только PING и сигналы, и только когда они правда поменялись.
+ */
+it('оболочке — только смена PING и сигналов, громкости её не будят (R14)', () => {
+  const postMessage = vi.fn();
+  (window as { chrome?: unknown }).chrome = {
+    webview: { postMessage, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+  };
+  try {
+    savePreferences({ outputVolume: 40 });
+    savePreferences({ soundVolume: 30, audio: { ...readPreferences().audio, gain: 1.2 } });
+    expect(postMessage).not.toHaveBeenCalled();
+    savePreferences({ notificationSounds: false });
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'preferences.changed', showPing: false, notificationSounds: false }),
+    );
+    savePreferences({ notificationSounds: false, outputVolume: 41 });
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  } finally {
+    delete (window as { chrome?: unknown }).chrome;
+  }
 });
 
 /**

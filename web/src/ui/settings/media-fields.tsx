@@ -6,6 +6,7 @@ import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles'
 import { Segmented, Slider, Switch, type SegmentedOption } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
+import { useLiveValue } from './live-value';
 
 /**
  * Строки звука и видео, которые нужны в двух местах: в разделе «Голос и видео» окна настроек и в
@@ -172,7 +173,14 @@ export function GainRow({
   change: (value: AudioPreferences) => void;
 }) {
   const { t } = useTranslation();
-  const percent = Math.round(audio.gain * 100);
+  // Пишется, когда ползунок отпустили: во встрече это `applyConstraints` и пересборка обработки,
+  // а в проверке — перезапуск захвата; себя во время перетаскивания человек всё равно не слышит (R14).
+  const gain = useLiveValue(
+    Math.round(audio.gain * 100),
+    (percent) => change({ ...audio, gain: percent / 100 }),
+    { live: false },
+  );
+  const percent = gain.value;
   return (
     <SettingRow id="mic-volume" stack disabled={audio.autoGainControl}>
       {/* Имя ползунка — видимая подпись строки (`aria-labelledby`): так и диктор, и axe знают, что
@@ -186,7 +194,8 @@ export function GainRow({
             step={1}
             disabled={audio.autoGainControl}
             value={percent}
-            onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
+            onChange={(e) => gain.onChange(Number(e.target.value))}
+            onValueCommitted={gain.onCommit}
           />
           <SettingValue>
             {audio.autoGainControl ? t(($) => $.settings.media.auto) : `${percent}%`}

@@ -238,9 +238,12 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
     /* Still apply for this call. */
   }
   window.dispatchEvent(new Event('cord:preferences'));
-  notifyDesktop('preferences.changed', {
-    showPing: next.showPing,
-    notificationSounds: next.notificationSounds,
-  });
+  // Оболочке нужны только PING и сигналы — и только когда они поменялись: ползунок громкости
+  // иначе слал бы IPC на каждый шаг перетаскивания (R14).
+  if (next.showPing !== current.showPing || next.notificationSounds !== current.notificationSounds)
+    notifyDesktop('preferences.changed', {
+      showPing: next.showPing,
+      notificationSounds: next.notificationSounds,
+    });
   return next;
 }

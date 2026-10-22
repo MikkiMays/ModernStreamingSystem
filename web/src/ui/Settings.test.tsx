@@ -101,6 +101,44 @@ describe('окно настроек (T26)', () => {
     expect(screen.queryByRole('heading', { name: 'Дополнительно' })).not.toBeInTheDocument();
   });
 
+  it('ползунок (R14): шаг 1, при перетаскивании запись не чаще кадра, окончательная — при отпускании', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      frames[id - 1] = () => {};
+    });
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const slider = screen.getByRole('slider', { name: 'Громкость собеседников' });
+    expect(slider).toHaveAttribute('step', '1');
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const writes = () => setItem.mock.calls.filter(([key]) => key === 'cord:preferences:v1').length;
+    try {
+      // Шестьдесят шагов перетаскивания за один кадр: бегунок и подпись едут сразу, хранилище — ждёт кадр.
+      for (let value = 99; value >= 40; value--)
+        fireEvent.input(slider, { target: { value: String(value) } });
+      expect(slider).toHaveValue('40');
+      expect(screen.getByText('40%')).toBeInTheDocument();
+      expect(writes()).toBe(0);
+      act(() => frames.splice(0).forEach((callback) => callback(0)));
+      expect(writes()).toBe(1);
+      expect(readPreferences().outputVolume).toBe(40);
+      // Отпустили — окончательное значение сразу, без ожидания кадра.
+      fireEvent.input(slider, { target: { value: '41' } });
+      fireEvent.change(slider, { target: { value: '41' } });
+      expect(readPreferences().outputVolume).toBe(41);
+      act(() => frames.splice(0).forEach((callback) => callback(0)));
+      expect(readPreferences().outputVolume).toBe(41);
+    } finally {
+      setItem.mockRestore();
+    }
+    // Громкость сигналов — тоже шаг 1.
+    openSection('Звуки');
+    expect(screen.getByRole('slider', { name: 'Громкость сигналов и звуков игр' })).toHaveAttribute(
+      'step',
+      '1',
+    );
+  });
+
   it('«Видео» (R100, R78): превью камеры сверху, качество камеры и показа сегментами, превью показа переключателем', async () => {
     const device = fakeCamera();
     render(<Settings open section="video" onOpenChange={vi.fn()} />);

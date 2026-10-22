@@ -9,6 +9,7 @@ import { rowText } from './sections';
 import { DeviceSelect, useMediaDevices } from './devices';
 import { AutoGainRow, EchoRow, GainRow, NoiseRow } from './media-fields';
 import { useDeviceCheck } from './useDeviceCheck';
+import { useLiveValue } from './live-value';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
 
@@ -41,6 +42,8 @@ export function AudioSection({
         {check.failure.text}
       </p>
     ) : null;
+  // Громкость собеседников слышна сразу: во время перетаскивания пишется раз в кадр (R14).
+  const volume = useLiveValue(preferences.outputVolume, (outputVolume) => void change({ outputVolume }));
   // Во встрече индикатор показывает, как вас слышат сейчас; своя проверка — пока она идёт.
   const level = check.mic ? check.level : published;
   return (
@@ -150,12 +153,12 @@ export function AudioSection({
             <Slider
               min={0}
               max={100}
-              step={5}
-              value={preferences.outputVolume}
+              value={volume.value}
               label={rowText(t, 'output-volume').label}
-              onChange={(e) => void change({ outputVolume: Number(e.target.value) })}
+              onChange={(e) => volume.onChange(Number(e.target.value))}
+              onValueCommitted={volume.onCommit}
             />
-            <SettingValue>{preferences.outputVolume}%</SettingValue>
+            <SettingValue>{volume.value}%</SettingValue>
           </div>
         </SettingRow>
       </SettingGroup>
