@@ -5,7 +5,7 @@ import '../app-styles';
 import './telegram.css';
 import { readPreferences } from '../core/preferences';
 import { unlockNotificationAudio } from '../core/sounds';
-import { installPointerFocus } from '../ui/pointer-focus';
+import { installInputModality } from '../ui/input-modality';
 import { startTelegram } from './sdk';
 import { TelegramApp } from './TelegramApp';
 
@@ -18,7 +18,7 @@ import { TelegramApp } from './TelegramApp';
 const shell = startTelegram();
 document.documentElement.dataset.telegram = shell ? shell.platform : 'outside';
 unlockNotificationAudio();
-installPointerFocus();
+installInputModality();
 
 void applyLanguage(readPreferences().language).then(() =>
   createRoot(document.getElementById('root')!).render(<TelegramApp shell={shell} />),

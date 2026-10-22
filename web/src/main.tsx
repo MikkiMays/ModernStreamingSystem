@@ -7,10 +7,11 @@ import App from './App';
 import { readPreferences } from './core/preferences';
 import { isDesktop } from './core/desktop';
 import { unlockNotificationAudio } from './core/sounds';
-import { installPointerFocus } from './ui/pointer-focus';
+import { installInputModality } from './ui/input-modality';
 import { watchErrors } from './core/support';
 unlockNotificationAudio();
-installPointerFocus();
+// Кольцо фокуса — только тому, кто ходит клавиатурой (S1, R26).
+installInputModality();
 // Последние ошибки страницы — для обращения в поддержку, если человек сам их приложит (E13).
 watchErrors();
 
