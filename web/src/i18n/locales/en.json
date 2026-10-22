@@ -27,10 +27,6 @@
         "title": "Keyboard shortcuts",
         "keywords": "hotkeys keybinds keyboard"
       },
-      "voice": {
-        "title": "Voice and video",
-        "keywords": "sound audio microphone camera"
-      },
       "sounds": {
         "title": "Sounds",
         "keywords": "notifications alerts games"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "app tray taskbar thumbnail badge flash sleep overlay autostart"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "voice sound microphone speakers headphones"
+      },
+      "video": {
+        "title": "Video",
+        "keywords": "camera screen share quality preview"
       }
     },
     "anchors": {
       "microphone": "Microphone",
       "output": "Speakers",
-      "processing": "Audio processing",
       "camera": "Camera",
       "screen": "Screen share"
     },
@@ -74,11 +77,6 @@
         "label": "Theme",
         "hint": "",
         "keywords": "light dark night system theme"
-      },
-      "appearance-bots": {
-        "label": "Bots next to the meeting",
-        "hint": "Active integrations listed beside the stage",
-        "keywords": "integrations panel music"
       },
       "hotkey-mic": {
         "label": "Microphone",
@@ -110,11 +108,6 @@
         "hint": "Evens out quiet and loud voices",
         "keywords": "automatic gain control agc"
       },
-      "mic-check": {
-        "label": "Mic test",
-        "hint": "Say something — the bar shows your level",
-        "keywords": "test meter recording"
-      },
       "output-device": {
         "label": "Output device",
         "hint": "",
@@ -124,11 +117,6 @@
         "label": "Output volume",
         "hint": "",
         "keywords": "voices sound"
-      },
-      "output-check": {
-        "label": "Sound test",
-        "hint": "",
-        "keywords": "speaker test"
       },
       "noise": {
         "label": "Noise suppression",
@@ -146,12 +134,12 @@
         "keywords": "webcam device"
       },
       "camera-resolution": {
-        "label": "Camera resolution",
+        "label": "Quality",
         "hint": "",
         "keywords": "quality 720p 1080p"
       },
       "camera-fps": {
-        "label": "Camera frame rate",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "fps smoothness"
       },
@@ -161,12 +149,12 @@
         "keywords": "camera test"
       },
       "screen-resolution": {
-        "label": "Screen share resolution",
+        "label": "Quality",
         "hint": "",
         "keywords": "screen share quality stream"
       },
       "screen-fps": {
-        "label": "Screen share frame rate",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "screen share fps smoothness stream"
       },
@@ -289,6 +277,11 @@
         "label": "Start with Windows",
         "hint": "Cord opens minimized",
         "keywords": "autostart startup launch"
+      },
+      "screen-preview": {
+        "label": "Share preview",
+        "hint": "Viewers see a thumbnail without opening the share",
+        "keywords": "preview thumbnail screen share stream"
       }
     },
     "title": "Settings",
@@ -308,8 +301,7 @@
         "system": "System",
         "light": "Light",
         "dark": "Dark"
-      },
-      "inMeeting": "In meetings"
+      }
     },
     "about": {
       "checking": "Checking for the latest version…",
@@ -341,8 +333,6 @@
       "services": "Services"
     },
     "hotkeys": {
-      "browser": "In the browser, shortcuts only work while the Cord tab is active. In the app, always.",
-      "desktop": "In the app, the shortcut works even over other programs.",
       "recording": "Press a shortcut…",
       "meeting": "Meeting",
       "cancel": "Esc — cancel",
@@ -351,10 +341,8 @@
       "changeLabel": "Change microphone shortcut",
       "assign": "Assign",
       "assignLabel": "Assign microphone shortcut",
-      "reset": "Default",
-      "resetLabel": "Reset microphone shortcut to default",
-      "disable": "Disable",
-      "disableLabel": "Disable microphone shortcut",
+      "reset": "Reset",
+      "resetLabel": "Reset microphone shortcut",
       "holdHint": "Hold the shortcut to talk",
       "groups": {
         "cinema": "Cinema",
@@ -372,6 +360,11 @@
         "bet": "bet",
         "allIn": "all-in",
         "reorder": "reorder a room in Favorites"
+      },
+      "status": {
+        "taken": "Another program already uses this shortcut: it works in the Cord window, but pick another one for the background.",
+        "duplicate": "This shortcut is already assigned to another Cord action.",
+        "windowOnly": "Right now this shortcut works only in the Cord window."
       }
     },
     "media": {
@@ -388,12 +381,13 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise — enhanced",
+        "rnnoise": "Enhanced",
         "voice": "Voice isolation",
         "off": "Off"
       },
       "auto": "Auto",
-      "voiceGroup": "Voice and microphone"
+      "voiceGroup": "Voice and microphone",
+      "floorNote": "Cord never sends below this quality"
     },
     "profile": {
       "refused": "The room didn't accept the picture",
@@ -450,10 +444,6 @@
       "check": "Test",
       "checkSpeakersLabel": "Test speakers",
       "previewLabel": "Camera preview, only for you",
-      "hidePreviewLabel": "Hide camera preview",
-      "showPreviewLabel": "Show camera preview",
-      "hide": "Hide",
-      "show": "Show",
       "deviceFailed": "Couldn't turn on the device",
       "recordUnsupported": "This browser can't record a sample. The level bar still works.",
       "toneFailed": "Couldn't play the test sound"
@@ -467,7 +457,10 @@
       "micTaken": "This shortcut is already used by the overlay — pick another.",
       "changeLabel": "Change overlay shortcut",
       "assignLabel": "Assign overlay shortcut",
-      "disableLabel": "Turn off overlay shortcut"
+      "resetLabel": "Reset overlay shortcut"
+    },
+    "video": {
+      "previewDenied": "No camera access — allow it for Cord"
     }
   },
   "meeting": {

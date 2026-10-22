@@ -14,22 +14,31 @@ import {
 
 describe('куда ведёт имя раздела (мост settings.open, ссылка «О программе», прежние вкладки)', () => {
   it('прежние вкладки открывают свои новые разделы, а не пустоту', () => {
-    expect(placeFor('audio')).toEqual({ section: 'voice', anchor: 'microphone' });
-    expect(placeFor('video')).toEqual({ section: 'voice', anchor: 'camera' });
+    expect(placeFor('audio')).toEqual({ section: 'audio', anchor: 'microphone' });
+    expect(placeFor('video')).toEqual({ section: 'video', anchor: 'camera' });
+    // «Голос и видео» разделён на «Звук» и «Видео» (R100): старое имя и его подразделы — по смыслу.
+    expect(placeFor('voice')).toEqual({ section: 'audio' });
+    expect(placeFor('voice#output')).toEqual({ section: 'audio', anchor: 'output' });
+    expect(placeFor('voice#processing')).toEqual({ section: 'audio', anchor: 'microphone' });
+    expect(placeFor('voice#camera')).toEqual({ section: 'video', anchor: 'camera' });
+    expect(placeFor('voice#screen')).toEqual({ section: 'video', anchor: 'screen' });
     expect(placeFor('connection')).toEqual({ section: 'server' });
     for (const same of ['profile', 'accounts', 'hotkeys', 'about'] as const)
       expect(placeFor(same)).toEqual({ section: same });
   });
 
   it('понимает подраздел через решётку и не верит чужому', () => {
-    expect(placeFor('voice#screen')).toEqual({ section: 'voice', anchor: 'screen' });
-    expect(placeFor('voice#nowhere')).toEqual({ section: 'voice' });
+    expect(placeFor('video#screen')).toEqual({ section: 'video', anchor: 'screen' });
+    expect(placeFor('video#nowhere')).toEqual({ section: 'video' });
     expect(placeFor('appearance')).toEqual({ section: 'appearance' });
   });
 
-  it('без имени и с незнакомым именем — «Голос и видео»', () => {
-    expect(placeFor(undefined)).toEqual({ section: 'voice' });
-    expect(placeFor('chat')).toEqual({ section: 'voice' });
+  it('без имени и с незнакомым именем — «Звук»', () => {
+    expect(placeFor(undefined)).toEqual({ section: 'audio' });
+    expect(placeFor('chat')).toEqual({ section: 'audio' });
+    // Имя из моста оболочки — чужой ввод: свойства прототипа не раздел.
+    expect(placeFor('constructor')).toEqual({ section: 'audio' });
+    expect(placeFor('toString')).toEqual({ section: 'audio' });
   });
 });
 
@@ -40,6 +49,11 @@ describe('карта строк', () => {
       expect(home, id).toBeDefined();
       if (spec.anchor) expect(home!.anchors, id).toContain(spec.anchor);
     }
+  });
+
+  it('лишних строк нет (R21, X3): ни «Чужого видео», ни «Уступать показу», ни «Ботов справа»', () => {
+    for (const gone of ['camera-yields', 'reception', 'playout', 'appearance-bots'])
+      expect(Object.keys(ROWS), gone).not.toContain(gone);
   });
 
   it('пояснения короткие: одна строка, без точки в конце (T29)', () => {
@@ -55,8 +69,8 @@ describe('карта строк', () => {
 describe('поиск по настройкам', () => {
   it('находит строку по подписи и называет, где она', () => {
     const [hit] = searchSettings(t, 'эхо', 'browser');
-    expect(hit).toMatchObject({ row: 'echo', section: 'voice', anchor: 'processing' });
-    expect(hit?.where).toBe('Голос и видео › Обработка звука');
+    expect(hit).toMatchObject({ row: 'echo', section: 'audio', anchor: 'microphone' });
+    expect(hit?.where).toBe('Звук › Микрофон');
   });
 
   it('ё и е — одно и то же, регистр не важен', () => {
@@ -71,9 +85,15 @@ describe('поиск по настройкам', () => {
     expect(section?.row).toBeUndefined();
     // «Подстраивать громкость» лежит в подразделе «Микрофон» — подраздел тоже ищется.
     expect(searchSettings(t, 'громк микро', 'browser').map((hit) => hit.row)).toEqual([
-      'mic-volume',
       'mic-auto',
+      'mic-volume',
     ]);
+    // Камера и показ — в «Видео»: «превью показа» находит переключатель R80.
+    expect(searchSettings(t, 'превью показа', 'browser')[0]).toMatchObject({
+      row: 'screen-preview',
+      section: 'video',
+      anchor: 'screen',
+    });
   });
 
   it('пустой запрос и непохожее ничего не находят', () => {

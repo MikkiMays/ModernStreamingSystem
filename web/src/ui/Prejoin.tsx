@@ -489,7 +489,6 @@ export function Prejoin({
         <div className="settings-form">
           <SettingGroup
             title={t(($) => $.prejoin.settings.devices)}
-            collapsible={false}
             note={camera || mic ? t(($) => $.prejoin.settings.devicesBusy) : undefined}
           >
             {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => {
@@ -544,13 +543,13 @@ export function Prejoin({
           />
           <QualityFields
             kind="camera"
-            profile={preferences.camera}
-            change={(p) => setPreferences(savePreferences({ camera: p }))}
+            value={preferences.camera}
+            onChange={(p) => setPreferences(savePreferences({ camera: p }))}
           />
           <QualityFields
             kind="screen"
-            profile={preferences.screen}
-            change={(p) => setPreferences(savePreferences({ screen: p }))}
+            value={preferences.screen}
+            onChange={(p) => setPreferences(savePreferences({ screen: p }))}
           />
         </div>
       </Modal>

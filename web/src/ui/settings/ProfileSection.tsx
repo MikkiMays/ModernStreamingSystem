@@ -111,7 +111,7 @@ function AvatarRow({ preferences, change }: { preferences: Preferences; change: 
 export function ProfileSection({ preferences, change }: { preferences: Preferences; change: Change }) {
   const { t } = useTranslation();
   return (
-    <SettingGroup title={t(($) => $.settings.profile.about)} collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.profile.about)}>
       <SettingRow id="profile-name" stack>
         {(a11y) => (
           <input

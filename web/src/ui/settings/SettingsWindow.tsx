@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import {
   ChevronLeft,
@@ -12,6 +12,7 @@ import {
   Search,
   Server,
   User,
+  Video,
   Volume2,
   X,
   type LucideProps,
@@ -42,7 +43,9 @@ import {
   type SearchHit,
   type SectionId,
 } from './sections';
-import { VoiceSection } from './VoiceSection';
+import { activeAnchor, watchScroll } from './scroll-spy';
+import { AudioSection } from './AudioSection';
+import { VideoSection } from './VideoSection';
 import { SoundsSection } from './SoundsSection';
 import { ProfileSection } from './ProfileSection';
 import { AppearanceSection } from './AppearanceSection';
@@ -59,7 +62,8 @@ const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   appearance: Palette,
   hotkeys: Keyboard,
   desktop: MonitorCog,
-  voice: Mic,
+  audio: Mic,
+  video: Video,
   sounds: Volume2,
   accounts: Plug,
   server: Server,
@@ -93,7 +97,7 @@ export function SettingsWindow({
   meeting?: Meeting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Раздел, с которого открыться: `voice`, `about`, `voice#camera` или прежнее имя вкладки. */
+  /** Раздел, с которого открыться: `audio`, `about`, `video#camera` или прежнее имя вкладки. */
   section?: string;
   theme?: Theme;
   setTheme?: (theme: Theme) => void;
@@ -113,6 +117,8 @@ export function SettingsWindow({
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   // Куда отдать фокус после перехода из поиска: нажатая строка результата исчезает.
   const focusAfter = useRef(false);
+  // Заголовок раздела в верхней полосе: начальный фокус окна (R11) и запасной фокус после поиска.
+  const title = useRef<HTMLHeadingElement>(null);
   const context = isDesktop() ? 'desktop' : 'browser';
 
   const go = (next: Place, row?: SearchHit['row'], focus = false) => {
@@ -131,6 +137,33 @@ export function SettingsWindow({
     setTarget((previous) => ({ anchor: next.anchor, nonce: previous.nonce + 1 }));
   }, [open, section, meeting, saved]);
 
+  // Какой подраздел сейчас на экране — его якорь слева подсвечен (R12, `scroll-spy.ts`).
+  const anchors = sectionSpec(place.section).anchors;
+  const spyWatch = useRef<ReturnType<typeof watchScroll> | null>(null);
+  // Раньше перехода ниже: его программная прокрутка уже должна попасть под паузу.
+  useLayoutEffect(() => {
+    if (!scroller || !anchors.length) return;
+    const watch = watchScroll(scroller, () => {
+      const edge = scroller.getBoundingClientRect().top;
+      const tops = anchors.flatMap((anchor) => {
+        const element = document.getElementById(anchorDomId(anchor));
+        return element ? [{ anchor, top: element.getBoundingClientRect().top - edge }] : [];
+      });
+      const next = activeAnchor({
+        scrollTop: scroller.scrollTop,
+        clientHeight: scroller.clientHeight,
+        scrollHeight: scroller.scrollHeight,
+        tops,
+      });
+      if (next) setSpy(next);
+    });
+    spyWatch.current = watch;
+    return () => {
+      watch.stop();
+      spyWatch.current = null;
+    };
+  }, [anchors, view, scroller]);
+
   // Переход: к строке, к подразделу или в начало раздела — после того, как раздел нарисован.
   useLayoutEffect(() => {
     if (!scroller || !target.nonce) return;
@@ -138,6 +171,9 @@ export function SettingsWindow({
     const row = target.row ? document.getElementById(rowDomId(target.row)) : null;
     // Строка, которой не видно (её нет в этом месте или она в скрытом теле), — к подразделу.
     const goal = row && row.getClientRects().length ? row : anchor;
+    // Прокрутку ставит программа: подсветка не пересчитывается, пока она не закончится, — иначе
+    // щелчок по короткой нижней группе подсветил бы соседнюю (R12).
+    spyWatch.current?.hold();
     if (goal) {
       const top =
         goal.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
@@ -151,35 +187,9 @@ export function SettingsWindow({
         'input, select, button, [role="switch"], [tabindex]',
       );
       control?.focus({ preventScroll: true });
-      if (!control || document.activeElement !== control)
-        scroller.querySelector<HTMLElement>('.settings-content__title')?.focus({ preventScroll: true });
+      if (!control || document.activeElement !== control) title.current?.focus({ preventScroll: true });
     }
   }, [target, place.section, view, scroller]);
-
-  // Какой подраздел сейчас на экране — его якорь слева подсвечен.
-  const anchors = sectionSpec(place.section).anchors;
-  useEffect(() => {
-    if (!scroller || !anchors.length) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const edge = scroller.getBoundingClientRect().top + 48;
-      let current = anchors[0];
-      for (const anchor of anchors) {
-        const element = document.getElementById(anchorDomId(anchor));
-        if (element && element.getBoundingClientRect().top <= edge) current = anchor;
-      }
-      setSpy(current);
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      scroller.removeEventListener('scroll', onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [anchors, view, scroller]);
 
   /**
    * Сохранить настройку — и, если это картинка профиля, дождаться ответа комнаты.
@@ -198,12 +208,53 @@ export function SettingsWindow({
     return Promise.resolve();
   };
 
+  /*
+    Начальный фокус (R11, S1): открыли мышью — на заголовок раздела (`tabIndex=-1`, кольца у него
+    не бывает), и карточка профиля, первая в Tab-порядке, не обводится от первого же Shift. С
+    клавиатуры — как обычно, первый элемент, и кольцо на нём на месте.
+  */
+  const initialFocus = (type: string) =>
+    type === 'keyboard' || document.documentElement.dataset.input === 'keyboard' ? true : title.current;
+
+  const titleId = useId();
+  const close = (
+    <Dialog.Close
+      render={
+        <IconButton label={t(($) => $.common.close)} className="settings-close">
+          <X />
+        </IconButton>
+      }
+    />
+  );
+  // Прокручен ли раздел — для волоска под верхней полосой.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    if (!scroller) return;
+    const update = () => setScrolled(scroller.scrollTop > 0);
+    update();
+    scroller.addEventListener('scroll', update, { passive: true });
+    return () => scroller.removeEventListener('scroll', update);
+  }, [scroller, place.section, view]);
+
   const hits = query.trim() ? searchSettings(t, query, context, 8, hasFeature) : null;
+  const searching = hits !== null;
+  // Отрезок рейки подразделов едет к текущему подразделу (R12): положение — по его кнопке.
+  const rail = useRef<HTMLUListElement>(null);
+  useLayoutEffect(() => {
+    const list = rail.current;
+    const current = list?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!list || !current) return;
+    list.style.setProperty('--rail-y', `${current.offsetTop}px`);
+    list.style.setProperty('--rail-h', `${current.offsetHeight}px`);
+  }, [spy, place.section, searching]);
+
   const current = sectionSpec(place.section);
   const body = (() => {
     switch (place.section) {
-      case 'voice':
-        return <VoiceSection preferences={preferences} change={change} meeting={meeting} />;
+      case 'audio':
+        return <AudioSection preferences={preferences} change={change} meeting={meeting} />;
+      case 'video':
+        return <VideoSection preferences={preferences} change={change} meeting={meeting} />;
       case 'sounds':
         return <SoundsSection preferences={preferences} change={change} />;
       case 'profile':
@@ -250,11 +301,19 @@ export function SettingsWindow({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="ui-dialog__backdrop" />
+        <Dialog.Backdrop className="ui-dialog__backdrop settings-backdrop" />
         <Dialog.Viewport className="settings-viewport">
-          <Dialog.Popup className="settings-window" data-view={phone ? view : undefined}>
+          <Dialog.Popup
+            className="settings-window"
+            data-view={phone ? view : undefined}
+            initialFocus={initialFocus}
+          >
             <nav className="settings-nav" aria-label={t(($) => $.settings.navigation)}>
-              <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
+              <div className="settings-nav__head">
+                <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
+                {/* На телефоне список разделов — свой экран, и закрыть окно надо и с него. */}
+                {phone && view === 'list' && close}
+              </div>
               <button
                 type="button"
                 className="settings-profile"
@@ -351,6 +410,7 @@ export function SettingsWindow({
                               </button>
                               {active && !phone && spec.anchors.length > 0 && (
                                 <ul
+                                  ref={rail}
                                   className="settings-nav__anchors"
                                   aria-label={t(($) => $.settings.subsections, {
                                     section: sectionTitle(t, spec.id),
@@ -378,34 +438,39 @@ export function SettingsWindow({
                 ))
               )}
             </nav>
-            <div className="settings-content" ref={setScroller}>
-              <header className="settings-content__head">
+            <section className="settings-pane" aria-labelledby={titleId}>
+              {/*
+                Верхняя полоса раздела (R15): заголовок слева, крестик справа — в одной строке и вне
+                области прокрутки, поэтому центры совпадают конструкцией, а не подобранным отступом.
+                Волосок под полосой появляется, когда раздел прокручен.
+              */}
+              <header className="settings-content__bar" data-scrolled={scrolled || undefined}>
                 {phone && (
                   <IconButton
                     label={t(($) => $.settings.back)}
                     className="settings-content__back"
                     onClick={() => setView('list')}
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft />
                   </IconButton>
                 )}
-                <h2 className="settings-content__title" tabIndex={-1}>
+                <h2 className="settings-content__title" id={titleId} tabIndex={-1} ref={title}>
                   {sectionTitle(t, current.id)}
                 </h2>
+                {close}
               </header>
-              <SettingsTargetContext.Provider value={target}>
-                <div className="settings-content__body" data-section={current.id}>
-                  {body}
-                </div>
-              </SettingsTargetContext.Provider>
-            </div>
-            <Dialog.Close
-              render={
-                <IconButton label={t(($) => $.common.close)} variant="solid" className="settings-close">
-                  <X size={18} />
-                </IconButton>
-              }
-            />
+              <div className="settings-content" ref={setScroller}>
+                <SettingsTargetContext.Provider value={target}>
+                  <div
+                    className="settings-content__body"
+                    data-section={current.id}
+                    data-layout={current.layout ?? 'cards'}
+                  >
+                    {body}
+                  </div>
+                </SettingsTargetContext.Provider>
+              </div>
+            </section>
           </Dialog.Popup>
         </Dialog.Viewport>
       </Dialog.Portal>

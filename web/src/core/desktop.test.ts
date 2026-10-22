@@ -122,9 +122,9 @@ describe('мост v2 — адаптер', () => {
     const api = fakeDesktop(['hotkeys', 'overlay', 'app.settings']);
     const desktop = await import('./desktop');
     const stop = desktop.onDesktopCommand(() => {});
-    api.emit('hotkeys.status', { status: { 'mic.toggle': 'М', 'overlay.toggle': 'О' } });
-    expect(desktop.desktopHotkeyStatus.get()).toBe('М');
-    expect(desktop.desktopOverlayHotkeyStatus.get()).toBe('О');
+    api.emit('hotkeys.status', { status: { 'mic.toggle': 'taken', 'overlay.toggle': 'window-only' } });
+    expect(desktop.desktopHotkeyStatus.get()).toBe('taken');
+    expect(desktop.desktopOverlayHotkeyStatus.get()).toBe('window-only');
     stop();
     const seen: unknown[] = [];
     const off = desktop.onDesktopEvent('app.settings', (data) => seen.push(data));
@@ -166,14 +166,14 @@ describe('мост v2 — адаптер', () => {
     api.emit('hotkey', { action: 'ptt', phase: 'down' });
     api.emit('hotkey', { action: 'ptt', phase: 'up' });
     api.emit('hotkey', { action: 'ptt', phase: 'sideways' });
-    api.emit('hotkeys.status', { status: { ptt: 'Работает поверх других программ всегда.' } });
+    api.emit('hotkeys.status', { status: { ptt: 'global-raw' } });
     stop();
     expect(seen).toEqual([
       { version: 1, type: 'microphone.hold', phase: 'down' },
       { version: 1, type: 'microphone.hold', phase: 'up' },
-      { version: 1, type: 'hotkey.status', detail: 'Работает поверх других программ всегда.' },
+      { version: 1, type: 'hotkey.status', detail: 'global-raw' },
     ]);
-    expect(desktop.desktopHotkeyStatus.get()).toBe('Работает поверх других программ всегда.');
+    expect(desktop.desktopHotkeyStatus.get()).toBe('global-raw');
   });
 
   it('update.version — запрос состояния обновления', async () => {
@@ -191,16 +191,14 @@ describe('мост v2 — адаптер', () => {
     const stop = desktop.onDesktopCommand((command) => seen.push(command));
     api.emit('hotkey', { action: 'mic.toggle', phase: 'down' });
     api.emit('hotkey', { action: 'mic.toggle', phase: 'up' });
-    api.emit('hotkeys.status', {
-      status: { 'mic.toggle': 'Работает и поверх других программ во время встречи.' },
-    });
+    api.emit('hotkeys.status', { status: { 'mic.toggle': 'duplicate' } });
     api.emit('deeplink', { room: { code: '123456789' } });
     api.emit('thumbar', { action: 'camera' });
     api.emit('navigate', { page: 'create' });
     api.emit('update.status', { status: 'Доступно обновление приложения.', available: true });
     expect(seen).toEqual([
       { version: 1, type: 'microphone.toggle' },
-      { version: 1, type: 'hotkey.status', detail: 'Работает и поверх других программ во время встречи.' },
+      { version: 1, type: 'hotkey.status', detail: 'duplicate' },
       { version: 1, type: 'deeplink', code: '123456789' },
       { version: 1, type: 'thumbar', action: 'camera' },
       { version: 1, type: 'navigate', page: 'create' },
@@ -212,7 +210,7 @@ describe('мост v2 — адаптер', () => {
         available: true,
       },
     ]);
-    expect(desktop.desktopHotkeyStatus.get()).toContain('поверх других программ');
+    expect(desktop.desktopHotkeyStatus.get()).toBe('duplicate');
     expect(desktop.desktopUpdate.get()).toEqual({
       version: '1.0.0',
       status: 'Доступно обновление приложения.',
@@ -238,5 +236,41 @@ describe('мост v2 — адаптер', () => {
     expect(desktop.hasFeature('sidebar')).toBe(true);
     desktop.notifyDesktop('call-state', { inCall: false });
     expect(posted).toEqual([{ version: 1, type: 'call-state', inCall: false }]);
+  });
+});
+
+/*
+  R22, X1: состояние сочетания оболочка присылает кодом, слова — из каталога на языке интерфейса.
+  «Работает поверх других программ» — норма, о ней не говорят. Старая оболочка (1.0.4) шлёт русские
+  фразы — их не показываем: на семи других языках это была бы русская строка посреди интерфейса.
+*/
+describe('состояние сочетания — кодом оболочки (R22)', () => {
+  it('слова — только у того, что мешает: занято, дубль, только в окне', async () => {
+    const { hotkeyStatusText } = await import('./desktop');
+    const { t } = await import('../i18n');
+    expect(hotkeyStatusText(t, 'taken')).toBe(
+      'Сочетание занято другой программой: в окне Cord оно работает, для фона выберите другое.',
+    );
+    expect(hotkeyStatusText(t, 'duplicate')).toBe('Это сочетание уже назначено другому действию Cord.');
+    expect(hotkeyStatusText(t, 'window-only')).toBe('Сейчас сочетание работает только в окне Cord.');
+    for (const quiet of ['global', 'global-raw', 'disabled', null] as const)
+      expect(hotkeyStatusText(t, quiet)).toBeNull();
+  });
+
+  it('русская фраза старой оболочки и незнакомое — не показываются', async () => {
+    const api = fakeDesktop(['hotkeys', 'overlay']);
+    const desktop = await import('./desktop');
+    const seen: unknown[] = [];
+    const stop = desktop.onDesktopCommand((command) => seen.push(command));
+    api.emit('hotkeys.status', {
+      status: {
+        'mic.toggle': 'Работает поверх других программ всегда, пока Cord запущен.',
+        'overlay.toggle': 'teapot',
+      },
+    });
+    stop();
+    expect(desktop.desktopHotkeyStatus.get()).toBeNull();
+    expect(desktop.desktopOverlayHotkeyStatus.get()).toBeNull();
+    expect(seen).toEqual([{ version: 1, type: 'hotkey.status' }]);
   });
 });

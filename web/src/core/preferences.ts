@@ -1,6 +1,6 @@
 import { notifyDesktop } from './desktop';
 import { defaultScreenMode, type ScreenProfile } from '../media/profiles';
-import { nearestLevel } from '../media/capabilities';
+import { cameraLevel, nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
 import { isLanguage, type Language } from '../i18n/languages';
@@ -125,16 +125,15 @@ export interface Preferences {
 }
 const key = 'cord:preferences:v1';
 /**
- * Уровень отдачи — всегда выбранный; умолчание и потолок задаёт сервер (`media/capabilities.ts`).
+ * Уровень отдачи — всегда выбранный; потолок задаёт сервер (`media/capabilities.ts`), умолчание
+ * показа — тоже сервер, у камеры своё — 720p · 30 (`cameraLevel`, R78).
  *
  * Старые записи несут `automatic: true` («Авто» — лестницы больше нет), 1440p (выше нынешнего
  * потолка) и забытые `automaticFps`/режим содержимого. Всё это сводится к ближайшему допустимому
  * уровню при чтении; сама запись не переписывается — другой сервер может разрешать больше.
+ *
+ * Показ — уровень плюс режим и превью (R95/R80); старые записи без них — «плавность» и превью есть.
  */
-function profile(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
-  return nearestLevel(value);
-}
-/** Показ: уровень плюс режим и превью (R95/R80); старые записи без них — «плавность» и превью есть. */
 function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return {
     ...nearestLevel(value),
@@ -169,10 +168,12 @@ export function readPreferences(): Preferences {
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
     language: isLanguage(data.language) ? data.language : null,
-    showIntegrationPanel: data.showIntegrationPanel !== false,
+    // Переключателя «Боты справа от встречи» больше нет (R21, R30): интеграции видны всегда, и
+    // выключенное раньше не прячет их навсегда. Поле уберёт сцена встречи (W3).
+    showIntegrationPanel: true,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
     screen: screenPrefs(data.screen),
-    camera: profile(data.camera),
+    camera: cameraLevel(data.camera),
     devices,
     audio: {
       suppression: ['off', 'browser', 'rnnoise', 'voice'].includes(data.audio?.suppression ?? '')
@@ -239,9 +240,12 @@ export function savePreferences(patch: Partial<Preferences>): Preferences {
     /* Still apply for this call. */
   }
   window.dispatchEvent(new Event('cord:preferences'));
-  notifyDesktop('preferences.changed', {
-    showPing: next.showPing,
-    notificationSounds: next.notificationSounds,
-  });
+  // Оболочке нужны только PING и сигналы — и только когда они поменялись: ползунок громкости
+  // иначе слал бы IPC на каждый шаг перетаскивания (R14).
+  if (next.showPing !== current.showPing || next.notificationSounds !== current.notificationSounds)
+    notifyDesktop('preferences.changed', {
+      showPing: next.showPing,
+      notificationSounds: next.notificationSounds,
+    });
   return next;
 }

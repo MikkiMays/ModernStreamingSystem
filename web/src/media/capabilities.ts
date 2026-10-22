@@ -29,6 +29,16 @@ export interface QualityRules {
 
 export const RESOLUTIONS: Resolution[] = [720, 1080, 1440];
 export const FRAME_RATES: FrameRate[] = [15, 30, 60];
+/**
+ * Шкала частоты, которую видит человек (R78): 30 / 60 — одинаково для камеры и показа. 15 кадров
+ * остаются в правилах сервера (режим «чёткость» показа сбрасывает кадры сам), но не выбираются.
+ */
+export const CHOICE_FRAME_RATES: FrameRate[] = [30, 60];
+/**
+ * Умолчание камеры (R13 → R78): 720p · 30, своё, независимо от уровня по умолчанию сервера,
+ * который задаёт старт показа экрана.
+ */
+export const CAMERA_DEFAULT: Level = { resolution: 720, fps: 30 };
 
 export const builtinRules: QualityRules = {
   default: { resolution: 720, fps: 30 },
@@ -119,6 +129,22 @@ export function nearestLevel(
     : rules.default.resolution;
   const fps = isFrameRate(saved.fps) ? Math.min(saved.fps, rules.ceiling.fps) : rules.default.fps;
   return { resolution: resolution as Resolution, fps: fps as FrameRate };
+}
+
+/**
+ * Уровень камеры из сохранённого: «Авто» и незнакомое — `CAMERA_DEFAULT`, частота ниже шкалы
+ * (старые 15 fps) — 30, выше потолка сервера — потолок. Запись не трогается, как и у показа.
+ */
+export function cameraLevel(
+  saved: (Partial<ScreenProfile> & { automatic?: unknown }) | null | undefined,
+  rules = qualityRules(),
+): ScreenProfile {
+  const level = nearestLevel(saved, {
+    ...rules,
+    default: within(CAMERA_DEFAULT, rules.ceiling) ? CAMERA_DEFAULT : rules.default,
+  });
+  const fps = Math.max(level.fps, CHOICE_FRAME_RATES[0]!) as FrameRate;
+  return { resolution: level.resolution, fps: Math.min(fps, rules.ceiling.fps) as FrameRate };
 }
 
 export function settleMs(rules = qualityRules()) {

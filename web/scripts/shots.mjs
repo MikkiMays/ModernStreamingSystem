@@ -4,6 +4,7 @@
 //   node scripts/shots.mjs --screens home,settings --widths 390,1440 --themes dark
 //   node scripts/shots.mjs --base http://127.0.0.1:5173 --screens kit-integrations --themes light
 //   node scripts/shots.mjs --screens settings --scrollbars 1   # полосы прокрутки как у человека
+//   node scripts/shots.mjs --screens settings --widths 1280 --height 720   # низкое окно (R101)
 //
 // Для каждого экрана, ширины и темы — PNG и строка в report.json: на сколько пикселей страница
 // шире окна (`scrollWidth - clientWidth`) и какие элементы вылезают за правый край. Скрипт лежит
@@ -23,7 +24,10 @@ const out = path.resolve(args.out ?? 'shots');
 const widths = (args.widths ?? '320,390,768,1024,1280,1440,1920').split(',').map(Number);
 const themes = (args.themes ?? 'light,dark').split(',');
 const only = args.screens?.split(',');
-const height = (width) => (width < 768 ? 844 : width < 1280 ? 900 : 1000);
+// `--height` — одна высота окна для всех ширин (низкие окна ноутбуков); в имени снимка — `ШxВ`.
+const fixedHeight = args.height ? Number(args.height) : 0;
+const height = (width) => fixedHeight || (width < 768 ? 844 : width < 1280 ? 900 : 1000);
+const size = (width) => (fixedHeight ? `${width}x${fixedHeight}` : `${width}`);
 // Playwright без окна прячет полосы прокрутки (`--hide-scrollbars`): для снимков полос (R17) их
 // возвращают, и ширина страницы тогда считается так же, как у человека.
 const scrollbars = args.scrollbars === '1';
@@ -74,7 +78,10 @@ const SCREENS = {
     await items.first().waitFor();
     const back = page.getByRole('button', { name: 'К разделам' });
     if (await nav.count()) await shoot('settings-list');
-    for (let i = 0; i < (await items.count()); i++) {
+    // Считать разделы, пока список виден: на телефоне открытый раздел прячет навигацию, и
+    // локатор по роли перестаёт её видеть — счёт внутри цикла давал бы один раздел.
+    const total = await items.count();
+    for (let i = 0; i < total; i++) {
       if (await back.isVisible()) await back.click();
       const item = items.nth(i);
       const name = (await item.innerText()).trim().toLowerCase().replace(/\s+/g, '-');
@@ -269,7 +276,13 @@ async function overflow(page) {
       });
       if (offenders.length >= 8) break;
     }
-    return { overflowX: doc.scrollWidth - width, offenders };
+    // Окно настроек (R101): на сколько пикселей раздел выше своей области — 0 значит «без прокрутки».
+    const content = document.querySelector('.settings-content');
+    return {
+      overflowX: doc.scrollWidth - width,
+      offenders,
+      ...(content ? { contentOverflowY: content.scrollHeight - content.clientHeight } : {}),
+    };
   });
 }
 
@@ -295,7 +308,7 @@ for (const [screen, open] of Object.entries(SCREENS)) {
       await context.addInitScript((value) => localStorage.setItem('cord:theme', value), theme);
       const page = await context.newPage();
       const shoot = async (name, element) => {
-        const file = path.join(out, `${name}-${width}-${theme}.png`);
+        const file = path.join(out, `${name}-${size(width)}-${theme}.png`);
         // Элемент — целиком, даже если он выше окна; без элемента — окно, как его видит человек.
         if (element) await element.screenshot({ path: file });
         else await page.screenshot({ path: file });

@@ -71,7 +71,7 @@ describe('«Windows» в настройках', () => {
   it('в браузере раздела нет, а просьба открыть его ведёт в раздел по умолчанию', () => {
     render(<Settings open section="desktop" onOpenChange={vi.fn()} />);
     expect(within(nav()).queryByRole('button', { name: 'Windows' })).toBeNull();
-    expect(heading()).toHaveTextContent('Голос и видео');
+    expect(heading()).toHaveTextContent('Звук');
   });
 
   it('в клиенте — все переключатели с значениями оболочки; выключить трей — запрос к оболочке', async () => {
@@ -125,5 +125,10 @@ describe('«Windows» в настройках', () => {
       .map(([, payload]) => (payload as { bindings: { action: string }[] }).bindings.map((b) => b.action));
     expect(sets).toContainEqual([]);
     expect(sets.at(-1)).toContain('overlay.toggle');
+    // У оверлея умолчания нет: «Сбросить» снимает назначение (R25, Р-3), «Отключить» больше нет.
+    expect(screen.queryByRole('button', { name: /Отключить/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание оверлея' }));
+    expect(readPreferences().overlayHotkey).toBeNull();
+    expect(screen.getByRole('button', { name: 'Назначить сочетание оверлея' })).toBeInTheDocument();
   });
 });

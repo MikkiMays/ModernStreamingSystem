@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { desktopOverlayHotkeyStatus, hasFeature, notifyDesktop } from '../../core/desktop';
+import { desktopOverlayHotkeyStatus, hasFeature, hotkeyStatusText, notifyDesktop } from '../../core/desktop';
 import {
   changeDesktopSettings,
   desktopSettings,
@@ -83,13 +83,13 @@ export function DesktopSection({
               labels={{
                 change: t(($) => $.settings.desktop.changeLabel),
                 assign: t(($) => $.settings.desktop.assignLabel),
-                disable: t(($) => $.settings.desktop.disableLabel),
+                reset: t(($) => $.settings.desktop.resetLabel),
               }}
               pause={{
                 start: () => notifyDesktop('hotkey.configure', { paused: true }),
                 end: (current) => notifyDesktop('hotkey.configure', { overlay: current, paused: false }),
               }}
-              status={preferences.overlayHotkey ? overlayStatus : null}
+              status={preferences.overlayHotkey ? hotkeyStatusText(t, overlayStatus) : null}
             />
           )}
         </SettingGroup>

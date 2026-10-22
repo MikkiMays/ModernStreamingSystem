@@ -60,7 +60,7 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
           : t(($) => $.settings.about.latest, { version: latest });
   return (
     <>
-      <SettingGroup title="Cord" collapsible={false}>
+      <SettingGroup title="Cord">
         <SettingRow
           id="about-version"
           hint={desktop ? t(($) => $.settings.about.desktop) : t(($) => $.settings.about.web)}

@@ -1,5 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+
+/** Пункт сегмента качества (R78): «Камера: качество» → «1080p», «Экран: частота кадров» → «60 fps». */
+/** Раздел «Видео» окна настроек: камера и показ экрана (R100). */
+async function openVideo(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Разделы настроек' })
+    .getByRole('button', { name: 'Видео', exact: true })
+    .click();
+  await expect(page.locator('.settings-content__title')).toHaveText('Видео');
+}
+
+const level = (page: Page, group: string, name: string) =>
+  page.getByRole('radiogroup', { name: group, exact: true }).getByRole('radio', { name, exact: true });
 
 test('nine-digit admission, explicit return and cached camera/screen quality work together', async ({
   browser,
@@ -23,7 +36,7 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
     // «Авто» больше нет (E05, П2): уровень по умолчанию — с сервера, 720p30.
-    await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('30');
+    await expect(level(host, 'Камера: частота кадров', '30 fps')).toBeChecked();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toHaveCount(0);
     await expect(host.getByRole('button', { name: /Запросить доступ/ })).toHaveCount(0);
@@ -54,18 +67,17 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
 
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    // Настройки открываются на «Голосе и видео»: камера и показ — подразделы того же раздела.
-    await expect(host.locator('.settings-content__title')).toHaveText('Голос и видео');
-    await expect(host.getByLabel('Камера: качество', { exact: true })).toHaveValue('720');
-    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('720');
-    // Потолок сервера — 1080p60: 1440p в выборе нет.
-    await expect(
-      host.getByLabel('Экран: качество', { exact: true }).locator('option[value="1440"]'),
-    ).toHaveCount(0);
-    await host.getByLabel('Камера: качество', { exact: true }).selectOption('1080');
-    await host.getByLabel('Камера: частота кадров', { exact: true }).selectOption('60');
-    await host.getByLabel('Экран: качество', { exact: true }).selectOption('1080');
-    await host.getByLabel('Экран: частота кадров', { exact: true }).selectOption('60');
+    // Настройки открываются на «Звуке»; камера и показ — в соседнем разделе «Видео» (R100).
+    await expect(host.locator('.settings-content__title')).toHaveText('Звук');
+    await openVideo(host);
+    await expect(level(host, 'Камера: качество', '720p')).toBeChecked();
+    await expect(level(host, 'Экран: качество', '720p')).toBeChecked();
+    // Потолок сервера — 1080p60: 1440p виден, но недоступен (R78).
+    await expect(level(host, 'Экран: качество', '1440p')).toBeDisabled();
+    await level(host, 'Камера: качество', '1080p').click();
+    await level(host, 'Камера: частота кадров', '60 fps').click();
+    await level(host, 'Экран: качество', '1080p').click();
+    await level(host, 'Экран: частота кадров', '60 fps').click();
     await host.emulateMedia({ reducedMotion: 'reduce' });
     expect(
       (await new AxeBuilder({ page: host }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
@@ -79,7 +91,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
       .toBeGreaterThan(0);
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    await host.getByLabel('Камера: частота кадров', { exact: true }).selectOption('30');
+    await openVideo(host);
+    await level(host, 'Камера: частота кадров', '30 fps').click();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect
       .poll(() => guest.locator('video.camera-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
@@ -119,10 +132,11 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await expect(host.locator('[data-media-status="connected"]')).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    await expect(host.getByLabel('Камера: качество', { exact: true })).toHaveValue('1080');
-    await expect(host.getByLabel('Камера: частота кадров', { exact: true })).toHaveValue('30');
-    await expect(host.getByLabel('Экран: качество', { exact: true })).toHaveValue('1080');
-    await expect(host.getByLabel('Экран: частота кадров', { exact: true })).toHaveValue('60');
+    await openVideo(host);
+    await expect(level(host, 'Камера: качество', '1080p')).toBeChecked();
+    await expect(level(host, 'Камера: частота кадров', '30 fps')).toBeChecked();
+    await expect(level(host, 'Экран: качество', '1080p')).toBeChecked();
+    await expect(level(host, 'Экран: частота кадров', '60 fps')).toBeChecked();
     await host.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await expect(host.getByRole('button', { name: 'Включить камеру', exact: true })).toBeVisible();
     await host.getByRole('button', { name: 'Настройки и действия' }).click();

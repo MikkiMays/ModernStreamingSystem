@@ -6,6 +6,7 @@ import { NotificationSounds, ensureNotificationAudio } from '../../core/sounds';
 import { Slider, Switch } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
+import { useLiveValue } from './live-value';
 
 /** Сигналы, которые можно прослушать: короткие, поэтому узнать их проще, чем описать. */
 const SAMPLES = ['self-join', 'join', 'leave', 'knock', 'message', 'screen', 'mic-on', 'mic-off'] as const;
@@ -27,9 +28,10 @@ export function SoundsSection({
   const { t } = useTranslation();
   const demo = useMemo(() => new NotificationSounds(), []);
   const enabled = preferences.notificationSounds;
+  const volume = useLiveValue(preferences.soundVolume, (soundVolume) => void change({ soundVolume }));
   return (
     <>
-      <SettingGroup title={t(($) => $.settings.sounds.cues)} collapsible={false}>
+      <SettingGroup title={t(($) => $.settings.sounds.cues)}>
         <SettingRow id="sounds-on">
           <Switch
             checked={enabled}
@@ -42,13 +44,13 @@ export function SoundsSection({
             <Slider
               min={0}
               max={100}
-              step={5}
               disabled={!enabled}
-              value={preferences.soundVolume}
+              value={volume.value}
               label={t(($) => $.settings.sounds.volume)}
-              onChange={(e) => void change({ soundVolume: Number(e.target.value) })}
+              onChange={(e) => volume.onChange(Number(e.target.value))}
+              onValueCommitted={volume.onCommit}
             />
-            <SettingValue>{preferences.soundVolume}%</SettingValue>
+            <SettingValue>{volume.value}%</SettingValue>
           </div>
         </SettingRow>
         <SettingRow

@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import type { Preferences } from '../../core/preferences';
 import { applyLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES } from '../../i18n';
 import type { Theme } from '../primitives';
-import { Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
 import { rowDomId, rowText } from './sections';
 
@@ -46,7 +45,7 @@ export function AppearanceSection({
   return (
     <>
       {theme && setTheme && (
-        <SettingGroup title={t(($) => $.settings.appearance.theme)} collapsible={false}>
+        <SettingGroup title={t(($) => $.settings.appearance.theme)}>
           <div className="setting-row setting-row--wide" id={rowDomId('appearance-theme')}>
             <div role="radiogroup" aria-label={rowText(t, 'appearance-theme').label} className="theme-picker">
               {THEMES.map((option) => (
@@ -78,7 +77,7 @@ export function AppearanceSection({
           </div>
         </SettingGroup>
       )}
-      <SettingGroup title={t(($) => $.language.label)} collapsible={false}>
+      <SettingGroup title={t(($) => $.language.label)}>
         <SettingRow id="appearance-language">
           {(a11y) => (
             <select
@@ -98,15 +97,6 @@ export function AppearanceSection({
               ))}
             </select>
           )}
-        </SettingRow>
-      </SettingGroup>
-      <SettingGroup title={t(($) => $.settings.appearance.inMeeting)} collapsible={false}>
-        <SettingRow id="appearance-bots">
-          <Switch
-            checked={preferences.showIntegrationPanel}
-            ariaLabel={rowText(t, 'appearance-bots').label}
-            onCheckedChange={(showIntegrationPanel) => void change({ showIntegrationPanel })}
-          />
         </SettingRow>
       </SettingGroup>
     </>

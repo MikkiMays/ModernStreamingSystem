@@ -27,10 +27,6 @@
         "title": "Raccourcis clavier",
         "keywords": "raccourcis touches clavier"
       },
-      "voice": {
-        "title": "Voix et vidéo",
-        "keywords": "son audio micro caméra"
-      },
       "sounds": {
         "title": "Sons",
         "keywords": "notifications signaux jeux"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "application zone de notification barre des tâches miniature badge clignotement veille superposition démarrage automatique"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "voix son micro haut-parleurs casque"
+      },
+      "video": {
+        "title": "Vidéo",
+        "keywords": "caméra partage d'écran qualité aperçu"
       }
     },
     "anchors": {
       "microphone": "Micro",
       "output": "Haut-parleurs",
-      "processing": "Traitement audio",
       "camera": "Caméra",
       "screen": "Partage d'écran"
     },
@@ -74,11 +77,6 @@
         "label": "Thème",
         "hint": "",
         "keywords": "clair sombre nuit système thème"
-      },
-      "appearance-bots": {
-        "label": "Bots à côté de la réunion",
-        "hint": "Intégrations actives à côté de la scène",
-        "keywords": "intégrations panneau musique"
       },
       "hotkey-mic": {
         "label": "Micro",
@@ -110,11 +108,6 @@
         "hint": "Équilibre les voix faibles et fortes",
         "keywords": "automatique niveau agc"
       },
-      "mic-check": {
-        "label": "Test du micro",
-        "hint": "Dites quelque chose : la barre affiche le niveau",
-        "keywords": "test indicateur enregistrement"
-      },
       "output-device": {
         "label": "Périphérique de sortie",
         "hint": "",
@@ -124,11 +117,6 @@
         "label": "Volume de sortie",
         "hint": "",
         "keywords": "voix son"
-      },
-      "output-check": {
-        "label": "Test du son",
-        "hint": "",
-        "keywords": "test haut-parleurs"
       },
       "noise": {
         "label": "Suppression du bruit",
@@ -146,12 +134,12 @@
         "keywords": "webcam périphérique"
       },
       "camera-resolution": {
-        "label": "Résolution de la caméra",
+        "label": "Qualité",
         "hint": "",
         "keywords": "qualité 720p 1080p"
       },
       "camera-fps": {
-        "label": "Fréquence d'images de la caméra",
+        "label": "Fréquence d'images",
         "hint": "",
         "keywords": "fps fluidité"
       },
@@ -161,12 +149,12 @@
         "keywords": "test caméra"
       },
       "screen-resolution": {
-        "label": "Résolution du partage",
+        "label": "Qualité",
         "hint": "",
         "keywords": "partage d'écran qualité stream"
       },
       "screen-fps": {
-        "label": "Fréquence d'images du partage",
+        "label": "Fréquence d'images",
         "hint": "",
         "keywords": "partage d'écran fps fluidité stream"
       },
@@ -289,6 +277,11 @@
         "label": "Lancer avec Windows",
         "hint": "Cord s’ouvrira réduit",
         "keywords": "démarrage automatique lancement"
+      },
+      "screen-preview": {
+        "label": "Aperçu du partage",
+        "hint": "Les spectateurs voient une miniature sans l'ouvrir",
+        "keywords": "aperçu miniature partage d'écran stream"
       }
     },
     "title": "Paramètres",
@@ -308,8 +301,7 @@
         "system": "Comme le système",
         "light": "Clair",
         "dark": "Sombre"
-      },
-      "inMeeting": "En réunion"
+      }
     },
     "about": {
       "checking": "Recherche de la dernière version…",
@@ -341,8 +333,6 @@
       "services": "Services"
     },
     "hotkeys": {
-      "browser": "Dans le navigateur, les raccourcis ne fonctionnent que si l'onglet Cord est actif. Dans l'application, toujours.",
-      "desktop": "Dans l'application, le raccourci fonctionne aussi par-dessus les autres programmes.",
       "recording": "Appuyez sur un raccourci…",
       "meeting": "Réunion",
       "cancel": "Échap — annuler",
@@ -351,10 +341,8 @@
       "changeLabel": "Modifier le raccourci du micro",
       "assign": "Attribuer",
       "assignLabel": "Attribuer un raccourci au micro",
-      "reset": "Par défaut",
-      "resetLabel": "Rétablir le raccourci du micro par défaut",
-      "disable": "Désactiver",
-      "disableLabel": "Désactiver le raccourci du micro",
+      "reset": "Réinitialiser",
+      "resetLabel": "Réinitialiser le raccourci du micro",
       "holdHint": "Maintenez le raccourci pour parler",
       "groups": {
         "cinema": "Cinéma",
@@ -372,6 +360,11 @@
         "bet": "miser",
         "allIn": "tapis",
         "reorder": "réorganiser une salle dans les favoris"
+      },
+      "status": {
+        "taken": "Un autre programme utilise déjà ce raccourci : il fonctionne dans la fenêtre de Cord, mais choisissez-en un autre pour l'arrière-plan.",
+        "duplicate": "Ce raccourci est déjà attribué à une autre action de Cord.",
+        "windowOnly": "Pour l'instant, ce raccourci ne fonctionne que dans la fenêtre de Cord."
       }
     },
     "media": {
@@ -388,12 +381,13 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise — renforcée",
+        "rnnoise": "Renforcée",
         "voice": "Isolation vocale",
         "off": "Désactivée"
       },
       "auto": "Auto",
-      "voiceGroup": "Voix et micro"
+      "voiceGroup": "Voix et micro",
+      "floorNote": "Cord n'envoie jamais en dessous de cette qualité"
     },
     "profile": {
       "refused": "La salle a refusé l'image",
@@ -450,10 +444,6 @@
       "check": "Tester",
       "checkSpeakersLabel": "Tester les haut-parleurs",
       "previewLabel": "Aperçu de la caméra, visible par vous seul",
-      "hidePreviewLabel": "Masquer l'aperçu de la caméra",
-      "showPreviewLabel": "Afficher l'aperçu de la caméra",
-      "hide": "Masquer",
-      "show": "Afficher",
       "deviceFailed": "Impossible d'activer le périphérique",
       "recordUnsupported": "Ce navigateur ne permet pas d'enregistrer un test. La barre de niveau fonctionne.",
       "toneFailed": "Impossible de lire le son de test"
@@ -467,7 +457,10 @@
       "micTaken": "Ce raccourci est déjà utilisé par la superposition — choisissez-en un autre.",
       "changeLabel": "Modifier le raccourci de la superposition",
       "assignLabel": "Attribuer un raccourci à la superposition",
-      "disableLabel": "Désactiver le raccourci de la superposition"
+      "resetLabel": "Réinitialiser le raccourci de la superposition"
+    },
+    "video": {
+      "previewDenied": "Pas d'accès à la caméra — autorisez-le pour Cord"
     }
   },
   "meeting": {

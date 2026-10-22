@@ -172,7 +172,7 @@ export function AccountsSection({
 }) {
   const { t } = useTranslation();
   return (
-    <SettingGroup title={t(($) => $.settings.accounts.services)} collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.accounts.services)}>
       {ACCOUNTS.map((account) => (
         <AccountRow key={account.id} account={account} preferences={preferences} change={change} />
       ))}

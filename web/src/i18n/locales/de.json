@@ -27,10 +27,6 @@
         "title": "Tastenkürzel",
         "keywords": "Shortcuts Tasten Tastatur"
       },
-      "voice": {
-        "title": "Sprache und Video",
-        "keywords": "Ton Audio Mikrofon Kamera"
-      },
       "sounds": {
         "title": "Töne",
         "keywords": "Benachrichtigungen Signale Spiele"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "Sprache Ton Mikrofon Lautsprecher Kopfhörer"
+      },
+      "video": {
+        "title": "Video",
+        "keywords": "Kamera Bildschirmfreigabe Qualität Vorschau"
       }
     },
     "anchors": {
       "microphone": "Mikrofon",
       "output": "Lautsprecher",
-      "processing": "Audioverarbeitung",
       "camera": "Kamera",
       "screen": "Bildschirmfreigabe"
     },
@@ -74,11 +77,6 @@
         "label": "Design",
         "hint": "",
         "keywords": "hell dunkel Nacht System Design Theme"
-      },
-      "appearance-bots": {
-        "label": "Bots neben dem Meeting",
-        "hint": "Aktive Integrationen neben der Bühne",
-        "keywords": "Integrationen Leiste Musik"
       },
       "hotkey-mic": {
         "label": "Mikrofon",
@@ -110,11 +108,6 @@
         "hint": "Gleicht leise und laute Stimmen aus",
         "keywords": "automatisch Pegel agc"
       },
-      "mic-check": {
-        "label": "Mikrofontest",
-        "hint": "Sag etwas – der Balken zeigt den Pegel",
-        "keywords": "Test Anzeige Aufnahme"
-      },
       "output-device": {
         "label": "Ausgabegerät",
         "hint": "",
@@ -124,11 +117,6 @@
         "label": "Ausgabelautstärke",
         "hint": "",
         "keywords": "Stimmen Ton"
-      },
-      "output-check": {
-        "label": "Soundtest",
-        "hint": "",
-        "keywords": "Lautsprechertest"
       },
       "noise": {
         "label": "Rauschunterdrückung",
@@ -146,12 +134,12 @@
         "keywords": "Webcam Gerät"
       },
       "camera-resolution": {
-        "label": "Kameraauflösung",
+        "label": "Qualität",
         "hint": "",
         "keywords": "Qualität 720p 1080p"
       },
       "camera-fps": {
-        "label": "Kamera-Bildrate",
+        "label": "Bildrate",
         "hint": "",
         "keywords": "fps flüssig"
       },
@@ -161,12 +149,12 @@
         "keywords": "Kameratest"
       },
       "screen-resolution": {
-        "label": "Auflösung der Freigabe",
+        "label": "Qualität",
         "hint": "",
         "keywords": "Bildschirmfreigabe Qualität Stream"
       },
       "screen-fps": {
-        "label": "Bildrate der Freigabe",
+        "label": "Bildrate",
         "hint": "",
         "keywords": "Bildschirmfreigabe fps flüssig Stream"
       },
@@ -289,6 +277,11 @@
         "label": "Mit Windows starten",
         "hint": "Cord öffnet sich minimiert",
         "keywords": "Autostart Systemstart"
+      },
+      "screen-preview": {
+        "label": "Vorschau der Freigabe",
+        "hint": "Zuschauer sehen ein Vorschaubild, ohne sie zu öffnen",
+        "keywords": "Vorschau Miniatur Bildschirmfreigabe Stream"
       }
     },
     "title": "Einstellungen",
@@ -308,8 +301,7 @@
         "system": "Wie im System",
         "light": "Hell",
         "dark": "Dunkel"
-      },
-      "inMeeting": "Im Meeting"
+      }
     },
     "about": {
       "checking": "Suche nach der neuesten Version…",
@@ -341,8 +333,6 @@
       "services": "Dienste"
     },
     "hotkeys": {
-      "browser": "Im Browser funktionieren Tastenkürzel nur, solange der Cord-Tab aktiv ist. In der App immer.",
-      "desktop": "In der App funktioniert das Tastenkürzel auch über anderen Programmen.",
       "recording": "Tastenkürzel drücken…",
       "meeting": "Meeting",
       "cancel": "Esc – abbrechen",
@@ -351,10 +341,8 @@
       "changeLabel": "Mikrofon-Tastenkürzel ändern",
       "assign": "Zuweisen",
       "assignLabel": "Mikrofon-Tastenkürzel zuweisen",
-      "reset": "Standard",
+      "reset": "Zurücksetzen",
       "resetLabel": "Mikrofon-Tastenkürzel zurücksetzen",
-      "disable": "Deaktivieren",
-      "disableLabel": "Mikrofon-Tastenkürzel deaktivieren",
       "holdHint": "Halte das Tastenkürzel gedrückt, um zu sprechen",
       "groups": {
         "cinema": "Kino",
@@ -372,6 +360,11 @@
         "bet": "Bet",
         "allIn": "All-in",
         "reorder": "Raum in den Favoriten verschieben"
+      },
+      "status": {
+        "taken": "Ein anderes Programm nutzt dieses Tastenkürzel bereits: Im Cord-Fenster funktioniert es, für den Hintergrund wähle ein anderes.",
+        "duplicate": "Dieses Tastenkürzel ist bereits einer anderen Cord-Aktion zugewiesen.",
+        "windowOnly": "Dieses Tastenkürzel funktioniert gerade nur im Cord-Fenster."
       }
     },
     "media": {
@@ -388,12 +381,13 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise – verstärkt",
+        "rnnoise": "Verstärkt",
         "voice": "Sprachisolierung",
         "off": "Aus"
       },
       "auto": "Auto",
-      "voiceGroup": "Stimme und Mikrofon"
+      "voiceGroup": "Stimme und Mikrofon",
+      "floorNote": "Unter dieser Qualität sendet Cord nie"
     },
     "profile": {
       "refused": "Der Raum hat das Bild nicht angenommen",
@@ -450,10 +444,6 @@
       "check": "Testen",
       "checkSpeakersLabel": "Lautsprecher testen",
       "previewLabel": "Kameravorschau, nur für dich",
-      "hidePreviewLabel": "Kameravorschau ausblenden",
-      "showPreviewLabel": "Kameravorschau einblenden",
-      "hide": "Ausblenden",
-      "show": "Einblenden",
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
@@ -467,7 +457,10 @@
       "micTaken": "Dieses Tastenkürzel nutzt bereits das Overlay – wählen Sie ein anderes.",
       "changeLabel": "Overlay-Tastenkürzel ändern",
       "assignLabel": "Overlay-Tastenkürzel festlegen",
-      "disableLabel": "Overlay-Tastenkürzel deaktivieren"
+      "resetLabel": "Overlay-Tastenkürzel zurücksetzen"
+    },
+    "video": {
+      "previewDenied": "Kein Kamerazugriff – erlaube ihn für Cord"
     }
   },
   "meeting": {

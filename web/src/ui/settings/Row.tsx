@@ -1,11 +1,9 @@
 import { createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { anchorDomId, rowDomId, rowText, type RowId } from './sections';
 
 /**
- * Куда окно настроек просит прийти: подраздел (его группа раскрывается) и строка (её коротко
- * подсвечивают). `nonce` растёт на каждый переход — повторный выбор того же места тоже работает.
+ * Куда окно настроек просит прийти: подраздел и строка (её коротко подсвечивают). `nonce` растёт на каждый переход — повторный выбор того же места тоже работает.
  */
 export interface SettingsTarget {
   anchor?: string;
@@ -30,6 +28,7 @@ export function SettingRow({
   label,
   hint,
   stack = false,
+  wide = false,
   disabled = false,
   below,
   children,
@@ -40,6 +39,11 @@ export function SettingRow({
   /** Своё пояснение вместо записанного в `ROWS`; `null` — без пояснения. */
   hint?: ReactNode;
   stack?: boolean;
+  /**
+   * Действие во всю ширину без видимой подписи (выбор микрофона и «Проверить», как у Телемоста):
+   * подпись строки остаётся именем управления для диктора — его задаёт само управление.
+   */
+  wide?: boolean;
   disabled?: boolean;
   /** Во всю ширину под строкой: предупреждение, превью камеры, запись пробы. */
   below?: ReactNode;
@@ -68,19 +72,22 @@ export function SettingRow({
       className="setting-row"
       id={rowDomId(id)}
       data-stack={stack || undefined}
+      data-wide={wide || undefined}
       data-disabled={disabled || undefined}
       data-flash={flash || undefined}
     >
-      <div className="setting-row__text">
-        <span className="setting-row__label" id={labelId}>
-          {label ?? spec.label}
-        </span>
-        {shownHint && (
-          <span className="setting-row__hint" id={hintId}>
-            {shownHint}
+      {!wide && (
+        <div className="setting-row__text">
+          <span className="setting-row__label" id={labelId}>
+            {label ?? spec.label}
           </span>
-        )}
-      </div>
+          {shownHint && (
+            <span className="setting-row__hint" id={hintId}>
+              {shownHint}
+            </span>
+          )}
+        </div>
+      )}
       {children !== undefined && (
         <div className="setting-row__control">
           {typeof children === 'function' ? children(a11y) : children}
@@ -92,16 +99,20 @@ export function SettingRow({
 }
 
 /**
- * Группа строк под заголовком — сворачивается, как у FACEIT. У подраздела-якоря группа знает свой
- * якорь: переход к нему из списка слева раскрывает её, даже если её свернули.
+ * Группа строк под заголовком (R16): просто заголовок и разделитель, как у Discord, — без
+ * «скрыть / раскрыть». Что из группы будет карточкой (Телемост, разделы «Звук», «Видео»), а что —
+ * группой с волоском между группами (длинные списки «Горячих клавиш» и «Windows»), решает раскладка
+ * раздела (`data-layout` тела раздела), а не сама группа.
+ *
+ * У подраздела-якоря группа знает свой якорь — к нему ведёт список слева и по нему считается
+ * подсветка; группа-строка карты (`id`) находится поиском.
  */
 export function SettingGroup({
   title,
   anchor,
   id,
   note,
-  defaultOpen = true,
-  collapsible = true,
+  aside,
   children,
 }: {
   title: string;
@@ -110,52 +121,25 @@ export function SettingGroup({
   id?: RowId;
   /** Одна строка под заголовком — для всей группы сразу. */
   note?: ReactNode;
-  defaultOpen?: boolean;
-  collapsible?: boolean;
+  /** Справа от заголовка: индикатор уровня у «Микрофона». */
+  aside?: ReactNode;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const target = useContext(SettingsTargetContext);
-  /*
-    Переход сюда раскрывает группу ещё при отрисовке, а не эффектом после неё: окно меряет место
-    строки в своём эффекте раскладки, и строка в скрытом теле дала бы ноль — прокрутка ушла бы в
-    начало раздела, а подсветка мигнула бы за краем.
-  */
-  const [seen, setSeen] = useState(0);
-  const aimed = (!!anchor && target.anchor === anchor) || (!!id && target.row === id);
-  if (aimed && target.nonce && target.nonce !== seen) {
-    setSeen(target.nonce);
-    if (!open) setOpen(true);
-  }
   const base = useId();
-  const shown = open || !collapsible;
   return (
     <section
       className="setting-group"
       id={anchor ? anchorDomId(anchor) : id ? rowDomId(id) : undefined}
       aria-labelledby={`${base}-title`}
-      data-open={shown || undefined}
     >
-      <h3 className="setting-group__head">
-        {collapsible ? (
-          <button
-            type="button"
-            className="setting-group__toggle"
-            aria-expanded={shown}
-            aria-controls={`${base}-body`}
-            onClick={() => setOpen(!open)}
-          >
-            <span id={`${base}-title`}>{title}</span>
-            <ChevronDown size={18} aria-hidden="true" className="setting-group__chevron" />
-          </button>
-        ) : (
-          <span id={`${base}-title`}>{title}</span>
-        )}
-      </h3>
-      <div className="setting-group__body" id={`${base}-body`} hidden={!shown}>
-        {note && <p className="setting-group__note">{note}</p>}
-        {children}
+      <div className="setting-group__top">
+        <h3 className="setting-group__head" id={`${base}-title`}>
+          {title}
+        </h3>
+        {aside}
       </div>
+      {note && <p className="setting-group__note">{note}</p>}
+      {children}
     </section>
   );
 }
@@ -169,19 +153,29 @@ export function SettingValue({ children, tone }: { children: ReactNode; tone?: '
   );
 }
 
-/** Полоса уровня: голос в микрофон и всё, что меряется от нуля до ста. */
-export function LevelBar({ level, label }: { level: number; label: string }) {
+/** Сколько делений у индикатора уровня — как у Телемоста (n08): точки, а не полоса. */
+const METER_STEPS = 12;
+
+/**
+ * Индикатор уровня микрофона: двенадцать делений справа от заголовка «Микрофон». Деления, а не
+ * сплошная полоса: громкость голоса читается ступенями, и индикатор не дрожит на каждом отсчёте.
+ */
+export function LevelMeter({ level, label, title }: { level: number; label: string; title?: string }) {
   const value = Math.max(0, Math.min(100, Math.round(level)));
+  const lit = Math.round((value / 100) * METER_STEPS);
   return (
     <div
-      className="setting-level"
+      className="setting-meter"
       role="meter"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={value}
+      title={title}
     >
-      <span className="setting-level__fill" style={{ transform: `scaleX(${value / 100})` }} />
+      {Array.from({ length: METER_STEPS }, (_, step) => (
+        <span key={step} className="setting-meter__step" data-on={step < lit || undefined} />
+      ))}
     </div>
   );
 }

@@ -27,10 +27,6 @@
         "title": "快捷键",
         "keywords": "组合键 按键 键盘"
       },
-      "voice": {
-        "title": "语音和视频",
-        "keywords": "声音 音频 麦克风 摄像头"
-      },
       "sounds": {
         "title": "声音",
         "keywords": "通知 提示音 游戏"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "应用 托盘 任务栏 缩略图 徽标 闪烁 睡眠 叠加层 开机启动"
+      },
+      "audio": {
+        "title": "音频",
+        "keywords": "语音 声音 麦克风 扬声器 耳机"
+      },
+      "video": {
+        "title": "视频",
+        "keywords": "摄像头 屏幕共享 画质 预览"
       }
     },
     "anchors": {
       "microphone": "麦克风",
       "output": "扬声器",
-      "processing": "音频处理",
       "camera": "摄像头",
       "screen": "屏幕共享"
     },
@@ -74,11 +77,6 @@
         "label": "主题",
         "hint": "",
         "keywords": "浅色 深色 夜间 系统 主题"
-      },
-      "appearance-bots": {
-        "label": "会议旁的机器人",
-        "hint": "在舞台旁列出正在使用的集成",
-        "keywords": "集成 面板 音乐"
       },
       "hotkey-mic": {
         "label": "麦克风",
@@ -110,11 +108,6 @@
         "hint": "让轻声和大声更均衡",
         "keywords": "自动 增益 agc"
       },
-      "mic-check": {
-        "label": "麦克风测试",
-        "hint": "说点什么，音量条会显示电平",
-        "keywords": "测试 指示 录音"
-      },
       "output-device": {
         "label": "输出设备",
         "hint": "",
@@ -124,11 +117,6 @@
         "label": "输出音量",
         "hint": "",
         "keywords": "语音 声音"
-      },
-      "output-check": {
-        "label": "声音测试",
-        "hint": "",
-        "keywords": "扬声器测试"
       },
       "noise": {
         "label": "降噪",
@@ -146,12 +134,12 @@
         "keywords": "网络摄像头 设备"
       },
       "camera-resolution": {
-        "label": "摄像头分辨率",
+        "label": "画质",
         "hint": "",
         "keywords": "画质 720p 1080p"
       },
       "camera-fps": {
-        "label": "摄像头帧率",
+        "label": "帧率",
         "hint": "",
         "keywords": "fps 流畅"
       },
@@ -161,12 +149,12 @@
         "keywords": "摄像头测试"
       },
       "screen-resolution": {
-        "label": "屏幕共享分辨率",
+        "label": "画质",
         "hint": "",
         "keywords": "屏幕共享 画质 直播"
       },
       "screen-fps": {
-        "label": "屏幕共享帧率",
+        "label": "帧率",
         "hint": "",
         "keywords": "屏幕共享 fps 流畅 直播"
       },
@@ -289,6 +277,11 @@
         "label": "随 Windows 启动",
         "hint": "Cord 将以最小化方式打开",
         "keywords": "开机启动 自启动 启动"
+      },
+      "screen-preview": {
+        "label": "共享预览",
+        "hint": "观看者无需打开即可看到缩略图",
+        "keywords": "预览 缩略图 屏幕共享 直播"
       }
     },
     "title": "设置",
@@ -308,8 +301,7 @@
         "system": "跟随系统",
         "light": "浅色",
         "dark": "深色"
-      },
-      "inMeeting": "会议中"
+      }
     },
     "about": {
       "checking": "正在查询最新版本…",
@@ -341,8 +333,6 @@
       "services": "服务"
     },
     "hotkeys": {
-      "browser": "在浏览器中，快捷键仅在 Cord 标签页处于活动状态时有效。在应用中始终有效。",
-      "desktop": "在应用中，即使其他程序在前台，快捷键也有效。",
       "recording": "请按下快捷键…",
       "meeting": "会议",
       "cancel": "Esc — 取消",
@@ -351,10 +341,8 @@
       "changeLabel": "更改麦克风快捷键",
       "assign": "设置",
       "assignLabel": "设置麦克风快捷键",
-      "reset": "默认",
-      "resetLabel": "恢复默认麦克风快捷键",
-      "disable": "停用",
-      "disableLabel": "停用麦克风快捷键",
+      "reset": "重置",
+      "resetLabel": "重置麦克风快捷键",
       "holdHint": "按住快捷键说话",
       "groups": {
         "cinema": "影院",
@@ -372,6 +360,11 @@
         "bet": "下注",
         "allIn": "全下",
         "reorder": "调整收藏中房间的顺序"
+      },
+      "status": {
+        "taken": "其他程序已占用此快捷键：在 Cord 窗口中可以使用，如需在后台使用请换一个。",
+        "duplicate": "此快捷键已分配给 Cord 的其他操作。",
+        "windowOnly": "此快捷键目前只在 Cord 窗口中有效。"
       }
     },
     "media": {
@@ -388,12 +381,13 @@
       },
       "noise": {
         "browser": "标准",
-        "rnnoise": "RNNoise — 增强",
+        "rnnoise": "增强",
         "voice": "人声隔离",
         "off": "关闭"
       },
       "auto": "自动",
-      "voiceGroup": "语音和麦克风"
+      "voiceGroup": "语音和麦克风",
+      "floorNote": "Cord 不会以低于此画质发送"
     },
     "profile": {
       "refused": "房间未接受该图片",
@@ -450,10 +444,6 @@
       "check": "测试",
       "checkSpeakersLabel": "测试扬声器",
       "previewLabel": "摄像头预览，仅你可见",
-      "hidePreviewLabel": "隐藏摄像头预览",
-      "showPreviewLabel": "显示摄像头预览",
-      "hide": "隐藏",
-      "show": "显示",
       "deviceFailed": "无法启用设备",
       "recordUnsupported": "此浏览器不支持测试录音。电平条仍可使用。",
       "toneFailed": "无法播放测试音"
@@ -467,7 +457,10 @@
       "micTaken": "此快捷键已被叠加层使用——请选择其他快捷键。",
       "changeLabel": "更改叠加层快捷键",
       "assignLabel": "设置叠加层快捷键",
-      "disableLabel": "关闭叠加层快捷键"
+      "resetLabel": "重置叠加层快捷键"
+    },
+    "video": {
+      "previewDenied": "无法访问摄像头——请允许 Cord 使用"
     }
   },
   "meeting": {

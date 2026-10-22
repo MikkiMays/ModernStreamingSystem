@@ -1,103 +1,98 @@
-import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Translate } from '../../i18n';
+import { isDesktop } from '../../core/desktop';
 import type { AudioPreferences } from '../../core/preferences';
-import { qualityLevels, qualityRules } from '../../media/capabilities';
+import { CHOICE_FRAME_RATES, qualityRules, RESOLUTIONS, type Level } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
-import { Slider, Switch } from '../kit';
+import { Segmented, Slider, Switch, type SegmentedOption } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
+import { useLiveValue } from './live-value';
 
 /**
- * Строки звука и видео, которые нужны в двух местах: в разделе «Голос и видео» окна настроек и в
- * «Перед разговором» на предпросмотре. Строки — здесь, а группы вокруг них собирает каждое место
- * своё: в окне настроек камера — это устройство, качество и превью вместе, на предпросмотре
+ * Строки звука и видео, которые нужны в нескольких местах: в разделах «Звук» и «Видео» окна
+ * настроек, на предпросмотре и в окне показа. Строки — здесь, а группы вокруг них собирает каждое
+ * место своё: в окне настроек камера — это превью, устройство и качество вместе, на предпросмотре
  * устройства выбираются отдельно.
  */
 
-const RESOLUTION_NAMES: Record<Resolution, string> = {
-  720: '720p · HD',
-  1080: '1080p · Full HD',
-  1440: '1440p · QHD',
-};
-
-/** Разрешение и частота кадров отдачи — из того, что разрешает сервер (T44, П2: без «Авто»). */
+/**
+ * Разрешение и частота кадров отдачи (R78): сегменты 720 / 1080 / 1440 и 30 / 60 — как SD / HD у
+ * Discord, одинаково для камеры и показа, без «Авто». Что выше потолка сервера — недоступно, и
+ * причина — в подсказке пункта, а не строкой под группой.
+ */
 export function QualityRows({
   kind,
-  profile,
-  change,
+  value,
+  onChange,
+  ceiling = qualityRules().ceiling,
 }: {
   kind: 'screen' | 'camera';
-  profile: ScreenProfile;
-  change: (next: ScreenProfile) => void;
+  value: ScreenProfile;
+  onChange: (next: ScreenProfile) => void;
+  /** Потолок сервера; по умолчанию — из запомненных правил (`capabilities.quality`). */
+  ceiling?: Level;
 }) {
   const { t } = useTranslation();
-  const levels = qualityLevels(qualityRules());
   const label = t(($) => $.settings.media.kind[kind]);
+  const reason = t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
+  const above = (over: boolean) => (over ? { disabled: true, title: reason } : {});
   return (
     <>
-      <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'} stack>
-        <select
-          className="ui-input ui-select setting-select"
+      <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'}>
+        <Segmented<Resolution>
+          size="sm"
           aria-label={t(($) => $.settings.media.quality, { label })}
-          value={profile.resolution}
-          onChange={(e) => change({ ...profile, resolution: Number(e.target.value) as Resolution })}
-        >
-          {levels.resolutions.map((resolution) => (
-            <option key={resolution} value={resolution}>
-              {RESOLUTION_NAMES[resolution]}
-            </option>
-          ))}
-        </select>
+          value={value.resolution}
+          onValueChange={(resolution) => onChange({ ...value, resolution })}
+          options={RESOLUTIONS.map((resolution) => ({
+            value: resolution,
+            label: `${resolution}p`,
+            ...above(resolution > ceiling.resolution),
+          }))}
+        />
       </SettingRow>
-      <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'} stack>
-        <select
-          className="ui-input ui-select setting-select"
+      <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'}>
+        <Segmented<FrameRate>
+          size="sm"
           aria-label={t(($) => $.settings.media.fps, { label })}
-          value={profile.fps}
-          onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
-        >
-          {levels.frameRates.map((fps) => (
-            <option key={fps} value={fps}>
-              {fps} fps
-            </option>
-          ))}
-        </select>
+          value={value.fps}
+          onValueChange={(fps) => onChange({ ...value, fps })}
+          options={CHOICE_FRAME_RATES.map((fps) => ({
+            value: fps,
+            label: String(fps),
+            ariaLabel: `${fps} fps`,
+            ...above(fps > ceiling.fps),
+          }))}
+        />
       </SettingRow>
     </>
   );
 }
 
-/** Потолок сервера одной строкой — под заголовком группы показа. */
-export function ceilingNote(t: Translate) {
-  const { ceiling } = qualityRules();
-  return t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
-}
-
-/** Группа «Видео с камеры» или «Демонстрация экрана» целиком — для предпросмотра. */
-export function QualityFields({
-  kind,
-  profile,
-  change,
-}: {
-  kind: 'screen' | 'camera';
-  profile: ScreenProfile;
-  change: (next: ScreenProfile) => void;
-}) {
+/**
+ * Качество камеры или показа одной группой — для предпросмотра и окна показа (W7). Пропы — те же,
+ * что у `QualityRows`: значение, правка и потолок сервера.
+ */
+export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
   const { t } = useTranslation();
   return (
     <SettingGroup
-      title={t(($) => $.settings.media.group[kind])}
-      collapsible={false}
-      note={kind === 'screen' ? ceilingNote(t) : undefined}
+      title={t(($) => $.settings.media.group[props.kind])}
+      note={props.kind === 'screen' ? t(($) => $.settings.media.floorNote) : undefined}
     >
-      <QualityRows kind={kind} profile={profile} change={change} />
+      <QualityRows {...props} />
     </SettingGroup>
   );
 }
 
 type Constraints = MediaTrackSupportedConstraints & { voiceIsolation?: boolean };
 
+/**
+ * Шумоподавление — сегментом (S4): «Выкл. / Стандартное / Усиленное», как у Discord. «Изоляция
+ * голоса» — это Voice Focus Windows (только машины с NPU, исследование §2.4): пункт есть только в
+ * клиенте для Windows и только если движок её объявил — или если она уже выбрана. В браузере и на
+ * телефоне четвёртый пункт был бы шумом и не влезал бы в строку.
+ */
 export function NoiseRow({
   audio,
   change,
@@ -106,26 +101,27 @@ export function NoiseRow({
   change: (value: AudioPreferences) => void;
 }) {
   const { t } = useTranslation();
-  const constraints = navigator.mediaDevices?.getSupportedConstraints() as Constraints | undefined;
+  const constraints = navigator.mediaDevices?.getSupportedConstraints?.() as Constraints | undefined;
+  const isolation = (isDesktop() && !!constraints?.voiceIsolation) || audio.suppression === 'voice';
+  const options: SegmentedOption<AudioPreferences['suppression']>[] = [
+    { value: 'off', label: t(($) => $.settings.media.noise.off) },
+    { value: 'browser', label: t(($) => $.settings.media.noise.browser) },
+    {
+      value: 'rnnoise',
+      label: t(($) => $.settings.media.noise.rnnoise),
+      disabled: !('AudioWorkletNode' in window),
+    },
+    ...(isolation ? [{ value: 'voice' as const, label: t(($) => $.settings.media.noise.voice) }] : []),
+  ];
   return (
     <SettingRow id="noise" stack>
-      <select
-        className="ui-input ui-select setting-select"
+      <Segmented
+        size="sm"
         aria-label={rowText(t, 'noise').label}
         value={audio.suppression}
-        onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-          change({ ...audio, suppression: e.target.value as AudioPreferences['suppression'] })
-        }
-      >
-        <option value="browser">{t(($) => $.settings.media.noise.browser)}</option>
-        <option value="rnnoise" disabled={!('AudioWorkletNode' in window)}>
-          {t(($) => $.settings.media.noise.rnnoise)}
-        </option>
-        <option value="voice" disabled={!constraints?.voiceIsolation}>
-          {t(($) => $.settings.media.noise.voice)}
-        </option>
-        <option value="off">{t(($) => $.settings.media.noise.off)}</option>
-      </select>
+        onValueChange={(suppression) => change({ ...audio, suppression })}
+        options={options}
+      />
     </SettingRow>
   );
 }
@@ -180,7 +176,14 @@ export function GainRow({
   change: (value: AudioPreferences) => void;
 }) {
   const { t } = useTranslation();
-  const percent = Math.round(audio.gain * 100);
+  // Пишется, когда ползунок отпустили: во встрече это `applyConstraints` и пересборка обработки,
+  // а в проверке — перезапуск захвата; себя во время перетаскивания человек всё равно не слышит (R14).
+  const gain = useLiveValue(
+    Math.round(audio.gain * 100),
+    (percent) => change({ ...audio, gain: percent / 100 }),
+    { live: false },
+  );
+  const percent = gain.value;
   return (
     <SettingRow id="mic-volume" stack disabled={audio.autoGainControl}>
       {/* Имя ползунка — видимая подпись строки (`aria-labelledby`): так и диктор, и axe знают, что
@@ -194,7 +197,8 @@ export function GainRow({
             step={1}
             disabled={audio.autoGainControl}
             value={percent}
-            onChange={(e) => change({ ...audio, gain: Number(e.target.value) / 100 })}
+            onChange={(e) => gain.onChange(Number(e.target.value))}
+            onValueCommitted={gain.onCommit}
           />
           <SettingValue>
             {audio.autoGainControl ? t(($) => $.settings.media.auto) : `${percent}%`}
@@ -215,7 +219,7 @@ export function AudioFields({
 }) {
   const { t } = useTranslation();
   return (
-    <SettingGroup title={t(($) => $.settings.media.voiceGroup)} collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.media.voiceGroup)}>
       <NoiseRow audio={audio} change={change} />
       <EchoRow audio={audio} change={change} />
       <AutoGainRow audio={audio} change={change} />

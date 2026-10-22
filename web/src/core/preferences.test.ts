@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { readPreferences, savePreferences } from './preferences';
 beforeEach(() => localStorage.clear());
 it('persists independent camera and screen profiles and discards invalid cached values', () => {
@@ -38,6 +38,32 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
     }),
   );
   expect(readPreferences().screen).toMatchObject({ resolution: 1440, fps: 60 });
+});
+
+/**
+ * R78: у камеры своё умолчание — 720p · 30 (`CAMERA_DEFAULT`), независимо от уровня по умолчанию
+ * сервера для показа; шкала частоты — 30 / 60, старые 15 кадров камеры читаются как 30.
+ */
+it('камера: умолчание 720p30 независимо от сервера, сохранённое «Авто» — тоже 720p30, 15 fps — 30', () => {
+  localStorage.setItem(
+    'cord:quality:v1',
+    JSON.stringify({
+      default: { resolution: 1080, fps: 60 },
+      ceiling: { resolution: 1440, fps: 60 },
+      settleMs: 4000,
+    }),
+  );
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ camera: { resolution: 1440, fps: 60, automatic: true } }),
+  );
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 1080, fps: 15 } }));
+  expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 30 });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 777, fps: 7 } }));
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
 });
 
 it('migrates the display name and validates stored audio and hotkeys', () => {
@@ -87,6 +113,31 @@ it('defaults to silent PING display and enabled notifications, then saves both i
 });
 
 /**
+ * R14: перетаскивание ползунка громкости не должно на каждом шаге будить оболочку Windows (IPC
+ * `preferences.changed`) — ей нужны только PING и сигналы, и только когда они правда поменялись.
+ */
+it('оболочке — только смена PING и сигналов, громкости её не будят (R14)', () => {
+  const postMessage = vi.fn();
+  (window as { chrome?: unknown }).chrome = {
+    webview: { postMessage, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+  };
+  try {
+    savePreferences({ outputVolume: 40 });
+    savePreferences({ soundVolume: 30, audio: { ...readPreferences().audio, gain: 1.2 } });
+    expect(postMessage).not.toHaveBeenCalled();
+    savePreferences({ notificationSounds: false });
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'preferences.changed', showPing: false, notificationSounds: false }),
+    );
+    savePreferences({ notificationSounds: false, outputVolume: 41 });
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  } finally {
+    delete (window as { chrome?: unknown }).chrome;
+  }
+});
+
+/**
  * E03: громкость собеседников и «камера уступает показу» — новые ключи той же записи. Запись,
  * сохранённая до них, читается целиком как была: новые поля берут умолчания, старые не теряются.
  */
@@ -127,10 +178,11 @@ it('забывает убранные настройки — режим сети
  * руками, и вместе с ним выключалась адаптация приёма. Теперь у приёма своя память.
  */
 
-it('stores the integration roster choice and Yandex token for this browser profile', () => {
+it('stores the Yandex token; integrations over the call are always shown (R21: the switch is gone)', () => {
   savePreferences({ showIntegrationPanel: false, yandexMusicToken: 'saved-yandex-token' });
+  // Выключенное раньше «Боты справа» не прячет интеграции навсегда: переключателя больше нет.
   expect(readPreferences()).toMatchObject({
-    showIntegrationPanel: false,
+    showIntegrationPanel: true,
     yandexMusicToken: 'saved-yandex-token',
   });
 });
