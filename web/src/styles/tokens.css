@@ -456,6 +456,22 @@
   --focus-outline: none;
 }
 
+/*
+  Окно клиента Windows (R34). Кнопки «— ⧉ ×» рисует сама Windows поверх страницы (`titleBarOverlay`,
+  Window Controls Overlay): полоса высотой `--titlebar-h` сверху и шириной `--titlebar-end` справа.
+  Шапки встречи и предвхода кончаются на `--titlebar-end`, окна (настройки, диалоги) опускаются на
+  `--titlebar-h`. В браузере и во весь экран — нули. Если `env()` пуст, те же переменные пишет на
+  `<html>` `core/titlebar.ts` по `navigator.windowControlsOverlay`.
+*/
+:root {
+  --titlebar-h: 0px;
+  --titlebar-end: 0px;
+}
+:root[data-desktop='true'] {
+  --titlebar-h: env(titlebar-area-height, 0px);
+  --titlebar-end: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
 /* Движение выключается одним местом: компоненты берут длительности из токенов. */
 @media (prefers-reduced-motion: reduce) {
   :root {

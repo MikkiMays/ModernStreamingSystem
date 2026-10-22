@@ -16,12 +16,6 @@
   overflow-wrap: anywhere;
 }
 
-[data-desktop='true'] .prejoin-page > .app-header {
-  height: 76px;
-}
-[data-desktop='true'] .prejoin-page > .app-header .brand {
-  visibility: hidden;
-}
 @media (max-width: 767px) {
   .preview-settings {
     bottom: 12px;

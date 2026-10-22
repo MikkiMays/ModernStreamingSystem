@@ -5,15 +5,31 @@
   Справа — только то, что относится к этой встрече: звезда избранного и приглашение. Тема ушла в
   настройки (T41), «В эфире» — из шапки вовсе (T25).
 */
+/*
+  В клиенте Windows шапка и есть заголовок окна (R34): кнопки «— ⧉ ×» Windows рисует поверх её правого
+  верхнего угла (`--titlebar-*`, `styles/tokens.css`). Поэтому правое поле — не меньше их ширины и
+  зазора 8 px, высота — не меньше их полосы, а пустое место шапки тащит окно (`app-region: drag`, как
+  у Discord); кнопки и код встречи нажимаются как обычно. В браузере переменные — нули.
+*/
 .meeting-header {
+  --header-pad: var(--space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-height: 64px;
-  padding: 0 var(--space-6);
+  min-height: max(56px, var(--titlebar-h, 0px));
+  padding-block: 0;
+  padding-inline: var(--header-pad) max(var(--header-pad), calc(var(--titlebar-end, 0px) + var(--space-2)));
   flex-shrink: 0;
   color: var(--text);
+}
+:root[data-desktop='true'] .meeting-header {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+:root[data-desktop='true'] .meeting-header :is(button, a, input, [role='button'], [tabindex]) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 .meeting-header__identity {
   display: flex;
@@ -69,8 +85,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: var(--control-xs);
+  height: var(--control-xs);
+  margin-block: calc((var(--control-xs) - 20px) / -2);
   padding: 0;
   border: 0;
   border-radius: var(--radius-1);
@@ -188,8 +205,7 @@
 
 @media (max-width: 1199px) {
   .meeting-header {
-    min-height: 56px;
-    padding: 0 var(--space-4);
+    --header-pad: var(--space-4);
     gap: var(--space-2);
   }
   .meeting-header__identity {
@@ -229,8 +245,13 @@
     margin-right: var(--space-1);
   }
 }
+@media (max-width: 767px) {
+  .meeting-header {
+    min-height: max(48px, var(--titlebar-h, 0px));
+  }
+}
 @media (max-height: 600px) and (min-width: 768px) {
   .meeting-header {
-    min-height: 52px;
+    min-height: max(52px, var(--titlebar-h, 0px));
   }
 }
