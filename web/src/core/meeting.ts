@@ -112,7 +112,8 @@ export class Meeting {
     document.addEventListener('visibilitychange', this.refreshOnReturn);
     this.subscriptions.push(
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
-      this.media.screenGone.subscribe((identity) => {
+      this.media.screenGone.subscribe(() => {
+        const identity = this.media.screenGone.get();
         if (identity && this.viewing.get()?.participantId === identity) this.stopViewing();
       }),
       this.media.state.subscribe(() => {
