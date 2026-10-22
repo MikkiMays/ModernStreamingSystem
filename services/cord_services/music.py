@@ -23,6 +23,9 @@ WATCH_SECONDS = 5
 # встреча жива (R04). Раньше любой обрыв значил «музыка вышла из встречи с ошибкой»: после
 # замирания хоста на полминуты организатору приходилось добавлять сервис заново.
 RECONNECT_DELAYS = (1.0, 2.0, 4.0, 8.0, 8.0)
+# Издатель, проживший столько после подключения, считается восстановившимся: счёт попыток с него
+# начинается заново (иначе редкие обрывы за вечер сложились бы в «пятую неудачу»).
+RECONNECT_WINDOW_MS = 120000
 # Сколько участник может висеть в JOINING без медиа и всё ещё считаться человеком (A2,
 # `docs/abuse-model.md`): дольше — забытая вкладка или скрипт, и музыка ради него не играет.
 JOINING_GRACE_MS = 30_000
@@ -286,6 +289,7 @@ class Music:
             watcher = asyncio.create_task(self.watch(room_id, admission, link))
             playing: tuple[str, int] | None = None
             reconnects = 0
+            connected_at = now()
             while True:
                 state = self.store.get(room_id)
                 if not state["enabled"]:
@@ -331,27 +335,51 @@ class Music:
                     # Встреча кончилась — это конец работы; жива — поднимаем издателя заново
                     # с того же места: позиция сохраняется каждые полсекунды, место в комнате
                     # SFU держит `departure_timeout`.
-                    if await self.expected_end(room_id) is not None or reconnects >= len(
-                        RECONNECT_DELAYS
-                    ):
+                    if await self.expected_end(room_id) is not None:
                         raise ConnectionError(
                             event.get("message") or "Связь с комнатой потеряна"
                         )
-                    delay = RECONNECT_DELAYS[reconnects]
-                    reconnects += 1
-                    logger.warning(
-                        "Music publisher lost the room %s, reconnecting in %.0fs (%d)",
-                        room_id,
-                        delay,
-                        reconnects,
-                    )
+                    if now() - connected_at >= RECONNECT_WINDOW_MS:
+                        reconnects = 0
                     state = self.store.get(room_id)
                     state.update(status="reconnecting")
                     self.store.save(state)
                     await publisher.close()
-                    await asyncio.sleep(delay)
-                    publisher = await self.connect(room_id, admission)
+                    while True:
+                        if reconnects >= len(RECONNECT_DELAYS):
+                            raise ConnectionError(
+                                event.get("message") or "Связь с комнатой потеряна"
+                            )
+                        delay = RECONNECT_DELAYS[reconnects]
+                        reconnects += 1
+                        logger.warning(
+                            "Music publisher lost the room %s, reconnecting in %.0fs (%d)",
+                            room_id,
+                            delay,
+                            reconnects,
+                        )
+                        await asyncio.sleep(delay)
+                        try:
+                            publisher = await self.connect(room_id, admission)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as error:
+                            # Токен не дали или издатель не поднялся — это ещё одна попытка,
+                            # а не ошибка встречи.
+                            logger.warning("Music publisher did not come back: %s", error)
+                            continue
+                        break
                     link.publisher = publisher
+                    connected_at = now()
+                    # Статус — по тому, что хотят сейчас: пауза остаётся паузой, а не
+                    # «переподключаемся» навсегда.
+                    state = self.store.get(room_id)
+                    state["status"] = (
+                        "playing"
+                        if state["queue"] and not state["paused"]
+                        else "paused" if state["queue"] else "idle"
+                    )
+                    self.store.save(state)
                     playing = None
                     continue
                 if kind in ("reconnecting", "starved", "recovered", "reconnected"):
@@ -364,8 +392,6 @@ class Music:
                             else "reconnecting" if kind == "reconnecting" else "playing"
                         )
                         self.store.save(state)
-                    if kind == "reconnected":
-                        reconnects = 0
                     continue
                 epoch = event.get("epoch")
                 position = event.get("value")
