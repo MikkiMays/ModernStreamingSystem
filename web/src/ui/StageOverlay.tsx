@@ -55,11 +55,30 @@ function game(t: Translate, name: string, count: number): string {
   return count > 0 ? t(($) => $.services.roster.seated, { name, count }) : name;
 }
 
+/**
+ * Что сейчас занимает сцену (`Stage.tsx`, тот же порядок): чужой экран, стол, кинозал — или разговор.
+ * Чип того, что и так во всю сцену, не нужен: он повторял бы стол и закрывал бы его же кнопки.
+ */
+export function stageShows(snapshot: Snapshot, viewing: boolean): ChipKind | null {
+  if (viewing) return null;
+  if (snapshot.chess) return 'chess';
+  if (snapshot.gartic) return 'gartic';
+  if (snapshot.poker) return 'poker';
+  if (snapshot.durak) return 'durak';
+  return snapshot.watch ? 'cinema' : null;
+}
+
 /** Что показать чипами — по снимку комнаты и ответу службы музыки. Порядок: игра, кино, музыка. */
-export function stageChips(t: Translate, snapshot: Snapshot, music: MusicPresence): StageChip[] {
+export function stageChips(
+  t: Translate,
+  snapshot: Snapshot,
+  music: MusicPresence,
+  onStage: ChipKind | null = null,
+): StageChip[] {
   const chips: StageChip[] = [];
-  const add = (kind: ChipKind, label: string, title = label, playing?: boolean) =>
-    chips.push({ kind, label, title, ...(playing === undefined ? {} : { playing }) });
+  const add = (kind: ChipKind, label: string, title = label, playing?: boolean) => {
+    if (kind !== onStage) chips.push({ kind, label, title, ...(playing === undefined ? {} : { playing }) });
+  };
   if (snapshot.poker)
     add(
       'poker',
@@ -170,8 +189,9 @@ export function StageOverlay({
 }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
+  const viewing = useStore(meeting.viewing);
   const music = useMusicPresence(meeting);
-  const chips = stageChips(t, snapshot, music);
+  const chips = stageChips(t, snapshot, music, stageShows(snapshot, !!viewing));
   const empty = chips.length === 0 && !children;
   return (
     <div

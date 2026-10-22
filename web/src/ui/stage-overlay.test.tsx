@@ -6,7 +6,7 @@ import type { Meeting } from '../core/meeting';
 import type { MusicState } from '../core/services';
 import { Store } from '../core/store';
 import { t } from '../i18n';
-import { StageOverlay, stageChips } from './StageOverlay';
+import { StageOverlay, stageChips, stageShows } from './StageOverlay';
 
 /*
   Активные интеграции — полупрозрачными чипами поверх звонка справа сверху (R30), а не отдельной
@@ -64,6 +64,20 @@ describe('чипы интеграций по снимку', () => {
     expect(chips[1]!.title).toBe('Кинозал: Фильм');
   });
 
+  it('чип того, что и так во всю сцену, не дублируется; поверх чужого экрана видно всё', () => {
+    const room = snapshot({
+      poker: { seats: [{ memberId: 'me' }] },
+      watch: { provider: 'youtube', title: 'Фильм' },
+    });
+    expect(stageShows(room, false)).toBe('poker');
+    expect(stageChips(t, room, { present: true, state: music() }, 'poker').map((chip) => chip.kind)).toEqual([
+      'cinema',
+      'music',
+    ]);
+    expect(stageShows(room, true)).toBeNull();
+    expect(stageShows(snapshot({ watch: { provider: 'vk', title: null } }), false)).toBe('cinema');
+  });
+
   it('шахматы и Gartic — по игрокам; кинозал без названия — словом «Кинозал»', () => {
     const chips = stageChips(
       t,
@@ -99,6 +113,7 @@ function fakeMeeting(initial: Snapshot) {
   return {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },
     snapshot: new Store(initial),
+    viewing: new Store(null),
     ended: new Store<string | null>(null),
   } as unknown as Meeting & { snapshot: Store<Snapshot> };
 }
@@ -146,8 +161,9 @@ describe('слой поверх сцены', () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('игра началась посреди встречи — чип появляется без перезагрузки', () => {
+  it('игра началась, пока смотрят чужой экран, — чип появляется без перезагрузки', () => {
     const meeting = fakeMeeting(snapshot());
+    (meeting as unknown as { viewing: Store<unknown> }).viewing.set({ screenId: 's', participantId: 'ann' });
     show(meeting);
     expect(screen.queryByRole('button')).toBeNull();
     meeting.snapshot.set(snapshot({ durak: { seats: [{ memberId: 'me' }, { memberId: 'ann' }] } }));
