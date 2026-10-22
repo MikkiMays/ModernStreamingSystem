@@ -156,6 +156,14 @@ svg.lucide:not(
   width: 100%;
   min-height: 48px;
 }
+/* Поле в фокусе — состояние поля, а не кольцо навигации (S1): рамка акцента видна и после щелчка,
+   в каком бы режиме ввода человек ни был. Раньше её заменяло кольцо, которое теперь только у
+   клавиатуры. Меняется лишь цвет рамки: у полей без рамки (`.ui-input`, поиск, чат) — ничего, а
+   рамки столов и старых форм (вес 0,1,1) правило перекрывает. */
+input:not([type='checkbox'], [type='radio'], [type='range'], [disabled]):focus,
+:is(select, textarea):not([disabled]):focus {
+  border-color: var(--accent);
+}
 input[type='checkbox'],
 input[type='radio'] {
   flex: none;

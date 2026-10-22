@@ -159,6 +159,12 @@ describe('CSS: одно кольцо на токене', () => {
         expect(rule.body, `${name}: ${rule.selector}`).not.toMatch(/outline:\s*\d+px\s+solid/);
   });
 
+  it('поле ввода в фокусе подсвечено рамкой в любом режиме — это состояние поля, не кольцо', () => {
+    expect(styles).toMatch(
+      /input:not\(\[type='checkbox'\], \[type='radio'\], \[type='range'\], \[disabled\]\):focus,\s*:is\(select, textarea\):not\(\[disabled\]\):focus \{\s*border-color: var\(--accent\);/,
+    );
+  });
+
   it('прежний обход для ползунков снят: модальность закрывает и их (T31)', () => {
     expect(styles).not.toMatch(/data-pointer-focus/);
   });
