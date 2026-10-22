@@ -31,8 +31,11 @@ export interface Sample {
   implementation: string;
   at: number;
 }
-/** Ниже этого битрейт звука — это кадры тишины, а не музыка. */
-export const SILENT_KBPS = 5;
+/**
+ * Ниже этого битрейт звука — это кадры тишины, а не музыка: 3 байта на 20 мс ≈ 1,2 Кбит/с, с RED
+ * (повтор двух прошлых кадров в каждом пакете) ≈ 3,6; музыка даже на 32 Кбит/с на порядок выше.
+ */
+export const SILENT_KBPS = 10;
 interface Counters {
   timestamp: number;
   bytes: number;

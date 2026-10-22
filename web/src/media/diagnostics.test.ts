@@ -96,3 +96,35 @@ it('also reports loss, jitter buffer and route for an audio-only call', async ()
   expect(sample).toMatchObject({ kind: 'audio', rttMs: 60, loss: 2, transport: 'TURN · TLS' });
   expect(sample!.bufferMs).toBeCloseTo(40);
 });
+
+/** Кадры тишины издателя (3 байта на 20 мс) — не «нет пакетов» и не потери: источник молчит (R09). */
+it('отличает тишину издателя от музыки по битрейту при идущих пакетах', async () => {
+  const sampler = new StatsSampler();
+  const audio = (n: number, bytesPerSecond: number): Stat => ({
+    id: 'audio',
+    type: 'inbound-rtp',
+    kind: 'audio',
+    transportId: 'transport',
+    codecId: 'codec',
+    timestamp: 1000 + n * 1000,
+    bytesReceived: 100 + n * bytesPerSecond,
+    packetsReceived: 50 * n,
+    packetsLost: 0,
+    concealmentEvents: 2 * n,
+  });
+  let n = 0;
+  let rate = 150; // 1,2 Кбит/с — тишина
+  const track = makeTrack(() => [...route, audio(n, rate)]);
+  await sampler.sample(track);
+  n = 1;
+  const silent = (await sampler.sample(track))[0]!;
+  expect(silent.silentSource).toBe(true);
+  expect(silent.concealmentEvents).toBe(2);
+  rate = 20000; // 160 Кбит/с — музыка
+  n = 2;
+  const sampler2 = new StatsSampler();
+  await sampler2.sample(track);
+  n = 3;
+  const loud = (await sampler2.sample(track))[0]!;
+  expect(loud.silentSource).toBe(false);
+});

@@ -245,4 +245,38 @@ describe('контроллер запаса', () => {
     expect(controller.link.path).toBe('unknown');
     expect(controller.targets()).toHaveLength(0);
   });
+
+  /** «Одна секунда для всех» (R03): разная история потерь не разводит слушателей. */
+  it('двое слушателей с разными потерями через две минуты отличаются не больше чем на 200 мс', async () => {
+    const controller = new PlayoutController();
+    let at = 0;
+    let lost = 0;
+    let events = 0;
+    let concealed = 0;
+    const clean = track('clean', 'media', () => statsOf([...path(), inbound(at / 1000)]));
+    const lossy = track('lossy', 'media', () =>
+      statsOf([
+        ...path(),
+        inbound(at / 1000, { packetsLost: lost, concealmentEvents: events, concealedSamples: concealed }),
+      ]),
+    );
+    await controller.tick([clean, lossy], at);
+    for (let tick = 0; tick < 60; tick++) {
+      at += 2000;
+      lost += 2;
+      events += 2;
+      concealed += 0.04 * RATE;
+      await controller.tick([clean, lossy], at);
+    }
+    const spread = Math.abs(clean.receiver.jitterBufferTarget - lossy.receiver.jitterBufferTarget);
+    expect(spread).toBeLessThanOrEqual(200);
+    expect(lossy.receiver.jitterBufferTarget).toBeLessThanOrEqual(profileFor('media').ceilingMs);
+  });
+
+  it('опоздавший стартует с 600 мс — как все', () => {
+    const controller = new PlayoutController();
+    const late = track('late', 'media', () => statsOf([]));
+    expect(controller.prime(late, 120000)).toBe(600);
+    expect(late.receiver.jitterBufferTarget).toBe(600);
+  });
 });

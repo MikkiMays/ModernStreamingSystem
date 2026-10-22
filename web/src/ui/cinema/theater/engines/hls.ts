@@ -53,7 +53,13 @@ export function attachHls(
     // на минуту, не скачивая её заново с нашего же канала.
     backBufferLength: 120,
     maxBufferLength: 30,
-    fragLoadingMaxRetry: 6,
+    // По умолчанию плеер тянет вперёд до 600 с через наш прокси — память и полоса сервера зря.
+    maxMaxBufferLength: 60,
+    // Замирание хоста на 20–35 с (MEDIA-DIAGNOSIS §6) — сегменты не отвечают; восемь попыток с
+    // ростом паузы до четырёх секунд переживают его без MEDIA_ERROR и чёрного кадра.
+    fragLoadingMaxRetry: 8,
+    fragLoadingRetryDelay: 500,
+    fragLoadingMaxRetryTimeout: 4000,
     manifestLoadingMaxRetry: 4,
     // Network throughput chooses automatic quality; a small player must not hide HD.
     capLevelToPlayerSize: false,
