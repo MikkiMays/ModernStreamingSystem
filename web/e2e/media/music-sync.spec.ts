@@ -85,6 +85,8 @@ const args = [
 ];
 
 test.skip(!process.env.CORD_MEDIA_PROBE, 'живой замер: CORD_MEDIA_PROBE=1, TRACK=…, OUT=…');
+// Замер идёт BEFORE_MS + FREEZE_MS + AFTER_MS (≈ 3,5 мин) плюс загрузка трека — общий срок конфига (45 с) ему мал.
+test.setTimeout(10 * 60_000);
 
 test('музыка: запас в одной секунде у всех, заморозка слушателя и опоздавший', async ({
   browser,
