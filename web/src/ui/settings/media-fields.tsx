@@ -76,7 +76,10 @@ export function QualityRows({
 export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
   const { t } = useTranslation();
   return (
-    <SettingGroup title={t(($) => $.settings.media.group[props.kind])}>
+    <SettingGroup
+      title={t(($) => $.settings.media.group[props.kind])}
+      note={props.kind === 'screen' ? t(($) => $.settings.media.floorNote) : undefined}
+    >
       <QualityRows {...props} />
     </SettingGroup>
   );

@@ -55,7 +55,12 @@ export function VideoSection({
         </div>
       </SettingGroup>
 
-      <SettingGroup title={t(($) => $.settings.anchors.screen)} anchor="screen">
+      <SettingGroup
+        title={t(($) => $.settings.anchors.screen)}
+        anchor="screen"
+        // Что значит выбранное (X10): нижняя граница, а не цель — одной строкой на всю группу.
+        note={t(($) => $.settings.media.floorNote)}
+      >
         <QualityRows
           kind="screen"
           value={preferences.screen}

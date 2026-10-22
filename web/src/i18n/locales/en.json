@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "Quality",
-        "hint": "Cord never sends below this quality",
+        "hint": "",
         "keywords": "screen share quality stream"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "Off"
       },
       "auto": "Auto",
-      "voiceGroup": "Voice and microphone"
+      "voiceGroup": "Voice and microphone",
+      "floorNote": "Cord never sends below this quality"
     },
     "profile": {
       "refused": "The room didn't accept the picture",

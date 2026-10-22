@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "Qualität",
-        "hint": "Unter dieser Qualität sendet Cord nie",
+        "hint": "",
         "keywords": "Bildschirmfreigabe Qualität Stream"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "Aus"
       },
       "auto": "Auto",
-      "voiceGroup": "Stimme und Mikrofon"
+      "voiceGroup": "Stimme und Mikrofon",
+      "floorNote": "Unter dieser Qualität sendet Cord nie"
     },
     "profile": {
       "refused": "Der Raum hat das Bild nicht angenommen",

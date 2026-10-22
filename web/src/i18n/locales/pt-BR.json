@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "Qualidade",
-        "hint": "O Cord nunca envia abaixo desta qualidade",
+        "hint": "",
         "keywords": "compartilhamento de tela qualidade stream"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "Desativada"
       },
       "auto": "Auto",
-      "voiceGroup": "Voz e microfone"
+      "voiceGroup": "Voz e microfone",
+      "floorNote": "O Cord nunca envia abaixo desta qualidade"
     },
     "profile": {
       "refused": "A sala não aceitou a imagem",

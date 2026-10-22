@@ -237,6 +237,17 @@ export function SettingsWindow({
   }, [scroller, place.section, view]);
 
   const hits = query.trim() ? searchSettings(t, query, context, 8, hasFeature) : null;
+  const searching = hits !== null;
+  // Отрезок рейки подразделов едет к текущему подразделу (R12): положение — по его кнопке.
+  const rail = useRef<HTMLUListElement>(null);
+  useLayoutEffect(() => {
+    const list = rail.current;
+    const current = list?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!list || !current) return;
+    list.style.setProperty('--rail-y', `${current.offsetTop}px`);
+    list.style.setProperty('--rail-h', `${current.offsetHeight}px`);
+  }, [spy, place.section, searching]);
+
   const current = sectionSpec(place.section);
   const body = (() => {
     switch (place.section) {
@@ -399,6 +410,7 @@ export function SettingsWindow({
                               </button>
                               {active && !phone && spec.anchors.length > 0 && (
                                 <ul
+                                  ref={rail}
                                   className="settings-nav__anchors"
                                   aria-label={t(($) => $.settings.subsections, {
                                     section: sectionTitle(t, spec.id),

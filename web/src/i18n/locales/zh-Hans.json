@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "画质",
-        "hint": "Cord 不会以低于此画质发送",
+        "hint": "",
         "keywords": "屏幕共享 画质 直播"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "关闭"
       },
       "auto": "自动",
-      "voiceGroup": "语音和麦克风"
+      "voiceGroup": "语音和麦克风",
+      "floorNote": "Cord 不会以低于此画质发送"
     },
     "profile": {
       "refused": "房间未接受该图片",

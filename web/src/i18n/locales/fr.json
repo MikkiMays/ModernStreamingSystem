@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "Qualité",
-        "hint": "Cord n'envoie jamais en dessous de cette qualité",
+        "hint": "",
         "keywords": "partage d'écran qualité stream"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "Désactivée"
       },
       "auto": "Auto",
-      "voiceGroup": "Voix et micro"
+      "voiceGroup": "Voix et micro",
+      "floorNote": "Cord n'envoie jamais en dessous de cette qualité"
     },
     "profile": {
       "refused": "La salle a refusé l'image",

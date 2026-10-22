@@ -150,7 +150,7 @@
       },
       "screen-resolution": {
         "label": "Qualità",
-        "hint": "Cord non trasmette mai sotto questa qualità",
+        "hint": "",
         "keywords": "condivisione schermo qualità stream"
       },
       "screen-fps": {
@@ -386,7 +386,8 @@
         "off": "Disattivata"
       },
       "auto": "Auto",
-      "voiceGroup": "Voce e microfono"
+      "voiceGroup": "Voce e microfono",
+      "floorNote": "Cord non trasmette mai sotto questa qualità"
     },
     "profile": {
       "refused": "La stanza non ha accettato l'immagine",

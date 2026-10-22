@@ -74,7 +74,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--surface-2);
-  box-shadow: inset -1px 0 0 var(--line);
+  box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--line);
 }
 .settings-nav > * {
   flex-shrink: 0;
@@ -154,7 +154,7 @@
 }
 .settings-search:focus-within {
   box-shadow:
-    inset 0 0 0 1px var(--accent),
+    inset 0 0 0 var(--hairline) var(--accent),
     0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 input.settings-search__input {
@@ -185,7 +185,7 @@ input.settings-search__input {
 .settings-nav__group[data-group='cord'] {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  box-shadow: inset 0 1px 0 var(--line);
+  box-shadow: inset 0 var(--hairline) 0 var(--line);
 }
 .settings-nav__group-title {
   margin: 0;
@@ -237,16 +237,37 @@ input.settings-search__input {
 .settings-nav__chevron {
   display: none;
 }
+/*
+  Подразделы открытого раздела: рейка слева на всю высоту списка, текущий — отрезок акцента,
+  который едет к нему (R12: подсветка совпадает с тем, что на экране). Положение и высоту отрезка
+  ставит окно (`--rail-y`, `--rail-h`) по кнопке текущего подраздела.
+*/
 .settings-nav .settings-nav__anchors {
-  margin: var(--space-1) 0 var(--space-2) 21px;
+  position: relative;
+  margin: var(--space-1) 0 var(--space-2) calc(var(--space-3) + var(--icon-md) / 2 - var(--hairline));
   padding-left: var(--space-3);
-  box-shadow: inset 2px 0 0 var(--line);
+  box-shadow: inset var(--hairline-strong) 0 0 var(--line);
+}
+.settings-nav .settings-nav__anchors::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--hairline-strong);
+  height: var(--rail-h, 0px);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transform: translateY(var(--rail-y, 0px));
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    height var(--motion-base) var(--ease-standard);
 }
 .settings-nav__anchor {
-  position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 3px var(--space-2);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-1);
   background: transparent;
   color: var(--muted);
@@ -260,16 +281,6 @@ input.settings-search__input {
 .settings-nav__anchor[aria-current] {
   color: var(--text);
   font-weight: var(--weight-medium);
-}
-.settings-nav__anchor[aria-current]::before {
-  content: '';
-  position: absolute;
-  top: var(--space-1);
-  bottom: var(--space-1);
-  left: calc(var(--space-3) * -1);
-  width: 2px;
-  border-radius: var(--radius-full);
-  background: var(--accent);
 }
 .settings-results {
   display: grid;
@@ -621,7 +632,7 @@ input.settings-search__input {
   padding: 0 var(--space-2);
   border-radius: var(--radius-1);
   background: var(--surface-2);
-  box-shadow: inset 0 -1px 0 var(--line-strong);
+  box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line-strong);
   color: var(--text);
   font-family: inherit;
   font-size: var(--text-xs);
@@ -817,15 +828,15 @@ input.theme-option__input {
   display: flex;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius-3);
-  box-shadow: 0 0 0 1px var(--line-strong);
+  box-shadow: 0 0 0 var(--hairline) var(--line-strong);
   overflow: hidden;
   transition: box-shadow var(--motion-fast) var(--ease-standard);
 }
 .theme-option:hover .theme-option__preview {
-  box-shadow: 0 0 0 1px var(--muted);
+  box-shadow: 0 0 0 var(--hairline) var(--muted);
 }
 .theme-option[data-checked] .theme-option__preview {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 var(--hairline-strong) var(--accent);
 }
 .theme-option:has(:focus-visible) .theme-option__preview {
   outline: var(--focus-outline);
