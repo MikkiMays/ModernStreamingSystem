@@ -133,6 +133,38 @@ test('окно набора: крестик после щелчка и Shift б�
   expect(await focused(page)).toMatch(/ solid$/);
 });
 
+test('ряд вкладок с одной остановкой Tab: стрелкой — кольцо и на вкладке с tabindex=-1', async ({ page }) => {
+  // Вкладки кинозала и площадок держат `tabindex=-1`, пока до них не дошли стрелкой (roving tabindex):
+  // правило «контейнерам кольца нет» не должно их задевать. Ряд — тот же, что `cinema/catalog/Tabs`.
+  await page.goto('/kit');
+  await expect(page.getByRole('heading', { name: 'Набор примитивов' })).toBeVisible();
+  await page.evaluate(() => {
+    const row = document.createElement('div');
+    row.setAttribute('role', 'tablist');
+    for (const [name, stop] of [
+      ['Первая', '0'],
+      ['Вторая', '-1'],
+    ]) {
+      const tab = document.createElement('button');
+      tab.setAttribute('role', 'tab');
+      tab.tabIndex = Number(stop);
+      tab.textContent = name;
+      row.append(tab);
+    }
+    row.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight') (row.lastElementChild as HTMLElement).focus();
+    });
+    document.querySelector('.kit__bar')!.append(row);
+  });
+  await page.getByRole('tab', { name: 'Первая' }).click();
+  await page.keyboard.press('Shift');
+  expect(await outline(page.getByRole('tab', { name: 'Первая' }))).toBe('none');
+  await page.keyboard.press('ArrowRight');
+  const second = page.getByRole('tab', { name: 'Вторая' });
+  await expect(second).toBeFocused();
+  expect(await outline(second)).toBe('solid');
+});
+
 test('«Помощь»: открыта мышью — Shift не обводит крестик и окно; Tab — обводит', async ({ page }) => {
   await home(page);
   await page.getByRole('button', { name: 'Помощь', exact: true }).filter({ visible: true }).first().click();

@@ -53,13 +53,43 @@ button {
   не пошёл клавиатурой (`styles/tokens.css`, `ui/input-modality.ts`). `:where()` обнуляет вес: любой
   класс компонента правило перебивает. Контейнеры с `tabindex=-1` — окна и меню Base UI, заголовки,
   которым фокус дают скриптом, — сюда не попадают: раньше `[tabindex]` с весом (0,2,0) обводил целиком
-  окно настроек, «Диагностику» и пункт меню, стоило нажать Shift.
+  окно настроек, «Диагностику» и пункт меню, стоило нажать Shift. А вот вкладки и пункты рядов с одной
+  остановкой Tab («roving tabindex»: вкладки кинозала, площадки, клетки доски) держат `tabindex=-1`,
+  пока до них не дошли стрелкой, — им кольцо нужно, и они в обоих списках названы отдельно.
 */
-:where(button, a, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex='-1']),
+  [role='tab'],
+  [role='radio'],
+  [role='option'],
+  [role='gridcell'],
+  [role='treeitem']
+):focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
-:where([tabindex='-1'], [role='dialog'], [role='alertdialog'], [role='menu']):focus-visible,
+:where(
+  [tabindex='-1']:not(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role='tab'],
+    [role='radio'],
+    [role='option'],
+    [role='gridcell'],
+    [role='treeitem']
+  ),
+  [role='dialog'],
+  [role='alertdialog'],
+  [role='menu']
+):focus-visible,
 .modal:focus-visible {
   outline: none;
 }

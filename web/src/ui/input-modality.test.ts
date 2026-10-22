@@ -133,15 +133,18 @@ describe('CSS: одно кольцо на токене', () => {
   });
 
   it('глобальное правило — нулевого веса и не ловит контейнеры с tabindex=-1', () => {
-    expect(styles).toMatch(
-      /:where\(button, a, input, select, textarea, \[tabindex\]:not\(\[tabindex='-1'\]\)\):focus-visible \{\s*outline: var\(--focus-outline\);\s*outline-offset: var\(--focus-offset\);/,
+    const plain = styles.replace(/\s+/g, ' ');
+    expect(plain).toMatch(
+      /:where\( button, a, input, select, textarea, \[tabindex\]:not\(\[tabindex='-1'\]\), \[role='tab'\],[^)]*\):focus-visible \{ outline: var\(--focus-outline\); outline-offset: var\(--focus-offset\);/,
     );
     expect(styles).not.toMatch(/^\[tabindex\]:focus-visible/m);
   });
 
-  it('окна, меню и старый .modal кольца не получают никогда', () => {
-    expect(styles).toMatch(
-      /:where\(\[tabindex='-1'\], \[role='dialog'\], \[role='alertdialog'\], \[role='menu'\]\):focus-visible,\s*\.modal:focus-visible \{\s*outline: none;/,
+  it('окна, меню и старый .modal кольца не получают никогда; вкладки рядов с tabindex=-1 — получают', () => {
+    const plain = styles.replace(/\s+/g, ' ');
+    // Контейнер — `tabindex=-1`, но не кнопка и не вкладка «roving tabindex» (вкладки кинозала).
+    expect(plain).toMatch(
+      /:where\( \[tabindex='-1'\]:not\( button, a, input, select, textarea, \[role='tab'\], \[role='radio'\], \[role='option'\], \[role='gridcell'\], \[role='treeitem'\] \), \[role='dialog'\], \[role='alertdialog'\], \[role='menu'\] \):focus-visible, \.modal:focus-visible \{ outline: none; \}/,
     );
   });
 
