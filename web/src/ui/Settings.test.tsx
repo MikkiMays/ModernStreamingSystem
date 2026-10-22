@@ -39,6 +39,22 @@ describe('окно настроек (T26)', () => {
     expect(within(nav()).queryByRole('list', { name: /Подразделы/ })).not.toBeInTheDocument();
   });
 
+  it('открыто мышью — фокус на заголовке раздела, а не на карточке профиля; с клавиатуры — на первом элементе (R11)', async () => {
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    await act(async () => {});
+    await vi.waitFor(() => expect(heading()).toHaveFocus());
+    expect(document.querySelector('.settings-profile')).not.toHaveFocus();
+    cleanup();
+    document.documentElement.dataset.input = 'keyboard';
+    try {
+      render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+      await act(async () => {});
+      await vi.waitFor(() => expect(document.querySelector('.settings-profile')).toHaveFocus());
+    } finally {
+      delete document.documentElement.dataset.input;
+    }
+  });
+
   it('«Голос и видео»: устройства, громкость, проверка и качество из E05 в одном разделе', () => {
     render(<Settings open section="voice" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('combobox', { name: 'Устройство ввода' })).toBeInTheDocument();

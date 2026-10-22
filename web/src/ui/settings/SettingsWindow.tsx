@@ -204,6 +204,15 @@ export function SettingsWindow({
     return Promise.resolve();
   };
 
+  /*
+    Начальный фокус (R11, S1): открыли мышью — на заголовок раздела (`tabIndex=-1`, кольца у него
+    не бывает), и карточка профиля, первая в Tab-порядке, не обводится от первого же Shift. С
+    клавиатуры — как обычно, первый элемент, и кольцо на нём на месте.
+  */
+  const title = useRef<HTMLHeadingElement>(null);
+  const initialFocus = (type: string) =>
+    type === 'keyboard' || document.documentElement.dataset.input === 'keyboard' ? true : title.current;
+
   const hits = query.trim() ? searchSettings(t, query, context, 8, hasFeature) : null;
   const current = sectionSpec(place.section);
   const body = (() => {
@@ -258,7 +267,11 @@ export function SettingsWindow({
       <Dialog.Portal>
         <Dialog.Backdrop className="ui-dialog__backdrop" />
         <Dialog.Viewport className="settings-viewport">
-          <Dialog.Popup className="settings-window" data-view={phone ? view : undefined}>
+          <Dialog.Popup
+            className="settings-window"
+            data-view={phone ? view : undefined}
+            initialFocus={initialFocus}
+          >
             <nav className="settings-nav" aria-label={t(($) => $.settings.navigation)}>
               <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
               <button
@@ -395,7 +408,7 @@ export function SettingsWindow({
                     <ChevronLeft size={20} />
                   </IconButton>
                 )}
-                <h2 className="settings-content__title" tabIndex={-1}>
+                <h2 className="settings-content__title" tabIndex={-1} ref={title}>
                   {sectionTitle(t, current.id)}
                 </h2>
               </header>
