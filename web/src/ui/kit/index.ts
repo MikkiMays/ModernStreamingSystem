@@ -9,6 +9,7 @@ export { IconButton, type IconButtonProps } from './IconButton';
 export { Field, Input, Select, Textarea, type FieldProps } from './Field';
 export { Slider, type SliderProps } from './Slider';
 export { Switch, type SwitchProps } from './Switch';
+export { Segmented, type SegmentedOption, type SegmentedProps } from './Segmented';
 export { Tabs, TabList, Tab, TabPanel, type TabsProps } from './Tabs';
 export {
   Menu,

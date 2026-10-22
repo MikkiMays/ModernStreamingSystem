@@ -35,6 +35,7 @@ import {
   MenuSubmenu,
   MenuTrigger,
   ResizeHandle,
+  Segmented,
   Select,
   Separator,
   Slider,
@@ -101,6 +102,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Sections({ theme }: { theme: 'light' | 'dark' }) {
   const [slider, setSlider] = useState(62);
+  const [quality, setQuality] = useState<720 | 1080 | 1440>(720);
+  const [fps, setFps] = useState<30 | 60>(30);
   const [on, setOn] = useState(true);
   const [dialog, setDialog] = useState(false);
   const [loader, setLoader] = useState<'cord' | 'cards' | null>(null);
@@ -287,6 +290,57 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
           <Switch checked disabled onCheckedChange={() => {}} label="Недоступно" />
           <Switch checked={on} onCheckedChange={setOn} ariaLabel="Без подписи" />
         </div>
+      </Section>
+
+      <Section title="Сегмент">
+        <p className="kit__muted">
+          Выбор значения, а не вкладка: радиогруппа, стрелки переключают, недоступное объяснено в title.
+        </p>
+        <div className="kit__row">
+          <Segmented
+            aria-label="Камера: качество"
+            value={quality}
+            onValueChange={setQuality}
+            options={[
+              { value: 720, label: '720p' },
+              { value: 1080, label: '1080p' },
+              {
+                value: 1440,
+                label: '1440p',
+                disabled: true,
+                title: 'Этот сервер допускает до 1080p · 60 fps',
+              },
+            ]}
+          />
+          <Segmented
+            aria-label="Камера: частота кадров"
+            value={fps}
+            onValueChange={setFps}
+            options={[
+              { value: 30, label: '30 fps' },
+              { value: 60, label: '60 fps' },
+            ]}
+          />
+          <Segmented
+            aria-label="Зум камеры"
+            size="sm"
+            defaultValue={1}
+            options={[
+              { value: 0.5, label: '0.5×' },
+              { value: 1, label: '1×' },
+              { value: 2, label: '2×' },
+            ]}
+          />
+        </div>
+        <Segmented
+          aria-label="Режим показа"
+          full
+          defaultValue="detail"
+          options={[
+            { value: 'detail', label: 'Чёткость', icon: <Monitor /> },
+            { value: 'motion', label: 'Плавность', icon: <Camera /> },
+          ]}
+        />
       </Section>
 
       <Section title="Вкладки">
