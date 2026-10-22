@@ -91,6 +91,7 @@ export function HotkeyField({
   const [refused, setRefused] = useState<HotkeyNote | null>(null);
   // Слой раскладки идёт раньше пассивных эффектов: к уборке записи ссылка уже новая.
   const current = useRef(value);
+  const recorder = useRef<HTMLButtonElement>(null);
   const paused = useRef(pause);
   const stop = () => {
     setRecording(false);
@@ -179,6 +180,7 @@ export function HotkeyField({
           size="sm"
           variant={recording ? 'primary' : 'secondary'}
           data-hotkey-recorder
+          ref={recorder}
           aria-label={
             recording ? t(($) => $.settings.hotkeys.cancelLabel) : value ? labels.change : labels.assign
           }
@@ -225,6 +227,8 @@ export function HotkeyField({
             onClick={() => {
               setRefused(null);
               change(defaultValue ? { ...defaultValue } : null);
+              // «Сбросить» сейчас исчезнет (сбрасывать стало нечего) — фокус остаётся у сочетания.
+              recorder.current?.focus({ preventScroll: true });
             }}
           >
             {t(($) => $.settings.hotkeys.reset)}

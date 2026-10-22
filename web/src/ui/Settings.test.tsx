@@ -356,6 +356,8 @@ describe('«Горячие клавиши» (T27)', () => {
     fireEvent.click(reset);
     expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
     expect(screen.queryByRole('button', { name: 'Сбросить сочетание микрофона' })).not.toBeInTheDocument();
+    // Кнопка исчезла — фокус не падает в никуда, а остаётся у сочетания.
+    expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toHaveFocus();
     cleanup();
     // Снятое раньше «Отключить» сочетание — «Назначить» и «Сбросить» к умолчанию.
     localStorage.setItem('cord:preferences:v1', JSON.stringify({ micHotkey: null }));

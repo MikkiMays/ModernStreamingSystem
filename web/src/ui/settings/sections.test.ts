@@ -36,6 +36,9 @@ describe('куда ведёт имя раздела (мост settings.open, с�
   it('без имени и с незнакомым именем — «Звук»', () => {
     expect(placeFor(undefined)).toEqual({ section: 'audio' });
     expect(placeFor('chat')).toEqual({ section: 'audio' });
+    // Имя из моста оболочки — чужой ввод: свойства прототипа не раздел.
+    expect(placeFor('constructor')).toEqual({ section: 'audio' });
+    expect(placeFor('toString')).toEqual({ section: 'audio' });
   });
 });
 

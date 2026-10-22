@@ -86,7 +86,8 @@ export interface Place {
 /** Куда вести по имени раздела, подраздела или прежней вкладки; незнакомое — раздел по умолчанию. */
 export function placeFor(name: string | undefined): Place {
   if (!name) return { section: DEFAULT_SECTION };
-  const legacy = LEGACY[name];
+  // Своё свойство, а не унаследованное: имя приходит из моста оболочки («constructor» — не вкладка).
+  const legacy = Object.hasOwn(LEGACY, name) ? LEGACY[name] : undefined;
   if (legacy) return legacy;
   const [section, anchor] = name.split('#') as [string, string | undefined];
   // Прежний «Голос и видео» (ссылки оболочки и закладки): камера и показ — в «Видео», остальное — в «Звук».
