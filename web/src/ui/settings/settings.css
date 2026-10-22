@@ -586,24 +586,6 @@ input.settings-search__input {
 .setting-note[data-tone='warning'] {
   color: var(--warning);
 }
-.setting-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-6);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-3);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--text);
-  font-size: var(--text-sm);
-  line-height: var(--leading-base);
-}
-.setting-banner > svg {
-  flex: none;
-  margin-top: 2px;
-  color: var(--accent);
-}
 .setting-chips {
   display: flex;
   flex-wrap: wrap;

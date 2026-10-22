@@ -339,8 +339,6 @@
       "services": "Dienste"
     },
     "hotkeys": {
-      "browser": "Im Browser funktionieren Tastenkürzel nur, solange der Cord-Tab aktiv ist. In der App immer.",
-      "desktop": "In der App funktioniert das Tastenkürzel auch über anderen Programmen.",
       "recording": "Tastenkürzel drücken…",
       "meeting": "Meeting",
       "cancel": "Esc – abbrechen",
@@ -349,10 +347,8 @@
       "changeLabel": "Mikrofon-Tastenkürzel ändern",
       "assign": "Zuweisen",
       "assignLabel": "Mikrofon-Tastenkürzel zuweisen",
-      "reset": "Standard",
+      "reset": "Zurücksetzen",
       "resetLabel": "Mikrofon-Tastenkürzel zurücksetzen",
-      "disable": "Deaktivieren",
-      "disableLabel": "Mikrofon-Tastenkürzel deaktivieren",
       "holdHint": "Halte das Tastenkürzel gedrückt, um zu sprechen",
       "groups": {
         "cinema": "Kino",
@@ -370,6 +366,11 @@
         "bet": "Bet",
         "allIn": "All-in",
         "reorder": "Raum in den Favoriten verschieben"
+      },
+      "status": {
+        "taken": "Ein anderes Programm nutzt dieses Tastenkürzel bereits: Im Cord-Fenster funktioniert es, für den Hintergrund wähle ein anderes.",
+        "duplicate": "Dieses Tastenkürzel ist bereits einer anderen Cord-Aktion zugewiesen.",
+        "windowOnly": "Dieses Tastenkürzel funktioniert gerade nur im Cord-Fenster."
       }
     },
     "media": {
@@ -461,7 +462,7 @@
       "micTaken": "Dieses Tastenkürzel nutzt bereits das Overlay – wählen Sie ein anderes.",
       "changeLabel": "Overlay-Tastenkürzel ändern",
       "assignLabel": "Overlay-Tastenkürzel festlegen",
-      "disableLabel": "Overlay-Tastenkürzel deaktivieren"
+      "resetLabel": "Overlay-Tastenkürzel zurücksetzen"
     },
     "video": {
       "previewDenied": "Kein Kamerazugriff – erlaube ihn für Cord"

@@ -339,8 +339,6 @@
       "services": "Serviços"
     },
     "hotkeys": {
-      "browser": "No navegador, os atalhos só funcionam enquanto a aba do Cord está ativa. No app, sempre.",
-      "desktop": "No app, o atalho funciona até por cima de outros programas.",
       "recording": "Pressione um atalho…",
       "meeting": "Reunião",
       "cancel": "Esc — cancelar",
@@ -349,10 +347,8 @@
       "changeLabel": "Alterar o atalho do microfone",
       "assign": "Atribuir",
       "assignLabel": "Atribuir atalho ao microfone",
-      "reset": "Padrão",
-      "resetLabel": "Restaurar o atalho padrão do microfone",
-      "disable": "Desativar",
-      "disableLabel": "Desativar o atalho do microfone",
+      "reset": "Redefinir",
+      "resetLabel": "Redefinir o atalho do microfone",
       "holdHint": "Segure o atalho para falar",
       "groups": {
         "cinema": "Cinema",
@@ -370,6 +366,11 @@
         "bet": "apostar",
         "allIn": "all-in",
         "reorder": "reordenar uma sala nos Favoritos"
+      },
+      "status": {
+        "taken": "Outro programa já usa este atalho: ele funciona na janela do Cord, mas escolha outro para o segundo plano.",
+        "duplicate": "Este atalho já está atribuído a outra ação do Cord.",
+        "windowOnly": "Por enquanto este atalho só funciona na janela do Cord."
       }
     },
     "media": {
@@ -461,7 +462,7 @@
       "micTaken": "Este atalho já é usado pela sobreposição — escolha outro.",
       "changeLabel": "Alterar o atalho da sobreposição",
       "assignLabel": "Definir atalho da sobreposição",
-      "disableLabel": "Desativar o atalho da sobreposição"
+      "resetLabel": "Redefinir o atalho da sobreposição"
     },
     "video": {
       "previewDenied": "Sem acesso à câmera — permita para o Cord"

@@ -39,8 +39,12 @@ function held(event: KeyboardEvent) {
 }
 
 /**
- * Строка «сочетание — изменить / по умолчанию / отключить» (T27): запись нажатием, отказ и
- * предупреждения сразу при назначении. Общая для микрофона («Горячие клавиши») и оверлея («Windows»).
+ * Строка «сочетание — изменить / сбросить» (T27, R23–R25): запись нажатием, отказ и предупреждения
+ * сразу при назначении. Общая для микрофона («Горячие клавиши») и оверлея («Windows»).
+ *
+ * Во время записи та же кнопка — «Esc — отмена», и щелчок по ней отменяет запись так же, как Esc
+ * (R24). «Сбросить» одна (R25): вернуть сочетание по умолчанию, а где умолчания нет (оверлей) —
+ * снять назначение; видна, только когда есть что сбрасывать.
  */
 export function HotkeyField({
   id,
@@ -60,9 +64,9 @@ export function HotkeyField({
   change: (key: Hotkey | null) => void;
   /** Что мешает сочетанию здесь (`hotkeyNotes`). */
   notes: (key: Hotkey) => HotkeyNote[];
-  /** Имена кнопок для диктора: «Изменить сочетание микрофона». */
-  labels: { change: string; assign: string; disable: string; reset?: string };
-  /** Есть — показывается «По умолчанию». */
+  /** Имена кнопок для диктора: «Изменить сочетание микрофона», «Сбросить сочетание микрофона». */
+  labels: { change: string; assign: string; reset: string };
+  /** Сочетание по умолчанию: к нему ведёт «Сбросить». Нет — «Сбросить» снимает назначение. */
   defaultValue?: Hotkey;
   /** Сочетание другого действия Cord: его же назначить нельзя. */
   taken?: { key: Hotkey | null; text: string };
@@ -71,7 +75,7 @@ export function HotkeyField({
    * а не записалось. После записи ей возвращают то, что стоит сейчас, — только что назначенное.
    */
   pause: { start(): void; end(current: Hotkey | null): void };
-  /** Ответ оболочки про это сочетание. */
+  /** Ответ оболочки про это сочетание (`hotkeyStatusText`): только то, что мешает. */
   status?: ReactNode;
   /**
    * Записывать и кнопки мыши Mouse3–Mouse5 (E01-B3) — только при Raw Input оболочки (флаг `ptt`):
@@ -130,13 +134,15 @@ export function HotkeyField({
     return () => window.removeEventListener('mousedown', press, true);
   }, [recording, mouse]);
   const shown = value ? notes(value) : [];
-  const isDefault = !defaultValue || (!!value && sameHotkey(value, defaultValue));
+  const resettable = defaultValue ? !value || !sameHotkey(value, defaultValue) : !!value;
+  // Своё предупреждение точнее общего ответа оболочки — второй строкой о том же не повторяемся.
+  const shell = shown.length ? null : status;
   return (
     <SettingRow
       id={id}
       hint={hint}
       below={
-        refused || shown.length || status ? (
+        refused || shown.length || shell ? (
           <>
             {refused && (
               <p className="setting-note" data-tone="danger" role="alert">
@@ -148,7 +154,11 @@ export function HotkeyField({
                 {note.text}
               </p>
             ))}
-            {status && <p className="setting-note">{status}</p>}
+            {shell && (
+              <p className="setting-note" data-tone="warning" role="status">
+                {shell}
+              </p>
+            )}
           </>
         ) : undefined
       }
@@ -172,7 +182,12 @@ export function HotkeyField({
           aria-label={
             recording ? t(($) => $.settings.hotkeys.cancelLabel) : value ? labels.change : labels.assign
           }
+          // Второй щелчок — по «Esc — отмена» — отменяет запись, как и клавиша Esc (R24).
           onClick={() => {
+            if (recording) {
+              stop();
+              return;
+            }
             setRefused(null);
             setRecording(true);
           }}
@@ -202,30 +217,17 @@ export function HotkeyField({
               ? t(($) => $.settings.hotkeys.change)
               : t(($) => $.settings.hotkeys.assign)}
         </Button>
-        {!recording && !isDefault && defaultValue && (
+        {!recording && resettable && (
           <Button
             size="sm"
             variant="quiet"
             aria-label={labels.reset}
             onClick={() => {
               setRefused(null);
-              change({ ...defaultValue });
+              change(defaultValue ? { ...defaultValue } : null);
             }}
           >
             {t(($) => $.settings.hotkeys.reset)}
-          </Button>
-        )}
-        {!recording && value && (
-          <Button
-            size="sm"
-            variant="quiet"
-            aria-label={labels.disable}
-            onClick={() => {
-              setRefused(null);
-              change(null);
-            }}
-          >
-            {t(($) => $.settings.hotkeys.disable)}
           </Button>
         )}
       </div>

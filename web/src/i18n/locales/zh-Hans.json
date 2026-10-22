@@ -339,8 +339,6 @@
       "services": "服务"
     },
     "hotkeys": {
-      "browser": "在浏览器中，快捷键仅在 Cord 标签页处于活动状态时有效。在应用中始终有效。",
-      "desktop": "在应用中，即使其他程序在前台，快捷键也有效。",
       "recording": "请按下快捷键…",
       "meeting": "会议",
       "cancel": "Esc — 取消",
@@ -349,10 +347,8 @@
       "changeLabel": "更改麦克风快捷键",
       "assign": "设置",
       "assignLabel": "设置麦克风快捷键",
-      "reset": "默认",
-      "resetLabel": "恢复默认麦克风快捷键",
-      "disable": "停用",
-      "disableLabel": "停用麦克风快捷键",
+      "reset": "重置",
+      "resetLabel": "重置麦克风快捷键",
       "holdHint": "按住快捷键说话",
       "groups": {
         "cinema": "影院",
@@ -370,6 +366,11 @@
         "bet": "下注",
         "allIn": "全下",
         "reorder": "调整收藏中房间的顺序"
+      },
+      "status": {
+        "taken": "其他程序已占用此快捷键：在 Cord 窗口中可以使用，如需在后台使用请换一个。",
+        "duplicate": "此快捷键已分配给 Cord 的其他操作。",
+        "windowOnly": "此快捷键目前只在 Cord 窗口中有效。"
       }
     },
     "media": {
@@ -461,7 +462,7 @@
       "micTaken": "此快捷键已被叠加层使用——请选择其他快捷键。",
       "changeLabel": "更改叠加层快捷键",
       "assignLabel": "设置叠加层快捷键",
-      "disableLabel": "关闭叠加层快捷键"
+      "resetLabel": "重置叠加层快捷键"
     },
     "video": {
       "previewDenied": "无法访问摄像头——请允许 Cord 使用"

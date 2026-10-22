@@ -339,8 +339,6 @@
       "services": "Servizi"
     },
     "hotkeys": {
-      "browser": "Nel browser le scorciatoie funzionano solo mentre la scheda di Cord è attiva. Nell'app, sempre.",
-      "desktop": "Nell'app la scorciatoia funziona anche sopra gli altri programmi.",
       "recording": "Premi una scorciatoia…",
       "meeting": "Riunione",
       "cancel": "Esc — annulla",
@@ -349,10 +347,8 @@
       "changeLabel": "Modifica la scorciatoia del microfono",
       "assign": "Assegna",
       "assignLabel": "Assegna una scorciatoia al microfono",
-      "reset": "Predefinita",
-      "resetLabel": "Ripristina la scorciatoia predefinita del microfono",
-      "disable": "Disattiva",
-      "disableLabel": "Disattiva la scorciatoia del microfono",
+      "reset": "Ripristina",
+      "resetLabel": "Ripristina la scorciatoia del microfono",
       "holdHint": "Tieni premuta la scorciatoia per parlare",
       "groups": {
         "cinema": "Cinema",
@@ -370,6 +366,11 @@
         "bet": "punta",
         "allIn": "all-in",
         "reorder": "riordina una stanza nei Preferiti"
+      },
+      "status": {
+        "taken": "Un altro programma usa già questa scorciatoia: funziona nella finestra di Cord, ma per lo sfondo scegline un'altra.",
+        "duplicate": "Questa scorciatoia è già assegnata a un'altra azione di Cord.",
+        "windowOnly": "Per ora questa scorciatoia funziona solo nella finestra di Cord."
       }
     },
     "media": {
@@ -457,11 +458,11 @@
       "meeting": "Durante la riunione",
       "start": "Avvio",
       "overlayNote": "L’overlay è visibile in modalità finestra e senza bordi; in schermo intero esclusivo Windows non lo mostra.",
-      "overlayTaken": "Questa scorciatoia è già usata dal microfono — scegline un’altra.",
-      "micTaken": "Questa scorciatoia è già usata dall’overlay — scegline un’altra.",
+      "overlayTaken": "Questa scorciatoia è già usata dal microfono — scegline un'altra.",
+      "micTaken": "Questa scorciatoia è già usata dall’overlay — scegline un'altra.",
       "changeLabel": "Cambia la scorciatoia dell’overlay",
       "assignLabel": "Assegna una scorciatoia all’overlay",
-      "disableLabel": "Disattiva la scorciatoia dell’overlay"
+      "resetLabel": "Ripristina la scorciatoia dell’overlay"
     },
     "video": {
       "previewDenied": "Nessun accesso alla videocamera: consentilo per Cord"

@@ -1,7 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
 import { defaultMicHotkey, hotkeyNotes, type Hotkey, type MicHotkeyMode } from '../../core/hotkeys';
-import { desktopHotkeyStatus, hasFeature, notifyDesktop, isDesktop } from '../../core/desktop';
+import {
+  desktopHotkeyStatus,
+  hasFeature,
+  hotkeyStatusText,
+  notifyDesktop,
+  isDesktop,
+} from '../../core/desktop';
 import { useStore } from '../primitives';
 import { Switch } from '../kit';
 import { SettingGroup, SettingRow } from './Row';
@@ -83,14 +88,6 @@ export function HotkeysSection({
   const hold = ptt && mode === 'hold';
   return (
     <>
-      <p className="setting-banner" role="note">
-        <Info size={16} aria-hidden="true" />
-        <span>
-          {desktop
-            ? nativeStatus || t(($) => $.settings.hotkeys.desktop)
-            : t(($) => $.settings.hotkeys.browser)}
-        </span>
-      </p>
       <SettingGroup title={t(($) => $.settings.hotkeys.meeting)}>
         <HotkeyField
           id="hotkey-mic"
@@ -102,7 +99,6 @@ export function HotkeysSection({
           labels={{
             change: t(($) => $.settings.hotkeys.changeLabel),
             assign: t(($) => $.settings.hotkeys.assignLabel),
-            disable: t(($) => $.settings.hotkeys.disableLabel),
             reset: t(($) => $.settings.hotkeys.resetLabel),
           }}
           pause={{
@@ -112,6 +108,8 @@ export function HotkeysSection({
           }}
           mouse={native}
           hint={hold ? t(($) => $.settings.hotkeys.holdHint) : undefined}
+          // Плашки «Работает поверх других программ…» нет (R22): только то, что мешает, — под строкой.
+          status={desktop ? hotkeyStatusText(t, nativeStatus) : null}
         />
         {ptt && (
           <SettingRow id="hotkey-ptt">

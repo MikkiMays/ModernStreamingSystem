@@ -327,13 +327,42 @@ describe('«Горячие клавиши» (T27)', () => {
     fireEvent.keyDown(document.querySelector('[data-hotkey-recorder]')!, init);
   };
 
-  it('в браузере говорит, что сочетания работают только в активной вкладке', () => {
+  it('плашки «Работает поверх других программ…» нет — ни в браузере, ни в приложении (R22)', () => {
     render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
-    expect(
-      screen.getByText(
-        'В браузере сочетания работают, только пока вкладка Cord активна. В приложении — всегда.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    expect(screen.queryByText(/сочетания работают, только пока вкладка/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/поверх других программ/)).not.toBeInTheDocument();
+  });
+
+  it('второй щелчок по «Esc — отмена» отменяет запись, сочетание не меняется (R24)', () => {
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить сочетание микрофона' }));
+    expect(screen.getByText('Нажмите сочетание…')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Esc — отмена записи сочетания' }));
+    expect(screen.queryByText('Нажмите сочетание…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Изменить сочетание микрофона' })).toBeInTheDocument();
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+  });
+
+  it('одна кнопка «Сбросить» вместо «По умолчанию» и «Отключить» (R25)', () => {
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    // По умолчанию сбрасывать нечего.
+    expect(screen.queryByRole('button', { name: 'Сбросить сочетание микрофона' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Отключить/ })).not.toBeInTheDocument();
+    record({ code: 'KeyJ', key: 'j', ctrlKey: true, altKey: true });
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyJ' });
+    const reset = screen.getByRole('button', { name: 'Сбросить сочетание микрофона' });
+    expect(reset).toHaveTextContent('Сбросить');
+    fireEvent.click(reset);
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
+    expect(screen.queryByRole('button', { name: 'Сбросить сочетание микрофона' })).not.toBeInTheDocument();
+    cleanup();
+    // Снятое раньше «Отключить» сочетание — «Назначить» и «Сбросить» к умолчанию.
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ micHotkey: null }));
+    render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Назначить сочетание микрофона' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание микрофона' }));
+    expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
   });
 
   it('не даёт назначить то, что забирает браузер, и предупреждает о плеере кинозала', () => {
@@ -348,7 +377,7 @@ describe('«Горячие клавиши» (T27)', () => {
     // Отказ не висит после того, как сочетание сменили другой кнопкой.
     record({ code: 'KeyT', key: 't', ctrlKey: true });
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'По умолчанию — сочетание микрофона' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание микрофона' }));
     expect(readPreferences().micHotkey).toMatchObject({ code: 'KeyM', ctrl: true, shift: true });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -362,13 +391,13 @@ describe('«Горячие клавиши» (T27)', () => {
     expect(readPreferences().micHotkey?.code).toBe('KeyM');
   });
 
-  it('в приложении показывает ответ оболочки и честно говорит, где сочетание не сработает', async () => {
+  it('в приложении честно говорит, где сочетание не сработает, и отпускает его на время записи', async () => {
     const postMessage = vi.fn();
     (window as { chrome?: unknown }).chrome = {
       webview: { postMessage, addEventListener: vi.fn(), removeEventListener: vi.fn() },
     };
     render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);
-    expect(screen.getByText('В приложении сочетание работает и поверх других программ.')).toBeInTheDocument();
+    expect(screen.queryByText(/поверх других программ/)).not.toBeInTheDocument();
     record({ code: 'KeyJ', key: 'j', shiftKey: true });
     expect(screen.getByText(/только в окне Cord/)).toBeInTheDocument();
     // Пока шла запись, оболочке велели отпустить прежнее сочетание, а потом — взять новое, а не прежнее.

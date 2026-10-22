@@ -339,8 +339,6 @@
       "services": "Services"
     },
     "hotkeys": {
-      "browser": "In the browser, shortcuts only work while the Cord tab is active. In the app, always.",
-      "desktop": "In the app, the shortcut works even over other programs.",
       "recording": "Press a shortcut…",
       "meeting": "Meeting",
       "cancel": "Esc — cancel",
@@ -349,10 +347,8 @@
       "changeLabel": "Change microphone shortcut",
       "assign": "Assign",
       "assignLabel": "Assign microphone shortcut",
-      "reset": "Default",
-      "resetLabel": "Reset microphone shortcut to default",
-      "disable": "Disable",
-      "disableLabel": "Disable microphone shortcut",
+      "reset": "Reset",
+      "resetLabel": "Reset microphone shortcut",
       "holdHint": "Hold the shortcut to talk",
       "groups": {
         "cinema": "Cinema",
@@ -370,6 +366,11 @@
         "bet": "bet",
         "allIn": "all-in",
         "reorder": "reorder a room in Favorites"
+      },
+      "status": {
+        "taken": "Another program already uses this shortcut: it works in the Cord window, but pick another one for the background.",
+        "duplicate": "This shortcut is already assigned to another Cord action.",
+        "windowOnly": "Right now this shortcut works only in the Cord window."
       }
     },
     "media": {
@@ -461,7 +462,7 @@
       "micTaken": "This shortcut is already used by the overlay — pick another.",
       "changeLabel": "Change overlay shortcut",
       "assignLabel": "Assign overlay shortcut",
-      "disableLabel": "Turn off overlay shortcut"
+      "resetLabel": "Reset overlay shortcut"
     },
     "video": {
       "previewDenied": "No camera access — allow it for Cord"

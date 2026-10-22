@@ -339,8 +339,6 @@
       "services": "Servicios"
     },
     "hotkeys": {
-      "browser": "En el navegador, los atajos solo funcionan mientras la pestaña de Cord está activa. En la app, siempre.",
-      "desktop": "En la app, el atajo funciona incluso sobre otros programas.",
       "recording": "Pulsa un atajo…",
       "meeting": "Reunión",
       "cancel": "Esc: cancelar",
@@ -349,10 +347,8 @@
       "changeLabel": "Cambiar el atajo del micrófono",
       "assign": "Asignar",
       "assignLabel": "Asignar un atajo al micrófono",
-      "reset": "Predeterminado",
+      "reset": "Restablecer",
       "resetLabel": "Restablecer el atajo del micrófono",
-      "disable": "Desactivar",
-      "disableLabel": "Desactivar el atajo del micrófono",
       "holdHint": "Mantén pulsado el atajo para hablar",
       "groups": {
         "cinema": "Cine",
@@ -370,6 +366,11 @@
         "bet": "apostar",
         "allIn": "all-in",
         "reorder": "reordenar una sala en Favoritos"
+      },
+      "status": {
+        "taken": "Otro programa ya usa este atajo: funciona en la ventana de Cord, pero para segundo plano elige otro.",
+        "duplicate": "Este atajo ya está asignado a otra acción de Cord.",
+        "windowOnly": "Ahora mismo este atajo solo funciona en la ventana de Cord."
       }
     },
     "media": {
@@ -461,7 +462,7 @@
       "micTaken": "Este atajo ya lo usa la superposición; elige otro.",
       "changeLabel": "Cambiar el atajo de la superposición",
       "assignLabel": "Asignar atajo a la superposición",
-      "disableLabel": "Desactivar el atajo de la superposición"
+      "resetLabel": "Restablecer el atajo de la superposición"
     },
     "video": {
       "previewDenied": "Sin acceso a la cámara: permítelo para Cord"

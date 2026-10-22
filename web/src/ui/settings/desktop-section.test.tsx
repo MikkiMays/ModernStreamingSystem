@@ -125,5 +125,10 @@ describe('«Windows» в настройках', () => {
       .map(([, payload]) => (payload as { bindings: { action: string }[] }).bindings.map((b) => b.action));
     expect(sets).toContainEqual([]);
     expect(sets.at(-1)).toContain('overlay.toggle');
+    // У оверлея умолчания нет: «Сбросить» снимает назначение (R25, Р-3), «Отключить» больше нет.
+    expect(screen.queryByRole('button', { name: /Отключить/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить сочетание оверлея' }));
+    expect(readPreferences().overlayHotkey).toBeNull();
+    expect(screen.getByRole('button', { name: 'Назначить сочетание оверлея' })).toBeInTheDocument();
   });
 });

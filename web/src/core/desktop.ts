@@ -1,5 +1,6 @@
 import { Store } from './store';
 import type { Hotkey, MicHotkeyMode } from './hotkeys';
+import type { Translate } from '../i18n';
 
 /**
  * Мост с оболочкой Windows.
@@ -69,9 +70,43 @@ export function hasFeature(name: string): boolean {
   return desktopFeatures().has(name);
 }
 
-export const desktopHotkeyStatus = new Store<string | null>(null);
-/** Что оболочка ответила про сочетание оверлея (`overlay.toggle`) — строкой, как и для микрофона. */
-export const desktopOverlayHotkeyStatus = new Store<string | null>(null);
+/**
+ * Состояние сочетания в системе — кодом оболочки (R22, X1). Слова берутся из каталога на языке
+ * интерфейса (`hotkeyStatusText`), а не из оболочки: прежде она слала русскую фразу, и на семи
+ * других языках посреди интерфейса стояла русская строка. `global` и `global-raw` («работает поверх
+ * других программ») — норма, о ней не говорят; `disabled` — сочетания нет.
+ */
+export type HotkeyStatus = 'global' | 'global-raw' | 'taken' | 'duplicate' | 'window-only' | 'disabled';
+const HOTKEY_STATUSES: readonly HotkeyStatus[] = [
+  'global',
+  'global-raw',
+  'taken',
+  'duplicate',
+  'window-only',
+  'disabled',
+];
+/** Код из ответа оболочки; русская фраза старой оболочки (1.0.4) и всё незнакомое — `null`. */
+function hotkeyStatusCode(value: unknown): HotkeyStatus | null {
+  return HOTKEY_STATUSES.includes(value as HotkeyStatus) ? (value as HotkeyStatus) : null;
+}
+
+/** Что сказать человеку о состоянии сочетания; `null` — говорить не о чем (работает как надо). */
+export function hotkeyStatusText(t: Translate, status: HotkeyStatus | null): string | null {
+  switch (status) {
+    case 'taken':
+      return t(($) => $.settings.hotkeys.status.taken);
+    case 'duplicate':
+      return t(($) => $.settings.hotkeys.status.duplicate);
+    case 'window-only':
+      return t(($) => $.settings.hotkeys.status.windowOnly);
+    default:
+      return null;
+  }
+}
+
+export const desktopHotkeyStatus = new Store<HotkeyStatus | null>(null);
+/** Что оболочка ответила про сочетание оверлея (`overlay.toggle`) — кодом, как и для микрофона. */
+export const desktopOverlayHotkeyStatus = new Store<HotkeyStatus | null>(null);
 
 /**
  * Сочетания, которые страница отдала оболочке. Микрофон и оверлей уходят одним набором
@@ -252,11 +287,10 @@ async function refreshUpdate(api: CordDesktop) {
   }
 }
 
-/** Строка состояния сочетания из ответа v2 — по действию (`mic.toggle`, `overlay.toggle`). */
-function hotkeyStatusText(status: unknown, action = 'mic.toggle'): string | null {
+/** Код состояния сочетания из ответа v2 — по действию (`mic.toggle`, `overlay.toggle`, `ptt`). */
+function hotkeyStatusOf(status: unknown, action = 'mic.toggle'): HotkeyStatus | null {
   if (!status || typeof status !== 'object') return null;
-  const text = (status as Record<string, unknown>)[action];
-  return typeof text === 'string' ? text : null;
+  return hotkeyStatusCode((status as Record<string, unknown>)[action]);
 }
 
 export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
@@ -272,9 +306,9 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
       }),
       api.on('hotkeys.status', (data) => {
         // В наборе микрофон — одним из двух действий: переключение или «нажми и говори».
-        const detail = hotkeyStatusText(data.status) ?? hotkeyStatusText(data.status, 'ptt');
+        const detail = hotkeyStatusOf(data.status) ?? hotkeyStatusOf(data.status, 'ptt');
         desktopHotkeyStatus.set(detail);
-        desktopOverlayHotkeyStatus.set(hotkeyStatusText(data.status, 'overlay.toggle'));
+        desktopOverlayHotkeyStatus.set(hotkeyStatusOf(data.status, 'overlay.toggle'));
         relay({ type: 'hotkey.status', detail: detail ?? undefined });
       }),
       api.on('update.status', (data) => {
@@ -316,8 +350,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
     if (!data || typeof data !== 'object') return;
     const message = data as Partial<DesktopCommand>;
     if (message.version !== 1 || !COMMANDS.includes(message.type as DesktopCommand['type'])) return;
-    if (message.type === 'hotkey.status' && typeof message.detail === 'string')
-      desktopHotkeyStatus.set(message.detail);
+    if (message.type === 'hotkey.status') desktopHotkeyStatus.set(hotkeyStatusCode(message.detail));
     if (message.type === 'update.status')
       desktopUpdate.set({
         version: typeof message.name === 'string' ? message.name : desktopUpdate.get().version,
