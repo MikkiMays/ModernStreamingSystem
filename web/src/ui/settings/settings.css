@@ -17,11 +17,14 @@
 */
 
 /* ---------- окно ---------- */
-/* Подложка темнее обычной и с лёгким размытием: встреча за окном читается как «там», а не как шум. */
+/*
+  Подложка темнее обычной, как у Discord: встреча за окном читается как «там», а не как шум.
+  Без размытия (backdrop-filter): замер R14 — с blur(6px) перетаскивание ползунка давало 180 из
+  238 кадров длиннее 50 мс при программной отрисовке (без GPU, удалённый стол, слабые машины),
+  без него — ни одного. Плавность (X5) важнее эффекта.
+*/
 .settings-backdrop {
-  background: color-mix(in srgb, var(--scrim) 82%, var(--stage-bg));
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--scrim) 72%, var(--stage-bg));
 }
 .settings-viewport {
   position: fixed;
