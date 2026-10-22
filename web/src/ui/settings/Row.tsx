@@ -28,6 +28,7 @@ export function SettingRow({
   label,
   hint,
   stack = false,
+  wide = false,
   disabled = false,
   below,
   children,
@@ -38,6 +39,11 @@ export function SettingRow({
   /** Своё пояснение вместо записанного в `ROWS`; `null` — без пояснения. */
   hint?: ReactNode;
   stack?: boolean;
+  /**
+   * Действие во всю ширину без видимой подписи (выбор микрофона и «Проверить», как у Телемоста):
+   * подпись строки остаётся именем управления для диктора — его задаёт само управление.
+   */
+  wide?: boolean;
   disabled?: boolean;
   /** Во всю ширину под строкой: предупреждение, превью камеры, запись пробы. */
   below?: ReactNode;
@@ -66,19 +72,22 @@ export function SettingRow({
       className="setting-row"
       id={rowDomId(id)}
       data-stack={stack || undefined}
+      data-wide={wide || undefined}
       data-disabled={disabled || undefined}
       data-flash={flash || undefined}
     >
-      <div className="setting-row__text">
-        <span className="setting-row__label" id={labelId}>
-          {label ?? spec.label}
-        </span>
-        {shownHint && (
-          <span className="setting-row__hint" id={hintId}>
-            {shownHint}
+      {!wide && (
+        <div className="setting-row__text">
+          <span className="setting-row__label" id={labelId}>
+            {label ?? spec.label}
           </span>
-        )}
-      </div>
+          {shownHint && (
+            <span className="setting-row__hint" id={hintId}>
+              {shownHint}
+            </span>
+          )}
+        </div>
+      )}
       {children !== undefined && (
         <div className="setting-row__control">
           {typeof children === 'function' ? children(a11y) : children}
@@ -144,19 +153,29 @@ export function SettingValue({ children, tone }: { children: ReactNode; tone?: '
   );
 }
 
-/** Полоса уровня: голос в микрофон и всё, что меряется от нуля до ста. */
-export function LevelBar({ level, label }: { level: number; label: string }) {
+/** Сколько делений у индикатора уровня — как у Телемоста (n08): точки, а не полоса. */
+const METER_STEPS = 12;
+
+/**
+ * Индикатор уровня микрофона: двенадцать делений справа от заголовка «Микрофон». Деления, а не
+ * сплошная полоса: громкость голоса читается ступенями, и индикатор не дрожит на каждом отсчёте.
+ */
+export function LevelMeter({ level, label, title }: { level: number; label: string; title?: string }) {
   const value = Math.max(0, Math.min(100, Math.round(level)));
+  const lit = Math.round((value / 100) * METER_STEPS);
   return (
     <div
-      className="setting-level"
+      className="setting-meter"
       role="meter"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={value}
+      title={title}
     >
-      <span className="setting-level__fill" style={{ transform: `scaleX(${value / 100})` }} />
+      {Array.from({ length: METER_STEPS }, (_, step) => (
+        <span key={step} className="setting-meter__step" data-on={step < lit || undefined} />
+      ))}
     </div>
   );
 }

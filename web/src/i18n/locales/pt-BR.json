@@ -27,10 +27,6 @@
         "title": "Atalhos de teclado",
         "keywords": "atalhos teclas teclado"
       },
-      "voice": {
-        "title": "Voz e vídeo",
-        "keywords": "som áudio microfone câmera"
-      },
       "sounds": {
         "title": "Sons",
         "keywords": "notificações alertas jogos"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "aplicativo bandeja barra de tarefas miniatura selo piscar suspensão sobreposição inicialização automática"
+      },
+      "audio": {
+        "title": "Áudio",
+        "keywords": "voz som microfone alto-falantes fones"
+      },
+      "video": {
+        "title": "Vídeo",
+        "keywords": "câmera compartilhamento de tela qualidade prévia"
       }
     },
     "anchors": {
       "microphone": "Microfone",
       "output": "Alto-falantes",
-      "processing": "Processamento de áudio",
       "camera": "Câmera",
       "screen": "Compartilhamento de tela"
     },
@@ -110,11 +113,6 @@
         "hint": "Equilibra vozes baixas e altas",
         "keywords": "automático nível agc"
       },
-      "mic-check": {
-        "label": "Teste do microfone",
-        "hint": "Diga algo — a barra mostra o nível",
-        "keywords": "teste indicador gravação"
-      },
       "output-device": {
         "label": "Dispositivo de saída",
         "hint": "",
@@ -124,11 +122,6 @@
         "label": "Volume de saída",
         "hint": "",
         "keywords": "vozes som"
-      },
-      "output-check": {
-        "label": "Teste de som",
-        "hint": "",
-        "keywords": "teste alto-falantes"
       },
       "noise": {
         "label": "Supressão de ruído",
@@ -146,12 +139,12 @@
         "keywords": "webcam dispositivo"
       },
       "camera-resolution": {
-        "label": "Resolução da câmera",
+        "label": "Qualidade",
         "hint": "",
         "keywords": "qualidade 720p 1080p"
       },
       "camera-fps": {
-        "label": "Taxa de quadros da câmera",
+        "label": "Taxa de quadros",
         "hint": "",
         "keywords": "fps fluidez"
       },
@@ -161,12 +154,12 @@
         "keywords": "teste da câmera"
       },
       "screen-resolution": {
-        "label": "Resolução do compartilhamento",
+        "label": "Qualidade",
         "hint": "O Cord nunca envia abaixo desta qualidade",
         "keywords": "compartilhamento de tela qualidade stream"
       },
       "screen-fps": {
-        "label": "Taxa de quadros do compartilhamento",
+        "label": "Taxa de quadros",
         "hint": "",
         "keywords": "compartilhamento fps fluidez stream"
       },
@@ -289,6 +282,11 @@
         "label": "Iniciar com o Windows",
         "hint": "O Cord abrirá minimizado",
         "keywords": "inicialização automática início"
+      },
+      "screen-preview": {
+        "label": "Prévia do compartilhamento",
+        "hint": "Quem assiste vê uma miniatura sem abrir",
+        "keywords": "prévia miniatura compartilhamento de tela stream"
       }
     },
     "title": "Configurações",
@@ -388,7 +386,7 @@
       },
       "noise": {
         "browser": "Padrão",
-        "rnnoise": "RNNoise — reforçada",
+        "rnnoise": "Reforçada",
         "voice": "Isolamento de voz",
         "off": "Desativada"
       },
@@ -450,10 +448,6 @@
       "check": "Testar",
       "checkSpeakersLabel": "Testar os alto-falantes",
       "previewLabel": "Pré-visualização da câmera, só para você",
-      "hidePreviewLabel": "Ocultar a pré-visualização da câmera",
-      "showPreviewLabel": "Mostrar a pré-visualização da câmera",
-      "hide": "Ocultar",
-      "show": "Mostrar",
       "deviceFailed": "Não foi possível ativar o dispositivo",
       "recordUnsupported": "Este navegador não grava o teste. A barra de nível funciona.",
       "toneFailed": "Não foi possível tocar o som de teste"
@@ -468,6 +462,9 @@
       "changeLabel": "Alterar o atalho da sobreposição",
       "assignLabel": "Definir atalho da sobreposição",
       "disableLabel": "Desativar o atalho da sobreposição"
+    },
+    "video": {
+      "previewDenied": "Sem acesso à câmera — permita para o Cord"
     }
   },
   "meeting": {

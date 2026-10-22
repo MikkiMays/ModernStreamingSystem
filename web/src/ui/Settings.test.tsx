@@ -9,7 +9,28 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   delete (window as { chrome?: unknown }).chrome;
+  delete (navigator as { mediaDevices?: unknown }).mediaDevices;
 });
+
+/** Камера для превью «Видео»: `getUserMedia` отдаёт поток с одной дорожкой (или отказ). */
+function fakeCamera(failure?: Error) {
+  const track = { stop: vi.fn(), getSettings: () => ({ facingMode: 'user' }), kind: 'video' };
+  const getUserMedia = vi.fn(async () => {
+    if (failure) throw failure;
+    return { getTracks: () => [track], getVideoTracks: () => [track] } as unknown as MediaStream;
+  });
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      getUserMedia,
+      enumerateDevices: async () => [],
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      getSupportedConstraints: () => ({}),
+    },
+  });
+  return { getUserMedia, stopped: () => track.stop.mock.calls.length > 0 };
+}
 
 const nav = () => screen.getByRole('navigation', { name: 'Разделы настроек' });
 const openSection = (name: string) => fireEvent.click(within(nav()).getByRole('button', { name }));
@@ -17,23 +38,20 @@ const openSection = (name: string) => fireEvent.click(within(nav()).getByRole('b
 const heading = () => document.querySelector('.settings-content__title')!;
 
 describe('окно настроек (T26)', () => {
-  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Голос и видео»', () => {
+  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Звук»', () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Настройки' })).toBeInTheDocument();
-    expect(heading()).toHaveTextContent('Голос и видео');
-    expect(within(nav()).getByRole('button', { name: 'Голос и видео' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(heading()).toHaveTextContent('Звук');
+    expect(within(nav()).getByRole('button', { name: 'Звук' })).toHaveAttribute('aria-current', 'page');
     for (const group of ['Приложение', 'Встречи', 'Подключения'])
       expect(within(nav()).getByRole('heading', { name: group })).toBeInTheDocument();
     // Подразделы открытого раздела — якоря слева.
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
     expect(
       within(anchors)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Микрофон', 'Динамики', 'Обработка звука', 'Камера', 'Демонстрация экрана']);
+    ).toEqual(['Микрофон', 'Динамики']);
     openSection('О программе');
     expect(heading()).toHaveTextContent('О программе');
     expect(within(nav()).queryByRole('list', { name: /Подразделы/ })).not.toBeInTheDocument();
@@ -55,15 +73,43 @@ describe('окно настроек (T26)', () => {
     }
   });
 
-  it('«Голос и видео»: устройства, громкость, проверка и качество из E05 в одном разделе', () => {
-    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
+  it('«Звук» (R100): микрофон с проверкой и уровнем, обработка, динамики с громкостью — камера не трогается', () => {
+    const camera = fakeCamera();
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('combobox', { name: 'Устройство ввода' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Подстраивать громкость' })).toBeChecked();
     expect(screen.getByRole('slider', { name: 'Громкость микрофона' })).toBeDisabled();
     expect(screen.getByRole('meter', { name: 'Уровень микрофона' })).toBeInTheDocument();
     // У одинаковых на вид «Проверить» — разные имена для диктора.
     expect(screen.getByRole('button', { name: 'Проверить микрофон' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Проверить динамики' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Показать превью камеры' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Устройство вывода' })).toBeInTheDocument();
+    // Шумоподавление — сегментом (S4), «Стандартное» по умолчанию.
+    const noise = screen.getByRole('radiogroup', { name: 'Шумоподавление' });
+    expect(within(noise).getByRole('radio', { name: 'Стандартное' })).toBeChecked();
+    fireEvent.click(within(noise).getByRole('radio', { name: 'Выключено' }));
+    expect(readPreferences().audio.suppression).toBe('off');
+    fireEvent.change(screen.getByRole('slider', { name: 'Громкость собеседников' }), {
+      target: { value: '45' },
+    });
+    expect(readPreferences().outputVolume).toBe(45);
+    // Камеры и показа здесь нет — и камера не включается.
+    expect(screen.queryByRole('radiogroup', { name: 'Камера: качество' })).not.toBeInTheDocument();
+    expect(camera.getUserMedia).not.toHaveBeenCalled();
+    // «Чужое видео», «Дополнительно» и «Уступать показу экрана» убраны (R06/R08): оптимум зашит.
+    expect(screen.queryByRole('switch', { name: 'Уступать показу экрана' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Дополнительно' })).not.toBeInTheDocument();
+  });
+
+  it('«Видео» (R100, R78): превью камеры сверху, качество камеры и показа сегментами, превью показа переключателем', async () => {
+    const device = fakeCamera();
+    render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    expect(heading()).toHaveTextContent('Видео');
+    // Превью — как в Телемосте: включается само, только в этом разделе, и только для вас.
+    await vi.waitFor(() => expect(device.getUserMedia).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText('Превью камеры только для вас').tagName).toBe('VIDEO');
+    expect(screen.getByText('Видно только вам')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Камера' })).toBeInTheDocument();
     // Качество — сегментом 720 / 1080 / 1440 × 30 / 60 (R78), без «Авто»; выше потолка сервера —
     // недоступно, причина — в подсказке пункта, а не строкой под группой.
     const camera = screen.getByRole('radiogroup', { name: 'Камера: качество' });
@@ -95,30 +141,47 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();
     expect(screen.queryByText(/Этот сервер допускает/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /качество/ })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole('slider', { name: 'Громкость собеседников' }), {
-      target: { value: '45' },
-    });
-    expect(readPreferences().outputVolume).toBe(45);
-    // «Чужое видео», «Дополнительно» и «Уступать показу экрана» убраны (R06/R08): оптимум зашит.
-    expect(screen.queryByRole('switch', { name: 'Уступать показу экрана' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Дополнительно' })).not.toBeInTheDocument();
+    // Превью показа (R80) — то же поле, что в окне показа: preferences.screen.preview.
+    const preview = screen.getByRole('switch', { name: 'Превью показа' });
+    expect(preview).toBeChecked();
+    fireEvent.click(preview);
+    expect(readPreferences().screen.preview).toBe(false);
+    // Ушли из раздела — камера отпущена.
+    openSection('Звук');
+    expect(device.stopped()).toBe(true);
+  });
+
+  it('«Видео»: камера недоступна — вместо превью объяснение, раздел работает', async () => {
+    fakeCamera(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    expect(await screen.findByText('Нет доступа к камере — разрешите его для Cord')).toBeVisible();
+    expect(screen.getByRole('radiogroup', { name: 'Камера: качество' })).toBeInTheDocument();
+  });
+
+  it('закрытие окна отпускает камеру превью', async () => {
+    const camera = fakeCamera();
+    const { rerender } = render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    await vi.waitFor(() => expect(camera.getUserMedia).toHaveBeenCalledTimes(1));
+    rerender(<Settings open={false} section="video" onOpenChange={vi.fn()} />);
+    await vi.waitFor(() => expect(camera.stopped()).toBe(true));
   });
 
   it('якорь слева ведёт к подразделу', () => {
-    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
+    fakeCamera();
+    render(<Settings open section="video" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Видео' });
     fireEvent.click(within(anchors).getByRole('button', { name: 'Демонстрация экрана' }));
     expect(screen.getByRole('radiogroup', { name: 'Экран: качество' })).toBeVisible();
   });
 
   it('щелчок по якорю подсвечивает его, и программная прокрутка к нему подсветку не затирает (R12)', async () => {
-    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
-    fireEvent.click(within(anchors).getByRole('button', { name: 'Динамики' }));
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Микрофон' }));
     // Ответ браузера на `scrollTop = …` — событие scroll; до scrollend пересчёта нет.
     fireEvent.scroll(document.querySelector('.settings-content')!);
     await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
-    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+    expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
       'aria-current',
       'location',
     );

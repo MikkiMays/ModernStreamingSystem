@@ -360,8 +360,25 @@ input.settings-search__input {
 .setting-row:last-child {
   box-shadow: none;
 }
-.setting-row--wide {
+.setting-row--wide,
+.setting-row[data-wide] {
   grid-template-columns: minmax(0, 1fr);
+}
+.setting-row[data-wide] > .setting-row__control {
+  justify-content: stretch;
+}
+.setting-device {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+.setting-device__select.setting-select {
+  flex: 1 1 240px;
+  width: auto;
+  max-width: 440px;
 }
 .setting-row::before {
   content: '';
@@ -460,30 +477,22 @@ input.settings-search__input {
   color: var(--text);
   font-weight: var(--weight-medium);
 }
-.setting-level {
-  flex: 1;
-  min-width: 120px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  background: var(--line);
-  overflow: hidden;
-}
-.setting-level__fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--voice);
-  transform-origin: left center;
-  transition: transform var(--motion-fast) linear;
-}
-.setting-check {
-  display: flex;
-  flex-wrap: wrap;
+.setting-meter {
+  display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  width: min(360px, 60cqi);
-  max-width: 100%;
+  gap: 3px;
+  height: var(--space-4);
+}
+.setting-meter__step {
+  width: 5px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+.setting-meter__step[data-on] {
+  background: var(--voice);
 }
 .setting-actions {
   display: flex;
@@ -620,13 +629,68 @@ input.settings-search__input {
 .setting-avatar > .avatar {
   margin-inline-end: var(--space-1);
 }
-.setting-preview {
+/* Видео (R100): превью камеры слева, строки справа; на узком — превью над строками. */
+.setting-camera {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.setting-camera__rows {
+  container-type: inline-size;
+  min-width: 0;
+}
+.setting-camera__preview {
+  position: relative;
+  display: grid;
+  place-items: center;
   width: 100%;
-  max-width: 400px;
+  margin: 0;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-3);
-  background: var(--stage-bg);
+  background: var(--stage-tile);
+  color: var(--stage-muted);
+  overflow: hidden;
+}
+.setting-camera__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-standard);
+}
+.setting-camera__preview[data-state='live'] .setting-camera__video {
+  opacity: 1;
+}
+.setting-camera__problem {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  max-width: 32ch;
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  text-align: center;
+}
+.setting-camera__tag {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--stage-veil-2);
+  color: var(--stage-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+@container (min-width: 600px) {
+  .setting-camera {
+    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 1fr);
+    gap: var(--space-6);
+  }
 }
 .setting-recording {
   width: 100%;
@@ -771,8 +835,7 @@ input.theme-option__input {
   }
   .setting-row[data-stack] .setting-select,
   .setting-row[data-stack] .setting-text,
-  .setting-row[data-stack] .setting-slider,
-  .setting-row[data-stack] .setting-check {
+  .setting-row[data-stack] .setting-slider {
     width: 100%;
   }
   .theme-picker {

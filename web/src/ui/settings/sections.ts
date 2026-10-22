@@ -14,11 +14,20 @@ import { locale, type Translate } from '../../i18n';
  * не даст завести строку без подписи.
  */
 export type SectionId =
-  'profile' | 'appearance' | 'hotkeys' | 'desktop' | 'voice' | 'sounds' | 'accounts' | 'server' | 'about';
+  | 'profile'
+  | 'appearance'
+  | 'hotkeys'
+  | 'desktop'
+  | 'audio'
+  | 'video'
+  | 'sounds'
+  | 'accounts'
+  | 'server'
+  | 'about';
 
 export type GroupId = 'app' | 'meetings' | 'connections' | 'cord';
 
-export type AnchorId = 'microphone' | 'output' | 'processing' | 'camera' | 'screen';
+export type AnchorId = 'microphone' | 'output' | 'camera' | 'screen';
 
 export interface SectionSpec {
   id: SectionId;
@@ -37,18 +46,17 @@ export const SECTIONS: SectionSpec[] = [
   { id: 'appearance', group: 'app', anchors: [] },
   { id: 'hotkeys', group: 'app', anchors: [] },
   { id: 'desktop', group: 'app', anchors: [], only: 'desktop' },
-  {
-    id: 'voice',
-    group: 'meetings',
-    anchors: ['microphone', 'output', 'processing', 'camera', 'screen'],
-  },
+  // «Голос и видео» разделён на два раздела, как у Телемоста (R100): каждый помещается в окно
+  // без прокрутки (R101), а превью камеры не включается, пока человек настраивает микрофон.
+  { id: 'audio', group: 'meetings', anchors: ['microphone', 'output'] },
+  { id: 'video', group: 'meetings', anchors: ['camera', 'screen'] },
   { id: 'sounds', group: 'meetings', anchors: [] },
   { id: 'accounts', group: 'connections', anchors: [] },
   { id: 'server', group: 'connections', anchors: [] },
   { id: 'about', group: 'cord', anchors: [] },
 ];
 
-export const DEFAULT_SECTION: SectionId = 'voice';
+export const DEFAULT_SECTION: SectionId = 'audio';
 
 /**
  * Прежние вкладки → новые разделы. Их называют оболочка Windows (`settings.open` с `tab: "audio"`
@@ -56,8 +64,8 @@ export const DEFAULT_SECTION: SectionId = 'voice';
  * пустоту.
  */
 const LEGACY: Record<string, { section: SectionId; anchor?: AnchorId }> = {
-  audio: { section: 'voice', anchor: 'microphone' },
-  video: { section: 'voice', anchor: 'camera' },
+  audio: { section: 'audio', anchor: 'microphone' },
+  video: { section: 'video', anchor: 'camera' },
   connection: { section: 'server' },
   theme: { section: 'appearance' },
   // `cord://settings/help` и «Помощь» оболочки: частые вопросы, обращение и знакомство — в «О программе».
@@ -75,6 +83,14 @@ export function placeFor(name: string | undefined): Place {
   const legacy = LEGACY[name];
   if (legacy) return legacy;
   const [section, anchor] = name.split('#') as [string, string | undefined];
+  // Прежний «Голос и видео» (ссылки оболочки и закладки): камера и показ — в «Видео», остальное — в «Звук».
+  if (section === 'voice') {
+    if (anchor === 'camera' || anchor === 'screen') return { section: 'video', anchor };
+    if (anchor === 'output') return { section: 'audio', anchor };
+    return anchor === 'microphone' || anchor === 'processing'
+      ? { section: 'audio', anchor: 'microphone' }
+      : { section: 'audio' };
+  }
   const spec = SECTIONS.find((candidate) => candidate.id === section);
   if (!spec) return { section: DEFAULT_SECTION };
   const known = spec.anchors.find((a) => a === anchor);
@@ -155,21 +171,20 @@ export const ROWS = {
   'desktop-overlay': { section: 'desktop', only: 'desktop', feature: 'overlay' },
   'desktop-overlay-hotkey': { section: 'desktop', only: 'desktop', feature: 'overlay' },
   'desktop-autostart': { section: 'desktop', only: 'desktop', feature: 'autostart' },
-  'mic-device': { section: 'voice', anchor: 'microphone' },
-  'mic-volume': { section: 'voice', anchor: 'microphone' },
-  'mic-auto': { section: 'voice', anchor: 'microphone' },
-  'mic-check': { section: 'voice', anchor: 'microphone' },
-  'output-device': { section: 'voice', anchor: 'output' },
-  'output-volume': { section: 'voice', anchor: 'output' },
-  'output-check': { section: 'voice', anchor: 'output' },
-  noise: { section: 'voice', anchor: 'processing' },
-  echo: { section: 'voice', anchor: 'processing' },
-  'camera-device': { section: 'voice', anchor: 'camera' },
-  'camera-resolution': { section: 'voice', anchor: 'camera' },
-  'camera-fps': { section: 'voice', anchor: 'camera' },
-  'camera-preview': { section: 'voice', anchor: 'camera' },
-  'screen-resolution': { section: 'voice', anchor: 'screen' },
-  'screen-fps': { section: 'voice', anchor: 'screen' },
+  'mic-device': { section: 'audio', anchor: 'microphone' },
+  'mic-auto': { section: 'audio', anchor: 'microphone' },
+  'mic-volume': { section: 'audio', anchor: 'microphone' },
+  noise: { section: 'audio', anchor: 'microphone' },
+  echo: { section: 'audio', anchor: 'microphone' },
+  'output-device': { section: 'audio', anchor: 'output' },
+  'output-volume': { section: 'audio', anchor: 'output' },
+  'camera-preview': { section: 'video', anchor: 'camera' },
+  'camera-device': { section: 'video', anchor: 'camera' },
+  'camera-resolution': { section: 'video', anchor: 'camera' },
+  'camera-fps': { section: 'video', anchor: 'camera' },
+  'screen-resolution': { section: 'video', anchor: 'screen' },
+  'screen-fps': { section: 'video', anchor: 'screen' },
+  'screen-preview': { section: 'video', anchor: 'screen' },
   'sounds-on': { section: 'sounds' },
   'sounds-volume': { section: 'sounds' },
   'sounds-samples': { section: 'sounds' },
@@ -222,7 +237,7 @@ export interface SearchHit {
   section: SectionId;
   anchor?: AnchorId;
   title: string;
-  /** Где это: «Голос и видео › Микрофон». */
+  /** Где это: «Звук › Микрофон». */
   where: string;
 }
 

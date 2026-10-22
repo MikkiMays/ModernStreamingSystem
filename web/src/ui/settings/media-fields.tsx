@@ -1,9 +1,8 @@
-import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AudioPreferences } from '../../core/preferences';
 import { CHOICE_FRAME_RATES, qualityRules, RESOLUTIONS, type Level } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
-import { Segmented, Slider, Switch } from '../kit';
+import { Segmented, Slider, Switch, type SegmentedOption } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
 
@@ -83,6 +82,10 @@ export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
 
 type Constraints = MediaTrackSupportedConstraints & { voiceIsolation?: boolean };
 
+/**
+ * Шумоподавление — сегментом (S4): «Выключено / Стандартное / Усиленное». «Изоляция голоса» —
+ * только там, где браузер её умеет (или она уже выбрана): недоступный навсегда пункт был бы шумом.
+ */
 export function NoiseRow({
   audio,
   change,
@@ -91,26 +94,27 @@ export function NoiseRow({
   change: (value: AudioPreferences) => void;
 }) {
   const { t } = useTranslation();
-  const constraints = navigator.mediaDevices?.getSupportedConstraints() as Constraints | undefined;
+  const constraints = navigator.mediaDevices?.getSupportedConstraints?.() as Constraints | undefined;
+  const isolation = !!constraints?.voiceIsolation || audio.suppression === 'voice';
+  const options: SegmentedOption<AudioPreferences['suppression']>[] = [
+    { value: 'off', label: t(($) => $.settings.media.noise.off) },
+    { value: 'browser', label: t(($) => $.settings.media.noise.browser) },
+    {
+      value: 'rnnoise',
+      label: t(($) => $.settings.media.noise.rnnoise),
+      disabled: !('AudioWorkletNode' in window),
+    },
+    ...(isolation ? [{ value: 'voice' as const, label: t(($) => $.settings.media.noise.voice) }] : []),
+  ];
   return (
     <SettingRow id="noise" stack>
-      <select
-        className="ui-input ui-select setting-select"
+      <Segmented
+        size="sm"
         aria-label={rowText(t, 'noise').label}
         value={audio.suppression}
-        onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-          change({ ...audio, suppression: e.target.value as AudioPreferences['suppression'] })
-        }
-      >
-        <option value="browser">{t(($) => $.settings.media.noise.browser)}</option>
-        <option value="rnnoise" disabled={!('AudioWorkletNode' in window)}>
-          {t(($) => $.settings.media.noise.rnnoise)}
-        </option>
-        <option value="voice" disabled={!constraints?.voiceIsolation}>
-          {t(($) => $.settings.media.noise.voice)}
-        </option>
-        <option value="off">{t(($) => $.settings.media.noise.off)}</option>
-      </select>
+        onValueChange={(suppression) => change({ ...audio, suppression })}
+        options={options}
+      />
     </SettingRow>
   );
 }

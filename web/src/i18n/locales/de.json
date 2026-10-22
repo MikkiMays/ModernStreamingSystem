@@ -27,10 +27,6 @@
         "title": "Tastenkürzel",
         "keywords": "Shortcuts Tasten Tastatur"
       },
-      "voice": {
-        "title": "Sprache und Video",
-        "keywords": "Ton Audio Mikrofon Kamera"
-      },
       "sounds": {
         "title": "Töne",
         "keywords": "Benachrichtigungen Signale Spiele"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "Sprache Ton Mikrofon Lautsprecher Kopfhörer"
+      },
+      "video": {
+        "title": "Video",
+        "keywords": "Kamera Bildschirmfreigabe Qualität Vorschau"
       }
     },
     "anchors": {
       "microphone": "Mikrofon",
       "output": "Lautsprecher",
-      "processing": "Audioverarbeitung",
       "camera": "Kamera",
       "screen": "Bildschirmfreigabe"
     },
@@ -110,11 +113,6 @@
         "hint": "Gleicht leise und laute Stimmen aus",
         "keywords": "automatisch Pegel agc"
       },
-      "mic-check": {
-        "label": "Mikrofontest",
-        "hint": "Sag etwas – der Balken zeigt den Pegel",
-        "keywords": "Test Anzeige Aufnahme"
-      },
       "output-device": {
         "label": "Ausgabegerät",
         "hint": "",
@@ -124,11 +122,6 @@
         "label": "Ausgabelautstärke",
         "hint": "",
         "keywords": "Stimmen Ton"
-      },
-      "output-check": {
-        "label": "Soundtest",
-        "hint": "",
-        "keywords": "Lautsprechertest"
       },
       "noise": {
         "label": "Rauschunterdrückung",
@@ -146,12 +139,12 @@
         "keywords": "Webcam Gerät"
       },
       "camera-resolution": {
-        "label": "Kameraauflösung",
+        "label": "Qualität",
         "hint": "",
         "keywords": "Qualität 720p 1080p"
       },
       "camera-fps": {
-        "label": "Kamera-Bildrate",
+        "label": "Bildrate",
         "hint": "",
         "keywords": "fps flüssig"
       },
@@ -161,12 +154,12 @@
         "keywords": "Kameratest"
       },
       "screen-resolution": {
-        "label": "Auflösung der Freigabe",
+        "label": "Qualität",
         "hint": "Unter dieser Qualität sendet Cord nie",
         "keywords": "Bildschirmfreigabe Qualität Stream"
       },
       "screen-fps": {
-        "label": "Bildrate der Freigabe",
+        "label": "Bildrate",
         "hint": "",
         "keywords": "Bildschirmfreigabe fps flüssig Stream"
       },
@@ -289,6 +282,11 @@
         "label": "Mit Windows starten",
         "hint": "Cord öffnet sich minimiert",
         "keywords": "Autostart Systemstart"
+      },
+      "screen-preview": {
+        "label": "Vorschau der Freigabe",
+        "hint": "Zuschauer sehen ein Vorschaubild, ohne sie zu öffnen",
+        "keywords": "Vorschau Miniatur Bildschirmfreigabe Stream"
       }
     },
     "title": "Einstellungen",
@@ -388,7 +386,7 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise – verstärkt",
+        "rnnoise": "Verstärkt",
         "voice": "Sprachisolierung",
         "off": "Aus"
       },
@@ -450,10 +448,6 @@
       "check": "Testen",
       "checkSpeakersLabel": "Lautsprecher testen",
       "previewLabel": "Kameravorschau, nur für dich",
-      "hidePreviewLabel": "Kameravorschau ausblenden",
-      "showPreviewLabel": "Kameravorschau einblenden",
-      "hide": "Ausblenden",
-      "show": "Einblenden",
       "deviceFailed": "Gerät konnte nicht aktiviert werden",
       "recordUnsupported": "Dieser Browser kann keine Probe aufnehmen. Die Pegelanzeige funktioniert.",
       "toneFailed": "Testton konnte nicht abgespielt werden"
@@ -468,6 +462,9 @@
       "changeLabel": "Overlay-Tastenkürzel ändern",
       "assignLabel": "Overlay-Tastenkürzel festlegen",
       "disableLabel": "Overlay-Tastenkürzel deaktivieren"
+    },
+    "video": {
+      "previewDenied": "Kein Kamerazugriff – erlaube ihn für Cord"
     }
   },
   "meeting": {

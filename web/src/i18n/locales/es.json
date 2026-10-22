@@ -27,10 +27,6 @@
         "title": "Atajos de teclado",
         "keywords": "atajos teclas teclado"
       },
-      "voice": {
-        "title": "Voz y vídeo",
-        "keywords": "sonido audio micrófono cámara"
-      },
       "sounds": {
         "title": "Sonidos",
         "keywords": "notificaciones avisos juegos"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "aplicación bandeja barra de tareas miniatura distintivo parpadeo suspensión superposición inicio automático"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "voz sonido micrófono altavoces auriculares"
+      },
+      "video": {
+        "title": "Vídeo",
+        "keywords": "cámara compartir pantalla calidad vista previa"
       }
     },
     "anchors": {
       "microphone": "Micrófono",
       "output": "Altavoces",
-      "processing": "Procesamiento de audio",
       "camera": "Cámara",
       "screen": "Compartir pantalla"
     },
@@ -110,11 +113,6 @@
         "hint": "Iguala las voces bajas y altas",
         "keywords": "automático nivel agc"
       },
-      "mic-check": {
-        "label": "Prueba de micrófono",
-        "hint": "Di algo: la barra mostrará el nivel",
-        "keywords": "prueba indicador grabación"
-      },
       "output-device": {
         "label": "Dispositivo de salida",
         "hint": "",
@@ -124,11 +122,6 @@
         "label": "Volumen de salida",
         "hint": "",
         "keywords": "voces sonido"
-      },
-      "output-check": {
-        "label": "Prueba de sonido",
-        "hint": "",
-        "keywords": "prueba altavoces"
       },
       "noise": {
         "label": "Supresión de ruido",
@@ -146,12 +139,12 @@
         "keywords": "webcam dispositivo"
       },
       "camera-resolution": {
-        "label": "Resolución de la cámara",
+        "label": "Calidad",
         "hint": "",
         "keywords": "calidad 720p 1080p"
       },
       "camera-fps": {
-        "label": "Fotogramas de la cámara",
+        "label": "Fotogramas por segundo",
         "hint": "",
         "keywords": "fps fluidez"
       },
@@ -161,12 +154,12 @@
         "keywords": "prueba de cámara"
       },
       "screen-resolution": {
-        "label": "Resolución al compartir pantalla",
+        "label": "Calidad",
         "hint": "Cord nunca envía por debajo de esta calidad",
         "keywords": "compartir pantalla calidad stream"
       },
       "screen-fps": {
-        "label": "Fotogramas al compartir pantalla",
+        "label": "Fotogramas por segundo",
         "hint": "",
         "keywords": "compartir pantalla fps fluidez stream"
       },
@@ -289,6 +282,11 @@
         "label": "Iniciar con Windows",
         "hint": "Cord se abrirá minimizado",
         "keywords": "inicio automático arranque"
+      },
+      "screen-preview": {
+        "label": "Vista previa al compartir",
+        "hint": "Los demás ven una miniatura sin abrirla",
+        "keywords": "vista previa miniatura compartir pantalla stream"
       }
     },
     "title": "Ajustes",
@@ -388,7 +386,7 @@
       },
       "noise": {
         "browser": "Estándar",
-        "rnnoise": "RNNoise — mejorada",
+        "rnnoise": "Mejorada",
         "voice": "Aislamiento de voz",
         "off": "Desactivada"
       },
@@ -450,10 +448,6 @@
       "check": "Probar",
       "checkSpeakersLabel": "Probar los altavoces",
       "previewLabel": "Vista previa de la cámara, solo para ti",
-      "hidePreviewLabel": "Ocultar la vista previa de la cámara",
-      "showPreviewLabel": "Mostrar la vista previa de la cámara",
-      "hide": "Ocultar",
-      "show": "Mostrar",
       "deviceFailed": "No se pudo activar el dispositivo",
       "recordUnsupported": "Este navegador no puede grabar la prueba. La barra de nivel sí funciona.",
       "toneFailed": "No se pudo reproducir el sonido de prueba"
@@ -468,6 +462,9 @@
       "changeLabel": "Cambiar el atajo de la superposición",
       "assignLabel": "Asignar atajo a la superposición",
       "disableLabel": "Desactivar el atajo de la superposición"
+    },
+    "video": {
+      "previewDenied": "Sin acceso a la cámara: permítelo para Cord"
     }
   },
   "meeting": {

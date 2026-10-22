@@ -27,10 +27,6 @@
         "title": "Keyboard shortcuts",
         "keywords": "hotkeys keybinds keyboard"
       },
-      "voice": {
-        "title": "Voice and video",
-        "keywords": "sound audio microphone camera"
-      },
       "sounds": {
         "title": "Sounds",
         "keywords": "notifications alerts games"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "app tray taskbar thumbnail badge flash sleep overlay autostart"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "voice sound microphone speakers headphones"
+      },
+      "video": {
+        "title": "Video",
+        "keywords": "camera screen share quality preview"
       }
     },
     "anchors": {
       "microphone": "Microphone",
       "output": "Speakers",
-      "processing": "Audio processing",
       "camera": "Camera",
       "screen": "Screen share"
     },
@@ -110,11 +113,6 @@
         "hint": "Evens out quiet and loud voices",
         "keywords": "automatic gain control agc"
       },
-      "mic-check": {
-        "label": "Mic test",
-        "hint": "Say something — the bar shows your level",
-        "keywords": "test meter recording"
-      },
       "output-device": {
         "label": "Output device",
         "hint": "",
@@ -124,11 +122,6 @@
         "label": "Output volume",
         "hint": "",
         "keywords": "voices sound"
-      },
-      "output-check": {
-        "label": "Sound test",
-        "hint": "",
-        "keywords": "speaker test"
       },
       "noise": {
         "label": "Noise suppression",
@@ -146,12 +139,12 @@
         "keywords": "webcam device"
       },
       "camera-resolution": {
-        "label": "Camera resolution",
+        "label": "Quality",
         "hint": "",
         "keywords": "quality 720p 1080p"
       },
       "camera-fps": {
-        "label": "Camera frame rate",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "fps smoothness"
       },
@@ -161,12 +154,12 @@
         "keywords": "camera test"
       },
       "screen-resolution": {
-        "label": "Screen share resolution",
+        "label": "Quality",
         "hint": "Cord never sends below this quality",
         "keywords": "screen share quality stream"
       },
       "screen-fps": {
-        "label": "Screen share frame rate",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "screen share fps smoothness stream"
       },
@@ -289,6 +282,11 @@
         "label": "Start with Windows",
         "hint": "Cord opens minimized",
         "keywords": "autostart startup launch"
+      },
+      "screen-preview": {
+        "label": "Share preview",
+        "hint": "Viewers see a thumbnail without opening the share",
+        "keywords": "preview thumbnail screen share stream"
       }
     },
     "title": "Settings",
@@ -388,7 +386,7 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise — enhanced",
+        "rnnoise": "Enhanced",
         "voice": "Voice isolation",
         "off": "Off"
       },
@@ -450,10 +448,6 @@
       "check": "Test",
       "checkSpeakersLabel": "Test speakers",
       "previewLabel": "Camera preview, only for you",
-      "hidePreviewLabel": "Hide camera preview",
-      "showPreviewLabel": "Show camera preview",
-      "hide": "Hide",
-      "show": "Show",
       "deviceFailed": "Couldn't turn on the device",
       "recordUnsupported": "This browser can't record a sample. The level bar still works.",
       "toneFailed": "Couldn't play the test sound"
@@ -468,6 +462,9 @@
       "changeLabel": "Change overlay shortcut",
       "assignLabel": "Assign overlay shortcut",
       "disableLabel": "Turn off overlay shortcut"
+    },
+    "video": {
+      "previewDenied": "No camera access — allow it for Cord"
     }
   },
   "meeting": {

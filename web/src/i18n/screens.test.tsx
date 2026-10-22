@@ -38,14 +38,14 @@ interface Texts {
 const screens: Record<string, Texts> = {
   en: {
     settings: 'Settings',
-    voice: 'Voice and video',
+    voice: 'Audio',
     nav: 'Settings sections',
     download: 'Cord for Windows',
     installer: 'Download installer',
   },
   'zh-Hans': {
     settings: '设置',
-    voice: '语音和视频',
+    voice: '音频',
     nav: '设置分区',
     download: 'Windows 版 Cord',
     installer: '下载安装程序',
@@ -66,8 +66,8 @@ describe.each(Object.keys(screens))('экраны на языке %s', (language
     await act(() => applyLanguage(language as Language));
   }, 60_000);
 
-  it('настройки: окно, разделы и «Голос и видео» — на этом языке, без русского', () => {
-    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
+  it('настройки: окно, разделы и «Звук» — на этом языке, без русского', () => {
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: text.settings });
     const nav = within(dialog).getByRole('navigation', { name: text.nav });
     expect(within(nav).getByRole('button', { name: text.voice })).toHaveAttribute('aria-current', 'page');

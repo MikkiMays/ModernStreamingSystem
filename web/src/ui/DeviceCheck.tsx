@@ -5,7 +5,7 @@ import { useDeviceCheck } from './settings/useDeviceCheck';
 
 /**
  * Проверка устройств одним блоком — для «Диагностики». В настройках те же проверки стоят в строках
- * своих устройств (`settings/VoiceSection`); логика у них одна — `useDeviceCheck`.
+ * своих устройств (`settings/AudioSection`); логика у них одна — `useDeviceCheck`.
  * Private capture only: no call to publishTrack, even when opened during a meeting.
  */
 export function DeviceCheck({ preferences }: { preferences: Preferences }) {

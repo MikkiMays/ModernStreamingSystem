@@ -27,10 +27,6 @@
         "title": "Scorciatoie da tastiera",
         "keywords": "scorciatoie tasti tastiera"
       },
-      "voice": {
-        "title": "Voce e video",
-        "keywords": "suono audio microfono videocamera"
-      },
       "sounds": {
         "title": "Suoni",
         "keywords": "notifiche segnali giochi"
@@ -50,12 +46,19 @@
       "desktop": {
         "title": "Windows",
         "keywords": "app area di notifica barra delle applicazioni miniatura badge lampeggio sospensione overlay avvio automatico"
+      },
+      "audio": {
+        "title": "Audio",
+        "keywords": "voce suono microfono altoparlanti cuffie"
+      },
+      "video": {
+        "title": "Video",
+        "keywords": "videocamera condivisione schermo qualità anteprima"
       }
     },
     "anchors": {
       "microphone": "Microfono",
       "output": "Altoparlanti",
-      "processing": "Elaborazione audio",
       "camera": "Videocamera",
       "screen": "Condivisione schermo"
     },
@@ -110,11 +113,6 @@
         "hint": "Livella voci basse e alte",
         "keywords": "automatico livello agc"
       },
-      "mic-check": {
-        "label": "Test del microfono",
-        "hint": "Di' qualcosa: la barra mostra il livello",
-        "keywords": "test indicatore registrazione"
-      },
       "output-device": {
         "label": "Dispositivo di output",
         "hint": "",
@@ -124,11 +122,6 @@
         "label": "Volume in uscita",
         "hint": "",
         "keywords": "voci audio"
-      },
-      "output-check": {
-        "label": "Test audio",
-        "hint": "",
-        "keywords": "test altoparlanti"
       },
       "noise": {
         "label": "Soppressione del rumore",
@@ -146,12 +139,12 @@
         "keywords": "webcam dispositivo"
       },
       "camera-resolution": {
-        "label": "Risoluzione della videocamera",
+        "label": "Qualità",
         "hint": "",
         "keywords": "qualità 720p 1080p"
       },
       "camera-fps": {
-        "label": "Frame rate della videocamera",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "fps fluidità"
       },
@@ -161,12 +154,12 @@
         "keywords": "test videocamera"
       },
       "screen-resolution": {
-        "label": "Risoluzione della condivisione",
+        "label": "Qualità",
         "hint": "Cord non trasmette mai sotto questa qualità",
         "keywords": "condivisione schermo qualità stream"
       },
       "screen-fps": {
-        "label": "Frame rate della condivisione",
+        "label": "Frame rate",
         "hint": "",
         "keywords": "condivisione fps fluidità stream"
       },
@@ -289,6 +282,11 @@
         "label": "Avvia con Windows",
         "hint": "Cord si aprirà ridotto a icona",
         "keywords": "avvio automatico esecuzione"
+      },
+      "screen-preview": {
+        "label": "Anteprima della condivisione",
+        "hint": "Chi guarda vede una miniatura senza aprirla",
+        "keywords": "anteprima miniatura condivisione schermo stream"
       }
     },
     "title": "Impostazioni",
@@ -388,7 +386,7 @@
       },
       "noise": {
         "browser": "Standard",
-        "rnnoise": "RNNoise — avanzata",
+        "rnnoise": "Avanzata",
         "voice": "Isolamento della voce",
         "off": "Disattivata"
       },
@@ -450,10 +448,6 @@
       "check": "Prova",
       "checkSpeakersLabel": "Prova gli altoparlanti",
       "previewLabel": "Anteprima della videocamera, visibile solo a te",
-      "hidePreviewLabel": "Nascondi l'anteprima della videocamera",
-      "showPreviewLabel": "Mostra l'anteprima della videocamera",
-      "hide": "Nascondi",
-      "show": "Mostra",
       "deviceFailed": "Impossibile attivare il dispositivo",
       "recordUnsupported": "Questo browser non supporta la registrazione di prova. La barra del livello funziona.",
       "toneFailed": "Impossibile riprodurre il suono di prova"
@@ -468,6 +462,9 @@
       "changeLabel": "Cambia la scorciatoia dell’overlay",
       "assignLabel": "Assegna una scorciatoia all’overlay",
       "disableLabel": "Disattiva la scorciatoia dell’overlay"
+    },
+    "video": {
+      "previewDenied": "Nessun accesso alla videocamera: consentilo per Cord"
     }
   },
   "meeting": {

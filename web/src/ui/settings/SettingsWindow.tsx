@@ -12,6 +12,7 @@ import {
   Search,
   Server,
   User,
+  Video,
   Volume2,
   X,
   type LucideProps,
@@ -43,7 +44,8 @@ import {
   type SectionId,
 } from './sections';
 import { activeAnchor, watchScroll } from './scroll-spy';
-import { VoiceSection } from './VoiceSection';
+import { AudioSection } from './AudioSection';
+import { VideoSection } from './VideoSection';
 import { SoundsSection } from './SoundsSection';
 import { ProfileSection } from './ProfileSection';
 import { AppearanceSection } from './AppearanceSection';
@@ -60,7 +62,8 @@ const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   appearance: Palette,
   hotkeys: Keyboard,
   desktop: MonitorCog,
-  voice: Mic,
+  audio: Mic,
+  video: Video,
   sounds: Volume2,
   accounts: Plug,
   server: Server,
@@ -94,7 +97,7 @@ export function SettingsWindow({
   meeting?: Meeting;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Раздел, с которого открыться: `voice`, `about`, `voice#camera` или прежнее имя вкладки. */
+  /** Раздел, с которого открыться: `audio`, `about`, `video#camera` или прежнее имя вкладки. */
   section?: string;
   theme?: Theme;
   setTheme?: (theme: Theme) => void;
@@ -217,8 +220,10 @@ export function SettingsWindow({
   const current = sectionSpec(place.section);
   const body = (() => {
     switch (place.section) {
-      case 'voice':
-        return <VoiceSection preferences={preferences} change={change} meeting={meeting} />;
+      case 'audio':
+        return <AudioSection preferences={preferences} change={change} meeting={meeting} />;
+      case 'video':
+        return <VideoSection preferences={preferences} change={change} meeting={meeting} />;
       case 'sounds':
         return <SoundsSection preferences={preferences} change={change} />;
       case 'profile':
