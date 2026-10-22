@@ -64,7 +64,6 @@ export function MeetingView({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
-  const pinned = useStore(meeting.pinnedCamera);
   /*
     На весь экран разворачивается документ, а не страница встречи.
 
@@ -365,7 +364,8 @@ export function MeetingView({
                   открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
               <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
               <Stage meeting={meeting} />
-              {(viewing || pinned) && (
+              {/* Из чужого экрана — в разговор; закреплённую камеру открепляют на ней самой (R83). */}
+              {viewing && (
                 <button
                   className="return-conversation media-stage"
                   onClick={() => meeting.returnToConversation()}

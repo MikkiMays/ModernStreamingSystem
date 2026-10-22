@@ -365,3 +365,25 @@ it('часы устройства прыгнули (сон, синхрониза
   await vi.advanceTimersByTimeAsync(11 * 60_000);
   expect(await answer(100, 100, SKEW - 3100)).toBe(SKEW - 3100);
 });
+
+it('закрепление камеры (R83): своей и чужой, «Открепить» снимает, ушедший — открепляется сам', async () => {
+  snapshot = {
+    ...snapshot,
+    sequence: 2,
+    participants: [person('guest', 'CONNECTED'), person('ann', 'CONNECTED')],
+  };
+  meeting.start();
+  await vi.advanceTimersByTimeAsync(0);
+  meeting.pinCamera('ann');
+  expect(meeting.pinnedCamera.get()).toBe('ann');
+  meeting.unpinCamera();
+  expect(meeting.pinnedCamera.get()).toBeNull();
+  // Свою камеру тоже закрепляют — крупно у себя, как в Discord.
+  meeting.pinCamera('guest');
+  expect(meeting.pinnedCamera.get()).toBe('guest');
+  meeting.pinCamera('ann');
+  expect(meeting.pinnedCamera.get()).toBe('ann');
+  snapshot = { ...snapshot, sequence: 3, participants: [person('guest', 'CONNECTED')] };
+  await meeting.refresh();
+  expect(meeting.pinnedCamera.get()).toBeNull();
+});

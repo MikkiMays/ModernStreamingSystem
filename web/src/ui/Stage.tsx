@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { MicOff, MonitorUp, PinOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -237,6 +237,14 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     if (focused !== focus) setFocus(focused);
   }, [focused, focus]);
   const plan = useMemo(() => gridPlan(people.length, box), [people.length, box]);
+  /*
+    Кто крупно над лентой остальных (R83, R84): закреплённый руками — в любой раскладке, а в
+    «Говорящем» — тот, кто держит слово. Раньше в сетке закрепление ставило только рамку `inset`,
+    которую кадр камеры закрывал целиком, — снаружи не менялось ничего. Одному крупно не с кем
+    делиться сценой: он и так во всю сцену.
+  */
+  const pinnedHere = pinned && people.some((p) => p.id === pinned) ? pinned : null;
+  const spotlight = people.length > 1 ? (pinnedHere ?? (layout === 'speaker' ? focused : null)) : null;
   if (viewing) {
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
@@ -344,9 +352,9 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         className="person-tile"
         data-sharing={sharing ? 'true' : undefined}
         data-pinned={pinned === person.id ? 'true' : undefined}
-        // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
-        // так видео не пересоздаётся при смене говорящего и не моргает.
-        data-focused={layout === 'speaker' && focused === person.id ? 'true' : undefined}
+        // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
+        // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
+        data-focused={spotlight === person.id ? 'true' : undefined}
         style={
           placed && plan.cells[index]
             ? ({
@@ -381,6 +389,19 @@ export function Stage({ meeting }: { meeting: Meeting }) {
           </span>
         </div>
         {self && camera && <LensSwitch meeting={meeting} tile={camera} />}
+        {/* Закреплённая — с кнопкой «Открепить» на самой плитке: меню «…» не единственный путь назад. */}
+        {pinned === person.id && (
+          <button
+            type="button"
+            className="tile-unpin"
+            aria-label={t(($) => $.stage.unpinOf, { name: person.name })}
+            title={t(($) => $.stage.unpinOf, { name: person.name })}
+            onClick={() => meeting.unpinCamera()}
+          >
+            <PinOff aria-hidden="true" />
+            <span>{t(($) => $.stage.unpin)}</span>
+          </button>
+        )}
         {preparing && (
           <span className="watch-stream is-preparing" role="status">
             <MonitorUp size={16} />
@@ -522,6 +543,26 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         </div>
         <div className="people-strip media-stage" data-count={people.length}>
           {people.map((person, index) => tile(person, index, false))}
+        </div>
+      </div>
+    );
+  }
+  if (spotlight) {
+    const big = people.find((person) => person.id === spotlight)!;
+    // В ленте своя плитка первой — её ищут глазами чаще прочих (Discord, Телемост).
+    const self = meeting.admission.participantId;
+    const strip = people
+      .filter((person) => person.id !== spotlight)
+      .sort((a, b) => Number(b.id === self) - Number(a.id === self));
+    return (
+      <div
+        className="stage conversation-stage camera-stage media-stage"
+        data-layout={layout}
+        data-spotlight="true"
+      >
+        <div className="spotlight-main">{tile(big, 0, false)}</div>
+        <div className="people-strip spotlight-strip media-stage" data-count={strip.length}>
+          {strip.map((person, index) => tile(person, index, false))}
         </div>
       </div>
     );

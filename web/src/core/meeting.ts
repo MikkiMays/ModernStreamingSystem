@@ -405,9 +405,17 @@ export class Meeting {
       })
       .catch(() => this.played.delete(screenId));
   }
+  /**
+   * Закрепить камеру — свою или чужую (R83): у себя, крупной плиткой над лентой остальных, как в
+   * Discord. Комната об этом не знает. Чужой экран, открытый во всю сцену, закрывается: сцена одна.
+   */
   pinCamera(participantId: string) {
     this.returnToConversation();
     this.pinnedCamera.set(participantId);
+  }
+  /** Открепить — вернуть сетку (или «Говорящего»), не трогая ничего другого. */
+  unpinCamera() {
+    this.pinnedCamera.set(null);
   }
   /**
    * Открыть или закрыть каталог кинотеатра. Чужую демонстрацию он закрывает: сцена одна, и

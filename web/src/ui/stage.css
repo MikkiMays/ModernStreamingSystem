@@ -619,41 +619,68 @@ button.watch-stream:hover {
   text-align: center;
 }
 
-/* ---------- раскладка «Говорящий» ---------- */
+/* ---------- крупно один: закреплённый и «Говорящий» (R83, R84) ---------- */
 /*
-  Крупно один, остальные лентой справа. Строки заданы по числу участников: крупная плитка тянется
-  через `grid-row: 1 / -1`, а `-1` считает только явные строки. Больше пяти лента прокручивается.
+  Крупная плитка во всю сцену, остальные — лентой под ней (та же, что под плеером и столами): справа
+  лента спорила бы с чипами интеграций в правом верхнем углу. Кадр в крупной плитке вписан целиком.
 */
-.stage[data-layout='speaker'] .people-grid {
+.stage[data-spotlight='true'] {
+  gap: var(--space-3);
+}
+.spotlight-main {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(96px, 18%, 210px);
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  align-content: stretch;
-  justify-items: center;
-  overflow-y: auto;
+  place-items: center;
 }
-.stage[data-layout='speaker'] .people-grid[data-count='1'] {
-  grid-template-columns: minmax(0, 1fr);
-}
-.stage[data-layout='speaker'] .people-grid[data-count='2'] {
-  grid-template-rows: minmax(0, 1fr);
-}
-.stage[data-layout='speaker'] .people-grid[data-count='3'] {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-}
-.stage[data-layout='speaker'] .people-grid[data-count='4'] {
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-}
-.stage[data-layout='speaker'] .person-tile {
-  grid-column: 2;
+.spotlight-main > .person-tile {
   width: 100%;
-  height: auto;
-  max-height: 100%;
-  align-self: center;
+  height: 100%;
+  aspect-ratio: auto;
 }
-.stage[data-layout='speaker'] .person-tile[data-focused='true'] {
-  grid-column: 1;
-  grid-row: 1 / -1;
+.spotlight-strip {
+  flex: none;
+}
+/* «Открепить» — на самой закреплённой плитке, слева сверху, видно всегда: на телефоне наведения нет. */
+.tile-unpin {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - var(--control-sm) - var(--space-6));
+  height: var(--control-sm);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  color: var(--stage-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+.tile-unpin:hover {
+  background: var(--stage-glass-strong);
+}
+.tile-unpin:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.tile-unpin > svg.lucide {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+@media (pointer: coarse) {
+  .tile-unpin {
+    height: var(--touch-target);
+    padding-inline: var(--space-3);
+  }
 }
 
 /* ---------- лента лиц под плеером и столами ---------- */
@@ -738,9 +765,17 @@ button.watch-stream:hover {
   .person-tile {
     border-radius: var(--radius-3);
   }
-  /* Двое на телефоне — две половины экрана целиком: колонку из двух рядов сетка выбирает сама. */
+  /* Двое на телефоне — две половины экрана целиком: колонку из двух рядов сетка выбирает сама. Высота
+     — вся строка: с `height: auto` плитки сжимались до лица, а между ними зияли поля (R84). */
   .people-grid[data-count='2'] .person-tile {
+    height: 100%;
     aspect-ratio: auto;
+  }
+  /* Крупная плитка на телефоне — во всю ширину по пропорциям кадра (без кадра — 4:3), над лентой. */
+  .spotlight-main > .person-tile {
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: var(--tile-aspect, 4 / 3);
   }
   .person-caption {
     left: 6px;
@@ -787,35 +822,8 @@ button.watch-stream:hover {
   }
 }
 
-/*
-  «Говорящий» на телефоне — переносом по строкам, а не сеткой: неявные колонки ленты отбирали ширину
-  у крупного плана, и он сжимался до полоски. Крупная плитка занимает строку, остальные — под ней.
-*/
+/* Лента на телефоне — от левого края и прокручивается вбок: своя плитка первой, остальные за ней. */
 @media (max-width: 700px) {
-  .stage[data-layout='speaker'] .people-grid,
-  .stage[data-layout='speaker'] .people-grid[data-count='2'],
-  .stage[data-layout='speaker'] .people-grid[data-count='3'],
-  .stage[data-layout='speaker'] .people-grid[data-count='4'] {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    gap: var(--space-2);
-    overflow-y: auto;
-  }
-  .stage[data-layout='speaker'] .person-tile {
-    flex: 0 0 auto;
-    width: auto;
-    height: clamp(72px, 14vh, 108px);
-  }
-  .stage[data-layout='speaker'] .person-tile[data-focused='true'] {
-    order: -1;
-    flex: 1 1 100%;
-    width: auto;
-    height: auto;
-    max-height: calc(100% - 116px);
-    margin-inline: auto;
-  }
   .people-strip {
     justify-content: flex-start;
     height: clamp(62px, 11vh, 92px);
@@ -831,7 +839,7 @@ button.watch-stream:hover {
 
 /*
   Лист панели на телефоне открыт: сцена отдаёт ему всё, кроме полосы лиц сверху. Правило стоит
-  последним — после «Говорящего», — и перебивает его порядком, а не весом.
+  последним — после крупной плитки и ленты, — и перебивает их порядком, а не весом.
 */
 @media (max-width: 767px) {
   .meeting-body.panel-open .stage .people-grid {
@@ -869,8 +877,32 @@ button.watch-stream:hover {
      краем полосы оставалась за краем экрана (аудит чёткости E15-B на 360). */
   .meeting-body.panel-open .lens-switch,
   .meeting-body.panel-open .screen-tools,
+  .meeting-body.panel-open .tile-unpin > span,
+  .meeting-body.panel-open .stage[data-spotlight='true'] .person-tile > .participant-more,
   .meeting-body.panel-open .stage .people-grid .person-tile > .participant-more {
     display: none;
+  }
+  /* Крупно один — та же полоса лиц: крупная плитка первой, лента за ней. */
+  .meeting-body.panel-open .stage[data-spotlight='true'] {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .meeting-body.panel-open .spotlight-main {
+    flex: none;
+    display: block;
+  }
+  .meeting-body.panel-open .spotlight-strip {
+    flex: 1;
+    min-width: 0;
+    height: 74px;
+  }
+  .meeting-body.panel-open :is(.spotlight-main, .spotlight-strip) > .person-tile {
+    width: 110px;
+    max-width: none;
+    height: 74px;
+    max-height: none;
+    aspect-ratio: auto;
   }
 }
 /*

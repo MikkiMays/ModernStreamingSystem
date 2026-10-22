@@ -8,6 +8,28 @@ import type { Meeting } from '../core/meeting';
 import { allowed } from '../core/permissions';
 import { Slider, useStore } from './primitives';
 
+/**
+ * Закрепить или открепить камеру — одним пунктом, своей тоже (R83). Свой компонент: о закреплении
+ * спрашивает только открытое меню.
+ */
+function PinItem({
+  Item,
+  meeting,
+  person,
+}: {
+  Item: ComponentType<Menu.Item.Props>;
+  meeting: Meeting;
+  person: Participant;
+}) {
+  const { t } = useTranslation();
+  const pinned = useStore(meeting.pinnedCamera) === person.id;
+  return pinned ? (
+    <Item onClick={() => meeting.unpinCamera()}>{t(($) => $.stage.menu.unpin)}</Item>
+  ) : (
+    <Item onClick={() => meeting.pinCamera(person.id)}>{t(($) => $.stage.menu.pin)}</Item>
+  );
+}
+
 /** The same menu and keyboard behavior are used on tiles and in the participant list. */
 export function ParticipantMenu({
   meeting,
@@ -59,9 +81,7 @@ export function ParticipantMenu({
           </Item>
         </>
       )}
-      {active && !person.service && (
-        <Item onClick={() => meeting.pinCamera(person.id)}>{t(($) => $.stage.menu.pin)}</Item>
-      )}
+      {active && !person.service && <PinItem Item={Item} meeting={meeting} person={person} />}
       {/* Свою демонстрацию не смотрят: это тот же экран, на котором она открыта, только
           с задержкой и через сеть. Показывающему нужна не она, а кнопка «остановить». */}
       {remote && person.screen && person.screenId && person.screenStarted && (
@@ -106,7 +126,7 @@ export function ParticipantMenu({
             className="icon-button participant-more"
             aria-label={t(($) => $.stage.menu.actions, { name: person.name })}
           >
-            <MoreHorizontal size={19} />
+            <MoreHorizontal size={16} />
           </Menu.Trigger>
           <Menu.Portal>
             <Menu.Positioner className="menu-layer" sideOffset={6} align="end">
