@@ -46,7 +46,7 @@ export function AppearanceSection({
   return (
     <>
       {theme && setTheme && (
-        <SettingGroup title={t(($) => $.settings.appearance.theme)} collapsible={false}>
+        <SettingGroup title={t(($) => $.settings.appearance.theme)}>
           <div className="setting-row setting-row--wide" id={rowDomId('appearance-theme')}>
             <div role="radiogroup" aria-label={rowText(t, 'appearance-theme').label} className="theme-picker">
               {THEMES.map((option) => (
@@ -78,7 +78,7 @@ export function AppearanceSection({
           </div>
         </SettingGroup>
       )}
-      <SettingGroup title={t(($) => $.language.label)} collapsible={false}>
+      <SettingGroup title={t(($) => $.language.label)}>
         <SettingRow id="appearance-language">
           {(a11y) => (
             <select
@@ -100,7 +100,7 @@ export function AppearanceSection({
           )}
         </SettingRow>
       </SettingGroup>
-      <SettingGroup title={t(($) => $.settings.appearance.inMeeting)} collapsible={false}>
+      <SettingGroup title={t(($) => $.settings.appearance.inMeeting)}>
         <SettingRow id="appearance-bots">
           <Switch
             checked={preferences.showIntegrationPanel}

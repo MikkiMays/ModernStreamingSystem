@@ -83,16 +83,18 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('searchbox', { name: 'Найти настройку' })).toHaveValue('');
   });
 
-  it('группа без подраздела раскрывается по своей строке поиска', () => {
+  it('группы не сворачиваются (R16): заголовок — просто заголовок, строки всегда видны', () => {
     render(<Settings open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
       target: { value: 'клавиши кинозала' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Клавиши кинозала и игр/ }));
     expect(heading()).toHaveTextContent('Горячие клавиши');
-    expect(
-      screen.getByRole('button', { name: 'Клавиши кинозала и игр', expanded: true }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Клавиши кинозала и игр', level: 3 })).toBeVisible();
+    expect(screen.getByText('переставить комнату в избранном')).toBeVisible();
+    // «Скрыть / раскрыть» нет нигде: ни у одной группы нет кнопки с aria-expanded.
+    expect(document.querySelector('.settings-content [aria-expanded]')).toBeNull();
+    expect(document.querySelector('.setting-group__toggle')).toBeNull();
   });
 });
 

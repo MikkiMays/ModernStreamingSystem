@@ -88,7 +88,7 @@ export function QualityFields({
   return (
     <SettingGroup
       title={t(($) => $.settings.media.group[kind])}
-      collapsible={false}
+
       note={kind === 'screen' ? ceilingNote(t) : undefined}
     >
       <QualityRows kind={kind} profile={profile} change={change} />
@@ -215,7 +215,7 @@ export function AudioFields({
 }) {
   const { t } = useTranslation();
   return (
-    <SettingGroup title={t(($) => $.settings.media.voiceGroup)} collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.media.voiceGroup)}>
       <NoiseRow audio={audio} change={change} />
       <EchoRow audio={audio} change={change} />
       <AutoGainRow audio={audio} change={change} />

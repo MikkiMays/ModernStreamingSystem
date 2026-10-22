@@ -29,7 +29,7 @@ export function ServerSection({
   const current = useStore(session);
   const [saved, setSaved] = useState(thisServer);
   return (
-    <SettingGroup title={t(($) => $.settings.server.connection)} collapsible={false}>
+    <SettingGroup title={t(($) => $.settings.server.connection)}>
       <SettingRow
         id="server-current"
         hint={`${current?.name || serverLabel(saved)} · ${new URL(currentServerUrl()).host}`}

@@ -29,7 +29,7 @@ export function SoundsSection({
   const enabled = preferences.notificationSounds;
   return (
     <>
-      <SettingGroup title={t(($) => $.settings.sounds.cues)} collapsible={false}>
+      <SettingGroup title={t(($) => $.settings.sounds.cues)}>
         <SettingRow id="sounds-on">
           <Switch
             checked={enabled}

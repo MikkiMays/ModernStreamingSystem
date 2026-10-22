@@ -91,7 +91,7 @@ export function HotkeysSection({
             : t(($) => $.settings.hotkeys.browser)}
         </span>
       </p>
-      <SettingGroup title={t(($) => $.settings.hotkeys.meeting)} collapsible={false}>
+      <SettingGroup title={t(($) => $.settings.hotkeys.meeting)}>
         <HotkeyField
           id="hotkey-mic"
           value={value}
@@ -123,7 +123,7 @@ export function HotkeysSection({
           </SettingRow>
         )}
       </SettingGroup>
-      <SettingGroup title={rowText(t, 'hotkey-other').label} id="hotkey-other" defaultOpen={false}>
+      <SettingGroup title={rowText(t, 'hotkey-other').label} id="hotkey-other">
         {OTHER_KEYS.map((group) => (
           <div key={group.id} className="setting-keymap">
             <h4 className="setting-keymap__title">{t(($) => $.settings.hotkeys.groups[group.id])}</h4>

@@ -489,7 +489,6 @@ export function Prejoin({
         <div className="settings-form">
           <SettingGroup
             title={t(($) => $.prejoin.settings.devices)}
-            collapsible={false}
             note={camera || mic ? t(($) => $.prejoin.settings.devicesBusy) : undefined}
           >
             {(['audioinput', 'videoinput', 'audiooutput'] as const).map((kind) => {
