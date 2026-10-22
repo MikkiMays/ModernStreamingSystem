@@ -885,6 +885,117 @@ class QueueTests(Fixture):
                 await asyncio.gather(task, return_exceptions=True)
         self.assertIn(("close",), commands)
 
+    async def test_lost_publisher_is_brought_back_from_the_saved_position(self):
+        """Обрыв связи с SFU при живой встрече — переподключение, а не ошибка (R04).
+
+        ЗАЧЕМ ТЕСТ. Замирание хоста на полминуты роняло издателя, и музыка выходила из встречи
+        с надписью «потерял соединение» — организатору приходилось добавлять её заново. Теперь
+        служба поднимает издателя сама с сохранённой позиции, а комната на это время видит
+        «переподключаемся».
+        """
+        self.bot_present = True
+        one = track(self.store, "One")
+        await self.music.enqueue(ROOM, one)
+        state = self.store.get(ROOM)
+        state.update(
+            enabled=True,
+            paused=False,
+            position=12.5,
+            status="playing",
+            admission={
+                "roomId": ROOM,
+                "participantId": BOT,
+                "credential": "bot.secret",
+            },
+        )
+        self.store.save(state)
+        commands = []
+        instances = []
+        statuses = []
+
+        class FakePublisher:
+            def __init__(self):
+                self.connected = True
+                self.events = asyncio.Queue()
+                instances.append(self)
+
+            @classmethod
+            async def start(cls, url, token, name="Музыка"):
+                commands.append(("connect", token))
+                return cls()
+
+            async def play(self, path, position, epoch):
+                commands.append(("play", Path(path).name, round(position, 3), epoch))
+                statuses.append(self_outer.store.get(ROOM)["status"])
+
+            async def pause(self):
+                commands.append(("pause",))
+
+            async def event(self, timeout):
+                try:
+                    return await asyncio.wait_for(self.events.get(), timeout)
+                except TimeoutError:
+                    return None
+
+            async def close(self):
+                self.connected = False
+                commands.append(("close",))
+
+        self_outer = self
+        tokens = iter(["first", "second"])
+
+        async def core_request(method, path, data=None, credential=None, headers=None):
+            if path.endswith("/media/token"):
+                return {"token": next(tokens)}
+            if path == f"/api/v1/rooms/{ROOM}":
+                response = self.respond(httpx.Request("GET", "http://core.test" + path, headers={"authorization": "Bearer " + credential}))
+                return response.json()
+            raise AssertionError(path)
+
+        self.core.request = AsyncMock(side_effect=core_request)
+        self.core.command = AsyncMock(return_value={})
+        player = Music(self.store, self.core, "http://rtc.test")
+
+        async def sent(kind, count=1):
+            for _ in range(300):
+                if len([c for c in commands if c[0] == kind]) >= count:
+                    return
+                await asyncio.sleep(0.01)
+            self.fail(f"Издателю так и не отправили {kind}: {commands}")
+
+        with (
+            patch("cord_services.music.Publisher", FakePublisher),
+            patch("cord_services.music.RECONNECT_DELAYS", (0.01, 0.01)),
+        ):
+            task = asyncio.create_task(player.run(ROOM))
+            try:
+                await sent("play")
+                epoch = self.store.get(ROOM)["epoch"]
+                self.assertEqual(commands[-1], ("play", one["file"], 12.5, epoch))
+                await instances[0].events.put({"event": "position", "epoch": epoch, "value": 0.4})
+                await asyncio.sleep(0.05)
+                # Издатель сообщил, что голодает, — комната видит это, а не «играет».
+                await instances[0].events.put({"event": "starved", "epoch": epoch})
+                await asyncio.sleep(0.05)
+                self.assertEqual(self.store.get(ROOM)["status"], "starved")
+                await instances[0].events.put({"event": "recovered", "epoch": epoch})
+                await asyncio.sleep(0.05)
+                self.assertEqual(self.store.get(ROOM)["status"], "playing")
+                # Связь с SFU оборвалась при живой встрече.
+                await instances[0].events.put({"event": "closed", "message": "ICE failed"})
+                await sent("connect", 2)
+                await sent("play", 2)
+                self.assertEqual(commands[-1], ("play", one["file"], 0.4, epoch))
+                self.assertEqual(len(instances), 2)
+                self.assertIn(("close",), commands)
+                # Пока ждали, статус был «переподключаемся», ошибки нет.
+                self.assertIn("reconnecting", statuses)
+                self.assertIsNone(self.store.get(ROOM)["error"])
+                self.assertEqual(self.store.get(ROOM)["status"], "playing")
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
     async def test_room_ending_is_not_reported_as_a_broken_connection(self):
         """Все разошлись — это конец работы, а не поломка.
 
@@ -936,7 +1047,11 @@ class QueueTests(Fixture):
                         pass
 
                 player = Music(self.store, self.core, "http://rtc.test")
-                with patch("cord_services.music.Publisher", FakePublisher):
+                # Попытки переподключения — отдельный тест; здесь их ноль, чтобы видеть исход.
+                with (
+                    patch("cord_services.music.Publisher", FakePublisher),
+                    patch("cord_services.music.RECONNECT_DELAYS", ()),
+                ):
                     await player.run(ROOM)
                 state = self.store.get(ROOM)
                 self.assertEqual(bool(state["error"]), expected_error)

@@ -204,7 +204,14 @@ const livekit = {
     udp_port: 7882,
     use_external_ip: false,
     node_ip: ip,
+    // Перегруженный канал зрителя не останавливает ему видео (R91): пусть лучше придут не все
+    // кадры, чем «показ завис» — приём сам сбросит лишнее, а пауза выглядела как поломка.
+    congestion_control: { enabled: true, allow_pause: false },
   },
+  // RED (RFC 2198) на отрезке SFU → слушатель для Opus: предыдущий кадр повторяется в следующем
+  // пакете, одиночные потери (VPN, 1–6 %) исчезают; цена — вдвое больше полосы звука вниз. Запас
+  // буфера приёма против потерь бессилен (MEDIA-DIAGNOSIS §2.2), а это — лечит.
+  audio: { active_red_encoding: true },
   redis: { address: "127.0.0.1:6379", password: redis },
   keys: { [key]: mediaSecret },
   room: { empty_timeout: 300, departure_timeout: 60, max_participants: MAX_PARTICIPANTS + 4 },

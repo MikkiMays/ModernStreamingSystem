@@ -42,8 +42,11 @@ const (
 	// Сколько кадров декодера накопить, прежде чем трек станет слышен, и сколько держать
 	// про запас дальше. Запас нужен не нам, а приёмнику: пока его нет, в комнату идёт
 	// тишина, и к первой ноте буфер приёма уже полон — начало трека не догоняют рывком.
-	lead  = 12
-	depth = 100
+	lead  = 25
+	depth = 250
+	// Столько кадров тишины подряд при живом треке — декодер не успевает (машина замерла,
+	// источник стоит): комната должна об этом знать, иначе «играет» и тишина неотличимы.
+	starvedAfter = 10
 )
 
 // Двадцать миллисекунд цифровой тишины, закодированные Opus.
@@ -134,7 +137,7 @@ func decode(path string, position float64) *exec.Cmd {
 		"-ac", "2", "-ar", "48000",
 		"-c:a", "libopus", "-b:a", setting("CORD_MUSIC_BITRATE", "256k"), "-vbr", "constrained",
 		"-packet_loss", setting("CORD_MUSIC_PACKET_LOSS", "0"),
-		"-compression_level", "10", "-application", "audio", "-frame_duration", "20",
+		"-compression_level", "7", "-application", "audio", "-frame_duration", "20",
 		"-f", "ogg", "-page_duration", "20000", "pipe:1",
 	)
 }
@@ -164,6 +167,8 @@ type player struct {
 	current *source
 	written int
 	started time.Time
+	// Сколько кадров подряд ушло тишиной вместо музыки, которая должна была играть.
+	starved int
 }
 
 func (p *player) halt() {
@@ -274,18 +279,49 @@ func (p *player) next() ([]byte, *event) {
 		if !ok {
 			at := current.origin + float64(current.sent)*frame.Seconds()
 			p.current = nil
+			p.starved = 0
 			return quiet, &event{Event: "finished", Epoch: current.epoch, Value: &at}
 		}
 		current.sent++
+		recovered := p.starved >= starvedAfter
+		p.starved = 0
+		if recovered {
+			return packet, &event{Event: "recovered", Epoch: current.epoch}
+		}
 		if current.sent%report == 0 {
 			at := current.origin + float64(current.sent)*frame.Seconds()
 			return packet, &event{Event: "position", Epoch: current.epoch, Value: &at}
 		}
 		return packet, nil
 	default:
-		// Декодер не успел: двадцать миллисекунд тишины дешевле, чем дыра в потоке.
+		// Декодер не успел: двадцать миллисекунд тишины дешевле, чем дыра в потоке. Но если
+		// это длится, комната должна знать, что слышит не паузу, а голодающий источник.
+		p.starved++
+		if p.starved == starvedAfter {
+			return quiet, &event{Event: "starved", Epoch: current.epoch}
+		}
 		return quiet, nil
 	}
+}
+
+// schedule — срок очередного кадра. Отстали больше `slack` (машина замерла) — отсчёт
+// сдвигается вперёд на величину отставания: накопленное не отдаётся залпом, а срок кадра
+// прыгает вместе со стенными часами.
+//
+// ЗАЧЕМ СРОК ИДЁТ В МЕТКУ RTP. Раньше в `WriteSample` уходила только `Duration`, и SDK
+// считал метку RTP накоплением длительностей: после сдвига расписания метки оставались
+// «старыми» ровно на величину замирания. NetEq у слушателя за время дыры дорисовал
+// заглушку и сдвинул конец буфера, а пакет с меткой старше конца буфера меньше чем на 5 с
+// **выбрасывает** (`packetsDiscarded`) — то есть замирание издателя от 0,2 до 5 с оставляло
+// слушателя в тишине до следующего большого скачка или переподписки. С `Timestamp` метка
+// следует за стенными часами, и для NetEq замирание — обычная дыра: заглушка, потом merge.
+func schedule(started time.Time, written int, now time.Time) (time.Time, time.Time) {
+	deadline := started.Add(time.Duration(written) * frame)
+	if behind := now.Sub(deadline); behind > slack {
+		started = started.Add(behind)
+		deadline = deadline.Add(behind)
+	}
+	return started, deadline
 }
 
 // pace — единственное место, которое пишет в дорожку, и единственные часы издателя.
@@ -297,14 +333,8 @@ func (p *player) next() ([]byte, *event) {
 func (p *player) pace(stop <-chan struct{}) {
 	p.started = time.Now()
 	for ; ; p.written++ {
-		deadline := p.started.Add(time.Duration(p.written) * frame)
-		// Отстали заметно — значит, машина на время замерла. Отдавать накопленное залпом
-		// нельзя: у приёмника это обернётся раздутым буфером и погоней за ним. Сдвигаем
-		// отсчёт и играем дальше ровно — потерянные доли секунды всё равно не вернуть.
-		if behind := time.Since(deadline); behind > slack {
-			p.started = p.started.Add(behind)
-			deadline = deadline.Add(behind)
-		}
+		var deadline time.Time
+		p.started, deadline = schedule(p.started, p.written, time.Now())
 		if wait := time.Until(deadline); wait > 0 {
 			select {
 			case <-stop:
@@ -318,7 +348,7 @@ func (p *player) pace(stop <-chan struct{}) {
 		default:
 		}
 		packet, announcement := p.next()
-		if err := p.track.WriteSample(media.Sample{Data: packet, Duration: frame}, nil); err != nil {
+		if err := p.track.WriteSample(media.Sample{Data: packet, Duration: frame, Timestamp: deadline}, nil); err != nil {
 			say(event{Event: "closed", Message: err.Error()})
 			return
 		}
@@ -346,6 +376,10 @@ func main() {
 		os.Exit(1)
 	}
 	room, err := lksdk.ConnectToRoomWithToken(connect.URL, connect.Token, &lksdk.RoomCallback{
+		// SDK сам чинит связь (resume/restart) и зовёт OnDisconnected, только когда сдался;
+		// промежуточные состояния уходят службе, чтобы комната видела «переподключаемся».
+		OnReconnecting: func() { say(event{Event: "reconnecting"}) },
+		OnReconnected:  func() { say(event{Event: "reconnected"}) },
 		OnDisconnected: func() {
 			say(event{Event: "closed", Message: "соединение с комнатой потеряно"})
 			os.Exit(0)
