@@ -14,21 +14,21 @@
 | R08 | W1 | готово, выкачено (22.10, `5b4858d`) | удалено из логики и настроек (a36aeaf, a6f428f) |
 | R09 | W1, W6 | готово, выкачено (22.10, `5b4858d`) | 1 Кбит/с = тишина издателя (метки RTP по стенным часам); сейчас 160 кбит/с; `journal/2026-10-22-review-I1.md` |
 | R10 | W1b | ждёт | |
-| R11 | W0, W2 | ждёт | |
-| R12 | W2 | ждёт | |
+| R11 | W0, W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `Settings.test.tsx` «открыто мышью — фокус на заголовке…»; `focus-modality.spec` 8/8 против ветки |
+| R12 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `scroll-spy.test.ts` (числа CODEMAP), `Settings.test.tsx` «щелчок по якорю…», e2e `settings-accounts` «подсветка подраздела» |
 | R13 | — | заменена R78 (владелец, 22.10) | — |
-| R14 | W0, W2 | частично: kit `Slider` шаг 1 + `onValueCommitted` выкачен; шаги 5 → 1 и запись по кадрам — W2 | `kit.test.tsx` |
-| R15 | W2 | ждёт | |
-| R16 | W2 | ждёт | |
+| R14 | W0, W2 | готово в ветке `review/W2` (22.10), ждёт I4 | шаг 1 у всех ползунков настроек; `Settings.test.tsx` «ползунок (R14)», `preferences.test.ts`; `scripts/slider-perf.mjs`: 0 кадров > 50 мс, ≤ 1 запись/кадр — `screens/R103/W2/after/slider-perf.{json,png}` (с blur(6px) — 177 кадров > 50 мс: `slider-perf-with-blur6.*`) |
+| R15 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | e2e `settings-accounts` «окно по центру, крестик в строке заголовка» (Δy ≤ 2, вне прокрутки); `screens/R103/W2/after` |
+| R16 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `Settings.test.tsx` «группы не сворачиваются (R16)»; `screens/R103/W2/after` |
 | R17 | W0 | готово, выкачено (22.10, `768aef9`) | `scroll-activity.test.ts`, e2e полоса ≤ 10 px; `screens/R103/W0/after/scrollbars/*` |
-| R18 | W2 | ждёт | |
-| R19 | W2 | ждёт | |
+| R18 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `screens/R103/W2/{before,after}` 390/1024/1440 обе темы и 1280×720/1440×720 |
+| R19 | W2 | готово в ветке `review/W2` (22.10), ждёт I4; Electron 125–150 % — живое (OWNER-ACTIONS) | e2e `settings-accounts`: центр ±2 px — главная 1280×800/1920×1080, встреча, it |
 | R20 | W3, W5 | ждёт | |
-| R21 | W2 | ждёт | |
-| R22 | W2, WD2 | ждёт | |
-| R23 | W0, W2 | частично: кольцо после Esc убрано (S1); R24 — W2 | `focus-modality.spec` «запись сочетания» |
-| R24 | W2 | ждёт | |
-| R25 | W2 | ждёт | |
+| R21 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `sections.test.ts` «лишних строк нет», `appearance-bots` удалён; поле `showIntegrationPanel` читается как «да», чтение во встрече убирает W3 |
+| R22 | W2, WD2 | веб готово в ветке `review/W2` (22.10): плашки нет, коды → `hotkeyStatusText` ×8; коды в оболочке — WD2 | `Settings.test.tsx` «плашки … нет», `desktop.test.ts` «состояние сочетания — кодом оболочки» |
+| R23 | W0, W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `focus-modality.spec` «запись сочетания»; второй щелчок — R24 |
+| R24 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `Settings.test.tsx` «второй щелчок по «Esc — отмена» отменяет запись» |
+| R25 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `Settings.test.tsx` «одна кнопка «Сбросить»», `desktop-section.test.tsx` (оверлей: «Сбросить» = снять) |
 | R26 | W0 | готово, выкачено (22.10, `768aef9`) | e2e `focus-modality.spec.ts` 8/8 против стенда (на старом main 6 из 7 падали); `ui/input-modality.test.ts` 35; скрины `backlog/screens/R103/W0/{before,after}/focus-*` |
 | R27 | W3, W5 | ждёт | |
 | R28 | W0 (+ владельцы экранов) | частично: проход 1 выкачен (`768aef9`) — токены значков/волосков, `Button`/`IconButton` 16/20/24; проход 2 — владельцы экранов | `kit.test.tsx`, `Menu.test.tsx`; `screens/R103/I3/meeting-*` |
@@ -81,9 +81,9 @@
 | R75 | W0 | готово, выкачено (22.10, `768aef9`) | `focus-modality.spec` «меню избранного» |
 | R76 | W7 | ждёт | |
 | R77 | W3 | ждёт | |
-| R78 | W1c, W2, W7 | частично (22.10) | медиа: 720/1080/1440 в профилях; UI-сегмент — W2/W7 |
+| R78 | W1c, W2, W7 | медиа готово (22.10); UI настроек готов в ветке `review/W2` (сегменты 720/1080/1440 × 30/60, `QualityFields {kind,value,onChange,ceiling}`, `CAMERA_DEFAULT`); окно показа — W7 | `Settings.test.tsx` «Видео (R100, R78)», `preferences.test.ts` «камера: умолчание 720p30…», e2e `return-and-settings` (радио) |
 | R79 | W6 | ждёт | |
-| R80 | W1c, W7, W2 | частично (22.10) | медиа: превью + `preferences.screen.preview`; переключатель в окне показа — W7 |
+| R80 | W1c, W7, W2 | медиа готово (22.10); переключатель «Превью показа» в «Видео» — в ветке `review/W2`; окно показа — W7 | `Settings.test.tsx` «Видео…» (`preferences.screen.preview`) |
 | R81 | W1c | готово, выкачено (22.10, `5b4858d`) | screen-stop: 127 мс; `journal/2026-10-22-review-I1.md` |
 | R82 | W7, W2, WD2 | ждёт | |
 | R83 | W3 | ждёт | |
@@ -103,8 +103,8 @@
 | R97 | W1c | готово, выкачено (22.10, `5b4858d`) | `MediaRoomCloser` afterCommit; RoomServiceTest, MediaRoomCloserTest |
 | R98 | W1c | готово, выкачено (22.10, `5b4858d`) | screen-latency: 1150 мс; `journal/2026-10-22-review-I1.md` |
 | R99 | W1c, WD2 | частично (22.10) | ворота WD2 |
-| R100 | W2 | ждёт | |
-| R101 | W2 | ждёт | |
+| R100 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | `Settings.test.tsx` «Звук (R100)», «Видео (R100, R78)», «камера недоступна», «закрытие окна отпускает камеру»; `screens/R103/W2/after/settings-*-звук-*`, `*-видео-*` |
+| R101 | W2 | готово в ветке `review/W2` (22.10), ждёт I4 | e2e `settings-accounts` «каждый раздел помещается в окно без прокрутки» (1280×800, 1440×900); `screens/R103/W2/after/report.json` `contentOverflowY` = 0 и при 1280×720 |
 | R102 | W1c | готово (22.10) | учтено в §9 |
 | R103 | WD2 | ждёт | |
 | R104 | WD2 | ждёт | |
@@ -136,7 +136,7 @@
 | 1.0.4 | WD1 → релиз, зеркало | готово (22.10): `abb8aac`, релиз `desktop-v1.0.4`, зеркало обновлено |
 | I2 | W1c → `main`, выкатка №2 | объединено с I1 (`5b4858d`) |
 | I3 | W0 → `main`, выкатка №3 | готово (22.10): `768aef9`, `deploy.sh gateway`; против стенда focus-modality, kit, home-shell, meeting — 16/16; vitest 1215/1215; заодно `efd1f8a` — тест HLS под новую настройку (красный CI после I1) |
-| I4 | W2 → `main`, выкатка №4 | ждёт |
+| I4 | W2 → `main`, выкатка №4 | ветка `review/W2` готова (22.10), ждёт слияния архитектором |
 | I5 | W3 → `main`, выкатка №5 | ждёт |
 | I6 | W1b → `main`, выкатка с дренажем | ждёт |
 | I7 | W7 → `main`, выкатка №7 | ждёт |

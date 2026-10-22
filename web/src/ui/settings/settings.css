@@ -926,6 +926,22 @@ input.theme-option__input {
   .setting-row {
     padding-block: var(--space-1);
   }
+  /* Дерево разделов тоже плотнее: «О программе» остаётся в окне и в 1280×720. */
+  .settings-nav {
+    padding-block: var(--space-3);
+  }
+  .settings-nav__item {
+    height: var(--control-sm);
+  }
+  .settings-nav__anchor {
+    min-height: var(--control-xs);
+  }
+  .settings-nav__group-title {
+    padding-top: var(--space-1);
+  }
+  .settings-profile {
+    padding-block: var(--space-1);
+  }
 }
 
 /* ---------- планшет ---------- */
