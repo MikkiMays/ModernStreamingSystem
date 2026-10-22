@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * Витрина набора примитивов (`/kit`, E16) стоит вне приложения, как `/download`: ни сервера,
  * ни сессии. Здесь проверяется то, что нельзя проверить в jsdom: axe по обеим темам, кольцо
- * фокуса ползунка только с клавиатуры (T31) и ручка-разделитель, которая помнит ширину (T46).
+ * фокуса ползунка только с клавиатуры (S1) и ручка-разделитель, которая помнит ширину (T46).
  */
 test('витрина: axe чист в обеих темах, фокус только с клавиатуры, ширина панели помнится', async ({
   page,
@@ -24,12 +24,18 @@ test('витрина: axe чист в обеих темах, фокус толь
     expect(violations, theme).toEqual([]);
   }
 
+  // Кольцо — по модальности ввода (S1): Chromium после щелчка и Shift честно ставит `:focus-visible`,
+  // поэтому смотрим на то, что видит человек, — `outline-style`.
   const slider = page.getByRole('slider', { name: 'Громкость' }).first();
+  const ring = () => slider.evaluate((el) => getComputedStyle(el).outlineStyle);
   await slider.click();
   expect(await slider.evaluate((el) => el.matches(':focus-visible')), 'после клика кольца нет').toBe(false);
+  await page.keyboard.press('Shift');
+  expect(await ring(), 'после клика и Shift кольца нет').toBe('none');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Shift+Tab');
   expect(await slider.evaluate((el) => el.matches(':focus-visible')), 'с клавиатуры кольцо есть').toBe(true);
+  expect(await ring(), 'с клавиатуры кольцо есть').toBe('solid');
 
   const handle = page.getByRole('separator', { name: 'Ширина левой панели' }).first();
   await expect(handle).toHaveCSS('cursor', 'col-resize');
