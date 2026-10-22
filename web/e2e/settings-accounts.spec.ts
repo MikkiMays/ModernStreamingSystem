@@ -183,3 +183,30 @@ test('каждый раздел помещается в окно без прок
     await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   }
 });
+
+test('подсветка подраздела: на дне прокрутки — последний, щелчок по якорю — он (R12, Ц9)', async ({
+  page,
+}) => {
+  // Низкое окно: «Видео» в нём прокручивается — правило «помещается» для эталона и выше (R101).
+  await page.setViewportSize({ width: 1280, height: 560 });
+  await page.goto('/');
+  await openSettings(page);
+  await nav(page).getByRole('button', { name: 'Видео', exact: true }).click();
+  const anchors = nav(page).getByRole('list', { name: 'Подразделы: Видео' });
+  const content = page.locator('.settings-content');
+  expect(await content.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  await content.hover();
+  await page.mouse.wheel(0, 2000);
+  await expect
+    .poll(() =>
+      content.evaluate((element) => element.scrollTop + element.clientHeight >= element.scrollHeight - 2),
+    )
+    .toBe(true);
+  await expect(anchors.getByRole('button', { name: 'Демонстрация экрана' })).toHaveAttribute(
+    'aria-current',
+    'location',
+  );
+  await anchors.getByRole('button', { name: 'Камера' }).click();
+  await page.waitForTimeout(800);
+  await expect(anchors.getByRole('button', { name: 'Камера' })).toHaveAttribute('aria-current', 'location');
+});
