@@ -4,7 +4,9 @@ import { watchTitlebar, type WindowControlsOverlayLike } from './titlebar';
 /** Зона кнопок окна, как её отдаёт Chromium: прямоугольник заголовка слева от «— ⧉ ×». */
 function overlay(visible: boolean, rect = { x: 0, y: 0, width: 1142, height: 36 }) {
   const listeners = new Set<() => void>();
-  const fake: WindowControlsOverlayLike & { move(next: typeof rect, shown?: boolean): void } = {
+  const fake: { -readonly [K in keyof WindowControlsOverlayLike]: WindowControlsOverlayLike[K] } & {
+    move(next: typeof rect, shown?: boolean): void;
+  } = {
     visible,
     getTitlebarAreaRect: () => rect,
     addEventListener: (_type, listener) => listeners.add(listener),
