@@ -4,7 +4,8 @@
 
   Правила набора:
   - глубина — слоями и светом (`--shadow-*` с внутренней верхней подсветкой), а не рамками;
-  - кольцо фокуса только с клавиатуры: `:focus-visible` (T31);
+  - кольцо фокуса только с клавиатуры: токен `--focus-outline` пуст вне режима клавиатуры (S1,
+    `ui/input-modality.ts`), окна и меню кольца не получают никогда;
   - движение — `transform`/`opacity`, длительности из токенов (при reduced-motion они нули);
   - касание: на грубом указателе любой элемент управления не ниже 44 px.
 */
@@ -555,6 +556,15 @@
 .ui-menu__item[data-highlighted] {
   background: var(--surface-hover);
 }
+/* Пункт меню кольца не получает (R75): где курсор, показывает подсветка `data-highlighted`. С
+   клавиатуры подсвеченный пункт ещё и обведён внутри — видно, куда идут стрелки, а окно меню не
+   обводится. */
+.ui-menu__item:focus-visible {
+  outline: none;
+}
+:root[data-input='keyboard'] .ui-menu__item[data-highlighted] {
+  box-shadow: inset 0 0 0 var(--hairline-strong) var(--accent);
+}
 .ui-menu__item[data-disabled] {
   color: var(--text-disabled);
 }
@@ -915,12 +925,12 @@
 }
 .ui-handle:hover,
 .ui-handle[data-dragging],
-.ui-handle:focus-visible {
+:root[data-input='keyboard'] .ui-handle:focus-visible {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .ui-handle:hover .ui-handle__bar,
 .ui-handle[data-dragging] .ui-handle__bar,
-.ui-handle:focus-visible .ui-handle__bar {
+:root[data-input='keyboard'] .ui-handle:focus-visible .ui-handle__bar {
   opacity: 1;
   transform: scaleY(1);
 }

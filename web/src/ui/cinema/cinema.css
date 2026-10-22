@@ -303,8 +303,8 @@
   background: transparent;
 }
 .cinema-open:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .cinema-tile .cinema-poster,
 .cinema-tile-title,

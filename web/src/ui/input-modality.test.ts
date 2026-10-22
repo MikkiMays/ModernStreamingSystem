@@ -1,4 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import tokens from '../styles/tokens.css?raw';
+import styles from '../styles.css?raw';
+import chess from '../chess.css?raw';
+import durak from '../durak.css?raw';
+import gartic from '../gartic.css?raw';
+import gamePeople from '../game-people.css?raw';
+import gamePolish from '../game-polish.css?raw';
+import cinema from './cinema/cinema.css?raw';
+import kit from './kit/kit.css?raw';
 import { installInputModality } from './input-modality';
 
 /*
@@ -103,5 +112,59 @@ describe('installInputModality', () => {
     uninstall();
     key({ key: 'Tab' });
     expect(mode()).toBe('pointer');
+  });
+});
+
+/** Блоки правил, у которых в селекторе есть `:focus-visible`: `селектор { тело }`. */
+function focusRules(css: string) {
+  const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  return [...plain.matchAll(/([^{}]*:focus-visible[^{}]*)\{([^{}]*)\}/g)].map(([, selector, body]) => ({
+    selector: selector!.trim(),
+    body: body!,
+  }));
+}
+
+describe('CSS: одно кольцо на токене', () => {
+  it('вне режима клавиатуры токен кольца пуст — и в корне, и во вложенных темах и на сцене', () => {
+    // `none`, а не `0 solid transparent`: у погашенного кольца `outline-style` — `none` (Ц7).
+    expect(tokens).toMatch(
+      /:root:not\(\[data-input='keyboard'\]\),\s*:root:not\(\[data-input='keyboard'\]\) :is\(\[data-theme\], \.media-stage\) \{\s*--focus-outline: none;/,
+    );
+  });
+
+  it('глобальное правило — нулевого веса и не ловит контейнеры с tabindex=-1', () => {
+    expect(styles).toMatch(
+      /:where\(button, a, input, select, textarea, \[tabindex\]:not\(\[tabindex='-1'\]\)\):focus-visible \{\s*outline: var\(--focus-outline\);\s*outline-offset: var\(--focus-offset\);/,
+    );
+    expect(styles).not.toMatch(/^\[tabindex\]:focus-visible/m);
+  });
+
+  it('окна, меню и старый .modal кольца не получают никогда', () => {
+    expect(styles).toMatch(
+      /:where\(\[tabindex='-1'\], \[role='dialog'\], \[role='alertdialog'\], \[role='menu'\]\):focus-visible,\s*\.modal:focus-visible \{\s*outline: none;/,
+    );
+  });
+
+  it('пункт меню — без кольца; в режиме клавиатуры подсвеченный обведён внутри (R75)', () => {
+    expect(kit).toMatch(/\.ui-menu__item:focus-visible \{\s*outline: none;/);
+    expect(kit).toMatch(
+      /:root\[data-input='keyboard'\] \.ui-menu__item\[data-highlighted\] \{\s*box-shadow: inset 0 0 0 var\(--hairline-strong\) var\(--accent\);/,
+    );
+  });
+
+  it('литеральных колец фокуса нет: только var(--focus-outline)', () => {
+    const files = { styles, chess, durak, gartic, gamePeople, gamePolish, cinema, kit };
+    for (const [name, css] of Object.entries(files))
+      for (const rule of focusRules(css))
+        expect(rule.body, `${name}: ${rule.selector}`).not.toMatch(/outline:\s*\d+px\s+solid/);
+  });
+
+  it('прежний обход для ползунков снят: модальность закрывает и их (T31)', () => {
+    expect(styles).not.toMatch(/data-pointer-focus/);
+  });
+
+  it('правило полей по-прежнему нулевого веса и не трогает range', () => {
+    // «Таблетка» с рамкой вокруг дорожки была его заслугой (CONTEXT.md → «Грабли интерфейса»).
+    expect(styles).toMatch(/:where\(input:not\(\[type='checkbox'\], \[type='radio'\], \[type='range'\]\)\)/);
   });
 });

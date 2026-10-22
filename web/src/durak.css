@@ -27,8 +27,8 @@
     cursor: default;
   }
   & button:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-offset);
   }
   & .durak-bar {
     display: flex;

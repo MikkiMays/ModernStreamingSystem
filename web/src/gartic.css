@@ -67,8 +67,8 @@
   border-radius: var(--radius-2);
 }
 .gartic-rules summary:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .gartic-rules > div {
   position: absolute;
@@ -1030,8 +1030,8 @@
   display: none;
 }
 .gartic-scoring-help summary:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: 3px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-radius: var(--radius-1);
 }
 .gartic-scoring-help[open] summary svg {

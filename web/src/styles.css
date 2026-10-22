@@ -48,14 +48,20 @@ button {
     color 150ms,
     box-shadow 150ms;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tabindex]:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: 3px;
+/*
+  Кольцо фокуса — одно на всё приложение (S1, R26): токен `--focus-outline`, который пуст, пока человек
+  не пошёл клавиатурой (`styles/tokens.css`, `ui/input-modality.ts`). `:where()` обнуляет вес: любой
+  класс компонента правило перебивает. Контейнеры с `tabindex=-1` — окна и меню Base UI, заголовки,
+  которым фокус дают скриптом, — сюда не попадают: раньше `[tabindex]` с весом (0,2,0) обводил целиком
+  окно настроек, «Диагностику» и пункт меню, стоило нажать Shift.
+*/
+:where(button, a, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+:where([tabindex='-1'], [role='dialog'], [role='alertdialog'], [role='menu']):focus-visible,
+.modal:focus-visible {
+  outline: none;
 }
 button {
   border: 0;
@@ -163,10 +169,6 @@ select {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-full);
-}
-/* Ползунок, взятый пальцем или мышью, кольца не получает и после клавиш (`ui/pointer-focus.ts`). */
-input[type='range'][data-pointer-focus]:focus-visible {
-  outline: none;
 }
 .slider:disabled::-webkit-slider-thumb {
   background: var(--muted);
