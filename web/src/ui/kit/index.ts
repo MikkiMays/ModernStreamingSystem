@@ -21,12 +21,17 @@ export {
   MenuSeparator,
   MenuSubmenu,
   MenuCheckboxItem,
+  MenuSwitchItem,
   MenuRadioGroup,
   MenuRadioItem,
   type MenuContentProps,
   type MenuItemProps,
+  type MenuSwitchItemProps,
 } from './Menu';
 export { Dialog, DialogTrigger, DialogClose, type DialogProps } from './Dialog';
+export { Popover, type PopoverProps } from './Popover';
+export { Drawer, type DrawerProps } from './Drawer';
+export { useMediaQuery, PHONE_QUERY } from './useMediaQuery';
 export { ToastProvider, useToast } from './Toast';
 export { Badge, Soon, type BadgeProps } from './Badge';
 export { Card, type CardProps } from './Card';

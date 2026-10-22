@@ -65,6 +65,46 @@ export function MenuItem({
   );
 }
 
+export interface MenuSwitchItemProps extends Omit<
+  ComponentProps<typeof BaseMenu.CheckboxItem>,
+  'children' | 'className'
+> {
+  /** Постоянный значок слева: состояние показывает переключатель, а не смена значка. */
+  icon?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+/**
+ * Пункт меню с переключателем (X4, R70): «Автоподключение» и другие да/нет прямо в меню. Роль —
+ * `menuitemcheckbox` с `aria-checked` (на неё опираются e2e и диктор); в третьей колонке —
+ * неинтерактивный переключатель того же вида, что `Switch`. Настоящий `Switch` внутрь не кладётся:
+ * вложенный интерактив поймал бы axe. Щелчок не закрывает меню — видно, что переключилось.
+ */
+export function MenuSwitchItem({
+  icon,
+  children,
+  closeOnClick = false,
+  className,
+  ...props
+}: MenuSwitchItemProps) {
+  return (
+    <BaseMenu.CheckboxItem
+      className={['ui-menu__item', 'ui-menu__item--switch', className].filter(Boolean).join(' ')}
+      closeOnClick={closeOnClick}
+      {...props}
+    >
+      <span className="ui-menu__icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="ui-menu__label">{children}</span>
+      <span className="ui-switch ui-switch--menu" aria-hidden="true">
+        <span className="ui-switch__thumb" />
+      </span>
+    </BaseMenu.CheckboxItem>
+  );
+}
+
 export function MenuLabel({ className, ...props }: ComponentProps<typeof BaseMenu.GroupLabel>) {
   return (
     <BaseMenu.GroupLabel

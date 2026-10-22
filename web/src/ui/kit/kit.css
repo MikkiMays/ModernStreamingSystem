@@ -716,6 +716,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Переключатель в пункте меню — 32×18, тот же, что `Switch`, но поменьше и без своего фокуса:
+   состояние берёт у пункта (`data-checked`). */
+.ui-switch--menu {
+  width: 32px;
+  height: 18px;
+  cursor: inherit;
+}
+.ui-switch--menu .ui-switch__thumb {
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+}
+.ui-menu__item[data-checked] .ui-switch--menu {
+  background: var(--accent-fill);
+}
+.ui-menu__item[data-checked] .ui-switch--menu .ui-switch__thumb {
+  transform: translateX(14px);
+}
+.ui-menu__item[data-disabled] .ui-switch--menu {
+  opacity: 0.5;
+}
 .ui-menu__shortcut {
   font: inherit;
   font-size: var(--text-xs);
@@ -837,6 +859,162 @@
   .ui-dialog[data-starting-style] {
     transform: translateY(24px);
   }
+}
+
+/* ---------- всплывающая карточка ----------
+   Слой — над меню, под диалогами (39 подложек меню и 50 окон его не задевают). Появляется снизу
+   вверх коротко и физично, уходит быстрее — как меню и диалоги набора. */
+.ui-popover__positioner {
+  z-index: calc(var(--z-menu) + 1);
+  outline: none;
+}
+.ui-popover {
+  display: grid;
+  max-width: min(420px, calc(100vw - 2 * var(--space-4)));
+  max-height: var(--available-height);
+  border-radius: var(--menu-radius);
+  background: var(--menu-bg);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  outline: none;
+  overflow: hidden;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--motion-base) var(--ease-emphasized),
+    transform var(--motion-base) var(--ease-emphasized);
+}
+.ui-popover[data-starting-style] {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.ui-popover[data-side='top'][data-starting-style] {
+  transform: translateY(6px);
+}
+.ui-popover[data-ending-style] {
+  opacity: 0;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-exit);
+}
+.ui-popover__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2) 0 var(--space-4);
+}
+.ui-popover__title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.ui-popover__body {
+  min-height: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---------- лист снизу ----------
+   Модальный, на слое окон (не ниже 39 — иначе он ляжет под собственную подложку, `cord-ui-traps`).
+   Пока палец тянет ручку, лист идёт за ним без перехода (`data-swiping`); отпустили — доезжает
+   на `--motion-slow` или уезжает вниз тем быстрее, чем резче жест (`--drawer-swipe-strength`). */
+.ui-drawer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--scrim);
+  opacity: calc(1 - var(--drawer-swipe-progress, 0));
+  transition: opacity var(--motion-slow) var(--ease-emphasized);
+}
+.ui-drawer__backdrop[data-starting-style],
+.ui-drawer__backdrop[data-ending-style] {
+  opacity: 0;
+}
+.ui-drawer__backdrop[data-swiping] {
+  transition-duration: 0ms;
+}
+.ui-drawer__viewport {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.ui-drawer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - var(--space-6));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: var(--radius-5) var(--radius-5) 0 0;
+  background: var(--dialog-bg);
+  color: var(--text);
+  box-shadow: var(--shadow-3);
+  outline: none;
+  transform: translateY(var(--drawer-swipe-movement-y, 0px));
+  transition: transform var(--motion-slow) var(--ease-emphasized);
+  touch-action: none;
+}
+.ui-drawer[data-starting-style],
+.ui-drawer[data-ending-style] {
+  transform: translateY(100%);
+}
+.ui-drawer[data-ending-style] {
+  transition-duration: calc(var(--drawer-swipe-strength, 1) * var(--motion-base));
+  transition-timing-function: var(--ease-exit);
+}
+.ui-drawer[data-swiping] {
+  transition-duration: 0ms;
+  user-select: none;
+}
+.ui-drawer--50 {
+  height: 50dvh;
+}
+.ui-drawer--85 {
+  height: 85dvh;
+}
+.ui-drawer--full {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+.ui-drawer__handle {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: var(--space-2) auto var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+}
+.ui-drawer__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.ui-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) 0 var(--space-5);
+}
+.ui-drawer__title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.ui-drawer__body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 /* ---------- тосты ---------- */
