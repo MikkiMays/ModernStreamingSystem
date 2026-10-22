@@ -1,0 +1,163 @@
+/*
+  Активные интеграции поверх звонка (R30, DESIGN → «Активные интеграции поверх звонка»). Только токены.
+
+  Слой лежит над всеми ветками сцены справа сверху: в одном ряду с «…» верхней правой плитки и левее
+  неё — меню плитки остаётся нажимаемым. По оси z — над плитками (`--z-stage`), под панелью и пультом.
+  Сам слой нажатий не ловит, ловят только чипы. На телефоне слой встаёт строкой над сценой, в потоке:
+  поверх лиц на узком экране ему места нет.
+*/
+.stage-overlay {
+  position: absolute;
+  z-index: calc(var(--z-stage) + 5);
+  top: calc(var(--space-3) + var(--space-2));
+  inset-inline-end: calc(var(--space-3) + var(--space-2) + var(--control-sm) + var(--space-2));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: min(60%, 720px);
+  pointer-events: none;
+}
+.stage-overlay > * {
+  pointer-events: auto;
+}
+.stage-overlay[data-empty] {
+  display: none;
+}
+/* Чужой экран открыт во всю сцену без полей — слой у самого края кадра. */
+.stage-wrap:has(.watch-stage) > .stage-overlay {
+  top: var(--space-3);
+  inset-inline-end: var(--space-3);
+}
+
+/* Чип — «стекло сцены»: значок площадки на плашке её цвета, подпись, у играющей музыки — эквалайзер. */
+.stage-chip {
+  --chip-brand: var(--surface-3);
+  --chip-ink: var(--stage-text);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 260px;
+  height: var(--control-sm);
+  padding: 0 var(--space-3) 0 6px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-1);
+  color: var(--stage-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+.stage-chip:hover {
+  background: var(--stage-glass-strong);
+}
+.stage-chip:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.stage-chip__brand {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  border-radius: var(--radius-0);
+  background: var(--chip-brand);
+  color: var(--chip-ink);
+}
+.stage-chip__brand > svg.lucide {
+  width: 12px;
+  height: 12px;
+}
+.stage-chip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stage-chip[data-kind='music'] {
+  --chip-brand: var(--brand-music);
+  --chip-ink: var(--brand-music-ink);
+}
+.stage-chip[data-kind='cinema'] {
+  --chip-brand: var(--brand-cinema);
+  --chip-ink: var(--brand-cinema-ink);
+}
+.stage-chip[data-kind='poker'] {
+  --chip-brand: var(--brand-poker);
+  --chip-ink: var(--brand-poker-ink);
+}
+.stage-chip[data-kind='durak'] {
+  --chip-brand: var(--brand-durak);
+  --chip-ink: var(--brand-durak-ink);
+}
+.stage-chip[data-kind='chess'] {
+  --chip-brand: var(--brand-chess);
+  --chip-ink: var(--brand-chess-ink);
+}
+.stage-chip[data-kind='gartic'] {
+  --chip-brand: var(--brand-gartic);
+  --chip-ink: var(--brand-gartic-ink);
+}
+
+/* Эквалайзер — три полоски цвета музыки: единственное, что здесь движется само, потому что это звук. */
+.stage-chip__eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+  width: 13px;
+  height: 12px;
+}
+.stage-chip__eq > i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--brand-music);
+  transform-origin: bottom;
+  animation: stage-chip-eq 600ms var(--ease-standard) infinite alternate;
+}
+.stage-chip__eq > i:nth-child(2) {
+  animation-delay: -200ms;
+}
+.stage-chip__eq > i:nth-child(3) {
+  animation-delay: -400ms;
+}
+@keyframes stage-chip-eq {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-chip__eq > i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+}
+
+/* Телефон: строка над сценой в потоке, прокручивается вбок; чипы — в одну строку. */
+@media (max-width: 767px) {
+  .stage-overlay,
+  .stage-wrap:has(.watch-stage) > .stage-overlay {
+    position: static;
+    flex: none;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    max-width: none;
+    margin-bottom: var(--space-2);
+    overflow-x: auto;
+  }
+  .stage-chip {
+    flex: none;
+    max-width: 70vw;
+  }
+}

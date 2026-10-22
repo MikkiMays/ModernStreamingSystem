@@ -2616,13 +2616,10 @@
     "roster": {
       "label": "Bots and integrations",
       "music": "Music",
-      "open": "Open the music player",
-      "check": "Connection needs checking",
-      "add": "Add to the meeting",
-      "connecting": "Connecting…",
-      "paused": "Paused",
-      "playing": "Now playing",
-      "empty": "Queue is empty"
+      "cinema": "Cinema",
+      "seated": "{{name}} · {{count}} at the table",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Status unavailable",

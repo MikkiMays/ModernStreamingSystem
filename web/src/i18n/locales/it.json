@@ -2643,13 +2643,10 @@
     "roster": {
       "label": "Bot e integrazioni",
       "music": "Musica",
-      "open": "Apri il player musicale",
-      "check": "Serve un controllo della connessione",
-      "add": "Aggiungi alla riunione",
-      "connecting": "Connessione…",
-      "paused": "In pausa",
-      "playing": "In riproduzione",
-      "empty": "La coda è vuota"
+      "cinema": "Cinema",
+      "seated": "{{name}} · {{count}} al tavolo",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Stato non disponibile",

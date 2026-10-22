@@ -2589,13 +2589,10 @@
     "roster": {
       "label": "机器人和集成",
       "music": "音乐",
-      "open": "打开音乐播放器",
-      "check": "需要检查连接",
-      "add": "添加到会议",
-      "connecting": "正在连接…",
-      "paused": "已暂停",
-      "playing": "正在播放",
-      "empty": "队列为空"
+      "cinema": "影院",
+      "seated": "{{name}} · {{count}} 人在桌",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}：{{title}}"
     },
     "status": {
       "unavailable": "状态不可用",

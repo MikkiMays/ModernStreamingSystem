@@ -81,6 +81,15 @@
   --palette-steel-600: #3b506a;
   --palette-steel-900: #0f2238;
   --palette-violet-300: #bca6ff;
+  /* Бренды интеграций (DESIGN → «Цвета интеграций», R33): здесь — категории и игры, которые носят чипы
+     над сценой (R30); площадки (YouTube, Яндекс…) дописывает реестр брендов. Цвет приложения
+     интеграции не берут. */
+  --palette-brand-music: #2b9459;
+  --palette-brand-cinema: #0f97ab;
+  --palette-brand-poker: #8a5cf6;
+  --palette-brand-durak: #c9a227;
+  --palette-brand-chess: #5271a3;
+  --palette-brand-gartic: #8d65c5;
   /* лица без картинки: пять пар «фон — буква» */
   --palette-face-blue-bg: #d9e4fc;
   --palette-face-blue: #315589;
@@ -198,6 +207,11 @@
   --stage-glint-2: rgb(255 255 255 / 0.16);
   --stage-glint-3: rgb(255 255 255 / 0.32);
   --stage-glint-4: rgb(255 255 255 / 0.68);
+  /* Стекло сцены (DESIGN → «Новые токены»): чипы интеграций и плашки поверх кадра — полупрозрачно,
+     с размытием того, что под ними. */
+  --stage-glass: color-mix(in srgb, var(--stage-bg) 62%, transparent);
+  --stage-glass-strong: color-mix(in srgb, var(--stage-bg) 82%, transparent);
+  --stage-glass-blur: 12px;
   /* Тени предметов на сцене: карта на сукне и то, что над ним поднято (фишка, банк, лицо). */
   --shadow-card: 0 2px 6px rgb(0 0 0 / 0.35);
   --shadow-lift: 0 10px 24px rgb(0 0 0 / 0.45);
@@ -249,6 +263,19 @@
   --avatar-3-fg: var(--palette-face-sand);
   --avatar-4-bg: var(--palette-mist-200);
   --avatar-4-fg: var(--palette-slate-700);
+  /* Плашка значка интеграции и знак на ней (`--brand-<id>-ink`): на светлых заливках — тёмный. */
+  --brand-music: var(--palette-brand-music);
+  --brand-music-ink: var(--palette-white);
+  --brand-cinema: var(--palette-brand-cinema);
+  --brand-cinema-ink: var(--palette-white);
+  --brand-poker: var(--palette-brand-poker);
+  --brand-poker-ink: var(--palette-white);
+  --brand-durak: var(--palette-brand-durak);
+  --brand-durak-ink: var(--palette-slate-900);
+  --brand-chess: var(--palette-brand-chess);
+  --brand-chess-ink: var(--palette-white);
+  --brand-gartic: var(--palette-brand-gartic);
+  --brand-gartic-ink: var(--palette-white);
 }
 
 /* ---------- смысловые: светлая тема ---------- */

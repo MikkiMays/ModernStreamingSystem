@@ -6,7 +6,6 @@ import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
-import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, useStore } from './primitives';
 import { IconButton } from './kit';
@@ -173,15 +172,7 @@ function VoiceRing({ meeting, id }: { meeting: Meeting; id: string }) {
   return <span className="person-voice" data-voice={tier || undefined} aria-hidden="true" />;
 }
 
-export function Stage({
-  meeting,
-  onOpenServices,
-  showServices,
-}: {
-  meeting: Meeting;
-  onOpenServices: () => void;
-  showServices: boolean;
-}) {
+export function Stage({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const participants = snapshot.participants;
@@ -329,13 +320,6 @@ export function Stage({
       </div>
     );
   }
-  const showRoster =
-    showServices &&
-    layout === 'grid' &&
-    participants.some(
-      (participant) =>
-        participant.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(participant.status),
-    );
   /**
    * Одна и та же плитка и в сетке, и в ленте под общим плеером: в кинозале у неё отбирают
    * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
@@ -543,10 +527,7 @@ export function Stage({
     );
   }
   return (
-    <div
-      className={`stage conversation-stage media-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
-      data-layout={layout}
-    >
+    <div className="stage conversation-stage camera-stage media-stage" data-layout={layout}>
       <div
         className="people-grid"
         data-count={people.length}
@@ -567,7 +548,6 @@ export function Stage({
       >
         {people.map((person, index) => tile(person, index, layout === 'grid'))}
       </div>
-      {showRoster && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
     </div>
   );
 }

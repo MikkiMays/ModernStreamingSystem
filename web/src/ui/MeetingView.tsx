@@ -5,6 +5,7 @@ import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { Ping } from './Ping';
+import { StageOverlay } from './StageOverlay';
 import { CallDock } from './CallDock';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
@@ -152,7 +153,6 @@ export function MeetingView({
     onHome();
   };
   useCallInBackground(meeting, leaveMeeting);
-  const showIntegrationPanel = preferences.showIntegrationPanel !== false;
   useEffect(() => {
     meeting.start();
     return () => meeting.dispose();
@@ -363,13 +363,10 @@ export function MeetingView({
             </div>
           ) : (
             <>
-              <Stage
-                meeting={meeting}
-                /* Со сцены панель всегда открывают, а не переключают: нажатие «покажи
-                   комбинации» при уже открытой панели закрывало бы её. */
-                onOpenServices={() => setPanel('services')}
-                showServices={showIntegrationPanel}
-              />
+              {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
+                  открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
+              <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
+              <Stage meeting={meeting} />
               {(viewing || pinned) && (
                 <button
                   className="return-conversation media-stage"
