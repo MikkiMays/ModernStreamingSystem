@@ -82,14 +82,17 @@ beforeEach(() => {
 });
 
 describe('HLS через hls.js', () => {
-  it('создаётся с прежней настройкой, прячет родные субтитры и грузит адрес в тот же <video>', () => {
+  it('создаётся с настройкой, которая переживает замирание хоста, прячет родные субтитры и грузит адрес в тот же <video>', () => {
     const video = document.createElement('video');
     attachHls(video, '/cinema/playlist?u=1', 'ru', callbacks());
     expect(hls().config).toEqual({
       enableWorker: true,
       backBufferLength: 120,
       maxBufferLength: 30,
-      fragLoadingMaxRetry: 6,
+      maxMaxBufferLength: 60,
+      fragLoadingMaxRetry: 8,
+      fragLoadingRetryDelay: 500,
+      fragLoadingMaxRetryTimeout: 4000,
       manifestLoadingMaxRetry: 4,
       capLevelToPlayerSize: false,
       maxBufferHole: 0.5,
