@@ -27,15 +27,23 @@
   flex-shrink: 0;
 }
 
+/* Меню человека — меню набора (R28): имя заголовком, громкость ползунком, дальше пункты. */
 .participant-menu {
   min-width: 240px;
-  padding: 12px;
 }
-.participant-menu strong {
-  padding: 6px;
+.participant-menu__name {
+  display: block;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 .participant-menu .participant-volume {
-  padding: 10px 6px;
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-xs);
 }
 
 /*

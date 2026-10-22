@@ -1,6 +1,6 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { Menu } from '@base-ui/react/menu';
-import { MoreHorizontal } from 'lucide-react';
+import { MicOff, MonitorUp, MoreHorizontal, Pin, PinOff, UserX, Volume2, VolumeX } from 'lucide-react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Participant } from '../api/types';
@@ -8,25 +8,53 @@ import type { Meeting } from '../core/meeting';
 import { allowed } from '../core/permissions';
 import { Slider, useStore } from './primitives';
 
+type ItemComponent = ComponentType<Menu.Item.Props>;
+
+/**
+ * Пункт в виде меню набора (`kit/Menu.tsx`, R28): значок слева, высота 36 (под пальцем 44), а не
+ * прежние 48 своего `.action-menu`. Компонент пункта свой у каждого меню — кнопочного и по ПКМ.
+ */
+function Row({
+  Item,
+  icon,
+  destructive = false,
+  onClick,
+  children,
+}: {
+  Item: ItemComponent;
+  icon: ReactNode;
+  destructive?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Item
+      className={destructive ? 'ui-menu__item ui-menu__item--destructive' : 'ui-menu__item'}
+      onClick={onClick}
+    >
+      <span className="ui-menu__icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="ui-menu__label">{children}</span>
+    </Item>
+  );
+}
+
 /**
  * Закрепить или открепить камеру — одним пунктом, своей тоже (R83). Свой компонент: о закреплении
  * спрашивает только открытое меню.
  */
-function PinItem({
-  Item,
-  meeting,
-  person,
-}: {
-  Item: ComponentType<Menu.Item.Props>;
-  meeting: Meeting;
-  person: Participant;
-}) {
+function PinItem({ Item, meeting, person }: { Item: ItemComponent; meeting: Meeting; person: Participant }) {
   const { t } = useTranslation();
   const pinned = useStore(meeting.pinnedCamera) === person.id;
   return pinned ? (
-    <Item onClick={() => meeting.unpinCamera()}>{t(($) => $.stage.menu.unpin)}</Item>
+    <Row Item={Item} icon={<PinOff />} onClick={() => meeting.unpinCamera()}>
+      {t(($) => $.stage.menu.unpin)}
+    </Row>
   ) : (
-    <Item onClick={() => meeting.pinCamera(person.id)}>{t(($) => $.stage.menu.pin)}</Item>
+    <Row Item={Item} icon={<Pin />} onClick={() => meeting.pinCamera(person.id)}>
+      {t(($) => $.stage.menu.pin)}
+    </Row>
   );
 }
 
@@ -55,9 +83,9 @@ export function ParticipantMenu({
   const active = person.status !== 'WAITING';
 
   // Both menus list the same actions; only the component rendering an entry differs.
-  const items = (Item: ComponentType<Menu.Item.Props>) => (
+  const items = (Item: ItemComponent) => (
     <>
-      <strong>{person.name}</strong>
+      <strong className="participant-menu__name">{person.name}</strong>
       {remote && active && (
         <>
           <label className="participant-volume">
@@ -76,19 +104,27 @@ export function ParticipantMenu({
               onChange={(e) => meeting.media.setVolume(person.id, Number(e.target.value) / 100)}
             />
           </label>
-          <Item onClick={() => meeting.media.toggleParticipantMute(person.id)}>
+          <Row
+            Item={Item}
+            icon={volume === 0 ? <Volume2 /> : <VolumeX />}
+            onClick={() => meeting.media.toggleParticipantMute(person.id)}
+          >
             {volume === 0 ? t(($) => $.stage.menu.unmute) : t(($) => $.stage.menu.mute)}
-          </Item>
+          </Row>
         </>
       )}
       {active && !person.service && <PinItem Item={Item} meeting={meeting} person={person} />}
       {/* Свою демонстрацию не смотрят: это тот же экран, на котором она открыта, только
           с задержкой и через сеть. Показывающему нужна не она, а кнопка «остановить». */}
       {remote && person.screen && person.screenId && person.screenStarted && (
-        <Item onClick={() => meeting.openStream(person.id)}>{t(($) => $.stage.menu.watch)}</Item>
+        <Row Item={Item} icon={<MonitorUp />} onClick={() => meeting.openStream(person.id)}>
+          {t(($) => $.stage.menu.watch)}
+        </Row>
       )}
       {allowed(snapshot, meeting.admission.participantId, 'participant.mute') && remote && active && (
-        <Item
+        <Row
+          Item={Item}
+          icon={<MicOff />}
           onClick={() =>
             void meeting
               .command('microphone.mute', undefined, person.id)
@@ -96,12 +132,14 @@ export function ParticipantMenu({
           }
         >
           {t(($) => $.stage.menu.muteForAll)}
-        </Item>
+        </Row>
       )}
       {/* Создателя не исключают: это правило о цели, а не о праве (`RoomService`). */}
       {allowed(snapshot, meeting.admission.participantId, 'participant.remove') && !person.owner && (
-        <Item
-          className="danger-text"
+        <Row
+          Item={Item}
+          icon={<UserX />}
+          destructive
           onClick={() =>
             void meeting
               .command('participant.remove', undefined, person.id)
@@ -109,7 +147,7 @@ export function ParticipantMenu({
           }
         >
           {t(($) => $.stage.menu.remove)}
-        </Item>
+        </Row>
       )}
     </>
   );
@@ -129,15 +167,15 @@ export function ParticipantMenu({
             <MoreHorizontal size={16} />
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Positioner className="menu-layer" sideOffset={6} align="end">
-              <Menu.Popup className="action-menu participant-menu">{items(Menu.Item)}</Menu.Popup>
+            <Menu.Positioner className="ui-menu__positioner" sideOffset={6} align="end">
+              <Menu.Popup className="ui-menu participant-menu">{items(Menu.Item)}</Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Positioner className="menu-layer">
-          <ContextMenu.Popup className="action-menu participant-menu">
+        <ContextMenu.Positioner className="ui-menu__positioner">
+          <ContextMenu.Popup className="ui-menu participant-menu">
             {items(ContextMenu.Item)}
           </ContextMenu.Popup>
         </ContextMenu.Positioner>
