@@ -504,7 +504,7 @@ export default function GarticCanvas({
         </svg>
         {!ink.length && !active && (
           <div className="gartic-paper-empty" aria-hidden="true">
-            <Pencil size={30} strokeWidth={1.25} />
+            <Pencil size={30} strokeWidth={1.25} data-own-stroke />
             <span>
               {editable ? t(($) => $.gartic.canvas.firstStroke) : t(($) => $.gartic.canvas.emptyView)}
             </span>

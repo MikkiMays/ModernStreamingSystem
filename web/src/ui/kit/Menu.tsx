@@ -1,4 +1,5 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu';
+import { ChevronRight } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 
 /**
@@ -88,7 +89,7 @@ export interface MenuSubmenuProps {
   children: ReactNode;
 }
 
-/** Подменю: пункт со стрелкой «›», раскрывается справа. */
+/** Подменю: пункт со стрелкой вправо (значок `--icon-sm`, не символ «›»), раскрывается справа. */
 export function MenuSubmenu({ icon, label, children }: MenuSubmenuProps) {
   return (
     <BaseMenu.SubmenuRoot>
@@ -98,7 +99,7 @@ export function MenuSubmenu({ icon, label, children }: MenuSubmenuProps) {
         </span>
         <span className="ui-menu__label">{label}</span>
         <span className="ui-menu__chevron" aria-hidden="true">
-          ›
+          <ChevronRight />
         </span>
       </BaseMenu.SubmenuTrigger>
       <BaseMenu.Portal>
