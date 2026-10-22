@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { MicOff, MonitorUp, PinOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { MicOff, MonitorUp, MonitorX, PinOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -7,7 +7,7 @@ import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
 import { ParticipantMenu } from './ParticipantMenu';
-import { Avatar, useStore } from './primitives';
+import { Avatar, useMediaQuery, useStore } from './primitives';
 import { IconButton } from './kit';
 import { LensSwitch } from './CameraMenu';
 import { useVoiceTier } from './useVoice';
@@ -185,6 +185,8 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   const cinema = useStore(meeting.cinema);
   const cinemaAt = useStore(meeting.cinemaAt);
   const layout = useStore(meeting.media.preferences).layout;
+  /** Касание: показ в пульте не кнопкой, а пунктом «ещё» — останавливают его со своей плитки. */
+  const coarse = useMediaQuery('(pointer: coarse)');
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
   /*
@@ -410,11 +412,25 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         )}
         {sharing &&
           (self ? (
-            <span className="watch-stream is-own">
-              <MonitorUp size={16} />
-              <span>{t(($) => $.stage.sharing)}</span>
-              <span className="live-badge">LIVE</span>
-            </span>
+            coarse ? (
+              /* На телефоне кнопки показа в пульте нет (там переворот камеры) — остановить показ
+                 можно прямо со своей плитки, красной кнопкой с крестиком (R77). Она же и говорит,
+                 что показ идёт: длинная подпись «Вы показываете экран» здесь лишняя (R27). */
+              <button
+                type="button"
+                className="watch-stream is-stop"
+                onClick={() => void meeting.media.stopScreen()}
+              >
+                <MonitorX size={16} aria-hidden="true" />
+                <span>{t(($) => $.dock.unshare)}</span>
+              </button>
+            ) : (
+              <span className="watch-stream is-own">
+                <MonitorUp size={16} />
+                <span>{t(($) => $.stage.sharing)}</span>
+                <span className="live-badge">LIVE</span>
+              </span>
+            )
           ) : (
             <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
               <MonitorUp size={16} />

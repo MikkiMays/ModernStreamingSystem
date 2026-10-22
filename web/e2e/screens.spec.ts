@@ -138,6 +138,13 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     await expect(guest!.locator('.person-tile')).toHaveCount(3);
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(1);
     await expect(guest!.locator('.person-tile[data-pinned="true"]')).toContainText('Экран 1');
+    // Закреплённый — крупно над лентой остальных, с «Открепить» на плитке и в меню (R83).
+    await expect(guest!.locator('.spotlight-main .person-tile[data-pinned="true"]')).toHaveCount(1);
+    await expect(guest!.locator('.spotlight-strip .person-tile')).toHaveCount(2);
+    await expect(guest!.getByRole('button', { name: 'Открепить: Экран 1' })).toBeVisible();
+    await guest!.locator('.person-tile').filter({ hasText: 'Экран 1' }).click({ button: 'right' });
+    await expect(guest!.getByRole('menuitem', { name: 'Открепить камеру', exact: true })).toBeVisible();
+    await guest!.keyboard.press('Escape');
     // Своя камера зеркалится, чужая — нет: признак теперь facingMode, а не «моя дорожка».
     expect(
       await guest!
@@ -161,7 +168,9 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
     // пересобирает дорожку намеренно, так что совпадение id зависело бы от того, успел ли
     // сработать замер. Проверка была бы не про переходы, а про расписание.
     expect(await ownCamera(host!)).toEqual({ ...localCapture, state: 'live', frames: true });
-    await guest!.getByRole('button', { name: 'Вернуться в разговор' }).click();
+    await guest!.getByRole('button', { name: 'Открепить: Экран 1' }).click();
+    await expect(guest!.locator('.person-tile[data-pinned="true"]')).toHaveCount(0);
+    await expect(guest!.locator('.people-grid .person-tile')).toHaveCount(3);
     await third!.getByRole('button', { name: 'Показать экран', exact: true }).click();
     await expect(third!.getByRole('alert')).toContainText('Уже транслируются два экрана');
     await third!.getByRole('button', { name: 'Скрыть уведомление' }).click();
@@ -170,6 +179,10 @@ test('two synthetic screen sources traverse the real SFU; a third is rejected', 
       .filter({ hasText: 'Экран 1' })
       .getByRole('button', { name: /Смотреть стрим/ })
       .click();
+    // Идёт показ — кнопка в пульте красная, с крестиком (R77).
+    await expect(host!.getByRole('button', { name: 'Остановить показ', exact: true })).toHaveClass(
+      /ui-icon-button--danger/,
+    );
     await host!.getByRole('button', { name: 'Остановить показ', exact: true }).click();
     await expect(third!.locator('video.screen-video')).toHaveCount(0);
     await expect(third!.locator('.person-tile')).toHaveCount(3);

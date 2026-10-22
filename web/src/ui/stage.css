@@ -351,6 +351,14 @@ button.watch-stream:hover {
   background: color-mix(in srgb, var(--stage-tile-2) 60%, transparent);
   cursor: default;
 }
+/* Своя плитка на телефоне — красная кнопка «Остановить показ» с крестиком (R77). */
+button.watch-stream.is-stop {
+  background: var(--danger-fill);
+  color: var(--on-danger);
+}
+button.watch-stream.is-stop:hover {
+  background: var(--danger-fill-hover);
+}
 .watch-stream .live-badge {
   padding: 2px 6px;
   border-radius: var(--radius-1);
