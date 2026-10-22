@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Destination } from '../core/invitation';
 import { IconButton } from './kit';
 import { HomeEntry } from './HomeEntry';
+import { Ping } from './Ping';
 
 export function DesktopHome({
   onCreate,
@@ -25,6 +26,8 @@ export function DesktopHome({
         <Settings2 size={18} />
       </IconButton>
       <HomeEntry className="desktop-connect" onCreate={onCreate} onJoin={onJoin} />
+      {/* PING — строкой под входом, а не плашкой поверх (R20). */}
+      <Ping />
     </main>
   );
 }

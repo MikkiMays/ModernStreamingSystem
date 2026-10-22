@@ -244,6 +244,10 @@
   .meeting-header__clock::before {
     margin-right: var(--space-1);
   }
+  /* На телефоне строке о встрече хватает кода и времени; числа связи — в «Диагностике». */
+  .meeting-header__meta .ping-badge {
+    display: none;
+  }
 }
 @media (max-width: 767px) {
   .meeting-header {

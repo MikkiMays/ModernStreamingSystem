@@ -12,6 +12,7 @@ import { IconButton } from './kit';
 import { CinemaTraffic, MeetingEnds } from './abuse/Notices';
 import { HelpButton } from './support/HelpButton';
 import { Logo } from './brand/Logo';
+import { Ping } from './Ping';
 import { useStore } from './primitives';
 import { useFavorites, useFavoritesLimit } from './useFavorites';
 import './meeting-header.css';
@@ -149,6 +150,8 @@ export function MeetingHeader({
                 {status.label}
               </span>
             )}
+            {/* «Показывать PING» — числа связи и картинки в той же строке, а не плашкой поверх (R20). */}
+            <Ping meeting={meeting} />
           </div>
           {!ended && <MeetingEnds snapshot={snapshot} />}
           {!ended && <CinemaTraffic snapshot={snapshot} />}

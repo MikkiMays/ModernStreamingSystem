@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
-import { Ping } from './Ping';
 import { StageOverlay } from './StageOverlay';
 import { CallDock } from './CallDock';
 import { Sidebar, type Panel } from './Sidebar';
@@ -295,7 +294,6 @@ export function MeetingView({
       onFocusCapture={wakeControls}
       style={{ '--panel-width': `${panelWidth.width}px` } as CSSProperties}
     >
-      <Ping meeting={meeting} />
       <MeetingHeader
         meeting={meeting}
         canEdit={may('room.settings')}

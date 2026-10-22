@@ -10,7 +10,6 @@ import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
 import { isDesktop, notifyDesktop, onDesktopCommand } from './core/desktop';
 import { favoriteApi } from './core/favorites';
-import { Ping } from './ui/Ping';
 import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
 import { readPreferences, savePreferences } from './core/preferences';
@@ -318,7 +317,6 @@ function Workspace() {
   if (!connection && page !== 'room') return <Connect onConnected={() => setError('')} />;
   return (
     <>
-      {page !== 'room' && <Ping />}
       {favoriteSettings && (
         <FavoriteSettings
           key={favoriteSettings.roomId}

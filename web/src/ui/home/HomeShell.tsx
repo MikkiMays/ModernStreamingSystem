@@ -13,6 +13,7 @@ import { DownloadLink, useMediaQuery } from '../primitives';
 import { ActiveMeetingNotice, useActiveMeetings } from './ActiveMeetingNotice';
 import { FavoritesNav } from './FavoritesNav';
 import { HelpButton } from '../support/HelpButton';
+import { Ping } from '../Ping';
 import './home.css';
 
 /**
@@ -133,6 +134,8 @@ export function HomeShell({
             <span className="home-privacy">
               <ShieldCheck size={14} aria-hidden="true" /> {t(($) => $.home.shell.privacy)}
             </span>
+            {/* PING — тихим текстом в подвале, а не плашкой поверх марки (R20). */}
+            <Ping />
             {/* Номера версии здесь нет (T58): он только в «О программе», куда эта ссылка и ведёт. */}
             <button type="button" className="home-about" onClick={() => onSettings('about')}>
               {t(($) => $.home.shell.about)}
