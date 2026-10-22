@@ -3,6 +3,7 @@
 //   node scripts/shots.mjs --base https://cord.nikg.tech --out ../backlog/screens/E00/before
 //   node scripts/shots.mjs --screens home,settings --widths 390,1440 --themes dark
 //   node scripts/shots.mjs --base http://127.0.0.1:5173 --screens kit-integrations --themes light
+//   node scripts/shots.mjs --screens settings --scrollbars 1   # полосы прокрутки как у человека
 //
 // Для каждого экрана, ширины и темы — PNG и строка в report.json: на сколько пикселей страница
 // шире окна (`scrollWidth - clientWidth`) и какие элементы вылезают за правый край. Скрипт лежит
@@ -23,6 +24,9 @@ const widths = (args.widths ?? '320,390,768,1024,1280,1440,1920').split(',').map
 const themes = (args.themes ?? 'light,dark').split(',');
 const only = args.screens?.split(',');
 const height = (width) => (width < 768 ? 844 : width < 1280 ? 900 : 1000);
+// Playwright без окна прячет полосы прокрутки (`--hide-scrollbars`): для снимков полос (R17) их
+// возвращают, и ширина страницы тогда считается так же, как у человека.
+const scrollbars = args.scrollbars === '1';
 
 /** Устойчивый признак, что медиа вышло в эфир: атрибут, а пока его нет — прежний бейдж. */
 async function connected(page) {
@@ -83,6 +87,75 @@ const SCREENS = {
   meeting: async (page) => {
     await meeting(page);
     return 'meeting';
+  },
+  // Витрина набора (`/kit`) целиком: обе темы колонками рядом. Нужен только dev-сервер или сборка.
+  kit: async (page, shoot) => {
+    await page.goto(new URL('/kit', base).href);
+    await page.getByRole('heading', { name: 'Набор примитивов' }).waitFor();
+    await page.addStyleTag({ content: '.kit__bar { position: static !important; }' });
+    await page.evaluate(() => document.fonts.ready);
+    await shoot('kit', page.locator('.kit__panes'));
+    return null;
+  },
+  // Кольцо фокуса от Shift (R26, R75): мышью открыть, нажать Shift, снять — колец быть не должно.
+  // Меню избранного — на подставном списке (`/favorites`), чтобы не трогать избранное стенда.
+  focus: async (page, shoot) => {
+    await page.route('**/api/v1/favorites', (route) =>
+      route.request().method() === 'GET' ? route.fulfill({ json: [SAMPLE_FAVORITE] }) : route.fallback(),
+    );
+    await page.route('**/api/v1/favorites/groups', (route) => route.fulfill({ json: [] }));
+    await home(page);
+    const burger = page.getByRole('button', { name: 'Открыть меню' });
+    if (await burger.isVisible()) await burger.click();
+    await page
+      .getByRole('button', { name: `Действия с «${SAMPLE_FAVORITE.title}»` })
+      .first()
+      .click();
+    await page.getByRole('menuitem', { name: 'Переименовать' }).hover();
+    await page.keyboard.press('Shift');
+    await shoot('focus-favorites-menu');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift');
+    await shoot('focus-favorites-trigger');
+    await page.reload();
+    await page.getByRole('button', { name: /Новая встреча/ }).waitFor({ timeout: 30000 });
+    if (await burger.isVisible()) await burger.click();
+    await page
+      .getByRole('button', { name: 'Настройки', exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await page.getByRole('dialog', { name: 'Настройки' }).waitFor();
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Shift');
+    await shoot('focus-settings');
+    // Щелчок по пустому месту окна отдаёт фокус самому окну (`tabindex=-1`): «выделяются окна».
+    await page.getByRole('dialog', { name: 'Настройки' }).getByRole('heading', { name: 'Настройки' }).click();
+    await page.keyboard.press('Shift');
+    await shoot('focus-settings-window');
+    // С клавиатуры кольцо на месте: Tab переводит в режим клавиатуры (S1).
+    await page.keyboard.press('Tab');
+    await shoot('focus-settings-tab');
+    return null;
+  },
+  // Полосы прокрутки (R17): окно настроек, курсор над содержимым (у длинных колонок бегунок виден
+  // только под курсором), прокручено до середины. Снимать с `--scrollbars 1`.
+  scrollbars: async (page, shoot) => {
+    await home(page);
+    const burger = page.getByRole('button', { name: 'Открыть меню' });
+    if (await burger.isVisible()) await burger.click();
+    await page
+      .getByRole('button', { name: 'Настройки', exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
+    const content = page.locator('.settings-content');
+    await content.waitFor();
+    await content.evaluate((element) => element.scrollTo(0, element.scrollHeight / 3));
+    await content.hover({ position: { x: 40, y: 200 } });
+    await page.waitForTimeout(300);
+    await shoot('scrollbars-settings');
+    return null;
   },
   // Витрина интеграций и музыка во встрече (E06-B). Музыку во встречу не добавляет: бот занял бы
   // место в комнате стенда, а из опустевшей комнаты с пустой очередью он не уходит сам.
@@ -157,6 +230,19 @@ async function meeting(page) {
   await page.waitForTimeout(800);
 }
 
+/** Подставная комната избранного для снимков меню (форма `Favorite` ядра). */
+const SAMPLE_FAVORITE = {
+  roomId: '00000000-0000-4000-8000-0000000000aa',
+  code: '123456789',
+  title: 'Планёрка',
+  alias: null,
+  groupId: null,
+  pinned: false,
+  closed: false,
+  canJoin: true,
+  savedAt: 1760000000000,
+};
+
 /** Подставная обложка: градиент своего цвета на каждое имя — свет под обложкой виден на снимке. */
 function cover(url) {
   const hue = [...url].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
@@ -189,6 +275,7 @@ async function overflow(page) {
 
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
+  ignoreDefaultArgs: scrollbars ? ['--hide-scrollbars'] : [],
   args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
 });
 const report = [];
