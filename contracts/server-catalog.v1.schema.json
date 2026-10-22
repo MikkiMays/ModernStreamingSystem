@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cord.nikg.tech/contracts/server-catalog.v1.schema.json",
+  "$id": "urn:cord:contracts:server-catalog.v1",
   "title": "Каталог серверов Cord, формат cord.servers/1",
   "description": "Полезная нагрузка JWS, который отдаёт GET /api/v1/catalog (ADR 0001 §8, П4). Конверт — $defs.envelope: JWS в JSON-сериализации (RFC 7515), alg EdDSA (RFC 8037); подписываются точные байты payload, ключи — contracts/catalog-keys.json. Клиент принимает каталог, только если подпись верна любым ключом списка, seq не меньше последнего принятого и expiresAt плюс 30 дней ещё не прошёл; иначе остаётся последний хороший. Неизвестные поля клиент пропускает, подписывающий скрипт (scripts/sign-catalog.mjs) — отклоняет.",
   "type": "object",

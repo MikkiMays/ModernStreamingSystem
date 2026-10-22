@@ -27,7 +27,7 @@ const source = {
       id: "nl-1",
       name: { ru: "Нидерланды", en: "Netherlands" },
       country: "NL",
-      url: "https://cord.nikg.tech/",
+      url: "https://meet.example.com/",
       order: 10,
       default: true,
     },
@@ -49,9 +49,9 @@ test("payload rules mirror contracts/server-catalog.v1.schema.json", () => {
   assert.deepEqual(checkPayload(good), []);
   const one = source.servers[0];
   const broken = (servers, extra = {}) => checkPayload({ ...good, ...extra, servers });
-  assert.match(broken([{ ...one, url: "http://cord.nikg.tech/" }]).join(), /url/);
-  assert.match(broken([{ ...one, url: "https://cord.nikg.tech" }]).join(), /url/);
-  assert.match(broken([{ ...one, url: "https://cord.nikg.tech/room" }]).join(), /url/);
+  assert.match(broken([{ ...one, url: "http://meet.example.com/" }]).join(), /url/);
+  assert.match(broken([{ ...one, url: "https://meet.example.com" }]).join(), /url/);
+  assert.match(broken([{ ...one, url: "https://meet.example.com/room" }]).join(), /url/);
   assert.match(broken([{ ...one, country: "nl" }]).join(), /country/);
   assert.match(broken([{ ...one, name: { en: "x" } }]).join(), /name/);
   assert.match(broken([{ ...one, name: { ru: "x".repeat(41) } }]).join(), /name/);
@@ -104,13 +104,10 @@ test("keygen writes a private key only its owner can read and prints the public 
   assert.throws(() => keygen(path), /уже есть/);
 });
 
-test("the catalog committed in the repository verifies against contracts/catalog-keys.json", () => {
+test("the example catalog in the repository follows the format and names no real server", () => {
   const root = new URL("..", import.meta.url);
-  const jws = readFileSync(new URL("infra/catalog/servers.jws", root), "utf8");
-  const keys = JSON.parse(readFileSync(new URL("contracts/catalog-keys.json", root), "utf8"));
-  const committed = JSON.parse(readFileSync(new URL("infra/catalog/servers.source.json", root), "utf8"));
-  // Срок здесь не проверяется: сам каталог может истечь, а CI чужой ветки краснеть от этого не должен.
-  const payload = verifyCatalog(jws, keys, { ignoreExpiry: true });
-  assert.deepEqual(checkPayload(payload), []);
-  assert.deepEqual(payload.servers, committed.servers, "servers.jws подписан не из servers.source.json");
+  const example = JSON.parse(readFileSync(new URL("infra/catalog/servers.example.json", root), "utf8"));
+  // Каталог — файл установки (`.local/catalog`), в репозитории только образец: его адреса — example.com.
+  assert.deepEqual(checkPayload(buildPayload(example)), []);
+  for (const server of example.servers) assert.match(new URL(server.url).hostname, /(^|\.)example\.com$/);
 });

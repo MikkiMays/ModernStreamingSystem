@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Каталог серверов Cord (T05, П4, ADR 0001 §8, решение архитектора 9): подписывает офлайн
-// `infra/catalog/servers.source.json` ключом Ed25519 владельца и пишет `infra/catalog/servers.jws` —
+// `.local/catalog/servers.source.json` (образец — `infra/catalog/servers.example.json`) ключом Ed25519 владельца
+// и пишет `.local/catalog/servers.jws` — файл этой установки, не репозитория (compose монтирует его в ядро),
 // JWS в JSON-сериализации (RFC 7515), `alg: EdDSA` (RFC 8037). Ядро отдаёт этот файл как есть
 // (`GET /api/v1/catalog`); закрытого ключа на серверах нет, поэтому взломанный сервер не впишет в
 // каталог чужой адрес. Клиент принимает подпись любым ключом из `contracts/catalog-keys.json`
@@ -12,7 +13,7 @@
 //   node scripts/sign-catalog.mjs sign [--key .local/cord-catalog-key.pem] [--days 180]
 //       ключ — из --key или из CORD_CATALOG_SIGN_KEY (PKCS#8 PEM); seq = прежний + 1,
 //       issuedAt — сейчас, expiresAt — через --days дней
-//   node scripts/sign-catalog.mjs verify [--in infra/catalog/servers.jws]
+//   node scripts/sign-catalog.mjs verify [--in .local/catalog/servers.jws]
 //
 // Выход 2 — каталог не подписан или не прошёл проверку: выкладывать нечего.
 import {
@@ -200,7 +201,7 @@ function previousSeq(path) {
 
 function main(args) {
   const [command] = args;
-  const out = option(args, "--out", join(ROOT, "infra", "catalog", "servers.jws"));
+  const out = option(args, "--out", join(ROOT, ".local", "catalog", "servers.jws"));
   const keysPath = option(args, "--keys", join(ROOT, "contracts", "catalog-keys.json"));
   if (command === "keygen") {
     const path = option(args, "--out", null);
@@ -214,7 +215,7 @@ function main(args) {
     const pem = keyPath ? readFileSync(keyPath, "utf8") : (process.env.CORD_CATALOG_SIGN_KEY ?? "");
     if (!pem.trim()) throw new Error("нет ключа (--key или CORD_CATALOG_SIGN_KEY)");
     const source = JSON.parse(
-      readFileSync(option(args, "--source", join(ROOT, "infra", "catalog", "servers.source.json")), "utf8"),
+      readFileSync(option(args, "--source", join(ROOT, ".local", "catalog", "servers.source.json")), "utf8"),
     );
     const payload = buildPayload(source, {
       previousSeq: previousSeq(out),

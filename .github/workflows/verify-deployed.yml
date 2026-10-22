@@ -1,15 +1,16 @@
-name: Verify deployed meet service
+name: Verify deployed Cord server
+# Адрес проверяемой установки — переменная репозитория CORD_SERVER_URL (Settings → Variables), не код:
+# у каждого владельца свой сервер. Не задана — проверка пропускается.
 on:
-  push:
-    branches: [deploy/meet-nikg-tech]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: verify-deployed-meet
+  group: verify-deployed
   cancel-in-progress: true
 jobs:
   public-browser:
+    if: vars.CORD_SERVER_URL != ''
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
@@ -23,7 +24,7 @@ jobs:
         working-directory: web
       - name: Exercise public HTTPS and media from an external Windows runner
         env:
-          PLAYWRIGHT_BASE_URL: https://meet.nikg.tech
+          PLAYWRIGHT_BASE_URL: ${{ vars.CORD_SERVER_URL }}
           PLAYWRIGHT_CHANNEL: msedge
         run: npm run test:e2e
         working-directory: web

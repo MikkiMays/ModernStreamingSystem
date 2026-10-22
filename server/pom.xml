@@ -32,21 +32,5 @@
   <build><plugins>
     <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
     <plugin><groupId>com.spotify.fmt</groupId><artifactId>fmt-maven-plugin</artifactId><version>2.29</version></plugin>
-    <!-- Каталог серверов (ADR 0001 §8): подписанный офлайн infra/catalog/servers.jws едет в jar как
-         catalog/servers.jws и отдаётся GET /api/v1/catalog байт в байт. -->
-    <plugin>
-      <artifactId>maven-resources-plugin</artifactId>
-      <executions>
-        <execution>
-          <id>server-catalog</id>
-          <phase>process-resources</phase>
-          <goals><goal>copy-resources</goal></goals>
-          <configuration>
-            <outputDirectory>${project.build.outputDirectory}/catalog</outputDirectory>
-            <resources><resource><directory>${project.basedir}/../infra/catalog</directory><includes><include>servers.jws</include></includes></resource></resources>
-          </configuration>
-        </execution>
-      </executions>
-    </plugin>
   </plugins></build>
 </project>

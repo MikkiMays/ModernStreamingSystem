@@ -5,7 +5,6 @@ COPY server/pom.xml server/pom.xml
 RUN mvn -B -q -pl server -am dependency:go-offline
 COPY server/src server/src
 # Подписанный каталог серверов (ADR 0001 §8) — pom.xml кладёт его в jar.
-COPY infra/catalog/servers.jws infra/catalog/servers.jws
 RUN mvn -B -q -pl server -am package -DskipTests
 
 FROM eclipse-temurin:25.0.2_10-jre-alpine@sha256:5fcc27581b238efbfda93da3a103f59e0b5691fe522a7ac03fe8057b0819c888

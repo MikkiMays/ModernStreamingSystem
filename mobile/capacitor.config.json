@@ -4,7 +4,7 @@
   "webDir": "www",
   "appendUserAgent": "CordApp/0.1",
   "server": {
-    "url": "https://cord.nikg.tech",
+    "url": "https://cord.example.com",
     "androidScheme": "https",
     "cleartext": false,
     "errorPath": "offline.html"

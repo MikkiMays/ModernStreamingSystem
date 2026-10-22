@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- Адрес сервера пишет scripts/set-server.mjs при сборке (CORD_SERVER_URL). -->
+    <meta name="cord-server" content="https://cord.example.com/">
     <title>Cord — нет связи</title>
     <style>
       body {
@@ -33,7 +35,7 @@
     <main>
       <h1>Нет связи с сервером Cord</h1>
       <p>Проверьте интернет и попробуйте снова.</p>
-      <button type="button" onclick="location.replace('https://cord.nikg.tech/')">Повторить</button>
+      <button type="button" onclick="location.replace(document.querySelector('meta[name=cord-server]').content)">Повторить</button>
     </main>
   </body>
 </html>

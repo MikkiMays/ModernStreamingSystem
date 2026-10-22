@@ -1,0 +1,13 @@
+{
+  "format": "cord.servers/1",
+  "servers": [
+    {
+      "id": "de-1",
+      "name": { "ru": "Германия", "en": "Germany" },
+      "country": "DE",
+      "url": "https://meet.example.com/",
+      "order": 10,
+      "default": true
+    }
+  ]
+}

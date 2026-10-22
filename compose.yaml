@@ -55,7 +55,9 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]
-    volumes: [uploads:/data/uploads]
+    # Каталог серверов — файл этой установки (`scripts/sign-catalog.mjs sign` → `.local/catalog/servers.jws`),
+    # не часть образа: нет файла — `/api/v1/catalog` отвечает 404, клиент остаётся на своём сервере.
+    volumes: [uploads:/data/uploads, ./.local/catalog:/catalog:ro]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

@@ -625,3 +625,16 @@ docker compose exec -T postgres psql -U streaming -d streaming \
 Не выполнять `docker compose down -v` при обычном обновлении: эта команда удаляет тома. Не менять SFU API/session secrets посреди встречи. LiveKit имеет stop grace period 2 минуты, но это не замена остановке новых входов и ожиданию пользователей.
 
 Один VPS — точка отказа. Перезапуск самого SFU завершает его WebRTC-соединения; бесшовное переживание аварии медиасервера этой версией не обещается. Windows loopback-стенд не проверяет firewall, L4/TURN TLS, Linux container permissions или производительность VPS.
+
+## Адрес сервера — параметр установки, не код
+
+В репозиториях Cord нет адресов конкретных серверов. Всё, что зависит от установки, задаётся при ней:
+
+| Что | Где задаётся |
+| --- | --- |
+| Адрес этого сервера (ядро, службы, веб) | `sudo ./setup.sh --domain …` → `PUBLIC_URL` в `.env` |
+| Каталог серверов для клиента Windows | `.local/catalog/servers.jws`: образец — `infra/catalog/servers.example.json` → `.local/catalog/servers.source.json`, затем `node scripts/sign-catalog.mjs sign --key …`. Нет файла — `/api/v1/catalog` отвечает 404, клиент остаётся на сервере из своей сборки |
+| Сервер по умолчанию и канал обновлений клиента Windows | переменные репозитория клиента `CORD_DEFAULT_SERVER` (и при желании `CORD_UPDATE_CHANNEL`, иначе `<сервер>downloads/windows/desktop/`) |
+| Сервер оболочки Android | переменная репозитория `CORD_SERVER_URL` (`mobile/scripts/set-server.mjs` в `android.yml`) |
+| Проверка выкаченного сервера из CI | переменная репозитория `CORD_SERVER_URL` (`verify-deployed.yml`, запуск вручную) |
+| Клиент Windows на `/download` этого сервера | `.local/windows-releases` — `backlog/bin/publish-windows.sh --desktop <версия>` |

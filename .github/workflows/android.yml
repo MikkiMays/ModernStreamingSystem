@@ -32,6 +32,13 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
         working-directory: mobile
+      # Адрес сервера — переменная репозитория CORD_SERVER_URL (Settings → Variables), не код: своя установка —
+      # свой адрес. Без неё APK не собирается — оболочка без сервера бесполезна.
+      - name: Point the shell at this installation's server
+        env:
+          CORD_SERVER_URL: ${{ vars.CORD_SERVER_URL }}
+        run: node scripts/set-server.mjs
+        working-directory: mobile
       # Копирует www и capacitor.config.json в проект Android и пишет подключение плагинов Capacitor
       # (эти файлы не хранятся в git, см. mobile/android/.gitignore).
       - run: npx cap sync android

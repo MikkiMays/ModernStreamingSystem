@@ -106,7 +106,9 @@ def create_app(
     music = Music(
         store, core, os.environ.get("LIVEKIT_INTERNAL_URL", "http://127.0.0.1:7880")
     )
-    public_url = os.environ.get("PUBLIC_URL", "https://meet.nikg.tech").rstrip("/")
+    # Адрес этой установки пишет `scripts/configure.mjs` в `.env`, compose передаёт его сюда; своего
+    # адреса по умолчанию у службы нет — без PUBLIC_URL запросы с чужим Origin не пропускаются вовсе.
+    public_url = os.environ.get("PUBLIC_URL", "").rstrip("/")
     yandex = Yandex(store, music, core.secret)
     # Какие площадки кинозала включены на этой установке: имена через запятую, пусто — все.
     # Выход наружу — CINEMA_PROXY, CINEMA_PROXY_<ID>, CINEMA_COOKIES_<ID> и
