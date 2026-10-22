@@ -181,72 +181,7 @@ select {
   background-position: right 14px center;
   background-size: 12px 8px;
 }
-/*
-  Ползунок. Почему заливка считается так, а не встроенным `accent-color`, — в `Slider`.
-*/
-.slider {
-  --slider-p: 0;
-  appearance: none;
-  width: 100%;
-  min-height: 0;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(
-    to right,
-    var(--blue) calc(var(--slider-p) * 100%),
-    var(--line) calc(var(--slider-p) * 100%)
-  );
-}
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--surface);
-  box-shadow: var(--shadow-1);
-  /* (высота дорожки − высота бегунка) ÷ 2: иначе бегунок стоит на дорожке, а не на ней. */
-  margin-top: -5px;
-}
-.slider::-moz-range-track {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(
-    to right,
-    var(--blue) calc(var(--slider-p) * 100%),
-    var(--line) calc(var(--slider-p) * 100%)
-  );
-}
-.slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--surface);
-  box-shadow: var(--shadow-1);
-}
-.slider:disabled {
-  cursor: not-allowed;
-}
-/* Кольцо — только с клавиатуры и по форме дорожки, а не прямоугольником вокруг строки. */
-.slider:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-radius: var(--radius-full);
-}
-.slider:disabled::-webkit-slider-thumb {
-  background: var(--muted);
-}
-.slider:disabled::-moz-range-thumb {
-  background: var(--muted);
-}
+/* Ползунок — один на всё приложение, вид в `ui/kit/kit.css` (`.ui-slider` и прежний `.slider`, R14). */
 input::placeholder,
 textarea::placeholder {
   color: var(--muted);

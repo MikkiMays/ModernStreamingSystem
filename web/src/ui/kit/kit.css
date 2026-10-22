@@ -16,6 +16,7 @@
 .ui-icon-button:focus-visible,
 .ui-input:focus-visible,
 .ui-slider:focus-visible,
+.slider:focus-visible,
 .ui-switch:focus-visible,
 .ui-tabs__tab:focus-visible,
 .ui-card--interactive:focus-visible,
@@ -27,6 +28,7 @@
 .ui-button:focus,
 .ui-icon-button:focus,
 .ui-slider:focus,
+.slider:focus,
 .ui-switch:focus,
 .ui-tabs__tab:focus,
 .ui-handle:focus {
@@ -35,6 +37,7 @@
 .ui-button:focus-visible,
 .ui-icon-button:focus-visible,
 .ui-slider:focus-visible,
+.slider:focus-visible,
 .ui-switch:focus-visible,
 .ui-tabs__tab:focus-visible,
 .ui-handle:focus-visible {
@@ -319,22 +322,28 @@
   background-position: right var(--space-3) center;
 }
 
-/* ---------- ползунок ---------- */
-.ui-slider {
+/* ---------- ползунок ----------
+   Один вид на все ползунки (R14, R28): набора (`.ui-slider`) и прежний класс `.slider`, который
+   ещё стоит у ставок за столами. Дорожка 4, бегунок 16 белый с тенью; под пальцем зона 44 и бегунок
+   20. Правила нулевого веса (`:where`): кинозал и столы перекрашивают дорожку своим классом, где бы
+   их CSS ни стоял в каскаде. */
+:where(.ui-slider, .slider) {
   --slider-track: var(--surface-2);
   --slider-fill: var(--accent-fill);
   --slider-thumb: var(--palette-white);
+  --slider-thumb-size: 16px;
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
   height: 20px;
+  min-height: 0;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
 }
-.ui-slider::-webkit-slider-runnable-track {
+:where(.ui-slider, .slider)::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: var(--radius-full);
   background: linear-gradient(
@@ -343,32 +352,35 @@
     var(--slider-track) calc(var(--slider-p, 0) * 100%) 100%
   );
 }
-.ui-slider::-moz-range-track {
+:where(.ui-slider, .slider)::-moz-range-track {
   height: 4px;
   border-radius: var(--radius-full);
   background: var(--slider-track);
 }
-.ui-slider::-moz-range-progress {
+:where(.ui-slider, .slider)::-moz-range-progress {
   height: 4px;
   border-radius: var(--radius-full);
   background: var(--slider-fill);
 }
-.ui-slider::-webkit-slider-thumb {
+:where(.ui-slider, .slider)::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -7px;
+  width: 16px;
+  height: 16px;
+  /* (дорожка − бегунок) ÷ 2: бегунок стоит посередине дорожки, а не на ней сверху. */
+  margin-top: calc((4px - var(--slider-thumb-size)) / 2);
   border: 0;
   border-radius: var(--radius-full);
   background: var(--slider-thumb);
   box-shadow:
     0 0 0 1px rgb(0 0 0 / 0.08),
     0 1px 3px rgb(0 0 0 / 0.3);
-  transition: transform var(--motion-fast) var(--ease-standard);
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
-.ui-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+:where(.ui-slider, .slider)::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
   border: 0;
   border-radius: var(--radius-full);
   background: var(--slider-thumb);
@@ -376,16 +388,29 @@
     0 0 0 1px rgb(0 0 0 / 0.08),
     0 1px 3px rgb(0 0 0 / 0.3);
 }
-.ui-slider:hover::-webkit-slider-thumb,
-.ui-slider:active::-webkit-slider-thumb {
+:where(.ui-slider, .slider):hover::-webkit-slider-thumb {
   transform: scale(1.12);
 }
-.ui-slider:disabled {
+/* Тянут — вокруг бегунка мягкий ореол цвета заливки: видно, что он «в руке». */
+:where(.ui-slider, .slider):active::-webkit-slider-thumb {
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 1px 3px rgb(0 0 0 / 0.3);
+}
+:where(.ui-slider, .slider):disabled {
   cursor: default;
   opacity: 0.5;
 }
-/* Кольцо — только с клавиатуры: клик по бегунку не рисует ничего вокруг дорожки. */
-.ui-slider:focus-visible {
+:where(.ui-slider, .slider):disabled::-webkit-slider-thumb {
+  transform: none;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 1px 3px rgb(0 0 0 / 0.3);
+}
+/* Кольцо — только с клавиатуры и по форме дорожки, а не прямоугольником вокруг строки. */
+.ui-slider:focus-visible,
+.slider:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
   border-radius: var(--radius-full);
@@ -448,6 +473,7 @@
 }
 .ui-switch-row__hint {
   font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
   color: var(--muted);
 }
 
@@ -1373,5 +1399,17 @@
   }
   .ui-segmented {
     height: var(--touch-target);
+  }
+  :where(.ui-slider, .slider) {
+    --slider-thumb-size: 20px;
+    height: var(--touch-target);
+  }
+  :where(.ui-slider, .slider)::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  :where(.ui-slider, .slider)::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
   }
 }
