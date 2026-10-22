@@ -1,5 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
+/*
+  Невыкаченный веб против стенда (`scripts/stand-dev.mjs`): браузер открывает имя стенда, но страница
+  приходит с dev-сервера этого каталога, а ядро, SFU и службы — настоящие. Без переменной — как всегда.
+*/
+const standDev = process.env.CORD_STAND_DEV;
+const standArgs =
+  standDev && deployedUrl
+    ? [
+        `--host-resolver-rules=MAP ${new URL(deployedUrl).hostname}:443 ${standDev}`,
+        '--ignore-certificate-errors',
+      ]
+    : [];
 export default defineConfig({
   testDir: './e2e',
   // Все сценарии, кроме знакомства, — от лица уже знакомого человека (E13, `e2e/global-setup.ts`).
@@ -29,6 +41,7 @@ export default defineConfig({
         '--use-fake-device-for-media-stream',
         '--use-fake-ui-for-media-stream',
         '--auto-select-desktop-capture-source=Entire screen',
+        ...standArgs,
       ],
     },
   },
