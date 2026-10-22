@@ -517,8 +517,15 @@ export class MediaSession {
     this.playoutSampling = true;
     const cycle = this.connectionCycle;
     try {
-      await this.playout.tick(this.playoutTracks());
+      const reports = await this.playout.tick(this.playoutTracks());
       if (this.disposed || cycle !== this.connectionCycle) return;
+      // Буфер звука раздуло пачкой далеко за потолок: NetEq выбрасывал бы звук секунды подряд.
+      // Переподписка той же пары дорожек ставит всё на место за доли секунды (не чаще раза в 30 с).
+      for (const report of reports)
+        if (report.resync && report.kind !== 'video') {
+          const found = this.findPublication(report.id);
+          if (found) void this.resetLivePair(found.identity, found.publication.source, true);
+        }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
       // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
@@ -596,6 +603,28 @@ export class MediaSession {
   /** Какой запас буфера мы сейчас просим по каждой дорожке. Для диагностики. */
   playoutTargets() {
     return this.playout.targets();
+  }
+  /**
+   * На сколько миллисекунд музыка у нас отстаёт от издателя по нашей же просьбе (R03).
+   *
+   * Позиция, которую сообщает издатель, — время отправки; слышим мы её на столько позже.
+   * Игла плеера вычитает это число, чтобы совпадать со звуком. Ноль — музыки не слышно.
+   */
+  musicPlayoutMs(): number {
+    for (const participant of this.room.remoteParticipants.values()) {
+      if (!this.serviceParticipants.has(participant.identity)) continue;
+      for (const publication of participant.audioTrackPublications.values())
+        if (publication.isSubscribed && publication.track)
+          return this.playout.targetFor(publication.trackSid);
+    }
+    return 0;
+  }
+  private findPublication(trackSid: string) {
+    for (const participant of this.room.remoteParticipants.values()) {
+      const publication = participant.trackPublications.get(trackSid);
+      if (publication) return { identity: participant.identity, publication };
+    }
+    return null;
   }
   /**
    * Какой кодек камере по силам на этой машине.

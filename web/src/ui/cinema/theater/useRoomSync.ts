@@ -130,9 +130,9 @@ export function useRoomSync({
     nudge.current = null;
   }, [meeting, content]);
 
-  // Раз в секунду: где мы, где комната, и что из этого следует.
+  // Раз в секунду — и сразу по возвращении на экран: где мы, где комната, и что из этого следует.
   useEffect(() => {
-    const timer = setInterval(() => {
+    const check = () => {
       const element = video.current;
       const now = latest.current.watch;
       if (!element) return;
@@ -209,8 +209,18 @@ export function useRoomSync({
         element.playbackRate = 1;
         element.currentTime = fix.positionMs / 1000;
       }
-    }, 1000);
-    return () => clearInterval(timer);
+    };
+    const timer = setInterval(check, 1000);
+    // Свёрнутое окно (Electron, телефон) считает расхождение редко и замечает его на секунду
+    // позже, чем могло бы: по возвращении на экран — не ждём следующего тика.
+    const visible = () => {
+      if (!document.hidden) check();
+    };
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', visible);
+    };
   }, [meeting, video, playback, echo, setStatus]);
 
   /** Нажатие пультом: сначала комнате, а плеер догонит себя сам ближайшей проверкой. */

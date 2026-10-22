@@ -61,8 +61,21 @@ export const DRIFT_LIMIT = 300;
 export const JUMP_LIMIT = 2500;
 /** Разошлись настолько, что это видно человеку, а не только счётчику. */
 export const VISIBLE_DRIFT = 1200;
-/** На сколько разгоняться и притормаживать, догоняя. Больше — слышно, меньше — слишком долго. */
-export const NUDGE = 0.05;
+/**
+ * Потолок подтяжки: на сколько разгоняться и притормаживать, догоняя. Сама подтяжка
+ * пропорциональна расхождению (`nudgeRate`): секунда разницы — 10 %, меньше — мягче, чтобы
+ * у самого порога не дёргать скорость на полную.
+ */
+export const NUDGE = 0.1;
+/** Миллисекунды расхождения, за которые подтяжка доходит до потолка. */
+const NUDGE_SPAN = 1000;
+/** Самая слабая подтяжка, по которой судят, тянет ли она ({@link catchUp}): половина от неё за окно. */
+const NUDGE_FLOOR = 0.05;
+/** Скорость для расхождения `driftMs` (плюс — мы впереди комнаты): 0,9…1,1, три знака. */
+export function nudgeRate(driftMs: number): number {
+  const rate = 1 + Math.max(-NUDGE, Math.min(NUDGE, -driftMs / (NUDGE_SPAN / NUDGE)));
+  return Number(rate.toFixed(3));
+}
 /** Догнали: возвращаем обычную скорость, не дожидаясь нуля, иначе она дребезжит. */
 const SETTLED = 120;
 /**
@@ -114,7 +127,7 @@ export function catchUp(
   const elapsed = now - previous.since;
   if (elapsed < NUDGE_PATIENCE) return { next: previous, stalled: false };
   const gained = Math.abs(previous.driftMs) - Math.abs(driftMs);
-  return gained < (NUDGE * elapsed) / 2 ? { next: null, stalled: true } : fresh;
+  return gained < (NUDGE_FLOOR * elapsed) / 2 ? { next: null, stalled: true } : fresh;
 }
 
 /**
@@ -192,8 +205,9 @@ export function correction(input: {
   // Подтяжка не тянет, но и расхождение уже в пределах «не трогать»: без толку разгонять дальше.
   if (input.stalled) return ordinary();
   if (Math.abs(drift) > DRIFT_LIMIT) {
-    const wanted = Number((drift < 0 ? 1 + NUDGE : 1 - NUDGE).toFixed(3));
-    return rate === wanted ? { action: 'none' } : { action: 'rate', rate: wanted };
+    const wanted = nudgeRate(drift);
+    // Скорость меняется, только если расхождение заметно сдвинулось: иначе плеер дребезжал бы.
+    return Math.abs(rate - wanted) < 0.01 ? { action: 'none' } : { action: 'rate', rate: wanted };
   }
   // Между «догнали» и «пора подтягивать» скорость не меняется ни в ту, ни в другую сторону:
   // без этой полосы плеер щёлкал бы туда-сюда каждую секунду у самого порога.
