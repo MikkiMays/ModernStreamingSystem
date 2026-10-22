@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, Headphones, Link, PhoneOff, Users, Wifi, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Headphones, PhoneOff, Users, Wifi, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
@@ -31,8 +31,6 @@ import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 import { HelpButton } from './support/HelpButton';
-import { OnceHint } from './onboarding/Onboarding';
-import { anchorFor } from '../core/onboarding';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 
@@ -110,12 +108,6 @@ export function MeetingView({
   const compact = useMediaQuery(COMPACT);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
-  // Первый вход во встречу (T34): одна подсказка у микрофона, камеры и экрана — когда вышли в эфир.
-  const live = media.status === 'connected' && !ended;
-  const [dock, setDock] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setDock(live ? anchorFor('dock') : null);
-  }, [live]);
   // «Вы ещё здесь?» (A2): браузер сам говорит ядру, что за ним кто-то есть, пока встреча идёт.
   const presence = usePresence(meeting, !ended);
   // Оболочке — не только «во встрече», но и микрофон, камера и показ: по ним кнопки на миниатюре,
@@ -339,11 +331,6 @@ export function MeetingView({
               {t(($) => $.meeting.view.controlRecovering)}
             </div>
           )}
-          {!ended && media.liveStatus && control !== 'recovering' && media.status === 'connected' && (
-            <div className="control-banner media-stage" role="status">
-              {media.liveStatus}
-            </div>
-          )}
           {ended ? (
             <div className="ended-stage media-stage">
               <span className="ended-icon">
@@ -389,13 +376,6 @@ export function MeetingView({
                   onClick={() => meeting.returnToConversation()}
                 >
                   <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
-                </button>
-              )}
-              {people.length === 1 && !media.screen && (
-                <button className="invite-hint media-stage" onClick={() => setInvite(true)}>
-                  <Users size={18} />
-                  <span>{t(($) => $.meeting.view.inviteHint)}</span>
-                  <Link size={16} />
                 </button>
               )}
             </>
@@ -515,7 +495,6 @@ export function MeetingView({
           if (!open) onSectionClosed?.();
         }}
       />
-      <OnceHint id="meeting" anchor={dock} ready={live && !settings && !diagnostics} side="top" />
       {diagnostics && (
         <Suspense fallback={null}>
           <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />

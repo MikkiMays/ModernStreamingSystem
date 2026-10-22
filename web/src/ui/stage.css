@@ -482,8 +482,21 @@ button.watch-stream:hover {
   flex: 1;
   min-width: 0;
 }
-.background-note > .ui-button {
-  flex: none;
+/* Совет о фоне (R27) — одной строкой по центру над пультом: текст, «скопировать ссылку» и «скрыть». */
+.background-note[role='note'] {
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: calc(100% - var(--space-8));
+  min-height: var(--control-lg);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  gap: var(--space-2);
+  transform: translateX(-50%);
+}
+.background-note[role='note'] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Источник окна «картинка в картинке» (`media/pip.ts`): элемент обязан быть в документе и не
    `display: none`, но на странице его не видно. */
@@ -503,30 +516,6 @@ button.watch-stream:hover {
   bottom: calc(var(--dock-space) + var(--space-2));
   transform: translateX(-50%);
 }
-.invite-hint {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  bottom: calc(var(--dock-space) + var(--space-3));
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  max-width: calc(100% - var(--space-8));
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-3);
-  background: color-mix(in srgb, var(--stage-tile-2) 90%, transparent);
-  color: var(--stage-muted);
-  font-size: var(--text-sm);
-  white-space: nowrap;
-  box-shadow: var(--shadow-2);
-}
-.invite-hint:hover {
-  color: var(--stage-text);
-}
-.invite-hint > svg {
-  flex: none;
-}
 .return-conversation {
   position: absolute;
   z-index: 25;
@@ -542,9 +531,6 @@ button.watch-stream:hover {
   color: var(--stage-text);
   font-size: var(--text-sm);
   box-shadow: var(--shadow-1);
-}
-.meeting-page:has(.ping-badge) .return-conversation {
-  top: 34px;
 }
 
 /* Конец встречи и ожидание у двери — тихая середина сцены. */
@@ -865,13 +851,6 @@ button.watch-stream:hover {
   .person-tile:has(.lens-switch) .person-caption {
     max-width: calc(100% - 120px);
   }
-  .invite-hint {
-    gap: var(--space-2);
-    max-width: calc(100% - var(--space-6));
-    padding: var(--space-3);
-    font-size: var(--text-xs);
-    white-space: normal;
-  }
   .recovery-banner {
     width: calc(100% - var(--space-6));
     padding: var(--space-3);
@@ -991,7 +970,6 @@ button.watch-stream:hover {
      краем полосы оставалась за краем экрана (аудит чёткости E15-B на 360). */
   .meeting-body.panel-open .lens-switch,
   .meeting-body.panel-open .integration-roster,
-  .meeting-body.panel-open .stage-wrap .invite-hint,
   .meeting-body.panel-open .screen-tools,
   .meeting-body.panel-open .stage .people-grid .person-tile > .participant-more {
     display: none;

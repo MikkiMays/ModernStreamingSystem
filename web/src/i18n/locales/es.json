@@ -528,7 +528,6 @@
       "waitingSettle": "Ponte cómodo.",
       "waitingMedia": "Tu audio y tu cámara aún no se transmiten.",
       "returnToConversation": "Volver a la conversación",
-      "inviteHint": "Buen momento para invitar a los tuyos",
       "unlockAudio": "Activar el sonido de la reunión",
       "dismissError": "Ocultar notificación",
       "collapseControls": "Contraer los controles",
@@ -547,19 +546,19 @@
       "noAnswer": "La pestaña con la reunión no responde. Ve a ella o ciérrala"
     },
     "ceiling": "La reunión terminará a las {{time}}: las reuniones de este servidor tienen una duración máxima",
+    "ceilingShort": "hasta las {{time}}",
     "cinemaTraffic": "El Cine ha usado el {{percent}} % del tráfico de esta reunión. Cuando se agote, la película se detendrá hasta que termine la reunión",
+    "cinemaTrafficShort": "Cine {{percent}} %",
     "cinemaStopped": "El Cine agotó el tráfico de esta reunión: la película queda detenida hasta que termine la reunión",
+    "cinemaStoppedShort": "Película detenida",
     "presence": {
       "title": "¿Sigues ahí?",
       "text": "Si no respondes, saldrás de la reunión a las {{time}}: así una pestaña olvidada no ocupa un lugar",
       "confirm": "Sigo aquí"
     },
     "background": {
-      "iosSafari": "Puedes minimizar Safari o bloquear la pantalla: la conversación sigue mientras arriba se vea el punto naranja del micrófono. Mientras tanto, la cámara se apaga. La conversación se corta si entra una llamada normal o el iPhone cierra Safari. Para ver a los demás sobre otras apps, usa «Ver en ventana flotante» en el menú de controles.",
-      "iosHome": "Aquí el iPhone apaga el micrófono en cuanto sales de la pantalla o bloqueas el teléfono. Para hablar en segundo plano, abre la reunión en Safari.",
-      "android": "Puedes minimizar el navegador o apagar la pantalla: mientras en las notificaciones aparezca «… está usando el micrófono», la conversación sigue. Si el teléfono cierra el navegador en segundo plano, quítale las restricciones de batería.",
-      "noMicrophone": "Sin acceso al micrófono, el teléfono puede cortar la conversación al minimizar el navegador o apagar la pantalla. Permite el micrófono en los ajustes del sitio: silenciado con el botón no transmite nada, pero mantiene la conversación en segundo plano.",
-      "telegram": "En Telegram, la conversación sigue mientras Telegram esté abierto: si lo minimizas o apagas la pantalla, el teléfono puede cortarla. Para hablar en segundo plano, abre la reunión en el navegador.",
+      "iosHome": "Solo Safari mantiene la llamada en segundo plano",
+      "telegram": "Solo el navegador mantiene la llamada en segundo plano",
       "gapClosed": "Mientras no estabas en la pantalla, el teléfono apagó el micrófono: no se te oyó de {{from}} a {{to}}.",
       "gapOpen": "Mientras no estabas en la pantalla, el teléfono apagó el micrófono a las {{from}} y todavía no se te oye. Desactiva y vuelve a activar el micrófono.",
       "copyLink": "Copiar enlace",
@@ -1188,7 +1187,6 @@
       "notRecovered_other": "La conexión no se restableció en {{count}} segundos",
       "recoveryExpired": "Se agotó el tiempo para restablecer la conexión"
     },
-    "liveUpdating": "Actualizando la transmisión en directo…",
     "actionFailed": "No se pudo realizar la acción",
     "participant": "Participante",
     "screen": {
@@ -3190,7 +3188,6 @@
     "next": "Siguiente",
     "done": "Listo",
     "skip": "Omitir",
-    "gotIt": "Entendido",
     "tour": {
       "create": {
         "title": "Nueva reunión",
@@ -3216,14 +3213,6 @@
         "title": "Menú",
         "text": "Favoritos, ajustes y ayuda están aquí."
       }
-    },
-    "meeting": {
-      "title": "Estás en la reunión",
-      "text": "Micrófono, cámara y pantalla — estos botones. Para invitar, usa el código de la reunión de arriba."
-    },
-    "integrations": {
-      "title": "Las integraciones son para todos",
-      "text": "El cine, la música y los juegos son compartidos: activa uno y aparecerá para todos en la reunión."
     }
   },
   "support": {

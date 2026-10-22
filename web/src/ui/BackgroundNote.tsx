@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Info, Link, MicOff, X } from 'lucide-react';
+import { Check, Info, Link, MicOff, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { backgroundAdvice, type BackgroundAdvice } from '../media/background';
 import { locale } from '../i18n';
-import { Button, IconButton } from './kit';
+import { IconButton } from './kit';
 import { useStore } from './primitives';
 
 /** Подсказка о фоне показывается один раз на устройстве — для каждого случая своя. */
@@ -34,15 +34,15 @@ function remember(advice: BackgroundAdvice) {
 /**
  * Честно о разговоре в фоне (W4, W7, `docs/mobile.md` §3).
  *
- * Два случая. При входе с телефона — один раз, что будет, если свернуть браузер или погасить экран
- * на этой платформе (`backgroundAdvice`). По возвращении на экран — если телефон глушил включённый
- * микрофон, когда и сколько вас не слышали: иначе собеседник слышит тишину, а человек не знает почему.
- * Ошибка медиа важнее подсказки: пока она на сцене, подсказка ждёт.
+ * Два случая. При входе с телефона — один раз и одной строкой, только там, где фон не держится вовсе
+ * («Домой» на iPhone, Telegram): открыть встречу в браузере, ссылка — кнопкой (`backgroundAdvice`, R27).
+ * По возвращении на экран — если телефон глушил включённый микрофон, когда и сколько вас не слышали:
+ * иначе собеседник слышит тишину, а человек не знает почему. Ошибка медиа важнее подсказки: пока она
+ * на сцене, подсказка ждёт.
  */
 export function BackgroundNote({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation();
   const media = useStore(meeting.media.state);
-  const captured = useStore(meeting.media.captured);
   const gap = useStore(meeting.media.micGap);
   const ended = useStore(meeting.ended);
   const invite = useStore(meeting.invite);
@@ -81,18 +81,8 @@ export function BackgroundNote({ meeting }: { meeting: Meeting }) {
     );
   }
 
-  const advice = settled ? backgroundAdvice(meeting.media.platform, captured) : null;
+  const advice = settled ? backgroundAdvice(meeting.media.platform) : null;
   if (!advice || advice === 'app' || advice === closed || seen(advice)) return null;
-  const text =
-    advice === 'ios-safari'
-      ? t(($) => $.meeting.background.iosSafari)
-      : advice === 'ios-home'
-        ? t(($) => $.meeting.background.iosHome)
-        : advice === 'android'
-          ? t(($) => $.meeting.background.android)
-          : advice === 'telegram'
-            ? t(($) => $.meeting.background.telegram)
-            : t(($) => $.meeting.background.noMicrophone);
   const close = () => {
     remember(advice);
     setClosed(advice);
@@ -102,25 +92,27 @@ export function BackgroundNote({ meeting }: { meeting: Meeting }) {
   const link = invite ?? window.location.href;
   return (
     <div className="background-note media-stage" role="note">
-      <Info size={18} aria-hidden="true" />
-      <span>{text}</span>
-      {(advice === 'ios-home' || advice === 'telegram') && (
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<Link />}
-          onClick={() => {
-            void navigator.clipboard
-              ?.writeText(link)
-              .then(() => setCopied(true))
-              .catch(() => {});
-          }}
-        >
-          {copied ? t(($) => $.meeting.background.copied) : t(($) => $.meeting.background.copyLink)}
-        </Button>
-      )}
-      <IconButton tone="stage" label={t(($) => $.meeting.background.hide)} onClick={close}>
-        <X size={18} />
+      <Info size={16} aria-hidden="true" />
+      <span>
+        {advice === 'ios-home'
+          ? t(($) => $.meeting.background.iosHome)
+          : t(($) => $.meeting.background.telegram)}
+      </span>
+      <IconButton
+        tone="stage"
+        size="sm"
+        label={copied ? t(($) => $.meeting.background.copied) : t(($) => $.meeting.background.copyLink)}
+        onClick={() => {
+          void navigator.clipboard
+            ?.writeText(link)
+            .then(() => setCopied(true))
+            .catch(() => {});
+        }}
+      >
+        {copied ? <Check /> : <Link />}
+      </IconButton>
+      <IconButton tone="stage" size="sm" label={t(($) => $.meeting.background.hide)} onClick={close}>
+        <X />
       </IconButton>
     </div>
   );

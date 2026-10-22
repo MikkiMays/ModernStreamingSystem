@@ -5,7 +5,7 @@ import type { FullConfig } from '@playwright/test';
 /**
  * Профиль «уже знакомого» человека — для всех сценариев, кроме знакомства (E13, T34).
  *
- * Свежий профиль видит знакомство: подсказки у «Новой встречи», у пульта и у интеграций. Сценарии
+ * Свежий профиль видит знакомство — тур по кнопкам главной (во встрече подсказок нет, R27). Сценарии
  * встреч, игр и кинозала проверяют не его, поэтому начинают с профиля, который знакомство уже прошёл,
  * — как настоящий человек со второго раза. Свежий профиль берёт себе `e2e/onboarding.spec.ts`.
  */
@@ -21,7 +21,7 @@ export default function globalSetup(config: FullConfig) {
         localStorage: [
           {
             name: 'cord:onboarding:v1',
-            value: JSON.stringify({ tour: true, meeting: true, integrations: true }),
+            value: JSON.stringify({ tour: true }),
           },
         ],
       },
