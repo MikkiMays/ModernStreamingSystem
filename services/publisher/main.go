@@ -101,8 +101,10 @@ func say(value event) {
 	_ = output.writer.Flush()
 }
 
-// Битрейт можно понизить, не пересобирая образ: на узком или неровном канале меньший
-// пакет реже застревает. По умолчанию комната получает то же, что и раньше.
+// Битрейт можно поменять, не пересобирая образ. По умолчанию 160 Кбит/с: SFU включает RED
+// (каждый пакет несёт два предыдущих кадра), и кадр 256 Кбит/с ≈ 640 байт в тройном размере
+// не влезал в MTU 1500 его приёмника — повтор терялся, и защита от потерь не работала. 160 Кбит/с
+// стерео на профиле `audio` на слух от 256 не отличить, а 3 × 400 байт помещаются.
 func setting(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
@@ -135,7 +137,7 @@ func decode(path string, position float64) *exec.Cmd {
 		"-vn", "-sn", "-dn", "-map", "0:a:0",
 		"-af", "aresample=resampler=soxr:precision=28:dither_method=triangular_hp",
 		"-ac", "2", "-ar", "48000",
-		"-c:a", "libopus", "-b:a", setting("CORD_MUSIC_BITRATE", "256k"), "-vbr", "constrained",
+		"-c:a", "libopus", "-b:a", setting("CORD_MUSIC_BITRATE", "160k"), "-vbr", "constrained",
 		"-packet_loss", setting("CORD_MUSIC_PACKET_LOSS", "0"),
 		"-compression_level", "7", "-application", "audio", "-frame_duration", "20",
 		"-f", "ogg", "-page_duration", "20000", "pipe:1",
