@@ -42,6 +42,7 @@ import {
   type SearchHit,
   type SectionId,
 } from './sections';
+import { activeAnchor, watchScroll } from './scroll-spy';
 import { VoiceSection } from './VoiceSection';
 import { SoundsSection } from './SoundsSection';
 import { ProfileSection } from './ProfileSection';
@@ -131,6 +132,33 @@ export function SettingsWindow({
     setTarget((previous) => ({ anchor: next.anchor, nonce: previous.nonce + 1 }));
   }, [open, section, meeting, saved]);
 
+  // Какой подраздел сейчас на экране — его якорь слева подсвечен (R12, `scroll-spy.ts`).
+  const anchors = sectionSpec(place.section).anchors;
+  const spyWatch = useRef<ReturnType<typeof watchScroll> | null>(null);
+  // Раньше перехода ниже: его программная прокрутка уже должна попасть под паузу.
+  useLayoutEffect(() => {
+    if (!scroller || !anchors.length) return;
+    const watch = watchScroll(scroller, () => {
+      const edge = scroller.getBoundingClientRect().top;
+      const tops = anchors.flatMap((anchor) => {
+        const element = document.getElementById(anchorDomId(anchor));
+        return element ? [{ anchor, top: element.getBoundingClientRect().top - edge }] : [];
+      });
+      const next = activeAnchor({
+        scrollTop: scroller.scrollTop,
+        clientHeight: scroller.clientHeight,
+        scrollHeight: scroller.scrollHeight,
+        tops,
+      });
+      if (next) setSpy(next);
+    });
+    spyWatch.current = watch;
+    return () => {
+      watch.stop();
+      spyWatch.current = null;
+    };
+  }, [anchors, view, scroller]);
+
   // Переход: к строке, к подразделу или в начало раздела — после того, как раздел нарисован.
   useLayoutEffect(() => {
     if (!scroller || !target.nonce) return;
@@ -138,6 +166,9 @@ export function SettingsWindow({
     const row = target.row ? document.getElementById(rowDomId(target.row)) : null;
     // Строка, которой не видно (её нет в этом месте или она в скрытом теле), — к подразделу.
     const goal = row && row.getClientRects().length ? row : anchor;
+    // Прокрутку ставит программа: подсветка не пересчитывается, пока она не закончится, — иначе
+    // щелчок по короткой нижней группе подсветил бы соседнюю (R12).
+    spyWatch.current?.hold();
     if (goal) {
       const top =
         goal.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
@@ -155,31 +186,6 @@ export function SettingsWindow({
         scroller.querySelector<HTMLElement>('.settings-content__title')?.focus({ preventScroll: true });
     }
   }, [target, place.section, view, scroller]);
-
-  // Какой подраздел сейчас на экране — его якорь слева подсвечен.
-  const anchors = sectionSpec(place.section).anchors;
-  useEffect(() => {
-    if (!scroller || !anchors.length) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const edge = scroller.getBoundingClientRect().top + 48;
-      let current = anchors[0];
-      for (const anchor of anchors) {
-        const element = document.getElementById(anchorDomId(anchor));
-        if (element && element.getBoundingClientRect().top <= edge) current = anchor;
-      }
-      setSpy(current);
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      scroller.removeEventListener('scroll', onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [anchors, view, scroller]);
 
   /**
    * Сохранить настройку — и, если это картинка профиля, дождаться ответа комнаты.

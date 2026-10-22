@@ -73,6 +73,19 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('combobox', { name: 'Экран: качество' })).toBeVisible();
   });
 
+  it('щелчок по якорю подсвечивает его, и программная прокрутка к нему подсветку не затирает (R12)', async () => {
+    render(<Settings open section="voice" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Динамики' }));
+    // Ответ браузера на `scrollTop = …` — событие scroll; до scrollend пересчёта нет.
+    fireEvent.scroll(document.querySelector('.settings-content')!);
+    await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  });
+
   it('поиск находит строку и открывает её раздел', () => {
     render(<Settings open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {
