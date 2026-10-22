@@ -124,7 +124,7 @@ export function CallDock({
   return (
     <footer id="meeting-controls" className="call-footer media-stage" data-compact={compact || undefined}>
       <div className="call-dock">
-        <div className="dock-group" role="group" aria-label={t(($) => $.dock.media)} data-tour="dock">
+        <div className="dock-group" role="group" aria-label={t(($) => $.dock.media)}>
           <IconButton
             tone="stage"
             size="lg"
