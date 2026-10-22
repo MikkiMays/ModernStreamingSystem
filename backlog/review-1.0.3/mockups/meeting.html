@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru" data-theme="dark" data-desktop="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Встреча</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  body { height: 100dvh; overflow: hidden; }
+  .meeting { display: grid; grid-template-rows: auto minmax(0, 1fr) var(--dock-h); height: 100dvh; background: var(--bg); }
+  /* шапка с отступом под кнопки окна Electron */
+  .hdr { position: relative; display: flex; align-items: center; gap: 16px; height: var(--header-h); padding: 0 max(24px, calc(var(--titlebar-end) + 8px)) 0 24px; -webkit-app-region: drag; }
+  .hdr button, .hdr input { -webkit-app-region: no-drag; }
+  .hdr__mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-fill); flex: none; }
+  .hdr__name { display: flex; align-items: center; gap: 6px; font-weight: var(--weight-semibold); min-width: 0; }
+  .hdr__name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr__code { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+  .hdr__acts { margin-left: auto; display: flex; gap: 4px; }
+  .wco { position: absolute; top: 0; right: 0; width: var(--titlebar-end); height: var(--titlebar-h); display: flex; justify-content: space-around; align-items: center; color: var(--muted); pointer-events: none; }
+  html:not([data-desktop='true']) .wco { display: none; }
+
+  .body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; }
+  .stage { position: relative; margin: 0 0 12px 12px; border-radius: var(--radius-4); background: var(--stage-bg); color: var(--stage-text); display: grid; grid-template-rows: minmax(0, 1fr) 96px; gap: 12px; padding: 12px; min-height: 0; overflow: hidden; }
+  .tile { position: relative; border-radius: var(--tile-radius); background: var(--stage-tile); display: grid; place-items: center; overflow: hidden; min-height: 0; }
+  .tile--main { box-shadow: inset 0 0 0 var(--voice-ring-3) var(--voice-3); }
+  .tile .av { width: 88px; height: 88px; font-size: var(--text-xl); }
+  .tile__name { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-full); background: var(--stage-veil-2); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .tile__pin { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--radius-full); background: var(--stage-veil-2); font-size: var(--text-xs); }
+  .tile__acts { position: absolute; right: 12px; top: 12px; display: flex; gap: 4px; }
+  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: 170px; gap: 8px; justify-content: center; }
+  .strip .tile { aspect-ratio: auto; }
+  .strip .tile .av { width: 36px; height: 36px; font-size: var(--text-base); }
+  .strip .tile__name { left: 6px; bottom: 6px; padding: 2px 6px; font-size: var(--text-xs); }
+
+  /* слой интеграций справа сверху поверх звонка */
+  .overlays { position: absolute; top: 12px; right: 12px; z-index: 15; display: flex; gap: 8px; align-items: flex-start; pointer-events: none; }
+  .overlays > * { pointer-events: auto; }
+  .chip-g { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 8px; font-size: var(--text-sm); font-weight: var(--weight-medium); border: 0; }
+  .chip-g--ghost { background: transparent; box-shadow: inset 0 0 0 1px var(--stage-glint-2); }
+  .chip-g--ghost:hover { background: var(--stage-glass); }
+  .mini { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto auto; align-items: center; gap: 6px; width: 340px; height: 56px; padding: 0 6px 0 8px; }
+  .mini__cover { width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(135deg, var(--palette-ink-500), var(--palette-ink-800)); position: relative; overflow: hidden; }
+  .mini__cover::after { content: ''; position: absolute; inset: 40% 30% 20%; border-radius: 50% 50% 40% 40%; background: var(--palette-white); opacity: .9; }
+  .mini__t { min-width: 0; line-height: 1.25; }
+  .mini__t b { display: block; font-size: var(--text-sm); font-weight: var(--weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini__t small { display: block; font-size: var(--text-xs); color: var(--stage-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini__sep { width: 1px; height: 20px; background: var(--stage-glint-2); margin: 0 2px; }
+  .mini__bar { position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 1px; background: var(--stage-glint-2); }
+  .mini__bar i { display: block; width: 13%; height: 100%; border-radius: 1px; background: var(--brand-yandex); }
+  .ib--stage.ib--sm { width: 32px; height: 32px; }
+
+  /* виджет музыки — поповер */
+  .widget { position: absolute; top: 64px; right: 384px; z-index: 16; width: 360px; border-radius: var(--radius-4); background: var(--surface-1); color: var(--text); box-shadow: var(--shadow-3); padding: 16px; display: grid; gap: 14px; }
+  .widget__h { display: flex; align-items: center; gap: 8px; }
+  .widget__h b { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .widget__h small { color: var(--brand-yandex-text); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .now { display: grid; grid-template-columns: 96px 1fr auto; gap: 14px; align-items: center; }
+  .now__cover { width: 96px; height: 96px; border-radius: 10px; background: linear-gradient(135deg, var(--palette-ink-500), var(--palette-ink-800)); position: relative; overflow: hidden; }
+  .now__cover::after { content: ''; position: absolute; inset: 40% 30% 20%; border-radius: 50% 50% 40% 40%; background: var(--palette-white); opacity: .9; }
+  .now b { display: block; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .now small { display: block; color: var(--muted); }
+  .now .st { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--text-sm); color: var(--brand-music-text); font-weight: var(--weight-medium); }
+  .pos { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctls { display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .ctls .play { width: 48px; height: 48px; border-radius: 50%; background: var(--brand-music); color: var(--on-brand); border: 0; display: grid; place-items: center; }
+  .q { display: grid; gap: 2px; }
+  .q__h { display: flex; justify-content: space-between; align-items: center; font-weight: var(--weight-semibold); padding: 6px 0; }
+  .q__h span { color: var(--muted); font-weight: var(--weight-regular); font-size: var(--text-sm); }
+  .q__row { display: grid; grid-template-columns: 20px 36px 1fr auto 28px; gap: 10px; align-items: center; height: 48px; }
+  .q__row .cv { width: 36px; height: 36px; border-radius: 6px; background: var(--surface-3); }
+  .q__row b { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .q__row small { display: block; font-size: var(--text-xs); color: var(--muted); }
+  .q__row .num { font-size: var(--text-sm); color: var(--muted); }
+  .q__row + .q__row { box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .widget__foot { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding-top: 10px; box-shadow: inset 0 var(--hairline) 0 var(--line); }
+
+  /* панель-карточка */
+  .panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; margin: 0 12px 12px 12px; border-radius: var(--radius-4); background: var(--surface-1); box-shadow: var(--shadow-2); min-height: 0; overflow: hidden; }
+  .panel__h { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 8px 16px; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .panel__tabs { padding: 0 12px 12px; }
+  .panel__tabs .seg__item { gap: 6px; }
+  .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); font-size: 11px; font-weight: var(--weight-semibold); }
+  .chat { overflow: auto; padding: 4px 16px; display: grid; gap: 14px; align-content: end; }
+  .msg { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+  .msg .av { width: 28px; height: 28px; font-size: var(--text-xs); }
+  .msg b { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .msg time { font-size: var(--text-xs); color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .msg p { font-size: var(--text-sm); color: var(--text-secondary); }
+  .msg .img { width: 200px; height: 112px; border-radius: 10px; background: var(--surface-3); margin-top: 6px; box-shadow: inset 0 0 0 1px var(--line); }
+  .composer { padding: 8px 12px 12px; display: grid; gap: 8px; box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .attach { display: flex; gap: 8px; }
+  .attach__it { position: relative; width: 56px; height: 56px; border-radius: 8px; background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line); }
+  .attach__it button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--surface-3); color: var(--text); box-shadow: var(--shadow-1); display: grid; place-items: center; }
+  .attach__it button .i { width: 12px; height: 12px; }
+  .attach small { align-self: end; font-size: var(--text-xs); color: var(--muted); }
+  .composer .input { height: 40px; }
+
+  /* пульт */
+  .dock { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 16px; }
+  .dg { display: flex; gap: 4px; padding: 6px; border-radius: var(--radius-3); background: var(--dock-bg); }
+  .dg .ib { width: 40px; height: 40px; color: var(--dock-text); border-radius: var(--radius-2); }
+  .dg .ib:hover { background: var(--stage-glint-2); color: var(--dock-text); }
+  .dg .ib[aria-pressed='true'] { background: var(--stage-glint-3); }
+  .dg .ib--danger, .dg .ib--danger:hover { background: var(--danger-fill); color: var(--on-danger); }
+  .dg .ib--leave { background: var(--danger-fill); color: var(--on-danger); width: 56px; }
+  .dg .ib--leave:hover { background: var(--danger-fill-hover); }
+  .dg .ib .badge { position: absolute; top: -4px; right: -4px; box-shadow: 0 0 0 2px var(--dock-bg); }
+  .dg .ib { position: relative; }
+
+  .chips-m { display: none; }
+  @media (max-width: 1199px) { .body { grid-template-columns: minmax(0, 1fr) 320px; } .widget { right: 344px; } }
+  @media (max-width: 767px) {
+    .meeting { grid-template-rows: 48px minmax(0, 1fr) 56px; }
+    .hdr { height: 48px; padding: 0 12px; gap: 10px; }
+    .hdr__code, .hdr .i--sm { display: none; }
+    .hdr__acts .ib { width: 40px; height: 40px; }
+    .body { grid-template-columns: 1fr; }
+    .panel, .widget, .overlays { display: none; }
+    .stage { margin: 0 8px 8px; padding: 8px; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; }
+    .tile--main { aspect-ratio: 4/3; }
+    .strip { grid-auto-columns: 96px; grid-auto-rows: 72px; overflow-x: auto; justify-content: start; }
+    .strip .tile { aspect-ratio: auto; }
+    .chips-m { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+    .chips-m .chip-g { height: 32px; flex: none; }
+    .tile__unpin { display: inline-flex; }
+    .dg .ib { width: 44px; height: 44px; }
+    .dock { gap: 8px; padding: 0 8px; }
+    .dg { padding: 4px; }
+    .dg--more { display: none; }
+  }
+  .tile__unpin { display: none; position: absolute; left: 12px; bottom: 52px; }
+</style>
+</head>
+<body>
+<div class="meeting">
+  <header class="hdr">
+    <span class="hdr__mark"></span>
+    <div class="hdr__name"><span>Наша встреча</span><button class="ib ib--xs" type="button" aria-label="Переименовать"><svg class="i i--sm"><use href="#i-pencil"/></svg></button></div>
+    <div class="hdr__code">123-456-789 <button class="ib ib--xs" type="button" aria-label="Скопировать код"><svg class="i i--sm"><use href="#i-copy"/></svg></button></div>
+    <div class="hdr__acts">
+      <button class="ib" type="button" aria-pressed="true" aria-label="В избранном"><svg class="i"><use href="#i-star"/></svg></button>
+      <button class="ib" type="button" aria-label="Пригласить"><svg class="i"><use href="#i-link"/></svg></button>
+      <button class="ib" type="button" aria-label="Поддержка"><svg class="i"><use href="#i-headset"/></svg></button>
+    </div>
+    <div class="wco" aria-hidden="true"><svg class="i i--sm"><use href="#i-minus"/></svg><svg class="i i--sm"><use href="#i-square"/></svg><svg class="i i--sm"><use href="#i-x"/></svg></div>
+  </header>
+
+  <div class="body">
+    <section class="stage media-stage" aria-label="Сцена">
+      <div class="chips-m">
+        <button class="glass chip-g" type="button"><span class="brand brand--xs" style="--brand:var(--brand-poker)"><svg class="i"><use href="#i-spade"/></svg></span>Покер · 2</button>
+        <button class="glass chip-g" type="button"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>Put On</button>
+      </div>
+      <div class="tile tile--main">
+        <span class="av av--1">А</span>
+        <span class="tile__pin"><svg class="i i--sm"><use href="#i-pin"/></svg>Закреплено</span>
+        <div class="tile__acts">
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Открепить"><svg class="i i--sm"><use href="#i-pin-off"/></svg></button>
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button>
+        </div>
+        <button class="ib ib--stage tile__unpin" type="button" aria-label="Открепить"><svg class="i"><use href="#i-pin-off"/></svg></button>
+        <span class="tile__name">Аня <svg class="i i--sm" style="color:var(--voice-3)"><use href="#i-mic"/></svg></span>
+      </div>
+      <div class="strip">
+        <div class="tile"><span class="av av--2">K</span><span class="tile__name">Вы</span></div>
+        <div class="tile"><span class="av av--3">М</span><span class="tile__name">Миша</span></div>
+        <div class="tile"><span class="av av--4">Д</span><span class="tile__name">Даша</span></div>
+      </div>
+
+      <div class="overlays">
+        <button class="glass chip-g" type="button"><span class="brand brand--xs" style="--brand:var(--brand-poker)"><svg class="i"><use href="#i-spade"/></svg></span>Покер · 2 за столом</button>
+        <div class="glass mini" role="group" aria-label="Музыка">
+          <span class="mini__cover" aria-hidden="true"></span>
+          <div class="mini__t"><b>Put On</b><small>Young Jeezy, Kanye West</small></div>
+          <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Предыдущий"><svg class="i i--sm"><use href="#i-skip-back"/></svg></button>
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Пауза"><svg class="i"><use href="#i-pause"/></svg></button>
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Следующий"><svg class="i i--sm"><use href="#i-skip-forward"/></svg></button>
+          <span class="mini__sep"></span>
+          <button class="ib ib--sm ib--stage" type="button" aria-label="Свернуть виджет" aria-expanded="true"><svg class="i i--sm"><use href="#i-chevron-up"/></svg></button>
+          <span class="mini__bar" aria-hidden="true"><i></i></span>
+        </div>
+      </div>
+
+    </section>
+
+      <div class="widget" role="dialog" aria-label="Сейчас играет">
+        <div class="widget__h"><b>Сейчас играет</b><small>Яндекс Музыка</small><button class="ib ib--sm" type="button" aria-label="Закрыть" style="margin-left:auto"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="now"><span class="now__cover"></span><div><b>Put On</b><small>Young Jeezy, Kanye West</small><div class="st"><span class="eq"><i></i><i></i><i></i></span>Играет</div></div><button class="ib" type="button" aria-label="В избранное"><svg class="i"><use href="#i-heart"/></svg></button></div>
+        <div class="pos"><span>0:42</span><div class="slider slider--thin"><input type="range" min="0" max="326" value="42" step="1" data-format="time" aria-label="Позиция"></div><span>5:26</span></div>
+        <div class="ctls">
+          <button class="ib" type="button" aria-label="Перемешать"><svg class="i"><use href="#i-shuffle"/></svg></button>
+          <button class="ib" type="button" aria-label="Предыдущий"><svg class="i i--lg"><use href="#i-skip-back"/></svg></button>
+          <button class="play" type="button" aria-label="Пауза"><svg class="i i--lg"><use href="#i-pause"/></svg></button>
+          <button class="ib" type="button" aria-label="Следующий"><svg class="i i--lg"><use href="#i-skip-forward"/></svg></button>
+          <button class="ib" type="button" aria-label="Повтор"><svg class="i"><use href="#i-repeat"/></svg></button>
+        </div>
+        <div class="q">
+          <div class="q__h">Далее в очереди <span>3 трека</span></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Flashing Lights</b><small>Kanye West</small></div><span class="num">3:57</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Praise The Lord</b><small>A$AP Rocky, Skepta</small></div><span class="num">3:25</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Nights</b><small>Frank Ocean</small></div><span class="num">5:07</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+        </div>
+        <div class="widget__foot"><svg class="i" style="color:var(--muted)"><use href="#i-volume"/></svg><div class="slider slider--thin"><input type="range" min="0" max="100" value="60" step="1" aria-label="Громкость у вас"></div><button class="btn btn--sm btn--ghost" type="button"><svg class="i"><use href="#i-monitor"/></svg>Этот компьютер<svg class="i i--sm"><use href="#i-chevron-down"/></svg></button></div>
+      </div>
+    <aside class="panel" aria-label="Панель встречи" data-tabs-scope>
+      <div class="panel__h">Боты и интеграции<button class="ib" type="button" aria-label="Закрыть панель"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div class="panel__tabs"><div class="seg seg--full" role="tablist" data-tabs><button class="seg__item" role="tab" data-tab="people">Люди <span class="cnt">4</span></button><button class="seg__item" role="tab" data-tab="chat" aria-selected="true">Чат и файлы</button><button class="seg__item" role="tab" data-tab="int">Интеграции</button></div></div>
+      <div class="chat scroll-quiet" data-pane="chat">
+        <div class="msg"><span class="av av--3">М</span><div><b>Миша</b><time>21:14</time><p>Кидай скрин стола, посмотрим раздачу</p></div></div>
+        <div class="msg"><span class="av av--2">K</span><div><b>ki</b><time>21:15</time><p>Сейчас</p><div class="img" role="img" aria-label="Скриншот"></div></div></div>
+        <div class="msg"><span class="av av--1">А</span><div><b>Аня</b><time>21:16</time><p>Музыку потише можно?</p></div></div>
+      </div>
+      <div data-pane="people" hidden style="padding:16px" class="muted sm">Люди</div>
+      <div data-pane="int" hidden style="padding:16px" class="muted sm">Интеграции — см. player.html</div>
+      <div class="composer">
+        <div class="attach"><div class="attach__it" role="img" aria-label="Скриншот 1.png"><button type="button" aria-label="Убрать"><svg class="i"><use href="#i-x"/></svg></button></div><small>Скриншот 1.png · 240 КБ</small></div>
+        <label class="input"><input placeholder="Сообщение… Enter — отправить" value="вот ещё один"><button class="ib ib--xs" type="button" aria-label="Прикрепить"><svg class="i i--sm"><use href="#i-paperclip"/></svg></button><button class="ib ib--xs ib--primary" type="button" aria-label="Отправить"><svg class="i i--sm"><use href="#i-send"/></svg></button></label>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="dock" aria-label="Пульт">
+    <div class="dg">
+      <button class="ib" type="button" aria-pressed="false" aria-label="Микрофон"><svg class="i"><use href="#i-mic"/></svg></button>
+      <button class="ib" type="button" aria-pressed="true" aria-label="Камера выключена"><svg class="i"><use href="#i-video-off"/></svg></button>
+    </div>
+    <div class="dg">
+      <button class="ib ib--danger" type="button" aria-label="Завершить показ экрана"><svg class="i"><use href="#i-monitor-x"/></svg></button>
+      <button class="ib" type="button" aria-label="Игры"><svg class="i"><use href="#i-gamepad"/></svg></button>
+      <button class="ib" type="button" aria-label="Чат, 3 непрочитанных"><svg class="i"><use href="#i-message"/></svg><span class="badge">3</span></button>
+      <button class="ib" type="button" aria-label="Люди"><svg class="i"><use href="#i-users"/></svg></button>
+      <button class="ib dg--more" type="button" aria-label="Ещё"><svg class="i"><use href="#i-more"/></svg></button>
+    </div>
+    <div class="dg"><button class="ib ib--leave" type="button" aria-label="Выйти"><svg class="i"><use href="#i-phone-off"/></svg></button></div>
+  </footer>
+</div>
+<script src="mock.js"></script>
+</body>
+</html>

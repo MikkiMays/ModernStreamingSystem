@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Главная</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100dvh; }
+  .nav { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--surface-2); box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--line); padding: 16px 12px; gap: 8px; }
+  .mark { display: flex; align-items: center; gap: 8px; padding: 6px 10px 14px; font-weight: var(--weight-semibold); font-size: var(--text-md); }
+  .mark__m { width: 24px; height: 24px; border-radius: 7px; background: var(--accent-fill); display: grid; place-items: center; }
+  .mark__m i { width: 12px; height: 12px; border-radius: 3px; background: var(--palette-white); transform: rotate(12deg); display: block; }
+  .nav__h { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 6px; font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--muted); }
+  .nav__item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--radius-2); background: transparent; color: var(--text-secondary); font-weight: var(--weight-medium); text-align: left; width: 100%; }
+  .nav__item:hover { background: var(--surface-hover); color: var(--text); }
+  .nav__item .i { color: var(--muted); }
+
+  .main { display: grid; align-content: center; padding: clamp(24px, 4vw, 64px); min-height: 100dvh; }
+  .wrap { width: min(1040px, 100%); margin-inline: auto; display: grid; gap: 32px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 24px; align-items: stretch; }
+
+  .create {
+    position: relative; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; align-items: end; text-align: left;
+    min-height: clamp(240px, 32vh, 340px); padding: 28px; border: 0; border-radius: var(--radius-5);
+    background: var(--accent-fill); color: var(--on-accent); box-shadow: var(--shadow-2), inset 0 1px 0 rgb(255 255 255 / .14);
+    transition: transform var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard);
+  }
+  .create:hover { transform: translateY(-2px); box-shadow: var(--shadow-3), inset 0 1px 0 rgb(255 255 255 / .14); }
+  .create:active { transform: scale(.995); }
+  .create__mark { justify-self: start; align-self: start; display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); font-weight: var(--weight-semibold); opacity: .92; }
+  .create__mark i { width: 18px; height: 18px; border-radius: 5px; background: var(--palette-white); display: block; transform: rotate(12deg); }
+  .create__title { font-size: var(--text-2xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-display); line-height: var(--leading-tight); }
+  .create__go { position: absolute; right: 24px; bottom: 24px; width: 44px; height: 44px; border-radius: 50%; background: rgb(255 255 255 / .18); display: grid; place-items: center; transition: transform var(--motion-base) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard); }
+  .create:hover .create__go { background: rgb(255 255 255 / .26); transform: translateX(2px); }
+  .arcs { position: absolute; right: -40px; bottom: -40px; width: 320px; height: 320px; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard); }
+  .create:hover .arcs { transform: translate(-6px, -6px); }
+  .arcs circle { fill: none; stroke: #fff; stroke-width: 1.5; }
+
+  .join { display: grid; align-content: start; gap: 16px; padding: 28px; border-radius: var(--radius-5); background: var(--surface-1); box-shadow: var(--shadow-2); }
+  .join h2 { font-size: var(--text-lg); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+  .join .input input { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  .join__foot { margin-top: auto; }
+
+  .fav { display: grid; gap: 12px; }
+  .fav__h { display: flex; align-items: center; justify-content: space-between; }
+  .fav__h h2 { font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .fav__h h2 span { color: var(--muted); font-weight: var(--weight-regular); }
+  .list { border-radius: var(--radius-4); background: var(--surface-1); box-shadow: var(--shadow-1); padding: 6px; }
+  .sect { padding: 10px 12px 4px; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--muted); }
+  .room { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 12px; height: 52px; padding: 0 12px; border-radius: var(--radius-3); }
+  .room:hover, .room[data-open] { background: var(--surface-hover); }
+  .room .i { color: var(--muted); }
+  .room b { display: block; font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room small { display: block; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .room__meta { display: flex; align-items: center; gap: 4px; color: var(--accent); margin-right: 76px; }
+  .room__acts { position: absolute; right: 8px; top: 50%; translate: 0 -50%; display: flex; gap: 4px; opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
+  .room:hover .room__acts, .room:focus-within .room__acts, .room[data-open] .room__acts, .room[data-pinned] .room__acts { opacity: 1; }
+  .room[data-pinned] .pinbtn { color: var(--accent); }
+  .room[data-pinned]:not(:hover):not(:focus-within):not([data-open]) .morebtn { opacity: 0; }
+  @media (hover: none) { .room__acts { opacity: 1; } .room[data-pinned] .morebtn { opacity: 1 !important; } }
+  .pinbtn[aria-pressed='true'] { background: transparent; color: var(--accent); }
+  .pinbtn[aria-pressed='true']:hover { background: var(--surface-hover); }
+
+  .menu-float { position: absolute; right: 8px; top: calc(100% - 4px); z-index: var(--z-menu); }
+  .menu__item .sw { justify-self: end; }
+  .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: var(--text-sm); padding: 0 4px; }
+
+  @media (max-width: 960px) { .shell { grid-template-columns: 1fr; } .nav { display: none; } }
+  @media (max-width: 767px) {
+    .main { align-content: start; padding: 16px; min-height: auto; }
+    .hero { grid-template-columns: 1fr; gap: 12px; }
+    .create { min-height: 200px; padding: 20px; }
+    .create__title { font-size: var(--text-xl); }
+    .join { padding: 20px; }
+    .list { background: transparent; box-shadow: none; padding: 0; }
+    .room { height: 56px; padding: 0 8px; }
+  }
+  @media (max-height: 720px) and (min-width: 768px) { .create { min-height: 180px; } .main { padding: 16px 24px; } .wrap { gap: 20px; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="nav">
+    <div>
+      <div class="mark"><span class="mark__m"><i></i></span>cord.</div>
+      <div class="nav__h"><span>Избранное · 3 из 10</span><button class="btn btn--sm btn--quiet" type="button" style="height:24px;padding:0 6px"><svg class="i i--sm"><use href="#i-plus"/></svg>Группа</button></div>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-star"/></svg>Команда</button>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-folder"/></svg>Семья</button>
+      <button class="nav__item" type="button" style="padding-left:30px">Ужин по пятницам</button>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-star"/></svg>Покер с Мишей</button>
+    </div>
+    <div></div>
+    <div>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-settings"/></svg>Настройки</button>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-headset"/></svg>Поддержка</button>
+      <button class="nav__item" type="button"><svg class="i"><use href="#i-download"/></svg>Скачать Cord</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="wrap">
+      <section class="hero">
+        <button class="create" type="button" data-tour="create" aria-label="Новая встреча">
+          <span class="create__mark"><i></i>cord</span>
+          <span></span>
+          <span class="create__title">Новая встреча</span>
+          <svg class="arcs" viewBox="0 0 320 320" aria-hidden="true">
+            <circle cx="320" cy="320" r="90" style="stroke-opacity:.14"/>
+            <circle cx="320" cy="320" r="150" style="stroke-opacity:.09"/>
+            <circle cx="320" cy="320" r="210" style="stroke-opacity:.055"/>
+            <circle cx="320" cy="320" r="270" style="stroke-opacity:.03"/>
+          </svg>
+          <span class="create__go"><svg class="i"><use href="#i-arrow-right"/></svg></span>
+        </button>
+        <form class="join" data-tour="join" onsubmit="return false">
+          <h2>Войти по коду</h2>
+          <div class="field">
+            <label class="field__label" for="code">Код встречи или ссылка</label>
+            <label class="input input--lg"><svg class="i"><use href="#i-link"/></svg><input id="code" placeholder="123-456-789" autocomplete="off"></label>
+          </div>
+          <div class="join__foot"><button class="btn btn--primary btn--lg btn--full" type="submit">Присоединиться</button></div>
+        </form>
+      </section>
+
+      <section class="fav">
+        <div class="fav__h"><h2>Избранное <span>· 3 из 10</span></h2><button class="btn btn--sm btn--quiet" type="button"><svg class="i"><use href="#i-plus"/></svg>Группа</button></div>
+        <div class="list">
+          <div class="sect">Закреплённые</div>
+          <div class="room" data-pinned>
+            <svg class="i"><use href="#i-star"/></svg>
+            <div><b>Команда</b><small>123-456-789</small></div>
+            <div class="room__meta" title="Автоподключение"><svg class="i i--sm"><use href="#i-zap"/></svg></div>
+            <div class="room__acts">
+              <button class="ib ib--sm pinbtn" type="button" aria-pressed="true" aria-label="Открепить: Команда"><svg class="i i--sm"><use href="#i-pin"/></svg></button>
+              <button class="ib ib--sm morebtn" type="button" aria-label="Ещё: Команда"><svg class="i i--sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+          <div class="sect">Семья</div>
+          <div class="room" data-open>
+            <svg class="i"><use href="#i-star"/></svg>
+            <div><b>Ужин по пятницам</b><small>555-120-442 · <span class="muted">в группе «Семья»</span></small></div>
+            <div class="room__meta"></div>
+            <div class="room__acts">
+              <button class="ib ib--sm pinbtn" type="button" aria-pressed="false" aria-label="Закрепить: Ужин по пятницам"><svg class="i i--sm"><use href="#i-pin"/></svg></button>
+              <button class="ib ib--sm morebtn" type="button" aria-label="Ещё: Ужин по пятницам" aria-expanded="true"><svg class="i i--sm"><use href="#i-more"/></svg></button>
+            </div>
+            <div class="menu menu-float" role="menu">
+              <button class="menu__item" role="menuitem"><svg class="i"><use href="#i-arrow-up-right"/></svg>Открыть<span class="menu__kbd">Enter</span></button>
+              <button class="menu__item" role="menuitem"><svg class="i"><use href="#i-pencil"/></svg>Переименовать у себя<span class="menu__kbd">F2</span></button>
+              <button class="menu__item" role="menuitem"><svg class="i"><use href="#i-pin"/></svg>Закрепить</button>
+              <button class="menu__item" role="menuitem"><svg class="i"><use href="#i-folder"/></svg>Группа<svg class="i i--sm" style="color:var(--muted)"><use href="#i-chevron-right"/></svg></button>
+              <button class="menu__item" role="menuitem"><svg class="i"><use href="#i-copy"/></svg>Скопировать код</button>
+              <button class="menu__item" role="menuitemcheckbox" aria-checked="true" data-highlighted><svg class="i"><use href="#i-zap"/></svg>Автоподключение<span class="sw sw--sm" aria-checked="true" aria-hidden="true"></span></button>
+              <div class="menu__sep"></div>
+              <button class="menu__item menu__item--danger" role="menuitem"><svg class="i"><use href="#i-trash"/></svg>Убрать из избранного<span class="menu__kbd">Del</span></button>
+            </div>
+          </div>
+          <div class="sect">Без группы</div>
+          <div class="room">
+            <svg class="i"><use href="#i-star"/></svg>
+            <div><b>Покер с Мишей</b><small>908-331-765</small></div>
+            <div class="room__meta"></div>
+            <div class="room__acts">
+              <button class="ib ib--sm pinbtn" type="button" aria-pressed="false" aria-label="Закрепить: Покер с Мишей"><svg class="i i--sm"><use href="#i-pin"/></svg></button>
+              <button class="ib ib--sm morebtn" type="button" aria-label="Ещё: Покер с Мишей"><svg class="i i--sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div class="foot"><span>Без аккаунта. Встречи не записываются.</span><span></span></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="mock.js"></script>
+<script>
+  // переключатель внутри пункта меню — по нажатию пункта, меню не закрывается
+  document.querySelectorAll('[role=menuitemcheckbox]').forEach((it) => it.addEventListener('click', () => { const v = it.getAttribute('aria-checked') !== 'true'; it.setAttribute('aria-checked', String(v)); it.querySelector('.sw').setAttribute('aria-checked', String(v)); }));
+  document.querySelectorAll('.pinbtn').forEach((b) => b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); b.closest('.room').toggleAttribute('data-pinned', on); }));
+</script>
+</body>
+</html>

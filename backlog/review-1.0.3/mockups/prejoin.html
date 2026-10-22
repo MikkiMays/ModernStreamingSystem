@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Предвход</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .page { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; container-type: inline-size; }
+  .top { display: flex; align-items: center; justify-content: space-between; height: calc(var(--header-h) + var(--titlebar-h)); padding: var(--titlebar-h) max(24px, calc(var(--titlebar-end) + 8px)) 0 24px; }
+  .mark { display: flex; align-items: center; gap: 8px; font-weight: var(--weight-semibold); font-size: var(--text-md); }
+  .mark i { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-fill); display: block; }
+  .main { width: min(1200px, 100%); margin-inline: auto; padding: clamp(12px, 4dvh, 48px) clamp(16px, 4vw, 48px); display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(320px, 420px); gap: clamp(24px, 4vw, 64px); align-items: start; align-content: center; }
+  .preview { position: relative; aspect-ratio: 16/10; width: min(100%, calc((100dvh - 56px - 96px) * 1.6)); border-radius: var(--radius-4); background: var(--stage-tile); color: var(--stage-text); display: grid; place-items: center; overflow: hidden; box-shadow: var(--shadow-2); }
+  .preview .av { width: 96px; height: 96px; font-size: var(--text-2xl); }
+  .preview__sub { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; font-size: var(--text-sm); color: var(--stage-muted); }
+  .preview__you { position: absolute; left: 16px; bottom: 16px; padding: 2px 8px; border-radius: var(--radius-full); background: var(--stage-veil-1); font-size: var(--text-xs); }
+  .preview__ctl { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; gap: 8px; }
+  .preview__gear { position: absolute; right: 16px; bottom: 16px; }
+  .form { display: grid; gap: 16px; }
+  .form h1 { font-size: var(--text-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-display); line-height: var(--leading-tight); }
+  .sticky { position: sticky; bottom: 0; padding-top: 12px; padding-bottom: env(safe-area-inset-bottom); background: linear-gradient(to top, var(--bg) 70%, transparent); }
+  .status { font-size: var(--text-sm); color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  @container (max-width: 720px) {
+    .main { grid-template-columns: 1fr; gap: 20px; align-content: start; }
+    .preview { width: 100%; max-height: 42dvh; }
+    .preview .av { width: 64px; height: 64px; font-size: var(--text-xl); }
+    .preview__sub { display: none; }
+  }
+  @media (max-height: 720px) and (min-width: 768px) {
+    .top { height: 48px; }
+    .form h1 { font-size: var(--text-lg); }
+    .form { gap: 12px; }
+    .main { padding-block: 12px; }
+    .preview { max-height: 60dvh; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div class="mark"><i></i>cord.</div>
+    <button class="btn btn--sm" type="button"><svg class="i"><use href="#i-sliders"/></svg>Устройства</button>
+  </header>
+  <div class="main">
+    <div class="preview">
+      <span class="av av--2">K</span>
+      <div class="preview__sub">Камера выключена</div>
+      <span class="preview__you">Вы</span>
+      <div class="preview__ctl">
+        <button class="ib ib--lg ib--stage" type="button" aria-pressed="true" aria-label="Микрофон выключен"><svg class="i"><use href="#i-mic-off"/></svg></button>
+        <button class="ib ib--lg ib--stage" type="button" aria-pressed="true" aria-label="Камера выключена"><svg class="i"><use href="#i-video-off"/></svg></button>
+      </div>
+      <button class="ib ib--lg ib--stage preview__gear" type="button" aria-label="Настройки предпросмотра"><svg class="i"><use href="#i-sliders"/></svg></button>
+    </div>
+    <form class="form" onsubmit="return false">
+      <h1>Готовы к разговору?</h1>
+      <div class="field"><label class="field__label" for="name">Ваше имя</label><label class="input"><input id="name" value="ki"></label></div>
+      <div class="field"><label class="field__label" for="title">Название встречи</label><label class="input"><input id="title" value="Наша встреча"></label></div>
+      <div class="field"><span class="field__label">Кто может войти</span>
+        <div class="seg seg--full" role="radiogroup" aria-label="Кто может войти"><button class="seg__item" type="button" aria-checked="true">Сразу по ссылке</button><button class="seg__item" type="button" aria-label="Только с вашего подтверждения">С подтверждения</button></div>
+      </div>
+      <div class="sw-row"><div class="sw-row__text"><span class="sw-row__label">Разрешить интеграции всем участникам</span></div><button class="sw" role="switch" aria-checked="true" type="button" aria-label="Разрешить интеграции всем участникам"></button></div>
+      <div class="sticky"><button class="btn btn--primary btn--lg btn--full" type="submit">Начать встречу</button></div>
+    </form>
+  </div>
+</div>
+<script src="mock.js"></script>
+</body>
+</html>

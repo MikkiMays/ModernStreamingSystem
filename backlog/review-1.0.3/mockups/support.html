@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Поддержка</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .behind { position: fixed; inset: 0; background: var(--stage-bg); }
+  .dialog--lg { grid-template-rows: auto auto minmax(0, 1fr); height: min(640px, 100%); }
+  .dialog__head { gap: 12px; }
+  .hs { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
+  .tabs { padding: 0 24px 12px; }
+  .pane { padding: 4px 24px 24px; overflow: auto; }
+  /* частые вопросы */
+  .acc { display: grid; }
+  .acc__it { box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .acc__it:first-child { box-shadow: none; }
+  .acc__b { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; padding: 0 4px; border: 0; background: transparent; color: var(--text); font-weight: var(--weight-medium); text-align: left; }
+  .acc__b .i { color: var(--muted); transition: transform var(--motion-base) var(--ease-standard); }
+  .acc__b[aria-expanded='true'] .i { transform: rotate(180deg); }
+  .acc__p { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-base) var(--ease-standard); }
+  .acc__b[aria-expanded='true'] + .acc__p { grid-template-rows: 1fr; }
+  .acc__p > div { overflow: hidden; }
+  .acc__p p { padding: 0 4px 14px; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-base); }
+  .acc__p a { color: var(--accent); text-decoration: none; font-weight: var(--weight-medium); }
+  /* устройства */
+  .devs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .dev { display: grid; gap: 10px; padding: 16px; border-radius: var(--radius-3); background: var(--surface-2); }
+  .dev__h { display: flex; align-items: center; gap: 8px; font-weight: var(--weight-semibold); }
+  .dev small { color: var(--muted); font-size: var(--text-sm); }
+  .dev .cam { height: 88px; border-radius: 8px; background: var(--stage-tile); }
+  .net { display: grid; grid-template-columns: 1fr auto; row-gap: 0; margin-top: 16px; }
+  .net dt, .net dd { margin: 0; display: flex; align-items: center; min-height: 32px; font-size: var(--text-sm); }
+  .net dt { color: var(--muted); } .net dd { font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+  /* форма */
+  .form { display: grid; gap: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tg { font-size: var(--text-sm); color: var(--muted); }
+  .tg a { color: var(--accent); text-decoration: none; }
+  @media (max-width: 767px) { .devs { grid-template-columns: 1fr; } .tabs { padding: 0 16px 12px; overflow-x: auto; } .tabs .seg { min-width: 440px; } .pane { padding: 4px 16px 16px; } .dialog--lg { height: 100dvh; max-height: 100dvh; border-radius: 0; } }
+</style>
+</head>
+<body>
+<div class="behind" aria-hidden="true"></div>
+<div class="scrim">
+  <div class="dialog dialog--lg" role="dialog" aria-labelledby="t" tabindex="-1" data-tabs-scope>
+    <div class="dialog__head"><span class="hs"><svg class="i"><use href="#i-headset"/></svg></span><h2 class="dialog__title" id="t" tabindex="-1">Поддержка</h2><button class="ib" type="button" aria-label="Закрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="tabs"><div class="seg seg--full" role="tablist" data-tabs><button class="seg__item" role="tab" data-tab="faq" aria-selected="true">Частые вопросы</button><button class="seg__item" role="tab" data-tab="check">Проверить устройства</button><button class="seg__item" role="tab" data-tab="write">Написать нам</button></div></div>
+
+    <div class="pane scroll-quiet" data-pane="faq">
+      <div class="acc">
+        <div class="acc__it"><button class="acc__b" aria-expanded="true" type="button">Меня не слышно<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Проверьте, что выбран нужный микрофон и он не выключен в пульте. Если полоска уровня не двигается — Windows могла запретить доступ: Параметры → Конфиденциальность → Микрофон. <a href="#">Открыть настройки звука</a></p></div></div></div>
+        <div class="acc__it"><button class="acc__b" aria-expanded="false" type="button">Звук прерывается или с эхом<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Включите эхоподавление и наденьте наушники. Если прерывается у всех — посмотрите «Сеть» во вкладке «Проверить устройства».</p></div></div></div>
+        <div class="acc__it"><button class="acc__b" aria-expanded="false" type="button">Камера не включается<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Закройте другие приложения, которые держат камеру (Zoom, OBS), и выберите камеру заново в «Видео».</p></div></div></div>
+        <div class="acc__it"><button class="acc__b" aria-expanded="false" type="button">Показ экрана тормозит<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Для игр выберите «Плавность», для текста — «Чёткость». В окне показа видно, что выбрано.</p></div></div></div>
+        <div class="acc__it"><button class="acc__b" aria-expanded="false" type="button">Музыка или кинозал отстают<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Расхождение с комнатой видно в «Диагностике» → «Подробности аудио и видео». Больше секунды — напишите нам, приложив диагностику.</p></div></div></div>
+        <div class="acc__it"><button class="acc__b" aria-expanded="false" type="button">Оверлей не виден в игре<svg class="i"><use href="#i-chevron-down"/></svg></button><div class="acc__p"><div><p>Переключите игру из эксклюзивного полноэкранного режима в «без рамки». Проверьте, что игра включена в «Оверлей → Игры».</p></div></div></div>
+      </div>
+    </div>
+
+    <div class="pane scroll-quiet" data-pane="check" hidden>
+      <div class="devs">
+        <div class="dev"><div class="dev__h"><svg class="i"><use href="#i-mic"/></svg>Микрофон</div><small>PRO X · уровень есть</small><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button class="btn btn--sm" type="button">Проверить</button></div>
+        <div class="dev"><div class="dev__h"><svg class="i"><use href="#i-video"/></svg>Камера</div><small>По умолчанию</small><div class="cam"></div><button class="btn btn--sm" type="button">Проверить</button></div>
+        <div class="dev"><div class="dev__h"><svg class="i"><use href="#i-volume"/></svg>Динамики</div><small>PRO X</small><span class="meter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-play"/></svg>Проверить</button></div>
+      </div>
+      <dl class="net"><dt>Сервер</dt><dd>cord.nikg.tech · 56 мс</dd><dt>Медиа</dt><dd>Прямой UDP · RTT 57 мс</dd><dt>Потери</dt><dd>0,2 %</dd><dt>Отставание от комнаты</dt><dd>0,3 с</dd></dl>
+      <div style="margin-top:12px"><button class="btn" type="button">Открыть диагностику</button></div>
+    </div>
+
+    <div class="pane scroll-quiet" data-pane="write" hidden>
+      <form class="form" onsubmit="return false">
+        <div class="field"><span class="field__label">Тема</span><div class="chips" role="radiogroup" aria-label="Тема"><button class="chip" role="radio" type="button" aria-checked="true">Звук</button><button class="chip" role="radio" type="button" aria-checked="false">Видео</button><button class="chip" role="radio" type="button" aria-checked="false">Показ экрана</button><button class="chip" role="radio" type="button" aria-checked="false">Музыка и кинозал</button><button class="chip" role="radio" type="button" aria-checked="false">Игры</button><button class="chip" role="radio" type="button" aria-checked="false">Приложение Windows</button><button class="chip" role="radio" type="button" aria-checked="false">Другое</button></div></div>
+        <div class="field"><label class="field__label" for="w">Что случилось</label><label class="input input--area"><textarea id="w" placeholder="Что вы делали и что пошло не так"></textarea></label></div>
+        <div class="field"><label class="field__label" for="c">Как с вами связаться <span class="muted">· необязательно</span></label><label class="input"><input id="c" placeholder="@telegram или почта"></label></div>
+        <div class="sw-row"><div class="sw-row__text"><span class="sw-row__label">Приложить диагностику</span><span class="sw-row__hint"><a href="#" style="color:var(--accent);text-decoration:none">Что будет отправлено</a></span></div><button class="sw" role="switch" aria-checked="true" type="button" aria-label="Приложить диагностику"></button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span class="tg">Или напишите в Telegram: <a href="#">@nikgers</a></span><button class="btn btn--primary" type="submit"><svg class="i"><use href="#i-send"/></svg>Отправить</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="mock.js"></script>
+<script>
+  document.querySelectorAll('.acc__b').forEach((b) => b.addEventListener('click', () => { const open = b.getAttribute('aria-expanded') !== 'true'; document.querySelectorAll('.acc__b').forEach((o) => o.setAttribute('aria-expanded', 'false')); b.setAttribute('aria-expanded', String(open)); }));
+  const want = new URLSearchParams(location.search).get('tab'); if (want) document.querySelector(`[data-tab="${want}"]`)?.click();
+</script>
+</body>
+</html>

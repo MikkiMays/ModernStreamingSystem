@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Настройки</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* сцена за окном: главная, приглушённая подложкой */
+  .behind { position: fixed; inset: 0; display: grid; grid-template-columns: 280px 1fr; }
+  .behind__nav { background: var(--surface-2); box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--line); padding: 20px; }
+  .behind__main { display: grid; place-items: center; }
+  .behind__hero { width: min(900px, 80%); display: grid; grid-template-columns: 1.25fr 1fr; gap: 24px; }
+  .behind__hero > div { height: 260px; border-radius: 20px; background: var(--surface-1); box-shadow: var(--shadow-2); }
+  .behind__hero > div:first-child { background: var(--accent-fill); }
+
+  /* окно настроек */
+  .settings-viewport { position: fixed; inset: 0; z-index: var(--z-dialog); display: grid; place-items: center; padding: var(--space-6); padding-top: calc(var(--space-6) + var(--titlebar-h)); background: var(--scrim); backdrop-filter: blur(var(--scrim-blur)); }
+  .settings { display: grid; grid-template-columns: 260px minmax(0, 1fr); width: min(1180px, 100%); height: min(820px, 100%); border-radius: var(--dialog-radius); background: var(--dialog-bg); box-shadow: var(--shadow-3); overflow: hidden; }
+  .nav { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; background: var(--surface-2); box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--line); min-height: 0; }
+  .nav__title { padding: 20px 20px 12px; font-size: var(--text-lg); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+  .profile { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0 12px; padding: 8px 8px 8px 10px; min-height: 56px; border: 0; border-radius: var(--radius-3); background: transparent; color: var(--text); text-align: left; }
+  .profile:hover { background: var(--surface-hover); }
+  .profile b { display: block; font-weight: var(--weight-semibold); }
+  .profile small { display: block; font-size: var(--text-sm); color: var(--muted); }
+  .profile .i { color: var(--muted); }
+  .nav__search { margin: 8px 12px 12px; }
+  .nav__scroll { overflow: auto; padding: 0 12px 8px; min-height: 0; }
+  .nav__group { padding: 10px 8px 2px; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--muted); }
+  .nav__item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: var(--radius-2); background: transparent; color: var(--text-secondary); font-size: var(--text-base); font-weight: var(--weight-medium); text-align: left; }
+  .nav__item:hover { background: var(--surface-hover); color: var(--text); }
+  .nav__item[aria-selected='true'] { background: var(--surface-active); color: var(--text); font-weight: var(--weight-semibold); }
+  .nav__item .i { color: var(--muted); }
+  .nav__item[aria-selected='true'] .i { color: var(--text); }
+  .anchors { position: relative; margin: 2px 0 6px 20px; padding-left: 12px; display: grid; }
+  .anchors::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; border-radius: 1px; background: var(--line); }
+  .anchors::after { content: ''; position: absolute; left: 0; top: calc(4px + var(--a-y, 0px)); height: 20px; width: 2px; border-radius: 1px; background: var(--accent); transition: top var(--motion-base) var(--ease-standard); }
+  .anchors button { height: 28px; padding: 0 8px; border: 0; background: transparent; color: var(--muted); font-size: var(--text-sm); font-weight: var(--weight-medium); text-align: left; border-radius: var(--radius-1); }
+  .anchors button:hover { color: var(--text); }
+  .anchors button[aria-current='true'] { color: var(--text); font-weight: var(--weight-semibold); }
+  .nav__foot { padding: 8px 12px 12px; box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .nav__ver { padding: 6px 10px 0; font-size: var(--text-xs); color: var(--muted); }
+
+  .pane { display: grid; grid-template-rows: var(--header-h) minmax(0, 1fr); min-height: 0; }
+  .pane__top { display: flex; align-items: center; gap: 12px; padding: 0 12px 0 24px; position: relative; z-index: 1; }
+  .pane__top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: var(--hairline); background: var(--line); opacity: 0; transition: opacity var(--motion-fast) var(--ease-standard); }
+  [data-scrolled] .pane__top::after { opacity: 1; }
+  .pane__title { flex: 1; font-size: var(--text-md); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+  .pane__scroll { overflow: auto; scrollbar-gutter: stable; min-height: 0; }
+  .content { width: min(760px, 100%); margin-inline: auto; padding: 24px 40px 40px; display: grid; gap: 16px; align-content: start; }
+  .content > .card { padding: 20px; }
+  .content .card__title { margin-bottom: 4px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Видео: превью + строки */
+  .cam { display: grid; grid-template-columns: minmax(0, 380px) minmax(260px, 1fr); gap: 24px; align-items: start; }
+  .cam .row:not(.row--switch) { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; }
+  .cam .row:not(.row--switch) .row__ctl { justify-content: flex-start; }
+  .cam .row:first-child { padding-top: 0; }
+  .preview { aspect-ratio: 16/10; border-radius: var(--radius-3); background: var(--stage-tile); color: var(--stage-text); display: grid; place-items: center; position: relative; overflow: hidden; }
+  .preview .av { width: 72px; height: 72px; font-size: var(--text-xl); }
+  .preview__tag { position: absolute; left: 10px; top: 10px; padding: 2px 8px; border-radius: var(--radius-full); background: var(--stage-veil-2); font-size: var(--text-xs); color: var(--stage-text); }
+  .preview__sub { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center; font-size: var(--text-sm); color: var(--stage-muted); }
+  @media (max-height: 760px) { .preview { max-height: 200px; width: 100%; } }
+
+  /* аккаунт Яндекс */
+  .yx { display: grid; grid-template-columns: 160px 1fr; gap: 24px; align-items: start; }
+  .qr { width: 160px; height: 160px; border-radius: var(--radius-3); background: var(--palette-white); padding: 12px; box-shadow: inset 0 0 0 1px var(--line); }
+  .qr svg { width: 100%; height: 100%; }
+  .steps { display: grid; gap: 8px; font-size: var(--text-base); }
+  .steps b { display: inline-block; width: 20px; color: var(--muted); font-weight: var(--weight-medium); }
+  .code { font-size: var(--text-lg); font-weight: var(--weight-semibold); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+
+  /* оверлей: предпросмотр */
+  .ov-prev { position: relative; height: 220px; border-radius: var(--radius-3); background: var(--stage-bg); overflow: hidden; margin-bottom: 8px; }
+  .ov-prev__w { position: absolute; top: 16px; right: 16px; display: grid; gap: 8px; }
+  .ov-row { display: flex; align-items: center; gap: 8px; }
+  .ov-row .av { width: 40px; height: 40px; box-shadow: 0 0 0 var(--voice-ring-3) var(--voice-3); }
+  .ov-row .av + .av { box-shadow: none; }
+  .ov-name { padding: 4px 10px; border-radius: var(--radius-full); background: rgb(10 12 17 / .72); color: var(--stage-text); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .ov-name.on { background: rgb(69 209 127 / .24); }
+  .game { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; border-radius: var(--radius-3); background: var(--surface-2); }
+  .game b { display: block; font-weight: var(--weight-semibold); }
+  .game small { display: block; font-size: var(--text-sm); color: var(--muted); }
+  .exe { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-games); color: var(--on-brand); display: grid; place-items: center; }
+  .hk { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 6px 0 10px; border-radius: var(--radius-2); background: var(--surface-2); }
+
+  @media (max-width: 1023px) { .settings { grid-template-columns: 220px minmax(0, 1fr); } .cam { grid-template-columns: 1fr; } .content { padding: 20px 24px 32px; } }
+  @media (max-width: 767px) {
+    .settings-viewport { padding: 0; }
+    .settings { grid-template-columns: 1fr; height: 100%; border-radius: 0; }
+    html:not([data-view='nav']) .nav { display: none; }
+    html[data-view='nav'] .pane { display: none; }
+    .content { padding: 16px; }
+    .pair { grid-template-columns: 1fr; }
+    .yx { grid-template-columns: 1fr; }
+    .back { display: inline-flex !important; }
+  }
+  .back { display: none; }
+</style>
+</head>
+<body>
+<div class="behind" aria-hidden="true">
+  <div class="behind__nav"></div>
+  <div class="behind__main"><div class="behind__hero"><div></div><div></div></div></div>
+</div>
+
+<div class="settings-viewport">
+<div class="settings" role="dialog" aria-labelledby="st-title" tabindex="-1" data-tabs-scope data-scroll-host>
+  <aside class="nav" data-tabs aria-label="Разделы">
+    <div class="nav__title" id="st-title">Настройки</div>
+    <button class="profile" type="button">
+      <span class="av">K</span>
+      <span><b>ki</b><small>Это устройство</small></span>
+      <svg class="i i--sm"><use href="#i-chevron-right"/></svg>
+    </button>
+    <label class="input nav__search" style="height:36px"><svg class="i i--sm"><use href="#i-search"/></svg><input placeholder="Найти настройку"></label>
+    <nav class="nav__scroll scroll-quiet">
+      <div class="nav__group">Приложение</div>
+      <button class="nav__item" data-tab="profile"><svg class="i"><use href="#i-user"/></svg>Профиль</button>
+      <button class="nav__item" data-tab="look"><svg class="i"><use href="#i-palette"/></svg>Оформление</button>
+      <button class="nav__item" data-tab="keys"><svg class="i"><use href="#i-keyboard"/></svg>Горячие клавиши</button>
+      <button class="nav__item" data-tab="windows"><svg class="i"><use href="#i-window"/></svg>Windows</button>
+      <div class="nav__group">Встречи</div>
+      <button class="nav__item" data-tab="sound" aria-selected="true"><svg class="i"><use href="#i-mic"/></svg>Звук</button>
+      <button class="nav__item" data-tab="video"><svg class="i"><use href="#i-video"/></svg>Видео</button>
+      <button class="nav__item" data-tab="overlay"><svg class="i"><use href="#i-gamepad"/></svg>Оверлей</button>
+      <div class="anchors" style="--a-y: 28px" aria-label="Подразделы оверлея">
+        <button type="button">Оверлей в играх</button>
+        <button type="button" aria-current="true">Игры</button>
+        <button type="button">Виджеты</button>
+        <button type="button">Говорящие</button>
+        <button type="button">Клавиши</button>
+      </div>
+      <button class="nav__item" data-tab="sounds"><svg class="i"><use href="#i-volume"/></svg>Звуки</button>
+      <div class="nav__group">Подключения</div>
+      <button class="nav__item" data-tab="accounts"><svg class="i"><use href="#i-plug"/></svg>Аккаунты</button>
+      <button class="nav__item" data-tab="server"><svg class="i"><use href="#i-server"/></svg>Сервер</button>
+    </nav>
+    <div class="nav__foot">
+      <button class="nav__item" type="button" data-tab="about"><svg class="i"><use href="#i-info"/></svg>О программе</button>
+      <div class="nav__ver">Cord 1.0.3 · Windows</div>
+    </div>
+  </aside>
+
+  <section class="pane">
+    <div class="pane__top">
+      <button class="ib back" type="button" aria-label="Назад к разделам"><svg class="i"><use href="#i-chevron-left"/></svg></button>
+      <h2 class="pane__title" tabindex="-1" id="pane-title">Звук</h2>
+      <button class="ib" type="button" aria-label="Закрыть"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="pane__scroll scroll-quiet">
+
+      <!-- ЗВУК: помещается без прокрутки -->
+      <div class="content" data-pane="sound">
+        <div class="card">
+          <div class="card__head"><h3 class="card__title">Микрофон</h3><span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+          <div class="row row--stack" style="padding-top:4px">
+            <div class="row__ctl" style="justify-content:flex-start; gap:12px">
+              <button class="select" type="button" style="flex:1; max-width:420px"><svg class="i i--sm"><use href="#i-mic"/></svg>Микрофон (PRO X)</button>
+              <button class="btn" type="button"><svg class="i"><use href="#i-circle-dot"/></svg>Проверить</button>
+            </div>
+          </div>
+          <div class="row row--switch"><div><div class="row__label">Автоматическая громкость</div><div class="row__hint">Выравнивает тихие и громкие голоса</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Автоматическая громкость"></button></div></div>
+          <div class="row"><div class="row__label">Шумоподавление</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Шумоподавление"><button class="seg__item" data-value="off">Выкл.</button><button class="seg__item" aria-checked="true" data-value="std">Стандартное</button><button class="seg__item" data-value="hi">Усиленное</button></div></div></div>
+          <div class="row row--switch"><div class="row__label">Эхоподавление</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Эхоподавление"></button></div></div>
+          <div class="row row--switch"><div class="row__label">Входить с выключенным микрофоном</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="false" aria-label="Входить с выключенным микрофоном"></button></div></div>
+        </div>
+        <div class="card">
+          <div class="card__head"><h3 class="card__title">Динамики</h3></div>
+          <div class="row row--stack" style="padding-top:4px">
+            <div class="row__ctl" style="justify-content:flex-start; gap:12px">
+              <button class="select" type="button" style="flex:1; max-width:420px"><svg class="i i--sm"><use href="#i-volume"/></svg>Динамики (PRO X)</button>
+              <button class="btn" type="button"><svg class="i"><use href="#i-play"/></svg>Проверить</button>
+            </div>
+          </div>
+          <div class="row"><div class="row__label">Громкость собеседников</div><div class="row__ctl" style="width:min(100%, 320px)"><div class="slider" style="flex:1"><input type="range" min="0" max="100" value="72" step="1" aria-label="Громкость собеседников"><span class="slider__value"></span></div></div></div>
+        </div>
+      </div>
+
+      <!-- ВИДЕО: превью + строки, показ экрана -->
+      <div class="content" data-pane="video" hidden>
+        <div class="card">
+          <div class="card__head"><h3 class="card__title">Камера</h3></div>
+          <div class="cam">
+            <div class="preview"><span class="av av--2">K</span><div class="preview__sub">Камера выключена</div><span class="preview__tag">Видно только вам</span></div>
+            <div>
+              <div class="row row--stack" style="padding-top:0"><div class="row__label">Камера</div><div class="row__ctl"><button class="select" type="button" style="width:100%"><svg class="i i--sm"><use href="#i-video"/></svg>По умолчанию</button></div></div>
+              <div class="row"><div class="row__label">Качество</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Качество камеры"><button class="seg__item" aria-checked="true">720p</button><button class="seg__item">1080p</button><button class="seg__item" disabled title="Этот сервер допускает до 1080p · 60 fps">1440p</button></div></div></div>
+              <div class="row"><div class="row__label">Частота кадров</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Частота кадров"><button class="seg__item" aria-checked="true">30</button><button class="seg__item">60</button></div></div></div>
+              <div class="row row--switch"><div class="row__label">Входить с выключенной камерой</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Входить с выключенной камерой"></button></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__head"><h3 class="card__title">Показ экрана</h3></div>
+          <div class="row" style="padding-top:4px"><div><div class="row__label">Режим</div><div class="row__hint">Чёткость — текст и код без потери качества; Плавность — игры и видео</div></div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Режим показа"><button class="seg__item">Чёткость</button><button class="seg__item" aria-checked="true">Плавность</button></div></div></div>
+          <div class="row"><div class="row__label">Качество и частота</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Качество показа"><button class="seg__item">720p</button><button class="seg__item" aria-checked="true">1080p</button><button class="seg__item">1440p</button></div><div class="seg seg--sm" role="radiogroup" aria-label="Частота показа"><button class="seg__item">30</button><button class="seg__item" aria-checked="true">60</button></div></div></div>
+          <div class="row row--switch"><div><div class="row__label">Показывать превью зрителям</div><div class="row__hint">Снимок экрана раз в 5 секунд, пока к показу не подключились</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Показывать превью зрителям"></button></div></div>
+          <div class="row"><div class="row__label">Звук показа</div><div class="row__ctl"><button class="select" type="button">Звук приложения</button></div></div>
+        </div>
+      </div>
+
+      <!-- ОВЕРЛЕЙ: группы с разделителями, длинная страница -->
+      <div class="content" data-pane="overlay" hidden>
+        <div class="group">
+          <div class="row row--switch" style="padding-top:0"><div><div class="row__label">Оверлей в играх</div><div class="row__hint">Кто в звонке и кто говорит — поверх игры</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Оверлей в играх"></button></div></div>
+        </div>
+        <div class="group">
+          <h3 class="group__title">Игры</h3>
+          <div class="game"><span class="exe"><svg class="i"><use href="#i-gamepad"/></svg></span><div><b>Counter-Strike 2</b><small>Запущена сейчас · оверлей показан</small></div><button class="sw" role="switch" aria-checked="true" aria-label="Оверлей в Counter-Strike 2"></button></div>
+          <div class="row"><div><div class="row__label">Rocket League</div><div class="row__hint">Последний запуск 5 дней назад</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Оверлей в Rocket League"></button><button class="ib ib--sm" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div></div>
+          <div class="row"><div><div class="row__label">Hollow Knight</div><div class="row__hint">Эксклюзивный полноэкранный режим — оверлей не виден</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Оверлей в Hollow Knight"></button><button class="ib ib--sm" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div></div>
+          <div style="padding-top:12px"><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-plus"/></svg>Добавить игру</button></div>
+        </div>
+        <div class="group">
+          <h3 class="group__title">Виджеты</h3>
+          <div class="row row--switch"><div class="row__label">Говорящие</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Говорящие"></button></div></div>
+          <div class="row row--switch"><div><div class="row__label">Быстрые действия</div><div class="row__hint">Микрофон, наушники, показ, выйти</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Быстрые действия"></button></div></div>
+          <div class="row row--switch"><div class="row__label">Превью показа</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="false" aria-label="Превью показа"></button></div></div>
+        </div>
+        <div class="group">
+          <h3 class="group__title">Говорящие</h3>
+          <div class="ov-prev"><div class="ov-prev__w"><div class="ov-row"><span class="av av--2">K</span><span class="ov-name on">ki</span></div><div class="ov-row"><span class="av av--1">А</span><span class="ov-name">Аня</span></div><div class="ov-row"><span class="av av--3">М</span><span class="ov-name">Миша</span></div></div></div>
+          <div class="row"><div class="row__label">Положение</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Положение"><button class="seg__item" aria-label="Слева сверху"><svg class="i"><use href="#i-corner-tl"/></svg></button><button class="seg__item" aria-checked="true" aria-label="Справа сверху"><svg class="i"><use href="#i-corner-tr"/></svg></button><button class="seg__item" aria-label="Слева снизу"><svg class="i"><use href="#i-corner-bl"/></svg></button><button class="seg__item" aria-label="Справа снизу"><svg class="i"><use href="#i-corner-br"/></svg></button></div></div></div>
+          <div class="row"><div class="row__label">Размер аватара</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Размер аватара"><button class="seg__item">S</button><button class="seg__item" aria-checked="true">M</button><button class="seg__item">L</button></div></div></div>
+          <div class="row"><div class="row__label">Имена</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup" aria-label="Имена"><button class="seg__item" aria-checked="true">Всегда</button><button class="seg__item">Когда говорит</button><button class="seg__item">Никогда</button></div></div></div>
+          <div class="row"><div class="row__label">Максимум участников</div><div class="row__ctl" style="width:min(100%,320px)"><div class="slider" style="flex:1"><input type="range" min="0" max="25" value="10" step="1" data-format="" aria-label="Максимум участников"><span class="slider__value"></span></div></div></div>
+          <div class="row"><div class="row__label">Прозрачность</div><div class="row__ctl" style="width:min(100%,320px)"><div class="slider" style="flex:1"><input type="range" min="30" max="100" value="100" step="1" aria-label="Прозрачность"><span class="slider__value"></span></div></div></div>
+        </div>
+        <div class="group">
+          <h3 class="group__title">Клавиши</h3>
+          <div class="row"><div class="row__label">Показать или скрыть оверлей</div><div class="row__ctl"><span class="hk"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">O</span><button class="btn btn--sm btn--ghost" type="button">Изменить</button></span><button class="btn btn--sm btn--quiet" type="button">Сбросить</button></div></div>
+          <div class="row"><div class="row__label">Заблокировать или разблокировать</div><div class="row__ctl"><span class="hk"><span class="kbd">Shift</span><span class="kbd">`</span><button class="btn btn--sm btn--ghost" type="button">Изменить</button></span></div></div>
+          <div class="row row--switch"><div><div class="row__label">Всплывашка при старте игры</div><div class="row__hint">Клавиша оверлея и кнопка «Показать игру»</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true" aria-label="Всплывашка при старте игры"></button></div></div>
+        </div>
+      </div>
+
+      <!-- АККАУНТЫ -->
+      <div class="content" data-pane="accounts" hidden>
+        <div class="card" data-tabs-scope>
+          <div class="row" style="padding-top:0"><div style="display:flex;align-items:center;gap:12px"><span class="brand" style="--brand:var(--brand-yandex);--brand-ink:var(--brand-yandex-ink)"><svg class="i"><use href="#i-yandex"/></svg></span><div><div class="row__label">Яндекс Музыка</div><div class="row__hint">Не подключено</div></div></div><div class="row__ctl"><button class="btn btn--sm btn--ghost" type="button">Отмена</button></div></div>
+          <div style="margin:4px 0 16px"><div class="seg seg--full" role="radiogroup" aria-label="Способ входа" data-tabs><button class="seg__item" data-tab="qr" aria-checked="true">По QR-коду</button><button class="seg__item" data-tab="token">Токеном</button></div></div>
+          <div class="yx" data-pane="qr">
+            <div class="qr" aria-label="QR-код для входа"><svg viewBox="0 0 21 21" shape-rendering="crispEdges" fill="#1b1f27"><path d="M0 0h7v7H0zM1 1v5h5V1zM2 2h3v3H2zM14 0h7v7h-7zM15 1v5h5V1zM16 2h3v3h-3zM0 14h7v7H0zM1 15v5h5v-5zM2 16h3v3H2zM8 0h1v2H8zM10 0h2v1h-2zM8 3h3v1H8zM12 2h1v3h-1zM9 5h1v3H9zM11 6h2v1h-2zM0 8h2v1H0zM3 8h1v2H3zM5 9h3v1H5zM9 9h2v2H9zM12 8h2v1h-2zM15 8h1v1h-1zM17 9h4v1h-4zM14 10h2v1h-2zM19 11h2v1h-2zM0 11h1v2H0zM2 11h2v1H2zM5 12h2v1H5zM8 12h1v2H8zM10 12h3v1h-3zM14 12h1v3h-1zM16 13h2v1h-2zM12 14h1v2h-1zM9 15h2v1H9zM16 15h1v2h-1zM18 15h3v1h-3zM8 17h3v1H8zM12 17h2v1h-2zM15 18h2v1h-2zM19 17h1v2h-1zM9 19h1v2H9zM11 19h3v1h-3zM14 20h3v1h-3zM18 19h3v2h-3z"/></svg></div>
+            <div>
+              <div class="steps"><div><b>1</b>Откройте приложение Яндекса на телефоне</div><div><b>2</b>Наведите камеру на код</div><div><b>3</b>Подтвердите вход</div></div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:16px"><span class="code">HQ7K-2F</span><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-copy"/></svg>Скопировать</button><a class="btn btn--sm btn--quiet" href="#">Открыть страницу входа</a></div>
+              <div class="muted sm" style="margin-top:12px" role="status">Ждём подтверждения… код действует 5 минут</div>
+            </div>
+          </div>
+          <div data-pane="token" hidden>
+            <div class="field"><label class="field__label" for="tok">Токен</label><label class="input"><input id="tok" type="password" placeholder="y0_AgAAAA…"></label></div>
+            <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn--primary" type="button">Сохранить</button><button class="btn btn--ghost" type="button">Отмена</button></div>
+            <details style="margin-top:16px" class="sm"><summary style="cursor:pointer;color:var(--accent)">Где взять токен</summary><ol style="margin:8px 0 0;padding-left:20px;color:var(--text-secondary);display:grid;gap:4px"><li>Войдите на music.yandex.ru в браузере.</li><li>Откройте oauth.yandex.ru/authorize?response_type=token&amp;client_id=23cabbbdc6cd418abb4b39c32c41195d и разрешите доступ.</li><li>Скопируйте <code>access_token</code> из адресной строки после «#». Токен хранится только на этом устройстве.</li></ol></details>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row" style="padding:0"><div style="display:flex;align-items:center;gap:12px"><span class="brand" style="--brand:var(--brand-telegram)"><svg class="i"><use href="#i-telegram"/></svg></span><div><div class="row__label">Telegram</div><div class="row__hint">Скоро — встреча и музыка из вашей беседы</div></div></div></div>
+        </div>
+      </div>
+
+      <!-- О ПРОГРАММЕ -->
+      <div class="content" data-pane="about" hidden>
+        <div class="card">
+          <div class="card__head"><h3 class="card__title">Cord</h3></div>
+          <div class="row" style="padding-top:4px"><div><div class="row__label">Версия</div><div class="row__hint">Приложение для Windows</div></div><div class="row__ctl num">1.0.3</div></div>
+          <div class="row"><div><div class="row__label">Обновления</div><div class="row__hint">Установлена последняя версия</div></div><div class="row__ctl"><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-refresh"/></svg>Проверить</button></div></div>
+          <div class="row"><div><div class="row__label">Знакомство с Cord</div><div class="row__hint">Короткие подсказки у главных кнопок</div></div><div class="row__ctl"><button class="btn btn--sm" type="button">Пройти знакомство</button></div></div>
+        </div>
+        <div class="card">
+          <div class="card__head"><h3 class="card__title" style="display:flex;align-items:center;gap:10px"><span style="display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent)"><svg class="i"><use href="#i-headset"/></svg></span>Поддержка</h3></div>
+          <div class="row" style="padding-top:4px"><div><div class="row__label">Частые вопросы, проверка устройств и обращение</div><div class="row__hint">Откроется вместо настроек</div></div><div class="row__ctl"><button class="btn btn--sm btn--primary" type="button">Открыть</button></div></div>
+          <div class="row"><div class="row__label">Сообщить о проблеме</div><div class="row__ctl"><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-bug"/></svg>Сообщить</button></div></div>
+        </div>
+      </div>
+
+      <div class="content" data-pane="profile" hidden><div class="card"><div class="card__head"><h3 class="card__title">Профиль</h3></div><div class="row" style="padding-top:4px"><div class="row__label">Имя</div><div class="row__ctl"><label class="input" style="width:260px"><input value="ki"></label></div></div><div class="row"><div class="row__label">Аватар</div><div class="row__ctl"><span class="av">K</span><button class="btn btn--sm" type="button">Выбрать фото</button></div></div></div></div>
+      <div class="content" data-pane="look" hidden><div class="card"><div class="card__head"><h3 class="card__title">Оформление</h3></div><div class="row" style="padding-top:4px"><div class="row__label">Тема</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup"><button class="seg__item">Система</button><button class="seg__item">Светлая</button><button class="seg__item" aria-checked="true">Тёмная</button></div></div></div><div class="row"><div class="row__label">Язык</div><div class="row__ctl"><button class="select" type="button">Русский</button></div></div></div></div>
+      <div class="content" data-pane="keys" hidden><div class="group"><h3 class="group__title">Встреча</h3><div class="row"><div><div class="row__label">Микрофон</div><div class="row__hint">Включить или выключить</div></div><div class="row__ctl"><span class="hk"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">M</span><button class="btn btn--sm btn--ghost" type="button">Изменить</button></span><button class="btn btn--sm btn--quiet" type="button">Сбросить</button></div></div><div class="row"><div class="row__label">Камера</div><div class="row__ctl"><span class="hk"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span><button class="btn btn--sm btn--ghost" type="button">Изменить</button></span></div></div><div class="row"><div class="row__label">Показ экрана</div><div class="row__ctl"><span class="hk"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">S</span><button class="btn btn--sm btn--ghost" type="button">Изменить</button></span></div></div></div></div>
+      <div class="content" data-pane="windows" hidden><div class="card"><div class="card__head"><h3 class="card__title">Windows</h3></div><div class="row row--switch" style="padding-top:4px"><div class="row__label">Запускать вместе с Windows</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="false"></button></div></div><div class="row row--switch"><div class="row__label">Сворачивать в трей по кнопке «×»</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true"></button></div></div><div class="row row--switch"><div class="row__label">Уведомления Windows</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true"></button></div></div><div class="row row--switch"><div><div class="row__label">Мини-окно звонка, когда Cord свёрнут</div><div class="row__hint">Участники и управление поверх других окон</div></div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true"></button></div></div></div></div>
+      <div class="content" data-pane="sounds" hidden><div class="card"><div class="card__head"><h3 class="card__title">Звуки</h3></div><div class="row row--switch" style="padding-top:4px"><div class="row__label">Сигналы входа, выхода и сообщений</div><div class="row__ctl"><button class="sw" role="switch" aria-checked="true"></button></div></div><div class="row"><div class="row__label">Громкость сигналов</div><div class="row__ctl" style="width:min(100%,320px)"><div class="slider" style="flex:1"><input type="range" min="0" max="100" value="40" step="1"><span class="slider__value"></span></div><button class="btn btn--sm" type="button">Послушать</button></div></div></div></div>
+      <div class="content" data-pane="server" hidden><div class="card"><div class="card__head"><h3 class="card__title">Сервер</h3></div><div class="row" style="padding-top:4px"><div class="row__label">Адрес</div><div class="row__ctl"><label class="input" style="width:280px"><input value="cord.nikg.tech"></label></div></div><div class="row"><div class="row__label">Состояние</div><div class="row__ctl"><span class="dot"></span>&nbsp;Подключено · 56 мс</div></div></div></div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script src="mock.js"></script>
+<script>
+  // заголовок правой части — по выбранному разделу
+  const names = { profile: 'Профиль', look: 'Оформление', keys: 'Горячие клавиши', windows: 'Windows', sound: 'Звук', video: 'Видео', overlay: 'Оверлей', sounds: 'Звуки', accounts: 'Аккаунты', server: 'Сервер', about: 'О программе' };
+  const nav = document.querySelector('.nav');
+  nav.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; document.getElementById('pane-title').textContent = names[b.dataset.tab]; nav.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); document.querySelector('.pane__scroll').scrollTop = 0; delete document.documentElement.dataset.view; });
+  document.querySelector('.back').addEventListener('click', () => { document.documentElement.dataset.view = 'nav'; });
+  const want = new URLSearchParams(location.search).get('pane');
+  if (want) { const b = nav.querySelector(`[data-tab="${want}"]`); b && b.click(); }
+</script>
+</body>
+</html>

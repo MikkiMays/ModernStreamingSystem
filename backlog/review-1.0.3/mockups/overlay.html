@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Оверлей в игре</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  body { background: var(--bg); }
+  .wrap { display: grid; gap: 24px; padding: 24px; max-width: 1200px; margin-inline: auto; }
+  .cap { color: var(--muted); font-size: var(--text-sm); }
+  /* «игра» — экран монитора */
+  .game { position: relative; aspect-ratio: 16/9; border-radius: var(--radius-4); overflow: hidden; background:
+    radial-gradient(1200px 500px at 30% 110%, #3a4a2a 0%, transparent 60%),
+    radial-gradient(800px 400px at 80% 0%, #4a3a2a 0%, transparent 60%),
+    linear-gradient(180deg, #1d2430, #0e1116); color: var(--stage-text); }
+  .game::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(255 255 255 / .015) 3px 4px); pointer-events: none; }
+  .hud { position: absolute; left: 50%; bottom: 24px; translate: -50% 0; display: flex; gap: 24px; font-family: ui-monospace, monospace; font-size: 20px; opacity: .8; }
+  .cross { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; translate: -50% -50%; border: 1.5px solid rgb(255 255 255 / .6); border-radius: 50%; }
+
+  /* виджет говорящих */
+  .w { position: absolute; display: grid; gap: 8px; --sz: 40px; }
+  .w[data-corner='tr'] { top: 16px; right: 16px; justify-items: end; }
+  .w[data-corner='tl'] { top: 16px; left: 16px; }
+  .w[data-corner='bl'] { bottom: 16px; left: 16px; }
+  .w[data-corner='br'] { bottom: 16px; right: 16px; justify-items: end; }
+  .w--s { --sz: 32px; } .w--l { --sz: 56px; }
+  .p { display: flex; align-items: center; gap: 8px; height: calc(var(--sz) + 8px); transition: transform var(--motion-base) var(--ease-standard); }
+  .w[data-corner$='r'] .p { flex-direction: row-reverse; }
+  .p .av { width: var(--sz); height: var(--sz); font-size: calc(var(--sz) * .38); position: relative; box-shadow: 0 0 0 0 transparent; transition: box-shadow 90ms var(--ease-standard); }
+  .p[data-tier='1'] .av { box-shadow: 0 0 0 var(--voice-ring-1) var(--voice-1); }
+  .p[data-tier='2'] .av { box-shadow: 0 0 0 var(--voice-ring-2) var(--voice-2); }
+  .p[data-tier='3'] .av { box-shadow: 0 0 0 var(--voice-ring-3) var(--voice-3); }
+  .p[data-tier='4'] .av { box-shadow: 0 0 0 var(--voice-ring-4) var(--voice-4); }
+  .p .muted-i { position: absolute; right: -2px; bottom: -2px; width: 16px; height: 16px; border-radius: 50%; background: var(--stage-veil-3); color: var(--stage-text); display: grid; place-items: center; }
+  .p .muted-i .i { width: 10px; height: 10px; }
+  .name { padding: 4px 10px; border-radius: var(--radius-full); background: rgb(10 12 17 / .72); color: #fff; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .p[data-tier] .name { background: rgb(69 209 127 / .24); }
+  .w--s .name { font-size: var(--text-xs); } .w--l .name { font-size: var(--text-base); }
+  .p--enter { animation: enter 160ms var(--ease-emphasized) both; }
+  @keyframes enter { from { opacity: 0; transform: scale(.9); } }
+  .w--unlocked { outline: 1px dashed var(--accent); outline-offset: 8px; }
+  .w__lock { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--stage-muted); padding: 4px 8px; border-radius: 6px; background: rgb(10 12 17 / .72); }
+
+  /* всплывашка при старте игры */
+  .toast { position: absolute; top: 16px; left: 50%; translate: -50% 0; display: grid; grid-template-columns: 56px 1fr auto auto; gap: 12px; align-items: center; width: 460px; padding: 12px; border-radius: var(--radius-3); background: rgb(10 12 17 / .86); backdrop-filter: blur(12px); box-shadow: var(--shadow-3), inset 0 0 0 1px var(--stage-glint-1); color: #fff; animation: toast 200ms var(--ease-emphasized) both; }
+  @keyframes toast { from { opacity: 0; transform: translateY(8px); } }
+  .toast b { display: block; font-weight: var(--weight-semibold); }
+  .toast small { display: flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--stage-muted); font-size: var(--text-sm); margin-top: 2px; }
+  .toast .kbd { background: rgb(255 255 255 / .12); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18); color: #fff; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cell { position: relative; aspect-ratio: 16/10; border-radius: var(--radius-3); background: var(--stage-bg); overflow: hidden; }
+  .cell small { position: absolute; left: 12px; bottom: 10px; color: var(--stage-muted); font-size: var(--text-xs); }
+  @media (max-width: 767px) { .grid { grid-template-columns: 1fr; } .wrap { padding: 12px; } .game { aspect-ratio: 3/4; } .toast { top: auto; bottom: 12px; width: calc(100% - 24px); grid-template-columns: 1fr auto; gap: 8px; padding: 10px; } .hud { display: none; } .toast .brand, .toast .ib { display: none; } .toast small { white-space: normal; } .hud { font-size: 11px; gap: 12px; white-space: nowrap; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="game" aria-label="Игра с оверлеем Cord">
+    <div class="cross" aria-hidden="true"></div>
+    <div class="hud" aria-hidden="true"><span>♥ 100</span><span>▣ 30 / 90</span><span>$ 4 150</span></div>
+
+    <div class="toast" role="status">
+      <span class="brand brand--lg" style="--brand:var(--brand-games)"><svg class="i"><use href="#i-gamepad"/></svg></span>
+      <div><b>Cord поверх игры</b><small>Нажмите <span class="kbd">Shift</span>+<span class="kbd">`</span>, чтобы открыть</small></div>
+      <button class="btn btn--sm btn--primary" type="button">Показать игру</button>
+      <button class="ib ib--sm" type="button" aria-label="Закрыть" style="color:var(--stage-muted)"><svg class="i i--sm"><use href="#i-x"/></svg></button>
+    </div>
+
+    <div class="w" data-corner="tr" aria-label="Говорящие">
+      <div class="p" data-tier="3"><span class="av av--2">K</span><span class="name">ki</span></div>
+      <div class="p"><span class="av av--1">А<span class="muted-i"><svg class="i"><use href="#i-mic-off"/></svg></span></span><span class="name">Аня</span></div>
+      <div class="p" data-tier="1"><span class="av av--3">М</span><span class="name">Миша</span></div>
+      <div class="p p--enter"><span class="av av--4">Д</span><span class="name">Даша</span></div>
+    </div>
+  </div>
+  <div class="cap">Виджет говорящих справа сверху (M, имена всегда); кольцо — ступени громкости 1–4; Даша только вошла (160 мс). Сверху — всплывашка при старте игры с клавишей оверлея и «Показать игру».</div>
+
+  <div class="grid">
+    <div class="cell"><div class="w w--s" data-corner="tl"><div class="p" data-tier="2"><span class="av av--2">K</span><span class="name">ki</span></div><div class="p"><span class="av av--1">А</span><span class="name">Аня</span></div></div><small>S · слева сверху · имена всегда</small></div>
+    <div class="cell"><div class="w w--l" data-corner="bl"><div class="p" data-tier="4"><span class="av av--2">K</span><span class="name">ki</span></div><div class="p"><span class="av av--1">А</span></div><div class="p"><span class="av av--3">М</span></div></div><small>L · слева снизу · имена когда говорит</small></div>
+    <div class="cell"><div class="w w--unlocked" data-corner="br"><div class="p"><span class="av av--2">K</span><span class="name">ki</span></div><div class="p"><span class="av av--1">А</span><span class="name">Аня</span></div><div class="w__lock">Разблокирован · Shift+` — закрепить</div></div><small>M · справа снизу · разблокирован, можно перетащить</small></div>
+  </div>
+</div>
+<script src="mock.js"></script>
+</body>
+</html>

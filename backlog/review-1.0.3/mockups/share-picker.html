@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Показать экран</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .behind { position: fixed; inset: 0; background: var(--stage-bg); }
+  .dialog--xl { grid-template-rows: auto auto minmax(0, 1fr) auto; height: min(640px, 100%); }
+  .tabs { padding: 0 24px 16px; }
+  .tabs .seg { height: 40px; }
+  .tabs .seg__item { gap: 8px; }
+  .grid { padding: 0 24px 16px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; align-content: start; }
+  .src { display: grid; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; border-radius: var(--radius-3); }
+  .src__t { aspect-ratio: 16/9; border-radius: var(--radius-3); background: var(--surface-2); position: relative; overflow: hidden; transition: outline-color var(--motion-fast) var(--ease-standard); outline: 2px solid transparent; outline-offset: 2px; }
+  .src:hover .src__t { background: var(--surface-hover); }
+  .src[aria-checked='true'] .src__t { outline-color: var(--accent); }
+  .src__n { display: flex; align-items: center; gap: 8px; justify-self: center; max-width: 100%; height: 28px; padding: 0 10px; border-radius: var(--radius-full); background: var(--surface-2); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--text-secondary); }
+  .src[aria-checked='true'] .src__n { color: var(--text); background: var(--accent-soft); }
+  .src__n span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .src__n .i { width: 16px; height: 16px; }
+  /* рисунки миниатюр */
+  .thumb-a { background: linear-gradient(180deg, var(--palette-ink-600) 0 12%, var(--palette-ink-800) 12%); }
+  .thumb-a::after { content: ''; position: absolute; inset: 24% 10% 14%; border-radius: 6px; background: var(--palette-ink-700); box-shadow: inset 0 0 0 1px var(--palette-ink-500); }
+  .thumb-b { background: #0d1b2a; }
+  .thumb-b::after { content: ''; position: absolute; left: 10%; right: 10%; top: 18%; height: 54%; background: repeating-linear-gradient(0deg, #1c7bd6 0 4px, transparent 4px 10px); opacity: .7; border-radius: 4px; }
+  .thumb-c { background: linear-gradient(180deg, #2b3340, #171b23); }
+  .thumb-c::after { content: ''; position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; translate: -50% -50%; border-radius: 50%; background: var(--felt); box-shadow: 0 0 0 8px var(--rail); }
+  .thumb-d { background: var(--palette-white); }
+  .thumb-d::after { content: ''; position: absolute; inset: 20% 30%; background: var(--palette-mist-200); }
+  .thumb-e { background: #10141b; }
+  .thumb-e::after { content: ''; position: absolute; inset: 14% 12%; background: repeating-linear-gradient(0deg, #2b7d4f 0 3px, transparent 3px 9px); opacity: .6; }
+  .thumb-f { background: linear-gradient(135deg, #3a2c22, #16100c); }
+  .foot { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 14px 24px; box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .sum { text-align: center; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .right { display: flex; align-items: center; gap: 8px; }
+  .gear-menu { position: absolute; right: 24px; bottom: 76px; width: 300px; z-index: 2; }
+  .gear-menu .row { min-height: 44px; padding: 4px 8px; gap: 12px; }
+  .gear-menu .row + .row { box-shadow: none; }
+  .gear-menu .row__label { font-size: var(--text-sm); }
+  .dialog { position: relative; }
+  .empty { grid-column: 1 / -1; display: grid; place-items: center; gap: 8px; padding: 80px 0; color: var(--muted); }
+  @media (max-width: 767px) {
+    .tabs { padding: 0 16px 12px; } .grid { padding: 0 16px 12px; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .foot { grid-template-columns: 1fr; gap: 10px; padding: 12px 16px; }
+    .sum { text-align: left; } .right { flex-wrap: wrap; } .right .btn--primary { flex: 1; }
+    .gear-menu { right: 16px; }
+    .dialog--xl { height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="behind" aria-hidden="true"></div>
+<div class="scrim">
+  <div class="dialog dialog--xl" role="dialog" aria-labelledby="t" tabindex="-1" data-tabs-scope>
+    <div class="dialog__head"><h2 class="dialog__title" id="t" tabindex="-1">Показать экран</h2><button class="ib" type="button" aria-label="Закрыть"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="tabs"><div class="seg seg--full" role="tablist" data-tabs>
+      <button class="seg__item" role="tab" data-tab="apps" aria-selected="true"><svg class="i"><use href="#i-window"/></svg>Приложения</button>
+      <button class="seg__item" role="tab" data-tab="screens"><svg class="i"><use href="#i-monitor"/></svg>Весь экран</button>
+      <button class="seg__item" role="tab" data-tab="devices"><svg class="i"><use href="#i-camera"/></svg>Устройства</button>
+    </div></div>
+
+    <div class="grid scroll-quiet" data-pane="apps" role="radiogroup" aria-label="Окна">
+      <button class="src" role="radio" aria-checked="true" type="button"><span class="src__t thumb-c"></span><span class="src__n"><svg class="i" style="color:var(--brand-poker)"><use href="#i-spade"/></svg><span>Counter-Strike 2</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-a"></span><span class="src__n"><svg class="i"><use href="#i-window"/></svg><span>Matchmaking — FACEIT — Google Chrome</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-b"></span><span class="src__n"><svg class="i"><use href="#i-window"/></svg><span>Cord</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-d"></span><span class="src__n"><svg class="i"><use href="#i-image"/></svg><span>Paint</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-e"></span><span class="src__n"><svg class="i"><use href="#i-window"/></svg><span>Terminal</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-f"></span><span class="src__n"><svg class="i"><use href="#i-window"/></svg><span>Telegram</span></span></button>
+    </div>
+    <div class="grid" data-pane="screens" hidden role="radiogroup" aria-label="Экраны">
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-a"></span><span class="src__n"><svg class="i"><use href="#i-monitor"/></svg><span>Экран 1 · 2560×1440</span></span></button>
+      <button class="src" role="radio" aria-checked="false" type="button"><span class="src__t thumb-b"></span><span class="src__n"><svg class="i"><use href="#i-monitor"/></svg><span>Экран 2 · 1920×1080</span></span></button>
+    </div>
+    <div class="grid" data-pane="devices" hidden><div class="empty"><svg class="i i--lg"><use href="#i-camera"/></svg><b style="color:var(--text)">Устройств захвата нет</b></div></div>
+
+    <div class="foot">
+      <div class="sw-row"><button class="sw" role="switch" aria-checked="true" type="button" aria-label="Звук приложения"></button><span class="sw-row__label">Звук приложения</span></div>
+      <div class="sum" aria-live="polite">Плавность · 1080p · 60 fps</div>
+      <div class="right">
+        <div class="seg" role="radiogroup" aria-label="Режим показа"><button class="seg__item" type="button">Чёткость</button><button class="seg__item" type="button" aria-checked="true">Плавность</button></div>
+        <button class="ib ib--solid" type="button" aria-label="Настройки показа" aria-expanded="true"><svg class="i"><use href="#i-settings"/></svg></button>
+        <button class="btn btn--primary" type="button">Показать</button>
+      </div>
+    </div>
+
+    <div class="menu gear-menu" role="dialog" aria-label="Настройки показа">
+      <div class="row"><div class="row__label">Качество</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup"><button class="seg__item" type="button">720p</button><button class="seg__item" type="button" aria-checked="true">1080p</button><button class="seg__item" type="button">1440p</button></div></div></div>
+      <div class="row"><div class="row__label">Частота</div><div class="row__ctl"><div class="seg seg--sm" role="radiogroup"><button class="seg__item" type="button">30</button><button class="seg__item" type="button" aria-checked="true">60</button></div></div></div>
+      <div class="menu__sep"></div>
+      <div class="row row--switch"><div class="row__label">Показывать превью зрителям</div><div class="row__ctl"><button class="sw sw--sm" role="switch" aria-checked="true" type="button" aria-label="Показывать превью зрителям"></button></div></div>
+      <div class="row row--switch"><div class="row__label">Не слышать свой показ</div><div class="row__ctl"><button class="sw sw--sm" role="switch" aria-checked="false" type="button" aria-label="Не слышать свой показ"></button></div></div>
+      <div class="menu__sep"></div>
+      <button class="menu__item" type="button"><svg class="i"><use href="#i-volume"/></svg>Звук<span class="muted sm" style="display:flex;align-items:center;gap:4px">Приложения<svg class="i i--sm"><use href="#i-chevron-right"/></svg></span></button>
+    </div>
+  </div>
+</div>
+<script src="mock.js"></script>
+<script>
+  document.querySelectorAll('[role=radiogroup] .src').forEach((b) => b.addEventListener('click', () => { b.parentElement.querySelectorAll('.src').forEach((o) => o.setAttribute('aria-checked', 'false')); b.setAttribute('aria-checked', 'true'); }));
+  const sum = document.querySelector('.sum');
+  const upd = () => { const m = document.querySelector('.right .seg [aria-checked="true"]').textContent; const q = document.querySelectorAll('.gear-menu .seg')[0].querySelector('[aria-checked="true"]').textContent; const f = document.querySelectorAll('.gear-menu .seg')[1].querySelector('[aria-checked="true"]').textContent; sum.textContent = `${m} · ${q} · ${f} fps`; };
+  document.querySelectorAll('.seg').forEach((s) => s.addEventListener('segchange', upd));
+</script>
+</body>
+</html>

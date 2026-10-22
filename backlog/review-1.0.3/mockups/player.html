@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cord — Плеер</title>
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  body { min-height: 100dvh; }
+  .wrap { display: grid; grid-template-columns: 420px 390px; gap: 48px; justify-content: center; align-items: start; padding: 40px 24px; }
+  .cap { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: var(--text-sm); }
+  /* панель-карточка с плеером */
+  .panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr); border-radius: var(--radius-4); background: var(--surface-1); box-shadow: var(--shadow-2); height: 780px; overflow: hidden; }
+  .panel__h { display: flex; align-items: center; gap: 8px; padding: 12px 8px 8px 16px; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .panel__h .btn { margin-left: auto; }
+  .panel__tabs { padding: 0 12px 12px; }
+  .body { overflow: auto; padding: 0 16px 16px; display: grid; gap: 14px; align-content: start; }
+  .plat .seg__item { gap: 5px; padding: 0 6px; min-width: 0; font-size: var(--text-xs); }
+  .plat .seg__item .i { width: 14px; height: 14px; }
+  .search { position: relative; }
+  .results { display: grid; margin-top: 6px; }
+  .res { display: grid; grid-template-columns: 36px 1fr auto auto; gap: 10px; align-items: center; height: 48px; padding: 0 4px; border-radius: var(--radius-2); }
+  .res:hover { background: var(--surface-hover); }
+  .res .cv { width: 36px; height: 36px; border-radius: 6px; background: var(--surface-3); }
+  .res b { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res small { display: block; font-size: var(--text-xs); color: var(--muted); }
+  .res .num { font-size: var(--text-xs); color: var(--muted); }
+  .res .btn { opacity: 0; } .res:hover .btn, .res:focus-within .btn { opacity: 1; }
+  .now { display: grid; gap: 12px; padding: 16px; border-radius: var(--radius-3); background: var(--surface-2); }
+  .now__h { display: flex; align-items: baseline; gap: 8px; font-weight: var(--weight-semibold); }
+  .now__h small { color: var(--brand-yandex-text); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .now__t { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; }
+  .cover { width: 96px; height: 96px; border-radius: 10px; background: linear-gradient(135deg, var(--palette-ink-500), var(--palette-ink-800)); position: relative; overflow: hidden; }
+  .cover::after { content: ''; position: absolute; inset: 40% 30% 20%; border-radius: 50% 50% 40% 40%; background: var(--palette-white); opacity: .9; }
+  .now__t b { display: block; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+  .now__t small { display: block; color: var(--muted); }
+  .st { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--text-sm); color: var(--brand-music-text); font-weight: var(--weight-medium); }
+  .pos { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctls { display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .play { width: 48px; height: 48px; border-radius: 50%; background: var(--brand-music); color: var(--on-brand); border: 0; display: grid; place-items: center; }
+  .q__h { display: flex; justify-content: space-between; align-items: center; font-weight: var(--weight-semibold); padding: 4px 0; }
+  .q__h span { color: var(--muted); font-weight: var(--weight-regular); font-size: var(--text-sm); }
+  .q__row { display: grid; grid-template-columns: 20px 36px 1fr auto 28px; gap: 10px; align-items: center; height: 56px; }
+  .q__row .cv { width: 36px; height: 36px; border-radius: 6px; background: var(--surface-3); }
+  .q__row b { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .q__row small { display: block; font-size: var(--text-xs); color: var(--muted); }
+  .q__row .num { font-size: var(--text-sm); color: var(--muted); }
+  .q__row + .q__row { box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  .q__row.drag { background: var(--surface-1); box-shadow: var(--shadow-2); border-radius: var(--radius-2); transform: scale(1.02); padding: 0 6px; }
+  .vol { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; padding-top: 8px; box-shadow: inset 0 var(--hairline) 0 var(--line); }
+  /* зона файлов */
+  .drop { display: grid; place-items: center; gap: 8px; height: 160px; border-radius: var(--radius-3); border: 1px dashed var(--line-strong); text-align: center; }
+  .drop[data-over] { background: var(--accent-soft); border-color: var(--accent); }
+  .drop b { font-weight: var(--weight-medium); }
+  .drop small { font-size: var(--text-xs); color: var(--muted); }
+  .drop .i { color: var(--muted); }
+
+  /* телефон: лист */
+  .phone { position: relative; width: 390px; height: 780px; border-radius: 32px; background: var(--stage-bg); box-shadow: var(--shadow-3); overflow: hidden; }
+  .phone__dock { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: var(--dock-bg); }
+  .mini-m { position: absolute; left: 8px; right: 8px; bottom: 64px; height: 48px; display: grid; grid-template-columns: 32px 1fr auto auto; gap: 10px; align-items: center; padding: 0 8px; }
+  .mini-m .cv { width: 32px; height: 32px; border-radius: 6px; background: var(--palette-ink-500); }
+  .mini-m b { display: block; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+  .mini-m small { display: block; font-size: var(--text-xs); color: var(--stage-muted); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 85%; border-radius: 20px 20px 0 0; background: var(--surface-1); color: var(--text); box-shadow: var(--shadow-3); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+  .sheet__handle { width: 36px; height: 4px; border-radius: 2px; background: var(--line-strong); margin: 8px auto 4px; }
+  .sheet .panel__tabs { overflow-x: auto; }
+  .sheet .plat { min-width: 0; }
+  .sheet .body { padding-bottom: 24px; }
+  @media (max-width: 920px) { .wrap { grid-template-columns: minmax(0, 420px); gap: 32px; } .phone { display: none; } .cap--phone { display: none; } }
+  @media (max-width: 767px) { .wrap { padding: 12px; } .panel { height: auto; max-height: calc(100dvh - 24px); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="panel" aria-label="Интеграции · Музыка" data-tabs-scope>
+    <div class="panel__h"><button class="ib ib--sm" type="button" aria-label="Назад к интеграциям"><svg class="i"><use href="#i-chevron-left"/></svg></button>Музыка<button class="btn btn--sm btn--quiet" type="button">Убрать</button><button class="ib" type="button" aria-label="Закрыть панель"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="panel__tabs"><div class="seg seg--full plat" role="radiogroup" aria-label="Площадка" data-tabs data-brand style="--brand:var(--brand-yandex);--brand-text:var(--brand-yandex-text)">
+      <button class="seg__item" data-tab="yt"><svg class="i"><use href="#i-youtube"/></svg>YouTube</button>
+      <button class="seg__item" data-tab="sc"><svg class="i"><use href="#i-soundcloud"/></svg>SoundCloud</button>
+      <button class="seg__item" data-tab="yx" aria-checked="true"><svg class="i"><use href="#i-yandex"/></svg>Яндекс</button>
+      <button class="seg__item" data-tab="files"><svg class="i"><use href="#i-file-audio"/></svg>Файлы</button>
+    </div></div>
+    <div class="body scroll-quiet">
+      <div class="search" data-pane="yx">
+        <label class="input"><svg class="i"><use href="#i-search"/></svg><input placeholder="Найти в Яндекс Музыке" value="kanye"></label>
+        <div class="results">
+          <div class="res"><span class="cv"></span><div><b>Runaway</b><small>Kanye West · 9:08</small></div><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-plus"/></svg>В очередь</button><span></span></div>
+          <div class="res"><span class="cv"></span><div><b>Stronger</b><small>Kanye West · 5:12</small></div><button class="btn btn--sm" type="button"><svg class="i"><use href="#i-plus"/></svg>В очередь</button><span></span></div>
+        </div>
+      </div>
+      <div data-pane="yt" hidden><label class="input"><svg class="i"><use href="#i-search"/></svg><input placeholder="Найти на YouTube или вставить ссылку"></label></div>
+      <div data-pane="sc" hidden><label class="input"><svg class="i"><use href="#i-search"/></svg><input placeholder="Найти в SoundCloud"></label></div>
+      <div class="drop" data-pane="files" hidden><div style="display:grid;place-items:center;gap:6px"><svg class="i i--lg"><use href="#i-upload"/></svg><b>Перетащите аудиофайлы сюда</b><button class="btn btn--sm" type="button">Выбрать файлы</button><small>до 50 МБ и 60 минут на трек</small></div></div>
+
+      <div class="now">
+        <div class="now__h">Сейчас играет <small>Яндекс Музыка</small></div>
+        <div class="now__t"><span class="cover"></span><div><b>Put On</b><small>Young Jeezy, Kanye West</small><div class="st"><span class="eq"><i></i><i></i><i></i></span>Играет</div></div></div>
+        <div class="pos"><span>0:42</span><div class="slider slider--thin"><input type="range" min="0" max="326" value="42" step="1" data-format="time" aria-label="Позиция"></div><span>5:26</span></div>
+        <div class="ctls">
+          <button class="ib" type="button" aria-pressed="false" aria-label="Перемешать"><svg class="i"><use href="#i-shuffle"/></svg></button>
+          <button class="ib" type="button" aria-label="Предыдущий"><svg class="i i--lg"><use href="#i-skip-back"/></svg></button>
+          <button class="play" type="button" aria-label="Пауза"><svg class="i i--lg"><use href="#i-pause"/></svg></button>
+          <button class="ib" type="button" aria-label="Следующий"><svg class="i i--lg"><use href="#i-skip-forward"/></svg></button>
+          <button class="ib" type="button" aria-pressed="false" aria-label="Повтор"><svg class="i"><use href="#i-repeat"/></svg></button>
+        </div>
+      </div>
+      <div>
+        <div class="q__h">Далее в очереди <span>3 трека</span></div>
+        <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Flashing Lights</b><small>Kanye West · YouTube</small></div><span class="num">3:57</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+        <div class="q__row drag" aria-grabbed="true"><svg class="i" style="color:var(--accent)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Praise The Lord</b><small>A$AP Rocky, Skepta · Яндекс</small></div><span class="num">3:25</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+        <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Nights</b><small>Frank Ocean · файл</small></div><span class="num">5:07</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+      </div>
+      <div class="vol"><svg class="i" style="color:var(--muted)" title="Громкость у вас"><use href="#i-volume"/></svg><div class="slider slider--thin"><input type="range" min="0" max="100" value="60" step="1" aria-label="Громкость у вас"></div></div>
+    </div>
+  </aside>
+
+  <div class="phone media-stage" aria-label="Телефон: лист плеера">
+    <div class="mini-m glass"><span class="cv"></span><div><b>Put On</b><small>Young Jeezy, Kanye West</small></div><button class="ib ib--sm ib--stage" type="button" aria-label="Пауза"><svg class="i"><use href="#i-pause"/></svg></button><button class="ib ib--sm ib--stage" type="button" aria-label="Открыть плеер"><svg class="i i--sm"><use href="#i-chevron-up"/></svg></button></div>
+    <div class="phone__dock"></div>
+    <div class="sheet" role="dialog" aria-label="Музыка" data-theme="dark" data-tabs-scope>
+      <div class="sheet__handle"></div>
+      <div class="panel__tabs scroll-quiet"><div class="seg seg--full plat" role="radiogroup" aria-label="Площадка" data-brand style="--brand:var(--brand-yandex);--brand-text:var(--brand-yandex-text)">
+        <button class="seg__item" type="button"><svg class="i"><use href="#i-youtube"/></svg>YouTube</button>
+        <button class="seg__item" type="button"><svg class="i"><use href="#i-soundcloud"/></svg>SoundCloud</button>
+        <button class="seg__item" type="button" aria-checked="true"><svg class="i"><use href="#i-yandex"/></svg>Яндекс</button>
+        <button class="seg__item" type="button"><svg class="i"><use href="#i-file-audio"/></svg>Файлы</button>
+      </div></div>
+      <div class="body scroll-quiet">
+        <label class="input"><svg class="i"><use href="#i-search"/></svg><input placeholder="Найти в Яндекс Музыке"></label>
+        <div class="now">
+          <div class="now__h">Сейчас играет <small>Яндекс Музыка</small></div>
+          <div class="now__t"><span class="cover"></span><div><b>Put On</b><small>Young Jeezy, Kanye West</small><div class="st"><span class="eq"><i></i><i></i><i></i></span>Играет</div></div></div>
+          <div class="pos"><span>0:42</span><div class="slider slider--thin"><input type="range" min="0" max="326" value="42" step="1" data-format="time" aria-label="Позиция"></div><span>5:26</span></div>
+          <div class="ctls">
+            <button class="ib ib--lg" type="button" aria-label="Перемешать"><svg class="i"><use href="#i-shuffle"/></svg></button>
+            <button class="ib ib--lg" type="button" aria-label="Предыдущий"><svg class="i i--lg"><use href="#i-skip-back"/></svg></button>
+            <button class="play" type="button" style="width:56px;height:56px" aria-label="Пауза"><svg class="i i--lg"><use href="#i-pause"/></svg></button>
+            <button class="ib ib--lg" type="button" aria-label="Следующий"><svg class="i i--lg"><use href="#i-skip-forward"/></svg></button>
+            <button class="ib ib--lg" type="button" aria-label="Повтор"><svg class="i"><use href="#i-repeat"/></svg></button>
+          </div>
+        </div>
+        <div>
+          <div class="q__h">Далее в очереди <span>3 трека</span></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Flashing Lights</b><small>Kanye West</small></div><span class="num">3:57</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Praise The Lord</b><small>A$AP Rocky, Skepta</small></div><span class="num">3:25</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+          <div class="q__row"><svg class="i" style="color:var(--muted)"><use href="#i-grip"/></svg><span class="cv"></span><div><b>Nights</b><small>Frank Ocean</small></div><span class="num">5:07</span><button class="ib ib--xs" type="button" aria-label="Ещё"><svg class="i i--sm"><use href="#i-more"/></svg></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Слева — полный плеер в панели «Интеграции → Музыка» (площадки и поиск внутри, очередь с перетаскиванием). Справа — телефон: мини-полоса над пультом и лист плеера.</div>
+</div>
+<script src="mock.js"></script>
+<script>
+  // активная площадка красит сегмент своим цветом
+  const colors = { yt: 'youtube', sc: 'soundcloud', yx: 'yandex', files: 'link' };
+  document.querySelectorAll('.plat').forEach((seg) => seg.addEventListener('segchange', (e) => {
+    const on = seg.querySelector('[aria-checked="true"]'); const id = colors[on.dataset.tab] || 'link';
+    seg.style.setProperty('--brand', `var(--brand-${id})`); seg.style.setProperty('--brand-text', `var(--brand-${id}-text)`);
+  }));
+</script>
+</body>
+</html>
