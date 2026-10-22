@@ -7,7 +7,7 @@ import { Button, Slider } from '../kit';
 import { useMicLevel } from '../useMicLevel';
 import { LevelBar, SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
-import { AutoGainRow, ceilingNote, EchoRow, GainRow, NoiseRow, QualityRows } from './media-fields';
+import { AutoGainRow, EchoRow, GainRow, NoiseRow, QualityRows } from './media-fields';
 import { useDeviceCheck } from './useDeviceCheck';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
@@ -233,8 +233,8 @@ export function VoiceSection({
         </SettingRow>
         <QualityRows
           kind="camera"
-          profile={preferences.camera}
-          change={(camera) => {
+          value={preferences.camera}
+          onChange={(camera) => {
             if (meeting) void meeting.media.setCameraProfile(camera);
             else void change({ camera });
           }}
@@ -274,11 +274,11 @@ export function VoiceSection({
         </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title={t(($) => $.settings.anchors.screen)} anchor="screen" note={ceilingNote(t)}>
+      <SettingGroup title={t(($) => $.settings.anchors.screen)} anchor="screen">
         <QualityRows
           kind="screen"
-          profile={preferences.screen}
-          change={(screen) => {
+          value={preferences.screen}
+          onChange={(screen) => {
             if (meeting) void meeting.media.setProfile(screen);
             else void change({ screen });
           }}

@@ -64,15 +64,37 @@ describe('окно настроек (T26)', () => {
     expect(screen.getByRole('button', { name: 'Проверить микрофон' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Проверить динамики' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Показать превью камеры' })).toBeInTheDocument();
-    // Качество — только из правил сервера: без «Авто» и без 1440p (E05).
-    const camera = screen.getByRole('combobox', { name: 'Камера: качество' });
+    // Качество — сегментом 720 / 1080 / 1440 × 30 / 60 (R78), без «Авто»; выше потолка сервера —
+    // недоступно, причина — в подсказке пункта, а не строкой под группой.
+    const camera = screen.getByRole('radiogroup', { name: 'Камера: качество' });
     expect(
       within(camera)
-        .getAllByRole('option')
-        .map((option) => option.getAttribute('value')),
-    ).toEqual(['720', '1080']);
-    fireEvent.change(camera, { target: { value: '1080' } });
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['720p', '1080p', '1440p']);
+    expect(within(camera).getByRole('radio', { name: '720p' })).toBeChecked();
+    expect(within(camera).getByRole('radio', { name: '1440p' })).toHaveAttribute('aria-disabled', 'true');
+    expect(within(camera).getByRole('radio', { name: '1440p' })).toHaveAttribute(
+      'title',
+      'Этот сервер допускает до 1080p · 60 fps',
+    );
+    fireEvent.click(within(camera).getByRole('radio', { name: '1080p' }));
     expect(readPreferences().camera.resolution).toBe(1080);
+    const fps = screen.getByRole('radiogroup', { name: 'Камера: частота кадров' });
+    expect(
+      within(fps)
+        .getAllByRole('radio')
+        .map((radio) => radio.getAttribute('aria-label')),
+    ).toEqual(['30 fps', '60 fps']);
+    fireEvent.click(within(fps).getByRole('radio', { name: '60 fps' }));
+    expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 60 });
+    // Показ — та же шкала; под ним — что выбранное значит (X10), строки потолка больше нет.
+    const shown = screen.getByRole('radiogroup', { name: 'Экран: качество' });
+    fireEvent.click(within(shown).getByRole('radio', { name: '1080p' }));
+    expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 30 });
+    expect(screen.getByText('Ниже этого качества Cord не передаёт')).toBeInTheDocument();
+    expect(screen.queryByText(/Этот сервер допускает/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /качество/ })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('slider', { name: 'Громкость собеседников' }), {
       target: { value: '45' },
     });
@@ -86,7 +108,7 @@ describe('окно настроек (T26)', () => {
     render(<Settings open section="voice" onOpenChange={vi.fn()} />);
     const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Голос и видео' });
     fireEvent.click(within(anchors).getByRole('button', { name: 'Демонстрация экрана' }));
-    expect(screen.getByRole('combobox', { name: 'Экран: качество' })).toBeVisible();
+    expect(screen.getByRole('radiogroup', { name: 'Экран: качество' })).toBeVisible();
   });
 
   it('щелчок по якорю подсвечивает его, и программная прокрутка к нему подсветку не затирает (R12)', async () => {

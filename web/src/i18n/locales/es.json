@@ -162,7 +162,7 @@
       },
       "screen-resolution": {
         "label": "Resolución al compartir pantalla",
-        "hint": "",
+        "hint": "Cord nunca envía por debajo de esta calidad",
         "keywords": "compartir pantalla calidad stream"
       },
       "screen-fps": {

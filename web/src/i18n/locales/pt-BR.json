@@ -162,7 +162,7 @@
       },
       "screen-resolution": {
         "label": "Resolução do compartilhamento",
-        "hint": "",
+        "hint": "O Cord nunca envia abaixo desta qualidade",
         "keywords": "compartilhamento de tela qualidade stream"
       },
       "screen-fps": {

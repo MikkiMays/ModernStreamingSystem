@@ -1,10 +1,9 @@
 import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Translate } from '../../i18n';
 import type { AudioPreferences } from '../../core/preferences';
-import { qualityLevels, qualityRules } from '../../media/capabilities';
+import { CHOICE_FRAME_RATES, qualityRules, RESOLUTIONS, type Level } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
-import { Slider, Switch } from '../kit';
+import { Segmented, Slider, Switch } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
 
@@ -15,83 +14,69 @@ import { rowText } from './sections';
  * устройства выбираются отдельно.
  */
 
-const RESOLUTION_NAMES: Record<Resolution, string> = {
-  720: '720p · HD',
-  1080: '1080p · Full HD',
-  1440: '1440p · QHD',
-};
-
-/** Разрешение и частота кадров отдачи — из того, что разрешает сервер (T44, П2: без «Авто»). */
+/**
+ * Разрешение и частота кадров отдачи (R78): сегменты 720 / 1080 / 1440 и 30 / 60 — как SD / HD у
+ * Discord, одинаково для камеры и показа, без «Авто». Что выше потолка сервера — недоступно, и
+ * причина — в подсказке пункта, а не строкой под группой.
+ */
 export function QualityRows({
   kind,
-  profile,
-  change,
+  value,
+  onChange,
+  ceiling = qualityRules().ceiling,
 }: {
   kind: 'screen' | 'camera';
-  profile: ScreenProfile;
-  change: (next: ScreenProfile) => void;
+  value: ScreenProfile;
+  onChange: (next: ScreenProfile) => void;
+  /** Потолок сервера; по умолчанию — из запомненных правил (`capabilities.quality`). */
+  ceiling?: Level;
 }) {
   const { t } = useTranslation();
-  const levels = qualityLevels(qualityRules());
   const label = t(($) => $.settings.media.kind[kind]);
+  const reason = t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
+  const above = (over: boolean) => (over ? { disabled: true, title: reason } : {});
   return (
     <>
-      <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'} stack>
-        <select
-          className="ui-input ui-select setting-select"
+      <SettingRow id={kind === 'screen' ? 'screen-resolution' : 'camera-resolution'}>
+        <Segmented<Resolution>
+          size="sm"
           aria-label={t(($) => $.settings.media.quality, { label })}
-          value={profile.resolution}
-          onChange={(e) => change({ ...profile, resolution: Number(e.target.value) as Resolution })}
-        >
-          {levels.resolutions.map((resolution) => (
-            <option key={resolution} value={resolution}>
-              {RESOLUTION_NAMES[resolution]}
-            </option>
-          ))}
-        </select>
+          value={value.resolution}
+          onValueChange={(resolution) => onChange({ ...value, resolution })}
+          options={RESOLUTIONS.map((resolution) => ({
+            value: resolution,
+            label: `${resolution}p`,
+            ...above(resolution > ceiling.resolution),
+          }))}
+        />
       </SettingRow>
-      <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'} stack>
-        <select
-          className="ui-input ui-select setting-select"
+      <SettingRow id={kind === 'screen' ? 'screen-fps' : 'camera-fps'}>
+        <Segmented<FrameRate>
+          size="sm"
           aria-label={t(($) => $.settings.media.fps, { label })}
-          value={profile.fps}
-          onChange={(e) => change({ ...profile, fps: Number(e.target.value) as FrameRate })}
-        >
-          {levels.frameRates.map((fps) => (
-            <option key={fps} value={fps}>
-              {fps} fps
-            </option>
-          ))}
-        </select>
+          value={value.fps}
+          onValueChange={(fps) => onChange({ ...value, fps })}
+          options={CHOICE_FRAME_RATES.map((fps) => ({
+            value: fps,
+            label: String(fps),
+            ariaLabel: `${fps} fps`,
+            ...above(fps > ceiling.fps),
+          }))}
+        />
       </SettingRow>
     </>
   );
 }
 
-/** Потолок сервера одной строкой — под заголовком группы показа. */
-export function ceilingNote(t: Translate) {
-  const { ceiling } = qualityRules();
-  return t(($) => $.settings.media.ceiling, { resolution: ceiling.resolution, fps: ceiling.fps });
-}
-
-/** Группа «Видео с камеры» или «Демонстрация экрана» целиком — для предпросмотра. */
-export function QualityFields({
-  kind,
-  profile,
-  change,
-}: {
-  kind: 'screen' | 'camera';
-  profile: ScreenProfile;
-  change: (next: ScreenProfile) => void;
-}) {
+/**
+ * Качество камеры или показа одной группой — для предпросмотра и окна показа (W7). Пропы — те же,
+ * что у `QualityRows`: значение, правка и потолок сервера.
+ */
+export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
   const { t } = useTranslation();
   return (
-    <SettingGroup
-      title={t(($) => $.settings.media.group[kind])}
-
-      note={kind === 'screen' ? ceilingNote(t) : undefined}
-    >
-      <QualityRows kind={kind} profile={profile} change={change} />
+    <SettingGroup title={t(($) => $.settings.media.group[props.kind])}>
+      <QualityRows {...props} />
     </SettingGroup>
   );
 }

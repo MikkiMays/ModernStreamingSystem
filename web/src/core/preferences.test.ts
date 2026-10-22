@@ -40,6 +40,32 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
   expect(readPreferences().screen).toMatchObject({ resolution: 1440, fps: 60 });
 });
 
+/**
+ * R78: у камеры своё умолчание — 720p · 30 (`CAMERA_DEFAULT`), независимо от уровня по умолчанию
+ * сервера для показа; шкала частоты — 30 / 60, старые 15 кадров камеры читаются как 30.
+ */
+it('камера: умолчание 720p30 независимо от сервера, сохранённое «Авто» — тоже 720p30, 15 fps — 30', () => {
+  localStorage.setItem(
+    'cord:quality:v1',
+    JSON.stringify({
+      default: { resolution: 1080, fps: 60 },
+      ceiling: { resolution: 1440, fps: 60 },
+      settleMs: 4000,
+    }),
+  );
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ camera: { resolution: 1440, fps: 60, automatic: true } }),
+  );
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 1080, fps: 15 } }));
+  expect(readPreferences().camera).toEqual({ resolution: 1080, fps: 30 });
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ camera: { resolution: 777, fps: 7 } }));
+  expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
+});
+
 it('migrates the display name and validates stored audio and hotkeys', () => {
   localStorage.setItem('cord:name', 'Saved name');
   expect(readPreferences().name).toBe('Saved name');

@@ -162,7 +162,7 @@
       },
       "screen-resolution": {
         "label": "屏幕共享分辨率",
-        "hint": "",
+        "hint": "Cord 不会以低于此画质发送",
         "keywords": "屏幕共享 画质 直播"
       },
       "screen-fps": {

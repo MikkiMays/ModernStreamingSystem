@@ -162,7 +162,7 @@
       },
       "screen-resolution": {
         "label": "Auflösung der Freigabe",
-        "hint": "",
+        "hint": "Unter dieser Qualität sendet Cord nie",
         "keywords": "Bildschirmfreigabe Qualität Stream"
       },
       "screen-fps": {

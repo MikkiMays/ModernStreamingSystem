@@ -543,13 +543,13 @@ export function Prejoin({
           />
           <QualityFields
             kind="camera"
-            profile={preferences.camera}
-            change={(p) => setPreferences(savePreferences({ camera: p }))}
+            value={preferences.camera}
+            onChange={(p) => setPreferences(savePreferences({ camera: p }))}
           />
           <QualityFields
             kind="screen"
-            profile={preferences.screen}
-            change={(p) => setPreferences(savePreferences({ screen: p }))}
+            value={preferences.screen}
+            onChange={(p) => setPreferences(savePreferences({ screen: p }))}
           />
         </div>
       </Modal>
