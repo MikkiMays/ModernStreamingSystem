@@ -111,7 +111,7 @@ it('забывает убранные настройки — режим сети
     'cord:preferences:v1',
     JSON.stringify({ network: 'stable', reception: 'best', cameraYieldsToScreen: true, outputVolume: 50 }),
   );
-  const read = readPreferences() as Record<string, unknown>;
+  const read = readPreferences() as unknown as Record<string, unknown>;
   expect(read.outputVolume).toBe(50);
   expect('network' in read).toBe(false);
   expect('reception' in read).toBe(false);

@@ -75,7 +75,6 @@ export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackP
       maxBitrate: targetBitrate(profile),
       maxFramerate: profile.fps,
       priority: 'high',
-      networkPriority: 'high',
     },
     degradationPreference: 'maintain-resolution',
     simulcast: false,

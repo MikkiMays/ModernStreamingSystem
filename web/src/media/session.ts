@@ -7,7 +7,6 @@ import {
   type RemoteTrackPublication,
   LocalVideoTrack,
   LocalAudioTrack,
-  RemoteVideoTrack,
   ConnectionQuality,
   DisconnectReason,
   type Participant,

@@ -4,7 +4,6 @@ import { RoomEvent, DisconnectReason, Track, createLocalAudioTrack, type RoomOpt
 import { MediaSession } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
-import { fakeCameraTrack } from './fake-track';
 
 vi.mock('livekit-client', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('livekit-client')>();
