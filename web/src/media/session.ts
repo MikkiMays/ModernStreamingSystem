@@ -5,6 +5,7 @@ import {
   TrackEvent,
   type RemoteTrack,
   type RemoteTrackPublication,
+  type RemoteParticipant,
   LocalVideoTrack,
   LocalAudioTrack,
   ConnectionQuality,
