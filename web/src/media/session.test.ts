@@ -1,7 +1,14 @@
 import type { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomEvent, DisconnectReason, Track, createLocalAudioTrack, type RoomOptions } from 'livekit-client';
-import { MediaSession } from './session';
+import {
+  RoomEvent,
+  DisconnectReason,
+  Track,
+  LocalVideoTrack,
+  createLocalAudioTrack,
+  type RoomOptions,
+} from 'livekit-client';
+import { MediaSession, SCREEN_GONE_GRACE_MS } from './session';
 import type { RoomApi } from '../api/client';
 import type { CaptureAdapter, ScreenAudioEvent, ScreenAudioSource } from './capture';
 
@@ -555,4 +562,210 @@ describe('разговор в фоне', () => {
         media.dispose();
       }
     }));
+});
+
+/** Конец чужого показа (R81): событие после паузы, а переопубликация — не конец. */
+describe('конец чужого показа у зрителя', () => {
+  function peerWithScreen() {
+    const { media, room, api } = fixture();
+    const screen = {
+      trackSid: 'scr',
+      source: Track.Source.ScreenShare,
+      track: {},
+      isDesired: true,
+      setSubscribed: vi.fn(),
+    };
+    const publications = new Map<string, unknown>([['scr', screen]]);
+    const peer = { identity: 'peer', trackPublications: publications, videoTrackPublications: publications };
+    room.remoteParticipants.set('peer', peer);
+    media.watchScreen('peer');
+    return { media, room, api, peer, screen, publications };
+  }
+  afterEach(() => vi.useRealTimers());
+
+  it('снятая дорожка без замены за 400 мс — показ кончился, событие со счётчиком', () => {
+    vi.useFakeTimers();
+    const f = peerWithScreen();
+    try {
+      f.publications.delete('scr');
+      f.room.emit(RoomEvent.TrackUnpublished, f.screen, f.peer);
+      expect(f.media.screenGone.get()).toBeNull();
+      vi.advanceTimersByTime(SCREEN_GONE_GRACE_MS + 1);
+      expect(f.media.screenGone.get()).toEqual({ identity: 'peer', seq: 1 });
+      // Второй конец показа того же человека — новый номер, а не то же значение.
+      f.room.emit(RoomEvent.TrackUnpublished, f.screen, f.peer);
+      vi.advanceTimersByTime(SCREEN_GONE_GRACE_MS + 1);
+      expect(f.media.screenGone.get()).toEqual({ identity: 'peer', seq: 2 });
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('переопубликация (смена качества, кодека, переподключение) зрителя не выкидывает', () => {
+    vi.useFakeTimers();
+    const f = peerWithScreen();
+    try {
+      f.publications.delete('scr');
+      f.room.emit(RoomEvent.TrackUnpublished, f.screen, f.peer);
+      vi.advanceTimersByTime(SCREEN_GONE_GRACE_MS / 2);
+      const again = {
+        trackSid: 'scr2',
+        source: Track.Source.ScreenShare,
+        track: {},
+        isDesired: true,
+        setSubscribed: vi.fn(),
+      };
+      f.publications.set('scr2', again);
+      f.room.emit(RoomEvent.TrackPublished, again, f.peer);
+      vi.advanceTimersByTime(SCREEN_GONE_GRACE_MS * 2);
+      expect(f.media.screenGone.get()).toBeNull();
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('чужой показ, который мы не смотрим, события не рождает', () => {
+    vi.useFakeTimers();
+    const f = peerWithScreen();
+    try {
+      f.media.watchScreen(null);
+      f.publications.delete('scr');
+      f.room.emit(RoomEvent.TrackUnpublished, f.screen, f.peer);
+      vi.advanceTimersByTime(SCREEN_GONE_GRACE_MS * 2);
+      expect(f.media.screenGone.get()).toBeNull();
+    } finally {
+      f.media.dispose();
+    }
+  });
+});
+
+/** Сброс пары экрана по его звуку не трогает камеру и микрофон стримящего. */
+describe('переподписка пары дорожек', () => {
+  it('звук показа — та же пара, что и его картинка', async () => {
+    const { media, room } = fixture();
+    const make = (sid: string, source: Track.Source) => {
+      const listeners = new Map<string, () => void>();
+      return {
+        trackSid: sid,
+        source,
+        isSubscribed: true,
+        isDesired: true,
+        isEnabled: true,
+        isMuted: false,
+        setSubscribed: vi.fn((on: boolean) => {
+          if (!on) listeners.get('unsubscribed')?.();
+        }),
+        once: (event: string, fn: () => void) => listeners.set(event, fn),
+        off: vi.fn(),
+      };
+    };
+    const screen = make('scr', Track.Source.ScreenShare);
+    const screenAudio = make('scra', Track.Source.ScreenShareAudio);
+    const camera = make('cam', Track.Source.Camera);
+    const mic = make('mic', Track.Source.Microphone);
+    room.remoteParticipants.set('peer', {
+      identity: 'peer',
+      trackPublications: new Map([
+        ['scr', screen],
+        ['scra', screenAudio],
+        ['cam', camera],
+        ['mic', mic],
+      ]),
+    });
+    media.watchScreen('peer');
+    try {
+      await (
+        media as unknown as { resetLivePair(i: string, s: Track.Source, a: boolean): Promise<void> }
+      ).resetLivePair('peer', Track.Source.ScreenShareAudio, false);
+      expect(screen.setSubscribed).toHaveBeenCalledWith(false);
+      expect(screenAudio.setSubscribed).toHaveBeenCalledWith(false);
+      expect(camera.setSubscribed).not.toHaveBeenCalledWith(false);
+      expect(mic.setSubscribed).not.toHaveBeenCalledWith(false);
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
+/** Игла музыки вычитает наш же запас буфера (R03); без музыки — ноль. */
+describe('запас музыки для иглы', () => {
+  it('отдаёт запрошенный запас дорожки бота и ноль без неё', () => {
+    const { media, room } = fixture();
+    try {
+      expect(media.musicPlayoutMs()).toBe(0);
+      const publication = {
+        trackSid: 'music',
+        source: Track.Source.Microphone,
+        isSubscribed: true,
+        track: {},
+      };
+      room.remoteParticipants.set('bot', {
+        identity: 'bot',
+        trackPublications: new Map([['music', publication]]),
+        audioTrackPublications: new Map([['music', publication]]),
+      });
+      media.setServiceParticipants(['bot']);
+      const playout = (media as unknown as { playout: { prime(t: unknown): number } }).playout;
+      playout.prime({ id: 'music', kind: 'media', stats: async () => undefined });
+      expect(media.musicPlayoutMs()).toBe(600);
+    } finally {
+      media.dispose();
+    }
+  });
+});
+
+/** Превью показа: выключено в настройках — кадры не снимаются; включено — уходят командой ядра. */
+describe('превью своего показа', () => {
+  it('preview:false — источник превью не запускается', () => {
+    localStorage.setItem(
+      'cord:preferences:v1',
+      JSON.stringify({ screen: { resolution: 720, fps: 30, preview: false } }),
+    );
+    const { media } = fixture();
+    try {
+      const source = (media as unknown as { previewSource: { start: () => void; stop: () => void } })
+        .previewSource;
+      const start = vi.spyOn(source, 'start');
+      const stop = vi.spyOn(source, 'stop');
+      const track = Object.create(LocalVideoTrack.prototype) as LocalVideoTrack;
+      Object.defineProperty(track, 'mediaStreamTrack', { value: {} });
+      (media as unknown as { screenTracks: unknown[] }).screenTracks = [track];
+      (media as unknown as { syncPreview(): void }).syncPreview();
+      expect(start).not.toHaveBeenCalled();
+      expect(stop).toHaveBeenCalled();
+    } finally {
+      (media as unknown as { screenTracks: unknown[] }).screenTracks = [];
+      media.dispose();
+      localStorage.clear();
+    }
+  });
+
+  it('кадр уходит командой screen.preview, а чужой — принимается из сокета', () => {
+    const { media, api } = fixture();
+    try {
+      const source = (
+        media as unknown as { previewSource: { start: (t: unknown, send: (b: Uint8Array) => void) => void } }
+      ).previewSource;
+      let send: ((bytes: Uint8Array) => void) | undefined;
+      vi.spyOn(source, 'start').mockImplementation((_track, callback) => {
+        send = callback;
+      });
+      const track = Object.create(LocalVideoTrack.prototype) as LocalVideoTrack;
+      Object.defineProperty(track, 'mediaStreamTrack', { value: {} });
+      (media as unknown as { screenTracks: unknown[] }).screenTracks = [track];
+      (media as unknown as { syncPreview(): void }).syncPreview();
+      send!(new Uint8Array([255, 216, 255]));
+      expect(api.command).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'screen.preview', image: btoa('\xff\xd8\xff') }),
+      );
+      vi.stubGlobal('URL', { createObjectURL: () => 'blob:p', revokeObjectURL: () => {} });
+      media.acceptPreview('peer', btoa('\xff\xd8\xff'));
+      expect(media.screenPreviews.get()).toEqual({ peer: 'blob:p' });
+      media.acceptPreview('peer', '***мусор***');
+      expect(media.screenPreviews.get()).toEqual({ peer: 'blob:p' });
+    } finally {
+      (media as unknown as { screenTracks: unknown[] }).screenTracks = [];
+      media.dispose();
+    }
+  });
 });

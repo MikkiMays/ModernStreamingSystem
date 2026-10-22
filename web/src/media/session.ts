@@ -58,7 +58,7 @@ import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, type CallReport } from './call-quality';
 import { waitForPublishPermissions } from './publish-permissions';
-import { PreviewImages, ScreenPreviewSource, PREVIEW_TOPIC } from './screen-preview';
+import { PreviewImages, ScreenPreviewSource, encodePreview, decodePreview } from './screen-preview';
 import { currentPlatform, type Platform } from './platform';
 import {
   AudioWaker,
@@ -171,6 +171,9 @@ interface ScreenAudioLink {
 }
 
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
+/** Сколько ждать новой дорожки показа после снятия старой, прежде чем счесть показ оконченным. */
+export const SCREEN_GONE_GRACE_MS = 400;
+
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
   readonly state = new Store<MediaState>({
@@ -199,11 +202,37 @@ export class MediaSession {
   /** Последний кадр чужой демонстрации: participantId → ссылка на картинку. */
   readonly screenPreviews = new Store<Record<string, string>>({});
   /**
-   * Чей показ, который мы смотрели, только что кончился (R81). SFU сообщает об этом через
-   * `TrackUnpublished` за ~50–100 мс — раньше, чем ядро пришлёт снимок без экрана; зритель
-   * закрывает просмотр по первому из двух, а не ждёт второго.
+   * Чей показ, который мы смотрели, только что кончился (R81): событие со счётчиком, а не
+   * значение — два подряд конца показа одного и того же человека различимы. SFU сообщает об
+   * этом через `TrackUnpublished` за ~50–100 мс — раньше, чем ядро пришлёт снимок без экрана.
+   *
+   * Снятие дорожки — ещё не конец показа: смена качества, режима или кодека, откат кодека и
+   * переподключение стримящего переопубликовывают ту же демонстрацию. Поэтому ждём
+   * {@link SCREEN_GONE_GRACE_MS}: появилась новая дорожка показа — это была переопубликация.
    */
-  readonly screenGone = new Store<string | null>(null);
+  readonly screenGone = new Store<{ identity: string; seq: number } | null>(null);
+  private screenGoneTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private noteScreenGone(identity: string) {
+    clearTimeout(this.screenGoneTimers.get(identity));
+    this.screenGoneTimers.set(
+      identity,
+      setTimeout(() => {
+        this.screenGoneTimers.delete(identity);
+        if (this.disposed) return;
+        const participant = this.room.remoteParticipants.get(identity);
+        const sharing =
+          !!participant &&
+          [...participant.trackPublications.values()].some((p) => p.source === Track.Source.ScreenShare);
+        if (sharing) return;
+        this.screenGone.update((previous) => ({ identity, seq: (previous?.seq ?? 0) + 1 }));
+      }, SCREEN_GONE_GRACE_MS),
+    );
+  }
+  private screenCameBack = (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+    if (publication.source !== Track.Source.ScreenShare) return;
+    clearTimeout(this.screenGoneTimers.get(participant.identity));
+    this.screenGoneTimers.delete(participant.identity);
+  };
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   /** На какой платформе идёт встреча — для правил фона (E12, `media/background.ts`). */
@@ -249,11 +278,18 @@ export class MediaSession {
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
   };
-  private receivePreview = (payload: Uint8Array, participant?: Participant, _?: unknown, topic?: string) => {
-    if (topic !== PREVIEW_TOPIC || !participant || this.disposed || !payload.byteLength) return;
-    const url = this.previewImages.accept(participant.identity, payload);
-    this.screenPreviews.update((previews) => ({ ...previews, [participant.identity]: url }));
-  };
+  /**
+   * Кадр превью чужого показа — от ядра (`preview` в сокете комнаты), не из канала данных SFU:
+   * права на данные LiveKit участникам не выдаются (`CanPublishData(false)`), и `publishData`
+   * молча терялся — это и был «только зелёный фон» (R07).
+   */
+  acceptPreview(participantId: string, image: string) {
+    if (this.disposed || !image) return;
+    const bytes = decodePreview(image);
+    if (!bytes.byteLength) return;
+    const url = this.previewImages.accept(participantId, bytes);
+    this.screenPreviews.update((previews) => ({ ...previews, [participantId]: url }));
+  }
   private dropPreview(participantId: string) {
     if (!this.screenPreviews.get()[participantId]) return;
     this.previewImages.forget(participantId);
@@ -275,8 +311,10 @@ export class MediaSession {
     }
     this.previewSource.start(track.mediaStreamTrack, (bytes) => {
       if (this.disposed || this.room.state !== 'connected') return;
-      void this.room.localParticipant
-        .publishData(bytes, { reliable: true, topic: PREVIEW_TOPIC })
+      // Через ядро (`screen.preview`): оно проверяет, что кадр шлёт показывающий, и раздаёт
+      // его сокетам комнаты мимо журнала событий. Ответ не нужен — следующий кадр через 5 с.
+      void this.api
+        .command({ type: 'screen.preview', commandId: crypto.randomUUID(), image: encodePreview(bytes) })
         .catch(() => {});
     });
   }
@@ -420,6 +458,7 @@ export class MediaSession {
       });
     this.room
       .on(RoomEvent.TrackPublished, this.syncSubscriptions)
+      .on(RoomEvent.TrackPublished, this.screenCameBack)
       .on(RoomEvent.ParticipantConnected, this.syncSubscriptions)
       .on(RoomEvent.TrackSubscribed, this.configurePlayout)
       .on(RoomEvent.TrackSubscribed, this.refreshTracks)
@@ -439,12 +478,11 @@ export class MediaSession {
       .on(RoomEvent.ActiveSpeakersChanged, (speakers) =>
         this.speaking.set(speakers.map((participant) => participant.identity)),
       )
-      .on(RoomEvent.DataReceived, this.receivePreview)
       .on(RoomEvent.ParticipantDisconnected, (participant) => this.dropPreview(participant.identity))
       .on(RoomEvent.TrackUnpublished, (publication, participant) => {
         if (publication.source === Track.Source.ScreenShare) {
           this.dropPreview(participant.identity);
-          if (this.watchedParticipant === participant.identity) this.screenGone.set(participant.identity);
+          if (this.watchedParticipant === participant.identity) this.noteScreenGone(participant.identity);
         }
       })
       .on(RoomEvent.TrackMuted, (publication, participant) => {
@@ -720,7 +758,8 @@ export class MediaSession {
     );
   }
   private async resetLivePair(identity: string, source: Track.Source, automatic: boolean) {
-    const screen = source === Track.Source.ScreenShare;
+    // Пара экрана — и картинка, и её звук: сброс по любой из них не должен трогать камеру и микрофон.
+    const screen = source === Track.Source.ScreenShare || source === Track.Source.ScreenShareAudio;
     const key = `${identity}:${screen ? 'screen' : 'camera'}`;
     if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < 30000))
       return;
@@ -1892,6 +1931,8 @@ export class MediaSession {
     window.removeEventListener('cord:preferences', this.settingsChanged);
     this.previewSource.stop();
     this.previewImages.clear();
+    for (const timer of this.screenGoneTimers.values()) clearTimeout(timer);
+    this.screenGoneTimers.clear();
     this.screenPreviews.set({});
     this.speaking.set([]);
     this.levels.dispose();

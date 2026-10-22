@@ -7,8 +7,9 @@
  * превью» при запуске — глобальной настройки нет, и здесь тоже.
  *
  * ПОЧЕМУ НЕ ПОДПИСКА. Подписаться на показ ради превью — это полный поток у каждого в комнате
- * всё время (один слой, R91). Периодический кадр по каналу данных стоит 10–20 Кбит/с на
- * зрителя — в сотни раз дешевле.
+ * всё время (один слой, R91). Периодический кадр стоит 10–20 Кбит/с на зрителя — в сотни раз
+ * дешевле. Идёт он через ядро (команда `screen.preview` → сокеты комнаты), а не каналом данных
+ * SFU: прав на данные LiveKit участникам не выдаётся, и `publishData` молча терялся.
  *
  * ПОЧЕМУ ПЕРЕПИСАНО (R07). Кадр снимался через скрытый `<video>`: в Electron и в свёрнутом
  * окне он мог так и не заиграть (`videoWidth` 0), и зритель всё время видел заглушку —
@@ -19,8 +20,6 @@
  * честнее, чем «превью» без содержимого.
  */
 
-/** Тема пакета: канал данных общий, и чужие сообщения по нему тоже ходят. */
-export const PREVIEW_TOPIC = 'cord.screen-preview';
 export const PREVIEW_WIDTH = 256;
 export const PREVIEW_HEIGHT = 144;
 /** Пять секунд — цена ответа «что там»: несколько килобайт в минуту на зрителя. */
@@ -28,10 +27,8 @@ export const PREVIEW_INTERVAL = 5000;
 /** Первый кадр — почти сразу: плитка нужна ровно в ту секунду, когда решают, заходить ли. */
 export const PREVIEW_FIRST_MS = 400;
 /**
- * Потолок одного пакета.
- *
- * Надёжный канал данных LiveKit ограничен 15 КиБ. Берём с запасом: пакет, который не
- * пролез, — это исключение в середине разговора ради картинки, без которой можно жить.
+ * Потолок одного кадра в байтах: команда ядра принимает до 20 000 знаков base64 (`Command.image`),
+ * это 15 000 байт; берём с запасом.
  */
 export const PREVIEW_LIMIT = 14000;
 /** Качество JPEG, от приличного к скромному: первый кадр, который влезет, и отправляется. */
@@ -77,6 +74,25 @@ export function isFlat(rgba: Uint8ClampedArray | Uint8Array, width: number, heig
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
   const deviation = values.reduce((sum, value) => sum + Math.abs(value - mean), 0) / values.length;
   return deviation < PREVIEW_FLAT_THRESHOLD;
+}
+
+/** JPEG → base64 для команды `screen.preview` (кусками: `fromCharCode` не любит сотни тысяч аргументов). */
+export function encodePreview(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 8192)
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(bytes.length, i + 8192)));
+  return btoa(binary);
+}
+/** base64 из сокета → байты JPEG; мусор — пустой массив, а не исключение. */
+export function decodePreview(image: string): Uint8Array {
+  try {
+    const binary = atob(image);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return new Uint8Array(0);
+  }
 }
 
 /** Собственные ссылки на картинки, которые надо отзывать: иначе вкладка растёт весь разговор. */

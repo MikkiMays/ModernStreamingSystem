@@ -8,7 +8,8 @@ vi.mock('../media/session', async () => {
     MediaSession: class {
       state = new Store({ status: 'idle' });
       preferences = new Store(readPreferences());
-      screenGone = new Store<string | null>(null);
+      screenGone = new Store<{ identity: string; seq: number } | null>(null);
+      acceptPreview = vi.fn();
       constructor(
         _api: unknown,
         public onEnd: (reason: string) => void,

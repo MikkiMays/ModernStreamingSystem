@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  decodePreview,
+  encodePreview,
   fitPreview,
   isFlat,
   PreviewImages,
+  ScreenPreviewSource,
   PREVIEW_FIRST_MS,
   PREVIEW_HEIGHT,
   PREVIEW_INTERVAL,
@@ -97,5 +100,119 @@ describe('ссылки на присланные кадры', () => {
     expect(live.size).toBe(1);
     images.clear();
     expect(live.size).toBe(0);
+  });
+});
+
+describe('кадр в команду и обратно', () => {
+  it('base64 туда и обратно без потерь, мусор — пустой массив', () => {
+    const bytes = new Uint8Array(20000).map((_, i) => (i * 7) % 256);
+    expect(decodePreview(encodePreview(bytes))).toEqual(bytes);
+    expect(decodePreview('не base64!').byteLength).toBe(0);
+  });
+});
+
+/**
+ * Источник кадров: берёт `VideoFrame` из дорожки, закрывает его, шлёт только непустой кадр;
+ * `stop()` отменяет чтение, а кадр, пришедший после `stop()`/нового `start()`, не уходит.
+ */
+describe('источник превью', () => {
+  function fakeCanvas(flat: boolean) {
+    const data = new Uint8ClampedArray(256 * 144 * 4);
+    if (!flat) for (let i = 0; i < data.length; i += 4) data[i] = (i / 4) % 256;
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage: vi.fn(), getImageData: () => ({ data }) }),
+      toBlob: (resolve: (b: Blob) => void) => resolve(new Blob([new Uint8Array([1, 2, 3])])),
+    };
+    return canvas;
+  }
+  function processor(frames: Array<{ close: () => void }>) {
+    let released = false;
+    const reader = {
+      read: () =>
+        new Promise<{ value?: unknown; done: boolean }>((resolve) => {
+          if (released) return resolve({ done: true });
+          const value = frames.shift();
+          if (value) resolve({ value, done: false });
+          // Кадров нет — читатель ждёт, пока его не отменят.
+          (reader as { pending?: () => void }).pending = () => resolve({ done: true });
+        }),
+      cancel: vi.fn(async () => {
+        released = true;
+        (reader as { pending?: () => void }).pending?.();
+      }),
+    };
+    class Processor {
+      readable = { getReader: () => reader };
+    }
+    vi.stubGlobal('MediaStreamTrackProcessor', Processor);
+    return reader;
+  }
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('берёт кадр из дорожки, закрывает его и шлёт картинку', async () => {
+    vi.useFakeTimers();
+    const canvas = fakeCanvas(false);
+    vi.spyOn(document, 'createElement').mockReturnValue(canvas as unknown as HTMLElement);
+    const frame = {
+      displayWidth: 1920,
+      displayHeight: 1080,
+      codedWidth: 1920,
+      codedHeight: 1080,
+      close: vi.fn(),
+    };
+    processor([frame]);
+    const sent: Uint8Array[] = [];
+    const source = new ScreenPreviewSource();
+    source.start({} as MediaStreamTrack, (bytes) => sent.push(bytes));
+    await vi.advanceTimersByTimeAsync(PREVIEW_FIRST_MS + 10);
+    expect(frame.close).toHaveBeenCalledOnce();
+    expect(sent).toHaveLength(1);
+    expect(canvas.width).toBe(256);
+    source.stop();
+  });
+
+  it('пустой кадр не отправляет, но закрывает', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, 'createElement').mockReturnValue(fakeCanvas(true) as unknown as HTMLElement);
+    const frame = {
+      displayWidth: 640,
+      displayHeight: 360,
+      codedWidth: 640,
+      codedHeight: 360,
+      close: vi.fn(),
+    };
+    processor([frame]);
+    const sent: Uint8Array[] = [];
+    const source = new ScreenPreviewSource();
+    source.start({} as MediaStreamTrack, (bytes) => sent.push(bytes));
+    await vi.advanceTimersByTimeAsync(PREVIEW_FIRST_MS + 10);
+    expect(frame.close).toHaveBeenCalledOnce();
+    expect(sent).toHaveLength(0);
+    source.stop();
+  });
+
+  it('stop() отменяет чтение, и кадр, пришедший после, не уходит и закрывается', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, 'createElement').mockReturnValue(fakeCanvas(false) as unknown as HTMLElement);
+    const late = { displayWidth: 640, displayHeight: 360, codedWidth: 640, codedHeight: 360, close: vi.fn() };
+    const frames: Array<{ close: () => void }> = [];
+    const reader = processor(frames);
+    const sent: Uint8Array[] = [];
+    const source = new ScreenPreviewSource();
+    source.start({} as MediaStreamTrack, (bytes) => sent.push(bytes));
+    // Первый захват ждёт кадра; тем временем показ остановили.
+    await vi.advanceTimersByTimeAsync(PREVIEW_FIRST_MS + 10);
+    source.stop();
+    expect(reader.cancel).toHaveBeenCalled();
+    // Кадр, который всё же приехал старому захвату, принадлежит прошлому поколению.
+    frames.push(late);
+    await vi.advanceTimersByTimeAsync(PREVIEW_INTERVAL + 10);
+    expect(sent).toHaveLength(0);
   });
 });

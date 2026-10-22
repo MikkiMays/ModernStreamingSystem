@@ -5,6 +5,8 @@
  */
 import { expect, test } from '@playwright/test';
 
+test.skip(!process.env.CORD_MEDIA_PROBE, 'живой замер: CORD_MEDIA_PROBE=1');
+
 test('превью показа доходит до зрителя, который его не открывал (R07/R80)', async ({ browser }) => {
   const contexts = await Promise.all(
     [0, 1].map(() => browser.newContext({ viewport: { width: 1366, height: 900 } })),

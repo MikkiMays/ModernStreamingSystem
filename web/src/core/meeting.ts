@@ -82,6 +82,7 @@ export class Meeting {
       void this.resolveEnd(reason, true);
     });
     this.control = new ControlChannel(this.api, this.accept, this.event, this.resolveRevocation);
+    this.control.onPreview = (participantId, image) => this.media.acceptPreview(participantId, image);
     this.uploader = new Uploader(this.api, () => this.fileRevision.update((n) => n + 1));
     if (sessionStorage.getItem(`cord:ended:${admission.roomId}`) === admission.participantId)
       this.ended.set(t(($) => $.meeting.end.session));
@@ -113,8 +114,10 @@ export class Meeting {
     this.subscriptions.push(
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
       this.media.screenGone.subscribe(() => {
-        const identity = this.media.screenGone.get();
-        if (identity && this.viewing.get()?.participantId === identity) this.stopViewing();
+        const gone = this.media.screenGone.get();
+        if (!gone || gone.seq === this.screenGoneSeen) return;
+        this.screenGoneSeen = gone.seq;
+        if (this.viewing.get()?.participantId === gone.identity) this.stopViewing();
       }),
       this.media.state.subscribe(() => {
         const state = this.media.state.get();
@@ -161,6 +164,7 @@ export class Meeting {
     // по журналу клиента, а не по памяти.
     if (cues.length) console.info('[cord] звуки комнаты', this.cues.journal.slice(-cues.length));
   }
+  private screenGoneSeen = 0;
   /** Просмотр чужого показа кончился — по снимку ядра или по дорожке SFU (R81), что раньше. */
   private stopViewing() {
     if (!this.viewing.get()) return;

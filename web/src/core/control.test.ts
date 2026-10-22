@@ -94,3 +94,29 @@ it('по знаку сети проверяет открытый сокет пи
   expect(socket.close).toHaveBeenCalled();
   channel.dispose();
 });
+
+/** Кадр превью показа — пакет без номера: он не событие комнаты и не трогает счёт событий. */
+it('пакет preview отдаётся встрече и не сбивает последовательность событий', () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('WebSocket', Socket);
+  const events = vi.fn();
+  const channel = new ControlChannel(
+    { admission: { roomId: 'room' }, credential: 'credential' } as RoomApi,
+    vi.fn(),
+    events,
+    vi.fn(),
+  );
+  const preview = vi.fn();
+  channel.onPreview = preview;
+  channel.start();
+  const socket = Socket.all[0]!;
+  socket.onopen?.();
+  socket.receive({ type: 'authenticated', liveAfter: 5 });
+  socket.receive({ type: 'snapshot', snapshot: { sequence: 5 } });
+  socket.receive({ type: 'preview', participantId: 'peer', image: 'AAAA' });
+  expect(preview).toHaveBeenCalledWith('peer', 'AAAA');
+  socket.receive({ type: 'event', event: { version: 1, sequence: 6, type: 'screen.started' } });
+  expect(events).toHaveBeenCalledTimes(1);
+  expect(socket.onclose).toBeDefined();
+  channel.dispose();
+});
