@@ -1419,7 +1419,6 @@ button.gartic-album-option:hover:not(:disabled) {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
   }
   .gartic-sidebar .gartic-guesses {
     overflow: hidden;

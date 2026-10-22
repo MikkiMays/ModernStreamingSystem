@@ -784,7 +784,6 @@ button.watch-stream:hover {
   height: clamp(74px, 13vh, 116px);
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
 }
 .people-strip .person-tile {
   flex: 0 0 auto;

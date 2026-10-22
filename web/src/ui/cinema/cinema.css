@@ -780,7 +780,6 @@
   margin: -3px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scrollbar-width: thin;
 }
 .cinema-chips .cinema-chip-button {
   flex: none;
@@ -823,7 +822,6 @@
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
 }
 .cinema-row > .cinema-tile {
   scroll-snap-align: start;

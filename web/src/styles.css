@@ -63,6 +63,48 @@ button {
 .modal:focus-visible {
   outline: none;
 }
+/*
+  Полосы прокрутки (R17, S2) — одни на всё приложение и одинаковые в браузере и в оболочке Windows
+  (это тот же Chromium): зона 10 px без стрелок и дорожки, бегунок 4 px, под курсором — 6 px и ярче.
+  Бегунок рисуется внутри прозрачной рамки, поэтому висит в зоне, не касаясь краёв и скруглений.
+
+  Стандартные `scrollbar-width`/`scrollbar-color` с Chromium 121 отключают `::-webkit-scrollbar` у
+  элемента (а `scrollbar-color` ещё и наследуется) — поэтому они живут только в запасном пути для
+  браузеров без `::-webkit-scrollbar` и больше нигде.
+*/
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+}
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--scrollbar-thumb) padding-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  border-width: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+/* «По Discord»: в длинных колонках бегунок не виден, пока курсор не над областью и она не едет
+   (`data-scrolling` — 800 мс после прокрутки, `ui/scroll-activity.ts`). */
+:is(.settings-nav, .settings-content, .home-nav__scroll, .panel-body):not(:hover, [data-scrolling]) {
+  --scrollbar-thumb: transparent;
+}
 button {
   border: 0;
 }
@@ -701,28 +743,8 @@ progress {
   color: var(--text);
   box-shadow: var(--shadow-3);
   /* The track is reserved even when nothing scrolls, so opening a taller section does not
-     shift the content sideways by the width of a scrollbar appearing. */
+     shift the content sideways by the width of a scrollbar appearing. Вид полосы — общий (S2). */
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-.modal::-webkit-scrollbar {
-  width: 10px;
-}
-.modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-.modal::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: var(--radius-full);
-  /* Drawn inside its own padding so the bar floats within the rounded corners
-     instead of running hard against the edge of the dialog. */
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-.modal::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
-  background-clip: content-box;
 }
 .modal-heading {
   display: flex;

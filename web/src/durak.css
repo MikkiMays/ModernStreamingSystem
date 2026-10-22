@@ -741,8 +741,6 @@
     padding: 25px 20px 12px;
     scroll-padding-inline: 30px;
     overscroll-behavior-x: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) transparent;
   }
   & .durak-hand-card {
     --card-w: 106px;

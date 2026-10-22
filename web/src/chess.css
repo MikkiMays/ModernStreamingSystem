@@ -381,7 +381,6 @@
   overflow: auto;
   min-height: 62px;
   max-height: 190px;
-  scrollbar-width: thin;
 }
 .chess-notation > li {
   display: grid;
