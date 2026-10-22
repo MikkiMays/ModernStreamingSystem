@@ -80,6 +80,15 @@ public class MediaGateway {
     execute(client.removeParticipant(roomId, participantId));
   }
 
+  /**
+   * Распустить комнату SFU (R97). Все участники получают {@code Disconnected(ROOM_DELETED)} по
+   * сигнальному сокету одновременно со снимком ядра — встреча закрывается у всех сразу, какой бы из
+   * двух путей ни пришёл первым.
+   */
+  public void close(String roomId) {
+    execute(client.deleteRoom(roomId));
+  }
+
   private <T> T execute(retrofit2.Call<T> call) {
     try {
       var result = call.execute();

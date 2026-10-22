@@ -860,6 +860,8 @@ class RoomServiceTest {
     favorites.remove(a, host.roomId());
     lifecycle.sweepRoom(host.roomId());
     assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
+    // Завершённая встреча распускает и комнату SFU — чтобы все вышли сразу (R97).
+    verify(gateway).close(host.roomId());
     now.addAndGet(3600000);
     lifecycle.sweepRoom(host.roomId());
     assertThat(favorites.list(b)).hasSize(1);
