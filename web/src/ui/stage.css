@@ -241,6 +241,10 @@
   color: var(--warning);
   font-size: var(--text-xs);
   white-space: nowrap;
+  /* Между «…» справа и тем же местом слева: на узкой плитке подпись не лезет под кнопку меню. */
+  max-width: calc(100% - 2 * (var(--control-sm) + var(--space-3)));
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*

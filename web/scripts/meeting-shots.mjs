@@ -163,6 +163,9 @@ const SCENES = {
   },
   chat: async (page, people) => {
     const { anchor } = people;
+    // Чат ведущего мог закрыться (подсказка знакомства съедает первое нажатие) — открыть заново.
+    const field = anchor.getByRole('textbox', { name: 'Сообщение', exact: true });
+    if (!(await field.isVisible())) await anchor.getByRole('button', { name: 'Чат', exact: true }).click();
     for (const text of ['Привет!', 'Слышно меня?', 'Сейчас покажу экран']) {
       await anchor.getByRole('textbox', { name: 'Сообщение', exact: true }).fill(text);
       await anchor.getByRole('button', { name: 'Отправить сообщение' }).click();
@@ -220,7 +223,19 @@ try {
         if (scene === 'share') await dock(page, 'Остановить показ').catch(() => {});
       } catch (error) {
         report.push({ screen: `meeting-${scene}`, width: sizes[0], error: String(error).split('\n')[0] });
+        // Чем кончилось — снимок обоих: ошибку сцены иначе не понять.
+        await page.screenshot({ path: path.join(out, `error-${scene}-${sizes[0]}.png`) }).catch(() => {});
+        await anchor
+          .screenshot({ path: path.join(out, `error-${scene}-${sizes[0]}-anchor.png`) })
+          .catch(() => {});
       }
+      // Уйти по-настоящему: закрытая вкладка висела бы во встрече «восстанавливается» ещё 20 с и
+      // попала бы в следующую сцену лишним человеком.
+      await page
+        .getByRole('button', { name: 'Выйти из встречи', exact: true })
+        .click({ timeout: 5000 })
+        .catch(() => {});
+      await page.waitForTimeout(1000);
       await shooterContext.close();
     }
   }
