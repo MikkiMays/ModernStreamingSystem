@@ -2050,6 +2050,19 @@
       "startingMic": "Mikrofon wird eingeschaltet…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} möchte beitreten",
+      "knockMany_one": "{{name}} und {{count}} weitere möchten beitreten",
+      "knockMany_other": "{{name}} und {{count}} weitere möchten beitreten",
+      "admit": "Einlassen",
+      "deny": "Ablehnen",
+      "mention": "{{name}} erwähnt dich",
+      "join": "{{name}} ist beigetreten",
+      "joinMany_one": "{{name}} und {{count}} weitere sind beigetreten",
+      "joinMany_other": "{{name}} und {{count}} weitere sind beigetreten"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Normale Größe: {{name}}",
@@ -2096,6 +2109,8 @@
     "more": "Einstellungen und Aktionen",
     "leave": "Meeting verlassen",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} ungelesene Nachricht",
+    "chatUnread_other": "Chat, {{count}} ungelesene Nachrichten",
     "chatAndFiles": "Chat und Dateien",
     "people": "Teilnehmer",
     "integrations": "Integrationen",

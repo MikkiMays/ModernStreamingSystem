@@ -2050,6 +2050,19 @@
       "startingMic": "Turning on the microphone…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} asks to join",
+      "knockMany_one": "{{name}} and {{count}} more ask to join",
+      "knockMany_other": "{{name}} and {{count}} more ask to join",
+      "admit": "Admit",
+      "deny": "Deny",
+      "mention": "{{name}} mentioned you",
+      "join": "{{name}} joined",
+      "joinMany_one": "{{name}} and {{count}} more joined",
+      "joinMany_other": "{{name}} and {{count}} more joined"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Restore normal size: {{name}}",
@@ -2096,6 +2109,8 @@
     "more": "Settings and actions",
     "leave": "Leave meeting",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} unread",
+    "chatUnread_other": "Chat, {{count}} unread",
     "chatAndFiles": "Chat and files",
     "people": "Participants",
     "integrations": "Integrations",

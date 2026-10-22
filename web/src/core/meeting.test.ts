@@ -387,3 +387,89 @@ it('закрепление камеры (R83): своей и чужой, «От�
   await meeting.refresh();
   expect(meeting.pinnedCamera.get()).toBeNull();
 });
+
+const written = (participantId: string, eventId: string, text = 'привет') => ({
+  version: 1,
+  type: 'message.created',
+  eventId,
+  sequence: 11,
+  occurredAt: 0,
+  payload: { message: { id: eventId, participantId, name: 'Аня', text } },
+});
+
+it('непрочитанные в чате (R87): чужие при закрытом чате или без фокуса, своё — нет, открыл с фокусом — ноль', async () => {
+  meeting.start();
+  const control = meeting.control as unknown as { onEvent: (event: unknown, live: boolean) => void };
+  meeting.windowState.set({ focused: true, visible: true });
+  control.onEvent(written('other', 'a'), true);
+  control.onEvent(written('other', 'b'), true);
+  control.onEvent(written('guest', 'mine'), true);
+  // История при входе — не новость.
+  control.onEvent(written('other', 'old'), false);
+  expect(meeting.unread.get()).toBe(2);
+  meeting.chatOpen.set(true);
+  expect(meeting.unread.get()).toBe(0);
+  control.onEvent(written('other', 'c'), true);
+  expect(meeting.unread.get()).toBe(0);
+  // Чат открыт, но окно свёрнуто или в трее — сообщение не прочитано.
+  meeting.windowState.set({ focused: false, visible: true });
+  control.onEvent(written('other', 'd'), true);
+  expect(meeting.unread.get()).toBe(1);
+  meeting.windowState.set({ focused: true, visible: true });
+  expect(meeting.unread.get()).toBe(0);
+});
+
+it('уведомления Windows (R59): сообщение без фокуса, значок непрочитанных, просьба войти с «Впустить»', async () => {
+  const send = vi.fn();
+  vi.stubGlobal('cordDesktop', {
+    protocol: { major: 2, minor: 0 },
+    features: ['notify', 'badge', 'attention'],
+    app: { version: '1.0.4', arch: 'x64' },
+    bootstrap: {},
+    send,
+    invoke: vi.fn(),
+    on: () => () => {},
+  });
+  snapshot = {
+    ...snapshot,
+    sequence: 2,
+    participants: [person('guest', 'CONNECTED')],
+    you: { can: ['participant.approve', 'participant.remove'] },
+  } as Snapshot;
+  meeting.start();
+  await meeting.refresh();
+  meeting.windowState.set({ focused: false, visible: true });
+  const control = meeting.control as unknown as { onEvent: (event: unknown, live: boolean) => void };
+  control.onEvent(written('other', 'a', 'Глянь экран'), true);
+  expect(send).toHaveBeenCalledWith('notify', {
+    title: 'Аня',
+    body: 'Глянь экран',
+    tag: 'room:room:message',
+    silent: true,
+  });
+  expect(send).toHaveBeenCalledWith('badge', { count: 1 });
+  snapshot = {
+    ...snapshot,
+    sequence: 3,
+    participants: [person('guest', 'CONNECTED'), person('knocker', 'WAITING')],
+  };
+  // Сообщение само спросило снимок; следующий запрос встаёт за ним.
+  await meeting.refresh();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(send).toHaveBeenCalledWith(
+    'notify',
+    expect.objectContaining({ title: 'knocker просится во встречу', tag: 'room:room:knock' }),
+  );
+  expect(send).toHaveBeenCalledWith('attention', {});
+  const command = vi
+    .spyOn(meeting, 'command')
+    .mockResolvedValue({} as Awaited<ReturnType<Meeting['command']>>);
+  expect(meeting.handleNotificationAction('admit', 'room:room:knock')).toBe('people');
+  expect(command).toHaveBeenCalledWith('participant.approve', undefined, 'knocker');
+  expect(meeting.handleNotificationAction('deny', 'room:room:knock')).toBe('people');
+  expect(command).toHaveBeenLastCalledWith('participant.remove', undefined, 'knocker');
+  expect(meeting.handleNotificationAction('open', 'room:room:message')).toBe('chat');
+  expect(meeting.handleNotificationAction('open', 'room:other-room:message')).toBeNull();
+  meeting.windowState.set({ focused: true, visible: true });
+  expect(send).toHaveBeenLastCalledWith('badge', { count: 0 });
+});

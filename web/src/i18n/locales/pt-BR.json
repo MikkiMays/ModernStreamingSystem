@@ -2075,6 +2075,21 @@
       "startingMic": "Ligando o microfone…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} pede para entrar",
+      "knockMany_one": "{{name}} e mais {{count}} pedem para entrar",
+      "knockMany_many": "{{name}} e mais {{count}} pedem para entrar",
+      "knockMany_other": "{{name}} e mais {{count}} pedem para entrar",
+      "admit": "Admitir",
+      "deny": "Recusar",
+      "mention": "{{name}} mencionou você",
+      "join": "{{name}} entrou",
+      "joinMany_one": "{{name}} e mais {{count}} entraram",
+      "joinMany_many": "{{name}} e mais {{count}} entraram",
+      "joinMany_other": "{{name}} e mais {{count}} entraram"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Voltar ao tamanho normal: {{name}}",
@@ -2121,6 +2136,9 @@
     "more": "Configurações e ações",
     "leave": "Sair da reunião",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} não lida",
+    "chatUnread_many": "Chat, {{count}} não lidas",
+    "chatUnread_other": "Chat, {{count}} não lidas",
     "chatAndFiles": "Chat e arquivos",
     "people": "Participantes",
     "integrations": "Integrações",

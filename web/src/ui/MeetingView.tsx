@@ -24,7 +24,7 @@ import {
   releasesHotkey,
 } from '../core/hotkeys';
 import { MicHotkey } from '../core/mic-hotkey';
-import { hasFeature, notifyDesktop, onDesktopCommand } from '../core/desktop';
+import { hasFeature, notifyDesktop, onDesktopCommand, onNotificationAction } from '../core/desktop';
 import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
@@ -129,6 +129,19 @@ export function MeetingView({
   useEffect(() => {
     onBackTarget?.(panel ? () => setPanel(null) : null);
   }, [panel, onBackTarget]);
+  // Открытый чат — прочитанный чат (R87), и уведомлять о его сообщениях незачем (R59).
+  useEffect(() => {
+    meeting.chatOpen.set(panel === 'chat');
+  }, [meeting, panel]);
+  // Нажатие в уведомлении Windows: «Впустить» и «Отклонить» решает встреча, здесь — какую панель открыть.
+  useEffect(
+    () =>
+      onNotificationAction(({ id, tag }) => {
+        const open = meeting.handleNotificationAction(id, tag);
+        if (open) setPanel(open);
+      }),
+    [meeting],
+  );
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);

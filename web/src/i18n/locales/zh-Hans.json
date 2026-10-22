@@ -2025,6 +2025,17 @@
       "startingMic": "正在开启麦克风…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} 请求加入",
+      "knockMany_other": "{{name}} 等 {{count}} 人请求加入",
+      "admit": "准许",
+      "deny": "拒绝",
+      "mention": "{{name}} 提到了你",
+      "join": "{{name}} 已加入",
+      "joinMany_other": "{{name}} 等 {{count}} 人已加入"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "恢复正常大小：{{name}}",
@@ -2071,6 +2082,7 @@
     "more": "设置和操作",
     "leave": "离开会议",
     "chat": "聊天",
+    "chatUnread_other": "聊天，{{count}} 条未读",
     "chatAndFiles": "聊天和文件",
     "people": "参与者",
     "integrations": "集成",

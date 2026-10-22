@@ -2100,6 +2100,23 @@
       "startingMic": "Включаем микрофон…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} просится во встречу",
+      "knockMany_one": "{{name}} и ещё {{count}} просятся во встречу",
+      "knockMany_few": "{{name}} и ещё {{count}} просятся во встречу",
+      "knockMany_many": "{{name}} и ещё {{count}} просятся во встречу",
+      "knockMany_other": "{{name}} и ещё {{count}} просятся во встречу",
+      "admit": "Впустить",
+      "deny": "Отклонить",
+      "mention": "{{name}} упоминает вас",
+      "join": "{{name}} во встрече",
+      "joinMany_one": "{{name}} и ещё {{count}} во встрече",
+      "joinMany_few": "{{name}} и ещё {{count}} во встрече",
+      "joinMany_many": "{{name}} и ещё {{count}} во встрече",
+      "joinMany_other": "{{name}} и ещё {{count}} во встрече"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Вернуть обычный размер: {{name}}",
@@ -2146,6 +2163,10 @@
     "more": "Настройки и действия",
     "leave": "Выйти из встречи",
     "chat": "Чат",
+    "chatUnread_one": "Чат, {{count}} непрочитанное",
+    "chatUnread_few": "Чат, {{count}} непрочитанных",
+    "chatUnread_many": "Чат, {{count}} непрочитанных",
+    "chatUnread_other": "Чат, {{count}} непрочитанного",
     "chatAndFiles": "Чат и файлы",
     "people": "Участники",
     "integrations": "Интеграции",

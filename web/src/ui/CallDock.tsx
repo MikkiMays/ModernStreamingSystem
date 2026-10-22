@@ -8,6 +8,7 @@ import {
   MicOff,
   Minimize2,
   MonitorUp,
+  MonitorX,
   MoreHorizontal,
   Pencil,
   PhoneOff,
@@ -28,6 +29,18 @@ import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip, CameraSubmenu } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import type { Panel } from './Sidebar';
+
+/** Больше девяти — «9+»: кружок не растягивается в пилюлю из трёх цифр. */
+const unreadText = (count: number) => (count > 9 ? '9+' : String(count));
+
+/** Красный кружок с числом на правом верхнем углу кнопки; для диктора число — в имени кнопки. */
+function UnreadBadge({ count }: { count: number }) {
+  return (
+    <span className="dock-badge" aria-hidden="true">
+      {unreadText(count)}
+    </span>
+  );
+}
 
 export interface CallDockProps {
   meeting: Meeting;
@@ -85,6 +98,8 @@ export function CallDock({
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
   const coarse = useMediaQuery('(pointer: coarse)');
   const live = !ended && media.status === 'connected';
+  /** Непрочитанные в чате (R87) — кружком на кнопке чата, на телефоне — на «ещё». */
+  const unread = useStore(meeting.unread);
   /*
     Показ экрана. В клиенте на Electron источник выбирают в нашем окне (E01-B2): выбор уходит
     оболочке запросом с ответом, и только потом `getDisplayMedia` — оболочка отдаст ровно его.
@@ -134,13 +149,26 @@ export function CallDock({
           </IconButton>
           {coarse ? (
             <CameraFlip meeting={meeting} disabled={!!ended} />
+          ) : media.screen ? (
+            /* Идёт показ — красная кнопка с крестиком (R77): остановить видно издалека, нажатие
+               снимает показ сразу и у всех (R81). */
+            <IconButton
+              variant="danger"
+              size="lg"
+              className="dock-button dock-stop"
+              label={t(($) => $.dock.unshare)}
+              disabled={!live}
+              onClick={share}
+            >
+              <MonitorX size={24} />
+            </IconButton>
           ) : (
             <IconButton
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={media.screen ? t(($) => $.dock.unshare) : t(($) => $.dock.share)}
-              pressed={media.screen}
+              label={t(($) => $.dock.share)}
+              pressed={false}
               disabled={!live}
               onClick={share}
             >
@@ -154,6 +182,8 @@ export function CallDock({
               render={
                 <IconButton tone="stage" size="lg" className="dock-button" label={t(($) => $.dock.more)}>
                   <MoreHorizontal size={24} />
+                  {/* На телефоне чат — в «ещё»: кружок непрочитанных переезжает сюда (R87). */}
+                  {compact && unread > 0 && <UnreadBadge count={unread} />}
                 </IconButton>
               }
             />
@@ -178,7 +208,11 @@ export function CallDock({
               {compact && (
                 <>
                   <MenuSeparator />
-                  <MenuItem icon={<MessageSquare />} onClick={() => togglePanel('chat')}>
+                  <MenuItem
+                    icon={<MessageSquare />}
+                    shortcut={unread > 0 ? unreadText(unread) : undefined}
+                    onClick={() => togglePanel('chat')}
+                  >
                     {t(($) => $.dock.chatAndFiles)}
                   </MenuItem>
                   <MenuItem icon={<Users />} shortcut={String(people)} onClick={() => togglePanel('people')}>
@@ -233,11 +267,12 @@ export function CallDock({
               tone="stage"
               size="lg"
               className="dock-button dock-toggle"
-              label={t(($) => $.dock.chat)}
+              label={unread > 0 ? t(($) => $.dock.chatUnread, { count: unread }) : t(($) => $.dock.chat)}
               pressed={panel === 'chat'}
               onClick={() => togglePanel('chat')}
             >
               <MessageSquare size={24} />
+              {unread > 0 && <UnreadBadge count={unread} />}
             </IconButton>
             <IconButton
               tone="stage"

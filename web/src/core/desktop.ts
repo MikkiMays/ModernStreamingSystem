@@ -22,6 +22,11 @@ interface CordDesktop {
   readonly bootstrap: {
     profile: string;
     theme: string;
+    /**
+     * Язык из установщика (R64); `null` — веб выбирает сам. Preload кладёт его в сохранённые
+     * настройки один раз, если человек язык ещё не выбирал (`i18n/languages.ts`, `detectLanguage`).
+     */
+    language?: string | null;
     showPing: boolean;
     notificationSounds: boolean;
     autoConnect: boolean;
@@ -368,6 +373,16 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
 export function onDesktopEvent(type: string, listener: (data: Record<string, unknown>) => void): () => void {
   const api = v2();
   return api ? api.on(type, listener) : () => {};
+}
+
+/**
+ * Нажатие в уведомлении Windows (R59): кнопка (`admit`, `deny`) или сам toast (`open`) и `tag` того
+ * уведомления. Оболочка уже подняла окно; встреча решает, что открыть.
+ */
+export function onNotificationAction(listener: (action: { id: string; tag: string }) => void): () => void {
+  return onDesktopEvent('notification.action', (data) => {
+    if (typeof data.id === 'string' && typeof data.tag === 'string') listener({ id: data.id, tag: data.tag });
+  });
 }
 
 /** Запрос к оболочке v2 с ответом; в v1 и в браузере — null. */
