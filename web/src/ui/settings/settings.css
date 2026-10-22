@@ -1,13 +1,28 @@
 /*
-  Окно настроек (E03). Только токены `styles/tokens.css`: ни литералов цвета, ни своих
-  длительностей. Структура — Discord (слева профиль, поиск, разделы в группах, подразделы), строки
-  — FACEIT (подпись слева, действие справа, тонкая линия между строками, сворачиваемые группы).
+  Окно настроек (E03, ревью 1.0.3 — R15, R18, R19, R101). Только токены `styles/tokens.css`: ни
+  литералов цвета, ни своих длительностей. Структура — Discord: слева профиль, поиск, разделы в
+  группах и подразделы; справа — верхняя полоса «заголовок — крестик» вне прокрутки и колонка
+  контента по центру. Короткие разделы — карточками, как у Телемоста, и помещаются в окно без
+  прокрутки; списки (сочетания, Windows) — группами с волоском между ними, как у Discord.
 
-  Размер окна не зависит от раздела (T26): ширина и высота заданы от окна браузера, а не от
+  Размер окна не зависит от раздела (T26): ширина и высота заданы от окна приложения, а не от
   содержимого, и прокручивается только правая часть.
+
+  Правило «без прокрутки» (R101): эталон — окно 1180×820 (экран от 1228×868); каждый раздел
+  помещается без `scrollHeight > clientHeight` у `.settings-content` и в окне 1280×800 и выше. В
+  низком окне (`max-height: 760px`, ноутбук 1366×768, 1280×720) строки уплотняются до 48 px и
+  карточки — до полей 16; если раздел всё равно выше окна (списки «Windows»), появляется тонкая
+  полоса прокрутки — это запасной путь, а не раскладка. На телефоне (≤ 767 px) окно — весь экран, и
+  прокрутка — норма.
 */
 
 /* ---------- окно ---------- */
+/* Подложка темнее обычной и с лёгким размытием: встреча за окном читается как «там», а не как шум. */
+.settings-backdrop {
+  background: color-mix(in srgb, var(--scrim) 82%, var(--stage-bg));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
 .settings-viewport {
   position: fixed;
   inset: 0;
@@ -15,11 +30,18 @@
   display: grid;
   place-items: center;
   padding: var(--space-6);
+  /* Окно Electron (R34): под кнопками «— ⧉ ×» окно не заходит; в вебе переменной нет — ноль. */
+  padding-top: calc(var(--space-6) + var(--titlebar-h, 0px));
 }
 .settings-window {
+  /* Местные размеры окна: строка, верхняя полоса, поля карточки. Низкое окно их уплотняет. */
+  --settings-row-h: 56px;
+  --settings-bar-h: 56px;
+  --settings-card-pad: var(--space-5);
+  --settings-card-bg: light-dark(var(--surface-1), var(--surface-2));
   position: relative;
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   width: min(1180px, 100%);
   height: min(820px, 100%);
   border-radius: var(--dialog-radius);
@@ -34,19 +56,12 @@
 }
 .settings-window[data-starting-style] {
   opacity: 0;
-  transform: scale(0.98) translateY(8px);
+  transform: scale(0.97);
 }
 .settings-window[data-ending-style] {
   opacity: 0;
   transform: scale(0.99);
   transition-duration: var(--motion-fast);
-}
-.settings-close {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  z-index: 1;
-  border-radius: var(--radius-full);
 }
 
 /* ---------- левая колонка ---------- */
@@ -70,6 +85,12 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.settings-nav__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 .settings-nav__title {
   margin: var(--space-1) var(--space-2) var(--space-2);
@@ -206,12 +227,12 @@ input.settings-search__input {
   color: var(--text);
 }
 .settings-nav__item[aria-current] {
-  background: var(--surface-1);
+  background: var(--surface-active);
   color: var(--text);
-  box-shadow: var(--shadow-1);
+  font-weight: var(--weight-semibold);
 }
 .settings-nav__item[aria-current] > svg:first-child {
-  color: var(--accent);
+  color: var(--text);
 }
 .settings-nav__chevron {
   display: none;
@@ -280,43 +301,81 @@ input.settings-search__input {
   font-size: var(--text-sm);
 }
 
-/* ---------- правая часть ---------- */
-.settings-content {
+/* ---------- правая часть: верхняя полоса и колонка контента ---------- */
+.settings-pane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  padding: var(--space-6) var(--space-10) var(--space-10);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
 }
-.settings-content__head,
-.settings-content__body {
-  max-width: 720px;
-}
-.settings-content__head {
+.settings-content__bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-md);
-  margin-bottom: var(--space-5);
-  padding-right: var(--space-12);
+  min-height: var(--settings-bar-h);
+  padding: 0 var(--space-3) 0 var(--space-6);
 }
-/* Заголовок получает фокус только сам (переход из поиска к разделу без строки) — кольцо не нужно. */
+.settings-content__bar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--hairline);
+  background: var(--line);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.settings-content__bar[data-scrolled]::after {
+  opacity: 1;
+}
+/* Заголовок получает фокус только сам (начальный фокус окна, R11) — кольцо не нужно. */
 .settings-content__title:focus {
   outline: none;
 }
 .settings-content__title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  font-size: var(--text-xl);
+  overflow: hidden;
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-display);
+  letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-content {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Место под тонкую полосу (R17) — всегда: колонка не съезжает, когда полоса появляется. */
+  scrollbar-gutter: stable;
+}
+.settings-content__body {
+  max-width: 760px;
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-8) var(--space-8);
+}
+
+/* Карточки (Телемост): у каждой группы — своя поверхность, свет вместо рамки. */
+.settings-content__body[data-layout='cards'] {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+.settings-content__body[data-layout='cards'] .setting-group {
+  margin: 0;
+  padding: var(--space-3) var(--settings-card-pad) var(--space-1);
+  border-radius: var(--card-radius);
+  background: var(--settings-card-bg);
+  box-shadow: var(--shadow-1);
 }
 
 /* ---------- группы и строки (и в окне настроек, и на предпросмотре) ---------- */
 .setting-group {
   container-type: inline-size;
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-6);
 }
 .setting-group:last-child,
 .settings-form > .setting-group {
@@ -341,6 +400,11 @@ input.settings-search__input {
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-tight);
 }
+/* Группы списков (Discord): заголовок крупнее, между группами — волосок. */
+.settings-content__body[data-layout='groups'] .setting-group__head {
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-display);
+}
 .setting-group__note {
   margin: 0 0 var(--space-1);
   color: var(--muted);
@@ -353,9 +417,9 @@ input.settings-search__input {
   align-items: center;
   column-gap: var(--space-6);
   row-gap: var(--space-2);
-  min-height: 60px;
-  padding: var(--space-3) 0;
-  box-shadow: inset 0 -1px 0 var(--line);
+  min-height: var(--settings-row-h, 56px);
+  padding: var(--space-2) 0;
+  box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line);
 }
 .setting-row:last-child {
   box-shadow: none;
@@ -601,8 +665,11 @@ input.settings-search__input {
   color: var(--accent);
   font-weight: var(--weight-medium);
 }
-.setting-keymap + .setting-keymap {
-  margin-top: var(--space-4);
+/* Клавиши кинозала и игр — колонками: справочник, а не список настроек, и в окно он помещается. */
+.setting-keymaps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4) var(--space-8);
 }
 .setting-keymap__title {
   margin: var(--space-2) 0;
@@ -843,13 +910,35 @@ input.theme-option__input {
   }
 }
 
+/* ---------- низкое окно (R101): строки и поля плотнее, чтобы раздел помещался без прокрутки ---------- */
+@media (max-height: 760px) {
+  .settings-window {
+    --settings-row-h: 48px;
+    --settings-bar-h: 52px;
+    --settings-card-pad: var(--space-4);
+  }
+  .settings-content__body {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-4);
+  }
+  .settings-content__body[data-layout='cards'] {
+    gap: var(--space-3);
+  }
+  .settings-content__body[data-layout='cards'] .setting-group {
+    padding-top: var(--space-2);
+  }
+  .setting-row {
+    padding-block: var(--space-1);
+  }
+}
+
 /* ---------- планшет ---------- */
 @media (max-width: 1023px) {
   .settings-window {
-    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
   }
-  .settings-content {
-    padding: var(--space-5) var(--space-6) var(--space-8);
+  .settings-content__body {
+    padding-inline: var(--space-5);
   }
 }
 
@@ -869,20 +958,19 @@ input.theme-option__input {
   .settings-window[data-starting-style] {
     transform: translateY(24px);
   }
-  .settings-window[data-view='list'] .settings-content,
+  .settings-window[data-view='list'] .settings-pane,
   .settings-window[data-view='section'] .settings-nav {
     display: none;
   }
   .settings-nav {
-    padding: var(--space-4) var(--space-4) max(var(--space-6), env(safe-area-inset-bottom));
+    padding: var(--space-3) var(--space-4) max(var(--space-6), env(safe-area-inset-bottom));
     background: var(--dialog-bg);
     box-shadow: none;
   }
   .settings-nav__title {
-    min-height: var(--control-lg);
     display: flex;
     align-items: center;
-    padding-right: var(--space-12);
+    min-height: var(--control-lg);
   }
   .settings-nav__item {
     height: var(--control-touch);
@@ -891,6 +979,7 @@ input.theme-option__input {
   .settings-nav__item[aria-current] {
     background: transparent;
     box-shadow: none;
+    font-weight: var(--weight-medium);
   }
   .settings-nav__chevron {
     display: block;
@@ -904,18 +993,16 @@ input.theme-option__input {
     background: var(--surface-2);
     box-shadow: none;
   }
+  .settings-content__bar {
+    padding-left: var(--space-2);
+  }
   .settings-content {
-    padding: var(--space-3) var(--space-4) max(var(--space-8), env(safe-area-inset-bottom));
     scrollbar-gutter: auto;
   }
-  .settings-content__head {
-    margin-bottom: var(--space-3);
+  .settings-content__body {
+    padding: var(--space-2) var(--space-4) max(var(--space-8), env(safe-area-inset-bottom));
   }
   .settings-content__title {
     font-size: var(--text-lg);
-  }
-  .settings-close {
-    top: calc(var(--space-3) + env(safe-area-inset-top));
-    right: var(--space-3);
   }
 }

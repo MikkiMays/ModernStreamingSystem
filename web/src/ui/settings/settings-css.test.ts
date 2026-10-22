@@ -23,5 +23,5 @@ it('размер шрифта — только шкалой --text-*', () => {
 
 it('телефонная раскладка начинается там же, где код переключает список и раздел', () => {
   expect(declarations).toContain(`@media ${SHEET} {`);
-  expect(declarations).toMatch(/\.settings-window\[data-view='list'\] \.settings-content/);
+  expect(declarations).toMatch(/\.settings-window\[data-view='list'\] \.settings-pane/);
 });

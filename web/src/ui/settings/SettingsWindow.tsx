@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import {
   ChevronLeft,
@@ -117,6 +117,8 @@ export function SettingsWindow({
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   // Куда отдать фокус после перехода из поиска: нажатая строка результата исчезает.
   const focusAfter = useRef(false);
+  // Заголовок раздела в верхней полосе: начальный фокус окна (R11) и запасной фокус после поиска.
+  const title = useRef<HTMLHeadingElement>(null);
   const context = isDesktop() ? 'desktop' : 'browser';
 
   const go = (next: Place, row?: SearchHit['row'], focus = false) => {
@@ -185,8 +187,7 @@ export function SettingsWindow({
         'input, select, button, [role="switch"], [tabindex]',
       );
       control?.focus({ preventScroll: true });
-      if (!control || document.activeElement !== control)
-        scroller.querySelector<HTMLElement>('.settings-content__title')?.focus({ preventScroll: true });
+      if (!control || document.activeElement !== control) title.current?.focus({ preventScroll: true });
     }
   }, [target, place.section, view, scroller]);
 
@@ -212,9 +213,28 @@ export function SettingsWindow({
     не бывает), и карточка профиля, первая в Tab-порядке, не обводится от первого же Shift. С
     клавиатуры — как обычно, первый элемент, и кольцо на нём на месте.
   */
-  const title = useRef<HTMLHeadingElement>(null);
   const initialFocus = (type: string) =>
     type === 'keyboard' || document.documentElement.dataset.input === 'keyboard' ? true : title.current;
+
+  const titleId = useId();
+  const close = (
+    <Dialog.Close
+      render={
+        <IconButton label={t(($) => $.common.close)} className="settings-close">
+          <X />
+        </IconButton>
+      }
+    />
+  );
+  // Прокручен ли раздел — для волоска под верхней полосой.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    if (!scroller) return;
+    const update = () => setScrolled(scroller.scrollTop > 0);
+    update();
+    scroller.addEventListener('scroll', update, { passive: true });
+    return () => scroller.removeEventListener('scroll', update);
+  }, [scroller, place.section, view]);
 
   const hits = query.trim() ? searchSettings(t, query, context, 8, hasFeature) : null;
   const current = sectionSpec(place.section);
@@ -270,7 +290,7 @@ export function SettingsWindow({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="ui-dialog__backdrop" />
+        <Dialog.Backdrop className="ui-dialog__backdrop settings-backdrop" />
         <Dialog.Viewport className="settings-viewport">
           <Dialog.Popup
             className="settings-window"
@@ -278,7 +298,11 @@ export function SettingsWindow({
             initialFocus={initialFocus}
           >
             <nav className="settings-nav" aria-label={t(($) => $.settings.navigation)}>
-              <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
+              <div className="settings-nav__head">
+                <Dialog.Title className="settings-nav__title">{t(($) => $.settings.title)}</Dialog.Title>
+                {/* На телефоне список разделов — свой экран, и закрыть окно надо и с него. */}
+                {phone && view === 'list' && close}
+              </div>
               <button
                 type="button"
                 className="settings-profile"
@@ -402,34 +426,39 @@ export function SettingsWindow({
                 ))
               )}
             </nav>
-            <div className="settings-content" ref={setScroller}>
-              <header className="settings-content__head">
+            <section className="settings-pane" aria-labelledby={titleId}>
+              {/*
+                Верхняя полоса раздела (R15): заголовок слева, крестик справа — в одной строке и вне
+                области прокрутки, поэтому центры совпадают конструкцией, а не подобранным отступом.
+                Волосок под полосой появляется, когда раздел прокручен.
+              */}
+              <header className="settings-content__bar" data-scrolled={scrolled || undefined}>
                 {phone && (
                   <IconButton
                     label={t(($) => $.settings.back)}
                     className="settings-content__back"
                     onClick={() => setView('list')}
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft />
                   </IconButton>
                 )}
-                <h2 className="settings-content__title" tabIndex={-1} ref={title}>
+                <h2 className="settings-content__title" id={titleId} tabIndex={-1} ref={title}>
                   {sectionTitle(t, current.id)}
                 </h2>
+                {close}
               </header>
-              <SettingsTargetContext.Provider value={target}>
-                <div className="settings-content__body" data-section={current.id}>
-                  {body}
-                </div>
-              </SettingsTargetContext.Provider>
-            </div>
-            <Dialog.Close
-              render={
-                <IconButton label={t(($) => $.common.close)} variant="solid" className="settings-close">
-                  <X size={18} />
-                </IconButton>
-              }
-            />
+              <div className="settings-content" ref={setScroller}>
+                <SettingsTargetContext.Provider value={target}>
+                  <div
+                    className="settings-content__body"
+                    data-section={current.id}
+                    data-layout={current.layout ?? 'cards'}
+                  >
+                    {body}
+                  </div>
+                </SettingsTargetContext.Provider>
+              </div>
+            </section>
           </Dialog.Popup>
         </Dialog.Viewport>
       </Dialog.Portal>

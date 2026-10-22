@@ -87,7 +87,7 @@ describe('окно настроек (T26)', () => {
     // Шумоподавление — сегментом (S4), «Стандартное» по умолчанию.
     const noise = screen.getByRole('radiogroup', { name: 'Шумоподавление' });
     expect(within(noise).getByRole('radio', { name: 'Стандартное' })).toBeChecked();
-    fireEvent.click(within(noise).getByRole('radio', { name: 'Выключено' }));
+    fireEvent.click(within(noise).getByRole('radio', { name: 'Выкл.' }));
     expect(readPreferences().audio.suppression).toBe('off');
     fireEvent.change(screen.getByRole('slider', { name: 'Громкость собеседников' }), {
       target: { value: '45' },

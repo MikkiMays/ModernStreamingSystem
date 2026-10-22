@@ -36,6 +36,12 @@ export interface SectionSpec {
   anchors: AnchorId[];
   /** Раздел только для одного места: «Windows» есть лишь в клиенте и лишь со своими строками. */
   only?: RowContext;
+  /**
+   * Как разложены группы (R18, R101). `cards` (по умолчанию) — карточки, как у Телемоста: короткий
+   * раздел помещается в окно без прокрутки. `groups` — заголовки и волоски между группами, как у
+   * Discord: для списков (сочетания, переключатели Windows).
+   */
+  layout?: 'cards' | 'groups';
 }
 
 /** Группы разделов по порядку. «О программе» (`cord`) стоит особняком внизу, как у Discord: это не настройка, а справка. */
@@ -44,8 +50,8 @@ export const GROUPS: GroupId[] = ['app', 'meetings', 'connections', 'cord'];
 export const SECTIONS: SectionSpec[] = [
   { id: 'profile', group: 'app', anchors: [] },
   { id: 'appearance', group: 'app', anchors: [] },
-  { id: 'hotkeys', group: 'app', anchors: [] },
-  { id: 'desktop', group: 'app', anchors: [], only: 'desktop' },
+  { id: 'hotkeys', group: 'app', anchors: [], layout: 'groups' },
+  { id: 'desktop', group: 'app', anchors: [], only: 'desktop', layout: 'groups' },
   // «Голос и видео» разделён на два раздела, как у Телемоста (R100): каждый помещается в окно
   // без прокрутки (R101), а превью камеры не включается, пока человек настраивает микрофон.
   { id: 'audio', group: 'meetings', anchors: ['microphone', 'output'] },

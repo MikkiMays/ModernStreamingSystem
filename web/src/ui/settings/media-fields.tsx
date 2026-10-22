@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { isDesktop } from '../../core/desktop';
 import type { AudioPreferences } from '../../core/preferences';
 import { CHOICE_FRAME_RATES, qualityRules, RESOLUTIONS, type Level } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
@@ -83,8 +84,10 @@ export function QualityFields(props: Parameters<typeof QualityRows>[0]) {
 type Constraints = MediaTrackSupportedConstraints & { voiceIsolation?: boolean };
 
 /**
- * Шумоподавление — сегментом (S4): «Выключено / Стандартное / Усиленное». «Изоляция голоса» —
- * только там, где браузер её умеет (или она уже выбрана): недоступный навсегда пункт был бы шумом.
+ * Шумоподавление — сегментом (S4): «Выкл. / Стандартное / Усиленное», как у Discord. «Изоляция
+ * голоса» — это Voice Focus Windows (только машины с NPU, исследование §2.4): пункт есть только в
+ * клиенте для Windows и только если движок её объявил — или если она уже выбрана. В браузере и на
+ * телефоне четвёртый пункт был бы шумом и не влезал бы в строку.
  */
 export function NoiseRow({
   audio,
@@ -95,7 +98,7 @@ export function NoiseRow({
 }) {
   const { t } = useTranslation();
   const constraints = navigator.mediaDevices?.getSupportedConstraints?.() as Constraints | undefined;
-  const isolation = !!constraints?.voiceIsolation || audio.suppression === 'voice';
+  const isolation = (isDesktop() && !!constraints?.voiceIsolation) || audio.suppression === 'voice';
   const options: SegmentedOption<AudioPreferences['suppression']>[] = [
     { value: 'off', label: t(($) => $.settings.media.noise.off) },
     { value: 'browser', label: t(($) => $.settings.media.noise.browser) },

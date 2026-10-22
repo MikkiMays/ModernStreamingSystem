@@ -124,17 +124,19 @@ export function HotkeysSection({
         )}
       </SettingGroup>
       <SettingGroup title={rowText(t, 'hotkey-other').label} id="hotkey-other">
-        {OTHER_KEYS.map((group) => (
-          <div key={group.id} className="setting-keymap">
-            <h4 className="setting-keymap__title">{t(($) => $.settings.hotkeys.groups[group.id])}</h4>
-            {group.keys.map(([parts, action]) => (
-              <div key={`${group.id}-${parts.join()}`} className="setting-keymap__row">
-                <Keys parts={parts} />
-                <span>{t(($) => $.settings.hotkeys.actions[action])}</span>
-              </div>
-            ))}
-          </div>
-        ))}
+        <div className="setting-keymaps">
+          {OTHER_KEYS.map((group) => (
+            <div key={group.id} className="setting-keymap">
+              <h4 className="setting-keymap__title">{t(($) => $.settings.hotkeys.groups[group.id])}</h4>
+              {group.keys.map(([parts, action]) => (
+                <div key={`${group.id}-${parts.join()}`} className="setting-keymap__row">
+                  <Keys parts={parts} />
+                  <span>{t(($) => $.settings.hotkeys.actions[action])}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </SettingGroup>
     </>
   );
