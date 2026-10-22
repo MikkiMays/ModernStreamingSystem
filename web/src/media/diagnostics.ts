@@ -21,9 +21,21 @@ export interface Sample {
   codec: string;
   processingMs: number | null;
   bufferMs: number | null;
+  /**
+   * Звук идёт, но пустой (R09): издатель шлёт кадры тишины — 3 байта каждые 20 мс, то есть
+   * ≈1,2 Кбит/с. Это не «нет пакетов» и не потери: источник на паузе или не успевает.
+   */
+  silentSource: boolean;
+  /** Сколько раз за интервал начиналась заглушка: частые короткие — опоздания, одна — обрыв. */
+  concealmentEvents: number;
   implementation: string;
   at: number;
 }
+/**
+ * Ниже этого битрейт звука — это кадры тишины, а не музыка: 3 байта на 20 мс ≈ 1,2 Кбит/с, с RED
+ * (повтор двух прошлых кадров в каждом пакете) ≈ 3,6; музыка даже на 32 Кбит/с на порядок выше.
+ */
+export const SILENT_KBPS = 10;
 interface Counters {
   timestamp: number;
   bytes: number;
@@ -33,6 +45,7 @@ interface Counters {
   processing?: number;
   buffer?: number;
   emitted?: number;
+  events?: number;
 }
 const finite = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -90,6 +103,7 @@ export class StatsSampler {
         processing: finite(receiving ? stat.totalDecodeTime : stat.totalEncodeTime),
         buffer: finite(stat.jitterBufferDelay),
         emitted: finite(stat.jitterBufferEmittedCount),
+        events: finite(stat.concealmentEvents),
       };
       const before = history.get(stat.id);
       const prior =
@@ -100,6 +114,7 @@ export class StatsSampler {
           ? before
           : undefined;
       const dt = prior ? (current.timestamp - prior.timestamp) / 1000 : 0;
+      const mbps = dt > 0 ? ((current.bytes - prior!.bytes) * 8) / dt / 1e6 : 0;
       const frames = prior ? current.frames - prior.frames : 0;
       const lost = prior ? Math.max(0, current.lost - prior.lost) : 0;
       const packets = prior ? Math.max(0, current.received - prior.received) : 0;
@@ -112,7 +127,14 @@ export class StatsSampler {
         width: Number(stat.frameWidth ?? 0),
         height: Number(stat.frameHeight ?? 0),
         fps: dt > 0 ? frames / dt : 0,
-        mbps: dt > 0 ? ((current.bytes - prior!.bytes) * 8) / dt / 1e6 : 0,
+        mbps,
+        silentSource:
+          receiving &&
+          (stat.kind ?? stat.mediaType) === 'audio' &&
+          dt > 0 &&
+          packets > 0 &&
+          mbps * 1000 < SILENT_KBPS,
+        concealmentEvents: prior ? Math.max(0, (current.events ?? 0) - (prior.events ?? 0)) : 0,
         loss:
           receiving && prior && finite(stat.packetsLost) !== undefined && packets + lost > 0
             ? (lost / (packets + lost)) * 100

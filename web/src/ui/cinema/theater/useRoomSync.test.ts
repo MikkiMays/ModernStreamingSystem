@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { NUDGE } from '../../../core/watch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Watch } from '../../../api/types';
 import type { Meeting } from '../../../core/meeting';
@@ -120,7 +121,7 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     const { hook, video } = setup(element({ currentTime: 60 }));
     await pass(1000);
     // Цель 61 000, мы на 60 000: отстаём на секунду — чуть быстрее.
-    expect(video.playbackRate).toBe(1.05);
+    expect(video.playbackRate).toBe(1 + NUDGE);
     expect(hook.result.current.echo.quiet()).toBe(false);
 
     // Через секунду уже далеко позади — и перемотка случается сразу, без ожидания окна.
@@ -135,7 +136,7 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     await pass(1000);
     expect(video.playbackRate).toBe(1);
     await pass(1000);
-    expect(video.playbackRate).toBe(0.95);
+    expect(video.playbackRate).toBe(1 - NUDGE);
   });
 
   it('комната играет, а мы стоим — play; браузер не дал — «Смотреть вместе» вместо пульта', async () => {
@@ -246,12 +247,12 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     const video = element({ currentTime: 60 });
     const { hook } = setup(video);
     await pass(1000);
-    expect(video.playbackRate).toBe(1.05);
+    expect(video.playbackRate).toBe(1 + NUDGE);
     for (let second = 0; second < 5; second++) {
       video.currentTime += 1;
       await pass(1000);
     }
-    expect(video.playbackRate).toBe(1.05);
+    expect(video.playbackRate).toBe(1 + NUDGE);
     video.currentTime += 1;
     await pass(1000);
     // Цель 67 000, мы на 66 000: перемотка с тем же запасом, что и у большого разрыва.
@@ -282,7 +283,7 @@ describe('useRoomSync: свой плеер догоняет комнату ра�
     const video = element({ currentTime: 60 });
     setup(video);
     await pass(1000);
-    expect(video.playbackRate).toBe(1.05);
+    expect(video.playbackRate).toBe(1 + NUDGE);
     let expected = 60;
     for (let second = 0; second < 25; second++) {
       const step = video.playbackRate;

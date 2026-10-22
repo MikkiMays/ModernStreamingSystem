@@ -294,30 +294,21 @@
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: blur(26px) saturate(1.35);
-  /* Размытие тянет края внутрь и оставляет бледную рамку; масштаб убирает её за пределы. */
-  transform: scale(1.18);
-  opacity: 0.75;
+  /* Кадр узнаваем, но не читаем: лёгкое размытие, края за пределами плитки. */
+  filter: blur(6px) saturate(1.1);
+  transform: scale(1.06);
+  opacity: 0.9;
+  /* Появление кадра — 200 мс (DESIGN → Окно показа), без дрейфа и без цветных пятен. */
+  transition: opacity 200ms ease-out;
 }
+/* До первого кадра — спокойная подложка «готовится показ», а не зелёное пятно (R07). */
 .screen-preview:not([style]) {
   background:
-    radial-gradient(60% 70% at 22% 28%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%),
-    radial-gradient(55% 65% at 78% 70%, color-mix(in srgb, var(--voice) 45%, transparent), transparent 70%);
-  filter: blur(18px);
-  animation: preview-drift 14s ease-in-out infinite alternate;
-}
-@keyframes preview-drift {
-  from {
-    transform: scale(1.18) translate3d(-3%, -2%, 0);
-  }
-  to {
-    transform: scale(1.3) translate3d(3%, 2%, 0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .screen-preview:not([style]) {
-    animation: none;
-  }
+    radial-gradient(70% 80% at 50% 40%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 75%),
+    var(--surface-2);
+  filter: none;
+  transform: none;
+  opacity: 1;
 }
 
 /* «Смотреть стрим» — главное, что можно сделать с плиткой показывающего: по центру, под пальцем. */

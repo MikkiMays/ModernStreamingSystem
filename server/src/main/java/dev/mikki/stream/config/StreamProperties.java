@@ -196,6 +196,9 @@ public record StreamProperties(
         @NotNull Duration settle,
         // Ужимать ли камеру до одного маленького слоя на время демонстрации экрана. По П2 —
         // нет, если человек не выбрал иначе; переключатель в настройках — E03.
+        /**
+         * Устарело (R08): камера показу больше не уступает, клиент поле игнорирует — всегда false.
+         */
         boolean cameraYieldsToScreen) {
       @AssertTrue(
           message =

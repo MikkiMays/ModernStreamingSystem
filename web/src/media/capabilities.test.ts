@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   builtinRules,
-  cameraYieldsToScreen,
   nearestLevel,
   qualityLevels,
   qualityRules,
@@ -11,15 +10,6 @@ import {
 
 beforeEach(() => localStorage.clear());
 
-describe('камера уступает показу (П2, E03)', () => {
-  it('по умолчанию не уступает; уступает, если попросил человек или велел сервер', () => {
-    expect(cameraYieldsToScreen(builtinRules)).toBe(false);
-    expect(cameraYieldsToScreen(builtinRules, true)).toBe(true);
-    const server = { ...builtinRules, cameraYieldsToScreen: true };
-    expect(cameraYieldsToScreen(server, false)).toBe(true);
-  });
-});
-
 describe('правила качества с сервера', () => {
   it('читает правила из ответа capabilities и запоминает их', () => {
     const rules = rememberQuality({
@@ -27,7 +17,7 @@ describe('правила качества с сервера', () => {
         default: { resolution: 1080, fps: 30 },
         ceiling: { resolution: 1440, fps: 60 },
         settleMs: 6000,
-        cameraYieldsToScreen: true,
+        cameraYieldsToScreen: true, // старый сервер ещё шлёт — поле игнорируется (R08)
       },
     });
     expect(rules.default).toEqual({ resolution: 1080, fps: 30 });

@@ -645,6 +645,12 @@
             "format": "int64",
             "type": "integer"
           },
+          "image": {
+            "maxLength": 20000,
+            "minLength": 0,
+            "pattern": "[A-Za-z0-9+/=]*",
+            "type": "string"
+          },
           "kind": {
             "pattern": "video|channel",
             "type": "string"
@@ -693,6 +699,7 @@
               "media.lost",
               "media.restored",
               "screen.started",
+              "screen.preview",
               "view.open",
               "view.close",
               "view.playing",

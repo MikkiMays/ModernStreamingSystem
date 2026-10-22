@@ -57,9 +57,7 @@
       "output": "Alto-falantes",
       "processing": "Processamento de áudio",
       "camera": "Câmera",
-      "screen": "Compartilhamento de tela",
-      "reception": "Vídeo recebido",
-      "advanced": "Avançado"
+      "screen": "Compartilhamento de tela"
     },
     "rows": {
       "profile-name": {
@@ -157,11 +155,6 @@
         "hint": "",
         "keywords": "fps fluidez"
       },
-      "camera-yields": {
-        "label": "Priorizar o compartilhamento de tela",
-        "hint": "Enquanto você compartilha a tela, a câmera fica em 360p",
-        "keywords": "compartilhamento economia banda"
-      },
       "camera-preview": {
         "label": "Pré-visualização",
         "hint": "Só você vê",
@@ -176,16 +169,6 @@
         "label": "Taxa de quadros do compartilhamento",
         "hint": "",
         "keywords": "compartilhamento fps fluidez stream"
-      },
-      "reception": {
-        "label": "Qualidade do vídeo recebido",
-        "hint": "",
-        "keywords": "vídeo dos outros tráfego"
-      },
-      "playout": {
-        "label": "Buffer de recepção",
-        "hint": "Só áudio: como ele lida com picos de latência",
-        "keywords": "latência buffer ping travadas rede"
       },
       "sounds-on": {
         "label": "Alertas da reunião",
@@ -403,10 +386,6 @@
         "screen": "Compartilhamento de tela",
         "camera": "Vídeo da câmera"
       },
-      "reception": {
-        "fit": "Ajustar à janela",
-        "best": "Sempre a melhor"
-      },
       "noise": {
         "browser": "Padrão",
         "rnnoise": "RNNoise — reforçada",
@@ -414,17 +393,7 @@
         "off": "Desativada"
       },
       "auto": "Auto",
-      "voiceGroup": "Voz e microfone",
-      "playout": {
-        "modes": {
-          "auto": "Automático",
-          "low-latency": "Latência mínima",
-          "stable": "Estabilidade máxima"
-        },
-        "now": "Agora: {{path}} · {{grade}}",
-        "rtt": " · ida e volta {{ms}} ms",
-        "tcp": ". Via TCP, o buffer é aumentado automaticamente; se isso se repetir, verifique se a sua rede permite UDP."
-      }
+      "voiceGroup": "Voz e microfone"
     },
     "profile": {
       "refused": "A sala não aceitou a imagem",
@@ -480,7 +449,6 @@
       "stop": "Parar",
       "check": "Testar",
       "checkSpeakersLabel": "Testar os alto-falantes",
-      "serverRule": "Definido por este servidor",
       "previewLabel": "Pré-visualização da câmera, só para você",
       "hidePreviewLabel": "Ocultar a pré-visualização da câmera",
       "showPreviewLabel": "Mostrar a pré-visualização da câmera",
@@ -2521,7 +2489,9 @@
         "connecting": "Conectando a música",
         "empty": "A fila está vazia",
         "paused": "Pausada",
-        "playing": "Tocando agora"
+        "playing": "Tocando agora",
+        "starved": "A fonte não está acompanhando",
+        "reconnecting": "Reconectando a música"
       },
       "firstTrack": "Adicione a primeira faixa",
       "addedBy": "Adicionada por {{name}}",
@@ -2699,7 +2669,9 @@
       "paused": "Pausada",
       "idle": "Pronta para tocar",
       "empty": "A fila está vazia",
-      "error": "Erro"
+      "error": "Erro",
+      "starved": "A fonte não acompanha",
+      "reconnecting": "Reconectando"
     },
     "game": {
       "label": "{{name}}: {{status}}",
@@ -2746,7 +2718,7 @@
     },
     "noData": "Sem dados",
     "buffer": {
-      "label": "Buffer que o cliente pede",
+      "label": "Buffer de recepção",
       "kinds": {
         "conversation": "conversa",
         "media": "música e tela",

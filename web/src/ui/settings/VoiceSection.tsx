@@ -3,22 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Mic, Square, Video, Volume2, Disc } from 'lucide-react';
 import type { Meeting } from '../../core/meeting';
 import type { Preferences } from '../../core/preferences';
-import type { LinkState } from '../../media/link-quality';
-import { qualityRules } from '../../media/capabilities';
-import { Button, Slider, Switch } from '../kit';
+import { Button, Slider } from '../kit';
 import { useMicLevel } from '../useMicLevel';
 import { LevelBar, SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
-import {
-  AutoGainRow,
-  ceilingNote,
-  EchoRow,
-  GainRow,
-  NoiseRow,
-  PlayoutRow,
-  QualityRows,
-  ReceptionRow,
-} from './media-fields';
+import { AutoGainRow, ceilingNote, EchoRow, GainRow, NoiseRow, QualityRows } from './media-fields';
 import { useDeviceCheck } from './useDeviceCheck';
 
 type Change = (patch: Partial<Preferences>) => Promise<void>;
@@ -97,12 +86,10 @@ export function VoiceSection({
   preferences,
   change,
   meeting,
-  link,
 }: {
   preferences: Preferences;
   change: Change;
   meeting?: Meeting;
-  link?: LinkState;
 }) {
   const { t } = useTranslation();
   const devices = useMediaDevices();
@@ -121,8 +108,6 @@ export function VoiceSection({
   // Во встрече полоса показывает, как вас слышат сейчас; своя проверка — пока она идёт.
   const level = check.mic ? check.level : published;
   const micHint = meeting && !check.mic ? t(($) => $.settings.voice.micInMeeting) : undefined;
-  // Сервер может велеть камере уступать всем — тогда выключатель включён и не нажимается.
-  const serverYields = qualityRules().cameraYieldsToScreen;
   return (
     <>
       <SettingGroup title={t(($) => $.settings.anchors.microphone)} anchor="microphone">
@@ -255,17 +240,6 @@ export function VoiceSection({
           }}
         />
         <SettingRow
-          id="camera-yields"
-          hint={serverYields ? t(($) => $.settings.voice.serverRule) : undefined}
-        >
-          <Switch
-            checked={serverYields || preferences.cameraYieldsToScreen}
-            disabled={serverYields}
-            ariaLabel={rowText(t, 'camera-yields').label}
-            onCheckedChange={(cameraYieldsToScreen) => void change({ cameraYieldsToScreen })}
-          />
-        </SettingRow>
-        <SettingRow
           id="camera-preview"
           below={
             <>
@@ -309,20 +283,6 @@ export function VoiceSection({
             else void change({ screen });
           }}
         />
-      </SettingGroup>
-
-      <SettingGroup title={t(($) => $.settings.anchors.reception)} anchor="reception">
-        <ReceptionRow
-          mode={preferences.reception}
-          change={(reception) => {
-            if (meeting) void meeting.media.setReception(reception);
-            else void change({ reception });
-          }}
-        />
-      </SettingGroup>
-
-      <SettingGroup title={t(($) => $.settings.anchors.advanced)} anchor="advanced" defaultOpen={false}>
-        <PlayoutRow mode={preferences.network} link={link} change={(network) => void change({ network })} />
       </SettingGroup>
     </>
   );

@@ -8,12 +8,15 @@ type Packet =
   | { type: 'authenticated'; liveAfter?: number }
   | { type: 'pong'; requestId?: string }
   | { type: 'ack'; ack: Ack }
+  | { type: 'preview'; participantId: string; image: string }
   | { type: 'error'; message: string; code: string };
 
 /** Сколько ждать pong после знака сети, прежде чем счесть открытый сокет мёртвым. */
 export const PROBE_MS = 3000;
 
 export class ControlChannel {
+  /** Кадр превью чужого показа (R07): ставит встреча, иначе кадры просто пропускаются. */
+  onPreview?: (participantId: string, image: string) => void;
   readonly state = new Store<'connecting' | 'connected' | 'recovering' | 'closed'>('connecting');
   readonly ping = new Store<number | null>(null);
   private pingRequest?: { id: string; at: number };
@@ -134,6 +137,10 @@ export class ControlChannel {
             break;
           case 'ack':
             this.pending.get(packet.ack.commandId)?.(packet.ack);
+            break;
+          case 'preview':
+            // Кадр превью показа: не событие комнаты (без номера, без снимка) — просто картинка.
+            this.onPreview?.(packet.participantId, packet.image);
             break;
           case 'error':
             if (['FORBIDDEN', 'HISTORY_EXPIRED'].includes(packet.code)) {

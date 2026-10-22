@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Watch } from '../api/types';
-import { catchUp, correction, JUMP_LIMIT, NUDGE, NUDGE_PATIENCE, targetPosition } from './watch';
+import { catchUp, correction, JUMP_LIMIT, NUDGE, NUDGE_PATIENCE, nudgeRate, targetPosition } from './watch';
 
 const video = (patch: Partial<Watch> = {}): Watch => ({
   provider: 'youtube',
@@ -35,22 +35,33 @@ describe('поправка своего плеера', () => {
     });
   });
 
-  it('полсекунды разницы подтягивает скоростью, а не перемоткой', () => {
+  it('полсекунды разницы подтягивает скоростью, а не перемоткой — пропорционально расхождению', () => {
     // Перемотка тут стоила бы чёрного кадра и провала звука у всех, кого она коснулась.
     expect(correction({ watch: video(), serverNow, localMs: 69400, playing: true })).toEqual({
       action: 'rate',
-      rate: 1 + NUDGE,
+      rate: 1.06,
     });
     expect(correction({ watch: video(), serverNow, localMs: 70600, playing: true })).toEqual({
       action: 'rate',
-      rate: 1 - NUDGE,
+      rate: 0.94,
     });
+    // Секунда и больше — потолок: сильнее уже слышно.
+    expect(correction({ watch: video(), serverNow, localMs: 68800, playing: true })).toEqual({
+      action: 'rate',
+      rate: 1 + NUDGE,
+    });
+    expect(nudgeRate(-350)).toBe(1.035);
+    expect(nudgeRate(5000)).toBe(1 - NUDGE);
   });
 
   it('разогнавшись однажды, не просит об этом каждую секунду', () => {
-    expect(correction({ watch: video(), serverNow, localMs: 69400, playing: true, rate: 1 + NUDGE })).toEqual(
-      { action: 'none' },
-    );
+    expect(correction({ watch: video(), serverNow, localMs: 69400, playing: true, rate: 1.06 })).toEqual({
+      action: 'none',
+    });
+    // Расхождение чуть сдвинулось — скорость не дёргается ради сотых.
+    expect(correction({ watch: video(), serverNow, localMs: 69450, playing: true, rate: 1.06 })).toEqual({
+      action: 'none',
+    });
   });
 
   it('догнав, возвращает обычную скорость', () => {

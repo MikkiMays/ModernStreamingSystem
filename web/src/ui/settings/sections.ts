@@ -18,8 +18,7 @@ export type SectionId =
 
 export type GroupId = 'app' | 'meetings' | 'connections' | 'cord';
 
-export type AnchorId =
-  'microphone' | 'output' | 'processing' | 'camera' | 'screen' | 'reception' | 'advanced';
+export type AnchorId = 'microphone' | 'output' | 'processing' | 'camera' | 'screen';
 
 export interface SectionSpec {
   id: SectionId;
@@ -41,7 +40,7 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: 'voice',
     group: 'meetings',
-    anchors: ['microphone', 'output', 'processing', 'camera', 'screen', 'reception', 'advanced'],
+    anchors: ['microphone', 'output', 'processing', 'camera', 'screen'],
   },
   { id: 'sounds', group: 'meetings', anchors: [] },
   { id: 'accounts', group: 'connections', anchors: [] },
@@ -168,12 +167,9 @@ export const ROWS = {
   'camera-device': { section: 'voice', anchor: 'camera' },
   'camera-resolution': { section: 'voice', anchor: 'camera' },
   'camera-fps': { section: 'voice', anchor: 'camera' },
-  'camera-yields': { section: 'voice', anchor: 'camera' },
   'camera-preview': { section: 'voice', anchor: 'camera' },
   'screen-resolution': { section: 'voice', anchor: 'screen' },
   'screen-fps': { section: 'voice', anchor: 'screen' },
-  reception: { section: 'voice', anchor: 'reception' },
-  playout: { section: 'voice', anchor: 'advanced' },
   'sounds-on': { section: 'sounds' },
   'sounds-volume': { section: 'sounds' },
   'sounds-samples': { section: 'sounds' },

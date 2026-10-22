@@ -205,6 +205,14 @@ const livekit = {
     use_external_ip: false,
     node_ip: ip,
   },
+  // RED (RFC 2198) на отрезке SFU → слушатель для Opus: два предыдущих кадра повторяются в
+  // каждом пакете, одиночные и парные потери (VPN, 1–6 %) исчезают; цена — втрое больше полосы
+  // звука вниз (музыка 160 → 480 Кбит/с на слушателя) и кадр ≤ ~450 байт, чтобы три влезли в
+  // MTU — отсюда 160k у издателя. Запас буфера приёма против потерь бессилен (MEDIA-DIAGNOSIS
+  // §2.2), а это — лечит. `congestion_control.allow_pause` остаётся по умолчанию (true): пауза
+  // видео только у того зрителя, чей канал не тянет, защищает его речь и музыку; отправка у
+  // стримящего при этом не деградирует (X10) — решение в DECISIONS.md.
+  audio: { active_red_encoding: true },
   redis: { address: "127.0.0.1:6379", password: redis },
   keys: { [key]: mediaSecret },
   room: { empty_timeout: 300, departure_timeout: 60, max_participants: MAX_PARTICIPANTS + 4 },

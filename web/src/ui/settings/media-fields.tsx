@@ -1,11 +1,9 @@
 import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Translate } from '../../i18n';
-import type { AudioPreferences, Reception } from '../../core/preferences';
+import type { AudioPreferences } from '../../core/preferences';
 import { qualityLevels, qualityRules } from '../../media/capabilities';
 import type { FrameRate, Resolution, ScreenProfile } from '../../media/profiles';
-import type { NetworkMode } from '../../media/playout';
-import { gradeName, pathName, type LinkState } from '../../media/link-quality';
 import { Slider, Switch } from '../kit';
 import { SettingGroup, SettingRow, SettingValue } from './Row';
 import { rowText } from './sections';
@@ -94,36 +92,6 @@ export function QualityFields({
       note={kind === 'screen' ? ceilingNote(t) : undefined}
     >
       <QualityRows kind={kind} profile={profile} change={change} />
-    </SettingGroup>
-  );
-}
-
-/**
- * Каким присылать чужое видео — отдельно от того, каким я отдаю своё: это два разных решения
- * (`Reception` в `core/preferences.ts`).
- */
-export function ReceptionRow({ mode, change }: { mode: Reception; change: (mode: Reception) => void }) {
-  const { t } = useTranslation();
-  return (
-    <SettingRow id="reception" stack>
-      <select
-        className="ui-input ui-select setting-select"
-        aria-label={rowText(t, 'reception').label}
-        value={mode}
-        onChange={(e) => change(e.target.value as Reception)}
-      >
-        <option value="fit">{t(($) => $.settings.media.reception.fit)}</option>
-        <option value="best">{t(($) => $.settings.media.reception.best)}</option>
-      </select>
-    </SettingRow>
-  );
-}
-
-export function ReceptionFields({ mode, change }: { mode: Reception; change: (mode: Reception) => void }) {
-  const { t } = useTranslation();
-  return (
-    <SettingGroup title={t(($) => $.settings.anchors.reception)} collapsible={false}>
-      <ReceptionRow mode={mode} change={change} />
     </SettingGroup>
   );
 }
@@ -253,56 +221,5 @@ export function AudioFields({
       <AutoGainRow audio={audio} change={change} />
       <GainRow audio={audio} change={change} />
     </SettingGroup>
-  );
-}
-
-const PLAYOUT: NetworkMode[] = ['auto', 'low-latency', 'stable'];
-
-/**
- * Сколько звука держать про запас, прежде чем его услышат. На чёткость картинки не влияет —
- * только на то, как звук переживает скачки задержки; по умолчанию её не трогают, поэтому она в
- * свёрнутом «Дополнительно».
- */
-export function PlayoutRow({
-  mode,
-  change,
-  link,
-}: {
-  mode: NetworkMode;
-  change: (mode: NetworkMode) => void;
-  link?: LinkState;
-}) {
-  const { t } = useTranslation();
-  const known = link && link.path !== 'unknown';
-  return (
-    <SettingRow
-      id="playout"
-      stack
-      below={
-        known ? (
-          <p className="setting-note" role="status">
-            {t(($) => $.settings.media.playout.now, {
-              path: pathName(t, link.path),
-              grade: gradeName(t, link.grade),
-            })}
-            {link.rttMs !== null && t(($) => $.settings.media.playout.rtt, { ms: Math.round(link.rttMs) })}
-            {link.ordered && t(($) => $.settings.media.playout.tcp)}
-          </p>
-        ) : undefined
-      }
-    >
-      <select
-        className="ui-input ui-select setting-select"
-        aria-label={rowText(t, 'playout').label}
-        value={mode}
-        onChange={(e) => change(e.target.value as NetworkMode)}
-      >
-        {PLAYOUT.map((option) => (
-          <option key={option} value={option}>
-            {t(($) => $.settings.media.playout.modes[option])}
-          </option>
-        ))}
-      </select>
-    </SettingRow>
   );
 }

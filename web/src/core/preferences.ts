@@ -1,12 +1,9 @@
 import { notifyDesktop } from './desktop';
-import type { ScreenProfile } from '../media/profiles';
+import { defaultScreenMode, type ScreenProfile } from '../media/profiles';
 import { nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
-import type { NetworkMode } from '../media/playout';
 import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
 import { isLanguage, type Language } from '../i18n/languages';
-
-export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
 
 /**
  * Как расставить участников.
@@ -22,19 +19,6 @@ export const networkModes: NetworkMode[] = ['auto', 'low-latency', 'stable'];
  */
 export type StageLayout = 'grid' | 'speaker';
 export const stageLayouts: StageLayout[] = ['grid', 'speaker'];
-
-/**
- * Каким присылать чужое видео — решение смотрящего, а не показывающего.
- *
- * `fit` — по размеру плитки: мелкой плитке мелкий поток, развёрнутой — лучший, что есть.
- * `best` — всегда лучший слой, каким бы мелким ни было окно.
- *
- * ЗАЧЕМ ОТДЕЛЬНАЯ НАСТРОЙКА. Раньше это решалось за человека его же выбором **отдачи**:
- * выставил уровень камеры руками — выключилась и адаптация приёма. Два разных решения были
- * склеены в одно, и ни одно из них нельзя было принять отдельно. Теперь их два.
- */
-export type Reception = 'fit' | 'best';
-export const receptionModes: Reception[] = ['fit', 'best'];
 
 export interface AudioPreferences {
   suppression: 'off' | 'browser' | 'rnnoise' | 'voice';
@@ -72,23 +56,12 @@ export interface Preferences {
    * (её человек ставит в меню участника). Сто — как было до ручки: ничего не убавлено.
    */
   outputVolume: number;
-  /**
-   * Уступает ли камера показу экрана: пока идёт демонстрация, камера уходит в маленький слой
-   * (`companionCamera`). По П2 по умолчанию — нет; сервер может велеть это всем
-   * (`capabilities.quality.cameraYieldsToScreen`), а здесь человек просит это для себя.
-   */
-  cameraYieldsToScreen: boolean;
   showIntegrationPanel: boolean;
   yandexMusicToken: string;
   screen: ScreenProfile;
   camera: ScreenProfile;
   devices: DeviceChoice;
   audio: AudioPreferences;
-  /**
-   * Чем жертвовать, когда канал не даёт и непрерывности, и отзывчивости сразу.
-   * Влияет только на запас буфера приёма; ни переподключения, ни смены кодеков.
-   */
-  network: NetworkMode;
   /** Как расставить участников на сцене. Принадлежит смотрящему, а не комнате. */
   layout: StageLayout;
   /**
@@ -120,8 +93,6 @@ export interface Preferences {
    * (площадку убрали) он просто не отметит.
    */
   lastPlatform: Partial<Record<PlatformArea, string>>;
-  /** Каким присылать чужое видео. Тоже принадлежит смотрящему. */
-  reception: Reception;
   name: string;
   /** A small square data URI shown to the room, or an empty string. */
   avatar: string;
@@ -163,6 +134,14 @@ const key = 'cord:preferences:v1';
 function profile(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return nearestLevel(value);
 }
+/** Показ: уровень плюс режим и превью (R95/R80); старые записи без них — «плавность» и превью есть. */
+function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
+  return {
+    ...nearestLevel(value),
+    mode: value?.mode === 'sharp' ? 'sharp' : defaultScreenMode,
+    preview: value?.preview !== false,
+  };
+}
 export function readPreferences(): Preferences {
   let data: Partial<Preferences> = {};
   try {
@@ -187,13 +166,12 @@ export function readPreferences(): Preferences {
       typeof data.outputVolume === 'number' && Number.isFinite(data.outputVolume)
         ? Math.max(0, Math.min(100, Math.round(data.outputVolume)))
         : 100,
-    cameraYieldsToScreen: data.cameraYieldsToScreen === true,
     pokerHints: data.pokerHints !== false,
     pokerFeed: data.pokerFeed !== false,
     language: isLanguage(data.language) ? data.language : null,
     showIntegrationPanel: data.showIntegrationPanel !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
-    screen: profile(data.screen),
+    screen: screenPrefs(data.screen),
     camera: profile(data.camera),
     devices,
     audio: {
@@ -208,8 +186,6 @@ export function readPreferences(): Preferences {
           ? Math.max(0, Math.min(2, data.audio.gain))
           : 1,
     },
-    network: networkModes.includes(data.network as NetworkMode) ? data.network! : 'auto',
-    reception: receptionModes.includes(data.reception as Reception) ? data.reception! : 'fit',
     layout: stageLayouts.includes(data.layout as StageLayout) ? data.layout! : 'grid',
     watchVolume:
       typeof data.watchVolume === 'number' && Number.isFinite(data.watchVolume)
@@ -248,7 +224,14 @@ export function readPreferences(): Preferences {
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {
-  const next = { ...readPreferences(), ...patch };
+  const current = readPreferences();
+  // Уровень показа приходит и без режима/превью (ряды качества знают только кадр и частоту):
+  // то, чего в правке нет, остаётся прежним.
+  const next = {
+    ...current,
+    ...patch,
+    ...(patch.screen ? { screen: { ...current.screen, ...patch.screen } } : {}),
+  };
   try {
     localStorage.setItem(key, JSON.stringify(next));
     if (patch.name !== undefined) localStorage.setItem('cord:name', patch.name.trim().slice(0, 40));

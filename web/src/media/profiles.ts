@@ -8,51 +8,67 @@ export type FrameRate = 15 | 30 | 60;
  * «Авто» здесь больше нет (T44, П2). Оно было лестницей, которая начиналась с середины,
  * спускалась до 720p15 и пробовала вверх сама, — и это и был «начал показ, а там 15 fps».
  * Уровень по умолчанию и потолок задаёт сервер (`media/capabilities.ts`), выбранное публикуется
- * сразу; что остаётся от лестницы — `media/hold.ts`.
+ * сразу и ничем не понижается (R91, X10): выбранное — нижняя граница.
  */
 export interface ScreenProfile {
   resolution: Resolution;
   fps: FrameRate;
+  /** Режим показа (R95). Нет — `smooth`: так читают старые записи и камера. */
+  mode?: ScreenMode;
+  /** Слать ли зрителям превью показа (R80). Нет — да. */
+  preview?: boolean;
 }
+/**
+ * Два режима показа, как у Discord («Игры» / «Пользовательские», R95).
+ *
+ * `smooth` — игры и видео: выбранная частота, полоса под движение. `sharp` — текст, рабочий стол,
+ * презентации: чёткость всегда, при нехватке полосы кодировщик сбрасывает кадры (5–10 fps —
+ * как у Телемоста), разрешение не трогается ни в одном режиме (X10).
+ */
+export type ScreenMode = 'smooth' | 'sharp';
+export const screenModes: ScreenMode[] = ['smooth', 'sharp'];
+export const defaultScreenMode: ScreenMode = 'smooth';
+export const modeOf = (profile: Pick<ScreenProfile, 'mode'>): ScreenMode =>
+  profile.mode === 'sharp' ? 'sharp' : 'smooth';
 const bitrates = {
   720: { 15: 1.5, 30: 3, 60: 5 },
   1080: { 15: 3, 30: 6, 60: 10 },
   1440: { 15: 5, 30: 10, 60: 16 },
 };
+/**
+ * Полоса режима «чёткость» не зависит от частоты: кадров там столько, сколько влезает, а
+ * каждый — почти ключевой. Два мегабита на 720p, четыре на 1080p, шесть на 1440p (§9.2).
+ */
+const sharpBitrates: Record<Resolution, number> = { 720: 2, 1080: 4, 1440: 6 };
 /** What a level asks of the link, in bits per second. */
-export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps'>) {
+export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>) {
+  if (modeOf(level) === 'sharp') return sharpBitrates[level.resolution] * 1000000;
   return bitrates[level.resolution][level.fps] * 1000000;
 }
 /**
- * Выбранный уровень — это про **верхний** слой, а не про то, что слоёв один.
+ * Что просить у `getDisplayMedia` (или у оболочки) под выбранный уровень.
  *
- * ЗАЧЕМ ЭТО ПЕРЕПИСАНО. Раньше ручной выбор публиковался одним слоем: `simulcast: false`.
- * Рассуждение было такое — simulcast существует, чтобы отдать кому-то копию поменьше, а
- * «шлите, как я выбрал» именно этого и не должно допускать. Оно перепутало две разные вещи.
- * Копия поменьше не заменяет выбранный слой, она **добавляется** рядом с ним: кто тянет,
- * тот и получает верхний. А без неё тому, кто не тянет, отдать нечего вообще — у него
- * картинка замирает там, где могла бы просто стать мельче. Один слой наказывал не автора
- * выбора, а тех, кто на другом конце.
- *
- * Поэтому выбранный уровень остаётся верхним слоем, `maintain-framerate` велит кодировщику
- * отдавать частоту последней. Под ним идут два дешёвых слоя — вместе меньше мегабита, —
- * которые существуют только для тех, кому верхний не доехал.
- *
- * Сам канал по-прежнему предел: никакая настройка не заставит связь пронести больше, чем
- * она может. Убрано здесь другое — решение программы отдавать меньше, когда запас есть.
+ * `ideal`, а не `exact`: экран меньше запрошенного не растянуть, и требовать этого нельзя —
+ * `exact` означал бы отказ захватывать вовсе. Частота — и `ideal`, и `max`: больше выбранного
+ * браузер не отдаёт, меньше — отдаёт только если не может (в `sharp` это ожидаемо).
  */
+export function captureConstraints(
+  profile: Pick<ScreenProfile, 'resolution' | 'fps'>,
+): MediaTrackConstraints {
+  return {
+    width: { ideal: Math.round((profile.resolution * 16) / 9) },
+    height: { ideal: profile.resolution },
+    frameRate: { ideal: profile.fps, max: profile.fps },
+  };
+}
 const forcedEncoding = { degradationPreference: 'maintain-framerate' as const };
 /**
- * Слои-подпорки под выбранным уровнем.
+ * Слои-подпорки камеры под выбранным уровнем.
  *
- * Не «лишь бы что-то было»: приёмник выбирает слой под размер своей плитки, и если между
- * выбранным уровнем и подпоркой пропасть, он падает на дно этой пропасти. С парой 1080p/360p
- * плитка в семьсот пикселей получала 360p — вдвое меньше того, что в неё влезает. Поэтому
- * ступень 720p есть всегда, когда верхний слой выше неё, и **экрану она нужна не меньше**:
- * текст в 360p — это серая рябь, то есть показ формально идёт, а читать в нём нечего.
- *
- * Мегабиты здесь считаются в последнюю очередь: уровень выбран руками, а такой выбор — это
- * согласие платить за него.
+ * Приёмник выбирает слой под размер своей плитки, и если между выбранным уровнем и подпоркой
+ * пропасть, он падает на дно этой пропасти. С парой 1080p/360p плитка в семьсот пикселей
+ * получала 360p — вдвое меньше того, что в неё влезает. Поэтому ступень 720p есть всегда,
+ * когда верхний слой выше неё. У показа экрана подпорок нет (`screenOptions`).
  */
 function chosenHelpers(level: Pick<ScreenProfile, 'resolution' | 'fps'>) {
   const layers = [new VideoPreset(640, 360, 500000, 15)];
@@ -68,14 +84,39 @@ export function fitSource(width: number, height: number, resolution: Resolution)
     height: Math.max(2, Math.floor((height * scale) / 2) * 2),
   };
 }
+/**
+ * Показ экрана: выбранное — нижняя граница, а не цель (R91, X10).
+ *
+ * ЗАЧЕМ ЭТО ПЕРЕПИСАНО. Экран публиковался как камера: `contentHint = 'motion'`,
+ * `degradationPreference: 'maintain-framerate'` и simulcast из трёх слоёв. Для Chromium это
+ * значило: quality scaler включён, адаптация разрешения разрешена, три кодировщика на машине
+ * стримящего. Статичный экран выглядел чётко, а стоило подвигать окно — QP рос, scaler резал
+ * разрешение, и «пиксели в движении» были не сбоем, а штатной работой этих трёх настроек.
+ *
+ * ЧТО ВМЕСТО. `screenHint = 'detail'` переводит кодировщик в screencast-режим: инструменты
+ * для текста (screen content tools VP9/AV1), без шумодава, **без quality scaler и без
+ * понижения разрешения** — при нехватке полосы libwebrtc сбрасывает кадры, а не чёткость.
+ * `maintain-resolution` говорит то же самое про перегрузку процессора. Один слой вместо трёх:
+ * один кодировщик, а зрителю со слабым каналом SFU отдаёт меньше кадров того же размера
+ * (временные слои `L1T3` у VP9/AV1), не трогая поток у остальных. `priority: 'high'` — при
+ * дележе полосы с камерой экран первый.
+ */
+export const screenHint = 'detail' as const;
+/** Временные слои одного разрешения: зритель, которому не хватает, получает 30 или 15 из 60 кадров. */
+export const screenScalability = 'L1T3' as const;
 export function screenOptions(profile: ScreenProfile, codec: VideoCodec): TrackPublishOptions {
+  const svc = codec === 'vp9' || codec === 'av1';
   return {
     videoCodec: codec,
-    backupCodec: codec === 'av1' || codec === 'vp9' ? ({ codec: 'vp8' } as const) : (false as const),
-    screenShareEncoding: { maxBitrate: targetBitrate(profile), maxFramerate: profile.fps },
-    ...forcedEncoding,
-    simulcast: true,
-    screenShareSimulcastLayers: chosenHelpers(profile),
+    backupCodec: svc ? ({ codec: 'vp8' } as const) : (false as const),
+    screenShareEncoding: {
+      maxBitrate: targetBitrate(profile),
+      maxFramerate: profile.fps,
+      priority: 'high',
+    },
+    degradationPreference: 'maintain-resolution',
+    simulcast: false,
+    ...(svc ? { scalabilityMode: screenScalability } : {}),
   };
 }
 /**
@@ -180,7 +221,7 @@ export interface LayerTune {
  * ЗАЧЕМ. Раньше каждый шаг лестницы снимал камеру с публикации и публиковал заново. У зрителя
  * это новая дорожка: плитка гаснет, подписка начинается с нижнего слоя, битрейт разгоняется
  * заново с одного мегабита — то самое «камера моргнула, полсекунды мыло, потом нормально».
- * Удержание (`hold.ts`) шагает редко, но шагает тем же способом.
+ * Так же подстраиваются слои после смены устройства (`reapplyCameraLevel`).
  *
  * Уровень — это три числа у существующих слоёв: во сколько раз ужать кадр, сколько битрейта и
  * кадров разрешить. Их браузер меняет в работающем кодировщике (`setParameters`), и зритель
@@ -227,40 +268,6 @@ export function layerTunes(
  * выбирают. Когда-то «Авто» просило `detail`; теперь уровень всегда выбран.
  */
 export const cameraHint = 'motion' as const;
-/**
- * Камера, пока идёт демонстрация экрана, — если сервер велел ей уступать.
- *
- * Рядом с показываемым экраном камеру видно плиткой в угол экрана, и разницу между 360p
- * одним слоем и 720p тремя там никто не назовёт. Зато разница в том, что уходит в сеть,
- * шестикратная: 0,6 Мбит/с против 3,15 — и на два работающих кодировщика меньше.
- *
- * По П2 это **не** умолчание: человек выставил число, и молча отдавать другое — ровно то,
- * на что жаловались («600×300»). Включается `capabilities.quality.cameraYieldsToScreen`
- * (переключатель в настройках — E03); причина, по которой это вообще понадобилось, — в
- * upstream.ts. Слой здесь один намеренно: когда дорожка **и есть** копия поменьше, второй
- * такой же смысла не имеет.
- */
-export const companionCamera = { width: 640, height: 360, fps: 30 as FrameRate, bitrate: 600000 };
-export function companionCameraCapture() {
-  return {
-    resolution: {
-      width: companionCamera.width,
-      height: companionCamera.height,
-      frameRate: companionCamera.fps,
-    },
-  };
-}
-export function companionCameraOptions(codec: VideoCodec = 'vp8'): TrackPublishOptions {
-  return {
-    videoCodec: codec,
-    backupCodec: codec === 'av1' || codec === 'vp9' ? ({ codec: 'vp8' } as const) : (false as const),
-    videoEncoding: { maxBitrate: companionCamera.bitrate, maxFramerate: companionCamera.fps },
-    simulcast: false,
-    // Лицо в маленькой плитке узнаётся движением, а не резкостью: частота кадров уступает
-    // последней. Это тот же выбор, что и для выбранного уровня демонстрации.
-    degradationPreference: 'maintain-framerate',
-  };
-}
 /** Умеет ли эта машина кодировать такой поток аппаратно и без рывков. */
 async function powerEfficient(contentType: string, profile: ScreenProfile) {
   if (!navigator.mediaCapabilities?.encodingInfo) return false;
@@ -283,12 +290,28 @@ async function powerEfficient(contentType: string, profile: ScreenProfile) {
     return false;
   }
 }
+/**
+ * Каким кодеком отдавать экран — по режиму (R95).
+ *
+ * «Чёткость»: AV1 и VP9 умеют screen content coding — текст в них заметно чище H.264 при той же
+ * полосе, поэтому они первые, если аппаратные. «Плавность»: 60 кадров в секунду программно не
+ * вытянуть, поэтому первым идёт то, что аппаратно есть почти везде, — H.264, — и только потом
+ * AV1/VP9 с аппаратным кодером. VP8 — последний, он работает всегда.
+ */
 export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
-  for (const [codec, contentType] of [
-    ['av1', 'video/AV1'],
-    ['vp9', 'video/VP9'],
-  ] as const)
-    if (await powerEfficient(contentType, profile)) return codec;
+  const order: readonly (readonly [VideoCodec, string])[] =
+    modeOf(profile) === 'sharp'
+      ? [
+          ['av1', 'video/AV1'],
+          ['vp9', 'video/VP9'],
+          ['h264', 'video/H264'],
+        ]
+      : [
+          ['h264', 'video/H264'],
+          ['av1', 'video/AV1'],
+          ['vp9', 'video/VP9'],
+        ];
+  for (const [codec, contentType] of order) if (await powerEfficient(contentType, profile)) return codec;
   const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
   return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
 }

@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 
 # Как часто бот музыки смотрит на комнату: кто в ней остался и жив ли он сам.
 WATCH_SECONDS = 5
+# Сколько раз и с какими паузами поднимать издателя заново, когда связь с SFU оборвалась, а
+# встреча жива (R04). Раньше любой обрыв значил «музыка вышла из встречи с ошибкой»: после
+# замирания хоста на полминуты организатору приходилось добавлять сервис заново.
+RECONNECT_DELAYS = (1.0, 2.0, 4.0, 8.0, 8.0)
+# Издатель, проживший столько после подключения, считается восстановившимся: счёт попыток с него
+# начинается заново (иначе редкие обрывы за вечер сложились бы в «пятую неудачу»).
+RECONNECT_WINDOW_MS = 120000
 # Сколько участник может висеть в JOINING без медиа и всё ещё считаться человеком (A2,
 # `docs/abuse-model.md`): дольше — забытая вкладка или скрипт, и музыка ради него не играет.
 JOINING_GRACE_MS = 30_000
@@ -275,11 +282,14 @@ class Music:
             publisher = await asyncio.wait_for(
                 Publisher.start(self.rtc_url, token["token"]), 30
             )
+            link = Link(publisher)
             state = self.store.get(room_id)
             state.update(status="idle", error=None)
             self.store.save(state)
-            watcher = asyncio.create_task(self.watch(room_id, admission, publisher))
+            watcher = asyncio.create_task(self.watch(room_id, admission, link))
             playing: tuple[str, int] | None = None
+            reconnects = 0
+            connected_at = now()
             while True:
                 state = self.store.get(room_id)
                 if not state["enabled"]:
@@ -322,9 +332,67 @@ class Music:
                     continue
                 kind = event.get("event")
                 if kind == "closed":
-                    raise ConnectionError(
-                        event.get("message") or "Связь с комнатой потеряна"
+                    # Встреча кончилась — это конец работы; жива — поднимаем издателя заново
+                    # с того же места: позиция сохраняется каждые полсекунды, место в комнате
+                    # SFU держит `departure_timeout`.
+                    if await self.expected_end(room_id) is not None:
+                        raise ConnectionError(
+                            event.get("message") or "Связь с комнатой потеряна"
+                        )
+                    if now() - connected_at >= RECONNECT_WINDOW_MS:
+                        reconnects = 0
+                    state = self.store.get(room_id)
+                    state.update(status="reconnecting")
+                    self.store.save(state)
+                    await publisher.close()
+                    while True:
+                        if reconnects >= len(RECONNECT_DELAYS):
+                            raise ConnectionError(
+                                event.get("message") or "Связь с комнатой потеряна"
+                            )
+                        delay = RECONNECT_DELAYS[reconnects]
+                        reconnects += 1
+                        logger.warning(
+                            "Music publisher lost the room %s, reconnecting in %.0fs (%d)",
+                            room_id,
+                            delay,
+                            reconnects,
+                        )
+                        await asyncio.sleep(delay)
+                        try:
+                            publisher = await self.connect(room_id, admission)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as error:
+                            # Токен не дали или издатель не поднялся — это ещё одна попытка,
+                            # а не ошибка встречи.
+                            logger.warning("Music publisher did not come back: %s", error)
+                            continue
+                        break
+                    link.publisher = publisher
+                    connected_at = now()
+                    # Статус — по тому, что хотят сейчас: пауза остаётся паузой, а не
+                    # «переподключаемся» навсегда.
+                    state = self.store.get(room_id)
+                    state["status"] = (
+                        "playing"
+                        if state["queue"] and not state["paused"]
+                        else "paused" if state["queue"] else "idle"
                     )
+                    self.store.save(state)
+                    playing = None
+                    continue
+                if kind in ("reconnecting", "starved", "recovered", "reconnected"):
+                    # Состояние источника видно комнате: «играет» и тишина неотличимы на слух.
+                    state = self.store.get(room_id)
+                    if state["status"] in ("playing", "starved", "reconnecting"):
+                        state["status"] = (
+                            "starved"
+                            if kind == "starved"
+                            else "reconnecting" if kind == "reconnecting" else "playing"
+                        )
+                        self.store.save(state)
+                    continue
                 epoch = event.get("epoch")
                 position = event.get("value")
                 latest = self.store.get(room_id)
@@ -387,6 +455,15 @@ class Music:
                 state["status"] = "disabled"
             self.store.save(state)
 
+    async def connect(self, room_id: str, admission: dict) -> Publisher:
+        """Новый издатель на то же место: свежий токен, тот же участник."""
+        token = await self.core.request(
+            "POST",
+            f"/api/v1/rooms/{room_id}/media/token",
+            credential=admission["credential"],
+        )
+        return await asyncio.wait_for(Publisher.start(self.rtc_url, token["token"]), 30)
+
     async def expected_end(self, room_id: str) -> str | None:
         """Почему оборвалась связь: встречи больше нет — или это всё-таки сбой.
 
@@ -447,13 +524,13 @@ class Music:
             return "во встрече не осталось людей"
         return None
 
-    async def watch(self, room_id: str, admission: dict, publisher: Publisher):
+    async def watch(self, room_id: str, admission: dict, link: "Link"):
         try:
-            await self._watch(room_id, admission, publisher)
+            await self._watch(room_id, admission, link)
         finally:
             self.joining.pop(room_id, None)
 
-    async def _watch(self, room_id: str, admission: dict, publisher: Publisher):
+    async def _watch(self, room_id: str, admission: dict, link: "Link"):
         while True:
             await asyncio.sleep(WATCH_SECONDS)
             try:
@@ -483,7 +560,7 @@ class Music:
                 )
                 if (
                     member["status"] in ("JOINING", "RECOVERING")
-                    and publisher.connected
+                    and link.publisher.connected
                 ):
                     await self.core.request(
                         "POST",
@@ -542,3 +619,10 @@ class Music:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class Link:
+    """Текущий издатель комнаты: после переподключения объект меняется, ссылка — нет."""
+
+    def __init__(self, publisher: Publisher):
+        self.publisher = publisher

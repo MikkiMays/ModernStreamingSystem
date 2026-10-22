@@ -1,4 +1,4 @@
-import type { ScreenProfile } from './profiles';
+import { captureConstraints, type ScreenProfile } from './profiles';
 
 /** A Windows/WebView host can supply capture without changing room or UI state. */
 export interface CaptureAdapter {
@@ -62,11 +62,7 @@ export const browserCapture: CaptureAdapter = {
   supported: () => typeof navigator.mediaDevices?.getDisplayMedia === 'function',
   capture: (profile) =>
     navigator.mediaDevices.getDisplayMedia({
-      video: {
-        width: { ideal: Math.round((profile.resolution * 16) / 9) },
-        height: { ideal: profile.resolution },
-        frameRate: { ideal: profile.fps, max: profile.fps },
-      },
+      video: captureConstraints(profile),
       // Незнакомое имя ограничения браузер просто игнорирует, поэтому просить можно всегда;
       // а понял он просьбу или нет — видно по `ownAudioRestrictable`.
       audio: {

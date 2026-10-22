@@ -1,38 +1,40 @@
 /**
  * Сколько звука держать про запас, прежде чем его услышат.
  *
- * ЗАЧЕМ ЭТО ПЕРЕПИСАНО. Раньше клиент просил у браузера **нулевой** буфер приёма — одинаково
- * для разговора, для музыки и для видео. На ровном канале это честный выигрыш в десятки
- * миллисекунд. На канале со скачками пинга это ровно тот механизм, который ломает звук:
+ * ЗАЧЕМ ЭТО ПЕРЕПИСАНО ВТОРОЙ РАЗ (ревью 1.0.3, R02/R03). Первая версия перестала просить
+ * нулевой буфер — и правильно. Но она принимала **потери пакетов** за нехватку запаса: любая
+ * слышимая заглушка больше 0,4 % добавляла 150 мс каждые две секунды, а потерянный пакет
+ * создаёт заглушку ровно так же, как опоздавший. На канале с 1 % потерь (VPN) цель музыки
+ * уезжала до потолка 2500 мс за 24 секунды и не возвращалась никогда: спуск 50 мс за
+ * 30 секунд спокойствия, а спокойствие при потерях не наступало. У владельца на скрине —
+ * 6 % потерь и буфер 1723–2489 мс. Второй слушатель без потерь сидел на 400 — разброс в две
+ * секунды, и «все в одной секунде» было невозможно по построению.
  *
- *   - пакеты приходят пачкой после задержки, буфер раздувается;
- *   - NetEq видит цель «ноль» и начинает **выбрасывать** куски, догоняя её, — это слышно
- *     как ускорение музыки и как «подъеденные» слоги в речи;
- *   - следующая задержка застаёт буфер пустым, и наступает конец: заглушка, треск, тишина.
+ * ЧТО ВМЕСТО. Три правила.
  *
- * Поэтому «то ускоряется, то ломается» — это не два разных сбоя, а две половины одного.
- * Цель «ноль» не убирает задержку, если сеть её уже создала: она только запрещает буферу
- * эту задержку пережить. Отсюда и хвост в несколько секунд после паузы — буфер всё это
- * время был полон, а приложение просило его опустошить.
+ * 1. **Запас лечит джиттер, а не потери и не обрывы.** Потерянный пакет не придёт позже,
+ *    сколько ни жди; замирание хоста на 30 с не переждёт никакой буфер. Поднимать запас
+ *    стоит только тогда, когда заглушка **частая и короткая** — это и есть опоздавшие
+ *    пакеты. Считаем события заглушки (`concealmentEvents`), вычитаем те, что объясняются
+ *    потерями (`packetsLost`), и смотрим на среднюю длину события.
+ * 2. **Музыка — почти фиксированный запас, одинаковый у всех.** Потолок 1000 мс: тогда
+ *    двое слушателей расходятся не больше чем на полсекунды плюс разница их сетей. Это и
+ *    есть «одна секунда для всех».
+ * 3. **Разовое событие — разовый ответ.** Пачка после задержки раздувает буфер — NetEq
+ *    сам его ускорит за секунду, а если буфер раздуло на секунды, дорожку дешевле
+ *    переподписать (`resync`), чем жить с этой задержкой до конца встречи.
  *
- * ЧТО ВМЕСТО. Цель буфера выбирается по трём вещам: что за дорожка, какой сейчас канал и
- * что говорит сам декодер о своём самочувствии. Разговор остаётся коротким, потому что в
- * разговоре задержка — это неудобство. Музыка и звук демонстрации получают право уехать
- * на секунду-другую назад: их никто не перебивает, и непрерывность для них важнее.
- * Так же поступают плееры, на которые это похоже со стороны, — только у них запас
- * измеряется десятками секунд, потому что им не нужно отвечать собеседнику.
+ * Режимов «минимальная задержка / устойчивость» больше нет (R06): число не настраивается,
+ * потому что настраивать нечего — разговор остаётся коротким, музыка стоит на месте.
  *
- * Мы не отключаем и не подменяем jitter buffer браузера. `jitterBufferTarget` — это
- * пожелание: браузер вправе удержать больше запрошенного. Мы лишь перестаём просить
- * заведомо недостижимое и убираем повод для вечной гонки.
+ * Мы не отключаем и не подменяем jitter buffer браузера. `jitterBufferTarget` — пожелание:
+ * браузер вправе удержать больше запрошенного.
  */
 
 import type { LinkState } from './link-quality';
 
 /** Что это за дорожка с точки зрения допустимой задержки. */
 export type PlayoutClass = 'conversation' | 'media' | 'video';
-/** Чего человек хочет от связи, когда сеть не даёт и того и другого сразу. */
-export type NetworkMode = 'auto' | 'low-latency' | 'stable';
 
 export interface PlayoutProfile {
   /** Ниже этого не опускаемся даже на идеальном канале. */
@@ -43,36 +45,27 @@ export interface PlayoutProfile {
   ceilingMs: number;
   /** Сколько нужно спокойных миллисекунд, прежде чем начать снижать запас. */
   calmMs: number;
-  /** На сколько снижаем за один шаг. Вниз — медленно, вверх — сразу. */
+  /** На сколько снижаем за один шаг. */
   stepMs: number;
+  /** На сколько поднимаем за один опрос, когда беда настоящая. */
+  riseMs: number;
 }
 
 // Chrome ограничивает jitterBufferTarget четырьмя секундами, а NetEq и без того не хранит
 // больше: просить сверх этого — значит просить то, чего не будет.
 export const MAX_TARGET_MS = 4000;
+/** Частота дискретизации Opus в WebRTC: все счётчики отсчётов — в ней. */
+export const SAMPLE_RATE = 48000;
 
 const BASE: Record<PlayoutClass, PlayoutProfile> = {
-  // Разговор. Полсекунды — это уже заметная пауза перед ответом, дальше начинается рация.
-  conversation: { floorMs: 60, startMs: 120, ceilingMs: 500, calmMs: 12000, stepMs: 20 },
-  // Музыка и звук демонстрации. Никто не ждёт от них ответа, поэтому запас щедрый.
-  media: { floorMs: 400, startMs: 800, ceilingMs: 2500, calmMs: 30000, stepMs: 50 },
-  // Видео идёт за своим звуком (см. `group` в playout-control), и собственные границы нужны
-  // ему в двух случаях: когда звука рядом нет вовсе и чтобы не уехать от него слишком далеко.
-  //
-  // Потолок здесь был 1200 мс, и это оказалось дорого. Замирание картинки — чаще признак
-  // перегруженного декодера, чем пустого буфера, а прибавка «полтораста миллисекунд за
-  // каждый фриз» упиралась в этот потолок за полминуты. Дальше человек видел ровно то, на
-  // что и жаловался: картинка отстаёт от голоса на секунду, и лечится только перезаходом.
-  video: { floorMs: 80, startMs: 150, ceilingMs: 600, calmMs: 15000, stepMs: 25 },
-};
-
-const MODE_SCALE: Record<NetworkMode, { floor: number; start: number; ceiling: number }> = {
-  auto: { floor: 1, start: 1, ceiling: 1 },
-  // «Минимальная задержка» — осознанный выбор в пользу отзывчивости. Ноль сюда не входит:
-  // он ничего не ускоряет, а только запрещает пережить всплеск.
-  'low-latency': { floor: 0.5, start: 0.5, ceiling: 0.6 },
-  // «Максимальная устойчивость» — когда важнее, чтобы не рвалось.
-  stable: { floor: 2.5, start: 2.2, ceiling: 1.6 },
+  // Разговор. Четыреста — уже заметная пауза перед ответом, дальше начинается рация.
+  conversation: { floorMs: 60, startMs: 120, ceilingMs: 400, calmMs: 8000, stepMs: 20, riseMs: 60 },
+  // Музыка и звук демонстрации. Никто не ждёт от них ответа, но и уезжать им некуда:
+  // потолок — секунда, чтобы все слушали одно и то же место.
+  media: { floorMs: 500, startMs: 600, ceilingMs: 1000, calmMs: 10000, stepMs: 100, riseMs: 100 },
+  // Видео идёт за своим звуком (см. `group` в playout-control); собственные границы нужны
+  // ему, когда звука рядом нет вовсе, и чтобы не уехать от него слишком далеко.
+  video: { floorMs: 80, startMs: 150, ceilingMs: 600, calmMs: 15000, stepMs: 25, riseMs: 150 },
 };
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
@@ -84,16 +77,13 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
  * всё, что пришло следом. Запас меньше одного оборота там бесполезен по определению, поэтому
  * пол поднимается до полутора RTT, а не до какого-то красивого числа.
  */
-export function profileFor(kind: PlayoutClass, mode: NetworkMode, link?: LinkState): PlayoutProfile {
+export function profileFor(kind: PlayoutClass, link?: LinkState): PlayoutProfile {
   const base = BASE[kind];
-  const scale = MODE_SCALE[mode];
-  let floorMs = Math.round(base.floorMs * scale.floor);
-  let startMs = Math.round(base.startMs * scale.start);
-  let ceilingMs = Math.round(base.ceilingMs * scale.ceiling);
+  let { floorMs, startMs, ceilingMs } = base;
   if (link?.ordered) {
     const retransmit = Math.round((link.rttMs ?? 200) * 1.5);
-    const extra = kind === 'conversation' ? 150 : 400;
-    floorMs = Math.max(floorMs, Math.min(retransmit, 900) + (mode === 'low-latency' ? 0 : extra));
+    const extra = kind === 'conversation' ? 150 : 300;
+    floorMs = Math.max(floorMs, Math.min(retransmit, 900) + extra);
     ceilingMs = Math.max(ceilingMs, floorMs + 400);
   }
   if (link?.grade === 'poor') startMs = Math.max(startMs, Math.round(startMs * 1.5));
@@ -104,6 +94,7 @@ export function profileFor(kind: PlayoutClass, mode: NetworkMode, link?: LinkSta
     ceilingMs: clamp(Math.max(ceilingMs, floorMs), 0, MAX_TARGET_MS),
     calmMs: base.calmMs,
     stepMs: base.stepMs,
+    riseMs: base.riseMs,
   };
 }
 
@@ -114,6 +105,10 @@ export interface PlayoutSample {
   totalSamplesReceived?: number;
   concealedSamples?: number;
   silentConcealedSamples?: number;
+  /** Сколько раз заглушка начиналась. Частые короткие — джиттер, одна длинная — обрыв. */
+  concealmentEvents?: number;
+  packetsLost?: number;
+  packetsReceived?: number;
   removedSamplesForAcceleration?: number;
   insertedSamplesForDeceleration?: number;
   jitterBufferDelay?: number;
@@ -135,6 +130,43 @@ export function measuredDelayMs(current: PlayoutSample, previous: PlayoutSample)
   return emitted > 0 && delay >= 0 ? (delay / emitted) * 1000 : null;
 }
 
+/** Чем была заглушка за интервал: опоздавшими пакетами, потерянными или обрывом. */
+export type TroubleKind = 'none' | 'jitter' | 'loss' | 'outage';
+
+/** Длиннее этого одно событие заглушки — уже не опоздание, а дыра в потоке. */
+export const OUTAGE_EVENT_MS = 500;
+/** Короче этого среднее событие — это опоздавшие пакеты, против которых запас и нужен. */
+export const JITTER_EVENT_MS = 120;
+/** Столько событий сверх объяснимых потерями нужно за опрос, чтобы признать джиттер. */
+export const JITTER_EVENTS = 3;
+/** Буфер раздуло настолько выше потолка, что дешевле переподписаться, чем ждать. */
+export const RESYNC_EXCESS_MS = 1000;
+
+/**
+ * Разбор заглушки за интервал.
+ *
+ * Каждый потерянный пакет создаёт не больше одного события, поэтому события сверх потерь —
+ * это опоздания. Одно событие длиннее полусекунды — обрыв (замирание хоста, смена сети):
+ * против него запас бессилен, а поднимать его на каждом таком опросе — значит уехать на
+ * секунды к концу первой же дыры.
+ */
+export function classifyTrouble(input: {
+  concealedSamples: number;
+  events: number;
+  lost: number;
+  sampleRate?: number;
+}): TroubleKind {
+  const rate = input.sampleRate ?? SAMPLE_RATE;
+  if (input.concealedSamples <= 0) return 'none';
+  // Заглушка идёт, а новых событий нет — продолжается одно длинное: обрыв ещё не кончился.
+  if (input.events <= 0) return 'outage';
+  const averageMs = (input.concealedSamples / input.events / rate) * 1000;
+  if (averageMs >= OUTAGE_EVENT_MS) return 'outage';
+  const unexplained = input.events - Math.max(0, input.lost);
+  if (unexplained >= JITTER_EVENTS && averageMs < JITTER_EVENT_MS) return 'jitter';
+  return input.lost > 0 ? 'loss' : 'none';
+}
+
 export interface PlayoutDecision {
   targetMs: number;
   /** Слышимая заглушка: доля подставленного звука, не считая тишины DTX. */
@@ -144,12 +176,15 @@ export interface PlayoutDecision {
   /** Сколько раз картинка замерла за интервал. Для видео это и есть «сломалось». */
   freezes: number;
   measuredMs: number | null;
+  /** Чем объясняется заглушка за интервал. */
+  trouble: TroubleKind;
+  /** Буфер раздуло на секунды: дорожку стоит переподписать, а не жить с этим. */
+  resync: boolean;
 }
 
 /**
- * Решение по одной дорожке. Вверх — по первому же признаку беды, вниз — маленькими шагами
- * и только после долгого спокойствия. Несимметрично намеренно: лишние сто миллисекунд
- * задержки человек не заметит, а один щелчок заметит обязательно.
+ * Решение по одной дорожке. Вверх — по признаку джиттера, вниз — шагами после спокойствия.
+ * Потери и обрывы цель не двигают ни вверх, ни вниз: они о канале говорят, а о запасе — нет.
  */
 export class PlayoutBuffer {
   private previous?: PlayoutSample;
@@ -171,17 +206,10 @@ export class PlayoutBuffer {
     return this.targetMs;
   }
 
-  /**
-   * Профиль меняется в двух разных случаях, и вести себя они должны по-разному.
-   *
-   * Канал сменил природу сам — накопленное знание о нём остаётся в силе, достаточно
-   * подрезать цель под новые границы. Человек переключил режим — это новое намерение, и
-   * ждать десять минут, пока цель дошагает до него по двадцать миллисекунд, незачем:
-   * начинаем с начала, а подстройка вернёт своё за пару опросов.
-   */
-  retune(profile: PlayoutProfile, reseat = false) {
+  /** Канал сменил природу (UDP ↔ TCP): накопленное остаётся, границы — новые. */
+  retune(profile: PlayoutProfile) {
     this.profile = profile;
-    this.targetMs = clamp(reseat ? profile.startMs : this.targetMs, profile.floorMs, profile.ceilingMs);
+    this.targetMs = clamp(this.targetMs, profile.floorMs, profile.ceilingMs);
   }
 
   observe(current: PlayoutSample, now = Date.now()): PlayoutDecision {
@@ -196,19 +224,26 @@ export class PlayoutBuffer {
     // накопленную цель сбрасывать незачем: канал от переподписки лучше не стал.
     const usable = !!previous && dt > 0 && dt < 10000 && samples >= 0;
     const measured = usable ? measuredDelayMs(current, previous!) : null;
-    const concealed = Math.max(
-      0,
-      (current.concealedSamples ?? 0) -
-        (previous?.concealedSamples ?? 0) -
-        Math.max(0, (current.silentConcealedSamples ?? 0) - (previous?.silentConcealedSamples ?? 0)),
-    );
-    const removed = Math.max(
-      0,
-      (current.removedSamplesForAcceleration ?? 0) - (previous?.removedSamplesForAcceleration ?? 0),
-    );
+    const delta = (key: keyof PlayoutSample) =>
+      usable
+        ? Math.max(
+            0,
+            ((current[key] as number | undefined) ?? 0) - ((previous![key] as number | undefined) ?? 0),
+          )
+        : 0;
+    const concealed = Math.max(0, delta('concealedSamples') - delta('silentConcealedSamples'));
+    const removed = delta('removedSamplesForAcceleration');
     const concealRatio = usable && samples > 0 ? concealed / samples : 0;
     const accelerationRatio = usable && samples > 0 ? removed / samples : 0;
-    const freezes = usable ? Math.max(0, (current.freezeCount ?? 0) - (previous?.freezeCount ?? 0)) : 0;
+    const freezes = delta('freezeCount');
+    const trouble: TroubleKind =
+      this.kind === 'video'
+        ? 'none'
+        : classifyTrouble({
+            concealedSamples: concealed,
+            events: delta('concealmentEvents'),
+            lost: delta('packetsLost'),
+          });
 
     const jitterMs = (finite(current.jitter) ?? 0) * 1000;
     this.peakJitterMs = Math.max(jitterMs, this.peakJitterMs * 0.8);
@@ -220,18 +255,11 @@ export class PlayoutBuffer {
 
     let troubled = false;
     if (this.kind === 'video' && freezes > 0) {
-      // У картинки нет заглушки: кадр либо успел, либо изображение замерло. Замирание —
-      // такой же признак нехватки запаса, как треск в звуке, и повод для тех же 150 мс.
-      want = Math.max(want, this.targetMs + 150);
+      // У картинки нет заглушки: кадр либо успел, либо изображение замерло.
+      want = Math.max(want, this.targetMs + profile.riseMs);
       troubled = true;
-    } else if (concealRatio > 0.004) {
-      // Буфер голодает — звук уже рвётся. Здесь не до шагов: добавляем сразу.
-      want = Math.max(want, this.targetMs + 150);
-      troubled = true;
-    } else if (this.kind === 'media' && accelerationRatio > 0.01 && measured !== null) {
-      // Декодер выбрасывает звук, догоняя цель, — для музыки это слышно как «поплыл темп».
-      // Задержка уже набрана сетью; признаём её целью, и гонка прекращается.
-      want = Math.max(want, Math.round(measured));
+    } else if (trouble === 'jitter') {
+      want = Math.max(want, this.targetMs + profile.riseMs);
       troubled = true;
     }
     if (troubled) this.calmSince = now;
@@ -244,7 +272,18 @@ export class PlayoutBuffer {
       }
     }
     this.targetMs = clamp(Math.round(want), profile.floorMs, profile.ceilingMs);
-    return { targetMs: this.targetMs, concealRatio, accelerationRatio, freezes, measuredMs: measured };
+    // Буфер раздуло пачкой далеко за потолок: NetEq будет выбрасывать звук, догоняя цель,
+    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место.
+    const resync = measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    return {
+      targetMs: this.targetMs,
+      concealRatio,
+      accelerationRatio,
+      freezes,
+      measuredMs: measured,
+      trouble,
+      resync,
+    };
   }
 }
 
