@@ -110,8 +110,8 @@
 }
 .face-zoom:focus-visible {
   opacity: 1;
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 :is(.game-person-avatar, .durak-seat-avatar, .poker-face):hover > .face-zoom {
   opacity: 1;

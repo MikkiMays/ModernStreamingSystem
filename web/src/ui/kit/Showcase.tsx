@@ -12,6 +12,7 @@ import {
   Share2,
   Trash2,
   Users,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { FullscreenLoader } from '../loader/FullscreenLoader';
@@ -24,6 +25,7 @@ import {
   CordMark,
   CordWordmark,
   Dialog,
+  Drawer,
   Field,
   IconButton,
   Input,
@@ -33,8 +35,11 @@ import {
   MenuItem,
   MenuSeparator,
   MenuSubmenu,
+  MenuSwitchItem,
   MenuTrigger,
+  Popover,
   ResizeHandle,
+  Segmented,
   Select,
   Separator,
   Slider,
@@ -101,8 +106,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Sections({ theme }: { theme: 'light' | 'dark' }) {
   const [slider, setSlider] = useState(62);
+  const [quality, setQuality] = useState<720 | 1080 | 1440>(720);
+  const [fps, setFps] = useState<30 | 60>(30);
   const [on, setOn] = useState(true);
   const [dialog, setDialog] = useState(false);
+  const [autojoin, setAutojoin] = useState(true);
+  const [sheet, setSheet] = useState(false);
   const [loader, setLoader] = useState<'cord' | 'cards' | null>(null);
   const toast = useToast();
   const panel = usePanelWidth(`showcase-${theme}`, { min: 200, max: 420, default: 280 });
@@ -289,6 +298,57 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
         </div>
       </Section>
 
+      <Section title="Сегмент">
+        <p className="kit__muted">
+          Выбор значения, а не вкладка: радиогруппа, стрелки переключают, недоступное объяснено в title.
+        </p>
+        <div className="kit__row">
+          <Segmented
+            aria-label="Камера: качество"
+            value={quality}
+            onValueChange={setQuality}
+            options={[
+              { value: 720, label: '720p' },
+              { value: 1080, label: '1080p' },
+              {
+                value: 1440,
+                label: '1440p',
+                disabled: true,
+                title: 'Этот сервер допускает до 1080p · 60 fps',
+              },
+            ]}
+          />
+          <Segmented
+            aria-label="Камера: частота кадров"
+            value={fps}
+            onValueChange={setFps}
+            options={[
+              { value: 30, label: '30 fps' },
+              { value: 60, label: '60 fps' },
+            ]}
+          />
+          <Segmented
+            aria-label="Зум камеры"
+            size="sm"
+            defaultValue={1}
+            options={[
+              { value: 0.5, label: '0.5×' },
+              { value: 1, label: '1×' },
+              { value: 2, label: '2×' },
+            ]}
+          />
+        </div>
+        <Segmented
+          aria-label="Режим показа"
+          full
+          defaultValue="detail"
+          options={[
+            { value: 'detail', label: 'Чёткость', icon: <Monitor /> },
+            { value: 'motion', label: 'Плавность', icon: <Camera /> },
+          ]}
+        />
+      </Section>
+
       <Section title="Вкладки">
         <Tabs defaultValue="people">
           <TabList aria-label="Разделы встречи">
@@ -329,6 +389,9 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
                 <MenuItem shortcut="Ctrl+L">Ссылку</MenuItem>
                 <MenuItem>Код</MenuItem>
               </MenuSubmenu>
+              <MenuSwitchItem icon={<Zap />} checked={autojoin} onCheckedChange={setAutojoin}>
+                Автоподключение
+              </MenuSwitchItem>
               <MenuSeparator />
               <MenuItem icon={<Trash2 />} destructive>
                 Удалить из избранного
@@ -336,6 +399,15 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
             </MenuContent>
           </Menu>
           <Button onClick={() => setDialog(true)}>Открыть диалог</Button>
+          <Popover
+            trigger={<Button>Всплывающая карточка</Button>}
+            title="Сейчас играет"
+            width={320}
+            mobile="popover"
+          >
+            <p className="kit__muted">Ночной город — Кино. Управление, не уходя со сцены.</p>
+          </Popover>
+          <Button onClick={() => setSheet(true)}>Лист снизу</Button>
           <Button onClick={() => toast.add({ title: 'Ссылка скопирована', type: 'success' })}>Тост</Button>
           <Button
             variant="quiet"
@@ -352,6 +424,9 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
             Тост с действием
           </Button>
         </div>
+        <Drawer open={sheet} onOpenChange={setSheet} title="Музыка">
+          <p className="kit__muted">Плеер и очередь на телефоне. Ручку можно стянуть вниз.</p>
+        </Drawer>
         <Dialog
           open={dialog}
           onOpenChange={setDialog}

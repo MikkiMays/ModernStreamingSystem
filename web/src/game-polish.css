@@ -104,8 +104,8 @@
   rotate: clamp(-5deg, var(--angle), 5deg);
 }
 .durak-hand-card:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 4px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .durak-seat[data-mine] {
   z-index: 9;
@@ -119,8 +119,8 @@
   border-radius: 50%;
 }
 .durak-reaction-trigger:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .durak-reaction-bubble {
   position: absolute;

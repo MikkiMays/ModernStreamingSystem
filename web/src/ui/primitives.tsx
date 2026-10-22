@@ -2,15 +2,10 @@ import { Dialog } from '@base-ui/react/dialog';
 import { useTranslation } from 'react-i18next';
 import { isDesktop } from '../core/desktop';
 import { X } from 'lucide-react';
-import {
-  useSyncExternalStore,
-  type CSSProperties,
-  type ReactNode,
-  type ButtonHTMLAttributes,
-  type InputHTMLAttributes,
-} from 'react';
+import { useSyncExternalStore, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import type { Store } from '../core/store';
 import { AppIcon } from './brand/Logo';
+import { Slider as KitSlider, type SliderProps } from './kit/Slider';
 
 export { AppIcon, Logo } from './brand/Logo';
 
@@ -69,41 +64,12 @@ export function IconButton({
   );
 }
 /**
- * Ползунок, у которого ноль пуст, а сотня полна.
- *
- * ЗАЧЕМ СВОЙ. Нативный `input[type=range]` с `accent-color` рисует заливку не до значения, а
- * **до центра бегунка**, а тот ходит с отступом в половину своей ширины от обоих краёв.
- * Отсюда и жалоба: на нуле слева торчит синий огрызок — читается как «уже плюс пять», — а на
- * сотне справа остаётся серый, то есть «не доехало». Числа при этом честные, врёт картинка.
- *
- * Здесь заливка считается от самого значения (`--slider-p` — доля от нуля до единицы), и
- * бегунок её просто накрывает: на краях расхождение прячется под ним, в середине его нет.
+ * Прежнее имя ползунка — тот же `Slider` набора (R14): шаг 1, заливка от значения, запись по
+ * отпусканию (`onValueCommitted`). Класс `.slider` остаётся: по нему правила кинозала и столов
+ * перекрашивают дорожку на тёмном пульте.
  */
-export function Slider({
-  min = 0,
-  max = 100,
-  value,
-  className = '',
-  style,
-  ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'min' | 'max'> & {
-  min?: number;
-  max?: number;
-  value: number;
-}) {
-  const span = max - min || 1;
-  const filled = Math.min(1, Math.max(0, (value - min) / span));
-  return (
-    <input
-      {...props}
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      className={`slider ${className}`.trim()}
-      style={{ ...style, '--slider-p': filled } as CSSProperties}
-    />
-  );
+export function Slider({ className, ...props }: SliderProps) {
+  return <KitSlider {...props} className={className ? `slider ${className}` : 'slider'} />;
 }
 export function Modal({
   open,

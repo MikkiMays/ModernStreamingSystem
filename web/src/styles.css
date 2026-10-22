@@ -48,17 +48,124 @@ button {
     color 150ms,
     box-shadow 150ms;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tabindex]:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: 3px;
+/*
+  Кольцо фокуса — одно на всё приложение (S1, R26): токен `--focus-outline`, который пуст, пока человек
+  не пошёл клавиатурой (`styles/tokens.css`, `ui/input-modality.ts`). `:where()` обнуляет вес: любой
+  класс компонента правило перебивает. Контейнеры с `tabindex=-1` — окна и меню Base UI, заголовки,
+  которым фокус дают скриптом, — сюда не попадают: раньше `[tabindex]` с весом (0,2,0) обводил целиком
+  окно настроек, «Диагностику» и пункт меню, стоило нажать Shift. А вот вкладки и пункты рядов с одной
+  остановкой Tab («roving tabindex»: вкладки кинозала, площадки, клетки доски) держат `tabindex=-1`,
+  пока до них не дошли стрелкой, — им кольцо нужно, и они в обоих списках названы отдельно.
+*/
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex='-1']),
+  [role='tab'],
+  [role='radio'],
+  [role='option'],
+  [role='gridcell'],
+  [role='treeitem']
+):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+:where(
+  [tabindex='-1']:not(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role='tab'],
+    [role='radio'],
+    [role='option'],
+    [role='gridcell'],
+    [role='treeitem']
+  ),
+  [role='dialog'],
+  [role='alertdialog'],
+  [role='menu']
+):focus-visible,
+.modal:focus-visible {
+  outline: none;
+}
+/*
+  Полосы прокрутки (R17, S2) — одни на всё приложение и одинаковые в браузере и в оболочке Windows
+  (это тот же Chromium): зона 10 px без стрелок и дорожки, бегунок 4 px, под курсором — 6 px и ярче.
+  Бегунок рисуется внутри прозрачной рамки, поэтому висит в зоне, не касаясь краёв и скруглений.
+
+  Стандартные `scrollbar-width`/`scrollbar-color` с Chromium 121 отключают `::-webkit-scrollbar` у
+  элемента (а `scrollbar-color` ещё и наследуется) — поэтому они живут только в запасном пути для
+  браузеров без `::-webkit-scrollbar` и больше нигде.
+*/
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-button {
+  display: none;
+}
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--scrollbar-thumb) padding-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  border-width: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+/* «По Discord»: в длинных колонках бегунок не виден, пока курсор не над областью и она не едет
+   (`data-scrolling` — 800 мс после прокрутки, `ui/scroll-activity.ts`). */
+:is(.settings-nav, .settings-content, .home-nav__scroll, .panel-body):not(:hover, [data-scrolling]) {
+  --scrollbar-thumb: transparent;
 }
 button {
   border: 0;
+}
+/*
+  Значки lucide — одна толщина линии (R28). По умолчанию у lucide `stroke-width: 2` в рамке 24, и
+  толщина на экране зависит от размера: 13 px — 1,1, 19 px — 1,6, 22 px — 1,8, а при масштабе Windows
+  125–150 % такие дробные линии ещё и округляются по-разному. Здесь линия задана токеном и не
+  растягивается вместе со значком (`non-scaling-stroke`): у значков интерфейса она одна и та же на любом
+  размере. Крупные иллюстрации (26 px и больше) рисуются своим масштабом, а значки со своей толщиной —
+  `data-own-stroke` (Gartic) — правило пропускает.
+*/
+svg.lucide:not([data-own-stroke]) {
+  stroke-width: var(--icon-stroke);
+}
+svg.lucide:not(
+    [data-own-stroke],
+    [width='26'],
+    [width='28'],
+    [width='30'],
+    [width='32'],
+    [width='34'],
+    [width='36'],
+    [width='40'],
+    [width='42'],
+    [width='48'],
+    [width='56'],
+    [width='64'],
+    [width='72']
+  )
+  :is(path, circle, ellipse, line, polyline, polygon, rect) {
+  vector-effect: non-scaling-stroke;
 }
 /* Checkboxes and radios are fixed-size controls, not fields. They were included here and
    inherited width:100% and min-height:48px, so every one of them had to be rescued by a
@@ -78,6 +185,14 @@ button {
   padding: 12px 14px;
   width: 100%;
   min-height: 48px;
+}
+/* Поле в фокусе — состояние поля, а не кольцо навигации (S1): рамка акцента видна и после щелчка,
+   в каком бы режиме ввода человек ни был. Раньше её заменяло кольцо, которое теперь только у
+   клавиатуры. Меняется лишь цвет рамки: у полей без рамки (`.ui-input`, поиск, чат) — ничего, а
+   рамки столов и старых форм (вес 0,1,1) правило перекрывает. */
+input:not([type='checkbox'], [type='radio'], [type='range'], [disabled]):focus,
+:is(select, textarea):not([disabled]):focus {
+  border-color: var(--accent);
 }
 input[type='checkbox'],
 input[type='radio'] {
@@ -104,76 +219,7 @@ select {
   background-position: right 14px center;
   background-size: 12px 8px;
 }
-/*
-  Ползунок. Почему заливка считается так, а не встроенным `accent-color`, — в `Slider`.
-*/
-.slider {
-  --slider-p: 0;
-  appearance: none;
-  width: 100%;
-  min-height: 0;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(
-    to right,
-    var(--blue) calc(var(--slider-p) * 100%),
-    var(--line) calc(var(--slider-p) * 100%)
-  );
-}
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--surface);
-  box-shadow: var(--shadow-1);
-  /* (высота дорожки − высота бегунка) ÷ 2: иначе бегунок стоит на дорожке, а не на ней. */
-  margin-top: -5px;
-}
-.slider::-moz-range-track {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(
-    to right,
-    var(--blue) calc(var(--slider-p) * 100%),
-    var(--line) calc(var(--slider-p) * 100%)
-  );
-}
-.slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--surface);
-  box-shadow: var(--shadow-1);
-}
-.slider:disabled {
-  cursor: not-allowed;
-}
-/* Кольцо — только с клавиатуры и по форме дорожки, а не прямоугольником вокруг строки. */
-.slider:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-radius: var(--radius-full);
-}
-/* Ползунок, взятый пальцем или мышью, кольца не получает и после клавиш (`ui/pointer-focus.ts`). */
-input[type='range'][data-pointer-focus]:focus-visible {
-  outline: none;
-}
-.slider:disabled::-webkit-slider-thumb {
-  background: var(--muted);
-}
-.slider:disabled::-moz-range-thumb {
-  background: var(--muted);
-}
+/* Ползунок — один на всё приложение, вид в `ui/kit/kit.css` (`.ui-slider` и прежний `.slider`, R14). */
 input::placeholder,
 textarea::placeholder {
   color: var(--muted);
@@ -699,28 +745,8 @@ progress {
   color: var(--text);
   box-shadow: var(--shadow-3);
   /* The track is reserved even when nothing scrolls, so opening a taller section does not
-     shift the content sideways by the width of a scrollbar appearing. */
+     shift the content sideways by the width of a scrollbar appearing. Вид полосы — общий (S2). */
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-.modal::-webkit-scrollbar {
-  width: 10px;
-}
-.modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-.modal::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: var(--radius-full);
-  /* Drawn inside its own padding so the bar floats within the rounded corners
-     instead of running hard against the edge of the dialog. */
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-.modal::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
-  background-clip: content-box;
 }
 .modal-heading {
   display: flex;

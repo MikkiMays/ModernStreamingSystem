@@ -136,7 +136,8 @@
 }
 .chess-square:focus-visible {
   z-index: 5;
-  outline: 3px solid var(--chess-focus);
+  outline: var(--focus-outline);
+  outline-color: var(--chess-focus);
 }
 .chess-board[data-interactive] .chess-square {
   cursor: pointer;
@@ -380,7 +381,6 @@
   overflow: auto;
   min-height: 62px;
   max-height: 190px;
-  scrollbar-width: thin;
 }
 .chess-notation > li {
   display: grid;
@@ -583,12 +583,12 @@
 }
 .chess button:focus-visible,
 .chess-promotion button:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: 2px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .chess .chess-square:focus-visible {
   outline-color: var(--chess-focus);
-  outline-offset: -3px;
+  outline-offset: var(--focus-offset-inset);
 }
 @keyframes chess-travel {
   from {

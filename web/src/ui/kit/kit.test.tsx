@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 afterEach(cleanup);
@@ -87,8 +88,58 @@ describe('Slider', () => {
     expect(input.style.getPropertyValue('--slider-p')).toBe('0.5');
   });
 
-  it('кольцо фокуса рисуется только с клавиатуры (T31)', () => {
-    expect(kit).toMatch(/\.ui-slider:focus-visible\s*\{[^}]*outline: var\(--focus-outline\)/);
+  it('шаг по умолчанию — 1 (R14): громкость и прочее двигаются на единицу, а не по пять', () => {
+    render(<Slider value={40} label="Громкость" onChange={() => {}} />);
+    expect(screen.getByRole('slider', { name: 'Громкость' })).toHaveAttribute('step', '1');
+  });
+
+  it('окончательное значение — по отпусканию (native change), а не на каждое движение', () => {
+    const moved = vi.fn();
+    const onValueCommitted = vi.fn();
+    function Volume() {
+      const [value, setValue] = useState(40);
+      return (
+        <Slider
+          value={value}
+          label="Громкость"
+          onChange={(event) => {
+            setValue(Number(event.target.value));
+            moved();
+          }}
+          onValueCommitted={onValueCommitted}
+        />
+      );
+    }
+    render(<Volume />);
+    const input = screen.getByRole('slider', { name: 'Громкость' });
+    fireEvent.input(input, { target: { value: '41' } });
+    fireEvent.input(input, { target: { value: '42' } });
+    expect(moved).toHaveBeenCalledTimes(2);
+    expect(onValueCommitted).not.toHaveBeenCalled();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onValueCommitted).toHaveBeenCalledOnce();
+    expect(onValueCommitted).toHaveBeenLastCalledWith(42);
+  });
+
+  it('прежний ползунок `primitives` — тот же ползунок набора и прежний класс для столов', async () => {
+    const { Slider: Legacy } = await import('../primitives');
+    render(<Legacy value={10} aria-label="Ставка" onChange={() => {}} />);
+    const input = screen.getByRole('slider', { name: 'Ставка' });
+    expect(input).toHaveClass('ui-slider', 'slider');
+    expect(input).toHaveAttribute('step', '1');
+  });
+
+  it('один вид на все ползунки: 4 px дорожка и 16 px бегунок, правила нулевого веса', () => {
+    expect(kit).toMatch(/:where\(\.ui-slider, \.slider\)::-webkit-slider-runnable-track \{\s*height: 4px;/);
+    expect(kit).toMatch(
+      /:where\(\.ui-slider, \.slider\)::-webkit-slider-thumb \{[^}]*width: 16px;\s*height: 16px;/,
+    );
+  });
+
+  it('кольцо фокуса рисуется только с клавиатуры (S1) — и у прежнего класса `.slider`', () => {
+    expect(kit).toMatch(
+      /\.ui-slider:focus-visible,\s*\.slider:focus-visible\s*\{[^}]*outline: var\(--focus-outline\)/,
+    );
     expect(kit).not.toMatch(/\.ui-slider:focus\s*\{[^}]*outline: var\(--focus-outline\)/);
     expect(kit).toMatch(/\.ui-slider:focus,?[\s\S]*?\{\s*outline: none;/);
   });

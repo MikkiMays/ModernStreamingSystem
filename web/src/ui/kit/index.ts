@@ -9,6 +9,7 @@ export { IconButton, type IconButtonProps } from './IconButton';
 export { Field, Input, Select, Textarea, type FieldProps } from './Field';
 export { Slider, type SliderProps } from './Slider';
 export { Switch, type SwitchProps } from './Switch';
+export { Segmented, type SegmentedOption, type SegmentedProps } from './Segmented';
 export { Tabs, TabList, Tab, TabPanel, type TabsProps } from './Tabs';
 export {
   Menu,
@@ -20,12 +21,17 @@ export {
   MenuSeparator,
   MenuSubmenu,
   MenuCheckboxItem,
+  MenuSwitchItem,
   MenuRadioGroup,
   MenuRadioItem,
   type MenuContentProps,
   type MenuItemProps,
+  type MenuSwitchItemProps,
 } from './Menu';
 export { Dialog, DialogTrigger, DialogClose, type DialogProps } from './Dialog';
+export { Popover, type PopoverProps } from './Popover';
+export { Drawer, type DrawerProps } from './Drawer';
+export { useMediaQuery, PHONE_QUERY } from './useMediaQuery';
 export { ToastProvider, useToast } from './Toast';
 export { Badge, Soon, type BadgeProps } from './Badge';
 export { Card, type CardProps } from './Card';

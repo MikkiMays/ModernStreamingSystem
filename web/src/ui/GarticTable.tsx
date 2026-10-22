@@ -171,7 +171,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
         <div className="gartic-lobby">
           <div className="gartic-lobby-intro">
             <div className="gartic-sketch" aria-hidden="true">
-              <Pencil size={42} strokeWidth={1.3} />
+              <Pencil size={42} strokeWidth={1.3} data-own-stroke />
               <span>
                 {t(($) => $.gartic.lobby.sketchDraw)}
                 <br />
@@ -405,7 +405,7 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
       </div>
       {choosing && choices.length > 0 ? (
         <div className="gartic-choose">
-          <Pencil size={34} strokeWidth={1.5} />
+          <Pencil size={34} strokeWidth={1.5} data-own-stroke />
           <h3>{t(($) => $.gartic.word.chooseTitle)}</h3>
           <p>{t(($) => $.gartic.word.chooseHint)}</p>
           <div>
@@ -551,7 +551,7 @@ function PhoneTask({
   if (!you?.playing)
     return (
       <div className="gartic-phone-wait">
-        <Eye size={34} strokeWidth={1.3} />
+        <Eye size={34} strokeWidth={1.3} data-own-stroke />
         <h3>{t(($) => $.gartic.phone.secretTitle)}</h3>
         <p>{t(($) => $.gartic.phone.secretText)}</p>
       </div>
@@ -575,7 +575,7 @@ function PhoneTask({
     <form className="gartic-phone-task" onSubmit={(event) => void submit(event)}>
       {table.phase === 'prompt' ? (
         <div className="gartic-prompt-intro">
-          <BookOpen size={34} strokeWidth={1.3} />
+          <BookOpen size={34} strokeWidth={1.3} data-own-stroke />
           <h3>{t(($) => $.gartic.phone.promptTitle)}</h3>
           <p>{t(($) => $.gartic.phone.promptText)}</p>
         </div>

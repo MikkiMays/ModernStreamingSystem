@@ -112,7 +112,7 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
     <section className="gartic-finish" aria-label={t(($) => $.gartic.results.section)}>
       <header className="gartic-finish-heading">
         <span className="gartic-finish-emblem" aria-hidden="true">
-          <Trophy size={28} strokeWidth={1.6} />
+          <Trophy size={28} strokeWidth={1.6} data-own-stroke />
         </span>
         <div>
           <h3>

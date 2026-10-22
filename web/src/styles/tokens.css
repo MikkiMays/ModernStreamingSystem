@@ -128,10 +128,29 @@
   --radius-6: 28px;
   --radius-full: 999px;
 
+  --control-xs: 28px;
   --control-sm: 32px;
   --control-md: 36px;
   --control-lg: 40px;
   --control-touch: 48px;
+  /* Минимум элемента управления под пальцем (WCAG 2.5.5): одно значение на весь набор. */
+  --touch-target: 44px;
+
+  /* Линии и значки (R28): волосок между строками, акцентная линия (рейка, индикатор), три размера
+     значков lucide с одной толщиной линии. Нечётных размеров в шкале нет. */
+  --hairline: 1px;
+  --hairline-strong: 2px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-stroke: 1.75;
+  /* Вкладки и сегменты: высота контейнера 36 (sm — 32), радиус 8, пункт внутри — 6. */
+  --tab-h: 36px;
+  --tab-h-sm: 32px;
+  --tab-radius: var(--radius-2);
+  --radius-0: 6px;
+  /* Полоса прокрутки (R17, S2): зона 10, бегунок 4 в покое и 6 под курсором. */
+  --scrollbar-size: 10px;
 
   --motion-fast: 120ms;
   --motion-base: 200ms;
@@ -363,8 +382,12 @@
 :root,
 [data-theme],
 .media-stage {
-  --focus-outline: 2px solid var(--accent);
+  --focus-outline: 2px solid var(--focus-ring, var(--accent));
   --focus-offset: 2px;
+  /* Кольцо внутрь — у элементов на краю прокрутки и на сцене, где наружное срезал бы `overflow`. */
+  --focus-offset-inset: -2px;
+  --scrollbar-thumb: color-mix(in srgb, var(--text) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text) 40%, transparent);
   --field-bg: var(--surface-1);
   --field-line: var(--line-strong);
   --field-radius: var(--radius-2);
@@ -415,8 +438,22 @@
     inset 0 1px 0 rgb(255 255 255 / 0.06);
   --scrim: rgb(0 0 0 / 0.6);
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+  /* Кольцо на чёрном: синий 400 даёт 3,6:1, 300 — 6,2:1. */
+  --focus-ring: var(--palette-blue-300);
   color: var(--text);
   background: var(--bg);
+}
+
+/*
+  Модальность ввода (S1, R26): кольцо фокуса — только тому, кто ходит клавиатурой.
+  `ui/input-modality.ts` ставит `html[data-input='keyboard']` по Tab, стрелкам, Home/End, PageUp/PageDown
+  и F6 и снимает его любым нажатием указателем. Пока режим не клавиатурный, токен пуст — и гаснут все
+  кольца, нарисованные им, в том числе после Shift, Esc и сочетаний, которые Chromium считает
+  «клавиатурой» (`:focus-visible`). Вложенные темы и сцена объявляют токен заново, поэтому и они здесь.
+*/
+:root:not([data-input='keyboard']),
+:root:not([data-input='keyboard']) :is([data-theme], .media-stage) {
+  --focus-outline: none;
 }
 
 /* Движение выключается одним местом: компоненты берут длительности из токенов. */
