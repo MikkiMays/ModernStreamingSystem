@@ -119,7 +119,7 @@ export function CallDock({
             disabled={!live}
             onClick={() => void meeting.media.toggle('microphone')}
           >
-            {media.microphone ? <Mic size={22} /> : <MicOff size={22} />}
+            {media.microphone ? <Mic size={24} /> : <MicOff size={24} />}
           </IconButton>
           <IconButton
             tone="stage"
@@ -130,7 +130,7 @@ export function CallDock({
             disabled={!live}
             onClick={() => void meeting.media.toggle('camera')}
           >
-            {media.camera ? <Video size={22} /> : <VideoOff size={22} />}
+            {media.camera ? <Video size={24} /> : <VideoOff size={24} />}
           </IconButton>
           {coarse ? (
             <CameraFlip meeting={meeting} disabled={!!ended} />
@@ -144,7 +144,7 @@ export function CallDock({
               disabled={!live}
               onClick={share}
             >
-              <MonitorUp size={22} />
+              <MonitorUp size={24} />
             </IconButton>
           )}
         </div>
@@ -153,7 +153,7 @@ export function CallDock({
             <MenuTrigger
               render={
                 <IconButton tone="stage" size="lg" className="dock-button" label={t(($) => $.dock.more)}>
-                  <MoreHorizontal size={22} />
+                  <MoreHorizontal size={24} />
                 </IconButton>
               }
             />
@@ -224,7 +224,7 @@ export function CallDock({
             disabled={ended}
             onClick={onLeave}
           >
-            <PhoneOff size={22} />
+            <PhoneOff size={24} />
           </IconButton>
         </div>
         {!compact && (
@@ -237,7 +237,7 @@ export function CallDock({
               pressed={panel === 'chat'}
               onClick={() => togglePanel('chat')}
             >
-              <MessageSquare size={22} />
+              <MessageSquare size={24} />
             </IconButton>
             <IconButton
               tone="stage"
@@ -247,7 +247,7 @@ export function CallDock({
               pressed={panel === 'people'}
               onClick={() => togglePanel('people')}
             >
-              <Users size={22} />
+              <Users size={24} />
               <span className="dock-count" aria-hidden="true">
                 {people}
               </span>
@@ -260,7 +260,7 @@ export function CallDock({
               pressed={panel === 'services'}
               onClick={() => togglePanel('services')}
             >
-              <Puzzle size={22} />
+              <Puzzle size={24} />
             </IconButton>
           </div>
         )}

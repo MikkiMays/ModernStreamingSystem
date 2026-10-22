@@ -120,7 +120,7 @@ export function MeetingHeader({
                 title={t(($) => $.meeting.header.settings)}
                 onClick={onSettings}
               >
-                <Pencil size={13} aria-hidden="true" />
+                <Pencil size={16} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -173,10 +173,10 @@ export function MeetingHeader({
             if (!full) void toggleFavorite();
           }}
         >
-          <Star size={19} fill={isFavorite ? 'currentColor' : 'none'} />
+          <Star size={20} fill={isFavorite ? 'currentColor' : 'none'} />
         </IconButton>
         <IconButton label={t(($) => $.meeting.header.inviteAll)} onClick={onInvite}>
-          <Link size={18} />
+          <Link size={20} />
         </IconButton>
         {/* «?» в шапке, как в Discord (T36): ответы и обращение — окном, разговор не прерывается. */}
         <HelpButton onDiagnostics={onDiagnostics} />
