@@ -1,5 +1,5 @@
 import { notifyDesktop } from './desktop';
-import type { ScreenProfile } from '../media/profiles';
+import { defaultScreenMode, type ScreenProfile } from '../media/profiles';
 import { nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
@@ -134,6 +134,14 @@ const key = 'cord:preferences:v1';
 function profile(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return nearestLevel(value);
 }
+/** Показ: уровень плюс режим и превью (R95/R80); старые записи без них — «плавность» и превью есть. */
+function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
+  return {
+    ...nearestLevel(value),
+    mode: value?.mode === 'sharp' ? 'sharp' : defaultScreenMode,
+    preview: value?.preview !== false,
+  };
+}
 export function readPreferences(): Preferences {
   let data: Partial<Preferences> = {};
   try {
@@ -163,7 +171,7 @@ export function readPreferences(): Preferences {
     language: isLanguage(data.language) ? data.language : null,
     showIntegrationPanel: data.showIntegrationPanel !== false,
     yandexMusicToken: typeof data.yandexMusicToken === 'string' ? data.yandexMusicToken : '',
-    screen: profile(data.screen),
+    screen: screenPrefs(data.screen),
     camera: profile(data.camera),
     devices,
     audio: {
@@ -216,7 +224,14 @@ export function readPreferences(): Preferences {
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {
-  const next = { ...readPreferences(), ...patch };
+  const current = readPreferences();
+  // Уровень показа приходит и без режима/превью (ряды качества знают только кадр и частоту):
+  // то, чего в правке нет, остаётся прежним.
+  const next = {
+    ...current,
+    ...patch,
+    ...(patch.screen ? { screen: { ...current.screen, ...patch.screen } } : {}),
+  };
   try {
     localStorage.setItem(key, JSON.stringify(next));
     if (patch.name !== undefined) localStorage.setItem('cord:name', patch.name.trim().slice(0, 40));

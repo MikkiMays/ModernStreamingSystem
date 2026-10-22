@@ -13,15 +13,53 @@ export type FrameRate = 15 | 30 | 60;
 export interface ScreenProfile {
   resolution: Resolution;
   fps: FrameRate;
+  /** Режим показа (R95). Нет — `smooth`: так читают старые записи и камера. */
+  mode?: ScreenMode;
+  /** Слать ли зрителям превью показа (R80). Нет — да. */
+  preview?: boolean;
 }
+/**
+ * Два режима показа, как у Discord («Игры» / «Пользовательские», R95).
+ *
+ * `smooth` — игры и видео: выбранная частота, полоса под движение. `sharp` — текст, рабочий стол,
+ * презентации: чёткость всегда, при нехватке полосы кодировщик сбрасывает кадры (5–10 fps —
+ * как у Телемоста), разрешение не трогается ни в одном режиме (X10).
+ */
+export type ScreenMode = 'smooth' | 'sharp';
+export const screenModes: ScreenMode[] = ['smooth', 'sharp'];
+export const defaultScreenMode: ScreenMode = 'smooth';
+export const modeOf = (profile: Pick<ScreenProfile, 'mode'>): ScreenMode =>
+  profile.mode === 'sharp' ? 'sharp' : 'smooth';
 const bitrates = {
   720: { 15: 1.5, 30: 3, 60: 5 },
   1080: { 15: 3, 30: 6, 60: 10 },
   1440: { 15: 5, 30: 10, 60: 16 },
 };
+/**
+ * Полоса режима «чёткость» не зависит от частоты: кадров там столько, сколько влезает, а
+ * каждый — почти ключевой. Два мегабита на 720p, четыре на 1080p, шесть на 1440p (§9.2).
+ */
+const sharpBitrates: Record<Resolution, number> = { 720: 2, 1080: 4, 1440: 6 };
 /** What a level asks of the link, in bits per second. */
-export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps'>) {
+export function targetBitrate(level: Pick<ScreenProfile, 'resolution' | 'fps' | 'mode'>) {
+  if (modeOf(level) === 'sharp') return sharpBitrates[level.resolution] * 1000000;
   return bitrates[level.resolution][level.fps] * 1000000;
+}
+/**
+ * Что просить у `getDisplayMedia` (или у оболочки) под выбранный уровень.
+ *
+ * `ideal`, а не `exact`: экран меньше запрошенного не растянуть, и требовать этого нельзя —
+ * `exact` означал бы отказ захватывать вовсе. Частота — и `ideal`, и `max`: больше выбранного
+ * браузер не отдаёт, меньше — отдаёт только если не может (в `sharp` это ожидаемо).
+ */
+export function captureConstraints(
+  profile: Pick<ScreenProfile, 'resolution' | 'fps'>,
+): MediaTrackConstraints {
+  return {
+    width: { ideal: Math.round((profile.resolution * 16) / 9) },
+    height: { ideal: profile.resolution },
+    frameRate: { ideal: profile.fps, max: profile.fps },
+  };
 }
 const forcedEncoding = { degradationPreference: 'maintain-framerate' as const };
 /**
@@ -252,12 +290,28 @@ async function powerEfficient(contentType: string, profile: ScreenProfile) {
     return false;
   }
 }
+/**
+ * Каким кодеком отдавать экран — по режиму (R95).
+ *
+ * «Чёткость»: AV1 и VP9 умеют screen content coding — текст в них заметно чище H.264 при той же
+ * полосе, поэтому они первые, если аппаратные. «Плавность»: 60 кадров в секунду программно не
+ * вытянуть, поэтому первым идёт то, что аппаратно есть почти везде, — H.264, — и только потом
+ * AV1/VP9 с аппаратным кодером. VP8 — последний, он работает всегда.
+ */
 export async function chooseCodec(profile: ScreenProfile): Promise<VideoCodec> {
-  for (const [codec, contentType] of [
-    ['av1', 'video/AV1'],
-    ['vp9', 'video/VP9'],
-  ] as const)
-    if (await powerEfficient(contentType, profile)) return codec;
+  const order: readonly (readonly [VideoCodec, string])[] =
+    modeOf(profile) === 'sharp'
+      ? [
+          ['av1', 'video/AV1'],
+          ['vp9', 'video/VP9'],
+          ['h264', 'video/H264'],
+        ]
+      : [
+          ['h264', 'video/H264'],
+          ['av1', 'video/AV1'],
+          ['vp9', 'video/VP9'],
+        ];
+  for (const [codec, contentType] of order) if (await powerEfficient(contentType, profile)) return codec;
   const available = RTCRtpSender.getCapabilities?.('video')?.codecs ?? [];
   return available.some((c) => c.mimeType.toLowerCase() === 'video/h264') ? 'h264' : 'vp8';
 }

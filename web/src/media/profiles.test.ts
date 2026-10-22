@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { cameraOptions, fitSource, forcedCameraConstraints, screenHint, screenOptions } from './profiles';
+import {
+  cameraOptions,
+  captureConstraints,
+  fitSource,
+  forcedCameraConstraints,
+  modeOf,
+  screenHint,
+  screenOptions,
+  targetBitrate,
+} from './profiles';
 
 describe('screen profiles', () => {
   it('preserves portrait, ultrawide and conventional source geometry', () => {
@@ -24,6 +33,33 @@ describe('screen profiles', () => {
     expect(options.degradationPreference).toBe('maintain-resolution');
     expect(options.scalabilityMode).toBe('L1T3');
     expect(screenHint).toBe('detail');
+  });
+
+  it('режим «чёткость» платит полосой за кадр, а не за частоту; «плавность» — за частоту (R95)', () => {
+    expect(targetBitrate({ resolution: 1080, fps: 60, mode: 'sharp' })).toBe(4000000);
+    expect(targetBitrate({ resolution: 1080, fps: 15, mode: 'sharp' })).toBe(4000000);
+    expect(targetBitrate({ resolution: 1440, fps: 30, mode: 'sharp' })).toBe(6000000);
+    expect(targetBitrate({ resolution: 1080, fps: 60, mode: 'smooth' })).toBe(10000000);
+    expect(targetBitrate({ resolution: 1080, fps: 60 })).toBe(10000000);
+    expect(modeOf({ mode: undefined })).toBe('smooth');
+    expect(modeOf({ mode: 'sharp' })).toBe('sharp');
+    // Оба режима — screencast и без понижения разрешения: разница только в полосе и кодеке.
+    for (const mode of ['sharp', 'smooth'] as const) {
+      const options = screenOptions({ resolution: 1080, fps: 30, mode }, 'vp9');
+      expect(options.degradationPreference).toBe('maintain-resolution');
+      expect(options.simulcast).toBe(false);
+    }
+    expect(
+      screenOptions({ resolution: 1080, fps: 30, mode: 'sharp' }, 'vp9').screenShareEncoding?.maxBitrate,
+    ).toBe(4000000);
+  });
+
+  it('захват просит выбранный кадр как ideal и частоту как потолок', () => {
+    expect(captureConstraints({ resolution: 1440, fps: 60 })).toEqual({
+      width: { ideal: 2560 },
+      height: { ideal: 1440 },
+      frameRate: { ideal: 60, max: 60 },
+    });
   });
 
   it('у H.264 и VP8 временных слоёв не просит, но и разрешение не трогает', () => {

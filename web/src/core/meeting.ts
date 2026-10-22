@@ -111,6 +111,10 @@ export class Meeting {
     window.addEventListener('pagehide', this.report);
     document.addEventListener('visibilitychange', this.refreshOnReturn);
     this.subscriptions.push(
+      // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
+      this.media.screenGone.subscribe((identity) => {
+        if (identity && this.viewing.get()?.participantId === identity) this.stopViewing();
+      }),
       this.media.state.subscribe(() => {
         const state = this.media.state.get();
         void this.uploader.congestion(
@@ -156,6 +160,13 @@ export class Meeting {
     // по журналу клиента, а не по памяти.
     if (cues.length) console.info('[cord] звуки комнаты', this.cues.journal.slice(-cues.length));
   }
+  /** Просмотр чужого показа кончился — по снимку ядра или по дорожке SFU (R81), что раньше. */
+  private stopViewing() {
+    if (!this.viewing.get()) return;
+    this.viewRevision++;
+    this.viewing.set(null);
+    this.media.watchScreen(null);
+  }
   private accept = (snapshot: Snapshot, roundTrip?: number) => {
     if (this.disposed) return;
     this.tellTime(snapshot.serverTime, roundTrip);
@@ -176,11 +187,8 @@ export class Meeting {
       snapshot.participants.map((person) => ({ id: person.id, key: volumeKey(person) })),
     );
     const viewing = this.viewing.get();
-    if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen)) {
-      this.viewRevision++;
-      this.viewing.set(null);
-      this.media.watchScreen(null);
-    }
+    if (viewing && !snapshot.participants.some((p) => p.screenId === viewing.screenId && p.screen))
+      this.stopViewing();
     if (!snapshot.participants.some((p) => p.id === this.pinnedCamera.get())) this.pinnedCamera.set(null);
     if (snapshot.closedAt) {
       this.end(t(($) => $.meeting.end.closed));

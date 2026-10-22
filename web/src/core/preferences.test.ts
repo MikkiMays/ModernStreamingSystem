@@ -26,7 +26,7 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
   };
   localStorage.setItem('cord:preferences:v1', JSON.stringify(saved));
   expect(readPreferences().camera).toEqual({ resolution: 720, fps: 30 });
-  expect(readPreferences().screen).toEqual({ resolution: 1080, fps: 60 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1080, fps: 60 });
   expect(JSON.parse(localStorage.getItem('cord:preferences:v1')!)).toEqual(saved);
   // Сервер, который разрешает 1440p, возвращает выбор человека сам.
   localStorage.setItem(
@@ -37,7 +37,7 @@ it('мигрирует сохранённые «Авто» и 1440p к ближ�
       settleMs: 4000,
     }),
   );
-  expect(readPreferences().screen).toEqual({ resolution: 1440, fps: 60 });
+  expect(readPreferences().screen).toMatchObject({ resolution: 1440, fps: 60 });
 });
 
 it('migrates the display name and validates stored audio and hotkeys', () => {
@@ -162,4 +162,24 @@ it('помнит прошлый выбор площадки у музыки и �
   expect(readPreferences().lastPlatform).toEqual({});
   localStorage.setItem('cord:preferences:v1', JSON.stringify({ lastPlatform: 'youtube' }));
   expect(readPreferences().lastPlatform).toEqual({});
+});
+
+it('показ помнит режим и превью (R95/R80): старые записи — «плавность» и превью есть, уровень без них их не стирает', () => {
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
+  expect(readPreferences().screen).toMatchObject({
+    resolution: 1080,
+    fps: 30,
+    mode: 'smooth',
+    preview: true,
+  });
+  savePreferences({ screen: { resolution: 1080, fps: 30, mode: 'sharp', preview: false } });
+  expect(readPreferences().screen).toMatchObject({ mode: 'sharp', preview: false });
+  // Ряд качества знает только кадр и частоту — режим и превью остаются.
+  savePreferences({ screen: { resolution: 720, fps: 60 } });
+  expect(readPreferences().screen).toMatchObject({ resolution: 720, fps: 60, mode: 'sharp', preview: false });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ screen: { resolution: 1080, fps: 30, mode: 'blurry' } }),
+  );
+  expect(readPreferences().screen.mode).toBe('smooth');
 });

@@ -24,6 +24,7 @@ import {
   fitSource,
   screenHint,
   screenOptions,
+  type ScreenMode,
   cameraCapture,
   cameraOptions,
   forcedCameraConstraints,
@@ -197,6 +198,12 @@ export class MediaSession {
   readonly levels = new VoiceLevels(this.tracks, this.speaking);
   /** Последний кадр чужой демонстрации: participantId → ссылка на картинку. */
   readonly screenPreviews = new Store<Record<string, string>>({});
+  /**
+   * Чей показ, который мы смотрели, только что кончился (R81). SFU сообщает об этом через
+   * `TrackUnpublished` за ~50–100 мс — раньше, чем ядро пришлёт снимок без экрана; зритель
+   * закрывает просмотр по первому из двух, а не ждёт второго.
+   */
+  readonly screenGone = new Store<string | null>(null);
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   /** На какой платформе идёт встреча — для правил фона (E12, `media/background.ts`). */
@@ -261,7 +268,8 @@ export class MediaSession {
    */
   private syncPreview() {
     const track = this.screenTracks.find((item) => item instanceof LocalVideoTrack);
-    if (!(track instanceof LocalVideoTrack)) {
+    // Превью выключено в окне выбора экрана (R80): кадры не снимаются и не уходят.
+    if (!(track instanceof LocalVideoTrack) || this.profile.preview === false) {
       this.previewSource.stop();
       return;
     }
@@ -434,7 +442,10 @@ export class MediaSession {
       .on(RoomEvent.DataReceived, this.receivePreview)
       .on(RoomEvent.ParticipantDisconnected, (participant) => this.dropPreview(participant.identity))
       .on(RoomEvent.TrackUnpublished, (publication, participant) => {
-        if (publication.source === Track.Source.ScreenShare) this.dropPreview(participant.identity);
+        if (publication.source === Track.Source.ScreenShare) {
+          this.dropPreview(participant.identity);
+          if (this.watchedParticipant === participant.identity) this.screenGone.set(participant.identity);
+        }
       })
       .on(RoomEvent.TrackMuted, (publication, participant) => {
         if (participant.isLocal && publication.source === Track.Source.Microphone) {
@@ -1671,8 +1682,12 @@ export class MediaSession {
     await this.api.screen(false).catch(() => {});
     this.refreshTracks();
   }
+  /** Сменить режим показа (R95): тот же уровень, другой кодек и полоса — переопубликация. */
+  setScreenMode(mode: ScreenMode) {
+    return this.setProfile({ ...this.profile, mode });
+  }
   setProfile(profile: ScreenProfile) {
-    this.profile = profile;
+    this.profile = { ...this.preferences.get().screen, ...profile };
     this.preferences.set(savePreferences({ screen: profile }));
     this.profileChange = this.profileChange.then(() => this.applyProfile(this.profile));
     return this.profileChange;
