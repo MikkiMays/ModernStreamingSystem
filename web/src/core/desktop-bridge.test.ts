@@ -1,0 +1,168 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { t } from '../i18n';
+import { detectLanguage } from '../i18n/languages';
+import { readPreferences } from './preferences';
+import { decideNotification, type NotifyContext } from './desktop-notify';
+
+/*
+  Мост v2 клиента Windows — копия контракта в ядре (`contracts/desktop-bridge.v2.schema.json`).
+  Сообщения, которые шлёт и принимает веб, сверяются со схемой: оболочка молча отбрасывает всё, что
+  не прошло её проверку (`messages.ts`), и расхождение было бы видно только по пропавшим toast'ам.
+*/
+
+type Schema = {
+  $ref?: string;
+  type?: string;
+  const?: unknown;
+  enum?: unknown[];
+  required?: string[];
+  properties?: Record<string, Schema>;
+  additionalProperties?: boolean;
+  items?: Schema;
+  maxItems?: number;
+  uniqueItems?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  minimum?: number;
+  pattern?: string;
+  anyOf?: Schema[];
+};
+
+const contract = JSON.parse(
+  readFileSync(join(process.cwd(), '..', 'contracts', 'desktop-bridge.v2.schema.json'), 'utf8'),
+) as Schema & { $defs: Record<string, Schema> };
+
+/** Ровно та часть JSON Schema, что есть в контракте; незнакомое ключевое слово — ошибка теста. */
+function errors(value: unknown, schema: Schema, at = '$'): string[] {
+  if (schema.$ref) return errors(value, contract.$defs[schema.$ref.replace('#/$defs/', '')]!, at);
+  if (schema.anyOf)
+    return schema.anyOf.some((option) => errors(value, option, at).length === 0) ? [] : [`${at}: anyOf`];
+  const found: string[] = [];
+  const fail = (why: string) => found.push(`${at}: ${why}`);
+  if ('const' in schema && value !== schema.const) fail(`не ${String(schema.const)}`);
+  if (schema.enum && !schema.enum.includes(value)) fail(`${String(value)} не из списка`);
+  const kind =
+    value === null
+      ? 'null'
+      : Array.isArray(value)
+        ? 'array'
+        : Number.isInteger(value)
+          ? 'integer'
+          : typeof value;
+  if (schema.type && !(schema.type === kind || (schema.type === 'number' && kind === 'integer')))
+    return [`${at}: ${kind} вместо ${schema.type}`];
+  if (typeof value === 'string') {
+    if (schema.minLength !== undefined && value.length < schema.minLength) fail('короче');
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) fail('длиннее');
+    if (schema.pattern && !new RegExp(schema.pattern, 'u').test(value)) fail('не по образцу');
+  }
+  if (typeof value === 'number' && schema.minimum !== undefined && value < schema.minimum) fail('меньше');
+  if (Array.isArray(value)) {
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) fail('много');
+    if (schema.uniqueItems && new Set(value).size !== value.length) fail('повторы');
+    if (schema.items)
+      value.forEach((item, index) => found.push(...errors(item, schema.items!, `${at}[${index}]`)));
+  }
+  if (kind === 'object') {
+    const record = value as Record<string, unknown>;
+    for (const key of schema.required ?? []) if (!(key in record)) fail(`нет ${key}`);
+    for (const [key, item] of Object.entries(record)) {
+      const inner = schema.properties?.[key];
+      if (inner) found.push(...errors(item, inner, `${at}.${key}`));
+      else if (schema.additionalProperties === false) fail(`лишнее ${key}`);
+    }
+  }
+  return found;
+}
+const def = (name: string) => ({ $ref: `#/$defs/${name}` });
+
+const away: NotifyContext = {
+  roomId: '00000000-0000-4000-8000-000000000001',
+  title: 'Планёрка',
+  focused: false,
+  visible: true,
+  chatOpen: false,
+  selfName: 'Ника',
+  canApprove: true,
+};
+
+describe('контракт моста v2', () => {
+  it('уведомления, которые шлёт веб, проходят проверку оболочки: tag ≤ 60, кнопки, silent', () => {
+    const sent = [
+      decideNotification(t, { kind: 'knock', name: 'Аня', participantId: 'a', waiting: 1 }, away),
+      decideNotification(t, { kind: 'knock', name: 'Аня', participantId: 'a', waiting: 4 }, away),
+      decideNotification(t, { kind: 'message', name: 'Миша', text: '@Ника '.repeat(80) }, away),
+      decideNotification(t, { kind: 'join', names: ['Я'.repeat(200), 'Оля'] }, away),
+    ];
+    for (const note of sent) {
+      expect(note).not.toBeNull();
+      const { attention: _attention, ...payload } = note!;
+      expect(errors(payload, def('notify'))).toEqual([]);
+      expect(payload.silent).toBe(true);
+    }
+  });
+
+  it('проверка notify не пропускает лишнего: длинный заголовок, третью кнопку, silent строкой', () => {
+    const ok = { title: 'Аня просится во встречу', body: '', tag: 'room:x:knock', silent: true };
+    expect(errors(ok, def('notify'))).toEqual([]);
+    expect(errors({ ...ok, title: 'Я'.repeat(81) }, def('notify'))).not.toEqual([]);
+    expect(errors({ ...ok, silent: 'yes' }, def('notify'))).not.toEqual([]);
+    const action = { id: 'admit', text: 'Впустить' };
+    expect(errors({ ...ok, actions: [action, action, action] }, def('notify'))).not.toEqual([]);
+    expect(errors({ ...ok, actions: [{ id: 'Admit!', text: 'x' }] }, def('notify'))).not.toEqual([]);
+  });
+
+  it('значок, мигание и состояние окна', () => {
+    expect(errors({ count: 3 }, def('badge'))).toEqual([]);
+    expect(errors({ count: -1 }, def('badge'))).not.toEqual([]);
+    expect(errors({}, def('attention'))).toEqual([]);
+    expect(errors({ focused: false, visible: true }, def('windowState'))).toEqual([]);
+    expect(errors({ focused: false }, def('windowState'))).not.toEqual([]);
+    expect(errors({ id: 'admit', tag: `room:${away.roomId}:knock` }, def('notificationAction'))).toEqual([]);
+  });
+
+  it('имена: веб шлёт notify, badge, attention и слушает window.state и notification.action', () => {
+    expect(contract.$defs.pageMessage!.enum).toEqual(
+      expect.arrayContaining(['notify', 'badge', 'attention']),
+    );
+    expect(contract.$defs.hostMessage!.enum).toEqual(
+      expect.arrayContaining(['window.state', 'notification.action']),
+    );
+    expect(contract.$defs.feature!.enum).toEqual(expect.arrayContaining(['notify', 'badge', 'attention']));
+  });
+
+  it('Bootstrap.language: язык установщика или null; незнакомый язык — отказ', () => {
+    const bootstrap = {
+      profile: '',
+      theme: 'system',
+      language: 'de',
+      showPing: false,
+      notificationSounds: true,
+      autoConnect: true,
+    };
+    expect(errors(bootstrap, def('bootstrap'))).toEqual([]);
+    expect(errors({ ...bootstrap, language: null }, def('bootstrap'))).toEqual([]);
+    expect(errors({ ...bootstrap, language: 'xx' }, def('bootstrap'))).not.toEqual([]);
+    const { language: _language, ...older } = bootstrap;
+    expect(errors(older, def('bootstrap'))).not.toEqual([]);
+  });
+});
+
+describe('язык из установщика (R64)', () => {
+  it('preload кладёт его в настройки, пока человек язык не выбирал, — и веб берёт его до языка браузера', () => {
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ language: 'de' }));
+    expect(detectLanguage(readPreferences().language, ['it-IT'])).toBe('de');
+  });
+
+  it('свой выбор человека важнее: preload его не перебивает, и веб берёт его', () => {
+    localStorage.setItem('cord:preferences:v1', JSON.stringify({ language: 'it' }));
+    expect(detectLanguage(readPreferences().language, ['de-DE'])).toBe('it');
+  });
+
+  it('без выбора и без установщика — язык браузера', () => {
+    localStorage.removeItem('cord:preferences:v1');
+    expect(detectLanguage(readPreferences().language, ['fr-FR'])).toBe('fr');
+  });
+});

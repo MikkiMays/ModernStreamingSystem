@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cord:contracts:desktop-bridge.v2",
+  "title": "Мост v2 клиента Windows (Electron) — window.cordDesktop",
+  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language); остальные нагрузки — в messages.ts.",
+  "type": "object",
+  "required": ["protocol", "features", "app", "bootstrap"],
+  "properties": {
+    "protocol": { "$ref": "#/$defs/protocol" },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" },
+      "uniqueItems": true
+    },
+    "app": {
+      "type": "object",
+      "required": ["version", "arch"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+        "arch": { "enum": ["x64", "arm64", "ia32"] }
+      }
+    },
+    "bootstrap": { "$ref": "#/$defs/bootstrap" }
+  },
+  "$defs": {
+    "protocol": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": { "const": 2 },
+        "minor": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "feature": {
+      "description": "Что умеет эта сборка оболочки; без флага страница не показывает переключатель или показывает понятный отказ.",
+      "enum": [
+        "hotkeys",
+        "ptt",
+        "capture",
+        "capture.system-audio",
+        "capture.app-audio",
+        "overlay",
+        "notify",
+        "thumbar",
+        "badge",
+        "progress",
+        "attention",
+        "deeplink",
+        "servers",
+        "update",
+        "power",
+        "app.settings",
+        "tray",
+        "sleep",
+        "autostart"
+      ]
+    },
+    "language": {
+      "description": "Язык веба (web/src/i18n/languages.ts, LANGUAGES).",
+      "enum": ["ru", "en", "es", "fr", "it", "zh-Hans", "de", "pt-BR"]
+    },
+    "bootstrap": {
+      "description": "Что preload отдаёт странице до первой отрисовки.",
+      "type": "object",
+      "required": [
+        "profile",
+        "theme",
+        "language",
+        "showPing",
+        "notificationSounds",
+        "autoConnect"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "description": "Секрет профиля для этого origin — 43 символа base64url (пусто — профиля ещё нет)."
+        },
+        "theme": { "enum": ["light", "dark", "system"] },
+        "language": {
+          "description": "Язык, выбранный в установщике (R64); null — веб выбирает сам. Preload кладёт его в сохранённые настройки страницы один раз на origin, если человек язык ещё не выбирал.",
+          "anyOf": [{ "$ref": "#/$defs/language" }, { "type": "null" }]
+        },
+        "showPing": { "type": "boolean" },
+        "notificationSounds": { "type": "boolean" },
+        "autoConnect": { "type": "boolean" }
+      }
+    },
+    "pageMessage": {
+      "description": "Сообщения страницы оболочке: send(type, payload).",
+      "enum": [
+        "state",
+        "call.state",
+        "hotkeys.configure",
+        "favorites.changed",
+        "preferences.changed",
+        "server.autoconnect",
+        "servers.open",
+        "close.ready",
+        "update.check",
+        "update.apply",
+        "overlay.state",
+        "notify",
+        "attention",
+        "progress",
+        "badge",
+        "capture.select"
+      ]
+    },
+    "pageCall": {
+      "description": "Запросы страницы с ответом: invoke(method, payload).",
+      "enum": [
+        "session.renew",
+        "update.status",
+        "capture.sources",
+        "capture.select",
+        "app.settings"
+      ]
+    },
+    "hostMessage": {
+      "description": "Сообщения оболочки странице: on(type, listener).",
+      "enum": [
+        "hotkey",
+        "hotkeys.status",
+        "navigate",
+        "theme.changed",
+        "preferences.changed",
+        "settings.open",
+        "favorite.settings",
+        "favorites.changed",
+        "profile.changed",
+        "network.changed",
+        "close-request",
+        "update.status",
+        "session.token",
+        "thumbar",
+        "deeplink",
+        "notification.action",
+        "power",
+        "capture.ended",
+        "app.settings",
+        "capture.audio",
+        "window.state"
+      ]
+    },
+    "notify": {
+      "description": "Страница → оболочка: системное уведомление Windows (R59). Toast под AUMID ярлыка tech.cord.desktop; нажатие и кнопки возвращаются notification.action. silent: true — без системного звука: событие озвучивает веб, иначе звучало бы дважды. tag — room:<id>:<род>: новый toast того же рода заменяет прежний.",
+      "type": "object",
+      "required": ["title", "body"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "body": { "type": "string", "maxLength": 300 },
+        "tag": { "type": "string", "maxLength": 60 },
+        "silent": { "type": "boolean" },
+        "actions": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z.-]{1,30}$" },
+              "text": { "type": "string", "minLength": 1, "maxLength": 30 }
+            }
+          }
+        }
+      }
+    },
+    "badge": {
+      "description": "Страница → оболочка: число поверх значка на панели задач (непрочитанные, пока окно не в фокусе); 0 — снять. Оболочка срезает до 999.",
+      "type": "object",
+      "required": ["count"],
+      "additionalProperties": false,
+      "properties": { "count": { "type": "integer", "minimum": 0 } }
+    },
+    "attention": {
+      "description": "Страница → оболочка: помигать кнопкой на панели задач (просится войти, упоминание).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "windowState": {
+      "description": "Оболочка → страница (window.state): окно в фокусе и видно ли оно (не свёрнуто и не спрятано в трей). Приходит при focus/blur/show/hide/minimize/restore. Нужно странице, потому что при backgroundThrottling: false document.visibilityState всегда visible.",
+      "type": "object",
+      "required": ["focused", "visible"],
+      "additionalProperties": false,
+      "properties": {
+        "focused": { "type": "boolean" },
+        "visible": { "type": "boolean" }
+      }
+    },
+    "notificationAction": {
+      "description": "Оболочка → страница: нажатие в уведомлении. id — кнопка (admit, deny) или open для самого toast; tag — того уведомления. Окно оболочка уже подняла.",
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z.-]{1,30}$" },
+        "tag": { "type": "string", "maxLength": 60 }
+      }
+    }
+  }
+}
