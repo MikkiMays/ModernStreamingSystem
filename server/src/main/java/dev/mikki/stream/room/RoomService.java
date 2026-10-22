@@ -40,6 +40,12 @@ public class RoomService {
    */
   private final Map<String, Long> sequences = new java.util.concurrent.ConcurrentHashMap<>();
 
+  /** Когда показывающий в последний раз прислал кадр превью: ключ «комната:участник». */
+  private final Map<String, Long> previewAt = new java.util.concurrent.ConcurrentHashMap<>();
+
+  /** Чаще этого кадры превью не рассылаются. */
+  public static final long PREVIEW_INTERVAL_MS = 2000;
+
   public RoomService(
       RoomRepository rooms,
       StreamProperties config,
@@ -1070,6 +1076,21 @@ public class RoomService {
               } else if (target.status == WAITING) {
                 admitWaiting(room, target);
               }
+            }
+            case "screen.preview" -> {
+              requireActive(room, member);
+              // Кадр шлёт только тот, кто сейчас показывает; чаще раза в две секунды — молча
+              // отбрасывается (клиент шлёт раз в пять, предел — страховка от залпа).
+              if (!member.screen) throw Problem.conflict("SCREEN_ENDED", "Демонстрация завершена");
+              if (command.image() == null || command.image().isBlank())
+                throw new Problem(400, "INVALID_COMMAND", "Некорректная команда");
+              var key = room.id + ":" + member.id;
+              var last = previewAt.get(key);
+              if (last == null || now() - last >= PREVIEW_INTERVAL_MS) {
+                previewAt.put(key, now());
+                events.publishEvent(new ScreenPreview(room.id, member.id, command.image()));
+              }
+              return new Ack(command.commandId(), true, room.sequence, null);
             }
             case "screen.started" -> {
               requireActive(room, member);

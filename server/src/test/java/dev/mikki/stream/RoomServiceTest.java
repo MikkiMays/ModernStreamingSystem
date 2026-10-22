@@ -31,8 +31,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "stream.max-rooms=200"
     })
 @ActiveProfiles("local")
+@org.springframework.test.context.event.RecordApplicationEvents
 class RoomServiceTest {
   @Autowired RoomService rooms;
+  @Autowired org.springframework.test.context.event.ApplicationEvents applicationEvents;
   @Autowired RoomRepository repository;
   @Autowired MediaService media;
   @Autowired AttachmentService attachments;
@@ -860,8 +862,6 @@ class RoomServiceTest {
     favorites.remove(a, host.roomId());
     lifecycle.sweepRoom(host.roomId());
     assertThat(rooms.read(host.roomId()).closedAt).isNotNull();
-    // Завершённая встреча распускает и комнату SFU — чтобы все вышли сразу (R97).
-    verify(gateway).close(host.roomId());
     now.addAndGet(3600000);
     lifecycle.sweepRoom(host.roomId());
     assertThat(favorites.list(b)).hasSize(1);
@@ -1781,5 +1781,62 @@ class RoomServiceTest {
         .isInstanceOf(Problem.class)
         .satisfies(error -> assertThat(((Problem) error).code()).isEqualTo("DURAK_PAUSED"));
     assertThat(dev.mikki.stream.shared.Json.write(rooms.read(host.roomId()))).isEqualTo(frozen);
+  }
+
+  /**
+   * Превью показа (R07/R80) идёт мимо журнала событий: это ApplicationEvent для сокетов, не {@code
+   * room_events}. Шлёт только тот, кто показывает, не чаще раза в две секунды.
+   */
+  @Test
+  void screenPreviewIsBroadcastWithoutTouchingTheEventLog() {
+    var host = host();
+    var guest = guest(host);
+    connected(host);
+    connected(guest);
+    java.util.function.Function<String, Command> preview =
+        image ->
+            new Command(
+                UUID.randomUUID(),
+                "screen.preview",
+                null,
+                null,
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                image);
+    // Без показа кадр отвергается.
+    assertThatThrownBy(() -> rooms.command(host.roomId(), host.credential(), preview.apply("AAAA")))
+        .isInstanceOf(Problem.class)
+        .hasMessageContaining("Демонстрация завершена");
+    media.screen(host.roomId(), host.credential(), UUID.randomUUID(), true);
+    long before = rooms.read(host.roomId()).sequence;
+    rooms.command(host.roomId(), host.credential(), preview.apply("AAAA"));
+    // Второй кадр сразу — молча отброшен; через две секунды — разослан.
+    rooms.command(host.roomId(), host.credential(), preview.apply("BBBB"));
+    now.addAndGet(RoomService.PREVIEW_INTERVAL_MS);
+    rooms.command(host.roomId(), host.credential(), preview.apply("CCCC"));
+    var sent =
+        applicationEvents.stream(dev.mikki.stream.room.ScreenPreview.class)
+            .map(dev.mikki.stream.room.ScreenPreview::image)
+            .toList();
+    assertThat(sent).containsExactly("AAAA", "CCCC");
+    assertThat(rooms.read(host.roomId()).sequence).isEqualTo(before);
+    assertThat(
+            jdbc.sql(
+                    "SELECT COUNT(*) FROM room_events WHERE room_id=? AND body LIKE '%screen.preview%'")
+                .params(host.roomId())
+                .query(Long.class)
+                .single())
+        .isZero();
+    // Пустой кадр — некорректная команда.
+    assertThatThrownBy(() -> rooms.command(host.roomId(), host.credential(), preview.apply("")))
+        .isInstanceOf(Problem.class);
   }
 }

@@ -55,7 +55,7 @@ public final class Contracts {
    * разобранным на имена.
    */
   public static final String COMMAND_TYPES =
-      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm";
+      "leave|close|invite\\.create|invite\\.revoke|participant\\.remove|participant\\.approve|message\\.send|media\\.lost|media\\.restored|screen\\.started|screen\\.preview|view\\.open|view\\.close|view\\.playing|microphone\\.mute|profile\\.avatar|watch\\.open|watch\\.play|watch\\.pause|watch\\.seek|watch\\.close|poker\\.open|poker\\.close|poker\\.sit|poker\\.stand|poker\\.deal|poker\\.next|poker\\.act|poker\\.settings|poker\\.rebuy|poker\\.reveal|durak\\.open|durak\\.close|durak\\.sit|durak\\.stand|durak\\.deal|durak\\.act|durak\\.settings|durak\\.react|chess\\.open|chess\\.close|chess\\.sit|chess\\.stand|chess\\.start|chess\\.settings|chess\\.move|chess\\.act|gartic\\.open|gartic\\.close|gartic\\.join|gartic\\.leave|gartic\\.settings|gartic\\.start|gartic\\.choose|gartic\\.draw|gartic\\.canvas|gartic\\.guess|gartic\\.submit|gartic\\.reveal|presence\\.confirm";
 
   /** Те же типы списком имён — для схемы и для проверок. Разбирается один раз. */
   private static final List<String> TYPES = List.of(COMMAND_TYPES.replace("\\.", ".").split("\\|"));
@@ -124,7 +124,13 @@ public final class Contracts {
        * <p>Второе поле, а не догадка «бьём первую неотбитую»: когда на столе две неотбитые карты,
        * «чем» без «что» неоднозначно, и сервер выбрал бы за человека не ту.
        */
-      @Size(max = 2) @Pattern(regexp = "[23456789TJQKA][shdc]|") String under) {
+      @Size(max = 2) @Pattern(regexp = "[23456789TJQKA][shdc]|") String under,
+      /**
+       * Кадр превью показа (R07/R80): JPEG в base64, не больше 14 КБ картинки. Идёт в команде
+       * {@code screen.preview} и живёт только в сокетах комнаты — в снимок и журнал событий не
+       * попадает.
+       */
+      @Size(max = 20000) @Pattern(regexp = "[A-Za-z0-9+/=]*") String image) {
     public Command(UUID commandId, String type, String text, String targetId, long generation) {
       this(
           commandId,
@@ -132,6 +138,7 @@ public final class Contracts {
           text,
           targetId,
           generation,
+          null,
           null,
           null,
           null,
@@ -167,6 +174,7 @@ public final class Contracts {
           null,
           null,
           null,
+          null,
           null);
     }
 
@@ -197,6 +205,7 @@ public final class Contracts {
           option,
           seat,
           chips,
+          null,
           null,
           null);
     }

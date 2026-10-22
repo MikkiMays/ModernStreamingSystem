@@ -148,6 +148,31 @@ public class RoomSocket extends TextWebSocketHandler {
     else flushRoom(event.roomId());
   }
 
+  /**
+   * Кадр превью показа (R07/R80): мимо журнала событий и снимка — только открытым сокетам комнаты,
+   * кроме самого показывающего. Опоздавший получит следующий кадр через несколько секунд.
+   */
+  @org.springframework.context.event.EventListener
+  public void preview(ScreenPreview preview) {
+    for (var c : sockets.values())
+      if (preview.roomId().equals(c.roomId) && !preview.participantId().equals(c.participantId))
+        synchronized (c) {
+          try {
+            send(
+                c,
+                Map.of(
+                    "type",
+                    "preview",
+                    "participantId",
+                    preview.participantId(),
+                    "image",
+                    preview.image()));
+          } catch (Exception e) {
+            close(c);
+          }
+        }
+  }
+
   public void flushRoom(String id) {
     for (var c : sockets.values())
       if (id.equals(c.roomId))

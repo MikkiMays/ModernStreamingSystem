@@ -50,6 +50,9 @@ public class ApiController {
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
       Level ceiling,
       long settleMs,
+      /**
+       * Устарело (R08): камера показу больше не уступает, клиент поле игнорирует — всегда false.
+       */
       boolean cameraYieldsToScreen) {}
 
   public record Screen(@NotNull UUID commandId, boolean enabled) {}
