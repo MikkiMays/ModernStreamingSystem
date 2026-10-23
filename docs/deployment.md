@@ -638,3 +638,26 @@ docker compose exec -T postgres psql -U streaming -d streaming \
 | Сервер оболочки Android | переменная репозитория `CORD_SERVER_URL` (`mobile/scripts/set-server.mjs` в `android.yml`) |
 | Проверка выкаченного сервера из CI | переменная репозитория `CORD_SERVER_URL` (`verify-deployed.yml`, запуск вручную) |
 | Клиент Windows на `/download` этого сервера | `.local/windows-releases` — `backlog/bin/publish-windows.sh --desktop <версия>` |
+
+### Несколько серверов — один каталог
+
+Каталог серверов общий: клиент показывает его в «Настройки → Подключение → Сменить сервер» и
+переключается между перечисленными серверами. Поэтому на всех серверах лежит **один и тот же** файл
+`.local/catalog/servers.jws` — с одинаковым `seq`, иначе клиент с одного сервера увидит один список, а
+с другого — другой.
+
+1. В `.local/catalog/servers.source.json` любого сервера, у которого есть ключ каталога, перечислить
+   все серверы (`id`, `name`, `country`, `url`, `order`; `default: true` — ровно у одного).
+2. `node scripts/sign-catalog.mjs sign --key .local/cord-catalog-key.pem --source .local/catalog/servers.source.json --out .local/catalog/servers.jws` —
+   `seq` вырастет на единицу.
+3. Скопировать получившийся `servers.jws` в `.local/catalog/` остальных серверов (файл можно взять и с
+   уже обновлённого: `curl -fsS https://<сервер>/api/v1/catalog -o .local/catalog/servers.jws`). Ядро
+   читает файл при каждом запросе, перезапуск не нужен.
+
+Подписать каталог может любой сервер, чей открытый ключ есть в `contracts/catalog-keys.json` (и в
+копии `desktop/build/catalog-keys.json` клиента): клиент принимает подпись любым ключом списка.
+Старые клиенты знают только ключи своей сборки, так что новый ключ доходит до них с обновлением клиента.
+
+При первом запуске клиент открывает сервер своей сборки (с которого скачан установщик), если он есть в
+каталоге; `default` каталога — для сборок, чьего сервера в каталоге нет. Сохранённый сервер, которого в
+каталоге больше нет, клиент не держит и возвращается на свой.
