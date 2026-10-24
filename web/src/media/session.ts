@@ -45,6 +45,7 @@ import {
 import { signal } from '../core/sounds';
 import { recallVolume, rememberVolume } from '../core/volumes';
 import { SpeechDownmix } from './downmix';
+import { receivedLevel, waitForPause } from './speech-pause';
 import { applyVolumeNow } from './volume';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { VoiceLevels } from './levels';
@@ -383,6 +384,8 @@ export class MediaSession {
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
   private lastLiveReset = new Map<string, number>();
+  /** Голоса, чья переподписка ждёт паузы говорящего. */
+  private pausing = new Set<string>();
   private resetting = new Set<string>();
   private liveAbort = new AbortController();
   private playout = new PlayoutController();
@@ -598,13 +601,10 @@ export class MediaSession {
       for (const report of reports)
         if (report.resync && report.kind !== 'video') {
           const found = this.findPublication(report.id);
-          // Разговор — только в паузе (R107): `playout.ts` уже проверил громкость приёма, а здесь
-          // ещё и мнение SFU — пока человек «говорит», провал переподписки лёг бы на слово.
-          const speaking =
-            report.kind === 'conversation' &&
-            !!found &&
-            !!this.room.remoteParticipants.get(found.identity)?.isSpeaking;
-          if (found && !speaking) void this.resetLivePair(found.identity, found.publication.source, true);
+          if (!found) continue;
+          if (report.kind === 'conversation')
+            void this.resyncSpeechInPause(found.identity, found.publication);
+          else void this.resetLivePair(found.identity, found.publication.source, true);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
@@ -790,6 +790,27 @@ export class MediaSession {
         this.resetLivePair(p.identity, Track.Source.ScreenShare, false),
       ]),
     );
+  }
+  /**
+   * Переподписать раздутый голос в паузе говорящего (R107, `speech-pause.ts`): громкость пришедших
+   * пакетов тише 0,01 300 мс подряд и SFU не считает человека говорящим. Паузы за 10 с не было —
+   * не переподписываем: провал посреди фразы хуже, NetEq догонит сам.
+   */
+  private async resyncSpeechInPause(identity: string, publication: RemoteTrackPublication) {
+    if (this.pausing.has(publication.trackSid)) return;
+    this.pausing.add(publication.trackSid);
+    try {
+      const paused = await waitForPause(
+        () =>
+          this.room.remoteParticipants.get(identity)?.isSpeaking
+            ? 1
+            : receivedLevel(publication.track?.receiver),
+        { signal: this.liveAbort.signal },
+      );
+      if (paused && !this.disposed) await this.resetLivePair(identity, publication.source, true);
+    } finally {
+      this.pausing.delete(publication.trackSid);
+    }
   }
   private async resetLivePair(identity: string, source: Track.Source, automatic: boolean) {
     // Пара экрана — и картинка, и её звук: сброс по любой из них не должен трогать камеру и микрофон.
