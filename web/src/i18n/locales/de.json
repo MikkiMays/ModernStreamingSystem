@@ -2218,7 +2218,6 @@
       "open": "Beitrittseinstellungen für „{{title}}“",
       "description": "Beitrittseinstellungen auf diesem Gerät.",
       "autojoin": "Automatisch beitreten",
-      "autojoinHint": "Diesen Raum sofort öffnen, ohne Vorschau. Das Mikrofon geht beim Beitritt an, die Kamera bleibt aus.",
       "remove": "Aus den Favoriten entfernen"
     },
     "room": {
@@ -2226,6 +2225,7 @@
       "rename": "Für mich umbenennen",
       "pin": "Anheften",
       "unpin": "Lösen",
+      "pinNamed": "„{{name}}“ anheften",
       "group": "Gruppe",
       "noGroup": "Keine Gruppe",
       "newGroup": "Neue Gruppe…",
@@ -2234,7 +2234,6 @@
       "remove": "Aus den Favoriten entfernen",
       "here": "du bist hier",
       "forgotten": "Der Raum kennt dich nicht mehr",
-      "pinned": "Angeheftet",
       "actions": "Aktionen für „{{name}}“",
       "renameField": "Dein Name für „{{name}}“"
     },
@@ -2245,12 +2244,14 @@
       "groupField": "Name der neuen Gruppe",
       "groupPlaceholder": "Zum Beispiel: Arbeit",
       "pinned": "Angeheftet",
+      "pinnedInGroup": "Angeheftet: {{n}}",
       "loose": "Ohne Gruppe",
       "renameGroup": "Umbenennen",
       "collapse": "Einklappen",
       "expand": "Ausklappen",
       "removeGroup": "Gruppe löschen",
       "emptyGroup": "Noch leer. Zieh einen Raum hierher",
+      "allPinned": "Alle Räume der Gruppe sind angeheftet – sie stehen oben",
       "emptyTitle": "Hier erscheinen deine Meetings",
       "emptyText": "Tippe auf den Stern im Kopf eines Meetings, um von hier aus zurückzukehren.",
       "loading": "Favoriten werden geladen…",

@@ -2246,7 +2246,6 @@
       "open": "Impostazioni di accesso a «{{title}}»",
       "description": "Impostazioni di accesso su questo dispositivo.",
       "autojoin": "Accesso automatico",
-      "autojoinHint": "Apri subito questa stanza, senza anteprima. Il microfono si attiva all'ingresso, la videocamera resta spenta.",
       "remove": "Rimuovi dai Preferiti"
     },
     "room": {
@@ -2254,6 +2253,7 @@
       "rename": "Rinomina per me",
       "pin": "Fissa",
       "unpin": "Sblocca",
+      "pinNamed": "Fissa «{{name}}»",
       "group": "Gruppo",
       "noGroup": "Nessun gruppo",
       "newGroup": "Nuovo gruppo…",
@@ -2262,7 +2262,6 @@
       "remove": "Rimuovi dai Preferiti",
       "here": "sei qui",
       "forgotten": "La stanza non si ricorda più di te",
-      "pinned": "Fissata",
       "actions": "Azioni per «{{name}}»",
       "renameField": "Il tuo nome per «{{name}}»"
     },
@@ -2273,12 +2272,14 @@
       "groupField": "Nome del nuovo gruppo",
       "groupPlaceholder": "Ad esempio, Lavoro",
       "pinned": "Fissate",
+      "pinnedInGroup": "Fissate: {{n}}",
       "loose": "Senza gruppo",
       "renameGroup": "Rinomina",
       "collapse": "Comprimi",
       "expand": "Espandi",
       "removeGroup": "Elimina gruppo",
       "emptyGroup": "Ancora vuoto. Trascina qui una stanza",
+      "allPinned": "Tutte le stanze del gruppo sono fissate: le trovi sopra",
       "emptyTitle": "Qui troverai le tue riunioni",
       "emptyText": "Tocca la stella nell'intestazione di una riunione per tornarci da qui.",
       "loading": "Caricamento dei Preferiti…",

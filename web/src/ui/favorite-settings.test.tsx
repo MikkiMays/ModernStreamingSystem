@@ -16,12 +16,14 @@ const room: Favorite = {
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
 
-it('«Автоподключение» — переключатель набора с пояснением, а не самодельная галочка (X4)', () => {
+it('«Автоподключение» — переключатель набора без пояснения под ним, а не самодельная галочка (X4, R70)', () => {
   render(<FavoriteSettings room={room} initiallyOpen removing={false} remove={vi.fn()} />);
   const dialog = screen.getByRole('dialog', { name: 'Вечерний разговор' });
   expect(within(dialog).queryByRole('checkbox')).toBeNull();
-  const automatic = within(dialog).getByRole('switch', { name: /Автоподключение/ });
+  const automatic = within(dialog).getByRole('switch', { name: 'Автоподключение' });
   expect(automatic).toHaveClass('ui-switch');
+  expect(automatic).not.toHaveAccessibleDescription();
+  expect(dialog).not.toHaveTextContent(/без предпросмотра/);
   expect(automatic).not.toBeChecked();
   fireEvent.click(automatic);
   expect(automatic).toBeChecked();

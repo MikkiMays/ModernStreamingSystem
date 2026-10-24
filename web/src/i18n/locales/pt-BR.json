@@ -2246,7 +2246,6 @@
       "open": "Configurações de entrada em “{{title}}”",
       "description": "Configurações de entrada neste dispositivo.",
       "autojoin": "Entrada automática",
-      "autojoinHint": "Abrir esta sala direto, sem pré-visualização. O microfone liga ao entrar; a câmera fica desligada.",
       "remove": "Remover dos Favoritos"
     },
     "room": {
@@ -2254,6 +2253,7 @@
       "rename": "Renomear para mim",
       "pin": "Fixar",
       "unpin": "Desafixar",
+      "pinNamed": "Fixar “{{name}}”",
       "group": "Grupo",
       "noGroup": "Sem grupo",
       "newGroup": "Novo grupo…",
@@ -2262,7 +2262,6 @@
       "remove": "Remover dos Favoritos",
       "here": "você está aqui",
       "forgotten": "A sala não lembra mais de você",
-      "pinned": "Fixada",
       "actions": "Ações de “{{name}}”",
       "renameField": "Seu nome para “{{name}}”"
     },
@@ -2273,12 +2272,14 @@
       "groupField": "Nome do novo grupo",
       "groupPlaceholder": "Por exemplo, Trabalho",
       "pinned": "Fixadas",
+      "pinnedInGroup": "Fixadas: {{n}}",
       "loose": "Sem grupo",
       "renameGroup": "Renomear",
       "collapse": "Recolher",
       "expand": "Expandir",
       "removeGroup": "Excluir grupo",
       "emptyGroup": "Vazio por enquanto. Arraste uma sala para cá",
+      "allPinned": "Todas as salas do grupo estão fixadas — elas ficam acima",
       "emptyTitle": "Suas reuniões vão ficar aqui",
       "emptyText": "Toque na estrela no topo de uma reunião para voltar a ela por aqui.",
       "loading": "Carregando os Favoritos…",

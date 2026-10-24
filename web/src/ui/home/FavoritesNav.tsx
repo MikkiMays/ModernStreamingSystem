@@ -1,5 +1,5 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
-import { ChevronRight, FolderMinus, MoreHorizontal, Pencil, Plus, Star } from 'lucide-react';
+import { ChevronRight, FolderMinus, MoreHorizontal, Pencil, Pin, Plus, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useEffect,
@@ -94,7 +94,8 @@ export function FavoritesNav({
     open: (room) => onJoin({ kind: 'favorite', favorite: room }),
     rename: (room, alias) => run(shelf.updateRoom(room.roomId, { alias })),
     togglePin: (room) => run(shelf.updateRoom(room.roomId, { pinned: !room.pinned })),
-    moveTo: (room, groupId) => run(shelf.updateRoom(room.roomId, { groupId, pinned: false })),
+    // Группа и закрепление — разные вещи (R86): «Группа ›» меняет группу и закрепления не снимает.
+    moveTo: (room, groupId) => run(shelf.updateRoom(room.roomId, { groupId })),
     newGroupWith: (room) => setDrafting({ moveRoomId: room.roomId }),
     copyCode: (room) =>
       void navigator.clipboard
@@ -459,7 +460,18 @@ function GroupSection({
                   <ChevronRight size={14} />
                 </span>
                 <span className="home-group__title">{group.title}</span>
-                <span className="home-group__count">{section.rooms.length}</span>
+                {/* Закреплённые из группы стоят выше, но группа считает и их (R86). */}
+                <span
+                  className="home-group__count"
+                  title={
+                    section.pinned
+                      ? t(($) => $.favorites.nav.pinnedInGroup, { n: section.pinned })
+                      : undefined
+                  }
+                >
+                  {section.pinned > 0 && <Pin size={12} aria-hidden="true" />}
+                  {section.rooms.length + section.pinned}
+                </span>
               </button>
               <Menu>
                 <MenuTrigger
@@ -489,7 +501,7 @@ function GroupSection({
           children
         ) : (
           <p className="home-group__empty" id={listId}>
-            {t(($) => $.favorites.nav.emptyGroup)}
+            {section.pinned ? t(($) => $.favorites.nav.allPinned) : t(($) => $.favorites.nav.emptyGroup)}
           </p>
         ))}
     </section>

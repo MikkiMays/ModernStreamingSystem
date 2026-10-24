@@ -2246,7 +2246,6 @@
       "open": "Paramètres d'accès à « {{title}} »",
       "description": "Paramètres d'accès sur cet appareil.",
       "autojoin": "Connexion automatique",
-      "autojoinHint": "Ouvrir cette salle directement, sans aperçu. Le micro s'active à l'entrée, la caméra reste désactivée.",
       "remove": "Retirer des favoris"
     },
     "room": {
@@ -2254,6 +2253,7 @@
       "rename": "Renommer pour moi",
       "pin": "Épingler",
       "unpin": "Désépingler",
+      "pinNamed": "Épingler « {{name}} »",
       "group": "Groupe",
       "noGroup": "Sans groupe",
       "newGroup": "Nouveau groupe…",
@@ -2262,7 +2262,6 @@
       "remove": "Retirer des favoris",
       "here": "vous êtes ici",
       "forgotten": "La salle ne se souvient plus de vous",
-      "pinned": "Épinglée",
       "actions": "Actions pour « {{name}} »",
       "renameField": "Votre nom pour « {{name}} »"
     },
@@ -2273,12 +2272,14 @@
       "groupField": "Nom du nouveau groupe",
       "groupPlaceholder": "Par exemple, Travail",
       "pinned": "Épinglées",
+      "pinnedInGroup": "Épinglées : {{n}}",
       "loose": "Sans groupe",
       "renameGroup": "Renommer",
       "collapse": "Réduire",
       "expand": "Développer",
       "removeGroup": "Supprimer le groupe",
       "emptyGroup": "Vide pour l'instant. Glissez une salle ici",
+      "allPinned": "Toutes les salles du groupe sont épinglées : elles sont plus haut",
       "emptyTitle": "Vos réunions apparaîtront ici",
       "emptyText": "Touchez l'étoile dans l'en-tête d'une réunion pour y revenir depuis ici.",
       "loading": "Chargement des favoris…",

@@ -94,7 +94,8 @@ export function useFavoriteShelf() {
         () => setGroups([...(client.getQueryData<FavoriteGroup[]>(groupsKey()) ?? []), group]),
         () => favoriteGroupApi.save(group),
       );
-      if (moveRoomId) await updateRoom(moveRoomId, { groupId: group.id, pinned: false });
+      // «Новая группа…» из меню комнаты кладёт её в группу и закрепления не снимает (R86).
+      if (moveRoomId) await updateRoom(moveRoomId, { groupId: group.id });
       return group;
     },
     renameGroup(id: string, title: string) {

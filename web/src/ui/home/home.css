@@ -280,6 +280,9 @@
   white-space: nowrap;
 }
 .home-group__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--muted);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
@@ -409,9 +412,8 @@
   color: var(--warning);
   font-variant-numeric: normal;
 }
-.home-room__pin {
-  flex: none;
-  color: var(--muted);
+.home-room__group {
+  font-variant-numeric: normal;
 }
 .home-room__here {
   flex: none;
@@ -423,43 +425,71 @@
   transition: opacity var(--motion-fast) var(--ease-standard);
 }
 /*
-  «…» у комнаты не занимает места, пока его не видно: название тянется до края, как в ChatGPT. Под
-  указателем кнопка встаёт поверх правого края строки, а текст под ней растворяется маской.
+  «Закрепить» и «…» у комнаты (R71) не занимают места, пока их не видно: название тянется до края,
+  как в ChatGPT. Под указателем и фокусом кнопки встают поверх правого края строки, а текст под ними
+  растворяется маской. У закреплённой «Закрепить» видна всегда и синяя (Р-4) — под неё строка
+  оставляет место справа, чтобы ни название, ни «вы здесь» под кнопку не уходили.
 */
-.home-room__more {
+.home-room__actions {
   position: absolute;
   top: 50%;
   right: var(--space-1);
   translate: 0 -50%;
-  opacity: 0;
-  transition: opacity var(--motion-fast) var(--ease-standard);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
-.home-room:hover .home-room__more,
-.home-room:focus-within .home-room__more,
-.home-room__more[data-popup-open],
+.home-room__actions > .ui-icon-button {
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+.home-room:hover .home-room__actions > .ui-icon-button,
+.home-room:focus-within .home-room__actions > .ui-icon-button,
+.home-room[data-popup-open] .home-room__actions > .ui-icon-button,
+.home-room:has(.home-room__more[data-popup-open]) .home-room__actions > .ui-icon-button,
+.home-room[data-pinned] .home-room__pin,
 .home-group__head:hover .home-group__more,
 .home-group__head:focus-within .home-group__more,
 .home-group__more[data-popup-open] {
   opacity: 1;
 }
+.home-room__pin[aria-pressed='true'] {
+  color: var(--accent);
+}
+.home-room__pin[aria-pressed='true'] > svg {
+  fill: currentColor;
+}
+/* Место под обе кнопки: «Закрепить» стоит там же, где под указателем, — слева от места «…». */
+.home-room[data-pinned] .home-room__open {
+  padding-right: calc(2 * var(--control-sm) + var(--space-2));
+}
 .home-room:hover .home-room__open,
 .home-room:focus-within .home-room__open,
+.home-room[data-popup-open] .home-room__open,
 .home-room:has(.home-room__more[data-popup-open]) .home-room__open {
-  mask-image: linear-gradient(to left, transparent 36px, currentColor 64px);
+  mask-image: linear-gradient(to left, transparent 72px, currentColor 100px);
 }
 @media (hover: none) {
-  .home-room__more {
+  .home-room__actions {
     position: static;
     translate: none;
     flex: none;
+    gap: 0;
     margin-right: 2px;
   }
-  .home-room__more,
+  .home-room__actions > .ui-icon-button,
   .home-group__more {
     opacity: 1;
   }
+  .home-room[data-pinned] .home-room__open {
+    padding-right: var(--space-2);
+  }
   .home-room:hover .home-room__open,
-  .home-room:focus-within .home-room__open {
+  .home-room:focus-within .home-room__open,
+  .home-room[data-popup-open] .home-room__open {
     mask-image: none;
   }
 }

@@ -2218,7 +2218,6 @@
       "open": "Joining settings for “{{title}}”",
       "description": "Joining settings on this device.",
       "autojoin": "Auto-join",
-      "autojoinHint": "Open this room right away, without the preview. The microphone turns on when you join; the camera stays off.",
       "remove": "Remove from Favorites"
     },
     "room": {
@@ -2226,6 +2225,7 @@
       "rename": "Rename for me",
       "pin": "Pin",
       "unpin": "Unpin",
+      "pinNamed": "Pin “{{name}}”",
       "group": "Group",
       "noGroup": "No group",
       "newGroup": "New group…",
@@ -2234,7 +2234,6 @@
       "remove": "Remove from Favorites",
       "here": "you're here",
       "forgotten": "The room no longer remembers you",
-      "pinned": "Pinned",
       "actions": "Actions for “{{name}}”",
       "renameField": "Your name for “{{name}}”"
     },
@@ -2245,12 +2244,14 @@
       "groupField": "New group name",
       "groupPlaceholder": "For example, Work",
       "pinned": "Pinned",
+      "pinnedInGroup": "Pinned: {{n}}",
       "loose": "No group",
       "renameGroup": "Rename",
       "collapse": "Collapse",
       "expand": "Expand",
       "removeGroup": "Delete group",
       "emptyGroup": "Empty for now. Drag a room here",
+      "allPinned": "Every room in this group is pinned — they’re above",
       "emptyTitle": "Your meetings will live here",
       "emptyText": "Tap the star in a meeting's header to come back to it from here.",
       "loading": "Loading Favorites…",

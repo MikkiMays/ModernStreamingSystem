@@ -294,4 +294,57 @@ it('«Автоподключение» в меню комнаты — перек
   expect(item.querySelector('.ui-switch')).not.toBeNull();
   fireEvent.click(item);
   expect(autoJoinEnabled(room.roomId)).toBe(true);
+  // Щелчок меню не закрывает: видно, что переключилось (R70).
+  expect(item).toHaveAttribute('aria-checked', 'true');
+  expect(view.getByRole('menu')).toBeInTheDocument();
+  fireEvent.click(item);
+  expect(autoJoinEnabled(room.roomId)).toBe(false);
+});
+
+it('«Закрепить» стоит слева от «…» у каждой встречи и закрепляет одним нажатием (R71)', async () => {
+  const settings = vi.spyOn(favoriteGroupApi, 'settings').mockResolvedValue();
+  const view = show();
+  const nav = view.getByRole('navigation', { name: 'Избранное' });
+  const pin = await within(nav).findByRole('button', { name: 'Закрепить «Вечерний разговор»' });
+  expect(pin).toHaveAttribute('aria-pressed', 'false');
+  const more = within(nav).getByRole('button', { name: 'Действия с «Вечерний разговор»' });
+  // Слева от «…»: в одной группе кнопок строки и раньше неё.
+  expect(pin.parentElement).toBe(more.parentElement);
+  expect(pin.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(pin);
+  await waitFor(() =>
+    expect(settings).toHaveBeenCalledWith(room.roomId, { groupId: null, pinned: true, alias: null }),
+  );
+  expect(await within(nav).findByText('Закреплено')).toBeInTheDocument();
+  expect(within(nav).getByRole('button', { name: 'Закрепить «Вечерний разговор»' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(within(nav).getByRole('button', { name: 'Закрепить «Вечерний разговор»' })).toHaveAttribute(
+    'title',
+    'Открепить',
+  );
+});
+
+it('комната и в группе, и закреплена — одна строка в «Закреплено» с именем группы, группа её считает (R86)', async () => {
+  const settings = vi.spyOn(favoriteGroupApi, 'settings').mockResolvedValue();
+  vi.mocked(favoriteApi.list).mockResolvedValue([room, { ...daily, pinned: true } as Favorite]);
+  vi.mocked(favoriteGroupApi.list).mockResolvedValue([{ id: 'work', title: 'Работа' }]);
+  const view = show();
+  const nav = view.getByRole('navigation', { name: 'Избранное' });
+  const row = await within(nav).findByRole('button', { name: /^Дейли/ });
+  expect(within(nav).getAllByRole('button', { name: /^Дейли/ })).toHaveLength(1);
+  expect(row).toHaveTextContent('111-222-333 · Работа');
+  expect(row.closest('section')).toHaveTextContent('Закреплено');
+  // Группа не пустая: она считает закреплённую и говорит, где та.
+  expect(within(nav).getByRole('button', { name: /^Работа/ })).toHaveAccessibleName(/1$/);
+  expect(within(nav).getByText('Все комнаты группы закреплены — они выше')).toBeInTheDocument();
+  // «Группа › Без группы» меняет группу и закрепления не снимает.
+  fireEvent.click(within(nav).getByRole('button', { name: 'Действия с «Дейли»' }));
+  fireEvent.mouseEnter(await view.findByRole('menuitem', { name: 'Группа' }));
+  fireEvent.click(await view.findByRole('menuitem', { name: 'Группа' }));
+  fireEvent.click(await view.findByRole('menuitem', { name: 'Без группы' }));
+  await waitFor(() =>
+    expect(settings).toHaveBeenCalledWith(daily.roomId, { groupId: null, pinned: true, alias: null }),
+  );
 });
