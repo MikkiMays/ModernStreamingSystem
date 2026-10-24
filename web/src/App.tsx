@@ -19,6 +19,7 @@ import { Download } from './ui/Download';
 import { adopt, greetHostConnection, session } from './core/session';
 import { useStore } from './ui/primitives';
 import { BootGate } from './ui/loader/BootGate';
+import { HelpHost } from './ui/support/HelpHost';
 import { useMeetingBeacon } from './ui/useMeetingBeacon';
 import { findActiveMeeting, requestHandover } from './core/active-meeting';
 import { watchTitlebar } from './core/titlebar';
@@ -447,6 +448,8 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Workspace />
+      {/* Одно окно «Помощь» на всё приложение — вне дерева открывшего его окна (S5, R49). */}
+      <HelpHost />
       <BootGate />
     </QueryClientProvider>
   );

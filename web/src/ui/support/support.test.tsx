@@ -26,7 +26,7 @@ describe('форма обращения', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('без галочки диагностика не уходит; после отправки — номер и честный ответ про контакт', async () => {
+  it('без переключателя диагностика не уходит; после отправки — номер и честный ответ про контакт', async () => {
     send.mockResolvedValue({ id: '1a2b3c4d-0000-4000-8000-000000000000', number: '1A2B3C4D' });
     render(<SupportForm topic="camera" />);
     expect(screen.getByRole('combobox', { name: 'Тема' })).toHaveValue('camera');
@@ -43,14 +43,19 @@ describe('форма обращения', () => {
     expect(screen.getByText(/Контакт вы не оставили/)).toBeInTheDocument();
   });
 
-  it('с галочкой показывает, что уйдёт, и отправляет ровно это', async () => {
+  it('с переключателем показывает, что уйдёт, и отправляет ровно это (X4)', async () => {
     send.mockResolvedValue({ id: 'x', number: 'ABCDEF12' });
     render(<SupportForm />);
     fireEvent.change(message(), { target: { value: 'Не слышно собеседника совсем' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Как с вами связаться' }), {
       target: { value: '@someone' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /Приложить диагностику/ }));
+    // Да или нет — переключатель, а не галочка (X4).
+    expect(screen.queryByRole('checkbox', { name: /Приложить диагностику/ })).toBeNull();
+    const consent = screen.getByRole('switch', { name: /Приложить диагностику/ });
+    expect(consent).not.toBeChecked();
+    fireEvent.click(consent);
+    expect(consent).toBeChecked();
     const preview = screen.getByText('Что будет отправлено').closest('details')!;
     const shown = preview.querySelector('pre')!.textContent!;
     expect(shown).toMatch(/^cord: /);

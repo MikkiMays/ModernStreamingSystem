@@ -1,0 +1,326 @@
+[
+  {
+    "name": "r114-settings",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r114-settings-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r114-settings",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r114-settings-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r115-bottom",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r115-bottom-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r115-bottom",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r115-bottom-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r115-fits",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r115-fits-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r115-fits",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r115-fits-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r50-about",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r50-about-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r50-about",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r50-about-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r55-prejoin",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r55-prejoin-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 0
+  },
+  {
+    "name": "r55-prejoin",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r55-prejoin-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 0
+  },
+  {
+    "name": "r55-support",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r55-support-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r55-support",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r55-support-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r114-settings",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r114-settings-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r114-settings",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r114-settings-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r50-about",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r50-about-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r50-about",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r50-about-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r55-prejoin",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r55-prejoin-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 0
+  },
+  {
+    "name": "r55-prejoin",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r55-prejoin-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 0
+  },
+  {
+    "name": "r55-support",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r55-support-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r55-support",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r55-support-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r47-diagnostics",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r47-diagnostics-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r47-diagnostics",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r47-diagnostics-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r48-details",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r48-details-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r48-details",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r48-details-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r49-help",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r49-help-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r49-help",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r49-help-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r53-meeting-settings",
+    "tag": "after",
+    "width": 1440,
+    "theme": "light",
+    "file": "r53-meeting-settings-after-1440-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r53-meeting-settings",
+    "tag": "after",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r53-meeting-settings-after-1440-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r47-diagnostics",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r47-diagnostics-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r47-diagnostics",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r47-diagnostics-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r48-details",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r48-details-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r48-details",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r48-details-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r49-help",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r49-help-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r49-help",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r49-help-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r53-meeting-settings",
+    "tag": "after",
+    "width": 390,
+    "theme": "light",
+    "file": "r53-meeting-settings-after-390-light.png",
+    "overflowX": 0,
+    "dialogs": 1
+  },
+  {
+    "name": "r53-meeting-settings",
+    "tag": "after",
+    "width": 390,
+    "theme": "dark",
+    "file": "r53-meeting-settings-after-390-dark.png",
+    "overflowX": 0,
+    "dialogs": 1
+  }
+]

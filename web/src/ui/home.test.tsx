@@ -3,13 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { publicApi } from '../api/client';
 import type { Admission } from '../api/types';
-import { favoriteApi, type Favorite } from '../core/favorites';
+import { autoJoinEnabled, favoriteApi, type Favorite } from '../core/favorites';
 import { favoriteGroupApi } from '../core/favorite-groups';
 import { announceMeeting, setChannelFactory, type Channel } from '../core/active-meeting';
 import { Home } from './Home';
 import { DesktopHome } from './DesktopHome';
 import { appVersion } from '../core/version';
 import { forgetPanelWidths } from './kit';
+import { HelpHost } from './support/HelpHost';
+import { closeHelp } from './support/help';
 
 // Device settings are outside this screen; their media discovery is tested separately.
 vi.mock('./Settings', () => ({ Settings: () => null }));
@@ -252,4 +254,44 @@ it('lets the sidebar be resized and remembers the width (T46)', () => {
   fireEvent.keyDown(handle, { key: 'ArrowRight' });
   expect(handle).toHaveAttribute('aria-valuenow', '296');
   expect(localStorage.getItem('cord:panel:home-sidebar')).toBe('296');
+});
+
+it('«Помощь» в выдвижной панели телефона закрывает панель — помощь не ложится поверх неё (S5, R49)', async () => {
+  // Узкий экран: панель — под бургером, окном.
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList,
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  const view = render(
+    <QueryClientProvider client={client}>
+      <Home onCreate={vi.fn()} onJoin={vi.fn()} onResume={vi.fn()} theme="light" setTheme={() => {}} />
+      <HelpHost />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(view.getByRole('button', { name: 'Открыть меню' }));
+  const drawer = await view.findByRole('dialog', { name: 'Меню' });
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Помощь' }));
+  expect(await view.findByRole('dialog', { name: 'Помощь' })).toBeInTheDocument();
+  await waitFor(() => expect(view.queryByRole('dialog', { name: 'Меню' })).toBeNull());
+  act(() => closeHelp());
+});
+
+it('«Автоподключение» в меню комнаты — переключатель, а не галочка (X4, R70)', async () => {
+  const view = show();
+  const nav = view.getByRole('navigation', { name: 'Избранное' });
+  fireEvent.click(await within(nav).findByRole('button', { name: 'Действия с «Вечерний разговор»' }));
+  const item = await view.findByRole('menuitemcheckbox', { name: 'Автоподключение' });
+  expect(item).toHaveAttribute('aria-checked', 'false');
+  // Вид — переключатель набора в третьей колонке; значок слева постоянный.
+  expect(item.querySelector('.ui-switch')).not.toBeNull();
+  fireEvent.click(item);
+  expect(autoJoinEnabled(room.roomId)).toBe(true);
 });

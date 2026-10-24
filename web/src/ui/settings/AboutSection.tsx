@@ -1,25 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Compass, Download, RefreshCw, Send, TriangleAlert } from 'lucide-react';
+import { Compass, Download, RefreshCw, TriangleAlert } from 'lucide-react';
 import { isNewer, windowsRelease, type WindowsRelease } from '../../core/download';
 import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../core/desktop';
 import { appLabel, appVersion } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
-import { AUTHOR_TELEGRAM } from '../../core/support';
 import { HelpButton } from '../support/HelpButton';
 import { SettingGroup, SettingRow } from './Row';
 
 /**
  * «О программе»: что здесь установлено и не вышло ли нового. Номер версии в Cord показывается
- * только здесь (T58); ссылок на исходники и «обновите сервер» нет (T56, П15).
+ * только здесь (T58); ссылок на исходники и «обновите сервер» нет (T56, П15), строки «Автор» —
+ * тоже (R50): Cord — продукт, а не чей-то проект.
  *
  * Два разных вопроса. В браузере обновлять нечего — страница и есть то, что сервер отдал сию
  * секунду, — поэтому проверка отвечает про клиент для Windows. В самом приложении обновлять
  * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  */
-export function AboutSection({ onTour }: { onTour?: () => void }) {
+export function AboutSection({ onTour, onHelp }: { onTour?: () => void; onHelp?: () => void }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
   const shell = useStore(desktopUpdate);
@@ -121,29 +121,13 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
             )}
           </div>
         </SettingRow>
-        <SettingRow id="about-author" hint={t(($) => $.settings.about.author)}>
-          {/*
-            У ссылки один значок: конверт Telegram узнаётся и без подписи, а подпись рядом с именем
-            автора читалась как призыв написать. Имя для доступности — в `aria-label`.
-            Внешняя ссылка — с `target="_blank"`: оболочка Windows отдаёт системному браузеру
-            только то, что просит новое окно, а переход внутри окна отменяет.
-          */}
-          <a
-            className="ui-icon-button ui-icon-button--ghost ui-icon-button--md"
-            href={AUTHOR_TELEGRAM}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={t(($) => $.settings.about.telegram)}
-            title={t(($) => $.settings.about.telegram)}
-          >
-            <Send size={18} />
-          </a>
-        </SettingRow>
         <SettingRow id="about-help">
+          {/* Помощь заменяет окно настроек, а не ложится на него (S5): `onHelp` его закрывает. */}
           <HelpButton
             look="text"
             className="ui-button ui-button--secondary ui-button--sm"
             text={t(($) => $.settings.about.help)}
+            onOpen={onHelp}
           />
         </SettingRow>
         {onTour && (

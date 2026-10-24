@@ -18,7 +18,7 @@ const SECTIONS = [
   'Профиль',
   'Оформление',
   'Горячие клавиши',
-  'Звук',
+  'Микрофон',
   'Видео',
   'Звуки',
   'Аккаунты',
@@ -62,6 +62,8 @@ async function expectCentered(page: Page, where: string) {
 }
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Разделы настроек' });
+/** Кнопка раздела: у раздела «Микрофон» (R114) подраздел с тем же именем — он ниже кнопки раздела. */
+const section = (page: Page, name: string) => nav(page).getByRole('button', { name, exact: true }).first();
 
 test('«Аккаунты»: подключить Яндекс Музыку токеном, пережить перезагрузку и сбросить', async ({ page }) => {
   await page.goto('/');
@@ -118,7 +120,7 @@ test('окно настроек одного размера во всех раз
       // На телефоне раздел открывается своим экраном, а «назад» возвращает к списку.
       if (phone && (await dialog.getByRole('button', { name: 'К разделам' }).isVisible()))
         await dialog.getByRole('button', { name: 'К разделам' }).click();
-      await nav(page).getByRole('button', { name, exact: true }).click();
+      await section(page, name).click();
       await expect(page.locator('.settings-content__title')).toHaveText(name);
       const size = await measure();
       expect(size.overflow, `«${name}» на ${width}px`).toBeLessThanOrEqual(0);
@@ -171,7 +173,7 @@ test('каждый раздел помещается в окно без прок
     await page.setViewportSize(size);
     await openSettings(page);
     for (const name of SECTIONS) {
-      await nav(page).getByRole('button', { name, exact: true }).click();
+      await section(page, name).click();
       await expect(page.locator('.settings-content__title')).toHaveText(name);
       // Превью камеры и шрифт догружаются — раскладка устоялась.
       await page.waitForTimeout(150);
@@ -209,4 +211,26 @@ test('подсветка подраздела: на дне прокрутки �
   await anchors.getByRole('button', { name: 'Камера' }).click();
   await page.waitForTimeout(800);
   await expect(anchors.getByRole('button', { name: 'Камера' })).toHaveAttribute('aria-current', 'location');
+});
+
+test('подсветка подраздела без прокрутки — выбранный щелчком, колесо её не меняет (R115)', async ({
+  page,
+}) => {
+  // Эталонное окно: «Микрофон» помещается целиком (R101), прокручивать нечего.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  await section(page, 'Микрофон').click();
+  const anchors = nav(page).getByRole('list', { name: 'Подразделы: Микрофон' });
+  const content = page.locator('.settings-content');
+  expect(
+    await content.evaluate((element) => element.scrollHeight - element.clientHeight),
+  ).toBeLessThanOrEqual(2);
+  for (const name of ['Динамики', 'Микрофон']) {
+    await anchors.getByRole('button', { name }).click();
+    await content.hover();
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(800);
+    await expect(anchors.getByRole('button', { name })).toHaveAttribute('aria-current', 'location');
+  }
 });

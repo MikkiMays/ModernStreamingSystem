@@ -38,14 +38,14 @@ interface Texts {
 const screens: Record<string, Texts> = {
   en: {
     settings: 'Settings',
-    voice: 'Audio',
+    voice: 'Microphone',
     nav: 'Settings sections',
     download: 'Cord for Windows',
     installer: 'Download installer',
   },
   'zh-Hans': {
     settings: '设置',
-    voice: '音频',
+    voice: '麦克风',
     nav: '设置分区',
     download: 'Windows 版 Cord',
     installer: '下载安装程序',
@@ -66,11 +66,15 @@ describe.each(Object.keys(screens))('экраны на языке %s', (language
     await act(() => applyLanguage(language as Language));
   }, 60_000);
 
-  it('настройки: окно, разделы и «Звук» — на этом языке, без русского', () => {
+  it('настройки: окно, разделы и «Микрофон» — на этом языке, без русского', () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: text.settings });
     const nav = within(dialog).getByRole('navigation', { name: text.nav });
-    expect(within(nav).getByRole('button', { name: text.voice })).toHaveAttribute('aria-current', 'page');
+    // Раздел «Микрофон» (R114) — первая из кнопок с этим именем: под ним подраздел «Микрофон».
+    expect(within(nav).getAllByRole('button', { name: text.voice })[0]).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     expect(document.documentElement.lang).toBe(language);
     // Имена устройств из браузера и «Cord» — не текст каталога; русского быть не должно вовсе.
     expect(dialog.textContent).not.toMatch(CYRILLIC);

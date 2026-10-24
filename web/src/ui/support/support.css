@@ -172,30 +172,11 @@
 .help-form > .ui-button {
   justify-self: start;
 }
+/* «Приложить диагностику» — переключатель набора (X4); бегунок — на высоте подписи, а не пояснения. */
 .help-consent {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: start;
-  cursor: pointer;
+  align-items: flex-start;
 }
-.help-consent input {
-  width: 18px;
-  height: 18px;
-  margin: 1px 0 0;
-  accent-color: var(--accent-fill);
-}
-.help-consent > span {
-  display: grid;
-  gap: 2px;
-}
-.help-consent__label {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-}
-.help-consent__hint {
-  color: var(--muted);
-  font-size: var(--text-sm);
+.help-consent .ui-switch-row__hint {
   line-height: var(--leading-base);
 }
 .help-preview summary {

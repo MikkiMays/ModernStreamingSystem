@@ -1,0 +1,108 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Окна не стопкой (S5, R49): «Помощь» из диагностики закрывает диагностику, помощь — верхнее окно,
+ * и обращение в ней заполняется и уходит; «Открыть диагностику» — обратно, снова одно окно. Там же —
+ * «Диагностика» без подзаголовка и с обычным разделом подробностей (R47, R48), «Настройки встречи»
+ * с переключателем интеграций и без лишних пояснений (R53–R56), «О программе» → «Помощь и
+ * поддержка» вместо окна настроек.
+ *
+ * Одна встреча на весь сценарий. Отправка обращения подменена, как в `support.spec.ts`: сценарий
+ * гоняют против стенда, и каждое обращение ушло бы владельцу в Telegram.
+ */
+
+/** Верхнее ли окно у этого места: в его середине — оно само, а не чужое окно над ним. */
+const onTop = (page: Page, selector: string) =>
+  page.locator(selector).evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return !!hit && (element === hit || element.contains(hit));
+  });
+
+test('диагностика → «Помощь»: одно окно, обращение уходит; настройки встречи — переключатель', async ({
+  page,
+}) => {
+  test.setTimeout(150000);
+  let sent: Record<string, unknown> | null = null;
+  await page.route('**/api/v1/proof?for=support', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/support', async (route) => {
+    sent = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { id: '1a2b3c4d-0000-4000-8000-000000000000', number: '1A2B3C4D' } });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /Новая встреча/ }).click();
+  await page.getByLabel('Ваше имя').fill('Майя');
+  await page.getByRole('button', { name: 'Начать встречу' }).click();
+  await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 30000 });
+  const more = () => page.getByRole('button', { name: 'Настройки и действия' }).click();
+
+  // «Диагностика»: без подзаголовка (R47), подробности — раздел с заголовком, а не <details> (R48).
+  await more();
+  await page.getByRole('menuitem', { name: /^Диагностика/ }).click();
+  const diagnostics = page.getByRole('dialog', { name: 'Диагностика' });
+  await expect(diagnostics).toBeVisible();
+  await expect(diagnostics).not.toContainText('Проверьте устройства и фактическое соединение');
+  await expect(
+    diagnostics.getByRole('heading', { name: 'Подробности аудио и видео', level: 3 }),
+  ).toBeVisible();
+  await expect(diagnostics.locator('details, summary')).toHaveCount(0);
+
+  // R49: «Помощь» — диагностика закрыта, помощь сверху, фокус в ней.
+  await diagnostics.getByRole('button', { name: 'Помощь' }).click();
+  const help = page.getByRole('dialog', { name: 'Помощь' });
+  await expect(help).toBeVisible();
+  await expect(diagnostics).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const field = help.getByRole('textbox', { name: 'Что случилось' });
+  await field.scrollIntoViewIfNeeded();
+  expect(await onTop(page, '.help-dialog textarea')).toBe(true);
+  expect(await help.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await field.fill('Музыка заикается во встрече');
+  await help.getByRole('switch', { name: /Приложить диагностику/ }).check();
+  await help.getByRole('button', { name: 'Отправить' }).click();
+  // Задача «не бот» решается в фоновом потоке — на медленной машине это секунды.
+  await expect(help.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible({ timeout: 20000 });
+  expect(sent).toMatchObject({ topic: 'network', consent: true });
+
+  // Из помощи — обратно в диагностику этой встречи: снова одно окно.
+  await help.getByRole('button', { name: 'Открыть диагностику' }).click();
+  await expect(page.getByRole('dialog', { name: 'Диагностика' })).toBeVisible();
+  await expect(help).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // R53–R56: «Настройки встречи» — без «Меняет только организатор…», интеграции переключателем.
+  await more();
+  await page.getByRole('menuitem', { name: 'Настройки встречи' }).click();
+  const room = page.getByRole('dialog', { name: 'Настройки встречи' });
+  await expect(room).toBeVisible();
+  await expect(room).not.toContainText('Меняет только организатор');
+  await expect(room).not.toContainText('Громкость каждый');
+  await expect(room.getByRole('checkbox')).toHaveCount(0);
+  const integrations = room.getByRole('switch', { name: /Разрешить интеграции всем участникам/ });
+  await expect(integrations).toBeChecked();
+  const save = room.getByRole('button', { name: 'Сохранить' });
+  await expect(save).toBeDisabled();
+  await room.getByRole('radio', { name: 'С подтверждения' }).click();
+  await expect(room).toContainText('Каждый входящий ждёт, пока вы его впустите.');
+  await integrations.click();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(room).toHaveCount(0);
+
+  // «О программе» → «Помощь и поддержка»: окно настроек закрыто, помощь — на его месте.
+  await more();
+  await page.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Настройки' });
+  await settings
+    .getByRole('navigation', { name: 'Разделы настроек' })
+    .getByRole('button', { name: 'О программе', exact: true })
+    .click();
+  await settings.getByRole('button', { name: 'Открыть' }).click();
+  await expect(help).toBeVisible();
+  await expect(settings).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await help.getByRole('button', { name: 'Закрыть' }).click();
+  await page.getByRole('button', { name: 'Выйти из встречи' }).click();
+});

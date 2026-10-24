@@ -57,6 +57,58 @@ describe('activeAnchor — какой подраздел сейчас на эк�
     expect(activeAnchor({ scrollTop: 0, clientHeight: 764, scrollHeight: 764, tops })).toBe('a');
   });
 
+  /*
+    R115: «на странице видны и первый, и последний разделы, а в дереве подсвечен средний». Три группы,
+    средняя начинается выше линии трети высоты: правило линии называло её, хотя страница у самого
+    низа (или прокручивать нечего вовсе).
+  */
+  const three = [
+    { anchor: 'first', top: -40 },
+    { anchor: 'middle', top: 120 },
+    { anchor: 'last', top: 430 },
+  ];
+
+  it('у самого низа, когда видны первый и последний, — последний, а не средний (R115)', () => {
+    // Прокрутка на 40 px, и она в самом низу: средний у линии трети (600 / 3 = 200), последний виден.
+    expect(activeAnchor({ scrollTop: 40, clientHeight: 600, scrollHeight: 640, tops: three })).toBe('last');
+    // Масштаб 125–150 %: дно на полпикселя не дотягивает — всё равно дно.
+    expect(activeAnchor({ scrollTop: 38.6, clientHeight: 600, scrollHeight: 640, tops: three })).toBe('last');
+  });
+
+  it('у самого верха — первый, даже если короткая первая группа уже выше линии второй (R115)', () => {
+    const tops = [
+      { anchor: 'first', top: 0 },
+      { anchor: 'middle', top: 110 },
+      { anchor: 'last', top: 700 },
+    ];
+    expect(activeAnchor({ scrollTop: 0, clientHeight: 600, scrollHeight: 1200, tops })).toBe('first');
+    // Ушли от верха — решает линия.
+    expect(
+      activeAnchor({
+        scrollTop: 60,
+        clientHeight: 600,
+        scrollHeight: 1200,
+        tops: tops.map((group) => ({ ...group, top: group.top - 60 })),
+      }),
+    ).toBe('middle');
+  });
+
+  it('без прокрутки (всё помещается) подсвечен выбранный щелчком, геометрия его не меняет (R115)', () => {
+    const fits = three.map((group) => ({ ...group, top: group.top + 40 }));
+    for (const current of ['first', 'middle', 'last'])
+      expect(activeAnchor({ scrollTop: 0, clientHeight: 640, scrollHeight: 640, tops: fits, current })).toBe(
+        current,
+      );
+    // Выбранного здесь нет (раздел сменился) — первый.
+    expect(
+      activeAnchor({ scrollTop: 0, clientHeight: 640, scrollHeight: 640, tops: fits, current: 'gone' }),
+    ).toBe('first');
+    // Прокрутка в пределах допуска — тоже «всё помещается».
+    expect(
+      activeAnchor({ scrollTop: 1, clientHeight: 640, scrollHeight: 641, tops: fits, current: 'last' }),
+    ).toBe('last');
+  });
+
   it('без подразделов — ничего', () => {
     expect(activeAnchor({ scrollTop: 0, clientHeight: 600, scrollHeight: 600, tops: [] })).toBeUndefined();
   });

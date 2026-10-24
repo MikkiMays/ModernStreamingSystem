@@ -844,7 +844,12 @@
 .ui-dialog--lg {
   width: min(100%, 720px);
 }
+/*
+  Части окна — по своим строкам сетки, а не по порядку: без описания тело встало бы во вторую строку
+  (`auto`) и не сжималось, а подвал — в третью (`minmax(0, 1fr)`) и обрезался бы в низком окне.
+*/
 .ui-dialog__head {
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -859,15 +864,18 @@
   line-height: var(--leading-tight);
 }
 .ui-dialog__description {
+  grid-row: 2;
   margin: var(--space-2) var(--space-6) 0;
   color: var(--muted);
   font-size: var(--text-base);
 }
 .ui-dialog__body {
+  grid-row: 3;
   padding: var(--space-4) var(--space-6);
   overflow: auto;
 }
 .ui-dialog__footer {
+  grid-row: 4;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);

@@ -26,6 +26,7 @@ import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
+import { Switch } from './kit';
 
 export function Prejoin({
   destination,
@@ -432,20 +433,16 @@ export function Prejoin({
                     </span>
                   </label>
                 </div>
-                <label className="check-setting">
-                  <input
-                    type="checkbox"
-                    checked={integrationsAllowed}
-                    onChange={(e) => {
-                      setIntegrationsAllowed(e.target.checked);
-                      commandId.current = crypto.randomUUID();
-                    }}
-                  />
-                  <span>
-                    {t(($) => $.prejoin.integrations)}
-                    <small>{t(($) => $.prejoin.integrationsHint)}</small>
-                  </span>
-                </label>
+                {/* Да или нет — переключателем, а не галочкой (X4, R55). */}
+                <Switch
+                  checked={integrationsAllowed}
+                  onCheckedChange={(checked) => {
+                    setIntegrationsAllowed(checked);
+                    commandId.current = crypto.randomUUID();
+                  }}
+                  label={t(($) => $.prejoin.integrations)}
+                  description={t(($) => $.prejoin.integrationsHint)}
+                />
                 <p className="form-footnote">{t(($) => $.prejoin.changeLater)}</p>
               </section>
             </>

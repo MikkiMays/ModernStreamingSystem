@@ -48,8 +48,8 @@
         "keywords": "application zone de notification barre des tâches miniature badge clignotement veille superposition démarrage automatique"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voix son micro haut-parleurs casque"
+        "title": "Micro",
+        "keywords": "audio voix son micro haut-parleurs casque"
       },
       "video": {
         "title": "Vidéo",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "vérifier mettre à jour télécharger windows"
       },
-      "about-author": {
-        "label": "Auteur",
-        "hint": "",
-        "keywords": "telegram contact nikgers"
-      },
       "appearance-language": {
         "label": "Langue de l'interface",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Vérifier",
       "update": "Mettre à jour",
       "download": "Télécharger {{version}}",
-      "author": "Cord est créé et développé par @nikgers",
-      "telegram": "Telegram de l'auteur",
       "help": "Ouvrir",
       "tour": "Refaire la découverte"
     },
@@ -490,21 +483,17 @@
     "settings": {
       "saveFailed": "Impossible d'enregistrer",
       "title": "Paramètres de la réunion",
-      "description": "Seul l'hôte peut les modifier. Les autres voient les changements immédiatement.",
       "name": "Nom de la réunion",
       "namePlaceholder": "Par exemple, Soirée entre amis",
       "access": "Qui peut entrer",
-      "open": "Par lien et par code, directement",
+      "open": "Direct par lien",
       "openHint": "Quiconque ouvre l'invitation entre. Idéal entre proches.",
-      "approval": "Uniquement avec votre accord",
+      "approval": "Avec votre accord",
       "approvalHint": "Chaque arrivant attend que vous le fassiez entrer. Ceux qui sont déjà là restent.",
       "linkStays": "Le lien et le code de la réunion ne changent pas. Pour couper l'accès via l'ancien lien, révoquez l'invitation et créez-en une nouvelle.",
-      "integrations": "Intégrations",
       "integrationsAll": "Autoriser les intégrations pour tous les participants",
-      "integrationsHint": "Case décochée, vous seul ajoutez et retirez le cinéma et la musique. Chacun règle toujours son propre volume.",
-      "saving": "Enregistrement…",
-      "save": "Enregistrer",
-      "unchanged": "Rien n'a changé"
+      "integrationsHint": "Sinon, vous seul ajoutez et retirez le cinéma et la musique.",
+      "save": "Enregistrer"
     },
     "elsewhere": {
       "title": "Vous êtes déjà dans la réunion « {{title}} »",
@@ -2692,7 +2681,6 @@
   },
   "diagnostics": {
     "title": "Diagnostic",
-    "description": "Vérifiez vos appareils et la connexion réelle de cette réunion.",
     "network": "Réseau",
     "media": {
       "label": "Audio et vidéo",
@@ -3242,15 +3230,15 @@
       "items": {
         "camera": {
           "q": "La caméra ne s'allume pas ou affiche un écran noir",
-          "a": "Autorisez l'accès à la caméra : icône de la caméra dans la barre d'adresse → « Autoriser », puis rechargez la page.\nFermez les applications qui utilisent la caméra : Zoom, Teams, OBS ou un autre onglet avec une réunion.\nDans « Paramètres → Voix et vidéo », choisissez la bonne caméra — un portable avec une caméra externe en a deux.\nDans l'application Windows, vérifiez « Paramètres → Confidentialité → Caméra » : l'accès à la caméra pour les applications doit être activé."
+          "a": "Autorisez l'accès à la caméra : icône de la caméra dans la barre d'adresse → « Autoriser », puis rechargez la page.\nFermez les applications qui utilisent la caméra : Zoom, Teams, OBS ou un autre onglet avec une réunion.\nDans « Paramètres → Vidéo », choisissez la bonne caméra — un portable avec une caméra externe en a deux.\nDans l'application Windows, vérifiez « Paramètres → Confidentialité → Caméra » : l'accès à la caméra pour les applications doit être activé."
         },
         "microphone": {
           "q": "On ne m'entend pas",
-          "a": "Regardez le bouton du micro en bas : barré, le micro est coupé.\nDans « Paramètres → Voix et vidéo », choisissez un micro et dites quelque chose — la barre de niveau doit bouger.\nLe navigateur a peut-être bloqué l'accès : icône dans la barre d'adresse → « Autoriser ».\nSur un micro faible, une suppression du bruit stricte coupe la voix — essayez-en une autre dans les mêmes paramètres."
+          "a": "Regardez le bouton du micro en bas : barré, le micro est coupé.\nDans « Paramètres → Micro », choisissez un micro et dites quelque chose — la barre de niveau doit bouger.\nLe navigateur a peut-être bloqué l'accès : icône dans la barre d'adresse → « Autoriser ».\nSur un micro faible, une suppression du bruit stricte coupe la voix — essayez-en une autre dans les mêmes paramètres."
         },
         "silent": {
           "q": "Je n'entends personne",
-          "a": "Si la scène affiche le bouton « Activer le son de la réunion », cliquez dessus : le navigateur ne joue aucun son avant le premier clic sur la page.\nVérifiez « Paramètres et actions » — le son de toute la réunion est peut-être coupé.\nLe volume d'une personne se règle dans le menu du clic droit sur elle, le volume général dans « Paramètres → Voix et vidéo ».\nChoisissez-y aussi votre casque ou vos haut-parleurs et lancez le test."
+          "a": "Si la scène affiche le bouton « Activer le son de la réunion », cliquez dessus : le navigateur ne joue aucun son avant le premier clic sur la page.\nVérifiez « Paramètres et actions » — le son de toute la réunion est peut-être coupé.\nLe volume d'une personne se règle dans le menu du clic droit sur elle, le volume général dans « Paramètres → Micro → Haut-parleurs ».\nChoisissez-y aussi votre casque ou vos haut-parleurs et lancez le test."
         },
         "screen": {
           "q": "Je n'arrive pas à partager l'écran",

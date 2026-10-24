@@ -33,20 +33,27 @@ function fakeCamera(failure?: Error) {
 }
 
 const nav = () => screen.getByRole('navigation', { name: 'Разделы настроек' });
-const openSection = (name: string) => fireEvent.click(within(nav()).getByRole('button', { name }));
+/**
+ * Кнопка раздела слева. Раздел «Микрофон» (R114) и его подраздел «Микрофон» называются одинаково —
+ * кнопка раздела идёт первой, подразделы открытого раздела — под ней.
+ */
+const sectionButton = (name: string) => within(nav()).getAllByRole('button', { name })[0]!;
+const openSection = (name: string) => fireEvent.click(sectionButton(name));
 /** Заголовок открытого раздела справа (у окна есть и свой — «Настройки» слева). */
 const heading = () => document.querySelector('.settings-content__title')!;
 
 describe('окно настроек (T26)', () => {
-  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Звук»', () => {
+  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Микрофон»', () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Настройки' })).toBeInTheDocument();
-    expect(heading()).toHaveTextContent('Звук');
-    expect(within(nav()).getByRole('button', { name: 'Звук' })).toHaveAttribute('aria-current', 'page');
+    // Раздел «Звук» называется «Микрофон» (R114): рядом с «Звуками» два «Звука» путались.
+    expect(heading()).toHaveTextContent('Микрофон');
+    expect(sectionButton('Микрофон')).toHaveAttribute('aria-current', 'page');
+    expect(within(nav()).queryByRole('button', { name: 'Звук' })).toBeNull();
     for (const group of ['Приложение', 'Встречи', 'Подключения'])
       expect(within(nav()).getByRole('heading', { name: group })).toBeInTheDocument();
     // Подразделы открытого раздела — якоря слева.
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
     expect(
       within(anchors)
         .getAllByRole('button')
@@ -73,7 +80,7 @@ describe('окно настроек (T26)', () => {
     }
   });
 
-  it('«Звук» (R100): микрофон с проверкой и уровнем, обработка, динамики с громкостью — камера не трогается', () => {
+  it('«Микрофон» (R100, R114): микрофон с проверкой и уровнем, обработка, динамики с громкостью — камера не трогается', () => {
     const camera = fakeCamera();
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('combobox', { name: 'Устройство ввода' })).toBeInTheDocument();
@@ -185,7 +192,7 @@ describe('окно настроек (T26)', () => {
     fireEvent.click(preview);
     expect(readPreferences().screen.preview).toBe(false);
     // Ушли из раздела — камера отпущена.
-    openSection('Звук');
+    openSection('Микрофон');
     expect(device.stopped()).toBe(true);
   });
 
@@ -214,11 +221,81 @@ describe('окно настроек (T26)', () => {
 
   it('щелчок по якорю подсвечивает его, и программная прокрутка к нему подсветку не затирает (R12)', async () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
     fireEvent.click(within(anchors).getByRole('button', { name: 'Микрофон' }));
     // Ответ браузера на `scrollTop = …` — событие scroll; до scrollend пересчёта нет.
     fireEvent.scroll(document.querySelector('.settings-content')!);
     await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  });
+
+  /*
+    R115: подсветка по прокрутке на настоящей разметке окна. Раскладки в jsdom нет — размеры области
+    прокрутки и верхи групп подставляются, как их отдал бы браузер.
+  */
+  function layout({
+    client,
+    height,
+    top,
+    groups,
+  }: {
+    client: number;
+    height: number;
+    top: number;
+    groups: number[];
+  }) {
+    const scroller = document.querySelector<HTMLElement>('.settings-content')!;
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: client });
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: height });
+    scroller.scrollTop = top;
+    scroller.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+    ['microphone', 'output'].forEach((anchor, index) => {
+      const group = document.getElementById(`settings-anchor-${anchor}`)!;
+      group.getBoundingClientRect = () => ({ top: groups[index]! - top }) as DOMRect;
+    });
+    return scroller;
+  }
+  /** Человек прокрутил: пауза после перехода по якорю снята, пересчёт — в ближайшем кадре. */
+  async function scrolled(scroller: HTMLElement) {
+    fireEvent(scroller, new Event('scrollend'));
+    fireEvent.scroll(scroller);
+    await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+  }
+
+  it('всё помещается без прокрутки — подсвечен выбранный щелчком, а не тот, что у линии (R115)', async () => {
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Динамики' }));
+    // Окно выше раздела: «Динамики» начинаются ниже линии трети, «Микрофон» — у самого верха.
+    const scroller = layout({ client: 760, height: 760, top: 0, groups: [0, 420] });
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Микрофон' }));
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  });
+
+  it('прокрутка у самого низа — последний подраздел, у верха — первый (R115)', async () => {
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
+    // Низкое окно: раздел выше области на 40 px; у дна заголовок «Динамиков» ниже линии трети.
+    const scroller = layout({ client: 460, height: 500, top: 40, groups: [0, 360] });
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+    layout({ client: 460, height: 500, top: 0, groups: [0, 360] });
+    await scrolled(scroller);
     expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
       'aria-current',
       'location',
@@ -273,6 +350,17 @@ describe('«Аккаунты» (T33)', () => {
     render(<Settings open section="accounts" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Сбросить: Яндекс Музыка' })).toBeInTheDocument();
     expect(readPreferences().yandexMusicToken).toBe('already-saved');
+  });
+});
+
+describe('«О программе»', () => {
+  it('без строки «Автор» и ссылки на Telegram автора (R50): версия, обновления, помощь, знакомство', () => {
+    render(<Settings open section="about" onOpenChange={vi.fn()} />);
+    const body = document.querySelector('.settings-content')!;
+    expect(body).not.toHaveTextContent(/Автор|nikgers|развивает/);
+    expect(within(body as HTMLElement).queryByRole('link', { name: /Telegram/ })).toBeNull();
+    for (const label of ['Версия', 'Обновления', 'Помощь и поддержка'])
+      expect(within(body as HTMLElement).getByText(label)).toBeInTheDocument();
   });
 });
 

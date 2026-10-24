@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { autoJoinEnabled, setAutoJoin, type Favorite } from '../core/favorites';
 import { IconButton, Modal } from './primitives';
+import { Switch } from './kit';
 
 export function FavoriteSettings({
   room,
@@ -41,19 +42,17 @@ export function FavoriteSettings({
         title={room.title}
         description={t(($) => $.favorites.settings.description)}
       >
-        <label className="check-setting favorite-auto">
-          <input
-            type="checkbox"
-            role="switch"
-            checked={automatic}
-            onChange={(e) => {
-              setAutomatic(e.target.checked);
-              setAutoJoin(room.roomId, e.target.checked);
-            }}
-          />
-          {t(($) => $.favorites.settings.autojoin)}
-        </label>
-        <p className="muted">{t(($) => $.favorites.settings.autojoinHint)}</p>
+        {/* Переключатель набора (X4): тот же вид и размер, что во всех настройках. */}
+        <Switch
+          className="favorite-auto"
+          checked={automatic}
+          onCheckedChange={(checked) => {
+            setAutomatic(checked);
+            setAutoJoin(room.roomId, checked);
+          }}
+          label={t(($) => $.favorites.settings.autojoin)}
+          description={t(($) => $.favorites.settings.autojoinHint)}
+        />
         <button
           className="button secondary full"
           disabled={removing || busy}

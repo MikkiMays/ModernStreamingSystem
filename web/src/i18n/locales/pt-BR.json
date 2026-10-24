@@ -48,8 +48,8 @@
         "keywords": "aplicativo bandeja barra de tarefas miniatura selo piscar suspensão sobreposição inicialização automática"
       },
       "audio": {
-        "title": "Áudio",
-        "keywords": "voz som microfone alto-falantes fones"
+        "title": "Microfone",
+        "keywords": "áudio voz som microfone alto-falantes fones"
       },
       "video": {
         "title": "Vídeo",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "verificar atualizar baixar windows"
       },
-      "about-author": {
-        "label": "Autor",
-        "hint": "",
-        "keywords": "telegram contato nikgers"
-      },
       "appearance-language": {
         "label": "Idioma da interface",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Verificar",
       "update": "Atualizar",
       "download": "Baixar {{version}}",
-      "author": "O Cord é criado e desenvolvido por @nikgers",
-      "telegram": "Telegram do autor",
       "help": "Abrir",
       "tour": "Fazer o tour"
     },
@@ -490,21 +483,17 @@
     "settings": {
       "saveFailed": "Não foi possível salvar",
       "title": "Configurações da reunião",
-      "description": "Só o anfitrião pode alterar. Os outros veem as mudanças na hora.",
       "name": "Nome da reunião",
       "namePlaceholder": "Por exemplo, Noite com os amigos",
       "access": "Quem pode entrar",
-      "open": "Por link e código, na hora",
+      "open": "Direto pelo link",
       "openHint": "Quem abrir o convite entra. Bom para pessoas de confiança.",
-      "approval": "Só com a sua aprovação",
+      "approval": "Com aprovação",
       "approvalHint": "Cada pessoa espera até você deixá-la entrar. Quem já está dentro continua.",
       "linkStays": "O link e o código da reunião não mudam. Para bloquear o acesso pelo link antigo, revogue o convite e crie um novo.",
-      "integrations": "Integrações",
       "integrationsAll": "Permitir integrações a todos os participantes",
-      "integrationsHint": "Sem a marcação, só você adiciona e remove o cinema e a música. O volume cada um ajusta para si.",
-      "saving": "Salvando…",
-      "save": "Salvar",
-      "unchanged": "Nada mudou"
+      "integrationsHint": "Senão, só você adiciona e remove o cinema e a música.",
+      "save": "Salvar"
     },
     "elsewhere": {
       "title": "Você já está na reunião “{{title}}”",
@@ -2692,7 +2681,6 @@
   },
   "diagnostics": {
     "title": "Diagnóstico",
-    "description": "Verifique os dispositivos e a conexão real desta reunião.",
     "network": "Rede",
     "media": {
       "label": "Áudio e vídeo",
@@ -3242,15 +3230,15 @@
       "items": {
         "camera": {
           "q": "A câmera não liga ou mostra uma tela preta",
-          "a": "Permita o acesso à câmera: ícone da câmera na barra de endereço → “Permitir”, depois recarregue a página.\nFeche os apps que usam a câmera: Zoom, Teams, OBS ou outra aba com uma reunião.\nEm “Configurações → Voz e vídeo”, escolha a câmera certa — um notebook com câmera externa tem duas.\nNo app para Windows, confira “Configurações → Privacidade → Câmera”: o acesso à câmera para apps precisa estar ligado."
+          "a": "Permita o acesso à câmera: ícone da câmera na barra de endereço → “Permitir”, depois recarregue a página.\nFeche os apps que usam a câmera: Zoom, Teams, OBS ou outra aba com uma reunião.\nEm “Configurações → Vídeo”, escolha a câmera certa — um notebook com câmera externa tem duas.\nNo app para Windows, confira “Configurações → Privacidade → Câmera”: o acesso à câmera para apps precisa estar ligado."
         },
         "microphone": {
           "q": "Não me ouvem",
-          "a": "Olhe o botão do microfone embaixo: riscado quer dizer microfone desligado.\nEm “Configurações → Voz e vídeo”, escolha um microfone e diga algo — a barra de nível deve se mexer.\nO navegador pode ter bloqueado o acesso: ícone na barra de endereço → “Permitir”.\nCom um microfone baixo, uma supressão de ruído rígida corta a fala — tente outra nas mesmas configurações."
+          "a": "Olhe o botão do microfone embaixo: riscado quer dizer microfone desligado.\nEm “Configurações → Microfone”, escolha um microfone e diga algo — a barra de nível deve se mexer.\nO navegador pode ter bloqueado o acesso: ícone na barra de endereço → “Permitir”.\nCom um microfone baixo, uma supressão de ruído rígida corta a fala — tente outra nas mesmas configurações."
         },
         "silent": {
           "q": "Não ouço ninguém",
-          "a": "Se no palco aparecer o botão “Ativar o som da reunião”, clique nele: o navegador não toca som antes do primeiro clique na página.\nConfira “Configurações e ações” — o som da reunião inteira pode estar desligado.\nO volume de uma pessoa fica no menu do clique direito sobre ela; o geral, em “Configurações → Voz e vídeo”.\nLá também escolha fones ou alto-falantes e faça o teste."
+          "a": "Se no palco aparecer o botão “Ativar o som da reunião”, clique nele: o navegador não toca som antes do primeiro clique na página.\nConfira “Configurações e ações” — o som da reunião inteira pode estar desligado.\nO volume de uma pessoa fica no menu do clique direito sobre ela; o geral, em “Configurações → Microfone → Alto-falantes”.\nLá também escolha fones ou alto-falantes e faça o teste."
         },
         "screen": {
           "q": "Não consigo compartilhar a tela",

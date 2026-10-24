@@ -48,8 +48,8 @@
         "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "Sprache Ton Mikrofon Lautsprecher Kopfhörer"
+        "title": "Mikrofon",
+        "keywords": "Audio Sprache Ton Mikrofon Lautsprecher Kopfhörer"
       },
       "video": {
         "title": "Video",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "prüfen aktualisieren herunterladen windows"
       },
-      "about-author": {
-        "label": "Autor",
-        "hint": "",
-        "keywords": "Telegram Kontakt nikgers"
-      },
       "appearance-language": {
         "label": "Sprache der Oberfläche",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Prüfen",
       "update": "Aktualisieren",
       "download": "{{version}} herunterladen",
-      "author": "Cord wird von @nikgers entwickelt",
-      "telegram": "Telegram des Autors",
       "help": "Öffnen",
       "tour": "Einführung starten"
     },
@@ -489,21 +482,17 @@
     "settings": {
       "saveFailed": "Speichern fehlgeschlagen",
       "title": "Meeting-Einstellungen",
-      "description": "Nur der Host kann sie ändern. Alle anderen sehen es sofort.",
       "name": "Name des Meetings",
       "namePlaceholder": "Zum Beispiel: Abend mit Freunden",
       "access": "Wer beitreten darf",
-      "open": "Per Link und Code – sofort",
+      "open": "Sofort per Link",
       "openHint": "Wer die Einladung öffnet, ist drin. Gut für Leute, die du kennst.",
-      "approval": "Nur mit deiner Zustimmung",
+      "approval": "Mit Zustimmung",
       "approvalHint": "Alle warten, bis du sie hereinlässt. Wer schon drin ist, bleibt.",
       "linkStays": "Link und Code des Meetings ändern sich nicht. Um den Zugang über den alten Link zu sperren, widerrufe die Einladung und erstelle eine neue.",
-      "integrations": "Integrationen",
       "integrationsAll": "Integrationen für alle Teilnehmer erlauben",
-      "integrationsHint": "Ohne Häkchen kannst nur du Kino und Musik hinzufügen und entfernen. Die Lautstärke stellt trotzdem jeder selbst ein.",
-      "saving": "Wird gespeichert…",
-      "save": "Speichern",
-      "unchanged": "Nichts geändert"
+      "integrationsHint": "Sonst kannst nur du Kino und Musik hinzufügen und entfernen.",
+      "save": "Speichern"
     },
     "elsewhere": {
       "title": "Du bist bereits im Meeting „{{title}}“",
@@ -2662,7 +2651,6 @@
   },
   "diagnostics": {
     "title": "Diagnose",
-    "description": "Prüfe deine Geräte und die tatsächliche Verbindung dieses Meetings.",
     "network": "Netzwerk",
     "media": {
       "label": "Audio und Video",
@@ -3205,15 +3193,15 @@
       "items": {
         "camera": {
           "q": "Die Kamera geht nicht an oder zeigt ein schwarzes Bild",
-          "a": "Erlaube den Kamerazugriff: Kamerasymbol in der Adressleiste → „Zulassen“, dann lade die Seite neu.\nSchließ Programme, die die Kamera belegen: Zoom, Teams, OBS oder einen anderen Tab mit einem Meeting.\nWähl unter „Einstellungen → Sprache und Video“ die richtige Kamera — ein Laptop mit externer Kamera hat zwei.\nPrüf in der Windows-App „Einstellungen → Datenschutz → Kamera“: Der Kamerazugriff für Apps muss an sein."
+          "a": "Erlaube den Kamerazugriff: Kamerasymbol in der Adressleiste → „Zulassen“, dann lade die Seite neu.\nSchließ Programme, die die Kamera belegen: Zoom, Teams, OBS oder einen anderen Tab mit einem Meeting.\nWähl unter „Einstellungen → Video“ die richtige Kamera — ein Laptop mit externer Kamera hat zwei.\nPrüf in der Windows-App „Einstellungen → Datenschutz → Kamera“: Der Kamerazugriff für Apps muss an sein."
         },
         "microphone": {
           "q": "Man hört mich nicht",
-          "a": "Schau auf die Mikrofon-Schaltfläche unten: Durchgestrichen heißt, das Mikrofon ist aus.\nWähl unter „Einstellungen → Sprache und Video“ ein Mikrofon und sag etwas — die Pegelanzeige sollte sich bewegen.\nDer Browser hat den Zugriff vielleicht blockiert: Symbol in der Adressleiste → „Zulassen“.\nBei einem leisen Mikrofon schneidet strenge Rauschunterdrückung die Sprache ab — probier in denselben Einstellungen eine andere."
+          "a": "Schau auf die Mikrofon-Schaltfläche unten: Durchgestrichen heißt, das Mikrofon ist aus.\nWähl unter „Einstellungen → Mikrofon“ ein Mikrofon und sag etwas — die Pegelanzeige sollte sich bewegen.\nDer Browser hat den Zugriff vielleicht blockiert: Symbol in der Adressleiste → „Zulassen“.\nBei einem leisen Mikrofon schneidet strenge Rauschunterdrückung die Sprache ab — probier in denselben Einstellungen eine andere."
         },
         "silent": {
           "q": "Ich höre niemanden",
-          "a": "Wenn auf der Bühne die Schaltfläche „Meeting-Ton einschalten“ steht, klick darauf: Der Browser spielt keinen Ton bis zum ersten Klick auf die Seite.\nPrüf „Einstellungen und Aktionen“ — der Ton des ganzen Meetings ist vielleicht aus.\nDie Lautstärke einer Person steckt im Rechtsklick-Menü auf ihr, die Gesamtlautstärke unter „Einstellungen → Sprache und Video“.\nWähl dort auch Kopfhörer oder Lautsprecher und starte den Test."
+          "a": "Wenn auf der Bühne die Schaltfläche „Meeting-Ton einschalten“ steht, klick darauf: Der Browser spielt keinen Ton bis zum ersten Klick auf die Seite.\nPrüf „Einstellungen und Aktionen“ — der Ton des ganzen Meetings ist vielleicht aus.\nDie Lautstärke einer Person steckt im Rechtsklick-Menü auf ihr, die Gesamtlautstärke unter „Einstellungen → Mikrofon → Lautsprecher“.\nWähl dort auch Kopfhörer oder Lautsprecher und starte den Test."
         },
         "screen": {
           "q": "Ich kann meinen Bildschirm nicht teilen",

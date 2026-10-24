@@ -48,8 +48,8 @@
         "keywords": "app tray taskbar thumbnail badge flash sleep overlay autostart"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voice sound microphone speakers headphones"
+        "title": "Microphone",
+        "keywords": "audio voice sound microphone speakers headphones"
       },
       "video": {
         "title": "Video",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "check update download windows"
       },
-      "about-author": {
-        "label": "Author",
-        "hint": "",
-        "keywords": "telegram contact nikgers"
-      },
       "appearance-language": {
         "label": "Interface language",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Check",
       "update": "Update",
       "download": "Download {{version}}",
-      "author": "Cord is made by @nikgers",
-      "telegram": "Author's Telegram",
       "help": "Open",
       "tour": "Take the tour"
     },
@@ -489,21 +482,17 @@
     "settings": {
       "saveFailed": "Couldn't save",
       "title": "Meeting settings",
-      "description": "Only the host can change these. Everyone else sees changes right away.",
       "name": "Meeting name",
       "namePlaceholder": "For example, Evening with friends",
       "access": "Who can join",
-      "open": "By link or code, instantly",
+      "open": "Instantly by link",
       "openHint": "Anyone who opens the invite gets in. Good for people you know.",
-      "approval": "Only with your approval",
+      "approval": "With approval",
       "approvalHint": "Everyone joining waits until you let them in. People already inside stay.",
       "linkStays": "The meeting's link and code don't change. To shut off access through the old link, revoke the invite and create a new one.",
-      "integrations": "Integrations",
       "integrationsAll": "Allow all participants to use integrations",
-      "integrationsHint": "When unchecked, only you can add and remove Cinema and Music. Everyone still sets their own volume.",
-      "saving": "Saving…",
-      "save": "Save",
-      "unchanged": "Nothing changed"
+      "integrationsHint": "Otherwise, only you can add and remove Cinema and Music.",
+      "save": "Save"
     },
     "elsewhere": {
       "title": "You're already in the meeting “{{title}}”",
@@ -2662,7 +2651,6 @@
   },
   "diagnostics": {
     "title": "Diagnostics",
-    "description": "Check your devices and this meeting's actual connection.",
     "network": "Network",
     "media": {
       "label": "Audio and video",
@@ -3205,15 +3193,15 @@
       "items": {
         "camera": {
           "q": "The camera won’t turn on or shows a black screen",
-          "a": "Allow camera access: the camera icon in the address bar → “Allow”, then reload the page.\nClose apps that hold the camera: Zoom, Teams, OBS or another tab with a meeting.\nIn “Settings → Voice and video”, pick the right camera — a laptop with an external camera has two.\nIn the Windows app, check “Settings → Privacy → Camera”: camera access for apps must be on."
+          "a": "Allow camera access: the camera icon in the address bar → “Allow”, then reload the page.\nClose apps that hold the camera: Zoom, Teams, OBS or another tab with a meeting.\nIn “Settings → Video”, pick the right camera — a laptop with an external camera has two.\nIn the Windows app, check “Settings → Privacy → Camera”: camera access for apps must be on."
         },
         "microphone": {
           "q": "People can’t hear me",
-          "a": "Look at the microphone button at the bottom: crossed out means the microphone is off.\nIn “Settings → Voice and video”, pick a microphone and say something — the level bar should move.\nThe browser may have blocked access: the icon in the address bar → “Allow”.\nOn a quiet microphone, strict noise suppression cuts speech — try another option in the same settings."
+          "a": "Look at the microphone button at the bottom: crossed out means the microphone is off.\nIn “Settings → Microphone”, pick a microphone and say something — the level bar should move.\nThe browser may have blocked access: the icon in the address bar → “Allow”.\nOn a quiet microphone, strict noise suppression cuts speech — try another option in the same settings."
         },
         "silent": {
           "q": "I can’t hear anyone",
-          "a": "If the stage shows a “Turn on meeting sound” button, click it: the browser plays no sound until the first click on the page.\nCheck “Settings and actions” — the sound of the whole meeting may be turned off.\nOne person’s volume is in the right-click menu on them; the overall volume is in “Settings → Voice and video”.\nThere, also pick your headphones or speakers and run the test."
+          "a": "If the stage shows a “Turn on meeting sound” button, click it: the browser plays no sound until the first click on the page.\nCheck “Settings and actions” — the sound of the whole meeting may be turned off.\nOne person’s volume is in the right-click menu on them; the overall volume is in “Settings → Microphone → Speakers”.\nThere, also pick your headphones or speakers and run the test."
         },
         "screen": {
           "q": "I can’t share my screen",

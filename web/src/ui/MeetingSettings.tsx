@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
-import { DoorOpen, Puzzle, ShieldCheck } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
-import { Modal, useStore } from './primitives';
+import { useStore } from './primitives';
+import { Button, Dialog, Field, Input, Segmented, Switch } from './kit';
+import './meeting-settings.css';
+
+type Access = 'open' | 'approval';
 
 /**
  * Что за встреча и кого в неё пускать.
@@ -14,6 +18,12 @@ import { Modal, useStore } from './primitives';
  * видно, что будет с теми, кто уже идёт по ссылке.
  *
  * Правка разъезжается всем сама: сервер объявляет `room.changed`, и снимок перечитывают все.
+ *
+ * Вид (R53–R56): окно набора с кнопкой в подвале, без подзаголовка «Меняет только организатор…»
+ * (окно и так видит только он); «Кто может войти» — сегментом, под ним одной строкой — что
+ * значит выбранное; интеграции — переключателем (X4), без заголовка «Интеграции» и без «Громкость
+ * каждый всё равно ставит себе сам». «Сохранить» выключена, пока ничего не поменялось, и
+ * выглядит выключенной.
  */
 export function MeetingSettings({
   meeting,
@@ -59,87 +69,76 @@ export function MeetingSettings({
       setBusy(false);
     }
   };
+  const accessId = useId();
+  const access: Access = approval ? 'approval' : 'open';
   return (
-    <Modal
+    <Dialog
       open={open}
       onOpenChange={onOpenChange}
       title={t(($) => $.meeting.settings.title)}
-      description={t(($) => $.meeting.settings.description)}
+      className="meeting-settings"
+      footer={
+        <Button
+          variant="primary"
+          loading={busy}
+          disabled={!changed || !title.trim()}
+          onClick={() => void save()}
+        >
+          {t(($) => $.meeting.settings.save)}
+        </Button>
+      }
     >
-      <div className="settings-form">
-        <label>
-          {t(($) => $.meeting.settings.name)}
-          <input
+      <div className="meeting-settings__fields">
+        <Field label={t(($) => $.meeting.settings.name)}>
+          <Input
             value={title}
             maxLength={80}
             autoComplete="off"
             placeholder={t(($) => $.meeting.settings.namePlaceholder)}
             onChange={(e) => setTitle(e.target.value)}
           />
-        </label>
-        <section className="audio-settings" aria-label={t(($) => $.meeting.settings.access)}>
-          <h3>
-            <DoorOpen size={19} /> {t(($) => $.meeting.settings.access)}
-          </h3>
-          <div role="radiogroup" aria-label={t(($) => $.meeting.settings.access)} className="network-modes">
-            <label className="check-setting">
-              <input type="radio" name="admission" checked={!approval} onChange={() => setApproval(false)} />
-              <span>
-                {t(($) => $.meeting.settings.open)}
-                <small>{t(($) => $.meeting.settings.openHint)}</small>
-              </span>
-            </label>
-            <label className="check-setting">
-              <input type="radio" name="admission" checked={approval} onChange={() => setApproval(true)} />
-              <span>
-                {t(($) => $.meeting.settings.approval)}
-                <small>{t(($) => $.meeting.settings.approvalHint)}</small>
-              </span>
-            </label>
-          </div>
-          <p className="form-footnote">
-            <ShieldCheck size={14} /> {t(($) => $.meeting.settings.linkStays)}
+        </Field>
+        <div className="meeting-settings__group" role="group" aria-labelledby={accessId}>
+          <span className="meeting-settings__label" id={accessId}>
+            {t(($) => $.meeting.settings.access)}
+          </span>
+          <Segmented<Access>
+            full
+            aria-labelledby={accessId}
+            value={access}
+            onValueChange={(next) => setApproval(next === 'approval')}
+            options={[
+              { value: 'open', label: t(($) => $.meeting.settings.open) },
+              { value: 'approval', label: t(($) => $.meeting.settings.approval) },
+            ]}
+          />
+          <p className="meeting-settings__hint">
+            {approval ? t(($) => $.meeting.settings.approvalHint) : t(($) => $.meeting.settings.openHint)}
           </p>
-        </section>
+          <p className="meeting-settings__note">
+            <ShieldCheck aria-hidden="true" />
+            <span>{t(($) => $.meeting.settings.linkStays)}</span>
+          </p>
+        </div>
         {/*
           Кому можно приносить во встречу постороннее — вопрос про встречу, а не про музыку, и
           стоять ему здесь, рядом с «кого пускать». Раньше эта галочка жила на панели
           интеграций — то есть её видел только тот, кто и так туда зашёл, и находилась она
-          дважды: и на витрине, и внутри музыки.
+          дважды: и на витрине, и внутри музыки. Теперь это переключатель (R55, X4).
         */}
-        <section className="audio-settings" aria-label={t(($) => $.meeting.settings.integrations)}>
-          <h3>
-            <Puzzle size={19} /> {t(($) => $.meeting.settings.integrations)}
-          </h3>
-          <label className="check-setting">
-            <input
-              type="checkbox"
-              checked={integrations}
-              onChange={(e) => setIntegrations(e.target.checked)}
-            />
-            <span>
-              {t(($) => $.meeting.settings.integrationsAll)}
-              <small>{t(($) => $.meeting.settings.integrationsHint)}</small>
-            </span>
-          </label>
-        </section>
+        <Switch
+          className="meeting-settings__switch"
+          checked={integrations}
+          onCheckedChange={setIntegrations}
+          label={t(($) => $.meeting.settings.integrationsAll)}
+          description={t(($) => $.meeting.settings.integrationsHint)}
+        />
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
-        <button
-          className="button primary full"
-          disabled={busy || !changed || !title.trim()}
-          onClick={() => void save()}
-        >
-          {busy
-            ? t(($) => $.meeting.settings.saving)
-            : changed
-              ? t(($) => $.meeting.settings.save)
-              : t(($) => $.meeting.settings.unchanged)}
-        </button>
       </div>
-    </Modal>
+    </Dialog>
   );
 }

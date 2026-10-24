@@ -16,7 +16,8 @@ describe('куда ведёт имя раздела (мост settings.open, с�
   it('прежние вкладки открывают свои новые разделы, а не пустоту', () => {
     expect(placeFor('audio')).toEqual({ section: 'audio', anchor: 'microphone' });
     expect(placeFor('video')).toEqual({ section: 'video', anchor: 'camera' });
-    // «Голос и видео» разделён на «Звук» и «Видео» (R100): старое имя и его подразделы — по смыслу.
+    // «Голос и видео» разделён на «Звук» (теперь «Микрофон», R114) и «Видео» (R100): старое имя и его
+    // подразделы — по смыслу.
     expect(placeFor('voice')).toEqual({ section: 'audio' });
     expect(placeFor('voice#output')).toEqual({ section: 'audio', anchor: 'output' });
     expect(placeFor('voice#processing')).toEqual({ section: 'audio', anchor: 'microphone' });
@@ -33,7 +34,7 @@ describe('куда ведёт имя раздела (мост settings.open, с�
     expect(placeFor('appearance')).toEqual({ section: 'appearance' });
   });
 
-  it('без имени и с незнакомым именем — «Звук»', () => {
+  it('без имени и с незнакомым именем — «Микрофон»', () => {
     expect(placeFor(undefined)).toEqual({ section: 'audio' });
     expect(placeFor('chat')).toEqual({ section: 'audio' });
     // Имя из моста оболочки — чужой ввод: свойства прототипа не раздел.
@@ -70,7 +71,14 @@ describe('поиск по настройкам', () => {
   it('находит строку по подписи и называет, где она', () => {
     const [hit] = searchSettings(t, 'эхо', 'browser');
     expect(hit).toMatchObject({ row: 'echo', section: 'audio', anchor: 'microphone' });
-    expect(hit?.where).toBe('Звук › Микрофон');
+    // Подраздел «Микрофон» в разделе «Микрофон» (R114) — одно слово, а не «Микрофон › Микрофон».
+    expect(hit?.where).toBe('Микрофон');
+    const [volume] = searchSettings(t, 'громкость собеседников', 'browser');
+    expect(volume).toMatchObject({ row: 'output-volume', where: 'Микрофон › Динамики' });
+  });
+
+  it('раздел «Микрофон» (R114) находится и по прежнему имени «звук»', () => {
+    expect(searchSettings(t, 'звук', 'browser')[0]).toMatchObject({ section: 'audio', title: 'Микрофон' });
   });
 
   it('ё и е — одно и то же, регистр не важен', () => {
@@ -83,10 +91,12 @@ describe('поиск по настройкам', () => {
     const [section] = searchSettings(t, 'горяч', 'browser');
     expect(section?.section).toBe('hotkeys');
     expect(section?.row).toBeUndefined();
-    // «Подстраивать громкость» лежит в подразделе «Микрофон» — подраздел тоже ищется.
+    // «Подстраивать громкость» лежит в подразделе «Микрофон» — подраздел тоже ищется. Раздел зовётся
+    // так же (R114), и громкость собеседников из его «Динамиков» — тоже находка, последней.
     expect(searchSettings(t, 'громк микро', 'browser').map((hit) => hit.row)).toEqual([
       'mic-auto',
       'mic-volume',
+      'output-volume',
     ]);
     // Камера и показ — в «Видео»: «превью показа» находит переключатель R80.
     expect(searchSettings(t, 'превью показа', 'browser')[0]).toMatchObject({

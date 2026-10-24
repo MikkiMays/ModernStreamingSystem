@@ -48,8 +48,8 @@
         "keywords": "aplicación bandeja barra de tareas miniatura distintivo parpadeo suspensión superposición inicio automático"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voz sonido micrófono altavoces auriculares"
+        "title": "Micrófono",
+        "keywords": "audio voz sonido micrófono altavoces auriculares"
       },
       "video": {
         "title": "Vídeo",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "buscar actualizar descargar windows"
       },
-      "about-author": {
-        "label": "Autor",
-        "hint": "",
-        "keywords": "telegram contacto nikgers"
-      },
       "appearance-language": {
         "label": "Idioma de la interfaz",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Buscar",
       "update": "Actualizar",
       "download": "Descargar {{version}}",
-      "author": "Cord lo crea y desarrolla @nikgers",
-      "telegram": "Telegram del autor",
       "help": "Abrir",
       "tour": "Hacer el recorrido"
     },
@@ -490,21 +483,17 @@
     "settings": {
       "saveFailed": "No se pudo guardar",
       "title": "Ajustes de la reunión",
-      "description": "Solo el anfitrión puede cambiarlos. Los demás verán los cambios al instante.",
       "name": "Nombre de la reunión",
       "namePlaceholder": "Por ejemplo, Noche con amigos",
       "access": "Quién puede entrar",
-      "open": "Con enlace o código, al instante",
+      "open": "Directo por enlace",
       "openHint": "Quien abre la invitación, entra. Ideal para gente de confianza.",
-      "approval": "Solo con tu aprobación",
+      "approval": "Con aprobación",
       "approvalHint": "Cada persona espera hasta que la dejes entrar. Quienes ya están dentro se quedan.",
       "linkStays": "El enlace y el código de la reunión no cambian. Para cerrar el acceso con el enlace anterior, revoca la invitación y crea una nueva.",
-      "integrations": "Integraciones",
       "integrationsAll": "Permitir integraciones a todos los participantes",
-      "integrationsHint": "Si no está marcado, solo tú puedes añadir y quitar el cine y la música. Cada uno ajusta su propio volumen igualmente.",
-      "saving": "Guardando…",
-      "save": "Guardar",
-      "unchanged": "No ha cambiado nada"
+      "integrationsHint": "Si no, solo tú puedes añadir y quitar el cine y la música.",
+      "save": "Guardar"
     },
     "elsewhere": {
       "title": "Ya estás en la reunión «{{title}}»",
@@ -2692,7 +2681,6 @@
   },
   "diagnostics": {
     "title": "Diagnóstico",
-    "description": "Comprueba tus dispositivos y la conexión real de esta reunión.",
     "network": "Red",
     "media": {
       "label": "Audio y vídeo",
@@ -3242,15 +3230,15 @@
       "items": {
         "camera": {
           "q": "La cámara no se enciende o muestra una pantalla negra",
-          "a": "Permite el acceso a la cámara: icono de la cámara en la barra de direcciones → «Permitir», y recarga la página.\nCierra las aplicaciones que usan la cámara: Zoom, Teams, OBS u otra pestaña con una reunión.\nEn «Ajustes → Voz y vídeo», elige la cámara correcta — un portátil con cámara externa tiene dos.\nEn la aplicación de Windows, revisa «Configuración → Privacidad → Cámara»: el acceso a la cámara para las aplicaciones debe estar activado."
+          "a": "Permite el acceso a la cámara: icono de la cámara en la barra de direcciones → «Permitir», y recarga la página.\nCierra las aplicaciones que usan la cámara: Zoom, Teams, OBS u otra pestaña con una reunión.\nEn «Ajustes → Vídeo», elige la cámara correcta — un portátil con cámara externa tiene dos.\nEn la aplicación de Windows, revisa «Configuración → Privacidad → Cámara»: el acceso a la cámara para las aplicaciones debe estar activado."
         },
         "microphone": {
           "q": "No me oyen",
-          "a": "Mira el botón del micrófono abajo: si está tachado, el micrófono está apagado.\nEn «Ajustes → Voz y vídeo», elige un micrófono y di algo — la barra de nivel debería moverse.\nPuede que el navegador haya bloqueado el acceso: icono en la barra de direcciones → «Permitir».\nCon un micrófono bajo, una supresión de ruido estricta corta la voz — prueba otra en los mismos ajustes."
+          "a": "Mira el botón del micrófono abajo: si está tachado, el micrófono está apagado.\nEn «Ajustes → Micrófono», elige un micrófono y di algo — la barra de nivel debería moverse.\nPuede que el navegador haya bloqueado el acceso: icono en la barra de direcciones → «Permitir».\nCon un micrófono bajo, una supresión de ruido estricta corta la voz — prueba otra en los mismos ajustes."
         },
         "silent": {
           "q": "No oigo a nadie",
-          "a": "Si en el escenario aparece el botón «Activar el sonido de la reunión», haz clic: el navegador no reproduce sonido hasta el primer clic en la página.\nRevisa «Ajustes y acciones» — puede que el sonido de toda la reunión esté apagado.\nEl volumen de una persona está en el menú del clic derecho sobre ella; el general, en «Ajustes → Voz y vídeo».\nAllí elige también tus auriculares o altavoces y haz la prueba."
+          "a": "Si en el escenario aparece el botón «Activar el sonido de la reunión», haz clic: el navegador no reproduce sonido hasta el primer clic en la página.\nRevisa «Ajustes y acciones» — puede que el sonido de toda la reunión esté apagado.\nEl volumen de una persona está en el menú del clic derecho sobre ella; el general, en «Ajustes → Micrófono → Altavoces».\nAllí elige también tus auriculares o altavoces y haz la prueba."
         },
         "screen": {
           "q": "No puedo compartir la pantalla",

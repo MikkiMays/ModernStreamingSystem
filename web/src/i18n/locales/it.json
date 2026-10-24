@@ -48,8 +48,8 @@
         "keywords": "app area di notifica barra delle applicazioni miniatura badge lampeggio sospensione overlay avvio automatico"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voce suono microfono altoparlanti cuffie"
+        "title": "Microfono",
+        "keywords": "audio voce suono microfono altoparlanti cuffie"
       },
       "video": {
         "title": "Video",
@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "controlla aggiorna scarica windows"
       },
-      "about-author": {
-        "label": "Autore",
-        "hint": "",
-        "keywords": "telegram contatto nikgers"
-      },
       "appearance-language": {
         "label": "Lingua dell'interfaccia",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Controlla",
       "update": "Aggiorna",
       "download": "Scarica {{version}}",
-      "author": "Cord è creato e sviluppato da @nikgers",
-      "telegram": "Telegram dell'autore",
       "help": "Apri",
       "tour": "Rifai il tour"
     },
@@ -490,21 +483,17 @@
     "settings": {
       "saveFailed": "Impossibile salvare",
       "title": "Impostazioni della riunione",
-      "description": "Può modificarle solo l'host. Gli altri vedono le modifiche subito.",
       "name": "Nome della riunione",
       "namePlaceholder": "Ad esempio, Serata con gli amici",
       "access": "Chi può entrare",
-      "open": "Con link e codice, subito",
+      "open": "Subito con il link",
       "openHint": "Chi apre l'invito entra. Adatto tra persone di fiducia.",
-      "approval": "Solo con la tua approvazione",
+      "approval": "Con approvazione",
       "approvalHint": "Chi arriva aspetta che tu lo faccia entrare. Chi è già dentro resta.",
       "linkStays": "Link e codice della riunione non cambiano. Per chiudere l'accesso con il vecchio link, revoca l'invito e creane uno nuovo.",
-      "integrations": "Integrazioni",
       "integrationsAll": "Consenti le integrazioni a tutti i partecipanti",
-      "integrationsHint": "Senza la spunta, solo tu puoi aggiungere e rimuovere cinema e musica. Il volume, comunque, lo regola ognuno per sé.",
-      "saving": "Salvataggio…",
-      "save": "Salva",
-      "unchanged": "Nessuna modifica"
+      "integrationsHint": "Altrimenti solo tu puoi aggiungere e rimuovere cinema e musica.",
+      "save": "Salva"
     },
     "elsewhere": {
       "title": "Sei già nella riunione «{{title}}»",
@@ -2692,7 +2681,6 @@
   },
   "diagnostics": {
     "title": "Diagnostica",
-    "description": "Controlla i dispositivi e la connessione effettiva di questa riunione.",
     "network": "Rete",
     "media": {
       "label": "Audio e video",
@@ -3242,15 +3230,15 @@
       "items": {
         "camera": {
           "q": "La videocamera non si accende o mostra uno schermo nero",
-          "a": "Consenti l'accesso alla videocamera: icona della videocamera nella barra degli indirizzi → «Consenti», poi ricarica la pagina.\nChiudi le app che usano la videocamera: Zoom, Teams, OBS o un'altra scheda con una riunione.\nIn «Impostazioni → Voce e video» scegli la videocamera giusta — un portatile con videocamera esterna ne ha due.\nNell'app per Windows controlla «Impostazioni → Privacy → Fotocamera»: l'accesso alla fotocamera per le app deve essere attivo."
+          "a": "Consenti l'accesso alla videocamera: icona della videocamera nella barra degli indirizzi → «Consenti», poi ricarica la pagina.\nChiudi le app che usano la videocamera: Zoom, Teams, OBS o un'altra scheda con una riunione.\nIn «Impostazioni → Video» scegli la videocamera giusta — un portatile con videocamera esterna ne ha due.\nNell'app per Windows controlla «Impostazioni → Privacy → Fotocamera»: l'accesso alla fotocamera per le app deve essere attivo."
         },
         "microphone": {
           "q": "Non mi sentono",
-          "a": "Guarda il pulsante del microfono in basso: barrato significa che il microfono è spento.\nIn «Impostazioni → Voce e video» scegli un microfono e di' qualcosa — la barra del livello dovrebbe muoversi.\nIl browser potrebbe aver bloccato l'accesso: icona nella barra degli indirizzi → «Consenti».\nCon un microfono debole, una soppressione del rumore severa taglia la voce — provane un'altra nelle stesse impostazioni."
+          "a": "Guarda il pulsante del microfono in basso: barrato significa che il microfono è spento.\nIn «Impostazioni → Microfono» scegli un microfono e di' qualcosa — la barra del livello dovrebbe muoversi.\nIl browser potrebbe aver bloccato l'accesso: icona nella barra degli indirizzi → «Consenti».\nCon un microfono debole, una soppressione del rumore severa taglia la voce — provane un'altra nelle stesse impostazioni."
         },
         "silent": {
           "q": "Non sento nessuno",
-          "a": "Se sul palco c'è il pulsante «Attiva l'audio della riunione», fai clic: il browser non riproduce suoni prima del primo clic sulla pagina.\nControlla «Impostazioni e azioni» — l'audio di tutta la riunione potrebbe essere disattivato.\nIl volume di una persona è nel menu del clic destro su di lei, quello generale in «Impostazioni → Voce e video».\nLì scegli anche cuffie o altoparlanti e avvia la prova."
+          "a": "Se sul palco c'è il pulsante «Attiva l'audio della riunione», fai clic: il browser non riproduce suoni prima del primo clic sulla pagina.\nControlla «Impostazioni e azioni» — l'audio di tutta la riunione potrebbe essere disattivato.\nIl volume di una persona è nel menu del clic destro su di lei, quello generale in «Impostazioni → Microfono → Altoparlanti».\nLì scegli anche cuffie o altoparlanti e avvia la prova."
         },
         "screen": {
           "q": "Non riesco a condividere lo schermo",
