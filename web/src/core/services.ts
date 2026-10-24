@@ -42,7 +42,7 @@ export interface PlatformTrack {
   title: string;
   artist: string;
   duration: number;
-  /** `false` — эфир или фрагмент SoundCloud Go+: в очередь не добавить. */
+  /** `false` — эфир, фрагмент SoundCloud Go+ или длиннее часа (предел службы, R116): в очередь не добавить. */
   available: boolean;
   source: 'youtube' | 'soundcloud';
 }

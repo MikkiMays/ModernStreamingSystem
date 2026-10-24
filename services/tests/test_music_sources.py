@@ -184,6 +184,27 @@ class SearchTests(Fixture):
         self.assertEqual(options["allowed_extractors"], ["youtube:search"])
         self.assertTrue(options["extract_flat"])
 
+    async def test_videos_longer_than_an_hour_are_marked_in_the_results(self):
+        # R116: длительность выдача знает — ролик длиннее 60 минут недоступен сразу, а не «+»,
+        # после которого скачивание откажет «Нужен трек до 60 минут».
+        self.answer(
+            [
+                {"id": VIDEO, "title": "Hour", "channel": "A", "duration": 3600},
+                {"id": "AAAAAAAAAAA", "title": "Mix", "channel": "B", "duration": 3601},
+                {"id": "BBBBBBBBBBB", "title": "Unknown", "channel": "C"},
+            ]
+        )
+        response = await self.client.post(
+            SEARCH,
+            headers=self.headers(GUEST),
+            json={"source": "youtube", "query": "long mix"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        found = response.json()
+        self.assertEqual([t["title"] for t in found], ["Hour", "Mix", "Unknown"])
+        self.assertEqual([t["available"] for t in found], [True, False, True])
+        self.assertEqual(found[1]["duration"], 3601.0)
+
     async def test_soundcloud_fragments_cannot_be_added(self):
         self.answer(
             [
