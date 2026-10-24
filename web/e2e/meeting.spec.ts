@@ -11,6 +11,9 @@ test('home and prejoin are responsive and keyboard accessible', async ({ page })
   expect(accessibility.violations).toEqual([]);
   await page.getByRole('button', { name: /Новая встреча/ }).click();
   await expect(page.getByLabel('Ваше имя')).toBeFocused();
+  // Да или нет — переключателем, а не галочкой (X4, R55); встреча не создаётся.
+  await expect(page.getByRole('switch', { name: /Разрешить интеграции всем участникам/ })).toBeChecked();
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
   await page.screenshot({ path: '../.local/prejoin-desktop.png', fullPage: true });
   for (const width of [320, 390, 768, 1200]) {
     await page.setViewportSize({ width, height: 844 });

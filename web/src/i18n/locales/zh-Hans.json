@@ -481,21 +481,17 @@
     "settings": {
       "saveFailed": "保存失败",
       "title": "会议设置",
-      "description": "只有主持人可以更改，其他人会立即看到。",
       "name": "会议名称",
       "namePlaceholder": "例如：朋友之夜",
       "access": "谁可以加入",
-      "open": "凭链接或代码直接进入",
+      "open": "凭链接直接进入",
       "openHint": "打开邀请的人即可进入。适合熟人之间。",
       "approval": "需经你批准",
       "approvalHint": "每位加入者都要等你放行。已在会议中的人不受影响。",
       "linkStays": "会议的链接和代码不会改变。要阻止通过旧链接进入，请撤销邀请并创建新邀请。",
-      "integrations": "集成",
       "integrationsAll": "允许所有参与者使用集成",
-      "integrationsHint": "不勾选时，只有你能添加和移除影院与音乐。音量仍由每个人自行调节。",
-      "saving": "正在保存…",
-      "save": "保存",
-      "unchanged": "没有任何更改"
+      "integrationsHint": "否则只有你能添加和移除影院与音乐。",
+      "save": "保存"
     },
     "elsewhere": {
       "title": "你已在会议“{{title}}”中",

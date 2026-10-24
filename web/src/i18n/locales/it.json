@@ -483,21 +483,17 @@
     "settings": {
       "saveFailed": "Impossibile salvare",
       "title": "Impostazioni della riunione",
-      "description": "Può modificarle solo l'host. Gli altri vedono le modifiche subito.",
       "name": "Nome della riunione",
       "namePlaceholder": "Ad esempio, Serata con gli amici",
       "access": "Chi può entrare",
-      "open": "Con link e codice, subito",
+      "open": "Subito con il link",
       "openHint": "Chi apre l'invito entra. Adatto tra persone di fiducia.",
-      "approval": "Solo con la tua approvazione",
+      "approval": "Con approvazione",
       "approvalHint": "Chi arriva aspetta che tu lo faccia entrare. Chi è già dentro resta.",
       "linkStays": "Link e codice della riunione non cambiano. Per chiudere l'accesso con il vecchio link, revoca l'invito e creane uno nuovo.",
-      "integrations": "Integrazioni",
       "integrationsAll": "Consenti le integrazioni a tutti i partecipanti",
-      "integrationsHint": "Senza la spunta, solo tu puoi aggiungere e rimuovere cinema e musica. Il volume, comunque, lo regola ognuno per sé.",
-      "saving": "Salvataggio…",
-      "save": "Salva",
-      "unchanged": "Nessuna modifica"
+      "integrationsHint": "Altrimenti solo tu puoi aggiungere e rimuovere cinema e musica.",
+      "save": "Salva"
     },
     "elsewhere": {
       "title": "Sei già nella riunione «{{title}}»",

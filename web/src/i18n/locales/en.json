@@ -482,21 +482,17 @@
     "settings": {
       "saveFailed": "Couldn't save",
       "title": "Meeting settings",
-      "description": "Only the host can change these. Everyone else sees changes right away.",
       "name": "Meeting name",
       "namePlaceholder": "For example, Evening with friends",
       "access": "Who can join",
-      "open": "By link or code, instantly",
+      "open": "Instantly by link",
       "openHint": "Anyone who opens the invite gets in. Good for people you know.",
-      "approval": "Only with your approval",
+      "approval": "With approval",
       "approvalHint": "Everyone joining waits until you let them in. People already inside stay.",
       "linkStays": "The meeting's link and code don't change. To shut off access through the old link, revoke the invite and create a new one.",
-      "integrations": "Integrations",
       "integrationsAll": "Allow all participants to use integrations",
-      "integrationsHint": "When unchecked, only you can add and remove Cinema and Music. Everyone still sets their own volume.",
-      "saving": "Saving…",
-      "save": "Save",
-      "unchanged": "Nothing changed"
+      "integrationsHint": "Otherwise, only you can add and remove Cinema and Music.",
+      "save": "Save"
     },
     "elsewhere": {
       "title": "You're already in the meeting “{{title}}”",

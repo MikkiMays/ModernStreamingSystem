@@ -20,11 +20,11 @@ import {
   Badge,
   IconButton,
   Menu,
-  MenuCheckboxItem,
   MenuContent,
   MenuItem,
   MenuSeparator,
   MenuSubmenu,
+  MenuSwitchItem,
   MenuTrigger,
 } from '../kit';
 import { InlineName } from './InlineName';
@@ -99,8 +99,9 @@ function RoomMenuItems({
       <MenuItem icon={<Copy size={16} />} onClick={() => actions.copyCode(room)}>
         {t(($) => $.favorites.room.copy)}
       </MenuItem>
-      <MenuCheckboxItem
-        className="ui-menu__item"
+      {/* Да или нет — переключателем в меню (X4, R70): состояние видно по нему, значок постоянный. */}
+      <MenuSwitchItem
+        icon={<Zap size={16} />}
         checked={automatic}
         closeOnClick
         onCheckedChange={(checked) => {
@@ -108,11 +109,8 @@ function RoomMenuItems({
           actions.setAutojoin(room, checked);
         }}
       >
-        <span className="ui-menu__icon" aria-hidden="true">
-          {automatic ? <Check size={16} /> : <Zap size={16} />}
-        </span>
-        <span className="ui-menu__label">{t(($) => $.favorites.room.autojoin)}</span>
-      </MenuCheckboxItem>
+        {t(($) => $.favorites.room.autojoin)}
+      </MenuSwitchItem>
       <MenuSeparator />
       <MenuItem icon={<Trash2 size={16} />} shortcut="Del" destructive onClick={() => actions.remove(room)}>
         {t(($) => $.favorites.room.remove)}

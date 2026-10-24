@@ -483,21 +483,17 @@
     "settings": {
       "saveFailed": "Impossible d'enregistrer",
       "title": "Paramètres de la réunion",
-      "description": "Seul l'hôte peut les modifier. Les autres voient les changements immédiatement.",
       "name": "Nom de la réunion",
       "namePlaceholder": "Par exemple, Soirée entre amis",
       "access": "Qui peut entrer",
-      "open": "Par lien et par code, directement",
+      "open": "Direct par lien",
       "openHint": "Quiconque ouvre l'invitation entre. Idéal entre proches.",
-      "approval": "Uniquement avec votre accord",
+      "approval": "Avec votre accord",
       "approvalHint": "Chaque arrivant attend que vous le fassiez entrer. Ceux qui sont déjà là restent.",
       "linkStays": "Le lien et le code de la réunion ne changent pas. Pour couper l'accès via l'ancien lien, révoquez l'invitation et créez-en une nouvelle.",
-      "integrations": "Intégrations",
       "integrationsAll": "Autoriser les intégrations pour tous les participants",
-      "integrationsHint": "Case décochée, vous seul ajoutez et retirez le cinéma et la musique. Chacun règle toujours son propre volume.",
-      "saving": "Enregistrement…",
-      "save": "Enregistrer",
-      "unchanged": "Rien n'a changé"
+      "integrationsHint": "Sinon, vous seul ajoutez et retirez le cinéma et la musique.",
+      "save": "Enregistrer"
     },
     "elsewhere": {
       "title": "Vous êtes déjà dans la réunion « {{title}} »",

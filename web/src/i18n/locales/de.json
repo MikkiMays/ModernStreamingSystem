@@ -482,21 +482,17 @@
     "settings": {
       "saveFailed": "Speichern fehlgeschlagen",
       "title": "Meeting-Einstellungen",
-      "description": "Nur der Host kann sie ändern. Alle anderen sehen es sofort.",
       "name": "Name des Meetings",
       "namePlaceholder": "Zum Beispiel: Abend mit Freunden",
       "access": "Wer beitreten darf",
-      "open": "Per Link und Code – sofort",
+      "open": "Sofort per Link",
       "openHint": "Wer die Einladung öffnet, ist drin. Gut für Leute, die du kennst.",
-      "approval": "Nur mit deiner Zustimmung",
+      "approval": "Mit Zustimmung",
       "approvalHint": "Alle warten, bis du sie hereinlässt. Wer schon drin ist, bleibt.",
       "linkStays": "Link und Code des Meetings ändern sich nicht. Um den Zugang über den alten Link zu sperren, widerrufe die Einladung und erstelle eine neue.",
-      "integrations": "Integrationen",
       "integrationsAll": "Integrationen für alle Teilnehmer erlauben",
-      "integrationsHint": "Ohne Häkchen kannst nur du Kino und Musik hinzufügen und entfernen. Die Lautstärke stellt trotzdem jeder selbst ein.",
-      "saving": "Wird gespeichert…",
-      "save": "Speichern",
-      "unchanged": "Nichts geändert"
+      "integrationsHint": "Sonst kannst nur du Kino und Musik hinzufügen und entfernen.",
+      "save": "Speichern"
     },
     "elsewhere": {
       "title": "Du bist bereits im Meeting „{{title}}“",

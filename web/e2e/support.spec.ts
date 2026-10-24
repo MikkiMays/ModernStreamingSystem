@@ -32,7 +32,8 @@ test('the support page answers common questions and sends a ticket with the visi
     .getByRole('textbox', { name: 'Что случилось' })
     .fill('Установщик не запускается после «Подробнее»');
   await page.getByRole('textbox', { name: 'Как с вами связаться' }).fill('@someone');
-  await page.getByRole('checkbox', { name: /Приложить диагностику/ }).check();
+  // Да или нет — переключатель (X4).
+  await page.getByRole('switch', { name: /Приложить диагностику/ }).check();
   await page.getByText('Что будет отправлено').click();
   await expect(page.locator('.help-preview pre')).toContainText('client: web');
   await page.getByRole('button', { name: 'Отправить' }).click();

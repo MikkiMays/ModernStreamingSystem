@@ -483,21 +483,17 @@
     "settings": {
       "saveFailed": "Não foi possível salvar",
       "title": "Configurações da reunião",
-      "description": "Só o anfitrião pode alterar. Os outros veem as mudanças na hora.",
       "name": "Nome da reunião",
       "namePlaceholder": "Por exemplo, Noite com os amigos",
       "access": "Quem pode entrar",
-      "open": "Por link e código, na hora",
+      "open": "Direto pelo link",
       "openHint": "Quem abrir o convite entra. Bom para pessoas de confiança.",
-      "approval": "Só com a sua aprovação",
+      "approval": "Com aprovação",
       "approvalHint": "Cada pessoa espera até você deixá-la entrar. Quem já está dentro continua.",
       "linkStays": "O link e o código da reunião não mudam. Para bloquear o acesso pelo link antigo, revogue o convite e crie um novo.",
-      "integrations": "Integrações",
       "integrationsAll": "Permitir integrações a todos os participantes",
-      "integrationsHint": "Sem a marcação, só você adiciona e remove o cinema e a música. O volume cada um ajusta para si.",
-      "saving": "Salvando…",
-      "save": "Salvar",
-      "unchanged": "Nada mudou"
+      "integrationsHint": "Senão, só você adiciona e remove o cinema e a música.",
+      "save": "Salvar"
     },
     "elsewhere": {
       "title": "Você já está na reunião “{{title}}”",

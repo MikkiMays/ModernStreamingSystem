@@ -483,21 +483,17 @@
     "settings": {
       "saveFailed": "No se pudo guardar",
       "title": "Ajustes de la reunión",
-      "description": "Solo el anfitrión puede cambiarlos. Los demás verán los cambios al instante.",
       "name": "Nombre de la reunión",
       "namePlaceholder": "Por ejemplo, Noche con amigos",
       "access": "Quién puede entrar",
-      "open": "Con enlace o código, al instante",
+      "open": "Directo por enlace",
       "openHint": "Quien abre la invitación, entra. Ideal para gente de confianza.",
-      "approval": "Solo con tu aprobación",
+      "approval": "Con aprobación",
       "approvalHint": "Cada persona espera hasta que la dejes entrar. Quienes ya están dentro se quedan.",
       "linkStays": "El enlace y el código de la reunión no cambian. Para cerrar el acceso con el enlace anterior, revoca la invitación y crea una nueva.",
-      "integrations": "Integraciones",
       "integrationsAll": "Permitir integraciones a todos los participantes",
-      "integrationsHint": "Si no está marcado, solo tú puedes añadir y quitar el cine y la música. Cada uno ajusta su propio volumen igualmente.",
-      "saving": "Guardando…",
-      "save": "Guardar",
-      "unchanged": "No ha cambiado nada"
+      "integrationsHint": "Si no, solo tú puedes añadir y quitar el cine y la música.",
+      "save": "Guardar"
     },
     "elsewhere": {
       "title": "Ya estás en la reunión «{{title}}»",

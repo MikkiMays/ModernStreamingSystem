@@ -1,0 +1,51 @@
+/*
+  «Настройки встречи» (R53): окно набора 440, поля одной колонкой с зазором `--space-5`; подписи
+  групп — как у поля набора, пояснения 13 приглушённо и по левому краю; значок щита — в одной строке
+  с текстом. Только токены `styles/tokens.css`.
+*/
+.meeting-settings__fields {
+  display: grid;
+  gap: var(--space-5);
+}
+.meeting-settings__group {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.meeting-settings__label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+.meeting-settings__hint,
+.meeting-settings__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.meeting-settings__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+/* Значок — на высоте первой строки текста, а не отдельной строкой над ним. */
+.meeting-settings__note > svg {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-top: calc((var(--text-sm) * var(--leading-base) - var(--icon-sm)) / 2);
+}
+/* Бегунок — на высоте подписи, а не посреди двух строк с пояснением. */
+.meeting-settings__switch {
+  align-items: flex-start;
+}
+.meeting-settings__switch .ui-switch-row__hint {
+  line-height: var(--leading-base);
+}
+/* Телефон: окно — лист снизу, и единственная кнопка подвала — во всю ширину, под большой палец. */
+@media (max-width: 767px) {
+  .meeting-settings .ui-dialog__footer > .ui-button {
+    flex: 1;
+  }
+}

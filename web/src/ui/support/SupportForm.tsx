@@ -12,7 +12,7 @@ import {
   type SupportReceipt,
   type SupportTopic,
 } from '../../core/support';
-import { Button, Field, Input, Select, Textarea } from '../kit';
+import { Button, Field, Input, Select, Switch, Textarea } from '../kit';
 
 /**
  * Форма обращения (E13, T36): тема, что случилось, по желанию — контакт и диагностика.
@@ -119,13 +119,14 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
           onChange={(event) => setContact(event.target.value)}
         />
       </Field>
-      <label className="help-consent">
-        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-        <span>
-          <span className="help-consent__label">{t(($) => $.support.form.consent)}</span>
-          <span className="help-consent__hint">{t(($) => $.support.form.consentHint)}</span>
-        </span>
-      </label>
+      {/* Да или нет — переключателем, а не галочкой (X4). */}
+      <Switch
+        className="help-consent"
+        checked={consent}
+        onCheckedChange={setConsent}
+        label={t(($) => $.support.form.consent)}
+        description={t(($) => $.support.form.consentHint)}
+      />
       {consent && (
         <details className="help-preview">
           <summary>{t(($) => $.support.form.preview)}</summary>
