@@ -1,0 +1,86 @@
+[
+  {
+    "name": "durak-rings",
+    "width": 1440,
+    "theme": "dark",
+    "file": "durak-rings-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak-rings",
+    "width": 1440,
+    "theme": "light",
+    "file": "durak-rings-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak-rings",
+    "width": 390,
+    "theme": "dark",
+    "file": "durak-rings-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak-rings",
+    "width": 390,
+    "theme": "light",
+    "file": "durak-rings-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-bar-waiting",
+    "width": 1440,
+    "theme": "dark",
+    "file": "poker-bar-waiting-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-bar-waiting",
+    "width": 1440,
+    "theme": "light",
+    "file": "poker-bar-waiting-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-spectator",
+    "width": 1280,
+    "theme": "dark",
+    "file": "poker-spectator-1280-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-spectator",
+    "width": 1280,
+    "theme": "light",
+    "file": "poker-spectator-1280-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-spectator",
+    "width": 390,
+    "theme": "dark",
+    "file": "poker-spectator-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-spectator",
+    "width": 390,
+    "theme": "light",
+    "file": "poker-spectator-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-bar-ready",
+    "width": 1440,
+    "theme": "dark",
+    "file": "poker-bar-ready-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker-bar-ready",
+    "width": 1440,
+    "theme": "light",
+    "file": "poker-bar-ready-1440-light.png",
+    "overflowX": 0
+  }
+]
