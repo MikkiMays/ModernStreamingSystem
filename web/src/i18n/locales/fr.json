@@ -2455,10 +2455,7 @@
     },
     "platforms": {
       "label": "Plateforme",
-      "tiles": "Plateformes de musique",
       "none": "Les plateformes de musique sont désactivées sur ce serveur — ce qui est déjà dans la file continue de jouer.",
-      "playing": "En lecture :",
-      "paused": "En pause :",
       "youtube": {
         "hint": "Titres, clips et concerts",
         "find": "Rechercher sur YouTube ou coller un lien",
@@ -2499,7 +2496,8 @@
       "pause": "Mettre la musique en pause",
       "next": "Titre suivant",
       "repeat": "Répéter la file",
-      "volume": "Votre volume de musique"
+      "volume": "Votre volume de musique",
+      "previous": "Titre précédent"
     },
     "queue": {
       "label": "File d'attente musicale",
@@ -2510,7 +2508,10 @@
       "actions": "Actions : {{title}}",
       "playNext": "Lire ensuite",
       "remove": "Retirer de la file",
-      "hint": "Glissez ou utilisez les flèches haut et bas pour déplacer le titre"
+      "hint": "Glissez ou utilisez les flèches haut et bas pour déplacer le titre",
+      "count_one": "{{count}} titre",
+      "count_many": "{{count}} titres",
+      "count_other": "{{count}} titres"
     },
     "search": {
       "notOurs": "La musique n'ouvre pas ce type de lien. YouTube, SoundCloud et Yandex Music conviennent",
@@ -2564,6 +2565,12 @@
       "haveToken": "J'ai déjà un jeton d'accès",
       "tokenLabel": "Jeton Yandex Music",
       "connectToken": "Connecter le jeton"
+    },
+    "mini": {
+      "label": "Mini-lecteur",
+      "open": "Ouvrir le lecteur",
+      "offer": "Activer la musique",
+      "dismiss": "Ne plus proposer pendant cette réunion"
     }
   },
   "integrations": {
@@ -2963,7 +2970,9 @@
     "SUPPORT_TEXT": "Décrivez ce qui s'est passé — au moins en une phrase",
     "CINEMA_TIMEOUT": "La plateforme n'a pas répondu à temps — réessayez",
     "CINEMA_UNREACHABLE": "Cette plateforme est inaccessible depuis ce serveur",
-    "CLOSED_BY_SERVER": "Le propriétaire du serveur a mis fin à cette réunion — impossible de la rouvrir pour l'instant"
+    "CLOSED_BY_SERVER": "Le propriétaire du serveur a mis fin à cette réunion — impossible de la rouvrir pour l'instant",
+    "MUSIC_TIMEOUT": "La plateforme n'a pas répondu à temps — réessayez",
+    "MUSIC_UNREACHABLE": "Cette plateforme est inaccessible depuis ce serveur"
   },
   "activity": {
     "title": "Activité",

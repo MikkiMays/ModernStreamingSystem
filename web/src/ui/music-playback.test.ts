@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MusicState, MusicTrack } from '../core/services';
 import {
   afterMove,
+  afterPrevious,
   afterPromote,
   afterRemove,
   afterSkip,
@@ -76,6 +77,21 @@ describe('часы и очередь музыкальной панели', () =>
     expect(playbackPosition(anchor, 3000, true, 100)).toBe(12);
     expect(playbackPosition(anchor, 3000, false, 100)).toBe(10);
     expect(playbackPosition(anchor, 999_000, true, 100)).toBe(100);
+  });
+
+  it('игла отстаёт от позиции издателя на запас буфера — как и звук (R03, R44)', () => {
+    const anchor = { position: 10, at: 1000 };
+    // Издатель сообщает время отправки, а слышим мы его на 600 мс позже.
+    expect(playbackPosition(anchor, 3000, true, 100, 600)).toBeCloseTo(11.4);
+    // Только что начатый трек — с нуля, а не с минус полсекунды.
+    expect(playbackPosition({ position: 0, at: 1000 }, 1200, true, 100, 600)).toBe(0);
+    // На паузе звука нет и вычитать нечего.
+    expect(playbackPosition(anchor, 3000, false, 100, 600)).toBe(10);
+  });
+
+  it('«назад»: дольше трёх секунд — с начала, иначе ждём службу', () => {
+    expect(afterPrevious(42)).toEqual({ position: 0 });
+    expect(afterPrevious(2.5)).toBeUndefined();
   });
 
   it('при повторе «следующий» отправляет трек в конец, без повтора — убирает', () => {

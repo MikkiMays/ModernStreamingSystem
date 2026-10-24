@@ -2397,10 +2397,7 @@
     },
     "platforms": {
       "label": "平台",
-      "tiles": "音乐平台",
       "none": "此服务器已关闭音乐平台——队列中已有的内容会继续播放。",
-      "playing": "正在播放：",
-      "paused": "已暂停：",
       "youtube": {
         "hint": "歌曲、MV 和演唱会",
         "find": "在 YouTube 搜索或粘贴链接",
@@ -2441,7 +2438,8 @@
       "pause": "暂停音乐",
       "next": "下一首",
       "repeat": "循环队列",
-      "volume": "你听到的音乐音量"
+      "volume": "你听到的音乐音量",
+      "previous": "上一首"
     },
     "queue": {
       "label": "音乐队列",
@@ -2452,7 +2450,8 @@
       "actions": "操作：{{title}}",
       "playNext": "下一首播放",
       "remove": "从队列中移除",
-      "hint": "拖动或按上下方向键调整曲目顺序"
+      "hint": "拖动或按上下方向键调整曲目顺序",
+      "count_other": "{{count}} 首"
     },
     "search": {
       "notOurs": "音乐无法打开这类链接。支持 YouTube、SoundCloud 和 Yandex Music",
@@ -2506,6 +2505,12 @@
       "haveToken": "我已有访问令牌",
       "tokenLabel": "Yandex Music 令牌",
       "connectToken": "连接令牌"
+    },
+    "mini": {
+      "label": "迷你播放器",
+      "open": "打开播放器",
+      "offer": "开启音乐",
+      "dismiss": "本次会议不再提示"
     }
   },
   "integrations": {
@@ -2903,7 +2908,9 @@
     "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
     "CINEMA_TIMEOUT": "平台未及时响应——请重试",
     "CINEMA_UNREACHABLE": "此服务器无法访问该平台",
-    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开"
+    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开",
+    "MUSIC_TIMEOUT": "平台未及时响应——请重试",
+    "MUSIC_UNREACHABLE": "此服务器无法访问该平台"
   },
   "activity": {
     "title": "活动",

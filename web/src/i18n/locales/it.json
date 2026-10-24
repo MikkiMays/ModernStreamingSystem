@@ -2455,10 +2455,7 @@
     },
     "platforms": {
       "label": "Piattaforma",
-      "tiles": "Piattaforme musicali",
       "none": "Le piattaforme musicali sono disattivate su questo server: suona ciò che è già in coda.",
-      "playing": "In riproduzione:",
-      "paused": "In pausa:",
       "youtube": {
         "hint": "Brani, videoclip e concerti",
         "find": "Cerca su YouTube o incolla un link",
@@ -2499,7 +2496,8 @@
       "pause": "Metti in pausa la musica",
       "next": "Brano successivo",
       "repeat": "Ripeti la coda",
-      "volume": "Il tuo volume della musica"
+      "volume": "Il tuo volume della musica",
+      "previous": "Brano precedente"
     },
     "queue": {
       "label": "Coda musicale",
@@ -2510,7 +2508,10 @@
       "actions": "Azioni: {{title}}",
       "playNext": "Riproduci dopo",
       "remove": "Rimuovi dalla coda",
-      "hint": "Trascina o usa le frecce su e giù per spostare il brano"
+      "hint": "Trascina o usa le frecce su e giù per spostare il brano",
+      "count_one": "{{count}} brano",
+      "count_many": "{{count}} brani",
+      "count_other": "{{count}} brani"
     },
     "search": {
       "notOurs": "La musica non apre link di questo tipo. Vanno bene YouTube, SoundCloud e Yandex Music",
@@ -2564,6 +2565,12 @@
       "haveToken": "Ho già un token di accesso",
       "tokenLabel": "Token di Yandex Music",
       "connectToken": "Collega il token"
+    },
+    "mini": {
+      "label": "Mini player",
+      "open": "Apri il player",
+      "offer": "Attiva la musica",
+      "dismiss": "Non proporre più in questa riunione"
     }
   },
   "integrations": {
@@ -2963,7 +2970,9 @@
     "SUPPORT_TEXT": "Descrivi cosa è successo — almeno con una frase",
     "CINEMA_TIMEOUT": "La piattaforma non ha risposto in tempo: riprova",
     "CINEMA_UNREACHABLE": "Questa piattaforma non è raggiungibile da questo server",
-    "CLOSED_BY_SERVER": "Il proprietario del server ha terminato questa riunione: per ora non si può riaprire"
+    "CLOSED_BY_SERVER": "Il proprietario del server ha terminato questa riunione: per ora non si può riaprire",
+    "MUSIC_TIMEOUT": "La piattaforma non ha risposto in tempo: riprova",
+    "MUSIC_UNREACHABLE": "Questa piattaforma non è raggiungibile da questo server"
   },
   "activity": {
     "title": "Attività",

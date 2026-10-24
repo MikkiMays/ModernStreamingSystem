@@ -46,15 +46,34 @@ export function foresightSpent(served: MusicState | undefined, foresight: Foresi
   return !!foresight && !!served && served.revision > foresight.base;
 }
 
-/** Где игла сейчас: последняя известная позиция плюс то, что прошло с тех пор. */
+/**
+ * Где игла сейчас: последняя известная позиция плюс то, что прошло с тех пор.
+ *
+ * `behindMs` — на сколько мы слышим музыку позже, чем её отправил издатель (запас буфера приёма,
+ * `MediaSession.musicPlayoutMs`, R03): позиция службы — время отправки, а игла должна совпадать со
+ * звуком у этого человека. На паузе звука нет — вычитать нечего; раньше нуля игла не уходит.
+ */
 export function playbackPosition(
   anchor: { position: number; at: number },
   now: number,
   playing: boolean,
   limit: number,
+  behindMs = 0,
 ) {
-  const moved = playing ? Math.max(0, now - anchor.at) / 1000 : 0;
-  return Math.min(limit, anchor.position + moved);
+  if (!playing) return Math.min(limit, anchor.position);
+  const moved = Math.max(0, now - anchor.at) / 1000;
+  return Math.min(limit, Math.max(0, anchor.position + moved - behindMs / 1000));
+}
+
+/** После скольких секунд трека «назад» начинает его сначала, а не возвращает предыдущий. */
+export const RESTART_AFTER = 3;
+
+/**
+ * Предсказание «назад» (R44, DECISIONS Р-14): дольше трёх секунд — тот же трек с начала. Иначе служба
+ * вернёт предыдущий из своей истории, а какой он — знает только она: ждём её ответа.
+ */
+export function afterPrevious(position: number): Partial<MusicState> | undefined {
+  return position > RESTART_AFTER ? { position: 0 } : undefined;
 }
 
 /** Очередь после «следующий трек»: с повтором он уходит в конец, без — насовсем. */

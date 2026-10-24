@@ -2455,10 +2455,7 @@
     },
     "platforms": {
       "label": "Plataforma",
-      "tiles": "Plataformas de música",
       "none": "Las plataformas de música están desactivadas en este servidor; suena lo que ya está en la cola.",
-      "playing": "Sonando ahora:",
-      "paused": "En pausa:",
       "youtube": {
         "hint": "Canciones, videoclips y conciertos",
         "find": "Buscar en YouTube o pegar un enlace",
@@ -2486,7 +2483,7 @@
         "connecting": "Conectando la música",
         "empty": "La cola está vacía",
         "paused": "En pausa",
-        "playing": "Sonando ahora",
+        "playing": "Reproduciendo",
         "starved": "La fuente no da abasto",
         "reconnecting": "Reconectando la música"
       },
@@ -2499,7 +2496,8 @@
       "pause": "Pausar la música",
       "next": "Siguiente canción",
       "repeat": "Repetir la cola",
-      "volume": "Tu volumen de la música"
+      "volume": "Tu volumen de la música",
+      "previous": "Canción anterior"
     },
     "queue": {
       "label": "Cola de música",
@@ -2510,7 +2508,10 @@
       "actions": "Acciones: {{title}}",
       "playNext": "Reproducir a continuación",
       "remove": "Quitar de la cola",
-      "hint": "Arrastra o usa las flechas arriba y abajo para mover la canción"
+      "hint": "Arrastra o usa las flechas arriba y abajo para mover la canción",
+      "count_one": "{{count}} canción",
+      "count_many": "{{count}} canciones",
+      "count_other": "{{count}} canciones"
     },
     "search": {
       "notOurs": "La música no abre este tipo de enlaces. Valen YouTube, SoundCloud y Yandex Music",
@@ -2564,6 +2565,12 @@
       "haveToken": "Ya tengo un token de acceso",
       "tokenLabel": "Token de Yandex Music",
       "connectToken": "Conectar el token"
+    },
+    "mini": {
+      "label": "Minirreproductor",
+      "open": "Abrir reproductor",
+      "offer": "Activar música",
+      "dismiss": "No sugerir durante esta reunión"
     }
   },
   "integrations": {
@@ -2963,7 +2970,9 @@
     "SUPPORT_TEXT": "Describe qué ha pasado — al menos en una frase",
     "CINEMA_TIMEOUT": "La plataforma no respondió a tiempo: inténtalo de nuevo",
     "CINEMA_UNREACHABLE": "Esta plataforma no está disponible desde este servidor",
-    "CLOSED_BY_SERVER": "El propietario del servidor finalizó esta reunión: todavía no se puede volver a abrir"
+    "CLOSED_BY_SERVER": "El propietario del servidor finalizó esta reunión: todavía no se puede volver a abrir",
+    "MUSIC_TIMEOUT": "La plataforma no respondió a tiempo: inténtalo de nuevo",
+    "MUSIC_UNREACHABLE": "Esta plataforma no está disponible desde este servidor"
   },
   "activity": {
     "title": "Actividad",

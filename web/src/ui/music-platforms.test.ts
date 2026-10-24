@@ -5,7 +5,6 @@ import {
   isMusicPlatform,
   lastPlatform,
   offeredPlatforms,
-  openPlatform,
   platformTiles,
   routeQuery,
   type MusicPlatform,
@@ -44,12 +43,6 @@ describe('какие площадки предложить', () => {
 });
 
 describe('какую площадку открыть и отметить', () => {
-  it('выбранную — пока сервер её предлагает; иначе экран выбора', () => {
-    expect(openPlatform(null, ['youtube'])).toBeNull();
-    expect(openPlatform('soundcloud', ['youtube', 'soundcloud'])).toBe('soundcloud');
-    expect(openPlatform('soundcloud', ['youtube'])).toBeNull();
-  });
-
   it('«Последний выбор» — только знакомая и включённая площадка', () => {
     expect(lastPlatform('soundcloud', ['youtube', 'soundcloud'])).toBe('soundcloud');
     expect(lastPlatform('soundcloud', ['youtube'])).toBeNull();

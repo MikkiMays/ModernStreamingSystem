@@ -3,7 +3,9 @@ import { GripVertical, ListStart, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type MusicTrack } from '../core/services';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
+import { paint } from './brands';
 import { MusicCover } from './MusicCover';
+import { sourceBrand } from './music-platforms';
 import { afterMove, afterPromote, afterRemove, dropIndex, formatDuration } from './music-playback';
 
 interface Drag {
@@ -17,8 +19,8 @@ interface Drag {
 }
 
 /**
- * «Далее» (T18): что заиграет после текущего трека. Играющий здесь не повторяется — он в карточке
- * «Сейчас играет» выше.
+ * «Далее в очереди · N треков» (T18, R44): что заиграет после текущего трека. Играющий здесь не
+ * повторяется — он в карточке «Сейчас играет» выше; пустого хвоста нет вовсе (R42).
  *
  * ПЕРЕСТАНОВКА — ЗА РУЧКУ, ЛЮБЫМ УКАЗАТЕЛЕМ. На главной (E02) касание не тащит строку: там палец
  * листает список. Здесь тянут только за ручку — отдельный элемент управления, который список не
@@ -121,7 +123,9 @@ export function MusicQueue({
     >
       <div className="music-queue__head">
         <h4>{t(($) => $.music.queue.next)}</h4>
-        <span className="music-queue__count">{upcoming.length}</span>
+        <span className="music-queue__count">
+          {t(($) => $.music.queue.count, { count: upcoming.length })}
+        </span>
         <Button
           variant="quiet"
           size="sm"
@@ -169,7 +173,9 @@ export function MusicQueue({
                 <small>
                   <span>{track.artist || track.addedBy}</span>
                   {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
-                  <span className="music-queue__source">{musicSourceName(t, track.source)}</span>
+                  <span className="music-queue__source" style={paint(sourceBrand(track.source))}>
+                    {musicSourceName(t, track.source)}
+                  </span>
                 </small>
               </div>
               <span className="music-queue__time">{formatDuration(track.duration)}</span>

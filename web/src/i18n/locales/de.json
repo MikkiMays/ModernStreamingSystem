@@ -2426,10 +2426,7 @@
     },
     "platforms": {
       "label": "Plattform",
-      "tiles": "Musikplattformen",
       "none": "Die Musikplattformen sind auf diesem Server ausgeschaltet – es läuft, was schon in der Warteschlange ist.",
-      "playing": "Läuft gerade:",
-      "paused": "Pausiert:",
       "youtube": {
         "hint": "Songs, Musikvideos und Konzerte",
         "find": "Auf YouTube suchen oder Link einfügen",
@@ -2457,7 +2454,7 @@
         "connecting": "Musik wird verbunden",
         "empty": "Warteschlange leer",
         "paused": "Pausiert",
-        "playing": "Läuft gerade",
+        "playing": "Spielt",
         "starved": "Quelle kommt nicht nach",
         "reconnecting": "Musik wird neu verbunden"
       },
@@ -2470,7 +2467,8 @@
       "pause": "Musik pausieren",
       "next": "Nächster Titel",
       "repeat": "Warteschlange wiederholen",
-      "volume": "Deine Musiklautstärke"
+      "volume": "Deine Musiklautstärke",
+      "previous": "Vorheriger Titel"
     },
     "queue": {
       "label": "Musik-Warteschlange",
@@ -2481,7 +2479,9 @@
       "actions": "Aktionen: {{title}}",
       "playNext": "Als Nächstes abspielen",
       "remove": "Aus der Warteschlange entfernen",
-      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben"
+      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben",
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel"
     },
     "search": {
       "notOurs": "Solche Links öffnet die Musik nicht. YouTube, SoundCloud und Yandex Music funktionieren",
@@ -2535,6 +2535,12 @@
       "haveToken": "Ich habe schon einen Zugriffstoken",
       "tokenLabel": "Yandex-Music-Token",
       "connectToken": "Token verbinden"
+    },
+    "mini": {
+      "label": "Mini-Player",
+      "open": "Player öffnen",
+      "offer": "Musik einschalten",
+      "dismiss": "In diesem Meeting nicht mehr vorschlagen"
     }
   },
   "integrations": {
@@ -2933,7 +2939,9 @@
     "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz",
     "CINEMA_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
     "CINEMA_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar",
-    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen"
+    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen",
+    "MUSIC_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+    "MUSIC_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar"
   },
   "activity": {
     "title": "Aktivität",
