@@ -2,7 +2,7 @@ import { Popover as BasePopover } from '@base-ui/react/popover';
 import { X } from 'lucide-react';
 import type { CSSProperties, ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Drawer } from './Drawer';
+import { Drawer, type DrawerProps } from './Drawer';
 import { IconButton } from './IconButton';
 import { PHONE_QUERY, useMediaQuery } from './useMediaQuery';
 
@@ -30,6 +30,8 @@ export interface PopoverProps {
   width?: number | 'trigger';
   modal?: boolean;
   mobile?: 'drawer' | 'popover';
+  /** Высота листа на телефоне: виджету музыки — 85 % экрана (DESIGN → «Плеер»). */
+  drawerHeight?: DrawerProps['height'];
   closeLabel?: string;
   className?: string;
 }
@@ -47,6 +49,7 @@ export function Popover({
   width,
   modal = false,
   mobile = 'drawer',
+  drawerHeight,
   closeLabel,
   className,
 }: PopoverProps) {
@@ -60,6 +63,7 @@ export function Popover({
         defaultOpen={defaultOpen}
         onOpenChange={onOpenChange}
         title={title}
+        height={drawerHeight}
         closeLabel={closeLabel}
         className={className}
       >

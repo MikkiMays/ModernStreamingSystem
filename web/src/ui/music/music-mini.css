@@ -1,0 +1,118 @@
+/*
+  Музыка поверх звонка (R31, DESIGN → «Мини-плеер и виджет»). Только токены. Стекло сцены, как у
+  чипов интеграций (`stage-overlay.css`); цвет — площадки, откуда трек (`--platform`): полоса хода
+  внизу и эквалайзер. На телефоне полоса — только обложка и ⏯: остальное — в листе по нажатию.
+*/
+.music-mini {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 320px;
+  max-width: 100%;
+  height: 56px;
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-3);
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-1);
+  color: var(--stage-text);
+}
+.music-mini__track {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.music-mini__track:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset-inset);
+}
+.music-mini__track .music-cover {
+  border-radius: var(--radius-0);
+}
+.music-mini__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.music-mini__text strong,
+.music-mini__text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-mini__text strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.music-mini__text small {
+  color: var(--stage-muted);
+  font-size: var(--text-xs);
+}
+.music-mini .music-eq {
+  margin-inline-end: var(--space-1);
+}
+/* Ход трека — полоса 2 px по низу, цветом площадки. */
+.music-mini__progress {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 0;
+  width: calc(var(--music-progress, 0) * 100%);
+  height: var(--hairline-strong);
+  background: var(--platform, var(--brand-music));
+  transition: width 250ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-mini__progress {
+    transition: none;
+  }
+}
+
+/* Предложение включить музыку — чип-призрак и крестик «не предлагать до конца встречи». */
+.music-offer {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.stage-chip.music-offer__chip {
+  background: var(--stage-glass);
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-2);
+}
+.music-offer__dismiss.ui-icon-button {
+  width: var(--control-xs);
+  height: var(--control-xs);
+  border-radius: var(--radius-full);
+  background: var(--stage-glass);
+}
+
+@media (max-width: 767px) {
+  .music-mini {
+    flex: none;
+    width: auto;
+    height: var(--control-sm);
+    padding: 0 2px 0 4px;
+  }
+  .music-mini__track .music-cover {
+    width: 28px;
+    height: 28px;
+  }
+  .music-mini__text,
+  .music-mini .music-eq,
+  .music-mini__step,
+  .music-mini__open {
+    display: none;
+  }
+}

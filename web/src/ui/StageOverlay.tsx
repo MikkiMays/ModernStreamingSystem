@@ -5,7 +5,7 @@ import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import type { MusicState } from '../core/services';
 import type { Translate } from '../i18n';
-import { useMusic } from './music/useMusic';
+import { MusicMini, useMusicMini } from './music/MusicMini';
 import { useStore } from './primitives';
 import './stage-overlay.css';
 
@@ -18,7 +18,8 @@ import './stage-overlay.css';
  * один над всеми ветками сцены (разговор, чужой экран, столы, кинозал): чипы-«стекло» — игра, кино,
  * музыка; нажатие открывает панель интеграций. Пустой слой не видно и диктору не слышно.
  *
- * `children` — место для мини-плеера музыки (R31): он встаёт в этот же ряд.
+ * Музыка здесь — мини-плеер (R31, `music/MusicMini`): играет трек — полоса с ⏮ ⏯ ⏭ и виджетом плеера по
+ * нажатию; идёт игра, а музыки нет, — предложение её включить. `children` — ещё что-то в тот же ряд.
  */
 export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'cinema' | 'music';
 
@@ -156,10 +157,6 @@ export function stageChips(
   return chips;
 }
 
-const LIVE: readonly string[] = ['JOINING', 'CONNECTED', 'RECOVERING'];
-const hasMusicBot = (snapshot: Snapshot) =>
-  snapshot.participants.some((p) => p.service === 'music' && LIVE.includes(p.status));
-
 export function StageOverlay({
   meeting,
   onOpenServices,
@@ -172,16 +169,11 @@ export function StageOverlay({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
-  // Состояние музыки — общим хуком встречи (`useMusic`): с панелью и мини-плеером один опрос на всех.
-  // Пока бота музыки во встрече нет, спрашивать службу незачем.
-  const musicView = useMusic(meeting, { poll: hasMusicBot(snapshot) });
-  const music: MusicPresence = {
-    present: musicView.present,
-    state: musicView.state,
-    failed: musicView.failed,
-  };
-  const chips = stageChips(t, snapshot, music, stageShows(snapshot, !!viewing));
-  const empty = chips.length === 0 && !children;
+  // Музыка — мини-плеером или предложением её включить (R31), а не чипом, который открывал панель:
+  // виджет управляет музыкой, не переключая интеграции. Чипы — игра и кино.
+  const mini = useMusicMini(meeting);
+  const chips = stageChips(t, snapshot, { present: false }, stageShows(snapshot, !!viewing));
+  const empty = chips.length === 0 && mini.view.kind === 'none' && !children;
   return (
     <div
       className="stage-overlay"
@@ -215,6 +207,7 @@ export function StageOverlay({
           </button>
         );
       })}
+      <MusicMini meeting={meeting} mini={mini} />
       {children}
     </div>
   );
