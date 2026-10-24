@@ -29,6 +29,22 @@ RECONNECT_WINDOW_MS = 120000
 # Сколько участник может висеть в JOINING без медиа и всё ещё считаться человеком (A2,
 # `docs/abuse-model.md`): дольше — забытая вкладка или скрипт, и музыка ради него не играет.
 JOINING_GRACE_MS = 30_000
+# «Назад» в плеере (R44, DECISIONS Р-14): сколько сыгранных треков помнится вместе с файлами и после
+# скольких секунд трека «назад» начинает его сначала, а не возвращает предыдущий — как у любого плеера.
+HISTORY = 20
+RESTART_AFTER = 3.0
+
+
+def played(state: dict, track: dict) -> list[dict]:
+    """
+    Трек сыгран — доигран или пропущен: в историю «назад». Отдаёт треки, выпавшие из истории сверх
+    `HISTORY`, — их файлы больше никому не нужны, если их не держит очередь (`Store.prune_files`).
+    """
+    history = state.setdefault("history", [])
+    history.append(track)
+    dropped = history[:-HISTORY]
+    del history[:-HISTORY]
+    return dropped
 
 
 def present(participants: list[dict], own_id: str, joining: dict[str, int], at: int) -> list[dict]:
@@ -133,10 +149,11 @@ class Music:
             raise HTTPException(409, "В очереди уже 100 треков")
         room_size = sum(size_of(self.store.files / t["file"]) for t in state["queue"])
         total = sum(size_of(p) for p in self.store.files.iterdir())
-        if (
-            room_size + incoming > MAX_ROOM
-            or total + (0 if already_stored else incoming) > MAX_TOTAL
-        ):
+        adding = 0 if already_stored else incoming
+        if total + adding > MAX_TOTAL and self.store.shed_history():
+            # История «назад» — удобство, а не очередь: место под новый трек сначала берётся у неё.
+            total = sum(size_of(p) for p in self.store.files.iterdir())
+        if room_size + incoming > MAX_ROOM or total + adding > MAX_TOTAL:
             raise HTTPException(
                 413, "Хранилище музыки заполнено. Удалите треки из очереди"
             )
@@ -171,6 +188,8 @@ class Music:
             previous_files = [
                 name for track in state["queue"] for name in files_of(track)
             ]
+            # Выпавшие из истории сверх `HISTORY`: их файлы уходят вместе с прежними файлами очереди.
+            dropped: list[dict] = []
             action = command["action"]
             if action == "pause":
                 state["paused"] = True
@@ -181,7 +200,10 @@ class Music:
                     track = state["queue"].pop(0)
                     if state["repeat"]:
                         state["queue"].append(track)
+                    dropped = played(state, track)
                 state["position"] = 0.0
+            elif action == "previous":
+                self.back(state)
             elif action == "stop":
                 state.update(paused=True, position=0.0)
             elif action == "clear":
@@ -230,13 +252,52 @@ class Music:
                 state["queue"].insert(place, state["queue"].pop(index))
             else:
                 raise HTTPException(400, "Неизвестная музыкальная команда")
-            if action in ("pause", "play", "skip", "stop", "seek"):
+            if action in ("pause", "play", "skip", "stop", "seek", "previous"):
                 state["epoch"] += 1
             state["error"] = None
             self.store.save(state)
             self.store.remember(scope, command["commandId"], {"request": fingerprint})
-            self.store.prune_files(previous_files)
+            self.store.prune_files(
+                previous_files + [name for track in dropped for name in files_of(track)]
+            )
             return self.store.public(room_id)
+
+    def back(self, state: dict) -> None:
+        """
+        «Назад»: трек идёт дольше `RESTART_AFTER` — он же сначала; иначе — последний сыгранный снова
+        первым и с начала, а игравший становится следующим. Сыгранного нет — тоже сначала.
+
+        С повтором сыгранный уже стоит в конце очереди — он переезжает вперёд, а не встаёт вторым
+        экземпляром: номер трека в очереди один. Трек истории, чей файл уже убран (срок, место), —
+        пропускается.
+        """
+        history = state.setdefault("history", [])
+        if not state["queue"] or state["position"] <= RESTART_AFTER:
+            while history:
+                back = history.pop()
+                index = next(
+                    (i for i, t in enumerate(state["queue"]) if t["id"] == back["id"]),
+                    None,
+                )
+                if index is not None:
+                    state["queue"].insert(0, state["queue"].pop(index))
+                    break
+                if (self.store.files / back["file"]).is_file():
+                    state["queue"].insert(0, back)
+                    break
+        state["position"] = 0.0
+
+    def finished(self, latest: dict) -> None:
+        """Издатель доиграл первый трек: он уходит из очереди в историю «назад» (с повтором — и в конец)."""
+        done = latest["queue"].pop(0)
+        if latest["repeat"]:
+            latest["queue"].append(done)
+        dropped = played(latest, done)
+        latest.update(position=0.0, epoch=latest["epoch"] + 1)
+        self.store.save(latest)
+        self.store.prune_files(
+            files_of(done) + [name for track in dropped for name in files_of(track)]
+        )
 
     async def run(self, room_id: str):
         """Держит музыку в комнате: издатель, очередь и позиция.
@@ -406,12 +467,7 @@ class Music:
                     # секунду незачем: хранилище обновляется, файл — раз в секунду.
                     self.store.save(latest, changed=False)
                 elif kind == "finished":
-                    finished = latest["queue"].pop(0)
-                    if latest["repeat"]:
-                        latest["queue"].append(finished)
-                    latest.update(position=0.0, epoch=latest["epoch"] + 1)
-                    self.store.save(latest)
-                    self.store.prune_files(files_of(finished))
+                    self.finished(latest)
                     playing = None
                 elif kind == "failed":
                     await self.failed_track(

@@ -1146,7 +1146,19 @@
       "name": "Yandex Music",
       "label": "Yandex-Music-Token",
       "placeholder": "Token einfügen",
-      "hint": "Der Token wird auf diesem Gerät gespeichert und verwendet, wenn du Yandex Music zu einem Meeting hinzufügst."
+      "tabs": {
+        "label": "So verbindest du",
+        "device": "Per QR-Code",
+        "token": "Per Token"
+      },
+      "howto": {
+        "title": "Wo bekomme ich den Token",
+        "signIn": "Melde dich in diesem Browser bei Yandex an.",
+        "allow": "Öffne die Berechtigungsseite von Yandex Music und klicke auf „Erlauben“.",
+        "open": "Yandex-Seite öffnen",
+        "copy": "Kopiere aus der Adressleiste den Text zwischen „access_token=“ und „&“ und füge ihn oben ins Feld ein.",
+        "kept": "Der Token wird nur auf diesem Gerät gespeichert und automatisch eingesetzt, wenn du in einem Meeting Musik einschaltest."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2412,10 +2424,7 @@
     },
     "platforms": {
       "label": "Plattform",
-      "tiles": "Musikplattformen",
       "none": "Die Musikplattformen sind auf diesem Server ausgeschaltet – es läuft, was schon in der Warteschlange ist.",
-      "playing": "Läuft gerade:",
-      "paused": "Pausiert:",
       "youtube": {
         "hint": "Songs, Musikvideos und Konzerte",
         "find": "Auf YouTube suchen oder Link einfügen",
@@ -2434,7 +2443,7 @@
       "upload": {
         "name": "Eigene Dateien",
         "hint": "Audiodateien von diesem Gerät",
-        "drop": "Zieh Audiodateien hierher oder wähle sie auf deinem Gerät aus."
+        "drop": "Zieh Audiodateien hierher"
       }
     },
     "player": {
@@ -2443,7 +2452,7 @@
         "connecting": "Musik wird verbunden",
         "empty": "Warteschlange leer",
         "paused": "Pausiert",
-        "playing": "Läuft gerade",
+        "playing": "Spielt",
         "starved": "Quelle kommt nicht nach",
         "reconnecting": "Musik wird neu verbunden"
       },
@@ -2456,19 +2465,21 @@
       "pause": "Musik pausieren",
       "next": "Nächster Titel",
       "repeat": "Warteschlange wiederholen",
-      "volume": "Deine Musiklautstärke"
+      "volume": "Deine Musiklautstärke",
+      "previous": "Vorheriger Titel"
     },
     "queue": {
       "label": "Musik-Warteschlange",
       "next": "Als Nächstes",
       "clear": "Leeren",
-      "empty": "Danach kommt nichts: Der oben gefundene Titel läuft als Nächstes.",
       "moved": "„{{title}}“ – Nr. {{position}} nach dem aktuellen",
       "reorder": "Verschieben: {{title}}",
       "actions": "Aktionen: {{title}}",
       "playNext": "Als Nächstes abspielen",
       "remove": "Aus der Warteschlange entfernen",
-      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben"
+      "hint": "Zieh den Titel oder nutze die Pfeiltasten nach oben und unten, um ihn zu verschieben",
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel"
     },
     "search": {
       "notOurs": "Solche Links öffnet die Musik nicht. YouTube, SoundCloud und Yandex Music funktionieren",
@@ -2502,7 +2513,7 @@
       "input": "Musikdateien hinzufügen",
       "button": "Dateien hochladen",
       "cancel": "Abbrechen",
-      "hint": "Du kannst sie auch hineinziehen: bis zu {{limit}} MB und 60 Minuten pro Titel"
+      "hint": "bis zu {{limit}} MB und 60 Minuten pro Titel"
     },
     "yandex": {
       "connected": "Konto verbunden",
@@ -2510,7 +2521,6 @@
       "tokenConnected": "Mit gespeichertem Token verbunden",
       "tokenStale": "Der gespeicherte Token funktioniert nicht mehr. Melde dich bei Yandex an oder gib einen neuen Token ein.",
       "checking": "Verbindung wird geprüft…",
-      "hint": "Das Konto des Raums: Darüber suchen und spielen alle Teilnehmer Titel ab",
       "badge": "Verbunden",
       "connect": "Verbinden",
       "switch": "Konto wechseln",
@@ -2523,7 +2533,23 @@
       "haveToken": "Ich habe schon einen Zugriffstoken",
       "tokenLabel": "Yandex-Music-Token",
       "connectToken": "Token verbinden",
-      "note": "Das Passwort gibst du auf der Yandex-Seite ein. Für ganze Titel brauchst du ein Konto mit Abo. Funktioniert über einen inoffiziellen Connector für Yandex Music."
+      "device": {
+        "scan": "Richte die Handykamera auf den QR-Code",
+        "code": "Gib auf der Yandex-Seite den Code ein",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "open": "Anmeldeseite öffnen",
+        "waiting": "Warten auf Bestätigung…",
+        "starting": "Code wird bei Yandex angefordert…",
+        "confirm": "Bestätige die Anmeldung – die Verbindung erscheint hier von selbst",
+        "refresh": "Neuen Code holen"
+      }
+    },
+    "mini": {
+      "label": "Mini-Player",
+      "open": "Player öffnen",
+      "offer": "Musik einschalten",
+      "dismiss": "In diesem Meeting nicht mehr vorschlagen"
     }
   },
   "integrations": {
@@ -2922,7 +2948,9 @@
     "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz",
     "CINEMA_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
     "CINEMA_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar",
-    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen"
+    "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen",
+    "MUSIC_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+    "MUSIC_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar"
   },
   "activity": {
     "title": "Aktivität",

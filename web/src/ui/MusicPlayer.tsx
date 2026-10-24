@@ -1,40 +1,42 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { AudioLines, Pause, Play, Repeat2, Shuffle, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { coverUrl, musicSourceName, type MusicState } from '../core/services';
-import { Badge, IconButton, Slider } from './kit';
+import type { Translate } from '../i18n';
+import { paint } from './brands';
+import { IconButton, Slider } from './kit';
 import { MusicCover } from './MusicCover';
-import { afterSkip, formatDuration, playbackPosition } from './music-playback';
+import { afterPrevious, afterSkip, formatDuration, playbackPosition } from './music-playback';
+import { sourceBrand } from './music-platforms';
+
+export type PlayerAction = 'play' | 'pause' | 'skip' | 'previous' | 'shuffle' | 'repeat';
+
+/** Что сейчас со звуком — словами. «Играет» — только когда звук и правда идёт. */
+export function playerStatus(t: Translate, state: MusicState): string {
+  const current = state.queue[0];
+  // Голодающий источник и переподключение издателя (R09/R04) на слух — тишина, и подпись обязана это
+  // говорить, а не «Играет».
+  if (state.status === 'connecting') return t(($) => $.music.player.status.connecting);
+  if (state.status === 'reconnecting') return t(($) => $.music.player.status.reconnecting);
+  if (!current) return t(($) => $.music.player.status.empty);
+  if (state.paused) return t(($) => $.music.player.status.paused);
+  if (state.status === 'starved') return t(($) => $.music.player.status.starved);
+  return t(($) => $.music.player.status.playing);
+}
+
+/** Звук идёт прямо сейчас: есть трек, служба играет и не на паузе. */
+export function soundsNow(state: MusicState): boolean {
+  return !!state.queue[0] && state.status === 'playing' && !state.paused;
+}
 
 /**
- * «Сейчас играет» (T18): обложка, название, источник, игла, пульт и громкость у себя — одной
- * карточкой. Под обложкой — её же размытый свет: единственное украшение панели, и оно про трек, а
- * не про оформление. Светит только под картинкой, не под текстом, — контраст букв от обложки не
- * зависит. Нет обложки — нет и света.
+ * Игла трека с ходом времени между опросами: опрос отдаёт позицию раз в две секунды, а игла идёт
+ * плавно. `behind` — на сколько мы слышим музыку позже издателя (`MediaSession.musicPlayoutMs`): игла
+ * совпадает со звуком, а не с тем, что издатель уже отправил.
  */
-export function MusicPlayer({
-  state,
-  canUse,
-  volume,
-  onVolume,
-  onCommand,
-  onSeek,
-}: {
-  state: MusicState;
-  canUse: boolean;
-  volume: number;
-  onVolume: (value: number) => void;
-  onCommand: (
-    action: 'play' | 'pause' | 'skip' | 'shuffle' | 'repeat',
-    extra?: { enabled?: boolean },
-    patch?: Partial<MusicState>,
-  ) => void;
-  onSeek: (position: number) => void;
-}) {
-  const { t } = useTranslation();
+export function usePlayback(state: MusicState, behind?: () => number) {
   const current = state.queue[0];
-  const playing = !!current && state.status === 'playing' && !state.paused;
-  const [dragging, setDragging] = useState<number | null>(null);
+  const playing = soundsNow(state);
   const [now, setNow] = useState(Date.now);
   // Опрос отдаёт новый объект каждые две секунды, даже когда ничего не сдвинулось. Привязка
   // к самой позиции, а не к тождеству объекта, не даёт отсчёту начинаться заново — и делает
@@ -48,49 +50,71 @@ export function MusicPlayer({
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [playing, current?.id]);
-  const position = playbackPosition(anchor.current, now, playing, current?.duration ?? state.position);
+  return playbackPosition(
+    anchor.current,
+    now,
+    playing,
+    current?.duration ?? state.position,
+    playing ? (behind?.() ?? 0) : 0,
+  );
+}
+
+/**
+ * «Сейчас играет» (R44, по r103-32): «Сейчас играет · площадка», обложка, название, исполнитель и
+ * состояние звука; игла с временем по краям; shuffle · ⏮ · ⏯ · ⏭ · repeat; громкость у себя. Цвет —
+ * площадки, откуда трек (`brands.ts`, R33): полоса иглы, круг ⏯ и эквалайзер — красный YouTube,
+ * жёлтый Яндекс, зелёный своих файлов; кнопки приложения остаются цветом Cord.
+ *
+ * ⏮ — как у любого плеера: дольше трёх секунд трека — с начала, иначе предыдущий трек (служба помнит
+ * сыгранные, `previous`). Перетаскивание иглы не шлёт `seek`, пока её не отпустили.
+ */
+export function MusicPlayer({
+  state,
+  canUse,
+  volume,
+  onVolume,
+  onCommand,
+  onSeek,
+  behind,
+}: {
+  state: MusicState;
+  canUse: boolean;
+  volume: number;
+  onVolume: (value: number) => void;
+  onCommand: (action: PlayerAction, extra?: { enabled?: boolean }, patch?: Partial<MusicState>) => void;
+  onSeek: (position: number) => void;
+  /** На сколько миллисекунд мы слышим музыку позже издателя. */
+  behind?: () => number;
+}) {
+  const { t } = useTranslation();
+  const current = state.queue[0];
+  const playing = soundsNow(state);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const position = usePlayback(state, behind);
   const commit = (value: number) => {
     setDragging(null);
     onSeek(value);
   };
-  // «Сейчас играет» — только когда звук и правда идёт: голодающий источник и переподключение
-  // издателя (R09/R04) на слух — тишина, и подпись обязана это говорить.
-  const status =
-    state.status === 'connecting'
-      ? t(($) => $.music.player.status.connecting)
-      : state.status === 'reconnecting'
-        ? t(($) => $.music.player.status.reconnecting)
-        : !current
-          ? t(($) => $.music.player.status.empty)
-          : state.paused
-            ? t(($) => $.music.player.status.paused)
-            : state.status === 'starved'
-              ? t(($) => $.music.player.status.starved)
-              : t(($) => $.music.player.status.playing);
   const percent = Math.round(volume * 100);
-  const backdrop = current?.cover
-    ? ({ '--music-cover': `url("${coverUrl(current.cover)}")` } as CSSProperties)
-    : undefined;
+  const backdrop = current?.cover ? { '--music-cover': `url("${coverUrl(current.cover)}")` } : {};
+  const style = { ...paint(sourceBrand(current?.source ?? 'upload')), ...backdrop } as CSSProperties;
   return (
     <section
       className="music-now"
       aria-label={t(($) => $.music.player.label)}
       data-playing={playing || undefined}
-      data-backdrop={backdrop ? 'true' : undefined}
-      style={backdrop}
+      data-backdrop={current?.cover ? 'true' : undefined}
+      style={style}
     >
+      <h4 className="music-now__label">
+        {t(($) => $.music.player.label)}
+        {current && <span className="music-now__source">{musicSourceName(t, current.source)}</span>}
+      </h4>
       <div className="music-now__head">
         <span className="music-now__art">
           <MusicCover track={current} size="lg" />
         </span>
         <div className="music-now__meta">
-          <span className="music-now__state">
-            <span className="music-now__status">
-              {playing && <AudioLines size={14} aria-hidden="true" />}
-              {status}
-            </span>
-            {current && <Badge>{musicSourceName(t, current.source)}</Badge>}
-          </span>
           <strong className="music-now__title">
             {current?.title ?? t(($) => $.music.player.firstTrack)}
           </strong>
@@ -99,10 +123,17 @@ export function MusicPlayer({
               ? current.artist || t(($) => $.music.player.addedBy, { name: current.addedBy })
               : t(($) => $.music.player.emptyHint)}
           </span>
+          {current && (
+            <span className="music-now__status" data-sounding={playing || undefined}>
+              {playing && <Equalizer />}
+              {playerStatus(t, state)}
+            </span>
+          )}
         </div>
       </div>
       {current && (
         <div className="music-now__progress">
+          <span className="music-now__time">{formatDuration(dragging ?? position)}</span>
           <Slider
             min={0}
             max={Math.max(1, current.duration)}
@@ -111,16 +142,9 @@ export function MusicPlayer({
             label={t(($) => $.music.player.position)}
             value={dragging ?? position}
             onChange={(e) => setDragging(Number(e.target.value))}
-            onPointerUp={(e) => commit(Number(e.currentTarget.value))}
-            onKeyUp={(e) => {
-              if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key))
-                commit(Number(e.currentTarget.value));
-            }}
+            onValueCommitted={commit}
           />
-          <div className="music-now__times">
-            <span>{formatDuration(dragging ?? position)}</span>
-            <span>{formatDuration(current.duration)}</span>
-          </div>
+          <span className="music-now__time">{formatDuration(current.duration)}</span>
         </div>
       )}
       <div className="music-now__controls">
@@ -131,6 +155,14 @@ export function MusicPlayer({
           onClick={() => onCommand('shuffle')}
         >
           <Shuffle size={18} />
+        </IconButton>
+        <IconButton
+          label={t(($) => $.music.player.previous)}
+          className="music-now__step"
+          disabled={!canUse || !current}
+          onClick={() => onCommand('previous', undefined, afterPrevious(position))}
+        >
+          <SkipBack size={20} />
         </IconButton>
         <IconButton
           label={state.paused ? t(($) => $.music.player.resume) : t(($) => $.music.player.pause)}
@@ -148,7 +180,7 @@ export function MusicPlayer({
         </IconButton>
         <IconButton
           label={t(($) => $.music.player.next)}
-          className="music-now__toggle"
+          className="music-now__step"
           disabled={!canUse || !current}
           onClick={() => onCommand('skip', undefined, afterSkip(state))}
         >
@@ -166,7 +198,7 @@ export function MusicPlayer({
         </IconButton>
       </div>
       {state.participantId && (
-        <div className="music-now__volume">
+        <div className="music-now__volume" title={t(($) => $.music.player.volume)}>
           {percent === 0 ? (
             <VolumeX size={16} aria-hidden="true" />
           ) : (
@@ -191,5 +223,16 @@ export function MusicPlayer({
         </div>
       )}
     </section>
+  );
+}
+
+/** Три полоски цвета площадки: единственное, что движется само, — потому что это звук. */
+export function Equalizer() {
+  return (
+    <span className="music-eq" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }

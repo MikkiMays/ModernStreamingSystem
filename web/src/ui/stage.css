@@ -36,12 +36,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
-/* Панель — своя колонка с 1200 px; ручка лежит на стыке, а не занимает место между ними. */
+/*
+  Панель — своя колонка с 1200 px: карточка над тем же тёмным полем, что и плитки (R32), поэтому поле
+  под колонкой — цвета сцены. Ручка лежит посередине зазора между плиткой и карточкой, а не занимает
+  место между ними.
+*/
 .meeting-body.panel-open {
   grid-template-columns: minmax(0, 1fr) auto var(--panel-width);
+  background: var(--stage-bg);
 }
 .meeting-body > .panel-resizer {
-  margin-inline: -6px;
+  margin-inline: calc(var(--space-3) * -1) 0;
   z-index: var(--z-panel);
 }
 .stage-wrap {
@@ -920,7 +925,8 @@ button.watch-stream.is-stop:hover {
 /*
   Панель встречи ниже 1200 px — полоса поверх сцены (`meeting-panel.css`), и плитки под ней теряли
   имена и «…» (аудит чёткости E15-B на 1024). Сцена отодвигается от полосы так же, как кинозал
-  (`cinema/cinema.css`): ширина полосы и тот же зазор 12 px за вычетом собственного поля сцены.
+  (`cinema/cinema.css`): ширина полосы, её поле от края (12 px, R32) и тот же зазор 12 px за вычетом
+  собственного поля сцены.
   Разговору и показу экрана места хватает с 768 px, где полоса ещё не стала листом снизу; столам —
   с 960, как кинозалу: уже этого стол рядом с полосой был бы мельче ногтя, и там он остаётся под ней.
 */
@@ -928,12 +934,12 @@ button.watch-stream.is-stop:hover {
   .meeting-page:not(.meeting-fullscreen)
     .meeting-body.panel-open
     .stage:is(.conversation-stage, .watch-stage) {
-    padding-right: calc(360px + 12px - 16px);
+    padding-right: calc(360px + 2 * 12px - 16px);
   }
 }
 @media (min-width: 960px) and (max-width: 1199px) {
   .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .stage:is(.poker-stage, .room-game-stage) {
-    padding-right: calc(360px + 12px - 16px);
+    padding-right: calc(360px + 2 * 12px - 16px);
   }
 }
 @media (max-height: 600px) and (min-width: 768px) {

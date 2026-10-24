@@ -1133,7 +1133,19 @@
       "name": "Yandex Music",
       "label": "Yandex Music 令牌",
       "placeholder": "粘贴令牌",
-      "hint": "令牌保存在此设备上，在你把 Yandex Music 添加到会议时使用。"
+      "tabs": {
+        "label": "连接方式",
+        "device": "扫码",
+        "token": "令牌"
+      },
+      "howto": {
+        "title": "在哪里获取令牌",
+        "signIn": "在此浏览器中登录 Yandex。",
+        "allow": "打开 Yandex Music 授权页面并点击“允许”。",
+        "open": "打开 Yandex 页面",
+        "copy": "从地址栏复制“access_token=”和“&”之间的文本，粘贴到上面的输入框。",
+        "kept": "令牌只保存在此设备上，在会议中开启音乐时会自动使用。"
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2383,10 +2395,7 @@
     },
     "platforms": {
       "label": "平台",
-      "tiles": "音乐平台",
       "none": "此服务器已关闭音乐平台——队列中已有的内容会继续播放。",
-      "playing": "正在播放：",
-      "paused": "已暂停：",
       "youtube": {
         "hint": "歌曲、MV 和演唱会",
         "find": "在 YouTube 搜索或粘贴链接",
@@ -2405,7 +2414,7 @@
       "upload": {
         "name": "自己的文件",
         "hint": "此设备上的音频文件",
-        "drop": "把音频文件拖到这里，或在设备上选择文件。"
+        "drop": "把音频文件拖到这里"
       }
     },
     "player": {
@@ -2427,19 +2436,20 @@
       "pause": "暂停音乐",
       "next": "下一首",
       "repeat": "循环队列",
-      "volume": "你听到的音乐音量"
+      "volume": "你听到的音乐音量",
+      "previous": "上一首"
     },
     "queue": {
       "label": "音乐队列",
       "next": "接下来",
       "clear": "清空",
-      "empty": "后面没有曲目了：在上方找到的曲目会接着播放。",
       "moved": "“{{title}}”排在当前曲目后第 {{position}} 位",
       "reorder": "调整顺序：{{title}}",
       "actions": "操作：{{title}}",
       "playNext": "下一首播放",
       "remove": "从队列中移除",
-      "hint": "拖动或按上下方向键调整曲目顺序"
+      "hint": "拖动或按上下方向键调整曲目顺序",
+      "count_other": "{{count}} 首"
     },
     "search": {
       "notOurs": "音乐无法打开这类链接。支持 YouTube、SoundCloud 和 Yandex Music",
@@ -2473,7 +2483,7 @@
       "input": "添加音乐文件",
       "button": "上传文件",
       "cancel": "取消",
-      "hint": "也可以直接拖入：每首最大 {{limit}} MB、最长 60 分钟"
+      "hint": "每首最大 {{limit}} MB、最长 60 分钟"
     },
     "yandex": {
       "connected": "账号已连接",
@@ -2481,7 +2491,6 @@
       "tokenConnected": "已使用保存的令牌连接",
       "tokenStale": "保存的令牌已失效。请登录 Yandex 或输入新令牌。",
       "checking": "正在检查连接…",
-      "hint": "房间账号：所有参与者都通过它搜索和播放曲目",
       "badge": "已连接",
       "connect": "连接",
       "switch": "更换账号",
@@ -2494,7 +2503,23 @@
       "haveToken": "我已有访问令牌",
       "tokenLabel": "Yandex Music 令牌",
       "connectToken": "连接令牌",
-      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的 Yandex Music 连接器实现。"
+      "device": {
+        "scan": "用手机相机扫描二维码",
+        "code": "在 Yandex 页面输入验证码",
+        "copy": "复制",
+        "copied": "已复制",
+        "open": "打开登录页面",
+        "waiting": "正在等待确认…",
+        "starting": "正在向 Yandex 获取验证码…",
+        "confirm": "确认登录后，这里会自动连接",
+        "refresh": "获取新验证码"
+      }
+    },
+    "mini": {
+      "label": "迷你播放器",
+      "open": "打开播放器",
+      "offer": "开启音乐",
+      "dismiss": "本次会议不再提示"
     }
   },
   "integrations": {
@@ -2892,7 +2917,9 @@
     "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
     "CINEMA_TIMEOUT": "平台未及时响应——请重试",
     "CINEMA_UNREACHABLE": "此服务器无法访问该平台",
-    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开"
+    "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开",
+    "MUSIC_TIMEOUT": "平台未及时响应——请重试",
+    "MUSIC_UNREACHABLE": "此服务器无法访问该平台"
   },
   "activity": {
     "title": "活动",

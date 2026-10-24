@@ -147,6 +147,9 @@ class Store:
                 "repeat",
             ]
         } | {
+            # Есть ли куда «назад» (R44): история сыгранных — без самих треков, она служебная.
+            "previous": bool(value.get("history")),
+        } | {
             "queue": [
                 {
                     k: track[k]
@@ -265,13 +268,27 @@ class Store:
         )
 
     def referenced(self) -> set[str]:
-        """Файлы, которые держит хоть одна очередь: звук и обложки."""
+        """Файлы, которые держит хоть одна очередь или история «назад»: звук и обложки."""
         return {
             name
             for room in self.cache.values()
-            for track in room["queue"]
+            for track in [*room["queue"], *room.get("history", ())]
             for name in files_of(track)
         }
+
+    def shed_history(self) -> bool:
+        """
+        Забыть историю «назад» во всех комнатах и убрать её файлы, которых не держит ни одна очередь:
+        место на сервере кончилось, а история — удобство, а не очередь. `True` — было что забыть.
+        """
+        files = []
+        for room in self.rooms():
+            if room.get("history"):
+                files += [name for track in room["history"] for name in files_of(track)]
+                room["history"] = []
+                self.save(room)
+        self.prune_files(files)
+        return bool(files)
 
     def prune_files(self, files: list[str]):
         referenced = self.referenced()
@@ -302,6 +319,19 @@ class Store:
                 self.prune_files(
                     [name for track in expired for name in files_of(track)]
                 )
+            # История «назад» живёт тем же сроком, что и очередь: старый трек не возвращается.
+            stale = [
+                track
+                for track in room.get("history", [])
+                if track.get("createdAt", 0) <= now() - TRACK_TTL
+            ]
+            if stale:
+                room = self.get(room["roomId"])
+                room["history"] = [
+                    track for track in room["history"] if track not in stale
+                ]
+                self.save(room)
+                self.prune_files([name for track in stale for name in files_of(track)])
             # Пустая запись о музыке комнаты, которой давно не пользовались, не хранит
             # ничего: очередь пуста, музыка выключена, пропуск бота в комнату протух. А
             # запись остаётся — и не только в файле: весь ledger поднимается в память при

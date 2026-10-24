@@ -1,10 +1,11 @@
 /*
   Панель встречи: люди, чат и файлы, интеграции (E04, E16 «Сцена и панель»). Только токены.
 
-  Панель — поверхность в теме человека рядом с тёмной сценой; от сцены её отделяет одна линия
-  `--line`, глубина — тенью, когда панель ложится поверх сцены. С 1200 px она своя колонка с
-  ручкой ширины (T46), уже — полоса поверх сцены у правого края, а уже 768 — лист снизу. Везде она
-  кончается над пультом: поле чата, скрепка и «Отправить» не уходят под него.
+  Панель — карточка в теме человека над тёмным полем сцены (R32, DESIGN → «Панель „Боты и
+  интеграции“»): у плитки слева и панели справа один радиус (`--radius-4`) и одно поле (`--space-3`),
+  а не скруглённая плитка рядом с колонкой в прямых углах. С 1200 px она своя колонка с ручкой ширины
+  (T46) на стыке, уже — та же карточка поверх сцены у правого края, а уже 768 — лист снизу. Везде
+  она кончается над пультом: поле чата, скрепка и «Отправить» не уходят под него.
 */
 .side-panel {
   min-width: 0;
@@ -12,9 +13,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin: var(--space-3) var(--space-3) var(--dock-space) 0;
+  border-radius: var(--radius-4);
   background: var(--surface-1);
   color: var(--text);
-  box-shadow: inset 1px 0 0 var(--line);
+  box-shadow: var(--shadow-2);
 }
 .panel-heading {
   display: flex;
@@ -472,11 +475,11 @@ textarea.composer__input::placeholder {
   .side-panel {
     position: absolute;
     z-index: var(--z-panel);
-    top: 0;
-    right: 0;
+    top: var(--space-3);
+    right: var(--space-3);
     bottom: var(--dock-space);
     width: 360px;
-    border-bottom-left-radius: var(--radius-4);
+    margin: 0;
     box-shadow: var(--shadow-3);
   }
 }
@@ -508,10 +511,11 @@ textarea.composer__input::placeholder {
 .meeting-fullscreen .side-panel {
   position: absolute;
   z-index: calc(var(--z-dock) + 1);
-  top: 0;
-  right: 0;
+  top: var(--space-3);
+  right: var(--space-3);
   bottom: calc(var(--dock-fullscreen-bottom) + var(--dock-height) + var(--space-3));
-  width: min(var(--panel-width), 100%);
+  width: min(var(--panel-width), calc(100% - 2 * var(--space-3)));
+  margin: 0;
   box-shadow: var(--shadow-3);
 }
 .meeting-fullscreen .panel-resizer {

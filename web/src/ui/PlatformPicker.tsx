@@ -1,8 +1,9 @@
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { ArrowLeft, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { ArrowLeft, CloudOff, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { PlatformArea } from '../core/preferences';
+import { paint, type BrandId } from './brands';
 import { Badge, Button } from './kit';
 import { useStore } from './primitives';
 
@@ -25,10 +26,8 @@ export interface PlatformTile<Id extends string> {
   /** Строка под именем: что на площадке — или почему она сейчас недоступна. */
   note: string;
   icon: LucideIcon;
-  /** Цвет плитки: hex площадки или переменная темы. */
-  color: string;
-  /** Цвет знака, если белый на цвете площадки не читается. */
-  ink?: string;
+  /** Бренд площадки (`ui/brands.ts`): заливка плашки знака, сам знак и цвет выбранной вкладки. */
+  brand: BrandId;
   disabled?: boolean;
 }
 
@@ -41,18 +40,6 @@ export function useLastPlatform(meeting: Meeting, area: PlatformArea) {
     if (saved[area] !== id) meeting.media.saveSettings({ lastPlatform: { ...saved, [area]: id } });
   };
   return { last, remember };
-}
-
-/**
- * Цвет площадки для CSS: плитка и выбранная вкладка красятся одним и тем же. Под белой подписью
- * вкладки цвет темнеет (`integrations.css`), под тёмной (`ink`, жёлтая Яндекс Музыка) — остаётся
- * чистым: `--platform-fill` говорит CSS, что затемнять не нужно.
- */
-function paint(tile: PlatformTile<string>): CSSProperties {
-  return {
-    '--platform': tile.color,
-    ...(tile.ink && { '--platform-ink': tile.ink, '--platform-fill': tile.color }),
-  } as CSSProperties;
 }
 
 export function PlatformPicker<Id extends string>({
@@ -122,7 +109,7 @@ export function PlatformPicker<Id extends string>({
             ref={tile === focused ? target : undefined}
             type="button"
             className="service-tile"
-            style={paint(tile)}
+            style={paint(tile.brand)}
             disabled={tile.disabled}
             data-last={tile.id === last || undefined}
             onClick={() => onPick(tile.id)}
@@ -147,21 +134,24 @@ export function PlatformPicker<Id extends string>({
 }
 
 /**
- * Площадки вкладками — сменить площадку, не возвращаясь к выбору (музыка, T59). Те же имя, знак и
- * цвет, что у плиток; выбранная залита цветом площадки, как вкладки каталога кинозала. Строка
- * переносится: четыре имени в узкую панель не помещаются, а прятать имена за знаками — гадать.
- * Стрелки, Home и End ходят по вкладкам и сразу переключают: смена площадки ничего не грузит.
+ * Площадки вкладками внутри плеера (R44): сменить площадку, где искать, не уходя из музыки. Те же имя,
+ * знак и цвет, что у плиток; выбранная — текстом и полосой цвета площадки. Стрелки, Home и End ходят
+ * по вкладкам и сразу переключают: смена площадки ничего не грузит. Площадку, до которой сервер не
+ * достаёт (`down`, R112), видно на самой вкладке — знаком «нет связи» и подсказкой.
  */
 export function PlatformTabs<Id extends string>({
   label,
   tiles,
   current,
   onPick,
+  down,
 }: {
   label: string;
   tiles: readonly PlatformTile<Id>[];
   current: Id;
   onPick: (id: Id) => void;
+  /** Почему площадка недоступна с этого сервера — или `null`, если доступна. */
+  down?: (id: Id) => string | null;
 }) {
   const buttons = useRef(new Map<Id, HTMLButtonElement>());
   const step = (event: KeyboardEvent, index: number) => {
@@ -183,26 +173,32 @@ export function PlatformTabs<Id extends string>({
   };
   return (
     <div className="platform-tabs" role="tablist" aria-label={label}>
-      {tiles.map((tile, index) => (
-        <button
-          key={tile.id}
-          ref={(node) => {
-            if (node) buttons.current.set(tile.id, node);
-            else buttons.current.delete(tile.id);
-          }}
-          type="button"
-          role="tab"
-          className="platform-tab"
-          style={paint(tile)}
-          aria-selected={tile.id === current}
-          tabIndex={tile.id === current ? 0 : -1}
-          onClick={() => onPick(tile.id)}
-          onKeyDown={(event) => step(event, index)}
-        >
-          <tile.icon size={15} aria-hidden="true" />
-          {tile.name}
-        </button>
-      ))}
+      {tiles.map((tile, index) => {
+        const reason = down?.(tile.id) ?? null;
+        return (
+          <button
+            key={tile.id}
+            ref={(node) => {
+              if (node) buttons.current.set(tile.id, node);
+              else buttons.current.delete(tile.id);
+            }}
+            type="button"
+            role="tab"
+            className="platform-tab"
+            style={paint(tile.brand)}
+            aria-selected={tile.id === current}
+            tabIndex={tile.id === current ? 0 : -1}
+            data-reach={reason ? 'down' : undefined}
+            title={reason ?? undefined}
+            onClick={() => onPick(tile.id)}
+            onKeyDown={(event) => step(event, index)}
+          >
+            <tile.icon size={16} aria-hidden="true" />
+            {tile.name}
+            {reason && <CloudOff className="platform-tab__reach" size={13} aria-hidden="true" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

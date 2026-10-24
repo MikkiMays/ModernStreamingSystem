@@ -12,6 +12,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+// Node 24 читает TypeScript без сборки (снятие типов): реестр брендов — один на приложение и скрипт.
+import { BRANDS } from '../src/ui/brands.ts';
 
 export const TOKENS_PATH = join(fileURLToPath(import.meta.url), '..', '..', 'src', 'styles', 'tokens.css');
 
@@ -260,22 +262,17 @@ export const PAIRS = {
 PAIRS.light.push(...[0, 1, 2, 3, 4].map((n) => [`--avatar-${n}-fg`, `--avatar-${n}-bg`, 4.5]));
 
 /**
- * Цвета площадок под белой подписью (вкладки и плашки кинозала, вкладки музыки). Сами цвета живут в
- * реестрах (`core/cinema/providers.ts`, `ui/music-platforms.ts`) — с этим списком их сверяет
- * `ui/platform-contrast.test.ts`. Под подписью CSS темнит цвет на пятую часть к фону сцены
- * (`color-mix(in srgb, цвет 80%, var(--stage-bg))`), и AA считается для затемнённого.
+ * Цвета интеграций под белой подписью (вкладки и плашки кинозала, его сцены). Сами цвета живут в одном
+ * реестре — `src/ui/brands.ts` (R33), отсюда и список: каждый бренд с белым знаком. Под подписью CSS
+ * темнит цвет на пятую часть к фону сцены (`color-mix(in srgb, цвет 80%, var(--stage-bg))`), и AA
+ * считается для затемнённого. Бренды с тёмным знаком (Яндекс, дурак) не темнят — их подпись тёмная.
  */
 export const BRAND_DARKEN = 0.8;
-export const BRAND = {
-  'youtube (кинозал)': '#e33b3b',
-  'twitch (кинозал)': '#8250e6',
-  rutube: '#1c80e3',
-  vk: '#0077FF',
-  ivi: '#EA003D',
-  'twitch (панель)': '#9147ff',
-  'youtube (панель)': '#ff3d3d',
-  soundcloud: '#ff5500',
-};
+export const BRAND = Object.fromEntries(
+  Object.entries(BRANDS)
+    .filter(([, brand]) => brand.ink === '#ffffff')
+    .map(([id, brand]) => [id, brand.color]),
+);
 
 function value(vars, name) {
   const [top, base] = name.split(' over ');
@@ -304,6 +301,19 @@ export function check(css = readFileSync(TOKENS_PATH, 'utf8')) {
       ratio,
       ok: ratio >= 4.5,
     });
+  }
+  // Каждый бренд (R33): знак на плашке — 3:1, текст цветом бренда на `--surface-1` обеих тем — 4,5:1.
+  const surface = { light: theme(css, 'light'), dark: theme(css, 'dark') };
+  for (const [id, brand] of Object.entries(BRANDS)) {
+    const pairs = [
+      ['ink', brand.ink, brand.color, 3],
+      ['light', brand.text.light, resolve(surface.light, surface.light['--surface-1']), 4.5],
+      ['dark', brand.text.dark, resolve(surface.dark, surface.dark['--surface-1']), 4.5],
+    ];
+    for (const [side, fg, bg, min] of pairs) {
+      const ratio = contrast(fg, bg);
+      rows.push({ theme: 'brand', fg: `${id} ${side}`, bg, min, ratio, ok: ratio >= min });
+    }
   }
   return rows;
 }

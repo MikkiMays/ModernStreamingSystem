@@ -1146,7 +1146,19 @@
       "name": "Yandex Music",
       "label": "Yandex Music token",
       "placeholder": "Paste the token",
-      "hint": "The token is stored on this device and used when you add Yandex Music to a meeting."
+      "tabs": {
+        "label": "How to connect",
+        "device": "With a QR code",
+        "token": "With a token"
+      },
+      "howto": {
+        "title": "Where to get a token",
+        "signIn": "Sign in to Yandex in this browser.",
+        "allow": "Open the Yandex Music permission page and click “Allow”.",
+        "open": "Open the Yandex page",
+        "copy": "From the address bar, copy the text between “access_token=” and “&” and paste it into the field above.",
+        "kept": "The token is kept only on this device and is filled in automatically when you turn on music in a meeting."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2412,10 +2424,7 @@
     },
     "platforms": {
       "label": "Platform",
-      "tiles": "Music platforms",
       "none": "Music platforms are turned off on this server — what's already in the queue keeps playing.",
-      "playing": "Now playing:",
-      "paused": "Paused:",
       "youtube": {
         "hint": "Tracks, music videos, and concerts",
         "find": "Search YouTube or paste a link",
@@ -2434,7 +2443,7 @@
       "upload": {
         "name": "Your files",
         "hint": "Audio files from this device",
-        "drop": "Drag audio files here or choose them on your device."
+        "drop": "Drag audio files here"
       }
     },
     "player": {
@@ -2443,7 +2452,7 @@
         "connecting": "Connecting Music",
         "empty": "Queue is empty",
         "paused": "Paused",
-        "playing": "Now playing",
+        "playing": "Playing",
         "starved": "Source is falling behind",
         "reconnecting": "Reconnecting music"
       },
@@ -2456,19 +2465,21 @@
       "pause": "Pause music",
       "next": "Next track",
       "repeat": "Repeat queue",
-      "volume": "Your music volume"
+      "volume": "Your music volume",
+      "previous": "Previous track"
     },
     "queue": {
       "label": "Music queue",
       "next": "Up next",
       "clear": "Clear",
-      "empty": "Nothing up next: the track you find above will play next.",
       "moved": "“{{title}}” is #{{position}} after the current one",
       "reorder": "Reorder: {{title}}",
       "actions": "Actions: {{title}}",
       "playNext": "Play next",
       "remove": "Remove from queue",
-      "hint": "Drag or use the up and down arrows to reorder the track"
+      "hint": "Drag or use the up and down arrows to reorder the track",
+      "count_one": "{{count}} track",
+      "count_other": "{{count}} tracks"
     },
     "search": {
       "notOurs": "Music doesn't open links like this. YouTube, SoundCloud, and Yandex Music links work",
@@ -2502,7 +2513,7 @@
       "input": "Add music files",
       "button": "Upload files",
       "cancel": "Cancel",
-      "hint": "You can also drag them in: up to {{limit}} MB and 60 minutes per track"
+      "hint": "up to {{limit}} MB and 60 minutes per track"
     },
     "yandex": {
       "connected": "Account connected",
@@ -2510,7 +2521,6 @@
       "tokenConnected": "Connected with the saved token",
       "tokenStale": "The saved token no longer works. Sign in to Yandex or enter a new token.",
       "checking": "Checking the connection…",
-      "hint": "The room's account: everyone searches and adds tracks through it",
       "badge": "Connected",
       "connect": "Connect",
       "switch": "Switch account",
@@ -2523,7 +2533,23 @@
       "haveToken": "I already have an access token",
       "tokenLabel": "Yandex Music token",
       "connectToken": "Connect token",
-      "note": "You enter your password on the Yandex page. Full tracks require an account with a subscription. Works through an unofficial Yandex Music connector."
+      "device": {
+        "scan": "Point your phone camera at the QR code",
+        "code": "On the Yandex page, enter the code",
+        "copy": "Copy",
+        "copied": "Copied",
+        "open": "Open the sign-in page",
+        "waiting": "Waiting for confirmation…",
+        "starting": "Getting a code from Yandex…",
+        "confirm": "Confirm the sign-in — the connection will appear here by itself",
+        "refresh": "Get a new code"
+      }
+    },
+    "mini": {
+      "label": "Mini player",
+      "open": "Open player",
+      "offer": "Turn on music",
+      "dismiss": "Don't suggest during this meeting"
     }
   },
   "integrations": {
@@ -2922,7 +2948,9 @@
     "SUPPORT_TEXT": "Describe what happened — at least one sentence",
     "CINEMA_TIMEOUT": "The platform didn't respond in time — try again",
     "CINEMA_UNREACHABLE": "This platform can't be reached from this server",
-    "CLOSED_BY_SERVER": "The server owner ended this meeting — it can't be reopened yet"
+    "CLOSED_BY_SERVER": "The server owner ended this meeting — it can't be reopened yet",
+    "MUSIC_TIMEOUT": "The platform didn't respond in time — try again",
+    "MUSIC_UNREACHABLE": "This platform can't be reached from this server"
   },
   "activity": {
     "title": "Activity",

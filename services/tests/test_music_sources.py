@@ -507,6 +507,9 @@ class CoverTests(Fixture):
         await self.music.command(
             ROOM, {"commandId": str(uuid.uuid4()), "action": "skip"}
         )
+        # Пропущенный трек ждёт в истории «назад» (R44) — с обложкой; уходит из неё — уходят и файлы.
+        self.assertTrue((self.store.files / queued["cover"]).exists())
+        self.store.shed_history()
         self.assertFalse((self.store.files / queued["cover"]).exists())
         self.assertFalse((self.store.files / queued["file"]).exists())
         # Обложка переживает перезапуск службы вместе с очередью — и уборку свежих файлов.

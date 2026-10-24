@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Music, Send, type LucideIcon } from 'lucide-react';
+import { ExternalLink, KeyRound, Music, QrCode, Send, type LucideIcon } from 'lucide-react';
 import {
   accountName,
   ACCOUNTS,
@@ -10,11 +10,16 @@ import {
   type TokenAccount,
 } from '../../core/accounts';
 import type { Preferences } from '../../core/preferences';
-import { Badge, Button, Soon } from '../kit';
+import { yandexDeviceApi } from '../../core/services';
+import { paint, type BrandId } from '../brands';
+import { Badge, Button, Soon, Tab, TabList, TabPanel, Tabs } from '../kit';
+import { YandexDeviceLogin } from '../music/YandexDeviceLogin';
 import { SettingGroup } from './Row';
 import { rowDomId, type RowId } from './sections';
 
 const ICONS: Record<string, LucideIcon> = { 'yandex-music': Music, telegram: Send };
+/** Цвет плашки сервиса (`brands.ts`, R33). У «Скоро» плашка серая: сервиса ещё нет. */
+const BRAND: Record<string, BrandId> = { 'yandex-music': 'yandex', telegram: 'telegram' };
 
 /** Форма входа по токену: появляется под строкой по «Подключить» и уходит по «Отмена». */
 function TokenForm({
@@ -42,7 +47,6 @@ function TokenForm({
         </label>
         <input
           id={`${id}-token`}
-          aria-describedby={`${id}-hint`}
           className="ui-input"
           type="password"
           autoComplete="off"
@@ -52,9 +56,6 @@ function TokenForm({
           placeholder={text.placeholder}
           onChange={(e) => setValue(e.target.value)}
         />
-        <span className="setting-row__hint" id={`${id}-hint`}>
-          {text.hint}
-        </span>
       </div>
       <div className="setting-account__actions">
         <Button size="sm" variant="primary" type="submit" disabled={!value.trim()}>
@@ -64,7 +65,85 @@ function TokenForm({
           {t(($) => $.settings.accounts.cancel)}
         </Button>
       </div>
+      {account.tokenPage && <TokenHowTo page={account.tokenPage} />}
     </form>
+  );
+}
+
+/**
+ * «Где взять токен» (R39): владелец спросил, где найти токен и как его добавить. Три шага и ссылка на
+ * страницу Яндекса — раскрывашкой под полем, чтобы не стоять стеной текста над ним.
+ */
+function TokenHowTo({ page }: { page: string }) {
+  const { t } = useTranslation();
+  return (
+    <details className="setting-account__howto">
+      <summary>{t(($) => $.accounts['yandex-music'].howto.title)}</summary>
+      <ol>
+        <li>{t(($) => $.accounts['yandex-music'].howto.signIn)}</li>
+        <li>
+          {t(($) => $.accounts['yandex-music'].howto.allow)}{' '}
+          <a href={page} target="_blank" rel="noopener noreferrer">
+            {t(($) => $.accounts['yandex-music'].howto.open)}
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        </li>
+        <li>{t(($) => $.accounts['yandex-music'].howto.copy)}</li>
+      </ol>
+      <p>{t(($) => $.accounts['yandex-music'].howto.kept)}</p>
+    </details>
+  );
+}
+
+/**
+ * Вход: вкладки «По QR-коду | Токеном» (R39). QR — первым: код устройства Яндекса без встречи, токен
+ * приходит этому устройству один раз и ложится туда же, куда и вставленный руками.
+ */
+function AccountLogin({
+  account,
+  onSave,
+  onCancel,
+}: {
+  account: TokenAccount;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState(account.inputs[0] ?? 'token');
+  if (account.inputs.length < 2) return <TokenForm account={account} onSave={onSave} onCancel={onCancel} />;
+  return (
+    <Tabs
+      variant="segmented"
+      className="setting-account__login"
+      value={mode}
+      onValueChange={(next) => setMode(next as typeof mode)}
+    >
+      <TabList aria-label={t(($) => $.accounts['yandex-music'].tabs.label)}>
+        {account.inputs.map((kind) => (
+          <Tab key={kind} value={kind} icon={kind === 'device' ? <QrCode /> : <KeyRound />}>
+            {kind === 'device'
+              ? t(($) => $.accounts['yandex-music'].tabs.device)
+              : t(($) => $.accounts['yandex-music'].tabs.token)}
+          </Tab>
+        ))}
+      </TabList>
+      <TabPanel value="device" className="setting-account__panel">
+        <YandexDeviceLogin
+          flow={yandexDeviceApi}
+          onDone={(result) => {
+            if (result.token) onSave(result.token);
+          }}
+        />
+        <div className="setting-account__actions">
+          <Button size="sm" variant="quiet" onClick={onCancel}>
+            {t(($) => $.settings.accounts.cancel)}
+          </Button>
+        </div>
+      </TabPanel>
+      <TabPanel value="token" className="setting-account__panel">
+        <TokenForm account={account} onSave={onSave} onCancel={onCancel} />
+      </TabPanel>
+    </Tabs>
   );
 }
 
@@ -98,6 +177,7 @@ function AccountRow({
       className="setting-row setting-account"
       id={rowDomId(`account-${account.id}` as RowId)}
       data-service={account.id}
+      style={account.soon || !BRAND[account.id] ? undefined : paint(BRAND[account.id]!)}
     >
       <div className="setting-account__who">
         <span className="setting-account__icon" aria-hidden="true">
@@ -141,7 +221,7 @@ function AccountRow({
       </div>
       {!account.soon && !on && editing && (
         <div className="setting-row__below">
-          <TokenForm
+          <AccountLogin
             account={account}
             onCancel={() => {
               setEditing(false);

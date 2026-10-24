@@ -27,7 +27,7 @@ from .music import Music
 from .sources import PLATFORMS, Sources
 from .store import Store, now
 from .webapp import Refusal, enabled, max_age, release, startgroup_url
-from .yandex import Yandex, routes
+from .yandex import Yandex, device_routes, routes
 
 # Источники музыки по порядку, в котором их видит человек. `MUSIC_SOURCES` — включённые через
 # запятую, пусто — все. YouTube и SoundCloud выключаются здесь одной строкой (E06-B, T18).
@@ -53,6 +53,8 @@ class Command(BaseModel):
         "remove",
         "next",
         "move",
+        # «Назад» (R44): сначала, если трек идёт дольше трёх секунд, иначе — предыдущий (`Music.back`).
+        "previous",
     ]
     trackId: str | None = Field(default=None, max_length=36)
     position: float | None = Field(default=None, ge=0, le=3600, allow_inf_nan=False)
@@ -134,6 +136,9 @@ def create_app(
         store,
         music,
         [source for source in sources_on if source in PLATFORMS],
+        # Достаёт ли сервер до YouTube — один счёт с кинозалом (`cinema/reach.py`, R112).
+        reach=cinema.reach,
+        provider=cinema.registry.find,
     )
     telegram = None
     background = []
@@ -213,6 +218,7 @@ def create_app(
     app.state.cinema = cinema
     app.state.sources = sources
     app.include_router(routes(yandex, core))
+    app.include_router(device_routes(yandex))
     app.include_router(cinema_routes(cinema, core))
 
     @app.middleware("http")
@@ -279,6 +285,9 @@ def create_app(
                 "webapp": app.state.webapp and bot_ready(),
             },
             "sources": sources_on,
+            # Площадки из `sources`, до которых этот сервер сейчас не достаёт (R112): панель музыки
+            # отмечает их и не ждёт поиска, который всё равно получит отказ.
+            "unreachable": await sources.unreachable(),
             "maxFileBytes": MAX_FILE,
         }
 

@@ -1,11 +1,11 @@
-import { useMemo, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { Clapperboard, Club, Crown, Music2, Pencil, Spade, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
-import { MusicApi, type MusicState } from '../core/services';
+import type { MusicState } from '../core/services';
 import type { Translate } from '../i18n';
+import { MusicMini, useMusicMini } from './music/MusicMini';
 import { useStore } from './primitives';
 import './stage-overlay.css';
 
@@ -18,7 +18,8 @@ import './stage-overlay.css';
  * один над всеми ветками сцены (разговор, чужой экран, столы, кинозал): чипы-«стекло» — игра, кино,
  * музыка; нажатие открывает панель интеграций. Пустой слой не видно и диктору не слышно.
  *
- * `children` — место для мини-плеера музыки (R31): он встаёт в этот же ряд.
+ * Музыка здесь — мини-плеер (R31, `music/MusicMini`): играет трек — полоса с ⏮ ⏯ ⏭ и виджетом плеера по
+ * нажатию; идёт игра, а музыки нет, — предложение её включить. `children` — ещё что-то в тот же ряд.
  */
 export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'cinema' | 'music';
 
@@ -156,28 +157,6 @@ export function stageChips(
   return chips;
 }
 
-const LIVE: readonly string[] = ['JOINING', 'CONNECTED', 'RECOVERING'];
-
-/**
- * Состояние музыки — тем же запросом, что панель интеграций (`Services.tsx`): ключ общий, и пока
- * открыты оба, служба получает один опрос раз в 2 с, а не два.
- */
-function useMusicPresence(meeting: Meeting): MusicPresence {
-  const snapshot = useStore(meeting.snapshot);
-  const ended = useStore(meeting.ended);
-  const api = useMemo(() => new MusicApi(meeting.admission), [meeting]);
-  const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
-  const present = snapshot.participants.some((p) => p.service === 'music' && LIVE.includes(p.status));
-  const active = present && !ended && !!self && self.status !== 'WAITING';
-  const music = useQuery({
-    queryKey: ['music', meeting.admission.roomId, meeting.admission.participantId],
-    queryFn: api.state,
-    enabled: active,
-    refetchInterval: active ? 2000 : false,
-  });
-  return { present, state: music.data, failed: music.isError || !!music.data?.error };
-}
-
 export function StageOverlay({
   meeting,
   onOpenServices,
@@ -190,9 +169,11 @@ export function StageOverlay({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
-  const music = useMusicPresence(meeting);
-  const chips = stageChips(t, snapshot, music, stageShows(snapshot, !!viewing));
-  const empty = chips.length === 0 && !children;
+  // Музыка — мини-плеером или предложением её включить (R31), а не чипом, который открывал панель:
+  // виджет управляет музыкой, не переключая интеграции. Чипы — игра и кино.
+  const mini = useMusicMini(meeting);
+  const chips = stageChips(t, snapshot, { present: false }, stageShows(snapshot, !!viewing));
+  const empty = chips.length === 0 && mini.view.kind === 'none' && !children;
   return (
     <div
       className="stage-overlay"
@@ -226,6 +207,7 @@ export function StageOverlay({
           </button>
         );
       })}
+      <MusicMini meeting={meeting} mini={mini} />
       {children}
     </div>
   );

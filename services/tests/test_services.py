@@ -570,6 +570,9 @@ class QueueTests(Fixture):
         self.assertEqual(
             [t["title"] for t in self.store.get(ROOM)["queue"]], ["Three", "Two"]
         )
+        # Сыгранный трек держит история «назад» (R44); без неё файл уходит сразу.
+        self.assertIn(a["file"], self.store.referenced())
+        self.store.shed_history()
         self.assertFalse((self.store.files / a["file"]).exists())
         with self.assertRaises(HTTPException):
             await self.music.command(ROOM, {**skip, "action": "clear"})

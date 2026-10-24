@@ -3,15 +3,17 @@ import { musicSourceName, type MusicSource } from '../core/services';
 import type { Translate } from '../i18n';
 import type { MusicQuery } from './music-playback';
 import type { PlatformTile } from './PlatformPicker';
+import type { BrandId } from './brands';
 
 /**
- * Площадки музыки — то, между чем человек выбирает при входе в «Музыку» (T59, решение владельца В-5).
+ * Площадки музыки — вкладки внутри плеера (R44; прежде — экран выбора при входе, T59, В-5).
  *
- * ПОЧЕМУ ВЫБОР, А НЕ ОДНО ПОЛЕ НА ВСЁ. После E06-B название искалось сразу во всех источниках, и
- * ответ приходил тремя группами — YouTube, SoundCloud, Яндекс вперемешку по важности. Владелец
- * попросил, чтобы музыка открывалась так же, как кинозал: сначала площадка, потом поиск и ссылки
- * на ней. Очередь одна на встречу и от площадки не зависит: смена площадки меняет только то, где
- * ищут, — плеер, очередь и бот остаются как были.
+ * ПОЧЕМУ ПЛОЩАДКА, А НЕ ОДНО ПОЛЕ НА ВСЁ. После E06-B название искалось сразу во всех источниках, и
+ * ответ приходил тремя группами — YouTube, SoundCloud, Яндекс вперемешку по важности. Поэтому поиск и
+ * ссылки — на выбранной площадке. Владелец попросил, чтобы «внутри плеера» можно было переключаться
+ * между площадками и там же искать: выбор — вкладкой в самом плеере, и устройство его помнит. Очередь
+ * одна на встречу и от площадки не зависит: смена площадки меняет только то, где ищут, — плеер,
+ * очередь и бот остаются как были.
  *
  * Какие площадки есть — решает сервер (`MUSIC_SOURCES` → `catalog.sources`); по умолчанию включено
  * всё, YouTube и SoundCloud тоже. Telegram — не площадка выбора: треки из беседы присылает бот, и
@@ -28,16 +30,23 @@ export type SearchPlatform = Exclude<MusicPlatform, 'upload'>;
 export const MUSIC_PLATFORMS: readonly MusicPlatform[] = ['youtube', 'soundcloud', 'yandex', 'upload'];
 
 /**
- * Знак и цвет плитки. Цвета площадок — их собственные (YouTube — тот же, что у плитки кинозала);
- * на жёлтом Яндекса белый знак не читается, поэтому знак тёмный. Свои файлы — цвет приложения:
- * это не чужая площадка, а вход для того, что уже есть у человека.
+ * Знак и бренд плитки (`ui/brands.ts`, R33). Цвета площадок — их собственные (YouTube — тот же, что
+ * у кинозала); на жёлтом Яндекса знак тёмный. Свои файлы — цвет музыки: это не чужая площадка, а вход
+ * для того, что уже есть у человека, и цвет приложения интеграции не берут.
  */
-const LOOK: Record<MusicPlatform, Pick<PlatformTile<MusicPlatform>, 'icon' | 'color' | 'ink'>> = {
-  youtube: { icon: SquarePlay, color: '#ff3d3d' },
-  soundcloud: { icon: Cloud, color: '#ff5500' },
-  yandex: { icon: Disc3, color: '#ffcc00', ink: '#1b1f27' },
-  upload: { icon: FileAudio, color: 'var(--accent-fill)' },
+const LOOK: Record<MusicPlatform, Pick<PlatformTile<MusicPlatform>, 'icon' | 'brand'>> = {
+  youtube: { icon: SquarePlay, brand: 'youtube' },
+  soundcloud: { icon: Cloud, brand: 'soundcloud' },
+  yandex: { icon: Disc3, brand: 'yandex' },
+  upload: { icon: FileAudio, brand: 'music' },
 };
+
+/** Бренд источника трека: полоса, кнопка и метка плеера красятся площадкой, откуда трек (R33). */
+export function sourceBrand(source: MusicSource): BrandId {
+  return source === 'youtube' || source === 'soundcloud' || source === 'yandex' || source === 'telegram'
+    ? source
+    : 'music';
+}
 
 export function isMusicPlatform(value: unknown): value is MusicPlatform {
   return (MUSIC_PLATFORMS as readonly unknown[]).includes(value);
@@ -48,18 +57,7 @@ export function offeredPlatforms(sources: readonly MusicSource[]): MusicPlatform
   return MUSIC_PLATFORMS.filter((id) => sources.includes(id));
 }
 
-/**
- * Какая площадка открыта: выбранная, пока сервер её предлагает. `null` — экран выбора: площадку
- * ещё не выбрали, или её выключили на сервере, пока панель была открыта.
- */
-export function openPlatform(
-  chosen: MusicPlatform | null,
-  offered: readonly MusicPlatform[],
-): MusicPlatform | null {
-  return chosen && offered.includes(chosen) ? chosen : null;
-}
-
-/** Какую площадку отметить «Последний выбор»: запомненное имя, если такая площадка сейчас есть. */
+/** Какую площадку открыть во вкладках плеера: запомненное имя, если такая площадка сейчас есть. */
 export function lastPlatform(
   remembered: string | null,
   offered: readonly MusicPlatform[],

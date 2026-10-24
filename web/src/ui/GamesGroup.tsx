@@ -46,10 +46,11 @@ const GAMES: {
   accent: string;
   icon: typeof Spade;
 }[] = [
-  { id: 'poker', accent: '#8a5cf6', icon: Spade },
-  { id: 'durak', accent: '#c9a227', icon: Club },
-  { id: 'chess', accent: '#5271a3', icon: Crown },
-  { id: 'gartic', accent: '#8d65c5', icon: Pencil },
+  // Цвет игры — её бренд из общего реестра цветов интеграций (`brands.ts`, R33).
+  { id: 'poker', accent: 'var(--brand-poker)', icon: Spade },
+  { id: 'durak', accent: 'var(--brand-durak)', icon: Club },
+  { id: 'chess', accent: 'var(--brand-chess)', icon: Crown },
+  { id: 'gartic', accent: 'var(--brand-gartic)', icon: Pencil },
 ];
 
 const CHESS_PRESETS = ['untimed', '3-2', '5-0', '10-5', '15-10'] as const;

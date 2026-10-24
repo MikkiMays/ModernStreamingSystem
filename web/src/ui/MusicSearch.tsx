@@ -2,6 +2,8 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowRight, LoaderCircle, Plus, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type PlatformTrack, type YandexTrack } from '../core/services';
+import { unreachableRefusal } from '../core/cinema/reach';
+import { problemText } from './cinema/catalog/notes';
 import { Button, IconButton } from './kit';
 import { classifyQuery, formatDuration } from './music-playback';
 import { routeQuery, type MusicPlatform, type SearchPlatform } from './music-platforms';
@@ -57,6 +59,7 @@ export function MusicSearch({
   abilities,
   onAdded,
   onSwitch,
+  onUnreachable,
   initialQuery = '',
   children,
 }: {
@@ -64,6 +67,8 @@ export function MusicSearch({
   onAdded: (state: MusicState) => void;
   /** Перейти на другую площадку с этим текстом в её поле. */
   onSwitch?: (platform: MusicPlatform, text: string) => void;
+  /** Служба отказала: площадка недоступна с этого сервера (`MUSIC_UNREACHABLE`, R112). */
+  onUnreachable?: (platform: SearchPlatform) => void;
   /** С чем поле открывается: ссылка, принесённая с другой площадки. */
   initialQuery?: string;
   /** Под полем. */
@@ -133,7 +138,12 @@ export function MusicSearch({
           : searchPlatform(source, text).then((tracks) => tracks.map(platformFound));
       void work
         .then((found) => ({ status: 'done' as const, found }))
-        .catch((e: Error) => ({ status: 'error' as const, found: [], error: e.message }))
+        .catch((e: unknown) => {
+          // Площадка недоступна отсюда — это знание о площадке, а не об одном вопросе: её вкладка
+          // помечается, и вместо поиска встаёт «недоступна с этого сервера» с «Повторить».
+          if (unreachableRefusal(e)) onUnreachable?.(source);
+          return { status: 'error' as const, found: [], error: problemText(t, e) };
+        })
         .then((result) => {
           if (asked.current !== ticket) return;
           setGroups((current) =>
@@ -175,7 +185,8 @@ export function MusicSearch({
           added(await addLink(what.url));
           setQuery('');
         } catch (e) {
-          setError((e as Error).message);
+          if (unreachableRefusal(e)) onUnreachable?.(platform);
+          setError(problemText(t, e));
         } finally {
           setLinking(false);
         }

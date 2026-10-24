@@ -10,10 +10,11 @@ it('describes the Yandex Music token under the same key and limits it had in «�
     name: 'Яндекс Музыка',
     label: 'Токен Яндекс Музыки',
     key: 'yandexMusicToken',
-    input: 'token',
+    // R39: по QR-коду — первым, токеном — вторым; страница, где Яндекс выдаёт токен, — его же.
+    inputs: ['device', 'token'],
     maxLength: 1000,
   });
-  expect(tokenText(t, account).hint).toMatch(/Яндекс Музык/);
+  expect(new URL(account.tokenPage!).hostname).toBe('oauth.yandex.ru');
 });
 
 it('держит Telegram в списке со значком «Скоро», пока E09 не включил привязку', () => {

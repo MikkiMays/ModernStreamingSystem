@@ -1159,7 +1159,19 @@
       "name": "Yandex Music",
       "label": "Token do Yandex Music",
       "placeholder": "Cole o token",
-      "hint": "O token fica salvo neste dispositivo e é usado quando você adiciona o Yandex Music a uma reunião."
+      "tabs": {
+        "label": "Como conectar",
+        "device": "Por QR code",
+        "token": "Por token"
+      },
+      "howto": {
+        "title": "Onde conseguir o token",
+        "signIn": "Entre no Yandex neste navegador.",
+        "allow": "Abra a página de permissão do Yandex Music e clique em “Permitir”.",
+        "open": "Abrir a página do Yandex",
+        "copy": "Na barra de endereço, copie o texto entre “access_token=” e “&” e cole no campo acima.",
+        "kept": "O token fica só neste dispositivo e é usado automaticamente quando você liga a música numa reunião."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2441,10 +2453,7 @@
     },
     "platforms": {
       "label": "Plataforma",
-      "tiles": "Plataformas de música",
       "none": "As plataformas de música estão desativadas neste servidor — toca o que já está na fila.",
-      "playing": "Tocando agora:",
-      "paused": "Pausada:",
       "youtube": {
         "hint": "Músicas, clipes e shows",
         "find": "Buscar no YouTube ou colar um link",
@@ -2463,7 +2472,7 @@
       "upload": {
         "name": "Seus arquivos",
         "hint": "Arquivos de áudio deste dispositivo",
-        "drop": "Arraste arquivos de áudio para cá ou escolha-os no seu dispositivo."
+        "drop": "Arraste arquivos de áudio para cá"
       }
     },
     "player": {
@@ -2472,7 +2481,7 @@
         "connecting": "Conectando a música",
         "empty": "A fila está vazia",
         "paused": "Pausada",
-        "playing": "Tocando agora",
+        "playing": "Tocando",
         "starved": "A fonte não está acompanhando",
         "reconnecting": "Reconectando a música"
       },
@@ -2485,19 +2494,22 @@
       "pause": "Pausar a música",
       "next": "Próxima faixa",
       "repeat": "Repetir a fila",
-      "volume": "Seu volume da música"
+      "volume": "Seu volume da música",
+      "previous": "Faixa anterior"
     },
     "queue": {
       "label": "Fila de música",
       "next": "A seguir",
       "clear": "Limpar",
-      "empty": "Não há mais nada: a faixa que você encontrar acima toca em seguida.",
       "moved": "“{{title}}” — {{position}}ª depois da atual",
       "reorder": "Reordenar: {{title}}",
       "actions": "Ações: {{title}}",
       "playNext": "Tocar em seguida",
       "remove": "Remover da fila",
-      "hint": "Arraste ou use as setas para cima e para baixo para mover a faixa"
+      "hint": "Arraste ou use as setas para cima e para baixo para mover a faixa",
+      "count_one": "{{count}} faixa",
+      "count_many": "{{count}} faixas",
+      "count_other": "{{count}} faixas"
     },
     "search": {
       "notOurs": "A música não abre links assim. Servem YouTube, SoundCloud e Yandex Music",
@@ -2531,7 +2543,7 @@
       "input": "Adicionar arquivos de música",
       "button": "Enviar arquivos",
       "cancel": "Cancelar",
-      "hint": "Dá para arrastar também: até {{limit}} MB e 60 minutos por faixa"
+      "hint": "até {{limit}} MB e 60 minutos por faixa"
     },
     "yandex": {
       "connected": "Conta conectada",
@@ -2539,7 +2551,6 @@
       "tokenConnected": "Conectada com o token salvo",
       "tokenStale": "O token salvo não funciona mais. Entre no Yandex ou digite um novo token.",
       "checking": "Verificando a conexão…",
-      "hint": "A conta da sala: todos os participantes buscam e tocam faixas por ela",
       "badge": "Conectada",
       "connect": "Conectar",
       "switch": "Trocar de conta",
@@ -2552,7 +2563,23 @@
       "haveToken": "Já tenho um token de acesso",
       "tokenLabel": "Token do Yandex Music",
       "connectToken": "Conectar o token",
-      "note": "A senha é digitada na página do Yandex. Para faixas completas é preciso uma conta com assinatura. Funciona por meio de um conector não oficial do Yandex Music."
+      "device": {
+        "scan": "Aponte a câmera do celular para o QR code",
+        "code": "Na página do Yandex, digite o código",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "open": "Abrir a página de login",
+        "waiting": "Aguardando confirmação…",
+        "starting": "Pedindo um código ao Yandex…",
+        "confirm": "Confirme o login — a conexão aparece aqui sozinha",
+        "refresh": "Gerar novo código"
+      }
+    },
+    "mini": {
+      "label": "Miniplayer",
+      "open": "Abrir player",
+      "offer": "Ligar música",
+      "dismiss": "Não sugerir mais nesta reunião"
     }
   },
   "integrations": {
@@ -2952,7 +2979,9 @@
     "SUPPORT_TEXT": "Descreva o que aconteceu — pelo menos em uma frase",
     "CINEMA_TIMEOUT": "A plataforma não respondeu a tempo — tente de novo",
     "CINEMA_UNREACHABLE": "Esta plataforma está indisponível a partir deste servidor",
-    "CLOSED_BY_SERVER": "O dono do servidor encerrou esta reunião — ainda não é possível reabri-la"
+    "CLOSED_BY_SERVER": "O dono do servidor encerrou esta reunião — ainda não é possível reabri-la",
+    "MUSIC_TIMEOUT": "A plataforma não respondeu a tempo — tente de novo",
+    "MUSIC_UNREACHABLE": "Esta plataforma está indisponível a partir deste servidor"
   },
   "activity": {
     "title": "Atividade",

@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { paint } from './brands';
 import { Soon } from './kit';
 import { SHELF, shelfHint, shelfName, telegramNote, type ShelfId, type ShelfItem } from './integration-shelf';
 
@@ -49,6 +50,7 @@ export function IntegrationShelf({
         className="service-group"
         data-active={now ? 'true' : undefined}
         disabled={!!blocked}
+        style={item.brand ? paint(item.brand) : undefined}
         onClick={() => onOpen(item.id)}
       >
         <span className="service-group__icon" aria-hidden="true">

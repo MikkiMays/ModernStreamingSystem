@@ -1,6 +1,7 @@
 import { Gamepad2, Joystick, MicVocal, Music2, Presentation, Send, Tv, type LucideIcon } from 'lucide-react';
 import { musicSourceName, type MusicSource } from '../core/services';
 import type { Translate } from '../i18n';
+import type { BrandId } from './brands';
 
 /**
  * Витрина интеграций — одним списком, в том порядке, в каком её видит человек (E06-B).
@@ -23,18 +24,20 @@ export interface ShelfItem {
   readonly id: ShelfId;
   readonly icon: LucideIcon;
   readonly soon: boolean;
+  /** Цвет плашки значка (`brands.ts`, R33); у «Скоро» плашка серая, пока интеграции нет. */
+  readonly brand?: BrandId;
   /** Отдельно, за чертой. */
   readonly apart?: boolean;
 }
 
 export const SHELF: readonly ShelfItem[] = [
-  { id: 'games', icon: Gamepad2, soon: false },
-  { id: 'cinema', icon: Tv, soon: false },
-  { id: 'music', icon: Music2, soon: false },
+  { id: 'games', icon: Gamepad2, soon: false, brand: 'games' },
+  { id: 'cinema', icon: Tv, soon: false, brand: 'cinema' },
+  { id: 'music', icon: Music2, soon: false, brand: 'music' },
   { id: 'any-game', icon: Joystick, soon: true },
   { id: 'standup', icon: MicVocal, soon: true },
   { id: 'board', icon: Presentation, soon: true },
-  { id: 'telegram', icon: Send, soon: true, apart: true },
+  { id: 'telegram', icon: Send, soon: true, apart: true, brand: 'telegram' },
 ];
 
 /** Имя карточки. «Telegram» пишется латиницей на любом языке и в каталог не идёт. */

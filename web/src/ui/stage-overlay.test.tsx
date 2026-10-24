@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
+import { readPreferences } from '../core/preferences';
 import type { MusicState } from '../core/services';
 import { Store } from '../core/store';
 import { t } from '../i18n';
@@ -115,6 +116,13 @@ function fakeMeeting(initial: Snapshot) {
     snapshot: new Store(initial),
     viewing: new Store(null),
     ended: new Store<string | null>(null),
+    media: {
+      preferences: new Store(readPreferences()),
+      saveSettings: vi.fn(),
+      volumes: new Store({}),
+      setVolume: vi.fn(),
+      musicPlayoutMs: () => 0,
+    },
   } as unknown as Meeting & { snapshot: Store<Snapshot> };
 }
 
@@ -142,22 +150,27 @@ describe('слой поверх сцены', () => {
     expect(screen.queryByRole('region')).toBeNull();
   });
 
-  it('музыкальный бот во встрече — чип музыки; нажатие открывает интеграции', async () => {
+  it('музыкальный бот во встрече — мини-плеер, а не чип панели; игра — чипом, он открывает интеграции', async () => {
     // Служба музыки отвечает тем же, что видит панель интеграций.
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response(JSON.stringify(music()), { status: 200 }))),
     );
-    const onOpen = show(
-      fakeMeeting(snapshot({ participants: [person('me'), person('bot', { service: 'music' })] })),
+    // Смотрят чужой экран — стол не на сцене, и его чип виден.
+    const room = fakeMeeting(
+      snapshot({
+        participants: [person('me'), person('bot', { service: 'music' })],
+        durak: { seats: [{ memberId: 'me' }] },
+      }),
     );
+    (room as unknown as { viewing: Store<unknown> }).viewing.set({ screenId: 's', participantId: 'ann' });
+    const onOpen = show(room);
     const region = screen.getByRole('region', { name: 'Боты и интеграции' });
-    const chip = await waitFor(() => {
-      const button = region.querySelector<HTMLButtonElement>('.stage-chip[data-kind="music"]');
-      expect(button?.textContent).toContain('Put On');
-      return button!;
-    });
-    fireEvent.click(chip);
+    const bar = await screen.findByRole('group', { name: 'Мини-плеер' });
+    expect(region).toContainElement(bar);
+    await waitFor(() => expect(bar.textContent).toContain('Put On'));
+    expect(region.querySelector('.stage-chip[data-kind="music"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Дурак · 1 за столом' }));
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 

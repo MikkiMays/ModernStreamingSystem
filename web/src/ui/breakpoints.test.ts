@@ -66,7 +66,7 @@ describe('границы раскладки: CSS и код считают по �
       media(cinema, `${ROOMY} and ${DRAWER}`),
       '.meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .watch-together-stage',
     );
-    expect(beside).toContain(`padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`);
+    expect(beside).toContain(`padding-right: calc(${DRAWER_WIDTH}px + 2 * 12px - 16px);`);
   });
 
   /*
@@ -75,7 +75,7 @@ describe('границы раскладки: CSS и код считают по �
   */
   it('плитки и столы отодвигаются от полосы панели на её ширину, а не лежат под ней', () => {
     const afterSheet = `(min-width: ${Number(/\d+/.exec(SHEET)![0]) + 1}px)`;
-    const beside = `padding-right: calc(${DRAWER_WIDTH}px + 12px - 16px);`;
+    const beside = `padding-right: calc(${DRAWER_WIDTH}px + 2 * 12px - 16px);`;
     const talk = media(stage, `${afterSheet} and ${DRAWER}`);
     expect(talk).toContain('.stage:is(.conversation-stage, .watch-stage) {');
     expect(talk).toContain(beside);

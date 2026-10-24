@@ -5,7 +5,6 @@ import {
   isMusicPlatform,
   lastPlatform,
   offeredPlatforms,
-  openPlatform,
   platformTiles,
   routeQuery,
   type MusicPlatform,
@@ -39,17 +38,11 @@ describe('какие площадки предложить', () => {
   it('плитки — в том же порядке, со своим именем у загрузки', () => {
     const tiles = platformTiles(t, ['youtube', 'soundcloud', 'yandex', 'upload']);
     expect(tiles.map((tile) => tile.name)).toEqual(['YouTube', 'SoundCloud', 'Яндекс Музыка', 'Свои файлы']);
-    expect(tiles.every((tile) => tile.note && tile.color && !tile.disabled)).toBe(true);
+    expect(tiles.every((tile) => tile.note && tile.brand && !tile.disabled)).toBe(true);
   });
 });
 
 describe('какую площадку открыть и отметить', () => {
-  it('выбранную — пока сервер её предлагает; иначе экран выбора', () => {
-    expect(openPlatform(null, ['youtube'])).toBeNull();
-    expect(openPlatform('soundcloud', ['youtube', 'soundcloud'])).toBe('soundcloud');
-    expect(openPlatform('soundcloud', ['youtube'])).toBeNull();
-  });
-
   it('«Последний выбор» — только знакомая и включённая площадка', () => {
     expect(lastPlatform('soundcloud', ['youtube', 'soundcloud'])).toBe('soundcloud');
     expect(lastPlatform('soundcloud', ['youtube'])).toBeNull();

@@ -4,6 +4,7 @@ import type { MusicState, MusicTrack, PlatformTrack } from '../core/services';
 import { IntegrationShelf } from './IntegrationShelf';
 import { MusicQueue } from './MusicQueue';
 import { MusicSearch, type MusicSearchAbilities } from './MusicSearch';
+import { MusicUpload } from './MusicUpload';
 
 afterEach(cleanup);
 
@@ -122,6 +123,21 @@ describe('очередь', () => {
     expect(onMove).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole('button', { name: 'Переставить: Трек b' }), { key: 'ArrowDown' });
     expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }), 2, expect.anything());
+  });
+
+  it('после играющего пусто — секции «Далее» нет вовсе (R42)', () => {
+    render(
+      <MusicQueue
+        state={music([song('a')])}
+        canUse
+        onClear={() => {}}
+        onPromote={() => {}}
+        onRemove={() => {}}
+        onMove={() => {}}
+      />,
+    );
+    expect(screen.queryByRole('region', { name: 'Музыкальная очередь' })).toBeNull();
+    expect(screen.queryByText(/Дальше пусто/)).toBeNull();
   });
 
   it('без права — ручки выключены', () => {
@@ -278,5 +294,26 @@ describe('поле площадки (T59)', () => {
     const field = screen.getByRole('searchbox');
     expect(field).toHaveValue('https://soundcloud.com/artist/track');
     expect(field).toHaveFocus();
+  });
+});
+
+describe('свои файлы (R43)', () => {
+  it('одна зона: значок, строка, кнопка и пределы — всё внутри рамки; файлы над ней подсвечивают её', () => {
+    render(
+      <MusicUpload
+        canUse
+        maxFileBytes={50 * 1024 * 1024}
+        upload={vi.fn()}
+        onAdded={() => {}}
+        onError={() => {}}
+      />,
+    );
+    const zone = screen.getByText('Перетащите аудиофайлы сюда').closest('.music-drop')!;
+    expect(zone).not.toBeNull();
+    expect(zone).toContainElement(screen.getByRole('button', { name: 'Загрузить файлы' }));
+    expect(zone).toContainElement(screen.getByText('до 50 МБ и 60 минут на трек'));
+    expect(screen.queryByText(/Можно и перетащить/)).toBeNull();
+    fireEvent.dragOver(zone, { dataTransfer: { types: ['Files'] } });
+    expect(zone).toHaveAttribute('data-over', 'true');
   });
 });

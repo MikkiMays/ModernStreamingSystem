@@ -11,16 +11,15 @@ import type { CinemaProvidersResponse } from './types';
  * какое-нибудь неизбежно забывалось бы. Здесь у площадки одна карточка {@link ProviderSpec}, и
  * новая площадка — это новая запись в {@link PROVIDERS}, а не хирургия по всему кинозалу.
  *
- * ПОЧЕМУ ДВА ЦВЕТА, А НЕ ОДИН. `accent` — цвет вкладки-переключателя площадки в каталоге,
- * `tile` — цвет плитки-выключателя в панели интеграций. У YouTube и Twitch они и раньше не
- * совпадали (`#e33b3b`/`#ff3d3d`, `#8250e6`/`#9147ff`) — два разных места однажды выбрали цвет
- * порознь, и переучивать людей заново не входит в эту задачу. Реестр не стирает расхождение, а
- * просто перестаёт хранить его дважды по всему коду: то же самое хранится один раз. У площадок
- * со своей сценой (Rutube, VK Видео и следующие) вкладки-переключателя нет, и `accent` у них — цвет
- * самой площадки в её сцене: плашка с именем в полосе и выбранный раздел.
+ * ОДИН ЦВЕТ НА ПЛОЩАДКУ (R33). `accent` — переменная бренда площадки из общего реестра цветов
+ * интеграций (`ui/brands.ts`, `--brand-<id>` в `tokens.css`): им красятся вкладка-переключатель в
+ * каталоге, плитка в панели интеграций и, у площадок со своей сценой (Rutube, VK Видео и следующие),
+ * плашка с именем в полосе и выбранный раздел. Прежде у YouTube и Twitch вкладка и плитка были
+ * разных оттенков (`#e33b3b`/`#ff3d3d`, `#8250e6`/`#9147ff`) — владелец попросил отрисовать все
+ * интеграции по цветам везде, и цвет стал один.
  *
  * «По ссылке» — не площадка, а вход для любой ссылки: своя площадка у ссылки есть — она открывается
- * в её сцене, нет — остаётся здесь. Своего цвета у неё нет, и цвет её — общий цвет приложения.
+ * в её сцене, нет — остаётся здесь. Цвет её — нейтральный серый, а не цвет какой-то площадки.
  */
 export const PROVIDER_IDS = ['youtube', 'twitch', 'rutube', 'vk', 'ivi', 'link'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
@@ -43,11 +42,12 @@ export type SceneId = 'switcher' | 'rutube' | 'vk' | 'ivi' | 'link';
  */
 export interface ProviderSpec {
   id: ProviderId;
-  /** Цвет вкладки-переключателя (`.cinema-service`) — тот же, что задавала CSS раньше; у площадки
-   *  со своей сценой — её цвет в этой сцене. Значение CSS: hex площадки или переменная темы. */
+  /**
+   * Цвет площадки — переменная её бренда (`--brand-<id>`, реестр `ui/brands.ts`, R33): им красятся и
+   * вкладка переключателя (`.cinema-service`), и плитка в панели интеграций, и её сцена. Раньше у
+   * вкладки и плитки были разные оттенки (YouTube `#e33b3b` и `#ff3d3d`) — теперь цвет один на всё.
+   */
   accent: string;
-  /** Цвет плитки в панели интеграций (`.service-tile-icon`) — исторически другой оттенок. */
-  tile: string;
   icon: LucideIcon;
   scene: SceneId;
 }
@@ -57,65 +57,56 @@ export interface ProviderSpec {
 export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   youtube: {
     id: 'youtube',
-    accent: '#e33b3b',
-    tile: '#ff3d3d',
+    accent: 'var(--brand-youtube)',
     icon: Tv,
     scene: 'switcher',
   },
   twitch: {
     id: 'twitch',
-    accent: '#8250e6',
-    tile: '#9147ff',
+    accent: 'var(--brand-twitch)',
     icon: Radio,
     scene: 'switcher',
   },
   /*
-    Цвет — из их же CSS: `--rt-colors-base-brand-rutube-primary: #1c80e3` в дизайн-токенах сайта
-    (`static.rtbcdn.ru/woodpecker/…/web/3680.8cb244615ddfc9f7.css`, правила `[data-themeid=dark]`
-    и `[data-themeid=light]`, 24.09.2026). Вкладки-переключателя, с которой исторически разошёлся
-    бы цвет плитки, у Rutube нет — поэтому цвет один на обоих местах.
+    Цвет (`--brand-rutube`) — из их же CSS: `--rt-colors-base-brand-rutube-primary: #1c80e3` в
+    дизайн-токенах сайта (`static.rtbcdn.ru/woodpecker/…/web/3680.8cb244615ddfc9f7.css`, правила
+    `[data-themeid=dark]` и `[data-themeid=light]`, 24.09.2026).
   */
   rutube: {
     id: 'rutube',
-    accent: '#1c80e3',
-    tile: '#1c80e3',
+    accent: 'var(--brand-rutube)',
     icon: SquarePlay,
     scene: 'rutube',
   },
   /*
-    Цвет — из их же CSS: `--vkui--vkontakte_color_accent_alternate: #0077ff` в VKUI сайта
+    Цвет (`--brand-vk`) — из их же CSS: `--vkui--vkontakte_color_accent_alternate: #0077ff` в VKUI сайта
     (`st1-24.vkvideo.ru/css/al/vkui.490dad1c.css` и `…/vkvideo-web/entrypoints/core_spa.6b696ae4.css`,
-    24.09.2026; там же `--azure_a100: #0077ff` в `base.6a12502f.css`). Вкладки-переключателя у VK,
-    как и у Rutube, нет — цвет один на обоих местах.
+    24.09.2026; там же `--azure_a100: #0077ff` в `base.6a12502f.css`).
   */
   vk: {
     id: 'vk',
-    accent: '#0077FF',
-    tile: '#0077FF',
+    accent: 'var(--brand-vk)',
     icon: Video,
     scene: 'vk',
   },
   /*
-    Цвет — из их же CSS: `#ea003d` в `linear-gradient(270deg,#ea003d 0%,#c447ff 100%)`, живом
-    бандле сайта (`storm.bundle.0951df.css`, релиз `26.09.10`, проверено 25.09.2026). У ivi нет
-    вкладок-переключателя — цвет один на обоих местах, как у Rutube и VK Видео.
+    Цвет (`--brand-ivi`) — из их же CSS: `#ea003d` в `linear-gradient(270deg,#ea003d 0%,#c447ff 100%)`,
+    живом бандле сайта (`storm.bundle.0951df.css`, релиз `26.09.10`, проверено 25.09.2026).
   */
   ivi: {
     id: 'ivi',
-    accent: '#EA003D',
-    tile: '#EA003D',
+    accent: 'var(--brand-ivi)',
     icon: Clapperboard,
     scene: 'ivi',
   },
   /*
-    Не площадка, а вход для ссылки — и потому нейтральный цвет: общий синий приложения (`--blue`,
-    своё значение у светлой и тёмной темы), а не цвет какой-то одной площадки. Плитка — последняя
-    в «Кинозале»: сначала площадки, по которым ходят каталогом, потом дверь для всего остального.
+    Не площадка, а вход для ссылки — и потому нейтральный серый (`--brand-link`), а не цвет какой-то
+    одной площадки и не цвет приложения. Плитка — последняя в «Кинозале»: сначала площадки, по
+    которым ходят каталогом, потом дверь для всего остального.
   */
   link: {
     id: 'link',
-    accent: 'var(--blue)',
-    tile: 'var(--blue)',
+    accent: 'var(--brand-link)',
     icon: Link2,
     scene: 'link',
   },
