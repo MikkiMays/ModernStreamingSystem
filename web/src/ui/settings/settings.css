@@ -770,6 +770,7 @@ input.settings-search__input {
   gap: var(--space-3);
   min-width: 0;
 }
+/* Плашка сервиса — его цветом (R33): Яндекс Музыка — жёлтая с тёмным знаком, Telegram — голубой. */
 .setting-account__icon {
   display: grid;
   flex: none;
@@ -777,12 +778,9 @@ input.settings-search__input {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-3);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.setting-account[data-service='telegram'] .setting-account__icon {
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--platform, var(--surface-2));
+  box-shadow: var(--brand-plate-edge);
+  color: var(--platform-ink, var(--muted));
 }
 .setting-account__form {
   display: grid;

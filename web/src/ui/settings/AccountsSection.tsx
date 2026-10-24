@@ -10,11 +10,14 @@ import {
   type TokenAccount,
 } from '../../core/accounts';
 import type { Preferences } from '../../core/preferences';
+import { paint, type BrandId } from '../brands';
 import { Badge, Button, Soon } from '../kit';
 import { SettingGroup } from './Row';
 import { rowDomId, type RowId } from './sections';
 
 const ICONS: Record<string, LucideIcon> = { 'yandex-music': Music, telegram: Send };
+/** Цвет плашки сервиса (`brands.ts`, R33). У «Скоро» плашка серая: сервиса ещё нет. */
+const BRAND: Record<string, BrandId> = { 'yandex-music': 'yandex', telegram: 'telegram' };
 
 /** Форма входа по токену: появляется под строкой по «Подключить» и уходит по «Отмена». */
 function TokenForm({
@@ -98,6 +101,7 @@ function AccountRow({
       className="setting-row setting-account"
       id={rowDomId(`account-${account.id}` as RowId)}
       data-service={account.id}
+      style={account.soon || !BRAND[account.id] ? undefined : paint(BRAND[account.id]!)}
     >
       <div className="setting-account__who">
         <span className="setting-account__icon" aria-hidden="true">

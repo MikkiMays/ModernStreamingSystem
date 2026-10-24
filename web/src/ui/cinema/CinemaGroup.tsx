@@ -50,7 +50,7 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
           ? t(($) => $.cinema.reach.unreachable, { name: providerName(t, id) })
           : entry?.reason || t(($) => $.cinema.group.unavailable),
       icon: PROVIDERS[id].icon,
-      color: PROVIDERS[id].tile,
+      brand: id,
       disabled: !available,
     };
   });

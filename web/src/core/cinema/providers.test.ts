@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../../i18n';
 import { listedProviders, PROVIDER_IDS, providerName, PROVIDERS, SWITCHER_TABS } from './providers';
 import type { CinemaProvidersResponse } from './types';
+import { BRAND_IDS } from '../../ui/brands';
 
 describe('реестр площадок', () => {
   it('идентификаторы не повторяются', () => {
@@ -22,40 +23,28 @@ describe('реестр площадок', () => {
       expect(spec.scene).toBeTruthy();
       // У площадки-компонента должен быть render — так отличают настоящую иконку от «забыли».
       expect(typeof spec.icon).toBe('object');
-      // Цвет площадки — её hex; у «По ссылке» своего цвета нет, у неё общий цвет приложения.
-      expect(spec.accent).toMatch(/^(#[0-9a-f]{6}|var\(--blue\))$/i);
-      expect(spec.tile).toMatch(/^(#[0-9a-f]{6}|var\(--blue\))$/i);
+      // Цвет площадки — переменная её бренда из общего реестра (R33), а не свой hex.
+      expect(spec.accent).toBe(`var(--brand-${id})`);
+      expect(BRAND_IDS).toContain(id);
     }
-  });
-
-  it('плитка панели и вкладка переключателя не делят один и тот же цвет вручную', () => {
-    // Разные оттенки — исторический факт, а не опечатка: два места когда-то выбрали цвет
-    // порознь. Тест защищает именно это несовпадение, а не совпадение. Вкладка есть только у
-    // площадок переключателя; у площадки со своей сценой цвет один.
-    for (const id of SWITCHER_TABS) expect(PROVIDERS[id].tile).not.toBe(PROVIDERS[id].accent);
   });
 
   it('у Rutube своя сцена и цвет из их CSS', () => {
     expect(PROVIDERS.rutube.scene).toBe('rutube');
-    expect(PROVIDERS.rutube.accent).toBe('#1c80e3');
+    expect(PROVIDERS.rutube.accent).toBe('var(--brand-rutube)');
     expect(t(($) => $.cinema.providers.rutube.search)).toBe('Видео, каналы и ТВ');
   });
 
   it('у VK Видео своя сцена, цвет из их VKUI и поиск по видео и сообществам', () => {
     expect(PROVIDER_IDS.indexOf('vk')).toBe(3);
     expect(PROVIDERS.vk.scene).toBe('vk');
-    expect(PROVIDERS.vk.accent).toBe('#0077FF');
-    expect(PROVIDERS.vk.tile).toBe(PROVIDERS.vk.accent);
+    expect(PROVIDERS.vk.accent).toBe('var(--brand-vk)');
     expect(t(($) => $.cinema.providers.vk.search)).toBe('Видео и сообщества');
   });
 
-  it('«По ссылке» — последняя плитка, своя сцена и общий синий приложения, а не цвет площадки', () => {
+  it('«По ссылке» — последняя плитка, своя сцена и нейтральный серый, а не цвет площадки', () => {
     expect(PROVIDER_IDS.at(-1)).toBe('link');
-    expect(PROVIDERS.link).toMatchObject({
-      scene: 'link',
-      accent: 'var(--blue)',
-      tile: 'var(--blue)',
-    });
+    expect(PROVIDERS.link).toMatchObject({ scene: 'link', accent: 'var(--brand-link)' });
     expect(providerName(t, 'link')).toBe('По ссылке');
     expect(t(($) => $.cinema.providers.link.search)).toBe('Вставьте ссылку на видео');
   });

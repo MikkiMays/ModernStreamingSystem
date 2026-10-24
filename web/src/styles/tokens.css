@@ -81,15 +81,57 @@
   --palette-steel-600: #3b506a;
   --palette-steel-900: #0f2238;
   --palette-violet-300: #bca6ff;
-  /* Бренды интеграций (DESIGN → «Цвета интеграций», R33): здесь — категории и игры, которые носят чипы
-     над сценой (R30); площадки (YouTube, Яндекс…) дописывает реестр брендов. Цвет приложения
-     интеграции не берут. */
-  --palette-brand-music: #2b9459;
+  /* Бренды интеграций (DESIGN → «Цвета интеграций», R33): заливка плашки, текст бренда на светлой
+     (`-on-light`) и тёмной (`-on-dark`) поверхности. Источник для проверок — `ui/brands.ts`
+     (`brands.test.ts` сверяет). Цвет приложения интеграции не берут. */
+  --palette-brand-youtube: #ff3d3d;
+  --palette-brand-youtube-on-light: #c81e1e;
+  --palette-brand-youtube-on-dark: #ff6b6b;
+  --palette-brand-soundcloud: #ff5500;
+  --palette-brand-soundcloud-on-light: #b63c00;
+  --palette-brand-soundcloud-on-dark: #ff8a4d;
+  --palette-brand-yandex: #ffcc00;
+  --palette-brand-yandex-on-light: #7a5d00;
+  --palette-brand-yandex-on-dark: #ffd633;
+  --palette-brand-twitch: #9147ff;
+  --palette-brand-twitch-on-light: #6f2fd6;
+  --palette-brand-twitch-on-dark: #b48aff;
+  --palette-brand-rutube: #1c80e3;
+  --palette-brand-rutube-on-light: #1a66b8;
+  --palette-brand-rutube-on-dark: #5aa8ff;
+  --palette-brand-vk: #0077ff;
+  --palette-brand-vk-on-light: #0a5fd1;
+  --palette-brand-vk-on-dark: #4f9dff;
+  --palette-brand-ivi: #ea003d;
+  --palette-brand-ivi-on-light: #bf0030;
+  --palette-brand-ivi-on-dark: #ff5c84;
+  --palette-brand-link: #6b7585;
+  --palette-brand-link-on-light: #4d5566;
+  --palette-brand-link-on-dark: #b3bbc9;
+  --palette-brand-telegram: #1b8ad0;
+  --palette-brand-telegram-on-light: #0f7bb3;
+  --palette-brand-telegram-on-dark: #6cc7f6;
   --palette-brand-cinema: #0f97ab;
+  --palette-brand-cinema-on-light: #0e7a8a;
+  --palette-brand-cinema-on-dark: #4fd0e2;
+  --palette-brand-music: #2b9459;
+  --palette-brand-music-on-light: #1f7a47;
+  --palette-brand-music-on-dark: #4fd48a;
+  --palette-brand-games: #8a5cf6;
+  --palette-brand-games-on-light: #6a3fd0;
+  --palette-brand-games-on-dark: #b59bff;
   --palette-brand-poker: #8a5cf6;
+  --palette-brand-poker-on-light: #6a3fd0;
+  --palette-brand-poker-on-dark: #b59bff;
   --palette-brand-durak: #c9a227;
+  --palette-brand-durak-on-light: #7a5d00;
+  --palette-brand-durak-on-dark: #e3c04f;
   --palette-brand-chess: #5271a3;
+  --palette-brand-chess-on-light: #3f5a87;
+  --palette-brand-chess-on-dark: #9db4dc;
   --palette-brand-gartic: #8d65c5;
+  --palette-brand-gartic-on-light: #6a45a3;
+  --palette-brand-gartic-on-dark: #bca6ff;
   /* лица без картинки: пять пар «фон — буква» */
   --palette-face-blue-bg: #d9e4fc;
   --palette-face-blue: #315589;
@@ -263,11 +305,34 @@
   --avatar-3-fg: var(--palette-face-sand);
   --avatar-4-bg: var(--palette-mist-200);
   --avatar-4-fg: var(--palette-slate-700);
-  /* Плашка значка интеграции и знак на ней (`--brand-<id>-ink`): на светлых заливках — тёмный. */
-  --brand-music: var(--palette-brand-music);
-  --brand-music-ink: var(--palette-white);
+  /* Плашка значка интеграции и знак на ней (`--brand-<id>-ink`): на светлых заливках — тёмный.
+     Текст цветом бренда (`--brand-<id>-text`) — в смысловых блоках тем: у тёмной он светлее. Кромка
+     плашки — чтобы жёлтый Яндекса и золото дурака не растворялись на белом. */
+  --brand-plate-edge: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  --brand-youtube: var(--palette-brand-youtube);
+  --brand-youtube-ink: var(--palette-white);
+  --brand-soundcloud: var(--palette-brand-soundcloud);
+  --brand-soundcloud-ink: var(--palette-white);
+  --brand-yandex: var(--palette-brand-yandex);
+  --brand-yandex-ink: var(--palette-slate-900);
+  --brand-twitch: var(--palette-brand-twitch);
+  --brand-twitch-ink: var(--palette-white);
+  --brand-rutube: var(--palette-brand-rutube);
+  --brand-rutube-ink: var(--palette-white);
+  --brand-vk: var(--palette-brand-vk);
+  --brand-vk-ink: var(--palette-white);
+  --brand-ivi: var(--palette-brand-ivi);
+  --brand-ivi-ink: var(--palette-white);
+  --brand-link: var(--palette-brand-link);
+  --brand-link-ink: var(--palette-white);
+  --brand-telegram: var(--palette-brand-telegram);
+  --brand-telegram-ink: var(--palette-white);
   --brand-cinema: var(--palette-brand-cinema);
   --brand-cinema-ink: var(--palette-white);
+  --brand-music: var(--palette-brand-music);
+  --brand-music-ink: var(--palette-white);
+  --brand-games: var(--palette-brand-games);
+  --brand-games-ink: var(--palette-white);
   --brand-poker: var(--palette-brand-poker);
   --brand-poker-ink: var(--palette-white);
   --brand-durak: var(--palette-brand-durak);
@@ -318,6 +383,22 @@
   --scrim: rgb(16 22 36 / 0.45);
   --loader-bg: var(--palette-mist-50);
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%235f6878' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+  --brand-youtube-text: var(--palette-brand-youtube-on-light);
+  --brand-soundcloud-text: var(--palette-brand-soundcloud-on-light);
+  --brand-yandex-text: var(--palette-brand-yandex-on-light);
+  --brand-twitch-text: var(--palette-brand-twitch-on-light);
+  --brand-rutube-text: var(--palette-brand-rutube-on-light);
+  --brand-vk-text: var(--palette-brand-vk-on-light);
+  --brand-ivi-text: var(--palette-brand-ivi-on-light);
+  --brand-link-text: var(--palette-brand-link-on-light);
+  --brand-telegram-text: var(--palette-brand-telegram-on-light);
+  --brand-cinema-text: var(--palette-brand-cinema-on-light);
+  --brand-music-text: var(--palette-brand-music-on-light);
+  --brand-games-text: var(--palette-brand-games-on-light);
+  --brand-poker-text: var(--palette-brand-poker-on-light);
+  --brand-durak-text: var(--palette-brand-durak-on-light);
+  --brand-chess-text: var(--palette-brand-chess-on-light);
+  --brand-gartic-text: var(--palette-brand-gartic-on-light);
 }
 
 /* ---------- смысловые: тёмная тема (два блока совпадают дословно) ---------- */
@@ -359,6 +440,22 @@
   --scrim: rgb(0 0 0 / 0.6);
   --loader-bg: var(--palette-ink-900);
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+  --brand-youtube-text: var(--palette-brand-youtube-on-dark);
+  --brand-soundcloud-text: var(--palette-brand-soundcloud-on-dark);
+  --brand-yandex-text: var(--palette-brand-yandex-on-dark);
+  --brand-twitch-text: var(--palette-brand-twitch-on-dark);
+  --brand-rutube-text: var(--palette-brand-rutube-on-dark);
+  --brand-vk-text: var(--palette-brand-vk-on-dark);
+  --brand-ivi-text: var(--palette-brand-ivi-on-dark);
+  --brand-link-text: var(--palette-brand-link-on-dark);
+  --brand-telegram-text: var(--palette-brand-telegram-on-dark);
+  --brand-cinema-text: var(--palette-brand-cinema-on-dark);
+  --brand-music-text: var(--palette-brand-music-on-dark);
+  --brand-games-text: var(--palette-brand-games-on-dark);
+  --brand-poker-text: var(--palette-brand-poker-on-dark);
+  --brand-durak-text: var(--palette-brand-durak-on-dark);
+  --brand-chess-text: var(--palette-brand-chess-on-dark);
+  --brand-gartic-text: var(--palette-brand-gartic-on-dark);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -399,6 +496,22 @@
     --scrim: rgb(0 0 0 / 0.6);
     --loader-bg: var(--palette-ink-900);
     --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
+    --brand-youtube-text: var(--palette-brand-youtube-on-dark);
+    --brand-soundcloud-text: var(--palette-brand-soundcloud-on-dark);
+    --brand-yandex-text: var(--palette-brand-yandex-on-dark);
+    --brand-twitch-text: var(--palette-brand-twitch-on-dark);
+    --brand-rutube-text: var(--palette-brand-rutube-on-dark);
+    --brand-vk-text: var(--palette-brand-vk-on-dark);
+    --brand-ivi-text: var(--palette-brand-ivi-on-dark);
+    --brand-link-text: var(--palette-brand-link-on-dark);
+    --brand-telegram-text: var(--palette-brand-telegram-on-dark);
+    --brand-cinema-text: var(--palette-brand-cinema-on-dark);
+    --brand-music-text: var(--palette-brand-music-on-dark);
+    --brand-games-text: var(--palette-brand-games-on-dark);
+    --brand-poker-text: var(--palette-brand-poker-on-dark);
+    --brand-durak-text: var(--palette-brand-durak-on-dark);
+    --brand-chess-text: var(--palette-brand-chess-on-dark);
+    --brand-gartic-text: var(--palette-brand-gartic-on-dark);
   }
 }
 

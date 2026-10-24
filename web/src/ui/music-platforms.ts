@@ -3,6 +3,7 @@ import { musicSourceName, type MusicSource } from '../core/services';
 import type { Translate } from '../i18n';
 import type { MusicQuery } from './music-playback';
 import type { PlatformTile } from './PlatformPicker';
+import type { BrandId } from './brands';
 
 /**
  * Площадки музыки — то, между чем человек выбирает при входе в «Музыку» (T59, решение владельца В-5).
@@ -28,16 +29,23 @@ export type SearchPlatform = Exclude<MusicPlatform, 'upload'>;
 export const MUSIC_PLATFORMS: readonly MusicPlatform[] = ['youtube', 'soundcloud', 'yandex', 'upload'];
 
 /**
- * Знак и цвет плитки. Цвета площадок — их собственные (YouTube — тот же, что у плитки кинозала);
- * на жёлтом Яндекса белый знак не читается, поэтому знак тёмный. Свои файлы — цвет приложения:
- * это не чужая площадка, а вход для того, что уже есть у человека.
+ * Знак и бренд плитки (`ui/brands.ts`, R33). Цвета площадок — их собственные (YouTube — тот же, что
+ * у кинозала); на жёлтом Яндекса знак тёмный. Свои файлы — цвет музыки: это не чужая площадка, а вход
+ * для того, что уже есть у человека, и цвет приложения интеграции не берут.
  */
-const LOOK: Record<MusicPlatform, Pick<PlatformTile<MusicPlatform>, 'icon' | 'color' | 'ink'>> = {
-  youtube: { icon: SquarePlay, color: '#ff3d3d' },
-  soundcloud: { icon: Cloud, color: '#ff5500' },
-  yandex: { icon: Disc3, color: '#ffcc00', ink: '#1b1f27' },
-  upload: { icon: FileAudio, color: 'var(--accent-fill)' },
+const LOOK: Record<MusicPlatform, Pick<PlatformTile<MusicPlatform>, 'icon' | 'brand'>> = {
+  youtube: { icon: SquarePlay, brand: 'youtube' },
+  soundcloud: { icon: Cloud, brand: 'soundcloud' },
+  yandex: { icon: Disc3, brand: 'yandex' },
+  upload: { icon: FileAudio, brand: 'music' },
 };
+
+/** Бренд источника трека: полоса, кнопка и метка плеера красятся площадкой, откуда трек (R33). */
+export function sourceBrand(source: MusicSource): BrandId {
+  return source === 'youtube' || source === 'soundcloud' || source === 'yandex' || source === 'telegram'
+    ? source
+    : 'music';
+}
 
 export function isMusicPlatform(value: unknown): value is MusicPlatform {
   return (MUSIC_PLATFORMS as readonly unknown[]).includes(value);

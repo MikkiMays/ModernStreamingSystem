@@ -103,6 +103,8 @@
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
+/* Плашка значка — цветом интеграции (R33): категории витрины и плитки площадок красит `paint()`
+   (`brands.ts`), который ставит `--platform` и `--platform-ink`. Цвет приложения — только запасной. */
 .service-group__icon,
 .service-tile-icon {
   display: grid;
@@ -111,12 +113,8 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-3);
-  background: var(--accent-fill);
-  color: var(--on-accent);
-}
-/* Плитка площадки — на цвете самой площадки (`--platform` ставит `PlatformPicker`). */
-.service-tile-icon {
   background: var(--platform, var(--accent-fill));
+  box-shadow: var(--brand-plate-edge);
   color: var(--platform-ink, var(--on-accent));
 }
 .service-group__text,
@@ -176,6 +174,7 @@
   height: 36px;
   margin-top: 2px;
   background: var(--surface-2);
+  box-shadow: none;
   color: var(--muted);
 }
 .service-group__name,
@@ -850,8 +849,9 @@ input.music-search__input:focus-visible {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-3);
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--brand-yandex);
+  box-shadow: var(--brand-plate-edge);
+  color: var(--brand-yandex-ink);
 }
 .music-account__text {
   display: grid;
