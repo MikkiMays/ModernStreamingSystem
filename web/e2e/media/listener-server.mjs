@@ -22,6 +22,8 @@ const server = await chromium.launchServer({
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
     `--host-resolver-rules=MAP ${stand.hostname} ${address}`,
+    // Например, ключ LNA для страницы из локальной сборки (voice-probe.spec.ts, PROBE_WEB_DIST).
+    ...(process.env.CORD_EXTRA_ARGS ? process.env.CORD_EXTRA_ARGS.split(' ') : []),
     ...(process.env.CORD_FAKE_AUDIO
       ? [`--use-file-for-fake-audio-capture=${process.env.CORD_FAKE_AUDIO}`]
       : []),

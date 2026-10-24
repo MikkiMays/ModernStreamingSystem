@@ -22,7 +22,8 @@
  *   PROBE_SPEAKER_WAV   — свой файл «микрофона» говорящего (R113: `gen-voice.mjs … --left-only`);
  *   PROBE_SUPPRESSION   — шумоподавление говорящего: off | browser | rnnoise | voice;
  *   PROBE_STALL_CMD     — команда в середине окна (PROBE_STALL_AT, мс): «канал замер и отпустил»;
- *   PROBE_WEB_DIST=dir  — страница из локальной сборки (`npm run build`), ядро/SFU — стенда;
+ *   PROBE_WEB_DIST=dir  — страница из локальной сборки (`npx vite build --outDir …`), ядро/SFU — стенда
+ *                         (слушателю в netns — CORD_EXTRA_ARGS с тем же ключом LNA, см. listener-server.mjs);
  *   PROBE_ASSERT=0      — только записать, без порогов;
  *   OUT                 — каталог итогов (по умолчанию /tmp/voice-probe), имя — PROBE_LABEL.
  *
@@ -46,6 +47,10 @@ const WARM_MS = Number(process.env.WARM_MS ?? 15000);
 const OUT = process.env.OUT ?? '/tmp/voice-probe';
 const LABEL = process.env.PROBE_LABEL ?? 'run';
 const DIST = process.env.PROBE_WEB_DIST ?? '';
+// Страница, отданная `route.fulfill`, для Chromium — «публичная», а стенд — адрес этой же машины:
+// проверка доступа к локальной сети (LNA) рвёт сокеты ядра и SFU. Только для тестового браузера.
+const LOCAL_PAGE =
+  '--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights';
 const ASSERT = process.env.PROBE_ASSERT !== '0';
 const INVITE = process.env.PROBE_INVITE ?? '';
 const STALL_CMD = process.env.PROBE_STALL_CMD ?? '';
@@ -386,6 +391,7 @@ test('речь на плохом канале: без слышимых обры�
       `--use-file-for-fake-audio-capture=${SPEAKER_WAV || VOICE}`,
       // Например, RED с двумя повторами у издателя: `--force-fieldtrials=WebRTC-Audio-Red-For-Opus/Enabled-2/`.
       ...(process.env.PROBE_SPEAKER_ARGS ? process.env.PROBE_SPEAKER_ARGS.split(' ') : []),
+      ...(DIST ? [LOCAL_PAGE] : []),
     ],
   });
   let listenerBrowser: Browser;
@@ -432,9 +438,21 @@ test('речь на плохом канале: без слышимых обры�
   const speaker = await speakerContext.newPage();
   const listener = await listenerContext.newPage();
   let resubscribes = 0;
+  const resubscribedAt: number[] = [];
+  const errors: string[] = [];
   listener.on('console', (message) => {
-    if (message.text().includes('live resubscribe')) resubscribes += 1;
+    if (message.text().includes('live resubscribe')) {
+      resubscribes += 1;
+      resubscribedAt.push(Date.now());
+    }
+    if (message.type() === 'error' && errors.length < 20)
+      errors.push(`слушатель: ${message.text().slice(0, 200)}`);
   });
+  speaker.on('console', (message) => {
+    if (message.type() === 'error' && errors.length < 20)
+      errors.push(`говорящий: ${message.text().slice(0, 200)}`);
+  });
+  process.on('exit', () => errors.length && console.log('ошибки страниц:\n' + errors.join('\n')));
   try {
     // Встречу заводит браузер из netns: у него свой адрес, и общий для машины предел «новых встреч
     // за час» (его выбирают все e2e этой машины) его не касается.
@@ -580,6 +598,11 @@ test('речь на плохом канале: без слышимых обры�
       stats: statsSummary(longest),
       tracks: byTrack.size,
       stalledAt: stalledAt ? stalledAt - from : null,
+      // Где пришлась каждая переподписка: внутри услышанной фразы (слышно) или в паузе.
+      resubscribedIn: resubscribedAt.map((at) => {
+        const inside = heardOut.some((p) => at >= p.start - 200 && at <= p.end + 200);
+        return { atMs: at - from, during: inside ? 'фраза' : 'пауза' };
+      }),
       sdp,
       playback,
       host: {

@@ -31,7 +31,7 @@ const VOWELS = [
   [300, 870, 2240], // у
 ];
 
-export function render(seconds = 60) {
+export function render(seconds = 60, pauseScale = 1) {
   const n = RATE * seconds;
   const out = new Float32Array(n);
   let t0 = 0;
@@ -70,7 +70,7 @@ export function render(seconds = 60) {
       }
       out[start + i] = 0.16 * v * env * Math.max(0, ramp);
     }
-    t0 += len + pause;
+    t0 += len + pause * pauseScale;
   }
   // Пол шума комнаты ≈ −60 дБ: настоящий микрофон не отдаёт цифровых нулей.
   for (let i = 0; i < n; i++) out[i] += 0.002 * noise();
@@ -116,9 +116,12 @@ export function wav(samples, channels = 1) {
 //   node e2e/media/gen-voice.mjs /tmp/voice.wav               речь, моно
 //   node e2e/media/gen-voice.mjs /tmp/left.wav --left-only    речь только в левом канале стерео
 //   node e2e/media/gen-voice.mjs /tmp/silence.wav --silence   10 с тишины
+//   node e2e/media/gen-voice.mjs /tmp/turns.wav --long-pauses паузы до 3,75 с (переподписка в тишине)
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2]) {
   const mode = process.argv[3];
-  const samples = mode === '--silence' ? new Float32Array(RATE * 10) : render(60);
+  // `--long-pauses` — паузы в 2,5 раза длиннее (до 3,75 с): так молчит тот, кто слушает другого.
+  const samples =
+    mode === '--silence' ? new Float32Array(RATE * 10) : render(60, mode === '--long-pauses' ? 2.5 : 1);
   writeFileSync(process.argv[2], wav(samples, mode === '--left-only' ? 2 : 1));
   console.log('wrote', process.argv[2], mode ?? '(речь 60 с)');
 }
