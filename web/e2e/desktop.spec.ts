@@ -131,6 +131,13 @@ test('native favorite settings open unavailable rooms without joining and synchr
   );
   await expect(page.locator('.ping-badge')).toHaveText(/PING · \d+ мс/);
   await expect(page.locator('.ping-badge')).toHaveAttribute('title', /Время ответа сервера/);
+  // Строка в потоке под входом, а не плашка `fixed` в углу поверх марки (R20).
+  expect(await page.locator('.ping-badge').evaluate((badge) => getComputedStyle(badge).position)).toBe(
+    'static',
+  );
+  const card = await page.locator('.desktop-connect').boundingBox();
+  const badge = await page.locator('.ping-badge').boundingBox();
+  expect(badge!.y).toBeGreaterThanOrEqual(card!.y + card!.height);
   await page.route('**/api/v1/ping', (route) => route.abort());
   await expect(page.locator('.ping-badge')).toHaveText('PING · Нет связи', { timeout: 6000 });
 });

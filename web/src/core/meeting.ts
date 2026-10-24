@@ -12,6 +12,14 @@ import { readPreferences } from './preferences';
 import { volumeKey } from './volumes';
 import type { CinemaAt } from './cinema/types';
 import type { WatchProvider } from './watch';
+import { allowed } from './permissions';
+import {
+  DesktopNotifier,
+  readWindowState,
+  watchWindowState,
+  type NotifyContext,
+  type WindowState,
+} from './desktop-notify';
 import { t } from '../i18n';
 
 /** Сколько помнится замер часов: за десять минут даже неподведённые часы уходят на десятки мс. */
@@ -49,6 +57,16 @@ export class Meeting {
    * текстом. Здесь текст ждёт, пока чат откроют снова, и уходит вместе со встречей.
    */
   readonly draft = new Store('');
+  /**
+   * Открыта ли панель чата (её открывает экран встречи) и видит ли человек окно. По ним считаются
+   * непрочитанные (R87) и решается, слать ли уведомление Windows (R59): смотрящему в открытый чат
+   * не о чем напоминать.
+   */
+  readonly chatOpen = new Store(false);
+  readonly windowState = new Store<WindowState>(readWindowState());
+  /** Чужие сообщения, пришедшие, пока чат был закрыт или окно не в фокусе: красный кружок на «Чате». */
+  readonly unread = new Store(0);
+  readonly notifier = new DesktopNotifier(t);
   private viewChange: Promise<unknown> = Promise.resolve();
   private viewRevision = 0;
   private played = new Set<string>();
@@ -112,6 +130,10 @@ export class Meeting {
     window.addEventListener('pagehide', this.report);
     document.addEventListener('visibilitychange', this.refreshOnReturn);
     this.subscriptions.push(
+      watchWindowState((state) => this.windowState.set(state)),
+      this.windowState.subscribe(this.attend),
+      this.chatOpen.subscribe(this.attend),
+      this.unread.subscribe(() => this.notifier.badge(this.unread.get(), this.windowState.get())),
       // Показ, который мы смотрим, снят с публикации — просмотр закрывается сразу, не по снимку (R81).
       this.media.screenGone.subscribe(() => {
         const gone = this.media.screenGone.get();
@@ -162,7 +184,65 @@ export class Meeting {
     for (const cue of cues) this.cue(cue);
     // Сторожевая запись: почему прозвучал каждый звук — чтобы «звуки сами по себе» разбирались
     // по журналу клиента, а не по памяти.
-    if (cues.length) console.info('[cord] звуки комнаты', this.cues.journal.slice(-cues.length));
+    if (!cues.length) return;
+    const records = this.cues.journal.slice(-cues.length);
+    console.info('[cord] звуки комнаты', records);
+    // Те же события — уведомлением Windows, если человек на Cord не смотрит (R59).
+    const name = (id: string) => snapshot.participants.find((p) => p.id === id)?.name ?? '';
+    const joined = records
+      .filter((record) => record.cue === 'join')
+      .map((record) => name(record.participantId));
+    if (joined.length) this.notifier.notify({ kind: 'join', names: joined }, () => this.notifyContext());
+    const knock = records.filter((record) => record.cue === 'knock').at(-1);
+    if (knock)
+      this.notifier.notify(
+        {
+          kind: 'knock',
+          name: name(knock.participantId),
+          participantId: knock.participantId,
+          waiting: snapshot.participants.filter((p) => p.status === 'WAITING').length,
+        },
+        this.notifyContext(snapshot),
+      );
+  }
+  /** Что знает уведомление о встрече и о человеке — в момент отправки. */
+  private notifyContext(snapshot = this.snapshot.get()): NotifyContext {
+    const self = this.admission.participantId;
+    return {
+      ...this.windowState.get(),
+      roomId: this.admission.roomId,
+      title: snapshot.title,
+      chatOpen: this.chatOpen.get(),
+      selfName: snapshot.participants.find((p) => p.id === self)?.name ?? '',
+      canApprove: allowed(snapshot, self, 'participant.approve'),
+    };
+  }
+  /** Человек смотрит в открытый чат — всё прочитано; иначе значок на панели задач — по фокусу окна. */
+  private attend = () => {
+    const { focused, visible } = this.windowState.get();
+    if (this.chatOpen.get() && focused && visible) this.unread.set(0);
+    this.notifier.badge(this.unread.get(), this.windowState.get());
+  };
+  /**
+   * Нажатие в уведомлении Windows (`notification.action {id, tag}`): «Впустить» и «Отклонить» —
+   * тому, кто просился последним; ответ — какую панель открыть. Чужая встреча (`tag` другой
+   * комнаты, оставшийся в центре уведомлений) — `null`.
+   */
+  handleNotificationAction(id: string, tag: string): 'chat' | 'people' | null {
+    const prefix = `room:${this.admission.roomId}:`;
+    if (!tag.startsWith(prefix) || this.ended.get()) return null;
+    const kind = tag.slice(prefix.length);
+    if (kind === 'knock') {
+      const target = this.notifier.lastKnock;
+      if (target && (id === 'admit' || id === 'deny'))
+        void this.command(
+          id === 'admit' ? 'participant.approve' : 'participant.remove',
+          undefined,
+          target,
+        ).catch((error) => this.media.report(error));
+      return 'people';
+    }
+    return kind === 'message' ? 'chat' : null;
   }
   private screenGoneSeen = 0;
   /** Просмотр чужого показа кончился — по снимку ядра или по дорожке SFU (R81), что раньше. */
@@ -239,8 +319,13 @@ export class Meeting {
         event.type === 'message.created' &&
         event.payload.message &&
         event.payload.message.participantId !== this.admission.participantId
-      )
+      ) {
         this.cue('message', event.eventId);
+        const { focused, visible } = this.windowState.get();
+        if (!(this.chatOpen.get() && focused && visible)) this.unread.update((n) => n + 1);
+        const { name, text } = event.payload.message;
+        this.notifier.notify({ kind: 'message', name, text }, this.notifyContext());
+      }
       // The room hears a screen start; only the person sharing hears that somebody came to
       // watch it. Everyone else getting that cue would be telling them about a stranger
       // arriving at a stream they are not running.
@@ -405,9 +490,17 @@ export class Meeting {
       })
       .catch(() => this.played.delete(screenId));
   }
+  /**
+   * Закрепить камеру — свою или чужую (R83): у себя, крупной плиткой над лентой остальных, как в
+   * Discord. Комната об этом не знает. Чужой экран, открытый во всю сцену, закрывается: сцена одна.
+   */
   pinCamera(participantId: string) {
     this.returnToConversation();
     this.pinnedCamera.set(participantId);
+  }
+  /** Открепить — вернуть сетку (или «Говорящего»), не трогая ничего другого. */
+  unpinCamera() {
+    this.pinnedCamera.set(null);
   }
   /**
    * Открыть или закрыть каталог кинотеатра. Чужую демонстрацию он закрывает: сцена одна, и
@@ -435,6 +528,7 @@ export class Meeting {
     this.cinema.set(null);
     this.cue('self-leave');
     this.sounds.dispose();
+    this.notifier.dispose();
     this.report();
     this.media.dispose();
     this.ended.set(reason);
@@ -461,6 +555,7 @@ export class Meeting {
     document.removeEventListener('visibilitychange', this.refreshOnReturn);
     this.control.dispose();
     this.sounds.dispose();
+    this.notifier.dispose();
     this.media.dispose();
     this.subscriptions.forEach((fn) => fn());
     void this.uploader.pause();

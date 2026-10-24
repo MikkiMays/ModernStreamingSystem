@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { markSeen, onboarding, readOnboarding, replayOnboarding } from '../../core/onboarding';
-import { HomeTour, OnceHint } from './Onboarding';
+import { onboarding, readOnboarding, replayOnboarding } from '../../core/onboarding';
+import { HomeTour } from './Onboarding';
 
 /*
   jsdom не раскладывает страницу: у всех элементов нулевой размер, и знакомство сочло бы, что кнопок
@@ -109,32 +109,5 @@ describe('знакомство на главной', () => {
       </>,
     );
     expect(await step('Новая встреча')).toBeInTheDocument();
-  });
-});
-
-describe('подсказка один раз', () => {
-  it('у пульта при первом входе во встречу, и больше никогда', async () => {
-    const anchor = document.createElement('div');
-    anchor.setAttribute('data-tour', 'dock');
-    document.body.append(anchor);
-    const { rerender } = render(<OnceHint id="meeting" anchor={anchor} ready={false} />);
-    await act(() => new Promise((resolve) => setTimeout(resolve, 800)));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    rerender(<OnceHint id="meeting" anchor={anchor} ready />);
-    expect(await step('Вы во встрече')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Понятно' }));
-    expect(readOnboarding().meeting).toBe(true);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    anchor.remove();
-  });
-
-  it('уже виденная не показывается', async () => {
-    act(() => markSeen('integrations'));
-    const anchor = document.createElement('h2');
-    document.body.append(anchor);
-    render(<OnceHint id="integrations" anchor={anchor} />);
-    await act(() => new Promise((resolve) => setTimeout(resolve, 800)));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    anchor.remove();
   });
 });

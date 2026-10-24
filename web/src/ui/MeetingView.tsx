@@ -1,10 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, Headphones, Link, PhoneOff, Users, Wifi, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Headphones, PhoneOff, Users, Wifi, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
-import { Ping } from './Ping';
+import { StageOverlay } from './StageOverlay';
 import { CallDock } from './CallDock';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
@@ -24,15 +24,13 @@ import {
   releasesHotkey,
 } from '../core/hotkeys';
 import { MicHotkey } from '../core/mic-hotkey';
-import { hasFeature, notifyDesktop, onDesktopCommand } from '../core/desktop';
+import { hasFeature, notifyDesktop, onDesktopCommand, onNotificationAction } from '../core/desktop';
 import { desktopSettingsAvailable, toggleDesktopOverlay } from '../core/desktop-settings';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 import { HelpButton } from './support/HelpButton';
-import { OnceHint } from './onboarding/Onboarding';
-import { anchorFor } from '../core/onboarding';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 
@@ -66,7 +64,6 @@ export function MeetingView({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const viewing = useStore(meeting.viewing);
-  const pinned = useStore(meeting.pinnedCamera);
   /*
     На весь экран разворачивается документ, а не страница встречи.
 
@@ -110,12 +107,6 @@ export function MeetingView({
   const compact = useMediaQuery(COMPACT);
   const control = useStore(meeting.control.state);
   const ended = useStore(meeting.ended);
-  // Первый вход во встречу (T34): одна подсказка у микрофона, камеры и экрана — когда вышли в эфир.
-  const live = media.status === 'connected' && !ended;
-  const [dock, setDock] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setDock(live ? anchorFor('dock') : null);
-  }, [live]);
   // «Вы ещё здесь?» (A2): браузер сам говорит ядру, что за ним кто-то есть, пока встреча идёт.
   const presence = usePresence(meeting, !ended);
   // Оболочке — не только «во встрече», но и микрофон, камера и показ: по ним кнопки на миниатюре,
@@ -138,6 +129,19 @@ export function MeetingView({
   useEffect(() => {
     onBackTarget?.(panel ? () => setPanel(null) : null);
   }, [panel, onBackTarget]);
+  // Открытый чат — прочитанный чат (R87), и уведомлять о его сообщениях незачем (R59).
+  useEffect(() => {
+    meeting.chatOpen.set(panel === 'chat');
+  }, [meeting, panel]);
+  // Нажатие в уведомлении Windows: «Впустить» и «Отклонить» решает встреча, здесь — какую панель открыть.
+  useEffect(
+    () =>
+      onNotificationAction(({ id, tag }) => {
+        const open = meeting.handleNotificationAction(id, tag);
+        if (open) setPanel(open);
+      }),
+    [meeting],
+  );
   const [invite, setInvite] = useState(false);
   const [settings, setSettings] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
@@ -160,7 +164,6 @@ export function MeetingView({
     onHome();
   };
   useCallInBackground(meeting, leaveMeeting);
-  const showIntegrationPanel = preferences.showIntegrationPanel !== false;
   useEffect(() => {
     meeting.start();
     return () => meeting.dispose();
@@ -303,7 +306,6 @@ export function MeetingView({
       onFocusCapture={wakeControls}
       style={{ '--panel-width': `${panelWidth.width}px` } as CSSProperties}
     >
-      <Ping meeting={meeting} />
       <MeetingHeader
         meeting={meeting}
         canEdit={may('room.settings')}
@@ -339,11 +341,6 @@ export function MeetingView({
               {t(($) => $.meeting.view.controlRecovering)}
             </div>
           )}
-          {!ended && media.liveStatus && control !== 'recovering' && media.status === 'connected' && (
-            <div className="control-banner media-stage" role="status">
-              {media.liveStatus}
-            </div>
-          )}
           {ended ? (
             <div className="ended-stage media-stage">
               <span className="ended-icon">
@@ -376,26 +373,17 @@ export function MeetingView({
             </div>
           ) : (
             <>
-              <Stage
-                meeting={meeting}
-                /* Со сцены панель всегда открывают, а не переключают: нажатие «покажи
-                   комбинации» при уже открытой панели закрывало бы её. */
-                onOpenServices={() => setPanel('services')}
-                showServices={showIntegrationPanel}
-              />
-              {(viewing || pinned) && (
+              {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
+                  открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
+              <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
+              <Stage meeting={meeting} />
+              {/* Из чужого экрана — в разговор; закреплённую камеру открепляют на ней самой (R83). */}
+              {viewing && (
                 <button
                   className="return-conversation media-stage"
                   onClick={() => meeting.returnToConversation()}
                 >
                   <ArrowLeft size={16} /> {t(($) => $.meeting.view.returnToConversation)}
-                </button>
-              )}
-              {people.length === 1 && !media.screen && (
-                <button className="invite-hint media-stage" onClick={() => setInvite(true)}>
-                  <Users size={18} />
-                  <span>{t(($) => $.meeting.view.inviteHint)}</span>
-                  <Link size={16} />
                 </button>
               )}
             </>
@@ -515,7 +503,6 @@ export function MeetingView({
           if (!open) onSectionClosed?.();
         }}
       />
-      <OnceHint id="meeting" anchor={dock} ready={live && !settings && !diagnostics} side="top" />
       {diagnostics && (
         <Suspense fallback={null}>
           <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />

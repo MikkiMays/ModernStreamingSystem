@@ -16,28 +16,31 @@ describe('onboarding', () => {
   });
 
   it('a fresh device has seen nothing, and what it has seen stays seen', () => {
-    expect(onboarding.get()).toEqual({ tour: false, meeting: false, integrations: false });
+    expect(onboarding.get()).toEqual({ tour: false });
     markSeen('tour');
     expect(onboarding.get().tour).toBe(true);
     expect(JSON.parse(localStorage.getItem(ONBOARDING_KEY)!)).toMatchObject({ tour: true });
     // Перезапуск — то же устройство: прочитанное с диска совпадает.
-    expect(readOnboarding()).toEqual({ tour: true, meeting: false, integrations: false });
+    expect(readOnboarding()).toEqual({ tour: true });
   });
 
   it('«Пройти знакомство» shows everything again', () => {
     markSeen('tour');
-    markSeen('meeting');
-    markSeen('integrations');
     replayOnboarding();
-    expect(onboarding.get()).toEqual({ tour: false, meeting: false, integrations: false });
+    expect(onboarding.get()).toEqual({ tour: false });
     expect(readOnboarding().tour).toBe(false);
   });
 
   it('an unreadable record means a fresh device, not a crash', () => {
     localStorage.setItem(ONBOARDING_KEY, '{oops');
-    expect(readOnboarding()).toEqual({ tour: false, meeting: false, integrations: false });
+    expect(readOnboarding()).toEqual({ tour: false });
     localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ tour: 'yes', meeting: true }));
-    expect(readOnboarding()).toEqual({ tour: false, meeting: true, integrations: false });
+    expect(readOnboarding()).toEqual({ tour: false });
+  });
+
+  it('прежние подсказки встречи (R27) из старой записи не читаются, тур — читается', () => {
+    localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ tour: true, meeting: false, integrations: false }));
+    expect(readOnboarding()).toEqual({ tour: true });
   });
 });
 

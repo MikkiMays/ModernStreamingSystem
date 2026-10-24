@@ -528,7 +528,6 @@
       "waitingSettle": "Mettiti comodo.",
       "waitingMedia": "Audio e videocamera non vengono ancora trasmessi.",
       "returnToConversation": "Torna alla conversazione",
-      "inviteHint": "È il momento giusto per invitare i tuoi",
       "unlockAudio": "Attiva l'audio della riunione",
       "dismissError": "Nascondi la notifica",
       "collapseControls": "Comprimi i controlli",
@@ -547,19 +546,19 @@
       "noAnswer": "La scheda con la riunione non risponde. Passa a quella scheda o chiudila"
     },
     "ceiling": "La riunione terminerà alle {{time}}: su questo server le riunioni hanno una durata massima",
+    "ceilingShort": "fino alle {{time}}",
     "cinemaTraffic": "Il Cinema ha usato il {{percent}}% del traffico di questa riunione. Quando finisce, il film si fermerà fino alla fine della riunione",
+    "cinemaTrafficShort": "Cinema {{percent}}%",
     "cinemaStopped": "Il Cinema ha esaurito il traffico di questa riunione: il film è fermo fino alla fine della riunione",
+    "cinemaStoppedShort": "Film fermo",
     "presence": {
       "title": "Sei ancora qui?",
       "text": "Se non rispondi, uscirai dalla riunione alle {{time}}: così una scheda dimenticata non occupa un posto",
       "confirm": "Ci sono"
     },
     "background": {
-      "iosSafari": "Puoi ridurre Safari o bloccare lo schermo: la conversazione continua finché in alto è acceso il puntino arancione del microfono. Nel frattempo la videocamera si spegne. La conversazione si interrompe se arriva una chiamata normale o se l'iPhone chiude Safari. Per vedere gli altri sopra le altre app, usa «Riduci in finestra» nel menu dei controlli.",
-      "iosHome": "Qui l'iPhone spegne il microfono appena esci dallo schermo o blocchi il telefono. Per parlare in background, apri la riunione in Safari.",
-      "android": "Puoi ridurre il browser o spegnere lo schermo: finché nella tendina delle notifiche c'è «… sta usando il microfono», la conversazione continua. Se il telefono chiude il browser in background, togli le restrizioni della batteria per il browser.",
-      "noMicrophone": "Senza accesso al microfono, il telefono può interrompere la conversazione quando riduci il browser o spegni lo schermo. Consenti il microfono nelle impostazioni del sito: disattivato con il pulsante non trasmette nulla, ma mantiene la conversazione in background.",
-      "telegram": "In Telegram la conversazione regge finché Telegram è aperto: se lo riduci o spegni lo schermo, il telefono può interromperla. Per parlare in background, apri la riunione nel browser.",
+      "iosHome": "Solo Safari tiene viva la chiamata in background",
+      "telegram": "Solo il browser tiene viva la chiamata in background",
       "gapClosed": "Mentre non eri sullo schermo, il telefono ha spento il microfono: non ti hanno sentito dalle {{from}} alle {{to}}.",
       "gapOpen": "Mentre non eri sullo schermo, il telefono ha spento il microfono alle {{from}} e ancora non ti sentono. Disattiva e riattiva il microfono.",
       "copyLink": "Copia il link",
@@ -1188,7 +1187,6 @@
       "notRecovered_other": "La connessione non si è ripristinata entro {{count}} secondi",
       "recoveryExpired": "Il tempo per il ripristino è scaduto"
     },
-    "liveUpdating": "Aggiornamento della diretta…",
     "actionFailed": "Impossibile completare l'azione",
     "participant": "Partecipante",
     "screen": {
@@ -2077,6 +2075,21 @@
       "startingMic": "Attivazione del microfono…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} chiede di entrare",
+      "knockMany_one": "{{name}} e altri {{count}} chiedono di entrare",
+      "knockMany_many": "{{name}} e altri {{count}} chiedono di entrare",
+      "knockMany_other": "{{name}} e altri {{count}} chiedono di entrare",
+      "admit": "Ammetti",
+      "deny": "Rifiuta",
+      "mention": "{{name}} ti ha menzionato",
+      "join": "{{name}} è entrato",
+      "joinMany_one": "{{name}} e altri {{count}} sono entrati",
+      "joinMany_many": "{{name}} e altri {{count}} sono entrati",
+      "joinMany_other": "{{name}} e altri {{count}} sono entrati"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Ripristina la dimensione normale: {{name}}",
@@ -2095,12 +2108,15 @@
     "watch": "Guarda lo stream",
     "recovering": "Ripristino della connessione…",
     "gameLoading": "Apriamo il gioco…",
+    "unpin": "Sblocca",
+    "unpinOf": "Sblocca: {{name}}",
     "menu": {
       "volume": "Il tuo volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",
       "unmute": "Ripristina il volume",
       "mute": "Disattiva l'audio per me",
       "pin": "Fissa la videocamera",
+      "unpin": "Sblocca la videocamera",
       "watch": "Guarda lo stream",
       "muteForAll": "Disattiva il microfono per tutti",
       "remove": "Rimuovi dalla riunione",
@@ -2120,6 +2136,9 @@
     "more": "Impostazioni e azioni",
     "leave": "Esci dalla riunione",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} non letto",
+    "chatUnread_many": "Chat, {{count}} non letti",
+    "chatUnread_other": "Chat, {{count}} non letti",
     "chatAndFiles": "Chat e file",
     "people": "Partecipanti",
     "integrations": "Integrazioni",
@@ -2645,13 +2664,10 @@
     "roster": {
       "label": "Bot e integrazioni",
       "music": "Musica",
-      "open": "Apri il player musicale",
-      "check": "Serve un controllo della connessione",
-      "add": "Aggiungi alla riunione",
-      "connecting": "Connessione…",
-      "paused": "In pausa",
-      "playing": "In riproduzione",
-      "empty": "La coda è vuota"
+      "cinema": "Cinema",
+      "seated": "{{name}} · {{count}} al tavolo",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Stato non disponibile",
@@ -3190,7 +3206,6 @@
     "next": "Avanti",
     "done": "Fatto",
     "skip": "Salta",
-    "gotIt": "Ho capito",
     "tour": {
       "create": {
         "title": "Nuova riunione",
@@ -3216,14 +3231,6 @@
         "title": "Menu",
         "text": "Preferiti, impostazioni e aiuto sono qui."
       }
-    },
-    "meeting": {
-      "title": "Sei nella riunione",
-      "text": "Microfono, videocamera e schermo — questi pulsanti. Per invitare, usa il codice della riunione in alto."
-    },
-    "integrations": {
-      "title": "Le integrazioni sono per tutti",
-      "text": "Cinema, musica e giochi sono condivisi: attivane uno e comparirà per tutti nella riunione."
     }
   },
   "support": {

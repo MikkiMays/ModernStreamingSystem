@@ -323,13 +323,26 @@ h2 {
   aspect-ratio: 66 / 30;
 }
 .app-header {
+  /* Правое поле не меньше кнопок окна клиента Windows (R34, `--titlebar-end`); в браузере — ноль. */
+  --app-header-pad: 64px;
   height: 104px;
   max-width: 1440px;
   margin: auto;
-  padding: 0 64px;
+  padding-block: 0;
+  padding-inline: var(--app-header-pad)
+    max(var(--app-header-pad), calc(var(--titlebar-end, 0px) + var(--space-2)));
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+/* В клиенте Windows шапка тащит окно, как заголовок; кнопки и ссылки нажимаются как обычно. */
+:root[data-desktop='true'] .app-header {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+:root[data-desktop='true'] .app-header :is(button, a, input, [role='button'], [tabindex]) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 /* «?» рядом с «На главную» (E13, T36). */
 .app-header__end {
@@ -943,15 +956,15 @@ progress {
     font-size: var(--text-2xl);
   }
   .app-header {
-    padding-inline: 36px;
+    --app-header-pad: 36px;
   }
 }
 /* 767 px — `SHEET` из `ui/breakpoints.ts`: здесь панель встречи становится нижним листом, и код
    решает, когда ей уступить место, по той же строке (сверяет `breakpoints.test.ts`). */
 @media (max-width: 767px) {
   .app-header {
+    --app-header-pad: 22px;
     height: 80px;
-    padding: 0 22px;
   }
   .brand {
     --brand-h: 28px;
@@ -1343,7 +1356,7 @@ progress {
 /* Шапка предпросмотра на узком экране. Подключение и скачивание — `ui/shell.css` (E02). */
 @media (width < 560px) {
   .app-header {
-    padding: 0 24px;
+    --app-header-pad: 24px;
   }
 }
 

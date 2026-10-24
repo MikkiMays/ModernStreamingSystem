@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { publicApi } from '../api/client';
 import { favoriteApi, type Favorite } from '../core/favorites';
 import { Store } from '../core/store';
+import { savePreferences } from '../core/preferences';
 import type { Meeting } from '../core/meeting';
 import { t } from '../i18n';
 import { headerStatus, MeetingHeader } from './MeetingHeader';
@@ -30,7 +31,8 @@ function fakeMeeting(extra: Record<string, unknown> = {}, status = 'connected') 
       participants: [{ id: 'self', status: 'CONNECTED', service: null }],
       ...extra,
     }),
-    media: { state: new Store({ status }), report: vi.fn() },
+    media: { state: new Store({ status }), outbound: new Store(null), report: vi.fn() },
+    control: { ping: new Store<number | null>(42), state: new Store('connected') },
     ended: new Store<string | null>(null),
     serverNow: () => now,
   } as unknown as Meeting;
@@ -104,4 +106,16 @@ it('explains a full favourites list instead of offering a star that cannot work'
   await act(async () => star.click());
   await waitFor(() => expect(favoriteApi.list).toHaveBeenCalled());
   expect(screen.getByRole('button', { name: /В избранном уже 10 комнат/ })).toBeInTheDocument();
+});
+
+it('PING — в строке о встрече рядом с кодом, а не плашкой поверх марки (R20)', () => {
+  savePreferences({ showPing: true });
+  try {
+    show(fakeMeeting());
+    const ping = screen.getByText(/^PING ·/);
+    expect(ping).toHaveTextContent('PING · 42 мс');
+    expect(ping.closest('.meeting-header__meta')).not.toBeNull();
+  } finally {
+    savePreferences({ showPing: false });
+  }
 });

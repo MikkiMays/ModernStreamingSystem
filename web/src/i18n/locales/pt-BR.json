@@ -528,7 +528,6 @@
       "waitingSettle": "Fique à vontade.",
       "waitingMedia": "Seu áudio e sua câmera ainda não estão sendo transmitidos.",
       "returnToConversation": "Voltar à conversa",
-      "inviteHint": "Bom momento para convidar a sua turma",
       "unlockAudio": "Ativar o som da reunião",
       "dismissError": "Ocultar notificação",
       "collapseControls": "Recolher os controles",
@@ -547,19 +546,19 @@
       "noAnswer": "A aba com a reunião não respondeu. Vá até ela ou feche-a"
     },
     "ceiling": "A reunião vai terminar às {{time}}: as reuniões neste servidor têm duração máxima",
+    "ceilingShort": "até {{time}}",
     "cinemaTraffic": "O Cinema já usou {{percent}}% do tráfego desta reunião. Quando acabar, o filme vai parar até o fim da reunião",
+    "cinemaTrafficShort": "Cinema {{percent}}%",
     "cinemaStopped": "O Cinema esgotou o tráfego desta reunião — o filme está parado até o fim da reunião",
+    "cinemaStoppedShort": "Filme parado",
     "presence": {
       "title": "Você ainda está aí?",
       "text": "Sem resposta, você vai sair da reunião às {{time}}: assim uma aba esquecida não segura um lugar",
       "confirm": "Estou aqui"
     },
     "background": {
-      "iosSafari": "Dá para minimizar o Safari ou bloquear a tela — a conversa continua enquanto o ponto laranja do microfone estiver aceso lá em cima. A câmera fica desligada nesse meio-tempo. A conversa cai se chegar uma ligação comum ou se o iPhone fechar o Safari. Para ver os outros por cima de outros apps, use “Abrir em janela flutuante” no menu de controles.",
-      "iosHome": "Aqui o iPhone desliga o microfone assim que você sai da tela ou bloqueia o celular. Para conversar em segundo plano, abra a reunião no Safari.",
-      "android": "Dá para minimizar o navegador ou apagar a tela: enquanto as notificações mostrarem “… está usando o microfone”, a conversa continua. Se o celular fechar o navegador em segundo plano, tire as restrições de bateria dele.",
-      "noMicrophone": "Sem acesso ao microfone, o celular pode derrubar a conversa quando você minimizar o navegador ou apagar a tela. Permita o microfone nas configurações do site: desligado pelo botão, ele não transmite nada, mas mantém a conversa em segundo plano.",
-      "telegram": "No Telegram, a conversa se mantém enquanto o Telegram estiver aberto: se você minimizar ou apagar a tela, o celular pode derrubá-la. Para conversar em segundo plano, abra a reunião no navegador.",
+      "iosHome": "Só o Safari mantém a chamada em segundo plano",
+      "telegram": "Só o navegador mantém a chamada em segundo plano",
       "gapClosed": "Enquanto você estava fora da tela, o celular desligou o microfone — ninguém te ouviu das {{from}} às {{to}}.",
       "gapOpen": "Enquanto você estava fora da tela, o celular desligou o microfone às {{from}}, e você ainda não está sendo ouvido. Desligue e ligue o microfone de novo.",
       "copyLink": "Copiar link",
@@ -1188,7 +1187,6 @@
       "notRecovered_other": "A conexão não se restabeleceu em {{count}} segundos",
       "recoveryExpired": "O tempo para restabelecer a conexão acabou"
     },
-    "liveUpdating": "Atualizando a transmissão ao vivo…",
     "actionFailed": "Não foi possível concluir a ação",
     "participant": "Participante",
     "screen": {
@@ -2077,6 +2075,21 @@
       "startingMic": "Ligando o microfone…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} pede para entrar",
+      "knockMany_one": "{{name}} e mais {{count}} pedem para entrar",
+      "knockMany_many": "{{name}} e mais {{count}} pedem para entrar",
+      "knockMany_other": "{{name}} e mais {{count}} pedem para entrar",
+      "admit": "Admitir",
+      "deny": "Recusar",
+      "mention": "{{name}} mencionou você",
+      "join": "{{name}} entrou",
+      "joinMany_one": "{{name}} e mais {{count}} entraram",
+      "joinMany_many": "{{name}} e mais {{count}} entraram",
+      "joinMany_other": "{{name}} e mais {{count}} entraram"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Voltar ao tamanho normal: {{name}}",
@@ -2095,12 +2108,15 @@
     "watch": "Assistir à transmissão",
     "recovering": "Restabelecendo a conexão…",
     "gameLoading": "Abrindo o jogo…",
+    "unpin": "Desafixar",
+    "unpinOf": "Desafixar: {{name}}",
     "menu": {
       "volume": "Seu volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",
       "unmute": "Restaurar o volume",
       "mute": "Silenciar para mim",
       "pin": "Fixar a câmera",
+      "unpin": "Desafixar a câmera",
       "watch": "Assistir à transmissão",
       "muteForAll": "Desligar o microfone para todos",
       "remove": "Remover da reunião",
@@ -2120,6 +2136,9 @@
     "more": "Configurações e ações",
     "leave": "Sair da reunião",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} não lida",
+    "chatUnread_many": "Chat, {{count}} não lidas",
+    "chatUnread_other": "Chat, {{count}} não lidas",
     "chatAndFiles": "Chat e arquivos",
     "people": "Participantes",
     "integrations": "Integrações",
@@ -2645,13 +2664,10 @@
     "roster": {
       "label": "Bots e integrações",
       "music": "Música",
-      "open": "Abrir o player de música",
-      "check": "É preciso verificar a conexão",
-      "add": "Adicionar à reunião",
-      "connecting": "Conectando…",
-      "paused": "Pausada",
-      "playing": "Tocando agora",
-      "empty": "A fila está vazia"
+      "cinema": "Cinema",
+      "seated": "{{name}} · {{count}} na mesa",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Status indisponível",
@@ -3190,7 +3206,6 @@
     "next": "Avançar",
     "done": "Concluir",
     "skip": "Pular",
-    "gotIt": "Entendi",
     "tour": {
       "create": {
         "title": "Nova reunião",
@@ -3216,14 +3231,6 @@
         "title": "Menu",
         "text": "Favoritos, configurações e ajuda ficam aqui."
       }
-    },
-    "meeting": {
-      "title": "Você está na reunião",
-      "text": "Microfone, câmera e tela — estes botões. Para convidar, use o código da reunião no topo."
-    },
-    "integrations": {
-      "title": "As integrações são para todos",
-      "text": "Cinema, música e jogos são compartilhados: ative um e ele aparece para todos na reunião."
     }
   },
   "support": {

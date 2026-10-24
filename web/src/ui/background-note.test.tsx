@@ -36,12 +36,27 @@ afterEach(() => {
 });
 
 describe('честная подсказка о фоне', () => {
-  it('Android: после подключения — что держит разговор; скрытая — не возвращается', () => {
-    const { meeting } = fakeMeeting(ANDROID);
+  it('Android, Safari и без захвата микрофона — без советов поверх сцены (R27)', () => {
+    for (const [platform, captured] of [
+      [ANDROID, true],
+      [ANDROID, false],
+      [{ ...IOS_HOME, standalone: false }, true],
+    ] as const) {
+      const { meeting } = fakeMeeting(platform, captured);
+      const view = render(<BackgroundNote meeting={meeting} />);
+      act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
+      expect(screen.queryByRole('note')).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it('iPhone «Домой»: одной строкой — открыть в Safari, ссылка кнопкой; скрытая не возвращается', () => {
+    const { meeting } = fakeMeeting(IOS_HOME);
     const first = render(<BackgroundNote meeting={meeting} />);
     expect(screen.queryByRole('note')).toBeNull();
     act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
-    expect(screen.getByRole('note').textContent).toContain('использует микрофон');
+    expect(screen.getByRole('note').textContent).toBe('В фоне разговор держит только Safari');
+    expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Скрыть подсказку' }));
     expect(screen.queryByRole('note')).toBeNull();
     first.unmount();
@@ -50,27 +65,12 @@ describe('честная подсказка о фоне', () => {
     expect(screen.queryByRole('note')).toBeNull();
   });
 
-  it('iPhone «Домой»: предлагает Safari и ссылку, которую можно скопировать', () => {
-    const { meeting } = fakeMeeting(IOS_HOME);
-    render(<BackgroundNote meeting={meeting} />);
-    act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
-    expect(screen.getByRole('note').textContent).toContain('откройте встречу в Safari');
-    expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
-  });
-
-  it('Telegram: разговор держится, пока Telegram открыт, — и ссылка для браузера', () => {
+  it('Telegram: разговор в фоне держит только браузер — и ссылка для него', () => {
     const { meeting } = fakeMeeting({ ...ANDROID, telegram: true });
     render(<BackgroundNote meeting={meeting} />);
     act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
-    expect(screen.getByRole('note').textContent).toContain('пока Telegram открыт');
+    expect(screen.getByRole('note').textContent).toBe('В фоне разговор держит только браузер');
     expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy();
-  });
-
-  it('без захвата микрофона — честно о том, что фон не защищён', () => {
-    const { meeting } = fakeMeeting(ANDROID, false);
-    render(<BackgroundNote meeting={meeting} />);
-    act(() => vi.advanceTimersByTime(ADVICE_DELAY_MS));
-    expect(screen.getByRole('note').textContent).toContain('Без доступа к микрофону');
   });
 
   it('по возвращении: когда телефон глушил микрофон — с и до', () => {

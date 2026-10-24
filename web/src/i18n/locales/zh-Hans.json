@@ -526,7 +526,6 @@
       "waitingSettle": "请稍候片刻。",
       "waitingMedia": "你的声音和摄像头暂未传输。",
       "returnToConversation": "回到对话",
-      "inviteHint": "正是邀请朋友的好时机",
       "unlockAudio": "开启会议声音",
       "dismissError": "隐藏通知",
       "collapseControls": "收起控制栏",
@@ -545,19 +544,19 @@
       "noAnswer": "会议所在的标签页没有响应。请切换到该标签页或将其关闭"
     },
     "ceiling": "会议将于 {{time}} 结束：此服务器上的会议有时长上限",
+    "ceilingShort": "{{time}} 结束",
     "cinemaTraffic": "影院已用掉本次会议 {{percent}}% 的流量。流量用完后，影片将停止播放，直到会议结束",
+    "cinemaTrafficShort": "影院 {{percent}}%",
     "cinemaStopped": "影院已用完本次会议的流量，影片已停止，直到会议结束",
+    "cinemaStoppedShort": "影片已停止",
     "presence": {
       "title": "你还在吗？",
       "text": "如果没有回应，你将在 {{time}} 离开会议——这样被遗忘的标签页就不会一直占着位置",
       "confirm": "我在"
     },
     "background": {
-      "iosSafari": "你可以把 Safari 切到后台或锁屏——只要顶部的橙色麦克风圆点亮着，通话就会继续。期间摄像头会关闭。如果来了普通电话，或 iPhone 关闭了 Safari，通话会中断。想在其他应用上方看到对方，请在控制菜单中选择“画中画”。",
-      "iosHome": "在这里，只要你离开屏幕或锁屏，iPhone 就会关闭麦克风。要在后台通话，请在 Safari 中打开会议。",
-      "android": "你可以把浏览器切到后台或关闭屏幕：只要通知栏里显示“…正在使用麦克风”，通话就会继续。如果手机在后台关闭了浏览器，请取消对它的电池限制。",
-      "noMicrophone": "没有麦克风权限时，你把浏览器切到后台或关闭屏幕后，手机可能会中断通话。请在网站设置中允许麦克风：用按钮静音时它不会传输声音，但能让通话在后台保持。",
-      "telegram": "在 Telegram 中，通话只在 Telegram 打开时保持：如果把它切到后台或关闭屏幕，手机可能会中断通话。要在后台通话，请在浏览器中打开会议。",
+      "iosHome": "只有 Safari 能在后台保持通话",
+      "telegram": "只有浏览器能在后台保持通话",
       "gapClosed": "你离开屏幕期间，手机关闭了麦克风——从 {{from}} 到 {{to}} 别人听不到你。",
       "gapOpen": "你离开屏幕期间，手机在 {{from}} 关闭了麦克风，现在别人仍然听不到你。请关闭麦克风后再重新开启。",
       "copyLink": "复制链接",
@@ -1160,7 +1159,6 @@
       "notRecovered_other": "连接未能在 {{count}} 秒内恢复",
       "recoveryExpired": "恢复连接的时间已用完"
     },
-    "liveUpdating": "正在更新直播…",
     "actionFailed": "操作失败",
     "participant": "参与者",
     "screen": {
@@ -2027,6 +2025,17 @@
       "startingMic": "正在开启麦克风…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} 请求加入",
+      "knockMany_other": "{{name}} 等 {{count}} 人请求加入",
+      "admit": "准许",
+      "deny": "拒绝",
+      "mention": "{{name}} 提到了你",
+      "join": "{{name}} 已加入",
+      "joinMany_other": "{{name}} 等 {{count}} 人已加入"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "恢复正常大小：{{name}}",
@@ -2045,12 +2054,15 @@
     "watch": "观看直播",
     "recovering": "正在恢复连接…",
     "gameLoading": "正在打开游戏…",
+    "unpin": "取消固定",
+    "unpinOf": "取消固定：{{name}}",
     "menu": {
       "volume": "你听到的音量 · {{value}}%",
       "volumeOf": "音量：{{name}}",
       "unmute": "恢复音量",
       "mute": "为我静音",
       "pin": "固定摄像头",
+      "unpin": "取消固定摄像头",
       "watch": "观看直播",
       "muteForAll": "为所有人关闭麦克风",
       "remove": "移出会议",
@@ -2070,6 +2082,7 @@
     "more": "设置和操作",
     "leave": "离开会议",
     "chat": "聊天",
+    "chatUnread_other": "聊天，{{count}} 条未读",
     "chatAndFiles": "聊天和文件",
     "people": "参与者",
     "integrations": "集成",
@@ -2591,13 +2604,10 @@
     "roster": {
       "label": "机器人和集成",
       "music": "音乐",
-      "open": "打开音乐播放器",
-      "check": "需要检查连接",
-      "add": "添加到会议",
-      "connecting": "正在连接…",
-      "paused": "已暂停",
-      "playing": "正在播放",
-      "empty": "队列为空"
+      "cinema": "影院",
+      "seated": "{{name}} · {{count}} 人在桌",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}：{{title}}"
     },
     "status": {
       "unavailable": "状态不可用",
@@ -3122,7 +3132,6 @@
     "next": "下一步",
     "done": "完成",
     "skip": "跳过",
-    "gotIt": "知道了",
     "tour": {
       "create": {
         "title": "新建会议",
@@ -3148,14 +3157,6 @@
         "title": "菜单",
         "text": "收藏、设置和帮助都在这里。"
       }
-    },
-    "meeting": {
-      "title": "你已加入会议",
-      "text": "麦克风、摄像头和屏幕——就是这些按钮。邀请他人请使用顶部的会议代码。"
-    },
-    "integrations": {
-      "title": "集成对所有人生效",
-      "text": "影院、音乐和游戏是共享的：开启后，会议中的每个人都能看到。"
     }
   },
   "support": {

@@ -496,6 +496,10 @@ textarea.composer__input::placeholder {
   .panel-tabs.ui-tabs__list {
     margin-inline: var(--space-3);
   }
+  /* «Сообщения и файлы исчезнут…» — на телефоне не место пояснениям над лентой (R27, правило W3). */
+  .retention-note {
+    display: none;
+  }
 }
 /* Во весь экран панель — поверх кадра у правого края и кончается над пультом; сцена — во всю ширину. */
 .meeting-fullscreen .meeting-body.panel-open {

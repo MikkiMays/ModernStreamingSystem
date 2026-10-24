@@ -207,25 +207,22 @@ export function wantsWakeLock(inputs: WakeLockInputs): boolean {
 /**
  * Что сказать человеку про разговор в фоне на этой платформе (W7 в `docs/mobile.md` §3).
  *
- * - `ios-safari` — держится, пока включён захват микрофона; камера в фоне выключается;
- * - `ios-home` — веб-приложение «Домой»: микрофон глушится при уходе с экрана, лучше Safari;
- * - `android` — держится, пока в шторке «… использует микрофон»;
- * - `no-microphone` — телефон без захвата: фон не защищён ничем;
- * - `telegram` — Mini App: фоном распоряжается Telegram, разговор держится, пока Telegram открыт;
+ * Только там, где без совета разговор оборвётся наверняка (R27, S7): советы «как свернуть браузер»
+ * для Safari и Android и «разрешите микрофон» висели поверх сцены и закрывали полэкрана телефона.
+ *
+ * - `ios-home` — веб-приложение «Домой»: микрофон глушится при уходе с экрана, нужен Safari;
+ * - `telegram` — Mini App: фоном распоряжается Telegram, разговор в фоне держит только браузер;
  * - `app` — приложение Cord: держит своя служба, говорить не о чем;
- * - `null` — ПК: фон не вопрос.
+ * - `null` — сказать нечего (ПК, Safari, Android).
  */
-export type BackgroundAdvice =
-  'ios-safari' | 'ios-home' | 'android' | 'no-microphone' | 'telegram' | 'app' | null;
+export type BackgroundAdvice = 'ios-home' | 'telegram' | 'app' | null;
 
-export function backgroundAdvice(platform: Platform, captured: boolean): BackgroundAdvice {
+export function backgroundAdvice(platform: Platform): BackgroundAdvice {
   if (!platform.mobile) return null;
   if (platform.app) return 'app';
   if (platform.telegram) return 'telegram';
-  // «Домой» — первым: там и с микрофоном разговор в фоне не держится.
   if (platform.os === 'ios' && platform.standalone) return 'ios-home';
-  if (!captured) return 'no-microphone';
-  return platform.os === 'ios' ? 'ios-safari' : 'android';
+  return null;
 }
 
 interface WakeLockSentinelLike {

@@ -3,6 +3,9 @@
   position: relative;
   display: grid;
   place-items: center;
+  /* Строка PING под входом (R20) не делит окно пополам: обе строки — по центру. */
+  align-content: center;
+  gap: var(--space-4);
   min-height: 100dvh;
   padding: var(--space-16) var(--space-6);
   background: var(--bg);

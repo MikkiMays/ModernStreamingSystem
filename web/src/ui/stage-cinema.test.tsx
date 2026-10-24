@@ -79,8 +79,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const stage = (room: Meeting) =>
-  render(<Stage meeting={room} onOpenServices={() => {}} showServices={false} />);
+const stage = (room: Meeting) => render(<Stage meeting={room} />);
 
 it('комната смотрит незнакомую площадку: плеер говорит отказ службы, «Каталога» у него нет', async () => {
   const room = meeting(watching('jellyfin'));

@@ -10,7 +10,6 @@ import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
 import { isDesktop, notifyDesktop, onDesktopCommand } from './core/desktop';
 import { favoriteApi } from './core/favorites';
-import { Ping } from './ui/Ping';
 import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
 import { readPreferences, savePreferences } from './core/preferences';
@@ -21,6 +20,7 @@ import { useStore } from './ui/primitives';
 import { BootGate } from './ui/loader/BootGate';
 import { useMeetingBeacon } from './ui/useMeetingBeacon';
 import { findActiveMeeting, requestHandover } from './core/active-meeting';
+import { watchTitlebar } from './core/titlebar';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
@@ -60,6 +60,8 @@ function Workspace() {
   const [section, setSection] = useState<string | undefined>(undefined);
   const connection = useStore(session);
   useEffect(greetHostConnection, []);
+  // Кнопки окна клиента Windows поверх страницы (R34): зона `--titlebar-*`, если `env()` её не дал.
+  useEffect(() => (isDesktop() ? watchTitlebar() : undefined), []);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('cord:theme') as Theme) || 'system');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -315,7 +317,6 @@ function Workspace() {
   if (!connection && page !== 'room') return <Connect onConnected={() => setError('')} />;
   return (
     <>
-      {page !== 'room' && <Ping />}
       {favoriteSettings && (
         <FavoriteSettings
           key={favoriteSettings.roomId}

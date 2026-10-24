@@ -1,14 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { MicOff, MonitorUp, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { MicOff, MonitorUp, MonitorX, PinOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
-import { ServiceRoster } from './ServiceRoster';
 import { ParticipantMenu } from './ParticipantMenu';
-import { Avatar, useStore } from './primitives';
+import { Avatar, useMediaQuery, useStore } from './primitives';
 import { IconButton } from './kit';
 import { LensSwitch } from './CameraMenu';
 import { useVoiceTier } from './useVoice';
@@ -173,15 +172,7 @@ function VoiceRing({ meeting, id }: { meeting: Meeting; id: string }) {
   return <span className="person-voice" data-voice={tier || undefined} aria-hidden="true" />;
 }
 
-export function Stage({
-  meeting,
-  onOpenServices,
-  showServices,
-}: {
-  meeting: Meeting;
-  onOpenServices: () => void;
-  showServices: boolean;
-}) {
+export function Stage({ meeting }: { meeting: Meeting }) {
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const participants = snapshot.participants;
@@ -194,6 +185,8 @@ export function Stage({
   const cinema = useStore(meeting.cinema);
   const cinemaAt = useStore(meeting.cinemaAt);
   const layout = useStore(meeting.media.preferences).layout;
+  /** Касание: показ в пульте не кнопкой, а пунктом «ещё» — останавливают его со своей плитки. */
+  const coarse = useMediaQuery('(pointer: coarse)');
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
   const [focus, setFocus] = useState<string | null>(null);
   /*
@@ -246,6 +239,14 @@ export function Stage({
     if (focused !== focus) setFocus(focused);
   }, [focused, focus]);
   const plan = useMemo(() => gridPlan(people.length, box), [people.length, box]);
+  /*
+    Кто крупно над лентой остальных (R83, R84): закреплённый руками — в любой раскладке, а в
+    «Говорящем» — тот, кто держит слово. Раньше в сетке закрепление ставило только рамку `inset`,
+    которую кадр камеры закрывал целиком, — снаружи не менялось ничего. Одному крупно не с кем
+    делиться сценой: он и так во всю сцену.
+  */
+  const pinnedHere = pinned && people.some((p) => p.id === pinned) ? pinned : null;
+  const spotlight = people.length > 1 ? (pinnedHere ?? (layout === 'speaker' ? focused : null)) : null;
   if (viewing) {
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
@@ -329,13 +330,6 @@ export function Stage({
       </div>
     );
   }
-  const showRoster =
-    showServices &&
-    layout === 'grid' &&
-    participants.some(
-      (participant) =>
-        participant.service && ['JOINING', 'CONNECTED', 'RECOVERING'].includes(participant.status),
-    );
   /**
    * Одна и та же плитка и в сетке, и в ленте под общим плеером: в кинозале у неё отбирают
    * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
@@ -360,9 +354,9 @@ export function Stage({
         className="person-tile"
         data-sharing={sharing ? 'true' : undefined}
         data-pinned={pinned === person.id ? 'true' : undefined}
-        // Крупная плитка в «Говорящем» — это порядок в раскладке, а не отдельный узел:
-        // так видео не пересоздаётся при смене говорящего и не моргает.
-        data-focused={layout === 'speaker' && focused === person.id ? 'true' : undefined}
+        // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
+        // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
+        data-focused={spotlight === person.id ? 'true' : undefined}
         style={
           placed && plan.cells[index]
             ? ({
@@ -397,6 +391,19 @@ export function Stage({
           </span>
         </div>
         {self && camera && <LensSwitch meeting={meeting} tile={camera} />}
+        {/* Закреплённая — с кнопкой «Открепить» на самой плитке: меню «…» не единственный путь назад. */}
+        {pinned === person.id && (
+          <button
+            type="button"
+            className="tile-unpin"
+            aria-label={t(($) => $.stage.unpinOf, { name: person.name })}
+            title={t(($) => $.stage.unpinOf, { name: person.name })}
+            onClick={() => meeting.unpinCamera()}
+          >
+            <PinOff aria-hidden="true" />
+            <span>{t(($) => $.stage.unpin)}</span>
+          </button>
+        )}
         {preparing && (
           <span className="watch-stream is-preparing" role="status">
             <MonitorUp size={16} />
@@ -405,11 +412,25 @@ export function Stage({
         )}
         {sharing &&
           (self ? (
-            <span className="watch-stream is-own">
-              <MonitorUp size={16} />
-              <span>{t(($) => $.stage.sharing)}</span>
-              <span className="live-badge">LIVE</span>
-            </span>
+            coarse ? (
+              /* На телефоне кнопки показа в пульте нет (там переворот камеры) — остановить показ
+                 можно прямо со своей плитки, красной кнопкой с крестиком (R77). Она же и говорит,
+                 что показ идёт: длинная подпись «Вы показываете экран» здесь лишняя (R27). */
+              <button
+                type="button"
+                className="watch-stream is-stop"
+                onClick={() => void meeting.media.stopScreen()}
+              >
+                <MonitorX size={16} aria-hidden="true" />
+                <span>{t(($) => $.dock.unshare)}</span>
+              </button>
+            ) : (
+              <span className="watch-stream is-own">
+                <MonitorUp size={16} />
+                <span>{t(($) => $.stage.sharing)}</span>
+                <span className="live-badge">LIVE</span>
+              </span>
+            )
           ) : (
             <button className="watch-stream" onClick={() => meeting.openStream(person.id)}>
               <MonitorUp size={16} />
@@ -542,11 +563,28 @@ export function Stage({
       </div>
     );
   }
+  if (spotlight) {
+    const big = people.find((person) => person.id === spotlight)!;
+    // В ленте своя плитка первой — её ищут глазами чаще прочих (Discord, Телемост).
+    const self = meeting.admission.participantId;
+    const strip = people
+      .filter((person) => person.id !== spotlight)
+      .sort((a, b) => Number(b.id === self) - Number(a.id === self));
+    return (
+      <div
+        className="stage conversation-stage camera-stage media-stage"
+        data-layout={layout}
+        data-spotlight="true"
+      >
+        <div className="spotlight-main">{tile(big, 0, false)}</div>
+        <div className="people-strip spotlight-strip media-stage" data-count={strip.length}>
+          {strip.map((person, index) => tile(person, index, false))}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div
-      className={`stage conversation-stage media-stage ${showRoster ? 'with-integrations' : 'camera-stage'}`}
-      data-layout={layout}
-    >
+    <div className="stage conversation-stage camera-stage media-stage" data-layout={layout}>
       <div
         className="people-grid"
         data-count={people.length}
@@ -567,7 +605,6 @@ export function Stage({
       >
         {people.map((person, index) => tile(person, index, layout === 'grid'))}
       </div>
-      {showRoster && <ServiceRoster meeting={meeting} onOpen={onOpenServices} />}
     </div>
   );
 }

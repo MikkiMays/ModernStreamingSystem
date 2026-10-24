@@ -527,7 +527,6 @@
       "waitingSettle": "Mach es dir bequem.",
       "waitingMedia": "Ton und Kamera werden noch nicht übertragen.",
       "returnToConversation": "Zurück zum Gespräch",
-      "inviteHint": "Zeit, deine Leute einzuladen",
       "unlockAudio": "Meeting-Ton einschalten",
       "dismissError": "Benachrichtigung ausblenden",
       "collapseControls": "Steuerung einklappen",
@@ -546,19 +545,19 @@
       "noAnswer": "Der Tab mit dem Meeting antwortet nicht. Wechsle dorthin oder schließe ihn"
     },
     "ceiling": "Das Meeting endet um {{time}}: Meetings auf diesem Server haben eine maximale Dauer",
+    "ceilingShort": "bis {{time}}",
     "cinemaTraffic": "Das Kino hat {{percent}} % des Datenvolumens dieses Meetings verbraucht. Ist es aufgebraucht, stoppt der Film bis zum Ende des Meetings",
+    "cinemaTrafficShort": "Kino {{percent}} %",
     "cinemaStopped": "Das Kino hat das Datenvolumen dieses Meetings aufgebraucht – der Film ist bis zum Ende des Meetings gestoppt",
+    "cinemaStoppedShort": "Film gestoppt",
     "presence": {
       "title": "Bist du noch da?",
       "text": "Ohne Antwort verlässt du das Meeting um {{time}} – so hält ein vergessener Tab keinen Platz belegt",
       "confirm": "Ich bin da"
     },
     "background": {
-      "iosSafari": "Du kannst Safari minimieren oder den Bildschirm sperren – das Gespräch läuft weiter, solange oben der orange Mikrofonpunkt leuchtet. Die Kamera ist währenddessen aus. Das Gespräch bricht ab, wenn ein normaler Anruf kommt oder das iPhone Safari schließt. Um die anderen über anderen Apps zu sehen, nutze „Bild-im-Bild“ im Steuerungsmenü.",
-      "iosHome": "Hier schaltet das iPhone das Mikrofon aus, sobald du den Bildschirm verlässt oder das Telefon sperrst. Für Gespräche im Hintergrund öffne das Meeting in Safari.",
-      "android": "Du kannst den Browser minimieren oder den Bildschirm ausschalten: Solange in der Benachrichtigungsleiste „… verwendet das Mikrofon“ steht, läuft das Gespräch. Wenn das Telefon den Browser im Hintergrund schließt, hebe die Akkubeschränkungen für ihn auf.",
-      "noMicrophone": "Ohne Mikrofonzugriff kann das Telefon das Gespräch beenden, wenn du den Browser minimierst oder den Bildschirm ausschaltest. Erlaube das Mikrofon in den Website-Einstellungen: Per Taste stummgeschaltet sendet es nichts, hält das Gespräch aber im Hintergrund.",
-      "telegram": "In Telegram hält das Gespräch, solange Telegram geöffnet ist: Minimierst du es oder schaltest den Bildschirm aus, kann das Telefon das Gespräch beenden. Für Gespräche im Hintergrund öffne das Meeting im Browser.",
+      "iosHome": "Nur Safari hält das Gespräch im Hintergrund",
+      "telegram": "Nur ein Browser hält das Gespräch im Hintergrund",
       "gapClosed": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon ausgeschaltet – von {{from}} bis {{to}} hat dich niemand gehört.",
       "gapOpen": "Während du nicht auf dem Bildschirm warst, hat das Telefon das Mikrofon um {{from}} ausgeschaltet, und du bist immer noch nicht zu hören. Schalte das Mikrofon aus und wieder ein.",
       "copyLink": "Link kopieren",
@@ -1174,7 +1173,6 @@
       "notRecovered_other": "Die Verbindung wurde nicht innerhalb von {{count}} Sekunden wiederhergestellt",
       "recoveryExpired": "Die Zeit für die Wiederherstellung ist abgelaufen"
     },
-    "liveUpdating": "Livestream wird aktualisiert…",
     "actionFailed": "Aktion fehlgeschlagen",
     "participant": "Teilnehmer",
     "screen": {
@@ -2052,6 +2050,19 @@
       "startingMic": "Mikrofon wird eingeschaltet…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} möchte beitreten",
+      "knockMany_one": "{{name}} und {{count}} weitere möchten beitreten",
+      "knockMany_other": "{{name}} und {{count}} weitere möchten beitreten",
+      "admit": "Einlassen",
+      "deny": "Ablehnen",
+      "mention": "{{name}} erwähnt dich",
+      "join": "{{name}} ist beigetreten",
+      "joinMany_one": "{{name}} und {{count}} weitere sind beigetreten",
+      "joinMany_other": "{{name}} und {{count}} weitere sind beigetreten"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Normale Größe: {{name}}",
@@ -2070,12 +2081,15 @@
     "watch": "Stream ansehen",
     "recovering": "Verbindung wird wiederhergestellt…",
     "gameLoading": "Spiel wird geöffnet…",
+    "unpin": "Lösen",
+    "unpinOf": "Lösen: {{name}}",
     "menu": {
       "volume": "Deine Lautstärke · {{value}} %",
       "volumeOf": "Lautstärke: {{name}}",
       "unmute": "Lautstärke wiederherstellen",
       "mute": "Für mich stummschalten",
       "pin": "Kamera anheften",
+      "unpin": "Kamera lösen",
       "watch": "Stream ansehen",
       "muteForAll": "Mikrofon für alle stummschalten",
       "remove": "Aus dem Meeting entfernen",
@@ -2095,6 +2109,8 @@
     "more": "Einstellungen und Aktionen",
     "leave": "Meeting verlassen",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} ungelesene Nachricht",
+    "chatUnread_other": "Chat, {{count}} ungelesene Nachrichten",
     "chatAndFiles": "Chat und Dateien",
     "people": "Teilnehmer",
     "integrations": "Integrationen",
@@ -2618,13 +2634,10 @@
     "roster": {
       "label": "Bots und Integrationen",
       "music": "Musik",
-      "open": "Musikplayer öffnen",
-      "check": "Verbindung muss geprüft werden",
-      "add": "Zum Meeting hinzufügen",
-      "connecting": "Verbinden…",
-      "paused": "Pausiert",
-      "playing": "Läuft gerade",
-      "empty": "Warteschlange leer"
+      "cinema": "Kino",
+      "seated": "{{name}} · {{count}} am Tisch",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Status nicht verfügbar",
@@ -3156,7 +3169,6 @@
     "next": "Weiter",
     "done": "Fertig",
     "skip": "Überspringen",
-    "gotIt": "Verstanden",
     "tour": {
       "create": {
         "title": "Neues Meeting",
@@ -3182,14 +3194,6 @@
         "title": "Menü",
         "text": "Favoriten, Einstellungen und Hilfe sind hier."
       }
-    },
-    "meeting": {
-      "title": "Du bist im Meeting",
-      "text": "Mikrofon, Kamera und Bildschirm — diese Schaltflächen. Andere einladen — mit dem Meeting-Code oben."
-    },
-    "integrations": {
-      "title": "Integrationen sind für alle",
-      "text": "Kino, Musik und Spiele sind gemeinsam: Schalte eins ein, und es erscheint bei allen im Meeting."
     }
   },
   "support": {

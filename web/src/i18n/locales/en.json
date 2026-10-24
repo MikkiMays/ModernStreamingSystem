@@ -527,7 +527,6 @@
       "waitingSettle": "Make yourself comfortable.",
       "waitingMedia": "Your audio and camera aren't being shared yet.",
       "returnToConversation": "Back to the conversation",
-      "inviteHint": "A perfect time to invite your people",
       "unlockAudio": "Turn on meeting sound",
       "dismissError": "Dismiss notification",
       "collapseControls": "Collapse controls",
@@ -546,19 +545,19 @@
       "noAnswer": "The tab with the meeting didn't respond. Switch to it or close it"
     },
     "ceiling": "The meeting will end at {{time}}: meetings on this server have a maximum length",
+    "ceilingShort": "until {{time}}",
     "cinemaTraffic": "The Cinema has used {{percent}}% of this meeting's traffic. When it runs out, the film stops until the meeting ends",
+    "cinemaTrafficShort": "Cinema {{percent}}%",
     "cinemaStopped": "The Cinema has used up this meeting's traffic — the film is stopped until the meeting ends",
+    "cinemaStoppedShort": "Film stopped",
     "presence": {
       "title": "Are you still here?",
       "text": "If you don't respond, you'll leave the meeting at {{time}} — so a forgotten tab doesn't hold a seat",
       "confirm": "I'm here"
     },
     "background": {
-      "iosSafari": "You can minimize Safari or lock the screen — the conversation continues while the orange microphone dot is lit at the top. The camera turns off meanwhile. The conversation ends if a regular call comes in or iPhone closes Safari. To see others on top of other apps, use “Pop out” in the controls menu.",
-      "iosHome": "Here, iPhone turns off the microphone as soon as you leave the screen or lock the phone. To talk in the background, open the meeting in Safari.",
-      "android": "You can minimize the browser or turn off the screen: while the notification shade shows “… is using the microphone”, the conversation continues. If your phone closes the browser in the background, remove its battery restrictions.",
-      "noMicrophone": "Without microphone access, your phone may end the conversation when you minimize the browser or turn off the screen. Allow the microphone in the site settings: muted with the button, it sends nothing but keeps the conversation going in the background.",
-      "telegram": "In Telegram, the conversation holds while Telegram is open: if you minimize it or turn off the screen, your phone may end the conversation. To talk in the background, open the meeting in a browser.",
+      "iosHome": "Only Safari keeps the call going in the background",
+      "telegram": "Only a browser keeps the call going in the background",
       "gapClosed": "While you were away from the screen, your phone turned off the microphone — nobody heard you from {{from}} to {{to}}.",
       "gapOpen": "While you were away from the screen, your phone turned off the microphone at {{from}}, and you still can't be heard. Turn the microphone off and on again.",
       "copyLink": "Copy link",
@@ -1174,7 +1173,6 @@
       "notRecovered_other": "The connection didn't recover within {{count}} seconds",
       "recoveryExpired": "Reconnection time ran out"
     },
-    "liveUpdating": "Updating the live stream…",
     "actionFailed": "Couldn't complete the action",
     "participant": "Participant",
     "screen": {
@@ -2052,6 +2050,19 @@
       "startingMic": "Turning on the microphone…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} asks to join",
+      "knockMany_one": "{{name}} and {{count}} more ask to join",
+      "knockMany_other": "{{name}} and {{count}} more ask to join",
+      "admit": "Admit",
+      "deny": "Deny",
+      "mention": "{{name}} mentioned you",
+      "join": "{{name}} joined",
+      "joinMany_one": "{{name}} and {{count}} more joined",
+      "joinMany_other": "{{name}} and {{count}} more joined"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Restore normal size: {{name}}",
@@ -2070,12 +2081,15 @@
     "watch": "Watch stream",
     "recovering": "Reconnecting…",
     "gameLoading": "Opening the game…",
+    "unpin": "Unpin",
+    "unpinOf": "Unpin: {{name}}",
     "menu": {
       "volume": "Your volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",
       "unmute": "Restore volume",
       "mute": "Mute for me",
       "pin": "Pin camera",
+      "unpin": "Unpin camera",
       "watch": "Watch stream",
       "muteForAll": "Mute microphone for everyone",
       "remove": "Remove from meeting",
@@ -2095,6 +2109,8 @@
     "more": "Settings and actions",
     "leave": "Leave meeting",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} unread",
+    "chatUnread_other": "Chat, {{count}} unread",
     "chatAndFiles": "Chat and files",
     "people": "Participants",
     "integrations": "Integrations",
@@ -2618,13 +2634,10 @@
     "roster": {
       "label": "Bots and integrations",
       "music": "Music",
-      "open": "Open the music player",
-      "check": "Connection needs checking",
-      "add": "Add to the meeting",
-      "connecting": "Connecting…",
-      "paused": "Paused",
-      "playing": "Now playing",
-      "empty": "Queue is empty"
+      "cinema": "Cinema",
+      "seated": "{{name}} · {{count}} at the table",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}}: {{title}}"
     },
     "status": {
       "unavailable": "Status unavailable",
@@ -3156,7 +3169,6 @@
     "next": "Next",
     "done": "Done",
     "skip": "Skip",
-    "gotIt": "Got it",
     "tour": {
       "create": {
         "title": "New meeting",
@@ -3182,14 +3194,6 @@
         "title": "Menu",
         "text": "Favorites, settings and help are here."
       }
-    },
-    "meeting": {
-      "title": "You’re in the meeting",
-      "text": "Microphone, camera and screen — these buttons. To invite people, use the meeting code at the top."
-    },
-    "integrations": {
-      "title": "Integrations are for everyone",
-      "text": "Cinema, music and games are shared: turn one on and it appears for everyone in the meeting."
     }
   },
   "support": {

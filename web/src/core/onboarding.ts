@@ -1,35 +1,29 @@
 import { Store } from './store';
 
 /**
- * Знакомство с Cord (E13, T34): что из подсказок этот человек уже видел.
+ * Знакомство с Cord (E13, T34): видел ли этот человек тур по главной.
  *
  * Учётных записей нет, поэтому «пройдено» помнит устройство — своим ключом рядом с настройками
- * (`cord:onboarding:v1`), как ширина панелей. Три подсказки:
- *
- * - `tour` — первый запуск: 3–5 шагов у настоящих кнопок главной (`TOUR`), можно пропустить;
- * - `meeting` — первый вход во встречу: одна подсказка у микрофона, камеры и экрана;
- * - `integrations` — первое открытие интеграций: одна подсказка, что они общие для всех.
+ * (`cord:onboarding:v1`), как ширина панелей. Подсказка одна — `tour`: первый запуск, 3–5 шагов у
+ * настоящих кнопок главной (`TOUR`), можно пропустить. Во встрече подсказок нет (R27): «Вы во встрече»
+ * у пульта и «Интеграции — для всех» вылезали поверх сцены и на телефоне закрывали полэкрана; старые
+ * записи с этими полями просто читаются без них.
  *
  * Показанное и закрытое — любым способом: «Готово», «Пропустить», Esc или нажатие мимо — больше не
- * показывается. Вернуть всё — «Пройти знакомство» в «О программе» (`replayOnboarding`).
+ * показывается. Вернуть — «Пройти знакомство» в «О программе» (`replayOnboarding`).
  */
-export type Hint = 'tour' | 'meeting' | 'integrations';
+export type Hint = 'tour';
 export type Seen = Record<Hint, boolean>;
 
 export const ONBOARDING_KEY = 'cord:onboarding:v1';
 
-const NOTHING: Seen = { tour: false, meeting: false, integrations: false };
+const NOTHING: Seen = { tour: false };
 
 export function readOnboarding(): Seen {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(ONBOARDING_KEY) ?? 'null');
     if (!saved || typeof saved !== 'object') return { ...NOTHING };
-    const record = saved as Partial<Record<Hint, unknown>>;
-    return {
-      tour: record.tour === true,
-      meeting: record.meeting === true,
-      integrations: record.integrations === true,
-    };
+    return { tour: (saved as Partial<Record<Hint, unknown>>).tour === true };
   } catch {
     return { ...NOTHING };
   }
@@ -75,9 +69,9 @@ export function tourSteps(visible: (step: TourStep) => boolean): TourStep[] {
 
 /**
  * Кнопка подсказки на экране (`data-tour="<имя>"`): есть в документе и занимает место — не спрятана
- * в закрытом меню и не свёрнута вместе с пультом.
+ * в закрытом меню.
  */
-export function anchorFor(name: TourStep | 'dock', root: ParentNode = document): HTMLElement | null {
+export function anchorFor(name: TourStep, root: ParentNode = document): HTMLElement | null {
   const element = root.querySelector<HTMLElement>(`[data-tour="${name}"]`);
   if (!element) return null;
   const box = element.getBoundingClientRect();

@@ -14,7 +14,7 @@ export function readEndsAt(snapshot: Snapshot): number | null {
 }
 
 /**
- * Плашка «Встреча завершится в 14:30» (A2 модели угроз). Ядро присылает `endsAt` за
+ * Плашка «до 14:30» — встреча завершится в это время (A2 модели угроз). Ядро присылает `endsAt` за
  * `stream.meeting.warn-before` до конца; время показывается по часам этого устройства с поправкой на
  * часы сервера.
  */
@@ -32,10 +32,12 @@ export function MeetingEnds({ snapshot }: { snapshot: Snapshot }) {
     [endsAt, snapshot.serverTime, t],
   );
   if (endsAt === null) return null;
+  // В шапке — коротко (R27): «до 23:00»; почему — в подсказке и для диктора.
+  const full = t(($) => $.meeting.ceiling, { time });
   return (
-    <p className="abuse-notice" role="status">
+    <p className="abuse-notice" role="status" title={full} aria-label={full}>
       <TimerOff size={14} aria-hidden="true" />
-      {t(($) => $.meeting.ceiling, { time })}
+      {t(($) => $.meeting.ceilingShort, { time })}
     </p>
   );
 }
@@ -54,10 +56,12 @@ export function CinemaTraffic({ snapshot }: { snapshot: Snapshot }) {
   const { t } = useTranslation();
   const percent = readCinemaTraffic(snapshot);
   if (percent === null) return null;
+  const stopped = percent >= 100;
+  const full = stopped ? t(($) => $.meeting.cinemaStopped) : t(($) => $.meeting.cinemaTraffic, { percent });
   return (
-    <p className="abuse-notice" role="status">
+    <p className="abuse-notice" role="status" title={full} aria-label={full}>
       <Clapperboard size={14} aria-hidden="true" />
-      {percent >= 100 ? t(($) => $.meeting.cinemaStopped) : t(($) => $.meeting.cinemaTraffic, { percent })}
+      {stopped ? t(($) => $.meeting.cinemaStoppedShort) : t(($) => $.meeting.cinemaTrafficShort, { percent })}
     </p>
   );
 }

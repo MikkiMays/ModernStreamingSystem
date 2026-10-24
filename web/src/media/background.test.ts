@@ -204,23 +204,20 @@ describe('Wake Lock: когда держать экран', () => {
 });
 
 describe('что сказать про фон', () => {
-  it('по платформе и захвату', () => {
-    expect(backgroundAdvice(IOS_SAFARI, true)).toBe('ios-safari');
-    expect(backgroundAdvice(ANDROID, true)).toBe('android');
-    expect(backgroundAdvice(ANDROID, false)).toBe('no-microphone');
-    expect(backgroundAdvice(IOS_SAFARI, false)).toBe('no-microphone');
-    expect(backgroundAdvice(ANDROID_APP, false)).toBe('app');
-    expect(backgroundAdvice(DESKTOP, false)).toBeNull();
+  it('Safari, Android и ПК — без советов (R27): плашка поверх сцены говорила очевидное', () => {
+    expect(backgroundAdvice(IOS_SAFARI)).toBeNull();
+    expect(backgroundAdvice(ANDROID)).toBeNull();
+    expect(backgroundAdvice(DESKTOP)).toBeNull();
+    expect(backgroundAdvice(ANDROID_APP)).toBe('app');
   });
 
   it('Mini App Telegram — свой случай: ни шторки Chrome, ни аудиосессии Safari', () => {
-    expect(backgroundAdvice(ANDROID_TELEGRAM, true)).toBe('telegram');
-    expect(backgroundAdvice(DESKTOP_TELEGRAM, true)).toBeNull();
+    expect(backgroundAdvice(ANDROID_TELEGRAM)).toBe('telegram');
+    expect(backgroundAdvice(DESKTOP_TELEGRAM)).toBeNull();
   });
 
-  it('iPhone «Домой» — первым: там и с микрофоном фон не держится', () => {
-    expect(backgroundAdvice(IOS_HOME, true)).toBe('ios-home');
-    expect(backgroundAdvice(IOS_HOME, false)).toBe('ios-home');
+  it('iPhone «Домой» — там фон не держится вовсе', () => {
+    expect(backgroundAdvice(IOS_HOME)).toBe('ios-home');
   });
 });
 

@@ -241,6 +241,10 @@
   color: var(--warning);
   font-size: var(--text-xs);
   white-space: nowrap;
+  /* Между «…» справа и тем же местом слева: на узкой плитке подпись не лезет под кнопку меню. */
+  max-width: calc(100% - 2 * (var(--control-sm) + var(--space-3)));
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*
@@ -350,6 +354,14 @@ button.watch-stream:hover {
   color: var(--stage-muted);
   background: color-mix(in srgb, var(--stage-tile-2) 60%, transparent);
   cursor: default;
+}
+/* Своя плитка на телефоне — красная кнопка «Остановить показ» с крестиком (R77). */
+button.watch-stream.is-stop {
+  background: var(--danger-fill);
+  color: var(--on-danger);
+}
+button.watch-stream.is-stop:hover {
+  background: var(--danger-fill-hover);
 }
 .watch-stream .live-badge {
   padding: 2px 6px;
@@ -482,8 +494,21 @@ button.watch-stream:hover {
   flex: 1;
   min-width: 0;
 }
-.background-note > .ui-button {
-  flex: none;
+/* Совет о фоне (R27) — одной строкой по центру над пультом: текст, «скопировать ссылку» и «скрыть». */
+.background-note[role='note'] {
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: calc(100% - var(--space-8));
+  min-height: var(--control-lg);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  gap: var(--space-2);
+  transform: translateX(-50%);
+}
+.background-note[role='note'] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Источник окна «картинка в картинке» (`media/pip.ts`): элемент обязан быть в документе и не
    `display: none`, но на странице его не видно. */
@@ -503,30 +528,6 @@ button.watch-stream:hover {
   bottom: calc(var(--dock-space) + var(--space-2));
   transform: translateX(-50%);
 }
-.invite-hint {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  bottom: calc(var(--dock-space) + var(--space-3));
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  max-width: calc(100% - var(--space-8));
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-3);
-  background: color-mix(in srgb, var(--stage-tile-2) 90%, transparent);
-  color: var(--stage-muted);
-  font-size: var(--text-sm);
-  white-space: nowrap;
-  box-shadow: var(--shadow-2);
-}
-.invite-hint:hover {
-  color: var(--stage-text);
-}
-.invite-hint > svg {
-  flex: none;
-}
 .return-conversation {
   position: absolute;
   z-index: 25;
@@ -542,9 +543,6 @@ button.watch-stream:hover {
   color: var(--stage-text);
   font-size: var(--text-sm);
   box-shadow: var(--shadow-1);
-}
-.meeting-page:has(.ping-badge) .return-conversation {
-  top: 34px;
 }
 
 /* Конец встречи и ожидание у двери — тихая середина сцены. */
@@ -633,142 +631,68 @@ button.watch-stream:hover {
   text-align: center;
 }
 
-/* ---------- боты на сцене ---------- */
-/* Участники-службы держат звук отдельной колонкой справа от сетки, а на узком экране — под ней. */
-.conversation-stage.with-integrations {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  align-items: stretch;
-}
-.integration-roster {
-  align-self: start;
-  min-width: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-4);
-  background: var(--surface-1);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.integration-roster h2 {
-  margin: 0 0 var(--space-2);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-}
-.integration-participant {
-  position: relative;
-}
-.integration-entry {
-  display: flex;
-  align-items: flex-start;
+/* ---------- крупно один: закреплённый и «Говорящий» (R83, R84) ---------- */
+/*
+  Крупная плитка во всю сцену, остальные — лентой под ней (та же, что под плеером и столами): справа
+  лента спорила бы с чипами интеграций в правом верхнем углу. Кадр в крупной плитке вписан целиком.
+*/
+.stage[data-spotlight='true'] {
   gap: var(--space-3);
+}
+.spotlight-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.spotlight-main > .person-tile {
   width: 100%;
-  min-width: 0;
-  padding: var(--space-2) var(--space-1);
+  height: 100%;
+  aspect-ratio: auto;
+}
+.spotlight-strip {
+  flex: none;
+}
+/* «Открепить» — на самой закреплённой плитке, слева сверху, видно всегда: на телефоне наведения нет. */
+.tile-unpin {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - var(--control-sm) - var(--space-6));
+  height: var(--control-sm);
+  padding: 0 var(--space-3) 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-2);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-.integration-entry:hover {
-  background: var(--surface-hover);
-}
-.integration-symbol {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-.integration-summary {
-  display: grid;
-  flex: 1;
-  gap: 6px;
-  min-width: 0;
-}
-.integration-summary small {
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-.integration-track {
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  color: var(--stage-text);
   font-size: var(--text-sm);
-  line-height: var(--leading-base);
-  overflow-wrap: anywhere;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
-.integration-participant > .participant-more {
-  display: flex;
-  width: 28px;
-  min-width: 28px;
-  height: 26px;
-  margin-left: auto;
+.tile-unpin:hover {
+  background: var(--stage-glass-strong);
 }
-@media (max-width: 900px) {
-  .conversation-stage.with-integrations {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: var(--space-2);
+.tile-unpin:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.tile-unpin > svg.lucide {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+@media (pointer: coarse) {
+  .tile-unpin {
+    height: var(--touch-target);
+    padding-inline: var(--space-3);
   }
-  .integration-roster {
-    align-self: stretch;
-    padding: var(--space-2) var(--space-3);
-  }
-  .integration-roster h2 {
-    margin-bottom: 2px;
-  }
-  .integration-entry {
-    align-items: center;
-    padding: var(--space-1);
-  }
-  .integration-summary {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-1) var(--space-3);
-  }
-  .integration-track {
-    grid-column: 1 / -1;
-  }
-  .integration-participant > .participant-more {
-    position: absolute;
-    top: 0;
-    right: 0;
-  }
-  .integration-participant .integration-entry {
-    padding-right: 30px;
-  }
-}
-
-/* ---------- раскладка «Говорящий» ---------- */
-/*
-  Крупно один, остальные лентой справа. Строки заданы по числу участников: крупная плитка тянется
-  через `grid-row: 1 / -1`, а `-1` считает только явные строки. Больше пяти лента прокручивается.
-*/
-.stage[data-layout='speaker'] .people-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(96px, 18%, 210px);
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  align-content: stretch;
-  justify-items: center;
-  overflow-y: auto;
-}
-.stage[data-layout='speaker'] .people-grid[data-count='1'] {
-  grid-template-columns: minmax(0, 1fr);
-}
-.stage[data-layout='speaker'] .people-grid[data-count='2'] {
-  grid-template-rows: minmax(0, 1fr);
-}
-.stage[data-layout='speaker'] .people-grid[data-count='3'] {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-}
-.stage[data-layout='speaker'] .people-grid[data-count='4'] {
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-}
-.stage[data-layout='speaker'] .person-tile {
-  grid-column: 2;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  align-self: center;
-}
-.stage[data-layout='speaker'] .person-tile[data-focused='true'] {
-  grid-column: 1;
-  grid-row: 1 / -1;
 }
 
 /* ---------- лента лиц под плеером и столами ---------- */
@@ -853,9 +777,17 @@ button.watch-stream:hover {
   .person-tile {
     border-radius: var(--radius-3);
   }
-  /* Двое на телефоне — две половины экрана целиком: колонку из двух рядов сетка выбирает сама. */
+  /* Двое на телефоне — две половины экрана целиком: колонку из двух рядов сетка выбирает сама. Высота
+     — вся строка: с `height: auto` плитки сжимались до лица, а между ними зияли поля (R84). */
   .people-grid[data-count='2'] .person-tile {
+    height: 100%;
     aspect-ratio: auto;
+  }
+  /* Крупная плитка на телефоне — во всю ширину по пропорциям кадра (без кадра — 4:3), над лентой. */
+  .spotlight-main > .person-tile {
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: var(--tile-aspect, 4 / 3);
   }
   .person-caption {
     left: 6px;
@@ -864,13 +796,6 @@ button.watch-stream:hover {
   }
   .person-tile:has(.lens-switch) .person-caption {
     max-width: calc(100% - 120px);
-  }
-  .invite-hint {
-    gap: var(--space-2);
-    max-width: calc(100% - var(--space-6));
-    padding: var(--space-3);
-    font-size: var(--text-xs);
-    white-space: normal;
   }
   .recovery-banner {
     width: calc(100% - var(--space-6));
@@ -909,35 +834,8 @@ button.watch-stream:hover {
   }
 }
 
-/*
-  «Говорящий» на телефоне — переносом по строкам, а не сеткой: неявные колонки ленты отбирали ширину
-  у крупного плана, и он сжимался до полоски. Крупная плитка занимает строку, остальные — под ней.
-*/
+/* Лента на телефоне — от левого края и прокручивается вбок: своя плитка первой, остальные за ней. */
 @media (max-width: 700px) {
-  .stage[data-layout='speaker'] .people-grid,
-  .stage[data-layout='speaker'] .people-grid[data-count='2'],
-  .stage[data-layout='speaker'] .people-grid[data-count='3'],
-  .stage[data-layout='speaker'] .people-grid[data-count='4'] {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    gap: var(--space-2);
-    overflow-y: auto;
-  }
-  .stage[data-layout='speaker'] .person-tile {
-    flex: 0 0 auto;
-    width: auto;
-    height: clamp(72px, 14vh, 108px);
-  }
-  .stage[data-layout='speaker'] .person-tile[data-focused='true'] {
-    order: -1;
-    flex: 1 1 100%;
-    width: auto;
-    height: auto;
-    max-height: calc(100% - 116px);
-    margin-inline: auto;
-  }
   .people-strip {
     justify-content: flex-start;
     height: clamp(62px, 11vh, 92px);
@@ -953,7 +851,7 @@ button.watch-stream:hover {
 
 /*
   Лист панели на телефоне открыт: сцена отдаёт ему всё, кроме полосы лиц сверху. Правило стоит
-  последним — после «Говорящего», — и перебивает его порядком, а не весом.
+  последним — после крупной плитки и ленты, — и перебивает их порядком, а не весом.
 */
 @media (max-width: 767px) {
   .meeting-body.panel-open .stage .people-grid {
@@ -990,11 +888,33 @@ button.watch-stream:hover {
      и долгим нажатием по самой плитке. Кнопка ростом в полполосы заслоняла лицо, а у плиток за
      краем полосы оставалась за краем экрана (аудит чёткости E15-B на 360). */
   .meeting-body.panel-open .lens-switch,
-  .meeting-body.panel-open .integration-roster,
-  .meeting-body.panel-open .stage-wrap .invite-hint,
   .meeting-body.panel-open .screen-tools,
+  .meeting-body.panel-open .tile-unpin > span,
+  .meeting-body.panel-open .stage[data-spotlight='true'] .person-tile > .participant-more,
   .meeting-body.panel-open .stage .people-grid .person-tile > .participant-more {
     display: none;
+  }
+  /* Крупно один — та же полоса лиц: крупная плитка первой, лента за ней. */
+  .meeting-body.panel-open .stage[data-spotlight='true'] {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .meeting-body.panel-open .spotlight-main {
+    flex: none;
+    display: block;
+  }
+  .meeting-body.panel-open .spotlight-strip {
+    flex: 1;
+    min-width: 0;
+    height: 74px;
+  }
+  .meeting-body.panel-open :is(.spotlight-main, .spotlight-strip) > .person-tile {
+    width: 110px;
+    max-width: none;
+    height: 74px;
+    max-height: none;
+    aspect-ratio: auto;
   }
 }
 /*

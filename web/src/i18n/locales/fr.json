@@ -528,7 +528,6 @@
       "waitingSettle": "Installez-vous confortablement.",
       "waitingMedia": "Votre son et votre caméra ne sont pas encore transmis.",
       "returnToConversation": "Revenir à la conversation",
-      "inviteHint": "C'est le moment d'inviter vos proches",
       "unlockAudio": "Activer le son de la réunion",
       "dismissError": "Masquer la notification",
       "collapseControls": "Réduire les commandes",
@@ -547,19 +546,19 @@
       "noAnswer": "L'onglet de la réunion ne répond pas. Passez-y ou fermez-le"
     },
     "ceiling": "La réunion se terminera à {{time}} : les réunions de ce serveur ont une durée maximale",
+    "ceilingShort": "jusqu'à {{time}}",
     "cinemaTraffic": "Le Cinéma a utilisé {{percent}} % du trafic de cette réunion. Une fois épuisé, le film s'arrêtera jusqu'à la fin de la réunion",
+    "cinemaTrafficShort": "Cinéma {{percent}} %",
     "cinemaStopped": "Le Cinéma a épuisé le trafic de cette réunion : le film est arrêté jusqu'à la fin de la réunion",
+    "cinemaStoppedShort": "Film arrêté",
     "presence": {
       "title": "Vous êtes toujours là ?",
       "text": "Sans réponse, vous quitterez la réunion à {{time}} : ainsi, un onglet oublié ne garde pas de place",
       "confirm": "Je suis là"
     },
     "background": {
-      "iosSafari": "Vous pouvez réduire Safari ou verrouiller l'écran : la conversation continue tant que le point orange du micro est allumé en haut. La caméra se coupe pendant ce temps. La conversation s'interrompt si un appel classique arrive ou si l'iPhone ferme Safari. Pour voir les autres par-dessus d'autres apps, choisissez « Afficher en mini-fenêtre » dans le menu des commandes.",
-      "iosHome": "Ici, l'iPhone coupe le micro dès que vous quittez l'écran ou verrouillez le téléphone. Pour parler en arrière-plan, ouvrez la réunion dans Safari.",
-      "android": "Vous pouvez réduire le navigateur ou éteindre l'écran : tant que la notification « … utilise le micro » reste affichée, la conversation continue. Si le téléphone ferme le navigateur en arrière-plan, retirez-lui les restrictions de batterie.",
-      "noMicrophone": "Sans accès au micro, le téléphone peut interrompre la conversation quand vous réduisez le navigateur ou éteignez l'écran. Autorisez le micro dans les paramètres du site : coupé par le bouton, il ne transmet rien mais maintient la conversation en arrière-plan.",
-      "telegram": "Dans Telegram, la conversation tient tant que Telegram est ouvert : si vous le réduisez ou éteignez l'écran, le téléphone peut l'interrompre. Pour parler en arrière-plan, ouvrez la réunion dans un navigateur.",
+      "iosHome": "Seul Safari maintient l'appel en arrière-plan",
+      "telegram": "Seul un navigateur maintient l'appel en arrière-plan",
       "gapClosed": "Pendant votre absence de l'écran, le téléphone a coupé le micro : on ne vous a pas entendu de {{from}} à {{to}}.",
       "gapOpen": "Pendant votre absence de l'écran, le téléphone a coupé le micro à {{from}}, et on ne vous entend toujours pas. Coupez puis réactivez le micro.",
       "copyLink": "Copier le lien",
@@ -1188,7 +1187,6 @@
       "notRecovered_other": "La connexion ne s'est pas rétablie en {{count}} secondes",
       "recoveryExpired": "Le délai de reconnexion est écoulé"
     },
-    "liveUpdating": "Mise à jour du direct…",
     "actionFailed": "Impossible d'effectuer l'action",
     "participant": "Participant",
     "screen": {
@@ -2077,6 +2075,21 @@
       "startingMic": "Activation du micro…"
     }
   },
+  "desktop": {
+    "notify": {
+      "knock": "{{name}} demande à rejoindre",
+      "knockMany_one": "{{name}} et {{count}} autre demandent à rejoindre",
+      "knockMany_many": "{{name}} et {{count}} autres demandent à rejoindre",
+      "knockMany_other": "{{name}} et {{count}} autres demandent à rejoindre",
+      "admit": "Admettre",
+      "deny": "Refuser",
+      "mention": "{{name}} vous a mentionné",
+      "join": "{{name}} a rejoint la réunion",
+      "joinMany_one": "{{name}} et {{count}} autre ont rejoint la réunion",
+      "joinMany_many": "{{name}} et {{count}} autres ont rejoint la réunion",
+      "joinMany_other": "{{name}} et {{count}} autres ont rejoint la réunion"
+    }
+  },
   "stage": {
     "faceZoom": {
       "reset": "Taille normale : {{name}}",
@@ -2095,12 +2108,15 @@
     "watch": "Regarder le stream",
     "recovering": "Rétablissement de la connexion…",
     "gameLoading": "Ouverture du jeu…",
+    "unpin": "Désépingler",
+    "unpinOf": "Désépingler : {{name}}",
     "menu": {
       "volume": "Votre volume · {{value}} %",
       "volumeOf": "Volume : {{name}}",
       "unmute": "Rétablir le volume",
       "mute": "Couper le son pour moi",
       "pin": "Épingler la caméra",
+      "unpin": "Désépingler la caméra",
       "watch": "Regarder le stream",
       "muteForAll": "Couper le micro pour tous",
       "remove": "Retirer de la réunion",
@@ -2120,6 +2136,9 @@
     "more": "Paramètres et actions",
     "leave": "Quitter la réunion",
     "chat": "Chat",
+    "chatUnread_one": "Chat, {{count}} non lu",
+    "chatUnread_many": "Chat, {{count}} non lus",
+    "chatUnread_other": "Chat, {{count}} non lus",
     "chatAndFiles": "Chat et fichiers",
     "people": "Participants",
     "integrations": "Intégrations",
@@ -2645,13 +2664,10 @@
     "roster": {
       "label": "Bots et intégrations",
       "music": "Musique",
-      "open": "Ouvrir le lecteur de musique",
-      "check": "Connexion à vérifier",
-      "add": "Ajouter à la réunion",
-      "connecting": "Connexion…",
-      "paused": "En pause",
-      "playing": "En lecture",
-      "empty": "File vide"
+      "cinema": "Cinéma",
+      "seated": "{{name}} · {{count}} à la table",
+      "status": "{{name}} · {{status}}",
+      "titled": "{{name}} : {{title}}"
     },
     "status": {
       "unavailable": "État indisponible",
@@ -3190,7 +3206,6 @@
     "next": "Suivant",
     "done": "Terminer",
     "skip": "Passer",
-    "gotIt": "Compris",
     "tour": {
       "create": {
         "title": "Nouvelle réunion",
@@ -3216,14 +3231,6 @@
         "title": "Menu",
         "text": "Favoris, paramètres et aide sont ici."
       }
-    },
-    "meeting": {
-      "title": "Vous êtes dans la réunion",
-      "text": "Micro, caméra et écran — ces boutons. Pour inviter, utilisez le code de la réunion en haut."
-    },
-    "integrations": {
-      "title": "Les intégrations sont pour tous",
-      "text": "Le cinéma, la musique et les jeux sont partagés : activez-en un et il apparaît pour tous dans la réunion."
     }
   },
   "support": {

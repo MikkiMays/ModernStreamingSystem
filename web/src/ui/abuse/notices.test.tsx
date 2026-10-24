@@ -11,7 +11,11 @@ it('плашка о конце встречи появляется только 
   const { rerender } = render(<MeetingEnds snapshot={snapshot({})} />);
   expect(screen.queryByRole('status')).toBeNull();
   rerender(<MeetingEnds snapshot={snapshot({ endsAt: 1_000 + 15 * 60_000 })} />);
-  expect(screen.getByRole('status').textContent).toMatch(/^Встреча завершится в \d{2}:\d{2}/);
+  // В шапке — коротко (R27), полностью — в подсказке и для диктора.
+  const status = screen.getByRole('status');
+  expect(status.textContent).toMatch(/^до \d{2}:\d{2}$/);
+  expect(status.getAttribute('title')).toMatch(/^Встреча завершится в \d{2}:\d{2}: у встреч/);
+  expect(status).toHaveAccessibleName(status.getAttribute('title')!);
 });
 
 it('плашка о трафике кинозала: до порога её нет, на пороге — доля, на потолке — «остановлено»', () => {
@@ -20,11 +24,13 @@ it('плашка о трафике кинозала: до порога её не
   const view = within(container);
   expect(view.queryByRole('status')).toBeNull();
   rerender(<CinemaTraffic snapshot={snapshot({ cinemaTraffic: 80 })} />);
-  expect(view.getByRole('status').textContent).toBe(
+  expect(view.getByRole('status').textContent).toBe('кинозал 80 %');
+  expect(view.getByRole('status').getAttribute('title')).toBe(
     'Кинозал выбрал 80 % трафика этой встречи. Когда трафик кончится, кино остановится до конца встречи',
   );
   rerender(<CinemaTraffic snapshot={snapshot({ cinemaTraffic: 100 })} />);
-  expect(view.getByRole('status').textContent).toBe(
+  expect(view.getByRole('status').textContent).toBe('кино остановлено');
+  expect(view.getByRole('status')).toHaveAccessibleName(
     'Трафик кинозала в этой встрече кончился — кино остановлено до конца встречи',
   );
 });

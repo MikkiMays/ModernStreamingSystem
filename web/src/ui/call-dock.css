@@ -47,10 +47,6 @@
   height: var(--dock-button);
   border-radius: var(--radius-4);
 }
-.dock-button > svg {
-  width: 22px;
-  height: 22px;
-}
 /*
   Красный значок на сцене (набор, `tone="stage"`) значит «выключено» — для микрофона и камеры. Экран
   и панели не выключены, а просто не открыты: у них в покое обычный значок, а открытые — акцентом.
@@ -63,6 +59,39 @@
 }
 .dock-toggle.ui-icon-button--stage[aria-pressed='false'] > svg {
   color: inherit;
+}
+/* Идёт показ — кнопка показа красная, с крестиком (R77): как «Выйти», только квадратная. */
+.dock-stop.ui-icon-button:hover {
+  background: var(--danger-fill-hover);
+}
+/*
+  Непрочитанные в чате (R87): красный кружок 18 на правом верхнем углу кнопки, при двух знаках —
+  пилюля; ободок цветом пульта отделяет его от кнопки. Появляется с лёгким «вырастанием».
+*/
+.dock-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--danger-fill);
+  box-shadow: 0 0 0 2px var(--dock-bg);
+  color: var(--on-danger);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: none;
+  animation: dock-badge-in var(--motion-base) var(--ease-emphasized);
+}
+@keyframes dock-badge-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
 }
 /* «Выйти» — шире остальных и красным: его ищут глазами быстрее всего и нажимают последним. */
 .dock-hangup.ui-icon-button {

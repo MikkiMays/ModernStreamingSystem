@@ -90,7 +90,6 @@ export interface MediaState {
   screen: boolean;
   error: string | null;
   quality: ConnectionQuality;
-  liveStatus: string | null;
 }
 export interface DeviceChoice {
   microphone?: string;
@@ -185,7 +184,6 @@ export class MediaSession {
     screen: false,
     error: null,
     quality: ConnectionQuality.Unknown,
-    liveStatus: null,
   });
   readonly tracks = new Store<MediaTile[]>([]);
   readonly volumes = new Store<Record<string, number>>({});
@@ -377,7 +375,6 @@ export class MediaSession {
   private encoderHealth = new EncoderHealth();
   private screenGeneration = 0;
   private liveTimer?: ReturnType<typeof setInterval>;
-  private liveNoticeTimer?: ReturnType<typeof setTimeout>;
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
   private lastLiveReset = new Map<string, number>();
@@ -775,7 +772,9 @@ export class MediaSession {
     if (!publications.length) return;
     this.resetting.add(key);
     this.lastLiveReset.set(key, Date.now());
-    this.patch({ liveStatus: t(($) => $.media.liveUpdating) });
+    // Служебная переподписка — в журнал, не на сцену (R27): плашка «Обновляем прямой эфир…»
+    // мигала поверх разговора и ничего не просила сделать.
+    console.debug('[cord] live resubscribe', identity, screen ? 'screen' : 'camera+microphone');
     try {
       await Promise.all(publications.map((p) => this.unsubscribeForRefresh(p)));
     } finally {
@@ -790,11 +789,6 @@ export class MediaSession {
             publication.setSubscribed(true);
         }
       this.resetting.delete(key);
-      clearTimeout(this.liveNoticeTimer);
-      if (!this.disposed)
-        this.liveNoticeTimer = setTimeout(() => {
-          if (!this.disposed) this.patch({ liveStatus: null });
-        }, 2500);
     }
   }
   private unsubscribeForRefresh(publication: RemoteTrackPublication) {
@@ -990,8 +984,8 @@ export class MediaSession {
    * это `unmute` той же дорожки, без нового запроса доступа. Так ведут себя нативные звонилки; цена —
    * индикатор микрофона ОС горит и при выключенном звуке.
    *
-   * На ПК ничего не делает. Отказ в доступе — не ошибка встречи: разговор идёт как раньше, а плашка
-   * честно говорит, что фон теперь не защищён (`backgroundAdvice` → `no-microphone`).
+   * На ПК ничего не делает. Отказ в доступе — не ошибка встречи: разговор идёт как раньше, только
+   * в фоне его не держит ничто.
    */
   async holdMicrophone(deviceId?: string) {
     if (!this.platform.mobile || this.disposed || this.deviceBusy.has('microphone')) return;
@@ -1917,7 +1911,6 @@ export class MediaSession {
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
     clearInterval(this.playoutTimer);
-    clearTimeout(this.liveNoticeTimer);
     clearInterval(this.deadlineTimer);
     clearTimeout(this.reconnectTimer);
     clearInterval(this.qualityTimer);
