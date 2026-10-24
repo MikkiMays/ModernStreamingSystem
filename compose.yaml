@@ -187,6 +187,11 @@ services:
     volumes:
       - ./infra/generated/livekit.json:/etc/livekit.json:ro
       - ./infra/generated/tls:/etc/tls:ro
+    # SFU — первым на процессор (MEDIA-DIAGNOSIS §6, R107): на этой ВМ звонки делят 4 vCPU со сборками,
+    # тестами и службами, и когда процессора не хватает, пакеты речи уходят пачкой — у слушателей это
+    # обрывы по 150–400 мс. Вес 4096 против 1024 по умолчанию; от ООМ — последним.
+    cpu_shares: 4096
+    oom_score_adj: -500
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
