@@ -598,7 +598,13 @@ export class MediaSession {
       for (const report of reports)
         if (report.resync && report.kind !== 'video') {
           const found = this.findPublication(report.id);
-          if (found) void this.resetLivePair(found.identity, found.publication.source, true);
+          // Разговор — только в паузе (R107): `playout.ts` уже проверил громкость приёма, а здесь
+          // ещё и мнение SFU — пока человек «говорит», провал переподписки лёг бы на слово.
+          const speaking =
+            report.kind === 'conversation' &&
+            !!found &&
+            !!this.room.remoteParticipants.get(found.identity)?.isSpeaking;
+          if (found && !speaking) void this.resetLivePair(found.identity, found.publication.source, true);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе

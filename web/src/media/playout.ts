@@ -115,6 +115,8 @@ export interface PlayoutSample {
   jitterBufferEmittedCount?: number;
   framesReceived?: number;
   framesDecoded?: number;
+  /** Громкость принятого звука в момент отчёта (0…1): говорит ли человек прямо сейчас. */
+  audioLevel?: number;
   /** У видео нет `concealedSamples`: там то же самое называется замиранием. */
   freezeCount?: number;
   totalFreezesDuration?: number;
@@ -141,6 +143,10 @@ export const JITTER_EVENT_MS = 120;
 export const JITTER_EVENTS = 3;
 /** Буфер раздуло настолько выше потолка, что дешевле переподписаться, чем ждать. */
 export const RESYNC_EXCESS_MS = 1000;
+/** Сколько опросов подряд буфер разговора должен быть раздут, прежде чем его переподписать. */
+export const SPEECH_RESYNC_POLLS = 2;
+/** Тише этого (`audioLevel`) — пауза говорящего: провал переподписки в неё не слышен. */
+export const SPEECH_PAUSE_LEVEL = 0.01;
 
 /**
  * Разбор заглушки за интервал.
@@ -190,6 +196,7 @@ export class PlayoutBuffer {
   private previous?: PlayoutSample;
   private targetMs: number;
   private peakJitterMs = 0;
+  private bloatedPolls = 0;
   private calmSince: number;
   private profile: PlayoutProfile;
   constructor(
@@ -273,10 +280,19 @@ export class PlayoutBuffer {
     }
     this.targetMs = clamp(Math.round(want), profile.floorMs, profile.ceilingMs);
     // Буфер раздуло пачкой далеко за потолок: NetEq будет выбрасывать звук, догоняя цель,
-    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место — но это обрыв, и
-    // для речи он хуже догоняющего ускорения (R107): разговор не переподписывается никогда.
+    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место — но это провал звука.
+    // Музыке он дешевле секунд отставания. Разговору (R107) — только если раздуто не на один опрос
+    // (короткую пачку NetEq догонит сам) и только в паузе говорящего: посреди фразы это и есть
+    // «звук обрезается», а в паузе провал не слышен. После «пробки» в сети NetEq без этого держит
+    // свою цель за секунду ещё десятки секунд — разговор превращается в рацию.
+    const bloated = measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    this.bloatedPolls = bloated ? this.bloatedPolls + 1 : 0;
+    const paused = (finite(current.audioLevel) ?? 1) < SPEECH_PAUSE_LEVEL;
     const resync =
-      this.kind === 'media' && measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+      this.kind === 'media'
+        ? bloated
+        : this.kind === 'conversation' && this.bloatedPolls >= SPEECH_RESYNC_POLLS && paused;
+    if (resync) this.bloatedPolls = 0;
     return {
       targetMs: this.targetMs,
       concealRatio,
