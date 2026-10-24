@@ -120,6 +120,9 @@ class GameVisualEventsTest {
     game.trumpSuit = 1;
     game.act("p0", "attack", "6s", null, NOW + 2000);
     game.act("p3", "beat", "7s", "6s", NOW + 2100);
+    // Бой закрывает «бито» заходившего, а не стол за него (R108).
+    assertThat(game.boutEnd).isNull();
+    game.act("p0", "pass", null, null, NOW + 2200);
     assertThat(game.boutEnd).isEqualTo("beaten");
     var discarded = game.visualEvents.getLast();
     assertThat(discarded.type()).isEqualTo("discard");

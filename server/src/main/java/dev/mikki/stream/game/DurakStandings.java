@@ -37,7 +37,6 @@ public final class DurakStandings {
         now,
         table.handNumber,
         table.result == null ? 0 : table.result.bouts,
-        table.result != null && table.result.draw,
         table.result == null ? "" : table.result.foolName,
         table.result == null ? List.of() : List.copyOf(table.result.places),
         players,

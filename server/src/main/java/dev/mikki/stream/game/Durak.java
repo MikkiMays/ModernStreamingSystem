@@ -54,14 +54,17 @@ public class Durak {
   /** Сколько стол стоит пустым, прежде чем уйти со сцены. Столько же у покера. */
   public static final long LINGER_MS = 600000;
 
-  /** Сколько видно «нечем отбиться», прежде чем стол возьмёт за защитника сам. */
-  public static final long AUTO_TAKE_MS = 1500;
-
   /** Сколько ждём хода от того, кого во встрече уже нет. */
   public static final long AWAY_ACT_MS = 3000;
 
   /** Сколько ждём его самого, прежде чем освободить место. */
   public static final long AWAY_STAND_MS = LINGER_MS;
+
+  /**
+   * Время на ход по умолчанию — как в дружеском покере ({@link Table}): за одним столом встречи обе
+   * игры ходят в одном темпе. Ведущий выбирает другое в настройках стола (R110).
+   */
+  public static final int DEFAULT_TURN = 45;
 
   /** Границы раздумья: меньше пятнадцати секунд — не игра, больше двух минут — не встреча. */
   public static final int MIN_TURN = 15;
@@ -94,7 +97,7 @@ public class Durak {
   /** 36 или 52. Меняется только между партиями. */
   public int deckSize = 36;
 
-  public int turnSeconds = 40;
+  public int turnSeconds = DEFAULT_TURN;
 
   /**
    * Подкидывают только соседи защитника.
@@ -111,6 +114,13 @@ public class Durak {
 
   /** Сколько партий сыграли за этим столом. */
   public int handNumber;
+
+  /**
+   * Счётчик опустевших рук: каждая рука, отдавшая последнюю карту, получает следующий номер ({@link
+   * Seat#emptied}). По нему выходят из партии и находится дурак, когда последний бой опустошил руки
+   * сразу нескольким (R111).
+   */
+  public long emptiedCount;
 
   public List<Seat> seats = new ArrayList<>();
 
@@ -217,6 +227,12 @@ public class Durak {
     /** Сел посреди партии и ждёт следующей раздачи. */
     public boolean waiting;
 
+    /**
+     * Когда рука отдала последнюю карту — номер по {@link Durak#emptiedCount}, или 0, пока карты
+     * есть. Сбрасывается, как только в руку что-то пришло: взял или добрал.
+     */
+    public long emptied;
+
     public boolean away;
     public long awaySince;
 
@@ -288,8 +304,10 @@ public class Durak {
     public int foolSeat = -1;
     public String foolName = "";
 
-    /** Последний бой опустошил руки всем разом: проигравшего нет. */
-    public boolean draw;
+    /*
+     Поля «ничья» больше нет (R111): дурак есть у каждой сыгранной партии. Записи прежнего ядра с
+     ним читаются — неизвестное поле пропускается.
+    */
 
     public int bouts;
 
@@ -536,7 +554,7 @@ public class Durak {
       }
       case "turn" -> {
         requireRunning();
-        int wanted = value == null ? 40 : value.intValue();
+        int wanted = value == null ? DEFAULT_TURN : value.intValue();
         turnSeconds = Math.max(MIN_TURN, Math.min(MAX_TURN, wanted));
         note(now, "settings", -1, "", turnSeconds + " секунд на ход");
         reschedule(now);
@@ -620,7 +638,9 @@ public class Durak {
       seat.place = 0;
       seat.fool = false;
       seat.waiting = false;
+      seat.emptied = 0;
     }
+    emptiedCount = 0;
     /*
      Козырь — нижняя карта колоды, и объявляется он до раздачи, а не после.
 
@@ -762,7 +782,7 @@ public class Durak {
   private void attack(int index, int card, long now) {
     validateAttack(index, card);
     var seat = seats.get(index);
-    seat.hand.remove((Integer) card);
+    spend(seat, card);
     visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     attacks.add(card);
     beats.add(-1);
@@ -802,12 +822,18 @@ public class Durak {
     validateBeat(index, card, under);
     var seat = seats.get(index);
     int slot = attacks.indexOf(under);
-    seat.hand.remove((Integer) card);
+    spend(seat, card);
     visual(now, "play", index, null, 1, List.of(Cards.text(card)));
     beats.set(slot, card);
     if (Cards.suit(card) == trumpSuit) player(seat.memberId, seat.name).trumpsBurned++;
     note(now, "beat", index, seat.name, seat.name + " отбивается");
     reschedule(now);
+  }
+
+  /** Карта уходит из руки; последняя — и рука получает свой номер в очереди на выход (R111). */
+  private void spend(Seat seat, int card) {
+    seat.hand.remove((Integer) card);
+    if (seat.hand.isEmpty()) seat.emptied = ++emptiedCount;
   }
 
   /** Бьёт ли одна карта другую: старшая той же масти или любой козырь по некозырю. */
@@ -820,11 +846,6 @@ public class Durak {
   }
 
   private void take(int index, long now) {
-    take(index, now, false);
-  }
-
-  /** {@code cornered} — берёт не он, а стол за него: отбиться ему нечем. */
-  private void take(int index, long now, boolean cornered) {
     if (index != defender) throw Problem.conflict("DURAK_TURN", "Берёт тот, кто отбивается");
     if (taking) throw Problem.conflict("DURAK_TAKING", "Вы уже взяли карты");
     if (attacks.isEmpty()) throw Problem.conflict("DURAK_EMPTY", "Брать пока нечего");
@@ -833,7 +854,7 @@ public class Durak {
     // Взял — значит, можно докинуть «вдогонку»: спасовавшие снова в игре.
     passed.clear();
     var name = seats.get(index).name;
-    note(now, "take", index, name, name + (cornered ? " берёт: нечем отбиться" : " берёт"));
+    note(now, "take", index, name, name + " берёт");
     reschedule(now);
   }
 
@@ -883,7 +904,7 @@ public class Durak {
     validateTransfer(index, card);
     var seat = seats.get(index);
     int next = nextPlaying(index);
-    seat.hand.remove((Integer) card);
+    spend(seat, card);
     // Своё событие, а не ещё одна атака: бой уезжает к соседу, и это видно и слышно иначе.
     visual(now, "transfer", index, next, 1, List.of(Cards.text(card)));
     attacks.add(card);
@@ -939,89 +960,34 @@ public class Durak {
     return attacks.size() < limit && unbeaten() < seats.get(defender).hand.size();
   }
 
-  /** Может ли это место положить хоть одну карту в текущий бой. */
-  private boolean canThrow(int index) {
+  /**
+   * Ждёт ли стол от этого места «подкинуть или бито».
+   *
+   * <p>ВСЁ, ЧТО ЗДЕСЬ ПРОВЕРЯЕТСЯ, ВИДНО ЗА СТОЛОМ (R108). Вправе ли он подкидывать, есть ли в бою
+   * место и пуста ли его рука — это знают все. Есть ли у него подходящий номинал, не проверяется
+   * нарочно: стол, который не ждёт игрока без подходящей карты, рассказывает об этом всем — и
+   * кольцом хода, и тем, как быстро закрылся бой. Подкинуть нечего — человек сам говорит «бито» или
+   * ждёт часов, как и тот, кому есть что подкинуть.
+   */
+  private boolean awaited(int index) {
     if (!mayThrow(index) || !roomToThrow()) return false;
     if (attacks.isEmpty()) return index == attacker;
-    var ranks = ranksOnTable();
-    return seats.get(index).hand.stream().anyMatch(card -> ranks.contains(Cards.rank(card)));
-  }
-
-  /**
-   * Подкинуть законно, место в бою есть, а подходящего номинала нет (T07).
-   *
-   * <p>Такого игрока стол не ждёт и пасует за него, а у его места все видят «нечего подкинуть». Что
-   * у него в руке, метка не раскрывает — только то, что подходящего нет; так и за настоящим столом
-   * говорят вслух «мне нечего».
-   */
-  private boolean nothingToThrow(int index) {
-    if (!playing() || attacks.isEmpty() || passed.contains(index) || !mayThrow(index)) return false;
-    if (!roomToThrow()) return false;
-    var ranks = ranksOnTable();
-    return seats.get(index).hand.stream().noneMatch(card -> ranks.contains(Cards.rank(card)));
-  }
-
-  /**
-   * Защитнику нечем отбиться и некуда перевести: бой он всё равно возьмёт (T07).
-   *
-   * <p>Рука за бой только тает, поэтому, если неотбитое нельзя покрыть разными картами руки уже
-   * сейчас, его нельзя будет покрыть никогда. Проверяется всё неотбитое разом, а не по карте: две
-   * атаки, которые бьёт один и тот же единственный козырь, — это тоже «нечем».
-   */
-  private boolean cornered() {
-    if (!playing() || boutEnd != null || taking || !beats.contains(-1)) return false;
-    var hand = seats.get(defender).hand;
-    var open = new ArrayList<Integer>();
-    for (int slot = 0; slot < attacks.size(); slot++)
-      if (beats.get(slot) < 0) open.add(attacks.get(slot));
-    if (covers(open, hand)) return false;
-    for (var card : hand) if (legal(() -> validateTransfer(defender, card))) return false;
-    return true;
-  }
-
-  /** Паросочетание «атака — чем бьём» (Кун): у каждой неотбитой карты своя защитная. */
-  private boolean covers(List<Integer> open, List<Integer> hand) {
-    var owner = new int[hand.size()];
-    java.util.Arrays.fill(owner, -1);
-    for (int attack = 0; attack < open.size(); attack++)
-      if (!assign(attack, open, hand, owner, new boolean[hand.size()])) return false;
-    return true;
-  }
-
-  private boolean assign(
-      int attack, List<Integer> open, List<Integer> hand, int[] owner, boolean[] seen) {
-    for (int slot = 0; slot < hand.size(); slot++) {
-      if (seen[slot] || !beatsCard(hand.get(slot), open.get(attack))) continue;
-      seen[slot] = true;
-      if (owner[slot] < 0 || assign(owner[slot], open, hand, owner, seen)) {
-        owner[slot] = attack;
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /** Что стол решил за это место: {@code take}, {@code pass} или {@code null}. */
-  private String auto(int index) {
-    if (index == defender) return cornered() ? "take" : null;
-    // Метка остаётся и на полторы секунды закрытого боя: по ней и видно, почему он закрылся.
-    return nothingToThrow(index) ? "pass" : null;
+    return !seats.get(index).hand.isEmpty();
   }
 
   /**
    * От кого стол ждёт хода.
    *
    * <p>Пока на столе есть неотбитая карта и защитник не взял — ждут его одного. Иначе ждут всех
-   * нападающих разом: подкинуть или сказать «бито». Спасовавшие и те, кому класть нечего, в
-   * ожидании не участвуют — иначе бой стоял бы полную минуту ради людей без единой подходящей
-   * карты.
+   * нападающих разом: подкинуть или сказать «бито». Не ждут только спасовавших и тех, кого не ждать
+   * видно всем: пустая рука, полный бой, не сосед при игре «подкидывают соседи» (R108).
    */
   public List<Integer> acting() {
     if (!playing() || boutEnd != null) return List.of();
     if (!taking && !attacks.isEmpty() && beats.contains(-1)) return List.of(defender);
     var waiting = new ArrayList<Integer>();
     for (int index = 0; index < SEATS; index++)
-      if (!passed.contains(index) && canThrow(index)) waiting.add(index);
+      if (!passed.contains(index) && awaited(index)) waiting.add(index);
     return waiting;
   }
 
@@ -1034,8 +1000,8 @@ public class Durak {
       return;
     }
     actionAt = now;
-    // Нечем отбиться — ждать полный срок незачем: полторы секунды видно, что сейчас будет.
-    deadline = now + (cornered() ? AUTO_TAKE_MS : turnSeconds * 1000L);
+    // Срок один для всех и всегда полный: короткий выдавал бы, что отбиться нечем (R108).
+    deadline = now + turnSeconds * 1000L;
   }
 
   /** Бой кончился. Карты ещё полторы секунды лежат на столе — этим и видно, чем он кончился. */
@@ -1065,6 +1031,7 @@ public class Durak {
     if (taken) {
       loser.hand.addAll(attacks);
       for (var card : beats) if (card >= 0) loser.hand.add(card);
+      loser.emptied = 0;
       sortHand(loser);
     } else {
       discarded += played();
@@ -1103,6 +1070,7 @@ public class Durak {
       var seat = seats.get(index);
       while (seat.hand.size() < HAND && !deck.isEmpty()) {
         seat.hand.add(deck.remove(0));
+        seat.emptied = 0;
         visual(now, "draw", null, index, 1, List.of());
       }
       sortHand(seat);
@@ -1112,23 +1080,44 @@ public class Durak {
   /**
    * Кончилась ли партия.
    *
-   * <p>Выбывают все разом, а не по одному: последний бой может опустошить руки сразу двоим, и
-   * объявлять одного из них дураком за то, что его место дальше по кругу, — это не правило, а
-   * побочный эффект обхода.
+   * <p>ВЫХОДЯТ В ТОМ ПОРЯДКЕ, В КАКОМ ОПУСТЕЛИ РУКИ, И НИЧЬЕЙ НЕТ (R111). Последний бой может
+   * опустошить руки сразу нескольким, и раньше стол выпускал их всех разом, а если карт не
+   * оставалось ни у кого — объявлял ничью. Владелец 24.10.2026: «в игре нет ничьи, если последний
+   * игрок выкинул все карты с руки — он выиграл… если предпоследний игрок кидает последние свои
+   * карты с руки, а другой отбивает… в правильном варианте будет, что второй игрок проиграл». Кто
+   * раньше отдал последнюю карту, тот раньше и вышел; если карт не осталось ни у кого, дурак — тот,
+   * кто избавился от них последним. В доигранном бою это всегда защитник: подкидывать в пустую руку
+   * нельзя, и последней картой боя ложится его защита.
    */
   private boolean finish(long now) {
+    if (deck.isEmpty()) leave(now);
+    if (stillIn(-1).size() > 1) return false;
+    finishNow(now);
+    return true;
+  }
+
+  /** Выпустить из партии опустевшие руки — по очереди, в которой они опустели. */
+  private void leave(long now) {
     int gone = (int) seats.stream().filter(seat -> seat.out && seat.place > 0).count();
+    var spent = new ArrayList<Integer>();
     for (int index = 0; index < SEATS; index++) {
       var seat = seats.get(index);
-      if (!seat.playing() || !seat.hand.isEmpty() || !deck.isEmpty()) continue;
+      if (seat.playing() && seat.hand.isEmpty()) spent.add(index);
+    }
+    /*
+     Прежнее ядро номеров не ставило (партия, начатая до выкатки): у таких рук ноль, и тогда
+     последним считается защитник — последней картой боя ложится его защита.
+    */
+    spent.sort(
+        Comparator.comparingLong((Integer index) -> seats.get(index).emptied)
+            .thenComparing(index -> index == defender));
+    if (!spent.isEmpty() && spent.size() == stillIn(-1).size()) spent.remove(spent.size() - 1);
+    for (var index : spent) {
+      var seat = seats.get(index);
       seat.out = true;
       seat.place = ++gone;
       note(now, "out", index, seat.name, seat.name + " выходит из партии");
     }
-    var left = stillIn(-1);
-    if (left.size() > 1) return false;
-    finishNow(now);
-    return true;
   }
 
   private void finishNow(long now) {
@@ -1136,16 +1125,26 @@ public class Durak {
     result = new Result();
     result.at = now;
     result.bouts = boutNumber;
-    result.draw = left.isEmpty();
-    if (!left.isEmpty()) {
-      int fool = left.get(0);
+    /*
+     Ни одного оставшегося — состояние, до которого правила не доводят (выше дурак оставлен в
+     игре). Запасной путь всё равно без ничьей: дураком становится вышедший последним.
+    */
+    int fool =
+        !left.isEmpty()
+            ? left.get(0)
+            : seats.stream()
+                .filter(seat -> seat.taken() && seat.place > 0)
+                .max(Comparator.comparingInt(seat -> seat.place))
+                .map(seats::indexOf)
+                .orElse(-1);
+    if (fool >= 0) {
       var seat = seats.get(fool);
+      seat.out = false;
+      seat.place = 0;
       seat.fool = true;
       result.foolSeat = fool;
       result.foolName = seat.name;
       note(now, "fool", fool, seat.name, seat.name + " — дурак");
-    } else {
-      note(now, "draw", -1, "", "Ничья: карт не осталось ни у кого");
     }
     result.places =
         seats.stream()
@@ -1230,7 +1229,7 @@ public class Durak {
       return true;
     }
     if (waiting.size() == 1 && waiting.get(0) == defender && !taking) {
-      take(defender, now, cornered());
+      take(defender, now);
     } else {
       for (var index : waiting) if (!passed.contains(index)) passed.add(index);
       reschedule(now);
@@ -1373,8 +1372,7 @@ public class Durak {
               seat.out && seat.place > 0,
               seat.place,
               seat.away,
-              seat.fool,
-              playing() && seat.playing() ? auto(index) : null));
+              seat.fool));
     }
     var notes =
         log.stream()
@@ -1429,7 +1427,6 @@ public class Durak {
         result.at,
         result.foolSeat,
         result.foolName,
-        result.draw,
         result.bouts,
         result.places == null ? List.of() : result.places);
   }
@@ -1441,8 +1438,9 @@ public class Durak {
     var cards = seat.hand.stream().map(Cards::text).toList();
     var actions = new ArrayList<String>();
     boolean live = !paused && playing() && boutEnd == null && seat.playing();
-    if (live && index != defender && !attacks.isEmpty() && (taking || !beats.contains(-1)))
-      if (!passed.contains(index) && canThrow(index)) actions.add("pass");
+    // «Бито» есть у каждого, кого стол ждёт, — есть ли ему что подкинуть или нет (R108).
+    if (live && index != defender && !attacks.isEmpty() && waiting.contains(index))
+      actions.add("pass");
     if (live && index == defender && !taking && !attacks.isEmpty()) actions.add("take");
     return new DurakView.DurakYou(
         index, cards, actions, live && waiting.contains(index), live ? plays(index) : List.of());
