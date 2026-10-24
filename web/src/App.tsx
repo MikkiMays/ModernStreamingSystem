@@ -10,6 +10,7 @@ import { Prejoin } from './ui/Prejoin';
 import type { DeviceChoice } from './media/session';
 import { getRecent, rememberMeeting, removeRecent, recentMeetings } from './core/recent';
 import { isDesktop, notifyDesktop, onDesktopCommand } from './core/desktop';
+import { desktopPageState } from './core/desktop-state';
 import { favoriteApi } from './core/favorites';
 import { FavoriteSettings } from './ui/FavoriteSettings';
 import type { Favorite } from './core/favorites';
@@ -51,7 +52,7 @@ function initialDestination() {
   }
 }
 function Workspace() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [destination, setDestination] = useState<Destination | null>(initialDestination);
   const [page, setPage] = useState<'home' | 'prejoin' | 'room'>(() =>
     initialDestination() ? 'prejoin' : 'home',
@@ -123,21 +124,19 @@ function Workspace() {
   };
   useEffect(() => {
     document.documentElement.dataset.desktop = String(isDesktop());
-    notifyDesktop('state', {
-      page,
-      inCall: page === 'room' && !!meeting && !meeting.ended.get(),
-      name: localStorage.getItem('cord:name') ?? '',
-      theme,
-      avatar,
-      room:
-        page === 'room' && meeting
-          ? {
-              roomId: meeting.admission.roomId,
-              title: meeting.admission.snapshot.title,
-              code: meeting.admission.snapshot.code,
-            }
-          : null,
-    });
+    // Язык интерфейса — в том же сообщении (R103): на нём оболочка пишет меню трея.
+    const language = i18n.resolvedLanguage;
+    notifyDesktop(
+      'state',
+      desktopPageState({
+        page,
+        meeting,
+        name: localStorage.getItem('cord:name') ?? '',
+        theme,
+        avatar,
+        language,
+      }),
+    );
     return onDesktopCommand((command) => {
       if (command.type === 'favorites.changed') {
         void queryClient.invalidateQueries({ queryKey: ['favorites'] });
@@ -167,21 +166,10 @@ function Workspace() {
       if (command.type === 'profile.changed' && typeof command.name === 'string') {
         if (meeting) meeting.media.saveSettings({ name: command.name });
         else savePreferences({ name: command.name });
-        notifyDesktop('state', {
-          page,
-          inCall: page === 'room' && !!meeting && !meeting.ended.get(),
-          name: command.name,
-          theme,
-          avatar,
-          room:
-            page === 'room' && meeting
-              ? {
-                  roomId: meeting.admission.roomId,
-                  title: meeting.admission.snapshot.title,
-                  code: meeting.admission.snapshot.code,
-                }
-              : null,
-        });
+        notifyDesktop(
+          'state',
+          desktopPageState({ page, meeting, name: command.name, theme, avatar, language }),
+        );
         return;
       }
       if (command.type === 'settings.open') {
@@ -240,7 +228,7 @@ function Workspace() {
       };
       void navigate().catch((e) => setError((e as Error).message));
     });
-  }, [page, meeting, theme, avatar]);
+  }, [page, meeting, theme, avatar, i18n.resolvedLanguage]);
   /** Открыть недавнюю встречу; `false` — открыть не вышло (ошибка уже показана). */
   const recent = async (id: string, restoring = false, quiet = false) => {
     try {

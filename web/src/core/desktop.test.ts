@@ -221,6 +221,17 @@ describe('мост v2 — адаптер', () => {
     expect(seen).toHaveLength(6);
   });
 
+  it('«Чат · N» в меню трея (R103): chat.open доходит до встречи прежним путём команд', async () => {
+    const api = fakeDesktop(['tray']);
+    const desktop = await import('./desktop');
+    const seen: unknown[] = [];
+    const stop = desktop.onDesktopCommand((command) => seen.push(command));
+    api.emit('chat.open', {});
+    stop();
+    api.emit('chat.open', {});
+    expect(seen).toEqual([{ version: 1, type: 'chat.open' }]);
+  });
+
   it('WinUI (v1) по-прежнему узнаётся и говорит через postMessage', async () => {
     const posted: unknown[] = [];
     (window as unknown as { chrome?: unknown }).chrome = {

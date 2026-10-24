@@ -198,7 +198,8 @@ export interface DesktopCommand {
     | 'profile.changed'
     | 'update.status'
     | 'deeplink'
-    | 'thumbar';
+    | 'thumbar'
+    | 'chat.open';
   /** «Нажми и говори» (`microphone.hold`, только v2 с флагом `ptt`): нажали или отпустили. */
   phase?: 'down' | 'up';
   showPing?: boolean;
@@ -346,6 +347,8 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
           'network.changed',
           'close-request',
           'session.token',
+          // «Чат · N» в меню трея (R103): открыть чат встречи — его открывает сама встреча.
+          'chat.open',
         ] as const
       ).map((type) => api.on(type, (data) => relay({ ...(data as Partial<DesktopCommand>), type }))),
     ];
