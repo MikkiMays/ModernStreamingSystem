@@ -76,8 +76,9 @@ export function HomeShell({
           <Settings2 size={18} aria-hidden="true" />
           {t(($) => $.home.shell.settings)}
         </button>
-        {/* «Помощь» — рядом с настройками, как «?» в шапке Discord (T36). */}
-        <HelpButton look="nav" tour="help" />
+        {/* «Помощь» — рядом с настройками, как «?» в шапке Discord (T36); выдвижную панель, как и
+            «Настройки», сначала закрывает — помощь не ложится поверх неё (S5). */}
+        <HelpButton look="nav" tour="help" onOpen={() => setDrawer(false)} />
         <DownloadLink className="home-nav__link" />
       </div>
     </>

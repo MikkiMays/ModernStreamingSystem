@@ -1,0 +1,115 @@
+/*
+  «Диагностика» встречи (R47, R48, R29). Окно набора `Dialog lg`; разделы — карточки на
+  `--surface-2` с одним полем и зазором, сводки — две колонки «подпись — значение». Только токены
+  `styles/tokens.css`: ни литералов цвета, ни своих длительностей, ни отступов числами.
+*/
+.diagnostics {
+  display: grid;
+  gap: var(--space-4);
+}
+.diagnostics-card {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+}
+.diagnostics-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.diagnostics-card__title > svg {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--muted);
+}
+.diagnostics-card__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.diagnostics-card__note[data-tone='warning'] {
+  color: var(--text);
+}
+.diagnostics-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.diagnostics-card__result {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+
+/* Сводка: строка — подпись слева приглушённо, значение справа цифрами одной ширины. */
+.diagnostics-metrics {
+  display: grid;
+  margin: 0;
+}
+.diagnostics-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.diagnostics-metric + .diagnostics-metric {
+  box-shadow: inset 0 var(--hairline) 0 var(--line);
+}
+.diagnostics-metric dt {
+  min-width: 0;
+  color: var(--muted);
+}
+.diagnostics-metric dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+/* Дорожка в «Подробностях»: вложенная карточка на поверхности окна, заголовок отделён от строк. */
+.diagnostics-track {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-2);
+  background: var(--surface-1);
+}
+.diagnostics-track__title {
+  margin: 0;
+  padding-bottom: var(--space-1);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+/* Подвал: «Не помогло?» слева, «Помощь» справа; на узком — одна под другой. */
+.diagnostics-dialog .ui-dialog__footer {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-3);
+  box-shadow: inset 0 var(--hairline) 0 var(--line);
+}
+.diagnostics-dialog__help {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}

@@ -31,10 +31,13 @@ import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 import { HelpButton } from './support/HelpButton';
+import { closeHelp, openHelp } from './support/help';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
+/** Окна поверх встречи — одно за раз (S5). */
+type Layer = 'invite' | 'settings' | 'diagnostics' | 'meetingSettings';
 export function MeetingView({
   meeting,
   onHome,
@@ -142,13 +145,28 @@ export function MeetingView({
       }),
     [meeting],
   );
-  const [invite, setInvite] = useState(false);
-  const [settings, setSettings] = useState(false);
-  const [diagnostics, setDiagnostics] = useState(false);
-  const [meetingSettings, setMeetingSettings] = useState(false);
+  /*
+    Окно поверх встречи — одно за раз (S5, R49): приглашение, настройки, диагностика и настройки
+    встречи. Открыть другое — значит заменить, а не положить сверху; помощь (`HelpHost`) тоже уходит.
+    Стопкой окно ложилось под чужой слой или ловило «нажатие снаружи» и закрывалось.
+  */
+  const [layer, setLayer] = useState<Layer | null>(null);
+  const show = useCallback((next: Layer) => {
+    closeHelp();
+    setLayer(next);
+  }, []);
+  const hide = (which: Layer) => setLayer((current) => (current === which ? null : current));
+  const toggle = (which: Layer) => (open: boolean) => (open ? show(which) : hide(which));
+  // Помощь из диагностики: диагностика закрывается, помощь открывается — и умеет вернуть её.
+  const helpFromDiagnostics = () => {
+    setLayer(null);
+    openHelp({ faq: 'network', onDiagnostics: () => show('diagnostics') });
+  };
+  // Встреча ушла с экрана — её помощь (с «Открыть диагностику» этой встречи) тоже.
+  useEffect(() => closeHelp, []);
   useEffect(() => {
-    if (section) setSettings(true);
-  }, [section]);
+    if (section) show('settings');
+  }, [section, show]);
   const preferences = useStore(meeting.media.preferences);
   const volumes = useStore(meeting.media.volumes);
   const deafened = useStore(meeting.media.deafened);
@@ -309,9 +327,9 @@ export function MeetingView({
       <MeetingHeader
         meeting={meeting}
         canEdit={may('room.settings')}
-        onInvite={() => setInvite(true)}
-        onSettings={() => setMeetingSettings(true)}
-        onDiagnostics={() => setDiagnostics(true)}
+        onInvite={() => show('invite')}
+        onSettings={() => show('meetingSettings')}
+        onDiagnostics={() => show('diagnostics')}
       />
       <div className={`meeting-body ${panel ? 'panel-open' : ''}`}>
         <main className="stage-wrap" aria-label={t(($) => $.meeting.view.stage)}>
@@ -405,7 +423,7 @@ export function MeetingView({
             <div className="media-error media-stage" role="alert">
               <span>{media.error}</span>
               {/* Не вышли в эфир — помощь с диагностикой этой встречи, не уходя из неё (T36). */}
-              <HelpButton tone="stage" onDiagnostics={() => setDiagnostics(true)} />
+              <HelpButton tone="stage" onDiagnostics={() => show('diagnostics')} />
               <IconButton
                 tone="stage"
                 label={t(($) => $.meeting.view.dismissError)}
@@ -448,9 +466,9 @@ export function MeetingView({
             fullscreen={fullscreen}
             toggleFullscreen={toggleFullscreen}
             onLeave={leaveMeeting}
-            onSettings={() => setSettings(true)}
-            onDiagnostics={() => setDiagnostics(true)}
-            onMeetingSettings={may('room.settings') ? () => setMeetingSettings(true) : undefined}
+            onSettings={() => show('settings')}
+            onDiagnostics={() => show('diagnostics')}
+            onMeetingSettings={may('room.settings') ? () => show('meetingSettings') : undefined}
             onCloseForAll={
               may('room.close')
                 ? () => void meeting.command('close').catch((e) => meeting.media.report(e))
@@ -475,7 +493,7 @@ export function MeetingView({
               panel={panel}
               setPanel={setPanel}
               onClose={() => setPanel(null)}
-              onInvite={() => setInvite(true)}
+              onInvite={() => show('invite')}
             />
           </>
         )}
@@ -488,24 +506,28 @@ export function MeetingView({
         deafened={deafened}
         master={preferences.outputVolume / 100}
       />
-      <Invite meeting={meeting} open={invite} onOpenChange={setInvite} />
+      <Invite meeting={meeting} open={layer === 'invite'} onOpenChange={toggle('invite')} />
       {may('room.settings') && (
-        <MeetingSettings meeting={meeting} open={meetingSettings} onOpenChange={setMeetingSettings} />
+        <MeetingSettings
+          meeting={meeting}
+          open={layer === 'meetingSettings'}
+          onOpenChange={toggle('meetingSettings')}
+        />
       )}
       <Settings
         meeting={meeting}
-        open={settings}
+        open={layer === 'settings'}
         section={section}
         theme={theme}
         setTheme={setTheme}
         onOpenChange={(open) => {
-          setSettings(open);
+          toggle('settings')(open);
           if (!open) onSectionClosed?.();
         }}
       />
-      {diagnostics && (
+      {layer === 'diagnostics' && (
         <Suspense fallback={null}>
-          <Diagnostics meeting={meeting} onClose={() => setDiagnostics(false)} />
+          <Diagnostics meeting={meeting} onClose={() => hide('diagnostics')} onHelp={helpFromDiagnostics} />
         </Suspense>
       )}
     </div>

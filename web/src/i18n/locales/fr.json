@@ -2685,7 +2685,6 @@
   },
   "diagnostics": {
     "title": "Diagnostic",
-    "description": "Vérifiez vos appareils et la connexion réelle de cette réunion.",
     "network": "Réseau",
     "media": {
       "label": "Audio et vidéo",

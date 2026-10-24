@@ -2655,7 +2655,6 @@
   },
   "diagnostics": {
     "title": "Diagnose",
-    "description": "Prüfe deine Geräte und die tatsächliche Verbindung dieses Meetings.",
     "network": "Netzwerk",
     "media": {
       "label": "Audio und Video",

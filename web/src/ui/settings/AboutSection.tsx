@@ -19,7 +19,7 @@ import { SettingGroup, SettingRow } from './Row';
  * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  */
-export function AboutSection({ onTour }: { onTour?: () => void }) {
+export function AboutSection({ onTour, onHelp }: { onTour?: () => void; onHelp?: () => void }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
   const shell = useStore(desktopUpdate);
@@ -122,10 +122,12 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
           </div>
         </SettingRow>
         <SettingRow id="about-help">
+          {/* Помощь заменяет окно настроек, а не ложится на него (S5): `onHelp` его закрывает. */}
           <HelpButton
             look="text"
             className="ui-button ui-button--secondary ui-button--sm"
             text={t(($) => $.settings.about.help)}
+            onOpen={onHelp}
           />
         </SettingRow>
         {onTour && (

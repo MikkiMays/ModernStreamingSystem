@@ -2655,7 +2655,6 @@
   },
   "diagnostics": {
     "title": "Diagnostics",
-    "description": "Check your devices and this meeting's actual connection.",
     "network": "Network",
     "media": {
       "label": "Audio and video",

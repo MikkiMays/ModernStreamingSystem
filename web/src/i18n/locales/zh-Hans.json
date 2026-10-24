@@ -2625,7 +2625,6 @@
   },
   "diagnostics": {
     "title": "诊断",
-    "description": "检查设备以及本次会议的实际连接情况。",
     "network": "网络",
     "media": {
       "label": "音频和视频",

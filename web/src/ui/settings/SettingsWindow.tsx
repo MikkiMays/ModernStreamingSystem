@@ -54,6 +54,7 @@ import { AccountsSection } from './AccountsSection';
 import { ServerSection } from './ServerSection';
 import { AboutSection } from './AboutSection';
 import { replayOnboarding } from '../../core/onboarding';
+import { closeHelp } from '../support/help';
 import { DesktopSection } from './DesktopSection';
 import './settings.css';
 
@@ -129,6 +130,8 @@ export function SettingsWindow({
   };
   useEffect(() => {
     if (!open) return;
+    // Одно окно за раз (S5): настройки, открытые оболочкой поверх помощи, её заменяют.
+    closeHelp();
     if (!meeting) saved.set(readPreferences());
     const next = reachable(placeFor(section));
     setPlace(next);
@@ -297,6 +300,8 @@ export function SettingsWindow({
               replayOnboarding();
               onOpenChange(false);
             }}
+            // «Помощь и поддержка»: окно настроек закрывается, помощь открывается на его месте (S5).
+            onHelp={() => onOpenChange(false)}
           />
         );
     }

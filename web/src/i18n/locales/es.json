@@ -2685,7 +2685,6 @@
   },
   "diagnostics": {
     "title": "Diagnóstico",
-    "description": "Comprueba tus dispositivos y la conexión real de esta reunión.",
     "network": "Red",
     "media": {
       "label": "Audio y vídeo",
