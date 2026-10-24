@@ -9,12 +9,14 @@ import { IconButton } from './IconButton';
  * и подвал с действиями. Появляется коротким физичным движением (`--motion-base`,
  * `--ease-emphasized`), уходит быстрее. Фокус возвращается туда, откуда открыли, — Base UI.
  * Если в подвале есть своя «Закрыть», крестику даётся другое имя (`closeLabel`), чтобы на слух
- * это были разные кнопки.
+ * это были разные кнопки. `icon` — значок в круге перед заголовком («Поддержка» с гарнитурой).
  */
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  /** Значок перед заголовком — в круге `--accent-soft`, для диктора не читается. */
+  icon?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
@@ -27,6 +29,7 @@ export function Dialog({
   open,
   onOpenChange,
   title,
+  icon,
   description,
   children,
   footer,
@@ -43,6 +46,11 @@ export function Dialog({
         <BaseDialog.Viewport className="ui-dialog__viewport">
           <BaseDialog.Popup className={classes}>
             <header className="ui-dialog__head">
+              {icon && (
+                <span className="ui-dialog__icon" aria-hidden="true">
+                  {icon}
+                </span>
+              )}
               <BaseDialog.Title className="ui-dialog__title">{title}</BaseDialog.Title>
               <BaseDialog.Close
                 render={

@@ -40,8 +40,29 @@ public class SupportService {
     topics.put("windows", "Приложение для Windows");
     topics.put("idea", "Идея или пожелание");
     topics.put("other", "Другое");
+    topics.put("report", "Проблема во встрече");
     TOPICS = Collections.unmodifiableMap(topics);
   }
+
+  /**
+   * «Сообщить о проблеме» (R79): что не так во встрече. Тот же список, что у веба ({@code
+   * core/support.ts} → {@code ISSUES}); подписи для человека — в каталоге веба, здесь — для
+   * Telegram владельца.
+   */
+  public static final Map<String, String> ISSUES;
+
+  static {
+    var issues = new LinkedHashMap<String, String>();
+    issues.put("sound", "звук обрывается");
+    issues.put("screen", "показ лагает");
+    issues.put("music", "не слышно музыку");
+    issues.put("connect", "не подключается");
+    issues.put("other", "другое");
+    ISSUES = Collections.unmodifiableMap(issues);
+  }
+
+  /** Тема «Сообщить о проблеме»: у неё есть отмеченное, а подробности — по желанию. */
+  public static final String REPORT = "report";
 
   public static final int MIN_MESSAGE = 10;
   public static final int MAX_MESSAGE = 4000;
@@ -75,7 +96,12 @@ public class SupportService {
 
   /** Что прислала форма; проверку формы делает контроллер. */
   public record Submission(
-      String topic, String message, String contact, String diagnostics, boolean consent) {}
+      String topic,
+      String message,
+      String contact,
+      String diagnostics,
+      boolean consent,
+      List<String> issues) {}
 
   /** Что человек получает в ответ: номер, по которому его обращение найдут. */
   public record Receipt(String id, String number) {}
@@ -92,6 +118,7 @@ public class SupportService {
       String message,
       String contact,
       String diagnostics,
+      List<String> issues,
       Status status,
       long statusAt,
       Long notifiedAt) {}
@@ -121,13 +148,12 @@ public class SupportService {
    */
   public Receipt submit(Submission form, String address) {
     if (!config.enabled())
-      throw new Problem(
-          503,
-          "SUPPORT_OFF",
-          "Обращения сейчас не принимаются. Напишите автору Cord в Telegram — ссылка рядом");
+      throw new Problem(503, "SUPPORT_OFF", "Обращения сейчас не принимаются. Попробуйте позже");
     if (!TOPICS.containsKey(form.topic())) throw new IllegalArgumentException("Unknown topic");
+    var issues = issues(form);
     var message = text(form.message());
-    if (message.codePointCount(0, message.length()) < MIN_MESSAGE)
+    // У «Сообщить о проблеме» суть — в отмеченном; у обычного обращения — в тексте.
+    if (issues.isEmpty() && message.codePointCount(0, message.length()) < MIN_MESSAGE)
       throw new Problem(
           400, "SUPPORT_TEXT", "Опишите, что случилось, — хотя бы одним предложением");
     if (message.length() > MAX_MESSAGE) throw new IllegalArgumentException("Message too long");
@@ -143,16 +169,15 @@ public class SupportService {
       throw new Problem(
           429,
           "SUPPORT_RATE",
-          "С этого адреса уже пришло несколько обращений. Попробуйте через час или напишите автору"
-              + " Cord в Telegram");
+          "С этого адреса уже пришло несколько обращений. Попробуйте через час");
     if (limits.exceeded("support:server", config.perServer()))
       throw new Problem(429, "SUPPORT_BUSY", "Сейчас обращений очень много. Попробуйте чуть позже");
 
     var id = UUID.randomUUID().toString();
     long now = clock.millis();
     jdbc.sql(
-            "INSERT INTO support_tickets(id,created_at,topic,message,contact,diagnostics,status,"
-                + "status_at,from_key) VALUES (?,?,?,?,?,?,?,?,?)")
+            "INSERT INTO support_tickets(id,created_at,topic,message,contact,diagnostics,issues,"
+                + "status,status_at,from_key) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .params(
             id,
             now,
@@ -160,11 +185,28 @@ public class SupportService {
             message,
             contact,
             diagnostics,
+            issues.isEmpty() ? null : String.join(",", issues),
             Status.NEW.word(),
             now,
             secrets.derive("support-from:" + address))
         .update();
     return new Receipt(id, number(id));
+  }
+
+  /**
+   * Отмеченное в «Сообщить о проблеме» — по порядку списка, без повторов. Отмеченное бывает только
+   * у этой темы и обязательно у неё; чужое слово — отказ, а не молча выброшенное.
+   */
+  static List<String> issues(Submission form) {
+    var given = form.issues() == null ? List.<String>of() : form.issues();
+    if (!ISSUES.keySet().containsAll(given)) throw new IllegalArgumentException("Unknown issue");
+    if (REPORT.equals(form.topic()) == given.isEmpty())
+      throw new IllegalArgumentException("Issues belong to a problem report");
+    return ISSUES.keySet().stream().filter(given::contains).toList();
+  }
+
+  private static List<String> issues(String stored) {
+    return stored == null || stored.isEmpty() ? List.of() : List.of(stored.split(","));
   }
 
   /**
@@ -175,7 +217,7 @@ public class SupportService {
     var chat = config.chat();
     if (chat.isEmpty()) return List.of();
     return jdbc.sql(
-            "SELECT id,created_at,topic,message,contact,diagnostics FROM support_tickets"
+            "SELECT id,created_at,topic,message,contact,diagnostics,issues FROM support_tickets"
                 + " WHERE notified_at IS NULL ORDER BY created_at, id LIMIT ?")
         .param(Math.max(1, Math.min(limit, 50)))
         .query(
@@ -188,7 +230,8 @@ public class SupportService {
                         rs.getString("topic"),
                         rs.getString("message"),
                         rs.getString("contact"),
-                        rs.getString("diagnostics"))))
+                        rs.getString("diagnostics"),
+                        issues(rs.getString("issues")))))
         .list();
   }
 
@@ -217,6 +260,7 @@ public class SupportService {
                   rs.getString("message"),
                   rs.getString("contact"),
                   rs.getString("diagnostics"),
+                  issues(rs.getString("issues")),
                   Status.of(rs.getString("status")),
                   rs.getLong("status_at"),
                   notifiedAt);
@@ -265,16 +309,22 @@ public class SupportService {
    * ссылкой или жирным, и Telegram не откажет из-за незакрытого знака.
    */
   static String telegram(
-      String id, String topic, String message, String contact, String diagnostics) {
+      String id,
+      String topic,
+      String message,
+      String contact,
+      String diagnostics,
+      List<String> issues) {
     var out = new StringBuilder();
     out.append("Обращение ")
         .append(number(id))
         .append(" · ")
-        .append(TOPICS.getOrDefault(topic, topic))
-        .append("\n\n")
-        .append(message)
-        .append("\n\nКонтакт: ")
-        .append(contact == null ? "не оставлен" : contact);
+        .append(TOPICS.getOrDefault(topic, topic));
+    if (!issues.isEmpty())
+      out.append("\nЧто не так: ")
+          .append(String.join(", ", issues.stream().map(i -> ISSUES.getOrDefault(i, i)).toList()));
+    if (!message.isEmpty()) out.append("\n\n").append(message);
+    out.append("\n\nКонтакт: ").append(contact == null ? "не оставлен" : contact);
     if (diagnostics != null) out.append("\n\nДиагностика:\n").append(diagnostics);
     if (out.length() <= TELEGRAM_LIMIT) return out.toString();
     return out.substring(0, TELEGRAM_LIMIT - 1) + "…";

@@ -3,6 +3,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import {
   ChevronLeft,
   ChevronRight,
+  Headset,
   Info,
   Keyboard,
   Mic,
@@ -53,6 +54,7 @@ import { HotkeysSection } from './HotkeysSection';
 import { AccountsSection } from './AccountsSection';
 import { ServerSection } from './ServerSection';
 import { AboutSection } from './AboutSection';
+import { SupportSection } from './SupportSection';
 import { replayOnboarding } from '../../core/onboarding';
 import { closeHelp } from '../support/help';
 import { DesktopSection } from './DesktopSection';
@@ -68,6 +70,7 @@ const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   sounds: Volume2,
   accounts: Plug,
   server: Server,
+  support: Headset,
   about: Info,
 };
 
@@ -289,6 +292,8 @@ export function SettingsWindow({
             inCall={!!meeting && !meeting.ended.get()}
           />
         );
+      case 'support':
+        return <SupportSection />;
       case 'about':
         return (
           <AboutSection
@@ -297,8 +302,6 @@ export function SettingsWindow({
               replayOnboarding();
               onOpenChange(false);
             }}
-            // «Помощь и поддержка»: окно настроек закрывается, помощь открывается на его месте (S5).
-            onHelp={() => onOpenChange(false)}
           />
         );
     }

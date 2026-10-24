@@ -1,11 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Окна не стопкой (S5, R49): «Помощь» из диагностики закрывает диагностику, помощь — верхнее окно,
- * и обращение в ней заполняется и уходит; «Открыть диагностику» — обратно, снова одно окно. Там же —
- * «Диагностика» без подзаголовка и с обычным разделом подробностей (R47, R48), «Настройки встречи»
- * с переключателем интеграций и без лишних пояснений (R53–R56), «О программе» → «Помощь и
- * поддержка» вместо окна настроек.
+ * Окна не стопкой (S5, R49): «Поддержка» из диагностики закрывает диагностику, поддержка — верхнее
+ * окно, и обращение в ней заполняется и уходит; «Открыть диагностику» — обратно, снова одно окно.
+ * «Сообщить о проблеме» (R79) — отмеченное чипами и отчёт этого звонка. Там же — «Диагностика» без
+ * подзаголовка и с обычным разделом подробностей (R47, R48), «Настройки встречи» с переключателем
+ * интеграций и без лишних пояснений (R53–R56), «Поддержка» — раздел настроек без второго окна (R51).
  *
  * Одна встреча на весь сценарий. Отправка обращения подменена, как в `support.spec.ts`: сценарий
  * гоняют против стенда, и каждое обращение ушло бы владельцу в Telegram.
@@ -19,10 +19,10 @@ const onTop = (page: Page, selector: string) =>
     return !!hit && (element === hit || element.contains(hit));
   });
 
-test('диагностика → «Помощь»: одно окно, обращение уходит; настройки встречи — переключатель', async ({
+test('диагностика → «Поддержка»: одно окно, обращение уходит; настройки встречи — переключатель', async ({
   page,
 }) => {
-  test.setTimeout(150000);
+  test.setTimeout(180000);
   let sent: Record<string, unknown> | null = null;
   await page.route('**/api/v1/proof?for=support', (route) => route.fulfill({ status: 204 }));
   await page.route('**/api/v1/support', async (route) => {
@@ -48,16 +48,17 @@ test('диагностика → «Помощь»: одно окно, обращ
   ).toBeVisible();
   await expect(diagnostics.locator('details, summary')).toHaveCount(0);
 
-  // R49: «Помощь» — диагностика закрыта, помощь сверху, фокус в ней.
-  await diagnostics.getByRole('button', { name: 'Помощь' }).click();
-  const help = page.getByRole('dialog', { name: 'Помощь' });
+  // R49: «Поддержка» — диагностика закрыта, поддержка сверху, фокус в ней.
+  await diagnostics.getByRole('button', { name: 'Поддержка' }).click();
+  const help = page.getByRole('dialog', { name: 'Поддержка' });
   await expect(help).toBeVisible();
   await expect(diagnostics).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(1);
+  expect(await help.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await help.getByRole('tab', { name: 'Написать' }).click();
   const field = help.getByRole('textbox', { name: 'Что случилось' });
   await field.scrollIntoViewIfNeeded();
   expect(await onTop(page, '.help-dialog textarea')).toBe(true);
-  expect(await help.evaluate((element) => element.contains(document.activeElement))).toBe(true);
   await field.fill('Музыка заикается во встрече');
   await help.getByRole('switch', { name: /Приложить диагностику/ }).check();
   await help.getByRole('button', { name: 'Отправить' }).click();
@@ -65,10 +66,26 @@ test('диагностика → «Помощь»: одно окно, обращ
   await expect(help.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible({ timeout: 20000 });
   expect(sent).toMatchObject({ topic: 'network', consent: true });
 
-  // Из помощи — обратно в диагностику этой встречи: снова одно окно.
+  // Из поддержки — обратно в диагностику этой встречи: снова одно окно.
+  await help.getByRole('tab', { name: 'Проверить' }).click();
   await help.getByRole('button', { name: 'Открыть диагностику' }).click();
-  await expect(page.getByRole('dialog', { name: 'Диагностика' })).toBeVisible();
+  const again = page.getByRole('dialog', { name: 'Диагностика' });
+  await expect(again).toBeVisible();
   await expect(help).toHaveCount(0);
+
+  // R79: «Сообщить о проблеме» — диагностика закрыта, поддержка сразу на выборе того, что не так;
+  // к обращению приложен отчёт этого звонка — числа без имён.
+  await again.getByRole('button', { name: 'Сообщить о проблеме' }).click();
+  await expect(again).toHaveCount(0);
+  const what = help.getByRole('group', { name: 'Что не так' });
+  await what.getByRole('checkbox', { name: 'Не слышно музыку' }).click();
+  await what.getByRole('checkbox', { name: 'Звук обрывается' }).click();
+  await expect(help.getByRole('switch', { name: /Приложить отчёт о звонке/ })).toBeChecked();
+  await help.getByRole('button', { name: 'Отправить' }).click();
+  await expect(help.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible({ timeout: 20000 });
+  expect(sent).toMatchObject({ topic: 'report', issues: ['sound', 'music'], consent: true });
+  expect(String(sent!['diagnostics'])).toMatch(/call: \d+ s/);
+  expect(String(sent!['diagnostics'])).not.toContain('Майя');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -91,18 +108,18 @@ test('диагностика → «Помощь»: одно окно, обращ
   await save.click();
   await expect(room).toHaveCount(0);
 
-  // «О программе» → «Помощь и поддержка»: окно настроек закрыто, помощь — на его месте.
+  // R51: «Поддержка» — раздел настроек над «О программе»: вкладки прямо в настройках, второго окна нет.
   await more();
   await page.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Настройки' });
   await settings
     .getByRole('navigation', { name: 'Разделы настроек' })
-    .getByRole('button', { name: 'О программе', exact: true })
+    .getByRole('button', { name: 'Поддержка', exact: true })
     .click();
-  await settings.getByRole('button', { name: 'Открыть' }).click();
-  await expect(help).toBeVisible();
-  await expect(settings).toHaveCount(0);
+  await settings.getByRole('tab', { name: 'Написать' }).click();
+  await expect(settings.getByRole('textbox', { name: 'Что случилось' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(1);
-  await help.getByRole('button', { name: 'Закрыть' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'Выйти из встречи' }).click();
 });

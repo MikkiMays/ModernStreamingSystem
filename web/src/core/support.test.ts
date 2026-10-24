@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   browserName,
+  callReportText,
   diagnosticsText,
   noteError,
+  problemReport,
   recentErrors,
+  reportProblem,
   systemName,
   ticket,
   ticketProblem,
@@ -38,6 +41,57 @@ describe('support form', () => {
       diagnostics: 'cord: 1',
       consent: true,
     });
+  });
+});
+
+describe('problem report (R79)', () => {
+  it('needs something marked, not a sentence', () => {
+    expect(reportProblem([], 'Всё плохо, очень плохо')).toBe('noIssues');
+    expect(reportProblem(['sound'], '')).toBeNull();
+    expect(reportProblem(['sound'], 'x'.repeat(4001))).toBe('tooLong');
+  });
+
+  it('goes as the «report» topic with issues in list order and the report only with consent', () => {
+    expect(problemReport(['music', 'sound'], '  ', '', false, 'call: 1 s')).toEqual({
+      topic: 'report',
+      message: '',
+      contact: null,
+      diagnostics: null,
+      consent: false,
+      issues: ['sound', 'music'],
+    });
+    expect(problemReport(['other'], 'С утра', '@me', true, 'call: 1 s')).toMatchObject({
+      diagnostics: 'call: 1 s',
+      consent: true,
+    });
+  });
+
+  it('a call report is numbers and enum words only', () => {
+    expect(
+      callReportText({
+        seconds: 312,
+        rttMs: 57,
+        lossPercent: 0.2,
+        jitterMs: null,
+        bitrateKbps: 160,
+        freezes: 1,
+        freezeSeconds: 2,
+        lossySeconds: 0,
+        path: 'relay-tcp',
+        codec: null,
+      }).split('\n'),
+    ).toEqual([
+      'call: 312 s',
+      'path: relay-tcp',
+      'rtt: 57 ms',
+      'loss: 0.2 %',
+      'jitter: n/a',
+      'bitrate: 160 kbps',
+      'lossy: 0 s',
+      'freezes: 1 (2 s)',
+      'codec: n/a',
+    ]);
+    expect(callReportText(null)).toBe('call: none');
   });
 });
 

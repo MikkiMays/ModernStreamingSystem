@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send } from 'lucide-react';
 import { activityApi, type SupportStatus, type SupportTicket } from '../../core/activity';
-import { SUPPORT_TOPICS, type SupportTopic } from '../../core/support';
+import { ISSUES, SUPPORT_TOPICS, type Issue, type SupportTopic } from '../../core/support';
 import { Button, Select } from '../kit';
 import { Failure, useAdmin, when } from './Activity';
 
@@ -37,9 +37,13 @@ export function SupportTab({ onExpired }: { onExpired: () => void }) {
       );
   };
   const topic = (value: string) =>
-    (SUPPORT_TOPICS as readonly string[]).includes(value)
-      ? t(($) => $.support.form.topics[value as SupportTopic])
-      : value;
+    value === 'report'
+      ? t(($) => $.support.report.topic)
+      : (SUPPORT_TOPICS as readonly string[]).includes(value)
+        ? t(($) => $.support.form.topics[value as SupportTopic])
+        : value;
+  const issue = (value: string) =>
+    (ISSUES as readonly string[]).includes(value) ? t(($) => $.support.report.issues[value as Issue]) : value;
   if (!tickets) return <Failure text={error} />;
   return (
     <section className="activity-section">
@@ -74,7 +78,10 @@ export function SupportTab({ onExpired }: { onExpired: () => void }) {
                   ))}
                 </Select>
               </div>
-              <p className="activity-tickets__message">{ticket.message}</p>
+              {!!ticket.issues?.length && (
+                <p className="activity-tickets__issues">{ticket.issues.map(issue).join(' · ')}</p>
+              )}
+              {ticket.message && <p className="activity-tickets__message">{ticket.message}</p>}
               <p className="activity-tickets__contact">
                 {ticket.contact
                   ? t(($) => $.activity.support.contact, { contact: ticket.contact })

@@ -6,8 +6,12 @@
   а не скруглённая плитка рядом с колонкой в прямых углах. С 1200 px она своя колонка с ручкой ширины
   (T46) на стыке, уже — та же карточка поверх сцены у правого края, а уже 768 — лист снизу. Везде
   она кончается над пультом: поле чата, скрепка и «Отправить» не уходят под него.
+
+  Поле слева и справа у всего, что в панели, — одно (`--panel-pad`, R29): заголовок, вкладки, тело,
+  лента, заметки и поле чата стоят по одной линии, а не на 20 / 16 / 12 px.
 */
 .side-panel {
+  --panel-pad: var(--space-4);
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -26,7 +30,7 @@
   justify-content: space-between;
   gap: var(--space-2);
   min-height: 56px;
-  padding: var(--space-2) var(--space-2) 0 var(--space-5);
+  padding: var(--space-2) var(--space-2) 0 var(--panel-pad);
 }
 .panel-heading h2 {
   margin: 0;
@@ -44,7 +48,7 @@
 }
 .panel-tabs.ui-tabs__list {
   flex: none;
-  margin: var(--space-2) var(--space-4) var(--space-3);
+  margin: var(--space-2) var(--panel-pad) var(--space-3);
 }
 .panel-tabs__count {
   min-width: 18px;
@@ -62,7 +66,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-1) var(--space-4) var(--space-4);
+  padding: var(--space-1) var(--panel-pad) var(--panel-pad);
 }
 
 /* ---------- люди ---------- */
@@ -190,7 +194,7 @@ input.people-search:focus-visible {
 }
 .retention-note {
   flex: none;
-  padding: 0 var(--space-5) var(--space-2);
+  padding: 0 var(--panel-pad) var(--space-2);
   color: var(--muted);
   font-size: var(--text-xs);
   line-height: var(--leading-base);
@@ -201,7 +205,7 @@ input.people-search:focus-visible {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-2) var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--panel-pad) var(--space-3);
 }
 .chat-empty {
   height: 100%;
@@ -306,7 +310,7 @@ input.people-search:focus-visible {
 }
 .chat-feedback {
   flex: none;
-  margin: 0 var(--space-4) var(--space-2);
+  margin: 0 var(--panel-pad) var(--space-2);
   color: var(--muted);
   font-size: var(--text-xs);
 }
@@ -357,7 +361,7 @@ input.people-search:focus-visible {
 }
 .upload-progress {
   flex: none;
-  margin: 0 var(--space-4) var(--space-2);
+  margin: 0 var(--panel-pad) var(--space-2);
   padding: var(--space-3);
   border-radius: var(--radius-3);
   background: var(--surface-2);
@@ -396,7 +400,7 @@ input.people-search:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  margin: 0 var(--space-3) var(--space-3);
+  margin: 0 var(--panel-pad) var(--space-3);
   padding: var(--space-1);
   border-radius: var(--radius-4);
   background: var(--field-bg);
@@ -452,7 +456,7 @@ textarea.composer__input::placeholder {
 }
 .composer-refusal {
   flex: none;
-  margin: 0 var(--space-4) var(--space-2);
+  margin: 0 var(--panel-pad) var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-2);
   background: var(--danger-soft);
@@ -463,7 +467,7 @@ textarea.composer__input::placeholder {
 .panel-error {
   flex: none;
   margin: 0;
-  padding: var(--space-2) var(--space-5) var(--space-3);
+  padding: var(--space-2) var(--panel-pad) var(--space-3);
 }
 
 /* ---------- где лежит панель ---------- */
@@ -494,10 +498,6 @@ textarea.composer__input::placeholder {
   }
   .panel-heading {
     min-height: 48px;
-    padding-left: var(--space-4);
-  }
-  .panel-tabs.ui-tabs__list {
-    margin-inline: var(--space-3);
   }
   /* «Сообщения и файлы исчезнут…» — на телефоне не место пояснениям над лентой (R27, правило W3). */
   .retention-note {

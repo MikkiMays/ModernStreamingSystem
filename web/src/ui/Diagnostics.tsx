@@ -1,8 +1,9 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { CircleHelp, RotateCcw, Wifi } from 'lucide-react';
+import { ClipboardCopy, Headset, MessageSquareWarning, RotateCcw, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import { publicApi } from '../api/client';
+import { callReportText, diagnosticsText } from '../core/support';
 import { StatsSampler, type Sample } from '../media/diagnostics';
 import { gradeName, pathName } from '../media/link-quality';
 import { useStore } from './primitives';
@@ -26,21 +27,47 @@ function Metric({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
+ * Дорожка строкой для «Скопировать отчёт о звонке» (R29, MEDIA-DIAGNOSIS §8): вид, направление и
+ * числа — без имени участника и адресов. Ключи по-английски, как у диагностики обращения.
+ */
+export function sampleLine(sample: Sample): string {
+  const ms = (value: number | null) => (value === null ? 'n/a' : `${Math.round(value)} ms`);
+  return [
+    `track: ${sample.kind} ${sample.outbound ? 'send' : 'receive'}`,
+    `${Math.round(sample.mbps * 1000)} kbps`,
+    `loss ${sample.loss === null ? 'n/a' : `${sample.loss.toFixed(1)}%`}`,
+    `rtt ${ms(sample.rttMs)}`,
+    `buffer ${ms(sample.bufferMs)}`,
+    ...(sample.kind === 'video'
+      ? [`${sample.width}x${sample.height}@${sample.fps.toFixed(0)}`]
+      : sample.outbound
+        ? []
+        : [`concealment ${sample.concealmentEvents}`, ...(sample.silentSource ? ['silent source'] : [])]),
+    sample.codec,
+  ].join(' · ');
+}
+
+/**
  * «Диагностика» встречи: проверка своих устройств, сеть, подробности каждой дорожки и «зависло».
  *
  * Окно набора (`Dialog`, слой 50), без подзаголовка (R47). Подробности аудио и видео — обычный
  * раздел, а не сворачиваемый `<details>` с системным ▼ (R48): прятать нечего, это и есть ответ на
- * «почему лагает». Разделы — карточками на токенах отступов (R29). «Помощь» внизу закрывает
- * диагностику и открывает помощь (`onHelp`, R49): окна заменяют друг друга, а не ложатся стопкой.
+ * «почему лагает». У принятого звука видно и тишину издателя, и пропуски, которые браузер заполнил
+ * заглушкой (R09, R29), а «Скопировать отчёт о звонке» кладёт в буфер то, что просит поддержка, — без
+ * имён и адресов. Разделы — карточками на токенах отступов (R29). Подвал: «Сообщить о проблеме» и
+ * «Поддержка» закрывают диагностику и открывают поддержку (`onReport`, `onHelp`, R49, R79): окна
+ * заменяют друг друга, а не ложатся стопкой.
  */
 export default function Diagnostics({
   meeting,
   onClose,
   onHelp,
+  onReport,
 }: {
   meeting: Meeting;
   onClose: () => void;
   onHelp: () => void;
+  onReport: () => void;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -51,6 +78,7 @@ export default function Diagnostics({
     failures: 0,
   });
   const [targets, setTargets] = useState<ReturnType<Meeting['media']['playoutTargets']>>([]);
+  const [copied, setCopied] = useState<'done' | 'failed' | null>(null);
   const preferences = useStore(meeting.media.preferences);
   const media = useStore(meeting.media.state);
   const link = useStore(meeting.media.link);
@@ -99,6 +127,20 @@ export default function Diagnostics({
       setNetwork({ running: i < 4, times: [...times], failures });
     }
   };
+  const copyReport = async () => {
+    const text = [
+      diagnosticsText(),
+      callReportText(meeting.media.callReport()),
+      ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
+      ...samples.map(sampleLine),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied('done');
+    } catch {
+      setCopied('failed');
+    }
+  };
   return (
     <Dialog
       open
@@ -110,8 +152,10 @@ export default function Diagnostics({
       className="diagnostics-dialog"
       footer={
         <>
-          <span className="diagnostics-dialog__help">{t(($) => $.diagnostics.help)}</span>
-          <Button size="sm" variant="quiet" icon={<CircleHelp />} onClick={onHelp}>
+          <Button size="sm" variant="quiet" icon={<MessageSquareWarning />} onClick={onReport}>
+            {t(($) => $.diagnostics.report)}
+          </Button>
+          <Button size="sm" variant="quiet" icon={<Headset />} onClick={onHelp}>
             {t(($) => $.support.open)}
           </Button>
         </>
@@ -228,6 +272,17 @@ export default function Diagnostics({
                     ? t(($) => $.diagnostics.noData)
                     : t(($) => $.diagnostics.ms, { value: sample.bufferMs.toFixed(0) })}
                 </Metric>
+                {/* Принятый звук (R09, R29): идёт ли что-то от издателя и сколько пропусков заполнил браузер. */}
+                {sample.kind === 'audio' && !sample.outbound && (
+                  <>
+                    <Metric label={t(($) => $.diagnostics.source.label)}>
+                      {sample.silentSource
+                        ? t(($) => $.diagnostics.source.silent)
+                        : t(($) => $.diagnostics.source.sound)}
+                    </Metric>
+                    <Metric label={t(($) => $.diagnostics.concealment)}>{sample.concealmentEvents}</Metric>
+                  </>
+                )}
                 {sample.kind === 'video' && (
                   <>
                     <Metric
@@ -250,6 +305,16 @@ export default function Diagnostics({
               </dl>
             </article>
           ))}
+          <div className="diagnostics-card__actions">
+            <Button size="sm" icon={<ClipboardCopy />} onClick={() => void copyReport()}>
+              {t(($) => $.diagnostics.copyReport)}
+            </Button>
+            {copied && (
+              <p role="status" className="diagnostics-card__result">
+                {copied === 'done' ? t(($) => $.diagnostics.copied) : t(($) => $.diagnostics.copyFailed)}
+              </p>
+            )}
+          </div>
         </section>
         <section className="diagnostics-card" aria-labelledby={`${id}-stuck`}>
           <h3 className="diagnostics-card__title" id={`${id}-stuck`}>

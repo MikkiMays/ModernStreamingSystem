@@ -39,9 +39,13 @@
         "title": "服务器",
         "keywords": "连接"
       },
+      "support": {
+        "title": "支持",
+        "keywords": "帮助 支持 问题 故障 反馈 诊断"
+      },
       "about": {
         "title": "关于",
-        "keywords": "版本 cord 帮助 支持 导览"
+        "keywords": "版本 cord 更新 导览"
       },
       "desktop": {
         "title": "Windows",
@@ -223,11 +227,6 @@
         "hint": "",
         "keywords": "language 语言 翻译 界面"
       },
-      "about-help": {
-        "label": "帮助与支持",
-        "hint": "常见问题、设备检测和联系我们",
-        "keywords": "帮助 支持 问题 故障 反馈"
-      },
       "about-tour": {
         "label": "Cord 入门导览",
         "hint": "主要按钮旁的简短提示",
@@ -311,7 +310,6 @@
       "check": "检查",
       "update": "更新",
       "download": "下载 {{version}}",
-      "help": "打开",
       "tour": "开始导览"
     },
     "accounts": {
@@ -2309,7 +2307,11 @@
     "approve": "允许进入：{{name}}",
     "remove": "移出：{{name}}",
     "download": "下载 {{name}}",
-    "dropUnfinished": "删除未完成的上传：{{name}}"
+    "dropUnfinished": "删除未完成的上传：{{name}}",
+    "attachment": {
+      "list": "消息附件",
+      "remove": "移除 {{name}}"
+    }
   },
   "home": {
     "entry": {
@@ -2718,7 +2720,16 @@
       "codecHidden": "未公开",
       "implementationHidden": "浏览器未公开"
     },
-    "help": "没有解决？常见问题和联系我们："
+    "report": "报告问题",
+    "copyReport": "复制通话报告",
+    "copied": "报告已复制——可以粘贴到反馈中",
+    "copyFailed": "浏览器不允许复制报告",
+    "source": {
+      "label": "发送方声音",
+      "silent": "静音——发送方已暂停或跟不上",
+      "sound": "正常"
+    },
+    "concealment": "每秒音频空缺"
   },
   "download": {
     "home": "Cord——返回首页",
@@ -2912,8 +2923,8 @@
     "WATCH_LIVE": "直播不能暂停或回放",
     "SUPPORT_BUSY": "当前请求太多。请稍后重试",
     "SUPPORT_NOT_FOUND": "未找到该反馈",
-    "SUPPORT_OFF": "目前不接收反馈。请在 Telegram 上联系 Cord 的作者——链接就在旁边",
-    "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试，或在 Telegram 上联系 Cord 的作者",
+    "SUPPORT_OFF": "目前不接收反馈。请稍后再试",
+    "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试",
     "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
     "CINEMA_TIMEOUT": "平台未及时响应——请重试",
     "CINEMA_UNREACHABLE": "此服务器无法访问该平台",
@@ -3149,7 +3160,7 @@
         "text": "摄像头、麦克风、声音、主题和语言。在“关于”中可以重新开始导览。"
       },
       "help": {
-        "title": "帮助",
+        "title": "支持",
         "text": "遇到问题？常见问题解答和联系方式都在这里。"
       },
       "menu": {
@@ -3159,13 +3170,18 @@
     }
   },
   "support": {
-    "title": "帮助",
+    "title": "支持",
     "lead": "常见问题解答、摄像头和麦克风检测，以及联系我们。",
     "back": "返回首页",
     "home": "Cord——返回首页",
-    "open": "帮助",
+    "open": "支持",
+    "tabs": {
+      "label": "支持分区",
+      "faq": "常见问题",
+      "check": "检查",
+      "write": "留言"
+    },
     "faq": {
-      "title": "常见问题",
       "items": {
         "camera": {
           "q": "摄像头无法开启或显示黑屏",
@@ -3194,15 +3210,10 @@
       }
     },
     "check": {
-      "title": "检测摄像头和麦克风",
-      "text": "检测只在本设备上进行——不会向会议发送任何内容。",
-      "start": "开始检测",
       "diagnostics": "打开诊断",
       "diagnosticsText": "到服务器的线路、丢包、延迟，以及本次会议中每条音视频轨道的质量。"
     },
     "form": {
-      "title": "联系我们",
-      "intro": "没有找到答案？请描述发生了什么。我们会阅读每条反馈，并通过你留下的联系方式回复。",
       "topic": "主题",
       "topics": {
         "camera": "摄像头和麦克风",
@@ -3229,9 +3240,26 @@
       "sentNoContact": "你没有留下联系方式——我们无法回复，但会阅读你的反馈。",
       "again": "再写一条"
     },
-    "author": {
-      "text": "也可以在 Telegram 上联系 Cord 的作者",
-      "link": "Telegram 上的 @nikgers"
+    "write": {
+      "label": "写什么",
+      "message": "联系我们",
+      "report": "报告问题"
+    },
+    "report": {
+      "topic": "会议中的问题",
+      "what": "哪里不对",
+      "issues": {
+        "sound": "声音断断续续",
+        "screen": "屏幕共享卡顿",
+        "music": "听不到音乐",
+        "connect": "无法连接",
+        "other": "其他"
+      },
+      "message": "详细情况",
+      "messagePlaceholder": "可选：何时开始、发生在谁那里",
+      "noIssues": "请选择哪里不对",
+      "consent": "附上通话报告",
+      "consentHint": "本次通话的连接、丢包和延迟，Cord 版本和浏览器——只有数字，不含姓名、会议和消息。"
     }
   },
   "capture": {

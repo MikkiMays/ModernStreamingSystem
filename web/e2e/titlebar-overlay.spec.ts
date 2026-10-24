@@ -57,7 +57,7 @@ test('шапки предвхода и встречи не уходят под �
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-desktop', 'true');
-  // Предвход: «На главную» и «Помощь» справа в шапке.
+  // Предвход: «На главную» и «Поддержка» справа в шапке.
   await page.getByRole('button', { name: /Новая встреча/ }).click();
   await page.getByLabel('Ваше имя').waitFor();
   await overlay(page);
@@ -75,7 +75,7 @@ test('шапки предвхода и встречи не уходят под �
     'drag',
   );
   // Кнопки шапки нажимаются: у них своя «нетаскающая» зона.
-  for (const name of ['Пригласить участников', 'Помощь'])
+  for (const name of ['Пригласить участников', 'Поддержка'])
     expect(
       await header
         .getByRole('button', { name, exact: true })

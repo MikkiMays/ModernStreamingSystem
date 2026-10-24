@@ -256,7 +256,7 @@ it('lets the sidebar be resized and remembers the width (T46)', () => {
   expect(localStorage.getItem('cord:panel:home-sidebar')).toBe('296');
 });
 
-it('«Помощь» в выдвижной панели телефона закрывает панель — помощь не ложится поверх неё (S5, R49)', async () => {
+it('«Поддержка» в выдвижной панели телефона закрывает панель — не ложится поверх неё (S5, R49)', async () => {
   // Узкий экран: панель — под бургером, окном.
   vi.stubGlobal(
     'matchMedia',
@@ -278,8 +278,8 @@ it('«Помощь» в выдвижной панели телефона зак�
   );
   fireEvent.click(view.getByRole('button', { name: 'Открыть меню' }));
   const drawer = await view.findByRole('dialog', { name: 'Меню' });
-  fireEvent.click(within(drawer).getByRole('button', { name: 'Помощь' }));
-  expect(await view.findByRole('dialog', { name: 'Помощь' })).toBeInTheDocument();
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Поддержка' }));
+  expect(await view.findByRole('dialog', { name: 'Поддержка' })).toBeInTheDocument();
   await waitFor(() => expect(view.queryByRole('dialog', { name: 'Меню' })).toBeNull());
   act(() => closeHelp());
 });

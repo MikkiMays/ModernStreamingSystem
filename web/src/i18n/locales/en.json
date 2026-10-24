@@ -39,9 +39,13 @@
         "title": "Server",
         "keywords": "connection"
       },
+      "support": {
+        "title": "Support",
+        "keywords": "help support question problem request diagnostics"
+      },
       "about": {
         "title": "About",
-        "keywords": "version cord help support tour"
+        "keywords": "version cord updates tour"
       },
       "desktop": {
         "title": "Windows",
@@ -223,11 +227,6 @@
         "hint": "",
         "keywords": "language translation interface"
       },
-      "about-help": {
-        "label": "Help and support",
-        "hint": "Common questions, device check and contacting us",
-        "keywords": "help support question problem request"
-      },
       "about-tour": {
         "label": "Cord tour",
         "hint": "Short tips next to the main buttons",
@@ -311,7 +310,6 @@
       "check": "Check",
       "update": "Update",
       "download": "Download {{version}}",
-      "help": "Open",
       "tour": "Take the tour"
     },
     "accounts": {
@@ -2338,7 +2336,11 @@
     "approve": "Let in: {{name}}",
     "remove": "Remove: {{name}}",
     "download": "Download {{name}}",
-    "dropUnfinished": "Delete unfinished upload: {{name}}"
+    "dropUnfinished": "Delete unfinished upload: {{name}}",
+    "attachment": {
+      "list": "Message attachments",
+      "remove": "Remove {{name}}"
+    }
   },
   "home": {
     "entry": {
@@ -2749,7 +2751,16 @@
       "codecHidden": "Not disclosed",
       "implementationHidden": "Not disclosed by the browser"
     },
-    "help": "Didn’t help? Common questions and contacting us:"
+    "report": "Report a problem",
+    "copyReport": "Copy call report",
+    "copied": "Report copied — you can paste it into a request",
+    "copyFailed": "The browser didn’t allow copying the report",
+    "source": {
+      "label": "Sender audio",
+      "silent": "Silence — the sender is paused or falling behind",
+      "sound": "Flowing"
+    },
+    "concealment": "Audio gaps per second"
   },
   "download": {
     "home": "Cord — home",
@@ -2943,8 +2954,8 @@
     "WATCH_LIVE": "A live stream can't be paused or rewound",
     "SUPPORT_BUSY": "There are a lot of requests right now. Try again a bit later",
     "SUPPORT_NOT_FOUND": "Request not found",
-    "SUPPORT_OFF": "Requests aren’t being accepted right now. Message the author of Cord on Telegram — the link is next to this",
-    "SUPPORT_RATE": "Several requests have already come from this address. Try again in an hour or message the author of Cord on Telegram",
+    "SUPPORT_OFF": "Requests aren’t being accepted right now. Try again later",
+    "SUPPORT_RATE": "Several requests have already come from this address. Try again in an hour",
     "SUPPORT_TEXT": "Describe what happened — at least one sentence",
     "CINEMA_TIMEOUT": "The platform didn't respond in time — try again",
     "CINEMA_UNREACHABLE": "This platform can't be reached from this server",
@@ -3187,7 +3198,7 @@
         "text": "Camera, microphone, sound, theme and language. In “About” you can take this tour again."
       },
       "help": {
-        "title": "Help",
+        "title": "Support",
         "text": "Something not working? Answers to common questions and a way to reach us are here."
       },
       "menu": {
@@ -3197,13 +3208,18 @@
     }
   },
   "support": {
-    "title": "Help",
+    "title": "Support",
     "lead": "Answers to common questions, a camera and microphone check, and a way to reach us.",
     "back": "Home",
     "home": "Cord — home",
-    "open": "Help",
+    "open": "Support",
+    "tabs": {
+      "label": "Support sections",
+      "faq": "FAQ",
+      "check": "Check",
+      "write": "Write"
+    },
     "faq": {
-      "title": "Common questions",
       "items": {
         "camera": {
           "q": "The camera won’t turn on or shows a black screen",
@@ -3232,15 +3248,10 @@
       }
     },
     "check": {
-      "title": "Check camera and microphone",
-      "text": "The check runs on this device only — nothing goes to the meeting.",
-      "start": "Start the check",
       "diagnostics": "Open diagnostics",
       "diagnosticsText": "The path to the server, loss, delay and the quality of every track in this meeting."
     },
     "form": {
-      "title": "Contact us",
-      "intro": "Didn’t find an answer? Describe what happened. We read every request and reply to the contact you leave, if you leave one.",
       "topic": "Topic",
       "topics": {
         "camera": "Camera and microphone",
@@ -3267,9 +3278,26 @@
       "sentNoContact": "You didn’t leave a contact — we can’t reply, but we’ll read your request.",
       "again": "Write another"
     },
-    "author": {
-      "text": "You can also message the author of Cord on Telegram",
-      "link": "@nikgers on Telegram"
+    "write": {
+      "label": "What to write",
+      "message": "Write to us",
+      "report": "Report a problem"
+    },
+    "report": {
+      "topic": "Problem in a meeting",
+      "what": "What’s wrong",
+      "issues": {
+        "sound": "Sound cuts out",
+        "screen": "Screen share lags",
+        "music": "Can’t hear the music",
+        "connect": "Can’t connect",
+        "other": "Something else"
+      },
+      "message": "Details",
+      "messagePlaceholder": "Optional: when it started and for whom",
+      "noIssues": "Pick what’s wrong",
+      "consent": "Attach the call report",
+      "consentHint": "Connection, loss and delay during this call, Cord version and browser — numbers only, no name, meetings or messages."
     }
   },
   "capture": {

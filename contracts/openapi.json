@@ -1442,6 +1442,12 @@
           "id": {
             "type": "string"
           },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -3067,6 +3073,14 @@
             "maxLength": 8000,
             "minLength": 0,
             "type": "string"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 0,
+            "type": "array"
           },
           "message": {
             "maxLength": 6000,

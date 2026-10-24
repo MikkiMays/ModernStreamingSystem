@@ -5,8 +5,9 @@ import { Store } from '../core/store';
 import type { Sample } from '../media/diagnostics';
 
 /*
-  «Диагностика» (R47, R48): без подзаголовка «Проверьте устройства и фактическое соединение этой
-  встречи.», «Подробности аудио и видео» — обычный раздел, не сворачиваемый `<details>`.
+  «Диагностика» (R47, R48, R29, R79): без подзаголовка «Проверьте устройства и фактическое соединение
+  этой встречи.», «Подробности аудио и видео» — обычный раздел, не сворачиваемый `<details>`; у
+  принятого звука — тишина отправителя и пропуски; «Скопировать отчёт о звонке» — без имён.
 */
 
 const music: Sample = {
@@ -24,8 +25,8 @@ const music: Sample = {
   codec: 'audio/opus',
   processingMs: null,
   bufferMs: 640,
-  silentSource: false,
-  concealmentEvents: 0,
+  silentSource: true,
+  concealmentEvents: 3,
   implementation: '',
   at: 0,
 };
@@ -48,6 +49,18 @@ function fakeMeeting(tracks: unknown[] = []) {
       tracks: new Store(tracks),
       playoutTargets: () => [{ kind: 'media', targetMs: 600 }],
       returnToLive: vi.fn(),
+      callReport: () => ({
+        seconds: 312,
+        rttMs: 57,
+        lossPercent: 0.2,
+        jitterMs: 4,
+        bitrateKbps: 160,
+        freezes: 0,
+        freezeSeconds: 0,
+        lossySeconds: 0,
+        path: 'direct-udp',
+        codec: 'vp9',
+      }),
     },
     control: { state: new Store('connected') },
   } as unknown as Meeting;
@@ -55,7 +68,7 @@ function fakeMeeting(tracks: unknown[] = []) {
 
 describe('«Диагностика»', () => {
   it('без подзаголовка (R47): сразу проверка устройств, сеть и подробности', () => {
-    render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={vi.fn()} />);
+    render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: 'Диагностика' });
     expect(dialog).not.toHaveTextContent('Проверьте устройства и фактическое соединение этой встречи.');
     expect(dialog).not.toHaveAttribute('aria-describedby');
@@ -74,6 +87,7 @@ describe('«Диагностика»', () => {
         meeting={fakeMeeting([{ name: 'Музыка', track: {} }])}
         onClose={vi.fn()}
         onHelp={vi.fn()}
+        onReport={vi.fn()}
       />,
     );
     const dialog = screen.getByRole('dialog', { name: 'Диагностика' });
@@ -94,14 +108,46 @@ describe('«Диагностика»', () => {
       'RTT до медиасервера',
       'Кодек',
       'Буфер приёма',
+      'Звук отправителя',
+      'Пропуски звука за секунду',
     ]);
-    expect(within(track.closest('article')!).getByText('160 Кбит/с')).toBeVisible();
+    const card = within(track.closest('article')!);
+    expect(card.getByText('160 Кбит/с')).toBeVisible();
+    // R09, R29: тишина издателя — не «нет пакетов», а слова о том, что у отправителя пауза.
+    expect(card.getByText('Тишина — у отправителя пауза или он не успевает')).toBeVisible();
+    expect(card.getByText('3')).toBeVisible();
   });
 
-  it('«Помощь» внизу зовёт onHelp — диагностику закрывает и помощь открывает тот, кто её показал (R49)', () => {
+  it('«Скопировать отчёт о звонке» кладёт в буфер числа звонка и дорожек — без имён (R29)', async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(
+      <Diagnostics
+        meeting={fakeMeeting([{ name: 'Аня Петрова', track: {} }])}
+        onClose={vi.fn()}
+        onHelp={vi.fn()}
+        onReport={vi.fn()}
+      />,
+    );
+    await screen.findByRole('heading', { name: 'Аня Петрова · Аудио · Получение', level: 4 });
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
+    expect(await screen.findByText('Отчёт скопирован — его можно вставить в обращение')).toBeVisible();
+    const text = writeText.mock.calls[0]![0];
+    expect(text).toMatch(/^cord: /);
+    expect(text).toContain('call: 312 s');
+    expect(text).toContain('playout: media 600 ms');
+    expect(text).toContain('track: audio receive · 160 kbps · loss 0.0% · rtt 57 ms · buffer 640 ms');
+    expect(text).toContain('concealment 3 · silent source');
+    expect(text).not.toContain('Аня');
+  });
+
+  it('подвал: «Сообщить о проблеме» и «Поддержка» — окно заменяет тот, кто показал диагностику (R49, R79)', () => {
     const onHelp = vi.fn();
-    render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={onHelp} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Помощь' }));
+    const onReport = vi.fn();
+    render(<Diagnostics meeting={fakeMeeting()} onClose={vi.fn()} onHelp={onHelp} onReport={onReport} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Поддержка' }));
     expect(onHelp).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Сообщить о проблеме' }));
+    expect(onReport).toHaveBeenCalledTimes(1);
   });
 });

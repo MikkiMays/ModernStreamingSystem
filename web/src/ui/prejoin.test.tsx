@@ -110,7 +110,7 @@ describe('предвход', () => {
     expect(screen.getByRole('button', { name: 'Войти во встречу' })).toBeInTheDocument();
   });
 
-  it('отказ камеры — строкой под превью с «Помощью», а не в форме', async () => {
+  it('отказ камеры — строкой под превью с «Поддержкой», а не в форме', async () => {
     show();
     expect(screen.queryByRole('alert')).toBeNull();
     await act(async () => {
@@ -119,7 +119,7 @@ describe('предвход', () => {
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent(/Не удалось получить доступ к устройству/);
     expect(alert.closest('.prejoin-preview')).not.toBeNull();
-    expect(within(alert).getByRole('button', { name: 'Помощь' })).toBeInTheDocument();
+    expect(within(alert).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });
 
   it('«Перед разговором» — окно набора; качество камеры по умолчанию 720p · 30 сегментами (R72, R78)', async () => {

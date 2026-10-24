@@ -31,7 +31,7 @@ import { allowed, type RoomAction } from '../core/permissions';
 import { COMPACT } from './breakpoints';
 import { useYieldToCinema } from './cinema/useYieldToCinema';
 import { HelpButton } from './support/HelpButton';
-import { closeHelp, openHelp } from './support/help';
+import { closeHelp, openHelp, provideCallReport } from './support/help';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
 import { useTrayChat } from './useTrayChat';
@@ -159,13 +159,16 @@ export function MeetingView({
   }, []);
   const hide = (which: Layer) => setLayer((current) => (current === which ? null : current));
   const toggle = (which: Layer) => (open: boolean) => (open ? show(which) : hide(which));
-  // Помощь из диагностики: диагностика закрывается, помощь открывается — и умеет вернуть её.
-  const helpFromDiagnostics = () => {
+  // Поддержка из диагностики: диагностика закрывается, поддержка открывается — и умеет вернуть её.
+  // «Сообщить о проблеме» (R79) — сразу с выбором того, что не так, и отчётом этого звонка.
+  const helpFromDiagnostics = (report = false) => {
     setLayer(null);
-    openHelp({ faq: 'network', onDiagnostics: () => show('diagnostics') });
+    openHelp({ faq: 'network', onDiagnostics: () => show('diagnostics'), report });
   };
   // Встреча ушла с экрана — её помощь (с «Открыть диагностику» этой встречи) тоже.
   useEffect(() => closeHelp, []);
+  // Итог этого звонка — для «Сообщить о проблеме», откуда бы поддержку ни открыли, пока встреча на экране.
+  useEffect(() => provideCallReport(() => meeting.media.callReport()), [meeting]);
   useEffect(() => {
     if (section) show('settings');
   }, [section, show]);
@@ -529,7 +532,12 @@ export function MeetingView({
       />
       {layer === 'diagnostics' && (
         <Suspense fallback={null}>
-          <Diagnostics meeting={meeting} onClose={() => hide('diagnostics')} onHelp={helpFromDiagnostics} />
+          <Diagnostics
+            meeting={meeting}
+            onClose={() => hide('diagnostics')}
+            onHelp={() => helpFromDiagnostics()}
+            onReport={() => helpFromDiagnostics(true)}
+          />
         </Suspense>
       )}
     </div>

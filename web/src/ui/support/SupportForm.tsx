@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { prepareHuman, publicApi } from '../../api/client';
 import {
   diagnosticsText,
@@ -9,17 +9,18 @@ import {
   SUPPORT_TOPICS,
   ticket,
   ticketProblem,
-  type SupportReceipt,
   type SupportTopic,
 } from '../../core/support';
-import { Button, Field, Input, Select, Switch, Textarea } from '../kit';
+import { Button, Field, Input, Switch, Textarea } from '../kit';
+import { ChoiceChips } from './Chips';
+import { Attachment, Sent, type Receipt } from './parts';
 
 /**
- * Форма обращения (E13, T36): тема, что случилось, по желанию — контакт и диагностика.
+ * Форма обращения (E13, T36, R38): тема чипами, что случилось, по желанию — контакт и диагностика.
  *
- * Диагностика уходит только с явной галочкой, и под ней видно ровно то, что уйдёт. Задача «не бот»
- * решается в фоне с первого касания формы — к «Отправить» она обычно уже готова. После отправки —
- * номер обращения и честный ответ, будет ли ответ: без контакта ответить некуда.
+ * Диагностика уходит только с включённым переключателем, и под ним видно ровно то, что уйдёт. Задача
+ * «не бот» решается в фоне с первого касания формы — к «Отправить» она обычно уже готова. После
+ * отправки — номер обращения и честный ответ, будет ли ответ: без контакта ответить некуда.
  */
 export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic }) {
   const { t } = useTranslation();
@@ -30,28 +31,19 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [receipt, setReceipt] = useState<(SupportReceipt & { contact: boolean }) | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
   // Снимок окружения — на момент открытия формы; ошибки, случившиеся позже, попадут в следующий.
   const diagnostics = useMemo(() => diagnosticsText(), []);
 
   if (receipt)
     return (
-      <div className="help-sent" role="status">
-        <CheckCircle2 size={28} aria-hidden="true" className="help-sent__icon" />
-        <p className="help-sent__title">{t(($) => $.support.form.sent, { number: receipt.number })}</p>
-        <p className="help-sent__text">
-          {receipt.contact ? t(($) => $.support.form.sentContact) : t(($) => $.support.form.sentNoContact)}
-        </p>
-        <Button
-          size="sm"
-          onClick={() => {
-            setReceipt(null);
-            setMessage('');
-          }}
-        >
-          {t(($) => $.support.form.again)}
-        </Button>
-      </div>
+      <Sent
+        receipt={receipt}
+        onAgain={() => {
+          setReceipt(null);
+          setMessage('');
+        }}
+      />
     );
 
   const submit = async () => {
@@ -76,7 +68,6 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
   return (
     <form
       className="help-form"
-      aria-labelledby={`${id}-title`}
       noValidate
       onFocusCapture={() => prepareHuman('support')}
       onSubmit={(event) => {
@@ -84,22 +75,20 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
         void submit();
       }}
     >
-      <h2 id={`${id}-title`} className="help-section__title">
-        {t(($) => $.support.form.title)}
-      </h2>
-      <p className="help-section__lead">{t(($) => $.support.form.intro)}</p>
-      <Field label={t(($) => $.support.form.topic)}>
-        <Select value={topic} onChange={(event) => setTopic(event.target.value as SupportTopic)}>
-          {SUPPORT_TOPICS.map((value) => (
-            <option key={value} value={value}>
-              {t(($) => $.support.form.topics[value])}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      <div className="help-field">
+        <span className="ui-field__label" id={`${id}-topic`}>
+          {t(($) => $.support.form.topic)}
+        </span>
+        <ChoiceChips<SupportTopic>
+          labelledBy={`${id}-topic`}
+          value={topic}
+          onValueChange={setTopic}
+          options={SUPPORT_TOPICS.map((value) => ({ value, label: t(($) => $.support.form.topics[value]) }))}
+        />
+      </div>
       <Field label={t(($) => $.support.form.message)} error={error || undefined}>
         <Textarea
-          rows={5}
+          rows={4}
           value={message}
           maxLength={MAX_MESSAGE}
           required
@@ -127,13 +116,8 @@ export function SupportForm({ topic: initial = 'other' }: { topic?: SupportTopic
         label={t(($) => $.support.form.consent)}
         description={t(($) => $.support.form.consentHint)}
       />
-      {consent && (
-        <details className="help-preview">
-          <summary>{t(($) => $.support.form.preview)}</summary>
-          <pre>{diagnostics}</pre>
-        </details>
-      )}
-      <Button type="submit" variant="primary" icon={<Send size={16} />} loading={sending}>
+      {consent && <Attachment text={diagnostics} />}
+      <Button type="submit" variant="primary" icon={<Send />} loading={sending}>
         {sending ? t(($) => $.support.form.sending) : t(($) => $.support.form.send)}
       </Button>
     </form>
