@@ -181,7 +181,8 @@ export function MeetingHeader({
         <IconButton label={t(($) => $.meeting.header.inviteAll)} onClick={onInvite}>
           <Link size={20} />
         </IconButton>
-        {/* «?» в шапке, как в Discord (T36): ответы и обращение — окном, разговор не прерывается. */}
+        {/* Поддержка — гарнитурой рядом с избранным и ссылкой (R37, T36): ответы и обращение окном,
+            разговор не прерывается. */}
         <HelpButton onDiagnostics={onDiagnostics} />
       </div>
     </header>

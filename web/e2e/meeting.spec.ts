@@ -149,6 +149,9 @@ test('two real browser contexts exchange camera, audio and messages through Live
       mimeType: 'text/plain',
       buffer: Buffer.from('A document shared during the call.'),
     });
+    // Вложение сначала ложится над полем (R94) и уходит по «Отправить».
+    await expect(host.getByRole('list', { name: 'Вложения к сообщению' })).toContainText('meeting-notes.txt');
+    await host.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(host.getByRole('button', { name: 'Скачать meeting-notes.txt' })).toBeVisible({
       timeout: 15000,
     });

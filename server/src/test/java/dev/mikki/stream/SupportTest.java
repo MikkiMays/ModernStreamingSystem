@@ -108,6 +108,18 @@ class SupportTest {
     return Json.write(map);
   }
 
+  /** «Сообщить о проблеме» (R79): тема {@code report} и отмеченное. */
+  static String report(String message, String diagnostics, String... issues) {
+    var map = new LinkedHashMap<String, Object>();
+    map.put("topic", "report");
+    map.put("message", message);
+    map.put("contact", null);
+    map.put("diagnostics", diagnostics);
+    map.put("consent", diagnostics != null);
+    map.put("issues", List.of(issues));
+    return Json.write(map);
+  }
+
   MockHttpServletRequestBuilder send(String ip, String json) throws Exception {
     return from(post("/api/v1/support"), ip)
         .header(ProofOfWork.HEADER, proof(ip))
@@ -178,6 +190,67 @@ class SupportTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(0));
     assertThat(support.recent(10, null).getFirst().notifiedAt()).isEqualTo(now.get());
+  }
+
+  /**
+   * «Сообщить о проблеме» (R79): отмеченное — по порядку списка, подробности не обязательны, отчёт
+   * о звонке — с согласием; владелец видит отмеченное в Telegram и на «Активности».
+   */
+  @Test
+  void aProblemReportCarriesWhatIsWrongToTheOwner() throws Exception {
+    var id =
+        Json.tree(
+                mvc.perform(send(fresh(), report("", "call: 312 s\nloss: 0.2 %", "music", "sound")))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString())
+            .path("id")
+            .asText();
+    var ticket = support.recent(10, null).getFirst();
+    assertThat(ticket.id()).isEqualTo(id);
+    assertThat(ticket.topic()).isEqualTo("report");
+    assertThat(ticket.issues()).containsExactly("sound", "music");
+    assertThat(ticket.message()).isEmpty();
+    assertThat(ticket.diagnostics()).contains("call: 312 s");
+    assertThat(support.outbox(10).getFirst().text())
+        .contains("Проблема во встрече")
+        .contains("Что не так: звук обрывается, не слышно музыку")
+        .contains("loss: 0.2 %")
+        .doesNotContain("\n\n\n");
+    var session =
+        mvc.perform(
+                from(post("/api/v1/admin/session"), fresh())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"password\":\"пароль владельца\"}"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    mvc.perform(
+            get("/api/v1/admin/support")
+                .header(AdminAccess.HEADER, Json.tree(session).path("token").asText()))
+        .andExpect(jsonPath("$[0].issues[0]").value("sound"))
+        .andExpect(jsonPath("$[0].issues[1]").value("music"));
+    // У обычного обращения отмеченного нет. Секундой позже — чтобы стать первым в «новых сверху».
+    now.addAndGet(1000);
+    submit(fresh(), "Обычное обращение без отметок");
+    assertThat(support.recent(10, null).getFirst().issues()).isEmpty();
+  }
+
+  /** Отмеченное бывает только у «Сообщить о проблеме» и обязательно у него; чужое слово — отказ. */
+  @Test
+  void issuesBelongOnlyToAProblemReport() throws Exception {
+    mvc.perform(send(fresh(), report("Звук пропадает", null)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    mvc.perform(send(fresh(), report("", null, "weather"))).andExpect(status().isBadRequest());
+    var map = new LinkedHashMap<String, Object>();
+    map.put("topic", "sound");
+    map.put("message", "Обычная тема с отметками");
+    map.put("consent", false);
+    map.put("issues", List.of("sound"));
+    mvc.perform(send(fresh(), Json.write(map))).andExpect(status().isBadRequest());
+    assertThat(support.recent(10, null)).isEmpty();
   }
 
   @Test

@@ -25,13 +25,17 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 public class SupportController {
-  /** Тело формы. Тексты чистит и проверяет {@link SupportService}; здесь — только границы. */
+  /**
+   * Тело формы. Тексты чистит и проверяет {@link SupportService}; здесь — только границы. {@code
+   * issues} — «Сообщить о проблеме» (R79): что не так, словами из {@link SupportService#ISSUES}.
+   */
   public record Request(
       @NotNull @Pattern(regexp = "[a-z]{2,16}") String topic,
       @NotNull @Size(max = 6000) String message,
       @Size(max = 400) String contact,
       @Size(max = SupportService.MAX_DIAGNOSTICS) String diagnostics,
-      boolean consent) {}
+      boolean consent,
+      @Size(max = 8) List<String> issues) {}
 
   /** Новый статус обращения: «в работе», «решено» — или обратно в «новые». */
   public record StatusChange(@NotNull SupportService.Status status) {}
@@ -67,7 +71,8 @@ public class SupportController {
             request.message(),
             request.contact(),
             request.diagnostics(),
-            request.consent()),
+            request.consent(),
+            request.issues()),
         key);
   }
 

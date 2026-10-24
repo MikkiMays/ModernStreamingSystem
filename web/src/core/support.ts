@@ -1,8 +1,9 @@
+import type { CallReport } from '../media/call-quality';
 import { appLabel } from './version';
 
 /**
- * Поддержка (E13, T36): темы обращения, контакт автора и диагностика, которую человек может
- * приложить к обращению — только сам и только видя, что именно уйдёт.
+ * Поддержка (E13, T36): темы обращения, «Сообщить о проблеме» (R79) и диагностика, которую человек
+ * может приложить к обращению — только сам и только видя, что именно уйдёт.
  *
  * Механизм решён в `DECISIONS.md` (E13-1): своя форма → база ядра → бот в Telegram владельца →
  * страница «Активность». Готовые службы поддержки (Chatwoot, Zammad, FreeScout) для одного владельца
@@ -15,8 +16,13 @@ export type SupportTopic = (typeof SUPPORT_TOPICS)[number];
 export const FAQ = ['camera', 'microphone', 'silent', 'screen', 'smartscreen', 'network'] as const;
 export type FaqId = (typeof FAQ)[number];
 
-/** Тот же Telegram автора, что в «О программе». */
-export const AUTHOR_TELEGRAM = 'https://t.me/nikgers';
+/**
+ * «Сообщить о проблеме» (R79): что не так во встрече — по порядку; подписи —
+ * `support.report.issues.<id>`. Ядро знает тот же список (`SupportService.ISSUES`) и чужого слова
+ * не примет.
+ */
+export const ISSUES = ['sound', 'screen', 'music', 'connect', 'other'] as const;
+export type Issue = (typeof ISSUES)[number];
 
 /** Короче не обращение: «ой» и пустые строки ядро не примет (`SUPPORT_TEXT`). */
 export const MIN_MESSAGE = 10;
@@ -24,11 +30,13 @@ export const MAX_MESSAGE = 4000;
 export const MAX_CONTACT = 200;
 
 export interface SupportTicket {
-  topic: SupportTopic;
+  /** `report` — «Сообщить о проблеме»: тема — выбранное в `issues`. */
+  topic: SupportTopic | 'report';
   message: string;
   contact: string | null;
   diagnostics: string | null;
   consent: boolean;
+  issues?: Issue[];
 }
 
 export interface SupportReceipt {
@@ -59,6 +67,52 @@ export function ticket(
     diagnostics: consent ? diagnostics : null,
     consent,
   };
+}
+
+/**
+ * Почему «Сообщить о проблеме» не уходит; `null` — уходит. Выбранного достаточно: подробности —
+ * по желанию, а не «хотя бы одним предложением», как у обычного обращения.
+ */
+export function reportProblem(issues: readonly Issue[], message: string): 'noIssues' | 'tooLong' | null {
+  if (!issues.length) return 'noIssues';
+  if (message.trim().length > MAX_MESSAGE) return 'tooLong';
+  return null;
+}
+
+/** «Сообщить о проблеме»: выбранное по порядку списка, отчёт — только с согласием. */
+export function problemReport(
+  issues: readonly Issue[],
+  message: string,
+  contact: string,
+  consent: boolean,
+  diagnostics: string,
+): SupportTicket {
+  return {
+    ...ticket('other', message, contact, consent, diagnostics),
+    topic: 'report',
+    issues: ISSUES.filter((issue) => issues.includes(issue)),
+  };
+}
+
+/**
+ * Итог звонка строками для обращения и «Скопировать отчёт о звонке» (R79, R29): только числа и слова
+ * из перечислений — ровно то, что ядро и так получает в конце звонка (`client-report`), без имён,
+ * адресов и названий устройств. `null` — звонка не было (короче десяти секунд).
+ */
+export function callReportText(report: CallReport | null): string {
+  if (!report) return 'call: none';
+  const value = (number: number | null, unit: string) => (number === null ? 'n/a' : `${number} ${unit}`);
+  return [
+    `call: ${report.seconds} s`,
+    `path: ${report.path}`,
+    `rtt: ${value(report.rttMs, 'ms')}`,
+    `loss: ${value(report.lossPercent, '%')}`,
+    `jitter: ${value(report.jitterMs, 'ms')}`,
+    `bitrate: ${value(report.bitrateKbps, 'kbps')}`,
+    `lossy: ${report.lossySeconds} s`,
+    `freezes: ${report.freezes} (${report.freezeSeconds} s)`,
+    `codec: ${report.codec ?? 'n/a'}`,
+  ].join('\n');
 }
 
 /* ---------- последние ошибки клиента ----------

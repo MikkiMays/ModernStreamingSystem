@@ -47,7 +47,7 @@ from .cinema.memo import Memo
 from .cinema.providers.youtube import LINK_HOSTS, PLAYERS, SHORT_HOSTS, VIDEO_LINK
 from .cinema.reach import RECHECK, Reach, Words
 from .cinema.resolve import BOT_CHECK, YtDlp
-from .media import MAX_FILE, probe
+from .media import LONGEST, MAX_FILE, probe
 from .store import now
 from .webapp import Refusal
 
@@ -72,8 +72,6 @@ SEARCH_DEADLINE = 25.0
 # Скачивание целиком — не дольше: трек в 50 МБ с живой площадки приезжает за секунды, а дольше
 # браузер ждать ответа не станет (`AbortSignal.timeout(180000)` у панели).
 DOWNLOAD_SECONDS = 150
-# Трек длиннее часа очередь не берёт (как и файл, `media.probe`).
-LONGEST = 3600
 # У площадки звук короче обещанного больше чем на столько — это фрагмент, а не трек.
 SHORTFALL = 5
 # Фрагмент SoundCloud Go+ ровно тридцать секунд — по этой длине его видно уже в поиске.
@@ -417,12 +415,16 @@ class Sources:
             artist = _text(entry.get("uploader") or entry.get("artist"), 120)
         duration = _seconds(entry.get("duration"))
         preview = platform.id == "soundcloud" and duration == PREVIEW_SECONDS
+        # Длительность выдача уже знает: ролик длиннее часа помечен сразу (R116), а не «+», после
+        # которого скачивание откажет «Нужен трек до 60 минут». Неизвестная длительность — не
+        # отказ: её проверит разбор ссылки (`_check`).
+        long = duration is not None and duration > LONGEST
         return {
             "url": url,
             "title": _text(entry.get("title"), 180) or "Без названия",
             "artist": artist,
             "duration": duration or 0.0,
-            "available": not _live(entry) and not preview,
+            "available": not _live(entry) and not preview and not long,
             "source": platform.id,
         }
 

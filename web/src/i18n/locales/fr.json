@@ -39,9 +39,13 @@
         "title": "Serveur",
         "keywords": "connexion"
       },
+      "support": {
+        "title": "Assistance",
+        "keywords": "aide assistance question problème demande diagnostic"
+      },
       "about": {
         "title": "À propos",
-        "keywords": "version cord aide assistance découverte"
+        "keywords": "version cord mises à jour découverte"
       },
       "desktop": {
         "title": "Windows",
@@ -223,11 +227,6 @@
         "hint": "",
         "keywords": "language langue traduction interface"
       },
-      "about-help": {
-        "label": "Aide et assistance",
-        "hint": "Questions fréquentes, test des appareils et contact",
-        "keywords": "aide assistance question problème demande"
-      },
       "about-tour": {
         "label": "Découverte de Cord",
         "hint": "De courts conseils à côté des boutons principaux",
@@ -311,7 +310,6 @@
       "check": "Vérifier",
       "update": "Mettre à jour",
       "download": "Télécharger {{version}}",
-      "help": "Ouvrir",
       "tour": "Refaire la découverte"
     },
     "accounts": {
@@ -2372,7 +2370,11 @@
     "approve": "Faire entrer : {{name}}",
     "remove": "Exclure : {{name}}",
     "download": "Télécharger {{name}}",
-    "dropUnfinished": "Supprimer l'envoi inachevé : {{name}}"
+    "dropUnfinished": "Supprimer l'envoi inachevé : {{name}}",
+    "attachment": {
+      "list": "Pièces jointes du message",
+      "remove": "Retirer {{name}}"
+    }
   },
   "home": {
     "entry": {
@@ -2782,7 +2784,16 @@
       "codecHidden": "Non communiqué",
       "implementationHidden": "Non communiqué par le navigateur"
     },
-    "help": "Ça n'a pas aidé ? Questions fréquentes et contact :"
+    "report": "Signaler un problème",
+    "copyReport": "Copier le rapport d’appel",
+    "copied": "Rapport copié — vous pouvez le coller dans une demande",
+    "copyFailed": "Le navigateur n’a pas autorisé la copie du rapport",
+    "source": {
+      "label": "Son de l’émetteur",
+      "silent": "Silence — l’émetteur est en pause ou prend du retard",
+      "sound": "Arrive"
+    },
+    "concealment": "Trous audio par seconde"
   },
   "download": {
     "home": "Cord — accueil",
@@ -2976,8 +2987,8 @@
     "WATCH_LIVE": "Un direct ne peut être ni mis en pause ni rembobiné",
     "SUPPORT_BUSY": "Il y a beaucoup de demandes en ce moment. Réessayez un peu plus tard",
     "SUPPORT_NOT_FOUND": "Demande introuvable",
-    "SUPPORT_OFF": "Les demandes ne sont pas acceptées pour le moment. Écrivez à l'auteur de Cord sur Telegram — le lien est juste à côté",
-    "SUPPORT_RATE": "Plusieurs demandes sont déjà venues de cette adresse. Réessayez dans une heure ou écrivez à l'auteur de Cord sur Telegram",
+    "SUPPORT_OFF": "Les demandes ne sont pas acceptées pour le moment. Réessayez plus tard",
+    "SUPPORT_RATE": "Plusieurs demandes sont déjà venues de cette adresse. Réessayez dans une heure",
     "SUPPORT_TEXT": "Décrivez ce qui s'est passé — au moins en une phrase",
     "CINEMA_TIMEOUT": "La plateforme n'a pas répondu à temps — réessayez",
     "CINEMA_UNREACHABLE": "Cette plateforme est inaccessible depuis ce serveur",
@@ -3227,7 +3238,7 @@
         "text": "Caméra, micro, son, thème et langue. Dans « À propos », vous pouvez refaire cette découverte."
       },
       "help": {
-        "title": "Aide",
+        "title": "Assistance",
         "text": "Quelque chose ne marche pas ? Les réponses aux questions fréquentes et le contact sont ici."
       },
       "menu": {
@@ -3237,13 +3248,18 @@
     }
   },
   "support": {
-    "title": "Aide",
+    "title": "Assistance",
     "lead": "Réponses aux questions fréquentes, test de la caméra et du micro, et contact.",
     "back": "Accueil",
     "home": "Cord — accueil",
-    "open": "Aide",
+    "open": "Assistance",
+    "tabs": {
+      "label": "Rubriques de l’assistance",
+      "faq": "Questions",
+      "check": "Vérifier",
+      "write": "Écrire"
+    },
     "faq": {
-      "title": "Questions fréquentes",
       "items": {
         "camera": {
           "q": "La caméra ne s'allume pas ou affiche un écran noir",
@@ -3272,15 +3288,10 @@
       }
     },
     "check": {
-      "title": "Tester la caméra et le micro",
-      "text": "Le test se fait uniquement sur cet appareil — rien n'est envoyé dans la réunion.",
-      "start": "Lancer le test",
       "diagnostics": "Ouvrir le diagnostic",
       "diagnosticsText": "Le trajet jusqu'au serveur, les pertes, le retard et la qualité de chaque piste de cette réunion."
     },
     "form": {
-      "title": "Nous écrire",
-      "intro": "Pas de réponse trouvée ? Décrivez ce qui s'est passé. Nous lisons chaque demande et répondons via le contact que vous laissez, si vous en laissez un.",
       "topic": "Sujet",
       "topics": {
         "camera": "Caméra et micro",
@@ -3307,9 +3318,26 @@
       "sentNoContact": "Vous n'avez pas laissé de contact — nous ne pourrons pas répondre, mais nous lirons votre demande.",
       "again": "En écrire une autre"
     },
-    "author": {
-      "text": "Vous pouvez aussi écrire à l'auteur de Cord sur Telegram",
-      "link": "@nikgers sur Telegram"
+    "write": {
+      "label": "Quoi écrire",
+      "message": "Nous écrire",
+      "report": "Signaler un problème"
+    },
+    "report": {
+      "topic": "Problème pendant la réunion",
+      "what": "Ce qui ne va pas",
+      "issues": {
+        "sound": "Le son se coupe",
+        "screen": "Le partage d’écran saccade",
+        "music": "On n’entend pas la musique",
+        "connect": "Impossible de se connecter",
+        "other": "Autre chose"
+      },
+      "message": "Détails",
+      "messagePlaceholder": "Facultatif : quand ça a commencé et chez qui",
+      "noIssues": "Indiquez ce qui ne va pas",
+      "consent": "Joindre le rapport d’appel",
+      "consentHint": "Connexion, pertes et délai pendant cet appel, version de Cord et navigateur — uniquement des chiffres, sans nom, réunions ni messages."
     }
   },
   "capture": {

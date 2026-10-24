@@ -165,10 +165,14 @@ test('ряд вкладок с одной остановкой Tab: стрелк
   expect(await outline(second)).toBe('solid');
 });
 
-test('«Помощь»: открыта мышью — Shift не обводит крестик и окно; Tab — обводит', async ({ page }) => {
+test('«Поддержка»: открыта мышью — Shift не обводит крестик и окно; Tab — обводит', async ({ page }) => {
   await home(page);
-  await page.getByRole('button', { name: 'Помощь', exact: true }).filter({ visible: true }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'Помощь' });
+  await page
+    .getByRole('button', { name: 'Поддержка', exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Поддержка' });
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Shift');
   expect(await focused(page)).toMatch(/ none$/);

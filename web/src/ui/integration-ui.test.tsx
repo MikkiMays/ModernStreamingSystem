@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { MusicState, MusicTrack, PlatformTrack } from '../core/services';
 import { IntegrationShelf } from './IntegrationShelf';
 import { MusicQueue } from './MusicQueue';
@@ -209,6 +209,23 @@ describe('поле площадки (T59)', () => {
     expect(await screen.findByText('Только фрагмент')).toBeInTheDocument();
     expect(can.searchPlatform).toHaveBeenCalledWith('soundcloud', 'песня');
     expect(screen.queryByRole('button', { name: /^Добавить в очередь/ })).toBeNull();
+  });
+
+  it('ролик длиннее часа помечен «Не добавить» сразу в выдаче, а не «+» (R116)', async () => {
+    // Предел — у службы (`media.LONGEST`): она ставит `available: false`, а выдача говорит это до нажатия.
+    const can = abilities({
+      searchPlatform: vi.fn(async () => [
+        found('youtube', 'Песня'),
+        found('youtube', 'Микс', { duration: 3725, available: false }),
+      ]),
+    });
+    render(<MusicSearch abilities={can} onAdded={() => {}} />);
+    type('микс');
+    const row = (await screen.findByText('Микс')).closest('li')!;
+    expect(within(row).getByText('Не добавить')).toBeInTheDocument();
+    expect(within(row).getByText('62:05')).toBeInTheDocument();
+    expect(within(row).queryByRole('button')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /^Добавить в очередь/ })).toHaveLength(1);
   });
 
   it('ссылка своей площадки уходит сразу в очередь', async () => {

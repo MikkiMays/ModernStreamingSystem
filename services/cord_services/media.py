@@ -24,6 +24,9 @@ AUDIO_FORMATS = {
     "webm",
 }
 MAX_FILE = 50 * 1024 * 1024
+# Трек длиннее часа очередь не берёт — ни файл, ни ссылку, ни трек Яндекса. Одно число на всё: по нему
+# же поиск сразу помечает длинный ролик «не добавить» (R116), а не отказывает уже после нажатия.
+LONGEST = 3600
 MAX_ROOM = 512 * 1024 * 1024
 MAX_TOTAL = 2 * 1024 * 1024 * 1024
 
@@ -78,7 +81,7 @@ async def probe(path: Path) -> dict:
         if (
             not data.get("streams")
             or not math.isfinite(duration)
-            or not 0 < duration <= 3600
+            or not 0 < duration <= LONGEST
             or not formats.intersection(AUDIO_FORMATS)
         ):
             raise ValueError()

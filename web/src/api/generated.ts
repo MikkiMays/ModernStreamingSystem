@@ -1099,6 +1099,7 @@ export interface components {
             createdAt?: number;
             diagnostics?: string;
             id?: string;
+            issues?: string[];
             message?: string;
             /** Format: int64 */
             notifiedAt?: number;
@@ -1590,6 +1591,7 @@ export interface components {
             consent?: boolean;
             contact?: string;
             diagnostics?: string;
+            issues?: string[];
             message: string;
             topic: string;
         };

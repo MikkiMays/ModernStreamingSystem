@@ -1,0 +1,170 @@
+[
+  {
+    "screen": "r51-settings",
+    "width": 1440,
+    "theme": "light",
+    "file": "r51-settings-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r51-settings",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r51-settings-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r51-settings",
+    "width": 390,
+    "theme": "light",
+    "file": "r51-settings-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r51-settings",
+    "width": 390,
+    "theme": "dark",
+    "file": "r51-settings-before-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r37-header",
+    "width": 1440,
+    "theme": "light",
+    "file": "r37-header-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r37-header",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r37-header-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r37-header",
+    "width": 390,
+    "theme": "light",
+    "file": "r37-header-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r37-header",
+    "width": 390,
+    "theme": "dark",
+    "file": "r37-header-before-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r38-help",
+    "width": 1440,
+    "theme": "light",
+    "file": "r38-help-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r38-help",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r38-help-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r38-help",
+    "width": 390,
+    "theme": "light",
+    "file": "r38-help-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r38-help",
+    "width": 390,
+    "theme": "dark",
+    "file": "r38-help-before-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r79-diagnostics",
+    "width": 1440,
+    "theme": "light",
+    "file": "r79-diagnostics-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r79-diagnostics",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r79-diagnostics-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r79-diagnostics",
+    "width": 390,
+    "theme": "light",
+    "file": "r79-diagnostics-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r79-diagnostics",
+    "width": 390,
+    "theme": "dark",
+    "file": "r79-diagnostics-before-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 1440,
+    "theme": "light",
+    "file": "r94-chat-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r94-chat-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 390,
+    "theme": "light",
+    "file": "r94-chat-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 390,
+    "theme": "dark",
+    "file": "r94-chat-before-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 1440,
+    "theme": "light",
+    "file": "r116-music-before-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r116-music-before-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 390,
+    "theme": "light",
+    "file": "r116-music-before-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 390,
+    "theme": "dark",
+    "file": "r116-music-before-390-dark.png",
+    "overflowX": 0
+  }
+]

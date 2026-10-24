@@ -222,6 +222,20 @@ class YandexTests(Fixture):
             with self.assertRaises(HTTPException):
                 self.yandex.download_url(url)
 
+    async def test_tracks_longer_than_an_hour_are_unavailable_in_the_results(self):
+        # R116: тот же предел, что у очереди (`media.LONGEST`), — видно уже в выдаче.
+        def track(minutes):
+            return SimpleNamespace(
+                id=minutes,
+                title="T",
+                artists=[],
+                duration_ms=minutes * 60_000,
+                available=True,
+            )
+
+        self.assertTrue(self.yandex.track_public(track(60))["available"])
+        self.assertFalse(self.yandex.track_public(track(61))["available"])
+
     async def test_album_cover_comes_along_from_yandex_hosts_only(self):
         scope = "room:" + ROOM
         self.yandex.save(scope, {"token": "TEST_TOKEN", "name": "Tester"})

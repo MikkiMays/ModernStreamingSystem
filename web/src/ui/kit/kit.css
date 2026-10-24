@@ -855,6 +855,20 @@
   gap: var(--space-3);
   padding: var(--space-4) var(--space-4) 0 var(--space-6);
 }
+.ui-dialog__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ui-dialog__icon > svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
 .ui-dialog__title {
   flex: 1;
   margin: 0;

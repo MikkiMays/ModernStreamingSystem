@@ -6,20 +6,20 @@ import { desktopUpdate, desktopVersion, notifyDesktop, isDesktop } from '../../c
 import { appLabel, appVersion } from '../../core/version';
 import { useStore } from '../primitives';
 import { Button } from '../kit';
-import { HelpButton } from '../support/HelpButton';
 import { SettingGroup, SettingRow } from './Row';
 
 /**
  * «О программе»: что здесь установлено и не вышло ли нового. Номер версии в Cord показывается
  * только здесь (T58); ссылок на исходники и «обновите сервер» нет (T56, П15), строки «Автор» —
- * тоже (R50): Cord — продукт, а не чей-то проект.
+ * тоже (R50): Cord — продукт, а не чей-то проект. Поддержка — свой раздел над этим, с гарнитурой
+ * (R51), а не строка «Открыть» со вторым окном.
  *
  * Два разных вопроса. В браузере обновлять нечего — страница и есть то, что сервер отдал сию
  * секунду, — поэтому проверка отвечает про клиент для Windows. В самом приложении обновлять
  * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
  */
-export function AboutSection({ onTour, onHelp }: { onTour?: () => void; onHelp?: () => void }) {
+export function AboutSection({ onTour }: { onTour?: () => void }) {
   const { t } = useTranslation();
   const desktop = isDesktop();
   const shell = useStore(desktopUpdate);
@@ -120,15 +120,6 @@ export function AboutSection({ onTour, onHelp }: { onTour?: () => void; onHelp?:
               </a>
             )}
           </div>
-        </SettingRow>
-        <SettingRow id="about-help">
-          {/* Помощь заменяет окно настроек, а не ложится на него (S5): `onHelp` его закрывает. */}
-          <HelpButton
-            look="text"
-            className="ui-button ui-button--secondary ui-button--sm"
-            text={t(($) => $.settings.about.help)}
-            onOpen={onHelp}
-          />
         </SettingRow>
         {onTour && (
           <SettingRow id="about-tour">

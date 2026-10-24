@@ -32,7 +32,7 @@ from yandex_music.exceptions import DeviceAuthError, UnauthorizedError, YandexMu
 from . import covers
 from .accounts import Vault
 from .cinema.limits import Window
-from .media import MAX_FILE, probe
+from .media import LONGEST, MAX_FILE, probe
 from .store import now
 from .webapp import Refusal
 
@@ -321,7 +321,9 @@ class Yandex:
             "title": str(track.title or "Без названия")[:180],
             "artist": ", ".join(a.name for a in (track.artists or []))[:120],
             "duration": (track.duration_ms or 0) / 1000,
-            "available": bool(track.available),
+            # Длиннее часа очередь не возьмёт (`add`) — в выдаче он сразу недоступен (R116).
+            "available": bool(track.available)
+            and (track.duration_ms or 0) <= LONGEST * 1000,
         }
 
     async def search(self, scope, query):
@@ -427,7 +429,7 @@ class Yandex:
                     404, "Этот трек недоступен для подключённого аккаунта"
                 )
             track = tracks[0]
-            if not track.duration_ms or track.duration_ms > 3600000:
+            if not track.duration_ms or track.duration_ms > LONGEST * 1000:
                 raise HTTPException(400, "Максимальная длительность трека — 60 минут")
             infos = await self.request(client.tracks_download_info(track_id))
             # Одного трека Яндекс предлагает несколько вариантов, и берётся лучший доступный,

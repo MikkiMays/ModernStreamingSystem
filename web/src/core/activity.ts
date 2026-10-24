@@ -161,6 +161,8 @@ export type SupportTicket = {
   message: string;
   contact: string | null;
   diagnostics: string | null;
+  /** «Сообщить о проблеме» (R79): что отмечено; у обычного обращения — пусто. */
+  issues?: string[];
   status: SupportStatus;
   statusAt: number;
   notifiedAt: number | null;

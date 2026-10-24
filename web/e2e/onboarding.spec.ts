@@ -31,7 +31,7 @@ test('a fresh profile walks the tour once, and «Пройти знакомств
     ['Вас пригласили?', '2 из 5'],
     ['Избранное', '3 из 5'],
     ['Настройки', '4 из 5'],
-    ['Помощь', '5 из 5'],
+    ['Поддержка', '5 из 5'],
   ] as const) {
     await page.getByRole('button', { name: 'Далее' }).click();
     await expect(tip(page, title)).toContainText(step);

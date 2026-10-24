@@ -1,12 +1,13 @@
 /*
-  «Помощь» (E13, T36): страница `/support` и окно «?». Одна разметка: на странице — карточки в две
-  колонки от 1024 px (вопросы слева, проверка и форма справа), в окне — одна колонка без карточек,
-  разделы через линию. Только токены `styles/tokens.css`.
+  «Поддержка» (E13, T36, R38): окно на корне, раздел настроек (R51) и страница `/support` — одна
+  разметка из трёх вкладок. В окне высота постоянная, вкладки стоят под заголовком, а прокручивается
+  только содержимое вкладки; в настройках прокручивается правая часть окна; на странице вкладки —
+  в карточке. Только токены `styles/tokens.css`.
 */
 .help-main {
   align-content: start;
   justify-items: stretch;
-  max-width: 1180px;
+  max-width: 820px;
   margin: 0 auto;
   padding-top: var(--space-4);
 }
@@ -28,48 +29,55 @@
   font-size: var(--text-md);
   line-height: var(--leading-base);
 }
-
-.help-center {
-  display: grid;
-  gap: var(--space-5);
-  min-width: 0;
-}
-.help-side {
-  display: grid;
-  align-content: start;
-  gap: var(--space-5);
-  min-width: 0;
-}
-@media (min-width: 1024px) {
-  .help-page .help-center {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    align-items: start;
-  }
-}
-
-.help-section {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
-.help-page .help-section {
-  padding: var(--space-6);
+.help-page .help-center {
+  padding: var(--space-5) var(--space-6) var(--space-6);
   border-radius: var(--radius-4);
   background: var(--surface-1);
   box-shadow: var(--shadow-1);
 }
-.help-dialog .help-section + .help-side,
-.help-dialog .help-side > .help-section + .help-section {
-  padding-top: var(--space-5);
-  box-shadow: inset 0 1px 0 var(--line);
+@media (max-width: 767px) {
+  .help-page .help-center {
+    padding: var(--space-4);
+  }
 }
-.help-section__title {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
+
+/* ---------- вкладки ---------- */
+.help-center {
+  gap: var(--space-4);
+  min-width: 0;
 }
-.help-section__lead {
+/* Окно не меняет высоту при смене вкладки: вкладки — над прокруткой, прокручивается панель. */
+.help-dialog {
+  height: min(700px, 100%);
+}
+.help-dialog .ui-dialog__body {
+  display: grid;
+  min-height: 0;
+  padding-top: var(--space-3);
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.help-dialog .help-center {
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+.help-dialog .help-panel {
+  min-height: 0;
+  margin-inline: calc(var(--space-2) * -1);
+  padding: 0 var(--space-2) var(--space-6);
+  overflow: auto;
+}
+.help-panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+/* Неактивная вкладка «Написать» живёт в разметке (недописанное не теряется), но её не видно. */
+.help-panel[hidden] {
+  display: none;
+}
+.help-lead {
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--text-base);
@@ -77,46 +85,67 @@
 }
 
 /* ---------- частые вопросы ---------- */
-.help-faq__list {
+.help-faq {
   display: grid;
 }
 .help-faq__item {
-  box-shadow: inset 0 -1px 0 var(--line);
+  box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line);
 }
 .help-faq__item:last-child {
   box-shadow: none;
 }
-.help-faq__item summary {
+.help-faq__header {
+  margin: 0;
+  font: inherit;
+}
+.help-faq__trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  width: 100%;
   min-height: var(--control-touch);
   padding: var(--space-3) var(--space-1);
+  border: 0;
   border-radius: var(--radius-2);
+  background: none;
+  color: var(--text);
+  font: inherit;
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
+  text-align: left;
   cursor: pointer;
-  list-style: none;
 }
-.help-faq__item summary::-webkit-details-marker {
-  display: none;
-}
-.help-faq__item summary:hover {
+.help-faq__trigger:hover {
   color: var(--accent);
 }
-.help-faq__item summary:focus-visible {
+.help-faq__trigger:focus {
+  outline: none;
+}
+.help-faq__trigger:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
+  outline-offset: calc(var(--focus-offset) * -1);
 }
 .help-faq__chevron {
   flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   color: var(--muted);
   transition: transform var(--motion-base) var(--ease-standard);
 }
-.help-faq__item[open] .help-faq__chevron {
+.help-faq__trigger[data-panel-open] .help-faq__chevron {
   transform: rotate(180deg);
+}
+/* Ответ раскрывается высотой от нуля до своей (`--accordion-panel-height` Base UI), без скачка. */
+.help-faq__panel {
+  height: var(--accordion-panel-height);
+  overflow: hidden;
+  transition: height var(--motion-base) var(--ease-standard);
+}
+.help-faq__panel[data-starting-style],
+.help-faq__panel[data-ending-style] {
+  height: 0;
 }
 .help-faq__steps {
   display: grid;
@@ -138,14 +167,14 @@
   position: absolute;
   left: var(--space-1);
   top: 0.62em;
-  width: 6px;
-  height: 6px;
+  width: var(--space-1);
+  height: var(--space-1);
   border-radius: var(--radius-full);
   background: var(--accent-fill);
 }
 
 /* ---------- проверка ---------- */
-/* Заголовок проверки — у раздела; свой заголовок `DeviceCheck` здесь лишний. */
+/* Заголовок проверки — у вкладки; свой заголовок `DeviceCheck` здесь лишний. */
 .help-check .device-check {
   padding: 0;
   border: 0;
@@ -159,35 +188,70 @@
   justify-self: start;
 }
 
-/* ---------- форма ---------- */
+/* ---------- написать ---------- */
 .help-form {
   display: grid;
   gap: var(--space-4);
   min-width: 0;
 }
+.help-field {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
 .help-form .ui-input--area {
-  min-height: 120px;
+  min-height: calc(var(--control-lg) * 2.5);
   resize: vertical;
 }
 .help-form > .ui-button {
   justify-self: start;
 }
-/* «Приложить диагностику» — переключатель набора (X4); бегунок — на высоте подписи, а не пояснения. */
+/* «Приложить …» — переключатель набора (X4); бегунок — на высоте подписи, а не пояснения. */
 .help-consent {
   align-items: flex-start;
 }
 .help-consent .ui-switch-row__hint {
   line-height: var(--leading-base);
 }
-.help-preview summary {
-  width: fit-content;
+.help-preview {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-top: calc(var(--space-2) * -1);
+}
+.help-preview__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
   color: var(--accent);
+  font: inherit;
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
-.help-preview pre {
+.help-preview__toggle:focus {
+  outline: none;
+}
+.help-preview__toggle:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.help-preview__chevron {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.help-preview__toggle[aria-expanded='true'] .help-preview__chevron {
+  transform: rotate(180deg);
+}
+.help-preview__text {
+  justify-self: stretch;
   max-height: 200px;
-  margin: var(--space-2) 0 0;
+  margin: 0;
   padding: var(--space-3);
   overflow: auto;
   border-radius: var(--radius-2);
@@ -202,8 +266,11 @@
   display: grid;
   justify-items: start;
   gap: var(--space-2);
+  padding-top: var(--space-2);
 }
 .help-sent__icon {
+  width: var(--control-lg);
+  height: var(--control-lg);
   color: var(--success);
 }
 .help-sent__title {
@@ -217,27 +284,30 @@
   line-height: var(--leading-base);
 }
 
-/* ---------- автор ---------- */
-.help-author {
+/* ---------- раздел настроек (R51) ---------- */
+.settings-support {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.settings-support__head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
+  gap: var(--space-3);
 }
-.help-author__link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  border-radius: var(--radius-1);
+.settings-support__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
   color: var(--accent);
-  font-weight: var(--weight-medium);
-  text-decoration: none;
 }
-.help-author__link:hover {
-  text-decoration: underline;
+.settings-support__icon > svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .help-loading {

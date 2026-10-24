@@ -23,6 +23,7 @@ export type SectionId =
   | 'sounds'
   | 'accounts'
   | 'server'
+  | 'support'
   | 'about';
 
 export type GroupId = 'app' | 'meetings' | 'connections' | 'cord';
@@ -44,7 +45,10 @@ export interface SectionSpec {
   layout?: 'cards' | 'groups';
 }
 
-/** Группы разделов по порядку. «О программе» (`cord`) стоит особняком внизу, как у Discord: это не настройка, а справка. */
+/**
+ * Группы разделов по порядку. «Поддержка» и «О программе» (`cord`) стоят особняком внизу, как у
+ * Discord: это не настройки, а справка.
+ */
 export const GROUPS: GroupId[] = ['app', 'meetings', 'connections', 'cord'];
 
 export const SECTIONS: SectionSpec[] = [
@@ -59,6 +63,9 @@ export const SECTIONS: SectionSpec[] = [
   { id: 'sounds', group: 'meetings', anchors: [] },
   { id: 'accounts', group: 'connections', anchors: [] },
   { id: 'server', group: 'connections', anchors: [] },
+  // Поддержка — над «О программе», с гарнитурой (R51): вопросы, проверка и обращение прямо здесь,
+  // без второго окна поверх настроек.
+  { id: 'support', group: 'cord', anchors: [] },
   { id: 'about', group: 'cord', anchors: [] },
 ];
 
@@ -74,8 +81,8 @@ const LEGACY: Record<string, { section: SectionId; anchor?: AnchorId }> = {
   video: { section: 'video', anchor: 'camera' },
   connection: { section: 'server' },
   theme: { section: 'appearance' },
-  // `cord://settings/help` и «Помощь» оболочки: частые вопросы, обращение и знакомство — в «О программе».
-  help: { section: 'about' },
+  // `cord://settings/help` и «Помощь» оболочки: частые вопросы и обращение — в «Поддержке» (R51).
+  help: { section: 'support' },
 };
 
 export interface Place {
@@ -204,7 +211,6 @@ export const ROWS = {
   'server-ping': { section: 'server' },
   'about-version': { section: 'about' },
   'about-updates': { section: 'about' },
-  'about-help': { section: 'about' },
   'about-tour': { section: 'about' },
 } satisfies Record<string, RowSpec>;
 

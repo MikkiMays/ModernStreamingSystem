@@ -430,13 +430,15 @@ describe('«Аккаунты» (T33, R39)', () => {
 });
 
 describe('«О программе»', () => {
-  it('без строки «Автор» и ссылки на Telegram автора (R50): версия, обновления, помощь, знакомство', () => {
+  it('без строки «Автор» и ссылки на Telegram автора (R50): версия и обновления; поддержка — свой раздел (R51)', () => {
     render(<Settings open section="about" onOpenChange={vi.fn()} />);
     const body = document.querySelector('.settings-content')!;
     expect(body).not.toHaveTextContent(/Автор|nikgers|развивает/);
     expect(within(body as HTMLElement).queryByRole('link', { name: /Telegram/ })).toBeNull();
-    for (const label of ['Версия', 'Обновления', 'Помощь и поддержка'])
+    for (const label of ['Версия', 'Обновления'])
       expect(within(body as HTMLElement).getByText(label)).toBeInTheDocument();
+    expect(within(body as HTMLElement).queryByText('Помощь и поддержка')).toBeNull();
+    expect(within(nav()).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
   });
 });
 
