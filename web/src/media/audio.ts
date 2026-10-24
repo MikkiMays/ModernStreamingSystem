@@ -26,9 +26,14 @@ import type { AudioPreferences } from '../core/preferences';
  *
  * `dtx` — молчание не передаётся. Для микрофона это правильно: в комнате на десять человек
  * девять молчат одновременно. Для музыки — нет, и там он выключен отдельно.
+ *
+ * `forceStereo: false` — речь всегда моно (R113). Без этого LiveKit сам решает по устройству:
+ * гарнитура или веб-камера, отдающая микрофон двумя каналами (`channelCount: 2`), публиковалась
+ * стерео Opus, и если звучал только один канал — а у таких устройств это обычное дело, — всех
+ * слушателей этот человек звучал в одном ухе. Моно-кодер сводит каналы сам, голос — в обоих ушах.
  */
 export function microphoneOptions(): TrackPublishOptions {
-  return { audioPreset: { maxBitrate: 64000 }, red: true, dtx: true };
+  return { audioPreset: { maxBitrate: 64000 }, red: true, dtx: true, forceStereo: false };
 }
 
 export function audioCapture(audio: AudioPreferences, deviceId?: string): AudioCaptureOptions {
@@ -63,6 +68,7 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
   private shared?: AudioContext;
   private ownsContext = false;
   private source?: MediaStreamAudioSourceNode;
+  private mono?: GainNode;
   private gain?: GainNode;
   private denoiser?: { disconnect(): void; destroy(): void };
   private destination?: MediaStreamAudioDestinationNode;
@@ -81,7 +87,16 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
     try {
       const source = context.createMediaStreamSource(new MediaStream([track]));
       this.source = source;
-      let tail: AudioNode = source;
+      // Речь — один канал (R113). Устройство может отдать два, из которых звучит один, а RNNoise
+      // с `maxChannels: 1` обрабатывает только первый и оставляет второй нулями: на выходе было
+      // стерео «голос слева, тишина справа». Сводим заранее, по правилам «динамиков» ((L+R)/2).
+      const mono = context.createGain();
+      mono.channelCount = 1;
+      mono.channelCountMode = 'explicit';
+      mono.channelInterpretation = 'speakers';
+      this.mono = mono;
+      source.connect(mono);
+      let tail: AudioNode = mono;
       if (this.settings.suppression === 'rnnoise') {
         const { RnnoiseWorkletNode, loadRnnoise } = await import('@sapphi-red/web-noise-suppressor');
         const [worklet, wasm, simd] = await Promise.all([
@@ -104,6 +119,9 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
       this.gain = gain;
       gain.gain.value = this.settings.gain;
       const destination = context.createMediaStreamDestination();
+      // У назначения по умолчанию два канала: моно разложилось бы в стерео-дорожку.
+      destination.channelCount = 1;
+      destination.channelCountMode = 'explicit';
       this.destination = destination;
       tail.connect(gain).connect(destination);
       this.processedTrack = destination.stream.getAudioTracks()[0];
@@ -120,12 +138,14 @@ export class CordAudioProcessor implements TrackProcessor<Track.Kind.Audio, Audi
   async destroy() {
     this.revision++;
     this.source?.disconnect();
+    this.mono?.disconnect();
     this.denoiser?.disconnect();
     this.denoiser?.destroy();
     this.gain?.disconnect();
     this.destination?.stream.getTracks().forEach((track) => track.stop());
     this.processedTrack = undefined;
     this.source = undefined;
+    this.mono = undefined;
     this.denoiser = undefined;
     this.gain = undefined;
     this.destination = undefined;

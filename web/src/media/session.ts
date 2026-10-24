@@ -14,6 +14,7 @@ import {
   type LocalTrack,
   type VideoCodec,
   createLocalAudioTrack,
+  RemoteAudioTrack,
 } from 'livekit-client';
 import { ApiError, type RoomApi } from '../api/client';
 import { Store } from '../core/store';
@@ -43,6 +44,9 @@ import {
 } from '../core/preferences';
 import { signal } from '../core/sounds';
 import { recallVolume, rememberVolume } from '../core/volumes';
+import { SpeechDownmix } from './downmix';
+import { receivedLevel, waitForPause } from './speech-pause';
+import { applyVolumeNow } from './volume';
 import { audioCapture, CordAudioProcessor, microphoneOptions, needsAudioProcessor } from './audio';
 import { VoiceLevels } from './levels';
 import {
@@ -249,6 +253,8 @@ export class MediaSession {
   private audioContext = createAudioContext();
   /** Звук собеседников стоит и ждёт касания — после фона, обычного звонка, перезагрузки. */
   readonly audio = new AudioWaker(this.audioContext);
+  /** Голос — в оба уха, как бы его ни прислали (R113, `downmix.ts`). */
+  private downmix = new SpeechDownmix(this.audioContext);
   private wake = new ScreenWake();
   private micGaps = new MicInterruptions();
   private watchedMic: MediaStreamTrack | null = null;
@@ -378,6 +384,8 @@ export class MediaSession {
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
   private lastLiveReset = new Map<string, number>();
+  /** Голоса, чья переподписка ждёт паузы говорящего. */
+  private pausing = new Set<string>();
   private resetting = new Set<string>();
   private liveAbort = new AbortController();
   private playout = new PlayoutController();
@@ -463,6 +471,7 @@ export class MediaSession {
       .on(RoomEvent.TrackUnsubscribed, (_track, publication?: RemoteTrackPublication) => {
         if (publication) {
           this.playout.forget(publication.trackSid);
+          this.downmix.forget(publication.trackSid);
         }
       })
       .on(RoomEvent.TrackUnsubscribed, this.refreshTracks)
@@ -537,7 +546,29 @@ export class MediaSession {
     )
       return;
     this.serviceParticipants = next;
+    this.syncDownmix();
     void this.tunePlayout();
+  }
+  /**
+   * Речь — моно на приёме, музыка и звук показа — как есть (R113). Зовётся при подписке и когда
+   * ядро сообщило, кто в комнате служебный: бот музыки публикует «микрофон», и пока о нём не
+   * знали, его звук мог получить сведение — тогда оно снимается.
+   */
+  private syncDownmix(only?: string) {
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.trackPublications.values()) {
+        const track = publication.track;
+        if (!(track instanceof RemoteAudioTrack) || (only && publication.trackSid !== only)) continue;
+        const speech =
+          this.playoutKind(participant.identity, publication.source, track.kind) === 'conversation';
+        // Цепочка пересобрана — LiveKit завёл новый узел громкости на 1: выставить громкость участника
+        // сразу, иначе заглушённый собеседник прозвучал бы (T49, `volume.ts`).
+        if (this.downmix.sync(publication.trackSid, track, speech) && track.attachedElements.length)
+          applyVolumeNow(
+            track as unknown as Parameters<typeof applyVolumeNow>[0],
+            this.volumes.get()[participant.identity] ?? 1,
+          );
+      }
   }
   private playoutTracks(): PlayoutTrack[] {
     const tracks: PlayoutTrack[] = [];
@@ -570,7 +601,10 @@ export class MediaSession {
       for (const report of reports)
         if (report.resync && report.kind !== 'video') {
           const found = this.findPublication(report.id);
-          if (found) void this.resetLivePair(found.identity, found.publication.source, true);
+          if (!found) continue;
+          if (report.kind === 'conversation')
+            void this.resyncSpeechInPause(found.identity, found.publication, report.measuredMs ?? 0);
+          else void this.resetLivePair(found.identity, found.publication.source, true);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
@@ -590,6 +624,8 @@ export class MediaSession {
     participant?: Participant,
   ) => {
     if (!track || !publication || !participant) return;
+    // До того как Stage подключит дорожку к элементу: сведение встаёт без пересборки цепочки.
+    if (track.kind === Track.Kind.Audio) this.syncDownmix(publication.trackSid);
     // Запас выдаётся сразу при подписке. Ждать первой статистики нельзя: эти две секунды
     // дорожка прожила бы с нулевым буфером, а первые секунды слышны лучше всех прочих.
     this.playout.prime({
@@ -755,17 +791,46 @@ export class MediaSession {
       ]),
     );
   }
+  /**
+   * Переподписать раздутый голос, когда в буфере одна тишина (R107, `speech-pause.ts`).
+   *
+   * Переподписка выбрасывает всё, что лежит в буфере, а лежат там последние `bufferedMs` пришедшего
+   * звука — значит, пауза нужна не «сейчас», а длиной во весь буфер: громкость пришедших пакетов
+   * тише 0,01 и SFU не считает человека говорящим `bufferedMs + 300` мс подряд. Так бывает, когда
+   * говорит кто-то другой. Не дождались за 20 с — не переподписываем: NetEq догонит сам, а
+   * выброшенная фраза — это и есть «звук обрезается».
+   */
+  private async resyncSpeechInPause(
+    identity: string,
+    publication: RemoteTrackPublication,
+    bufferedMs: number,
+  ) {
+    if (this.pausing.has(publication.trackSid)) return;
+    this.pausing.add(publication.trackSid);
+    try {
+      const paused = await waitForPause(
+        () =>
+          this.room.remoteParticipants.get(identity)?.isSpeaking
+            ? 1
+            : receivedLevel(publication.track?.receiver),
+        { signal: this.liveAbort.signal, quietMs: Math.min(5000, bufferedMs + 300), withinMs: 20000 },
+      );
+      if (paused && !this.disposed) await this.resetLivePair(identity, publication.source, true);
+    } finally {
+      this.pausing.delete(publication.trackSid);
+    }
+  }
   private async resetLivePair(identity: string, source: Track.Source, automatic: boolean) {
     // Пара экрана — и картинка, и её звук: сброс по любой из них не должен трогать камеру и микрофон.
+    // Камера сбрасывается одна (R107): раньше вместе с ней переподписывался и микрофон, и зависшая
+    // на плохом канале картинка оборачивалась провалом голоса — тем самым «звук обрезается».
     const screen = source === Track.Source.ScreenShare || source === Track.Source.ScreenShareAudio;
-    const key = `${identity}:${screen ? 'screen' : 'camera'}`;
+    const key = `${identity}:${screen ? 'screen' : source}`;
     if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < 30000))
       return;
     const participant = this.room.remoteParticipants.get(identity);
     if (!participant) return;
-    const sources = screen
-      ? [Track.Source.ScreenShare, Track.Source.ScreenShareAudio]
-      : [Track.Source.Camera, Track.Source.Microphone];
+    const sources = screen ? [Track.Source.ScreenShare, Track.Source.ScreenShareAudio] : [source];
     const publications = [...participant.trackPublications.values()].filter(
       (p) => sources.includes(p.source) && p.isSubscribed && p.isEnabled && !p.isMuted,
     );
@@ -774,7 +839,7 @@ export class MediaSession {
     this.lastLiveReset.set(key, Date.now());
     // Служебная переподписка — в журнал, не на сцену (R27): плашка «Обновляем прямой эфир…»
     // мигала поверх разговора и ничего не просила сделать.
-    console.debug('[cord] live resubscribe', identity, screen ? 'screen' : 'camera+microphone');
+    console.debug('[cord] live resubscribe', identity, screen ? 'screen' : source);
     try {
       await Promise.all(publications.map((p) => this.unsubscribeForRefresh(p)));
     } finally {

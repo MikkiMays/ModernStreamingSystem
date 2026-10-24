@@ -1,4 +1,4 @@
-import type { EventEmitter } from 'node:events';
+import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RoomEvent,
@@ -337,6 +337,43 @@ describe('selective screen subscriptions', () => {
     expect(b.map((p) => p.isDesired)).toEqual([true, true]);
     media.watchScreen(null);
     expect(b.map((p) => p.isDesired)).toEqual([false, false]);
+    media.dispose();
+  });
+});
+
+/**
+ * R107: «звук говорящего будто обрезается». Сброс зависшей картинки переподписывал и микрофон того
+ * же человека — у слушателя пропадал голос на время переподписки, хотя со звуком всё было в порядке.
+ */
+describe('сброс живой картинки не трогает голос', () => {
+  it('«Вернуться в эфир» переподписывает камеру, а микрофон остаётся подписанным', async () => {
+    const { media, room } = fixture();
+    (media as unknown as { patch(v: object): void }).patch({ status: 'connected' });
+    const publication = (source: Track.Source, sid: string) => {
+      const p = Object.assign(new EventEmitter(), {
+        source,
+        trackSid: sid,
+        isSubscribed: true,
+        isEnabled: true,
+        isMuted: false,
+        setSubscribed: vi.fn(function (this: { emit(e: string): void }, value: boolean) {
+          if (!value) queueMicrotask(() => this.emit('unsubscribed'));
+        }),
+      });
+      return p;
+    };
+    const camera = publication(Track.Source.Camera, 'TR_cam');
+    const microphone = publication(Track.Source.Microphone, 'TR_mic');
+    room.remoteParticipants.set('a', {
+      identity: 'a',
+      trackPublications: new Map([
+        ['TR_cam', camera],
+        ['TR_mic', microphone],
+      ]),
+    });
+    await media.returnToLive();
+    expect(camera.setSubscribed).toHaveBeenCalledWith(false);
+    expect(microphone.setSubscribed).not.toHaveBeenCalled();
     media.dispose();
   });
 });

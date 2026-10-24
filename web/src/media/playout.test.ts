@@ -193,6 +193,40 @@ describe('решение по дорожке', () => {
     expect(flooded.targetMs).toBe(profile.startMs);
   });
 
+  /**
+   * R107: переподписка — это провал звука на полсекунды-секунду (новый приёмник, NetEq с нуля).
+   * Раньше разговор переподписывался на первом же опросе, где буфер раздуло за 1,4 с, — посреди
+   * фразы. Но и не переподписывать нельзя: после «пробки» в сети (bufferbloat) NetEq держит свою
+   * цель за секунду ещё десятки секунд (замер `bloat-after`), это рация. Поэтому разговор просит
+   * переподписку, только если буфер раздут два опроса подряд, а саму её сессия делает в паузе
+   * говорящего (`speech-pause.ts`).
+   */
+  it('разговор: пачка на один опрос — не повод, NetEq догонит сам', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    buffer.observe(audio(0), 0);
+    const flooded = buffer.observe(audio(2, { jitterBufferDelay: 3 * 2 * RATE }), 2000);
+    expect(flooded.measuredMs).toBeCloseTo(3000, 0);
+    expect(flooded.resync).toBe(false);
+    const drained = buffer.observe(audio(4, { jitterBufferDelay: 3 * 2 * RATE + 0.3 * 2 * RATE }), 4000);
+    expect(drained.resync).toBe(false);
+  });
+
+  it('разговор: раздут два опроса подряд — просит переподписку, и снова, пока раздут', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    buffer.observe(audio(0), 0);
+    let delay = 0;
+    const tick = (seconds: number) => {
+      delay += 1.6 * 2 * RATE;
+      return buffer.observe(audio(seconds, { jitterBufferDelay: delay }), seconds * 1000);
+    };
+    expect(tick(2).resync).toBe(false);
+    expect(tick(4).resync).toBe(true);
+    // Паузы не случилось — просьба повторяется на следующих опросах, пока буфер раздут.
+    expect(tick(6).resync).toBe(true);
+  });
+
   it('разговор на джиттере поднимается на 60 мс и не выше 400', () => {
     const profile = profileFor('conversation');
     const buffer = new PlayoutBuffer('conversation', profile, 0);

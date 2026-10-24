@@ -10,7 +10,10 @@ spring:
   data.redis:
     host: ${REDIS_HOST:localhost}
     password: ${REDIS_PASSWORD:}
+    # Команда — полсекунды, подключение — секунда (по умолчанию у Lettuce 10 с): дольше ждать
+    # счётчик частоты незачем, на время сбоя он считает в памяти ядра (R106, `RateLimits`).
     timeout: 500ms
+    connect-timeout: 1s
   jackson.deserialization.fail-on-null-for-primitives: false
 server:
   port: 8080

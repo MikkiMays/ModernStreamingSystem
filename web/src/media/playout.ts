@@ -141,6 +141,8 @@ export const JITTER_EVENT_MS = 120;
 export const JITTER_EVENTS = 3;
 /** Буфер раздуло настолько выше потолка, что дешевле переподписаться, чем ждать. */
 export const RESYNC_EXCESS_MS = 1000;
+/** Сколько опросов подряд буфер разговора должен быть раздут, прежде чем его переподписать. */
+export const SPEECH_RESYNC_POLLS = 2;
 
 /**
  * Разбор заглушки за интервал.
@@ -190,6 +192,7 @@ export class PlayoutBuffer {
   private previous?: PlayoutSample;
   private targetMs: number;
   private peakJitterMs = 0;
+  private bloatedPolls = 0;
   private calmSince: number;
   private profile: PlayoutProfile;
   constructor(
@@ -273,8 +276,17 @@ export class PlayoutBuffer {
     }
     this.targetMs = clamp(Math.round(want), profile.floorMs, profile.ceilingMs);
     // Буфер раздуло пачкой далеко за потолок: NetEq будет выбрасывать звук, догоняя цель,
-    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место.
-    const resync = measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место — но это провал звука.
+    // Музыке он дешевле секунд отставания. Разговору (R107) — только если раздуто не на один опрос
+    // (короткую пачку NetEq догонит сам), и сессия ещё дождётся паузы говорящего (`speech-pause.ts`):
+    // посреди фразы это и есть «звук обрезается». А не переподписывать вовсе нельзя: после «пробки»
+    // в сети NetEq держит свою цель за секунду ещё десятки секунд — разговор становится рацией.
+    const bloated = measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    this.bloatedPolls = bloated ? this.bloatedPolls + 1 : 0;
+    const resync =
+      this.kind === 'media'
+        ? bloated
+        : this.kind === 'conversation' && this.bloatedPolls >= SPEECH_RESYNC_POLLS;
     return {
       targetMs: this.targetMs,
       concealRatio,
