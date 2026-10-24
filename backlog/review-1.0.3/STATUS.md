@@ -73,7 +73,7 @@
 | R67 | W-CI | готово (22.10): `main` `5333578`, CI зелёный | прогон `verify.yml` после `5333578` |
 | R68 | W1b | ждёт | |
 | R69 | W-int | ждёт | |
-| R70 | W5 | готово в ветке `review/w5` (24.10), не выкачено | переключатель в меню и окне — выкачен раньше (`f04bdb9`); остаток: меню после щелчка не закрывается, в окне — без пояснения (`favorites.settings.autojoinHint` ×8, `.favorite-auto` убраны); `home.test.tsx`, `favorite-settings.test.tsx`; e2e `return-and-settings` (aria-checked + Esc) — в CI (новых встреч стенд не пускал); снимки `shots/r70-menu-*` |
+| R70 | W5 | готово в ветке `review/w5` (24.10), не выкачено | переключатель в меню и окне — выкачен раньше (`f04bdb9`); остаток: меню после щелчка не закрывается, в окне — без пояснения (`favorites.settings.autojoinHint` ×8, `.favorite-auto` убраны); `home.test.tsx`, `favorite-settings.test.tsx`; e2e `return-and-settings` (aria-checked + Esc) — зелёный в CI 40131776567 (новых встреч стенд не пускал); снимки `shots/r70-menu-*` |
 | R71 | W5 | готово в ветке `review/w5` (24.10), не выкачено | «Закрепить «имя»» слева от «…» у каждой встречи (aria-pressed), у закреплённой видна всегда и синяя, у остальных — под указателем/фокусом, на касании — всегда (Р-4); `home.test.tsx` (+1); снимки `shots/r71-rows-*` |
 | R72 | W7 | готово, выкачено (24.10, `gateway`) (`da9c0c2`) | зонтичная — R73, R74, R76; «Перед разговором» — kit `Dialog` не выше окна, без подзаголовка, качество сегментами (R78); `ui/prejoin.test.tsx` (5: 720p · 30 по умолчанию, отказ устройства под превью, команда создания); `review-1.0.3/shots/r72-settings-{before,after}-*` |
 | R73 | W7 | готово, выкачено (24.10, `gateway`) (`da9c0c2`) | в 1280×714 всё в окне, кнопка входа видна, превью и форма с одной линии (разница верхов ≤ 8 px), полоса `html` не нужна; e2e `meeting.spec` «предвход помещается в любое окно…»; `review-1.0.3/shots/r76-prejoin-{before,after}-1280x714-*` |
@@ -152,6 +152,6 @@
 | I7 | W7 → `main`, выкатка №7 | ветка `review/prejoin` готова (24.10): R72–R74, R76, R60 (веб), R80, R82 (n05), R95 (UI), R103 (ядро); CI `verify.yml` 40124640089 зелёный (core, browser с e2e, deployment-config); vitest 1369/1369; встреч на стенде — 2; выкатка — `gateway` |
 | I8 | W4 → `main`, выкатка №8 | ждёт |
 | I9 | W6 → `main`, выкатка №9 | ждёт |
-| I10 | W5 → `main`, выкатка №10 | ждёт |
+| I10 | W5 → `main`, выкатка №10 | ветка `review/w5` готова (25.10): R35, R36, R65, R70, R71, R86; CI `verify.yml` 40131776567 зелёный (core, browser — e2e 85 passed / 9 skipped, среди них home-shell, return-and-settings, desktop, onboarding, call-screen, call-footer; deployment-config); vitest 1416/1416; встреч на стенде — 0 (стенд ответил «Слишком много новых встреч за час»); выкатка — `gateway` |
 | I11 | WD2 → `main` обеих реп, выкатка №11, релиз 1.0.5 | ждёт |
 | I12 | W-int: полные прогоны, документы, финал | ждёт |
