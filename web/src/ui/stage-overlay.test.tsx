@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
+import { readPreferences } from '../core/preferences';
 import type { MusicState } from '../core/services';
 import { Store } from '../core/store';
 import { t } from '../i18n';
@@ -115,6 +116,7 @@ function fakeMeeting(initial: Snapshot) {
     snapshot: new Store(initial),
     viewing: new Store(null),
     ended: new Store<string | null>(null),
+    media: { preferences: new Store(readPreferences()), saveSettings: vi.fn() },
   } as unknown as Meeting & { snapshot: Store<Snapshot> };
 }
 

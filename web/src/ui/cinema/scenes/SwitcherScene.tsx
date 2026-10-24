@@ -265,7 +265,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                   ? t(($) => $.cinema.switcher.foundSections)
                   : t(($) => $.cinema.switcher.popularSections)}
               </h4>
-              {quiet && <Unreachable provider={provider} onRetry={providers.refetch} />}
+              {quiet && <Unreachable name={providerName(t, provider)} onRetry={providers.refetch} />}
               {categories.isError && <Failure problem={categories.error} onRetry={again(categories)} />}
               {categories.data && <Grid kind="boxes">{cardsOf(categories.data.pages).map(card)}</Grid>}
               {categories.isFetching && !categories.isFetchingNextPage && <Loading />}
@@ -280,7 +280,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
             </>
           ) : (
             <>
-              {quiet && <Unreachable provider={provider} onRetry={providers.refetch} />}
+              {quiet && <Unreachable name={providerName(t, provider)} onRetry={providers.refetch} />}
               {provider === 'youtube' && !quiet && settled.length <= 1 && (
                 <div className="cinema-empty">
                   <Clapperboard size={40} />

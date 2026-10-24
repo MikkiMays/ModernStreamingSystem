@@ -1,6 +1,7 @@
 import { ApiError, request } from '../api/client';
 import type { Admission } from '../api/types';
 import { t as translate, type Translate } from '../i18n';
+import { CATALOG_TIMEOUT } from './cinema/reach';
 
 /** Откуда трек в очереди. YouTube и SoundCloud — площадки без аккаунта (E06-B, T18). */
 export type MusicSource = 'upload' | 'telegram' | 'yandex' | 'youtube' | 'soundcloud';
@@ -56,12 +57,19 @@ export interface MusicState {
   participantId: string | null;
   repeat: boolean;
   queue: MusicTrack[];
+  /** Есть ли куда вернуться кнопкой «назад» (`previous`): служба помнит сыгранные треки. */
+  previous?: boolean;
 }
 export interface ServiceCatalog {
   services: { id: string; name: string; description: string }[];
   /** `webapp` — Mini App включён на сервере и бот на связи (E09): витрина открывает Telegram. */
   telegram: { username: string | null; connected: boolean; webapp?: boolean };
   sources: string[];
+  /**
+   * Источники, до которых этот сервер сейчас не достаёт (R112): поиск и ссылки YouTube идут тем же
+   * автоматом площадки, что и кинозал. Служба постарше поля не шлёт — тогда недоступных нет.
+   */
+  unreachable?: string[];
   maxFileBytes: number;
 }
 /** Вход из Mini App Telegram: имя из проверенной `initData` и приглашение во встречу беседы. */
@@ -85,7 +93,18 @@ export interface TelegramChat {
   pinned: boolean;
 }
 export type MusicAction =
-  'play' | 'pause' | 'skip' | 'stop' | 'clear' | 'shuffle' | 'repeat' | 'remove' | 'next' | 'seek' | 'move';
+  | 'play'
+  | 'pause'
+  | 'skip'
+  | 'previous'
+  | 'stop'
+  | 'clear'
+  | 'shuffle'
+  | 'repeat'
+  | 'remove'
+  | 'next'
+  | 'seek'
+  | 'move';
 const post = (body: unknown) => ({ method: 'POST', body: JSON.stringify(body) });
 export const servicesApi = {
   catalog: () => request<ServiceCatalog>('/services/catalog'),
@@ -119,12 +138,15 @@ export class MusicApi {
       post({ commandId: crypto.randomUUID(), action, ...extra }),
       this.admission.credential,
     );
-  /** Поиск на площадке без аккаунта: YouTube или SoundCloud. */
+  /**
+   * Поиск на площадке без аккаунта: YouTube или SoundCloud. У службы на него жёсткий срок (как у
+   * каталога кинозала, R112), браузер ждёт на пять секунд дольше (`CATALOG_TIMEOUT`): дольше ответа
+   * уже не будет. Площадку, до которой сервер не достаёт, служба отказывает сразу (`MUSIC_UNREACHABLE`).
+   */
   search = (source: PlatformTrack['source'], query: string) =>
     request<PlatformTrack[]>(
       `${this.base}/music/search`,
-      // Первый поиск площадки после запуска службы поднимает движок yt-dlp — дольше обычных восьми секунд.
-      { ...post({ source, query }), signal: AbortSignal.timeout(20000) },
+      { ...post({ source, query }), signal: AbortSignal.timeout(CATALOG_TIMEOUT) },
       this.admission.credential,
     );
   /** Трек по ссылке или из найденного: служба скачивает его и ставит в очередь. */
@@ -209,3 +231,26 @@ export class YandexApi {
       signal: AbortSignal.timeout(180000),
     });
 }
+
+/** Ответ опроса входа по коду устройства без встречи: ждём — или токен, ровно один раз. */
+export type YandexDevicePoll =
+  (YandexAuthorization & { status: 'pending' }) | { status: 'connected'; token: string; name: string | null };
+
+/**
+ * Вход в Яндекс Музыку по QR без встречи — из «Аккаунтов» настроек (R39, DECISIONS Р-15). Комнаты нет,
+ * поэтому и пропуска нет: код живёт на службе, а токен по подтверждении отдаётся этому устройству один
+ * раз и на сервере не остаётся — дальше его хранит устройство, как вставленный руками.
+ */
+export const yandexDeviceApi = {
+  start: () => request<YandexAuthorization>('/services/yandex/device', post({})),
+  // Служба сама спрашивает Яндекс до 15 с — браузер ждёт дольше обычных восьми.
+  poll: (id: string) =>
+    request<YandexDevicePoll>(`/services/yandex/device/${encodeURIComponent(id)}`, {
+      ...post({}),
+      signal: AbortSignal.timeout(20000),
+    }),
+  cancel: (id: string) =>
+    request<{ cancelled: boolean }>(`/services/yandex/device/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+};

@@ -1,7 +1,8 @@
 import { CloudOff, LoaderCircle, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { knownProvider } from '../../../core/cinema/link';
-import { LATE, providerName, refusedBy, type ProviderId } from '../../../core/cinema';
+import { LATE, MUSIC_LATE, providerName, refusedBy } from '../../../core/cinema';
+import { musicSourceName, type MusicSource } from '../../../core/services';
 import type { Translate } from '../../../i18n';
 import { Button } from '../../kit';
 
@@ -18,13 +19,21 @@ const OFFLINE = /failed to fetch|networkerror|load failed|network request failed
  * самого `fetch`, и его текст английский и браузерный («Failed to fetch»): его человек видеть не
  * должен. Срок запроса, вышедший у браузера, — `TimeoutError`, и он тоже не английский. Площадку,
  * до которой сервер не достаёт или которая не ответила за срок службы (R112), служба называет
- * кодом и именем (`refusedBy`) — и слова здесь свои, на языке человека.
+ * кодом и именем (`refusedBy`) — и слова здесь свои, на языке человека. Так же — отказы поиска и
+ * ссылок музыки (`MUSIC_UNREACHABLE`, `MUSIC_TIMEOUT`).
  */
 export function problemText(t: Translate, problem: unknown): string {
   const refused = refusedBy(problem);
-  if (refused && knownProvider(refused)) {
-    const name = providerName(t, refused);
-    return (problem as { code: string }).code === LATE
+  const music = refusedBy(problem, 'music');
+  const name =
+    refused && knownProvider(refused)
+      ? providerName(t, refused)
+      : music
+        ? musicSourceName(t, music as MusicSource)
+        : null;
+  if (name) {
+    const code = (problem as { code: string }).code;
+    return code === LATE || code === MUSIC_LATE
       ? t(($) => $.cinema.reach.late, { name })
       : t(($) => $.cinema.reach.unreachable, { name });
   }
@@ -59,13 +68,17 @@ export function Failure({ problem, onRetry }: { problem: unknown; onRetry?: () =
  * Площадка недоступна с этого сервера (`GET providers`: `code: CINEMA_UNREACHABLE`, R112) — вместо
  * витрины и подсказок, а не вместо самой площадки: вкладка остаётся, и человек видит, что с ней и
  * что делать. «Повторить» спрашивает службу снова: она сама проверит, вернулась ли площадка.
+ *
+ * Тот же блок — у музыки (`ui/music/MusicPanel`): YouTube музыки ходит тем же yt-dlp и тем же
+ * автоматом площадки, поэтому и недоступен с того же сервера одинаково. `name` — имя площадки на
+ * языке человека: у кинозала — `providerName`, у музыки — `musicSourceName`.
  */
-export function Unreachable({ provider, onRetry }: { provider: ProviderId; onRetry: () => void }) {
+export function Unreachable({ name, onRetry }: { name: string; onRetry: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="cinema-empty cinema-unreachable" role="status">
       <CloudOff size={40} />
-      <b>{t(($) => $.cinema.reach.unreachable, { name: providerName(t, provider) })}</b>
+      <b>{t(($) => $.cinema.reach.unreachable, { name })}</b>
       <small>{t(($) => $.cinema.reach.unreachableHint)}</small>
       <Button size="sm" icon={<RotateCw />} onClick={onRetry}>
         {t(($) => $.cinema.reach.retry)}

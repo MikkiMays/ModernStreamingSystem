@@ -13,6 +13,19 @@ import { ApiError } from '../../api/client';
  */
 export const UNREACHABLE = 'CINEMA_UNREACHABLE';
 export const LATE = 'CINEMA_TIMEOUT';
+/**
+ * Те же два отказа у музыки (поиск и ссылки YouTube идут тем же yt-dlp и тем же автоматом площадки,
+ * что и кинозал): `503 MUSIC_UNREACHABLE` и `504 MUSIC_TIMEOUT`, площадка — в поле `source`.
+ */
+export const MUSIC_UNREACHABLE = 'MUSIC_UNREACHABLE';
+export const MUSIC_LATE = 'MUSIC_TIMEOUT';
+
+/** Чьи отказы: коды и поле, где служба называет площадку. */
+const AREAS = {
+  cinema: { down: UNREACHABLE, late: LATE, field: 'provider' },
+  music: { down: MUSIC_UNREACHABLE, late: MUSIC_LATE, field: 'source' },
+} as const;
+export type ReachArea = keyof typeof AREAS;
 
 /**
  * Сколько браузер ждёт ответ каталога: срок службы на вопрос к площадке (`CATALOG_DEADLINE`, 25 с)
@@ -41,11 +54,18 @@ export function within(ms: number, signal?: AbortSignal): AbortSignal {
  * Отказ службы — про площадку (недоступна отсюда или не ответила вовремя)? Тогда — имя площадки из
  * отказа, как его назвала служба; своя ли это площадка, решает тот, кто её называет (`notes.tsx`).
  * Модуль нарочно без реестра площадок: его берёт и сборка приложения (`App.tsx`), а реестр — со значками.
+ * `area` — чьи это отказы: кинозала (по умолчанию) или музыки.
  */
-export function refusedBy(problem: unknown): string | null {
-  if (!(problem instanceof ApiError) || (problem.code !== UNREACHABLE && problem.code !== LATE)) return null;
-  const id = problem.problem.provider;
+export function refusedBy(problem: unknown, area: ReachArea = 'cinema'): string | null {
+  const { down, late, field } = AREAS[area];
+  if (!(problem instanceof ApiError) || (problem.code !== down && problem.code !== late)) return null;
+  const id = problem.problem[field];
   return typeof id === 'string' ? id : null;
+}
+
+/** Отказ — «площадка недоступна с этого сервера» (а не вышедший срок)? */
+export function unreachableRefusal(problem: unknown): boolean {
+  return problem instanceof ApiError && (problem.code === UNREACHABLE || problem.code === MUSIC_UNREACHABLE);
 }
 
 /** Вышел ли срок ожидания у самого браузера. */
