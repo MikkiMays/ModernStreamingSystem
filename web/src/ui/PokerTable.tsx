@@ -304,7 +304,10 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                   ))}
                 </span>
               )}
-              <span className="poker-street">{phaseLabel(t, table.phase)}</span>
+              {/* Улица — только пока идёт раздача; между раздачами состояние говорит шапка (R46). */}
+              {(playing(table) || showdown) && (
+                <span className="poker-street">{phaseLabel(t, table.phase)}</span>
+              )}
             </div>
             {/* Пауза посреди раздачи: часы стоят, ходить нельзя — и это должно быть видно. */}
             {table.paused && playing(table) && (

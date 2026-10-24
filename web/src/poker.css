@@ -406,6 +406,9 @@
   Срок пустого стола — в шапке, а не плашкой на сукне (R27, R46): тот же оранжевый обратный
   отсчёт, который останавливается тем, что кто-то сядет. Ждём игроков — спокойным цветом шапки.
 */
+.poker-bar .poker-status strong {
+  text-wrap: balance;
+}
 .poker-bar .poker-status[data-table-status='closing'] strong {
   color: var(--warning);
 }
@@ -2110,6 +2113,17 @@
     flex-wrap: nowrap;
     padding: 5px 8px;
     font-size: var(--text-xs);
+  }
+  /* Состояние стола между раздачами — своей строкой под полосой (R46): в одну строку с режимом и
+     кнопками ведущего оно на телефоне не помещается и выдавливало полосу за край экрана. */
+  .poker-bar:has(.poker-status) {
+    flex-wrap: wrap;
+  }
+  .poker-bar .poker-status {
+    order: 1;
+    flex: 1 0 100%;
+    min-height: 26px;
+    padding: 2px 8px;
   }
   .poker-mode b {
     font-size: var(--text-sm);
