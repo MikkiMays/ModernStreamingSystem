@@ -34,6 +34,8 @@ export interface Feed {
   isFetchingNextPage: boolean;
   hasNextPage: boolean;
   fetchNextPage: () => Promise<unknown>;
+  /** Спросить ленту заново — «Повторить» у отказа (`Failure`). */
+  refetch?: () => Promise<unknown>;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { Eye, ListVideo, Play, Tv, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { clock, published, viewers, type CinemaDetails, type CinemaItem } from '../../../../core/cinema';
-import { Failure, Loading } from '../notes';
+import { Failure, Loading, retryOf } from '../notes';
 
 /**
  * Подробности накрывают карточку из сетки — но только тем, что в них действительно есть.
@@ -39,7 +39,14 @@ export function ItemPage({
 }: {
   /** Карточка, по которой вошли: включается комнате именно она, а не её подробности. */
   item: CinemaItem;
-  details: { data?: CinemaDetails | null; isLoading: boolean; isError: boolean; error: unknown };
+  details: {
+    data?: CinemaDetails | null;
+    isLoading: boolean;
+    isError: boolean;
+    error: unknown;
+    /** Спросить страницу ролика заново — «Повторить» у отказа. */
+    refetch?: () => Promise<unknown>;
+  };
   canUse: boolean;
   busy: string;
   onWatch: (item: CinemaItem) => void;
@@ -94,7 +101,7 @@ export function ItemPage({
           ) : null}
         </div>
         {details.isLoading && <Loading />}
-        {details.isError && <Failure problem={details.error} />}
+        {details.isError && <Failure problem={details.error} onRetry={retryOf(details)} />}
         {shown.description && <p className="cinema-about">{shown.description}</p>}
       </div>
     </div>

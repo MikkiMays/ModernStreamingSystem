@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   listedProviders,
+  UNREACHABLE,
   type CinemaApi,
   type CinemaProviderStatus,
   type ProviderId,
@@ -16,6 +17,10 @@ import {
  *
  * Пока ответа нет, площадки считаются доступными — так плитки вели себя и раньше, когда этой проверки
  * не было вовсе: недоступность видна только тогда, когда служба её подтвердила.
+ *
+ * Площадку, до которой этот сервер не достаёт (`code: CINEMA_UNREACHABLE`, R112), служба называет
+ * отдельно (`unreachable`): каталог отмечает её вкладку и вместо витрины говорит, что с ней, — а
+ * «Повторить» спрашивает службу заново (`refetch`).
  */
 export function useProviders(api: CinemaApi) {
   const status = useQuery({
@@ -24,6 +29,7 @@ export function useProviders(api: CinemaApi) {
     staleTime: 60000,
   });
   const answer = status.data;
+  const { refetch } = status;
   return useMemo(() => {
     const entries = new Map<string, CinemaProviderStatus>(
       (Array.isArray(answer?.providers) ? answer.providers : []).map((entry) => [entry.id, entry] as const),
@@ -32,6 +38,10 @@ export function useProviders(api: CinemaApi) {
       listed: listedProviders(answer),
       /** Что служба сказала о площадке; `undefined` — ответа нет или площадки в нём нет. */
       entry: (id: ProviderId) => entries.get(id),
+      /** Не достаёт ли этот сервер до площадки — по слову службы, а не по догадке. */
+      unreachable: (id: ProviderId) => entries.get(id)?.code === UNREACHABLE,
+      /** Спросить службу снова: вернулась ли площадка. */
+      refetch: () => void refetch(),
     };
-  }, [answer]);
+  }, [answer, refetch]);
 }

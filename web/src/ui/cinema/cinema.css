@@ -211,6 +211,17 @@
   color: var(--on-accent);
   background: color-mix(in srgb, var(--accent, var(--accent-fill)) 80%, var(--stage-bg));
 }
+/*
+  Площадка, до которой этот сервер не достаёт (R112): вкладка остаётся на месте, но отмечена знаком
+  «нет связи» цвета предупреждения, а её подсказка по наведению говорит, что с ней. На выбранной
+  вкладке знак — цветом подписи: на цвете площадки жёлтый не читается.
+*/
+.cinema-service__reach {
+  color: var(--warning);
+}
+.cinema-service[aria-selected='true'] .cinema-service__reach {
+  color: inherit;
+}
 .cinema-bar .cinema-search {
   flex: 1 1 auto;
   min-width: 120px;
@@ -415,6 +426,23 @@
   font-size: var(--text-xs);
   max-width: 420px;
   line-height: 1.5;
+}
+/* Площадка недоступна с этого сервера: вместо витрины — что с ней и «Повторить» (R112). */
+.cinema-unreachable > svg {
+  color: var(--warning);
+}
+.cinema-unreachable .ui-button {
+  margin-top: 6px;
+}
+/* Отказ словами и «Повторить» рядом — одной строкой, на узкой сцене кнопка уходит под текст. */
+.cinema-failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.cinema-failure .form-error {
+  margin: 0;
 }
 .cinema-hints {
   display: flex;

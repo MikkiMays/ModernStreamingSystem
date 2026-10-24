@@ -250,6 +250,11 @@ export interface CinemaProviderStatus {
   account: CinemaAccountLevel;
   connected: boolean;
   features: CinemaProviderFeatures;
+  /**
+   * Только у площадки, до которой этот сервер не достаёт (`CINEMA_UNREACHABLE`, R112): по нему
+   * каталог отмечает её и называет причину на языке человека, а не русским `reason` службы.
+   */
+  code?: 'CINEMA_UNREACHABLE';
 }
 export interface CinemaProvidersResponse {
   providers: CinemaProviderStatus[];

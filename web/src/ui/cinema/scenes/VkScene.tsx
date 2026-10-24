@@ -14,7 +14,7 @@ import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, retryOf } from '../catalog/notes';
 import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { PlaylistPage } from '../catalog/pages/PlaylistPage';
@@ -174,6 +174,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
           checking={!!link.checking}
           problem={link.problem}
           waiting={link.asked !== linkOf(settled)}
+          onRetry={() => follow(settled)}
         />
       ) : null}
 
@@ -201,7 +202,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
               <small>{t(($) => $.cinema.vk.downHint, { error: (sections.error as Error).message })}</small>
             </div>
           ) : null}
-          {feed.isError ? <Failure problem={feed.error} /> : null}
+          {feed.isError ? <Failure problem={feed.error} onRetry={retryOf(feed)} /> : null}
           <Grid>{inSection.map(card)}</Grid>
           {(sections.isFetching && !sections.data) || (feed.isFetching && !feed.isFetchingNextPage) ? (
             <Loading />
@@ -229,7 +230,7 @@ export default function VkScene({ provider, at, meeting, onClose }: SceneProps) 
           {first?.channels.length ? (
             <h4 className="cinema-heading">{t(($) => $.cinema.headings.videos)}</h4>
           ) : null}
-          {results.isError ? <Failure problem={results.error} /> : null}
+          {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
           {results.data ? <Grid>{found.map(card)}</Grid> : null}
           {results.isFetching && !results.isFetchingNextPage ? <Loading /> : null}
           <More

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, type CSSProperties } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Clapperboard, Gamepad2, Radio } from 'lucide-react';
+import { Clapperboard, CloudOff, Gamepad2, Radio } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   CinemaApi,
@@ -16,7 +16,7 @@ import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { cardsOf } from '../catalog/cards';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, Unreachable } from '../catalog/notes';
 import { CategoryPage } from '../catalog/pages/CategoryPage';
 import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
@@ -83,8 +83,16 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
    * рисуется, как и её плитка в панели. Открытая остаётся всегда — сцена без своей же вкладки
    * выглядела бы потерянной, а отказ службы о ней и так говорит, что с ней.
    */
-  const { listed } = useProviders(api);
+  const providers = useProviders(api);
+  const { listed } = providers;
   const tabs = SWITCHER_TABS.filter((id) => id === provider || listed.includes(id));
+  /**
+   * Площадка, до которой этот сервер не достаёт (R112): её вкладка остаётся, но отмечена, а витрина
+   * вместо подсказок говорит, что с ней. Набранный поиск всё равно уходит к службе — она отвечает
+   * отказом сразу, словами, а не вечным «Спрашиваем площадку…».
+   */
+  const down = providers.unreachable(provider);
+  const reachNote = useId();
   /**
    * Ссылку спрашивают, когда её вставили целиком или открыли Enter, — не на паузу в наборе: каждая
    * пауза была бы разбором чужой страницы. Вставленная — сразу, без паузы поиска.
@@ -103,12 +111,14 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
   const home = view.at === 'home';
   /** Набрана ссылка — это не поиск: витрина и поиск молчат, пока служба не скажет, куда она ведёт. */
   const linked = !!linkOf(settled);
+  /** Площадка недоступна и ничего не набрано: показывать нечего, спрашивать незачем. */
+  const quiet = down && !settled;
   const results = useInfiniteQuery({
     queryKey: ['cinema', 'search', provider, settled],
     queryFn: ({ pageParam, signal }) => api.search(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && !linked && shelf === 'live' && (provider === 'twitch' || settled.length > 1),
+    enabled: home && !linked && !quiet && shelf === 'live' && (provider === 'twitch' || settled.length > 1),
     staleTime: 60000,
   });
   const categories = useInfiniteQuery({
@@ -116,10 +126,15 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
     queryFn: ({ pageParam, signal }) => api.categories(provider, settled, pageParam, signal),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
-    enabled: home && !linked && shelf === 'categories' && provider === 'twitch',
+    enabled: home && !linked && !quiet && shelf === 'categories' && provider === 'twitch',
     staleTime: 60000,
   });
   const page = usePage(api, provider, view);
+  /** «Повторить» у отказа: спросить снова и службу о площадках — вдруг площадка вернулась. */
+  const again = (query: { refetch: () => Promise<unknown> }) => () => {
+    providers.refetch();
+    void query.refetch();
+  };
 
   /** Куда ведёт карточка: в просмотр её подробностей или внутрь — на канал, в плейлист, в раздел. */
   const enter = (item: CinemaItem) => {
@@ -156,6 +171,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
         <div className="cinema-services" role="tablist" aria-label={t(($) => $.cinema.switcher.tabsLabel)}>
           {tabs.map((id) => {
             const service = PROVIDERS[id];
+            const unreachable = providers.unreachable(id);
             return (
               <button
                 key={id}
@@ -163,7 +179,13 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 aria-selected={provider === id}
                 className="cinema-service"
                 data-id={id}
-                title={t(($) => $.cinema.providers[id].hint)}
+                data-reach={unreachable ? 'down' : undefined}
+                title={
+                  unreachable
+                    ? t(($) => $.cinema.reach.unreachable, { name: providerName(t, id) })
+                    : t(($) => $.cinema.providers[id].hint)
+                }
+                aria-describedby={unreachable ? `${reachNote}-${id}` : undefined}
                 // Цвет выбранной вкладки — из реестра площадок, той же карточки, что красит и
                 // плитку в панели интеграций: CSS больше не хранит вторую копию этих hex-ов.
                 style={{ '--accent': service.accent } as CSSProperties}
@@ -171,6 +193,12 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
               >
                 <service.icon size={15} />
                 {providerName(t, id)}
+                {unreachable && <CloudOff className="cinema-service__reach" size={13} aria-hidden="true" />}
+                {unreachable && (
+                  <span id={`${reachNote}-${id}`} hidden>
+                    {t(($) => $.cinema.reach.unreachable, { name: providerName(t, id) })}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -197,6 +225,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
           checking={!!link.checking}
           problem={link.problem}
           waiting={link.asked !== linkOf(settled)}
+          onRetry={() => follow(settled)}
         />
       )}
 
@@ -236,7 +265,8 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                   ? t(($) => $.cinema.switcher.foundSections)
                   : t(($) => $.cinema.switcher.popularSections)}
               </h4>
-              {categories.isError && <Failure problem={categories.error} />}
+              {quiet && <Unreachable provider={provider} onRetry={providers.refetch} />}
+              {categories.isError && <Failure problem={categories.error} onRetry={again(categories)} />}
               {categories.data && <Grid kind="boxes">{cardsOf(categories.data.pages).map(card)}</Grid>}
               {categories.isFetching && !categories.isFetchingNextPage && <Loading />}
               <More
@@ -250,7 +280,8 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
             </>
           ) : (
             <>
-              {provider === 'youtube' && settled.length <= 1 && (
+              {quiet && <Unreachable provider={provider} onRetry={providers.refetch} />}
+              {provider === 'youtube' && !quiet && settled.length <= 1 && (
                 <div className="cinema-empty">
                   <Clapperboard size={40} />
                   <b>{t(($) => $.cinema.switcher.emptyTitle)}</b>
@@ -267,7 +298,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                   </div>
                 </div>
               )}
-              {provider === 'twitch' && !settled && (
+              {provider === 'twitch' && !settled && !quiet && (
                 <h4 className="cinema-heading">{t(($) => $.cinema.switcher.liveNow)}</h4>
               )}
               {/* Полки над лентой: каналы у YouTube, разделы у Twitch. Набрав имя канала,
@@ -291,7 +322,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                   <h4 className="cinema-heading">{t(($) => $.cinema.headings.channels)}</h4>
                 </>
               )}
-              {results.isError && <Failure problem={results.error} />}
+              {results.isError && <Failure problem={results.error} onRetry={again(results)} />}
               {results.data && <Grid>{cardsOf(results.data.pages).map(card)}</Grid>}
               {results.isFetching && !results.isFetchingNextPage && <Loading />}
               <More

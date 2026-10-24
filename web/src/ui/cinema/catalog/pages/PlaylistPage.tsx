@@ -3,7 +3,7 @@ import { Eye, ListVideo } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { published, viewers, type CinemaItem, type CinemaPlaylist } from '../../../../core/cinema';
 import { More } from '../More';
-import { Empty, Failure, Loading } from '../notes';
+import { Empty, Failure, Loading, retryOf } from '../notes';
 import { Grid } from '../tiles';
 import type { Feed } from '../usePage';
 
@@ -54,7 +54,7 @@ export function PlaylistPage({
           </div>
         </header>
       )}
-      {feed.isError && <Failure problem={feed.error} />}
+      {feed.isError && <Failure problem={feed.error} onRetry={retryOf(feed)} />}
       <Grid>{items.map(card)}</Grid>
       {feed.isFetching && !feed.isFetchingNextPage && <Loading />}
       <More

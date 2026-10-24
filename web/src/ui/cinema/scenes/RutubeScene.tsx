@@ -12,7 +12,7 @@ import {
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, retryOf } from '../catalog/notes';
 import { ChannelPage } from '../catalog/pages/ChannelPage';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
@@ -179,6 +179,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
           checking={!!link.checking}
           problem={link.problem}
           waiting={link.asked !== linkOf(settled)}
+          onRetry={() => follow(settled)}
         />
       ) : null}
 
@@ -202,7 +203,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
 
           {section ? (
             <>
-              {feed.isError ? <Failure problem={feed.error} /> : null}
+              {feed.isError ? <Failure problem={feed.error} onRetry={retryOf(feed)} /> : null}
               <Grid>{inSection.map(card)}</Grid>
               {feed.isFetching && !feed.isFetchingNextPage ? <Loading /> : null}
               <More
@@ -216,7 +217,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
             </>
           ) : (
             <>
-              {results.isError ? <Failure problem={results.error} /> : null}
+              {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
               {first?.items.length ? (
                 <Shelf
                   title={t(($) => $.cinema.rutube.live)}
@@ -260,7 +261,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
           {first?.channels.length || shows.length ? (
             <h4 className="cinema-heading">{t(($) => $.cinema.rutube.videosAndLive)}</h4>
           ) : null}
-          {results.isError ? <Failure problem={results.error} /> : null}
+          {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
           {results.data ? <Grid>{found.map(card)}</Grid> : null}
           {results.isFetching && !results.isFetchingNextPage ? <Loading /> : null}
           <More
@@ -277,7 +278,7 @@ export default function RutubeScene({ provider, at, meeting, onClose }: ScenePro
       {view.at === 'shelf' ? (
         <>
           <h4 className="cinema-heading">{view.title}</h4>
-          {results.isError ? <Failure problem={results.error} /> : null}
+          {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
           {view.id === 'shows' ? (
             <Grid kind="tall">{shows.map(card)}</Grid>
           ) : (

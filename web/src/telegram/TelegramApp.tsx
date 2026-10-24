@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { retryCatalog } from '../core/cinema/reach';
 import { useTranslation } from 'react-i18next';
 import { Globe, MicOff, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { publicApi } from '../api/client';
@@ -25,6 +26,9 @@ const MeetingView = lazy(() =>
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30000, retry: 1, refetchOnWindowFocus: false } },
 });
+// Кинозал сам не повторяет ни отказ недоступной площадки, ни вышедший срок: второе ожидание удвоило
+// бы «Спрашиваем площадку…», а у отказа есть кнопка «Повторить» (R112).
+queryClient.setQueryDefaults(['cinema'], { retry: retryCatalog });
 
 type Step =
   | { kind: 'entering' }

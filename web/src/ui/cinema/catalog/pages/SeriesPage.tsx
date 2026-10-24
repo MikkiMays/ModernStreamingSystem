@@ -3,7 +3,7 @@ import { Clapperboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { CinemaItem, CinemaSeriesInfo } from '../../../../core/cinema';
 import { More } from '../More';
-import { Empty, Failure, Loading } from '../notes';
+import { Empty, Failure, Loading, retryOf } from '../notes';
 import { Tabs } from '../Tabs';
 import { Grid } from '../tiles';
 import type { Feed } from '../usePage';
@@ -77,7 +77,7 @@ export function SeriesPage({
           tabClassName="cinema-tab"
         />
       ) : null}
-      {feed.isError ? <Failure problem={feed.error} /> : null}
+      {feed.isError ? <Failure problem={feed.error} onRetry={retryOf(feed)} /> : null}
       <Grid>{items.map(card)}</Grid>
       {feed.isFetching && !feed.isFetchingNextPage ? <Loading /> : null}
       <More

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Admission } from '../../api/types';
 import { CinemaApi } from './api';
+import { CATALOG_TIMEOUT, LINK_TIMEOUT, RESOLVE_TIMEOUT, timedOut } from './reach';
 
 const admission = { roomId: 'room-1', credential: 'token-1' } as Admission;
 
@@ -62,34 +63,67 @@ describe('CinemaApi: курсор в адресе', () => {
   });
 });
 
-describe('CinemaApi: таймаут resolve', () => {
-  it('resolve просит у запроса 20-секундный сигнал, а не восьмисекундный по умолчанию', async () => {
+describe('CinemaApi: сроки ответа (R112)', () => {
+  it('resolve ждёт на пять секунд дольше срока службы, а не восьмисекундный срок по умолчанию', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const api = new CinemaApi(admission);
     await api.resolve('youtube', 'dQw4w9WgXcQ', 'video');
-    expect(timeout).toHaveBeenCalledWith(20000);
+    expect(timeout).toHaveBeenCalledWith(RESOLVE_TIMEOUT);
+    expect(RESOLVE_TIMEOUT).toBe(30000);
     expect(timeout).not.toHaveBeenCalledWith(8000);
     const [, init] = calls().at(-1)!;
     // Сигнал, ушедший в fetch, — это ровно тот, что вернул наш собственный вызов таймаута:
     // `request()` не подменяет и не оборачивает уже заданный сигнал.
     expect(init.signal).toBe(timeout.mock.results.at(-1)!.value);
+    await api.resolve('link', 'abc', 'video');
+    expect(timeout).toHaveBeenLastCalledWith(LINK_TIMEOUT);
   });
 
-  it('вызов без своего сигнала получает восьмисекундный сигнал запроса — как было раньше', async () => {
+  it('вопрос каталога без своего сигнала ждёт срок каталога, а не восемь секунд', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const api = new CinemaApi(admission);
     await api.details('youtube', 'dQw4w9WgXcQ', 'video');
-    expect(timeout).toHaveBeenCalledWith(8000);
-    expect(timeout).not.toHaveBeenCalledWith(20000);
+    expect(timeout).toHaveBeenCalledWith(CATALOG_TIMEOUT);
+    expect(CATALOG_TIMEOUT).toBe(25000);
+    expect(timeout).not.toHaveBeenCalledWith(8000);
   });
 
-  it('свой сигнал вызывающего (react-query) доходит до fetch как есть', async () => {
+  it('сигнал react-query получает срок: раньше вопрос с ним висел «Спрашиваем площадку…» без конца', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const api = new CinemaApi(admission);
     const controller = new AbortController();
     await api.search('youtube', '', '', controller.signal);
+    expect(timeout).toHaveBeenCalledWith(CATALOG_TIMEOUT);
     const [, init] = calls().at(-1)!;
-    expect(init.signal).toBe(controller.signal);
-    expect(timeout).not.toHaveBeenCalled();
+    // Отмена вызывающего по-прежнему обрывает запрос.
+    expect(init.signal!.aborted).toBe(false);
+    controller.abort();
+    expect(init.signal!.aborted).toBe(true);
+  });
+
+  it('служба молчит — по сроку вопрос кончается отказом «вышел срок», а не висит', async () => {
+    const clock = new AbortController();
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(clock.signal);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_: string, init: RequestInit) =>
+          new Promise((_resolve, reject) =>
+            init.signal!.addEventListener('abort', () => reject(init.signal!.reason as Error)),
+          ),
+      ),
+    );
+    const api = new CinemaApi(admission);
+    const asked = api.search('youtube', 'кино', '', new AbortController().signal);
+    clock.abort(new DOMException('Срок вышел', 'TimeoutError'));
+    const problem = await asked.catch((error: unknown) => error);
+    expect(timedOut(problem)).toBe(true);
+  });
+
+  it('ссылка тоже ждёт не дольше срока разбора чужой страницы', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const api = new CinemaApi(admission);
+    await api.link('https://youtu.be/aqz-KE-bpKQ', new AbortController().signal);
+    expect(timeout).toHaveBeenCalledWith(LINK_TIMEOUT);
   });
 });
