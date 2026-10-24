@@ -27,7 +27,7 @@ from .music import Music
 from .sources import PLATFORMS, Sources
 from .store import Store, now
 from .webapp import Refusal, enabled, max_age, release, startgroup_url
-from .yandex import Yandex, routes
+from .yandex import Yandex, device_routes, routes
 
 # Источники музыки по порядку, в котором их видит человек. `MUSIC_SOURCES` — включённые через
 # запятую, пусто — все. YouTube и SoundCloud выключаются здесь одной строкой (E06-B, T18).
@@ -218,6 +218,7 @@ def create_app(
     app.state.cinema = cinema
     app.state.sources = sources
     app.include_router(routes(yandex, core))
+    app.include_router(device_routes(yandex))
     app.include_router(cinema_routes(cinema, core))
 
     @app.middleware("http")

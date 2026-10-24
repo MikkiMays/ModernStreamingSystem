@@ -2,6 +2,13 @@
 
 Device Flow keeps passwords on Yandex. Only complete, account-authorized audio
 is accepted; previews and DRM containers are never promoted to full tracks.
+
+ВХОД БЕЗ ВСТРЕЧИ (R39, DECISIONS Р-15). Аккаунт комнаты подключается кодом устройства, и токен
+остаётся на сервере в области встречи. «Настройки → Аккаунты» встречи не знают: там тот же код
+устройства (`/services/yandex/device`), но токен отдаётся устройству один раз — оно хранит его там же,
+где вставленный вручную, и подставляет при добавлении музыки, — а на сервере от входа остаётся только
+зашифрованный код устройства, пока вход не кончился. Заголовка входа у этих маршрутов нет, поэтому
+новых входов — не больше `DEVICE_PER_MINUTE` в минуту с адреса.
 """
 
 from __future__ import annotations
@@ -16,15 +23,45 @@ from urllib.parse import urlparse
 
 import httpx
 from cryptography.fernet import InvalidToken
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import Path as Segment
 from pydantic import BaseModel, Field
 from yandex_music import ClientAsync
 from yandex_music.exceptions import DeviceAuthError, UnauthorizedError, YandexMusicError
 
 from . import covers
 from .accounts import Vault
+from .cinema.limits import Window
 from .media import MAX_FILE, probe
 from .store import now
+from .webapp import Refusal
+
+# Новых входов по коду без встречи в минуту с одного адреса: человеку хватает одного-двух (код живёт
+# пять минут), а больше — это уже чужой скрипт, который гоняет Яндекс через наш сервер.
+DEVICE_PER_MINUTE = 5
+# Вход без встречи: код устройства, токен которого уходит устройству, а не в сейф комнаты.
+OWN_DEVICE = "yandex-device-own"
+# Хосты страницы входа, которые может назвать Яндекс: другой адрес под QR-кодом не показывается.
+SIGN_IN_HOSTS = ("ya.ru", "oauth.yandex.ru", "passport.yandex.ru", "id.yandex.ru")
+
+
+def client_address(request: Request) -> str:
+    """
+    Адрес собеседника, каким его видел шлюз: последний в `X-Forwarded-For` (Caddy дописывает его сам,
+    подставленное браузером остаётся левее), без шлюза — адрес соединения.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    last = forwarded.rsplit(",", 1)[-1].strip()
+    if last:
+        return last
+    return request.client.host if request.client else ""
+
+
+def sign_in_page(url: str) -> None:
+    """Страница входа — только Яндекса: чужой адрес под QR-кодом увёл бы пароль человека не туда."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in SIGN_IN_HOSTS:
+        raise HTTPException(502, "Яндекс вернул неизвестный адрес авторизации")
 
 
 class Yandex:
@@ -37,6 +74,9 @@ class Yandex:
         self.http = httpx.AsyncClient(
             timeout=httpx.Timeout(30, connect=8), follow_redirects=False
         )
+        self.devices = Window(DEVICE_PER_MINUTE, 60, "Слишком много запросов. Подождите минуту")
+        # Один вопрос к Яндексу разом на код входа без встречи; замок уходит вместе с кодом.
+        self.device_locks: dict[str, asyncio.Lock] = {}
         logging.getLogger("yandex_music").setLevel(logging.ERROR)
 
     def account(self, scope):
@@ -109,14 +149,7 @@ class Yandex:
                 "expiresAt": now() + code.expires_in * 1000,
                 "nextPoll": now() + max(5, code.interval) * 1000,
             }
-            parsed = urlparse(code.verification_url)
-            if parsed.scheme != "https" or parsed.hostname not in (
-                "ya.ru",
-                "oauth.yandex.ru",
-                "passport.yandex.ru",
-                "id.yandex.ru",
-            ):
-                raise HTTPException(502, "Яндекс вернул неизвестный адрес авторизации")
+            sign_in_page(code.verification_url)
             self.store.put_claim(token, value, code.expires_in * 1000)
             self.store.set_state("yandex-pending:" + scope, token)
             return self.auth_public(token, value)
@@ -172,6 +205,106 @@ class Yandex:
                 "UPDATE claims SET body=? WHERE token=?", (json.dumps(value), token)
             )
             return self.auth_public(token, value)
+
+    # --- вход без встречи (R39) ----------------------------------------------------------------
+
+    def limit_device(self, address: str) -> None:
+        """Не больше `DEVICE_PER_MINUTE` новых входов в минуту с адреса — отказ с кодом, как у ядра."""
+        try:
+            self.devices.take(address)
+        except HTTPException as limited:
+            raise Refusal(
+                429,
+                "RATE_LIMITED",
+                "Слишком много запросов. Подождите минуту",
+                headers=limited.headers,
+            ) from None
+
+    async def start_device(self):
+        """Новый код устройства для входа без встречи: QR, код для ввода и страница Яндекса."""
+        code = await self.request(
+            self.client_factory().request_device_code(device_name="Cord")
+        )
+        sign_in_page(code.verification_url)
+        token = secrets.token_urlsafe(24)
+        value = {
+            "kind": OWN_DEVICE,
+            "device": self.vault.fernet.encrypt(code.device_code.encode()).decode(),
+            "userCode": code.user_code,
+            "verificationUrl": code.verification_url,
+            "interval": max(5, code.interval),
+            "expiresAt": now() + code.expires_in * 1000,
+            "nextPoll": now() + max(5, code.interval) * 1000,
+        }
+        self.store.put_claim(token, value, code.expires_in * 1000)
+        return self.auth_public(token, value)
+
+    async def poll_device(self, token):
+        """
+        Подтвердил ли человек вход. Подтвердил — токен и имя аккаунта уходят устройству один раз, а код
+        забывается: второй вопрос получит 410. Раньше срока (`nextPoll`) Яндекс не спрашивается.
+        """
+        lock = self.device_locks.setdefault(token, asyncio.Lock())
+        try:
+            async with lock:
+                return await self._poll_device(token)
+        finally:
+            if self.store.claim(token) is None:
+                self.device_locks.pop(token, None)
+
+    async def _poll_device(self, token):
+        value = self.store.claim(token)
+        if not value or value.get("kind") != OWN_DEVICE:
+            raise HTTPException(410, "Код входа истёк. Получите новый")
+        if now() < value["nextPoll"]:
+            return self.auth_public(token, value)
+        try:
+            code = self.vault.fernet.decrypt(value["device"].encode()).decode()
+            authorization = await asyncio.wait_for(
+                self.client_factory().poll_device_token(code), 15
+            )
+        except DeviceAuthError as error:
+            if "slow_down" in str(error):
+                value["interval"] += 5
+                authorization = None
+            else:
+                self.store.delete_claim(token)
+                raise HTTPException(
+                    410, "Вход отменён или код истёк. Получите новый"
+                ) from None
+        except (YandexMusicError, TimeoutError, InvalidToken):
+            raise HTTPException(
+                502, "Не удалось проверить вход в Яндекс. Повторите"
+            ) from None
+        if authorization:
+            self.store.delete_claim(token)
+            return {
+                "status": "connected",
+                "token": authorization.access_token,
+                "name": await self.account_name(authorization.access_token),
+            }
+        value["nextPoll"] = now() + value["interval"] * 1000
+        self.store.db.execute(
+            "UPDATE claims SET body=? WHERE token=?", (json.dumps(value), token)
+        )
+        return self.auth_public(token, value)
+
+    async def account_name(self, token):
+        """Имя аккаунта для строки «Подключено» — или `None`: без имени вход всё равно состоялся."""
+        try:
+            status = await asyncio.wait_for(self.client_factory(token).account_status(), 8)
+        except (YandexMusicError, httpx.HTTPError, TimeoutError):
+            return None
+        account = getattr(status, "account", None)
+        name = account and (account.display_name or account.login)
+        return name[:120] if name else None
+
+    def cancel_device(self, token):
+        value = self.store.claim(token)
+        if value and value.get("kind") == OWN_DEVICE:
+            self.store.delete_claim(token)
+        self.device_locks.pop(token, None)
+        return {"cancelled": True}
 
     def client(self, scope):
         account = self.account(scope)
@@ -398,6 +531,30 @@ class Enqueue(BaseModel):
 
 class Token(BaseModel):
     token: str = Field(min_length=20, max_length=1000, pattern=r"^[A-Za-z0-9_.-]+$")
+
+
+# Номер входа без встречи — `secrets.token_urlsafe(24)`: 32 знака base64url.
+DEVICE_ID = Segment(pattern=r"^[A-Za-z0-9_-]{16,64}$")
+
+
+def device_routes(yandex):
+    """Вход по коду устройства без встречи (R39): «Настройки → Аккаунты», токен — устройству."""
+    router = APIRouter(prefix="/api/v1/services/yandex/device")
+
+    @router.post("")
+    async def start(request: Request):
+        yandex.limit_device(client_address(request))
+        return await yandex.start_device()
+
+    @router.post("/{device_id}")
+    async def poll(device_id: str = DEVICE_ID):
+        return await yandex.poll_device(device_id)
+
+    @router.delete("/{device_id}")
+    async def cancel(device_id: str = DEVICE_ID):
+        return yandex.cancel_device(device_id)
+
+    return router
 
 
 def routes(yandex, core):
