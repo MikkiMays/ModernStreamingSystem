@@ -1,9 +1,10 @@
 """Метрики службы для профиля `monitoring` (E10-B, docs/observability.md §4).
 
-Текстовый формат Prometheus руками, без `prometheus_client`: чисел три, а зависимость — это ещё один
-пакет в образе и в `requirements.lock`. В метках ничего нет: ни встречи, ни пользователя, ни ссылки —
-только счёт (П8). Адрес `/metrics` слушает 127.0.0.1 службы; шлюз наружу проксирует только
-`/api/v1/services/*`, поэтому снаружи сюда не дойти.
+Текстовый формат Prometheus руками, без `prometheus_client`: чисел немного, а зависимость — это ещё
+один пакет в образе и в `requirements.lock`. В метках ничего нет: ни встречи, ни пользователя, ни
+ссылки — только счёт (П8); у кинозала — имя площадки и её состояние, перечисления, а не люди.
+Адрес `/metrics` слушает 127.0.0.1 службы; шлюз наружу проксирует только `/api/v1/services/*`,
+поэтому снаружи сюда не дойти.
 """
 
 from types import SimpleNamespace
@@ -26,4 +27,8 @@ def render(state: SimpleNamespace) -> str:
         "# TYPE cord_telegram_connected gauge",
         f"cord_telegram_connected {telegram}",
     ]
+    # Доступность площадок кинозала с этого сервера и занятые ими потоки yt-dlp (R112).
+    cinema = getattr(state, "cinema", None)
+    if cinema is not None:
+        lines += cinema.metric_lines()
     return "\n".join(lines) + "\n"

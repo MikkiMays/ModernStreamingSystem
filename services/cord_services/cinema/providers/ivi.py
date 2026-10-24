@@ -191,6 +191,8 @@ class Ivi(Provider):
     # раньше, чем адрес файла. Первая настоящая проверка потока — из России, владельцем; если её
     # CDN-хост окажется другим, сюда добавляется одна строка (см. отчёт задачи).
     hosts = HostPolicy(("ivi.ru", "dfs.ivi.ru"))
+    # Хост каталога и проверки страны (`api.ivi.ru`): на пустой GET — короткий отказ, его пробе хватает.
+    probe = "https://api.ivi.ru/"
     features = Features(search=True, categories=True, series=True)
     content_id = NUMBER
     refusals = {
@@ -413,7 +415,7 @@ class Ivi(Provider):
         self._allow(info)
         url = f"https://www.ivi.ru/watch/{item_id}"
         try:
-            found = await self.ytdlp.offload(self.ytdlp.extract, url, PROBE, self.id)
+            found = await self.ytdlp.offload_for(self.id, self.ytdlp.extract, url, PROBE, self.id)
         except HTTPException:
             raise
         except Exception as error:  # yt_dlp поднимает свои типы — ловим широко, решает текст/вид

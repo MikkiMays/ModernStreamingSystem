@@ -253,8 +253,12 @@ class Sources:
         key = f"{platform.id}:{query.lower()}"
         if not self.memo.known(key):
             self.searches.take(room_id)
+        # Поток — на месте площадки в пуле кинозала (`YtDlp.offload_for`): YouTube, до которого нет
+        # сети, держит поток минутами, и места у него те же, что у кинозала.
         return await self.memo.get(
-            key, lambda: self.ytdlp.offload(self._search, platform, query), SEARCH_TTL
+            key,
+            lambda: self.ytdlp.offload_for(platform.id, self._search, platform, query),
+            SEARCH_TTL,
         )
 
     def _search(self, platform: Platform, query: str) -> list[dict[str, Any]]:

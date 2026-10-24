@@ -20,7 +20,7 @@ import re
 import time
 import uuid
 from dataclasses import asdict
-from typing import Any, Callable, Literal
+from typing import Any, Awaitable, Callable, Literal
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -37,6 +37,7 @@ from .net import Net, NetConfig
 from .paging import absolute, offset_of
 from .providers import PROVIDERS
 from .providers.link import Link as General
+from .reach import Reach
 from .registry import Ctx, HostPolicy, Kit, Provider, Registry
 from .resolve import EXPIRED, Resolver, SourcePlan, YtDlp, check_reading
 from .sniffer import Profile, Profiles, Sniffer
@@ -73,6 +74,16 @@ PLAYLIST_DEADLINE = 20.0
 # Срок на весь `resolve` площадки «По ссылке»: разбор страницы (30 с у выхода), проверки DRM и
 # файлов — вместе, а не каждая своим сроком (переадресации одних проверок складывались в минуты).
 LINK_RESOLVE_SECONDS = 40.0
+# Жёсткий срок на один вопрос каталога площадки (поиск, канал, плейлист, разделы, сериал, страница
+# ролика) — у всех площадок один (R112). Самый долгий холодный поиск YouTube на здоровом сервере —
+# 10,6 с через API стенда (замер 24.10); сам yt-dlp из Франкфурта ищет за 3–6 с, разбирает ролик за
+# 4,8 с, Rutube и VK отвечают за 0,6–2,3 с. Двадцать секунд — почти двойной запас над худшим, а не
+# минуты: через «чёрную дыру» один поиск yt-dlp висел 160 с. Вышел срок — отказ словами (504
+# `CINEMA_TIMEOUT`), и это сбой в счёт автомата площадки (`reach.py`). Клиент ждёт на 5 с дольше.
+CATALOG_DEADLINE = 20.0
+# Срок на разбор ролика в поток (`resolve`): к разбору страницы добавляются второй заход yt-dlp с
+# cookies после проверки на бота и чтение индексов DASH, поэтому на пять секунд больше каталога.
+RESOLVE_DEADLINE = 25.0
 # Потоков, в которых меряются и переписываются чужие плейлисты (`Cinema.manifest`) и переводятся чужие
 # субтитры (`Cinema.subtitles`), и сколько работ ждут их сверх того: дальше — отказ 503, а не очередь без
 # конца. Место занимается раньше, чем прочитан первый байт чужого тела: чтение плейлиста — это до 8 МБ в
@@ -240,6 +251,9 @@ class Cinema:
         # Каждая площадка ходит наружу своим клиентом: своим прокси, под общей защитой «только
         # наружу» и тем браузером, какой она назвала (`net.py`).
         self.net = Net(config, self._hosts, client=client, agents=self._agent)
+        # Достаёт ли сервер до каждой площадки (R112): проба и счёт запросов идут тем же клиентом
+        # площадки — через её прокси, — что и каталог, и yt-dlp (`reach.py`).
+        self.reach = Reach(self.net.client_for)
         # yt-dlp площадки с любыми хостами («По ссылке») ходит наружу только через охраняемый выход:
         # её защита — та же, что у её клиента httpx, её прокси — тот же (`egress.py`). Поднимается
         # выход лениво, на первом разборе.
@@ -316,6 +330,39 @@ class Cinema:
     def _ctx(self, room: str, source: Provider) -> Ctx:
         return Ctx(room=_room(room), net=self.net.client_for(source.id))
 
+    async def _ask(
+        self, source: Provider, work: Callable[[], Awaitable[Any]], deadline: float | None = None
+    ) -> Any:
+        """
+        Вопрос к площадке — через её автомат и под общим сроком (`reach.Reach.call`).
+
+        Площадка признана недоступной — отказ сразу, не трогая ни yt-dlp, ни пул; не уложилась в срок —
+        отказ словами. «По ссылке» — мимо: её сайты чужие, и срок у её разбора свой.
+        """
+        if not self.reach.tracked(source):
+            return await work()
+        return await self.reach.call(source, work, CATALOG_DEADLINE if deadline is None else deadline)
+
+    async def watch(self) -> None:
+        """Фоновая проба площадок на всё время службы (`app.py`, `lifespan`)."""
+        await self.reach.watch(lambda: list(self.registry))
+
+    def metric_lines(self) -> list[str]:
+        """Строки `/metrics` кинозала: доступность площадок и занятые ими потоки yt-dlp."""
+        sources = list(self.registry)
+        lines = self.reach.metric_lines(sources)
+        name = "cord_cinema_ytdlp_threads"
+        lines += [
+            f"# HELP {name} Потоки yt-dlp, которые площадка занимает сейчас.",
+            f"# TYPE {name} gauge",
+        ]
+        lines += [
+            f'{name}{{provider="{source.id}"}} {self.ytdlp.busy.get(source.id, 0)}'
+            for source in sources
+            if self.reach.tracked(source)
+        ]
+        return lines
+
     def _able(self, provider: str, feature: str) -> Provider:
         """
         Площадка, у которой это есть.
@@ -331,28 +378,44 @@ class Cinema:
     # --- площадки ----------------------------------------------------------------------
 
     async def providers(self) -> dict[str, list[wire.ProviderEntry]]:
-        """Какие площадки включены, работают ли они отсюда и что у каждой есть."""
+        """
+        Какие площадки включены, работают ли они отсюда и что у каждой есть.
+
+        Недоступная с этого сервера (`reach.py`) — `available: false`, причина словами и `code`
+        `CINEMA_UNREACHABLE`: по коду клиент называет причину на языке человека и отмечает площадку в
+        каталоге. Её собственная проверка (страна у ivi) тогда не спрашивается: до площадки всё равно
+        не дойти. Ответ о доступности — из памяти автомата; наружу список ходит только пробой площадки,
+        закрытой пробой, и не чаще раза в полминуты (`Reach.refresh`) — так «Повторить» узнаёт правду.
+        """
         listed = list(self.registry)
+        # «Повторить» у недоступной площадки спрашивает этот список: закрытую пробой — проверить сейчас.
+        await asyncio.gather(*(self.reach.refresh(source) for source in listed), return_exceptions=True)
+        down = {source.id: self.reach.down(source) for source in listed}
         answers = await asyncio.gather(
-            *(self._availability(source) for source in listed), return_exceptions=True
+            *(
+                _ready((False, down[source.id])) if down[source.id] else self._availability(source)
+                for source in listed
+            ),
+            return_exceptions=True,
         )
-        return {
-            "providers": [
-                {
-                    "id": source.id,
-                    "available": available,
-                    "reason": reason,
-                    "account": source.features.account,
-                    # Входить пока не во что: ни одной площадке кинозала аккаунт не нужен, поэтому
-                    # входов у комнаты нет (сам сейф входов, `accounts.Vault`, уже есть — для Яндекс Музыки).
-                    "connected": False,
-                    "features": {
-                        name: value for name, value in asdict(source.features).items() if name != "account"
-                    },
-                }
-                for source, (available, reason) in zip(listed, map(_checked, answers))
-            ]
-        }
+        entries: list[wire.ProviderEntry] = []
+        for source, (available, reason) in zip(listed, map(_checked, answers)):
+            entry: wire.ProviderEntry = {
+                "id": source.id,
+                "available": available,
+                "reason": reason,
+                "account": source.features.account,
+                # Входить пока не во что: ни одной площадке кинозала аккаунт не нужен, поэтому
+                # входов у комнаты нет (сам сейф входов, `accounts.Vault`, уже есть — для Яндекс Музыки).
+                "connected": False,
+                "features": {
+                    name: value for name, value in asdict(source.features).items() if name != "account"
+                },
+            }
+            if down[source.id]:
+                entry["code"] = "CINEMA_UNREACHABLE"
+            entries.append(entry)
+        return {"providers": entries}
 
     async def _availability(self, source: Provider) -> tuple[bool, str | None]:
         """
@@ -385,7 +448,8 @@ class Cinema:
         """
         source = self._able(provider, "search")
         offset = offset_of(cursor)
-        return await source.search(self._ctx(room, source), query.strip(), offset)
+        ctx = self._ctx(room, source)
+        return await self._ask(source, lambda: source.search(ctx, query.strip(), offset))
 
     async def channel(
         self, provider: str, channel_id: str, tab: Tab = "videos", cursor: str = "", *, room: str = ""
@@ -405,7 +469,7 @@ class Cinema:
         # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
         return await self.catalog.scope(source.id).get(
             f"channel:{channel_id}:{tab}:{offset}",
-            lambda: source.channel(ctx, channel_id, tab, offset),
+            lambda: self._ask(source, lambda: source.channel(ctx, channel_id, tab, offset)),
             # Память короткая нарочно: сверху у канала лежит самое свежее, и «самое свежее»
             # не должно означать «самое свежее полчаса назад».
             60,
@@ -422,7 +486,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"playlist:{playlist_id}:{offset}",
-            lambda: source.playlist(ctx, playlist_id, offset),
+            lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset)),
             60,
         )
 
@@ -436,7 +500,8 @@ class Cinema:
             # разбирается курсор: так кинозал отвечал всегда.
             return {"items": [], "next": None}
         offset = offset_of(cursor)
-        return await source.categories(self._ctx(room, source), query.strip(), offset)
+        ctx = self._ctx(room, source)
+        return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset))
 
     async def category(
         self, provider: str, category_id: str, cursor: str = "", *, room: str = ""
@@ -446,7 +511,8 @@ class Cinema:
         if not source.category_id.fullmatch(category_id):
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
-        return await source.category(self._ctx(room, source), category_id, offset)
+        ctx = self._ctx(room, source)
+        return await self._ask(source, lambda: source.category(ctx, category_id, offset))
 
     async def series(
         self, provider: str, series_id: str, season: str = "", cursor: str = "", *, room: str = ""
@@ -466,7 +532,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"series:{series_id}:{season}:{offset}",
-            lambda: source.series(ctx, series_id, season or None, offset),
+            lambda: self._ask(source, lambda: source.series(ctx, series_id, season or None, offset)),
             300,
         )
 
@@ -478,7 +544,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"details:{kind}:{content_id}",
-            lambda: source.details(ctx, kind, content_id),
+            lambda: self._ask(source, lambda: source.details(ctx, kind, content_id)),
             600,
         )
 
@@ -516,6 +582,11 @@ class Cinema:
         self.links.take(_room(room))
         found = self._route(url)
         if found is not None:
+            # Ссылка на площадку, до которой этот сервер не достаёт, — отказ сразу, здесь же: сцена её
+            # открылась бы только затем, чтобы отказать на странице ролика (R112).
+            target = self.registry.find(found["route"]["provider"]) if "route" in found else None
+            if target is not None:
+                self.reach.refuse_if_down(target)
             return found
         # Сайт, который владелец закрыл после жалобы (A9), — отказ до yt-dlp: наружу не уходит ни запроса.
         if denied(url, self.denied_hosts):
@@ -620,10 +691,14 @@ class Cinema:
         """
         try:
             if not isinstance(source, General):
-                plan = await source.source(ctx, request.kind, request.contentId, {})
-                return await self.resolver.resolve(
-                    plan, ctx.net, source.id, request.contentId, request.adaptive
-                )
+
+                async def resolved() -> dict[str, Any]:
+                    plan = await source.source(ctx, request.kind, request.contentId, {})
+                    return await self.resolver.resolve(
+                        plan, ctx.net, source.id, request.contentId, request.adaptive
+                    )
+
+                return await self._ask(source, resolved, RESOLVE_DEADLINE)
             try:
                 async with asyncio.timeout(LINK_RESOLVE_SECONDS):
                     plan = await source.source(ctx, request.kind, request.contentId, {})

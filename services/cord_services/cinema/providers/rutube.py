@@ -161,6 +161,8 @@ class Rutube(Provider):
     # UMA — один хост, а не весь `uma.media`: мастер всех 11 лицензионных (UMA) серий из выборки
     # в 154 серии 77 сериалов PREMIER/START/КИОН/ТНТ (24.09.2026) — `vb-rtb.uma.media`, других нет.
     hosts = HostPolicy(("rutube.ru", "rtbcdn.ru", "vb-rtb.uma.media"))
+    # Хост каталога (`rutube.ru/api/…`), страница для роботов — короткая и для того и лежит.
+    probe = "https://rutube.ru/robots.txt"
     features = Features(channels=True, categories=True, series=True, live=True)
     # Ролик и эфир у Rutube — 32 шестнадцатеричных знака строчными.
     content_id = re.compile(r"[0-9a-f]{32}")

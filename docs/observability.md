@@ -180,6 +180,10 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 
 Службы (FastAPI, `prometheus_client`): `cord_music_sessions_active`,
 `cord_cinema_resolve_total{result,source=youtube|direct|page|other}` (без ссылки), `cord_sniffer_pages_total{result}`.
+Доступность площадок кинозала с этого сервера (R112, `cinema/reach.py`; метки — только `provider` и `state`):
+`cord_cinema_reachable{provider}` (1 — отвечает, 0 — признана недоступной), `cord_cinema_reach_changes_total{provider,state=open|closed}`,
+`cord_cinema_unreachable_refusals_total{provider}` (отказы сразу, без площадки), `cord_cinema_deadline_total{provider}`
+(вопросы за сроком 20/25 с) и `cord_cinema_ytdlp_threads{provider}` (занятые площадкой потоки yt-dlp, не больше 6).
 
 ## 5. Цели сбора и экспортеры
 

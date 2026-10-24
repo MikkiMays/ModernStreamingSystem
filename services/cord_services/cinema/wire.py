@@ -232,6 +232,9 @@ class ProviderEntry(TypedDict):
     account: Literal["none", "optional", "required"]
     connected: bool
     features: dict[str, bool]
+    # Только у недоступной с этого сервера (`reach.py`): `CINEMA_UNREACHABLE` — по нему клиент называет
+    # причину на своём языке. У доступной ключа нет вовсе.
+    code: NotRequired[str]
 
 
 # «Ключа нет» — не то же самое, что «ключ есть и он пуст»: `followers: null` у карточки канала
