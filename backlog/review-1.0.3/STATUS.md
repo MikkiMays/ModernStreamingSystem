@@ -148,7 +148,7 @@
 | I4 | W2 → `main`, выкатка №4 | ветка `review/W2` готова (22.10), ждёт слияния архитектором |
 | I5 | W3 → `main`, выкатка №5 | готово (24.10): `775e503`/`f893a81`, `deploy.sh gateway`; против стенда stage-pin, meeting, screens, focus-modality, home-shell — 17/17 |
 | I6 | W1b → `main`, выкатка с дренажем | ждёт |
-| I7 | W7 → `main`, выкатка №7 | ветка `review/prejoin` готова (24.10): R72–R74, R76, R60 (веб), R80, R82 (n05), R95 (UI), R103 (ядро); выкатка — `gateway` |
+| I7 | W7 → `main`, выкатка №7 | ветка `review/prejoin` готова (24.10): R72–R74, R76, R60 (веб), R80, R82 (n05), R95 (UI), R103 (ядро); CI `verify.yml` 40124640089 зелёный (core, browser с e2e, deployment-config); vitest 1369/1369; встреч на стенде — 2; выкатка — `gateway` |
 | I8 | W4 → `main`, выкатка №8 | ждёт |
 | I9 | W6 → `main`, выкатка №9 | ждёт |
 | I10 | W5 → `main`, выкатка №10 | ждёт |
