@@ -231,7 +231,8 @@ class SupportTest {
                 .header(AdminAccess.HEADER, Json.tree(session).path("token").asText()))
         .andExpect(jsonPath("$[0].issues[0]").value("sound"))
         .andExpect(jsonPath("$[0].issues[1]").value("music"));
-    // У обычного обращения отмеченного нет.
+    // У обычного обращения отмеченного нет. Секундой позже — чтобы стать первым в «новых сверху».
+    now.addAndGet(1000);
     submit(fresh(), "Обычное обращение без отметок");
     assertThat(support.recent(10, null).getFirst().issues()).isEmpty();
   }

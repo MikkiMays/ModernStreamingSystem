@@ -146,6 +146,7 @@ await step('settings', async () => {
     await (
       (await support.count()) ? support : nav.getByRole('button', { name: 'О программе', exact: true })
     ).click();
+    if (phase === 'after') await settings.locator('.help-faq__item').first().waitFor({ timeout: 30000 });
     await page.waitForTimeout(800);
   };
   await shoot('r51-settings', open);
@@ -169,7 +170,8 @@ try {
       await closeDialogs();
       await supportButton().click();
       const help = page.getByRole('dialog', { name: /^(Помощь|Поддержка)$/ });
-      await help.waitFor();
+      // Содержимое окна — ленивым чанком: ждём вопросы, а не только рамку окна.
+      await help.locator('.help-faq__item').first().waitFor({ timeout: 30000 });
       if (tab) await help.getByRole('tab', { name: tab }).click();
       await page.waitForTimeout(700);
     };
