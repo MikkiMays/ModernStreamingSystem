@@ -44,7 +44,8 @@ test('предвход помещается в любое окно и не пр�
   await expect(page.getByLabel('Ваше имя')).toBeFocused();
   const start = page.getByRole('button', { name: 'Начать встречу', exact: true });
   const sizes = [
-    ...[320, 390, 768, 1024, 1280, 1366, 1440, 1920, 2560].flatMap((width) =>
+    // 720 × 480 — самое маленькое окно клиента Windows.
+    ...[320, 390, 720, 768, 1024, 1280, 1366, 1440, 1920, 2560].flatMap((width) =>
       [480, 600, 714, 720, 900].map((height) => ({ width, height })),
     ),
     { width: 2560, height: 1440 },
@@ -55,8 +56,8 @@ test('предвход помещается в любое окно и не пр�
     const at = `${size.width}×${size.height}`;
     expect(box.overflowX, `${at}: шире окна`).toBeLessThanOrEqual(0);
     await expect(start, `${at}: кнопка входа`).toBeInViewport({ ratio: 1 });
-    // Две колонки — с 768 px: обе с одной линии; превью целиком в окне по высоте.
-    if (size.width >= 768) {
+    // Две колонки — с 720 px (контейнер 680): обе с одной линии; превью целиком в окне по высоте.
+    if (size.width >= 720) {
       expect(box.twoColumns, `${at}: две колонки`).toBe(true);
       expect(Math.abs(box.preview.top - box.form.top), `${at}: верх превью и формы`).toBeLessThanOrEqual(8);
       expect(box.preview.bottom, `${at}: превью по высоте`).toBeLessThanOrEqual(size.height);
