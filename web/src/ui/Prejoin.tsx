@@ -1,22 +1,11 @@
-import {
-  ArrowLeft,
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  Headphones,
-  ArrowRight,
-  LoaderCircle,
-  Settings2,
-  DoorOpen,
-} from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Mic, MicOff, Video, VideoOff, ArrowRight, LoaderCircle, Settings2 } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { prepareHuman, publicApi, RoomApi } from '../api/client';
 import type { Admission } from '../api/types';
 import type { DeviceChoice } from '../media/session';
 import type { Destination } from './Home';
-import { Avatar, IconButton, Logo, Modal } from './primitives';
+import { Avatar, Logo } from './primitives';
 import { readPreferences, savePreferences } from '../core/preferences';
 import { autoJoinEnabled, favoriteApi } from '../core/favorites';
 import { servicesApi } from '../core/services';
@@ -26,7 +15,8 @@ import { audioCapture } from '../media/audio';
 import { alreadyInMeeting, type ElsewhereMeeting } from '../core/identity';
 import { HelpButton } from './support/HelpButton';
 import { MeetingElsewhere } from './MeetingElsewhere';
-import { Switch } from './kit';
+import { Button, Dialog, Field, IconButton, Input, Segmented, Switch } from './kit';
+import './prejoin.css';
 
 export function Prejoin({
   destination,
@@ -59,7 +49,7 @@ export function Prejoin({
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
   const [error, setError] = useState('');
-  /** Ошибка — отказ камеры или микрофона: рядом с ней «Помощь» с ответом на этот вопрос. */
+  /** Отказ камеры или микрофона: строка под превью и «Помощь» с ответом на этот вопрос рядом. */
   const [deviceError, setDeviceError] = useState(false);
   const [busy, setBusy] = useState(false);
   // Ядро не пустило: этот профиль уже во встрече `elsewhere` (T52). Человек выбирает в окне.
@@ -67,6 +57,7 @@ export function Prejoin({
   const [elsewhereNote, setElsewhereNote] = useState('');
   const [going, setGoing] = useState(false);
   const [deviceBusy, setDeviceBusy] = useState(false);
+  const accessId = useId();
   const preview = useRef<HTMLVideoElement>(null);
   const stream = useRef(new MediaStream());
   const commandId = useRef(crypto.randomUUID());
@@ -226,7 +217,6 @@ export function Prejoin({
   const toggle = async (kind: 'audio' | 'video') => {
     if (deviceBusy) return;
     setDeviceBusy(true);
-    setError('');
     setDeviceError(false);
     const enabled = kind === 'audio' ? mic : camera;
     try {
@@ -272,7 +262,6 @@ export function Prejoin({
       }
       refreshDevices();
     } catch {
-      setError(t(($) => $.prejoin.deviceFailed));
       setDeviceError(true);
     } finally {
       setDeviceBusy(false);
@@ -284,13 +273,18 @@ export function Prejoin({
         <Logo />
         <div className="app-header__end">
           <HelpButton faq="camera" />
-          <button className="button ghost" onClick={onBack}>
-            <ArrowLeft size={18} /> {t(($) => $.prejoin.home)}
-          </button>
+          <Button variant="quiet" icon={<ArrowLeft size={18} />} onClick={onBack}>
+            {t(($) => $.prejoin.home)}
+          </Button>
         </div>
       </header>
+      {/*
+        Две колонки с одной верхней линии (R73, R76): превью слева, форма справа; узко — одна
+        колонка, превью сверху. Размеры тянутся плавно от ширины и высоты окна (`prejoin.css`), а
+        кнопка входа прилипает к низу окна, если форма всё же выше него.
+      */}
       <main className="prejoin-main">
-        <div className="preview-column">
+        <section className="prejoin-preview" aria-label={t(($) => $.prejoin.preview)}>
           <div className="preview-stage">
             <video
               ref={preview}
@@ -306,37 +300,52 @@ export function Prejoin({
                 <p>{t(($) => $.prejoin.cameraOff)}</p>
               </div>
             )}
-            <span className="preview-label">{t(($) => $.prejoin.previewLabel)}</span>
-            <div className="preview-controls">
+            {/* Метка, микрофон с камерой и шестерёнка — одной строкой по низу превью. */}
+            <div className="preview-bar">
+              <span className="preview-label">{t(($) => $.prejoin.you)}</span>
+              <div className="preview-controls">
+                <IconButton
+                  tone="stage"
+                  size="lg"
+                  className="preview-toggle"
+                  label={mic ? t(($) => $.prejoin.micOn) : t(($) => $.prejoin.micOff)}
+                  pressed={mic}
+                  disabled={deviceBusy}
+                  onClick={() => void toggle('audio')}
+                >
+                  {mic ? <Mic /> : <MicOff />}
+                </IconButton>
+                <IconButton
+                  tone="stage"
+                  size="lg"
+                  className="preview-toggle"
+                  label={camera ? t(($) => $.prejoin.cameraOnLabel) : t(($) => $.prejoin.cameraOffLabel)}
+                  pressed={camera}
+                  disabled={deviceBusy}
+                  onClick={() => void toggle('video')}
+                >
+                  {camera ? <Video /> : <VideoOff />}
+                </IconButton>
+              </div>
               <IconButton
-                label={mic ? t(($) => $.prejoin.micOn) : t(($) => $.prejoin.micOff)}
-                className={mic ? 'active' : ''}
-                disabled={deviceBusy}
-                onClick={() => void toggle('audio')}
+                tone="stage"
+                size="lg"
+                label={t(($) => $.prejoin.settingsButton)}
+                className="preview-settings"
+                onClick={() => setSettings(true)}
               >
-                {mic ? <Mic /> : <MicOff />}
-              </IconButton>
-              <IconButton
-                label={camera ? t(($) => $.prejoin.cameraOnLabel) : t(($) => $.prejoin.cameraOffLabel)}
-                className={camera ? 'active' : ''}
-                disabled={deviceBusy}
-                onClick={() => void toggle('video')}
-              >
-                {camera ? <Video /> : <VideoOff />}
+                <Settings2 />
               </IconButton>
             </div>
-            <IconButton
-              label={t(($) => $.prejoin.settingsButton)}
-              className="preview-settings"
-              onClick={() => setSettings(true)}
-            >
-              <Settings2 size={21} />
-            </IconButton>
           </div>
-          <p className="preview-caption">
-            <Headphones size={17} /> {t(($) => $.prejoin.headphones)}
-          </p>
-        </div>
+          {/* Отказ камеры или микрофона — под превью и только после отказа (R74), с ответом рядом (T36). */}
+          {deviceError && (
+            <div className="prejoin-device-error" role="alert">
+              <span>{t(($) => $.prejoin.deviceFailed)}</span>
+              <HelpButton faq="camera" look="text" />
+            </div>
+          )}
+        </section>
         <form
           className="prejoin-form"
           onSubmit={(e) => {
@@ -344,9 +353,6 @@ export function Prejoin({
             void submit();
           }}
         >
-          <span className="eyebrow">
-            {destination ? t(($) => $.prejoin.eyebrowJoin) : t(($) => $.prejoin.eyebrowNew)}
-          </span>
           <h1>
             {destination?.kind === 'favorite'
               ? destination.favorite.title
@@ -354,118 +360,94 @@ export function Prejoin({
                 ? destination.admission.snapshot.title
                 : t(($) => $.prejoin.ready)}
           </h1>
-          <p className="muted">
-            {t(($) => $.prejoin.check)}
-            {/* Тот же случай, что и на главной: перенос прячется на узком экране. */}
-            <br /> {t(($) => $.prejoin.noDevices)}
-          </p>
-          <label htmlFor="display-name">{t(($) => $.prejoin.name)}</label>
-          <input
-            id="display-name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              localStorage.setItem('cord:name', e.target.value.trim());
-              commandId.current = crypto.randomUUID();
-            }}
-            maxLength={40}
-            placeholder={t(($) => $.prejoin.namePlaceholder)}
-            required
-            autoFocus
-            autoComplete="nickname"
-          />
+          <Field label={t(($) => $.prejoin.name)}>
+            <Input
+              id="display-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                localStorage.setItem('cord:name', e.target.value.trim());
+                commandId.current = crypto.randomUUID();
+              }}
+              maxLength={40}
+              placeholder={t(($) => $.prejoin.namePlaceholder)}
+              required
+              autoFocus
+              autoComplete="nickname"
+            />
+          </Field>
           {!destination && (
             <>
-              <label htmlFor="meeting-name">{t(($) => $.prejoin.title)}</label>
-              <input
-                id="meeting-name"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  commandId.current = crypto.randomUUID();
-                }}
-                maxLength={80}
-                required
-                placeholder={t(($) => $.prejoin.titlePlaceholder)}
-              />
-              <small className="form-footnote">{t(($) => $.prejoin.titleLater)}</small>
-              {/*
-                Что это за встреча — решается здесь, а не за шестерёнкой предпросмотра.
-
-                Оба вопроса стояли в окне «Перед разговором», между качеством камеры и запасом
-                буфера: настройку устройств открывают не все и не всегда, а «кого пускать» —
-                это про саму встречу, и спросить об этом надо до того, как она началась.
-                Решения не окончательные: то и другое меняется в настройках встречи.
-              */}
-              <section className="audio-settings" aria-label={t(($) => $.prejoin.access)}>
-                <h3>
-                  <DoorOpen size={19} /> {t(($) => $.prejoin.access)}
-                </h3>
-                <div role="radiogroup" aria-label={t(($) => $.prejoin.access)} className="network-modes">
-                  <label className="check-setting">
-                    <input
-                      type="radio"
-                      name="admission"
-                      checked={!approvalRequired}
-                      onChange={() => {
-                        setApprovalRequired(false);
-                        commandId.current = crypto.randomUUID();
-                      }}
-                    />
-                    <span>
-                      {t(($) => $.prejoin.open)}
-                      <small>{t(($) => $.prejoin.openHint)}</small>
-                    </span>
-                  </label>
-                  <label className="check-setting">
-                    <input
-                      type="radio"
-                      name="admission"
-                      checked={approvalRequired}
-                      onChange={() => {
-                        setApprovalRequired(true);
-                        commandId.current = crypto.randomUUID();
-                      }}
-                    />
-                    <span>
-                      {t(($) => $.prejoin.approval)}
-                      <small>{t(($) => $.prejoin.approvalHint)}</small>
-                    </span>
-                  </label>
-                </div>
-                {/* Да или нет — переключателем, а не галочкой (X4, R55). */}
-                <Switch
-                  checked={integrationsAllowed}
-                  onCheckedChange={(checked) => {
-                    setIntegrationsAllowed(checked);
+              <Field label={t(($) => $.prejoin.title)}>
+                <Input
+                  id="meeting-name"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
                     commandId.current = crypto.randomUUID();
                   }}
-                  label={t(($) => $.prejoin.integrations)}
-                  description={t(($) => $.prejoin.integrationsHint)}
+                  maxLength={80}
+                  required
+                  placeholder={t(($) => $.prejoin.titlePlaceholder)}
                 />
-                <p className="form-footnote">{t(($) => $.prejoin.changeLater)}</p>
-              </section>
+              </Field>
+              {/*
+                Что это за встреча — решается здесь, а не за шестерёнкой предпросмотра: «кого
+                пускать» — про саму встречу, и спросить надо до того, как она началась. Оба решения
+                меняются потом в настройках встречи — там же, сегментом и переключателем (R53, R55).
+              */}
+              <div className="prejoin-access" role="group" aria-labelledby={accessId}>
+                <span className="prejoin-label" id={accessId}>
+                  {t(($) => $.prejoin.access)}
+                </span>
+                <Segmented<'open' | 'approval'>
+                  full
+                  aria-labelledby={accessId}
+                  value={approvalRequired ? 'approval' : 'open'}
+                  onValueChange={(next) => {
+                    setApprovalRequired(next === 'approval');
+                    commandId.current = crypto.randomUUID();
+                  }}
+                  options={[
+                    { value: 'open', label: t(($) => $.prejoin.open) },
+                    { value: 'approval', label: t(($) => $.prejoin.approval) },
+                  ]}
+                />
+              </div>
+              {/* Да или нет — переключателем, а не галочкой (X4, R55). */}
+              <Switch
+                className="prejoin-switch"
+                checked={integrationsAllowed}
+                onCheckedChange={(checked) => {
+                  setIntegrationsAllowed(checked);
+                  commandId.current = crypto.randomUUID();
+                }}
+                label={t(($) => $.prejoin.integrations)}
+              />
             </>
           )}
-          <p className="permission-note" role="status">
-            {t(($) => $.prejoin.permissionNote)}
-          </p>
           {error && (
-            <div className="form-error form-error--help" role="alert">
-              <span>{error}</span>
-              {/* Нет доступа к камере или микрофону — сразу к ответу на этот вопрос (T36). */}
-              {deviceError && <HelpButton faq="camera" look="text" />}
-            </div>
+            <p className="form-error" role="alert">
+              {error}
+            </p>
           )}
-          <button type="submit" className="button primary full" disabled={busy || !name.trim()}>
-            {busy ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}{' '}
-            {busy
-              ? t(($) => $.prejoin.connecting)
-              : destination
-                ? t(($) => $.prejoin.join)
-                : t(($) => $.prejoin.start)}
-          </button>
-          <p className="form-footnote">{t(($) => $.prejoin.inviteLater)}</p>
+          <div className="prejoin-submit">
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              full
+              loading={busy}
+              disabled={!name.trim()}
+              icon={<ArrowRight size={19} />}
+            >
+              {busy
+                ? t(($) => $.prejoin.connecting)
+                : destination
+                  ? t(($) => $.prejoin.join)
+                  : t(($) => $.prejoin.start)}
+            </Button>
+          </div>
         </form>
       </main>
       <MeetingElsewhere
@@ -476,12 +458,13 @@ export function Prejoin({
         onMove={() => elsewhere && void submit(elsewhere.roomId)}
         onClose={() => setElsewhere(null)}
       />
-      <Modal
-        wide
+      {/* «Перед разговором» (R72): окно набора; качество — сегментами 720 / 1080 / 1440 и 30 / 60 (R78). */}
+      <Dialog
+        size="lg"
         open={settings}
         onOpenChange={setSettings}
         title={t(($) => $.prejoin.settings.title)}
-        description={t(($) => $.prejoin.settings.description)}
+        className="prejoin-settings"
       >
         <div className="settings-form">
           <SettingGroup
@@ -549,7 +532,7 @@ export function Prejoin({
             onChange={(p) => setPreferences(savePreferences({ screen: p }))}
           />
         </div>
-      </Modal>
+      </Dialog>
     </div>
   );
 }

@@ -1,0 +1,290 @@
+/*
+  Предвход (R72–R76): шапка, превью и форма.
+
+  Прежде здесь были правила в `styles.css` с тремя ступенями по ширине (1199 / 767 / 560 px) и ни
+  одной по высоте. В окне 1280×714 форма выходила за нижний край, кнопка входа обрезалась, а превью
+  стояло по центру высоты формы, на ~160 px ниже её верха (r103-34). Теперь размеры плавно зависят от
+  ширины и высоты окна (`clamp`, `min`, единицы контейнера и `dvh`). Скачок остаётся один: переход
+  с двух колонок на одну. Колонки начинаются с одной линии. Если форма всё же выше окна (телефон
+  с клавиатурой, окно ниже 500 px), кнопка входа прилипает к нижнему краю окна.
+
+  Ширины считаются от контейнера `.prejoin-page` (`cqi`), а не от `vw`: в `vw` входит полоса
+  прокрутки документа, и с ней страница стала бы шире окна. Только токены `styles/tokens.css`.
+*/
+.prejoin-page {
+  /* Шапка и поля по высоте: 64 / 24 px в высоком окне, 48 / 12 px в окне 600 px и ниже — плавно. */
+  --prejoin-header-h: clamp(48px, 8dvh, 64px);
+  --prejoin-pad-y: clamp(var(--space-3), 4dvh, var(--space-12));
+  min-height: 100dvh;
+  display: grid;
+  /* Колонка не шире окна, даже если содержимому шапки тесно (`minmax(0, …)`, а не `auto`). */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  background: var(--bg);
+  container: prejoin / inline-size;
+}
+
+.prejoin-page > .app-header {
+  --prejoin-pad-x: clamp(var(--space-4), 4cqi, var(--space-12));
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
+  /* В клиенте Windows шапка не ниже полосы кнопок окна (R34, `--titlebar-h`); в браузере — ноль. */
+  height: max(var(--prejoin-header-h), var(--titlebar-h, 0px));
+  margin-inline: auto;
+  /* Правое поле не меньше кнопок окна клиента Windows (`--titlebar-end`). */
+  padding-inline: var(--prejoin-pad-x)
+    max(var(--prejoin-pad-x), calc(var(--titlebar-end, 0px) + var(--space-2)));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+/* В клиенте Windows шапка тащит окно, как заголовок; кнопки и ссылки нажимаются как обычно. */
+:root[data-desktop='true'] .app-header {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+:root[data-desktop='true'] .app-header :is(button, a, input, [role='button'], [tabindex]) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+/* «?» рядом с «На главную» (E13, T36). */
+.app-header__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.prejoin-main {
+  --prejoin-pad-x: clamp(var(--space-4), 4cqi, var(--space-12));
+  --prejoin-gap: clamp(var(--space-6), 4cqi, var(--space-16));
+  --prejoin-form-w: clamp(300px, 32cqi, 420px);
+  /*
+    Ширина превью — наименьшее из трёх: 760 px (на больших мониторах — до 960 px, плавно); место
+    слева от формы; высота окна без шапки и полей, умноженная на 16/10. В низком окне превью
+    уменьшается целиком, а не обрезается снизу.
+  */
+  --prejoin-preview-w: min(
+    clamp(760px, 36cqi, 960px),
+    100cqi - 2 * var(--prejoin-pad-x) - var(--prejoin-form-w) - var(--prejoin-gap),
+    (100dvh - var(--prejoin-header-h) - 2 * var(--prejoin-pad-y)) * 1.6
+  );
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: var(--prejoin-pad-y) var(--prejoin-pad-x);
+  display: grid;
+  grid-template-columns: minmax(0, var(--prejoin-preview-w)) var(--prejoin-form-w);
+  justify-content: center;
+  /* Свободная высота — поровну сверху и снизу. Обе колонки начинаются с одной линии. */
+  align-content: center;
+  align-items: start;
+  gap: var(--space-5) var(--prejoin-gap);
+}
+
+/*
+  Окно уже 360 px: «На главную» — одной стрелкой. Подпись остаётся для диктора и для поиска по имени,
+  но не занимает место: в 320 px марка, «Помощь» и подпись вместе не помещаются.
+*/
+@container prejoin (max-width: 359px) {
+  .app-header__end .ui-button {
+    padding-inline: var(--space-2);
+  }
+  .app-header__end .ui-button__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ── превью ── */
+.prejoin-preview {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  /* Форма выше окна — превью едет вместе с прокруткой и остаётся на виду. */
+  position: sticky;
+  top: var(--space-3);
+}
+.preview-stage {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-4);
+  background: var(--stage-tile);
+  color: var(--stage-text);
+  /* Аватар и кнопки — по размеру самого превью, а не окна. */
+  container-type: inline-size;
+}
+.preview-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.preview-avatar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* Подпись чуть выше центра: снизу кнопки, и пустота под ними не делает картинку «тяжёлой». */
+  padding-bottom: clamp(var(--space-8), 12cqi, 72px);
+  gap: clamp(var(--space-2), 3cqi, var(--space-5));
+}
+.preview-avatar .avatar-large {
+  width: clamp(56px, 16cqi, 112px);
+  min-width: 0;
+  height: clamp(56px, 16cqi, 112px);
+  font-size: clamp(var(--text-lg), 6cqi, 44px);
+}
+.preview-avatar p {
+  color: var(--stage-muted);
+  font-size: var(--text-sm);
+}
+/* Нижняя строка превью: «Вы» слева, микрофон и камера по центру, шестерёнка справа — на одной линии. */
+.preview-bar {
+  position: absolute;
+  inset-inline: clamp(var(--space-2), 2.2cqi, var(--space-4));
+  bottom: clamp(var(--space-2), 2.2cqi, var(--space-4));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+.preview-label {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--stage-veil-1);
+  color: var(--stage-text);
+  font-size: var(--text-xs);
+  line-height: var(--leading-base);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.preview-controls {
+  display: flex;
+  gap: var(--space-2);
+}
+.preview-toggle.ui-icon-button,
+.preview-settings.ui-icon-button {
+  border-radius: var(--radius-full);
+}
+.preview-toggle.ui-icon-button--stage[aria-pressed='false'] {
+  background: var(--stage-glint-1);
+}
+.preview-toggle.ui-icon-button[data-pressed] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.preview-settings.ui-icon-button {
+  justify-self: end;
+  background: var(--stage-veil-3);
+}
+.preview-settings.ui-icon-button:hover {
+  background: var(--stage-tile-2);
+}
+/* Отказ камеры или микрофона — под превью, «Помощь» в той же строке; узко — под текстом. */
+.prejoin-device-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+
+/* ── форма ── */
+.prejoin-form {
+  display: grid;
+  align-content: start;
+  gap: clamp(var(--space-3), 2.2dvh, var(--space-4));
+  min-width: 0;
+}
+.prejoin-form h1 {
+  margin: 0 0 var(--space-1);
+  font-size: clamp(var(--text-lg), 3.4dvh, var(--text-xl));
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+.prejoin-access {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+/* Подпись группы — как подпись поля набора (`.ui-field__label`). */
+.prejoin-label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+/* Подпись пункта на чужом языке длиннее — обрезается в своём пункте, а не раздвигает страницу. */
+.prejoin-access .ui-segmented__item {
+  min-width: 0;
+}
+.prejoin-access .ui-segmented__label {
+  min-width: 0;
+  overflow: hidden;
+}
+.prejoin-switch.ui-switch-row {
+  min-height: var(--control-touch);
+}
+.prejoin-form .form-error {
+  padding: 0;
+}
+/*
+  Кнопка входа — всегда в окне: пока форма помещается, она стоит на своём месте. Если форма выше
+  окна, кнопка прилипает к нижнему краю поверх затухающего фона (и над полосой жестов телефона).
+*/
+.prejoin-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: var(--space-1);
+  padding-block: var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 75%, transparent);
+}
+
+/* ── окно «Перед разговором» (R72) ── */
+/* Не выше окна: прокручивается тело, заголовок с крестиком остаётся на месте (как у «Диагностики»). */
+.prejoin-settings {
+  max-height: calc(100dvh - var(--space-8) - var(--titlebar-h, 0px));
+}
+.prejoin-settings .settings-form {
+  margin-top: 0;
+}
+
+/*
+  Одна колонка: превью сверху, форма под ним, ширина до 560 px. Порог — ширина контейнера, а не
+  окна, и он один (без прежних ступеней 1199 / 767 / 560). Превью — не выше 42 % окна, чтобы форма
+  и кнопка входа поместились под ним.
+*/
+@container prejoin (max-width: 719px) {
+  .prejoin-main {
+    grid-template-columns: minmax(0, 1fr);
+    justify-self: center;
+    max-width: calc(560px + 2 * var(--prejoin-pad-x));
+    align-content: start;
+  }
+  .prejoin-preview {
+    position: static;
+  }
+  .preview-stage {
+    width: min(100%, 42dvh * 1.6);
+    justify-self: center;
+  }
+}

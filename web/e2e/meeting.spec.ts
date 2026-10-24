@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test('home and prejoin are responsive and keyboard accessible', async ({ page }) => {
@@ -15,11 +15,77 @@ test('home and prejoin are responsive and keyboard accessible', async ({ page })
   await expect(page.getByRole('switch', { name: /Разрешить интеграции всем участникам/ })).toBeChecked();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await page.screenshot({ path: '../.local/prejoin-desktop.png', fullPage: true });
-  for (const width of [320, 390, 768, 1200]) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+/*
+  Предвход в любом окне (R73, R76): от 320 до 2560 по ширине, от 480 по высоте — без горизонтальной
+  прокрутки, кнопка входа видна целиком, превью и форма начинаются с одной линии, а при изменении
+  окна раскладка меняется плавно — без скачков, кроме одного перехода с двух колонок на одну.
+  Встреча не создаётся.
+*/
+type PrejoinBox = { overflowX: number; preview: DOMRect; form: DOMRect; twoColumns: boolean };
+async function prejoinLayout(page: Page): Promise<PrejoinBox> {
+  return page.evaluate(() => {
+    const preview = document.querySelector('.preview-stage')!.getBoundingClientRect();
+    const form = document.querySelector('.prejoin-form')!.getBoundingClientRect();
+    return {
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      preview: preview.toJSON() as DOMRect,
+      form: form.toJSON() as DOMRect,
+      twoColumns: preview.right <= form.left,
+    };
+  });
+}
+
+test('предвход помещается в любое окно и не прыгает при изменении размера (R73, R76)', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/');
+  await page.getByRole('button', { name: /Новая встреча/ }).click();
+  await expect(page.getByLabel('Ваше имя')).toBeFocused();
+  const start = page.getByRole('button', { name: 'Начать встречу', exact: true });
+  const sizes = [
+    ...[320, 390, 768, 1024, 1280, 1366, 1440, 1920, 2560].flatMap((width) =>
+      [480, 600, 714, 720, 900].map((height) => ({ width, height })),
+    ),
+    { width: 2560, height: 1440 },
+  ];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    const box = await prejoinLayout(page);
+    const at = `${size.width}×${size.height}`;
+    expect(box.overflowX, `${at}: шире окна`).toBeLessThanOrEqual(0);
+    await expect(start, `${at}: кнопка входа`).toBeInViewport({ ratio: 1 });
+    // Две колонки — с 768 px: обе с одной линии; превью целиком в окне по высоте.
+    if (size.width >= 768) {
+      expect(box.twoColumns, `${at}: две колонки`).toBe(true);
+      expect(Math.abs(box.preview.top - box.form.top), `${at}: верх превью и формы`).toBeLessThanOrEqual(8);
+      expect(box.preview.bottom, `${at}: превью по высоте`).toBeLessThanOrEqual(size.height);
+    } else expect(box.twoColumns, `${at}: одна колонка`).toBe(false);
   }
-  await page.screenshot({ path: '../.local/prejoin-responsive.png', fullPage: true });
+  // Плавно: окно меняется на 10 px — раскладка сдвигается не больше чем на 2,5 шага (превью 16:10 по
+  // высоте — 1,6 шага, центровка — полшага). Скачок — только на переходе между колонками.
+  const sweep = async (steps: { width: number; height: number }[]) => {
+    let last: PrejoinBox | null = null;
+    for (const size of steps) {
+      await page.setViewportSize(size);
+      const box = await prejoinLayout(page);
+      if (last && last.twoColumns === box.twoColumns)
+        for (const [name, a, b] of [
+          ['ширина превью', last.preview.width, box.preview.width],
+          ['левый край превью', last.preview.left, box.preview.left],
+          ['верх превью', last.preview.top, box.preview.top],
+          ['левый край формы', last.form.left, box.form.left],
+          ['верх формы', last.form.top, box.form.top],
+        ] as const)
+          expect(Math.abs(b - a), `${size.width}×${size.height}: ${name}`).toBeLessThanOrEqual(25);
+      last = box;
+    }
+  };
+  const range = (from: number, to: number) =>
+    Array.from({ length: Math.floor((to - from) / 10) + 1 }, (_, i) => from + i * 10);
+  await sweep(range(320, 2560).map((width) => ({ width, height: 714 })));
+  await sweep(range(480, 1440).map((height) => ({ width: 1280, height })));
+  await sweep(range(480, 1000).map((height) => ({ width: 390, height })));
 });
 
 test('two real browser contexts exchange camera, audio and messages through LiveKit', async ({ browser }) => {
