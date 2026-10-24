@@ -1329,7 +1329,6 @@
     "board": "Board",
     "camera": "Camera: {{name}}",
     "slide": "{{label}} — slide right",
-    "linger": "Nobody's at the table: the game ends in <time/>. Take a seat to stop the countdown.",
     "turn": {
       "yours": "Your turn",
       "yoursCall": "Your turn · call {{amount}} or raise",
@@ -1354,10 +1353,18 @@
       "results": "Results",
       "next": "Continue",
       "deal": "Deal",
+      "dealNeedsTwo": "You can deal once two players are seated",
       "pause": "Pause",
       "resume": "Resume",
       "full": "Expand table",
-      "exitFull": "Exit full screen"
+      "exitFull": "Exit full screen",
+      "status": {
+        "waiting": "Waiting for players · {{ready}} of {{need}}",
+        "ready": "Ready to deal",
+        "dealer": "Waiting for the dealer",
+        "dealing": "Dealing in <time/>",
+        "closing": "The table closes in <time/>"
+      }
     },
     "settings": {
       "title": "Game settings",
@@ -1397,12 +1404,7 @@
     },
     "waiting": {
       "winner": "{{name}} takes it all",
-      "again": "Start over",
-      "pausedHint": "The dealer paused the game",
-      "needPlayer": "One more player needed",
-      "needPlayerHint": "The “Take a seat” button is under the table",
-      "dealIn": "Dealing in <time/>",
-      "dealer": "Waiting for the dealer"
+      "again": "Start over"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1420,7 +1422,6 @@
     },
     "controls": {
       "waitNext": "Waiting for the next hand",
-      "sitToPlay": "Take a seat to play",
       "timeBank": "time bank {{seconds}} s",
       "timeBankSpent": "time bank used up",
       "betSize": "Bet size",
@@ -1431,8 +1432,7 @@
       "raise": "Raise",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Show cards",
-      "stand": "Leave the table",
-      "needTwo": "You can deal once two players are seated"
+      "stand": "Leave the table"
     },
     "rebuy": {
       "title": "Out of chips",

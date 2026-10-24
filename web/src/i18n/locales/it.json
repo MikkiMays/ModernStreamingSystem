@@ -1344,7 +1344,6 @@
     "board": "Carte comuni",
     "camera": "Videocamera: {{name}}",
     "slide": "{{label}} — trascina a destra",
-    "linger": "Nessuno al tavolo: la partita finirà tra <time/>. Siediti al tavolo e il conto alla rovescia si fermerà.",
     "turn": {
       "yours": "Tocca a te",
       "yoursCall": "Tocca a te · chiama {{amount}} o rilancia",
@@ -1369,10 +1368,18 @@
       "results": "Risultati",
       "next": "Continua",
       "deal": "Distribuisci",
+      "dealNeedsTwo": "Si può distribuire quando al tavolo ci sono due giocatori",
       "pause": "Pausa",
       "resume": "Riprendi",
       "full": "Espandi il tavolo",
-      "exitFull": "Esci dallo schermo intero"
+      "exitFull": "Esci dallo schermo intero",
+      "status": {
+        "waiting": "In attesa di giocatori · {{ready}} su {{need}}",
+        "ready": "Si può distribuire",
+        "dealer": "In attesa del mazziere",
+        "dealing": "Si distribuisce tra <time/>",
+        "closing": "Il tavolo chiude tra <time/>"
+      }
     },
     "settings": {
       "title": "Impostazioni della partita",
@@ -1413,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} prende tutto",
-      "again": "Ricomincia",
-      "pausedHint": "Il mazziere ha messo in pausa la partita",
-      "needPlayer": "Serve un altro giocatore",
-      "needPlayerHint": "Il pulsante «Siediti al tavolo» è sotto il tavolo",
-      "dealIn": "Si distribuisce tra <time/>",
-      "dealer": "In attesa del mazziere"
+      "again": "Ricomincia"
     },
     "seat": {
       "dealer": "Mazziere",
@@ -1436,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "In attesa della prossima mano",
-      "sitToPlay": "Siediti al tavolo per giocare",
       "timeBank": "banca del tempo {{seconds}} s",
       "timeBankSpent": "banca del tempo esaurita",
       "betSize": "Importo della puntata",
@@ -1447,8 +1448,7 @@
       "raise": "Rilancia",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Mostra le carte",
-      "stand": "Alzati dal tavolo",
-      "needTwo": "Si può distribuire quando al tavolo ci sono due giocatori"
+      "stand": "Alzati dal tavolo"
     },
     "rebuy": {
       "title": "Fiches finite",

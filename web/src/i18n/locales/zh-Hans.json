@@ -1314,7 +1314,6 @@
     "board": "公共牌",
     "camera": "摄像头：{{name}}",
     "slide": "{{label}} — 向右滑动",
-    "linger": "牌桌上没有人：游戏将在 <time/> 后结束。入座即可停止倒计时。",
     "turn": {
       "yours": "轮到你",
       "yoursCall": "轮到你 · 跟注 {{amount}} 或加注",
@@ -1339,10 +1338,18 @@
       "results": "结果",
       "next": "继续",
       "deal": "发牌",
+      "dealNeedsTwo": "牌桌上有两人时才能发牌",
       "pause": "暂停",
       "resume": "继续",
       "full": "展开牌桌",
-      "exitFull": "退出全屏"
+      "exitFull": "退出全屏",
+      "status": {
+        "waiting": "等待玩家 · {{ready}}/{{need}}",
+        "ready": "可以发牌了",
+        "dealer": "等待发牌人",
+        "dealing": "<time/> 后发牌",
+        "closing": "牌桌将在 <time/> 后关闭"
+      }
     },
     "settings": {
       "title": "游戏设置",
@@ -1381,12 +1388,7 @@
     },
     "waiting": {
       "winner": "{{name}} 赢走全部",
-      "again": "重新开始",
-      "pausedHint": "发牌人暂停了游戏",
-      "needPlayer": "还需要一名玩家",
-      "needPlayerHint": "“入座”按钮在牌桌下方",
-      "dealIn": "<time/> 后发牌",
-      "dealer": "等待发牌人"
+      "again": "重新开始"
     },
     "seat": {
       "dealer": "庄家",
@@ -1404,7 +1406,6 @@
     },
     "controls": {
       "waitNext": "等待下一手牌",
-      "sitToPlay": "入座后即可游戏",
       "timeBank": "时间银行 {{seconds}} 秒",
       "timeBankSpent": "时间银行已用完",
       "betSize": "下注金额",
@@ -1415,8 +1416,7 @@
       "raise": "加注",
       "allinAmount": "全下 {{amount}}",
       "reveal": "亮牌",
-      "stand": "离开牌桌",
-      "needTwo": "牌桌上有两人时才能发牌"
+      "stand": "离开牌桌"
     },
     "rebuy": {
       "title": "筹码输光了",

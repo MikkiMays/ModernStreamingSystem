@@ -1344,7 +1344,6 @@
     "board": "Cartas da mesa",
     "camera": "Câmera: {{name}}",
     "slide": "{{label}} — deslize para a direita",
-    "linger": "Ninguém na mesa: o jogo termina em <time/>. Sente-se à mesa e a contagem para.",
     "turn": {
       "yours": "Sua vez",
       "yoursCall": "Sua vez · pagar {{amount}} ou aumentar",
@@ -1369,10 +1368,18 @@
       "results": "Resultados",
       "next": "Continuar",
       "deal": "Distribuir",
+      "dealNeedsTwo": "Dá para distribuir quando houver dois na mesa",
       "pause": "Pausar",
       "resume": "Retomar",
       "full": "Expandir a mesa",
-      "exitFull": "Sair da tela cheia"
+      "exitFull": "Sair da tela cheia",
+      "status": {
+        "waiting": "Aguardando jogadores · {{ready}} de {{need}}",
+        "ready": "Pronto para distribuir",
+        "dealer": "Aguardando o dealer",
+        "dealing": "Distribuindo em <time/>",
+        "closing": "A mesa fecha em <time/>"
+      }
     },
     "settings": {
       "title": "Configurações do jogo",
@@ -1413,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} leva tudo",
-      "again": "Começar de novo",
-      "pausedHint": "O dealer pausou o jogo",
-      "needPlayer": "Falta um jogador",
-      "needPlayerHint": "O botão “Sentar à mesa” fica embaixo da mesa",
-      "dealIn": "Distribuindo em <time/>",
-      "dealer": "Aguardando o dealer"
+      "again": "Começar de novo"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1436,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "Aguardando a próxima mão",
-      "sitToPlay": "Sente-se à mesa para jogar",
       "timeBank": "banco de tempo {{seconds}} s",
       "timeBankSpent": "banco de tempo esgotado",
       "betSize": "Valor da aposta",
@@ -1447,8 +1448,7 @@
       "raise": "Aumentar",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Mostrar as cartas",
-      "stand": "Sair da mesa",
-      "needTwo": "Dá para distribuir quando houver dois na mesa"
+      "stand": "Sair da mesa"
     },
     "rebuy": {
       "title": "Acabaram as fichas",

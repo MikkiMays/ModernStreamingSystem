@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Crown,
   Eye,
-  Hand,
   LogOut,
   Pause,
   Play,
@@ -26,7 +25,6 @@ import {
   Minimize2,
   Settings2,
   ShieldCheck,
-  Timer,
   TrendingUp,
   Trophy,
   X,
@@ -73,6 +71,7 @@ import { CordMark, CordWordmark } from './brand/Logo';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
 import { useVoiceTier } from './useVoice';
 import { TurnRing } from './TurnRing';
+import { tableStatus, type TableStatus } from './poker/table-status';
 import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
 
 /**
@@ -189,6 +188,8 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
       ? table.result.pot
       : table.pot + table.seats.reduce((sum, seat) => sum + seat.bet, 0);
   const beat = usePotBeat(pot);
+  // Между раздачами шапка сама говорит, что со столом (R46): ждём игроков, раздаём, закрываемся.
+  const status = tableStatus(table, dealer);
 
   return (
     <div
@@ -218,27 +219,31 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
           На телефоне строка одна, поэтому там остаётся только «Ваш ход» — кольцо на месте и
           подсвеченная панель говорят остальное.
         */}
-        {(!compact || (you?.turn && !table.paused)) && (
-          <GameTurn
-            meeting={meeting}
-            deadline={table.deadline}
-            active={!!you?.turn && !table.paused}
-            label={
-              table.paused
-                ? t(($) => $.poker.paused)
-                : you?.turn
-                  ? compact
-                    ? t(($) => $.poker.turn.yours)
-                    : you.callAmount > 0
-                      ? t(($) => $.poker.turn.yoursCall, { amount: chips(t, you.callAmount) })
-                      : t(($) => $.poker.turn.yoursCheck)
-                  : table.seats.find((seat) => seat.index === table.actor)?.name
-                    ? t(($) => $.poker.turn.acting, {
-                        name: table.seats.find((seat) => seat.index === table.actor)?.name,
-                      })
-                    : phaseLabel(t, table.phase)
-            }
-          />
+        {status ? (
+          <TableStatusLabel meeting={meeting} status={status} />
+        ) : (
+          (!compact || (you?.turn && !table.paused)) && (
+            <GameTurn
+              meeting={meeting}
+              deadline={table.deadline}
+              active={!!you?.turn && !table.paused}
+              label={
+                table.paused
+                  ? t(($) => $.poker.paused)
+                  : you?.turn
+                    ? compact
+                      ? t(($) => $.poker.turn.yours)
+                      : you.callAmount > 0
+                        ? t(($) => $.poker.turn.yoursCall, { amount: chips(t, you.callAmount) })
+                        : t(($) => $.poker.turn.yoursCheck)
+                    : table.seats.find((seat) => seat.index === table.actor)?.name
+                      ? t(($) => $.poker.turn.acting, {
+                          name: table.seats.find((seat) => seat.index === table.actor)?.name,
+                        })
+                      : phaseLabel(t, table.phase)
+              }
+            />
+          )
         )}
       </TableBar>
       <div className="poker-felt-wrap" ref={play}>
@@ -308,27 +313,12 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
                 <small>{t(($) => $.poker.pause.clocks)}</small>
               </div>
             )}
-            <Waiting
-              meeting={meeting}
-              table={table}
-              dealer={dealer}
-              onSend={send}
-              onResults={() => setSheet('results')}
-            />
             {/*
-              Срок пустого стола — вслух.
-
-              Стол, за которым десять минут никого, заканчивает игру сам, и исчезнуть без
-              предупреждения он не вправе: это выглядело бы как потерянная игра, а не как уборка.
-              Число приезжает в снимке, поэтому у всех оно одно и то же.
+              Между раздачами на сукне ничего не лежит (R27, R46): «нужен ещё игрок», «раздаём
+              через…» и срок пустого стола говорит шапка. Здесь остаётся только итог игры.
             */}
-            {table.closesAt > 0 && !playing(table) && (
-              <span className="poker-linger" role="status">
-                <Trans
-                  i18nKey={($) => $.poker.linger}
-                  components={{ time: <Countdown meeting={meeting} until={table.closesAt} minutes /> }}
-                />
-              </span>
+            {table.phase === 'over' && (
+              <GameOver table={table} dealer={dealer} onSend={send} onResults={() => setSheet('results')} />
             )}
           </div>
           {spots.map((spot) => {
@@ -408,14 +398,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
               {t(($) => $.poker.sit)}
             </button>
           )}
-          <Controls
-            table={table}
-            show={show}
-            dealer={dealer}
-            onSend={send}
-            error={error}
-            hints={preferences.pokerHints}
-          />
+          <Controls table={table} show={show} onSend={send} error={error} hints={preferences.pokerHints} />
         </div>
       </div>
     </div>
@@ -576,6 +559,9 @@ function TableBar({
             <button
               className={showdown ? 'button secondary small' : 'button primary small'}
               disabled={ready < 2}
+              // Почему недоступна — подсказкой и для экранной читалки, а не строкой под столом (R45).
+              title={ready < 2 ? t(($) => $.poker.bar.dealNeedsTwo) : undefined}
+              aria-describedby={ready < 2 && table.phase === 'lobby' ? STATUS_ID : undefined}
               onClick={() => onSend('poker.deal')}
             >
               <Play size={15} /> {t(($) => $.poker.bar.deal)}
@@ -675,6 +661,8 @@ function GameSettings({
           hint={t(($) => $.poker.combinations.hint)}
           onClick={onHelp}
         />
+        {/* Проверка честности — здесь, а не строкой под столом (R45): нужна она редко, и всем. */}
+        <Fairness table={table} />
       </div>
       {dealer && (
         <div className="poker-settings" data-host="true">
@@ -805,76 +793,77 @@ function Toggle({
   );
 }
 
-/** Что стол говорит, когда карты не раздаются: кого ждём и сколько. */
-function Waiting({
-  meeting,
+/** Игра кончилась: кто забрал всё, итоги и «собрать заново» — у ведущего. */
+function GameOver({
   table,
   dealer,
   onSend,
   onResults,
 }: {
-  meeting: Meeting;
   table: Table;
   dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   onResults: () => void;
 }) {
   const { t } = useTranslation();
-  if (table.phase === 'over') {
-    const winner = table.seats.find((seat) => seat.place === 1);
-    return (
-      <div className="poker-waiting is-over" role="status">
-        <Crown size={22} />
-        <b>{winner ? t(($) => $.poker.waiting.winner, { name: winner.name }) : t(($) => $.poker.gameOver)}</b>
-        <button className="button secondary small" onClick={onResults}>
-          <Trophy size={15} /> {t(($) => $.poker.results.title)}
-        </button>
-        {dealer && (
-          <button
-            className="button primary small"
-            onClick={() => {
-              onSend('poker.close');
-              setTimeout(() => onSend('poker.open', { option: table.mode, chips: table.startingStack }), 250);
-            }}
-          >
-            {t(($) => $.poker.waiting.again)}
-          </button>
-        )}
-      </div>
-    );
-  }
-  if (table.phase !== 'lobby') return null;
-  const ready = table.seats.filter((seat) => seat.memberId && seat.stack > 0 && !seat.away).length;
+  const winner = table.seats.find((seat) => seat.place === 1);
   return (
-    <div className="poker-waiting" role="status">
-      {table.paused ? (
-        <>
-          <Pause size={18} /> <b>{t(($) => $.poker.paused)}</b>
-          <small>{t(($) => $.poker.waiting.pausedHint)}</small>
-        </>
-      ) : ready < 2 ? (
-        <>
-          <Hand size={18} /> <b>{t(($) => $.poker.waiting.needPlayer)}</b>
-          <small>{t(($) => $.poker.waiting.needPlayerHint)}</small>
-        </>
-      ) : table.deadline > 0 ? (
-        <>
-          <Timer size={18} />{' '}
-          <b>
-            <Trans
-              i18nKey={($) => $.poker.waiting.dealIn}
-              components={{ time: <Countdown meeting={meeting} until={table.deadline} /> }}
-            />
-          </b>
-        </>
-      ) : (
-        <>
-          <Hand size={18} /> <b>{t(($) => $.poker.waiting.dealer)}</b>
-        </>
+    <div className="poker-waiting is-over" role="status">
+      <Crown size={22} />
+      <b>{winner ? t(($) => $.poker.waiting.winner, { name: winner.name }) : t(($) => $.poker.gameOver)}</b>
+      <button className="button secondary small" onClick={onResults}>
+        <Trophy size={15} /> {t(($) => $.poker.results.title)}
+      </button>
+      {dealer && (
+        <button
+          className="button primary small"
+          onClick={() => {
+            onSend('poker.close');
+            setTimeout(() => onSend('poker.open', { option: table.mode, chips: table.startingStack }), 250);
+          }}
+        >
+          {t(($) => $.poker.waiting.again)}
+        </button>
       )}
     </div>
   );
 }
+
+/**
+ * Состояние стола между раздачами — словами в шапке (R46), там же, где во время раздачи стоит
+ * «Ходит Аня». Отсчёт — от метки ядра (`deadline`, `closesAt`), как у всех за столом.
+ */
+function TableStatusLabel({ meeting, status }: { meeting: Meeting; status: TableStatus }) {
+  const { t } = useTranslation();
+  return (
+    <div className="game-turn poker-status" data-table-status={status.kind}>
+      <strong id={STATUS_ID} role="status">
+        {status.kind === 'closing' ? (
+          <Trans
+            i18nKey={($) => $.poker.bar.status.closing}
+            components={{ time: <Countdown meeting={meeting} until={status.until} minutes /> }}
+          />
+        ) : status.kind === 'dealing' ? (
+          <Trans
+            i18nKey={($) => $.poker.bar.status.dealing}
+            components={{ time: <Countdown meeting={meeting} until={status.until} /> }}
+          />
+        ) : status.kind === 'waiting' ? (
+          t(($) => $.poker.bar.status.waiting, { ready: status.ready, need: status.need })
+        ) : status.kind === 'paused' ? (
+          t(($) => $.poker.paused)
+        ) : status.kind === 'ready' ? (
+          t(($) => $.poker.bar.status.ready)
+        ) : (
+          t(($) => $.poker.bar.status.dealer)
+        )}
+      </strong>
+    </div>
+  );
+}
+
+/** По этой метке «Раздать» объясняет, почему он пока недоступен. */
+const STATUS_ID = 'poker-table-status';
 
 /** Место за столом: человек, его фишки, карты и ставка. */
 function SeatView({
@@ -1142,14 +1131,12 @@ function Countdown({ meeting, until, minutes }: { meeting: Meeting; until: numbe
 function Controls({
   table,
   show,
-  dealer,
   onSend,
   error,
   hints,
 }: {
   table: Table;
   show: Map<string, CardState>;
-  dealer: boolean;
   onSend: (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
   error: string;
   hints: boolean;
@@ -1200,6 +1187,17 @@ function Controls({
   const seat = you ? table.seats.find((seat) => seat.index === you.seat) : null;
   const seated = !!seat;
   /*
+    Не севшему под столом нечего показать (R45): «Сесть за стол» стоит рядом, а «сядьте, чтобы
+    играть» и «раздать можно, когда за столом двое» повторяли его и шапку. Остаётся только отказ
+    сервера, если он был.
+  */
+  if (!seat)
+    return error ? (
+      <p className="form-error poker-error" role="alert">
+        {error}
+      </p>
+    ) : null;
+  /*
     ФИШКИ КОНЧИЛИСЬ — ЭТО СОБЫТИЕ, А НЕ КНОПКА В РЯДУ ДРУГИХ.
 
     Раньше здесь стояло «Докупиться до 5 000», и одно случайное нажатие молча добавляло фишки:
@@ -1227,9 +1225,7 @@ function Controls({
             ))}
           </div>
         ) : (
-          <span className="poker-mine-hint">
-            {seated ? t(($) => $.poker.controls.waitNext) : t(($) => $.poker.controls.sitToPlay)}
-          </span>
+          <span className="poker-mine-hint">{t(($) => $.poker.controls.waitNext)}</span>
         )}
         {seat && (
           <span className="poker-mine-stack">
@@ -1352,10 +1348,6 @@ function Controls({
               </button>
             </>
           )}
-          {!seated && dealer && table.phase === 'lobby' && (
-            <span className="poker-idle-hint">{t(($) => $.poker.controls.needTwo)}</span>
-          )}
-          <Fairness table={table} />
         </div>
       )}
       {error && (
@@ -1522,21 +1514,19 @@ function Fairness({ table }: { table: Table }) {
   useEffect(() => setVerdict(null), [table.handNumber, table.seed]);
   if (!table.seed) return null;
   return (
-    <span className="poker-fair">
-      <button
-        className="text-button"
-        disabled={checking}
-        onClick={() => {
-          setChecking(true);
-          void verifyDeal(table)
-            .then(setVerdict)
-            .finally(() => setChecking(false));
-        }}
-      >
-        <ShieldCheck size={14} /> {t(($) => $.poker.fair.check)}
-      </button>
+    <button
+      className="poker-settings-link poker-fair"
+      disabled={checking}
+      onClick={() => {
+        setChecking(true);
+        void verifyDeal(table)
+          .then(setVerdict)
+          .finally(() => setChecking(false));
+      }}
+    >
+      <ShieldCheck size={16} /> <b>{t(($) => $.poker.fair.check)}</b>
       {verdict && <small data-state={verdict.state}>{verdictText(t, verdict)}</small>}
-    </span>
+    </button>
   );
 }
 

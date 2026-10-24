@@ -403,21 +403,11 @@
   color: var(--gold-soft);
 }
 /*
-  Срок пустого стола.
-
-  Стол, за которым десять минут никого, заканчивает игру сам — и предупреждает об этом заранее:
-  исчезнувший молча стол читается как потерянная игра, а не как уборка. Оранжевый, а не красный:
-  это не ошибка, а обратный отсчёт, который останавливается тем, что кто-то сядет.
+  Срок пустого стола — в шапке, а не плашкой на сукне (R27, R46): тот же оранжевый обратный
+  отсчёт, который останавливается тем, что кто-то сядет. Ждём игроков — спокойным цветом шапки.
 */
-.poker-linger {
-  max-width: 34ch;
-  padding: 5px 12px;
-  border-radius: var(--radius-3);
-  font-size: var(--text-xs);
-  line-height: 1.35;
+.poker-bar .poker-status[data-table-status='closing'] strong {
   color: var(--warning);
-  background: var(--stage-veil-3);
-  border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent);
 }
 
 /* --- Фишки ----------------------------------------------------------------------------- */
@@ -1394,30 +1384,7 @@
   flex-wrap: wrap;
   justify-content: center;
 }
-.poker-idle-hint {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-.poker-fair {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.poker-fair .text-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.poker-fair small {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
+/* Проверка раздачи — строка «Настроек игры» (R45); итог сверки — её подписью, своим цветом. */
 .poker-fair small[data-state='ok'] {
   color: var(--success);
 }
@@ -2185,9 +2152,6 @@
   }
   .poker-idle {
     gap: 6px;
-  }
-  .poker-fair {
-    width: 100%;
   }
   /* Лист поверх сукна на телефоне — снизу вверх на всю ширину: справа для него нет места. */
   .poker-sheet {

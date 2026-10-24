@@ -167,8 +167,10 @@ test('итоги игры приезжают обоим, остаются в и�
       .locator('.poker-idle')
       .getByRole('button', { name: /Встать из-за стола/ })
       .click();
-    await expect(host.locator('.poker-linger')).toBeVisible({ timeout: 15000 });
-    await expect(host.locator('.poker-linger')).toContainText('мин');
+    // Срок пустого стола — в шапке стола, а не плашкой на сукне (R46, R27).
+    const closing = host.locator('.poker-bar [data-table-status="closing"]');
+    await expect(closing).toBeVisible({ timeout: 15000 });
+    await expect(closing).toContainText('мин');
   } finally {
     await a.close();
     await b.close();

@@ -1344,7 +1344,6 @@
     "board": "Cartas comunitarias",
     "camera": "Cámara: {{name}}",
     "slide": "{{label}}: desliza a la derecha",
-    "linger": "No hay nadie en la mesa: la partida terminará en <time/>. Siéntate y la cuenta atrás se detendrá.",
     "turn": {
       "yours": "Tu turno",
       "yoursCall": "Tu turno · iguala {{amount}} o sube",
@@ -1369,10 +1368,18 @@
       "results": "Resultados",
       "next": "Continuar",
       "deal": "Repartir",
+      "dealNeedsTwo": "Se puede repartir cuando hay dos en la mesa",
       "pause": "Pausar",
       "resume": "Reanudar",
       "full": "Ampliar la mesa",
-      "exitFull": "Salir de pantalla completa"
+      "exitFull": "Salir de pantalla completa",
+      "status": {
+        "waiting": "Esperando jugadores · {{ready}} de {{need}}",
+        "ready": "Ya se puede repartir",
+        "dealer": "Esperando al repartidor",
+        "dealing": "Repartimos en <time/>",
+        "closing": "La mesa se cerrará en <time/>"
+      }
     },
     "settings": {
       "title": "Ajustes de la partida",
@@ -1413,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} se lo lleva todo",
-      "again": "Empezar de nuevo",
-      "pausedHint": "El repartidor pausó la partida",
-      "needPlayer": "Falta un jugador",
-      "needPlayerHint": "El botón «Sentarse a la mesa» está bajo la mesa",
-      "dealIn": "Repartimos en <time/>",
-      "dealer": "Esperando al repartidor"
+      "again": "Empezar de nuevo"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1436,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "Esperando la próxima mano",
-      "sitToPlay": "Siéntate a la mesa para jugar",
       "timeBank": "banco de tiempo {{seconds}} s",
       "timeBankSpent": "banco de tiempo agotado",
       "betSize": "Tamaño de la apuesta",
@@ -1447,8 +1448,7 @@
       "raise": "Subir",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Mostrar cartas",
-      "stand": "Levantarse de la mesa",
-      "needTwo": "Se puede repartir cuando hay dos en la mesa"
+      "stand": "Levantarse de la mesa"
     },
     "rebuy": {
       "title": "Te quedaste sin fichas",

@@ -1344,7 +1344,6 @@
     "board": "Tableau",
     "camera": "Caméra : {{name}}",
     "slide": "{{label}} — glissez vers la droite",
-    "linger": "Personne à la table : la partie se terminera dans <time/>. Asseyez-vous pour arrêter le compte à rebours.",
     "turn": {
       "yours": "À vous de jouer",
       "yoursCall": "À vous · suivre {{amount}} ou relancer",
@@ -1369,10 +1368,18 @@
       "results": "Résultats",
       "next": "Continuer",
       "deal": "Distribuer",
+      "dealNeedsTwo": "On peut distribuer dès que deux joueurs sont assis",
       "pause": "Pause",
       "resume": "Reprendre",
       "full": "Agrandir la table",
-      "exitFull": "Quitter le plein écran"
+      "exitFull": "Quitter le plein écran",
+      "status": {
+        "waiting": "En attente de joueurs · {{ready}} sur {{need}}",
+        "ready": "Prêt à distribuer",
+        "dealer": "En attente du donneur",
+        "dealing": "Distribution dans <time/>",
+        "closing": "La table fermera dans <time/>"
+      }
     },
     "settings": {
       "title": "Paramètres de la partie",
@@ -1413,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} rafle tout",
-      "again": "Recommencer",
-      "pausedHint": "Le donneur a mis la partie en pause",
-      "needPlayer": "Il manque un joueur",
-      "needPlayerHint": "Le bouton « S'asseoir » est sous la table",
-      "dealIn": "Distribution dans <time/>",
-      "dealer": "En attente du donneur"
+      "again": "Recommencer"
     },
     "seat": {
       "dealer": "Donneur",
@@ -1436,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "En attente de la main suivante",
-      "sitToPlay": "Asseyez-vous pour jouer",
       "timeBank": "banque de temps {{seconds}} s",
       "timeBankSpent": "banque de temps épuisée",
       "betSize": "Montant de la mise",
@@ -1447,8 +1448,7 @@
       "raise": "Relancer",
       "allinAmount": "Tapis {{amount}}",
       "reveal": "Montrer les cartes",
-      "stand": "Quitter la table",
-      "needTwo": "On peut distribuer dès que deux joueurs sont assis"
+      "stand": "Quitter la table"
     },
     "rebuy": {
       "title": "Plus de jetons",

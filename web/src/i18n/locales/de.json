@@ -1329,7 +1329,6 @@
     "board": "Tischkarten",
     "camera": "Kamera: {{name}}",
     "slide": "{{label}} – nach rechts ziehen",
-    "linger": "Niemand am Tisch: Das Spiel endet in <time/>. Setz dich hin, dann stoppt der Countdown.",
     "turn": {
       "yours": "Du bist dran",
       "yoursCall": "Du bist dran · {{amount}} callen oder erhöhen",
@@ -1354,10 +1353,18 @@
       "results": "Ergebnisse",
       "next": "Weiter",
       "deal": "Austeilen",
+      "dealNeedsTwo": "Austeilen geht ab zwei Spielern am Tisch",
       "pause": "Pause",
       "resume": "Fortsetzen",
       "full": "Tisch vergrößern",
-      "exitFull": "Vollbild beenden"
+      "exitFull": "Vollbild beenden",
+      "status": {
+        "waiting": "Warten auf Spieler · {{ready}} von {{need}}",
+        "ready": "Austeilen möglich",
+        "dealer": "Warten auf den Geber",
+        "dealing": "Austeilen in <time/>",
+        "closing": "Der Tisch schließt in <time/>"
+      }
     },
     "settings": {
       "title": "Spieleinstellungen",
@@ -1397,12 +1404,7 @@
     },
     "waiting": {
       "winner": "{{name}} gewinnt alles",
-      "again": "Neu starten",
-      "pausedHint": "Der Geber hat das Spiel pausiert",
-      "needPlayer": "Noch ein Spieler fehlt",
-      "needPlayerHint": "„Hinsetzen“ findest du unter dem Tisch",
-      "dealIn": "Austeilen in <time/>",
-      "dealer": "Warten auf den Geber"
+      "again": "Neu starten"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1420,7 +1422,6 @@
     },
     "controls": {
       "waitNext": "Warten auf die nächste Hand",
-      "sitToPlay": "Setz dich hin, um zu spielen",
       "timeBank": "Zeitbank {{seconds}} s",
       "timeBankSpent": "Zeitbank aufgebraucht",
       "betSize": "Einsatzhöhe",
@@ -1431,8 +1432,7 @@
       "raise": "Erhöhen",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Karten zeigen",
-      "stand": "Vom Tisch aufstehen",
-      "needTwo": "Austeilen geht ab zwei Spielern am Tisch"
+      "stand": "Vom Tisch aufstehen"
     },
     "rebuy": {
       "title": "Keine Chips mehr",
