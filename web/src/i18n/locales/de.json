@@ -3247,14 +3247,18 @@
   "capture": {
     "title": "Was teilen",
     "kinds": "Was geteilt wird",
-    "screens": "Bildschirme",
-    "windows": "Fenster",
+    "apps": "Anwendungen",
+    "screens": "Ganzer Bildschirm",
+    "devices": "Geräte",
     "sources": "Quellen",
     "loading": "Bildschirme und Fenster werden gesucht …",
     "noScreens": "Keine Bildschirme gefunden.",
     "noWindows": "Keine geöffneten Fenster.",
+    "noDevices": "Keine Aufnahmegeräte",
     "untitled": "Ohne Titel",
-    "systemAudio": "Mit Systemton",
+    "device": "Gerät {{n}}",
+    "sound": "Computerton",
+    "deviceSound": "Geräteton",
     "systemAudioHint": "Die Teilnehmenden hören den gesamten Ton des Computers – auch die Stimmen dieses Meetings.",
     "audio": "Ton",
     "audioModes": {
@@ -3269,7 +3273,19 @@
       "app": "Nur der Ton der gewählten App – die Stimmen des Meetings gelangen nicht in die Freigabe.",
       "system-except-cord": "Der gesamte Ton des Computers außer Cord selbst."
     },
-    "share": "Teilen",
-    "cancel": "Abbrechen"
+    "mode": "Freigabemodus",
+    "modes": {
+      "smooth": "Flüssig",
+      "sharp": "Scharf"
+    },
+    "modeHints": {
+      "smooth": "Spiele und Videos: die gewählte Bildrate bleibt",
+      "sharp": "Text und Desktop: immer scharf, so viele Bilder, wie die Verbindung erlaubt"
+    },
+    "options": "Freigabe-Einstellungen",
+    "preview": "Vorschau für Zuschauer zeigen",
+    "fps": "{{fps}} fps",
+    "fpsUpTo": "bis {{fps}} fps",
+    "share": "Teilen"
   }
 }

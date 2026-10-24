@@ -1,13 +1,16 @@
 /*
-  Окно выбора источника показа (E01-B2, ADR 0001 §4.1) — только в клиенте на Electron. Плитки по
-  образцу Discord: миниатюра 16:9, под ней значок приложения и имя; выбранная — обводка цветом
-  акцента. Всё на токенах E16, тема и reduced motion — из них же.
+  Окно показа (R60, R82 → n05; ADR 0001 §4.1) — только в клиенте на Electron. Плитки по образцу
+  Discord и Телемоста: миниатюра 16:9, под ней значок приложения и имя; выбранная — обводка цветом
+  акцента. Внизу — звук и сводка слева, режим, шестерёнка и «Показать» справа; узко — в две строки.
+  Всё на токенах E16, тема и reduced motion — из них же.
 */
 .capture-picker {
-  width: min(100%, 760px);
+  width: min(100%, 880px);
+  max-height: calc(100dvh - var(--space-8) - var(--titlebar-h, 0px));
 }
 .capture-picker .ui-dialog__body {
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   min-height: 320px;
 }
@@ -16,40 +19,103 @@
 }
 .capture-picker__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+/* Экранов обычно один-два — плитки крупнее, по две в ряд. */
+.capture-picker__grid[data-kind='screen'] {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
 .capture-picker__empty {
-  margin: 0;
-  padding: var(--space-8) var(--space-4);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-4);
   color: var(--muted);
   text-align: center;
+}
+.capture-picker__empty p {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
 }
 .capture-picker .ui-dialog__footer {
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--line);
 }
-.capture-picker__audio {
-  flex: 1 1 280px;
-  margin-right: auto;
-}
-/* Режимы звука (E01-B3): строка переключателей под плитками, подсказка выбранного — под ней. */
-.capture-picker__sound {
+.capture-picker__start {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  flex: 1 1 260px;
+  min-width: 0;
 }
-.capture-picker__modes {
+/* Переключатель слева от подписи — как у Телемоста: «● Звук компьютера», пояснение под подписью. */
+.capture-picker__audio.ui-switch-row {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.capture-picker__audio .ui-switch-row__text {
+  flex: 0 1 auto;
+}
+.capture-picker__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.capture-picker__end {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
+  margin-left: auto;
+}
+/* Шестерёнка открывает карточку поверх окна показа: слой выше окон (`--z-dialog`), иначе она — под ним. */
+.ui-popover__positioner:has(> .capture-picker__options) {
+  z-index: calc(var(--z-dialog) + 1);
+}
+.capture-picker__options {
+  width: min(360px, calc(100vw - 2 * var(--space-4)));
+}
+.capture-picker__rows {
+  display: grid;
+  gap: var(--space-1);
+}
+/* Строки «Качество» и «Частота кадров» — плотнее, чем в окне настроек: карточка у кнопки. */
+.capture-picker__rows .setting-row {
+  --settings-row-h: 44px;
+  column-gap: var(--space-4);
+}
+.capture-picker__preview {
+  padding-block: var(--space-2);
+}
+/* Режимы звука (E01-B3) — в шестерёнке, списком: «Звук приложения», «Система кроме Cord»… */
+.capture-picker__modes {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: var(--hairline) solid var(--line);
+}
+.capture-picker__modes-title {
+  padding-block: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 .capture-picker__mode {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   border-radius: var(--radius-2);
-  background: var(--surface-2);
   color: var(--text);
   font-size: var(--text-sm);
   cursor: pointer;
@@ -58,9 +124,6 @@
 .capture-picker__mode:hover {
   background: var(--surface-hover);
 }
-.capture-picker__mode:has(input:checked) {
-  background: var(--accent-soft);
-}
 .capture-picker__mode:has(input:focus-visible) {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
@@ -68,11 +131,6 @@
 .capture-picker__mode input {
   margin: 0;
   accent-color: var(--accent);
-}
-.capture-picker__hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
 }
 
 .capture-tile {
@@ -102,6 +160,10 @@
 .capture-tile[aria-pressed='true'] {
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+.capture-tile[aria-pressed='true'] .capture-tile__label {
+  color: var(--text);
+  font-weight: var(--weight-medium);
 }
 .capture-tile__thumb {
   display: grid;

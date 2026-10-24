@@ -73,3 +73,41 @@ export const browserCapture: CaptureAdapter = {
       } as MediaTrackConstraints,
     }),
 };
+
+/**
+ * Устройство захвата — карта захвата приставки, виртуальная камера OBS (вкладка «Устройства» окна
+ * показа, R60). Публикуется как показ экрана, а не как камера: с теми же уровнем, режимом и
+ * превью, что выбраны в окне. Звук — микрофонный вход того же устройства (тот же `groupId`, так
+ * карта захвата отдаёт звук приставки), если он есть и его попросили; без обработки голоса —
+ * это не речь.
+ */
+export async function deviceCapture(
+  deviceId: string,
+  profile: Pick<ScreenProfile, 'resolution' | 'fps'>,
+  withSound: boolean,
+): Promise<MediaStream> {
+  const sound = withSound ? await deviceSound(deviceId) : null;
+  return navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: deviceId }, ...captureConstraints(profile) },
+    audio: sound
+      ? {
+          deviceId: { exact: sound },
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        }
+      : false,
+  });
+}
+
+/** Звуковой вход того же устройства захвата (`groupId`); нет — `null`. */
+export async function deviceSound(deviceId: string): Promise<string | null> {
+  const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+  const video = devices.find((device) => device.kind === 'videoinput' && device.deviceId === deviceId);
+  if (!video?.groupId) return null;
+  return (
+    devices.find(
+      (device) => device.kind === 'audioinput' && device.groupId === video.groupId && device.deviceId,
+    )?.deviceId ?? null
+  );
+}

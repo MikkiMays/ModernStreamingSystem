@@ -235,3 +235,18 @@ it('показ помнит режим и превью (R95/R80): старые �
   );
   expect(readPreferences().screen.mode).toBe('smooth');
 });
+
+it('показ помнит звук окна показа (R60): старая запись и незнакомое — без звука, правка уровня его не стирает', () => {
+  localStorage.setItem('cord:preferences:v1', JSON.stringify({ screen: { resolution: 1080, fps: 30 } }));
+  expect(readPreferences().screen.audio).toBe('none');
+  savePreferences({ screen: { resolution: 1080, fps: 30, audio: 'app' } });
+  expect(readPreferences().screen.audio).toBe('app');
+  // Ряд качества в настройках «Видео» о звуке не знает — звук остаётся.
+  savePreferences({ screen: { resolution: 720, fps: 60 } });
+  expect(readPreferences().screen).toMatchObject({ resolution: 720, audio: 'app' });
+  localStorage.setItem(
+    'cord:preferences:v1',
+    JSON.stringify({ screen: { resolution: 1080, fps: 30, audio: 'loud' } }),
+  );
+  expect(readPreferences().screen.audio).toBe('none');
+});

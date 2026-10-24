@@ -3210,14 +3210,18 @@
   "capture": {
     "title": "共享内容",
     "kinds": "共享内容类型",
-    "screens": "屏幕",
-    "windows": "窗口",
+    "apps": "应用程序",
+    "screens": "整个屏幕",
+    "devices": "设备",
     "sources": "来源",
     "loading": "正在查找屏幕和窗口…",
     "noScreens": "未找到屏幕。",
     "noWindows": "没有打开的窗口。",
+    "noDevices": "没有采集设备",
     "untitled": "无标题",
-    "systemAudio": "包含系统声音",
+    "device": "设备 {{n}}",
+    "sound": "电脑声音",
+    "deviceSound": "设备声音",
     "systemAudioHint": "参与者将听到电脑的全部声音，包括本次会议的语音。",
     "audio": "声音",
     "audioModes": {
@@ -3232,7 +3236,19 @@
       "app": "仅共享所选应用的声音——会议中的语音不会进入共享。",
       "system-except-cord": "电脑的全部声音，Cord 本身除外。"
     },
-    "share": "共享",
-    "cancel": "取消"
+    "mode": "共享模式",
+    "modes": {
+      "smooth": "流畅",
+      "sharp": "清晰"
+    },
+    "modeHints": {
+      "smooth": "游戏和视频：保持所选帧率",
+      "sharp": "文字和桌面：始终清晰，帧数视网络情况而定"
+    },
+    "options": "共享设置",
+    "preview": "向观看者显示预览",
+    "fps": "{{fps}} fps",
+    "fpsUpTo": "最高 {{fps}} fps",
+    "share": "共享"
   }
 }

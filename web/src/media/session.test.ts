@@ -442,6 +442,22 @@ describe('показ открывается зрителям после кадр
     }
   });
 
+  it('«Остановить показ» во время разгона останавливает сразу — screen.started не уходит (R81, R60)', async () => {
+    const f = readyFixture(10000);
+    try {
+      f.media.share(f.media.requestedProfile);
+      await vi.waitFor(() => expect(f.publishTrack).toHaveBeenCalled());
+      // Кнопка на пульте уже «Остановить показ», а кадра целевого размера ещё нет.
+      f.media.share(f.media.requestedProfile);
+      await vi.waitFor(() => expect(f.api.screen).toHaveBeenCalledWith(false));
+      f.encode(1280, 720);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(f.started()).toBe(false);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
   it('по истечении окна разгона открывает то, что есть', async () => {
     const f = readyFixture(600);
     try {

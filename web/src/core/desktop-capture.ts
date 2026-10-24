@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import type { ScreenAudioEvent, ScreenAudioSource } from '../media/capture';
+import type { ScreenAudio } from '../media/profiles';
 import { hasFeature, invokeDesktop, isDesktop, notifyDesktop, onDesktopEvent } from './desktop';
 
 /**
@@ -15,7 +16,7 @@ import { hasFeature, invokeDesktop, isDesktop, notifyDesktop, onDesktopEvent } f
  * «Система кроме Cord» — process loopback в `cord-native` (флаг `capture.app-audio`, E01-B3):
  * дорожка приходит не из `getDisplayMedia`, а отдельно — см. `desktopCaptureAudio`.
  */
-export type CaptureAudio = 'none' | 'system' | 'app' | 'system-except-cord';
+export type CaptureAudio = ScreenAudio;
 
 export interface CaptureSource {
   id: string;

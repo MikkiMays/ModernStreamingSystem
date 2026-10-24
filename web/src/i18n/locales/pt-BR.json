@@ -3284,14 +3284,18 @@
   "capture": {
     "title": "O que compartilhar",
     "kinds": "O que compartilhar",
-    "screens": "Telas",
-    "windows": "Janelas",
+    "apps": "Aplicativos",
+    "screens": "Tela inteira",
+    "devices": "Dispositivos",
     "sources": "Fontes",
     "loading": "Procurando telas e janelas…",
     "noScreens": "Nenhuma tela encontrada.",
     "noWindows": "Nenhuma janela aberta.",
+    "noDevices": "Nenhum dispositivo de captura",
     "untitled": "Sem título",
-    "systemAudio": "Com o áudio do sistema",
+    "device": "Dispositivo {{n}}",
+    "sound": "Áudio do computador",
+    "deviceSound": "Áudio do dispositivo",
     "systemAudioHint": "Os participantes ouvirão todo o áudio do computador — inclusive as vozes desta reunião.",
     "audio": "Som",
     "audioModes": {
@@ -3306,7 +3310,19 @@
       "app": "Só o som do app escolhido — as vozes da reunião não entram no compartilhamento.",
       "system-except-cord": "Todo o som do computador, exceto o próprio Cord."
     },
-    "share": "Compartilhar",
-    "cancel": "Cancelar"
+    "mode": "Modo de transmissão",
+    "modes": {
+      "smooth": "Fluidez",
+      "sharp": "Nitidez"
+    },
+    "modeHints": {
+      "smooth": "Jogos e vídeo: a taxa de quadros escolhida se mantém",
+      "sharp": "Texto e área de trabalho: sempre nítido, quantos quadros a conexão permitir"
+    },
+    "options": "Configurações da transmissão",
+    "preview": "Mostrar prévia aos espectadores",
+    "fps": "{{fps}} fps",
+    "fpsUpTo": "até {{fps}} fps",
+    "share": "Compartilhar"
   }
 }

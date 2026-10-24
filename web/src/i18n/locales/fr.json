@@ -3284,14 +3284,18 @@
   "capture": {
     "title": "Que partager",
     "kinds": "Que partager",
-    "screens": "Écrans",
-    "windows": "Fenêtres",
+    "apps": "Applications",
+    "screens": "Écran entier",
+    "devices": "Appareils",
     "sources": "Sources",
     "loading": "Recherche des écrans et des fenêtres…",
     "noScreens": "Aucun écran trouvé.",
     "noWindows": "Aucune fenêtre ouverte.",
+    "noDevices": "Aucun appareil de capture",
     "untitled": "Sans titre",
-    "systemAudio": "Avec le son du système",
+    "device": "Appareil {{n}}",
+    "sound": "Son de l’ordinateur",
+    "deviceSound": "Son de l’appareil",
     "systemAudioHint": "Les participants entendront tout le son de l’ordinateur — y compris les voix de cette réunion.",
     "audio": "Son",
     "audioModes": {
@@ -3306,7 +3310,19 @@
       "app": "Uniquement le son de l’application choisie : les voix de la réunion n’entreront pas dans le partage.",
       "system-except-cord": "Tout le son de l’ordinateur, sauf Cord lui-même."
     },
-    "share": "Partager",
-    "cancel": "Annuler"
+    "mode": "Mode de partage",
+    "modes": {
+      "smooth": "Fluidité",
+      "sharp": "Netteté"
+    },
+    "modeHints": {
+      "smooth": "Jeux et vidéo : la fréquence d’images choisie est tenue",
+      "sharp": "Texte et bureau : toujours net, autant d’images que la connexion le permet"
+    },
+    "options": "Réglages du partage",
+    "preview": "Montrer l’aperçu aux spectateurs",
+    "fps": "{{fps}} fps",
+    "fpsUpTo": "jusqu’à {{fps}} fps",
+    "share": "Partager"
   }
 }

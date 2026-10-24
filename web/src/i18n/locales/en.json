@@ -3247,14 +3247,18 @@
   "capture": {
     "title": "What to share",
     "kinds": "What to share",
-    "screens": "Screens",
-    "windows": "Windows",
+    "apps": "Applications",
+    "screens": "Entire screen",
+    "devices": "Devices",
     "sources": "Sources",
     "loading": "Looking for screens and windows…",
     "noScreens": "No screens found.",
     "noWindows": "No open windows.",
+    "noDevices": "No capture devices",
     "untitled": "Untitled",
-    "systemAudio": "Share system audio",
+    "device": "Device {{n}}",
+    "sound": "Computer audio",
+    "deviceSound": "Device audio",
     "systemAudioHint": "Participants will hear all of your computer’s audio — including this meeting’s voices.",
     "audio": "Sound",
     "audioModes": {
@@ -3269,7 +3273,19 @@
       "app": "Only the selected app’s sound — the meeting’s voices won’t get into the share.",
       "system-except-cord": "All of your computer’s sound except Cord itself."
     },
-    "share": "Share",
-    "cancel": "Cancel"
+    "mode": "Sharing mode",
+    "modes": {
+      "smooth": "Smooth",
+      "sharp": "Sharp"
+    },
+    "modeHints": {
+      "smooth": "Games and video: the chosen frame rate holds",
+      "sharp": "Text and desktop: always sharp, as many frames as the connection allows"
+    },
+    "options": "Sharing settings",
+    "preview": "Show preview to viewers",
+    "fps": "{{fps}} fps",
+    "fpsUpTo": "up to {{fps}} fps",
+    "share": "Share"
   }
 }
