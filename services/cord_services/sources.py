@@ -13,6 +13,14 @@ cookies YouTube. Ссылки узнаются точным списком хо�
 
 СКАЧИВАНИЕ — в своём пуле из двух потоков: поток yt-dlp снаружи не прервать, и ему нельзя занимать
 пул каталога кинозала. Каждое скачивание само себя обрывает по сроку и по размеру (крючок прогресса).
+
+АВТОМАТ ПЛОЩАДКИ — тоже кинозала (`cinema/reach.py`, R112). Сервер, который не достаёт до YouTube
+(московский), отвечал на поиск музыки так же, как каталогу: вечным ожиданием — yt-dlp ждёт каждое чтение
+по 20 с. Поиск и треки YouTube идут тем же выходом, поэтому и счёт у них общий с кинозалом: три сбоя или
+срока подряд у музыки закрывают YouTube и кинозалу, и наоборот. Пока площадка закрыта, поиск и ссылка
+получают отказ сразу (`MUSIC_UNREACHABLE`), не трогая ни yt-dlp, ни пул, ни предел поисков комнаты; у
+поиска — жёсткий срок (`SEARCH_DEADLINE`, `MUSIC_TIMEOUT`). У площадки без автомата (SoundCloud — не
+площадка кинозала) — только срок.
 """
 
 from __future__ import annotations
@@ -20,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
+import math
 import os
 import re
 import threading
@@ -27,7 +36,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, TypeVar
 
 from fastapi import HTTPException
 
@@ -36,9 +45,16 @@ from .cinema import address
 from .cinema.limits import Window
 from .cinema.memo import Memo
 from .cinema.providers.youtube import LINK_HOSTS, PLAYERS, SHORT_HOSTS, VIDEO_LINK
+from .cinema.reach import RECHECK, Reach, Words
 from .cinema.resolve import BOT_CHECK, YtDlp
 from .media import MAX_FILE, probe
 from .store import now
+from .webapp import Refusal
+
+if TYPE_CHECKING:
+    from .cinema.registry import Provider
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +65,10 @@ SEARCHES_PER_MINUTE = 20
 LINKS_PER_MINUTE = 20
 # Сколько помнится ответ поиска: тот же вопрос второго участника не идёт к площадке.
 SEARCH_TTL = 300
+# Жёсткий срок на поиск — тот же, что у вопроса каталога кинозала (`facade.CATALOG_DEADLINE`): поиск
+# YouTube на здоровом сервере — 3–5 с у yt-dlp и до 15 с при нагрузке машины, а через «чёрную дыру» он
+# висел бы минуты. Выход за срок — сбой в счёт автомата площадки. Клиент ждёт на 5 с дольше.
+SEARCH_DEADLINE = 25.0
 # Скачивание целиком — не дольше: трек в 50 МБ с живой площадки приезжает за секунды, а дольше
 # браузер ждать ответа не станет (`AbortSignal.timeout(180000)` у панели).
 DOWNLOAD_SECONDS = 150
@@ -129,6 +149,31 @@ TOO_LONG = "Нужен трек до 60 минут"
 FRAGMENT = "Площадка отдаёт только фрагмент этого трека — целиком его не получить"
 TOO_BIG = "Трек больше 50 МБ — такие очередь не берёт"
 TOO_SLOW = "Площадка отдаёт трек слишком медленно — попробуйте ещё раз"
+
+
+def unreachable(source: str, name: str, wait: float = RECHECK[0]) -> Refusal:
+    """Отказ сразу: площадка отсюда недоступна. `source` — чтобы клиент назвал её на своём языке."""
+    return Refusal(
+        503,
+        "MUSIC_UNREACHABLE",
+        name + " недоступен с этого сервера",
+        headers={"Retry-After": str(max(1, math.ceil(wait)))},
+        extra={"source": source},
+    )
+
+
+def late(source: str, name: str) -> Refusal:
+    """Отказ по сроку: площадка не ответила на поиск за `SEARCH_DEADLINE`."""
+    return Refusal(
+        504,
+        "MUSIC_TIMEOUT",
+        name + " не ответил вовремя — попробуйте ещё раз",
+        extra={"source": source},
+    )
+
+
+# Отказы автомата кинозала — словами и кодами музыки.
+MUSIC = Words(unreachable, late)
 
 
 @dataclass(frozen=True)
@@ -214,10 +259,25 @@ def _live(info: dict[str, Any]) -> bool:
 
 
 class Sources:
-    """Поиск и скачивание с площадок без аккаунта. Один на службу."""
+    """
+    Поиск и скачивание с площадок без аккаунта. Один на службу.
 
-    def __init__(self, ytdlp: YtDlp, store, music, enabled: Iterable[str] = PLATFORMS):
+    `reach` — автомат площадок кинозала, `provider` — включённая площадка кинозала по имени
+    (`Registry.find`): у музыкальной площадки, которая есть и в кинозале, счёт доступности общий.
+    """
+
+    def __init__(
+        self,
+        ytdlp: YtDlp,
+        store,
+        music,
+        enabled: Iterable[str] = PLATFORMS,
+        *,
+        reach: Reach | None = None,
+        provider: Callable[[str], Provider | None] | None = None,
+    ):
         self.ytdlp, self.store, self.music = ytdlp, store, music
+        self.reach, self.provider = reach, provider
         self.enabled = frozenset(source for source in enabled if source in PLATFORMS)
         self.memo = Memo(256)
         self.searches = Window(
@@ -241,6 +301,55 @@ class Sources:
             raise HTTPException(400, SWITCHED_OFF)
         return PLATFORMS[source]
 
+    # ---------- доступность площадки ----------
+
+    def gate(self, source: str) -> Provider | None:
+        """Площадка кинозала с автоматом под тем же именем — или `None`: тогда у музыки только срок."""
+        if self.reach is None or self.provider is None:
+            return None
+        found = self.provider(source)
+        return found if found is not None and self.reach.tracked(found) else None
+
+    def refuse_if_down(self, platform: Platform) -> None:
+        """Отказ сразу, если площадка признана недоступной, — до предела комнаты и места в очереди."""
+        gate = self.gate(platform.id)
+        if gate is not None:
+            self.reach.refuse_if_down(gate, MUSIC)
+
+    async def _ask(
+        self, platform: Platform, work: Callable[[], Awaitable[T]], deadline: float | None
+    ) -> T:
+        """Вопрос к площадке: через её автомат, если он есть, и под сроком (`None` — срок у работы свой)."""
+        gate = self.gate(platform.id)
+        if gate is not None:
+            return await self.reach.call(gate, work, deadline, MUSIC)
+        scope = asyncio.timeout(deadline)
+        try:
+            async with scope:
+                return await work()
+        except TimeoutError:
+            if not scope.expired():
+                raise
+            raise late(platform.id, platform.name) from None
+
+    async def unreachable(self) -> list[str]:
+        """
+        Включённые площадки, до которых этот сервер сейчас не достаёт (`catalog.unreachable`).
+
+        Закрытую пробой сначала спрашивают снова, если с прошлой пробы прошло полминуты
+        (`Reach.refresh`): «Повторить» в панели музыки спрашивает каталог заново и узнаёт правду
+        сейчас, а не через минуты фоновой проверки.
+        """
+        gates = {
+            source: gate
+            for source in PLATFORMS
+            if source in self.enabled and (gate := self.gate(source)) is not None
+        }
+        await asyncio.gather(
+            *(self.reach.refresh(gate) for gate in gates.values()), return_exceptions=True
+        )
+        return [source for source, gate in gates.items() if self.reach.down(gate) is not None]
+
     # ---------- поиск ----------
 
     async def search(
@@ -250,14 +359,22 @@ class Sources:
         query = " ".join(query.split())
         if len(query) < 2:
             raise HTTPException(400, "Напишите название трека или исполнителя")
+        # Недоступная отсюда площадка — отказ сразу: ни yt-dlp, ни места в пуле, ни поиска из предела.
+        self.refuse_if_down(platform)
         key = f"{platform.id}:{query.lower()}"
         if not self.memo.known(key):
             self.searches.take(room_id)
         # Поток — на месте площадки в пуле кинозала (`YtDlp.offload_for`): YouTube, до которого нет
-        # сети, держит поток минутами, и места у него те же, что у кинозала.
+        # сети, держит поток минутами, и места у него те же, что у кинозала. Срок и счёт автомата — у
+        # общего ответа, а не у каждого ждущего: пятеро с одним вопросом — один сбой, а не пять.
+        # Отказ памятью не запоминается (`Memo`): следующий вопрос снова идёт к площадке.
         return await self.memo.get(
             key,
-            lambda: self.ytdlp.offload_for(platform.id, self._search, platform, query),
+            lambda: self._ask(
+                platform,
+                lambda: self.ytdlp.offload_for(platform.id, self._search, platform, query),
+                SEARCH_DEADLINE,
+            ),
             SEARCH_TTL,
         )
 
@@ -326,6 +443,8 @@ class Sources:
                 if receipt["url"] != page:
                     raise HTTPException(409, "Идентификатор команды уже использован")
                 return self.store.public(room_id)
+            # Площадка отсюда недоступна — отказ сразу, до предела комнаты и места в хранилище.
+            self.refuse_if_down(platform)
             self.links.take(room_id)
             self.music.check_quota(room_id, 0)
             key = str(uuid.uuid4())
@@ -339,7 +458,9 @@ class Sources:
             )
             try:
                 try:
-                    found = await asyncio.shield(work)
+                    # Скачивание — через автомат площадки: не дошло до неё — сбой в общий счёт с
+                    # кинозалом, дошло — счёт сначала. Срок у него свой (`DOWNLOAD_SECONDS`).
+                    found = await self._ask(platform, lambda: asyncio.shield(work), None)
                 except TooBig:
                     raise HTTPException(413, TOO_BIG) from None
                 except TooSlow:

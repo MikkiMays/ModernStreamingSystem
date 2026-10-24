@@ -31,6 +31,9 @@
 «недоступен» у одного ничего не говорит о следующем; у её разбора свой срок
 (`facade.LINK_RESOLVE_SECONDS`).
 
+МУЗЫКА — ТЕМ ЖЕ СЧЁТОМ. Поиск и треки YouTube у музыки (`sources.py`) идут тем же выходом и тем же
+yt-dlp: они спрашивают тот же автомат и пишут в тот же счёт, а отказывают своими словами (`Words`).
+
 В журнал идёт одна строка на смену состояния — какая площадка и почему, без адресов людей и
 запросов.
 """
@@ -124,6 +127,22 @@ def late(provider: str, name: str) -> Refusal:
         name + " не ответил вовремя — попробуйте ещё раз",
         extra={"provider": provider},
     )
+
+
+@dataclass(frozen=True)
+class Words:
+    """
+    Чьими словами отказать. Автомат у площадки один, а спрашивают её двое: кинозал и музыка
+    (`sources.py`: поиск и треки YouTube идут той же сетью и тем же yt-dlp). Сбои и сроки обоих
+    считаются в один счёт — кто первым узнал, что площадка отсюда не видна, тот и закрыл её для
+    другого, — но отказ каждый называет своим кодом: у музыки свой (`MUSIC_UNREACHABLE`).
+    """
+
+    unreachable: Callable[[str, str, float], Refusal]
+    late: Callable[[str, str], Refusal]
+
+
+CINEMA = Words(unreachable, late)
 
 
 def network(error: BaseException) -> bool:
@@ -256,22 +275,29 @@ class Reach:
         if state.state == OPEN and state.cause == BY_PROBE and stale:
             await self.probe(source)
 
-    def refuse_if_down(self, source: Provider) -> None:
+    def refuse_if_down(self, source: Provider, words: Words = CINEMA) -> None:
         """Отказ сразу, если площадка недоступна (`link`: ссылка на неё не открывает её сцену зря)."""
         if self.down(source) is not None:
-            self._refuse(self.gauge(source))
+            self._refuse(self.gauge(source), words)
 
     # --- запрос к площадке ---------------------------------------------------------------
 
-    async def call(self, source: Provider, work: Callable[[], Awaitable[T]], deadline: float) -> T:
+    async def call(
+        self,
+        source: Provider,
+        work: Callable[[], Awaitable[T]],
+        deadline: float | None,
+        words: Words = CINEMA,
+    ) -> T:
         """
         Настоящий запрос к площадке: через автомат и под жёстким сроком.
 
         Вышел срок — отказ `late` словами (504), а не 500 и не вечное ожидание; работа в потоке yt-dlp
         при этом не останавливается (потоки не прерываются), но её место в пуле ограничено
-        (`YtDlp.offload_for`).
+        (`YtDlp.offload_for`). `deadline=None` — срок у работы свой (скачивание трека музыки сам
+        обрывает себя по времени): автомат тогда только считает исход.
         """
-        state = await self.admit(source)
+        state = await self.admit(source, words)
         scope = asyncio.timeout(deadline)
         try:
             async with scope:
@@ -282,7 +308,7 @@ class Reach:
                 raise
             state.deadlines += 1
             self.record(state, FAIL)
-            raise late(source.id, source.name) from None
+            raise words.late(source.id, source.name) from None
         except asyncio.CancelledError:
             self.record(state, NEUTRAL)
             raise
@@ -292,14 +318,14 @@ class Reach:
         self.record(state, OK)
         return result
 
-    async def admit(self, source: Provider) -> Gauge:
+    async def admit(self, source: Provider, words: Words = CINEMA) -> Gauge:
         """Пускать ли запрос к площадке. Нет — отказ `unreachable` сразу, до yt-dlp и пула потоков."""
         state = self.gauge(source)
         if state.state == CLOSED:
             return state
         if state.state == HALF_OPEN:
             # Пробный запрос уже идёт: остальным ждать его исхода незачем.
-            self._refuse(state)
+            self._refuse(state, words)
         if state.cause == BY_PROBE:
             # Площадка закрыта пробой — её же и спросить, если с прошлой прошло полминуты («Повторить»).
             last = state.probed_at
@@ -307,17 +333,17 @@ class Reach:
                 await self.probe(source)
             if state.state == CLOSED:
                 return state
-            self._refuse(state)
+            self._refuse(state, words)
         # Открыт запросами.
         if self.clock() < state.retry_at:
-            self._refuse(state)
+            self._refuse(state, words)
         if source.probe:
             await self.probe(source)
             if state.state == CLOSED:
                 return state
             # Пробный уже ушёл (тот, кто ждал ту же пробу раньше) — или проба не дошла.
             if state.state != OPEN or state.cause != BY_TRAFFIC:
-                self._refuse(state)
+                self._refuse(state, words)
         state.state = HALF_OPEN
         return state
 
@@ -338,9 +364,9 @@ class Reach:
             state.state = OPEN
             state.retry_at = self.clock()
 
-    def _refuse(self, state: Gauge) -> None:
+    def _refuse(self, state: Gauge, words: Words = CINEMA) -> None:
         state.refused += 1
-        raise unreachable(state.id, state.name, state.retry_at - self.clock())
+        raise words.unreachable(state.id, state.name, state.retry_at - self.clock())
 
     # --- проба ----------------------------------------------------------------------------
 

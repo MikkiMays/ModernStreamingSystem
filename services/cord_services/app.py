@@ -134,6 +134,9 @@ def create_app(
         store,
         music,
         [source for source in sources_on if source in PLATFORMS],
+        # Достаёт ли сервер до YouTube — один счёт с кинозалом (`cinema/reach.py`, R112).
+        reach=cinema.reach,
+        provider=cinema.registry.find,
     )
     telegram = None
     background = []
@@ -279,6 +282,9 @@ def create_app(
                 "webapp": app.state.webapp and bot_ready(),
             },
             "sources": sources_on,
+            # Площадки из `sources`, до которых этот сервер сейчас не достаёт (R112): панель музыки
+            # отмечает их и не ждёт поиска, который всё равно получит отказ.
+            "unreachable": await sources.unreachable(),
             "maxFileBytes": MAX_FILE,
         }
 
