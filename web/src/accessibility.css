@@ -8,8 +8,7 @@ textarea,
   font-size: var(--text-md);
 }
 
-.join-card p,
-.prejoin-form > .muted {
+.join-card p {
   font-size: var(--text-md);
 }
 
@@ -19,7 +18,6 @@ textarea,
   font-size: var(--text-base);
 }
 .form-footnote,
-.preview-caption,
 .file-footnote {
   font-size: var(--text-xs);
 }

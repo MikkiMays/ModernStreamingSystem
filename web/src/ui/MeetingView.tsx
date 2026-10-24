@@ -34,6 +34,7 @@ import { HelpButton } from './support/HelpButton';
 import { closeHelp, openHelp } from './support/help';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
+import { useTrayChat } from './useTrayChat';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
 /** Окна поверх встречи — одно за раз (S5). */
@@ -129,6 +130,7 @@ export function MeetingView({
     никогда, а чужой фильм и смена ширины панель не трогают — подробности в самом правиле.
   */
   useYieldToCinema(meeting, setPanel);
+  useTrayChat(setPanel);
   useEffect(() => {
     onBackTarget?.(panel ? () => setPanel(null) : null);
   }, [panel, onBackTarget]);

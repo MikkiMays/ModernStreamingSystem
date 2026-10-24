@@ -32,7 +32,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     // Спрашивают об этом на самом предпросмотре, а не в его настройках, — и нажимать нужно
     // там же. Пока это лежало в диалоге, нажатие делалось при открытом диалоге; теперь
     // диалог модальный и прячет от теста всё, что за ним.
-    await host.getByRole('radio', { name: /Только с вашего подтверждения/ }).check();
+    // «Кто может войти» — сегментом, как в настройках встречи (R74): «Сразу по ссылке» / «С подтверждения».
+    await host.getByRole('radio', { name: 'С подтверждения', exact: true }).check();
     await host.getByRole('button', { name: 'Настройки предпросмотра' }).click();
     await expect(host.getByRole('combobox', { name: 'Микрофон', exact: true })).toBeVisible();
     // «Авто» больше нет (E05, П2): уровень по умолчанию — с сервера, 720p30.

@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { t } from '../i18n';
+import { applyLanguage, i18next, t } from '../i18n';
 import { detectLanguage } from '../i18n/languages';
 import { readPreferences } from './preferences';
 import { decideNotification, type NotifyContext } from './desktop-notify';
+import { desktopPageState } from './desktop-state';
+import { hotkeyStatusText, type HotkeyStatus } from './desktop';
+import type { Meeting } from './meeting';
 
 /*
   Мост v2 клиента Windows — копия контракта в ядре (`contracts/desktop-bridge.v2.schema.json`).
@@ -164,5 +167,88 @@ describe('язык из установщика (R64)', () => {
   it('без выбора и без установщика — язык браузера', () => {
     localStorage.removeItem('cord:preferences:v1');
     expect(detectLanguage(readPreferences().language, ['fr-FR'])).toBe('fr');
+  });
+});
+
+/*
+  Трей клиента Windows (R103): меню трея говорит на языке интерфейса страницы (`state.language`),
+  «Чат · N» открывает чат встречи (`chat.open`), «Уведомления» — переключатель оболочки
+  (`app.settings.notifications`), а состояние сочетаний приходит кодами. Имена и коды сверены с
+  веткой оболочки (`desktop/src/shared/bridge.ts`, `src/main/tray-menu.ts`, `hotkeys.ts`).
+*/
+describe('трей (R103)', () => {
+  const meeting = {
+    ended: { get: () => false },
+    admission: {
+      roomId: '00000000-0000-4000-8000-000000000001',
+      snapshot: { title: 'Планёрка', code: '123456789' },
+    },
+  } as unknown as Meeting;
+  const base = { name: 'Ника', theme: 'dark', avatar: '' };
+
+  it('state несёт язык интерфейса и проходит проверку оболочки — на главной и во встрече', () => {
+    const home = desktopPageState({ ...base, page: 'home', meeting: null, language: 'de' });
+    expect(home).toEqual({ ...base, page: 'home', inCall: false, room: null, language: 'de' });
+    expect(errors(home, def('state'))).toEqual([]);
+    const room = desktopPageState({ ...base, page: 'room', meeting, language: 'zh-Hans' });
+    expect(room).toMatchObject({ inCall: true, language: 'zh-Hans', room: { code: '123456789' } });
+    expect(errors(room, def('state'))).toEqual([]);
+  });
+
+  it('незнакомый язык не уходит вовсе — оболочка тогда берёт язык установщика или Windows', () => {
+    for (const language of [undefined, 'xx', 'cimode']) {
+      const state = desktopPageState({ ...base, page: 'prejoin', meeting: null, language });
+      expect(state).not.toHaveProperty('language');
+      expect(errors(state, def('state'))).toEqual([]);
+    }
+    expect(
+      errors(
+        { ...desktopPageState({ ...base, page: 'home', meeting: null, language: 'ru' }), language: 'xx' },
+        def('state'),
+      ),
+    ).not.toEqual([]);
+  });
+
+  it('язык берётся из i18next как есть (resolvedLanguage) — это коды контракта, и pt-BR, и zh-Hans', async () => {
+    for (const language of ['pt-BR', 'zh-Hans', 'ru'] as const) {
+      await applyLanguage(language);
+      const state = desktopPageState({
+        ...base,
+        page: 'home',
+        meeting: null,
+        language: i18next.resolvedLanguage,
+      });
+      expect(state.language).toBe(language);
+      expect(errors(state, def('state'))).toEqual([]);
+    }
+  });
+
+  it('chat.open — событие оболочки без нагрузки', () => {
+    expect(contract.$defs.hostMessage!.enum).toContain('chat.open');
+    expect(errors({}, def('chatOpen'))).toEqual([]);
+    expect(errors({ unread: 3 }, def('chatOpen'))).not.toEqual([]);
+  });
+
+  it('app.settings знает notifications; чужой ключ и не логическое значение — отказ', () => {
+    expect(errors({ notifications: false }, def('appSettings'))).toEqual([]);
+    expect(errors({ notifications: 'off' }, def('appSettings'))).not.toEqual([]);
+    expect(errors({ sounds: true }, def('appSettings'))).not.toEqual([]);
+  });
+
+  it('hotkeys.status — {status: {действие: код}}; каждый код оболочки веб понимает', () => {
+    const codes = contract.$defs.hotkeyStatusCode!.enum as HotkeyStatus[];
+    expect(codes).toEqual(['global', 'global-raw', 'taken', 'duplicate', 'window-only']);
+    expect(
+      errors(
+        { status: { 'mic.toggle': 'global', ptt: 'global-raw', 'overlay.toggle': 'taken' } },
+        def('hotkeysStatus'),
+      ),
+    ).toEqual([]);
+    // Русская фраза оболочки 1.0.4 — уже не по контракту.
+    expect(errors({ status: { 'mic.toggle': 'Сочетание отключено' } }, def('hotkeysStatus'))).not.toEqual([]);
+    expect(errors({ status: { 'mic.mute': 'global' } }, def('hotkeysStatus'))).not.toEqual([]);
+    // О том, что мешает, веб говорит словами; о норме молчит.
+    const spoken = codes.filter((code) => hotkeyStatusText(t, code) !== null);
+    expect(spoken).toEqual(['taken', 'duplicate', 'window-only']);
   });
 });

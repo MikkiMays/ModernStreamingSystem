@@ -1502,20 +1502,27 @@ export class MediaSession {
    * `audio` — звук показа, который оболочка пришлёт отдельно (E01-B3: звук приложения, «система
    * кроме Cord»). Подписка — до `getDisplayMedia`: отказ оболочка шлёт сразу, как отдаст экран, и
    * подписка после захвата могла бы его пропустить.
+   *
+   * `source` — свой захват вместо `getDisplayMedia`: устройство захвата из окна показа (R60,
+   * `deviceCapture`). Дальше — тот же путь показа: уровень, режим, превью, остановка.
    */
-  share(profile: ScreenProfile, audio?: ScreenAudioSource): void {
-    if (this.screenBusy || this.disposed) return;
-    if (this.state.get().screen) {
+  share(profile: ScreenProfile, audio?: ScreenAudioSource, source?: () => Promise<MediaStream>): void {
+    if (this.disposed) return;
+    // Остановить можно всегда — и пока показ ещё разгоняется до кадра целевого размера (T48): на
+    // пульте уже «Остановить показ», и нажатие не должно пропадать до конца разгона (R81). Отмена
+    // обрывает публикацию — `screen.started` не уйдёт.
+    if (this.state.get().screen || this.screenTracks.length) {
       void this.stopScreen();
       return;
     }
-    if (!this.capture.supported()) {
+    if (this.screenBusy) return;
+    if (!source && !this.capture.supported()) {
       this.report(new Error(t(($) => $.media.screen.unsupported)));
       return;
     }
     this.screenBusy = true;
     const link = audio ? this.linkScreenAudio(audio) : undefined;
-    const capture = this.capture.capture(profile);
+    const capture = source ? source() : this.capture.capture(profile);
     void this.publishScreen(capture, profile, link).finally(() => {
       this.screenBusy = false;
     });

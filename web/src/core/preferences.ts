@@ -1,5 +1,5 @@
 import { notifyDesktop } from './desktop';
-import { defaultScreenMode, type ScreenProfile } from '../media/profiles';
+import { defaultScreenMode, screenAudios, type ScreenAudio, type ScreenProfile } from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
 import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
@@ -132,13 +132,16 @@ const key = 'cord:preferences:v1';
  * потолка) и забытые `automaticFps`/режим содержимого. Всё это сводится к ближайшему допустимому
  * уровню при чтении; сама запись не переписывается — другой сервер может разрешать больше.
  *
- * Показ — уровень плюс режим и превью (R95/R80); старые записи без них — «плавность» и превью есть.
+ * Показ — уровень плюс режим, превью и звук (R95/R80/R60); старые записи без них — «плавность»,
+ * превью есть, без звука.
  */
 function screenPrefs(value: (Partial<ScreenProfile> & { automatic?: unknown }) | undefined): ScreenProfile {
   return {
     ...nearestLevel(value),
     mode: value?.mode === 'sharp' ? 'sharp' : defaultScreenMode,
     preview: value?.preview !== false,
+    // Звук прошлого показа (окно показа клиента Windows, R60); незнакомое — без звука.
+    audio: screenAudios.includes(value?.audio as ScreenAudio) ? value!.audio : 'none',
   };
 }
 export function readPreferences(): Preferences {

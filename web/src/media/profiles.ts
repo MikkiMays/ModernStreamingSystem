@@ -17,7 +17,15 @@ export interface ScreenProfile {
   mode?: ScreenMode;
   /** Слать ли зрителям превью показа (R80). Нет — да. */
   preview?: boolean;
+  /**
+   * Звук показа, выбранный в окне показа клиента Windows в прошлый раз (R60): окно открывается с
+   * ним. Нет — без звука. Сам звук берёт оболочка (`core/desktop-capture.ts`), здесь — только память.
+   */
+  audio?: ScreenAudio;
 }
+/** Звук показа в клиенте Windows: без звука, весь звук системы, звук приложения, система кроме Cord. */
+export type ScreenAudio = 'none' | 'system' | 'app' | 'system-except-cord';
+export const screenAudios: readonly ScreenAudio[] = ['none', 'system', 'app', 'system-except-cord'];
 /**
  * Два режима показа, как у Discord («Игры» / «Пользовательские», R95).
  *

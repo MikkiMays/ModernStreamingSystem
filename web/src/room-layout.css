@@ -2,27 +2,6 @@
   color: var(--blue);
   padding: 8px;
 }
-.preview-settings {
-  position: absolute;
-  bottom: 18px;
-  right: 18px;
-  color: var(--stage-text);
-  background: var(--stage-veil-3);
-}
-.preview-settings:hover {
-  background: var(--stage-tile-2);
-}
-.prejoin-form h1 {
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 767px) {
-  .preview-settings {
-    bottom: 12px;
-    right: 12px;
-  }
-}
-
 .participant-more {
   flex-shrink: 0;
 }

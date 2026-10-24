@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:cord:contracts:desktop-bridge.v2",
   "title": "Мост v2 клиента Windows (Electron) — window.cordDesktop",
-  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language); остальные нагрузки — в messages.ts.",
+  "description": "Копия контракта оболочки (ADR 0001 §3) в ядре. Источник — репозиторий Windows: desktop/src/shared/bridge.ts (имена, флаги, Bootstrap) и desktop/src/main/bridge/messages.ts (проверка сообщений страницы). Страница проверяет флаги возможностей (features), а не номера версий; мажор протокола меняется только при несовместимости. Неизвестные сообщения обе стороны отбрасывают. Веб говорит с мостом через web/src/core/desktop.ts; сверка примеров со схемой — web/src/core/desktop-bridge.test.ts. Здесь описаны имена всех сообщений и полезные нагрузки тех, что меняла волна «Ревью 1.0.3» (R59 — уведомления и window.state, R64 — Bootstrap.language, R103 — трей: state.language, chat.open, app.settings.notifications, коды hotkeys.status); остальные нагрузки — в messages.ts.",
   "type": "object",
   "required": ["protocol", "features", "app", "bootstrap"],
   "properties": {
@@ -139,8 +139,82 @@
         "capture.ended",
         "app.settings",
         "capture.audio",
-        "window.state"
+        "window.state",
+        "chat.open"
       ]
+    },
+    "state": {
+      "description": "Страница → оболочка (state): где человек и кто он. Шлётся при смене страницы, темы, аватара, встречи и языка интерфейса. language (необязательно, R103) — язык интерфейса страницы: на нём оболочка пишет меню трея и свои диалоги; нет или незнакомый — оболочка берёт язык установщика, затем Windows. Проверка оболочки — messages.ts (readPageMessage 'state'): name ≤ 40, avatar — data:image/ ≤ 4096, room.title ≤ 80, code — девять цифр.",
+      "type": "object",
+      "required": ["page", "inCall", "name", "theme", "avatar", "room"],
+      "properties": {
+        "page": { "enum": ["home", "prejoin", "room"] },
+        "inCall": { "type": "boolean" },
+        "name": { "type": "string", "maxLength": 40 },
+        "theme": { "enum": ["light", "dark", "system"] },
+        "avatar": { "type": "string", "maxLength": 4096 },
+        "room": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["roomId", "title", "code"],
+              "properties": {
+                "roomId": {
+                  "type": "string",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                },
+                "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "code": { "type": "string", "pattern": "^\\d{9}$" }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "language": { "$ref": "#/$defs/language" }
+      }
+    },
+    "chatOpen": {
+      "description": "Оболочка → страница (chat.open, R103): пункт «Чат · N» меню трея — окно уже поднято, встреча открывает панель чата (уже открытый чат остаётся открытым). Без нагрузки. Веб без поддержки событие пропускает.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "appSettings": {
+      "description": "Переключатели раздела «Windows» (invoke('app.settings', патч) и событие app.settings): ответ — все ключи, патч — любые из них, только true/false; чужой ключ — отказ целиком. notifications (R59, R103) — уведомления Windows о том, что во встрече; переключается и из меню трея «Уведомления», тогда оболочка присылает событие app.settings.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tray": { "type": "boolean" },
+        "thumbar": { "type": "boolean" },
+        "badge": { "type": "boolean" },
+        "flash": { "type": "boolean" },
+        "sleepBlocker": { "type": "boolean" },
+        "overlay": { "type": "boolean" },
+        "autostart": { "type": "boolean" },
+        "notifications": { "type": "boolean" }
+      }
+    },
+    "hotkeyStatusCode": {
+      "description": "Состояние сочетания кодом (R22, X1), слова — в каталоге веба (hotkeyStatusText): global — стоит в системе через globalShortcut (только нажатие); global-raw — через Raw Input cord-native (нажатие и отпускание, кнопки мыши); taken — globalShortcut занят другой программой, работает только в окне Cord; duplicate — то же сочетание уже у другого действия Cord; window-only — в систему не ставится (нет Ctrl/Alt, клавиша Windows, F12, «удерживать» без модуля). Источник — HOTKEY_STATUS_CODES в desktop/src/main/hotkeys.ts.",
+      "enum": ["global", "global-raw", "taken", "duplicate", "window-only"]
+    },
+    "hotkeysStatus": {
+      "description": "Оболочка → страница (hotkeys.status): код состояния по каждому действию присланного набора hotkeys.configure — {status: {действие: код}}. Действия — mic.toggle, ptt, deafen, overlay.toggle (ACTIONS в messages.ts).",
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mic.toggle": { "$ref": "#/$defs/hotkeyStatusCode" },
+            "ptt": { "$ref": "#/$defs/hotkeyStatusCode" },
+            "deafen": { "$ref": "#/$defs/hotkeyStatusCode" },
+            "overlay.toggle": { "$ref": "#/$defs/hotkeyStatusCode" }
+          }
+        }
+      }
     },
     "notify": {
       "description": "Страница → оболочка: системное уведомление Windows (R59). Toast под AUMID ярлыка tech.cord.desktop; нажатие и кнопки возвращаются notification.action. silent: true — без системного звука: событие озвучивает веб, иначе звучало бы дважды. tag — room:<id>:<род>: новый toast того же рода заменяет прежний.",

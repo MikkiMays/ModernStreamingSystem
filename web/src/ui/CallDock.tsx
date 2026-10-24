@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import { desktopCaptureAudio, desktopPicker, selectCaptureSource } from '../core/desktop-capture';
 import type { Meeting } from '../core/meeting';
 import { CapturePicker, type CaptureChoice } from './CapturePicker';
+import { deviceCapture } from '../media/capture';
 import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './kit';
 import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip, CameraSubmenu } from './CameraMenu';
@@ -92,7 +93,10 @@ export function CallDock({
   const media = useStore(meeting.media.state);
   const deafened = useStore(meeting.media.deafened);
   const outbound = useStore(meeting.media.outbound);
-  const profile = useStore(meeting.media.preferences).screen;
+  const preferences = useStore(meeting.media.preferences);
+  const profile = preferences.screen;
+  /** Своя камера — в «Устройствах» окна показа её нет. */
+  const camera = preferences.devices?.camera;
   /** «Свернуть в окно» (E12): только когда есть чья-то картинка и браузер умеет. */
   const pip = useStore(meeting.media.pip.state);
   /** Касание: третья кнопка слева — переворот камеры, а показ экрана — в «ещё». */
@@ -116,8 +120,17 @@ export function CallDock({
   };
   const shareChosen = async (choice: CaptureChoice) => {
     setPicking(false);
+    // Выбор окна показа помнится (R60): следующий показ откроется с тем же режимом, качеством и звуком.
+    meeting.media.saveSettings({ screen: choice.profile });
+    if (choice.kind === 'device') {
+      // Карта захвата или виртуальная камера — своим захватом, дальше тот же путь показа.
+      meeting.media.share(choice.profile, undefined, () =>
+        deviceCapture(choice.deviceId, choice.profile, choice.sound),
+      );
+      return;
+    }
     await selectCaptureSource(choice.id, choice.audio);
-    meeting.media.share(profile, desktopCaptureAudio(choice.audio));
+    meeting.media.share(choice.profile, desktopCaptureAudio(choice.audio));
   };
   // Что уходит в сеть прямо сейчас — подсказкой у «Диагностики»: раньше это была метка в пульте.
   const sending = outbound && outbound.width > 0 ? `${outbound.height}p · ${outbound.fps} fps` : null;
@@ -317,6 +330,8 @@ export function CallDock({
         open={picking}
         onOpenChange={setPicking}
         onChoose={(choice) => void shareChosen(choice)}
+        initial={profile}
+        camera={camera}
       />
     </footer>
   );

@@ -322,43 +322,6 @@ h2 {
   width: auto;
   aspect-ratio: 66 / 30;
 }
-.app-header {
-  /* Правое поле не меньше кнопок окна клиента Windows (R34, `--titlebar-end`); в браузере — ноль. */
-  --app-header-pad: 64px;
-  height: 104px;
-  max-width: 1440px;
-  margin: auto;
-  padding-block: 0;
-  padding-inline: var(--app-header-pad)
-    max(var(--app-header-pad), calc(var(--titlebar-end, 0px) + var(--space-2)));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-/* В клиенте Windows шапка тащит окно, как заголовок; кнопки и ссылки нажимаются как обычно. */
-:root[data-desktop='true'] .app-header {
-  -webkit-app-region: drag;
-  app-region: drag;
-}
-:root[data-desktop='true'] .app-header :is(button, a, input, [role='button'], [tabindex]) {
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-}
-/* «?» рядом с «На главную» (E13, T36). */
-.app-header__end {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 650;
-  letter-spacing: 1.6px;
-}
 .create-top {
   display: flex;
   align-items: center;
@@ -555,95 +518,6 @@ h2 {
   font-size: var(--text-xs);
   line-height: 1.7;
 }
-.prejoin-main {
-  max-width: 1260px;
-  margin: 90px auto;
-  padding: 0 36px;
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 70px;
-  align-items: center;
-}
-.preview-stage {
-  aspect-ratio: 1.4;
-  background: var(--stage-tile);
-  border-radius: var(--radius-5);
-  color: var(--stage-text);
-  position: relative;
-  overflow: hidden;
-}
-.preview-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.preview-avatar {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 24px;
-}
-.preview-avatar p {
-  color: var(--stage-muted);
-  font-size: var(--text-sm);
-}
-.preview-label {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  font-size: var(--text-xs);
-  color: var(--stage-text);
-}
-.preview-controls {
-  display: flex;
-  gap: 10px;
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.preview-controls .icon-button {
-  color: var(--stage-text);
-  background: var(--stage-glint-1);
-  border-radius: 50%;
-}
-.preview-controls .icon-button.active {
-  background: var(--accent-fill);
-}
-.preview-caption {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  font-size: var(--text-sm);
-  color: var(--muted);
-  margin-top: 21px;
-}
-.prejoin-form h1 {
-  font-size: var(--text-2xl);
-  font-weight: 570;
-  letter-spacing: -1.5px;
-  margin: 16px 0 14px;
-}
-.prejoin-form > .muted {
-  font-size: var(--text-base);
-  margin-bottom: 25px;
-}
-.prejoin-form > label {
-  margin: 16px 0 9px;
-}
-.prejoin-form > .button {
-  margin: 18px 0 12px;
-}
-/* «Кто может войти» — отдельный вопрос, а не продолжение подписи под названием встречи. */
-.prejoin-form .audio-settings {
-  margin-top: 18px;
-}
 .avatar {
   display: inline-flex;
   width: 40px;
@@ -712,15 +586,6 @@ h2 {
   line-height: 1.6;
   margin-bottom: 10px;
   display: block;
-}
-.permission-note {
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: 1.7;
-  background: var(--surface-2);
-  padding: 12px;
-  border-radius: var(--radius-3);
-  margin: 16px 0;
 }
 progress {
   width: 100%;
@@ -912,27 +777,9 @@ progress {
     transform: rotate(360deg);
   }
 }
-/* 1199 px и ширина полосы 360 px — `DRAWER` и `DRAWER_WIDTH` из `ui/breakpoints.ts`: код и
-   `room-layout.css` считают по ним же, а `breakpoints.test.ts` сверяет, что здесь стоят они. */
-@media (max-width: 1199px) {
-  .prejoin-main {
-    gap: 36px;
-    margin-top: 55px;
-  }
-  .prejoin-form h1 {
-    font-size: var(--text-2xl);
-  }
-  .app-header {
-    --app-header-pad: 36px;
-  }
-}
 /* 767 px — `SHEET` из `ui/breakpoints.ts`: здесь панель встречи становится нижним листом, и код
    решает, когда ей уступить место, по той же строке (сверяет `breakpoints.test.ts`). */
 @media (max-width: 767px) {
-  .app-header {
-    --app-header-pad: 22px;
-    height: 80px;
-  }
   .brand {
     --brand-h: 28px;
   }
@@ -956,47 +803,6 @@ progress {
   }
   .join-card p br {
     display: none;
-  }
-  .prejoin-main {
-    margin: 20px auto 35px;
-    padding: 0 22px;
-    max-width: 560px;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-  }
-  .preview-column {
-    width: 100%;
-  }
-  .preview-stage {
-    aspect-ratio: 1.55;
-    border-radius: var(--radius-4);
-  }
-  .preview-caption {
-    font-size: var(--text-xs);
-    margin-top: 12px;
-  }
-  .preview-label {
-    font-size: var(--text-xs);
-    left: 12px;
-    bottom: 14px;
-  }
-  .preview-controls {
-    bottom: 12px;
-    gap: 7px;
-  }
-  .prejoin-form {
-    width: 100%;
-  }
-  .prejoin-form h1 {
-    font-size: var(--text-2xl);
-  }
-  .prejoin-form > .muted br {
-    display: none;
-  }
-  .prejoin-page .app-header .button {
-    padding: 0;
-    font-size: var(--text-xs);
   }
   .modal {
     --modal-pad: 19px;
@@ -1125,67 +931,6 @@ progress {
   background: var(--surface);
   color: var(--text);
 }
-.audio-settings {
-  display: grid;
-  gap: 17px;
-}
-.audio-settings h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/*
-  Строка «флажок и подпись под ним». Правило висело на предке — `.audio-settings`, — и каждый
-  новый раздел с такой строкой приходилось дописывать в селектор; стоило вынести переключатели
-  в отдельный блок, как заголовок и пояснение слипались в одну строку. Теперь оформляется сам
-  элемент, а предок не имеет к этому отношения.
-*/
-.check-setting {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  font-weight: 500;
-}
-.check-setting small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-weight: 400;
-  line-height: 1.5;
-}
-/* Флажок встаёт по первой строке подписи, а не по центру всего абзаца под ней. */
-.check-setting > input {
-  margin-top: 2px;
-  flex: none;
-}
-
-/*
-  Выбор одного из трёх. Раньше это были три голые строки без всякого оформления, посреди
-  разделов, у каждого из которых есть своя рамка: выглядело как обломок вёрстки.
-*/
-.network-modes {
-  display: grid;
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-3);
-}
-.network-modes .check-setting {
-  padding: 10px;
-  border-radius: var(--radius-2);
-  cursor: pointer;
-}
-.network-modes .check-setting:hover {
-  background: var(--surface-2);
-}
-.network-modes input[type='radio'] {
-  width: 17px;
-  min-width: 17px;
-  height: 17px;
-  margin-top: 2px;
-  accent-color: var(--blue);
-}
 .gain-setting,
 .participant-volume {
   display: grid;
@@ -1276,13 +1021,6 @@ progress {
 .favorite-auto {
   margin-top: 4px;
   font-size: var(--text-md);
-}
-
-/* Шапка предпросмотра на узком экране. Подключение и скачивание — `ui/shell.css` (E02). */
-@media (width < 560px) {
-  .app-header {
-    --app-header-pad: 24px;
-  }
 }
 
 /* ── Значок приложения ─────────────────────────────────────────────────────────
