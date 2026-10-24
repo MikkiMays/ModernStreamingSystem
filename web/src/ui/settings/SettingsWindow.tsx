@@ -152,17 +152,14 @@ export function SettingsWindow({
         const element = document.getElementById(anchorDomId(anchor));
         return element ? [{ anchor, top: element.getBoundingClientRect().top - edge }] : [];
       });
+      const geometry = {
+        scrollTop: scroller.scrollTop,
+        clientHeight: scroller.clientHeight,
+        scrollHeight: scroller.scrollHeight,
+        tops,
+      };
       // Всё помещается — остаётся выбранный щелчком (R115): правилу нужен подсвеченный сейчас.
-      setSpy(
-        (current) =>
-          activeAnchor({
-            scrollTop: scroller.scrollTop,
-            clientHeight: scroller.clientHeight,
-            scrollHeight: scroller.scrollHeight,
-            tops,
-            current,
-          }) ?? current,
-      );
+      setSpy((current) => activeAnchor({ ...geometry, current }) ?? current);
     });
     spyWatch.current = watch;
     return () => {
