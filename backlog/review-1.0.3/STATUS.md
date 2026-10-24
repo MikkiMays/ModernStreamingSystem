@@ -23,21 +23,21 @@
 | R17 | W0 | готово, выкачено (22.10, `44bd785`) | см. W0 |
 | R18 | W2 | готово, выкачено (22.10, `44bd785`) | скрины `backlog/screens/R103/W2/{before,after}` |
 | R19 | W2 | готово, выкачено (22.10, `44bd785`) | e2e: центр ±2 px (ru, it, главная, встреча) |
-| R20 | W3, W5 | готово в ветке `review/W3` (22.10), ждёт I5 | PING строкой в потоке: подвал главной (HomeShell/DesktopHome), строка о встрече; e2e `desktop.spec` «строка под входом, position static»; `meeting-header.test.tsx` «PING — в строке о встрече» |
+| R20 | W3, W5 | готово, выкачено (24.10, `f893a81`) | PING строкой в потоке: подвал главной (HomeShell/DesktopHome), строка о встрече; e2e `desktop.spec` «строка под входом, position static»; `meeting-header.test.tsx` «PING — в строке о встрече» |
 | R21 | W2 | готово, выкачено (22.10, `44bd785`) | убран «Боты справа от встречи» |
 | R22 | W2, WD2 | готово, выкачено (22.10, `44bd785`) | плашки нет; статусы оболочки кодами (`desktop.test.ts`) |
 | R23 | W0, W2 | готово, выкачено (22.10, `44bd785`) | отмена мышью без кольца (S1) |
 | R24 | W2 | готово, выкачено (22.10, `44bd785`) | второй щелчок отменяет запись (`Settings.test.tsx`) |
 | R25 | W2 | готово, выкачено (22.10, `44bd785`) | «Сбросить» ×8 |
 | R26 | W0 | готово, выкачено (22.10, `768aef9`) | e2e `focus-modality.spec.ts` 8/8 против стенда (на старом main 6 из 7 падали); `ui/input-modality.test.ts` 35; скрины `backlog/screens/R103/W0/{before,after}/focus-*` |
-| R27 | W3, W5 | встреча — готово в ветке `review/W3` (22.10), ждёт I5; игры (покер, дурак) — W5 | убраны invite-hint, OnceHint ×2, liveUpdating (в журнал), советы фона android/iosSafari/noMicrophone, «до 23:00», «кинозал 80 %», retention на телефоне; `background-note.test.tsx`, `onboarding*.test`, `notices.test.tsx`; `screens/R103/W3/{before,after}/meeting-one-390-*` |
+| R27 | W3, W5 | встреча — готово, выкачено (24.10, `f893a81`); игры (покер, дурак) — W5 | убраны invite-hint, OnceHint ×2, liveUpdating (в журнал), советы фона android/iosSafari/noMicrophone, «до 23:00», «кинозал 80 %», retention на телефоне; `background-note.test.tsx`, `onboarding*.test`, `notices.test.tsx`; `screens/R103/W3/{before,after}/meeting-one-390-*` |
 | R28 | W0 (+ владельцы экранов) | частично: проход 1 выкачен (`768aef9`) — токены значков/волосков, `Button`/`IconButton` 16/20/24; проход 2 — владельцы экранов | `kit.test.tsx`, `Menu.test.tsx`; `screens/R103/I3/meeting-*` |
 | R29 | W6, W2, W7, W4 | ждёт | |
-| R30 | W3 | готово в ветке `review/W3` (22.10), ждёт I5 | `stage-overlay.test.tsx` (8): чипы по снимку, пустой слой `aria-hidden`, без дубля того, что на сцене; слот `children` под мини-плеер W4 |
+| R30 | W3 | готово, выкачено (24.10, `f893a81`) | `stage-overlay.test.tsx` (8): чипы по снимку, пустой слой `aria-hidden`, без дубля того, что на сцене; слот `children` под мини-плеер W4 |
 | R31 | W4 | ждёт | |
 | R32 | W4 | ждёт | |
 | R33 | W4 | ждёт | |
-| R34 | W3, WD2 | веб — готово в ветке `review/W3` (22.10), ждёт I5; живое (перетаскивание, 125–150 %) — WD2/OWNER-ACTIONS | `core/titlebar.test.ts`, e2e `titlebar-overlay.spec.ts` (зелёный против стенда через `scripts/stand-dev.mjs`) |
+| R34 | W3, WD2 | веб — готово, выкачено (24.10, `f893a81`); живое (перетаскивание, 125–150 %) — WD2/OWNER-ACTIONS | `core/titlebar.test.ts`, e2e `titlebar-overlay.spec.ts` (зелёный против стенда через `scripts/stand-dev.mjs`) |
 | R35 | W5 | ждёт | |
 | R36 | W5 | ждёт | |
 | R37 | W6 | ждёт | |
@@ -62,7 +62,7 @@
 | R56 | W7 | ждёт | |
 | R57 | WD1 | готово (22.10): релиз `desktop-v1.0.4`, зеркало `/downloads/windows/desktop/latest.yml` = 1.0.4; живая проверка на Windows — OWNER-ACTIONS | CI `desktop.yml` 39752311530 (test-installer: «Крестик: Cord жив, окно спрятано в трей», tray.ico 5+1 записей, AUMID `tech.cord.desktop`) |
 | R58 | WD1 | готово (22.10): релиз `desktop-v1.0.4`, зеркало `/downloads/windows/desktop/latest.yml` = 1.0.4; живая проверка на Windows — OWNER-ACTIONS | CI `desktop.yml` 39752311530 (test-installer: «Крестик: Cord жив, окно спрятано в трей», tray.ico 5+1 записей, AUMID `tech.cord.desktop`) |
-| R59 | WD1, W3 | оболочка — релиз 1.0.4; веб — готово в ветке `review/W3` (22.10), ждёт I5; toast вживую — OWNER-ACTIONS | `core/desktop-notify.test.ts` (14), `core/meeting.test.ts` «уведомления Windows», `core/desktop-bridge.test.ts` (схема `contracts/desktop-bridge.v2.schema.json`) |
+| R59 | WD1, W3 | оболочка — релиз 1.0.4; веб — готово, выкачено (24.10, `f893a81`); toast вживую — OWNER-ACTIONS | `core/desktop-notify.test.ts` (14), `core/meeting.test.ts` «уведомления Windows», `core/desktop-bridge.test.ts` (схема `contracts/desktop-bridge.v2.schema.json`) |
 | R60 | W7, WD2 | ждёт | |
 | R61 | WD1 | готово (22.10): релиз `desktop-v1.0.4`, зеркало `/downloads/windows/desktop/latest.yml` = 1.0.4; живая проверка на Windows — OWNER-ACTIONS | CI `desktop.yml` 39752311530 (test-installer: «Крестик: Cord жив, окно спрятано в трей», tray.ico 5+1 записей, AUMID `tech.cord.desktop`) |
 | R62 | WD2 | ждёт | |
@@ -80,17 +80,17 @@
 | R74 | W7 | ждёт | |
 | R75 | W0 | готово, выкачено (22.10, `768aef9`) | `focus-modality.spec` «меню избранного» |
 | R76 | W7 | ждёт | |
-| R77 | W3 | готово в ветке `review/W3` (22.10), ждёт I5 | `call-dock.test.tsx` (класс danger, MonitorX), e2e `screens.spec` (кнопка красная); на телефоне — красная кнопка на своей плитке; `screens/R103/W3/after/meeting-share-*` |
+| R77 | W3 | готово, выкачено (24.10, `f893a81`) | `call-dock.test.tsx` (класс danger, MonitorX), e2e `screens.spec` (кнопка красная); на телефоне — красная кнопка на своей плитке; `screens/R103/W3/after/meeting-share-*` |
 | R78 | W1c, W2, W7 | медиа готово (22.10); UI настроек готов в ветке `review/W2` (сегменты 720/1080/1440 × 30/60, `QualityFields {kind,value,onChange,ceiling}`, `CAMERA_DEFAULT`); окно показа — W7 | `Settings.test.tsx` «Видео (R100, R78)», `preferences.test.ts` «камера: умолчание 720p30…», e2e `return-and-settings` (радио) |
 | R79 | W6 | ждёт | |
 | R80 | W1c, W7, W2 | частично: медиа + умолчание «Превью показа» в «Видео»; переключатель на один показ — W7 |  |
 | R81 | W1c | готово, выкачено (22.10, `5b4858d`) | screen-stop: 127 мс; `journal/2026-10-22-review-I1.md` |
 | R82 | W7, W2, WD2 | ждёт | |
-| R83 | W3 | готово в ветке `review/W3` (22.10), ждёт I5 | корень: в сетке закрепление ставило лишь `inset`-рамку, которую закрывал кадр, а «Открепить» не было; `core/meeting.test.ts`, `stage-pin.test.tsx` (5), e2e `stage-pin.spec.ts` двумя браузерами через SFU — зелёный; `screens/R103/W3/after/meeting-pinned-*` |
-| R84 | W3 | готово в ветке `review/W3` (22.10), ждёт I5 (живой телефон — OWNER-ACTIONS) | e2e `stage-pin.spec.ts` на 390: крупная плитка и лента в viewport, «Открепить» ≥ 44 px, 0 переполнения, «Говорящий»; двое в сетке — две половины |
+| R83 | W3 | готово, выкачено (24.10, `f893a81`) | корень: в сетке закрепление ставило лишь `inset`-рамку, которую закрывал кадр, а «Открепить» не было; `core/meeting.test.ts`, `stage-pin.test.tsx` (5), e2e `stage-pin.spec.ts` двумя браузерами через SFU — зелёный; `screens/R103/W3/after/meeting-pinned-*` |
+| R84 | W3 | готово, выкачено (24.10, `f893a81`) (живой телефон — OWNER-ACTIONS) | e2e `stage-pin.spec.ts` на 390: крупная плитка и лента в viewport, «Открепить» ≥ 44 px, 0 переполнения, «Говорящий»; двое в сетке — две половины |
 | R85 | W1c | частично (22.10) | медиа-часть выкачена; нативный путь — WD2 по воротам |
 | R86 | W5 | ждёт | |
-| R87 | W3 | готово в ветке `review/W3` (22.10), ждёт I5 | `core/meeting.test.ts` «непрочитанные в чате», `call-dock.test.tsx` (кружок, «9+», телефон — на «ещё») |
+| R87 | W3 | готово, выкачено (24.10, `f893a81`) | `core/meeting.test.ts` «непрочитанные в чате», `call-dock.test.tsx` (кружок, «9+», телефон — на «ещё») |
 | R88 | W1c | частично (22.10) | кодек/режимы выкачены; живой показ с GPU — у владельца |
 | R89 | W1c | частично (22.10) | как R88 |
 | R90 | W1c | готово (22.10) | MEDIA-DIAGNOSIS §9 — ответ |
@@ -137,7 +137,7 @@
 | I2 | W1c → `main`, выкатка №2 | объединено с I1 (`5b4858d`) |
 | I3 | W0 → `main`, выкатка №3 | готово (22.10): `768aef9`, `deploy.sh gateway`; против стенда focus-modality, kit, home-shell, meeting — 16/16; vitest 1215/1215; заодно `efd1f8a` — тест HLS под новую настройку (красный CI после I1) |
 | I4 | W2 → `main`, выкатка №4 | ветка `review/W2` готова (22.10), ждёт слияния архитектором |
-| I5 | W3 → `main`, выкатка №5 | ветка `review/W3` готова (22.10), ждёт слияния архитектором |
+| I5 | W3 → `main`, выкатка №5 | готово (24.10): `775e503`/`f893a81`, `deploy.sh gateway`; против стенда stage-pin, meeting, screens, focus-modality, home-shell — 17/17 |
 | I6 | W1b → `main`, выкатка с дренажем | ждёт |
 | I7 | W7 → `main`, выкатка №7 | ждёт |
 | I8 | W4 → `main`, выкатка №8 | ждёт |
