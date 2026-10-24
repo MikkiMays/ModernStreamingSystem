@@ -489,7 +489,8 @@
   }
   .home-room:hover .home-room__open,
   .home-room:focus-within .home-room__open,
-  .home-room[data-popup-open] .home-room__open {
+  .home-room[data-popup-open] .home-room__open,
+  .home-room:has(.home-room__more[data-popup-open]) .home-room__open {
     mask-image: none;
   }
 }
