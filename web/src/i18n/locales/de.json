@@ -2476,7 +2476,6 @@
       "label": "Musik-Warteschlange",
       "next": "Als Nächstes",
       "clear": "Leeren",
-      "empty": "Danach kommt nichts: Der oben gefundene Titel läuft als Nächstes.",
       "moved": "„{{title}}“ – Nr. {{position}} nach dem aktuellen",
       "reorder": "Verschieben: {{title}}",
       "actions": "Aktionen: {{title}}",
@@ -2524,7 +2523,6 @@
       "tokenConnected": "Mit gespeichertem Token verbunden",
       "tokenStale": "Der gespeicherte Token funktioniert nicht mehr. Melde dich bei Yandex an oder gib einen neuen Token ein.",
       "checking": "Verbindung wird geprüft…",
-      "hint": "Das Konto des Raums: Darüber suchen und spielen alle Teilnehmer Titel ab",
       "badge": "Verbunden",
       "connect": "Verbinden",
       "switch": "Konto wechseln",
@@ -2536,8 +2534,7 @@
       "cancel": "Anmeldung abbrechen",
       "haveToken": "Ich habe schon einen Zugriffstoken",
       "tokenLabel": "Yandex-Music-Token",
-      "connectToken": "Token verbinden",
-      "note": "Das Passwort gibst du auf der Yandex-Seite ein. Für ganze Titel brauchst du ein Konto mit Abo. Funktioniert über einen inoffiziellen Connector für Yandex Music."
+      "connectToken": "Token verbinden"
     }
   },
   "integrations": {

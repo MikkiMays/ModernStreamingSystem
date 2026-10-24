@@ -2505,7 +2505,6 @@
       "label": "File d'attente musicale",
       "next": "À suivre",
       "clear": "Vider",
-      "empty": "Rien à suivre : le titre trouvé ci-dessus jouera ensuite.",
       "moved": "« {{title}} » — {{position}}ᵉ après le titre en cours",
       "reorder": "Déplacer : {{title}}",
       "actions": "Actions : {{title}}",
@@ -2553,7 +2552,6 @@
       "tokenConnected": "Connecté avec le jeton enregistré",
       "tokenStale": "Le jeton enregistré ne fonctionne plus. Connectez-vous à Yandex ou saisissez un nouveau jeton.",
       "checking": "Vérification de la connexion…",
-      "hint": "Le compte de la salle : tous les participants l'utilisent pour chercher et lancer des titres",
       "badge": "Connecté",
       "connect": "Connecter",
       "switch": "Changer de compte",
@@ -2565,8 +2563,7 @@
       "cancel": "Annuler la connexion",
       "haveToken": "J'ai déjà un jeton d'accès",
       "tokenLabel": "Jeton Yandex Music",
-      "connectToken": "Connecter le jeton",
-      "note": "Le mot de passe se saisit sur la page de Yandex. Les titres complets nécessitent un compte avec abonnement. Fonctionne via un connecteur Yandex Music non officiel."
+      "connectToken": "Connecter le jeton"
     }
   },
   "integrations": {

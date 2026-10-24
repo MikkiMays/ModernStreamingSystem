@@ -2505,7 +2505,6 @@
       "label": "Cola de música",
       "next": "A continuación",
       "clear": "Vaciar",
-      "empty": "No hay nada después: la canción que encuentres arriba sonará a continuación.",
       "moved": "«{{title}}»: n.º {{position}} después de la actual",
       "reorder": "Reordenar: {{title}}",
       "actions": "Acciones: {{title}}",
@@ -2553,7 +2552,6 @@
       "tokenConnected": "Conectada con el token guardado",
       "tokenStale": "El token guardado ya no sirve. Inicia sesión en Yandex o introduce un token nuevo.",
       "checking": "Comprobando la conexión…",
-      "hint": "La cuenta de la sala: con ella todos buscan y ponen canciones",
       "badge": "Conectada",
       "connect": "Conectar",
       "switch": "Cambiar de cuenta",
@@ -2565,8 +2563,7 @@
       "cancel": "Cancelar el inicio de sesión",
       "haveToken": "Ya tengo un token de acceso",
       "tokenLabel": "Token de Yandex Music",
-      "connectToken": "Conectar el token",
-      "note": "La contraseña se introduce en la página de Yandex. Para canciones completas hace falta una cuenta con suscripción. Funciona con un conector no oficial de Yandex Music."
+      "connectToken": "Conectar el token"
     }
   },
   "integrations": {

@@ -2505,7 +2505,6 @@
       "label": "Fila de música",
       "next": "A seguir",
       "clear": "Limpar",
-      "empty": "Não há mais nada: a faixa que você encontrar acima toca em seguida.",
       "moved": "“{{title}}” — {{position}}ª depois da atual",
       "reorder": "Reordenar: {{title}}",
       "actions": "Ações: {{title}}",
@@ -2553,7 +2552,6 @@
       "tokenConnected": "Conectada com o token salvo",
       "tokenStale": "O token salvo não funciona mais. Entre no Yandex ou digite um novo token.",
       "checking": "Verificando a conexão…",
-      "hint": "A conta da sala: todos os participantes buscam e tocam faixas por ela",
       "badge": "Conectada",
       "connect": "Conectar",
       "switch": "Trocar de conta",
@@ -2565,8 +2563,7 @@
       "cancel": "Cancelar o login",
       "haveToken": "Já tenho um token de acesso",
       "tokenLabel": "Token do Yandex Music",
-      "connectToken": "Conectar o token",
-      "note": "A senha é digitada na página do Yandex. Para faixas completas é preciso uma conta com assinatura. Funciona por meio de um conector não oficial do Yandex Music."
+      "connectToken": "Conectar o token"
     }
   },
   "integrations": {

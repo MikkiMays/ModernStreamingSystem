@@ -140,7 +140,7 @@ export function YandexIntegration({
               ? t(($) => $.music.yandex.checking)
               : connected
                 ? account.data?.name
-                : t(($) => $.music.yandex.hint)}
+                : t(($) => $.settings.accounts.disconnected)}
           </span>
         </div>
         {connected ? (
@@ -236,7 +236,6 @@ export function YandexIntegration({
           </form>
         </details>
       )}
-      {!connected && !auth && <p className="music-account__note">{t(($) => $.music.yandex.note)}</p>}
       {notice && (
         <p className="music-account__notice" role="status">
           {notice}

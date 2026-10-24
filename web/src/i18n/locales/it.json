@@ -2505,7 +2505,6 @@
       "label": "Coda musicale",
       "next": "A seguire",
       "clear": "Svuota",
-      "empty": "Non c'è altro: il brano che trovi sopra partirà subito dopo.",
       "moved": "«{{title}}»: {{position}}º dopo quello in corso",
       "reorder": "Riordina: {{title}}",
       "actions": "Azioni: {{title}}",
@@ -2553,7 +2552,6 @@
       "tokenConnected": "Collegato con il token salvato",
       "tokenStale": "Il token salvato non funziona più. Accedi a Yandex o inserisci un nuovo token.",
       "checking": "Controllo della connessione…",
-      "hint": "L'account della stanza: tutti i partecipanti lo usano per cercare e mettere brani",
       "badge": "Collegato",
       "connect": "Collega",
       "switch": "Cambia account",
@@ -2565,8 +2563,7 @@
       "cancel": "Annulla l'accesso",
       "haveToken": "Ho già un token di accesso",
       "tokenLabel": "Token di Yandex Music",
-      "connectToken": "Collega il token",
-      "note": "La password si inserisce sulla pagina di Yandex. Per i brani completi serve un account con abbonamento. Funziona tramite un connettore non ufficiale di Yandex Music."
+      "connectToken": "Collega il token"
     }
   },
   "integrations": {

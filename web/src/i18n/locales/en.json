@@ -2476,7 +2476,6 @@
       "label": "Music queue",
       "next": "Up next",
       "clear": "Clear",
-      "empty": "Nothing up next: the track you find above will play next.",
       "moved": "“{{title}}” is #{{position}} after the current one",
       "reorder": "Reorder: {{title}}",
       "actions": "Actions: {{title}}",
@@ -2524,7 +2523,6 @@
       "tokenConnected": "Connected with the saved token",
       "tokenStale": "The saved token no longer works. Sign in to Yandex or enter a new token.",
       "checking": "Checking the connection…",
-      "hint": "The room's account: everyone searches and adds tracks through it",
       "badge": "Connected",
       "connect": "Connect",
       "switch": "Switch account",
@@ -2536,8 +2534,7 @@
       "cancel": "Cancel sign-in",
       "haveToken": "I already have an access token",
       "tokenLabel": "Yandex Music token",
-      "connectToken": "Connect token",
-      "note": "You enter your password on the Yandex page. Full tracks require an account with a subscription. Works through an unofficial Yandex Music connector."
+      "connectToken": "Connect token"
     }
   },
   "integrations": {

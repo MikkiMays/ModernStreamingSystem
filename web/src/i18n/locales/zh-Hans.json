@@ -2447,7 +2447,6 @@
       "label": "音乐队列",
       "next": "接下来",
       "clear": "清空",
-      "empty": "后面没有曲目了：在上方找到的曲目会接着播放。",
       "moved": "“{{title}}”排在当前曲目后第 {{position}} 位",
       "reorder": "调整顺序：{{title}}",
       "actions": "操作：{{title}}",
@@ -2495,7 +2494,6 @@
       "tokenConnected": "已使用保存的令牌连接",
       "tokenStale": "保存的令牌已失效。请登录 Yandex 或输入新令牌。",
       "checking": "正在检查连接…",
-      "hint": "房间账号：所有参与者都通过它搜索和播放曲目",
       "badge": "已连接",
       "connect": "连接",
       "switch": "更换账号",
@@ -2507,8 +2505,7 @@
       "cancel": "取消登录",
       "haveToken": "我已有访问令牌",
       "tokenLabel": "Yandex Music 令牌",
-      "connectToken": "连接令牌",
-      "note": "密码在 Yandex 页面上输入。完整曲目需要有订阅的账号。通过非官方的 Yandex Music 连接器实现。"
+      "connectToken": "连接令牌"
     }
   },
   "integrations": {

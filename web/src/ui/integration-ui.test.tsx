@@ -124,6 +124,21 @@ describe('очередь', () => {
     expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }), 2, expect.anything());
   });
 
+  it('после играющего пусто — секции «Далее» нет вовсе (R42)', () => {
+    render(
+      <MusicQueue
+        state={music([song('a')])}
+        canUse
+        onClear={() => {}}
+        onPromote={() => {}}
+        onRemove={() => {}}
+        onMove={() => {}}
+      />,
+    );
+    expect(screen.queryByRole('region', { name: 'Музыкальная очередь' })).toBeNull();
+    expect(screen.queryByText(/Дальше пусто/)).toBeNull();
+  });
+
   it('без права — ручки выключены', () => {
     render(
       <MusicQueue

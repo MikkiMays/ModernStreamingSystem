@@ -55,7 +55,8 @@ export function MusicQueue({
   useEffect(() => {
     if (lost) setDrag(null);
   }, [lost]);
-  if (!state.queue.length) return null;
+  // Пустой хвост — секции «Далее» нет вовсе (R42): после играющего трека показывать нечего.
+  if (!upcoming.length) return null;
 
   const move = (track: MusicTrack, index: number) => {
     const from = state.queue.findIndex((entry) => entry.id === track.id);
@@ -120,97 +121,93 @@ export function MusicQueue({
     >
       <div className="music-queue__head">
         <h4>{t(($) => $.music.queue.next)}</h4>
-        {upcoming.length > 0 && <span className="music-queue__count">{upcoming.length}</span>}
+        <span className="music-queue__count">{upcoming.length}</span>
         <Button
           variant="quiet"
           size="sm"
           className="music-queue__clear"
-          disabled={!canUse || upcoming.length === 0}
+          disabled={!canUse}
           onClick={() => onClear({ queue: state.queue.slice(0, 1) })}
         >
           {t(($) => $.music.queue.clear)}
         </Button>
       </div>
-      {upcoming.length === 0 ? (
-        <p className="music-queue__empty">{t(($) => $.music.queue.empty)}</p>
-      ) : (
-        <ol ref={list} className="music-queue__list">
-          {upcoming.map((track, i) => {
-            const index = i + 1;
-            const dragging = drag?.id === track.id;
-            return (
-              <li
-                key={track.id}
-                className="music-queue__row"
-                data-track-id={track.id}
-                data-lifted={dragging || undefined}
-                data-insert={track.id === before ? 'before' : track.id === last ? 'after' : undefined}
-                style={dragging ? { transform: `translateY(${drag.dy}px)` } : undefined}
+      <ol ref={list} className="music-queue__list">
+        {upcoming.map((track, i) => {
+          const index = i + 1;
+          const dragging = drag?.id === track.id;
+          return (
+            <li
+              key={track.id}
+              className="music-queue__row"
+              data-track-id={track.id}
+              data-lifted={dragging || undefined}
+              data-insert={track.id === before ? 'before' : track.id === last ? 'after' : undefined}
+              style={dragging ? { transform: `translateY(${drag.dy}px)` } : undefined}
+            >
+              <button
+                type="button"
+                className="music-queue__handle"
+                data-handle={track.id}
+                aria-label={t(($) => $.music.queue.reorder, { title: track.title })}
+                aria-describedby="music-queue-hint"
+                disabled={!canUse}
+                onPointerDown={(event) => grab(track, event)}
+                onPointerMove={follow}
+                onPointerUp={(event) => drop(track, event)}
+                onPointerCancel={() => setDrag(null)}
+                onLostPointerCapture={(event) => {
+                  if (drag?.pointer === event.pointerId) setDrag(null);
+                }}
+                onKeyDown={(event) => step(track, index, event)}
               >
-                <button
-                  type="button"
-                  className="music-queue__handle"
-                  data-handle={track.id}
-                  aria-label={t(($) => $.music.queue.reorder, { title: track.title })}
-                  aria-describedby="music-queue-hint"
+                <GripVertical size={16} aria-hidden="true" />
+              </button>
+              <MusicCover track={track} />
+              <div className="music-queue__text">
+                <strong>{track.title}</strong>
+                <small>
+                  <span>{track.artist || track.addedBy}</span>
+                  {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
+                  <span className="music-queue__source">{musicSourceName(t, track.source)}</span>
+                </small>
+              </div>
+              <span className="music-queue__time">{formatDuration(track.duration)}</span>
+              <Menu>
+                <MenuTrigger
                   disabled={!canUse}
-                  onPointerDown={(event) => grab(track, event)}
-                  onPointerMove={follow}
-                  onPointerUp={(event) => drop(track, event)}
-                  onPointerCancel={() => setDrag(null)}
-                  onLostPointerCapture={(event) => {
-                    if (drag?.pointer === event.pointerId) setDrag(null);
-                  }}
-                  onKeyDown={(event) => step(track, index, event)}
-                >
-                  <GripVertical size={16} aria-hidden="true" />
-                </button>
-                <MusicCover track={track} />
-                <div className="music-queue__text">
-                  <strong>{track.title}</strong>
-                  <small>
-                    <span>{track.artist || track.addedBy}</span>
-                    {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
-                    <span className="music-queue__source">{musicSourceName(t, track.source)}</span>
-                  </small>
-                </div>
-                <span className="music-queue__time">{formatDuration(track.duration)}</span>
-                <Menu>
-                  <MenuTrigger
-                    disabled={!canUse}
-                    render={
-                      <IconButton
-                        size="sm"
-                        className="music-queue__more"
-                        label={t(($) => $.music.queue.actions, { title: track.title })}
-                      >
-                        <MoreHorizontal size={16} />
-                      </IconButton>
-                    }
-                  />
-                  <MenuContent align="end">
-                    {index > 1 && (
-                      <MenuItem
-                        icon={<ListStart size={16} />}
-                        onClick={() => onPromote(track, afterPromote(state, track))}
-                      >
-                        {t(($) => $.music.queue.playNext)}
-                      </MenuItem>
-                    )}
-                    <MenuItem
-                      icon={<Trash2 size={16} />}
-                      destructive
-                      onClick={() => onRemove(track, afterRemove(state, track.id))}
+                  render={
+                    <IconButton
+                      size="sm"
+                      className="music-queue__more"
+                      label={t(($) => $.music.queue.actions, { title: track.title })}
                     >
-                      {t(($) => $.music.queue.remove)}
+                      <MoreHorizontal size={16} />
+                    </IconButton>
+                  }
+                />
+                <MenuContent align="end">
+                  {index > 1 && (
+                    <MenuItem
+                      icon={<ListStart size={16} />}
+                      onClick={() => onPromote(track, afterPromote(state, track))}
+                    >
+                      {t(($) => $.music.queue.playNext)}
                     </MenuItem>
-                  </MenuContent>
-                </Menu>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+                  )}
+                  <MenuItem
+                    icon={<Trash2 size={16} />}
+                    destructive
+                    onClick={() => onRemove(track, afterRemove(state, track.id))}
+                  >
+                    {t(($) => $.music.queue.remove)}
+                  </MenuItem>
+                </MenuContent>
+              </Menu>
+            </li>
+          );
+        })}
+      </ol>
       <span id="music-queue-hint" hidden>
         {t(($) => $.music.queue.hint)}
       </span>
