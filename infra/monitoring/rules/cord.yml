@@ -103,6 +103,14 @@ groups:
         labels: { severity: page }
         annotations: { summary: 'Больше 5 % ответов шлюза — ошибки 5xx' }
 
+      # Пределы частоты считают в памяти ядра: Redis не отвечает (R106). Вход открыт, но пределы
+      # у каждого процесса ядра свои и с нуля — дольше пяти минут так жить не стоит.
+      - alert: RateLimiterFallback
+        expr: sum(increase(cord_rate_limiter_fallback_total[5m])) > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: 'Redis не отвечает пределам частоты пять минут: счёт в памяти ядра, вход открыт' }
+
       - alert: AutoBlock
         expr: increase(cord_blocks_created_total{by="auto"}[15m]) > 0
         labels: { severity: info }

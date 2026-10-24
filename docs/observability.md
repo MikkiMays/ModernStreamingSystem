@@ -161,6 +161,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_meeting_peak_participants` | histogram 2…20 | — | при завершении |
 | `cord_joins_total` | counter | `result=ok\|room_full\|room_limit\|code_invalid\|password_invalid\|forbidden\|draining\|rate_limited\|error`, `client=web\|desktop\|telegram` | вход (`SessionController`, `RoomService`) |
 | `cord_join_seconds` | timer | — | от выдачи токена до вебхука `participant_joined` |
+| `cord_rate_limiter_fallback_total` | counter | `reason=timeout\|connection\|other\|paused` | `RateLimits`: шаг предела сосчитан в памяти ядра — Redis не ответил (R106, Р-28; `paused` — 5 с после сбоя Redis не спрашивают) |
 | `cord_leaves_total` | counter | `reason=leave\|removed\|timeout\|switched\|closed` | `RoomService`, `MediaService` |
 | `cord_commands_total` | counter | `type` (≈55 известных + `other`), `result=ok\|error` | `CommandDispatcher.execute` |
 | `cord_errors_total` | counter | `code` (`Problem.code`, ≈45), `status` | `ApiErrors` |
