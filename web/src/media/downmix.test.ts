@@ -6,7 +6,12 @@ import { SpeechDownmix } from './downmix';
  * устройство) прислал стерео с пустым каналом. Музыка и звук показа остаются стерео.
  */
 function fakeContext() {
-  const nodes: { channelCount: number; channelCountMode: string; channelInterpretation: string }[] = [];
+  const nodes: {
+    channelCount: number;
+    channelCountMode: string;
+    channelInterpretation: string;
+    disconnect: () => void;
+  }[] = [];
   const context = {
     createGain: vi.fn(() => {
       const node = {
