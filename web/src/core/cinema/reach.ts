@@ -15,12 +15,12 @@ export const UNREACHABLE = 'CINEMA_UNREACHABLE';
 export const LATE = 'CINEMA_TIMEOUT';
 
 /**
- * Сколько браузер ждёт ответ каталога: срок службы на вопрос к площадке (`CATALOG_DEADLINE`, 20 с)
+ * Сколько браузер ждёт ответ каталога: срок службы на вопрос к площадке (`CATALOG_DEADLINE`, 25 с)
  * и ещё пять — на дорогу и проверку участника. Дольше этого ответа уже не будет.
  */
-export const CATALOG_TIMEOUT = 25000;
-/** Разбор ролика в поток: срок службы (`RESOLVE_DEADLINE`, 25 с) и те же пять секунд. */
-export const RESOLVE_TIMEOUT = 30000;
+export const CATALOG_TIMEOUT = 30000;
+/** Разбор ролика в поток: срок службы (`RESOLVE_DEADLINE`, 30 с) и те же пять секунд. */
+export const RESOLVE_TIMEOUT = 35000;
 /** Ссылка «По ссылке» — разбор чужой страницы: у службы на него до сорока секунд. */
 export const LINK_TIMEOUT = 45000;
 

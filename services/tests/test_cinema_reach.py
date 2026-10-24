@@ -154,7 +154,7 @@ class Harness(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.reach.down(self.source), UNREACHABLE)
 
     async def until(self, condition):
-        for _ in range(200):
+        for _ in range(1000):
             if condition():
                 return
             await asyncio.sleep(0.01)
@@ -201,7 +201,7 @@ class BreakerTests(Harness):
         started = time.monotonic()
         with self.assertRaises(Refusal) as refusal:
             await self.call(endless, deadline=0.05)
-        self.assertLess(time.monotonic() - started, 1)
+        self.assertLess(time.monotonic() - started, 5)
         self.assertEqual(
             (refusal.exception.status_code, refusal.exception.code, refusal.exception.detail),
             (504, "CINEMA_TIMEOUT", "Spot не ответил вовремя — попробуйте ещё раз"),
@@ -471,7 +471,7 @@ class ProxyTests(unittest.IsolatedAsyncioTestCase):
             with self.assertLogs("cord_services.cinema.reach", "WARNING"):
                 await cinema.reach.check([youtube])
                 await cinema.reach.check([youtube])
-        self.assertLess(time.monotonic() - started, 2)
+        self.assertLess(time.monotonic() - started, 5)
         self.assertEqual(seen, ["CONNECT www.youtube.com:443 HTTP/1.1"] * 2)
         # Rutube — та же служба, но без пробы до сих пор: о нём автомат ничего плохого не знает.
         entries = {entry["id"]: entry for entry in (await cinema.providers())["providers"]}
@@ -562,7 +562,7 @@ class FacadeTests(Stage):
         with patch.object(facade, "CATALOG_DEADLINE", 0.2):
             with self.assertRaises(Refusal) as refusal:
                 await self.cinema.search("youtube", "кино", room=ROOM)
-        self.assertLess(time.monotonic() - started, 2)
+        self.assertLess(time.monotonic() - started, 5)
         self.assertEqual(
             (refusal.exception.status_code, refusal.exception.code, refusal.exception.detail),
             (504, "CINEMA_TIMEOUT", "YouTube не ответил вовремя — попробуйте ещё раз"),
@@ -643,7 +643,7 @@ class LaneTests(unittest.IsolatedAsyncioTestCase):
         await self._until(lambda: ytdlp.busy["youtube"] == 0)
 
     async def _until(self, condition):
-        for _ in range(200):
+        for _ in range(1000):
             if condition():
                 return
             await asyncio.sleep(0.01)

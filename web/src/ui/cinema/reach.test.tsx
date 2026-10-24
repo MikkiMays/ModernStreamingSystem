@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/client';
-import { retryCatalog, type ProviderId } from '../../core/cinema';
+import { CATALOG_TIMEOUT, retryCatalog, type ProviderId } from '../../core/cinema';
 import type { Meeting } from '../../core/meeting';
 import { i18next, t } from '../../i18n';
 import en from '../../i18n/locales/en.json';
@@ -175,7 +175,7 @@ describe('поиск по недоступной площадке не виси�
     const clocks: AbortController[] = [];
     const timeout = AbortSignal.timeout.bind(AbortSignal);
     vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
-      if (ms !== 25000) return timeout(ms);
+      if (ms !== CATALOG_TIMEOUT) return timeout(ms);
       const clock = new AbortController();
       clocks.push(clock);
       return clock.signal;

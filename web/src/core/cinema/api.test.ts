@@ -69,7 +69,7 @@ describe('CinemaApi: сроки ответа (R112)', () => {
     const api = new CinemaApi(admission);
     await api.resolve('youtube', 'dQw4w9WgXcQ', 'video');
     expect(timeout).toHaveBeenCalledWith(RESOLVE_TIMEOUT);
-    expect(RESOLVE_TIMEOUT).toBe(30000);
+    expect(RESOLVE_TIMEOUT).toBe(35000);
     expect(timeout).not.toHaveBeenCalledWith(8000);
     const [, init] = calls().at(-1)!;
     // Сигнал, ушедший в fetch, — это ровно тот, что вернул наш собственный вызов таймаута:
@@ -84,7 +84,7 @@ describe('CinemaApi: сроки ответа (R112)', () => {
     const api = new CinemaApi(admission);
     await api.details('youtube', 'dQw4w9WgXcQ', 'video');
     expect(timeout).toHaveBeenCalledWith(CATALOG_TIMEOUT);
-    expect(CATALOG_TIMEOUT).toBe(25000);
+    expect(CATALOG_TIMEOUT).toBe(30000);
     expect(timeout).not.toHaveBeenCalledWith(8000);
   });
 
