@@ -2477,7 +2477,7 @@
       "upload": {
         "name": "I tuoi file",
         "hint": "File audio da questo dispositivo",
-        "drop": "Trascina qui i file audio o sceglili sul dispositivo."
+        "drop": "Trascina qui i file audio"
       }
     },
     "player": {
@@ -2544,7 +2544,7 @@
       "input": "Aggiungi file musicali",
       "button": "Carica file",
       "cancel": "Annulla",
-      "hint": "Puoi anche trascinarli: fino a {{limit}} MB e 60 minuti per brano"
+      "hint": "fino a {{limit}} MB e 60 minuti per brano"
     },
     "yandex": {
       "connected": "Account collegato",

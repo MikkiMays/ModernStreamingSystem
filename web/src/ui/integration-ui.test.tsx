@@ -4,6 +4,7 @@ import type { MusicState, MusicTrack, PlatformTrack } from '../core/services';
 import { IntegrationShelf } from './IntegrationShelf';
 import { MusicQueue } from './MusicQueue';
 import { MusicSearch, type MusicSearchAbilities } from './MusicSearch';
+import { MusicUpload } from './MusicUpload';
 
 afterEach(cleanup);
 
@@ -293,5 +294,26 @@ describe('поле площадки (T59)', () => {
     const field = screen.getByRole('searchbox');
     expect(field).toHaveValue('https://soundcloud.com/artist/track');
     expect(field).toHaveFocus();
+  });
+});
+
+describe('свои файлы (R43)', () => {
+  it('одна зона: значок, строка, кнопка и пределы — всё внутри рамки; файлы над ней подсвечивают её', () => {
+    render(
+      <MusicUpload
+        canUse
+        maxFileBytes={50 * 1024 * 1024}
+        upload={vi.fn()}
+        onAdded={() => {}}
+        onError={() => {}}
+      />,
+    );
+    const zone = screen.getByText('Перетащите аудиофайлы сюда').closest('.music-drop')!;
+    expect(zone).not.toBeNull();
+    expect(zone).toContainElement(screen.getByRole('button', { name: 'Загрузить файлы' }));
+    expect(zone).toContainElement(screen.getByText('до 50 МБ и 60 минут на трек'));
+    expect(screen.queryByText(/Можно и перетащить/)).toBeNull();
+    fireEvent.dragOver(zone, { dataTransfer: { types: ['Files'] } });
+    expect(zone).toHaveAttribute('data-over', 'true');
   });
 });

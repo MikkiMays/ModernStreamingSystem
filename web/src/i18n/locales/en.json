@@ -2448,7 +2448,7 @@
       "upload": {
         "name": "Your files",
         "hint": "Audio files from this device",
-        "drop": "Drag audio files here or choose them on your device."
+        "drop": "Drag audio files here"
       }
     },
     "player": {
@@ -2515,7 +2515,7 @@
       "input": "Add music files",
       "button": "Upload files",
       "cancel": "Cancel",
-      "hint": "You can also drag them in: up to {{limit}} MB and 60 minutes per track"
+      "hint": "up to {{limit}} MB and 60 minutes per track"
     },
     "yandex": {
       "connected": "Account connected",

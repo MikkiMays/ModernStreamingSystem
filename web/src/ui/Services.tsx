@@ -302,9 +302,7 @@ export function Services({ meeting }: { meeting: Meeting }) {
         upload={(file, signal) => api.upload(file, signal)}
         onAdded={update}
         onError={setError}
-      >
-        <p className="music-add__lead">{t(($) => $.music.platforms.upload.drop)}</p>
-      </MusicUpload>
+      />
     ) : platform ? (
       <>
         {/* Аккаунт Яндекса — на его площадке, над полем: без аккаунта там искать нечем. */}

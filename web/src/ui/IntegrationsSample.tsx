@@ -193,9 +193,7 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
               upload={added}
               onAdded={() => {}}
               onError={() => {}}
-            >
-              <p className="music-add__lead">{t(($) => $.music.platforms.upload.drop)}</p>
-            </MusicUpload>
+            />
           ) : (
             <>
               {platform === 'yandex' && (

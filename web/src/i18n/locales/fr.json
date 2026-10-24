@@ -2477,7 +2477,7 @@
       "upload": {
         "name": "Vos fichiers",
         "hint": "Fichiers audio de cet appareil",
-        "drop": "Glissez des fichiers audio ici ou choisissez-les sur votre appareil."
+        "drop": "Glissez des fichiers audio ici"
       }
     },
     "player": {
@@ -2544,7 +2544,7 @@
       "input": "Ajouter des fichiers audio",
       "button": "Importer des fichiers",
       "cancel": "Annuler",
-      "hint": "Vous pouvez aussi les glisser : jusqu'à {{limit}} Mo et 60 minutes par titre"
+      "hint": "jusqu'à {{limit}} Mo et 60 minutes par titre"
     },
     "yandex": {
       "connected": "Compte connecté",

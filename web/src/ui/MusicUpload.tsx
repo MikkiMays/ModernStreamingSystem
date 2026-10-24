@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { MusicState } from '../core/services';
 import { Button } from './kit';
 
 /**
- * Свои файлы в общую очередь: кнопка, перетаскивание и возможность передумать.
+ * Свои файлы в общую очередь (R43): одна пунктирная зона, в ней по центру столбиком — значок,
+ * «Перетащите аудиофайлы сюда», кнопка выбора и мелко пределы. Снаружи рамки нет ничего: раньше
+ * кнопка и вторая строка-повтор стояли под рамкой, прижатые влево, и кнопка вылезала за её край.
  *
- * Перетащить файлы можно на весь блок «Добавить» — поле поиска и кнопку вместе (`children`): цель
- * размером с палец мышью не находится, а блок виден целиком. Пока файлы над ним, блок подсвечен.
+ * Перетащить можно на всю зону; пока файлы над ней, зона подсвечена (`data-over`). На телефоне
+ * перетаскивать нечем — там остаётся одна кнопка (`integrations.css`). Пока файлы уходят, вместо
+ * пределов — «Отменить»: передумать можно и посреди загрузки.
  */
 export function MusicUpload({
   canUse,
@@ -16,14 +19,12 @@ export function MusicUpload({
   upload,
   onAdded,
   onError,
-  children,
 }: {
   canUse: boolean;
   maxFileBytes: number;
   upload: (file: File, signal: AbortSignal) => Promise<MusicState>;
   onAdded: (state: MusicState) => void;
   onError: (message: string) => void;
-  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -52,8 +53,9 @@ export function MusicUpload({
   };
   return (
     <div
-      className="music-add"
+      className="music-drop"
       data-over={over || undefined}
+      data-disabled={!canUse || undefined}
       onDragOver={(e) => {
         if (!canUse || !e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
@@ -68,38 +70,37 @@ export function MusicUpload({
         void send(Array.from(e.dataTransfer.files));
       }}
     >
-      {children}
-      <div className="music-add__files">
-        <input
-          ref={input}
-          type="file"
-          multiple
-          accept="audio/*,.m4a,.flac,.ogg,.opus,.webm"
-          hidden
-          aria-label={t(($) => $.music.upload.input)}
-          onChange={(e) => {
-            void send(Array.from(e.target.files ?? []));
-            e.target.value = '';
-          }}
-        />
-        <Button
-          variant="quiet"
-          size="sm"
-          icon={<Upload />}
-          loading={busy}
-          disabled={!canUse}
-          onClick={() => input.current?.click()}
-        >
-          {t(($) => $.music.upload.button)}
+      <Upload size={24} className="music-drop__icon" aria-hidden="true" />
+      <p className="music-drop__title">{t(($) => $.music.platforms.upload.drop)}</p>
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept="audio/*,.m4a,.flac,.ogg,.opus,.webm"
+        hidden
+        aria-label={t(($) => $.music.upload.input)}
+        onChange={(e) => {
+          void send(Array.from(e.target.files ?? []));
+          e.target.value = '';
+        }}
+      />
+      <Button
+        size="sm"
+        className="music-drop__pick"
+        icon={<Upload />}
+        loading={busy}
+        disabled={!canUse}
+        onClick={() => input.current?.click()}
+      >
+        {t(($) => $.music.upload.button)}
+      </Button>
+      {busy ? (
+        <Button variant="quiet" size="sm" onClick={() => abort.current?.abort()}>
+          {t(($) => $.music.upload.cancel)}
         </Button>
-        {busy ? (
-          <Button variant="quiet" size="sm" onClick={() => abort.current?.abort()}>
-            {t(($) => $.music.upload.cancel)}
-          </Button>
-        ) : (
-          <span className="music-add__hint">{t(($) => $.music.upload.hint, { limit })}</span>
-        )}
-      </div>
+      ) : (
+        <small className="music-drop__hint">{t(($) => $.music.upload.hint, { limit })}</small>
+      )}
     </div>
   );
 }

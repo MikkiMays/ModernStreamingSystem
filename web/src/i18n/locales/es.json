@@ -2477,7 +2477,7 @@
       "upload": {
         "name": "Tus archivos",
         "hint": "Archivos de audio de este dispositivo",
-        "drop": "Arrastra aquí archivos de audio o elígelos en tu dispositivo."
+        "drop": "Arrastra aquí archivos de audio"
       }
     },
     "player": {
@@ -2544,7 +2544,7 @@
       "input": "Añadir archivos de música",
       "button": "Subir archivos",
       "cancel": "Cancelar",
-      "hint": "También puedes arrastrarlos: hasta {{limit}} MB y 60 minutos por canción"
+      "hint": "hasta {{limit}} MB y 60 minutos por canción"
     },
     "yandex": {
       "connected": "Cuenta conectada",

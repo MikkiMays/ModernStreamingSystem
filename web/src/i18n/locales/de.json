@@ -2448,7 +2448,7 @@
       "upload": {
         "name": "Eigene Dateien",
         "hint": "Audiodateien von diesem Gerät",
-        "drop": "Zieh Audiodateien hierher oder wähle sie auf deinem Gerät aus."
+        "drop": "Zieh Audiodateien hierher"
       }
     },
     "player": {
@@ -2515,7 +2515,7 @@
       "input": "Musikdateien hinzufügen",
       "button": "Dateien hochladen",
       "cancel": "Abbrechen",
-      "hint": "Du kannst sie auch hineinziehen: bis zu {{limit}} MB und 60 Minuten pro Titel"
+      "hint": "bis zu {{limit}} MB und 60 Minuten pro Titel"
     },
     "yandex": {
       "connected": "Konto verbunden",
