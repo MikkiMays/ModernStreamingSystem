@@ -56,6 +56,62 @@
     "overflowX": 0
   },
   {
+    "screen": "r94-chat",
+    "width": 1440,
+    "theme": "light",
+    "file": "r94-chat-after-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r94-chat-after-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 390,
+    "theme": "light",
+    "file": "r94-chat-after-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r94-chat",
+    "width": 390,
+    "theme": "dark",
+    "file": "r94-chat-after-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 1440,
+    "theme": "light",
+    "file": "r116-music-after-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 1440,
+    "theme": "dark",
+    "file": "r116-music-after-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 390,
+    "theme": "light",
+    "file": "r116-music-after-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "screen": "r116-music",
+    "width": 390,
+    "theme": "dark",
+    "file": "r116-music-after-390-dark.png",
+    "overflowX": 0
+  },
+  {
     "screen": "r38-help",
     "width": 1440,
     "theme": "light",
@@ -193,62 +249,6 @@
     "width": 390,
     "theme": "dark",
     "file": "r79-report-after-390-dark.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r94-chat",
-    "width": 1440,
-    "theme": "light",
-    "file": "r94-chat-after-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r94-chat",
-    "width": 1440,
-    "theme": "dark",
-    "file": "r94-chat-after-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r94-chat",
-    "width": 390,
-    "theme": "light",
-    "file": "r94-chat-after-390-light.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r94-chat",
-    "width": 390,
-    "theme": "dark",
-    "file": "r94-chat-after-390-dark.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r116-music",
-    "width": 1440,
-    "theme": "light",
-    "file": "r116-music-after-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r116-music",
-    "width": 1440,
-    "theme": "dark",
-    "file": "r116-music-after-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r116-music",
-    "width": 390,
-    "theme": "light",
-    "file": "r116-music-after-390-light.png",
-    "overflowX": 0
-  },
-  {
-    "screen": "r116-music",
-    "width": 390,
-    "theme": "dark",
-    "file": "r116-music-after-390-dark.png",
     "overflowX": 0
   }
 ]
