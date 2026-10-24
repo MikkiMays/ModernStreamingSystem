@@ -2192,7 +2192,9 @@
     "requestFailed": "Richiesta non riuscita",
     "fileUnavailable": "File non disponibile o scaduto",
     "blockedUntil": "Il proprietario ha chiuso l'accesso a questo server fino al {{date}}",
-    "closedByServerUntil": "Il proprietario del server ha terminato questa riunione: potrai riaprirla dopo il {{date}}"
+    "closedByServerUntil": "Il proprietario del server ha terminato questa riunione: potrai riaprirla dopo il {{date}}",
+    "timeout": "Il server non ha risposto in tempo: riprova",
+    "offline": "Nessuna connessione al server: riprova"
   },
   "kit": {
     "toasts": "Notifiche",

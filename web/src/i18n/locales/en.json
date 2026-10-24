@@ -2164,7 +2164,9 @@
     "requestFailed": "The request failed",
     "fileUnavailable": "The file is unavailable or has expired",
     "blockedUntil": "The owner has closed access to this server until {{date}}",
-    "closedByServerUntil": "The server owner ended this meeting — you can reopen it after {{date}}"
+    "closedByServerUntil": "The server owner ended this meeting — you can reopen it after {{date}}",
+    "timeout": "The server didn't respond in time — try again",
+    "offline": "No connection to the server — try again"
   },
   "kit": {
     "toasts": "Notifications",

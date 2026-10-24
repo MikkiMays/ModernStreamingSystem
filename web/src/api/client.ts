@@ -85,6 +85,30 @@ function ownerUntil(code: 'BLOCKED' | 'CLOSED_BY_SERVER', until: number): string
     : t(($) => $.api.closedByServerUntil, { date });
 }
 
+/**
+ * Отказ самого `fetch` — словами для человека. Браузер отвечает по-английски и по-своему: срок
+ * (`AbortSignal.timeout`) — `TimeoutError` «signal timed out», обрыв сети — `TypeError` «Failed to
+ * fetch», — а эти тексты уходили прямо в предвход и окна («signal timed out» вместо «Сервер не
+ * ответил вовремя»). Тип ошибки остаётся тем же: `TimeoutError` по-прежнему узнают по имени
+ * (`core/session.ts`, кинозал). Отмена самим приложением (`AbortError`) — как есть: её никто не
+ * показывает.
+ */
+function transportFailure(error: unknown, method: string, path: string): unknown {
+  const where = `${method} ${path.split('?')[0]!.replace(/[0-9a-f-]{36}/g, ':id')}`;
+  if (error instanceof DOMException && error.name === 'TimeoutError') {
+    noteError(`TIMEOUT ${where}`);
+    return new DOMException(
+      t(($) => $.api.timeout),
+      'TimeoutError',
+    );
+  }
+  if (error instanceof TypeError) {
+    noteError(`OFFLINE ${where}`);
+    return new TypeError(t(($) => $.api.offline));
+  }
+  return error;
+}
+
 export async function request<T>(path: string, init: RequestInit = {}, credential?: string): Promise<T> {
   const send = () =>
     fetch(`/api/v1${path}`, {
@@ -97,7 +121,9 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
         ...init.headers,
       },
     });
-  let response = await send();
+  let response = await send().catch((error: unknown) => {
+    throw transportFailure(error, init.method ?? 'GET', path);
+  });
   // A lapsed server session is not the caller's problem: shake hands again with the password
   // this device already holds and repeat the request once. Only a server whose password we do
   // not have reaches the interface as an error, and even then a meeting in progress stays up.
@@ -107,7 +133,9 @@ export async function request<T>(path: string, init: RequestInit = {}, credentia
       .json()
       .catch(() => ({}))) as { code?: string };
     if (body.code === 'SERVER_PASSWORD_REQUIRED' && (await (await import('../core/session')).renew()))
-      response = await send();
+      response = await send().catch((error: unknown) => {
+        throw transportFailure(error, init.method ?? 'GET', path);
+      });
   }
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
