@@ -216,3 +216,37 @@ it('создание и вход по коду несут ответ на зад
   };
   expect(answer.sent['X-Cord-Proof']).toBeUndefined();
 });
+
+/*
+  Отказ самого `fetch` — тоже словами. Срок браузера (`AbortSignal.timeout`) отвечал «signal timed
+  out», и эта строка стояла в предвходе вместо «Сервер не ответил вовремя» (наблюдение 25.10 на
+  стенде под нагрузкой). Тип ошибки прежний: `TimeoutError` узнают по имени.
+*/
+function failing(error: unknown) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(error)),
+  );
+}
+
+it('срок браузера — «Сервер не ответил вовремя», а не «signal timed out»', async () => {
+  failing(new DOMException('signal timed out', 'TimeoutError'));
+  const error = await request('/rooms', { method: 'POST' }).catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(DOMException);
+  expect((error as DOMException).name).toBe('TimeoutError');
+  expect((error as DOMException).message).toBe(i18next.t(($) => $.api.timeout));
+  expect((error as DOMException).message).not.toMatch(/signal/);
+});
+
+it('обрыв сети — «Нет связи с сервером», а не «Failed to fetch»', async () => {
+  failing(new TypeError('Failed to fetch'));
+  const error = await request('/rooms').catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(TypeError);
+  expect((error as TypeError).message).toBe(i18next.t(($) => $.api.offline));
+});
+
+it('отмена самим приложением — как есть: её никто не показывает', async () => {
+  const aborted = new DOMException('The operation was aborted.', 'AbortError');
+  failing(aborted);
+  await expect(request('/rooms')).rejects.toBe(aborted);
+});

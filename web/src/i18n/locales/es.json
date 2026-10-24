@@ -2192,7 +2192,9 @@
     "requestFailed": "No se pudo completar la solicitud",
     "fileUnavailable": "El archivo no está disponible o ha caducado",
     "blockedUntil": "El propietario ha cerrado el acceso a este servidor hasta el {{date}}",
-    "closedByServerUntil": "El propietario del servidor finalizó esta reunión: podrás volver a abrirla después del {{date}}"
+    "closedByServerUntil": "El propietario del servidor finalizó esta reunión: podrás volver a abrirla después del {{date}}",
+    "timeout": "El servidor no respondió a tiempo: inténtalo de nuevo",
+    "offline": "Sin conexión con el servidor: inténtalo de nuevo"
   },
   "kit": {
     "toasts": "Notificaciones",

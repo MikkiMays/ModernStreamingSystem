@@ -2164,7 +2164,9 @@
     "requestFailed": "Die Anfrage ist fehlgeschlagen",
     "fileUnavailable": "Die Datei ist nicht verfügbar oder abgelaufen",
     "blockedUntil": "Der Inhaber hat den Zugang zu diesem Server bis {{date}} gesperrt",
-    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen"
+    "closedByServerUntil": "Der Inhaber des Servers hat dieses Meeting beendet – du kannst es nach {{date}} wieder öffnen",
+    "timeout": "Der Server hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+    "offline": "Keine Verbindung zum Server – versuch es noch einmal"
   },
   "kit": {
     "toasts": "Benachrichtigungen",

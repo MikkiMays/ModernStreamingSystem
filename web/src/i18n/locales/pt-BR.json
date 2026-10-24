@@ -2192,7 +2192,9 @@
     "requestFailed": "Não foi possível concluir a solicitação",
     "fileUnavailable": "O arquivo não está disponível ou expirou",
     "blockedUntil": "O dono fechou o acesso a este servidor até {{date}}",
-    "closedByServerUntil": "O dono do servidor encerrou esta reunião — você poderá reabri-la depois de {{date}}"
+    "closedByServerUntil": "O dono do servidor encerrou esta reunião — você poderá reabri-la depois de {{date}}",
+    "timeout": "O servidor não respondeu a tempo — tente de novo",
+    "offline": "Sem conexão com o servidor — tente de novo"
   },
   "kit": {
     "toasts": "Notificações",

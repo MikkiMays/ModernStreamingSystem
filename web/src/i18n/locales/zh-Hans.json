@@ -2136,7 +2136,9 @@
     "requestFailed": "请求失败",
     "fileUnavailable": "文件不可用或已过期",
     "blockedUntil": "服务器所有者已关闭对此服务器的访问，直到 {{date}}",
-    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开"
+    "closedByServerUntil": "服务器所有者已结束此会议，{{date}} 之后可以重新打开",
+    "timeout": "服务器未及时响应——请重试",
+    "offline": "无法连接服务器——请重试"
   },
   "kit": {
     "toasts": "通知",

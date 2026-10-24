@@ -2192,7 +2192,9 @@
     "requestFailed": "La requête a échoué",
     "fileUnavailable": "Fichier indisponible ou expiré",
     "blockedUntil": "Le propriétaire a fermé l'accès à ce serveur jusqu'au {{date}}",
-    "closedByServerUntil": "Le propriétaire du serveur a mis fin à cette réunion — vous pourrez la rouvrir après le {{date}}"
+    "closedByServerUntil": "Le propriétaire du serveur a mis fin à cette réunion — vous pourrez la rouvrir après le {{date}}",
+    "timeout": "Le serveur n'a pas répondu à temps — réessayez",
+    "offline": "Pas de connexion au serveur — réessayez"
   },
   "kit": {
     "toasts": "Notifications",
