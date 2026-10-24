@@ -273,8 +273,10 @@ export class PlayoutBuffer {
     }
     this.targetMs = clamp(Math.round(want), profile.floorMs, profile.ceilingMs);
     // Буфер раздуло пачкой далеко за потолок: NetEq будет выбрасывать звук, догоняя цель,
-    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место.
-    const resync = measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    // секунды подряд. Переподписка стоит доли секунды и ставит всё на место — но это обрыв, и
+    // для речи он хуже догоняющего ускорения (R107): разговор не переподписывается никогда.
+    const resync =
+      this.kind === 'media' && measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
     return {
       targetMs: this.targetMs,
       concealRatio,

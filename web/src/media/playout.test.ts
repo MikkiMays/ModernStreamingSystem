@@ -193,6 +193,20 @@ describe('решение по дорожке', () => {
     expect(flooded.targetMs).toBe(profile.startMs);
   });
 
+  /**
+   * R107: переподписка — это обрыв на полсекунды-секунду (новый приёмник, новый NetEq с нуля).
+   * Музыке он дешевле, чем жить с отставанием в секунды, а речи — нет: раздутый буфер разговора
+   * NetEq догоняет сам ускорением за пару секунд, а переподписку человек слышит как «обрезало».
+   */
+  it('разговор не переподписывается, как бы ни раздуло буфер: обрыв хуже догоняющего ускорения', () => {
+    const profile = profileFor('conversation');
+    const buffer = new PlayoutBuffer('conversation', profile, 0);
+    buffer.observe(audio(0), 0);
+    const flooded = buffer.observe(audio(2, { jitterBufferDelay: 3 * 2 * RATE }), 2000);
+    expect(flooded.measuredMs).toBeCloseTo(3000, 0);
+    expect(flooded.resync).toBe(false);
+  });
+
   it('разговор на джиттере поднимается на 60 мс и не выше 400', () => {
     const profile = profileFor('conversation');
     const buffer = new PlayoutBuffer('conversation', profile, 0);
