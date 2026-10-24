@@ -603,7 +603,7 @@ export class MediaSession {
           const found = this.findPublication(report.id);
           if (!found) continue;
           if (report.kind === 'conversation')
-            void this.resyncSpeechInPause(found.identity, found.publication);
+            void this.resyncSpeechInPause(found.identity, found.publication, report.measuredMs ?? 0);
           else void this.resetLivePair(found.identity, found.publication.source, true);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
@@ -792,11 +792,19 @@ export class MediaSession {
     );
   }
   /**
-   * Переподписать раздутый голос в паузе говорящего (R107, `speech-pause.ts`): громкость пришедших
-   * пакетов тише 0,01 300 мс подряд и SFU не считает человека говорящим. Паузы за 10 с не было —
-   * не переподписываем: провал посреди фразы хуже, NetEq догонит сам.
+   * Переподписать раздутый голос, когда в буфере одна тишина (R107, `speech-pause.ts`).
+   *
+   * Переподписка выбрасывает всё, что лежит в буфере, а лежат там последние `bufferedMs` пришедшего
+   * звука — значит, пауза нужна не «сейчас», а длиной во весь буфер: громкость пришедших пакетов
+   * тише 0,01 и SFU не считает человека говорящим `bufferedMs + 300` мс подряд. Так бывает, когда
+   * говорит кто-то другой. Не дождались за 20 с — не переподписываем: NetEq догонит сам, а
+   * выброшенная фраза — это и есть «звук обрезается».
    */
-  private async resyncSpeechInPause(identity: string, publication: RemoteTrackPublication) {
+  private async resyncSpeechInPause(
+    identity: string,
+    publication: RemoteTrackPublication,
+    bufferedMs: number,
+  ) {
     if (this.pausing.has(publication.trackSid)) return;
     this.pausing.add(publication.trackSid);
     try {
@@ -805,7 +813,7 @@ export class MediaSession {
           this.room.remoteParticipants.get(identity)?.isSpeaking
             ? 1
             : receivedLevel(publication.track?.receiver),
-        { signal: this.liveAbort.signal },
+        { signal: this.liveAbort.signal, quietMs: Math.min(5000, bufferedMs + 300), withinMs: 20000 },
       );
       if (paused && !this.disposed) await this.resetLivePair(identity, publication.source, true);
     } finally {
