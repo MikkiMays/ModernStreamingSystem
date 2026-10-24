@@ -5,6 +5,7 @@ import type { Meeting } from '../core/meeting';
 import type { Zoom } from '../media/cameras';
 import { CameraSubmenu } from './CameraMenu';
 import { Menu, MenuContent, MenuTrigger } from './kit';
+import stage from './stage.css?raw';
 
 afterEach(() => {
   cleanup();
@@ -103,4 +104,12 @@ describe('подменю «Камера» (R35, R36)', () => {
     await waitFor(() => expect(steps[1]).toHaveAttribute('aria-checked', 'true'));
     expect(group).toBeInTheDocument();
   });
+});
+
+it('зум на своей плитке стоит справа внизу, а не там, где сегмент набора (R36)', () => {
+  // У `.ui-segmented` своё `position: relative`: без веса двух классов пилюля уезжала в угол плитки.
+  expect(stage).toMatch(/\.lens-switch\.lens-switch--zoom \{\s*position: absolute;/);
+  expect(stage).toMatch(
+    /\.lens-switch \{\s*position: absolute;[^}]*right: var\(--space-2\);\s*bottom: var\(--space-2\);/,
+  );
 });

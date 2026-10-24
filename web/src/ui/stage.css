@@ -295,7 +295,10 @@
 }
 /* Зум «0.5× · 1× · 2×» на своей плитке (R36) — сегмент набора в той же тёмной пилюле, что линзы:
    плашка горящей ступени светлая и едет к выбранной. */
+/* Вес двух классов: у сегмента набора своё `position: relative` и своя подложка. */
 .lens-switch.lens-switch--zoom {
+  position: absolute;
+  display: flex;
   height: auto;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--stage-bg) 62%, transparent);
