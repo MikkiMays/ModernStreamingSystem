@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../i18n';
-import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize } from './chat';
+import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize, pastedImage } from './chat';
 
 describe('размер файла словами', () => {
   it('КиБ, МиБ и ГиБ без лишних нулей', () => {
@@ -46,5 +46,36 @@ describe('высота поля сообщения (T02)', () => {
 
   it('дальше шести строк — прокрутка внутри поля', () => {
     expect(composerHeight(400, line, padding)).toEqual({ height: 140, scrolls: true });
+  });
+});
+
+describe('Ctrl+V скриншота (R94)', () => {
+  const clipboard = (files: File[], text = '', items: DataTransferItem[] = []) =>
+    ({
+      files: files as unknown as FileList,
+      items: items as unknown as DataTransferItemList,
+      getData: (type: string) => (type === 'text/plain' ? text : ''),
+    }) as Pick<DataTransfer, 'files' | 'items' | 'getData'>;
+  const at = new Date(2026, 9, 24, 23, 15, 2);
+
+  it('скриншот без имени получает имя по времени снимка', () => {
+    const file = pastedImage(clipboard([new File(['x'], 'image.png', { type: 'image/png' })]), at)!;
+    expect(file.name).toBe('screenshot-2026-10-24-231502.png');
+    expect(file.type).toBe('image/png');
+  });
+
+  it('картинка из пунктов буфера, когда списка файлов нет', () => {
+    const shot = new File(['x'], '', { type: 'image/jpeg' });
+    const item = { kind: 'file', type: 'image/jpeg', getAsFile: () => shot } as unknown as DataTransferItem;
+    expect(pastedImage(clipboard([], '', [item]), at)!.name).toBe('screenshot-2026-10-24-231502.jpg');
+  });
+
+  it('своё имя файла остаётся; текст и пустой буфер — обычная вставка', () => {
+    const named = new File(['x'], 'схема.png', { type: 'image/png' });
+    expect(pastedImage(clipboard([named]))).toBe(named);
+    expect(pastedImage(clipboard([named], 'подпись к картинке'))).toBeNull();
+    expect(pastedImage(clipboard([new File(['x'], 'a.txt', { type: 'text/plain' })]))).toBeNull();
+    expect(pastedImage(clipboard([]))).toBeNull();
+    expect(pastedImage(null)).toBeNull();
   });
 });

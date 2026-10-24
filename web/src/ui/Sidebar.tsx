@@ -26,7 +26,15 @@ import { ParticipantMenu } from './ParticipantMenu';
 import { allowed } from '../core/permissions';
 import { serverInfo } from '../core/session';
 import { humans } from '../core/people';
-import { composerHeight, DEFAULT_FILE_MAX_BYTES, formatBytes, oversize } from './chat';
+import {
+  composerHeight,
+  DEFAULT_FILE_MAX_BYTES,
+  formatBytes,
+  MAX_PENDING,
+  oversize,
+  pastedImage,
+} from './chat';
+import { ChatAttachments, type PendingFile } from './ChatAttachments';
 import { useVoiceTier } from './useVoice';
 import { ExecutableNote } from './abuse/Notices';
 import { ChatText } from './abuse/ChatText';
@@ -60,6 +68,8 @@ export function Sidebar({
   /** Почему выбранный файл не ушёл — у поля и в момент выбора (T02), а не подписью заранее. */
   const [refusal, setRefusal] = useState('');
   const [sending, setSending] = useState(false);
+  /** Вложения над полем: уйдут вместе с текстом по Enter (R94). */
+  const [pending, setPending] = useState<PendingFile[]>([]);
   const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
   const scroll = useRef<HTMLDivElement>(null);
@@ -109,7 +119,6 @@ export function Sidebar({
   const fileMaxBytes = capabilities?.fileMaxBytes ?? DEFAULT_FILE_MAX_BYTES;
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const writable = !ended && self && self.status !== 'WAITING';
-  const uploadBusy = ['uploading', 'paused'].includes(uploading.status);
   const timeline = [
     ...snapshot.messages
       .filter((m) => m.expiresAt > Date.now())
@@ -135,13 +144,53 @@ export function Sidebar({
       setError((e as Error).message);
     }
   };
-  const attach = (file?: globalThis.File) => {
-    if (!file || !writable || uploadBusy) return;
-    const problem = oversize(t, file, fileMaxBytes);
-    setRefusal(problem ?? '');
-    if (problem) return;
-    nearBottom.current = true;
-    void meeting.uploader.start(file);
+  /*
+    Вложение — скрепка, перетаскивание или Ctrl+V скриншота (R94) — сначала ложится превью над полем,
+    как у GPT и Claude, и уходит вместе с текстом по Enter. Слишком большой файл не ложится: отказ
+    словами сразу, в момент выбора (T02).
+  */
+  const attach = (files: Iterable<globalThis.File> | ArrayLike<globalThis.File> | null | undefined) => {
+    if (!files || !writable) return;
+    const accepted: PendingFile[] = [];
+    let problem = '';
+    for (const file of Array.from(files)) {
+      const refused = oversize(t, file, fileMaxBytes);
+      if (refused) problem = refused;
+      else accepted.push({ id: crypto.randomUUID(), file });
+    }
+    setRefusal(problem);
+    if (accepted.length) setPending((current) => [...current, ...accepted].slice(0, MAX_PENDING));
+  };
+  /*
+    Отправка: сначала вложения по одному (загрузчик везёт один файл за раз), затем текст — подпись
+    встаёт в ленте после картинки. Не дошёл файл — текст остаётся в поле, а файлы, до которых очередь
+    не дошла, — над ним; у недошедшего — «Повторить» в полосе загрузки.
+  */
+  const send = async () => {
+    const text = draft;
+    if ((!text.trim() && !pending.length) || sending || !writable) return;
+    setSending(true);
+    setError('');
+    const files = pending;
+    setPending([]);
+    try {
+      for (const [index, item] of files.entries()) {
+        nearBottom.current = true;
+        if (await meeting.uploader.send(item.file)) continue;
+        setPending((current) => [...files.slice(index + 1), ...current]);
+        return;
+      }
+      if (text.trim()) {
+        await meeting.command('message.send', text);
+        // Пока грузилось, могли дописать — стирается только отправленное.
+        if (meeting.draft.get() === text) setDraft('');
+        nearBottom.current = true;
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSending(false);
+    }
   };
   /*
     Поле растёт по строкам до шести, а скрепка и «Отправить» стоят на линии его последней строки
@@ -280,7 +329,7 @@ export function Sidebar({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            attach(e.dataTransfer.files[0]);
+            attach(e.dataTransfer.files);
           }}
         >
           <div className="retention-note">{t(($) => $.sidebar.retention)}</div>
@@ -288,9 +337,10 @@ export function Sidebar({
             type="file"
             ref={fileInput}
             hidden
+            multiple
             aria-label={t(($) => $.sidebar.attach)}
             onChange={(e) => {
-              attach(e.target.files?.[0]);
+              attach(e.target.files);
               e.target.value = '';
             }}
           />
@@ -449,28 +499,21 @@ export function Sidebar({
               {refusal}
             </p>
           )}
+          <ChatAttachments
+            files={pending}
+            onRemove={(id) => setPending((current) => current.filter((item) => item.id !== id))}
+          />
           <form
             className="composer"
-            onSubmit={async (e) => {
+            onSubmit={(e) => {
               e.preventDefault();
-              if (!draft.trim() || sending || !writable) return;
-              setSending(true);
-              setError('');
-              try {
-                await meeting.command('message.send', draft);
-                setDraft('');
-                nearBottom.current = true;
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setSending(false);
-              }
+              void send();
             }}
           >
             <IconButton
               label={t(($) => $.sidebar.attach)}
               className="composer__attach"
-              disabled={!writable || uploadBusy}
+              disabled={!writable}
               onClick={() => fileInput.current?.click()}
             >
               <Paperclip size={19} />
@@ -488,6 +531,13 @@ export function Sidebar({
                 setDraft(e.target.value);
                 if (refusal) setRefusal('');
               }}
+              onPaste={(e) => {
+                // Скриншот из буфера — вложением с превью (R94); текст вставляется как обычно.
+                const image = pastedImage(e.clipboardData);
+                if (!image) return;
+                e.preventDefault();
+                attach([image]);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
@@ -499,7 +549,7 @@ export function Sidebar({
               label={t(($) => $.sidebar.send)}
               type="submit"
               className="composer__send"
-              disabled={!draft.trim() || sending || !writable}
+              disabled={(!draft.trim() && !pending.length) || sending || !writable}
             >
               <Send size={18} />
             </IconButton>

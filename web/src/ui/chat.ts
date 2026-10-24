@@ -63,3 +63,45 @@ export function composerHeight(
   const max = line * maxRows + padding;
   return { height: Math.min(max, Math.max(min, Math.ceil(content))), scrolls: content > max + 0.5 };
 }
+
+/** Сколько вложений ждут отправки над полем: дальше новые не добавляются. */
+export const MAX_PENDING = 10;
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/**
+ * Картинка из буфера обмена — Ctrl+V скриншота в поле чата (R94); `null` — вставляют текст или
+ * в буфере нет картинки, и вставка идёт как обычно.
+ *
+ * Скриншот браузер отдаёт файлом без имени или с именем «image.png» — у всех одинаковым. В ленте
+ * такой файл не отличить от соседнего, поэтому он получает имя по времени снимка:
+ * `screenshot-2026-10-24-231502.png`. Своё имя у файла (скопировали файл в проводнике) остаётся.
+ */
+export function pastedImage(
+  data: Pick<DataTransfer, 'files' | 'items' | 'getData'> | null,
+  now = new Date(),
+): File | null {
+  if (!data) return null;
+  // Копия из страницы или документа: текст важнее картинки рядом с ним.
+  if (data.getData('text/plain').trim()) return null;
+  const image = (file: File | null | undefined) => !!file && file.type.startsWith('image/');
+  let file = Array.from(data.files ?? []).find(image) ?? null;
+  if (!file)
+    for (const item of Array.from(data.items ?? [])) {
+      const candidate = item.kind === 'file' && item.type.startsWith('image/') ? item.getAsFile() : null;
+      if (image(candidate)) {
+        file = candidate;
+        break;
+      }
+    }
+  if (!file) return null;
+  if (file.name && !/^image\.\w+$/i.test(file.name)) return file;
+  const extension = (file.type.split('/')[1] ?? 'png').replace('jpeg', 'jpg').replace(/\+.*$/, '');
+  const stamp =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-` +
+    `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return new File([file], `screenshot-${stamp}.${extension}`, {
+    type: file.type,
+    lastModified: file.lastModified,
+  });
+}

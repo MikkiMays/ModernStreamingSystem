@@ -19,6 +19,7 @@ export class Uploader {
   private pending?: { file: File; commandId: string };
   private reserving = false;
   private aborting: Promise<void> = Promise.resolve();
+  private queue: Promise<unknown> = Promise.resolve();
   constructor(
     private api: RoomApi,
     private onComplete: () => void,
@@ -75,6 +76,34 @@ export class Uploader {
     } finally {
       if (generation === this.generation) this.reserving = false;
     }
+  }
+  /**
+   * Загрузить файл и дождаться конца (R94): вложение из превью над полем уходит первым, подпись к нему —
+   * следом. Идущую загрузку сначала дожидается: загрузчик везёт один файл за раз. `true` — файл в
+   * ленте; `false` — отказ, отмена или ошибка (её «Повторить» остаётся в полосе загрузки).
+   */
+  send(file: File): Promise<boolean> {
+    // Очередью: два вложения подряд не должны оба застать загрузчик свободным.
+    const run = this.queue.then(async () => {
+      await this.settled();
+      await this.start(file);
+      await this.settled();
+      return this.state.get().status === 'done';
+    });
+    this.queue = run.catch(() => false);
+    return run;
+  }
+  /** Загрузчик свободен: не грузит и не стоит на паузе. */
+  private settled() {
+    return new Promise<void>((resolve) => {
+      const busy = () => ['uploading', 'paused'].includes(this.state.get().status);
+      if (!busy()) return resolve();
+      const stop = this.state.subscribe(() => {
+        if (busy()) return;
+        stop();
+        resolve();
+      });
+    });
   }
   async pause(congestion = false) {
     if (this.state.get().status !== 'uploading') return;
