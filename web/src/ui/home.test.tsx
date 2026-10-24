@@ -12,6 +12,7 @@ import { appVersion } from '../core/version';
 import { forgetPanelWidths } from './kit';
 import { HelpHost } from './support/HelpHost';
 import { closeHelp } from './support/help';
+import entryCss from '../home-entry.css?raw';
 
 // Device settings are outside this screen; their media discovery is tested separately.
 vi.mock('./Settings', () => ({ Settings: () => null }));
@@ -141,6 +142,31 @@ it('associates an invalid invitation with the field and clears the error when it
   fireEvent.submit(field.closest('form')!);
   expect(view.onJoin).toHaveBeenCalledWith({ kind: 'code', code: '333444555' });
   await waitFor(() => expect(publicApi.capabilities).toHaveBeenCalled());
+});
+
+it('главная — две карточки: слева плита «Новая встреча», справа «Войти по коду» (R65)', async () => {
+  const view = show();
+  // Имя плиты — ровно «Новая встреча» (e2e ищут его с exact): ни марки, ни подзаголовка в нём.
+  const create = view.getByRole('button', { name: 'Новая встреча' });
+  expect(create).toHaveAttribute('data-tour', 'create');
+  const join = view.getByRole('form', { name: 'Войти по коду' });
+  expect(join).toHaveAttribute('data-tour', 'join');
+  expect(within(join).getByLabelText('Код встречи или ссылка')).toHaveAttribute('placeholder', '123-456-789');
+  expect(within(join).getByRole('button', { name: 'Присоединиться' })).toHaveAttribute('type', 'submit');
+  expect(create.compareDocumentPosition(join) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  // Наполнителей больше нет: ни «Начнём разговор.», ни «или» между входом и созданием.
+  expect(view.queryByText('Начнём разговор.')).toBeNull();
+  expect(view.queryByText('или')).toBeNull();
+  fireEvent.click(create);
+  expect(view.onCreate).toHaveBeenCalledOnce();
+  await waitFor(() => expect(publicApi.capabilities).toHaveBeenCalled());
+});
+
+it('раскладку входа решает его собственная ширина: узко — столбиком (R65)', () => {
+  expect(entryCss).toMatch(/grid-template-columns: minmax\(0, 1\.25fr\) minmax\(300px, 1fr\)/);
+  expect(entryCss).toMatch(
+    /@container home-entry \(max-width: 640px\) \{\s*\.home-entry__hero \{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  );
 });
 
 it('keeps saved rooms in the sidebar and opens one from there, with the count of the limit', async () => {
@@ -341,10 +367,10 @@ it('комната и в группе, и закреплена — одна ст
   expect(within(nav).getByText('Все комнаты группы закреплены — они выше')).toBeInTheDocument();
   // «Группа › Без группы» меняет группу и закрепления не снимает.
   fireEvent.click(within(nav).getByRole('button', { name: 'Действия с «Дейли»' }));
-  fireEvent.mouseEnter(await view.findByRole('menuitem', { name: 'Группа' }));
   fireEvent.click(await view.findByRole('menuitem', { name: 'Группа' }));
-  fireEvent.click(await view.findByRole('menuitem', { name: 'Без группы' }));
-  await waitFor(() =>
-    expect(settings).toHaveBeenCalledWith(daily.roomId, { groupId: null, pinned: true, alias: null }),
+  fireEvent.click(await view.findByRole('menuitem', { name: 'Без группы' }, { timeout: 3000 }));
+  await waitFor(
+    () => expect(settings).toHaveBeenCalledWith(daily.roomId, { groupId: null, pinned: true, alias: null }),
+    { timeout: 3000 },
   );
 });

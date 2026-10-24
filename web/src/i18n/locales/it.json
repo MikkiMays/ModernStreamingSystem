@@ -2374,12 +2374,9 @@
   },
   "home": {
     "entry": {
-      "title": "Iniziamo a parlare.",
-      "tagline": "Una stanza. Tutti i tuoi.",
+      "joinTitle": "Partecipa con un codice",
       "label": "Codice o link della riunione",
       "join": "Partecipa",
-      "hint": "Le 9 cifre dell'host o un link di invito.",
-      "or": "oppure",
       "create": "Nuova riunione",
       "creationClosed": "La creazione di riunioni è temporaneamente non disponibile su questo server.",
       "unavailable": "Il server non è disponibile. Controlla la connessione.",

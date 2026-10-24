@@ -2374,12 +2374,9 @@
   },
   "home": {
     "entry": {
-      "title": "Empecemos a hablar.",
-      "tagline": "Una sala. Toda tu gente.",
+      "joinTitle": "Unirse con un código",
       "label": "Código o enlace de la reunión",
       "join": "Unirse",
-      "hint": "Los 9 dígitos del anfitrión o un enlace de invitación.",
-      "or": "o",
       "create": "Nueva reunión",
       "creationClosed": "La creación de reuniones no está disponible temporalmente en este servidor.",
       "unavailable": "El servidor no está disponible. Revisa tu conexión.",

@@ -535,7 +535,13 @@ input.home-inline-name:focus-visible {
   align-content: center;
   justify-items: center;
   gap: var(--space-4);
-  padding: var(--space-10) var(--space-6);
+  padding: var(--space-10) clamp(var(--space-6), 4vw, var(--space-16));
+}
+/* Низкое окно клиента Windows и ноутбука: поля меньше, вход целиком в окне (R65). */
+@media (max-height: 720px) {
+  .home-stage__main {
+    padding-block: var(--space-4);
+  }
 }
 .home-stage__foot {
   display: flex;
@@ -570,7 +576,8 @@ input.home-inline-name:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: min(100%, 480px);
+  /* Во всю ширину входа под ней (R65): плашка и две карточки — одна колонка. */
+  width: min(100%, 1040px);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border-radius: var(--radius-4);
   background: var(--surface-1);

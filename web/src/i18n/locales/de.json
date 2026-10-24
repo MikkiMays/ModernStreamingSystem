@@ -2345,12 +2345,9 @@
   },
   "home": {
     "entry": {
-      "title": "Lass uns reden.",
-      "tagline": "Ein Raum. Alle deine Leute.",
+      "joinTitle": "Mit Code beitreten",
       "label": "Meeting-Code oder Link",
       "join": "Beitreten",
-      "hint": "9 Ziffern vom Host oder ein Einladungslink.",
-      "or": "oder",
       "create": "Neues Meeting",
       "creationClosed": "Auf diesem Server können vorübergehend keine Meetings erstellt werden.",
       "unavailable": "Der Server ist nicht erreichbar. Prüfe deine Verbindung.",

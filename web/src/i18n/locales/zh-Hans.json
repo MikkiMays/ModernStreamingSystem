@@ -2316,12 +2316,9 @@
   },
   "home": {
     "entry": {
-      "title": "开始聊吧。",
-      "tagline": "一个房间，自己人都在。",
+      "joinTitle": "用会议代码加入",
       "label": "会议代码或链接",
       "join": "加入",
-      "hint": "主持人提供的 9 位数字或邀请链接。",
-      "or": "或",
       "create": "新建会议",
       "creationClosed": "此服务器暂时无法创建会议。",
       "unavailable": "服务器不可用。请检查网络连接。",

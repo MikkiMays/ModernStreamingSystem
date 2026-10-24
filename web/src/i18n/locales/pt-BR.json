@@ -2374,12 +2374,9 @@
   },
   "home": {
     "entry": {
-      "title": "Vamos conversar.",
-      "tagline": "Uma sala. Toda a sua turma.",
+      "joinTitle": "Entrar com um código",
       "label": "Código ou link da reunião",
       "join": "Entrar",
-      "hint": "Os 9 dígitos do anfitrião ou um link de convite.",
-      "or": "ou",
       "create": "Nova reunião",
       "creationClosed": "A criação de reuniões está temporariamente indisponível neste servidor.",
       "unavailable": "O servidor está indisponível. Verifique a conexão.",

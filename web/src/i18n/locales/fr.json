@@ -2374,12 +2374,9 @@
   },
   "home": {
     "entry": {
-      "title": "On commence à parler ?",
-      "tagline": "Une salle. Tous vos proches.",
+      "joinTitle": "Rejoindre avec un code",
       "label": "Code ou lien de la réunion",
       "join": "Rejoindre",
-      "hint": "Les 9 chiffres de l'hôte ou un lien d'invitation.",
-      "or": "ou",
       "create": "Nouvelle réunion",
       "creationClosed": "La création de réunions est temporairement indisponible sur ce serveur.",
       "unavailable": "Le serveur est indisponible. Vérifiez votre connexion.",

@@ -2345,12 +2345,9 @@
   },
   "home": {
     "entry": {
-      "title": "Let's talk.",
-      "tagline": "One room. All your people.",
+      "joinTitle": "Join with a code",
       "label": "Meeting code or link",
       "join": "Join",
-      "hint": "9 digits from the host or an invite link.",
-      "or": "or",
       "create": "New meeting",
       "creationClosed": "Creating meetings is temporarily unavailable on this server.",
       "unavailable": "The server is unavailable. Check your connection.",
