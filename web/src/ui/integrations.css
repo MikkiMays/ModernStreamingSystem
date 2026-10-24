@@ -543,6 +543,12 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+/* Телефон: громкость — системная, кнопками телефона; своего ползунка там нет (DESIGN → «Плеер»). */
+@media (max-width: 767px) {
+  .music-now__volume {
+    display: none;
+  }
+}
 /* Эквалайзер — три полоски цвета площадки; под «меньше движения» стоит на месте. */
 .music-eq {
   display: inline-flex;
@@ -598,8 +604,8 @@
   height: 56px;
   margin-bottom: var(--space-1);
   border-radius: var(--radius-full);
-  background: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--brand-music);
+  color: var(--brand-music-ink);
   box-shadow: var(--shadow-1);
 }
 .music-intro h3 {
@@ -1071,6 +1077,10 @@ input.music-search__input:focus-visible {
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
+}
+/* Ссылка и «Ждём подтверждения…» — по линии текста шагов, а не номеров. */
+.yandex-device__steps > :not(ol) {
+  margin-inline-start: var(--space-5);
 }
 .yandex-device__open {
   display: inline-flex;

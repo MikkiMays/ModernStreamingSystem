@@ -31,6 +31,18 @@
   inset-inline-end: var(--space-3);
 }
 
+/*
+  За столом (покер, дурак, шахматы, Gartic) верх сцены занят шапкой игры — «Раздать», «Настройки игры»,
+  лента ходов: чип и тем более мини-плеер музыки (R31) легли бы на её кнопки. Там слой — справа внизу,
+  над пультом, где у стола пусто.
+*/
+.stage-wrap:has(.stage:is(.poker-stage, .room-game-stage)) > .stage-overlay {
+  top: auto;
+  bottom: calc(var(--dock-space) + var(--space-2));
+  inset-inline-end: var(--space-3);
+  align-items: flex-end;
+}
+
 /* Чип — «стекло сцены»: значок площадки на плашке её цвета, подпись, у играющей музыки — эквалайзер. */
 .stage-chip {
   --chip-brand: var(--surface-3);
@@ -147,7 +159,8 @@
 /* Телефон: строка над сценой в потоке, прокручивается вбок; чипы — в одну строку. */
 @media (max-width: 767px) {
   .stage-overlay,
-  .stage-wrap:has(.watch-stage) > .stage-overlay {
+  .stage-wrap:has(.watch-stage) > .stage-overlay,
+  .stage-wrap:has(.stage:is(.poker-stage, .room-game-stage)) > .stage-overlay {
     position: static;
     flex: none;
     flex-wrap: nowrap;
