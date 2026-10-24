@@ -53,6 +53,8 @@ class Command(BaseModel):
         "remove",
         "next",
         "move",
+        # «Назад» (R44): сначала, если трек идёт дольше трёх секунд, иначе — предыдущий (`Music.back`).
+        "previous",
     ]
     trackId: str | None = Field(default=None, max_length=36)
     position: float | None = Field(default=None, ge=0, le=3600, allow_inf_nan=False)
