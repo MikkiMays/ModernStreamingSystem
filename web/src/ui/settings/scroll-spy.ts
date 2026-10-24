@@ -1,11 +1,18 @@
 /**
- * Подсветка подраздела слева по прокрутке справа (R12) — как у Discord (r103-06).
+ * Подсветка подраздела слева по прокрутке справа (R12, R115) — как у Discord (r103-06).
  *
  * ПОЧЕМУ НЕ «ПОСЛЕДНИЙ ВЕРХ ВЫШЕ ЛИНИИ». Так было, и короткие последние группы не могли подняться
  * до линии: прокручивать дальше некуда, и внизу раздела подсвечивалась «Камера» — «я внизу, а
- * пункт на камере». Здесь два правила: на дне прокрутки текущий — последний подраздел; иначе —
- * тот, чья группа пересекает линию на трети высоты области (так подраздел становится текущим,
- * когда его заголовок поднялся в верхнюю треть, а не прилип к краю).
+ * пункт на камере». Правила по порядку:
+ *
+ * 1. Прокручивать нечего (всё помещается) — подсвечен тот, что выбран щелчком (или первый): на
+ *    странице видны все группы сразу, и геометрия выбрать не может — правило линии назвало бы
+ *    среднюю, чья группа начинается в верхней трети (R115).
+ * 2. У самого низа — последний: видны и первый, и последний, а средний только потому, что его
+ *    заголовок наверху, подсвечивать нельзя (R115).
+ * 3. У самого верха — первый, даже если первая группа коротка и заголовок второй уже в верхней трети.
+ * 4. Иначе — группа, которая пересекает линию на трети высоты области: подраздел становится текущим,
+ *    когда его заголовок поднялся в верхнюю треть, а не прилип к краю.
  */
 export interface AnchorTop<A extends string = string> {
   anchor: A;
@@ -13,7 +20,7 @@ export interface AnchorTop<A extends string = string> {
   top: number;
 }
 
-/** Допуск «дна»: дробные пиксели масштаба 125–150 % не оставляют «почти дно». */
+/** Допуск «дна» и «верха»: дробные пиксели масштаба 125–150 % не оставляют «почти дно». */
 const BOTTOM_SLACK = 2;
 
 export function activeAnchor<A extends string>({
@@ -21,19 +28,25 @@ export function activeAnchor<A extends string>({
   clientHeight,
   scrollHeight,
   tops,
+  current,
 }: {
   scrollTop: number;
   clientHeight: number;
   scrollHeight: number;
   tops: readonly AnchorTop<A>[];
+  /** Подсвеченный сейчас — выбранный щелчком или прошлым пересчётом. */
+  current?: string;
 }): A | undefined {
   if (!tops.length) return undefined;
-  const scrollable = scrollHeight - clientHeight > BOTTOM_SLACK;
-  if (scrollable && scrollTop + clientHeight >= scrollHeight - BOTTOM_SLACK) return tops.at(-1)!.anchor;
+  const first = tops[0]!.anchor;
+  if (scrollHeight - clientHeight <= BOTTOM_SLACK)
+    return tops.find((top) => top.anchor === current)?.anchor ?? first;
+  if (scrollTop + clientHeight >= scrollHeight - BOTTOM_SLACK) return tops.at(-1)!.anchor;
+  if (scrollTop <= BOTTOM_SLACK) return first;
   const line = clientHeight / 3;
-  let current = tops[0]!.anchor;
-  for (const { anchor, top } of tops) if (top <= line) current = anchor;
-  return current;
+  let crossing = first;
+  for (const { anchor, top } of tops) if (top <= line) crossing = anchor;
+  return crossing;
 }
 
 /** Сколько ждать `scrollend`, прежде чем снять паузу самим: прокрутки могло и не быть. */

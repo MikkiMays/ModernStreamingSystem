@@ -137,7 +137,7 @@ export function SettingsWindow({
     setTarget((previous) => ({ anchor: next.anchor, nonce: previous.nonce + 1 }));
   }, [open, section, meeting, saved]);
 
-  // Какой подраздел сейчас на экране — его якорь слева подсвечен (R12, `scroll-spy.ts`).
+  // Какой подраздел сейчас на экране — его якорь слева подсвечен (R12, R115, `scroll-spy.ts`).
   const anchors = sectionSpec(place.section).anchors;
   const spyWatch = useRef<ReturnType<typeof watchScroll> | null>(null);
   // Раньше перехода ниже: его программная прокрутка уже должна попасть под паузу.
@@ -149,13 +149,17 @@ export function SettingsWindow({
         const element = document.getElementById(anchorDomId(anchor));
         return element ? [{ anchor, top: element.getBoundingClientRect().top - edge }] : [];
       });
-      const next = activeAnchor({
-        scrollTop: scroller.scrollTop,
-        clientHeight: scroller.clientHeight,
-        scrollHeight: scroller.scrollHeight,
-        tops,
-      });
-      if (next) setSpy(next);
+      // Всё помещается — остаётся выбранный щелчком (R115): правилу нужен подсвеченный сейчас.
+      setSpy(
+        (current) =>
+          activeAnchor({
+            scrollTop: scroller.scrollTop,
+            clientHeight: scroller.clientHeight,
+            scrollHeight: scroller.scrollHeight,
+            tops,
+            current,
+          }) ?? current,
+      );
     });
     spyWatch.current = watch;
     return () => {

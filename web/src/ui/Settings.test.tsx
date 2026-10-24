@@ -232,6 +232,76 @@ describe('окно настроек (T26)', () => {
     );
   });
 
+  /*
+    R115: подсветка по прокрутке на настоящей разметке окна. Раскладки в jsdom нет — размеры области
+    прокрутки и верхи групп подставляются, как их отдал бы браузер.
+  */
+  function layout({
+    client,
+    height,
+    top,
+    groups,
+  }: {
+    client: number;
+    height: number;
+    top: number;
+    groups: number[];
+  }) {
+    const scroller = document.querySelector<HTMLElement>('.settings-content')!;
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: client });
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: height });
+    scroller.scrollTop = top;
+    scroller.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+    ['microphone', 'output'].forEach((anchor, index) => {
+      const group = document.getElementById(`settings-anchor-${anchor}`)!;
+      group.getBoundingClientRect = () => ({ top: groups[index]! - top }) as DOMRect;
+    });
+    return scroller;
+  }
+  /** Человек прокрутил: пауза после перехода по якорю снята, пересчёт — в ближайшем кадре. */
+  async function scrolled(scroller: HTMLElement) {
+    fireEvent(scroller, new Event('scrollend'));
+    fireEvent.scroll(scroller);
+    await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+  }
+
+  it('всё помещается без прокрутки — подсвечен выбранный щелчком, а не тот, что у линии (R115)', async () => {
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Динамики' }));
+    // Окно выше раздела: «Динамики» начинаются ниже линии трети, «Микрофон» — у самого верха.
+    const scroller = layout({ client: 760, height: 760, top: 0, groups: [0, 420] });
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+    fireEvent.click(within(anchors).getByRole('button', { name: 'Микрофон' }));
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  });
+
+  it('прокрутка у самого низа — последний подраздел, у верха — первый (R115)', async () => {
+    render(<Settings open section="audio" onOpenChange={vi.fn()} />);
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
+    // Низкое окно: раздел выше области на 40 px; у дна заголовок «Динамиков» ниже линии трети.
+    const scroller = layout({ client: 460, height: 500, top: 40, groups: [0, 360] });
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Динамики' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+    layout({ client: 460, height: 500, top: 0, groups: [0, 360] });
+    await scrolled(scroller);
+    expect(within(anchors).getByRole('button', { name: 'Микрофон' })).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  });
+
   it('поиск находит строку и открывает её раздел', () => {
     render(<Settings open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByRole('searchbox', { name: 'Найти настройку' }), {

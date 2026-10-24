@@ -212,3 +212,25 @@ test('подсветка подраздела: на дне прокрутки �
   await page.waitForTimeout(800);
   await expect(anchors.getByRole('button', { name: 'Камера' })).toHaveAttribute('aria-current', 'location');
 });
+
+test('подсветка подраздела без прокрутки — выбранный щелчком, колесо её не меняет (R115)', async ({
+  page,
+}) => {
+  // Эталонное окно: «Микрофон» помещается целиком (R101), прокручивать нечего.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  await section(page, 'Микрофон').click();
+  const anchors = nav(page).getByRole('list', { name: 'Подразделы: Микрофон' });
+  const content = page.locator('.settings-content');
+  expect(
+    await content.evaluate((element) => element.scrollHeight - element.clientHeight),
+  ).toBeLessThanOrEqual(2);
+  for (const name of ['Динамики', 'Микрофон']) {
+    await anchors.getByRole('button', { name }).click();
+    await content.hover();
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(800);
+    await expect(anchors.getByRole('button', { name })).toHaveAttribute('aria-current', 'location');
+  }
+});
