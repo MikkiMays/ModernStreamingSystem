@@ -1059,6 +1059,7 @@ input.music-search__input:focus-visible {
 }
 .yandex-device__steps ol {
   display: grid;
+  list-style: decimal;
   gap: var(--space-2);
   margin: 0;
   padding-inline-start: var(--space-5);
