@@ -47,6 +47,10 @@
         "title": "Windows",
         "keywords": "app tray taskbar thumbnail badge flash sleep overlay autostart"
       },
+      "overlay": {
+        "title": "Overlay",
+        "keywords": "overlay game games on top speaking widget go live"
+      },
       "audio": {
         "title": "Microphone",
         "keywords": "audio voice sound microphone speakers headphones"
@@ -258,6 +262,11 @@
         "hint": "The screen stays on during calls and sharing",
         "keywords": "sleep screen power saving"
       },
+      "desktop-mini": {
+        "label": "Mini call window",
+        "hint": "Who’s speaking and call controls while Cord is minimized",
+        "keywords": "mini window call on top minimized"
+      },
       "desktop-overlay": {
         "label": "In-game overlay",
         "hint": "Who’s in the call and who’s speaking — on top of the game",
@@ -267,6 +276,41 @@
         "label": "Overlay shortcut",
         "hint": "",
         "keywords": "key overlay hotkey shortcut"
+      },
+      "overlay-lock-hotkey": {
+        "label": "Unlock overlay",
+        "hint": "Drag the widget and click “Go Live” with the mouse",
+        "keywords": "lock unlock drag mouse shortcut"
+      },
+      "overlay-toast": {
+        "label": "Pop-up when a game starts",
+        "hint": "“Go Live” streams that game to the call",
+        "keywords": "go live stream notification pop-up"
+      },
+      "overlay-games": {
+        "label": "Games",
+        "hint": "",
+        "keywords": "games registered add forget"
+      },
+      "overlay-corner": {
+        "label": "Position",
+        "hint": "",
+        "keywords": "corner left right top bottom"
+      },
+      "overlay-size": {
+        "label": "Avatar size",
+        "hint": "",
+        "keywords": "size small medium large"
+      },
+      "overlay-names": {
+        "label": "Names",
+        "hint": "",
+        "keywords": "names labels"
+      },
+      "overlay-opacity": {
+        "label": "Opacity",
+        "hint": "",
+        "keywords": "opacity transparency"
       },
       "desktop-autostart": {
         "label": "Start with Windows",
@@ -451,6 +495,45 @@
       "changeLabel": "Change overlay shortcut",
       "assignLabel": "Assign overlay shortcut",
       "resetLabel": "Reset overlay shortcut"
+    },
+    "overlay": {
+      "title": "In-game overlay",
+      "games": "Games",
+      "now": "Now playing",
+      "running": "Running now",
+      "exclusive": "Exclusive fullscreen — the overlay isn’t visible",
+      "none": "No game running",
+      "lastSeen": "Last played {{when}}",
+      "added": "Added manually",
+      "empty": "Cord remembers a game on its own when you launch it during a meeting.",
+      "add": "Add game",
+      "more": "More for “{{name}}”",
+      "forget": "Forget",
+      "gameSwitch": "Overlay over “{{name}}”",
+      "widget": "Speaking",
+      "preview": "How the widget looks over a game",
+      "corners": {
+        "tl": "Top left",
+        "tr": "Top right",
+        "bl": "Bottom left",
+        "br": "Bottom right"
+      },
+      "sizes": {
+        "s": "Small",
+        "m": "Medium",
+        "l": "Large"
+      },
+      "names": {
+        "always": "Always",
+        "speaking": "When speaking",
+        "never": "Never"
+      },
+      "lockChange": "Change unlock shortcut",
+      "lockAssign": "Assign unlock shortcut",
+      "lockReset": "Reset unlock shortcut",
+      "sample1": "You",
+      "sample2": "Anna",
+      "sample3": "Mike"
     },
     "video": {
       "previewDenied": "No camera access — allow it for Cord"

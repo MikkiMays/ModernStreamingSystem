@@ -112,6 +112,8 @@ export function hotkeyStatusText(t: Translate, status: HotkeyStatus | null): str
 export const desktopHotkeyStatus = new Store<HotkeyStatus | null>(null);
 /** Что оболочка ответила про сочетание оверлея (`overlay.toggle`) — кодом, как и для микрофона. */
 export const desktopOverlayHotkeyStatus = new Store<HotkeyStatus | null>(null);
+/** И про разблокировку оверлея (`overlay.lock`, R63). */
+export const desktopOverlayLockStatus = new Store<HotkeyStatus | null>(null);
 
 /**
  * Сочетания, которые страница отдала оболочке. Микрофон и оверлей уходят одним набором
@@ -122,15 +124,20 @@ export const desktopOverlayHotkeyStatus = new Store<HotkeyStatus | null>(null);
  * Микрофон в режиме «нажми и говори» (`mode: 'hold'`) уходит действием `ptt` с удержанием — только
  * при флаге `ptt` (Raw Input в `cord-native`): `globalShortcut` фазы «отпустил» не знает, и
  * удержание без неё оставило бы микрофон включённым. Без флага — прежнее переключение.
+ *
+ * Разблокировка оверлея (`overlay.lock`, R63) и клавиша «`» (`Backquote`) — только при флаге
+ * `overlay.widget`: оболочка до R63 их не знает и отбросила бы весь набор, а с ним и микрофон.
  */
 const desktopHotkeys: {
   mic: Hotkey | null;
   overlay: Hotkey | null;
+  lock: Hotkey | null;
   paused: boolean;
   micMode: MicHotkeyMode;
 } = {
   mic: null,
   overlay: null,
+  lock: null,
   paused: false,
   micMode: 'toggle',
 };
@@ -138,9 +145,16 @@ const desktopHotkeys: {
 function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
   if ('hotkey' in data) desktopHotkeys.mic = (data.hotkey as Hotkey | null | undefined) ?? null;
   if ('overlay' in data) desktopHotkeys.overlay = (data.overlay as Hotkey | null | undefined) ?? null;
+  if ('lock' in data) desktopHotkeys.lock = (data.lock as Hotkey | null | undefined) ?? null;
   if ('paused' in data) desktopHotkeys.paused = data.paused === true;
   if ('mode' in data) desktopHotkeys.micMode = data.mode === 'hold' ? 'hold' : 'toggle';
-  const { mic, overlay, paused, micMode } = desktopHotkeys;
+  const widget = api.features.includes('overlay.widget');
+  // Сочетание, которого эта оболочка не знает, не уходит вовсе — иначе она отбросит весь набор.
+  const known = (key: Hotkey | null) => (key && (widget || key.code !== 'Backquote') ? key : null);
+  const mic = known(desktopHotkeys.mic);
+  const overlay = known(desktopHotkeys.overlay);
+  const lock = widget ? desktopHotkeys.lock : null;
+  const { paused, micMode } = desktopHotkeys;
   const hold = micMode === 'hold' && api.features.includes('ptt');
   api.send('hotkeys.configure', {
     bindings: paused
@@ -154,6 +168,7 @@ function configureHotkeys(api: CordDesktop, data: Record<string, unknown>) {
               ]
             : []),
           ...(overlay ? [{ action: 'overlay.toggle', mode: 'toggle', key: overlay }] : []),
+          ...(lock ? [{ action: 'overlay.lock', mode: 'toggle', key: lock }] : []),
         ],
   });
 }
@@ -315,6 +330,7 @@ export function onDesktopCommand(listener: (command: DesktopCommand) => void) {
         const detail = hotkeyStatusOf(data.status) ?? hotkeyStatusOf(data.status, 'ptt');
         desktopHotkeyStatus.set(detail);
         desktopOverlayHotkeyStatus.set(hotkeyStatusOf(data.status, 'overlay.toggle'));
+        desktopOverlayLockStatus.set(hotkeyStatusOf(data.status, 'overlay.lock'));
         relay({ type: 'hotkey.status', detail: detail ?? undefined });
       }),
       api.on('update.status', (data) => {

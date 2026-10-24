@@ -47,6 +47,10 @@
         "title": "Windows",
         "keywords": "aplicación bandeja barra de tareas miniatura distintivo parpadeo suspensión superposición inicio automático"
       },
+      "overlay": {
+        "title": "Superposición",
+        "keywords": "superposición juego juegos encima hablando widget mostrar juego"
+      },
       "audio": {
         "title": "Micrófono",
         "keywords": "audio voz sonido micrófono altavoces auriculares"
@@ -258,6 +262,11 @@
         "hint": "La pantalla no se apaga en llamadas ni al compartir",
         "keywords": "suspensión pantalla ahorro de energía"
       },
+      "desktop-mini": {
+        "label": "Miniventana de llamada",
+        "hint": "Quién habla y los controles de la llamada cuando Cord está minimizado",
+        "keywords": "mini ventana llamada encima minimizado"
+      },
       "desktop-overlay": {
         "label": "Superposición en juegos",
         "hint": "Quién está en la llamada y quién habla, sobre el juego",
@@ -267,6 +276,41 @@
         "label": "Atajo de la superposición",
         "hint": "",
         "keywords": "tecla superposición atajo combinación"
+      },
+      "overlay-lock-hotkey": {
+        "label": "Desbloquear superposición",
+        "hint": "Arrastra el widget y pulsa «Mostrar juego» con el ratón",
+        "keywords": "bloqueo desbloquear arrastrar ratón atajo"
+      },
+      "overlay-toast": {
+        "label": "Aviso al iniciar un juego",
+        "hint": "«Mostrar juego» transmite ese juego a la llamada",
+        "keywords": "mostrar juego transmitir aviso notificación"
+      },
+      "overlay-games": {
+        "label": "Juegos",
+        "hint": "",
+        "keywords": "juegos registrados añadir olvidar"
+      },
+      "overlay-corner": {
+        "label": "Posición",
+        "hint": "",
+        "keywords": "esquina izquierda derecha arriba abajo"
+      },
+      "overlay-size": {
+        "label": "Tamaño del avatar",
+        "hint": "",
+        "keywords": "tamaño pequeño mediano grande"
+      },
+      "overlay-names": {
+        "label": "Nombres",
+        "hint": "",
+        "keywords": "nombres etiquetas"
+      },
+      "overlay-opacity": {
+        "label": "Opacidad",
+        "hint": "",
+        "keywords": "opacidad transparencia"
       },
       "desktop-autostart": {
         "label": "Iniciar con Windows",
@@ -451,6 +495,45 @@
       "changeLabel": "Cambiar el atajo de la superposición",
       "assignLabel": "Asignar atajo a la superposición",
       "resetLabel": "Restablecer el atajo de la superposición"
+    },
+    "overlay": {
+      "title": "Superposición en juegos",
+      "games": "Juegos",
+      "now": "Activo ahora",
+      "running": "En ejecución",
+      "exclusive": "Pantalla completa exclusiva: la superposición no se ve",
+      "none": "No hay ningún juego en ejecución",
+      "lastSeen": "Última vez {{when}}",
+      "added": "Añadido a mano",
+      "empty": "Cord recordará un juego por sí solo cuando lo inicies durante una reunión.",
+      "add": "Añadir juego",
+      "more": "Más para «{{name}}»",
+      "forget": "Olvidar",
+      "gameSwitch": "Superposición sobre «{{name}}»",
+      "widget": "Quién habla",
+      "preview": "Así se ve el widget sobre un juego",
+      "corners": {
+        "tl": "Arriba a la izquierda",
+        "tr": "Arriba a la derecha",
+        "bl": "Abajo a la izquierda",
+        "br": "Abajo a la derecha"
+      },
+      "sizes": {
+        "s": "Pequeño",
+        "m": "Mediano",
+        "l": "Grande"
+      },
+      "names": {
+        "always": "Siempre",
+        "speaking": "Al hablar",
+        "never": "Nunca"
+      },
+      "lockChange": "Cambiar atajo de desbloqueo",
+      "lockAssign": "Asignar atajo de desbloqueo",
+      "lockReset": "Restablecer atajo de desbloqueo",
+      "sample1": "Tú",
+      "sample2": "Ana",
+      "sample3": "Pablo"
     },
     "video": {
       "previewDenied": "Sin acceso a la cámara: permítelo para Cord"

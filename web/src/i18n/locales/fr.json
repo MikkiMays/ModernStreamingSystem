@@ -47,6 +47,10 @@
         "title": "Windows",
         "keywords": "application zone de notification barre des tâches miniature badge clignotement veille superposition démarrage automatique"
       },
+      "overlay": {
+        "title": "Overlay",
+        "keywords": "overlay jeu jeux par-dessus parle widget montrer le jeu"
+      },
       "audio": {
         "title": "Micro",
         "keywords": "audio voix son micro haut-parleurs casque"
@@ -258,6 +262,11 @@
         "hint": "L’écran reste allumé en appel et en partage",
         "keywords": "veille écran économie d’énergie"
       },
+      "desktop-mini": {
+        "label": "Mini-fenêtre d’appel",
+        "hint": "Qui parle et les commandes de l’appel quand Cord est réduit",
+        "keywords": "mini fenêtre appel par-dessus réduit"
+      },
       "desktop-overlay": {
         "label": "Superposition en jeu",
         "hint": "Qui est dans l’appel et qui parle — par-dessus le jeu",
@@ -267,6 +276,41 @@
         "label": "Raccourci de la superposition",
         "hint": "",
         "keywords": "touche superposition raccourci combinaison"
+      },
+      "overlay-lock-hotkey": {
+        "label": "Déverrouiller l’overlay",
+        "hint": "Déplacer le widget et cliquer sur « Montrer le jeu » à la souris",
+        "keywords": "verrou déverrouiller déplacer souris raccourci"
+      },
+      "overlay-toast": {
+        "label": "Message au lancement d’un jeu",
+        "hint": "« Montrer le jeu » diffuse ce jeu dans l’appel",
+        "keywords": "montrer le jeu diffusion notification message"
+      },
+      "overlay-games": {
+        "label": "Jeux",
+        "hint": "",
+        "keywords": "jeux enregistrés ajouter oublier"
+      },
+      "overlay-corner": {
+        "label": "Position",
+        "hint": "",
+        "keywords": "coin gauche droite haut bas"
+      },
+      "overlay-size": {
+        "label": "Taille de l’avatar",
+        "hint": "",
+        "keywords": "taille petit moyen grand"
+      },
+      "overlay-names": {
+        "label": "Noms",
+        "hint": "",
+        "keywords": "noms libellés"
+      },
+      "overlay-opacity": {
+        "label": "Opacité",
+        "hint": "",
+        "keywords": "opacité transparence"
       },
       "desktop-autostart": {
         "label": "Lancer avec Windows",
@@ -451,6 +495,45 @@
       "changeLabel": "Modifier le raccourci de la superposition",
       "assignLabel": "Attribuer un raccourci à la superposition",
       "resetLabel": "Réinitialiser le raccourci de la superposition"
+    },
+    "overlay": {
+      "title": "Overlay en jeu",
+      "games": "Jeux",
+      "now": "Actif maintenant",
+      "running": "En cours",
+      "exclusive": "Plein écran exclusif — l’overlay n’est pas visible",
+      "none": "Aucun jeu en cours",
+      "lastSeen": "Dernière partie {{when}}",
+      "added": "Ajouté manuellement",
+      "empty": "Cord retient un jeu tout seul quand vous le lancez pendant une réunion.",
+      "add": "Ajouter un jeu",
+      "more": "Plus pour « {{name}} »",
+      "forget": "Oublier",
+      "gameSwitch": "Overlay sur « {{name}} »",
+      "widget": "Qui parle",
+      "preview": "Aperçu du widget par-dessus un jeu",
+      "corners": {
+        "tl": "En haut à gauche",
+        "tr": "En haut à droite",
+        "bl": "En bas à gauche",
+        "br": "En bas à droite"
+      },
+      "sizes": {
+        "s": "Petit",
+        "m": "Moyen",
+        "l": "Grand"
+      },
+      "names": {
+        "always": "Toujours",
+        "speaking": "Quand il parle",
+        "never": "Jamais"
+      },
+      "lockChange": "Modifier le raccourci de déverrouillage",
+      "lockAssign": "Attribuer un raccourci de déverrouillage",
+      "lockReset": "Réinitialiser le raccourci de déverrouillage",
+      "sample1": "Vous",
+      "sample2": "Anne",
+      "sample3": "Marc"
     },
     "video": {
       "previewDenied": "Pas d'accès à la caméra — autorisez-le pour Cord"

@@ -9,6 +9,18 @@ export interface Hotkey {
 }
 export const defaultMicHotkey: Hotkey = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
 /**
+ * Разблокировать оверлей в игре (R63): `Shift + \``, как у Discord. Клавиша «`» (`Backquote`) уходит
+ * оболочке только при флаге `overlay.widget` — прежняя оболочка такой клавиши не знает и отбросила бы
+ * весь набор сочетаний (`desktop.ts`).
+ */
+export const defaultOverlayLockHotkey: Hotkey = {
+  code: 'Backquote',
+  ctrl: false,
+  alt: false,
+  shift: true,
+  meta: false,
+};
+/**
  * Как работает сочетание микрофона: `toggle` — нажатие включает и выключает; `hold` — «нажми и
  * говори», микрофон включён, пока сочетание удерживается. Удержание — только с Raw Input оболочки
  * (флаг `ptt`, `cord-native`): без фазы «отпустил» оно оставило бы микрофон включённым.
@@ -24,7 +36,7 @@ export function validHotkey(value: unknown): value is Hotkey {
   if (!value || typeof value !== 'object') return false;
   const key = value as Hotkey;
   return (
-    /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9]|2[0-4])|Space|Mouse[3-5])$/.test(key.code) &&
+    /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9]|2[0-4])|Space|Backquote|Mouse[3-5])$/.test(key.code) &&
     ['ctrl', 'alt', 'shift', 'meta'].every((k) => typeof key[k as keyof Hotkey] === 'boolean')
   );
 }
@@ -95,6 +107,7 @@ export function matchesHotkey(event: KeyboardEvent, key: Hotkey | null) {
 }
 function keyName(t: Translate, code: string) {
   if (code === 'Space') return t(($) => $.hotkeys.space);
+  if (code === 'Backquote') return '`';
   if (code === 'Mouse3' || code === 'Mouse4' || code === 'Mouse5') return t(($) => $.hotkeys.mouse[code]);
   return code.replace(/^(Key|Digit)/, '');
 }

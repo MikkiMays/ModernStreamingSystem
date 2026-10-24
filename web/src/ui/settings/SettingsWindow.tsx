@@ -7,6 +7,7 @@ import {
   Keyboard,
   Mic,
   MonitorCog,
+  Gamepad2,
   Palette,
   Plug,
   Search,
@@ -56,6 +57,7 @@ import { AboutSection } from './AboutSection';
 import { replayOnboarding } from '../../core/onboarding';
 import { closeHelp } from '../support/help';
 import { DesktopSection } from './DesktopSection';
+import { OverlaySection } from './OverlaySection';
 import './settings.css';
 
 const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
@@ -63,6 +65,7 @@ const ICONS: Record<SectionId, ComponentType<LucideProps>> = {
   appearance: Palette,
   hotkeys: Keyboard,
   desktop: MonitorCog,
+  overlay: Gamepad2,
   audio: Mic,
   video: Video,
   sounds: Volume2,
@@ -278,7 +281,9 @@ export function SettingsWindow({
           />
         );
       case 'desktop':
-        return <DesktopSection preferences={preferences} change={change} />;
+        return <DesktopSection />;
+      case 'overlay':
+        return <OverlaySection preferences={preferences} change={change} />;
       case 'accounts':
         return <AccountsSection preferences={preferences} change={change} />;
       case 'server':

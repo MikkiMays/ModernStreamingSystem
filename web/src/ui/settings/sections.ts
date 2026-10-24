@@ -18,6 +18,7 @@ export type SectionId =
   | 'appearance'
   | 'hotkeys'
   | 'desktop'
+  | 'overlay'
   | 'audio'
   | 'video'
   | 'sounds'
@@ -52,6 +53,9 @@ export const SECTIONS: SectionSpec[] = [
   { id: 'appearance', group: 'app', anchors: [] },
   { id: 'hotkeys', group: 'app', anchors: [], layout: 'groups' },
   { id: 'desktop', group: 'app', anchors: [], only: 'desktop', layout: 'groups' },
+  // «Оверлей» (R62, R63) — отдельная страница рядом с «Windows», как «Игровой оверлей» Discord: оверлей,
+  // игры, виджет говорящих и его клавиши. Только в клиенте и только со своими флагами оболочки.
+  { id: 'overlay', group: 'app', anchors: [], only: 'desktop', layout: 'groups' },
   // «Голос и видео» разделён на два раздела, как у Телемоста (R100): каждый помещается в окно
   // без прокрутки (R101), а превью камеры не включается, пока человек настраивает микрофон.
   { id: 'audio', group: 'meetings', anchors: ['microphone', 'output'] },
@@ -175,9 +179,17 @@ export const ROWS = {
   'desktop-badge': { section: 'desktop', only: 'desktop', feature: 'badge' },
   'desktop-flash': { section: 'desktop', only: 'desktop', feature: 'attention' },
   'desktop-sleep': { section: 'desktop', only: 'desktop', feature: 'sleep' },
-  'desktop-overlay': { section: 'desktop', only: 'desktop', feature: 'overlay' },
-  'desktop-overlay-hotkey': { section: 'desktop', only: 'desktop', feature: 'overlay' },
+  'desktop-mini': { section: 'desktop', only: 'desktop', feature: 'mini' },
   'desktop-autostart': { section: 'desktop', only: 'desktop', feature: 'autostart' },
+  'desktop-overlay': { section: 'overlay', only: 'desktop', feature: 'overlay' },
+  'desktop-overlay-hotkey': { section: 'overlay', only: 'desktop', feature: 'overlay' },
+  'overlay-lock-hotkey': { section: 'overlay', only: 'desktop', feature: 'overlay.widget' },
+  'overlay-toast': { section: 'overlay', only: 'desktop', feature: 'golive' },
+  'overlay-games': { section: 'overlay', only: 'desktop', feature: 'games' },
+  'overlay-corner': { section: 'overlay', only: 'desktop', feature: 'overlay.widget' },
+  'overlay-size': { section: 'overlay', only: 'desktop', feature: 'overlay.widget' },
+  'overlay-names': { section: 'overlay', only: 'desktop', feature: 'overlay.widget' },
+  'overlay-opacity': { section: 'overlay', only: 'desktop', feature: 'overlay.widget' },
   'mic-device': { section: 'audio', anchor: 'microphone' },
   'mic-auto': { section: 'audio', anchor: 'microphone' },
   'mic-volume': { section: 'audio', anchor: 'microphone' },

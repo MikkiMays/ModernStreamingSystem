@@ -19,7 +19,7 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { desktopCaptureAudio, desktopPicker, selectCaptureSource } from '../core/desktop-capture';
 import type { Meeting } from '../core/meeting';
@@ -30,6 +30,7 @@ import { useMediaQuery, useStore } from './primitives';
 import { CameraFlip, CameraSubmenu } from './CameraMenu';
 import { LayoutChoices, LayoutMenu } from './LayoutMenu';
 import type { Panel } from './Sidebar';
+import { shareRequests } from './useDesktopOverlay';
 
 /** Больше девяти — «9+»: кружок не растягивается в пилюлю из трёх цифр. */
 const unreadText = (count: number) => (count > 9 ? '9+' : String(count));
@@ -118,6 +119,12 @@ export function CallDock({
     }
     meeting.media.share(profile);
   };
+  // «Показать экран» из мини-окна звонка (R93): окно Cord уже впереди — то же, что нажатие на пульте.
+  const shareLatest = useRef(share);
+  useLayoutEffect(() => {
+    shareLatest.current = share;
+  });
+  useEffect(() => shareRequests.subscribe(() => shareLatest.current()), []);
   const shareChosen = async (choice: CaptureChoice) => {
     setPicking(false);
     // Выбор окна показа помнится (R60): следующий показ откроется с тем же режимом, качеством и звуком.

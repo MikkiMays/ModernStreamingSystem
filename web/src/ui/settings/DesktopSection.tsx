@@ -1,102 +1,81 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { desktopOverlayHotkeyStatus, hasFeature, hotkeyStatusText, notifyDesktop } from '../../core/desktop';
+import { hasFeature } from '../../core/desktop';
 import {
   changeDesktopSettings,
   desktopSettings,
   loadDesktopSettings,
   watchDesktopSettings,
   type DesktopSettings,
+  type DesktopSwitch,
 } from '../../core/desktop-settings';
-import { hotkeyNotes, type Hotkey } from '../../core/hotkeys';
-import type { Preferences } from '../../core/preferences';
 import { useStore } from '../primitives';
 import { Switch } from '../kit';
-import { HotkeyField } from './HotkeyField';
 import { SettingGroup, SettingRow } from './Row';
 import { ROWS, rowAvailable, rowText, type RowId } from './sections';
 
 /**
- * «Windows» (E03, T53, E01-B2) — только в клиенте на Electron: мягкое взаимодействие с Windows,
- * оверлей в играх с его сочетанием и автозапуск. Каждая строка видна только при своём флаге
- * оболочки; значения живут в оболочке (`app.settings`), сочетание оверлея — в профиле страницы,
- * рядом с сочетанием микрофона: модель сочетаний одна (E03).
+ * Переключатель раздела «Windows» или «Оверлей»: значение живёт в оболочке (`app.settings`), строка
+ * видна только при своём флаге оболочки.
  */
-export function DesktopSection({
-  preferences,
-  change,
-}: {
-  preferences: Preferences;
-  change: (patch: Partial<Preferences>) => Promise<void>;
-}) {
+export function DesktopSwitchRow({ id, setting }: { id: RowId; setting: DesktopSwitch }) {
   const { t } = useTranslation();
   const values = useStore(desktopSettings);
-  const overlayStatus = useStore(desktopOverlayHotkeyStatus);
+  if (!rowAvailable(ROWS[id], 'desktop', hasFeature)) return null;
+  return (
+    <SettingRow id={id}>
+      <Switch
+        checked={values?.[setting] ?? false}
+        disabled={!values || values[setting] === undefined}
+        ariaLabel={rowText(t, id).label}
+        onCheckedChange={(checked) =>
+          void changeDesktopSettings({ [setting]: checked } as Partial<DesktopSettings>)
+        }
+      />
+    </SettingRow>
+  );
+}
+
+/** Значения оболочки — прочитать при открытии раздела и следить, пока он открыт. */
+export function useDesktopSettings() {
   useEffect(() => {
     void loadDesktopSettings();
     return watchDesktopSettings();
   }, []);
+}
+
+/**
+ * «Windows» (E03, T53, E01-B2) — только в клиенте на Electron: мягкое взаимодействие с Windows,
+ * мини-окно звонка (R93) и автозапуск. Каждая строка видна только при своём флаге оболочки; значения
+ * живут в оболочке (`app.settings`). Оверлей в играх — свой раздел рядом («Оверлей», R62).
+ */
+export function DesktopSection() {
+  const { t } = useTranslation();
+  useDesktopSettings();
   const shown = (id: RowId) => rowAvailable(ROWS[id], 'desktop', hasFeature);
-  const toggle = (id: RowId, key: keyof DesktopSettings) =>
-    shown(id) && (
-      <SettingRow id={id}>
-        <Switch
-          checked={values?.[key] ?? false}
-          disabled={!values}
-          ariaLabel={rowText(t, id).label}
-          onCheckedChange={(checked) =>
-            void changeDesktopSettings({ [key]: checked } as Partial<DesktopSettings>)
-          }
-        />
-      </SettingRow>
-    );
   const taskbar = (['desktop-tray', 'desktop-thumbar', 'desktop-badge', 'desktop-flash'] as const).some(
     shown,
   );
-  const meeting = (['desktop-sleep', 'desktop-overlay'] as const).some(shown);
+  const meeting = (['desktop-sleep', 'desktop-mini'] as const).some(shown);
   return (
     <>
       {taskbar && (
         <SettingGroup title={t(($) => $.settings.desktop.taskbar)}>
-          {toggle('desktop-tray', 'tray')}
-          {toggle('desktop-thumbar', 'thumbar')}
-          {toggle('desktop-badge', 'badge')}
-          {toggle('desktop-flash', 'flash')}
+          <DesktopSwitchRow id="desktop-tray" setting="tray" />
+          <DesktopSwitchRow id="desktop-thumbar" setting="thumbar" />
+          <DesktopSwitchRow id="desktop-badge" setting="badge" />
+          <DesktopSwitchRow id="desktop-flash" setting="flash" />
         </SettingGroup>
       )}
       {meeting && (
-        <SettingGroup
-          title={t(($) => $.settings.desktop.meeting)}
-          note={shown('desktop-overlay') ? t(($) => $.settings.desktop.overlayNote) : undefined}
-        >
-          {toggle('desktop-sleep', 'sleepBlocker')}
-          {toggle('desktop-overlay', 'overlay')}
-          {shown('desktop-overlay-hotkey') && hasFeature('hotkeys') && (
-            <HotkeyField
-              id="desktop-overlay-hotkey"
-              value={preferences.overlayHotkey}
-              change={(overlayHotkey: Hotkey | null) => void change({ overlayHotkey })}
-              // Raw Input (флаг `ptt`): любая клавиша и кнопки мыши поверх всего — заметки другие.
-              notes={(key) => hotkeyNotes(t, key, hasFeature('ptt') ? 'native' : 'desktop', false)}
-              mouse={hasFeature('ptt')}
-              taken={{ key: preferences.micHotkey, text: t(($) => $.settings.desktop.overlayTaken) }}
-              labels={{
-                change: t(($) => $.settings.desktop.changeLabel),
-                assign: t(($) => $.settings.desktop.assignLabel),
-                reset: t(($) => $.settings.desktop.resetLabel),
-              }}
-              pause={{
-                start: () => notifyDesktop('hotkey.configure', { paused: true }),
-                end: (current) => notifyDesktop('hotkey.configure', { overlay: current, paused: false }),
-              }}
-              status={preferences.overlayHotkey ? hotkeyStatusText(t, overlayStatus) : null}
-            />
-          )}
+        <SettingGroup title={t(($) => $.settings.desktop.meeting)}>
+          <DesktopSwitchRow id="desktop-sleep" setting="sleepBlocker" />
+          <DesktopSwitchRow id="desktop-mini" setting="mini" />
         </SettingGroup>
       )}
       {shown('desktop-autostart') && (
         <SettingGroup title={t(($) => $.settings.desktop.start)}>
-          {toggle('desktop-autostart', 'autostart')}
+          <DesktopSwitchRow id="desktop-autostart" setting="autostart" />
         </SettingGroup>
       )}
     </>

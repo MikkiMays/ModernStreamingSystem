@@ -29,6 +29,7 @@ type Schema = {
   minLength?: number;
   maxLength?: number;
   minimum?: number;
+  maximum?: number;
   pattern?: string;
   anyOf?: Schema[];
 };
@@ -62,6 +63,7 @@ function errors(value: unknown, schema: Schema, at = '$'): string[] {
     if (schema.pattern && !new RegExp(schema.pattern, 'u').test(value)) fail('не по образцу');
   }
   if (typeof value === 'number' && schema.minimum !== undefined && value < schema.minimum) fail('меньше');
+  if (typeof value === 'number' && schema.maximum !== undefined && value > schema.maximum) fail('больше');
   if (Array.isArray(value)) {
     if (schema.maxItems !== undefined && value.length > schema.maxItems) fail('много');
     if (schema.uniqueItems && new Set(value).size !== value.length) fail('повторы');
@@ -250,5 +252,88 @@ describe('трей (R103)', () => {
     // О том, что мешает, веб говорит словами; о норме молчит.
     const spoken = codes.filter((code) => hotkeyStatusText(t, code) !== null);
     expect(spoken).toEqual(['taken', 'duplicate', 'window-only']);
+  });
+});
+
+describe('оверлей в игре, игры и мини-окно (R62, R63, R93, R104)', () => {
+  it('имена: веб шлёт overlay.roster и mini.state, зовёт games.*, слушает games.changed, game.active, mini.action, golive', () => {
+    expect(contract.$defs.feature!.enum).toEqual(
+      expect.arrayContaining(['games', 'overlay.widget', 'mini', 'golive']),
+    );
+    expect(contract.$defs.pageMessage!.enum).toEqual(
+      expect.arrayContaining(['overlay.roster', 'mini.state']),
+    );
+    expect(contract.$defs.pageCall!.enum).toEqual(
+      expect.arrayContaining(['games.list', 'games.set', 'games.forget', 'games.pick']),
+    );
+    expect(contract.$defs.hostMessage!.enum).toEqual(
+      expect.arrayContaining(['games.changed', 'game.active', 'mini.action', 'golive']),
+    );
+  });
+
+  it('состав и уровни: до 25 человек, аватар только data:image, уровень — тройкой', () => {
+    const person = {
+      id: '3f2504e0-4f89-11d3-9a0c-0305e82c3301',
+      name: 'Аня',
+      avatar: 'data:image/png;base64,AAAA',
+      muted: true,
+    };
+    expect(
+      errors(
+        { participants: [person, { id: 'p-2', name: 'Миша', avatar: '', muted: false }] },
+        def('overlayRoster'),
+      ),
+    ).toEqual([]);
+    expect(
+      errors({ participants: [{ ...person, avatar: 'https://evil/a.png' }] }, def('overlayRoster')),
+    ).not.toEqual([]);
+    expect(
+      errors(
+        { participants: Array.from({ length: 26 }, (_, i) => ({ ...person, id: `p-${i}` })) },
+        def('overlayRoster'),
+      ),
+    ).not.toEqual([]);
+    expect(errors({ levels: [['p-2', 3, 0.6]] }, def('overlayLevels'))).toEqual([]);
+  });
+
+  it('мини-окно: состояние и нажатия', () => {
+    expect(
+      errors(
+        { room: 'Пятница', self: 'p-1', mic: true, camera: false, screen: false, unread: 2, count: 2 },
+        def('miniState'),
+      ),
+    ).toEqual([]);
+    expect(errors({ unread: -1 }, def('miniState'))).not.toEqual([]);
+    expect(errors({ id: 'mic' }, def('miniAction'))).toEqual([]);
+    expect(errors({ id: 'record' }, def('miniAction')), 'записи в Cord нет').not.toEqual([]);
+  });
+
+  it('app.settings: мини-окно и виджет — свои значения; прозрачность 30–100', () => {
+    const widget = {
+      mini: true,
+      overlayCorner: 'br',
+      overlaySize: 'l',
+      overlayNames: 'speaking',
+      overlayOpacity: 30,
+      overlayToast: false,
+    };
+    expect(errors(widget, def('appSettings'))).toEqual([]);
+    expect(errors({ overlayOpacity: 101 }, def('appSettings'))).not.toEqual([]);
+    expect(errors({ overlayCorner: 'center' }, def('appSettings'))).not.toEqual([]);
+  });
+
+  it('игры и «Показать игру»', () => {
+    const cs2 = { exe: 'cs2.exe', name: 'Counter-Strike 2', enabled: true, firstSeen: 1, lastSeen: 2 };
+    const active = { exe: 'cs2.exe', name: 'Counter-Strike 2', enabled: true, exclusive: false };
+    expect(errors({ games: [cs2], active }, def('games'))).toEqual([]);
+    expect(errors({ games: [], active: null }, def('games'))).toEqual([]);
+    expect(errors({ games: [{ ...cs2, exe: 'C:\\cs2.exe' }], active: null }, def('games'))).not.toEqual([]);
+    expect(errors({ game: null }, def('gameActive'))).toEqual([]);
+    expect(errors({ id: 'window:1234:0', name: 'Counter-Strike 2' }, def('golive'))).toEqual([]);
+    expect(errors({ id: 'screen:1:0' }, def('golive')), 'показать игру — только окно').not.toEqual([]);
+  });
+
+  it('hotkeys.status знает разблокировку оверлея', () => {
+    expect(errors({ status: { 'overlay.lock': 'global-raw' } }, def('hotkeysStatus'))).toEqual([]);
   });
 });
