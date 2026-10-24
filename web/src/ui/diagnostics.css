@@ -15,6 +15,15 @@
   border-radius: var(--radius-3);
   background: var(--surface-2);
 }
+/*
+  Вторичная кнопка набора — тоже `--surface-2`, и на карточке она пропадала бы: здесь она светлее
+  карточки (белая в светлой теме, на ступень светлее в тёмной).
+*/
+.diagnostics :where(.diagnostics-card, .device-check) .ui-button--secondary {
+  --button-bg: light-dark(var(--surface-1), var(--surface-3));
+  --button-hover: color-mix(in srgb, light-dark(var(--surface-1), var(--surface-3)), var(--text) 6%);
+  --button-active: color-mix(in srgb, light-dark(var(--surface-1), var(--surface-3)), var(--text) 12%);
+}
 .diagnostics-card__title {
   display: flex;
   align-items: center;
@@ -68,6 +77,13 @@
 .diagnostics-metric + .diagnostics-metric {
   box-shadow: inset 0 var(--hairline) 0 var(--line);
 }
+/* Узкое окно: подписи не сжимаются в столбик под длинным значением — у каждой половины своя доля. */
+@media (max-width: 559px) {
+  .diagnostics-metric {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: var(--space-3);
+  }
+}
 .diagnostics-metric dt {
   min-width: 0;
   color: var(--muted);
@@ -99,6 +115,13 @@
   overflow-wrap: anywhere;
 }
 
+/*
+  Окно не выше экрана: прокручивается тело, а подвал с «Помощью» всегда на виду. Сетка окна набора
+  уже отдаёт телу остаток высоты (`minmax(0, 1fr)`), не хватало только потолка.
+*/
+.diagnostics-dialog {
+  max-height: calc(100dvh - var(--space-8) - var(--titlebar-h, 0px));
+}
 /* Подвал: «Не помогло?» слева, «Помощь» справа; на узком — одна под другой. */
 .diagnostics-dialog .ui-dialog__footer {
   flex-wrap: wrap;
