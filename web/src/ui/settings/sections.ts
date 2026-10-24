@@ -204,7 +204,6 @@ export const ROWS = {
   'server-ping': { section: 'server' },
   'about-version': { section: 'about' },
   'about-updates': { section: 'about' },
-  'about-author': { section: 'about' },
   'about-help': { section: 'about' },
   'about-tour': { section: 'about' },
 } satisfies Record<string, RowSpec>;

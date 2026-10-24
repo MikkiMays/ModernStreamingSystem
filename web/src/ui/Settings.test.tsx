@@ -353,6 +353,17 @@ describe('«Аккаунты» (T33)', () => {
   });
 });
 
+describe('«О программе»', () => {
+  it('без строки «Автор» и ссылки на Telegram автора (R50): версия, обновления, помощь, знакомство', () => {
+    render(<Settings open section="about" onOpenChange={vi.fn()} />);
+    const body = document.querySelector('.settings-content')!;
+    expect(body).not.toHaveTextContent(/Автор|nikgers|развивает/);
+    expect(within(body as HTMLElement).queryByRole('link', { name: /Telegram/ })).toBeNull();
+    for (const label of ['Версия', 'Обновления', 'Помощь и поддержка'])
+      expect(within(body as HTMLElement).getByText(label)).toBeInTheDocument();
+  });
+});
+
 describe('профиль и оформление (T41)', () => {
   it('профиль устройства в шапке ведёт в «Профиль», имя сохраняется', () => {
     render(<Settings open section="about" onOpenChange={vi.fn()} />);

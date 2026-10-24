@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "检查 更新 下载 windows"
       },
-      "about-author": {
-        "label": "作者",
-        "hint": "",
-        "keywords": "telegram 联系 nikgers"
-      },
       "appearance-language": {
         "label": "界面语言",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "检查",
       "update": "更新",
       "download": "下载 {{version}}",
-      "author": "Cord 由 @nikgers 创建和开发",
-      "telegram": "作者的 Telegram",
       "help": "打开",
       "tour": "开始导览"
     },

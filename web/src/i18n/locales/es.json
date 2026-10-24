@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "buscar actualizar descargar windows"
       },
-      "about-author": {
-        "label": "Autor",
-        "hint": "",
-        "keywords": "telegram contacto nikgers"
-      },
       "appearance-language": {
         "label": "Idioma de la interfaz",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Buscar",
       "update": "Actualizar",
       "download": "Descargar {{version}}",
-      "author": "Cord lo crea y desarrolla @nikgers",
-      "telegram": "Telegram del autor",
       "help": "Abrir",
       "tour": "Hacer el recorrido"
     },

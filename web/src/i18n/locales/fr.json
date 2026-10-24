@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "vérifier mettre à jour télécharger windows"
       },
-      "about-author": {
-        "label": "Auteur",
-        "hint": "",
-        "keywords": "telegram contact nikgers"
-      },
       "appearance-language": {
         "label": "Langue de l'interface",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Vérifier",
       "update": "Mettre à jour",
       "download": "Télécharger {{version}}",
-      "author": "Cord est créé et développé par @nikgers",
-      "telegram": "Telegram de l'auteur",
       "help": "Ouvrir",
       "tour": "Refaire la découverte"
     },

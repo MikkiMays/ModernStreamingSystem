@@ -258,11 +258,6 @@
         "hint": "",
         "keywords": "проверить обновить скачать windows"
       },
-      "about-author": {
-        "label": "Автор",
-        "hint": "",
-        "keywords": "telegram связаться nikgers"
-      },
       "appearance-language": {
         "label": "Язык интерфейса",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Проверить",
       "update": "Обновить",
       "download": "Скачать {{version}}",
-      "author": "Cord создаёт и развивает @nikgers",
-      "telegram": "Telegram автора",
       "help": "Открыть",
       "tour": "Пройти знакомство"
     },

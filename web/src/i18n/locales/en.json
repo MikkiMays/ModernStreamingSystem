@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "check update download windows"
       },
-      "about-author": {
-        "label": "Author",
-        "hint": "",
-        "keywords": "telegram contact nikgers"
-      },
       "appearance-language": {
         "label": "Interface language",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Check",
       "update": "Update",
       "download": "Download {{version}}",
-      "author": "Cord is made by @nikgers",
-      "telegram": "Author's Telegram",
       "help": "Open",
       "tour": "Take the tour"
     },

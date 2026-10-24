@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "verificar atualizar baixar windows"
       },
-      "about-author": {
-        "label": "Autor",
-        "hint": "",
-        "keywords": "telegram contato nikgers"
-      },
       "appearance-language": {
         "label": "Idioma da interface",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Verificar",
       "update": "Atualizar",
       "download": "Baixar {{version}}",
-      "author": "O Cord é criado e desenvolvido por @nikgers",
-      "telegram": "Telegram do autor",
       "help": "Abrir",
       "tour": "Fazer o tour"
     },

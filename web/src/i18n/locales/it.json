@@ -218,11 +218,6 @@
         "hint": "",
         "keywords": "controlla aggiorna scarica windows"
       },
-      "about-author": {
-        "label": "Autore",
-        "hint": "",
-        "keywords": "telegram contatto nikgers"
-      },
       "appearance-language": {
         "label": "Lingua dell'interfaccia",
         "hint": "",
@@ -316,8 +311,6 @@
       "check": "Controlla",
       "update": "Aggiorna",
       "download": "Scarica {{version}}",
-      "author": "Cord è creato e sviluppato da @nikgers",
-      "telegram": "Telegram dell'autore",
       "help": "Apri",
       "tour": "Rifai il tour"
     },
