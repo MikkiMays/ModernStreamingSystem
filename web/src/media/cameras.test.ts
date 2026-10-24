@@ -83,8 +83,8 @@ describe('переключатель линз на своей плитке (T21)
 
   it('на задней стороне с широкоугольной — «0.5×» и «1×», горит та, что снимает', () => {
     expect(lensesFor(phone, { deviceId: 'back', facingMode: 'environment' })).toEqual([
-      { deviceId: 'wide', short: '0.5×', label: 'Широкоугольная', active: false },
-      { deviceId: 'back', short: '1×', label: 'Основная', active: true },
+      { deviceId: 'wide', short: '0.5×', label: 'Широкоугольная', active: false, wide: true },
+      { deviceId: 'back', short: '1×', label: 'Основная', active: true, wide: false },
     ]);
     expect(lensesFor(phone, { deviceId: 'wide' })?.find((lens) => lens.active)?.short).toBe('0.5×');
   });

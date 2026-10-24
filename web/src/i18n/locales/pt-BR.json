@@ -2050,9 +2050,11 @@
     "camera": {
       "flip": "Trocar de câmera",
       "title": "Câmera",
-      "next": "Próxima câmera",
+      "none": "Nenhuma câmera encontrada",
       "numbered": "Câmera {{n}}",
-      "lenses": "Lente da câmera"
+      "lenses": "Lente da câmera",
+      "zoom": "Zoom",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "Teste dos dispositivos",

@@ -115,6 +115,8 @@ export interface Lens {
   /** Полностью — для диктора и подсказки: «Широкоугольная», «Основная». */
   label: string;
   active: boolean;
+  /** Широкоугольная, названная так самой платформой: её и показывает «0.5×» зума (R36). */
+  wide: boolean;
 }
 
 /**
@@ -148,8 +150,68 @@ export function lensesFor(
     short,
     label: choice.label,
     active: choice.deviceId === active,
+    wide: choice.wide,
   });
   return second.wide ? [lens(second, '0.5×'), lens(primary, '1×')] : [lens(primary, '1'), lens(second, '2')];
+}
+
+/** Зум дорожки камеры: диапазон из `getCapabilities().zoom` и нынешнее значение. */
+export interface Zoom {
+  min: number;
+  max: number;
+  value: number;
+}
+
+/**
+ * Зум, если платформа его отдаёт: Chrome на Android и камеры с PTZ на компьютере — при
+ * `zoom: true` в захвате (`cameraCapture`); Safari, Firefox и поддельная камера Chromium — нет.
+ */
+export function readZoom(media: MediaStreamTrack): Zoom | null {
+  const zoom = (media.getCapabilities?.() as { zoom?: { min?: number; max?: number } } | undefined)?.zoom;
+  if (!zoom || typeof zoom.min !== 'number' || typeof zoom.max !== 'number' || !(zoom.max > zoom.min))
+    return null;
+  const current = (media.getSettings?.() as { zoom?: number } | undefined)?.zoom;
+  return { min: zoom.min, max: zoom.max, value: typeof current === 'number' ? current : zoom.min };
+}
+
+/** Ступень зума «0.5× · 1× · 2×» (R36): чем её включить — другой линзой или значением зума. */
+export interface ZoomStep {
+  /** Множитель для человека: 0.5, 1 или 2. */
+  factor: 0.5 | 1 | 2;
+  /** Перейти на эту линзу (широкоугольная или назад на основную). */
+  deviceId?: string;
+  /** Значение ограничения `zoom` нынешней линзы. */
+  zoom?: number;
+  active: boolean;
+}
+
+/**
+ * Какие ступени зума показывать: только те, что камера умеет на самом деле (R36).
+ *
+ * «1×» — начало диапазона, если он не меньше единицы (у веб-камер зум бывает в своих единицах,
+ * 100…500), иначе единица. «2×» — когда зум дотягивается вдвое. «0.5×» — когда зум сам умеет
+ * отдалить вдвое (логическая камера Android, 0.5…10) или есть широкоугольная линза (`lensesFor`).
+ * На широкоугольной линзе диапазон зума — её собственный, поэтому «1×» возвращает основную линзу,
+ * а «2×» не обещается. Одна ступень — не выбор: тогда список пуст и контрол не показывается.
+ */
+export function zoomSteps({ lenses, zoom }: { lenses: Lens[] | null; zoom: Zoom | null }): ZoomStep[] {
+  const wide = lenses?.find((lens) => lens.wide);
+  const main = wide ? lenses?.find((lens) => !lens.wide) : undefined;
+  const onWide = !!wide?.active;
+  const range = zoom && zoom.max > zoom.min ? zoom : null;
+  const base = range ? Math.max(range.min, 1) : 1;
+  // Сравнение с запасом: камера округляет значение до своего шага.
+  const near = (value: number, target: number) => Math.abs(value - target) <= target * 0.02;
+  const steps: ZoomStep[] = [];
+  if (range && !onWide && range.min <= base / 2 + 1e-9)
+    steps.push({ factor: 0.5, zoom: base / 2, active: near(range.value, base / 2) });
+  else if (wide && main) steps.push({ factor: 0.5, deviceId: wide.deviceId, active: onWide });
+  if (onWide && main) steps.push({ factor: 1, deviceId: main.deviceId, active: false });
+  else if (range) steps.push({ factor: 1, zoom: base, active: near(range.value, base) });
+  else if (wide && main) steps.push({ factor: 1, deviceId: main.deviceId, active: true });
+  if (range && !onWide && range.max >= base * 2 - 1e-9)
+    steps.push({ factor: 2, zoom: base * 2, active: near(range.value, base * 2) });
+  return steps.length > 1 ? steps : [];
 }
 
 /** Камеры устройства вместе с их возможностями, насколько платформа их сообщает. */

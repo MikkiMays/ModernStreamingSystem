@@ -2000,9 +2000,11 @@
     "camera": {
       "flip": "切换摄像头",
       "title": "摄像头",
-      "next": "下一个摄像头",
+      "none": "未找到摄像头",
       "numbered": "摄像头 {{n}}",
-      "lenses": "摄像头镜头"
+      "lenses": "摄像头镜头",
+      "zoom": "缩放",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "设备检测",

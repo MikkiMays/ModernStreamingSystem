@@ -2050,9 +2050,11 @@
     "camera": {
       "flip": "Changer de caméra",
       "title": "Caméra",
-      "next": "Caméra suivante",
+      "none": "Aucune caméra trouvée",
       "numbered": "Caméra {{n}}",
-      "lenses": "Objectif de la caméra"
+      "lenses": "Objectif de la caméra",
+      "zoom": "Zoom",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "Test des appareils",

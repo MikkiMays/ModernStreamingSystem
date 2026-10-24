@@ -2025,9 +2025,11 @@
     "camera": {
       "flip": "Kamera wechseln",
       "title": "Kamera",
-      "next": "Nächste Kamera",
+      "none": "Keine Kameras gefunden",
       "numbered": "Kamera {{n}}",
-      "lenses": "Kameraobjektiv"
+      "lenses": "Kameraobjektiv",
+      "zoom": "Zoom",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "Gerätetest",

@@ -146,6 +146,9 @@ export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackC
       height: cap(height, capabilities?.height),
       frameRate: cap(profile.fps, capabilities?.frameRate),
     },
+    // Зум (R36): без этой просьбы Chromium не отдаёт `getCapabilities().zoom` ни на компьютере, ни
+    // на Android. Камера без зума и браузер, который его не знает, просьбу молча пропускают.
+    zoom: true,
   };
 }
 /**
