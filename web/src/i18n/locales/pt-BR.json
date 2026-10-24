@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} vezes",
       "fools_other": "{{count}} vezes",
       "game": "Partida {{number}}",
-      "draw": "empate",
       "fool": "bobo: {{name}}",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} é o bobo",
     "says": {
       "lobby": "A mesa aguarda a distribuição",
-      "draw": "Empate — ninguém ficou com cartas",
       "over": "Partida jogada",
       "taken": "{{name}} pega",
       "beaten": "Descartadas",
       "dealing": "A mesa distribui",
-      "corneredMe": "Sem como se defender — pegamos as cartas",
-      "cornered": "{{name}}: sem como se defender — pega",
       "defend": "Sua vez: defenda ou pegue",
       "throw": "Sua vez: adicione ou diga “Pronto”",
       "lead": "Sua vez: ataque",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Salvando a jogada…",
-      "paused": "As cartas ficam onde estão",
       "target": "Escolha o alvo destacado na mesa",
-      "turn": "Escolha uma carta ou arraste-a para a mesa",
-      "watch": "Acompanhe o jogo"
+      "turn": "Escolha uma carta ou arraste-a para a mesa"
     },
     "actions": {
       "take": "Pegar",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Bobo",
       "out": "Saiu em {{place}}º",
-      "cornered": "Sem defesa",
-      "nothing": "Nada para adicionar",
       "takes": "Pega",
       "defends": "Defende",
       "passed": "Pronto",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Resultado da partida",
-      "draw": "Empate",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
       "bouts_other": "{{count}} ataques",
-      "drawNote": "Todos ficaram sem cartas",
       "foolNote": "Os outros jogadores saíram da partida",
       "back": "Voltar à mesa"
     },

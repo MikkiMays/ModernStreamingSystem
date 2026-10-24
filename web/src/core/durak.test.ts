@@ -210,12 +210,18 @@ describe('что говорит стол', () => {
     expect(tableSays(t, table({ acting: [0] }), 0)).toBe('Ваш ход: подкиньте или скажите «бито»');
   });
 
-  it('говорит, что защитнику нечем отбиться и стол берёт за него (T07)', () => {
-    const cornered = table({
-      seats: table().seats.map((item) => (item.index === 1 ? { ...item, auto: 'take' as const } : item)),
-    });
-    expect(tableSays(t, cornered, 1)).toBe('Нечем отбиться — берём карты');
-    expect(tableSays(t, cornered, 0)).toBe('Игрок 1: нечем отбиться — берёт');
+  /**
+   * R108: стол не говорит, есть ли у кого-то чем ходить. Даже снимок прежнего ядра с полем решения
+   * за игрока звучит так же, как любой другой: подсказка выдавала бы чужую руку.
+   */
+  it('не говорит за игрока, что ему нечем отбиться или нечего подкинуть (R108)', () => {
+    const legacy = table({
+      seats: table().seats.map((item) => (item.index === 1 ? { ...item, auto: 'take' } : item)),
+    } as Partial<DurakTable>);
+    expect(tableSays(t, legacy, 1)).toBe('Ваш ход: отбивайтесь или берите');
+    expect(tableSays(t, legacy, 0)).toBe('Игрок 1 отбивается');
+    const throwing = table({ acting: [0, 2] });
+    expect(tableSays(t, throwing, 2)).toBe('Ваш ход: подкиньте или скажите «бито»');
   });
 
   it('объявляет конец боя одним словом', () => {
@@ -223,17 +229,18 @@ describe('что говорит стол', () => {
     expect(tableSays(t, table({ boutEnd: 'taken' }), 0)).toBe('Игрок 1 забирает');
   });
 
-  it('называет дурака и признаёт ничью', () => {
+  /** R111: ничьей нет. Запись прежнего ядра без дурака читается как просто сыгранная партия. */
+  it('называет дурака, а ничьей не объявляет (R111)', () => {
     const over = table({
       phase: 'over',
-      result: { at: 1, foolSeat: 1, foolName: 'Игрок 1', draw: false, bouts: 4, places: [] },
+      result: { at: 1, foolSeat: 1, foolName: 'Игрок 1', bouts: 4, places: ['Игрок 0'] },
     });
     expect(tableSays(t, over, 0)).toBe('Игрок 1 — дурак');
-    const draw = table({
+    const legacyDraw = table({
       phase: 'over',
       result: { at: 1, foolSeat: -1, foolName: '', draw: true, bouts: 4, places: [] },
-    });
-    expect(tableSays(t, draw, 0)).toBe('Ничья — карт не осталось ни у кого');
+    } as Partial<DurakTable>);
+    expect(tableSays(t, legacyDraw, 0)).toBe('Партия сыграна');
   });
 
   it('ждёт раздачи, пока её не начали', () => {

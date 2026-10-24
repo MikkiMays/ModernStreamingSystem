@@ -51,9 +51,17 @@ import { useCardSounds, useResultSound, useTurnTicks } from './useGameSounds';
 import { allowed } from '../core/permissions';
 import { useDurakMotion } from './DurakMotion';
 import { DurakReactions } from './DurakReactions';
+import { TurnRing } from './TurnRing';
+import { useVoiceTier } from './useVoice';
 import { Avatar, IconButton, useStore } from './primitives';
 
 type SheetKind = 'settings' | 'result' | 'score' | null;
+
+/**
+ * Время на ход на выбор ведущего (R110) — те же ступени, что у режимов покера (блиц 15, турнир 30,
+ * дружеская 45), и две подольше для неспешной встречи. Границы держит ядро: 15–120 с.
+ */
+const TURN_STEPS = [15, 30, 45, 60, 90];
 type Command = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
 type Drag = {
   card: string;
@@ -108,7 +116,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
   useResultSound(
     'durak',
     table.result?.at,
-    me && table.result ? (me.fool ? 'lose' : table.result.draw || me.place > 0 ? 'win' : null) : null,
+    me && table.result ? (me.fool ? 'lose' : me.place > 0 ? 'win' : null) : null,
   );
   const transfer = useTransferCue(meeting, table, spots);
   // Веер своей руки после раздачи: карты встают по одной с тем же шагом, с каким летят рубашки.
@@ -657,16 +665,20 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             {t(($) => $.durak.sit)}
           </button>
         ) : (
+          /*
+            Подсказка под рукой — только когда она про ваше действие (R27): «следите за игрой» и
+            «карты останутся на местах» на паузе повторяли то, что и так видно на сукне.
+          */
           <span className="durak-controls-hint">
             {pending
               ? t(($) => $.durak.hint.saving)
               : paused
-                ? t(($) => $.durak.hint.paused)
+                ? ''
                 : picked
                   ? t(($) => $.durak.hint.target)
                   : you?.turn
                     ? t(($) => $.durak.hint.turn)
-                    : t(($) => $.durak.hint.watch)}
+                    : ''}
           </span>
         )}
         <div className="durak-actions">
@@ -1039,25 +1051,29 @@ function Seat({
   const { t } = useTranslation();
   const acting = table.acting.includes(seat.index);
   const zoom = useFaceZoom('durak', seat.memberId);
+  // Говорит — зелёное кольцо у лица, тем же голосом, что в покере и на сцене (R109).
+  const voice = useVoiceTier(meeting, seat.memberId);
+  /*
+    Ждём его хода — жёлтое кольцо снаружи, от меток ядра (R110). Видно всем за столом и
+    зрителям. На паузе срока нет, и кольца тоже: домотанное до конца, оно бы врало.
+  */
+  const ring = acting && table.phase === 'bout' && !table.paused && table.deadline > 0;
+  // Ни «нечего подкинуть», ни «нечем отбиться» (R108): подпись — только то, что видно за столом.
   const role = seat.fool
     ? t(($) => $.durak.role.fool)
     : seat.out
       ? t(($) => $.durak.role.out, { place: seat.place })
-      : seat.auto === 'take'
-        ? t(($) => $.durak.role.cornered)
-        : seat.auto === 'pass'
-          ? t(($) => $.durak.role.nothing)
-          : seat.defender
-            ? table.taking
-              ? t(($) => $.durak.role.takes)
-              : t(($) => $.durak.role.defends)
-            : seat.passed
-              ? t(($) => $.durak.role.passed)
-              : seat.attacker
-                ? t(($) => $.durak.role.attacks)
-                : seat.away
-                  ? t(($) => $.durak.role.away)
-                  : '';
+      : seat.defender
+        ? table.taking
+          ? t(($) => $.durak.role.takes)
+          : t(($) => $.durak.role.defends)
+        : seat.passed
+          ? t(($) => $.durak.role.passed)
+          : seat.attacker
+            ? t(($) => $.durak.role.attacks)
+            : seat.away
+              ? t(($) => $.durak.role.away)
+              : '';
   // Сколько карт на руках — у каждого места, и у своего тоже (T07): одно число, без рубашек веером.
   const counted = table.phase === 'bout' && !seat.out;
   return (
@@ -1069,7 +1085,8 @@ function Seat({
       data-out={seat.out || undefined}
       data-mine={mine || undefined}
       data-acting={acting || undefined}
-      data-auto={seat.auto ?? undefined}
+      data-speaking={voice > 0 || undefined}
+      data-voice={voice || undefined}
       data-fool={(table.phase === 'over' && seat.fool) || undefined}
       data-first={(table.phase === 'over' && seat.place === 1) || undefined}
       style={{ left: `${spot.x}%`, top: `${spot.y}%`, ...zoom.style }}
@@ -1078,6 +1095,7 @@ function Seat({
         <DurakReactions meeting={meeting} table={table} seat={seat.index} mine={mine}>
           <span className="durak-seat-face">
             {tile ? <SeatCamera tile={tile} /> : <Avatar name={seat.name} src={avatar} />}
+            {ring && <TurnRing meeting={meeting} actionAt={table.actionAt} deadline={table.deadline} />}
           </span>
         </DurakReactions>
         {counted && (
@@ -1174,7 +1192,7 @@ function Settings({
         <SettingChoice
           label={t(($) => $.durak.settings.turn.label)}
           hint={table.paused ? t(($) => $.durak.settings.turn.paused) : undefined}
-          values={[...new Set([20, 40, 60, table.turnSeconds])]
+          values={[...new Set([...TURN_STEPS, table.turnSeconds])]
             .sort((a, b) => a - b)
             .map((value) => ({ value, label: t(($) => $.durak.seconds, { seconds: value }) }))}
           value={table.turnSeconds}
@@ -1299,20 +1317,20 @@ function Score({ table }: { table: Table }) {
   );
 }
 
+/** Итог партии. Ничьей нет (R111): дурак есть всегда, без имени — только у записи прежнего ядра. */
 function Result({ table }: { table: Table }) {
   const { t } = useTranslation();
   const result = table.result!;
   return (
     <div className="durak-over">
       <div className="durak-over-symbol" aria-hidden="true">
-        {result.draw ? '♣' : '♠'}
+        ♠
       </div>
       <h3>
-        {result.draw ? t(($) => $.durak.result.draw) : t(($) => $.durak.fool, { name: result.foolName })}
+        {result.foolName ? t(($) => $.durak.fool, { name: result.foolName }) : t(($) => $.durak.says.over)}
       </h3>
       <p>
-        {t(($) => $.durak.result.bouts, { count: result.bouts })} ·{' '}
-        {result.draw ? t(($) => $.durak.result.drawNote) : t(($) => $.durak.result.foolNote)}
+        {t(($) => $.durak.result.bouts, { count: result.bouts })} · {t(($) => $.durak.result.foolNote)}
       </p>
       {result.places.length > 0 && (
         <ol className="durak-places">

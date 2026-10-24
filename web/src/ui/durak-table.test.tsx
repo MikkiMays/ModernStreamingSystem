@@ -70,11 +70,15 @@ const table = {
   result: null,
   closesAt: 0,
 } as unknown as Table;
-function meeting(memberId = 'm0') {
+/** Голос участников: кто сейчас говорит и на какой ступени громкости (`media/levels.ts`). */
+function voices(tiers: Record<string, number> = {}) {
+  return { watch: () => () => {}, tier: (id: string) => tiers[id] ?? 0 };
+}
+function meeting(memberId = 'm0', tiers: Record<string, number> = {}) {
   return {
     admission: { participantId: memberId, roomId: 'room' },
     snapshot: new Store({ participants: [] }),
-    media: { tracks: new Store([]) },
+    media: { tracks: new Store([]), levels: voices(tiers) },
     control: { state: new Store('connected') },
     serverNow: () => 10000,
     command: vi.fn().mockResolvedValue(undefined),
@@ -166,26 +170,122 @@ it('renders occupied seats with their card counts and one spectator seat action'
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Сесть за стол' })));
   expect(room.command).toHaveBeenCalledWith('durak.sit', undefined, undefined, undefined);
 });
-it('shows the table decisions for players, the deck and the discard on the felt (T07)', () => {
-  const marked = {
+it('shows the deck and the discard on the felt, and no decisions taken for a player (R108)', () => {
+  // Снимок прежнего ядра ещё мог нести «решение стола за игрока»: на столе его не видно никому.
+  const legacy = {
     ...table,
     you: null,
     discarded: 8,
     seats: seats.map((seat) =>
-      seat.index === 5 ? { ...seat, auto: 'pass' } : seat.index === 0 ? { ...seat, auto: 'take' } : seat,
+      seat.index === 5
+        ? { ...seat, auto: 'pass' }
+        : seat.index === 0
+          ? { ...seat, defender: true, auto: 'take' }
+          : seat,
     ),
   } as unknown as Table;
-  const { container } = render(<DurakTable meeting={meeting('m3')} table={marked} />);
-  const thrower = container.querySelector<HTMLElement>('[data-game-seat="5"]')!;
-  expect(thrower).toHaveAttribute('data-auto', 'pass');
-  expect(within(thrower).getByText('Нечего подкинуть')).toBeInTheDocument();
-  const defender = container.querySelector<HTMLElement>('[data-game-seat="0"]')!;
-  expect(within(defender).getByText('Нечем отбиться')).toBeInTheDocument();
+  const { container } = render(<DurakTable meeting={meeting('m3')} table={legacy} />);
+  expect(container.querySelector('[data-auto]')).toBeNull();
+  expect(screen.queryByText('Нечего подкинуть')).toBeNull();
+  expect(screen.queryByText('Нечем отбиться')).toBeNull();
+  expect(
+    within(container.querySelector<HTMLElement>('[data-game-seat="0"]')!).getByText('Отбивается'),
+  ).toBeVisible();
   expect(container.querySelector('.durak-felt .durak-stock')).not.toBeNull();
   expect(screen.getByRole('img', { name: 'Колода: 12 карт, козырь 9, черви' })).toBeInTheDocument();
   expect(screen.getByRole('img', { name: 'Бито: 8 карт' })).toBeInTheDocument();
   expect(container.querySelector('.durak-felt-mark')).not.toBeNull();
   expect(screen.getAllByRole('button', { name: /Увеличить лицо до 1,25×/ })).toHaveLength(3);
+});
+it('offers «Бито» whenever the server awaits the player, with no hint about his cards (R108)', async () => {
+  const room = meeting('m3');
+  const throwing = {
+    ...table,
+    acting: [3, 5],
+    table: [{ attack: '7c', beat: '8c' }],
+    you: { seat: 3, cards: ['Qd', 'Jd'], turn: true, actions: ['pass'], plays: [] },
+  } as unknown as Table;
+  render(<DurakTable meeting={room} table={throwing} />);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Бито' })));
+  expect(room.command).toHaveBeenCalledWith('durak.act', undefined, undefined, { option: 'pass' });
+});
+it('rings a speaking player green, as poker does (R109)', () => {
+  const { container } = render(<DurakTable meeting={meeting('m0', { m3: 2 })} table={table} />);
+  const speaker = container.querySelector<HTMLElement>('[data-game-seat="3"]')!;
+  expect(speaker).toHaveAttribute('data-speaking', 'true');
+  expect(speaker).toHaveAttribute('data-voice', '2');
+  const silent = container.querySelector<HTMLElement>('[data-game-seat="5"]')!;
+  expect(silent).not.toHaveAttribute('data-speaking');
+});
+it('winds a turn ring from the server deadline around every awaited seat, for players and watchers (R110)', () => {
+  const several = { ...table, acting: [3, 5], table: [{ attack: '7c', beat: '8c' }] } as Table;
+  for (const viewer of [meeting('m0', { m3: 3 }), meeting('stranger', { m3: 3 })]) {
+    const { container, unmount } = render(
+      <DurakTable
+        meeting={viewer}
+        table={viewer.admission.participantId === 'stranger' ? { ...several, you: null } : several}
+      />,
+    );
+    const rings = [...container.querySelectorAll<HTMLElement>('[data-game-seat] .turn-ring')];
+    expect(rings.map((ring) => ring.closest('[data-game-seat]')!.getAttribute('data-game-seat'))).toEqual([
+      '3',
+      '5',
+    ]);
+    // Сорок секунд хода, и девять уже прошли по часам сервера (`serverNow` = 10 000, ход с 1 000).
+    const run = rings[0]!.querySelector<SVGElement>('.turn-ring-run')!;
+    expect(run.style.animationDuration).toBe('40000ms');
+    expect(run.style.animationDelay).toBe('-9000ms');
+    // Говорящий и ждущий хода — оба кольца сразу: зелёное у лица и жёлтое снаружи.
+    expect(container.querySelector('[data-game-seat="3"]')).toHaveAttribute('data-speaking', 'true');
+    unmount();
+  }
+});
+it('shows no turn ring while paused or between bouts', () => {
+  const { container, rerender } = render(
+    <DurakTable
+      meeting={meeting()}
+      table={{ ...table, paused: true, pausedRemaining: 31000, deadline: 0 }}
+    />,
+  );
+  expect(container.querySelector('.turn-ring')).toBeNull();
+  rerender(<DurakTable meeting={meeting()} table={{ ...table, acting: [], boutEnd: 'beaten' }} />);
+  expect(container.querySelector('.turn-ring')).toBeNull();
+});
+it('lets the host pick the turn time from the same steps as poker (R110)', async () => {
+  const room = meeting();
+  render(<DurakTable meeting={room} table={{ ...table, turnSeconds: 45 }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Настройки игры' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Настройки игры' });
+  const group = within(dialog).getByRole('group', { name: 'Время на ход' });
+  expect(
+    within(group)
+      .getAllByRole('button')
+      .map((button) => button.textContent),
+  ).toEqual(['15 с', '30 с', '45 с', '60 с', '90 с']);
+  expect(within(group).getByRole('button', { name: '45 с' })).toHaveAttribute('aria-pressed', 'true');
+  await act(async () => fireEvent.click(within(group).getByRole('button', { name: '90 с' })));
+  expect(room.command).toHaveBeenCalledWith('durak.settings', undefined, undefined, {
+    option: 'turn',
+    chips: 90,
+  });
+});
+it('names the fool in the result and never a draw (R111)', async () => {
+  const over = {
+    ...table,
+    phase: 'over',
+    acting: [],
+    table: [],
+    you: null,
+    result: { at: 5, foolSeat: 0, foolName: 'Игрок 0', bouts: 7, places: ['Игрок 3', 'Игрок 5'] },
+  } as unknown as Table;
+  render(<DurakTable meeting={meeting('m3')} table={over} />);
+  const dialog = await screen.findByRole('dialog', { name: 'Итог партии' });
+  expect(within(dialog).getByRole('heading', { name: 'Игрок 0 — дурак' })).toBeVisible();
+  expect(within(dialog).queryByText(/Ничья/)).toBeNull();
+});
+it('keeps the controls row free of a standing «watch the game» hint (R27)', () => {
+  render(<DurakTable meeting={meeting()} table={{ ...table, you: { ...table.you!, turn: false } }} />);
+  expect(screen.queryByText('Следите за ходом игры')).toBeNull();
 });
 it('paused snapshot freezes countdown, clears selection and disables playing', () => {
   vi.useFakeTimers();
@@ -230,7 +330,7 @@ it('settings freeze timer controls during pause and close with Escape', async ()
   trigger.focus();
   fireEvent.click(trigger);
   const dialog = await screen.findByRole('dialog', { name: 'Настройки игры' });
-  expect(within(dialog).getByRole('button', { name: '20 с' })).toBeDisabled();
+  expect(within(dialog).getByRole('button', { name: '30 с' })).toBeDisabled();
   expect(within(dialog).getByText('Продолжите игру, чтобы изменить время')).toBeVisible();
   expect(within(dialog).getByRole('button', { name: /Продолжить игру/ })).toBeEnabled();
   fireEvent.keyDown(dialog, { key: 'Escape' });

@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} fois",
       "fools_other": "{{count}} fois",
       "game": "Partie {{number}}",
-      "draw": "égalité",
       "fool": "idiot : {{name}}",
       "bouts_one": "{{count}} attaque",
       "bouts_many": "{{count}} attaques",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} est l'idiot",
     "says": {
       "lobby": "La table attend la donne",
-      "draw": "Égalité : plus personne n'a de cartes",
       "over": "Partie jouée",
       "taken": "{{name}} ramasse",
       "beaten": "Défaussé",
       "dealing": "La table distribue",
-      "corneredMe": "Rien pour se défendre : on ramasse",
-      "cornered": "{{name}} : rien pour se défendre, ramasse",
       "defend": "À vous : défendez-vous ou ramassez",
       "throw": "À vous : ajoutez ou dites « Fini »",
       "lead": "À vous : attaquez",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Enregistrement du coup…",
-      "paused": "Les cartes restent en place",
       "target": "Choisissez la cible en surbrillance sur la table",
-      "turn": "Choisissez une carte ou glissez-la sur la table",
-      "watch": "Suivez la partie"
+      "turn": "Choisissez une carte ou glissez-la sur la table"
     },
     "actions": {
       "take": "Ramasser",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Idiot",
       "out": "Sorti {{place}}ᵉ",
-      "cornered": "Rien pour se défendre",
-      "nothing": "Rien à ajouter",
       "takes": "Ramasse",
       "defends": "Se défend",
       "passed": "Fini",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Résultat de la partie",
-      "draw": "Égalité",
       "bouts_one": "{{count}} attaque",
       "bouts_many": "{{count}} attaques",
       "bouts_other": "{{count}} attaques",
-      "drawNote": "Tout le monde s'est retrouvé sans cartes",
       "foolNote": "Les autres joueurs sont sortis de la partie",
       "back": "Retour à la table"
     },

@@ -1093,7 +1093,6 @@
       "fools_one": "{{count}}-mal",
       "fools_other": "{{count}}-mal",
       "game": "Partie {{number}}",
-      "draw": "Unentschieden",
       "fool": "Durak: {{name}}",
       "bouts_one": "{{count}} Angriff",
       "bouts_other": "{{count}} Angriffe",
@@ -1517,13 +1516,10 @@
     "fool": "{{name}} ist der Durak",
     "says": {
       "lobby": "Der Tisch wartet aufs Austeilen",
-      "draw": "Unentschieden – niemand hat mehr Karten",
       "over": "Partie gespielt",
       "taken": "{{name}} nimmt auf",
       "beaten": "Abgewehrt",
       "dealing": "Der Tisch teilt aus",
-      "corneredMe": "Nichts zum Abwehren – Karten aufnehmen",
-      "cornered": "{{name}}: nichts zum Abwehren – nimmt auf",
       "defend": "Du bist dran: abwehren oder aufnehmen",
       "throw": "Du bist dran: nachlegen oder „Fertig“ sagen",
       "lead": "Du bist dran: spiel aus",
@@ -1601,10 +1597,8 @@
     },
     "hint": {
       "saving": "Zug wird gespeichert…",
-      "paused": "Die Karten bleiben, wo sie sind",
       "target": "Wähle das markierte Ziel auf dem Tisch",
-      "turn": "Wähle eine Karte oder zieh sie auf den Tisch",
-      "watch": "Verfolge das Spiel"
+      "turn": "Wähle eine Karte oder zieh sie auf den Tisch"
     },
     "actions": {
       "take": "Aufnehmen",
@@ -1629,8 +1623,6 @@
     "role": {
       "fool": "Durak",
       "out": "Als {{place}}. raus",
-      "cornered": "Nichts zum Abwehren",
-      "nothing": "Nichts zum Nachlegen",
       "takes": "Nimmt auf",
       "defends": "Wehrt ab",
       "passed": "Fertig",
@@ -1693,10 +1685,8 @@
     },
     "result": {
       "title": "Ergebnis der Partie",
-      "draw": "Unentschieden",
       "bouts_one": "{{count}} Angriff",
       "bouts_other": "{{count}} Angriffe",
-      "drawNote": "Alle sind ihre Karten losgeworden",
       "foolNote": "Die anderen Spieler sind raus",
       "back": "Zurück zum Tisch"
     },

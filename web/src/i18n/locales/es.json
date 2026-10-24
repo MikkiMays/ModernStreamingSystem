@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} veces",
       "fools_other": "{{count}} veces",
       "game": "Partida {{number}}",
-      "draw": "empate",
       "fool": "tonto: {{name}}",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} es el tonto",
     "says": {
       "lobby": "La mesa espera el reparto",
-      "draw": "Empate: nadie tiene cartas",
       "over": "Partida terminada",
       "taken": "{{name}} recoge",
       "beaten": "Descartadas",
       "dealing": "La mesa reparte",
-      "corneredMe": "No hay con qué defenderse: recogemos las cartas",
-      "cornered": "{{name}}: no tiene con qué defenderse y recoge",
       "defend": "Tu turno: defiéndete o recoge",
       "throw": "Tu turno: añade o di «Listo»",
       "lead": "Tu turno: ataca",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Guardando la jugada…",
-      "paused": "Las cartas se quedan en su sitio",
       "target": "Elige el objetivo marcado en la mesa",
-      "turn": "Elige una carta o arrástrala a la mesa",
-      "watch": "Sigue la partida"
+      "turn": "Elige una carta o arrástrala a la mesa"
     },
     "actions": {
       "take": "Recoger",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Tonto",
       "out": "Salió {{place}}.º",
-      "cornered": "Sin defensa",
-      "nothing": "Nada que añadir",
       "takes": "Recoge",
       "defends": "Se defiende",
       "passed": "Listo",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Resultado de la partida",
-      "draw": "Empate",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
       "bouts_other": "{{count}} ataques",
-      "drawNote": "Todos se quedaron sin cartas",
       "foolNote": "Los demás jugadores salieron de la partida",
       "back": "Volver a la mesa"
     },

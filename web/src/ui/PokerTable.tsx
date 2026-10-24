@@ -72,6 +72,7 @@ import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 import { CordMark, CordWordmark } from './brand/Logo';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
 import { useVoiceTier } from './useVoice';
+import { TurnRing } from './TurnRing';
 import { useCardSounds, usePokerChipSounds, useTurnTicks } from './useGameSounds';
 
 /**
@@ -940,7 +941,7 @@ function SeatView({
           <FaceZoomButton zoom={zoom.zoom} name={seat.name} onCycle={zoom.cycle} />
           {/* На паузе кольца нет: срока нет, и кольцо, домотанное до конца, врало бы. */}
           {active && !table.paused && (
-            <TurnRing table={table} elapsed={meeting.serverNow() - table.actionAt} />
+            <TurnRing meeting={meeting} actionAt={table.actionAt} deadline={table.deadline} />
           )}
           {winner && <span className="poker-rays" aria-hidden="true" />}
           {table.button === seat.index && (
@@ -1068,36 +1069,6 @@ function SeatCamera({ tile }: { tile: MediaTile }) {
       muted
       aria-label={t(($) => $.poker.camera, { name: tile.name })}
     />
-  );
-}
-
-/**
- * Кольцо хода.
- *
- * Это чистая CSS-анимация с отрицательной задержкой: длительность — всё время на ход, сдвиг —
- * сколько его уже прошло. Ни одного кадра не считает JavaScript, и именно поэтому кольцо не
- * дёргается, когда браузер занят видео, и одинаково у всех за столом.
- */
-function TurnRing({ table, elapsed }: { table: Table; elapsed: number }) {
-  const total = Math.max(1, table.deadline - table.actionAt);
-  return (
-    <svg className="poker-ring" viewBox="0 0 100 100" aria-hidden="true">
-      <circle className="poker-ring-track" cx="50" cy="50" r="46" />
-      <circle
-        className="poker-ring-run"
-        cx="50"
-        cy="50"
-        r="46"
-        style={
-          {
-            animationDuration: `${total}ms`,
-            animationDelay: `${-Math.max(0, elapsed)}ms`,
-            '--turn-duration': `${total}ms`,
-            '--turn-delay': `${-Math.max(0, elapsed)}ms`,
-          } as CSSProperties
-        }
-      />
-    </svg>
   );
 }
 

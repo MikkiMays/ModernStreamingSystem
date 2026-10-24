@@ -147,8 +147,8 @@ export function modeName(t: Translate, mode: DurakTable['mode']): string {
 export function tableSays(t: Translate, table: DurakTable, mySeat: number | null): string {
   if (table.phase === 'lobby') return t(($) => $.durak.says.lobby);
   if (table.phase === 'over') {
-    if (table.result?.draw) return t(($) => $.durak.says.draw);
-    return table.result
+    // Ничьей нет (R111): у каждой партии есть дурак. Без имени — только запись прежнего ядра.
+    return table.result?.foolName
       ? t(($) => $.durak.fool, { name: table.result.foolName })
       : t(($) => $.durak.says.over);
   }
@@ -159,12 +159,10 @@ export function tableSays(t: Translate, table: DurakTable, mySeat: number | null
   if (table.boutEnd === 'beaten') return t(($) => $.durak.says.beaten);
   const waiting = table.acting;
   if (!waiting.length) return t(($) => $.durak.says.dealing);
-  // Нечем отбиться — стол возьмёт за защитника сам через полторы секунды (T07).
-  const cornered = table.seats.find((seat) => seat.index === table.defender)?.auto === 'take';
-  if (cornered)
-    return mySeat === table.defender
-      ? t(($) => $.durak.says.corneredMe)
-      : t(($) => $.durak.says.cornered, { name: table.seats[table.defender]?.name ?? '' });
+  /*
+    Здесь нет «нечем отбиться» и «нечего подкинуть» (R108, отменило T07): стол не рассказывает,
+    что у кого в руке. Ждут всех, от кого ждут, — и называет он их всех одинаково.
+  */
   if (mySeat !== null && waiting.includes(mySeat)) {
     if (mySeat === table.defender && !table.taking) return t(($) => $.durak.says.defend);
     return table.table.length ? t(($) => $.durak.says.throw) : t(($) => $.durak.says.lead);

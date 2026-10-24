@@ -1093,7 +1093,6 @@
       "fools_one": "{{count}} time",
       "fools_other": "{{count}} times",
       "game": "Game {{number}}",
-      "draw": "draw",
       "fool": "fool: {{name}}",
       "bouts_one": "{{count}} round",
       "bouts_other": "{{count}} rounds",
@@ -1517,13 +1516,10 @@
     "fool": "{{name}} is the fool",
     "says": {
       "lobby": "The table is waiting for the deal",
-      "draw": "Draw — nobody has cards left",
       "over": "Game finished",
       "taken": "{{name}} takes",
       "beaten": "Beaten",
       "dealing": "Dealing",
-      "corneredMe": "Nothing to beat with — taking the cards",
-      "cornered": "{{name}}: nothing to beat with — takes",
       "defend": "Your move: beat or take",
       "throw": "Your move: throw in or say “Done”",
       "lead": "Your move: lead",
@@ -1601,10 +1597,8 @@
     },
     "hint": {
       "saving": "Saving the move…",
-      "paused": "Cards stay where they are",
       "target": "Pick the highlighted target on the table",
-      "turn": "Pick a card or drag it to the table",
-      "watch": "Follow the game"
+      "turn": "Pick a card or drag it to the table"
     },
     "actions": {
       "take": "Take",
@@ -1629,8 +1623,6 @@
     "role": {
       "fool": "Fool",
       "out": "Out #{{place}}",
-      "cornered": "Nothing to beat with",
-      "nothing": "Nothing to throw in",
       "takes": "Takes",
       "defends": "Defending",
       "passed": "Done",
@@ -1693,10 +1685,8 @@
     },
     "result": {
       "title": "Game result",
-      "draw": "Draw",
       "bouts_one": "{{count}} round",
       "bouts_other": "{{count}} rounds",
-      "drawNote": "Everyone ran out of cards",
       "foolNote": "The other players are out of the game",
       "back": "Back to the table"
     },

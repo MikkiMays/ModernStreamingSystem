@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} volte",
       "fools_other": "{{count}} volte",
       "game": "Partita {{number}}",
-      "draw": "pareggio",
       "fool": "sciocco: {{name}}",
       "bouts_one": "{{count}} attacco",
       "bouts_many": "{{count}} attacchi",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} è lo sciocco",
     "says": {
       "lobby": "Il tavolo attende la distribuzione",
-      "draw": "Pareggio: nessuno ha più carte",
       "over": "Partita giocata",
       "taken": "{{name}} prende",
       "beaten": "Scartate",
       "dealing": "Il tavolo distribuisce",
-      "corneredMe": "Niente per difendersi: prendiamo le carte",
-      "cornered": "{{name}}: niente per difendersi, prende",
       "defend": "Tocca a te: difenditi o prendi",
       "throw": "Tocca a te: aggiungi o di' «Fatto»",
       "lead": "Tocca a te: attacca",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Salvataggio della mossa…",
-      "paused": "Le carte restano al loro posto",
       "target": "Scegli il bersaglio evidenziato sul tavolo",
-      "turn": "Scegli una carta o trascinala sul tavolo",
-      "watch": "Segui la partita"
+      "turn": "Scegli una carta o trascinala sul tavolo"
     },
     "actions": {
       "take": "Prendo",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Sciocco",
       "out": "Uscito {{place}}º",
-      "cornered": "Niente per difendersi",
-      "nothing": "Niente da aggiungere",
       "takes": "Prende",
       "defends": "Si difende",
       "passed": "Fatto",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Esito della partita",
-      "draw": "Pareggio",
       "bouts_one": "{{count}} attacco",
       "bouts_many": "{{count}} attacchi",
       "bouts_other": "{{count}} attacchi",
-      "drawNote": "Tutti sono rimasti senza carte",
       "foolNote": "Gli altri giocatori sono usciti dalla partita",
       "back": "Torna al tavolo"
     },

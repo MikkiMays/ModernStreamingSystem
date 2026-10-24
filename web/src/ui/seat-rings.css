@@ -1,0 +1,66 @@
+/*
+  Кольца места за игровым столом — одни для покера и дурака (R109, R110).
+
+  ДВА КОЛЬЦА, И ОБА ВИДНЫ СРАЗУ. Говорит — зелёное у самого лица: тень лица в цвет ступени
+  голоса (`--speaking`, те же `--voice-1..4`, что у плиток сцены). Ход — жёлтое снаружи, с зазором
+  `--turn-ring-gap`: говорящий, чей сейчас ход, светится и тем и другим, и одно не закрывает другое.
+*/
+:is(.poker-seat, .durak-seat)[data-voice='1'] {
+  --speaking: var(--voice-1);
+}
+:is(.poker-seat, .durak-seat)[data-voice='2'] {
+  --speaking: var(--voice-2);
+}
+:is(.poker-seat, .durak-seat)[data-voice='3'] {
+  --speaking: var(--voice-3);
+}
+:is(.poker-seat, .durak-seat)[data-voice='4'] {
+  --speaking: var(--voice-4);
+}
+/* Кольцо хода: круг, который «сматывается» ровно за отведённое время. */
+.turn-ring {
+  --turn-ring-gap: 8px;
+  position: absolute;
+  top: calc(var(--turn-ring-gap) * -1);
+  left: calc(var(--turn-ring-gap) * -1);
+  width: calc(100% + var(--turn-ring-gap) * 2);
+  height: calc(100% + var(--turn-ring-gap) * 2);
+  overflow: visible;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.turn-ring circle {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.turn-ring-track {
+  stroke: var(--stage-glint-2);
+}
+/*
+  Под `prefers-reduced-motion` кольцо остаётся: это часы, а не движение (общее правило в
+  `styles.css` его не гасит). Свечения и вспышки мест при этом гаснут.
+*/
+.turn-ring-run {
+  stroke: var(--gold);
+  stroke-dasharray: 289;
+  animation-name: turn-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes turn-countdown {
+  from {
+    stroke-dashoffset: 0;
+    stroke: var(--gold);
+  }
+  70% {
+    stroke: var(--gold);
+  }
+  90% {
+    stroke: var(--warning);
+  }
+  to {
+    stroke-dashoffset: 289;
+    stroke: var(--danger);
+  }
+}
