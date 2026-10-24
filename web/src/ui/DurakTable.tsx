@@ -58,10 +58,10 @@ import { Avatar, IconButton, useStore } from './primitives';
 type SheetKind = 'settings' | 'result' | 'score' | null;
 
 /**
- * Время на ход на выбор ведущего (R110) — те же ступени, что у режимов покера (блиц 15, турнир 30,
- * дружеская 45), и две подольше для неспешной встречи. Границы держит ядро: 15–120 с.
+ * Время на ход на выбор ведущего (R110): 15, 30 (по умолчанию) или 45 с — владелец 24.10.2026. Те же
+ * ступени держит ядро (`Durak.TURN_STEPS`): другое значение оно прижимает к ближайшей.
  */
-const TURN_STEPS = [15, 30, 45, 60, 90];
+const TURN_STEPS = [15, 30, 45];
 type Command = (type: Parameters<Meeting['command']>[0], extra?: Parameters<Meeting['command']>[3]) => void;
 type Drag = {
   card: string;

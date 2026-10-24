@@ -669,19 +669,27 @@ class DurakTest {
   // --- Сроки -------------------------------------------------------------------------------
 
   /**
-   * Время хода (R110): по умолчанию — как в дружеском покере, выбирается ведущим в тех же границах,
-   * что и раньше, и любое значение вне них прижимается к краю.
+   * Время хода (R110): по умолчанию 30 с, на выбор ведущего — 15, 30 и 45 (владелец 24.10.2026: «по
+   * умолчанию ход 30 секунд, сделать 15 30 и 45»). Любое другое значение становится ближайшей
+   * ступенью.
    */
   @Test
-  void theTurnTimeDefaultsLikeFriendlyPokerAndStaysWithinBounds() {
+  void theTurnTimeDefaultsToThirtySecondsAndIsOneOfThreeSteps() {
     var table = table(2);
-    assertThat(table.turnSeconds).isEqualTo(Durak.DEFAULT_TURN).isEqualTo(45);
+    assertThat(table.turnSeconds).isEqualTo(Durak.DEFAULT_TURN).isEqualTo(30);
+    assertThat(Durak.TURN_STEPS).containsExactly(15, 30, 45);
+    table.configure("turn", 45L, T0);
+    assertThat(table.turnSeconds).isEqualTo(45);
     table.configure("turn", 5L, T0);
-    assertThat(table.turnSeconds).isEqualTo(Durak.MIN_TURN);
+    assertThat(table.turnSeconds).isEqualTo(15);
     table.configure("turn", 500L, T0);
-    assertThat(table.turnSeconds).isEqualTo(Durak.MAX_TURN);
+    assertThat(table.turnSeconds).isEqualTo(45);
+    table.configure("turn", 20L, T0);
+    assertThat(table.turnSeconds).isEqualTo(15);
+    table.configure("turn", 40L, T0);
+    assertThat(table.turnSeconds).isEqualTo(45);
     table.configure("turn", null, T0);
-    assertThat(table.turnSeconds).isEqualTo(Durak.DEFAULT_TURN);
+    assertThat(table.turnSeconds).isEqualTo(30);
   }
 
   /** Новое время хода начинает отсчёт заново: у всех за столом одна и та же метка дедлайна. */

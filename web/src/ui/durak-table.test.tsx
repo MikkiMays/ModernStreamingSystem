@@ -251,9 +251,9 @@ it('shows no turn ring while paused or between bouts', () => {
   rerender(<DurakTable meeting={meeting()} table={{ ...table, acting: [], boutEnd: 'beaten' }} />);
   expect(container.querySelector('.turn-ring')).toBeNull();
 });
-it('lets the host pick the turn time from the same steps as poker (R110)', async () => {
+it('lets the host pick the turn time: 15, 30 or 45 seconds (R110)', async () => {
   const room = meeting();
-  render(<DurakTable meeting={room} table={{ ...table, turnSeconds: 45 }} />);
+  render(<DurakTable meeting={room} table={{ ...table, turnSeconds: 30 }} />);
   fireEvent.click(screen.getByRole('button', { name: 'Настройки игры' }));
   const dialog = await screen.findByRole('dialog', { name: 'Настройки игры' });
   const group = within(dialog).getByRole('group', { name: 'Время на ход' });
@@ -261,12 +261,12 @@ it('lets the host pick the turn time from the same steps as poker (R110)', async
     within(group)
       .getAllByRole('button')
       .map((button) => button.textContent),
-  ).toEqual(['15 с', '30 с', '45 с', '60 с', '90 с']);
-  expect(within(group).getByRole('button', { name: '45 с' })).toHaveAttribute('aria-pressed', 'true');
-  await act(async () => fireEvent.click(within(group).getByRole('button', { name: '90 с' })));
+  ).toEqual(['15 с', '30 с', '45 с']);
+  expect(within(group).getByRole('button', { name: '30 с' })).toHaveAttribute('aria-pressed', 'true');
+  await act(async () => fireEvent.click(within(group).getByRole('button', { name: '45 с' })));
   expect(room.command).toHaveBeenCalledWith('durak.settings', undefined, undefined, {
     option: 'turn',
-    chips: 90,
+    chips: 45,
   });
 });
 it('names the fool in the result and never a draw (R111)', async () => {

@@ -61,15 +61,12 @@ public class Durak {
   public static final long AWAY_STAND_MS = LINGER_MS;
 
   /**
-   * Время на ход по умолчанию — как в дружеском покере ({@link Table}): за одним столом встречи обе
-   * игры ходят в одном темпе. Ведущий выбирает другое в настройках стола (R110).
+   * Время на ход (R110): по умолчанию 30 с, ведущий выбирает 15, 30 или 45 в настройках стола.
+   * Владелец 24.10.2026: «по умолчанию ход 30 секунд, сделать 15 30 и 45».
    */
-  public static final int DEFAULT_TURN = 45;
+  public static final int DEFAULT_TURN = 30;
 
-  /** Границы раздумья: меньше пятнадцати секунд — не игра, больше двух минут — не встреча. */
-  public static final int MIN_TURN = 15;
-
-  public static final int MAX_TURN = 120;
+  public static final List<Integer> TURN_STEPS = List.of(15, 30, 45);
 
   private static final int LOG_LIMIT = 30;
   private static final int VISUAL_LIMIT = 128;
@@ -554,8 +551,12 @@ public class Durak {
       }
       case "turn" -> {
         requireRunning();
-        int wanted = value == null ? DEFAULT_TURN : value.intValue();
-        turnSeconds = Math.max(MIN_TURN, Math.min(MAX_TURN, wanted));
+        long wanted = value == null ? DEFAULT_TURN : value.longValue();
+        // Ступень ближе всего к просьбе (при равенстве — короче): чужое значение не ломает стол.
+        turnSeconds =
+            TURN_STEPS.stream()
+                .min(Comparator.comparingLong(step -> Math.abs(step - wanted)))
+                .orElseThrow();
         note(now, "settings", -1, "", turnSeconds + " секунд на ход");
         reschedule(now);
       }
