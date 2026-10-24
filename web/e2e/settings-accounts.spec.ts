@@ -18,7 +18,7 @@ const SECTIONS = [
   'Профиль',
   'Оформление',
   'Горячие клавиши',
-  'Звук',
+  'Микрофон',
   'Видео',
   'Звуки',
   'Аккаунты',
@@ -62,6 +62,8 @@ async function expectCentered(page: Page, where: string) {
 }
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Разделы настроек' });
+/** Кнопка раздела: у раздела «Микрофон» (R114) подраздел с тем же именем — он ниже кнопки раздела. */
+const section = (page: Page, name: string) => nav(page).getByRole('button', { name, exact: true }).first();
 
 test('«Аккаунты»: подключить Яндекс Музыку токеном, пережить перезагрузку и сбросить', async ({ page }) => {
   await page.goto('/');
@@ -118,7 +120,7 @@ test('окно настроек одного размера во всех раз
       // На телефоне раздел открывается своим экраном, а «назад» возвращает к списку.
       if (phone && (await dialog.getByRole('button', { name: 'К разделам' }).isVisible()))
         await dialog.getByRole('button', { name: 'К разделам' }).click();
-      await nav(page).getByRole('button', { name, exact: true }).click();
+      await section(page, name).click();
       await expect(page.locator('.settings-content__title')).toHaveText(name);
       const size = await measure();
       expect(size.overflow, `«${name}» на ${width}px`).toBeLessThanOrEqual(0);
@@ -171,7 +173,7 @@ test('каждый раздел помещается в окно без прок
     await page.setViewportSize(size);
     await openSettings(page);
     for (const name of SECTIONS) {
-      await nav(page).getByRole('button', { name, exact: true }).click();
+      await section(page, name).click();
       await expect(page.locator('.settings-content__title')).toHaveText(name);
       // Превью камеры и шрифт догружаются — раскладка устоялась.
       await page.waitForTimeout(150);

@@ -90,7 +90,8 @@ export function placeFor(name: string | undefined): Place {
   const legacy = Object.hasOwn(LEGACY, name) ? LEGACY[name] : undefined;
   if (legacy) return legacy;
   const [section, anchor] = name.split('#') as [string, string | undefined];
-  // Прежний «Голос и видео» (ссылки оболочки и закладки): камера и показ — в «Видео», остальное — в «Звук».
+  // Прежний «Голос и видео» (ссылки оболочки и закладки): камера и показ — в «Видео», остальное —
+  // в «Микрофон».
   if (section === 'voice') {
     if (anchor === 'camera' || anchor === 'screen') return { section: 'video', anchor };
     if (anchor === 'output') return { section: 'audio', anchor };
@@ -243,7 +244,7 @@ export interface SearchHit {
   section: SectionId;
   anchor?: AnchorId;
   title: string;
-  /** Где это: «Звук › Микрофон». */
+  /** Где это: «Микрофон › Динамики». */
   where: string;
 }
 
@@ -296,7 +297,8 @@ export function searchSettings(
       section: spec.section,
       anchor: spec.anchor,
       title: text.label,
-      where: anchor ? `${home} › ${anchor}` : home,
+      // Подраздел с именем раздела («Микрофон › Микрофон», R114) не повторяется.
+      where: anchor && anchor !== home ? `${home} › ${anchor}` : home,
     });
   }
   return hits.slice(0, limit);

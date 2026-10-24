@@ -33,20 +33,27 @@ function fakeCamera(failure?: Error) {
 }
 
 const nav = () => screen.getByRole('navigation', { name: 'Разделы настроек' });
-const openSection = (name: string) => fireEvent.click(within(nav()).getByRole('button', { name }));
+/**
+ * Кнопка раздела слева. Раздел «Микрофон» (R114) и его подраздел «Микрофон» называются одинаково —
+ * кнопка раздела идёт первой, подразделы открытого раздела — под ней.
+ */
+const sectionButton = (name: string) => within(nav()).getAllByRole('button', { name })[0]!;
+const openSection = (name: string) => fireEvent.click(sectionButton(name));
 /** Заголовок открытого раздела справа (у окна есть и свой — «Настройки» слева). */
 const heading = () => document.querySelector('.settings-content__title')!;
 
 describe('окно настроек (T26)', () => {
-  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Звук»', () => {
+  it('слева — разделы в группах, справа — открытый раздел; прежняя вкладка «audio» ведёт в «Микрофон»', () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Настройки' })).toBeInTheDocument();
-    expect(heading()).toHaveTextContent('Звук');
-    expect(within(nav()).getByRole('button', { name: 'Звук' })).toHaveAttribute('aria-current', 'page');
+    // Раздел «Звук» называется «Микрофон» (R114): рядом с «Звуками» два «Звука» путались.
+    expect(heading()).toHaveTextContent('Микрофон');
+    expect(sectionButton('Микрофон')).toHaveAttribute('aria-current', 'page');
+    expect(within(nav()).queryByRole('button', { name: 'Звук' })).toBeNull();
     for (const group of ['Приложение', 'Встречи', 'Подключения'])
       expect(within(nav()).getByRole('heading', { name: group })).toBeInTheDocument();
     // Подразделы открытого раздела — якоря слева.
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
     expect(
       within(anchors)
         .getAllByRole('button')
@@ -73,7 +80,7 @@ describe('окно настроек (T26)', () => {
     }
   });
 
-  it('«Звук» (R100): микрофон с проверкой и уровнем, обработка, динамики с громкостью — камера не трогается', () => {
+  it('«Микрофон» (R100, R114): микрофон с проверкой и уровнем, обработка, динамики с громкостью — камера не трогается', () => {
     const camera = fakeCamera();
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
     expect(screen.getByRole('combobox', { name: 'Устройство ввода' })).toBeInTheDocument();
@@ -185,7 +192,7 @@ describe('окно настроек (T26)', () => {
     fireEvent.click(preview);
     expect(readPreferences().screen.preview).toBe(false);
     // Ушли из раздела — камера отпущена.
-    openSection('Звук');
+    openSection('Микрофон');
     expect(device.stopped()).toBe(true);
   });
 
@@ -214,7 +221,7 @@ describe('окно настроек (T26)', () => {
 
   it('щелчок по якорю подсвечивает его, и программная прокрутка к нему подсветку не затирает (R12)', async () => {
     render(<Settings open section="audio" onOpenChange={vi.fn()} />);
-    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Звук' });
+    const anchors = within(nav()).getByRole('list', { name: 'Подразделы: Микрофон' });
     fireEvent.click(within(anchors).getByRole('button', { name: 'Микрофон' }));
     // Ответ браузера на `scrollTop = …` — событие scroll; до scrollend пересчёта нет.
     fireEvent.scroll(document.querySelector('.settings-content')!);

@@ -48,8 +48,8 @@
         "keywords": "aplicación bandeja barra de tareas miniatura distintivo parpadeo suspensión superposición inicio automático"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voz sonido micrófono altavoces auriculares"
+        "title": "Micrófono",
+        "keywords": "audio voz sonido micrófono altavoces auriculares"
       },
       "video": {
         "title": "Vídeo",
@@ -3242,15 +3242,15 @@
       "items": {
         "camera": {
           "q": "La cámara no se enciende o muestra una pantalla negra",
-          "a": "Permite el acceso a la cámara: icono de la cámara en la barra de direcciones → «Permitir», y recarga la página.\nCierra las aplicaciones que usan la cámara: Zoom, Teams, OBS u otra pestaña con una reunión.\nEn «Ajustes → Voz y vídeo», elige la cámara correcta — un portátil con cámara externa tiene dos.\nEn la aplicación de Windows, revisa «Configuración → Privacidad → Cámara»: el acceso a la cámara para las aplicaciones debe estar activado."
+          "a": "Permite el acceso a la cámara: icono de la cámara en la barra de direcciones → «Permitir», y recarga la página.\nCierra las aplicaciones que usan la cámara: Zoom, Teams, OBS u otra pestaña con una reunión.\nEn «Ajustes → Vídeo», elige la cámara correcta — un portátil con cámara externa tiene dos.\nEn la aplicación de Windows, revisa «Configuración → Privacidad → Cámara»: el acceso a la cámara para las aplicaciones debe estar activado."
         },
         "microphone": {
           "q": "No me oyen",
-          "a": "Mira el botón del micrófono abajo: si está tachado, el micrófono está apagado.\nEn «Ajustes → Voz y vídeo», elige un micrófono y di algo — la barra de nivel debería moverse.\nPuede que el navegador haya bloqueado el acceso: icono en la barra de direcciones → «Permitir».\nCon un micrófono bajo, una supresión de ruido estricta corta la voz — prueba otra en los mismos ajustes."
+          "a": "Mira el botón del micrófono abajo: si está tachado, el micrófono está apagado.\nEn «Ajustes → Micrófono», elige un micrófono y di algo — la barra de nivel debería moverse.\nPuede que el navegador haya bloqueado el acceso: icono en la barra de direcciones → «Permitir».\nCon un micrófono bajo, una supresión de ruido estricta corta la voz — prueba otra en los mismos ajustes."
         },
         "silent": {
           "q": "No oigo a nadie",
-          "a": "Si en el escenario aparece el botón «Activar el sonido de la reunión», haz clic: el navegador no reproduce sonido hasta el primer clic en la página.\nRevisa «Ajustes y acciones» — puede que el sonido de toda la reunión esté apagado.\nEl volumen de una persona está en el menú del clic derecho sobre ella; el general, en «Ajustes → Voz y vídeo».\nAllí elige también tus auriculares o altavoces y haz la prueba."
+          "a": "Si en el escenario aparece el botón «Activar el sonido de la reunión», haz clic: el navegador no reproduce sonido hasta el primer clic en la página.\nRevisa «Ajustes y acciones» — puede que el sonido de toda la reunión esté apagado.\nEl volumen de una persona está en el menú del clic derecho sobre ella; el general, en «Ajustes → Micrófono → Altavoces».\nAllí elige también tus auriculares o altavoces y haz la prueba."
         },
         "screen": {
           "q": "No puedo compartir la pantalla",

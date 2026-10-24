@@ -67,8 +67,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
 
     await host.getByRole('button', { name: 'Настройки и действия' }).click();
     await host.getByRole('menuitem', { name: 'Настройки', exact: true }).click();
-    // Настройки открываются на «Звуке»; камера и показ — в соседнем разделе «Видео» (R100).
-    await expect(host.locator('.settings-content__title')).toHaveText('Звук');
+    // Настройки открываются на «Микрофоне» (R114); камера и показ — в соседнем разделе «Видео» (R100).
+    await expect(host.locator('.settings-content__title')).toHaveText('Микрофон');
     await openVideo(host);
     await expect(level(host, 'Камера: качество', '720p')).toBeChecked();
     await expect(level(host, 'Экран: качество', '720p')).toBeChecked();

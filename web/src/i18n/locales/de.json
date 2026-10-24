@@ -48,8 +48,8 @@
         "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "Sprache Ton Mikrofon Lautsprecher Kopfhörer"
+        "title": "Mikrofon",
+        "keywords": "Audio Sprache Ton Mikrofon Lautsprecher Kopfhörer"
       },
       "video": {
         "title": "Video",
@@ -3205,15 +3205,15 @@
       "items": {
         "camera": {
           "q": "Die Kamera geht nicht an oder zeigt ein schwarzes Bild",
-          "a": "Erlaube den Kamerazugriff: Kamerasymbol in der Adressleiste → „Zulassen“, dann lade die Seite neu.\nSchließ Programme, die die Kamera belegen: Zoom, Teams, OBS oder einen anderen Tab mit einem Meeting.\nWähl unter „Einstellungen → Sprache und Video“ die richtige Kamera — ein Laptop mit externer Kamera hat zwei.\nPrüf in der Windows-App „Einstellungen → Datenschutz → Kamera“: Der Kamerazugriff für Apps muss an sein."
+          "a": "Erlaube den Kamerazugriff: Kamerasymbol in der Adressleiste → „Zulassen“, dann lade die Seite neu.\nSchließ Programme, die die Kamera belegen: Zoom, Teams, OBS oder einen anderen Tab mit einem Meeting.\nWähl unter „Einstellungen → Video“ die richtige Kamera — ein Laptop mit externer Kamera hat zwei.\nPrüf in der Windows-App „Einstellungen → Datenschutz → Kamera“: Der Kamerazugriff für Apps muss an sein."
         },
         "microphone": {
           "q": "Man hört mich nicht",
-          "a": "Schau auf die Mikrofon-Schaltfläche unten: Durchgestrichen heißt, das Mikrofon ist aus.\nWähl unter „Einstellungen → Sprache und Video“ ein Mikrofon und sag etwas — die Pegelanzeige sollte sich bewegen.\nDer Browser hat den Zugriff vielleicht blockiert: Symbol in der Adressleiste → „Zulassen“.\nBei einem leisen Mikrofon schneidet strenge Rauschunterdrückung die Sprache ab — probier in denselben Einstellungen eine andere."
+          "a": "Schau auf die Mikrofon-Schaltfläche unten: Durchgestrichen heißt, das Mikrofon ist aus.\nWähl unter „Einstellungen → Mikrofon“ ein Mikrofon und sag etwas — die Pegelanzeige sollte sich bewegen.\nDer Browser hat den Zugriff vielleicht blockiert: Symbol in der Adressleiste → „Zulassen“.\nBei einem leisen Mikrofon schneidet strenge Rauschunterdrückung die Sprache ab — probier in denselben Einstellungen eine andere."
         },
         "silent": {
           "q": "Ich höre niemanden",
-          "a": "Wenn auf der Bühne die Schaltfläche „Meeting-Ton einschalten“ steht, klick darauf: Der Browser spielt keinen Ton bis zum ersten Klick auf die Seite.\nPrüf „Einstellungen und Aktionen“ — der Ton des ganzen Meetings ist vielleicht aus.\nDie Lautstärke einer Person steckt im Rechtsklick-Menü auf ihr, die Gesamtlautstärke unter „Einstellungen → Sprache und Video“.\nWähl dort auch Kopfhörer oder Lautsprecher und starte den Test."
+          "a": "Wenn auf der Bühne die Schaltfläche „Meeting-Ton einschalten“ steht, klick darauf: Der Browser spielt keinen Ton bis zum ersten Klick auf die Seite.\nPrüf „Einstellungen und Aktionen“ — der Ton des ganzen Meetings ist vielleicht aus.\nDie Lautstärke einer Person steckt im Rechtsklick-Menü auf ihr, die Gesamtlautstärke unter „Einstellungen → Mikrofon → Lautsprecher“.\nWähl dort auch Kopfhörer oder Lautsprecher und starte den Test."
         },
         "screen": {
           "q": "Ich kann meinen Bildschirm nicht teilen",

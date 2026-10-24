@@ -48,8 +48,8 @@
         "keywords": "app area di notifica barra delle applicazioni miniatura badge lampeggio sospensione overlay avvio automatico"
       },
       "audio": {
-        "title": "Audio",
-        "keywords": "voce suono microfono altoparlanti cuffie"
+        "title": "Microfono",
+        "keywords": "audio voce suono microfono altoparlanti cuffie"
       },
       "video": {
         "title": "Video",
@@ -3242,15 +3242,15 @@
       "items": {
         "camera": {
           "q": "La videocamera non si accende o mostra uno schermo nero",
-          "a": "Consenti l'accesso alla videocamera: icona della videocamera nella barra degli indirizzi → «Consenti», poi ricarica la pagina.\nChiudi le app che usano la videocamera: Zoom, Teams, OBS o un'altra scheda con una riunione.\nIn «Impostazioni → Voce e video» scegli la videocamera giusta — un portatile con videocamera esterna ne ha due.\nNell'app per Windows controlla «Impostazioni → Privacy → Fotocamera»: l'accesso alla fotocamera per le app deve essere attivo."
+          "a": "Consenti l'accesso alla videocamera: icona della videocamera nella barra degli indirizzi → «Consenti», poi ricarica la pagina.\nChiudi le app che usano la videocamera: Zoom, Teams, OBS o un'altra scheda con una riunione.\nIn «Impostazioni → Video» scegli la videocamera giusta — un portatile con videocamera esterna ne ha due.\nNell'app per Windows controlla «Impostazioni → Privacy → Fotocamera»: l'accesso alla fotocamera per le app deve essere attivo."
         },
         "microphone": {
           "q": "Non mi sentono",
-          "a": "Guarda il pulsante del microfono in basso: barrato significa che il microfono è spento.\nIn «Impostazioni → Voce e video» scegli un microfono e di' qualcosa — la barra del livello dovrebbe muoversi.\nIl browser potrebbe aver bloccato l'accesso: icona nella barra degli indirizzi → «Consenti».\nCon un microfono debole, una soppressione del rumore severa taglia la voce — provane un'altra nelle stesse impostazioni."
+          "a": "Guarda il pulsante del microfono in basso: barrato significa che il microfono è spento.\nIn «Impostazioni → Microfono» scegli un microfono e di' qualcosa — la barra del livello dovrebbe muoversi.\nIl browser potrebbe aver bloccato l'accesso: icona nella barra degli indirizzi → «Consenti».\nCon un microfono debole, una soppressione del rumore severa taglia la voce — provane un'altra nelle stesse impostazioni."
         },
         "silent": {
           "q": "Non sento nessuno",
-          "a": "Se sul palco c'è il pulsante «Attiva l'audio della riunione», fai clic: il browser non riproduce suoni prima del primo clic sulla pagina.\nControlla «Impostazioni e azioni» — l'audio di tutta la riunione potrebbe essere disattivato.\nIl volume di una persona è nel menu del clic destro su di lei, quello generale in «Impostazioni → Voce e video».\nLì scegli anche cuffie o altoparlanti e avvia la prova."
+          "a": "Se sul palco c'è il pulsante «Attiva l'audio della riunione», fai clic: il browser non riproduce suoni prima del primo clic sulla pagina.\nControlla «Impostazioni e azioni» — l'audio di tutta la riunione potrebbe essere disattivato.\nIl volume di una persona è nel menu del clic destro su di lei, quello generale in «Impostazioni → Microfono → Altoparlanti».\nLì scegli anche cuffie o altoparlanti e avvia la prova."
         },
         "screen": {
           "q": "Non riesco a condividere lo schermo",
