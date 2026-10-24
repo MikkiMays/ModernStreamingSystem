@@ -327,7 +327,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
           <LoaderCircle size={22} /> {t(($) => $.cinema.linkScene.searching)}
         </p>
       ) : link.problem ? (
-        <Failure problem={link.problem} />
+        <Failure problem={link.problem} onRetry={() => ask(current)} />
       ) : route && knownProvider(route.provider) ? (
         // Сюда ссылка своей площадки попадает, только если переход не состоялся: дверь — руками.
         <div className="cinema-empty">

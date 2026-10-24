@@ -5,7 +5,7 @@ import { CinemaApi, PROVIDERS, providerName, QUERY_LONGEST, type CinemaItem } fr
 import { linkOf } from '../../../core/cinema/link';
 import { useStore } from '../../primitives';
 import { More } from '../catalog/More';
-import { Empty, Failure, Following, Loading } from '../catalog/notes';
+import { Empty, Failure, Following, Loading, retryOf } from '../catalog/notes';
 import { ItemPage, named } from '../catalog/pages/ItemPage';
 import { SeriesPage } from '../catalog/pages/SeriesPage';
 import { cardsOf } from '../catalog/cards';
@@ -158,6 +158,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
           checking={!!link.checking}
           problem={link.problem}
           waiting={link.asked !== linkOf(settled)}
+          onRetry={() => follow(settled)}
         />
       ) : null}
 
@@ -178,7 +179,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
               />
             </div>
           ) : null}
-          {feed.isError ? <Failure problem={feed.error} /> : null}
+          {feed.isError ? <Failure problem={feed.error} onRetry={retryOf(feed)} /> : null}
           <Grid kind="tall">{inSection.map(card)}</Grid>
           {(tabs.isFetching && !tabs.data) || (feed.isFetching && !feed.isFetchingNextPage) ? (
             <Loading />
@@ -196,7 +197,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
 
       {home && settled && !linked ? (
         <>
-          {results.isError ? <Failure problem={results.error} /> : null}
+          {results.isError ? <Failure problem={results.error} onRetry={retryOf(results)} /> : null}
           {results.data ? <Grid kind="tall">{found.map(card)}</Grid> : null}
           {results.isFetching && !results.isFetchingNextPage ? <Loading /> : null}
           <More

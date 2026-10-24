@@ -28,7 +28,7 @@ from fastapi.responses import Response
 from ..dash import candidates, manifest as dash_manifest, number, read_ranges
 from . import address, drm, mpd
 from .captions import CAPTIONS_LIMIT, SUBTITLE_FORMATS, _base_language, _pick
-from .egress import Busy, Closed, Egress, Lease
+from .egress import Busy, Closed, Egress, Lease, in_loop
 from .net import COOKIE_COPY, NetConfig, cookie_file, cookie_problem
 from .transport.relay import SEALED
 from .transport.signer import PREFIX, SIGNATURE_TTL, Signer, proxied
@@ -125,6 +125,11 @@ PROBE = {
     "socket_timeout": 20,
 }
 
+# Сколько потоков пула каталога (восемь) может занять одна площадка разом. Поиск YouTube занимает два
+# (ролики и каналы), так что шесть — это три поиска разом; остальным площадкам и музыке остаётся два потока,
+# даже когда одна площадка висит.
+LANE_THREADS = 6
+
 # Общий на процесс: `.info` внутри сам кэширует ответ (`functools.cached_property`), и с ним
 # `deno --version` спрашивается только у первого `YtDlp`, а не у каждого — их несколько за один
 # прогон тестов, и это тот же самый deno на той же машине.
@@ -197,12 +202,44 @@ class YtDlp:
         # Восемь потоков: работа yt-dlp в каталоге почти вся — ожидание ответа площадки, а поиск YouTube
         # занимает два, и четырёх не хватало бы уже нескольким комнатам разом.
         self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="cinema-catalog")
+        # Места площадок в этом пуле (`offload_for`) и сколько потоков каждая занимает прямо сейчас.
+        self._lanes: dict[str, asyncio.Semaphore] = {}
+        self.busy: dict[str, int] = {}
         self._log_js_runtime()
 
     async def offload(self, work: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Работа yt-dlp каталога — в выделенном пуле, а не в общем пуле цикла событий (см. `__init__`)."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.pool, functools.partial(work, *args, **kwargs))
+
+    async def offload_for(self, lane: str, work: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        """
+        Работа yt-dlp одной площадки (`lane` — её имя) в том же пуле, но не больше `LANE_THREADS` потоков.
+
+        Поток yt-dlp не прервать: площадка, до которой нет сети, держит его минуты (поиск YouTube через
+        «чёрную дыру» — 160 с: восемь чтений по 20 с). Без предела такая площадка занимала бы все восемь
+        потоков, и вставали бы остальные площадки и поиск музыки. Место освобождается, когда кончился сам
+        поток, а не когда ушёл ждавший его запрос (срок `facade.CATALOG_DEADLINE`) — иначе предел ничего
+        не держал бы.
+        """
+        gate = self._lanes.get(lane)
+        if gate is None:
+            gate = self._lanes[lane] = asyncio.Semaphore(LANE_THREADS)
+        await gate.acquire()
+        loop = asyncio.get_running_loop()
+
+        def free(_: Any) -> None:
+            self.busy[lane] -= 1
+            gate.release()
+
+        try:
+            job = self.pool.submit(functools.partial(work, *args, **kwargs))
+        except BaseException:
+            gate.release()
+            raise
+        self.busy[lane] = self.busy.get(lane, 0) + 1
+        job.add_done_callback(lambda done: in_loop(loop, lambda: free(done)))
+        return await asyncio.wrap_future(job)
 
     def close(self) -> None:
         self.pool.shutdown(wait=False, cancel_futures=True)
@@ -730,7 +767,8 @@ class Resolver:
             return await self.settle(plan, dict(plan.info), net, provider, content_id, adaptive)
         gate = self.ytdlp.egress.get(provider)
         if gate is None:
-            info = await self.ytdlp.offload(self.ytdlp.probe, plan.url, provider, **plan.options)
+            probe = self.ytdlp.probe
+            info = await self.ytdlp.offload_for(provider, probe, plan.url, provider, **plan.options)
         else:
             # Место в выходе ждётся в цикле событий, разбор идёт в пуле выхода (`Egress.run`);
             # отменили разбор — вход закрыт сразу, а место — когда кончится поток.

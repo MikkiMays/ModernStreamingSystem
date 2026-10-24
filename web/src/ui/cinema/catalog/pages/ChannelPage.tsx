@@ -3,7 +3,7 @@ import { Tv } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { viewers, type ChannelTab, type CinemaChannel, type CinemaItem } from '../../../../core/cinema';
 import { More } from '../More';
-import { Empty, Failure, Loading } from '../notes';
+import { Empty, Failure, Loading, retryOf } from '../notes';
 import { Grid } from '../tiles';
 import type { Feed } from '../usePage';
 
@@ -84,7 +84,7 @@ export function ChannelPage({
           </button>
         ))}
       </nav>
-      {feed.isError && <Failure problem={feed.error} />}
+      {feed.isError && <Failure problem={feed.error} onRetry={retryOf(feed)} />}
       {tab === 'about' ? (
         person && (
           <div className="cinema-story">

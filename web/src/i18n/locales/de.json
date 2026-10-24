@@ -1799,6 +1799,12 @@
       "pressEnter": "Drück Enter, und das Kino öffnet diesen Link.",
       "opening": "Link wird geöffnet…"
     },
+    "reach": {
+      "unreachable": "{{name}} ist von diesem Server aus nicht erreichbar",
+      "unreachableHint": "Der Server dieses Meetings kommt gerade nicht an die Plattform heran. Andere Plattformen funktionieren wie gewohnt.",
+      "late": "{{name}} hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+      "retry": "Erneut versuchen"
+    },
     "meta": {
       "live": "Live",
       "channel": "Kanal",
@@ -2940,6 +2946,8 @@
     "SUPPORT_OFF": "Anfragen werden gerade nicht angenommen. Schreib dem Autor von Cord auf Telegram — der Link ist daneben",
     "SUPPORT_RATE": "Von dieser Adresse kamen schon mehrere Anfragen. Versuch es in einer Stunde erneut oder schreib dem Autor von Cord auf Telegram",
     "SUPPORT_TEXT": "Beschreib, was passiert ist — mindestens in einem Satz",
+    "CINEMA_TIMEOUT": "Die Plattform hat nicht rechtzeitig geantwortet – versuch es noch einmal",
+    "CINEMA_UNREACHABLE": "Diese Plattform ist von diesem Server aus nicht erreichbar",
     "CLOSED_BY_SERVER": "Der Inhaber des Servers hat dieses Meeting beendet – es lässt sich noch nicht wieder öffnen"
   },
   "activity": {

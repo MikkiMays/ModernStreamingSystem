@@ -1776,6 +1776,12 @@
       "pressEnter": "按 Enter，影院就会打开这个链接。",
       "opening": "正在打开链接…"
     },
+    "reach": {
+      "unreachable": "此服务器无法访问 {{name}}",
+      "unreachableHint": "本次会议所在的服务器目前无法连接该平台。其他平台照常可用。",
+      "late": "{{name}} 未及时响应——请重试",
+      "retry": "重试"
+    },
     "meta": {
       "live": "直播中",
       "channel": "频道",
@@ -2910,6 +2916,8 @@
     "SUPPORT_OFF": "目前不接收反馈。请在 Telegram 上联系 Cord 的作者——链接就在旁边",
     "SUPPORT_RATE": "此地址已经提交了多条反馈。请一小时后再试，或在 Telegram 上联系 Cord 的作者",
     "SUPPORT_TEXT": "请描述发生了什么——至少写一句话",
+    "CINEMA_TIMEOUT": "平台未及时响应——请重试",
+    "CINEMA_UNREACHABLE": "此服务器无法访问该平台",
     "CLOSED_BY_SERVER": "服务器所有者已结束此会议，暂时无法重新打开"
   },
   "activity": {

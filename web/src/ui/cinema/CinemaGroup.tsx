@@ -43,9 +43,12 @@ export function CinemaGroup({ meeting, onBack }: { meeting: Meeting; onBack: () 
     return {
       id,
       name: providerName(t, id),
+      // Сервер не достаёт до площадки (R112) — причина на языке человека, а не русскими словами службы.
       note: available
         ? t(($) => $.cinema.providers[id].hint)
-        : entry?.reason || t(($) => $.cinema.group.unavailable),
+        : providers.unreachable(id)
+          ? t(($) => $.cinema.reach.unreachable, { name: providerName(t, id) })
+          : entry?.reason || t(($) => $.cinema.group.unavailable),
       icon: PROVIDERS[id].icon,
       color: PROVIDERS[id].tile,
       disabled: !available,

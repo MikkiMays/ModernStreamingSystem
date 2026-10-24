@@ -317,6 +317,8 @@ class Vk(Provider):
     # `*.ms.vk.ru` — только пиксели статистики), поэтому их здесь нет; как и всего `vkvideo.ru`:
     # остальное на нём — страницы, а не картинки.
     hosts = HostPolicy(("vkuser.net", "okcdn.ru", "userapi.com", "vkuserphoto.ru", "images.live.vkvideo.ru"))
+    # Хост каталога (`api.vkvideo.ru`): на пустой GET он отвечает коротким 404 — этого пробе и хватает.
+    probe = "https://api.vkvideo.ru/"
     features = Features(channels=True, playlists=True, categories=True, live=True)
     # Ролик или эфир VK (`<владелец>_<номер>`) и канал VK Видео Live (имя канала): вид различает
     # их сам — ролик бывает только `video`, канал Live только `channel`.

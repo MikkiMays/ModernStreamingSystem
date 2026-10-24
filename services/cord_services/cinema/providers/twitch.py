@@ -118,6 +118,8 @@ class Twitch(Provider):
     id = "twitch"
     name = "Twitch"
     hosts = HostPolicy(("ttvnw.net", "jtvnw.net", "twitchcdn.net", "twitch.tv", "akamaized.net"))
+    # Хост каталога (GraphQL): на пустой GET он отвечает коротким отказом — этого пробе и хватает.
+    probe = "https://gql.twitch.tv/"
     features = Features(channels=True, categories=True, live=True)
     # Логины, номера записей и разделов. Форма — та же, что пропускает проверка имени канала
     # у фасада: сужать её — отдельный шаг, который не должен сломать ни одной ссылки.

@@ -1799,6 +1799,12 @@
       "pressEnter": "Press Enter and Cinema will open this link.",
       "opening": "Opening the link…"
     },
+    "reach": {
+      "unreachable": "{{name}} can't be reached from this server",
+      "unreachableHint": "The server this meeting runs on can't connect to the platform right now. Other platforms work as usual.",
+      "late": "{{name}} didn't respond in time — try again",
+      "retry": "Retry"
+    },
     "meta": {
       "live": "Live",
       "channel": "Channel",
@@ -2940,6 +2946,8 @@
     "SUPPORT_OFF": "Requests aren’t being accepted right now. Message the author of Cord on Telegram — the link is next to this",
     "SUPPORT_RATE": "Several requests have already come from this address. Try again in an hour or message the author of Cord on Telegram",
     "SUPPORT_TEXT": "Describe what happened — at least one sentence",
+    "CINEMA_TIMEOUT": "The platform didn't respond in time — try again",
+    "CINEMA_UNREACHABLE": "This platform can't be reached from this server",
     "CLOSED_BY_SERVER": "The server owner ended this meeting — it can't be reopened yet"
   },
   "activity": {

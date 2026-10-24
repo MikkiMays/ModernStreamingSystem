@@ -72,6 +72,8 @@ class YouTube(Provider):
     # решает её же проверку. cookiefile входит в игру, только если первый разбор отказал
     # именно проверкой на человека (см. `resolve.YtDlp.extract`).
     cookies_fallback = True
+    # Пустой ответ 204 с того же хоста, куда ходит yt-dlp за поиском и роликом (`reach.py`).
+    probe = "https://www.youtube.com/generate_204"
 
     def match(self, url: str) -> Match | None:
         """
@@ -117,7 +119,7 @@ class YouTube(Provider):
         wanted = [
             self.memo.get(
                 f"search:videos:{low}",
-                lambda: self.ytdlp.offload(self._videos, query, SEARCH_DEPTH),
+                lambda: self.ytdlp.offload_for(self.id, self._videos, query, SEARCH_DEPTH),
                 120,
             )
         ]
@@ -125,7 +127,7 @@ class YouTube(Provider):
             wanted.append(
                 self.memo.get(
                     f"search:channels:{low}",
-                    lambda: self.ytdlp.offload(self._channels, query, 4),
+                    lambda: self.ytdlp.offload_for(self.id, self._channels, query, 4),
                     300,
                 )
             )
@@ -133,14 +135,14 @@ class YouTube(Provider):
         return {**page(found[0], offset), "channels": found[1] if offset == 0 else [], "categories": []}
 
     async def channel(self, ctx: Ctx, channel_id: str, tab: str, offset: int) -> wire.ChannelPage:
-        return await self.ytdlp.offload(self._channel, channel_id, tab, offset)
+        return await self.ytdlp.offload_for(self.id, self._channel, channel_id, tab, offset)
 
     async def playlist(self, ctx: Ctx, playlist_id: str, offset: int) -> wire.PlaylistPage:
-        return await self.ytdlp.offload(self._playlist, playlist_id, offset)
+        return await self.ytdlp.offload_for(self.id, self._playlist, playlist_id, offset)
 
     async def details(self, ctx: Ctx, kind: str, item_id: str) -> wire.Details:
         # Эфир YouTube — тоже ролик по своему адресу: вид страницу не меняет.
-        return await self.ytdlp.offload(self._details, item_id)
+        return await self.ytdlp.offload_for(self.id, self._details, item_id)
 
     async def source(self, ctx: Ctx, kind: str, item_id: str, options: dict[str, Any]) -> SourcePlan:
         # DASH из отдельных дорожек — только у YouTube: они проиндексированы и отдаются по

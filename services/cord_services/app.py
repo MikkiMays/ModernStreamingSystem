@@ -183,6 +183,9 @@ def create_app(
                     logging.getLogger(__name__).exception("Уборка хранилища музыки не удалась")
 
         background.append(asyncio.create_task(clean(), name="cleanup"))
+        # Достаёт ли сервер до площадок кинозала (R112): первая проба — сразу, дальше фоном
+        # (`cinema/reach.py`). Только у запущенной службы: тесты без `lifespan` в сеть не ходят.
+        background.append(asyncio.create_task(cinema.watch(), name="cinema-reach"))
         yield
         for task in background:
             task.cancel()
@@ -237,9 +240,12 @@ def create_app(
 
     @app.exception_handler(Refusal)
     async def refused(_: Request, error: Refusal):
-        # Отказ с кодом — как у ядра: `code` для перевода, `detail` по-русски (E14).
+        # Отказ с кодом — как у ядра: `code` для перевода, `detail` по-русски (E14); рядом —
+        # значения, которые клиенту нужны не словами (`extra`), и заголовки отказа (`Retry-After`).
         return JSONResponse(
-            {"code": error.code, "detail": error.detail}, status_code=error.status_code
+            {**error.extra, "code": error.code, "detail": error.detail},
+            status_code=error.status_code,
+            headers=error.headers,
         )
 
     def bot_ready() -> bool:

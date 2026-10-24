@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import json
 import time
+from typing import Any, Mapping
 from urllib.parse import parse_qsl, quote
 
 from fastapi import HTTPException
@@ -58,11 +59,23 @@ class Refusal(HTTPException):
     Коды службы попадают в `contracts/errors.json` тем же сборщиком, что и коды ядра
     (`scripts/errors_registry.py` ищет `Refusal(статус, "КОД", "текст")`), поэтому текст — одна
     строка-литерал прямо в вызове.
+
+    `extra` — значения рядом с кодом, которые клиенту нужны не словами (кинозал: `provider`, чтобы
+    назвать площадку на языке человека); `headers` — заголовки ответа (`Retry-After`).
     """
 
-    def __init__(self, status: int, code: str, detail: str):
-        super().__init__(status, detail)
+    def __init__(
+        self,
+        status: int,
+        code: str,
+        detail: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ):
+        super().__init__(status, detail, headers=dict(headers) if headers else None)
         self.code = code
+        self.extra = dict(extra or {})
 
 
 class InitDataError(ValueError):

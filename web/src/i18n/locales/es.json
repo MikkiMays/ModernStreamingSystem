@@ -1822,6 +1822,12 @@
       "pressEnter": "Pulsa Enter y el cine abrirá este enlace.",
       "opening": "Abriendo el enlace…"
     },
+    "reach": {
+      "unreachable": "{{name}} no está disponible desde este servidor",
+      "unreachableHint": "El servidor de esta reunión no puede conectar con la plataforma ahora mismo. Las demás plataformas funcionan con normalidad.",
+      "late": "{{name}} no respondió a tiempo: inténtalo de nuevo",
+      "retry": "Reintentar"
+    },
     "meta": {
       "live": "En directo",
       "channel": "Canal",
@@ -2970,6 +2976,8 @@
     "SUPPORT_OFF": "Ahora no se aceptan solicitudes. Escribe al autor de Cord en Telegram — el enlace está al lado",
     "SUPPORT_RATE": "Ya llegaron varias solicitudes desde esta dirección. Inténtalo dentro de una hora o escribe al autor de Cord en Telegram",
     "SUPPORT_TEXT": "Describe qué ha pasado — al menos en una frase",
+    "CINEMA_TIMEOUT": "La plataforma no respondió a tiempo: inténtalo de nuevo",
+    "CINEMA_UNREACHABLE": "Esta plataforma no está disponible desde este servidor",
     "CLOSED_BY_SERVER": "El propietario del servidor finalizó esta reunión: todavía no se puede volver a abrir"
   },
   "activity": {
