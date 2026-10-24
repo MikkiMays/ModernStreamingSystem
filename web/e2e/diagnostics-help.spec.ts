@@ -84,7 +84,8 @@ test('диагностика → «Поддержка»: одно окно, об
   await help.getByRole('button', { name: 'Отправить' }).click();
   await expect(help.getByText('Обращение 1A2B3C4D отправлено')).toBeVisible({ timeout: 20000 });
   expect(sent).toMatchObject({ topic: 'report', issues: ['sound', 'music'], consent: true });
-  expect(String(sent!['diagnostics'])).toMatch(/call: \d+ s/);
+  // Итог звонка — строкой `call:`; одному во встрече без дорожек считать нечего (`call: none`).
+  expect(String(sent!['diagnostics'])).toMatch(/^call: (\d+ s|none)$/m);
   expect(String(sent!['diagnostics'])).not.toContain('Майя');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);

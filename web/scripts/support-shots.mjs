@@ -215,7 +215,7 @@ try {
       const field = page.getByRole('textbox', { name: 'Сообщение', exact: true });
       await field.waitFor();
       await page
-        .locator('.composer-attachments__remove')
+        .locator('.chat-attachment__remove')
         .evaluateAll((buttons) => buttons.forEach((b) => b.click()));
       await field.fill('Вот что у меня на экране');
       await field.evaluate(async (element) => {

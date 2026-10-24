@@ -48,7 +48,7 @@
 }
 /* Окно не меняет высоту при смене вкладки: вкладки — над прокруткой, прокручивается панель. */
 .help-dialog {
-  height: min(640px, 100%);
+  height: min(700px, 100%);
 }
 .help-dialog .ui-dialog__body {
   display: grid;
