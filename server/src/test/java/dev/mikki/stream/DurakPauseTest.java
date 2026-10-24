@@ -94,6 +94,8 @@ class DurakPauseTest {
   void pauseDuringBoutSettlementKeepsCardsOnTableUntilTheExactResumedDeadline() {
     var table = defending();
     table.act("p1", "take", null, null, T0 + 3000);
+    // Вдогонку подкинуть нечего, но решает это заходивший, а не стол (R108).
+    table.act("p0", "pass", null, null, T0 + 3000);
     assertThat(table.boutEnd).isEqualTo("taken");
     long boutAt = table.boutAt;
     long deadline = table.deadline;

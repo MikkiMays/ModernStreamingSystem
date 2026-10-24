@@ -1093,7 +1093,6 @@
       "fools_one": "{{count}} time",
       "fools_other": "{{count}} times",
       "game": "Game {{number}}",
-      "draw": "draw",
       "fool": "fool: {{name}}",
       "bouts_one": "{{count}} round",
       "bouts_other": "{{count}} rounds",
@@ -1330,7 +1329,6 @@
     "board": "Board",
     "camera": "Camera: {{name}}",
     "slide": "{{label}} — slide right",
-    "linger": "Nobody's at the table: the game ends in <time/>. Take a seat to stop the countdown.",
     "turn": {
       "yours": "Your turn",
       "yoursCall": "Your turn · call {{amount}} or raise",
@@ -1355,10 +1353,18 @@
       "results": "Results",
       "next": "Continue",
       "deal": "Deal",
+      "dealNeedsTwo": "You can deal once two players are seated",
       "pause": "Pause",
       "resume": "Resume",
       "full": "Expand table",
-      "exitFull": "Exit full screen"
+      "exitFull": "Exit full screen",
+      "status": {
+        "waiting": "Waiting for players · {{ready}} of {{need}}",
+        "ready": "Ready to deal",
+        "dealer": "Waiting for the dealer",
+        "dealing": "Dealing in <time/>",
+        "closing": "The table closes in <time/>"
+      }
     },
     "settings": {
       "title": "Game settings",
@@ -1398,12 +1404,7 @@
     },
     "waiting": {
       "winner": "{{name}} takes it all",
-      "again": "Start over",
-      "pausedHint": "The dealer paused the game",
-      "needPlayer": "One more player needed",
-      "needPlayerHint": "The “Take a seat” button is under the table",
-      "dealIn": "Dealing in <time/>",
-      "dealer": "Waiting for the dealer"
+      "again": "Start over"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1421,7 +1422,6 @@
     },
     "controls": {
       "waitNext": "Waiting for the next hand",
-      "sitToPlay": "Take a seat to play",
       "timeBank": "time bank {{seconds}} s",
       "timeBankSpent": "time bank used up",
       "betSize": "Bet size",
@@ -1432,8 +1432,7 @@
       "raise": "Raise",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Show cards",
-      "stand": "Leave the table",
-      "needTwo": "You can deal once two players are seated"
+      "stand": "Leave the table"
     },
     "rebuy": {
       "title": "Out of chips",
@@ -1517,13 +1516,10 @@
     "fool": "{{name}} is the fool",
     "says": {
       "lobby": "The table is waiting for the deal",
-      "draw": "Draw — nobody has cards left",
       "over": "Game finished",
       "taken": "{{name}} takes",
       "beaten": "Beaten",
       "dealing": "Dealing",
-      "corneredMe": "Nothing to beat with — taking the cards",
-      "cornered": "{{name}}: nothing to beat with — takes",
       "defend": "Your move: beat or take",
       "throw": "Your move: throw in or say “Done”",
       "lead": "Your move: lead",
@@ -1601,10 +1597,8 @@
     },
     "hint": {
       "saving": "Saving the move…",
-      "paused": "Cards stay where they are",
       "target": "Pick the highlighted target on the table",
-      "turn": "Pick a card or drag it to the table",
-      "watch": "Follow the game"
+      "turn": "Pick a card or drag it to the table"
     },
     "actions": {
       "take": "Take",
@@ -1629,8 +1623,6 @@
     "role": {
       "fool": "Fool",
       "out": "Out #{{place}}",
-      "cornered": "Nothing to beat with",
-      "nothing": "Nothing to throw in",
       "takes": "Takes",
       "defends": "Defending",
       "passed": "Done",
@@ -1693,10 +1685,8 @@
     },
     "result": {
       "title": "Game result",
-      "draw": "Draw",
       "bouts_one": "{{count}} round",
       "bouts_other": "{{count}} rounds",
-      "drawNote": "Everyone ran out of cards",
       "foolNote": "The other players are out of the game",
       "back": "Back to the table"
     },

@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} fois",
       "fools_other": "{{count}} fois",
       "game": "Partie {{number}}",
-      "draw": "égalité",
       "fool": "idiot : {{name}}",
       "bouts_one": "{{count}} attaque",
       "bouts_many": "{{count}} attaques",
@@ -1345,7 +1344,6 @@
     "board": "Tableau",
     "camera": "Caméra : {{name}}",
     "slide": "{{label}} — glissez vers la droite",
-    "linger": "Personne à la table : la partie se terminera dans <time/>. Asseyez-vous pour arrêter le compte à rebours.",
     "turn": {
       "yours": "À vous de jouer",
       "yoursCall": "À vous · suivre {{amount}} ou relancer",
@@ -1370,10 +1368,18 @@
       "results": "Résultats",
       "next": "Continuer",
       "deal": "Distribuer",
+      "dealNeedsTwo": "On peut distribuer dès que deux joueurs sont assis",
       "pause": "Pause",
       "resume": "Reprendre",
       "full": "Agrandir la table",
-      "exitFull": "Quitter le plein écran"
+      "exitFull": "Quitter le plein écran",
+      "status": {
+        "waiting": "En attente de joueurs · {{ready}} sur {{need}}",
+        "ready": "Prêt à distribuer",
+        "dealer": "En attente du donneur",
+        "dealing": "Distribution dans <time/>",
+        "closing": "La table fermera dans <time/>"
+      }
     },
     "settings": {
       "title": "Paramètres de la partie",
@@ -1414,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} rafle tout",
-      "again": "Recommencer",
-      "pausedHint": "Le donneur a mis la partie en pause",
-      "needPlayer": "Il manque un joueur",
-      "needPlayerHint": "Le bouton « S'asseoir » est sous la table",
-      "dealIn": "Distribution dans <time/>",
-      "dealer": "En attente du donneur"
+      "again": "Recommencer"
     },
     "seat": {
       "dealer": "Donneur",
@@ -1437,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "En attente de la main suivante",
-      "sitToPlay": "Asseyez-vous pour jouer",
       "timeBank": "banque de temps {{seconds}} s",
       "timeBankSpent": "banque de temps épuisée",
       "betSize": "Montant de la mise",
@@ -1448,8 +1448,7 @@
       "raise": "Relancer",
       "allinAmount": "Tapis {{amount}}",
       "reveal": "Montrer les cartes",
-      "stand": "Quitter la table",
-      "needTwo": "On peut distribuer dès que deux joueurs sont assis"
+      "stand": "Quitter la table"
     },
     "rebuy": {
       "title": "Plus de jetons",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} est l'idiot",
     "says": {
       "lobby": "La table attend la donne",
-      "draw": "Égalité : plus personne n'a de cartes",
       "over": "Partie jouée",
       "taken": "{{name}} ramasse",
       "beaten": "Défaussé",
       "dealing": "La table distribue",
-      "corneredMe": "Rien pour se défendre : on ramasse",
-      "cornered": "{{name}} : rien pour se défendre, ramasse",
       "defend": "À vous : défendez-vous ou ramassez",
       "throw": "À vous : ajoutez ou dites « Fini »",
       "lead": "À vous : attaquez",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Enregistrement du coup…",
-      "paused": "Les cartes restent en place",
       "target": "Choisissez la cible en surbrillance sur la table",
-      "turn": "Choisissez une carte ou glissez-la sur la table",
-      "watch": "Suivez la partie"
+      "turn": "Choisissez une carte ou glissez-la sur la table"
     },
     "actions": {
       "take": "Ramasser",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Idiot",
       "out": "Sorti {{place}}ᵉ",
-      "cornered": "Rien pour se défendre",
-      "nothing": "Rien à ajouter",
       "takes": "Ramasse",
       "defends": "Se défend",
       "passed": "Fini",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Résultat de la partie",
-      "draw": "Égalité",
       "bouts_one": "{{count}} attaque",
       "bouts_many": "{{count}} attaques",
       "bouts_other": "{{count}} attaques",
-      "drawNote": "Tout le monde s'est retrouvé sans cartes",
       "foolNote": "Les autres joueurs sont sortis de la partie",
       "back": "Retour à la table"
     },

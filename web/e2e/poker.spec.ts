@@ -76,9 +76,17 @@ test('two browsers play a hand of poker with private cards and a verifiable deal
     // Лента — отдельная панель у края стола, и её можно выключить в меню «Вид».
     await expect(host.locator('.poker-log li').first()).toContainText('забирает');
 
-    // Раздача проверяема: браузер пересобирает колоду из зерна и сверяет её с отпечатком.
-    await host.getByRole('button', { name: /Проверить раздачу/ }).click();
-    await expect(host.locator('.poker-fair small[data-state="ok"]')).toContainText('Совпало');
+    // Раздача проверяема: браузер пересобирает колоду из зерна и сверяет её с отпечатком. Кнопка —
+    // строкой «Настроек игры», а не под столом (R45).
+    await host
+      .locator('.poker-bar')
+      .getByRole('button', { name: /Настройки игры/ })
+      .click();
+    await host
+      .locator('.poker-sheet')
+      .getByRole('button', { name: /Проверить раздачу/ })
+      .click();
+    await expect(host.locator('.poker-sheet .poker-fair small[data-state="ok"]')).toContainText('Совпало');
     await host.screenshot({ path: '../.local/poker-showdown.png' });
   } finally {
     await a.close();

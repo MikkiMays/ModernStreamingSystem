@@ -403,21 +403,14 @@
   color: var(--gold-soft);
 }
 /*
-  Срок пустого стола.
-
-  Стол, за которым десять минут никого, заканчивает игру сам — и предупреждает об этом заранее:
-  исчезнувший молча стол читается как потерянная игра, а не как уборка. Оранжевый, а не красный:
-  это не ошибка, а обратный отсчёт, который останавливается тем, что кто-то сядет.
+  Срок пустого стола — в шапке, а не плашкой на сукне (R27, R46): тот же оранжевый обратный
+  отсчёт, который останавливается тем, что кто-то сядет. Ждём игроков — спокойным цветом шапки.
 */
-.poker-linger {
-  max-width: 34ch;
-  padding: 5px 12px;
-  border-radius: var(--radius-3);
-  font-size: var(--text-xs);
-  line-height: 1.35;
+.poker-bar .poker-status strong {
+  text-wrap: balance;
+}
+.poker-bar .poker-status[data-table-status='closing'] strong {
   color: var(--warning);
-  background: var(--stage-veil-3);
-  border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent);
 }
 
 /* --- Фишки ----------------------------------------------------------------------------- */
@@ -541,29 +534,21 @@
   display: block;
   background: var(--surface-1);
 }
-.poker-seat[data-speaking] .poker-face {
-  box-shadow:
-    0 0 0 2px var(--speaking),
-    0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
-    var(--shadow-lift);
-}
-/* Громкость ступенями (T23, решение E04-4): кольцо лица берёт оттенок ступени, как плитки сцены. */
-.poker-seat[data-voice='1'] {
-  --speaking: var(--voice-1);
-}
-.poker-seat[data-voice='2'] {
-  --speaking: var(--voice-2);
-}
-.poker-seat[data-voice='3'] {
-  --speaking: var(--voice-3);
-}
-.poker-seat[data-voice='4'] {
-  --speaking: var(--voice-4);
-}
 .poker-seat[data-active] .poker-face {
   box-shadow:
     0 0 0 2px var(--gold),
     0 0 26px color-mix(in oklab, var(--gold) 55%, transparent),
+    var(--shadow-lift);
+}
+/*
+  Говорит — зелёное кольцо у лица. Оно ниже свечения хода и потому сильнее его: ход и так видно
+  по жёлтому кольцу снаружи (`ui/seat-rings.css`), а голос иначе пропадал бы ровно тогда, когда
+  человек думает вслух. Оттенок ступени громкости (T23, решение E04-4) — там же.
+*/
+.poker-seat[data-speaking] .poker-face {
+  box-shadow:
+    0 0 0 2px var(--speaking),
+    0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
     var(--shadow-lift);
 }
 .poker-seat[data-winner] .poker-face {
@@ -674,46 +659,6 @@
   background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
   border: 1px solid var(--stage-glint-2);
   font-size: var(--text-xs);
-}
-/* Кольцо хода: круг, который «сматывается» ровно за отведённое время. */
-.poker-ring {
-  position: absolute;
-  inset: -5px;
-  width: calc(100% + 10px);
-  height: calc(100% + 10px);
-  transform: rotate(-90deg);
-  pointer-events: none;
-}
-.poker-ring circle {
-  fill: none;
-  stroke-width: 5;
-  stroke-linecap: round;
-}
-.poker-ring-track {
-  stroke: var(--stage-glint-2);
-}
-.poker-ring-run {
-  stroke: var(--gold);
-  stroke-dasharray: 289;
-  animation-name: poker-countdown;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
-@keyframes poker-countdown {
-  from {
-    stroke-dashoffset: 0;
-    stroke: var(--gold);
-  }
-  70% {
-    stroke: var(--gold);
-  }
-  90% {
-    stroke: var(--warning);
-  }
-  to {
-    stroke-dashoffset: 289;
-    stroke: var(--danger);
-  }
 }
 .poker-hand {
   display: flex;
@@ -1442,30 +1387,7 @@
   flex-wrap: wrap;
   justify-content: center;
 }
-.poker-idle-hint {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-.poker-fair {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.poker-fair .text-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.poker-fair small {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
+/* Проверка раздачи — строка «Настроек игры» (R45); итог сверки — её подписью, своим цветом. */
 .poker-fair small[data-state='ok'] {
   color: var(--success);
 }
@@ -2192,6 +2114,17 @@
     padding: 5px 8px;
     font-size: var(--text-xs);
   }
+  /* Состояние стола между раздачами — своей строкой под полосой (R46): в одну строку с режимом и
+     кнопками ведущего оно на телефоне не помещается и выдавливало полосу за край экрана. */
+  .poker-bar:has(.poker-status) {
+    flex-wrap: wrap;
+  }
+  .poker-bar .poker-status {
+    order: 1;
+    flex: 1 0 100%;
+    min-height: 26px;
+    padding: 2px 8px;
+  }
   .poker-mode b {
     font-size: var(--text-sm);
   }
@@ -2233,9 +2166,6 @@
   }
   .poker-idle {
     gap: 6px;
-  }
-  .poker-fair {
-    width: 100%;
   }
   /* Лист поверх сукна на телефоне — снизу вверх на всю ширину: справа для него нет места. */
   .poker-sheet {

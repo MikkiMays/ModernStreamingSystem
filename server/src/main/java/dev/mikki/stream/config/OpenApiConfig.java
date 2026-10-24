@@ -110,14 +110,6 @@ public class OpenApiConfig {
       schemas.get("DurakYou").getRequired().remove("plays");
       // Группы избранного (T40): группа и своё имя есть не у каждой комнаты.
       schemas.get("Favorite").getRequired().removeAll(List.of("groupId", "alias"));
-      // Решение стола за игрока (T07) — новое поле; прежнее ядро его не присылает.
-      schemas.get("DurakSeat").getRequired().remove("auto");
-      schemas
-          .get("DurakSeat")
-          .getProperties()
-          .put(
-              "auto",
-              new io.swagger.v3.oas.models.media.StringSchema()._enum(List.of("pass", "take")));
       schemas
           .get("DurakPlay")
           .getProperties()
@@ -167,7 +159,7 @@ public class OpenApiConfig {
               Map.entry(
                   "DurakView",
                   List.of("trump", "trumpSuit", "boutEnd", "you", "result", "commitment", "seed")),
-              Map.entry("DurakSeat", List.of("memberId", "auto")),
+              Map.entry("DurakSeat", List.of("memberId")),
               Map.entry("DurakPlay", List.of("under")),
               Map.entry("GameVisualEvent", List.of("fromSeat", "toSeat")),
               // Карта лежит неотбитой ровно до тех пор, пока её не побили.

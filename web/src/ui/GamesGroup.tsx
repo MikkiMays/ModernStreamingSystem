@@ -683,11 +683,10 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
                 </span>
                 <b>{t(($) => $.games.durakHistory.game, { number: game.number })}</b>
                 <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                {/* Ничьей нет (R111); без дурака — только запись прежнего ядра, и о нём просто молчим. */}
                 <small>
-                  {game.draw
-                    ? t(($) => $.games.durakHistory.draw)
-                    : t(($) => $.games.durakHistory.fool, { name: game.foolName })}{' '}
-                  · {t(($) => $.games.durakHistory.bouts, { count: game.bouts })} ·{' '}
+                  {game.foolName ? `${t(($) => $.games.durakHistory.fool, { name: game.foolName })} · ` : ''}
+                  {t(($) => $.games.durakHistory.bouts, { count: game.bouts })} ·{' '}
                   {game.modeName.toLowerCase()}
                 </small>
               </button>

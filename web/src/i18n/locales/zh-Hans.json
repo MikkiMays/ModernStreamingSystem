@@ -1083,7 +1083,6 @@
       "games_other": "{{count}} 局",
       "fools_other": "{{count}} 次",
       "game": "第 {{number}} 局",
-      "draw": "平局",
       "fool": "傻瓜：{{name}}",
       "bouts_other": "{{count}} 轮进攻",
       "columns": {
@@ -1315,7 +1314,6 @@
     "board": "公共牌",
     "camera": "摄像头：{{name}}",
     "slide": "{{label}} — 向右滑动",
-    "linger": "牌桌上没有人：游戏将在 <time/> 后结束。入座即可停止倒计时。",
     "turn": {
       "yours": "轮到你",
       "yoursCall": "轮到你 · 跟注 {{amount}} 或加注",
@@ -1340,10 +1338,18 @@
       "results": "结果",
       "next": "继续",
       "deal": "发牌",
+      "dealNeedsTwo": "牌桌上有两人时才能发牌",
       "pause": "暂停",
       "resume": "继续",
       "full": "展开牌桌",
-      "exitFull": "退出全屏"
+      "exitFull": "退出全屏",
+      "status": {
+        "waiting": "等待玩家 · {{ready}}/{{need}}",
+        "ready": "可以发牌了",
+        "dealer": "等待发牌人",
+        "dealing": "<time/> 后发牌",
+        "closing": "牌桌将在 <time/> 后关闭"
+      }
     },
     "settings": {
       "title": "游戏设置",
@@ -1382,12 +1388,7 @@
     },
     "waiting": {
       "winner": "{{name}} 赢走全部",
-      "again": "重新开始",
-      "pausedHint": "发牌人暂停了游戏",
-      "needPlayer": "还需要一名玩家",
-      "needPlayerHint": "“入座”按钮在牌桌下方",
-      "dealIn": "<time/> 后发牌",
-      "dealer": "等待发牌人"
+      "again": "重新开始"
     },
     "seat": {
       "dealer": "庄家",
@@ -1405,7 +1406,6 @@
     },
     "controls": {
       "waitNext": "等待下一手牌",
-      "sitToPlay": "入座后即可游戏",
       "timeBank": "时间银行 {{seconds}} 秒",
       "timeBankSpent": "时间银行已用完",
       "betSize": "下注金额",
@@ -1416,8 +1416,7 @@
       "raise": "加注",
       "allinAmount": "全下 {{amount}}",
       "reveal": "亮牌",
-      "stand": "离开牌桌",
-      "needTwo": "牌桌上有两人时才能发牌"
+      "stand": "离开牌桌"
     },
     "rebuy": {
       "title": "筹码输光了",
@@ -1499,13 +1498,10 @@
     "fool": "{{name}} 是傻瓜",
     "says": {
       "lobby": "牌桌等待发牌",
-      "draw": "平局——所有人都没牌了",
       "over": "本局结束",
       "taken": "{{name}} 收牌",
       "beaten": "已打掉",
       "dealing": "正在发牌",
-      "corneredMe": "无牌可挡——收下这些牌",
-      "cornered": "{{name}}：无牌可挡，收牌",
       "defend": "轮到你：防守或收牌",
       "throw": "轮到你：追加或点“完成”",
       "lead": "轮到你：出牌进攻",
@@ -1581,10 +1577,8 @@
     },
     "hint": {
       "saving": "正在保存出牌…",
-      "paused": "牌会留在原位",
       "target": "选择桌上高亮的目标",
-      "turn": "选择一张牌或拖到桌上",
-      "watch": "关注牌局进展"
+      "turn": "选择一张牌或拖到桌上"
     },
     "actions": {
       "take": "收牌",
@@ -1607,8 +1601,6 @@
     "role": {
       "fool": "傻瓜",
       "out": "第 {{place}} 个出完",
-      "cornered": "无牌可挡",
-      "nothing": "无牌可追加",
       "takes": "收牌",
       "defends": "防守中",
       "passed": "完成",
@@ -1671,9 +1663,7 @@
     },
     "result": {
       "title": "本局结果",
-      "draw": "平局",
       "bouts_other": "{{count}} 轮进攻",
-      "drawNote": "所有人都出完了牌",
       "foolNote": "其他玩家都已出完",
       "back": "回到牌桌"
     },

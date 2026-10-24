@@ -1093,7 +1093,6 @@
       "fools_one": "{{count}}-mal",
       "fools_other": "{{count}}-mal",
       "game": "Partie {{number}}",
-      "draw": "Unentschieden",
       "fool": "Durak: {{name}}",
       "bouts_one": "{{count}} Angriff",
       "bouts_other": "{{count}} Angriffe",
@@ -1330,7 +1329,6 @@
     "board": "Tischkarten",
     "camera": "Kamera: {{name}}",
     "slide": "{{label}} – nach rechts ziehen",
-    "linger": "Niemand am Tisch: Das Spiel endet in <time/>. Setz dich hin, dann stoppt der Countdown.",
     "turn": {
       "yours": "Du bist dran",
       "yoursCall": "Du bist dran · {{amount}} callen oder erhöhen",
@@ -1355,10 +1353,18 @@
       "results": "Ergebnisse",
       "next": "Weiter",
       "deal": "Austeilen",
+      "dealNeedsTwo": "Austeilen geht ab zwei Spielern am Tisch",
       "pause": "Pause",
       "resume": "Fortsetzen",
       "full": "Tisch vergrößern",
-      "exitFull": "Vollbild beenden"
+      "exitFull": "Vollbild beenden",
+      "status": {
+        "waiting": "Warten auf Spieler · {{ready}} von {{need}}",
+        "ready": "Austeilen möglich",
+        "dealer": "Warten auf den Geber",
+        "dealing": "Austeilen in <time/>",
+        "closing": "Der Tisch schließt in <time/>"
+      }
     },
     "settings": {
       "title": "Spieleinstellungen",
@@ -1398,12 +1404,7 @@
     },
     "waiting": {
       "winner": "{{name}} gewinnt alles",
-      "again": "Neu starten",
-      "pausedHint": "Der Geber hat das Spiel pausiert",
-      "needPlayer": "Noch ein Spieler fehlt",
-      "needPlayerHint": "„Hinsetzen“ findest du unter dem Tisch",
-      "dealIn": "Austeilen in <time/>",
-      "dealer": "Warten auf den Geber"
+      "again": "Neu starten"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1421,7 +1422,6 @@
     },
     "controls": {
       "waitNext": "Warten auf die nächste Hand",
-      "sitToPlay": "Setz dich hin, um zu spielen",
       "timeBank": "Zeitbank {{seconds}} s",
       "timeBankSpent": "Zeitbank aufgebraucht",
       "betSize": "Einsatzhöhe",
@@ -1432,8 +1432,7 @@
       "raise": "Erhöhen",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Karten zeigen",
-      "stand": "Vom Tisch aufstehen",
-      "needTwo": "Austeilen geht ab zwei Spielern am Tisch"
+      "stand": "Vom Tisch aufstehen"
     },
     "rebuy": {
       "title": "Keine Chips mehr",
@@ -1517,13 +1516,10 @@
     "fool": "{{name}} ist der Durak",
     "says": {
       "lobby": "Der Tisch wartet aufs Austeilen",
-      "draw": "Unentschieden – niemand hat mehr Karten",
       "over": "Partie gespielt",
       "taken": "{{name}} nimmt auf",
       "beaten": "Abgewehrt",
       "dealing": "Der Tisch teilt aus",
-      "corneredMe": "Nichts zum Abwehren – Karten aufnehmen",
-      "cornered": "{{name}}: nichts zum Abwehren – nimmt auf",
       "defend": "Du bist dran: abwehren oder aufnehmen",
       "throw": "Du bist dran: nachlegen oder „Fertig“ sagen",
       "lead": "Du bist dran: spiel aus",
@@ -1601,10 +1597,8 @@
     },
     "hint": {
       "saving": "Zug wird gespeichert…",
-      "paused": "Die Karten bleiben, wo sie sind",
       "target": "Wähle das markierte Ziel auf dem Tisch",
-      "turn": "Wähle eine Karte oder zieh sie auf den Tisch",
-      "watch": "Verfolge das Spiel"
+      "turn": "Wähle eine Karte oder zieh sie auf den Tisch"
     },
     "actions": {
       "take": "Aufnehmen",
@@ -1629,8 +1623,6 @@
     "role": {
       "fool": "Durak",
       "out": "Als {{place}}. raus",
-      "cornered": "Nichts zum Abwehren",
-      "nothing": "Nichts zum Nachlegen",
       "takes": "Nimmt auf",
       "defends": "Wehrt ab",
       "passed": "Fertig",
@@ -1693,10 +1685,8 @@
     },
     "result": {
       "title": "Ergebnis der Partie",
-      "draw": "Unentschieden",
       "bouts_one": "{{count}} Angriff",
       "bouts_other": "{{count}} Angriffe",
-      "drawNote": "Alle sind ihre Karten losgeworden",
       "foolNote": "Die anderen Spieler sind raus",
       "back": "Zurück zum Tisch"
     },

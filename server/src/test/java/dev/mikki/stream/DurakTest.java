@@ -469,6 +469,8 @@ class DurakTest {
     deal(table, "9h", "Ac", "6s Td Jd Qd Kd Ad", "7s 8c 9c Tc Jc Qc");
     act(table, 0, "attack", "6s", null);
     act(table, 1, "beat", "7s", "6s");
+    // Подкинуть ему нечего, но «бито» он говорит сам (R108).
+    act(table, 0, "pass", null, null);
     table.tick(table.deadline);
     // В колоде были туз треф и козырная девятка: туз ушёл заходившему, козырь — отбившемуся.
     assertThat(table.seats.get(0).hand).contains(card("Ac")).doesNotContain(card("9h"));
@@ -484,23 +486,169 @@ class DurakTest {
     act(table, 1, "beat", "As", "6s");
     table.tick(table.deadline);
     assertThat(table.phase).isEqualTo("over");
-    assertThat(table.result.draw).isFalse();
     assertThat(table.result.foolSeat).isEqualTo(1);
     assertThat(table.seats.get(1).fool).isTrue();
     // Зерно раскрывается вместе с концом партии — по нему и проверяют раздачу.
     assertThat(table.revealedSeed).isEqualTo(table.seed);
   }
 
+  // --- Концовки: ничьей нет (R111) -----------------------------------------------------------
+
+  /**
+   * Последняя карта атаки и последняя карта защиты — не ничья.
+   *
+   * <p>Слова владельца (24.10.2026): «если предпоследний игрок кидает последние свои карты с руки,
+   * а другой отбивает, то происходит ничья, однако в правильном варианте будет, что второй игрок
+   * проиграл». Заходящий избавился от карт раньше — атака кладётся до защиты, — значит, он вышел, а
+   * отбившийся последним остался последним.
+   */
   @Test
-  void emptyingEveryHandAtOnceIsADraw() {
+  void theLastAttackBeatenByTheLastCardMakesTheDefenderTheFool() {
     var table = table(2);
     endgame(table, "9h", "6s", "As");
     act(table, 0, "attack", "6s", null);
     act(table, 1, "beat", "As", "6s");
     table.tick(table.deadline);
     assertThat(table.phase).isEqualTo("over");
-    assertThat(table.result.draw).isTrue();
-    assertThat(table.result.foolSeat).isEqualTo(-1);
+    assertThat(table.result.foolSeat).isEqualTo(1);
+    assertThat(table.result.foolName).isEqualTo("Игрок 1");
+    assertThat(table.seats.get(1).fool).isTrue();
+    assertThat(table.seats.get(1).out).isFalse();
+    assertThat(table.seats.get(0).place).isEqualTo(1);
+    assertThat(table.result.places).containsExactly("Игрок 0");
+    assertThat(table.log).noneMatch(note -> note.kind.equals("draw"));
+    assertThat(table.tally.get("p1").fools).isEqualTo(1);
+    assertThat(table.tally.get("p0").firsts).isEqualTo(1);
+  }
+
+  /** Несколько последних карт подряд — то же самое: защитник отбился последним и проиграл. */
+  @Test
+  void severalLastCardsBeatenByTheLastCardsStillMakeTheDefenderTheFool() {
+    var table = table(2);
+    endgame(table, "9h", "6s 6c", "As 7c");
+    act(table, 0, "attack", "6s", null);
+    act(table, 0, "attack", "6c", null);
+    act(table, 1, "beat", "As", "6s");
+    act(table, 1, "beat", "7c", "6c");
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(table.result.foolSeat).isEqualTo(1);
+    assertThat(table.seats.get(0).place).isEqualTo(1);
+  }
+
+  /** Взял последние карты — дурак, тут спора и не было. */
+  @Test
+  void aDefenderWhoTakesTheLastCardsIsTheFool() {
+    var table = table(2);
+    endgame(table, "9h", "As", "6s 7s");
+    act(table, 0, "attack", "As", null);
+    act(table, 1, "take", null, null);
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(table.result.foolSeat).isEqualTo(1);
+    assertThat(table.seats.get(0).place).isEqualTo(1);
+  }
+
+  /** Отбился последней картой, а у заходившего карты остались — вышел защитник. */
+  @Test
+  void aDefenderWhoEmptiesFirstLeavesTheAttackerAsTheFool() {
+    var table = table(2);
+    endgame(table, "9h", "6s 8c", "As");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "As", "6s");
+    // Подкинуть пустой руке нельзя — бой закрылся сам, и это видно всем: у защитника ноль карт.
+    assertThat(table.boutEnd).isEqualTo("beaten");
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(table.seats.get(1).place).isEqualTo(1);
+    assertThat(table.result.foolSeat).isEqualTo(0);
+  }
+
+  /**
+   * Трое, и последний бой опустошил руки двоим: места — по тому, кто раньше избавился от карт, а не
+   * по номеру стула. Третий с картами — дурак.
+   */
+  @Test
+  void placesFollowTheOrderInWhichHandsEmptiedNotTheSeatNumbers() {
+    var table = table(3);
+    endgame(table, "9h", "6s", "As", "7h 8h");
+    // Заходит третий стул, отбивается первый, подкидывает второй. Обход по стульям отдал бы
+    // первое место защитнику, а от карт раньше избавился подкинувший.
+    table.attacker = 2;
+    table.defender = 0;
+    table.seats.get(0).hand = cards("Ks", "Ah");
+    table.seats.get(1).hand = cards("6c");
+    table.seats.get(2).hand = cards("6s", "8d");
+    table.limit = 2;
+    act(table, 2, "attack", "6s", null);
+    act(table, 0, "beat", "Ks", "6s");
+    act(table, 1, "attack", "6c", null);
+    act(table, 0, "beat", "Ah", "6c");
+    // Бой полон: предел в две карты исчерпан, и закрылся он сам — это видно по столу.
+    assertThat(table.boutEnd).isEqualTo("beaten");
+    table.tick(table.deadline);
+    assertThat(table.seats.get(1).place).isEqualTo(1);
+    assertThat(table.seats.get(0).place).isEqualTo(2);
+    assertThat(table.result.foolSeat).isEqualTo(2);
+    assertThat(table.result.places).containsExactly("Игрок 1", "Игрок 0");
+  }
+
+  /** Трое, и последний бой опустошил руки всем: дурак — тот, кто избавился от карт последним. */
+  @Test
+  void whenEveryHandEmptiesAtOnceTheLastToEmptyIsTheFool() {
+    var table = table(3);
+    endgame(table, "9h", "6s", "As 7c", "6c");
+    act(table, 0, "attack", "6s", null);
+    act(table, 2, "attack", "6c", null);
+    act(table, 1, "beat", "As", "6s");
+    act(table, 1, "beat", "7c", "6c");
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(table.seats.get(0).place).isEqualTo(1);
+    assertThat(table.seats.get(2).place).isEqualTo(2);
+    assertThat(table.result.foolSeat).isEqualTo(1);
+    assertThat(table.result.places).containsExactly("Игрок 0", "Игрок 2");
+  }
+
+  /**
+   * Переводной: перевод не даёт выйти последней картой (предел боя — рука защитника), поэтому
+   * переведший остаётся с картой, а оба соседа, избавившиеся от своих, выходят по порядку.
+   */
+  @Test
+  void afterATransferTheEmptiedHandsLeaveInTheOrderTheyEmptied() {
+    var table = table(3, "perevodnoy", 36);
+    endgame(table, "9h", "6s", "6h As", "7s 7h");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "transfer", "6h", null);
+    assertThat(table.defender).isEqualTo(2);
+    act(table, 2, "beat", "7s", "6s");
+    act(table, 2, "beat", "7h", "6h");
+    table.tick(table.deadline);
+    assertThat(table.phase).isEqualTo("over");
+    assertThat(table.seats.get(0).place).isEqualTo(1);
+    assertThat(table.seats.get(2).place).isEqualTo(2);
+    assertThat(table.result.foolSeat).isEqualTo(1);
+  }
+
+  /** Партия, сохранённая прежним ядром с ничьей, читается: поле просто пропускается. */
+  @Test
+  void aTableSavedWithAnOldDrawStillLoads() {
+    var table = table(2);
+    endgame(table, "9h", "6s", "As Ks");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "As", "6s");
+    table.tick(table.deadline);
+    var tree =
+        (com.fasterxml.jackson.databind.node.ObjectNode)
+            dev.mikki.stream.shared.Json.tree(dev.mikki.stream.shared.Json.write(table));
+    ((com.fasterxml.jackson.databind.node.ObjectNode) tree.get("result")).put("draw", true);
+    var restored = dev.mikki.stream.shared.Json.read(tree.toString(), Durak.class);
+    assertThat(restored.result.foolSeat).isEqualTo(1);
+    var summary =
+        dev.mikki.stream.shared.Json.read(
+            "{\"id\":\"g:1\",\"draw\":true,\"foolName\":\"\",\"places\":[],\"players\":[]}",
+            dev.mikki.stream.game.DurakSummary.class);
+    assertThat(summary.foolName()).isEmpty();
   }
 
   @Test
@@ -519,6 +667,36 @@ class DurakTest {
   }
 
   // --- Сроки -------------------------------------------------------------------------------
+
+  /**
+   * Время хода (R110): по умолчанию — как в дружеском покере, выбирается ведущим в тех же границах,
+   * что и раньше, и любое значение вне них прижимается к краю.
+   */
+  @Test
+  void theTurnTimeDefaultsLikeFriendlyPokerAndStaysWithinBounds() {
+    var table = table(2);
+    assertThat(table.turnSeconds).isEqualTo(Durak.DEFAULT_TURN).isEqualTo(45);
+    table.configure("turn", 5L, T0);
+    assertThat(table.turnSeconds).isEqualTo(Durak.MIN_TURN);
+    table.configure("turn", 500L, T0);
+    assertThat(table.turnSeconds).isEqualTo(Durak.MAX_TURN);
+    table.configure("turn", null, T0);
+    assertThat(table.turnSeconds).isEqualTo(Durak.DEFAULT_TURN);
+  }
+
+  /** Новое время хода начинает отсчёт заново: у всех за столом одна и та же метка дедлайна. */
+  @Test
+  void changingTheTurnTimeRestartsTheClockForEveryone() {
+    var table = table(2);
+    deal(table, "9h", "6d 7d 8d Td Jd Qd", "6s 7s 8s 9s Ts Js", "As Ks Qs Ac Kc Qc");
+    act(table, 0, "attack", "6s", null);
+    table.configure("turn", 15L, T0 + 5000);
+    assertThat(table.actionAt).isEqualTo(T0 + 5000);
+    assertThat(table.deadline).isEqualTo(T0 + 5000 + 15_000);
+    var view = table.view("stranger", T0 + 5000);
+    assertThat(view.deadline()).isEqualTo(table.deadline);
+    assertThat(view.actionAt()).isEqualTo(table.actionAt);
+  }
 
   @Test
   void theDefenderTakesWhenTheClockRunsOut() {
@@ -541,66 +719,126 @@ class DurakTest {
     assertThat(table.boutEnd).isEqualTo("beaten");
   }
 
-  // --- Решения за игрока (T07) ----------------------------------------------------------------
+  // --- Решений за игрока нет (R108) ----------------------------------------------------------
+
+  /*
+   Прежнее решение T07 отменено владельцем 24.10.2026: «убрать "нечего подкинуть" и
+   функциональность с этим, то есть человек играющий даже если нечего подкинуть должен мочь нажать
+   "бито" потому что это может дать другому информацию о картах других игроков». Стол больше не
+   пасует и не берёт за игрока по его руке: решает он сам или часы хода.
+  */
+
+  /** Расклад, где у третьего места подкинуть есть ({@code 6c}) или нечего ({@code Qd}). */
+  private static Durak throwIn(String thirdCard) {
+    var table = table(3);
+    deal(
+        table,
+        "9h",
+        "6d 7d 8d Td",
+        "6s 8c 8s 9s Ts Js",
+        "7s Ks As Ac Kc Qc",
+        thirdCard + " Jd 8h Jc Tc 9c");
+    // Зерно у двух столов одно: иначе их снимки отличались бы отпечатком, а не рукой.
+    table.seed = "same-seed";
+    table.commitment = Cards.commitment(table.seed);
+    return table;
+  }
 
   /**
-   * Нечем отбиться — стол берёт за защитника сам, но не мгновенно: полторы секунды видно, что
-   * сейчас произойдёт, и «Беру» можно нажать и раньше.
+   * Главное свойство: по столу нельзя понять, есть ли у игрока что подкинуть.
+   *
+   * <p>Два стола отличаются одной картой в руке третьего игрока — подходящего номинала у него то
+   * есть, то нет. Снимок любого другого человека, срок хода и кого ждёт стол у них совпадают на
+   * каждом шаге, в том числе после того, как остальные сказали «бито».
    */
   @Test
-  void aDefenderWhoCannotBeatTakesByHimselfAfterAShortPause() {
+  void theTableLooksTheSameWhetherOrNotSomeoneHasACardToThrow() {
+    var can = throwIn("6c");
+    var cannot = throwIn("Qd");
+    for (var table : List.of(can, cannot)) {
+      act(table, 0, "attack", "6s", null);
+      act(table, 1, "beat", "7s", "6s");
+    }
+    for (var viewer : List.of("p0", "p1", "stranger"))
+      assertThat(cannot.view(viewer, T0 + 2000)).isEqualTo(can.view(viewer, T0 + 2000));
+    assertThat(cannot.acting()).containsExactly(0, 2);
+    for (var table : List.of(can, cannot)) act(table, 0, "pass", null, null);
+    for (var viewer : List.of("p0", "p1", "stranger"))
+      assertThat(cannot.view(viewer, T0 + 2000)).isEqualTo(can.view(viewer, T0 + 2000));
+    assertThat(cannot.boutEnd).isNull();
+    assertThat(cannot.acting()).containsExactly(2);
+    for (var table : List.of(can, cannot)) table.tick(table.deadline);
+    assertThat(cannot.view("stranger", T0 + 2000)).isEqualTo(can.view("stranger", T0 + 2000));
+    assertThat(cannot.boutEnd).isEqualTo("beaten");
+  }
+
+  /** Подкинуть нечего — «Бито» всё равно у него, и бой ждёт именно его слова. */
+  @Test
+  void anAttackerWithNothingToThrowStillSaysBitoHimself() {
+    var table = throwIn("Qd");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "beat", "7s", "6s");
+    assertThat(table.view("p2", T0).you().actions()).containsExactly("pass");
+    assertThat(table.view("p2", T0).you().turn()).isTrue();
+    assertThat(table.view("p0", T0).you().actions()).containsExactly("pass");
+    act(table, 0, "pass", null, null);
+    assertThat(table.boutEnd).isNull();
+    act(table, 2, "pass", null, null);
+    assertThat(table.boutEnd).isEqualTo("beaten");
+  }
+
+  /** Взял — подкинуть вдогонку ждут всех, у кого есть карты, а не только тех, у кого подходит. */
+  @Test
+  void afterATakeEveryAttackerWithCardsIsAskedNotOnlyThoseWhoCanThrow() {
+    var table = throwIn("Qd");
+    act(table, 0, "attack", "6s", null);
+    act(table, 1, "take", null, null);
+    assertThat(table.acting()).containsExactly(0, 2);
+    assertThat(table.view("p2", T0).you().actions()).containsExactly("pass");
+  }
+
+  /**
+   * Нечем отбиться — стол не торопит и не берёт за защитника: полный срок хода, как у любого.
+   *
+   * <p>Полторы секунды вместо минуты раньше говорили всем за столом, что козыря у него нет.
+   */
+  @Test
+  void aDefenderWhoCannotBeatGetsTheFullTurnAndDecidesHimself() {
     var table = table(2);
     deal(table, "9h", "6d 7d 8d Td Jd Qd", "As 7s 8s 9s Ts Js", "6c 7c 8c 9c Tc Jc");
     act(table, 0, "attack", "As", null);
-    assertThat(table.deadline - table.actionAt).isEqualTo(Durak.AUTO_TAKE_MS);
-    assertThat(table.view("p0", T0).seats().get(1).auto()).isEqualTo("take");
-    assertThat(table.view("p1", T0).seats().get(1).auto()).isEqualTo("take");
+    assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
+    assertThat(table.tick(table.actionAt + 1500)).isFalse();
+    assertThat(table.taking).isFalse();
+    assertThat(table.view("p1", T0).you().actions()).containsExactly("take");
     table.tick(table.deadline);
     assertThat(table.taking).isTrue();
-    assertThat(table.log).anyMatch(note -> note.text.contains("нечем отбиться"));
+    assertThat(table.log).noneMatch(note -> note.text.contains("нечем"));
   }
 
-  /** Отбить по одной можно каждую, а все разом — нет: козырь у защитника один на две карты. */
+  /** То же для двух атак на один козырь: срок тот же, что у защитника, которому есть чем. */
   @Test
-  void aDefenderWhoCannotCoverEveryCardTakesToo() {
-    var table = table(2);
-    deal(table, "9h", "6d 7d 8d Td Jd Qd", "As Ad 8s 9s Ts Js", "6h 7c 8c 9c Tc Jc");
-    act(table, 0, "attack", "As", null);
-    assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
-    assertThat(table.view("p0", T0).seats().get(1).auto()).isNull();
-    act(table, 0, "attack", "Ad", null);
-    assertThat(table.deadline - table.actionAt).isEqualTo(Durak.AUTO_TAKE_MS);
-    assertThat(table.view("p0", T0).seats().get(1).auto()).isEqualTo("take");
+  void aDefenderShortOfCardsIsTimedLikeAnyOther() {
+    var cornered = table(2);
+    deal(cornered, "9h", "6d 7d 8d Td Jd Qd", "As Ad 8s 9s Ts Js", "6h 7c 8c 9c Tc Jc");
+    var covered = table(2);
+    deal(covered, "9h", "6d 7d 8d Td Jd Qd", "As Ad 8s 9s Ts Js", "6h 7h 8c 9c Tc Jc");
+    for (var table : List.of(cornered, covered)) {
+      act(table, 0, "attack", "As", null);
+      act(table, 0, "attack", "Ad", null);
+    }
+    assertThat(cornered.deadline).isEqualTo(covered.deadline);
+    assertThat(cornered.acting()).isEqualTo(covered.acting());
   }
 
-  /** Перевести можно — значит ход ещё есть, и стол защитника не торопит. */
+  /** В снимке нет поля, которым стол рассказывал о чужой руке. */
   @Test
-  void aDefenderWhoCanTransferIsNotRushed() {
-    var table = table(3, "perevodnoy", 36);
-    deal(table, "9h", "6d", "As 7s 8s 9s Ts Js", "Ac 7c 8c 9c Tc Jc", "Qs 7d 8d Jd Td 9d");
-    act(table, 0, "attack", "As", null);
-    assertThat(table.deadline - table.actionAt).isEqualTo(table.turnSeconds * 1000L);
-    assertThat(table.view("p0", T0).seats().get(1).auto()).isNull();
-  }
-
-  /**
-   * Нечего подкинуть — стол пасует за игрока и говорит об этом всем: у его места метка, и ждать его
-   * никто не будет. Какие у него карты, метка не говорит — только что подходящих нет.
-   */
-  @Test
-  void anAttackerWithNothingToThrowIsPassedAndMarkedForEveryone() {
-    var table = table(3);
-    deal(table, "9h", "6d 7d 8d Td", "6s 6c 8s 9s Ts Js", "7s Ks As Ac Kc Qc", "Qd Jd 8h Jc Tc 9c");
+  void theSnapshotCarriesNoAutomaticDecisions() {
+    var table = throwIn("Qd");
     act(table, 0, "attack", "6s", null);
     act(table, 1, "beat", "7s", "6s");
-    assertThat(table.acting()).containsExactly(0);
-    for (var viewer : List.of("p0", "p1", "p2", "stranger")) {
-      var seats = table.view(viewer, T0).seats();
-      assertThat(seats.get(2).auto()).isEqualTo("pass");
-      assertThat(seats.get(0).auto()).isNull();
-    }
-    assertThat(table.view("p2", T0).you().actions()).doesNotContain("pass");
-    assertThat(table.view("p0", T0).you().actions()).contains("pass");
+    var json = dev.mikki.stream.shared.Json.write(table.view("stranger", T0));
+    assertThat(json).doesNotContain("\"auto\"");
   }
 
   // --- Снимок ------------------------------------------------------------------------------
@@ -748,8 +986,8 @@ class DurakTest {
     act(table, 1, "beat", "As", "6s");
     table.tick(table.deadline);
     var summary = dev.mikki.stream.game.DurakStandings.of(table, T0 + 5000);
-    assertThat(summary.draw()).isFalse();
     assertThat(summary.foolName()).isEqualTo("Игрок 1");
+    assertThat(summary.places()).containsExactly("Игрок 0");
     assertThat(summary.number()).isEqualTo(1);
     assertThat(summary.deckSize()).isEqualTo(36);
     assertThat(summary.players()).hasSize(2);

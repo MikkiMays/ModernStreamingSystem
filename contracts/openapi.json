@@ -987,9 +987,6 @@
             "format": "int32",
             "type": "integer"
           },
-          "draw": {
-            "type": "boolean"
-          },
           "foolName": {
             "type": "string"
           },
@@ -1007,7 +1004,6 @@
         "required": [
           "at",
           "bouts",
-          "draw",
           "foolName",
           "foolSeat",
           "places"
@@ -1044,16 +1040,6 @@
         "properties": {
           "attacker": {
             "type": "boolean"
-          },
-          "auto": {
-            "enum": [
-              "pass",
-              "take"
-            ],
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "away": {
             "type": "boolean"
@@ -1117,9 +1103,6 @@
             "format": "int32",
             "type": "integer"
           },
-          "draw": {
-            "type": "boolean"
-          },
           "finishedAt": {
             "format": "int64",
             "type": "integer"
@@ -1166,7 +1149,6 @@
         "required": [
           "bouts",
           "deckSize",
-          "draw",
           "finishedAt",
           "foolName",
           "highlights",

@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} vezes",
       "fools_other": "{{count}} vezes",
       "game": "Partida {{number}}",
-      "draw": "empate",
       "fool": "bobo: {{name}}",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
@@ -1345,7 +1344,6 @@
     "board": "Cartas da mesa",
     "camera": "Câmera: {{name}}",
     "slide": "{{label}} — deslize para a direita",
-    "linger": "Ninguém na mesa: o jogo termina em <time/>. Sente-se à mesa e a contagem para.",
     "turn": {
       "yours": "Sua vez",
       "yoursCall": "Sua vez · pagar {{amount}} ou aumentar",
@@ -1370,10 +1368,18 @@
       "results": "Resultados",
       "next": "Continuar",
       "deal": "Distribuir",
+      "dealNeedsTwo": "Dá para distribuir quando houver dois na mesa",
       "pause": "Pausar",
       "resume": "Retomar",
       "full": "Expandir a mesa",
-      "exitFull": "Sair da tela cheia"
+      "exitFull": "Sair da tela cheia",
+      "status": {
+        "waiting": "Aguardando jogadores · {{ready}} de {{need}}",
+        "ready": "Pronto para distribuir",
+        "dealer": "Aguardando o dealer",
+        "dealing": "Distribuindo em <time/>",
+        "closing": "A mesa fecha em <time/>"
+      }
     },
     "settings": {
       "title": "Configurações do jogo",
@@ -1414,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} leva tudo",
-      "again": "Começar de novo",
-      "pausedHint": "O dealer pausou o jogo",
-      "needPlayer": "Falta um jogador",
-      "needPlayerHint": "O botão “Sentar à mesa” fica embaixo da mesa",
-      "dealIn": "Distribuindo em <time/>",
-      "dealer": "Aguardando o dealer"
+      "again": "Começar de novo"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1437,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "Aguardando a próxima mão",
-      "sitToPlay": "Sente-se à mesa para jogar",
       "timeBank": "banco de tempo {{seconds}} s",
       "timeBankSpent": "banco de tempo esgotado",
       "betSize": "Valor da aposta",
@@ -1448,8 +1448,7 @@
       "raise": "Aumentar",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Mostrar as cartas",
-      "stand": "Sair da mesa",
-      "needTwo": "Dá para distribuir quando houver dois na mesa"
+      "stand": "Sair da mesa"
     },
     "rebuy": {
       "title": "Acabaram as fichas",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} é o bobo",
     "says": {
       "lobby": "A mesa aguarda a distribuição",
-      "draw": "Empate — ninguém ficou com cartas",
       "over": "Partida jogada",
       "taken": "{{name}} pega",
       "beaten": "Descartadas",
       "dealing": "A mesa distribui",
-      "corneredMe": "Sem como se defender — pegamos as cartas",
-      "cornered": "{{name}}: sem como se defender — pega",
       "defend": "Sua vez: defenda ou pegue",
       "throw": "Sua vez: adicione ou diga “Pronto”",
       "lead": "Sua vez: ataque",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Salvando a jogada…",
-      "paused": "As cartas ficam onde estão",
       "target": "Escolha o alvo destacado na mesa",
-      "turn": "Escolha uma carta ou arraste-a para a mesa",
-      "watch": "Acompanhe o jogo"
+      "turn": "Escolha uma carta ou arraste-a para a mesa"
     },
     "actions": {
       "take": "Pegar",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Bobo",
       "out": "Saiu em {{place}}º",
-      "cornered": "Sem defesa",
-      "nothing": "Nada para adicionar",
       "takes": "Pega",
       "defends": "Defende",
       "passed": "Pronto",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Resultado da partida",
-      "draw": "Empate",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
       "bouts_other": "{{count}} ataques",
-      "drawNote": "Todos ficaram sem cartas",
       "foolNote": "Os outros jogadores saíram da partida",
       "back": "Voltar à mesa"
     },

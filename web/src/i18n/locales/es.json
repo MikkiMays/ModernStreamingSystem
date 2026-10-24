@@ -1103,7 +1103,6 @@
       "fools_many": "{{count}} veces",
       "fools_other": "{{count}} veces",
       "game": "Partida {{number}}",
-      "draw": "empate",
       "fool": "tonto: {{name}}",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
@@ -1345,7 +1344,6 @@
     "board": "Cartas comunitarias",
     "camera": "Cámara: {{name}}",
     "slide": "{{label}}: desliza a la derecha",
-    "linger": "No hay nadie en la mesa: la partida terminará en <time/>. Siéntate y la cuenta atrás se detendrá.",
     "turn": {
       "yours": "Tu turno",
       "yoursCall": "Tu turno · iguala {{amount}} o sube",
@@ -1370,10 +1368,18 @@
       "results": "Resultados",
       "next": "Continuar",
       "deal": "Repartir",
+      "dealNeedsTwo": "Se puede repartir cuando hay dos en la mesa",
       "pause": "Pausar",
       "resume": "Reanudar",
       "full": "Ampliar la mesa",
-      "exitFull": "Salir de pantalla completa"
+      "exitFull": "Salir de pantalla completa",
+      "status": {
+        "waiting": "Esperando jugadores · {{ready}} de {{need}}",
+        "ready": "Ya se puede repartir",
+        "dealer": "Esperando al repartidor",
+        "dealing": "Repartimos en <time/>",
+        "closing": "La mesa se cerrará en <time/>"
+      }
     },
     "settings": {
       "title": "Ajustes de la partida",
@@ -1414,12 +1420,7 @@
     },
     "waiting": {
       "winner": "{{name}} se lo lleva todo",
-      "again": "Empezar de nuevo",
-      "pausedHint": "El repartidor pausó la partida",
-      "needPlayer": "Falta un jugador",
-      "needPlayerHint": "El botón «Sentarse a la mesa» está bajo la mesa",
-      "dealIn": "Repartimos en <time/>",
-      "dealer": "Esperando al repartidor"
+      "again": "Empezar de nuevo"
     },
     "seat": {
       "dealer": "Dealer",
@@ -1437,7 +1438,6 @@
     },
     "controls": {
       "waitNext": "Esperando la próxima mano",
-      "sitToPlay": "Siéntate a la mesa para jugar",
       "timeBank": "banco de tiempo {{seconds}} s",
       "timeBankSpent": "banco de tiempo agotado",
       "betSize": "Tamaño de la apuesta",
@@ -1448,8 +1448,7 @@
       "raise": "Subir",
       "allinAmount": "All-in {{amount}}",
       "reveal": "Mostrar cartas",
-      "stand": "Levantarse de la mesa",
-      "needTwo": "Se puede repartir cuando hay dos en la mesa"
+      "stand": "Levantarse de la mesa"
     },
     "rebuy": {
       "title": "Te quedaste sin fichas",
@@ -1535,13 +1534,10 @@
     "fool": "{{name}} es el tonto",
     "says": {
       "lobby": "La mesa espera el reparto",
-      "draw": "Empate: nadie tiene cartas",
       "over": "Partida terminada",
       "taken": "{{name}} recoge",
       "beaten": "Descartadas",
       "dealing": "La mesa reparte",
-      "corneredMe": "No hay con qué defenderse: recogemos las cartas",
-      "cornered": "{{name}}: no tiene con qué defenderse y recoge",
       "defend": "Tu turno: defiéndete o recoge",
       "throw": "Tu turno: añade o di «Listo»",
       "lead": "Tu turno: ataca",
@@ -1621,10 +1617,8 @@
     },
     "hint": {
       "saving": "Guardando la jugada…",
-      "paused": "Las cartas se quedan en su sitio",
       "target": "Elige el objetivo marcado en la mesa",
-      "turn": "Elige una carta o arrástrala a la mesa",
-      "watch": "Sigue la partida"
+      "turn": "Elige una carta o arrástrala a la mesa"
     },
     "actions": {
       "take": "Recoger",
@@ -1651,8 +1645,6 @@
     "role": {
       "fool": "Tonto",
       "out": "Salió {{place}}.º",
-      "cornered": "Sin defensa",
-      "nothing": "Nada que añadir",
       "takes": "Recoge",
       "defends": "Se defiende",
       "passed": "Listo",
@@ -1715,11 +1707,9 @@
     },
     "result": {
       "title": "Resultado de la partida",
-      "draw": "Empate",
       "bouts_one": "{{count}} ataque",
       "bouts_many": "{{count}} ataques",
       "bouts_other": "{{count}} ataques",
-      "drawNote": "Todos se quedaron sin cartas",
       "foolNote": "Los demás jugadores salieron de la partida",
       "back": "Volver a la mesa"
     },

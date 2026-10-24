@@ -169,8 +169,8 @@ test('two browsers play a hand of durak by dragging cards onto the table', async
     }
 
     await expect(host.locator('.durak[data-phase="over"]')).toBeVisible({ timeout: 30000 });
-    await expect(host.locator('.durak-over h3')).toContainText(/дурак|Ничья/);
-    await expect(guest.locator('.durak-over h3')).toContainText(/дурак|Ничья/);
+    await expect(host.locator('.durak-over h3')).toContainText(/дурак/);
+    await expect(guest.locator('.durak-over h3')).toContainText(/дурак/);
 
     // Счёт вечера появился на столе, как только партия кончилась.
     await host.getByRole('button', { name: 'К столу' }).click();

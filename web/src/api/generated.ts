@@ -978,7 +978,6 @@ export interface components {
             at: number;
             /** Format: int32 */
             bouts: number;
-            draw: boolean;
             foolName: string;
             /** Format: int32 */
             foolSeat: number;
@@ -995,8 +994,6 @@ export interface components {
         };
         DurakSeat: {
             attacker: boolean;
-            /** @enum {string|null} */
-            auto?: "pass" | "take" | null;
             away: boolean;
             defender: boolean;
             fool: boolean;
@@ -1016,7 +1013,6 @@ export interface components {
             bouts: number;
             /** Format: int32 */
             deckSize: number;
-            draw: boolean;
             /** Format: int64 */
             finishedAt: number;
             foolName: string;
