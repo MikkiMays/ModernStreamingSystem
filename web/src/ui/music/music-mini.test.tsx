@@ -86,7 +86,7 @@ const person = (id: string, extra: Record<string, unknown> = {}) => ({
 });
 const poker = { seats: [{ memberId: 'me' }, { memberId: 'ann' }] };
 
-function meeting(extra: Partial<Snapshot> & Record<string, unknown> = {}) {
+function meeting(extra: Record<string, unknown> = {}) {
   const preferences = new Store<Preferences>(readPreferences());
   return {
     admission: { roomId: 'room', participantId: 'me', credential: 'token' },

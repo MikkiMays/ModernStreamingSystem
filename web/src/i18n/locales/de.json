@@ -1146,7 +1146,19 @@
       "name": "Yandex Music",
       "label": "Yandex-Music-Token",
       "placeholder": "Token einfügen",
-      "hint": "Der Token wird auf diesem Gerät gespeichert und verwendet, wenn du Yandex Music zu einem Meeting hinzufügst."
+      "tabs": {
+        "label": "So verbindest du",
+        "device": "Per QR-Code",
+        "token": "Per Token"
+      },
+      "howto": {
+        "title": "Wo bekomme ich den Token",
+        "signIn": "Melde dich in diesem Browser bei Yandex an.",
+        "allow": "Öffne die Berechtigungsseite von Yandex Music und klicke auf „Erlauben“.",
+        "open": "Yandex-Seite öffnen",
+        "copy": "Kopiere aus der Adressleiste den Text zwischen „access_token=“ und „&“ und füge ihn oben ins Feld ein.",
+        "kept": "Der Token wird nur auf diesem Gerät gespeichert und automatisch eingesetzt, wenn du in einem Meeting Musik einschaltest."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2534,7 +2546,18 @@
       "cancel": "Anmeldung abbrechen",
       "haveToken": "Ich habe schon einen Zugriffstoken",
       "tokenLabel": "Yandex-Music-Token",
-      "connectToken": "Token verbinden"
+      "connectToken": "Token verbinden",
+      "device": {
+        "scan": "Richte die Handykamera auf den QR-Code",
+        "code": "Gib auf der Yandex-Seite den Code ein",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "open": "Anmeldeseite öffnen",
+        "waiting": "Warten auf Bestätigung…",
+        "starting": "Code wird bei Yandex angefordert…",
+        "confirm": "Bestätige die Anmeldung – die Verbindung erscheint hier von selbst",
+        "refresh": "Neuen Code holen"
+      }
     },
     "mini": {
       "label": "Mini-Player",

@@ -1146,7 +1146,19 @@
       "name": "Yandex Music",
       "label": "Yandex Music token",
       "placeholder": "Paste the token",
-      "hint": "The token is stored on this device and used when you add Yandex Music to a meeting."
+      "tabs": {
+        "label": "How to connect",
+        "device": "With a QR code",
+        "token": "With a token"
+      },
+      "howto": {
+        "title": "Where to get a token",
+        "signIn": "Sign in to Yandex in this browser.",
+        "allow": "Open the Yandex Music permission page and click “Allow”.",
+        "open": "Open the Yandex page",
+        "copy": "From the address bar, copy the text between “access_token=” and “&” and paste it into the field above.",
+        "kept": "The token is kept only on this device and is filled in automatically when you turn on music in a meeting."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2534,7 +2546,18 @@
       "cancel": "Cancel sign-in",
       "haveToken": "I already have an access token",
       "tokenLabel": "Yandex Music token",
-      "connectToken": "Connect token"
+      "connectToken": "Connect token",
+      "device": {
+        "scan": "Point your phone camera at the QR code",
+        "code": "On the Yandex page, enter the code",
+        "copy": "Copy",
+        "copied": "Copied",
+        "open": "Open the sign-in page",
+        "waiting": "Waiting for confirmation…",
+        "starting": "Getting a code from Yandex…",
+        "confirm": "Confirm the sign-in — the connection will appear here by itself",
+        "refresh": "Get a new code"
+      }
     },
     "mini": {
       "label": "Mini player",

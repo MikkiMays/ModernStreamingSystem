@@ -1133,7 +1133,19 @@
       "name": "Yandex Music",
       "label": "Yandex Music 令牌",
       "placeholder": "粘贴令牌",
-      "hint": "令牌保存在此设备上，在你把 Yandex Music 添加到会议时使用。"
+      "tabs": {
+        "label": "连接方式",
+        "device": "扫码",
+        "token": "令牌"
+      },
+      "howto": {
+        "title": "在哪里获取令牌",
+        "signIn": "在此浏览器中登录 Yandex。",
+        "allow": "打开 Yandex Music 授权页面并点击“允许”。",
+        "open": "打开 Yandex 页面",
+        "copy": "从地址栏复制“access_token=”和“&”之间的文本，粘贴到上面的输入框。",
+        "kept": "令牌只保存在此设备上，在会议中开启音乐时会自动使用。"
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2504,7 +2516,18 @@
       "cancel": "取消登录",
       "haveToken": "我已有访问令牌",
       "tokenLabel": "Yandex Music 令牌",
-      "connectToken": "连接令牌"
+      "connectToken": "连接令牌",
+      "device": {
+        "scan": "用手机相机扫描二维码",
+        "code": "在 Yandex 页面输入验证码",
+        "copy": "复制",
+        "copied": "已复制",
+        "open": "打开登录页面",
+        "waiting": "正在等待确认…",
+        "starting": "正在向 Yandex 获取验证码…",
+        "confirm": "确认登录后，这里会自动连接",
+        "refresh": "获取新验证码"
+      }
     },
     "mini": {
       "label": "迷你播放器",

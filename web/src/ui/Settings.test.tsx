@@ -327,14 +327,80 @@ describe('окно настроек (T26)', () => {
   });
 });
 
-describe('«Аккаунты» (T33)', () => {
-  it('Подключить → токен → «Подключено» и «Сбросить»; сброс возвращает «Подключить»', () => {
+describe('«Аккаунты» (T33, R39)', () => {
+  /** Служба: вход по коду устройства без встречи — код, «ждём», потом токен один раз. */
+  function device(polls: { status: string; token?: string }[] = [{ status: 'pending' }]) {
+    const auth = {
+      id: 'device-1',
+      userCode: 'ABCD-1234',
+      verificationUrl: 'https://ya.ru/device',
+      expiresAt: Date.now() + 300000,
+      interval: 0,
+      status: 'pending',
+    };
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        calls.push(`${init?.method ?? 'GET'} ${url}`);
+        const body =
+          url.endsWith('/services/yandex/device') && init?.method === 'POST'
+            ? auth
+            : init?.method === 'POST'
+              ? { ...auth, ...(polls.shift() ?? { status: 'pending' }) }
+              : { cancelled: true };
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    return calls;
+  }
+
+  it('Подключить → по QR-коду сразу: код, шаги и страница входа; токеном — вторая вкладка', async () => {
+    device();
     render(<Settings open section="accounts" onOpenChange={vi.fn()} />);
     expect(screen.getByText('Telegram').closest('.setting-row')).toHaveTextContent('Скоро');
     fireEvent.click(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' }));
+    expect(screen.getByRole('tab', { name: 'По QR-коду' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText('ABCD-1234')).toBeInTheDocument();
+    expect(screen.getByText('Наведите камеру телефона на QR-код')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Открыть страницу входа/ })).toHaveAttribute(
+      'href',
+      'https://ya.ru/device',
+    );
+    expect(await screen.findByRole('img', { name: 'QR-код страницы входа Яндекса' })).toBeInTheDocument();
+  });
+
+  it('подтвердили вход на телефоне — токен сохранён на устройстве, строка «Подключено»', async () => {
+    device([{ status: 'pending' }, { status: 'connected', token: 'device-token-0123456789' }]);
+    render(<Settings open section="accounts" onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' }));
+    expect(
+      await screen.findByText('Подключено', { selector: '.ui-badge' }, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(readPreferences().yandexMusicToken).toBe('device-token-0123456789');
+  });
+
+  it('токеном → «Подключено» и «Сбросить»; где взять токен — шаги и страница Яндекса', () => {
+    device();
+    render(<Settings open section="accounts" onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Токеном' }));
     const field = screen.getByLabelText('Токен Яндекс Музыки');
     expect(field).toHaveAttribute('type', 'password');
     expect(field).toHaveAttribute('maxlength', '1000');
+    // «Токен хранится на этом устройстве и подставляется…» под полем больше нет — это в «Где взять токен».
+    expect(screen.queryByText(/подставляется, когда вы добавляете/)).toBeNull();
+    const howto = screen.getByText('Где взять токен').closest('details')!;
+    expect(
+      within(howto as HTMLElement).getByRole('link', { name: /Открыть страницу Яндекса/ }),
+    ).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^https:\/\/oauth\.yandex\.ru\/authorize\?response_type=token&client_id=/),
+    );
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
     fireEvent.change(field, { target: { value: '  fresh-token ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -343,6 +409,16 @@ describe('«Аккаунты» (T33)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить: Яндекс Музыка' }));
     expect(readPreferences().yandexMusicToken).toBe('');
     expect(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' })).toBeInTheDocument();
+  });
+
+  it('«Отмена» во время входа по коду — код у службы отменяется', async () => {
+    const calls = device();
+    render(<Settings open section="accounts" onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' }));
+    await screen.findByText('ABCD-1234');
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(screen.getByRole('button', { name: 'Подключить: Яндекс Музыка' })).toBeInTheDocument();
+    expect(calls).toContain('DELETE /api/v1/services/yandex/device/device-1');
   });
 
   it('сохранённый раньше токен виден как «Подключено» — данные не сбрасываются', () => {

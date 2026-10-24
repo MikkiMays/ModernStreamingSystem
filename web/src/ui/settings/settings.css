@@ -782,6 +782,43 @@ input.settings-search__input {
   box-shadow: var(--brand-plate-edge);
   color: var(--platform-ink, var(--muted));
 }
+/* Вход сервиса (R39): вкладки «По QR-коду | Токеном» на всю ширину строки, под ними — сам вход. */
+.setting-account__login {
+  display: grid;
+  gap: var(--space-3);
+}
+.setting-account__panel {
+  display: grid;
+  gap: var(--space-3);
+}
+/* «Где взять токен» — раскрывашкой под полем: три шага и ссылка на страницу Яндекса. */
+.setting-account__howto {
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.setting-account__howto summary {
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.setting-account__howto ol {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+  color: var(--text-secondary);
+}
+.setting-account__howto a {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--accent);
+}
+.setting-account__howto p {
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
 .setting-account__form {
   display: grid;
   gap: var(--space-3);

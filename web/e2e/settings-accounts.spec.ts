@@ -66,12 +66,30 @@ const nav = (page: Page) => page.getByRole('navigation', { name: 'Разделы
 const section = (page: Page, name: string) => nav(page).getByRole('button', { name, exact: true }).first();
 
 test('«Аккаунты»: подключить Яндекс Музыку токеном, пережить перезагрузку и сбросить', async ({ page }) => {
+  // Вход по QR-коду (R39) открывается первым и сам просит у Яндекса код устройства: здесь он не нужен.
+  await page.route('**/api/v1/services/yandex/device**', (route) =>
+    route.request().method() === 'DELETE'
+      ? route.fulfill({ json: { cancelled: true } })
+      : route.fulfill({
+          json: {
+            id: 'e2e-device',
+            userCode: 'E2E-CODE',
+            verificationUrl: 'https://ya.ru/device',
+            expiresAt: Date.now() + 300000,
+            interval: 5,
+            status: 'pending',
+          },
+        }),
+  );
   await page.goto('/');
   await openSettings(page);
   await nav(page).getByRole('button', { name: 'Аккаунты', exact: true }).click();
   await expect(page.locator('[data-service="telegram"]')).toContainText('Скоро');
 
   await page.getByRole('button', { name: 'Подключить: Яндекс Музыка' }).click();
+  await expect(page.getByRole('tab', { name: 'По QR-коду' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('E2E-CODE')).toBeVisible();
+  await page.getByRole('tab', { name: 'Токеном' }).click();
   const field = page.getByLabel('Токен Яндекс Музыки');
   await expect(field).toHaveAttribute('type', 'password');
   await field.fill(TOKEN);

@@ -309,6 +309,8 @@
      Текст цветом бренда (`--brand-<id>-text`) — в смысловых блоках тем: у тёмной он светлее. Кромка
      плашки — чтобы жёлтый Яндекса и золото дурака не растворялись на белом. */
   --brand-plate-edge: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  /* Плашка QR-кода: белая в обеих темах — тёмный код на белом читает любая камера (R39). */
+  --qr-bg: var(--palette-white);
   --brand-youtube: var(--palette-brand-youtube);
   --brand-youtube-ink: var(--palette-white);
   --brand-soundcloud: var(--palette-brand-soundcloud);

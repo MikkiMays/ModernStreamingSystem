@@ -1159,7 +1159,19 @@
       "name": "Yandex Music",
       "label": "Jeton Yandex Music",
       "placeholder": "Collez le jeton",
-      "hint": "Le jeton est stocké sur cet appareil et utilisé quand vous ajoutez Yandex Music à une réunion."
+      "tabs": {
+        "label": "Comment se connecter",
+        "device": "Par QR code",
+        "token": "Par jeton"
+      },
+      "howto": {
+        "title": "Où trouver le jeton",
+        "signIn": "Connectez-vous à Yandex dans ce navigateur.",
+        "allow": "Ouvrez la page d'autorisation de Yandex Music et cliquez sur « Autoriser ».",
+        "open": "Ouvrir la page Yandex",
+        "copy": "Dans la barre d'adresse, copiez le texte entre « access_token= » et « & » et collez-le dans le champ ci-dessus.",
+        "kept": "Le jeton est conservé uniquement sur cet appareil et utilisé automatiquement quand vous activez la musique dans une réunion."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2564,7 +2576,18 @@
       "cancel": "Annuler la connexion",
       "haveToken": "J'ai déjà un jeton d'accès",
       "tokenLabel": "Jeton Yandex Music",
-      "connectToken": "Connecter le jeton"
+      "connectToken": "Connecter le jeton",
+      "device": {
+        "scan": "Pointez l'appareil photo du téléphone vers le QR code",
+        "code": "Sur la page Yandex, saisissez le code",
+        "copy": "Copier",
+        "copied": "Copié",
+        "open": "Ouvrir la page de connexion",
+        "waiting": "En attente de confirmation…",
+        "starting": "Demande d'un code à Yandex…",
+        "confirm": "Confirmez la connexion — elle apparaîtra ici d'elle-même",
+        "refresh": "Obtenir un nouveau code"
+      }
     },
     "mini": {
       "label": "Mini-lecteur",

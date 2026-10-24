@@ -1159,7 +1159,19 @@
       "name": "Yandex Music",
       "label": "Token di Yandex Music",
       "placeholder": "Incolla il token",
-      "hint": "Il token resta su questo dispositivo e viene usato quando aggiungi Yandex Music a una riunione."
+      "tabs": {
+        "label": "Come collegare",
+        "device": "Con codice QR",
+        "token": "Con token"
+      },
+      "howto": {
+        "title": "Dove trovare il token",
+        "signIn": "Accedi a Yandex in questo browser.",
+        "allow": "Apri la pagina di autorizzazione di Yandex Music e fai clic su «Consenti».",
+        "open": "Apri la pagina di Yandex",
+        "copy": "Dalla barra degli indirizzi copia il testo tra «access_token=» e «&» e incollalo nel campo sopra.",
+        "kept": "Il token resta solo su questo dispositivo e viene usato automaticamente quando attivi la musica in una riunione."
+      }
     },
     "telegram": {
       "name": "Telegram"
@@ -2564,7 +2576,18 @@
       "cancel": "Annulla l'accesso",
       "haveToken": "Ho già un token di accesso",
       "tokenLabel": "Token di Yandex Music",
-      "connectToken": "Collega il token"
+      "connectToken": "Collega il token",
+      "device": {
+        "scan": "Inquadra il codice QR con la fotocamera del telefono",
+        "code": "Nella pagina di Yandex inserisci il codice",
+        "copy": "Copia",
+        "copied": "Copiato",
+        "open": "Apri la pagina di accesso",
+        "waiting": "In attesa di conferma…",
+        "starting": "Richiesta del codice a Yandex…",
+        "confirm": "Conferma l'accesso: il collegamento apparirà qui da solo",
+        "refresh": "Ottieni un nuovo codice"
+      }
     },
     "mini": {
       "label": "Mini player",

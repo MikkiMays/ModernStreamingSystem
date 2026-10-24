@@ -1007,25 +1007,97 @@ input.music-search__input:focus-visible {
 }
 .music-account__auth {
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: var(--space-2);
   padding: var(--space-4);
   border-radius: var(--radius-4);
   background: var(--surface-2);
-  text-align: center;
 }
-.music-account__auth img {
-  border-radius: var(--radius-2);
+
+/*
+  Вход в Яндекс Музыку по QR-коду (R39) — в настройках и в музыке встречи один и тот же: слева код на
+  белой плашке (его читает любая камера в обеих темах), справа три шага, код устройства и ссылка на
+  страницу входа; ниже — «Ждём подтверждения…». В узкой колонке код встаёт над шагами.
+*/
+.yandex-device {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+  width: 100%;
 }
-.music-account__auth p {
+.yandex-device--over {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.yandex-device__qr {
+  display: grid;
+  place-items: center;
+  width: 176px;
+  height: 176px;
+  border-radius: var(--radius-3);
+  background: var(--qr-bg);
+  box-shadow: var(--brand-plate-edge);
+}
+.yandex-device__qr img {
+  display: block;
+  width: 160px;
+  height: 160px;
+}
+.yandex-device__steps {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.yandex-device__steps ol {
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
-  color: var(--text-secondary);
+  padding-inline-start: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.yandex-device__code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-1);
+}
+.yandex-device__code strong {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+.yandex-device__open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  justify-self: start;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.yandex-device__note,
+.yandex-device__problem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--muted);
   font-size: var(--text-sm);
 }
-.music-account__code {
-  font-size: var(--text-xl);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.12em;
+.yandex-device__problem {
+  color: var(--danger);
+}
+@container (width < 420px) {
+  .yandex-device {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
 }
 .music-account__token summary {
   color: var(--accent);
