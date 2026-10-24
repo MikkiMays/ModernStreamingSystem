@@ -78,6 +78,32 @@ describe('sections', () => {
     const list = sections([room('a', { groupId: 'gone' })], [work]);
     expect(list.find((s) => s.key === 'loose')!.rooms.map((r) => r.roomId)).toEqual(['a']);
   });
+
+  // R86: комната и в группе, и закреплена — одна строка в «Закреплено», группа её считает.
+  it('shows a pinned room of a group once, among the pinned, and the group still counts it', () => {
+    const list = sections(
+      [room('a', { groupId: 'work' }), room('b', { pinned: true, groupId: 'work' }), room('c')],
+      [work, home],
+    );
+    const rows = list.flatMap((s) => s.rooms.map((r) => r.roomId));
+    expect(rows.filter((id) => id === 'b')).toEqual(['b']);
+    expect(list.find((s) => s.key === 'pinned')!.rooms[0]).toMatchObject({ roomId: 'b', groupId: 'work' });
+    expect(list.map((s) => [s.key, s.rooms.length, s.pinned])).toEqual([
+      ['pinned', 1, 0],
+      ['group:work', 1, 1],
+      ['group:home', 0, 0],
+      ['loose', 1, 0],
+    ]);
+  });
+
+  it('a pinned room of a deleted group is just pinned, and no group counts it', () => {
+    const list = sections([room('a', { pinned: true, groupId: 'gone' })], [work]);
+    expect(list.map((s) => [s.key, s.rooms.length, s.pinned])).toEqual([
+      ['pinned', 1, 0],
+      ['group:work', 0, 0],
+      ['loose', 0, 0],
+    ]);
+  });
 });
 
 describe('place', () => {
@@ -111,6 +137,25 @@ describe('place', () => {
 
   it('pins without forgetting the group the room came from', () => {
     expect(place(rooms, [work], 'e', 'pinned', 0)).toMatchObject({ groupId: 'work', pinned: true });
+  });
+
+  // R86: порядок среди закреплённых не трогает группу; перетаскивание в группу кладёт туда, где черта.
+  it('reorders among the pinned without touching the group', () => {
+    const pinned = [room('a', { pinned: true, groupId: 'work' }), room('b', { pinned: true }), room('c')];
+    expect(place(pinned, [work], 'a', 'pinned', 1)).toEqual({
+      order: ['b', 'a', 'c'],
+      groupId: 'work',
+      pinned: true,
+    });
+    expect(nudge(pinned, [work], 'b', -1)).toEqual({ order: ['b', 'a', 'c'], groupId: null, pinned: true });
+  });
+
+  it('a pinned room dragged into a group lands there, where the insertion line was', () => {
+    const pinned = [room('a', { pinned: true, groupId: 'work' }), room('b', { groupId: 'home' })];
+    expect(place(pinned, [work, home], 'a', groupKey('home'), 0)).toMatchObject({
+      groupId: 'home',
+      pinned: false,
+    });
   });
 
   it('keeps the place of a room dropped into an empty group', () => {

@@ -58,8 +58,8 @@ function RoomMenuItems({
   onRename: () => void;
 }) {
   const { t } = useTranslation();
-  // Автовход живёт в `localStorage`, не в состоянии React: без своей копии отмеченный пункт не
-  // перерисовывался бы, а меню оставалось бы открытым поверх списка.
+  // Автовход живёт в `localStorage`, не в состоянии React: без своей копии переключатель в открытом
+  // меню не перерисовался бы после щелчка.
   const [automatic, setAutomatic] = useState(() => actions.autojoin(room));
   return (
     <>
@@ -99,11 +99,11 @@ function RoomMenuItems({
       <MenuItem icon={<Copy size={16} />} onClick={() => actions.copyCode(room)}>
         {t(($) => $.favorites.room.copy)}
       </MenuItem>
-      {/* Да или нет — переключателем в меню (X4, R70): состояние видно по нему, значок постоянный. */}
+      {/* Да или нет — переключателем в меню (X4, R70): состояние видно по нему, значок постоянный.
+          Щелчок меню не закрывает — видно, что переключилось; закрывают Esc или щелчок мимо. */}
       <MenuSwitchItem
         icon={<Zap size={16} />}
         checked={automatic}
-        closeOnClick
         onCheckedChange={(checked) => {
           setAutomatic(checked);
           actions.setAutojoin(room, checked);
@@ -149,6 +149,7 @@ export function RoomRow({
   const { t } = useTranslation();
   const [renaming, setRenaming] = useState(false);
   const name = roomName(room);
+  const group = room.pinned ? groups.find((candidate) => candidate.id === room.groupId) : undefined;
   let body: ReactNode;
   if (renaming)
     body = (
@@ -200,20 +201,15 @@ export function RoomRow({
           <span className="home-room__name">{name}</span>
           <span className="home-room__code" data-warning={!room.canJoin || undefined}>
             {room.canJoin ? formatCode(room.code) : t(($) => $.favorites.room.forgotten)}
+            {/* Закреплённая из группы стоит в «Закреплено» одна, без копии в группе (R86): своя
+                группа видна здесь, а открепление вернёт её туда. */}
+            {group && <span className="home-room__group"> · {group.title}</span>}
           </span>
         </span>
         {here && (
           <Badge variant="accent" className="home-room__here">
             {t(($) => $.favorites.room.here)}
           </Badge>
-        )}
-        {room.pinned && !here && (
-          <Pin
-            size={14}
-            className="home-room__pin"
-            aria-label={t(($) => $.favorites.room.pinned)}
-            role="img"
-          />
         )}
       </button>
     );
@@ -225,6 +221,7 @@ export function RoomRow({
             className="home-room"
             data-room-id={room.roomId}
             data-here={here || undefined}
+            data-pinned={room.pinned || undefined}
             data-dragging={dragging || undefined}
             data-insert={insertion ?? undefined}
           />
@@ -232,27 +229,42 @@ export function RoomRow({
       >
         {body}
         {!renaming && (
-          <Menu>
-            <MenuTrigger
-              render={
-                <IconButton
-                  label={t(($) => $.favorites.room.actions, { name })}
-                  size="sm"
-                  className="home-room__more"
-                >
-                  <MoreHorizontal size={16} />
-                </IconButton>
-              }
-            />
-            <MenuContent align="end">
-              <RoomMenuItems
-                room={room}
-                groups={groups}
-                actions={actions}
-                onRename={() => setRenaming(true)}
+          <div className="home-room__actions">
+            {/* «Закрепить» — слева от «…» у каждой встречи (R71): у закреплённой видна всегда и
+                синяя, у остальных — под указателем и фокусом, на касании — всегда (Р-4). Имя одно и
+                то же, состояние — `aria-pressed`; пункт в меню остаётся для клавиатуры и ПКМ. */}
+            <IconButton
+              label={t(($) => $.favorites.room.pinNamed, { name })}
+              title={room.pinned ? t(($) => $.favorites.room.unpin) : t(($) => $.favorites.room.pin)}
+              aria-pressed={room.pinned}
+              size="sm"
+              className="home-room__pin"
+              onClick={() => actions.togglePin(room)}
+            >
+              <Pin size={16} />
+            </IconButton>
+            <Menu>
+              <MenuTrigger
+                render={
+                  <IconButton
+                    label={t(($) => $.favorites.room.actions, { name })}
+                    size="sm"
+                    className="home-room__more"
+                  >
+                    <MoreHorizontal size={16} />
+                  </IconButton>
+                }
               />
-            </MenuContent>
-          </Menu>
+              <MenuContent align="end">
+                <RoomMenuItems
+                  room={room}
+                  groups={groups}
+                  actions={actions}
+                  onRename={() => setRenaming(true)}
+                />
+              </MenuContent>
+            </Menu>
+          </div>
         )}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>

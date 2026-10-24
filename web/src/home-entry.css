@@ -1,44 +1,158 @@
 /*
-  Вход во встречу — общий для главной в браузере и в клиенте Windows (E02). Только токены
-  `styles/tokens.css`: карточка — поверхность с тенью вместо рамки, поле и кнопки — из набора.
+  Вход во встречу — общий для главной в браузере и в клиенте Windows (E02, R65). Только токены
+  `styles/tokens.css`. Две карточки рядом (DESIGN.md → Главная): синяя плита «Новая встреча» на
+  1.25 доли ширины и карточка «Войти по коду» — поверхность с тенью вместо рамки. Раскладку решает
+  ширина самого входа (`@container`), а не окна: в браузере рядом с ним боковая панель, в клиенте
+  Windows — нет. Узко — столбиком, плита сверху; низкое окно — плита ниже.
 */
 .home-entry {
-  width: min(100%, 480px);
+  container: home-entry / inline-size;
+  width: min(100%, 1040px);
   min-width: 0;
-  padding: var(--space-10) var(--space-8) var(--space-8);
-  border-radius: var(--radius-5);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-2);
   color: var(--text);
 }
-.home-entry__welcome {
-  margin-bottom: var(--space-8);
-  text-align: center;
+.home-entry__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr);
+  gap: var(--space-6);
+  align-items: stretch;
 }
-.home-entry__welcome h1 {
-  margin: 0;
+/* Плита и карточка появляются вместе — одно событие загрузки, больше ничего само не движется. */
+.home-entry__hero > * {
+  animation: home-entry-in var(--motion-slow) var(--ease-emphasized) both;
+}
+@keyframes home-entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- плита «Новая встреча» ---------- */
+.home-entry__create {
+  --brand-accent: currentColor;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template: 'mark mark' auto '. .' 1fr 'title go' auto / minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+  min-height: clamp(240px, 32vh, 340px);
+  padding: var(--space-7);
+  border: 0;
+  border-radius: var(--radius-5);
+  background: var(--accent-fill);
+  box-shadow:
+    var(--shadow-2),
+    inset 0 1px 0 color-mix(in srgb, var(--palette-white) 14%, transparent);
+  color: var(--on-accent);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+.home-entry__create:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--accent-fill-hover);
+  box-shadow:
+    var(--shadow-3),
+    inset 0 1px 0 color-mix(in srgb, var(--palette-white) 14%, transparent);
+}
+.home-entry__create:active:not(:disabled) {
+  transform: scale(0.995);
+}
+.home-entry__create:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.home-entry__create:disabled {
+  background: var(--surface-2);
+  box-shadow: var(--shadow-1);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+.home-entry__mark {
+  grid-area: mark;
+  align-self: start;
+  opacity: 0.92;
+}
+.home-entry__title {
+  grid-area: title;
   font-size: var(--text-2xl);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-display);
   line-height: var(--leading-tight);
   text-wrap: balance;
 }
-.home-entry__welcome p {
-  margin: var(--space-2) 0 0;
-  color: var(--muted);
-  font-size: var(--text-md);
+.home-entry__go {
+  grid-area: go;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--palette-white) 18%, transparent);
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+.home-entry__create:hover .home-entry__go {
+  transform: translateX(2px);
+  background: color-mix(in srgb, var(--palette-white) 26%, transparent);
+}
+.home-entry__closed {
+  grid-area: go;
+  max-width: 24ch;
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  text-align: right;
+}
+.home-entry__arcs {
+  position: absolute;
+  z-index: -1;
+  right: -40px;
+  bottom: -40px;
+  width: 320px;
+  height: 320px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  pointer-events: none;
+  transition: transform var(--motion-base) var(--ease-standard);
+}
+.home-entry__create:hover:not(:disabled) .home-entry__arcs {
+  transform: translate(-6px, -6px);
+}
+
+/* ---------- карточка «Войти по коду» ---------- */
+.home-entry__join {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-7);
+  border-radius: var(--radius-5);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-2);
+}
+.home-entry__heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+.home-entry__group {
+  display: grid;
+  gap: var(--space-2);
 }
 .home-entry__label {
-  display: block;
-  margin-bottom: var(--space-2);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-}
-.home-entry__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--control-touch);
-  gap: var(--space-2);
 }
 .home-entry__field {
   position: relative;
@@ -47,7 +161,7 @@
 .home-entry__field > svg {
   position: absolute;
   top: 50%;
-  left: var(--space-3);
+  left: var(--space-4);
   translate: 0 -50%;
   color: var(--muted);
   pointer-events: none;
@@ -56,7 +170,7 @@ input.home-entry__input {
   width: 100%;
   height: var(--control-touch);
   min-height: var(--control-touch);
-  padding: 0 var(--space-3) 0 var(--space-10);
+  padding: 0 var(--space-3) 0 calc(var(--space-4) + 18px + var(--space-3));
   border: 0;
   border-radius: var(--field-radius);
   background: var(--field-bg);
@@ -64,7 +178,7 @@ input.home-entry__input {
   color: var(--text);
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   transition: box-shadow var(--motion-fast) var(--ease-standard);
 }
 input.home-entry__input:hover {
@@ -78,67 +192,22 @@ input.home-entry__input:focus-visible {
 input.home-entry__input[aria-invalid='true'] {
   box-shadow: inset 0 0 0 1px var(--danger);
 }
-.home-entry__join {
-  display: inline-grid;
-  place-items: center;
-  width: var(--control-touch);
-  height: var(--control-touch);
-  padding: 0;
-  border: 0;
-  border-radius: var(--field-radius);
-  background: var(--surface-2);
-  color: var(--text);
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-}
-.home-entry__join:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.home-entry__join > svg {
-  transition: transform var(--motion-base) var(--ease-emphasized);
-}
-.home-entry__join:hover > svg {
-  transform: translateX(2px);
-}
-.home-entry__hint {
-  display: block;
-  margin-top: var(--space-2);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-base);
-}
 .home-entry__error {
-  margin: var(--space-2) 0 0;
+  margin: 0;
   color: var(--danger);
   font-size: var(--text-sm);
   line-height: var(--leading-base);
 }
-.home-entry__divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-6) 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-.home-entry__divider::before,
-.home-entry__divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
-.ui-button.home-entry__create {
+.ui-button.home-entry__submit {
   height: var(--control-touch);
   font-size: var(--text-md);
 }
 .home-entry__notice {
-  margin: var(--space-3) 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--muted);
   font-size: var(--text-sm);
   line-height: var(--leading-base);
+  text-align: center;
 }
 .home-entry__retry {
   min-height: var(--control-sm);
@@ -150,15 +219,26 @@ input.home-entry__input[aria-invalid='true'] {
   cursor: pointer;
 }
 
-@media (max-width: 600px) {
-  .home-entry {
-    padding: var(--space-8) var(--space-5) var(--space-6);
-    border-radius: var(--radius-4);
+/* ---------- узко: столбиком, плита сверху ---------- */
+@container home-entry (max-width: 640px) {
+  .home-entry__hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
-  .home-entry__welcome {
-    margin-bottom: var(--space-6);
+  .home-entry__create {
+    min-height: 200px;
+    padding: var(--space-5);
   }
-  .home-entry__welcome h1 {
+  .home-entry__title {
     font-size: var(--text-xl);
+  }
+  .home-entry__join {
+    padding: var(--space-5);
+  }
+}
+/* Низкое окно (клиент Windows, ноутбук): плита ниже, всё остальное на месте. */
+@media (max-height: 720px) {
+  .home-entry__create {
+    min-height: 180px;
   }
 }

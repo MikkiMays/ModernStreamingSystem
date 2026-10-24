@@ -125,7 +125,12 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     ).toBeVisible();
     const favorites = host.getByRole('navigation', { name: 'Избранное' });
     await favorites.getByRole('button', { name: 'Действия с «Наша любимая комната»' }).click();
-    await host.getByRole('menuitemcheckbox', { name: 'Автоподключение' }).click();
+    const automatic = host.getByRole('menuitemcheckbox', { name: 'Автоподключение' });
+    await automatic.click();
+    // Переключатель меню не закрывает (R70): видно, что включилось, закрывает Esc.
+    await expect(automatic).toHaveAttribute('aria-checked', 'true');
+    await host.keyboard.press('Escape');
+    await expect(host.getByRole('menu')).toHaveCount(0);
     await favorites.getByRole('button', { name: new RegExp(code) }).click();
     await expect(host.getByLabel('Ваше имя')).toHaveCount(0);
     await expect(host.getByRole('button', { name: 'Выключить микрофон', exact: true })).toBeVisible();

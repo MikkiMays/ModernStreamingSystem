@@ -2025,9 +2025,11 @@
     "camera": {
       "flip": "Kamera wechseln",
       "title": "Kamera",
-      "next": "Nächste Kamera",
+      "none": "Keine Kameras gefunden",
       "numbered": "Kamera {{n}}",
-      "lenses": "Kameraobjektiv"
+      "lenses": "Kameraobjektiv",
+      "zoom": "Zoom",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "Gerätetest",
@@ -2216,7 +2218,6 @@
       "open": "Beitrittseinstellungen für „{{title}}“",
       "description": "Beitrittseinstellungen auf diesem Gerät.",
       "autojoin": "Automatisch beitreten",
-      "autojoinHint": "Diesen Raum sofort öffnen, ohne Vorschau. Das Mikrofon geht beim Beitritt an, die Kamera bleibt aus.",
       "remove": "Aus den Favoriten entfernen"
     },
     "room": {
@@ -2224,6 +2225,7 @@
       "rename": "Für mich umbenennen",
       "pin": "Anheften",
       "unpin": "Lösen",
+      "pinNamed": "„{{name}}“ anheften",
       "group": "Gruppe",
       "noGroup": "Keine Gruppe",
       "newGroup": "Neue Gruppe…",
@@ -2232,7 +2234,6 @@
       "remove": "Aus den Favoriten entfernen",
       "here": "du bist hier",
       "forgotten": "Der Raum kennt dich nicht mehr",
-      "pinned": "Angeheftet",
       "actions": "Aktionen für „{{name}}“",
       "renameField": "Dein Name für „{{name}}“"
     },
@@ -2243,12 +2244,14 @@
       "groupField": "Name der neuen Gruppe",
       "groupPlaceholder": "Zum Beispiel: Arbeit",
       "pinned": "Angeheftet",
+      "pinnedInGroup": "Angeheftet: {{n}}",
       "loose": "Ohne Gruppe",
       "renameGroup": "Umbenennen",
       "collapse": "Einklappen",
       "expand": "Ausklappen",
       "removeGroup": "Gruppe löschen",
       "emptyGroup": "Noch leer. Zieh einen Raum hierher",
+      "allPinned": "Alle Räume der Gruppe sind angeheftet – sie stehen oben",
       "emptyTitle": "Hier erscheinen deine Meetings",
       "emptyText": "Tippe auf den Stern im Kopf eines Meetings, um von hier aus zurückzukehren.",
       "loading": "Favoriten werden geladen…",
@@ -2342,12 +2345,9 @@
   },
   "home": {
     "entry": {
-      "title": "Lass uns reden.",
-      "tagline": "Ein Raum. Alle deine Leute.",
+      "joinTitle": "Mit Code beitreten",
       "label": "Meeting-Code oder Link",
       "join": "Beitreten",
-      "hint": "9 Ziffern vom Host oder ein Einladungslink.",
-      "or": "oder",
       "create": "Neues Meeting",
       "creationClosed": "Auf diesem Server können vorübergehend keine Meetings erstellt werden.",
       "unavailable": "Der Server ist nicht erreichbar. Prüfe deine Verbindung.",

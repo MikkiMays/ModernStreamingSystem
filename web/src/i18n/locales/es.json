@@ -2050,9 +2050,11 @@
     "camera": {
       "flip": "Cambiar de cámara",
       "title": "Cámara",
-      "next": "Siguiente cámara",
+      "none": "No se encontraron cámaras",
       "numbered": "Cámara {{n}}",
-      "lenses": "Lente de la cámara"
+      "lenses": "Lente de la cámara",
+      "zoom": "Zoom",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "Prueba de dispositivos",
@@ -2244,7 +2246,6 @@
       "open": "Ajustes de entrada en «{{title}}»",
       "description": "Ajustes de entrada en este dispositivo.",
       "autojoin": "Entrada automática",
-      "autojoinHint": "Abrir esta sala directamente, sin vista previa. El micrófono se activará al entrar; la cámara seguirá apagada.",
       "remove": "Quitar de Favoritos"
     },
     "room": {
@@ -2252,6 +2253,7 @@
       "rename": "Renombrar para mí",
       "pin": "Fijar",
       "unpin": "Dejar de fijar",
+      "pinNamed": "Fijar «{{name}}»",
       "group": "Grupo",
       "noGroup": "Sin grupo",
       "newGroup": "Nuevo grupo…",
@@ -2260,7 +2262,6 @@
       "remove": "Quitar de Favoritos",
       "here": "estás aquí",
       "forgotten": "La sala ya no te recuerda",
-      "pinned": "Fijada",
       "actions": "Acciones de «{{name}}»",
       "renameField": "Tu nombre para «{{name}}»"
     },
@@ -2271,12 +2272,14 @@
       "groupField": "Nombre del nuevo grupo",
       "groupPlaceholder": "Por ejemplo, Trabajo",
       "pinned": "Fijadas",
+      "pinnedInGroup": "Fijadas: {{n}}",
       "loose": "Sin grupo",
       "renameGroup": "Renombrar",
       "collapse": "Contraer",
       "expand": "Expandir",
       "removeGroup": "Eliminar grupo",
       "emptyGroup": "Vacío por ahora. Arrastra aquí una sala",
+      "allPinned": "Todas las salas del grupo están fijadas: las tienes arriba",
       "emptyTitle": "Aquí estarán tus reuniones",
       "emptyText": "Pulsa la estrella en la cabecera de una reunión para volver a ella desde aquí.",
       "loading": "Cargando Favoritos…",
@@ -2371,12 +2374,9 @@
   },
   "home": {
     "entry": {
-      "title": "Empecemos a hablar.",
-      "tagline": "Una sala. Toda tu gente.",
+      "joinTitle": "Unirse con un código",
       "label": "Código o enlace de la reunión",
       "join": "Unirse",
-      "hint": "Los 9 dígitos del anfitrión o un enlace de invitación.",
-      "or": "o",
       "create": "Nueva reunión",
       "creationClosed": "La creación de reuniones no está disponible temporalmente en este servidor.",
       "unavailable": "El servidor no está disponible. Revisa tu conexión.",

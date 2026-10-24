@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  cameraCapture,
   cameraOptions,
   captureConstraints,
   fitSource,
@@ -130,5 +131,22 @@ describe('screen profiles', () => {
       height: { min: 720, ideal: 720 },
       frameRate: { min: 30, ideal: 30 },
     });
+  });
+});
+
+describe('cameraCapture — зум (R36)', () => {
+  const pointer = (coarse: boolean) =>
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse && query === '(pointer: coarse)' }));
+  afterEach(() => vi.unstubAllGlobals());
+  const profile = { resolution: 720, fps: 30 } as Parameters<typeof cameraCapture>[0];
+
+  it('у телефона просит зум: без просьбы Chromium на Android его не отдаёт', () => {
+    pointer(true);
+    expect(cameraCapture(profile)).toMatchObject({ zoom: true });
+  });
+
+  it('у компьютера не просит: у PTZ-камеры это отдельный вопрос о разрешении', () => {
+    pointer(false);
+    expect(cameraCapture(profile)).not.toHaveProperty('zoom');
   });
 });

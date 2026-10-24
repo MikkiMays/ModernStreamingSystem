@@ -146,7 +146,17 @@ export function cameraCapture(profile: ScreenProfile, capabilities?: MediaTrackC
       height: cap(height, capabilities?.height),
       frameRate: cap(profile.fps, capabilities?.frameRate),
     },
+    // Зум (R36) — только у телефона: без этой просьбы Chromium на Android не отдаёт
+    // `getCapabilities().zoom`. На компьютере не просим: у веб-камеры с PTZ `zoom: true` поднимает
+    // отдельный вопрос «использовать и перемещать камеру» — и у тех, кто камеру уже разрешил, — а в
+    // клиенте Windows такого разрешения нет вовсе. Камера без зума просьбу молча пропускает.
+    ...(touchFirst() ? { zoom: true } : {}),
   };
+}
+
+/** Основной указатель — палец (телефон, планшет): у ноутбука с сенсорным экраном основной — мышь. */
+function touchFirst(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 }
 /**
  * Частота как требование, а не как пожелание.

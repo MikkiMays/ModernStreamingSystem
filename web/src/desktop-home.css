@@ -24,34 +24,37 @@
   .desktop-home {
     padding-block: var(--space-12) var(--space-5);
   }
-  .desktop-connect.home-entry {
-    padding-block: var(--space-6);
-  }
-  .desktop-connect .home-entry__welcome {
-    margin-bottom: var(--space-5);
+  .desktop-connect .home-entry__create {
+    min-height: 140px;
   }
 }
-/* Узкое и низкое окно (360×430): подсказка под полем переносится в две строки, и карточка
-   вместе с отступами становилась на 20 пикселей выше окна. Подзаголовок здесь уходит раньше. */
+/* Узкое и низкое окно (360×430): плита — строкой «Новая встреча →» без марки, карточка входа без
+   заголовка (поле подписано и так), обе кнопки целиком в окне. */
 @media (max-height: 460px) {
-  .desktop-connect.home-entry {
-    padding-block: var(--space-5);
+  .desktop-home {
+    padding-block: var(--space-12) var(--space-4);
   }
-  .desktop-connect .home-entry__welcome {
-    margin-bottom: var(--space-4);
+  .desktop-connect .home-entry__create {
+    grid-template: 'title go' auto / minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 88px;
+    padding-block: var(--space-4);
   }
-  .desktop-connect .home-entry__welcome p {
+  .desktop-connect .home-entry__mark,
+  .desktop-connect .home-entry__heading {
     display: none;
+  }
+  .desktop-connect .home-entry__join {
+    gap: var(--space-3);
+    padding-block: var(--space-4);
   }
 }
 @media (max-height: 380px) {
-  .desktop-connect.home-entry {
-    padding-block: var(--space-4);
+  .desktop-home {
+    padding-block: var(--space-12) var(--space-3);
   }
-  .desktop-connect .home-entry__welcome {
-    margin-bottom: var(--space-3);
-  }
-  .desktop-connect .home-entry__divider {
-    margin-block: var(--space-3);
+  .desktop-connect .home-entry__create {
+    min-height: 72px;
+    padding-block: var(--space-3);
   }
 }

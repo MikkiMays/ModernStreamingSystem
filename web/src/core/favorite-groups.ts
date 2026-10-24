@@ -62,6 +62,11 @@ export interface Section {
   kind: 'pinned' | 'group' | 'loose';
   group?: FavoriteGroup;
   rooms: SavedRoom[];
+  /**
+   * Сколько комнат группы закреплено (R86): они стоят в «Закреплено», а в группе не повторяются,
+   * но группа их считает — «Семья» с одной закреплённой не пустая.
+   */
+  pinned: number;
 }
 
 export const groupKey = (id: string): SectionKey => `group:${id}`;
@@ -70,23 +75,29 @@ export const groupKey = (id: string): SectionKey => `group:${id}`;
  * Список боковой панели: закреплённые, затем группы по порядку (и пустые — в них есть куда
  * положить), затем всё остальное. Порядок комнат внутри раздела — общий порядок избранного.
  * Комната из группы, которой больше нет, не теряется — она в общем списке.
+ *
+ * Комната и в группе, и закреплена (R86), показывается один раз — в «Закреплено» — и остаётся в
+ * своей группе: `groupId` у неё прежний, группа считает её в `pinned`, открепление возвращает её
+ * на место в группе.
  */
 export function sections(rooms: SavedRoom[], groups: FavoriteGroup[]): Section[] {
   const known = new Set(groups.map((group) => group.id));
   const pinned = rooms.filter((room) => room.pinned);
   const result: Section[] = [];
-  if (pinned.length) result.push({ key: 'pinned', kind: 'pinned', rooms: pinned });
+  if (pinned.length) result.push({ key: 'pinned', kind: 'pinned', rooms: pinned, pinned: 0 });
   for (const group of groups)
     result.push({
       key: groupKey(group.id),
       kind: 'group',
       group,
       rooms: rooms.filter((room) => !room.pinned && room.groupId === group.id),
+      pinned: pinned.filter((room) => room.groupId === group.id).length,
     });
   result.push({
     key: 'loose',
     kind: 'loose',
     rooms: rooms.filter((room) => !room.pinned && (!room.groupId || !known.has(room.groupId))),
+    pinned: 0,
   });
   return result;
 }
@@ -103,6 +114,9 @@ export interface Placement {
  * конец). Раздел решает принадлежность: в «Закреплённых» комната закреплена и помнит свою группу,
  * в группе — лежит в ней, в общем списке — ни в какой. Место в общем порядке — рядом с соседями
  * по разделу, чтобы порядок внутри раздела вышел ровно таким, каким его показали.
+ *
+ * Закреплённую, перетащенную в группу, открепляет именно перетаскивание: она встаёт туда, куда её
+ * положили, — где горела черта вставки. Меню «Группа ›» закрепления не снимает (R86).
  */
 export function place(
   rooms: SavedRoom[],

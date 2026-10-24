@@ -2000,9 +2000,11 @@
     "camera": {
       "flip": "切换摄像头",
       "title": "摄像头",
-      "next": "下一个摄像头",
+      "none": "未找到摄像头",
       "numbered": "摄像头 {{n}}",
-      "lenses": "摄像头镜头"
+      "lenses": "摄像头镜头",
+      "zoom": "缩放",
+      "zoomStep": "{{value}}×"
     },
     "check": {
       "label": "设备检测",
@@ -2188,7 +2190,6 @@
       "open": "“{{title}}”的进入设置",
       "description": "此设备上的进入设置。",
       "autojoin": "自动进入",
-      "autojoinHint": "直接打开此房间，不显示预览。进入时开启麦克风，摄像头保持关闭。",
       "remove": "从收藏中移除"
     },
     "room": {
@@ -2196,6 +2197,7 @@
       "rename": "仅为我重命名",
       "pin": "置顶",
       "unpin": "取消置顶",
+      "pinNamed": "置顶“{{name}}”",
       "group": "分组",
       "noGroup": "无分组",
       "newGroup": "新建分组…",
@@ -2204,7 +2206,6 @@
       "remove": "从收藏中移除",
       "here": "你在这里",
       "forgotten": "房间已不再记得你",
-      "pinned": "已置顶",
       "actions": "“{{name}}”的操作",
       "renameField": "你为“{{name}}”设置的名称"
     },
@@ -2215,12 +2216,14 @@
       "groupField": "新分组名称",
       "groupPlaceholder": "例如：工作",
       "pinned": "已置顶",
+      "pinnedInGroup": "已置顶：{{n}}",
       "loose": "未分组",
       "renameGroup": "重命名",
       "collapse": "收起",
       "expand": "展开",
       "removeGroup": "删除分组",
       "emptyGroup": "暂无内容。把房间拖到这里",
+      "allPinned": "该组的房间都已置顶，在上方",
       "emptyTitle": "你的会议会出现在这里",
       "emptyText": "点按会议顶栏中的星标，以后就能从这里回到会议。",
       "loading": "正在加载收藏…",
@@ -2313,12 +2316,9 @@
   },
   "home": {
     "entry": {
-      "title": "开始聊吧。",
-      "tagline": "一个房间，自己人都在。",
+      "joinTitle": "用会议代码加入",
       "label": "会议代码或链接",
       "join": "加入",
-      "hint": "主持人提供的 9 位数字或邀请链接。",
-      "or": "或",
       "create": "新建会议",
       "creationClosed": "此服务器暂时无法创建会议。",
       "unavailable": "服务器不可用。请检查网络连接。",

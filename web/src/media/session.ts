@@ -75,6 +75,7 @@ import {
   type ReturnInfo,
 } from './background';
 import { choosePipSource, PictureInPicture } from './pip';
+import { readZoom, type Zoom } from './cameras';
 import { t } from '../i18n';
 
 export interface MediaTile {
@@ -1460,23 +1461,13 @@ export class MediaSession {
     }
   }
   /**
-   * Camera zoom, where the platform exposes it. It is an optional constraint: Android Chrome
-   * implements it, iOS Safari does not, and a desktop webcam usually has no zoom at all. The
-   * caller gets null in those cases and should not offer the gesture.
+   * Зум своей камеры, если платформа его отдаёт (R36): Chrome на Android и камеры с PTZ на
+   * компьютере — захват просит `zoom: true` (`cameraCapture`); Safari, Firefox и поддельная камера
+   * Chromium — нет, тогда `null`, и ступеней «0.5× · 1× · 2×» нет (`zoomSteps`).
    */
-  cameraZoom(): { min: number; max: number; step: number; value: number } | null {
+  cameraZoom(): Zoom | null {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-    if (!(track instanceof LocalVideoTrack)) return null;
-    const media = track.mediaStreamTrack;
-    const zoom = (media.getCapabilities?.() as { zoom?: { min: number; max: number; step?: number } })?.zoom;
-    if (!zoom || !(zoom.max > zoom.min)) return null;
-    const current = (media.getSettings() as { zoom?: number }).zoom;
-    return {
-      min: zoom.min,
-      max: zoom.max,
-      step: zoom.step && zoom.step > 0 ? zoom.step : (zoom.max - zoom.min) / 100,
-      value: typeof current === 'number' ? current : zoom.min,
-    };
+    return track instanceof LocalVideoTrack ? readZoom(track.mediaStreamTrack) : null;
   }
 
   async applyCameraZoom(value: number) {
@@ -1485,14 +1476,19 @@ export class MediaSession {
     const track = this.room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
     if (!(track instanceof LocalVideoTrack)) return;
     const clamped = Math.min(range.max, Math.max(range.min, value));
+    const media = track.mediaStreamTrack;
+    // `applyConstraints` заменяет все ограничения разом: кадр и нижняя граница частоты
+    // (`enforceCameraRate`) идут вместе с зумом, иначе зум сбросил бы их. Зум — «advanced»: браузер,
+    // который его не знает, молча пропускает его, а не проваливает весь вызов.
+    const current = media.getConstraints?.() ?? {};
+    const advanced = (current.advanced ?? []).filter((set) => !('zoom' in set));
     try {
-      // Zoom is an "advanced" constraint: browsers that do not know it ignore this silently
-      // rather than failing the whole call, which is why it is applied on its own.
-      await track.mediaStreamTrack.applyConstraints({
-        advanced: [{ zoom: clamped } as MediaTrackConstraintSet],
+      await media.applyConstraints({
+        ...current,
+        advanced: [...advanced, { zoom: clamped } as MediaTrackConstraintSet],
       });
     } catch {
-      /* A camera may refuse a zoom it advertised; keep the call alive regardless. */
+      /* Камера может отказать в зуме, который сама же объявила; звонок от этого не страдает. */
     }
   }
 
