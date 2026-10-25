@@ -66,8 +66,11 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
         .map((person) => ({
           id: person.id,
           name: person.name.slice(0, 40),
+          // У человека без картинки ядро шлёт null (`RoomState.Member.avatar`), хоть схема и пишет string.
           avatar:
-            person.avatar.startsWith('data:image/') && person.avatar.length <= AVATAR_LIMIT
+            typeof person.avatar === 'string' &&
+            person.avatar.startsWith('data:image/') &&
+            person.avatar.length <= AVATAR_LIMIT
               ? person.avatar
               : '',
           muted: person.id === self ? !microphone : !speakingTracks.has(person.id),

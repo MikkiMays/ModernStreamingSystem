@@ -111,6 +111,18 @@ describe('окна оболочки поверх других программ (
     expect(sent(api, 'overlay.state')).toEqual([]);
   });
 
+  it('участник без аватара (ядро шлёт null) — состав уходит с пустым аватаром, встреча не падает', () => {
+    const api = fakeDesktop(['overlay', 'overlay.widget', 'mini']);
+    const { meeting } = fakeMeeting();
+    meeting.snapshot.set({
+      participants: meeting.snapshot.get().participants.map((p) => (p.id === 'p-1' ? { ...p, avatar: null } : p)),
+    } as never);
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    expect(sent(api, 'overlay.roster').at(-1)).toMatchObject({
+      participants: [{ id: 'p-1', avatar: '' }, { id: 'p-2', avatar: 'data:image/png;base64,AAAA' }],
+    });
+  });
+
   it('мини-окно: состояние встречи сразу, как поменялось, и без повторов', () => {
     const api = fakeDesktop(['overlay', 'mini']);
     const { meeting } = fakeMeeting();
