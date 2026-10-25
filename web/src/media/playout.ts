@@ -162,6 +162,13 @@ export const MEDIA_RESYNC_POLLS = 3;
  * (`insertedSamplesForDeceleration`, до ≈ 13 %) в этот счётчик входит — порог ниже его.
  */
 export const STARVED_OUTPUT_RATIO = 0.8;
+/**
+ * Выше этой доли выброшенных ради ускорения отсчётов NetEq сам разбирает раздутый буфер музыки
+ * (обычный темп ≈ 10 %, быстрое ускорение после пачки — до 50 %): переподписывать — значит
+ * заменить догоняющий звук провалом. Буфер раздут, а ускорения нет — NetEq сам поднял свою цель
+ * (после «пробки» держит её десятки секунд), вот тогда переподписка и нужна.
+ */
+export const ACCELERATING_RATIO = 0.02;
 
 /**
  * Разбор заглушки за интервал.
@@ -309,7 +316,12 @@ export class PlayoutBuffer {
     const outputKnown =
       usable && current.totalSamplesReceived !== undefined && previous!.totalSamplesReceived !== undefined;
     const starved = outputKnown && samples < (STARVED_OUTPUT_RATIO * SAMPLE_RATE * dt) / 1000;
-    const bloated = !starved && measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
+    // Музыке раздутый буфер засчитывается, только пока NetEq его не разбирает сам (живой замер
+    // 25.10: после замирания вывода на 3 с NetEq выбрасывал до 50 % отсчётов в секунду, а старое
+    // правило успевало переподписать раньше, чем он доделал).
+    const catchingUp = this.kind === 'media' && accelerationRatio >= ACCELERATING_RATIO;
+    const bloated =
+      !starved && !catchingUp && measured !== null && measured > profile.ceilingMs + RESYNC_EXCESS_MS;
     this.bloatedPolls = bloated ? this.bloatedPolls + 1 : 0;
     const resync =
       this.kind === 'media'

@@ -246,6 +246,29 @@ describe('решение по дорожке', () => {
     expect(buffer.observe(audio(12, { jitterBufferDelay: delay }), 12000).resync).toBe(false);
   });
 
+  it('музыка: пока NetEq ускоряется, раздутый буфер — его работа, а не повод; перестал — счёт пошёл', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    let delay = 0;
+    let removed = 0;
+    const tick = (seconds: number, accelerationPerSecond: number) => {
+      delay += 2.5 * 2 * RATE;
+      removed += accelerationPerSecond * 2;
+      return buffer.observe(
+        audio(seconds, { jitterBufferDelay: delay, removedSamplesForAcceleration: removed }),
+        seconds * 1000,
+      );
+    };
+    // Обычный темп NetEq ≈ 5 000 отсчётов в секунду (10 %), пачка — до 25 000.
+    for (const seconds of [2, 4, 6, 8, 10]) expect(tick(seconds, 5000).resync).toBe(false);
+    expect(tick(12, 25000).resync).toBe(false);
+    // Ускорение прекратилось, буфер всё ещё раздут: три опроса — и переподписка.
+    expect(tick(14, 0).resync).toBe(false);
+    expect(tick(16, 500).resync).toBe(false);
+    expect(tick(18, 0).resync).toBe(true);
+  });
+
   it('вывод звука не успевает за часами — буфер раздут не сетью, переподписки нет ни музыке, ни разговору', () => {
     for (const kind of ['media', 'conversation'] as const) {
       const profile = profileFor(kind);
