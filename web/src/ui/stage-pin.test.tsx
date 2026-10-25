@@ -43,6 +43,7 @@ function fakeMeeting(layout: 'grid' | 'speaker' = 'grid', pinned: string | null 
       tracks: new Store([]),
       speaking: new Store<string[]>([]),
       screenPreviews: new Store({}),
+      videoPaused: new Store({}),
       volumes: new Store({}),
       preferences: new Store({ layout }),
       levels: { watch: () => () => {}, tier: () => 0 },

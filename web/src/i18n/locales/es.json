@@ -2187,6 +2187,7 @@
     "sharing": "Estás compartiendo tu pantalla",
     "watch": "Ver transmisión",
     "recovering": "Restableciendo la conexión…",
+    "videoPaused": "Vídeo en pausa: conexión débil",
     "gameLoading": "Abriendo el juego…",
     "unpin": "Desfijar",
     "unpinOf": "Desfijar: {{name}}",
@@ -2821,6 +2822,9 @@
       "none": "No hay pistas suscritas"
     },
     "ordered": "Los medios van por un relé sobre TCP/TLS. Esta ruta no pierde paquetes, sino que los vuelve a pedir, y todo lo que llega después espera al rezagado: al oído suena como «se calló y luego habló más rápido». El búfer se ha ampliado automáticamente. Si se repite, comprueba que tu red deja pasar UDP hasta el servidor de medios: la ruta directa es bastante más estable.",
+    "videoPaused_one": "El vídeo se te pausó {{count}} vez: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
+    "videoPaused_many": "El vídeo se te pausó {{count}} veces: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
+    "videoPaused_other": "El vídeo se te pausó {{count}} veces: tu conexión no podía con la imagen, así que el servidor priorizó la voz y la música. La imagen vuelve sola cuando la conexión mejora.",
     "checking": "Comprobando…",
     "check": "Comprobar la red",
     "result": {

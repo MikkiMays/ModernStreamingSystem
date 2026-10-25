@@ -2160,6 +2160,7 @@
     "sharing": "Du teilst deinen Bildschirm",
     "watch": "Stream ansehen",
     "recovering": "Verbindung wird wiederhergestellt…",
+    "videoPaused": "Video pausiert: schwache Verbindung",
     "gameLoading": "Spiel wird geöffnet…",
     "unpin": "Lösen",
     "unpinOf": "Lösen: {{name}}",
@@ -2790,6 +2791,8 @@
       "none": "Keine abonnierten Spuren"
     },
     "ordered": "Die Medien laufen über ein Relay per TCP/TLS. Dieser Weg verliert keine Pakete, sondern fordert sie neu an – und alles, was danach kommt, wartet auf den Nachzügler. Klingt wie „erst still, dann schneller geredet“. Der Puffer wurde automatisch erhöht. Passiert das öfter, prüfe, ob dein Netzwerk UDP bis zum Medienserver durchlässt: Der direkte Weg ist deutlich gleichmäßiger.",
+    "videoPaused_one": "Video wurde bei dir {{count}}-mal pausiert: Deine Verbindung kam mit dem Bild nicht mit, deshalb hat der Server Sprache und Musik Vorrang gegeben. Das Bild kommt von selbst zurück, sobald die Verbindung besser wird.",
+    "videoPaused_other": "Video wurde bei dir {{count}}-mal pausiert: Deine Verbindung kam mit dem Bild nicht mit, deshalb hat der Server Sprache und Musik Vorrang gegeben. Das Bild kommt von selbst zurück, sobald die Verbindung besser wird.",
     "checking": "Wird geprüft…",
     "check": "Netzwerk prüfen",
     "result": {

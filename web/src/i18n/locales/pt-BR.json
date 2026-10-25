@@ -2187,6 +2187,7 @@
     "sharing": "Você está compartilhando a tela",
     "watch": "Assistir à transmissão",
     "recovering": "Restabelecendo a conexão…",
+    "videoPaused": "Vídeo pausado: conexão fraca",
     "gameLoading": "Abrindo o jogo…",
     "unpin": "Desafixar",
     "unpinOf": "Desafixar: {{name}}",
@@ -2821,6 +2822,9 @@
       "none": "Nenhuma faixa assinada"
     },
     "ordered": "A mídia passa por um relay via TCP/TLS. Esse caminho não perde pacotes, ele os pede de novo, e tudo o que chega depois espera o atrasado — aos ouvidos soa como “ficou mudo e depois falou mais rápido”. O buffer foi aumentado automaticamente. Se isso se repetir, verifique se a sua rede deixa passar UDP até o servidor de mídia: o caminho direto é bem mais estável.",
+    "videoPaused_one": "O vídeo foi pausado {{count}} vez para você: sua conexão não dava conta da imagem, então o servidor priorizou a voz e a música. A imagem volta sozinha quando a conexão melhora.",
+    "videoPaused_many": "O vídeo foi pausado {{count}} vezes para você: sua conexão não dava conta da imagem, então o servidor priorizou a voz e a música. A imagem volta sozinha quando a conexão melhora.",
+    "videoPaused_other": "O vídeo foi pausado {{count}} vezes para você: sua conexão não dava conta da imagem, então o servidor priorizou a voz e a música. A imagem volta sozinha quando a conexão melhora.",
     "checking": "Verificando…",
     "check": "Verificar a rede",
     "result": {

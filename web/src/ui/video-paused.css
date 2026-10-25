@@ -1,0 +1,61 @@
+/*
+  Пауза чужого видео от SFU (R117, `Stage.tsx`). Последний кадр приглушается, сверху плитки —
+  спокойная плашка на месте «Восстанавливаем связь…» (та старше, вдвоём они не бывают), на показе —
+  посередине кадра. Появляется плавно, гаснет сразу: на возврат картинки перехода нет — живой кадр
+  под вуалью был бы той же неправдой, что и молча застывший.
+*/
+.person-tile[data-paused='true'] .camera-video,
+.watch-stage[data-paused='true'] .screen-video {
+  opacity: 0.45;
+  transition: opacity var(--motion-slow) var(--ease-standard);
+}
+.video-paused {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Между «…» справа и тем же местом слева — как у «Восстанавливаем связь…». */
+  max-width: calc(100% - 2 * (var(--control-sm) + var(--space-3)));
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-2);
+  background: color-mix(in srgb, var(--stage-bg) 75%, transparent);
+  color: var(--stage-text);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: video-paused-in var(--motion-slow) var(--ease-standard);
+}
+.video-paused > svg {
+  flex: none;
+  color: var(--stage-muted);
+}
+.video-paused > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* На показе смотрят только на кадр — плашка посередине и крупнее. */
+.watch-stage .video-paused {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - var(--space-8));
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+/* В ленте под столом или плеером плитка с визитку: остаётся значок, слова — подсказкой. */
+.people-strip .video-paused {
+  top: var(--space-1);
+  padding: var(--space-1);
+}
+.people-strip .video-paused > span {
+  display: none;
+}
+@keyframes video-paused-in {
+  from {
+    opacity: 0;
+  }
+}

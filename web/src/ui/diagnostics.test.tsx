@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
@@ -47,6 +47,8 @@ function fakeMeeting(tracks: unknown[] = []) {
       state: new Store({ status: 'connected', quality: 'good' }),
       link: new Store({ path: 'udp', grade: 'good', jitterMs: 4, ordered: false }),
       tracks: new Store(tracks),
+      videoPaused: new Store({}),
+      videoPauseCount: new Store(0),
       playoutTargets: () => [{ kind: 'media', targetMs: 600 }],
       returnToLive: vi.fn(),
       callReport: () => ({
@@ -139,6 +141,31 @@ describe('«Диагностика»', () => {
     expect(text).toContain('track: audio receive · 160 kbps · loss 0.0% · rtt 57 ms · buffer 640 ms');
     expect(text).toContain('concealment 3 · silent source');
     expect(text).not.toContain('Аня');
+  });
+
+  it('паузы видео от SFU (R117): сколько раз за встречу — в «Сети» и в отчёте; без пауз — ни слова', async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const meeting = fakeMeeting();
+    const { media } = meeting as unknown as {
+      media: { videoPaused: Store<Record<string, true>>; videoPauseCount: Store<number> };
+    };
+    render(<Diagnostics meeting={meeting} onClose={vi.fn()} onHelp={vi.fn()} onReport={vi.fn()} />);
+    expect(screen.queryByText(/Видео у вас приостанавливалось/)).toBeNull();
+    act(() => {
+      media.videoPauseCount.set(2);
+      media.videoPaused.set({ TR_cam: true });
+    });
+    const note = screen.getByText(
+      'Видео у вас приостанавливалось 2 раза: канал не тянул картинку, и сервер сберёг речь и музыку. Картинка возвращается сама, когда связь выправляется.',
+    );
+    // Пауза идёт прямо сейчас — предупреждение; кончилась — остаётся спокойной справкой.
+    expect(note).toHaveAttribute('data-tone', 'warning');
+    act(() => media.videoPaused.set({}));
+    expect(note).not.toHaveAttribute('data-tone');
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать отчёт о звонке' }));
+    await screen.findByText('Отчёт скопирован — его можно вставить в обращение');
+    expect(writeText.mock.calls[0]![0]).toContain('video paused by sfu: 2');
   });
 
   it('подвал: «Сообщить о проблеме» и «Поддержка» — окно заменяет тот, кто показал диагностику (R49, R79)', () => {

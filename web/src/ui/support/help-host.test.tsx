@@ -44,6 +44,8 @@ function fakeMeeting() {
       link: new Store({ path: 'udp', grade: 'good', jitterMs: 4, ordered: false }),
       tracks: new Store([]),
       playoutTargets: () => [],
+      videoPaused: new Store({}),
+      videoPauseCount: new Store(0),
       returnToLive: vi.fn(),
       callReport: () => null,
     },

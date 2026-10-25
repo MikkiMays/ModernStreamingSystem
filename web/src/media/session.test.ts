@@ -822,3 +822,168 @@ describe('превью своего показа', () => {
     }
   });
 });
+
+/**
+ * Пауза видео от SFU (R117): `TrackStreamStateChanged` → надпись у плитки и показа с задержкой против
+ * мигания; пока своя связь потеряна — молчим; сторож зависаний дорожку на паузе не трогает.
+ */
+describe('пауза видео от SFU', () => {
+  function peerWithCamera() {
+    const { media, room } = fixture();
+    (media as unknown as { patch(v: object): void }).patch({ status: 'connected' });
+    let received = 100;
+    const stats = vi.fn(
+      async () =>
+        new Map([
+          [
+            'in',
+            {
+              type: 'inbound-rtp',
+              kind: 'video',
+              timestamp: Date.now(),
+              bytesReceived: 1000,
+              framesDecoded: 90,
+              framesReceived: received,
+            },
+          ],
+        ]),
+    );
+    const track = { kind: Track.Kind.Video, streamState: Track.StreamState.Active, getRTCStatsReport: stats };
+    const camera = {
+      trackSid: 'TR_cam',
+      source: Track.Source.Camera,
+      kind: Track.Kind.Video,
+      track,
+      isSubscribed: true,
+      isEnabled: true,
+      isMuted: false,
+      isDesired: true,
+      setSubscribed: vi.fn(),
+    };
+    const mic = { ...camera, trackSid: 'TR_mic', source: Track.Source.Microphone, kind: Track.Kind.Audio };
+    const peer = {
+      identity: 'peer',
+      trackPublications: new Map<string, unknown>([
+        ['TR_cam', camera],
+        ['TR_mic', mic],
+      ]),
+      videoTrackPublications: new Map([['TR_cam', camera]]),
+    };
+    room.remoteParticipants.set('peer', peer);
+    const setState = (publication: typeof camera, state: Track.StreamState) => {
+      publication.track.streamState = state;
+      room.emit(RoomEvent.TrackStreamStateChanged, publication, state, peer);
+    };
+    const checkLive = () => (media as unknown as { checkLive(): Promise<void> }).checkLive();
+    const health = () => (media as unknown as { liveHealth: Map<string, unknown> }).liveHealth;
+    return {
+      media,
+      room,
+      camera,
+      mic,
+      setState,
+      checkLive,
+      health,
+      grow: () => (received += 5),
+    };
+  }
+
+  it('Paused → надпись не раньше 700 мс → Active гасит сразу; звук паузы не рождает', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      f.setState(f.mic, Track.StreamState.Paused);
+      f.setState(f.camera, Track.StreamState.Paused);
+      vi.advanceTimersByTime(699);
+      expect(f.media.videoPaused.get()).toEqual({});
+      vi.advanceTimersByTime(1);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPauseCount.get()).toBe(1);
+      f.setState(f.camera, Track.StreamState.Active);
+      expect(f.media.videoPaused.get()).toEqual({});
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('своя связь потеряна — надпись гаснет; resume с той же паузой — снова через порог', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      f.setState(f.camera, Track.StreamState.Paused);
+      vi.advanceTimersByTime(700);
+      f.room.emit(RoomEvent.Reconnecting);
+      expect(f.media.videoPaused.get()).toEqual({});
+      vi.advanceTimersByTime(3000);
+      expect(f.media.videoPaused.get()).toEqual({});
+      f.room.emit(RoomEvent.Reconnected);
+      vi.advanceTimersByTime(699);
+      expect(f.media.videoPaused.get()).toEqual({});
+      vi.advanceTimersByTime(1);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      // Та же пауза, а не новая.
+      expect(f.media.videoPauseCount.get()).toBe(1);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('после полного переподключения дорожка снова идёт — старая пауза не возвращается', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      f.setState(f.camera, Track.StreamState.Paused);
+      vi.advanceTimersByTime(700);
+      f.room.emit(RoomEvent.Reconnecting);
+      f.camera.track.streamState = Track.StreamState.Active;
+      f.room.emit(RoomEvent.Reconnected);
+      vi.advanceTimersByTime(5000);
+      expect(f.media.videoPaused.get()).toEqual({});
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('сторож зависаний не трогает дорожку на паузе; новые кадры из сети гасят надпись без Active', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      await f.checkLive();
+      expect(f.health().has('TR_cam')).toBe(true);
+      f.setState(f.camera, Track.StreamState.Paused);
+      vi.advanceTimersByTime(700);
+      await f.checkLive();
+      // На паузе — ни наблюдения, ни истории: после паузы сторож начнёт с чистого листа.
+      expect(f.health().has('TR_cam')).toBe(false);
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      f.grow();
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({});
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+      // Картинка идёт — сторож снова смотрит за ней.
+      await f.checkLive();
+      expect(f.health().has('TR_cam')).toBe(true);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('отписка от дорожки снимает её паузу', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    try {
+      f.room.emit(RoomEvent.TrackSubscribed);
+      await Promise.resolve();
+      f.setState(f.camera, Track.StreamState.Paused);
+      vi.advanceTimersByTime(700);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      (f.camera as { track?: unknown }).track = undefined;
+      f.room.emit(RoomEvent.TrackUnsubscribed);
+      await Promise.resolve();
+      expect(f.media.videoPaused.get()).toEqual({});
+    } finally {
+      f.media.dispose();
+    }
+  });
+});
