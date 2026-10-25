@@ -90,12 +90,8 @@ for (const width of [390, 760, 900]) {
       // «Каталог» на пульте плеера — при открытом чате. На телефоне пульт виден над листом, и его
       // нажимают пальцем; на 760 и 900 px он под листом и полосой — туда доходят с клавиатуры.
       const browse = host.getByRole('button', { name: 'Каталог', exact: true });
-      if (width < 700) {
-        // Пульт плеера прячется через 2,8 с без движения (`data-idle`), а проверки выше длятся дольше:
-        // на стенде нажатие по спрятанному пульту ждало его вечно. Движение над плеером будит пульт.
-        await host.locator('.watch-theater').hover();
-        await browse.click();
-      } else {
+      if (width < 700) await browse.click();
+      else {
         await browse.focus();
         await host.keyboard.press('Enter');
       }
