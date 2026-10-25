@@ -75,7 +75,7 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
           below={
             (desktop && shell.available) || (!desktop && fresh) ? (
               <p className="setting-note" data-tone="warning" role="status">
-                <TriangleAlert size={15} aria-hidden="true" />
+                <TriangleAlert size={16} aria-hidden="true" />
                 <span>
                   {desktop
                     ? shell.status || t(($) => $.settings.about.desktopUpdate)

@@ -85,7 +85,7 @@ function TokenHowTo({ page }: { page: string }) {
           {t(($) => $.accounts['yandex-music'].howto.allow)}{' '}
           <a href={page} target="_blank" rel="noopener noreferrer">
             {t(($) => $.accounts['yandex-music'].howto.open)}
-            <ExternalLink size={12} aria-hidden="true" />
+            <ExternalLink size={16} aria-hidden="true" />
           </a>
         </li>
         <li>{t(($) => $.accounts['yandex-music'].howto.copy)}</li>

@@ -69,7 +69,7 @@ export function SoundsSection({
                     demo.play(cue);
                   }}
                 >
-                  <Play size={12} aria-hidden="true" /> {t(($) => $.settings.sounds.samples[cue])}
+                  <Play size={16} aria-hidden="true" /> {t(($) => $.settings.sounds.samples[cue])}
                 </button>
               ))}
             </div>
