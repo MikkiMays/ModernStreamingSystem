@@ -62,7 +62,9 @@ if [[ "$BEFORE" == "$TARGET" ]]; then
   (( FORCE || CHECK )) || exit 0
 else
   note "Доступно ${TARGET:0:7} — на $(git rev-list --count "$BEFORE..$TARGET") коммит(ов) вперёд:"
-  git --no-pager log --oneline --no-decorate "$BEFORE..$TARGET" | head -15 | sed 's/^/      /'
+  # Не `| head`: при pipefail git, которому закрыли трубу, падает с SIGPIPE (141), и set -e
+  # обрывал обновление на этом месте, как только коммитов набиралось больше пятнадцати.
+  git --no-pager log --oneline --no-decorate -n 15 "$BEFORE..$TARGET" | sed 's/^/      /'
 fi
 
 # Что затронуто. Пересобирать службу, исходники которой не менялись, незачем.

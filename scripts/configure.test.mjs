@@ -111,3 +111,31 @@ test('monitoring adds its secrets once, guards SFU metrics with a password and n
     await rm(directory, { recursive: true });
   }
 });
+
+test('server configured before topology.json refreshes once its addresses are named explicitly', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'streaming-config-'));
+  try {
+    const script = fileURLToPath(new URL('./configure.mjs', import.meta.url));
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    assert.equal(run('--domain=app.example.test', '--ip=192.0.2.1').status, 0);
+    const env = await readFile(join(directory, '.env'), 'utf8');
+    // Такой сервер ставился до появления файла: аргументов установки нигде нет.
+    await rm(join(directory, 'infra/generated/topology.json'));
+
+    // По одному `.env` нельзя: соседние сайты на 443 он не хранит.
+    const blind = run('--refresh');
+    assert.notEqual(blind.status, 0);
+    assert.match(blind.stderr, /topology\.json is missing/);
+
+    // Ровно то, что советует сообщение об ошибке, должно сработать.
+    const named = run('--refresh', '--domain=app.example.test', '--ip=192.0.2.1');
+    assert.equal(named.status, 0, named.stderr);
+    assert.equal(await readFile(join(directory, '.env'), 'utf8'), env);
+    const stored = JSON.parse(await readFile(join(directory, 'infra/generated/topology.json'), 'utf8'));
+    assert.deepEqual(stored, { domain: 'app.example.test', ip: '192.0.2.1' });
+    // Дальше файл есть, и перевыпуск идёт без подсказок.
+    assert.equal(run('--refresh').status, 0);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});

@@ -62,7 +62,8 @@ if (refresh) {
     if (e.code !== "ENOENT") throw e;
     return null;
   });
-  if (!stored)
+  // Без файла верим только адресам, названным явно: их и запишем, чтобы дальше хватало `--refresh`.
+  if (!stored && !(args.domain || args.app))
     throw new Error(
       `${TOPOLOGY_FILE} is missing: this server was configured before it existed, and .env does not record --legacy-hosts. ` +
         "Re-run the original configure command with --refresh added, for example: " +
