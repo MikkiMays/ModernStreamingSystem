@@ -14,6 +14,7 @@ interface Row {
   target: number | null;
   jbDelay?: number;
   jbEmitted?: number;
+  packets?: number;
   total?: number;
   decel?: number;
   discarded?: number;
@@ -184,7 +185,10 @@ test('музыка: запас в одной секунде у всех, зам�
     ]);
     await late.close();
     // Пороги §7: цель буфера музыки у всех ∈ [500, 1000]; разброс фактического буфера ≤ 500 мс;
-    // растяжение < 0,5 %; выброшенных пакетов нет (после заморозки — в том числе).
+    // растяжение < 0,5 %. «Выброшенных пакетов нет» после RED (R05) читается иначе: каждая копия RED
+    // у слушателя считается `packetsDiscarded` (живьём 25.10 — 1,2–1,7 на принятый пакет), поэтому
+    // проверяется не ноль, а что выброшено не больше двух копий на пакет — больше значило бы пачки
+    // после заморозки, а не избыточность.
     const rows = readFileSync(OUT, 'utf8')
       .split('\n')
       .filter(Boolean)
@@ -210,7 +214,8 @@ test('музыка: запас в одной секунде у всех, зам�
     const last = after[after.length - 1]!;
     const total = (last.total ?? 0) - (first.total ?? 0);
     expect(((last.decel ?? 0) - (first.decel ?? 0)) / Math.max(1, total)).toBeLessThan(0.005);
-    expect((last.discarded ?? 0) - (first.discarded ?? 0)).toBe(0);
+    const packets = (last.packets ?? 0) - (first.packets ?? 0);
+    expect((last.discarded ?? 0) - (first.discarded ?? 0)).toBeLessThanOrEqual(2 * Math.max(1, packets));
   } finally {
     await contextA.close().catch(() => {});
     await other.close().catch(() => {});
