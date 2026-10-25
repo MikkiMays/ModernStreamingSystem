@@ -154,7 +154,7 @@ export function MusicPlayer({
           disabled={!canUse || state.queue.length < 3}
           onClick={() => onCommand('shuffle')}
         >
-          <Shuffle size={18} />
+          <Shuffle size={20} />
         </IconButton>
         <IconButton
           label={t(($) => $.music.player.previous)}
@@ -176,7 +176,7 @@ export function MusicPlayer({
             })
           }
         >
-          {state.paused || !current ? <Play size={22} /> : <Pause size={22} />}
+          {state.paused || !current ? <Play size={24} /> : <Pause size={24} />}
         </IconButton>
         <IconButton
           label={t(($) => $.music.player.next)}
@@ -194,7 +194,7 @@ export function MusicPlayer({
           disabled={!canUse}
           onClick={() => onCommand('repeat', { enabled: !state.repeat }, { repeat: !state.repeat })}
         >
-          <Repeat2 size={18} />
+          <Repeat2 size={20} />
         </IconButton>
       </div>
       {state.participantId && (

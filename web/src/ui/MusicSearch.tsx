@@ -244,7 +244,7 @@ export function MusicSearch({
                 setNotice('');
               }}
             >
-              <X size={14} />
+              <X size={16} />
             </IconButton>
           )}
           {linking && (

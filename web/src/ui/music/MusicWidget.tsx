@@ -77,7 +77,7 @@ function MusicBody({ meeting, music }: { meeting: Meeting; music: MusicControl }
     return (
       <section className="music-intro" aria-labelledby="music-intro-title">
         <span className="music-intro__icon" aria-hidden="true">
-          <Music2 size={26} />
+          <Music2 size={24} />
         </span>
         <h3 id="music-intro-title">{t(($) => $.services.music.title)}</h3>
         <p>{t(($) => $.services.music.intro, { sources: musicHint(t, sources) })}</p>

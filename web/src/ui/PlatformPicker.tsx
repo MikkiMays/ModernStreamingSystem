@@ -115,7 +115,7 @@ export function PlatformPicker<Id extends string>({
             onClick={() => onPick(tile.id)}
           >
             <span className="service-tile-icon" aria-hidden="true">
-              <tile.icon size={22} />
+              <tile.icon size={20} />
             </span>
             <span className="service-tile__text">
               {/* Отметка — в строке имени, как «Скоро» у витрины: справа она сжимала бы подсказку. */}
@@ -195,7 +195,7 @@ export function PlatformTabs<Id extends string>({
           >
             <tile.icon size={16} aria-hidden="true" />
             {tile.name}
-            {reason && <CloudOff className="platform-tab__reach" size={13} aria-hidden="true" />}
+            {reason && <CloudOff className="platform-tab__reach" size={12} aria-hidden="true" />}
           </button>
         );
       })}

@@ -181,7 +181,7 @@ function AccountRow({
     >
       <div className="setting-account__who">
         <span className="setting-account__icon" aria-hidden="true">
-          <Icon size={18} />
+          <Icon size={20} />
         </span>
         <div className="setting-row__text">
           <span className="setting-row__label">{name}</span>

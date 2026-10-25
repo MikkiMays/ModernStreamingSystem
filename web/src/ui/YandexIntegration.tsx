@@ -91,7 +91,7 @@ export function YandexIntegration({
     <section className="music-account" aria-labelledby={`${id}-title`}>
       <div className="music-account__row">
         <span className="music-account__icon" aria-hidden="true">
-          <Music size={18} />
+          <Music size={20} />
         </span>
         <div className="music-account__text">
           <span className="music-account__title" id={`${id}-title`}>
