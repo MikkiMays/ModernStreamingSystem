@@ -63,6 +63,9 @@ services:
       redis: { condition: service_healthy }
       volume-init: { condition: service_completed_successfully }
     mem_limit: 2g
+    # Ядро — вторым после медиа (MEDIA-DIAGNOSIS §6 п. 1): вес 2048 против 4096 у SFU и служб и 1024 у
+    # остального. Входы и команды переживут задержку в сотни миллисекунд, звук — нет.
+    cpu_shares: 2048
     healthcheck:
       test: [CMD, wget, -q, --spider, 'http://127.0.0.1:8080/actuator/health']
       interval: 5s
@@ -89,6 +92,10 @@ services:
     tmpfs: [/tmp]
     volumes: [services-data:/data]
     mem_limit: 1g
+    # Без swap (MEDIA-DIAGNOSIS §6 п. 1): равный `mem_limit` swap-лимит значит «в swap не уходить» — издатель
+    # музыки, уехавший в swap, слышен как тишина. И первым на процессор вместе с SFU: здесь же кодирует ffmpeg.
+    memswap_limit: 1g
+    cpu_shares: 4096
     pids_limit: 256
     # Each LiveKit room this bot joins gathers ICE candidates on every host
     # interface, so a single music session holds ~100 UDP sockets. The Docker
@@ -189,9 +196,13 @@ services:
       - ./infra/generated/tls:/etc/tls:ro
     # SFU — первым на процессор (MEDIA-DIAGNOSIS §6, R107): на этой ВМ звонки делят 4 vCPU со сборками,
     # тестами и службами, и когда процессора не хватает, пакеты речи уходят пачкой — у слушателей это
-    # обрывы по 150–400 мс. Вес 4096 против 1024 по умолчанию; от ООМ — последним.
+    # обрывы по 150–400 мс. Вес 4096 против 1024 по умолчанию; от ООМ — последним. Память — гигабайт и
+    # без swap (MEDIA-DIAGNOSIS §6 п. 1): SFU на двадцать человек живёт в ~200 МиБ, а страница SFU в swap —
+    # это пакет, который ушёл с опозданием на диск.
     cpu_shares: 4096
     oom_score_adj: -500
+    mem_limit: 1g
+    memswap_limit: 1g
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
@@ -333,11 +344,34 @@ services:
       - --path.rootfs=/host
       - --web.listen-address=127.0.0.1:9100
       - --collector.filesystem.mount-points-exclude=^/(dev|proc|run|sys|var/lib/docker/.+)($$|/)
-    volumes: ['/:/host:ro,rslave']
+      # Файлы метрик хоста (`infra/host/soft-lockups.sh` → `cord_host_soft_lockups_total`, R10): каталог
+      # заводит владелец вместе с cron; пустой каталог — просто нет рядов.
+      - --collector.textfile.directory=/textfile
+    volumes: ['/:/host:ro,rslave', '/var/lib/node_exporter/textfile:/textfile:ro']
     read_only: true
     cap_drop: [ALL]
     mem_limit: 64m
     restart: unless-stopped
+  # Куратор (W1b, R10/R68, docs/research §2.1): синтетический звонок через SFU раз в минуту —
+  # `cord-publisher --probe` из того же образа, что и службы (там уже есть издатель и ffmpeg). Два
+  # участника на этой машине входят в служебную комнату `cord-probe`, один публикует тон 1 кГц 10 с,
+  # второй слушает; потери, джиттер и оборот — на 127.0.0.1:9402 (`cord_probe_*`, алерт `ProbeLoss`).
+  # Токены подписывает сам ключом SFU из .env; ядру комната неизвестна и в «Активности» не видна.
+  probe:
+    profiles: [monitoring]
+    logging: *default-logging
+    build: { context: ., dockerfile: services/Dockerfile }
+    network_mode: host
+    env_file: .env
+    entrypoint: [cord-publisher]
+    command: [--probe, --room, cord-probe, --every, 60s, --listen, '127.0.0.1:9402']
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on:
+      livekit: { condition: service_started }
   postgres-exporter:
     profiles: [monitoring]
     logging: *default-logging

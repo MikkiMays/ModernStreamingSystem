@@ -47,6 +47,11 @@ const (
 	// Столько кадров тишины подряд при живом треке — декодер не успевает (машина замерла,
 	// источник стоит): комната должна об этом знать, иначе «играет» и тишина неотличимы.
 	starvedAfter = 10
+	// Столько кадров тишины подряд (5 с) — декодер не просто отстал, а встал: ffmpeg
+	// перезапускается с текущей позиции (сторож издателя, R04). Три перезапуска на один трек без
+	// единого кадра между ними — трек признаётся сломанным (`failed`), и служба берёт следующий.
+	restartAfter    = 250
+	restartAttempts = 3
 )
 
 // Двадцать миллисекунд цифровой тишины, закодированные Opus.
@@ -101,10 +106,10 @@ func say(value event) {
 	_ = output.writer.Flush()
 }
 
-// Битрейт можно поменять, не пересобирая образ. По умолчанию 160 Кбит/с: SFU включает RED
-// (каждый пакет несёт два предыдущих кадра), и кадр 256 Кбит/с ≈ 640 байт в тройном размере
-// не влезал в MTU 1500 его приёмника — повтор терялся, и защита от потерь не работала. 160 Кбит/с
-// стерео на профиле `audio` на слух от 256 не отличить, а 3 × 400 байт помещаются.
+// Битрейт можно поменять, не пересобирая образ. По умолчанию 160 Кбит/с: дорожка идёт в RED
+// (каждый пакет несёт два предыдущих кадра, `red.go`), и кадр 256 Кбит/с ≈ 640 байт в тройном
+// размере не влезал бы в MTU — повтор пришлось бы выбросить, и защита от потерь не работала бы.
+// 160 Кбит/с стерео на профиле `audio` на слух от 256 не отличить, а 3 × 400 байт помещаются.
 func setting(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
@@ -152,9 +157,12 @@ type source struct {
 	ended   chan struct{}
 	done    sync.WaitGroup
 	epoch   int64
+	path    string
 	origin  float64
 	sent    int
 	ready   bool
+	// Сколько раз декодер этого трека уже перезапускался подряд без единого кадра.
+	restarts int
 }
 
 // player держит темп комнаты. Кадр уходит каждые двадцать миллисекунд всегда — музыка,
@@ -164,7 +172,7 @@ type source struct {
 // Запас декодера сбрасывается вместе с ним, поэтому пауза, перемотка и переключение
 // слышны сразу и не спорят с тем, что успело накопиться.
 type player struct {
-	track   *lksdk.LocalTrack
+	track   sink
 	mu      sync.Mutex
 	current *source
 	written int
@@ -190,6 +198,24 @@ func (p *player) halt() {
 }
 
 func (p *player) play(path string, position float64, epoch int64) {
+	p.start(path, position, epoch, 0)
+}
+
+// restart — тот же трек с той позиции, где декодер замолчал (`restartAfter`). Счёт голодания не
+// сбрасывается: первый настоящий кадр нового декодера уйдёт с `recovered`, как и после обычного
+// отставания, — служба увидит одну паузу, а не две.
+func (p *player) restart() {
+	p.mu.Lock()
+	current := p.current
+	p.mu.Unlock()
+	if current == nil {
+		return
+	}
+	at := current.origin + float64(current.sent)*frame.Seconds()
+	p.start(current.path, at, current.epoch, current.restarts+1)
+}
+
+func (p *player) start(path string, position float64, epoch int64, restarts int) {
 	p.halt()
 	process := decode(path, position)
 	pipe, err := process.StdoutPipe()
@@ -203,12 +229,14 @@ func (p *player) play(path string, position float64, epoch int64) {
 		return
 	}
 	current := &source{
-		process: process,
-		frames:  make(chan []byte, depth),
-		stop:    make(chan struct{}),
-		ended:   make(chan struct{}),
-		epoch:   epoch,
-		origin:  position,
+		process:  process,
+		frames:   make(chan []byte, depth),
+		stop:     make(chan struct{}),
+		ended:    make(chan struct{}),
+		epoch:    epoch,
+		path:     path,
+		origin:   position,
+		restarts: restarts,
 	}
 	current.done.Add(1)
 	go func() {
@@ -285,11 +313,15 @@ func (p *player) next() ([]byte, *event) {
 			return quiet, &event{Event: "finished", Epoch: current.epoch, Value: &at}
 		}
 		current.sent++
+		current.restarts = 0
 		recovered := p.starved >= starvedAfter
-		p.starved = 0
 		if recovered {
-			return packet, &event{Event: "recovered", Epoch: current.epoch}
+			// Сколько длилась тишина — службе для метрики `cord_music_starved_seconds_total`.
+			seconds := float64(p.starved) * frame.Seconds()
+			p.starved = 0
+			return packet, &event{Event: "recovered", Epoch: current.epoch, Value: &seconds}
 		}
+		p.starved = 0
 		if current.sent%report == 0 {
 			at := current.origin + float64(current.sent)*frame.Seconds()
 			return packet, &event{Event: "position", Epoch: current.epoch, Value: &at}
@@ -301,6 +333,27 @@ func (p *player) next() ([]byte, *event) {
 		p.starved++
 		if p.starved == starvedAfter {
 			return quiet, &event{Event: "starved", Epoch: current.epoch}
+		}
+		if p.starved%restartAfter == 0 {
+			// Пять секунд без кадра — декодер встал. `pace` перезапустит его с этого места; на
+			// третий раз подряд сдаёмся: трек сломан, служба возьмёт следующий.
+			at := current.origin + float64(current.sent)*frame.Seconds()
+			if current.restarts >= restartAttempts-1 {
+				p.current = nil
+				p.starved = 0
+				return quiet, &event{
+					Event:   "failed",
+					Epoch:   current.epoch,
+					Value:   &at,
+					Message: fmt.Sprintf("декодер молчит после %d перезапусков", current.restarts+1),
+				}
+			}
+			return quiet, &event{
+				Event:   "restart",
+				Epoch:   current.epoch,
+				Value:   &at,
+				Message: fmt.Sprintf("декодер молчал %.0f с на позиции %.1f с — перезапуск", float64(restartAfter)*frame.Seconds(), at),
+			}
 		}
 		return quiet, nil
 	}
@@ -350,14 +403,43 @@ func (p *player) pace(stop <-chan struct{}) {
 		default:
 		}
 		packet, announcement := p.next()
-		if err := p.track.WriteSample(media.Sample{Data: packet, Duration: frame, Timestamp: deadline}, nil); err != nil {
+		if err := p.track.write(packet, deadline); err != nil {
 			say(event{Event: "closed", Message: err.Error()})
 			return
 		}
 		if announcement != nil {
 			say(*announcement)
+			if announcement.Event == "restart" {
+				p.restart()
+			}
 		}
 	}
+}
+
+// opusTrack — дорожка Opus через SDK: метка RTP — из `Timestamp` кадра (см. `schedule`).
+type opusTrack struct{ *lksdk.LocalTrack }
+
+func (t opusTrack) write(data []byte, at time.Time) error {
+	return t.WriteSample(media.Sample{Data: data, Duration: frame, Timestamp: at}, nil)
+}
+
+// outbound — дорожка в комнату: RED со своими пакетами (по умолчанию) или чистый Opus
+// (`CORD_MUSIC_RED=0`). И та и другая объявляются стерео без DTX — ради этого программа и есть.
+func outbound(copies int) (webrtc.TrackLocal, sink, error) {
+	if copies > 0 {
+		track, err := newRedTrack(copies)
+		if err != nil {
+			return nil, nil, err
+		}
+		return track.track, track, nil
+	}
+	track, err := lksdk.NewLocalTrack(webrtc.RTPCodecCapability{
+		MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return track, opusTrack{track}, nil
 }
 
 func main() {
@@ -366,6 +448,10 @@ func main() {
 	// project has already filled once. Errors are kept; the play-by-play is not.
 	logger.InitFromConfig(&logger.Config{Level: "error"}, "cord-publisher")
 	lksdk.SetLogger(logger.GetLogger())
+	// Куратор (`--probe`): та же программа, другой режим — см. probe.go.
+	if len(os.Args) > 1 && os.Args[1] == "--probe" {
+		os.Exit(runProbe(os.Args[2:]))
+	}
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -377,6 +463,13 @@ func main() {
 		say(event{Event: "closed", Message: "первой командой должна быть connect"})
 		os.Exit(1)
 	}
+	copies := redCopies()
+	options := []lksdk.ConnectOption{lksdk.WithAutoSubscribe(false)}
+	if copies > 0 {
+		// Движок pion по умолчанию RED не предлагает: без этого SFU не договорится о дорожке
+		// `audio/red`, и публикация упадёт при привязке кодека.
+		options = append(options, lksdk.WithCodecs([]livekit.Codec{{Mime: "audio/opus"}, {Mime: "audio/red"}}))
+	}
 	room, err := lksdk.ConnectToRoomWithToken(connect.URL, connect.Token, &lksdk.RoomCallback{
 		// SDK сам чинит связь (resume/restart) и зовёт OnDisconnected, только когда сдался;
 		// промежуточные состояния уходят службе, чтобы комната видела «переподключаемся».
@@ -386,16 +479,14 @@ func main() {
 			say(event{Event: "closed", Message: "соединение с комнатой потеряно"})
 			os.Exit(0)
 		},
-	}, lksdk.WithAutoSubscribe(false))
+	}, options...)
 	if err != nil {
 		say(event{Event: "closed", Message: err.Error()})
 		os.Exit(1)
 	}
 	defer room.Disconnect()
 
-	track, err := lksdk.NewLocalTrack(webrtc.RTPCodecCapability{
-		MimeType: webrtc.MimeTypeOpus, ClockRate: 48000, Channels: 2,
-	})
+	track, out, err := outbound(copies)
 	if err != nil {
 		say(event{Event: "closed", Message: err.Error()})
 		os.Exit(1)
@@ -415,7 +506,7 @@ func main() {
 		say(event{Event: "closed", Message: err.Error()})
 		os.Exit(1)
 	}
-	music := &player{track: track}
+	music := &player{track: out}
 	defer music.halt()
 	// Темп задаётся до первой команды: к моменту, когда зазвучит первый трек, буфер приёма
 	// у всех уже полон тишиной, и начало не приходится догонять.

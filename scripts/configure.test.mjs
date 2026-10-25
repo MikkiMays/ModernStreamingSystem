@@ -28,6 +28,12 @@ test('configuration keeps media internal, shares external 443, and cannot overwr
     assert.equal(sfu.turn.external_tls, true);
     assert.equal(sfu.turn.tls_port, 5349);
     assert.equal(sfu.rtc.udp_port, 7882);
+    // Параметры SFU из разбора надёжности (W1b шаг 1, docs/research §2.8): буфер звука, явная пауза
+    // видео при тесном канале, порог ICE/TCP, частота уровней звука для оверлея говорящих.
+    assert.equal(sfu.rtc.packet_buffer_size_audio, 400);
+    assert.deepEqual(sfu.rtc.congestion_control, { enabled: true, allow_pause: true });
+    assert.equal(sfu.rtc.tcp_fallback_rtt_threshold, 150);
+    assert.deepEqual(sfu.audio, { active_red_encoding: true, update_interval: 200, smooth_intervals: 2 });
     // Двадцать людей ядра и четыре места ботам и переходным сессиям (T06).
     assert.equal(sfu.room.max_participants, 24);
     // TURN — не открытый relay (A12): к SFU этой машины можно, в интернет и внутрь — нет.
