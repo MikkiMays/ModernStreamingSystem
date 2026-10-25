@@ -1,5 +1,8 @@
 import type { Track } from 'livekit-client';
+import { hasFeature, isDesktop } from '../core/desktop';
 import { Store } from '../core/store';
+// `no-inline`: маленький файл Vite иначе вложил бы `data:`-адресом, а CSP сервера (`script-src 'self'`) его не пустит.
+import levelWorklet from './level-meter.worklet.js?url&no-inline';
 
 /**
  * Громкость голоса — один источник на весь веб (T23, решение 8 архитектуры).
@@ -21,6 +24,12 @@ import { Store } from '../core/store';
  * `requestAnimationFrame`, и только пока вкладка видна: скрытой странице рамки рисовать некому.
  * Дорожки без анализатора (нет Web Audio, не разрешили звук) получают ступень от SFU — хуже по
  * задержке, но не пусто.
+ *
+ * ВНЕ КАДРОВ (R63). В клиенте Windows виджет говорящих в игре и мини-окно звонка смотрят, когда окно
+ * Cord спрятано, свёрнуто или накрыто игрой: кадров экрана там нет, и опрос по
+ * `requestAnimationFrame` замер бы. Там измеритель — `AudioWorklet` (`level-meter.worklet.js`): уровень
+ * считается в потоке звука и сам приходит каждые 21 мс (`Meter.subscribe`), опрос идёт по его приходу
+ * и не зависит от видимости вкладки. В браузере — прежний анализатор по кадрам.
  */
 
 export type VoiceTier = 0 | 1 | 2 | 3 | 4;
@@ -81,6 +90,11 @@ export interface Meter {
    * посреди встречи, iOS), спит и отдаёт тишину — пока так, ступень берётся от SFU, а не «молчит».
    */
   ready?(): boolean;
+  /**
+   * Измеритель, который сам сообщает о новом значении (AudioWorklet): опрос идёт по его приходу, а не
+   * по кадрам, и скрытая вкладка его не останавливает. Нет — измеритель опрашивается по кадрам.
+   */
+  subscribe?(listener: () => void): () => void;
 }
 export type MeterFactory = (track: MediaStreamTrack) => Meter | null;
 
@@ -108,6 +122,8 @@ interface Measured {
   stream: MediaStreamTrack;
   meter: Meter | null;
   db: number;
+  /** Отписка от измерителя, который сам сообщает о значениях. */
+  unsubscribe?: () => void;
 }
 
 /** Что модулю нужно от хранилищ встречи: прочитать и подписаться. */
@@ -193,7 +209,7 @@ export class VoiceLevels {
     this.disposed = true;
     this.unsubscribe.forEach((stop) => stop());
     this.stop();
-    for (const entry of this.measured.values()) entry.meter?.close();
+    for (const entry of this.measured.values()) release(entry);
     this.measured.clear();
     this.env.close();
     this.state.set(EMPTY);
@@ -218,7 +234,7 @@ export class VoiceLevels {
     for (const [id, entry] of this.measured) {
       const track = this.sources.get(id);
       if (track !== entry.track || !this.watched(id) || track.mediaStreamTrack !== entry.stream) {
-        entry.meter?.close();
+        release(entry);
         this.measured.delete(id);
       }
     }
@@ -232,12 +248,24 @@ export class VoiceLevels {
       } catch {
         meter = null;
       }
-      this.measured.set(id, { track, stream, meter, db: -100 });
+      const entry: Measured = { track, stream, meter, db: -100 };
+      if (meter?.subscribe) entry.unsubscribe = meter.subscribe(this.pushed);
+      this.measured.set(id, entry);
     }
     this.publish();
-    if ([...this.measured.values()].some((entry) => entry.meter) && this.env.visible()) this.start();
+    // Кадры нужны только измерителям, которые опрашиваются; остальные приходят сами (`pushed`).
+    if (
+      [...this.measured.values()].some((entry) => entry.meter && !entry.meter.subscribe) &&
+      this.env.visible()
+    )
+      this.start();
     else this.stop();
   }
+
+  /** Измеритель сообщил новое значение — опрос (не чаще `MAX_RATE_HZ`), видна вкладка или нет. */
+  private pushed = () => {
+    if (!this.disposed) this.tick();
+  };
 
   private start() {
     if (this.running || this.disposed) return;
@@ -269,8 +297,9 @@ export class VoiceLevels {
       return;
     }
     // Скрытая вкладка не рисует: уровень обнуляется, чтобы по возвращении не висела старая рамка.
+    // Измерители вне кадров продолжают: их читают окна оболочки, которым вкладка не нужна.
     this.stop();
-    for (const entry of this.measured.values()) entry.db = -100;
+    for (const entry of this.measured.values()) if (!entry.meter?.subscribe) entry.db = -100;
     this.publish();
   }
 
@@ -307,6 +336,11 @@ export class VoiceLevels {
   }
 }
 
+function release(entry: Measured) {
+  entry.unsubscribe?.();
+  entry.meter?.close();
+}
+
 /** Есть ли у участника свой измеритель, который сейчас слышит звук. */
 function hears(entry: Measured | undefined) {
   return !!entry?.meter && (entry.meter.ready?.() ?? true);
@@ -324,9 +358,12 @@ function same(a: Record<string, VoiceLevel>, b: Record<string, VoiceLevel>) {
  * Контекст один на все анализаторы и рождается при первой дорожке. Если браузер создал его
  * «спящим» (iOS — без жеста), он просыпается на первом нажатии где угодно.
  */
-export function browserEnvironment(): LevelsEnvironment {
+export function browserEnvironment({ push = pushMeters() }: { push?: boolean } = {}): LevelsEnvironment {
   let context: AudioContext | null = null;
   const wake = () => void context?.resume().catch(() => {});
+  /** Модуль измерителя грузится один раз на контекст; не загрузился — дальше анализаторы. */
+  let module: Promise<void> | null = null;
+  let workletFailed = false;
   const meter: MeterFactory = (track) => {
     if (typeof AudioContext === 'undefined') return null;
     context ??= new AudioContext();
@@ -336,6 +373,13 @@ export function browserEnvironment(): LevelsEnvironment {
       document.addEventListener('keydown', wake, { once: true, capture: true });
     }
     const source = context.createMediaStreamSource(new MediaStream([track]));
+    if (push && !workletFailed && typeof AudioWorkletNode !== 'undefined' && context.audioWorklet) {
+      const audio = context;
+      module ??= audio.audioWorklet.addModule(levelWorklet);
+      return workletMeter(audio, source, module, () => {
+        workletFailed = true;
+      });
+    }
     const analyser = context.createAnalyser();
     // 1024 отсчёта — 21 мс при 48 кГц: окно короче кадра опроса, но длиннее одного периода голоса.
     analyser.fftSize = 1024;
@@ -376,6 +420,62 @@ export function browserEnvironment(): LevelsEnvironment {
     close: () => {
       void context?.close().catch(() => {});
       context = null;
+      module = null;
+    },
+  };
+}
+
+/** Измерители вне кадров — в клиенте Windows с виджетом в игре и мини-окном (R63, R93). */
+function pushMeters(): boolean {
+  return isDesktop() && (hasFeature('overlay.widget') || hasFeature('mini'));
+}
+
+/**
+ * Измеритель на `AudioWorklet`: уровень приходит из потока звука каждые 21 мс. Пока модуль грузится,
+ * измеритель «не слышит» (`ready` — нет) и ступень берётся от SFU; не загрузился — так и остаётся, а
+ * следующие дорожки получают анализатор (`failed`).
+ */
+function workletMeter(
+  context: AudioContext,
+  source: MediaStreamAudioSourceNode,
+  module: Promise<void>,
+  failed: () => void,
+): Meter {
+  let db = -100;
+  let heard = false;
+  let closed = false;
+  let node: AudioWorkletNode | null = null;
+  const listeners = new Set<() => void>();
+  module.then(
+    () => {
+      if (closed) return;
+      // Без выходов: узел — приёмник, Chromium опрашивает его сам, в динамики ничего не идёт.
+      node = new AudioWorkletNode(context, 'cord-level-meter', { numberOfInputs: 1, numberOfOutputs: 0 });
+      node.port.onmessage = ({ data }: MessageEvent<unknown>) => {
+        if (typeof data !== 'number') return;
+        db = data;
+        heard = true;
+        listeners.forEach((listener) => listener());
+      };
+      source.connect(node);
+    },
+    () => failed(),
+  );
+  return {
+    ready: () => heard && context.state === 'running',
+    read: () => db,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    close() {
+      closed = true;
+      listeners.clear();
+      source.disconnect();
+      if (node) {
+        node.port.onmessage = null;
+        node.disconnect();
+      }
     },
   };
 }

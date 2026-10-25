@@ -51,6 +51,10 @@
         "title": "Windows",
         "keywords": "app area di notifica barra delle applicazioni miniatura badge lampeggio sospensione overlay avvio automatico"
       },
+      "overlay": {
+        "title": "Overlay",
+        "keywords": "overlay gioco giochi sopra parla widget mostra il gioco"
+      },
       "audio": {
         "title": "Microfono",
         "keywords": "audio voce suono microfono altoparlanti cuffie"
@@ -257,6 +261,11 @@
         "hint": "Lo schermo resta acceso in chiamata e durante la condivisione",
         "keywords": "sospensione schermo risparmio energetico"
       },
+      "desktop-mini": {
+        "label": "Mini finestra di chiamata",
+        "hint": "Chi parla e i comandi della chiamata quando Cord è ridotto a icona",
+        "keywords": "mini finestra chiamata sopra ridotto"
+      },
       "desktop-overlay": {
         "label": "Overlay nei giochi",
         "hint": "Chi è in chiamata e chi parla — sopra il gioco",
@@ -266,6 +275,41 @@
         "label": "Scorciatoia dell’overlay",
         "hint": "",
         "keywords": "tasto overlay scorciatoia combinazione"
+      },
+      "overlay-lock-hotkey": {
+        "label": "Sblocca l’overlay",
+        "hint": "Trascina il widget e fai clic su «Mostra il gioco» con il mouse",
+        "keywords": "blocco sblocca trascina mouse scorciatoia"
+      },
+      "overlay-toast": {
+        "label": "Avviso all’avvio di un gioco",
+        "hint": "«Mostra il gioco» trasmette quel gioco nella chiamata",
+        "keywords": "mostra il gioco streaming avviso notifica"
+      },
+      "overlay-games": {
+        "label": "Giochi",
+        "hint": "",
+        "keywords": "giochi registrati aggiungi dimentica"
+      },
+      "overlay-corner": {
+        "label": "Posizione",
+        "hint": "",
+        "keywords": "angolo sinistra destra alto basso"
+      },
+      "overlay-size": {
+        "label": "Dimensione avatar",
+        "hint": "",
+        "keywords": "dimensione piccolo medio grande"
+      },
+      "overlay-names": {
+        "label": "Nomi",
+        "hint": "",
+        "keywords": "nomi etichette"
+      },
+      "overlay-opacity": {
+        "label": "Opacità",
+        "hint": "",
+        "keywords": "opacità trasparenza"
       },
       "desktop-autostart": {
         "label": "Avvia con Windows",
@@ -449,6 +493,45 @@
       "changeLabel": "Cambia la scorciatoia dell’overlay",
       "assignLabel": "Assegna una scorciatoia all’overlay",
       "resetLabel": "Ripristina la scorciatoia dell’overlay"
+    },
+    "overlay": {
+      "title": "Overlay nei giochi",
+      "games": "Giochi",
+      "now": "Attivo ora",
+      "running": "In esecuzione",
+      "exclusive": "Schermo intero esclusivo: l’overlay non è visibile",
+      "none": "Nessun gioco in esecuzione",
+      "lastSeen": "Ultima volta {{when}}",
+      "added": "Aggiunto a mano",
+      "empty": "Cord ricorda un gioco da solo quando lo avvii durante una riunione.",
+      "add": "Aggiungi gioco",
+      "more": "Altro per «{{name}}»",
+      "forget": "Dimentica",
+      "gameSwitch": "Overlay su «{{name}}»",
+      "widget": "Chi parla",
+      "preview": "Così appare il widget sopra un gioco",
+      "corners": {
+        "tl": "In alto a sinistra",
+        "tr": "In alto a destra",
+        "bl": "In basso a sinistra",
+        "br": "In basso a destra"
+      },
+      "sizes": {
+        "s": "Piccolo",
+        "m": "Medio",
+        "l": "Grande"
+      },
+      "names": {
+        "always": "Sempre",
+        "speaking": "Quando parla",
+        "never": "Mai"
+      },
+      "lockChange": "Cambia scorciatoia di sblocco",
+      "lockAssign": "Assegna scorciatoia di sblocco",
+      "lockReset": "Reimposta scorciatoia di sblocco",
+      "sample1": "Tu",
+      "sample2": "Anna",
+      "sample3": "Marco"
     },
     "video": {
       "previewDenied": "Nessun accesso alla videocamera: consentilo per Cord"

@@ -51,6 +51,10 @@
         "title": "Windows",
         "keywords": "应用 托盘 任务栏 缩略图 徽标 闪烁 睡眠 叠加层 开机启动"
       },
+      "overlay": {
+        "title": "覆盖层",
+        "keywords": "覆盖层 游戏 置顶 说话 小组件 展示游戏"
+      },
       "audio": {
         "title": "麦克风",
         "keywords": "音频 语音 声音 麦克风 扬声器 耳机"
@@ -257,6 +261,11 @@
         "hint": "通话和共享时屏幕保持常亮",
         "keywords": "睡眠 屏幕 节能"
       },
+      "desktop-mini": {
+        "label": "通话迷你窗口",
+        "hint": "Cord 最小化时显示谁在说话和通话控制",
+        "keywords": "迷你 窗口 通话 置顶 最小化"
+      },
       "desktop-overlay": {
         "label": "游戏内叠加层",
         "hint": "谁在通话、谁在说话——显示在游戏上方",
@@ -266,6 +275,41 @@
         "label": "叠加层快捷键",
         "hint": "",
         "keywords": "按键 叠加层 热键 快捷键"
+      },
+      "overlay-lock-hotkey": {
+        "label": "解锁覆盖层",
+        "hint": "用鼠标拖动小组件、点击“展示游戏”",
+        "keywords": "锁定 解锁 拖动 鼠标 快捷键"
+      },
+      "overlay-toast": {
+        "label": "游戏启动时的提示",
+        "hint": "“展示游戏”会把该游戏共享到通话",
+        "keywords": "展示游戏 直播 通知 提示"
+      },
+      "overlay-games": {
+        "label": "游戏",
+        "hint": "",
+        "keywords": "游戏 已注册 添加 忘记"
+      },
+      "overlay-corner": {
+        "label": "位置",
+        "hint": "",
+        "keywords": "角落 左 右 上 下"
+      },
+      "overlay-size": {
+        "label": "头像大小",
+        "hint": "",
+        "keywords": "大小 小 中 大"
+      },
+      "overlay-names": {
+        "label": "名字",
+        "hint": "",
+        "keywords": "名字 标签"
+      },
+      "overlay-opacity": {
+        "label": "不透明度",
+        "hint": "",
+        "keywords": "不透明度 透明"
       },
       "desktop-autostart": {
         "label": "随 Windows 启动",
@@ -449,6 +493,45 @@
       "changeLabel": "更改叠加层快捷键",
       "assignLabel": "设置叠加层快捷键",
       "resetLabel": "重置叠加层快捷键"
+    },
+    "overlay": {
+      "title": "游戏内覆盖层",
+      "games": "游戏",
+      "now": "当前活动",
+      "running": "正在运行",
+      "exclusive": "独占全屏模式——覆盖层不可见",
+      "none": "没有正在运行的游戏",
+      "lastSeen": "上次运行：{{when}}",
+      "added": "手动添加",
+      "empty": "你在会议中启动游戏时，Cord 会自动记住它。",
+      "add": "添加游戏",
+      "more": "“{{name}}”的更多操作",
+      "forget": "忘记",
+      "gameSwitch": "在“{{name}}”上显示覆盖层",
+      "widget": "说话的人",
+      "preview": "小组件在游戏上方的样子",
+      "corners": {
+        "tl": "左上",
+        "tr": "右上",
+        "bl": "左下",
+        "br": "右下"
+      },
+      "sizes": {
+        "s": "小",
+        "m": "中",
+        "l": "大"
+      },
+      "names": {
+        "always": "始终",
+        "speaking": "说话时",
+        "never": "从不"
+      },
+      "lockChange": "更改解锁快捷键",
+      "lockAssign": "设置解锁快捷键",
+      "lockReset": "重置解锁快捷键",
+      "sample1": "你",
+      "sample2": "安娜",
+      "sample3": "米沙"
     },
     "video": {
       "previewDenied": "无法访问摄像头——请允许 Cord 使用"

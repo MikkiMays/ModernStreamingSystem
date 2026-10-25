@@ -2,7 +2,13 @@ import { notifyDesktop } from './desktop';
 import { defaultScreenMode, screenAudios, type ScreenAudio, type ScreenProfile } from '../media/profiles';
 import { cameraLevel, nearestLevel } from '../media/capabilities';
 import type { DeviceChoice } from '../media/session';
-import { defaultMicHotkey, validHotkey, type Hotkey, type MicHotkeyMode } from './hotkeys';
+import {
+  defaultMicHotkey,
+  defaultOverlayLockHotkey,
+  validHotkey,
+  type Hotkey,
+  type MicHotkeyMode,
+} from './hotkeys';
 import { isLanguage, type Language } from '../i18n/languages';
 
 /**
@@ -109,6 +115,11 @@ export interface Preferences {
    * выберет его сам.
    */
   overlayHotkey: Hotkey | null;
+  /**
+   * Разблокировать оверлей в игре (`overlay.lock`, R63): мышь у виджета — перетащить его, нажать
+   * «Показать игру». По умолчанию `Shift + \``, как у Discord: клавиша не отбирается у игры (Raw Input).
+   */
+  overlayLockHotkey: Hotkey | null;
   /**
    * Что показывать за карточным столом помимо самой игры.
    *
@@ -225,6 +236,12 @@ export function readPreferences(): Preferences {
       data.micHotkey === null ? null : validHotkey(data.micHotkey) ? data.micHotkey : { ...defaultMicHotkey },
     micHotkeyMode: data.micHotkeyMode === 'hold' ? 'hold' : 'toggle',
     overlayHotkey: validHotkey(data.overlayHotkey) ? data.overlayHotkey : null,
+    overlayLockHotkey:
+      data.overlayLockHotkey === null
+        ? null
+        : validHotkey(data.overlayLockHotkey)
+          ? data.overlayLockHotkey
+          : { ...defaultOverlayLockHotkey },
   };
 }
 export function savePreferences(patch: Partial<Preferences>): Preferences {

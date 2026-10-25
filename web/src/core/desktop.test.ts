@@ -98,6 +98,32 @@ describe('мост v2 — адаптер', () => {
     ]);
   });
 
+  it('разблокировка оверлея (R63): overlay.lock и клавиша «`» — только оболочке с overlay.widget', async () => {
+    const mic = { code: 'KeyM', ctrl: true, alt: false, shift: true, meta: false };
+    const lock = { code: 'Backquote', ctrl: false, alt: false, shift: true, meta: false };
+    const old = fakeDesktop(['hotkeys', 'overlay']);
+    let desktop = await import('./desktop');
+    // Оболочка 1.0.7 отбросила бы весь набор с незнакомым действием или клавишей — микрофон уходит один.
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, overlay: lock, lock });
+    expect(old.send).toHaveBeenLastCalledWith('hotkeys.configure', {
+      bindings: [{ action: 'mic.toggle', mode: 'toggle', key: mic }],
+    });
+    vi.resetModules();
+    const fresh = fakeDesktop(['hotkeys', 'overlay', 'overlay.widget']);
+    desktop = await import('./desktop');
+    desktop.notifyDesktop('hotkey.configure', { hotkey: mic, lock });
+    expect(fresh.send).toHaveBeenLastCalledWith('hotkeys.configure', {
+      bindings: [
+        { action: 'mic.toggle', mode: 'toggle', key: mic },
+        { action: 'overlay.lock', mode: 'toggle', key: lock },
+      ],
+    });
+    const stop = desktop.onDesktopCommand(() => {});
+    fresh.emit('hotkeys.status', { status: { 'mic.toggle': 'global-raw', 'overlay.lock': 'duplicate' } });
+    stop();
+    expect(desktop.desktopOverlayLockStatus.get()).toBe('duplicate');
+  });
+
   it('WinUI получает только сочетание микрофона — об оверлее и паузе он не знает', async () => {
     const posted: unknown[] = [];
     (window as unknown as { chrome?: unknown }).chrome = {

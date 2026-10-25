@@ -51,6 +51,10 @@
         "title": "Windows",
         "keywords": "App Infobereich Taskleiste Miniatur Badge Blinken Ruhezustand Overlay Autostart"
       },
+      "overlay": {
+        "title": "Overlay",
+        "keywords": "overlay spiel spiele darüber sprechende widget spiel zeigen"
+      },
       "audio": {
         "title": "Mikrofon",
         "keywords": "Audio Sprache Ton Mikrofon Lautsprecher Kopfhörer"
@@ -257,6 +261,11 @@
         "hint": "Der Bildschirm bleibt bei Anrufen und Freigaben an",
         "keywords": "Ruhezustand Bildschirm Energiesparen"
       },
+      "desktop-mini": {
+        "label": "Mini-Anruffenster",
+        "hint": "Wer spricht und Anrufsteuerung, wenn Cord minimiert ist",
+        "keywords": "mini fenster anruf darüber minimiert"
+      },
       "desktop-overlay": {
         "label": "Overlay in Spielen",
         "hint": "Wer im Anruf ist und wer spricht – über dem Spiel",
@@ -266,6 +275,41 @@
         "label": "Overlay-Tastenkürzel",
         "hint": "",
         "keywords": "Taste Overlay Hotkey Tastenkürzel"
+      },
+      "overlay-lock-hotkey": {
+        "label": "Overlay entsperren",
+        "hint": "Widget ziehen und „Spiel zeigen“ mit der Maus anklicken",
+        "keywords": "sperre entsperren ziehen maus tastenkürzel"
+      },
+      "overlay-toast": {
+        "label": "Hinweis beim Spielstart",
+        "hint": "„Spiel zeigen“ überträgt dieses Spiel in den Anruf",
+        "keywords": "spiel zeigen stream benachrichtigung hinweis"
+      },
+      "overlay-games": {
+        "label": "Spiele",
+        "hint": "",
+        "keywords": "spiele registriert hinzufügen vergessen"
+      },
+      "overlay-corner": {
+        "label": "Position",
+        "hint": "",
+        "keywords": "ecke links rechts oben unten"
+      },
+      "overlay-size": {
+        "label": "Avatargröße",
+        "hint": "",
+        "keywords": "größe klein mittel groß"
+      },
+      "overlay-names": {
+        "label": "Namen",
+        "hint": "",
+        "keywords": "namen beschriftung"
+      },
+      "overlay-opacity": {
+        "label": "Deckkraft",
+        "hint": "",
+        "keywords": "deckkraft transparenz"
       },
       "desktop-autostart": {
         "label": "Mit Windows starten",
@@ -449,6 +493,45 @@
       "changeLabel": "Overlay-Tastenkürzel ändern",
       "assignLabel": "Overlay-Tastenkürzel festlegen",
       "resetLabel": "Overlay-Tastenkürzel zurücksetzen"
+    },
+    "overlay": {
+      "title": "In-Game-Overlay",
+      "games": "Spiele",
+      "now": "Gerade aktiv",
+      "running": "Läuft gerade",
+      "exclusive": "Exklusiver Vollbildmodus – das Overlay ist nicht sichtbar",
+      "none": "Kein Spiel läuft",
+      "lastSeen": "Zuletzt gespielt {{when}}",
+      "added": "Manuell hinzugefügt",
+      "empty": "Cord merkt sich ein Spiel von selbst, wenn du es während eines Meetings startest.",
+      "add": "Spiel hinzufügen",
+      "more": "Mehr für „{{name}}“",
+      "forget": "Vergessen",
+      "gameSwitch": "Overlay über „{{name}}“",
+      "widget": "Sprechende",
+      "preview": "So sieht das Widget über einem Spiel aus",
+      "corners": {
+        "tl": "Oben links",
+        "tr": "Oben rechts",
+        "bl": "Unten links",
+        "br": "Unten rechts"
+      },
+      "sizes": {
+        "s": "Klein",
+        "m": "Mittel",
+        "l": "Groß"
+      },
+      "names": {
+        "always": "Immer",
+        "speaking": "Beim Sprechen",
+        "never": "Nie"
+      },
+      "lockChange": "Tastenkürzel zum Entsperren ändern",
+      "lockAssign": "Tastenkürzel zum Entsperren festlegen",
+      "lockReset": "Tastenkürzel zum Entsperren zurücksetzen",
+      "sample1": "Du",
+      "sample2": "Anna",
+      "sample3": "Max"
     },
     "video": {
       "previewDenied": "Kein Kamerazugriff – erlaube ihn für Cord"

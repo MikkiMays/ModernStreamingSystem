@@ -34,6 +34,7 @@ import { HelpButton } from './support/HelpButton';
 import { closeHelp, openHelp, provideCallReport } from './support/help';
 import { BackgroundNote } from './BackgroundNote';
 import { useCallInBackground } from './useCallInBackground';
+import { useDesktopOverlay } from './useDesktopOverlay';
 import { useTrayChat } from './useTrayChat';
 
 const Diagnostics = lazy(() => import('./Diagnostics'));
@@ -244,6 +245,7 @@ export function MeetingView({
     notifyDesktop('hotkey.configure', {
       hotkey: ended ? null : micKey,
       overlay: ended ? null : preferences.overlayHotkey,
+      lock: ended ? null : preferences.overlayLockHotkey,
       mode,
     });
     window.addEventListener('keydown', keyboard);
@@ -276,42 +278,22 @@ export function MeetingView({
         window.removeEventListener('mouseup', mouseUp);
       }
       unsubscribe();
-      notifyDesktop('hotkey.configure', { hotkey: null, overlay: null });
+      notifyDesktop('hotkey.configure', { hotkey: null, overlay: null, lock: null });
     };
-  }, [meeting, preferences.micHotkey, preferences.micHotkeyMode, preferences.overlayHotkey, ended]);
-  // Оверлей клиента (T23, E01): кто в комнате и кто говорит — не чаще 10 раз в секунду, без аватаров.
-  useEffect(() => {
-    if (!hasFeature('overlay') || ended) return;
-    let last = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const publish = () => {
-      timer = null;
-      last = Date.now();
-      const levels = meeting.media.levels.state.get();
-      const speaking = new Set(meeting.media.speaking.get());
-      notifyDesktop('overlay.state', {
-        participants: humans(meeting.snapshot.get().participants)
-          .slice(0, 20)
-          .map((p) => ({
-            name: p.name.slice(0, 40),
-            tier: levels[p.id]?.tier ?? 0,
-            speaking: speaking.has(p.id),
-          })),
-      });
-    };
-    const schedule = () => {
-      if (timer) return;
-      const wait = Math.max(0, 100 - (Date.now() - last));
-      timer = setTimeout(publish, wait);
-    };
-    const stops = [meeting.media.levels.watchAll(schedule), meeting.snapshot.subscribe(schedule)];
-    schedule();
-    return () => {
-      stops.forEach((stop) => stop());
-      if (timer) clearTimeout(timer);
-      notifyDesktop('overlay.state', { participants: [] });
-    };
-  }, [meeting, ended]);
+  }, [
+    meeting,
+    preferences.micHotkey,
+    preferences.micHotkeyMode,
+    preferences.overlayHotkey,
+    preferences.overlayLockHotkey,
+    ended,
+  ]);
+  // Окна оболочки поверх других программ (R63, R93, R104): виджет говорящих в игре и мини-окно звонка.
+  useDesktopOverlay(meeting, !!ended, {
+    setPanel,
+    openSettings: () => show('settings'),
+    leave: leaveMeeting,
+  });
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   // Действия ведущего — по ответу ядра (`you.can`), а не по флажку `owner` в списке людей.
   const may = (action: RoomAction) => allowed(snapshot, meeting.admission.participantId, action);

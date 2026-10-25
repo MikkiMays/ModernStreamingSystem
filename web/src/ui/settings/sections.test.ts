@@ -134,7 +134,28 @@ describe('раздел «Windows» (E01-B2): только в клиенте и �
     const shown = (Object.entries(ROWS) as [RowId, RowSpec][])
       .filter(([, spec]) => spec.section === 'desktop' && rowAvailable(spec, 'desktop', flags))
       .map(([id]) => id);
-    expect(shown).toEqual(['desktop-tray', 'desktop-overlay', 'desktop-overlay-hotkey']);
+    expect(shown).toEqual(['desktop-tray']);
+  });
+
+  it('«Оверлей» (R62, R63) — свой раздел рядом с «Windows»: оболочка 1.0.7 — переключатель и клавиша, новая — всё', () => {
+    const rows = (flags: string[]) =>
+      (Object.entries(ROWS) as [RowId, RowSpec][])
+        .filter(([, spec]) => spec.section === 'overlay' && rowAvailable(spec, 'desktop', has(flags)))
+        .map(([id]) => id);
+    expect(ids('desktop', ['app.settings', 'overlay'])).toContain('overlay');
+    expect(ids('browser', ['app.settings', 'overlay'])).not.toContain('overlay');
+    expect(rows(['app.settings', 'overlay'])).toEqual(['desktop-overlay', 'desktop-overlay-hotkey']);
+    expect(rows(['app.settings', 'overlay', 'overlay.widget', 'games', 'golive'])).toEqual([
+      'desktop-overlay',
+      'desktop-overlay-hotkey',
+      'overlay-lock-hotkey',
+      'overlay-toast',
+      'overlay-games',
+      'overlay-corner',
+      'overlay-size',
+      'overlay-names',
+      'overlay-opacity',
+    ]);
   });
 
   it('поиск находит переключатель только там, где он есть', () => {

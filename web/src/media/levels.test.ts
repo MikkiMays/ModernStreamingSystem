@@ -295,4 +295,33 @@ describe('VoiceLevels', () => {
     h.run(50);
     expect(listener).toHaveBeenCalled();
   });
+
+  it('измеритель вне кадров (AudioWorklet, R63): опрос по его приходу, и скрытая вкладка его не гасит', () => {
+    const h = harness();
+    let db = -100;
+    const pushes = new Set<() => void>();
+    const env: LevelsEnvironment = {
+      ...h.env,
+      meter: () => ({
+        read: () => db,
+        close: () => {},
+        subscribe: (listener) => {
+          pushes.add(listener);
+          return () => pushes.delete(listener);
+        },
+      }),
+    };
+    const levels = new VoiceLevels(new Store([mic('anna')]), new Store<string[]>([]), env);
+    const listener = vi.fn();
+    const stop = levels.watchAll(listener);
+    expect(h.frames, 'кадры не нужны').toBe(0);
+    h.hide(true);
+    h.run(50);
+    db = rmsDb(sine(0.1));
+    pushes.forEach((push) => push());
+    expect(levels.tier('anna'), 'окно Cord спрятано, а уровень пришёл').toBeGreaterThan(0);
+    expect(listener).toHaveBeenCalled();
+    stop();
+    expect(pushes.size, 'перестали смотреть — отписка').toBe(0);
+  });
 });

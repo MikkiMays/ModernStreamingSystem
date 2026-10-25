@@ -85,7 +85,6 @@ describe('«Windows» в настройках', () => {
       'Значок на иконке',
       'Мигание кнопки окна',
       'Не засыпать во время встречи',
-      'Оверлей в играх',
       'Запускать вместе с Windows',
     ])
       expect(screen.getByRole('switch', { name })).toBeInTheDocument();
@@ -103,12 +102,15 @@ describe('«Windows» в настройках', () => {
     await act(async () => {});
     expect(screen.queryByRole('switch', { name: 'Значок в трее' })).toBeNull();
     expect(screen.queryByRole('switch', { name: 'Запускать вместе с Windows' })).toBeNull();
-    expect(screen.getByRole('switch', { name: 'Оверлей в играх' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Не засыпать во время встречи' })).toBeInTheDocument();
+    // Оверлей — свой раздел рядом (R62).
+    expect(screen.queryByRole('switch', { name: 'Оверлей в играх' })).toBeNull();
+    expect(within(nav()).getByRole('button', { name: 'Оверлей' })).toBeInTheDocument();
   });
 
   it('сочетание оверлея: запись отпускает все сочетания, назначенное уходит оболочке; микрофонное — нельзя', async () => {
     const api = fakeDesktop(ALL);
-    render(<Settings open section="desktop" onOpenChange={vi.fn()} />);
+    render(<Settings open section="overlay" onOpenChange={vi.fn()} />);
     await act(async () => {});
     const record = (init: KeyboardEventInit) => {
       fireEvent.click(screen.getByRole('button', { name: /сочетание оверлея/ }));

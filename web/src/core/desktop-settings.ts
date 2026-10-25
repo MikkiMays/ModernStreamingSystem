@@ -9,7 +9,20 @@ import { Store } from './store';
  * Страница читает и меняет их запросом `invoke('app.settings', патч)`, а оболочка, сменив значение
  * сама (клавиша оверлея), присылает событие `app.settings`. Каждая строка раздела видна только при
  * своём флаге возможностей (`tray`, `thumbar`, `badge`, `attention`, `sleep`, `overlay`, `autostart`).
+ *
+ * Не только переключатели (R63, R93): виджет говорящих в игре — угол, размер аватара, имена,
+ * прозрачность, всплывашка при старте игры (флаг `overlay.widget`) — и мини-окно звонка (флаг `mini`).
+ * Оболочка до R63 этих значений не присылает (поля необязательные) и отказала бы патчу с ними —
+ * поэтому их строки видны только при своих флагах.
  */
+export type OverlayCorner = 'tl' | 'tr' | 'bl' | 'br';
+export type OverlaySize = 's' | 'm' | 'l';
+export type OverlayNames = 'always' | 'speaking' | 'never';
+export const OVERLAY_CORNERS: readonly OverlayCorner[] = ['tl', 'tr', 'bl', 'br'];
+export const OVERLAY_SIZES: readonly OverlaySize[] = ['s', 'm', 'l'];
+export const OVERLAY_NAMES: readonly OverlayNames[] = ['always', 'speaking', 'never'];
+export const OVERLAY_OPACITY = { min: 30, max: 100 } as const;
+
 export interface DesktopSettings {
   tray: boolean;
   thumbar: boolean;
@@ -18,9 +31,21 @@ export interface DesktopSettings {
   sleepBlocker: boolean;
   overlay: boolean;
   autostart: boolean;
+  /** Мини-окно звонка, когда Cord свёрнут (R93). */
+  mini?: boolean;
+  overlayCorner?: OverlayCorner;
+  overlaySize?: OverlaySize;
+  overlayNames?: OverlayNames;
+  /** 30–100 %. */
+  overlayOpacity?: number;
+  /** Всплывашка «Показать игру» при старте игры (R104). */
+  overlayToast?: boolean;
 }
 
-const KEYS: readonly (keyof DesktopSettings)[] = [
+/** Переключатели, которые знает любая оболочка с `app.settings`: без любого из них ответа нет. */
+export type DesktopSwitch =
+  'tray' | 'thumbar' | 'badge' | 'flash' | 'sleepBlocker' | 'overlay' | 'autostart' | 'mini' | 'overlayToast';
+const KEYS: readonly Exclude<DesktopSwitch, 'mini' | 'overlayToast'>[] = [
   'tray',
   'thumbar',
   'badge',
@@ -47,6 +72,22 @@ export function parseDesktopSettings(answer: unknown): DesktopSettings | null {
     if (typeof data[key] !== 'boolean') return null;
     parsed[key] = data[key];
   }
+  // Значения виджета и мини-окна — только знакомые; незнакомое пропускается, а не роняет ответ.
+  if (typeof data.mini === 'boolean') parsed.mini = data.mini;
+  if (typeof data.overlayToast === 'boolean') parsed.overlayToast = data.overlayToast;
+  if (OVERLAY_CORNERS.includes(data.overlayCorner as OverlayCorner))
+    parsed.overlayCorner = data.overlayCorner as OverlayCorner;
+  if (OVERLAY_SIZES.includes(data.overlaySize as OverlaySize))
+    parsed.overlaySize = data.overlaySize as OverlaySize;
+  if (OVERLAY_NAMES.includes(data.overlayNames as OverlayNames))
+    parsed.overlayNames = data.overlayNames as OverlayNames;
+  if (
+    typeof data.overlayOpacity === 'number' &&
+    Number.isInteger(data.overlayOpacity) &&
+    data.overlayOpacity >= OVERLAY_OPACITY.min &&
+    data.overlayOpacity <= OVERLAY_OPACITY.max
+  )
+    parsed.overlayOpacity = data.overlayOpacity;
   return parsed;
 }
 
