@@ -129,7 +129,8 @@ async function removeTable(page, root) {
       .click();
   }
   const confirm = page.getByRole('dialog').getByRole('button', { name: /Убрать/ });
-  if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
+  if (await confirm.isVisible({ timeout: 1500 }).catch(() => false))
+    await confirm.click({ timeout: 5000 }).catch(() => {});
   await page.locator(root).waitFor({ state: 'detached', timeout: 15000 });
 }
 const pages = [];
@@ -185,6 +186,8 @@ try {
     await guest.locator('.chess').waitFor({ timeout: 15000 });
     await host.locator('.chess-seat').first().click();
     await guest.locator('.chess-seat').last().click();
+    const start = host.locator('.chess').getByRole('button', { name: 'Начать партию', exact: true });
+    if (await start.isVisible({ timeout: 5000 }).catch(() => false)) await start.click();
     await host
       .locator('.chess-player[data-active]')
       .first()
@@ -256,6 +259,9 @@ try {
     if (!track) throw new Error('--track не задан');
     await openPanel(host);
     await host.getByRole('button', { name: /^Музыка/ }).click({ timeout: 15000 });
+    // Первый вход — карточка «Добавить во встречу», площадки вкладками потом (R44).
+    const add = host.getByRole('button', { name: 'Добавить во встречу' });
+    if (await add.isVisible({ timeout: 3000 }).catch(() => false)) await add.click();
     await host.getByRole('tab', { name: 'Свои файлы' }).click({ timeout: 30000 });
     await host.locator('input[type="file"]').waitFor({ state: 'attached', timeout: 60000 });
     await host.locator('input[type="file"]').setInputFiles(track);

@@ -711,6 +711,7 @@
     "sendFailed": "No se pudo enviar la jugada. Inténtalo de nuevo.",
     "status": {
       "lobby": "Invita a un rival al tablero",
+      "lobbyReady": "Ambos jugadores están en el tablero: solo falta empezar la partida",
       "yourTurn": "Tu turno",
       "turn": {
         "white": "Juegan las blancas",

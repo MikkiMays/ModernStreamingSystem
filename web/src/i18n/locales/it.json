@@ -711,6 +711,7 @@
     "sendFailed": "Impossibile inviare la mossa. Riprova.",
     "status": {
       "lobby": "Invita un avversario alla scacchiera",
+      "lobbyReady": "Entrambi i giocatori sono alla scacchiera: resta solo iniziare la partita",
       "yourTurn": "Tocca a te",
       "turn": {
         "white": "Muove il Bianco",

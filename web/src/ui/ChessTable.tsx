@@ -251,9 +251,13 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
   const resultTitle = table.winner ? t(($) => $.chess.status.winner[winner]) : t(($) => $.chess.status.draw);
   const turn =
     table.turn === color ? t(($) => $.chess.status.yourTurn) : t(($) => $.chess.status.turn[turnSide]);
+  // В лобби два состояния: соперника ещё ждут — или оба за доской и осталось начать партию
+  // (финальный прогон 25.10: «Пригласите соперника» при двух занятых местах).
   const status =
     table.phase === 'lobby'
-      ? t(($) => $.chess.status.lobby)
+      ? table.white && table.black
+        ? t(($) => $.chess.status.lobbyReady)
+        : t(($) => $.chess.status.lobby)
       : table.phase === 'over'
         ? resultTitle
         : `${turn}${table.check ? ` · ${t(($) => $.chess.status.check)}` : ''}`;

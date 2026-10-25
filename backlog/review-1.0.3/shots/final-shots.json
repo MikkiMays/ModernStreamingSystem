@@ -1,39 +1,31 @@
 [
   {
-    "name": "invite",
+    "name": "chess",
     "width": 1440,
     "theme": "dark",
-    "file": "final-invite-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "invite",
-    "width": 1440,
-    "theme": "light",
-    "file": "final-invite-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "name": "invite",
-    "width": 390,
-    "theme": "dark",
-    "file": "final-invite-390-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "invite",
-    "width": 390,
-    "theme": "light",
-    "file": "final-invite-390-light.png",
+    "file": "final-chess-1440-dark.png",
     "overflowX": 0
   },
   {
     "name": "chess",
-    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+    "width": 1440,
+    "theme": "light",
+    "file": "final-chess-1440-light.png",
+    "overflowX": 0
   },
   {
-    "name": "gartic",
-    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+    "name": "chess",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-chess-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "chess",
+    "width": 390,
+    "theme": "light",
+    "file": "final-chess-390-light.png",
+    "overflowX": 0
   },
   {
     "name": "durak",
@@ -64,113 +56,59 @@
     "overflowX": 0
   },
   {
-    "name": "durak",
-    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
-  },
-  {
-    "name": "poker",
+    "name": "music-player",
     "width": 1440,
     "theme": "dark",
-    "file": "final-poker-1440-dark.png",
+    "file": "final-music-player-1440-dark.png",
     "overflowX": 0
   },
   {
-    "name": "poker",
+    "name": "music-player",
     "width": 1440,
     "theme": "light",
-    "file": "final-poker-1440-light.png",
+    "file": "final-music-player-1440-light.png",
     "overflowX": 0
   },
   {
-    "name": "poker",
+    "name": "music-mini",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-music-mini-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-music-mini-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
     "width": 390,
     "theme": "dark",
-    "file": "final-poker-390-dark.png",
+    "file": "final-music-mini-390-dark.png",
     "overflowX": 0
   },
   {
-    "name": "poker",
+    "name": "music-mini",
     "width": 390,
     "theme": "light",
-    "file": "final-poker-390-light.png",
+    "file": "final-music-mini-390-light.png",
     "overflowX": 0
   },
   {
-    "name": "music",
-    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
-  },
-  {
-    "name": "cinema",
-    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
-  },
-  {
-    "name": "diagnostics",
-    "width": 1440,
-    "theme": "dark",
-    "file": "final-diagnostics-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "diagnostics",
-    "width": 1440,
-    "theme": "light",
-    "file": "final-diagnostics-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-meeting",
-    "width": 1440,
-    "theme": "dark",
-    "file": "final-support-meeting-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-meeting",
-    "width": 1440,
-    "theme": "light",
-    "file": "final-support-meeting-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-meeting",
+    "name": "music-player",
     "width": 390,
     "theme": "dark",
-    "file": "final-support-meeting-390-dark.png",
+    "file": "final-music-player-390-dark.png",
     "overflowX": 0
   },
   {
-    "name": "support-meeting",
+    "name": "music-player",
     "width": 390,
     "theme": "light",
-    "file": "final-support-meeting-390-light.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-home",
-    "width": 1440,
-    "theme": "dark",
-    "file": "final-support-home-1440-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-home",
-    "width": 1440,
-    "theme": "light",
-    "file": "final-support-home-1440-light.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-home",
-    "width": 390,
-    "theme": "dark",
-    "file": "final-support-home-390-dark.png",
-    "overflowX": 0
-  },
-  {
-    "name": "support-home",
-    "width": 390,
-    "theme": "light",
-    "file": "final-support-home-390-light.png",
+    "file": "final-music-player-390-light.png",
     "overflowX": 0
   }
 ]

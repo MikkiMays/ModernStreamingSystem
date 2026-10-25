@@ -710,6 +710,7 @@
     "sendFailed": "Zug konnte nicht gesendet werden. Versuch es noch einmal.",
     "status": {
       "lobby": "Lade einen Gegner ans Brett ein",
+      "lobbyReady": "Beide Spieler sind am Brett — es bleibt nur, die Partie zu starten",
       "yourTurn": "Du bist am Zug",
       "turn": {
         "white": "Weiß am Zug",
