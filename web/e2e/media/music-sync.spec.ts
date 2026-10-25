@@ -130,16 +130,13 @@ test('музыка: запас в одной секунде у всех, зам�
       await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 90000 });
     }
     await host!.getByRole('button', { name: 'Интеграции', exact: true }).click();
-    await host!.getByRole('button', { name: /Музыка/ }).click({ timeout: 15000 });
-    await host!.getByRole('button', { name: /Свои файлы/ }).click({ timeout: 30000 });
-    const add = host!.getByRole('button', { name: 'Добавить во встречу' });
-    if (await add.isVisible({ timeout: 5000 }).catch(() => false)) await add.click({ timeout: 15000 });
+    await host!.getByRole('button', { name: /^Музыка/ }).click({ timeout: 15000 });
+    // Вход в музыку — сразу плеер, площадки вкладками (R44): «Свои файлы» — вкладка, не кнопка.
+    await host!.getByRole('tab', { name: 'Свои файлы' }).click({ timeout: 30000 });
     await expect(host!.locator('input[type="file"]')).toBeAttached({ timeout: 60000 });
     await host!.locator('input[type="file"]').setInputFiles(TRACK);
-    // Признак «играет» — карточка музыки в слое интеграций, а не строка раскрытой панели плеера.
-    await expect(host!.getByRole('button', { name: 'Открыть плеер музыки' })).toContainText('Сейчас играет', {
-      timeout: 90000,
-    });
+    // Признак «играет» — мини-плеер в слое над сценой (R31) с `data-playing`, а не строка панели.
+    await expect(host!.locator('.music-mini[data-playing]')).toBeVisible({ timeout: 90000 });
     console.log('music playing at', new Date().toISOString());
     mark('playing');
 

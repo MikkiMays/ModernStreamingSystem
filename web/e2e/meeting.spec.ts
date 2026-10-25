@@ -90,6 +90,8 @@ test('предвход помещается в любое окно и не пр�
 });
 
 test('two real browser contexts exchange camera, audio and messages through LiveKit', async ({ browser }) => {
+  // Два браузера через настоящий SFU, чат и вложение: под нагрузкой стенда общий срок 45 с мал.
+  test.setTimeout(90000);
   const a = await browser.newContext({
     permissions: ['camera', 'microphone'],
     viewport: { width: 1440, height: 960 },

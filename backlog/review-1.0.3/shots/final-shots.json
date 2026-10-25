@@ -1,0 +1,176 @@
+[
+  {
+    "name": "invite",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-invite-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "invite",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-invite-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "invite",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-invite-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "invite",
+    "width": 390,
+    "theme": "light",
+    "file": "final-invite-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "chess",
+    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+  },
+  {
+    "name": "gartic",
+    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+  },
+  {
+    "name": "durak",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-durak-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-durak-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-durak-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 390,
+    "theme": "light",
+    "file": "final-durak-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+  },
+  {
+    "name": "poker",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-poker-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-poker-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-poker-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "poker",
+    "width": 390,
+    "theme": "light",
+    "file": "final-poker-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music",
+    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+  },
+  {
+    "name": "cinema",
+    "failed": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+  },
+  {
+    "name": "diagnostics",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-diagnostics-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "diagnostics",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-diagnostics-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-meeting",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-support-meeting-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-meeting",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-support-meeting-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-meeting",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-support-meeting-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-meeting",
+    "width": 390,
+    "theme": "light",
+    "file": "final-support-meeting-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-home",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-support-home-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-home",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-support-home-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-home",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-support-home-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "support-home",
+    "width": 390,
+    "theme": "light",
+    "file": "final-support-home-390-light.png",
+    "overflowX": 0
+  }
+]

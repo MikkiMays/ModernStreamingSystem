@@ -57,7 +57,8 @@ test('nine-digit admission, explicit return and cached camera/screen quality wor
     await guest.getByRole('button', { name: 'Присоединиться', exact: true }).click();
     await guest.getByLabel('Ваше имя').fill('Гость по коду');
     await guest.getByRole('button', { name: 'Войти во встречу' }).click();
-    await expect(guest.getByText('Организатор скоро впустит вас')).toBeVisible();
+    // Вход по коду решает задачу «не бот» и ждёт ядро — на загруженном стенде дольше 5 с по умолчанию.
+    await expect(guest.getByText('Организатор скоро впустит вас')).toBeVisible({ timeout: 25000 });
     await host.getByRole('button', { name: /Запросы на подключение/ }).click();
     await host.getByRole('button', { name: 'Разрешить вход: Гость по коду' }).click();
     await expect(guest.locator('[data-media-status="connected"]')).toBeVisible();
