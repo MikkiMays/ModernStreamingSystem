@@ -59,7 +59,7 @@
   display: grid;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -94,7 +94,7 @@
 
 .activity-table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -108,7 +108,7 @@
 .activity-table th,
 .activity-table td {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   text-align: left;
   vertical-align: middle;
 }
@@ -170,7 +170,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -181,7 +181,7 @@
 
 .activity-blocks li div {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
@@ -228,7 +228,7 @@
 .activity-bars {
   margin: 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }
@@ -247,11 +247,11 @@
 .activity-bars ul {
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: var(--space-0-5);
   height: 160px;
   margin: 0;
   padding: 0;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: var(--hairline) solid var(--line-strong);
   list-style: none;
 }
 
@@ -339,7 +339,7 @@
   height: auto;
   gap: var(--space-2);
   border-bottom: 0;
-  border-left: 1px solid var(--line-strong);
+  border-left: var(--hairline) solid var(--line-strong);
 }
 
 .activity-bars--horizontal li {
@@ -406,7 +406,7 @@
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-4);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface-1);
 }

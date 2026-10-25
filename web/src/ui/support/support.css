@@ -125,7 +125,7 @@
 }
 .help-faq__trigger:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: calc(var(--focus-offset) * -1);
+  outline-offset: var(--focus-offset-inset);
 }
 .help-faq__chevron {
   flex: none;
@@ -269,8 +269,8 @@
   padding-top: var(--space-2);
 }
 .help-sent__icon {
-  width: var(--control-lg);
-  height: var(--control-lg);
+  width: var(--icon-2xl);
+  height: var(--icon-2xl);
   color: var(--success);
 }
 .help-sent__title {

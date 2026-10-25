@@ -166,7 +166,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
   if (step.kind === 'media')
     return (
       <Screen
-        icon={<MicOff size={28} />}
+        icon={<MicOff size={24} />}
         title={t(($) => $.telegram.media.title)}
         body={
           step.reason === 'denied'
@@ -192,7 +192,7 @@ function MiniApp({ shell }: { shell: TelegramShell }) {
       </Screen>
     );
   return (
-    <Screen icon={<TriangleAlert size={28} />} title={t(($) => $.telegram.failed.title)} body={step.message}>
+    <Screen icon={<TriangleAlert size={24} />} title={t(($) => $.telegram.failed.title)} body={step.message}>
       {step.other ? (
         <Button variant="primary" size="lg" onClick={() => void run({ leave: step.other ?? undefined })}>
           {t(($) => $.telegram.failed.leaveOther)}

@@ -5,6 +5,7 @@ import type { Command, Snapshot } from '../../api/types';
 import type { Meeting } from '../../core/meeting';
 import { Presence, SAMPLE_MS } from '../../core/presence';
 import { locale } from '../../i18n';
+import { Button } from '../kit';
 import './notices.css';
 
 /* «Вы ещё здесь?» (A2, E10-B): браузер сам подтверждает присутствие, ядро спрашивает молчащих. */
@@ -75,10 +76,10 @@ export function PresenceAsk({ snapshot, presence }: { snapshot: Snapshot; presen
         <strong id="presence-ask-title">{t(($) => $.meeting.presence.title)}</strong>
         <span>{t(($) => $.meeting.presence.text, { time })}</span>
       </div>
-      <button
-        type="button"
-        className="presence-ask__button"
-        disabled={sending}
+      {/* Кнопка набора, а не своя (R28): своя была 40 с весом 600 рядом с кнопками 36 пульта. */}
+      <Button
+        variant="primary"
+        loading={sending}
         autoFocus
         onClick={() => {
           setSending(true);
@@ -89,7 +90,7 @@ export function PresenceAsk({ snapshot, presence }: { snapshot: Snapshot; presen
         }}
       >
         {t(($) => $.meeting.presence.confirm)}
-      </button>
+      </Button>
     </div>
   );
 }

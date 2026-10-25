@@ -36,7 +36,7 @@ export function MeetingEnds({ snapshot }: { snapshot: Snapshot }) {
   const full = t(($) => $.meeting.ceiling, { time });
   return (
     <p className="abuse-notice" role="status" title={full} aria-label={full}>
-      <TimerOff size={14} aria-hidden="true" />
+      <TimerOff size={12} aria-hidden="true" />
       {t(($) => $.meeting.ceilingShort, { time })}
     </p>
   );
@@ -60,7 +60,7 @@ export function CinemaTraffic({ snapshot }: { snapshot: Snapshot }) {
   const full = stopped ? t(($) => $.meeting.cinemaStopped) : t(($) => $.meeting.cinemaTraffic, { percent });
   return (
     <p className="abuse-notice" role="status" title={full} aria-label={full}>
-      <Clapperboard size={14} aria-hidden="true" />
+      <Clapperboard size={12} aria-hidden="true" />
       {stopped ? t(($) => $.meeting.cinemaStoppedShort) : t(($) => $.meeting.cinemaTrafficShort, { percent })}
     </p>
   );
@@ -77,7 +77,7 @@ export function ExecutableNote({ file }: { file: Attachment }) {
   if (!isExecutable(file)) return null;
   return (
     <small className="abuse-notice" role="note">
-      <ShieldAlert size={13} aria-hidden="true" />
+      <ShieldAlert size={12} aria-hidden="true" />
       {t(($) => $.chat.executable)}
     </small>
   );
