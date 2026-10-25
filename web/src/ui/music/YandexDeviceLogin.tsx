@@ -178,10 +178,10 @@ export function YandexDeviceLogin({
           rel="noopener noreferrer"
         >
           {t(($) => $.music.yandex.device.open)}
-          <ExternalLink size={14} aria-hidden="true" />
+          <ExternalLink size={16} aria-hidden="true" />
         </a>
         <p className="yandex-device__note" role="status">
-          <LoaderCircle size={14} className="spin" aria-hidden="true" />{' '}
+          <LoaderCircle size={16} className="spin" aria-hidden="true" />{' '}
           {t(($) => $.music.yandex.device.waiting)}
         </p>
       </div>

@@ -2,30 +2,16 @@
 input,
 select,
 textarea,
-.input-icon input,
-.device-fields select,
 .settings-form select {
   font-size: var(--text-md);
 }
 
-.join-card p {
-  font-size: var(--text-md);
-}
-
-.upload-area strong,
 .action-menu [role='menuitem'],
 .settings-form label {
   font-size: var(--text-base);
 }
-.form-footnote,
-.file-footnote {
+.form-footnote {
   font-size: var(--text-xs);
-}
-
-.modal-heading > .icon-button {
-  min-width: 48px;
-  width: 48px;
-  height: 48px;
 }
 
 .loading-room {

@@ -33,7 +33,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   padding: 16px;
   text-align: center;
   color: var(--text);
@@ -47,7 +47,7 @@
 .watch-buffering {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   color: var(--text);
 }
 .watch-buffering {
@@ -137,10 +137,11 @@
 .watch-center[data-shown='true'] .icon-button {
   pointer-events: auto;
 }
+/* Посередине кадра — крупнее пульта (R28): перемотка 48 (40 на телефоне), пауза — в полтора раза больше. */
 .watch-chrome .watch-center .icon-button {
-  width: 54px;
-  min-width: 54px;
-  height: 54px;
+  width: var(--control-touch);
+  min-width: var(--control-touch);
+  height: var(--control-touch);
   border-radius: 50%;
   background: var(--stage-veil-2);
 }
@@ -148,9 +149,9 @@
   background: color-mix(in srgb, var(--surface-3) 85%, transparent);
 }
 .watch-chrome .watch-center .watch-center-play {
-  width: 74px;
-  min-width: 74px;
-  height: 74px;
+  width: calc(var(--control-touch) * 1.5);
+  min-width: calc(var(--control-touch) * 1.5);
+  height: calc(var(--control-touch) * 1.5);
 }
 /*
   Число на кнопке перемотки: сколько секунд она отматывает — внутри самой стрелки.
@@ -174,48 +175,49 @@
 }
 @media (max-width: 700px) {
   .watch-chrome .watch-center .icon-button {
-    width: 46px;
-    min-width: 46px;
-    height: 46px;
+    width: var(--control-lg);
+    min-width: var(--control-lg);
+    height: var(--control-lg);
   }
   .watch-chrome .watch-center .watch-center-play {
-    width: 62px;
-    min-width: 62px;
-    height: 62px;
+    width: calc(var(--control-lg) * 1.5);
+    min-width: calc(var(--control-lg) * 1.5);
+    height: calc(var(--control-lg) * 1.5);
   }
 }
 .watch-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 12px 26px;
   background: linear-gradient(to bottom, var(--stage-veil-3), transparent);
 }
 .watch-foot {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: 26px 12px 10px;
   background: linear-gradient(to top, var(--stage-veil-3), transparent);
 }
 .watch-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .watch-tools {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
 }
 .watch-gap {
   flex: 1 1 auto;
 }
+/* Пульт плеера — плотность «видео»: кнопки-значки 40 (на телефоне 36) со значками 20, плашки — на шаг ниже. */
 .watch-chrome .icon-button {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
+  width: var(--control-lg);
+  min-width: var(--control-lg);
+  height: var(--control-lg);
   color: var(--text);
 }
 .watch-chrome .icon-button:hover:not(:disabled) {
@@ -227,7 +229,7 @@
 .watch-title {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 1px 8px;
+  gap: var(--space-0-5) var(--space-2);
   align-items: center;
   flex: 1 1 auto;
   min-width: 0;
@@ -248,11 +250,11 @@
 .watch-quality {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 12px;
+  gap: var(--space-2);
+  height: var(--control-md);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   background: var(--stage-glint-1);
   color: var(--text);
   font-size: var(--text-xs);
@@ -293,7 +295,7 @@
 .watch-volume {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   width: 132px;
 }
 .watch-volume .slider {
@@ -368,7 +370,7 @@
 }
 .watch-quality-menu [role='menuitem'] {
   justify-content: space-between;
-  min-height: 40px;
+  min-height: var(--control-lg);
 }
 .watch-quality-menu [role='menuitem'] small {
   color: var(--muted);
@@ -387,12 +389,12 @@
 .watch-menu-back {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   margin-bottom: 2px;
   padding: 9px 12px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   border-radius: 0;
   background: transparent;
   color: var(--muted);
@@ -422,7 +424,7 @@
   bottom: 5%;
   display: grid;
   justify-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   width: min(92%, 1100px);
   pointer-events: none;
   text-align: center;
@@ -460,10 +462,10 @@
 .watch-ad {
   display: inline-flex;
   align-items: center;
-  height: 32px;
-  padding: 0 12px;
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  border: var(--hairline) solid color-mix(in srgb, var(--warning) 40%, transparent);
   background: color-mix(in srgb, var(--warning) 12%, transparent);
   color: var(--warning);
   font-size: var(--text-xs);
@@ -483,7 +485,7 @@ button.watch-ad:hover {
   bottom: max(16%, 132px);
   z-index: 2;
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   max-width: min(320px, calc(100% - 32px));
   padding: 12px 14px;
   border-radius: var(--radius-3);
@@ -563,12 +565,12 @@ button.watch-ad:hover {
     display: none;
   }
   .watch-chrome .icon-button {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
+    width: var(--control-md);
+    min-width: var(--control-md);
+    height: var(--control-md);
   }
   .watch-tools {
-    gap: 2px;
+    gap: var(--space-0-5);
   }
   .watch-browse span,
   .watch-quality span {
@@ -577,8 +579,8 @@ button.watch-ad:hover {
   .watch-browse,
   .watch-live,
   .watch-quality {
-    height: 32px;
-    padding: 0 10px;
+    height: var(--control-sm);
+    padding: 0 var(--space-3);
   }
   .watch-head {
     padding: 8px 8px 20px;

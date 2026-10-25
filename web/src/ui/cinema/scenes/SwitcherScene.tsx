@@ -191,9 +191,9 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 style={{ '--accent': service.accent } as CSSProperties}
                 onClick={() => onProvider(id)}
               >
-                <service.icon size={15} />
+                <service.icon size={16} />
                 {providerName(t, id)}
-                {unreachable && <CloudOff className="cinema-service__reach" size={13} aria-hidden="true" />}
+                {unreachable && <CloudOff className="cinema-service__reach" size={12} aria-hidden="true" />}
                 {unreachable && (
                   <span id={`${reachNote}-${id}`} hidden>
                     {t(($) => $.cinema.reach.unreachable, { name: providerName(t, id) })}
@@ -245,7 +245,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 className="cinema-shelf-tab"
                 onClick={() => setShelf('live')}
               >
-                <Radio size={15} /> {t(($) => $.cinema.switcher.live)}
+                <Radio size={16} /> {t(($) => $.cinema.switcher.live)}
               </button>
               <button
                 role="tab"
@@ -253,7 +253,7 @@ export default function SwitcherScene({ provider, at, meeting, onProvider, onClo
                 className="cinema-shelf-tab"
                 onClick={() => setShelf('categories')}
               >
-                <Gamepad2 size={15} /> {t(($) => $.cinema.switcher.categories)}
+                <Gamepad2 size={16} /> {t(($) => $.cinema.switcher.categories)}
               </button>
             </nav>
           )}

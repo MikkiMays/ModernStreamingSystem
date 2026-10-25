@@ -60,7 +60,7 @@ export function SupportTab({ onExpired }: { onExpired: () => void }) {
                 <span>{topic(ticket.topic)}</span>
                 <span className="activity-nowrap">{when(t, ticket.createdAt)}</span>
                 <span className="activity-tickets__sent" data-sent={ticket.notifiedAt !== null}>
-                  <Send size={13} aria-hidden="true" />
+                  <Send size={16} aria-hidden="true" />
                   {ticket.notifiedAt !== null
                     ? t(($) => $.activity.support.sent)
                     : t(($) => $.activity.support.waiting)}

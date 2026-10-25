@@ -65,20 +65,3 @@
   color: var(--stage-muted);
   font-size: var(--text-sm);
 }
-
-.presence-ask__button {
-  min-height: 40px;
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-2);
-  background: var(--accent);
-  color: var(--on-accent);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.presence-ask__button:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}

@@ -90,7 +90,7 @@
   height: 64px;
   padding: var(--space-2);
   border-radius: var(--radius-2);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 var(--hairline) var(--line);
   font-size: var(--text-xs);
   color: var(--text);
 }
@@ -126,7 +126,7 @@
   bottom: var(--space-2);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 4px 10px 4px 8px;
   border-radius: var(--radius-full);
   background: rgb(10 12 17 / 0.62);

@@ -159,6 +159,8 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
+  /* 2 — только внутри сегмента и в стопке «заголовок + подпись»; всё остальное — шагом 4 (R28). */
+  --space-0-5: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -188,13 +190,27 @@
   --touch-target: 44px;
 
   /* Линии и значки (R28): волосок между строками, акцентная линия (рейка, индикатор), три размера
-     значков lucide с одной толщиной линии. Нечётных размеров в шкале нет. */
+     значков lucide с одной толщиной линии. Нечётных размеров в шкале нет. `xs` — значок в плашке 20 и в
+     строке мелкого текста (зрители на плитке кинозала); `xl`/`2xl` — иллюстрации пустых состояний и
+     заглушек, они рисуются своим масштабом линии (`styles.css`). Шкалу держит `styles/sizes.test.ts`. */
   --hairline: 1px;
   --hairline-strong: 2px;
+  --icon-xs: 12px;
   --icon-sm: 16px;
   --icon-md: 20px;
   --icon-lg: 24px;
+  --icon-xl: 32px;
+  --icon-2xl: 40px;
   --icon-stroke: 1.75;
+  /* Кольцо голоса по ступеням громкости 1–4 — одно на плитку, панель и столы (DESIGN → «Шкала»). */
+  --voice-ring-1: 2px;
+  --voice-ring-2: 2.5px;
+  --voice-ring-3: 3px;
+  --voice-ring-4: 3px;
+  /* Переключатель «да / нет» (`kit/Switch`): 40×24, бегунок 18. Свои переключатели столов — тех же размеров. */
+  --switch-w: 40px;
+  --switch-h: 24px;
+  --switch-thumb: 18px;
   /* Вкладки и сегменты: высота контейнера 36 (sm — 32), радиус 8, пункт внутри — 6. */
   --tab-h: 36px;
   --tab-h-sm: 32px;
@@ -228,7 +244,7 @@
   --stage-scrim: linear-gradient(to top, rgb(10 12 17 / 0.72), rgb(10 12 17 / 0));
   --tile-radius: var(--radius-4);
   --tile-ring: var(--voice);
-  --tile-ring-width: 3px;
+  --tile-ring-width: var(--voice-ring-4);
   --dock-bg: var(--palette-ink-800);
   --dock-text: var(--stage-text);
   --voice: var(--palette-green-400);
@@ -533,6 +549,8 @@
   --field-bg: var(--surface-1);
   --field-line: var(--line-strong);
   --field-radius: var(--radius-2);
+  /* Ореол поля в фокусе — состояние поля, а не кольцо навигации: виден и после щелчка (R28). */
+  --field-halo: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
   --control-radius: var(--radius-2);
   --menu-bg: var(--surface-3);
   --menu-radius: var(--radius-3);

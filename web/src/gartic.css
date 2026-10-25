@@ -11,7 +11,7 @@
   color: var(--text);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .gartic button,
 .gartic input,
@@ -22,12 +22,12 @@
 .gartic-header {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
 }
 .gartic-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .gartic-heading > svg {
   color: var(--gartic-ink);
@@ -44,7 +44,7 @@
 }
 .gartic-round {
   padding: 6px 10px;
-  border-left: 1px solid var(--line);
+  border-left: var(--hairline) solid var(--line);
   color: var(--muted);
   font-size: var(--text-sm);
 }
@@ -52,7 +52,7 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .gartic-rules {
   position: relative;
@@ -61,7 +61,7 @@
 .gartic-rules summary {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   cursor: pointer;
   padding: 9px;
   border-radius: var(--radius-2);
@@ -77,7 +77,7 @@
   width: min(340px, 80vw);
   z-index: var(--z-menu);
   padding: 14px 18px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   border-radius: var(--radius-3);
   box-shadow: var(--shadow-2);
@@ -106,10 +106,10 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 12px;
   margin: 0;
-  border-left: 3px solid var(--warning);
+  border-left: var(--hairline-strong) solid var(--warning);
   background: var(--surface-2);
   color: var(--text);
   font-size: var(--text-sm);
@@ -117,7 +117,7 @@
 }
 .gartic-error button {
   display: inline-flex;
-  gap: 6px;
+  gap: var(--space-2);
   align-items: center;
   text-decoration: underline;
   background: transparent;
@@ -139,12 +139,12 @@
 .gartic-sketch {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
   padding: 35px 28px;
   margin-bottom: 24px;
   background: var(--surface-1);
   color: var(--gartic-ink);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-1) var(--radius-5) var(--radius-1) var(--radius-1);
   box-shadow: 5px 6px 0 var(--gartic-soft);
 }
@@ -169,24 +169,24 @@
 .gartic-lobby-options {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 .gartic-mode-picker {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .gartic-mode-picker button {
   text-align: left;
   display: grid;
   grid-template-columns: 24px 1fr;
   align-items: center;
-  column-gap: 14px;
-  row-gap: 3px;
+  column-gap: var(--space-3);
+  row-gap: var(--space-0-5);
   padding: 16px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
 }
 .gartic-mode-picker button[aria-pressed='true'] {
@@ -210,7 +210,7 @@
 }
 .gartic-settings {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .gartic-settings label {
   flex: 1;
@@ -218,13 +218,13 @@
   font-size: var(--text-xs);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-2);
 }
 .gartic-settings select,
 .gartic-brush select {
   color: var(--text);
   background-color: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   padding: 9px 25px 9px 10px;
 }
@@ -232,8 +232,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  column-gap: 8px;
-  row-gap: 6px;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
   font-size: var(--text-sm);
 }
 .gartic-lobby-players > span {
@@ -246,12 +246,12 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .gartic-ready {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--speaking);
   margin: 0;
@@ -269,7 +269,7 @@
 .gartic-play {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 276px;
-  gap: 20px;
+  gap: var(--space-5);
   width: min(100%, 1280px);
   margin: 0 auto;
 }
@@ -280,12 +280,12 @@
 .gartic-workspace {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .gartic-drawing {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .gartic-word {
   min-height: 57px;
@@ -293,8 +293,8 @@
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-  column-gap: 14px;
-  row-gap: 2px;
+  column-gap: var(--space-3);
+  row-gap: var(--space-0-5);
   padding: 7px;
   text-align: center;
 }
@@ -318,7 +318,7 @@
   width: 100%;
   overflow: hidden;
   background: var(--paper);
-  border: 1px solid var(--paper-line);
+  border: var(--hairline) solid var(--paper-line);
   border-radius: var(--radius-2);
   color-scheme: light;
 }
@@ -343,7 +343,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-2);
   color: var(--paper-muted);
   pointer-events: none;
   font-size: var(--text-sm);
@@ -352,14 +352,14 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: var(--space-2) var(--space-3);
   padding: 8px 0;
 }
 .gartic-palette,
 .gartic-tool-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .gartic-palette {
   flex-wrap: wrap;
@@ -367,26 +367,26 @@
 .gartic-palette button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-xs);
+  height: var(--control-xs);
   border-radius: 50%;
   background: var(--ink);
-  border: 1px solid var(--muted);
+  border: var(--hairline) solid var(--muted);
   padding: 0;
 }
 .gartic-palette button[aria-pressed='true'] {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline: var(--hairline-strong) solid var(--text);
+  outline-offset: var(--focus-offset);
   margin: 0 3px;
 }
 .gartic-tool {
   display: grid;
   place-items: center;
-  min-width: 34px;
-  height: 34px;
+  min-width: var(--control-md);
+  height: var(--control-md);
   background: var(--surface);
   color: var(--muted);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
 }
 .gartic-tool[aria-pressed='true'] {
@@ -396,7 +396,7 @@
 .gartic-brush {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -409,7 +409,7 @@
   min-height: 19px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   color: var(--muted);
   font-size: var(--text-xs);
 }
@@ -419,10 +419,10 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 28px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
 }
 .gartic-choose > svg {
@@ -442,11 +442,11 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 9px;
+  gap: var(--space-2);
   margin-top: 12px;
 }
 .gartic-choose button {
-  border: 1px solid var(--gartic-ink);
+  border: var(--hairline) solid var(--gartic-ink);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-md);
@@ -460,7 +460,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 18px;
+  gap: var(--space-4);
 }
 .gartic-scores h3,
 .gartic-guesses h3,
@@ -478,9 +478,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 66px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   padding: 8px 10px;
   border-radius: var(--radius-2);
 }
@@ -499,9 +499,9 @@
   padding: 0;
 }
 .gartic .game-person .participant-more {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: var(--touch-target);
+  min-width: var(--touch-target);
+  height: var(--touch-target);
 }
 .gartic-scores .game-person-copy b {
   font-size: var(--text-base);
@@ -574,14 +574,14 @@
   padding: 7px 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 3px 7px;
+  gap: var(--space-0-5) var(--space-2);
   align-items: baseline;
   overflow-wrap: anywhere;
 }
 .gartic-guesses li span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
 }
 .gartic-guesses li[data-correct] {
   color: var(--speaking);
@@ -592,14 +592,14 @@
 }
 .gartic-guesses form {
   display: flex;
-  gap: 5px;
+  gap: var(--space-1);
 }
 .gartic-guesses input {
   min-width: 0;
   width: 100%;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   padding: 11px;
   font-size: var(--text-xs);
@@ -610,14 +610,14 @@
   color: var(--on-accent);
   border: 0;
   border-radius: var(--radius-2);
-  min-width: 39px;
+  min-width: var(--control-lg);
   display: grid;
   place-items: center;
 }
 .gartic-guessed {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: var(--space-2);
   color: var(--speaking);
   font-size: var(--text-xs);
   line-height: 1.5;
@@ -630,7 +630,7 @@
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .gartic-footer .game-people {
   flex-wrap: nowrap;
@@ -643,14 +643,14 @@
 .gartic-footer-state {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .gartic-footer-state > span {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   color: var(--muted);
   font-size: var(--text-xs);
   margin-right: auto;
@@ -659,12 +659,12 @@
   font-size: var(--text-xs);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .gartic-phone-task {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: var(--space-4);
 }
 .gartic-phone-wait,
 .gartic-prompt-intro {
@@ -672,13 +672,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 13px;
+  gap: var(--space-3);
   padding: 34px 20px;
   text-align: center;
 }
 .gartic-phone-wait {
   min-height: 320px;
-  border: 1px dashed var(--line);
+  border: var(--hairline) dashed var(--line);
   border-radius: var(--radius-3);
 }
 .gartic-phone-wait > svg,
@@ -702,7 +702,7 @@
 }
 .gartic-phone-prompt {
   padding: 15px 20px;
-  border-left: 3px solid var(--gartic-ink);
+  border-left: var(--hairline-strong) solid var(--gartic-ink);
   background: var(--surface);
 }
 .gartic-phone-prompt > span {
@@ -719,7 +719,7 @@
 .gartic-text-entry {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--text);
 }
@@ -727,7 +727,7 @@
   resize: vertical;
   min-height: 95px;
   width: 100%;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   border-radius: var(--radius-2);
@@ -743,12 +743,12 @@
 .gartic-submit-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   justify-content: space-between;
   flex-wrap: wrap;
 }
 .gartic-assignment-author {
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
   padding-top: 10px;
 }
 .gartic-assignment-author .game-person {
@@ -763,7 +763,7 @@
 .gartic-finish-heading {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
   margin-bottom: 24px;
 }
 .gartic-finish-emblem {
@@ -771,7 +771,7 @@
   place-items: center;
   flex: 0 0 60px;
   height: 60px;
-  border: 1px solid color-mix(in srgb, var(--gartic-ink) 24%, var(--line));
+  border: var(--hairline) solid color-mix(in srgb, var(--gartic-ink) 24%, var(--line));
   border-radius: var(--radius-4);
   color: var(--gartic-ink);
   background: var(--gartic-soft);
@@ -793,7 +793,7 @@
 .gartic-podium {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 22px;
 }
 .gartic-podium[data-count='1'] {
@@ -806,10 +806,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-width: 0;
   padding: 20px 14px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-4);
   background: var(--surface);
 }
@@ -820,7 +820,7 @@
 .gartic-podium-rank {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   font-weight: 550;
   color: var(--muted);
@@ -856,7 +856,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0 0 26px;
   padding: 16px 0;
-  border-block: 1px solid var(--line);
+  border-block: var(--hairline) solid var(--line);
 }
 .gartic-result-summary > div {
   padding: 0 20px;
@@ -865,7 +865,7 @@
   padding-left: 0;
 }
 .gartic-result-summary > div + div {
-  border-left: 1px solid var(--line);
+  border-left: var(--hairline) solid var(--line);
 }
 .gartic-result-summary dt {
   font-size: var(--text-xs);
@@ -888,7 +888,7 @@
   align-items: baseline;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 10px;
 }
 .gartic-ranking-heading h4 {
@@ -906,7 +906,7 @@
   margin: 0;
 }
 .gartic-result-row {
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
 }
 .gartic-result-row[data-self] {
   background: var(--gartic-soft);
@@ -915,7 +915,7 @@
 .gartic-result-line {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) minmax(64px, auto) 44px;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
   min-height: 76px;
   padding: 10px 12px;
@@ -939,7 +939,7 @@
 }
 .gartic .game-person-copy {
   grid-template-rows: 19px 16px;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 .gartic .game-person-copy small {
   font-size: var(--text-xs);
@@ -959,8 +959,8 @@
 .gartic-result-toggle {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--touch-target);
+  height: var(--touch-target);
   border-radius: var(--radius-2);
   background: transparent;
   color: var(--muted);
@@ -981,7 +981,7 @@
 .gartic-result-detail dl {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 28px;
+  gap: var(--space-3) var(--space-7);
   margin: 0 0 14px;
 }
 .gartic-result-detail dt {
@@ -1020,9 +1020,9 @@
 .gartic-scoring-help summary {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: fit-content;
-  min-height: 44px;
+  min-height: var(--touch-target);
   cursor: pointer;
   list-style: none;
 }
@@ -1046,7 +1046,7 @@
   display: grid;
   grid-template-columns: 236px minmax(0, 1fr);
   align-items: start;
-  gap: 32px;
+  gap: var(--space-8);
   width: min(100%, 1160px);
   margin: 8px auto 20px;
   flex: 1 0 auto;
@@ -1054,14 +1054,14 @@
 .gartic-albums {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
   min-width: 0;
   padding-block: 6px;
 }
 .gartic-albums-heading {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 .gartic-albums-heading > svg {
   color: var(--gartic-ink);
@@ -1086,16 +1086,16 @@
 .gartic-album-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .gartic-album-option {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 76px;
   padding: 12px;
-  border: 1px solid transparent;
+  border: var(--hairline) solid transparent;
   border-radius: var(--radius-3);
   text-align: left;
   background: transparent;
@@ -1127,7 +1127,7 @@ button.gartic-album-option:hover:not(:disabled) {
   display: grid;
   flex: 1;
   min-width: 0;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .gartic-album-copy b {
   font-size: var(--text-base);
@@ -1146,10 +1146,10 @@ button.gartic-album-option:hover:not(:disabled) {
 }
 .gartic-album-summary {
   display: flex;
-  gap: 28px;
+  gap: var(--space-7);
   margin: 8px 0 0;
   padding-top: 18px;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
 }
 .gartic-album-summary dt {
   font-size: var(--text-xs);
@@ -1170,7 +1170,7 @@ button.gartic-album-option:hover:not(:disabled) {
 .gartic-album-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
   min-width: 0;
   width: 100%;
   justify-self: center;
@@ -1179,7 +1179,7 @@ button.gartic-album-option:hover:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .gartic-story-heading > div {
   min-width: 0;
@@ -1206,7 +1206,7 @@ button.gartic-album-option:hover:not(:disabled) {
   color: var(--muted);
 }
 .gartic-reveal-stage {
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-4);
   overflow: hidden;
   background: var(--surface);
@@ -1225,7 +1225,7 @@ button.gartic-album-option:hover:not(:disabled) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   aspect-ratio: 8 / 5;
   margin: 0;
   padding: clamp(24px, 3vw, 42px);
@@ -1246,7 +1246,7 @@ button.gartic-album-option:hover:not(:disabled) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-3);
   aspect-ratio: 8 / 5;
   padding: 24px;
   text-align: center;
@@ -1267,9 +1267,9 @@ button.gartic-album-option:hover:not(:disabled) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 12px 18px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
 }
 .gartic-reveal-author .game-person {
   --game-person-size: 40px;
@@ -1280,7 +1280,7 @@ button.gartic-album-option:hover:not(:disabled) {
 .gartic-entry-kind {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex-shrink: 0;
   padding: 7px 9px;
   border-radius: var(--radius-2);
@@ -1292,7 +1292,7 @@ button.gartic-album-option:hover:not(:disabled) {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1301,11 +1301,11 @@ button.gartic-album-option:hover:not(:disabled) {
 .gartic-story-steps li > span {
   display: grid;
   place-items: center;
-  min-width: 44px;
-  height: 44px;
+  min-width: var(--touch-target);
+  height: var(--touch-target);
   border-radius: 50%;
   background: transparent;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   color: var(--muted);
   font-size: var(--text-sm);
   font-weight: 550;
@@ -1322,7 +1322,7 @@ button.gartic-album-option:hover:not(:disabled) {
 .gartic-reveal-navigation {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
 }
 .gartic-reveal-navigation .button {
   min-width: 0;
@@ -1360,7 +1360,7 @@ button.gartic-album-option:hover:not(:disabled) {
 @media (min-width: 901px) {
   .gartic {
     padding: 16px;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .gartic-header,
   .gartic-footer {
@@ -1376,7 +1376,7 @@ button.gartic-album-option:hover:not(:disabled) {
     flex: 1;
   }
   .gartic-workspace {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-drawing {
     container-type: size;
@@ -1432,7 +1432,7 @@ button.gartic-album-option:hover:not(:disabled) {
     flex: 1;
   }
   .gartic-phone-task {
-    gap: 10px;
+    gap: var(--space-2);
   }
   .gartic-phone-prompt {
     padding: 8px 14px;
@@ -1459,7 +1459,7 @@ button.gartic-album-option:hover:not(:disabled) {
 @media (max-width: 1000px) {
   .gartic-play {
     grid-template-columns: minmax(0, 1fr) 258px;
-    gap: 14px;
+    gap: var(--space-3);
   }
   .gartic-palette button {
     width: 25px;
@@ -1469,20 +1469,20 @@ button.gartic-album-option:hover:not(:disabled) {
     font-size: 0;
   }
   .gartic-tools {
-    gap: 8px;
+    gap: var(--space-2);
   }
 }
 @media (max-width: 700px) {
   .gartic {
     padding: 12px;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .gartic-header {
-    gap: 7px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
   .gartic-heading {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-heading h2 {
     font-size: var(--text-lg);
@@ -1499,12 +1499,12 @@ button.gartic-album-option:hover:not(:disabled) {
     font-size: 0;
   }
   .gartic-rules summary svg {
-    width: 18px;
-    height: 18px;
+    width: var(--icon-md);
+    height: var(--icon-md);
   }
   .gartic-lobby {
     grid-template-columns: 1fr;
-    gap: 25px;
+    gap: var(--space-6);
     margin: 0 auto;
     max-width: 500px;
     padding: 5px 0;
@@ -1523,12 +1523,12 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-play {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: var(--space-5);
   }
   .gartic-sidebar {
     flex-direction: column;
     align-items: stretch;
-    gap: 18px;
+    gap: var(--space-4);
   }
   .gartic-sidebar > .gartic-scores {
     width: 100%;
@@ -1554,7 +1554,7 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-palette {
     flex-basis: 100%;
-    gap: 8px;
+    gap: var(--space-2);
     padding: 3px;
   }
   .gartic-palette button {
@@ -1578,11 +1578,11 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-reveal {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: var(--space-5);
     margin: 0 auto 12px;
   }
   .gartic-albums {
-    gap: 10px;
+    gap: var(--space-2);
   }
   .gartic-albums-intro {
     display: none;
@@ -1612,21 +1612,21 @@ button.gartic-album-option:hover:not(:disabled) {
     font-size: var(--text-xs);
   }
   .gartic-album-page {
-    gap: 12px;
+    gap: var(--space-3);
   }
   .gartic-reveal-author {
     padding: 10px 12px;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-entry-kind {
     display: none;
   }
   .gartic-story-steps {
-    gap: 4px;
+    gap: var(--space-1);
   }
   .gartic-story-steps button,
   .gartic-story-steps li > span {
-    min-width: 44px;
+    min-width: var(--touch-target);
   }
   .gartic-reveal-entry > blockquote {
     font-size: var(--text-xl);
@@ -1635,7 +1635,7 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-reveal-navigation {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-    gap: 10px;
+    gap: var(--space-2);
   }
   .gartic-reveal-navigation .button {
     padding-inline: 12px;
@@ -1643,7 +1643,7 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-finish-heading {
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .gartic-finish-emblem {
     flex-basis: 46px;
@@ -1654,11 +1654,11 @@ button.gartic-album-option:hover:not(:disabled) {
     font-size: var(--text-xl);
   }
   .gartic-podium {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-podium-place {
     padding: 15px 8px;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-podium-place > .avatar {
     width: 42px;
@@ -1684,17 +1684,17 @@ button.gartic-album-option:hover:not(:disabled) {
   }
   .gartic-result-line {
     grid-template-columns: 24px minmax(0, 1fr) 56px 44px;
-    gap: 6px;
+    gap: var(--space-1);
     padding-inline: 4px;
   }
   .gartic-result-line .game-person {
     --game-person-size: 36px;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .gartic-result-line .game-person .participant-more {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
+    width: var(--touch-target);
+    min-width: var(--touch-target);
+    height: var(--touch-target);
   }
   .gartic-result-detail {
     padding: 0 12px 18px 34px;
@@ -1719,11 +1719,11 @@ button.gartic-album-option:hover:not(:disabled) {
     padding: 0;
   }
   .gartic-palette {
-    gap: 6px;
+    gap: var(--space-1);
   }
   .gartic-palette button {
-    width: 28px;
-    height: 28px;
+    width: var(--control-xs);
+    height: var(--control-xs);
   }
   .gartic-sidebar {
     flex-direction: column;

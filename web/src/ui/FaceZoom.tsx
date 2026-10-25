@@ -53,7 +53,7 @@ export function FaceZoomButton({ zoom, name, onCycle }: { zoom: number; name: st
         onCycle();
       }}
     >
-      {nextZoom(zoom) === 1 ? <ZoomOut size={13} /> : <ZoomIn size={13} />}
+      {nextZoom(zoom) === 1 ? <ZoomOut size={12} /> : <ZoomIn size={12} />}
     </button>
   );
 }

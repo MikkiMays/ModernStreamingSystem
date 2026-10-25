@@ -262,7 +262,7 @@ function NowTab({ onExpired }: { onExpired: () => void }) {
                       <Button
                         size="sm"
                         variant="danger"
-                        icon={<Ban size={14} />}
+                        icon={<Ban size={16} />}
                         onClick={() => void close(room, true)}
                       >
                         {asked === `${room.id}:true`
@@ -466,7 +466,7 @@ function AuditTab({ onExpired }: { onExpired: () => void }) {
             }}
           />
         </Field>
-        <Button variant="quiet" size="sm" icon={<RefreshCw size={14} />} onClick={() => void load()}>
+        <Button variant="quiet" size="sm" icon={<RefreshCw size={16} />} onClick={() => void load()}>
           {t(($) => $.activity.refresh)}
         </Button>
       </div>
@@ -511,7 +511,7 @@ function AuditTab({ onExpired }: { onExpired: () => void }) {
                       <Button
                         size="sm"
                         variant="quiet"
-                        icon={<Ban size={14} />}
+                        icon={<Ban size={16} />}
                         disabled={blocked[event.id]}
                         onClick={() => void block(event)}
                       >
@@ -630,7 +630,7 @@ function ServerTab({ onExpired }: { onExpired: () => void }) {
             <Button
               size="sm"
               variant="secondary"
-              icon={<ShieldOff size={14} />}
+              icon={<ShieldOff size={16} />}
               onClick={() => void run(activityApi.clearShield).then(() => load())}
             >
               {t(($) => $.activity.server.clearShield)}

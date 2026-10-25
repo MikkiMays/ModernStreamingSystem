@@ -21,7 +21,7 @@ function ChannelHead({ person }: { person: CinemaChannel }) {
           <img className="cinema-avatar" src={person.avatar} alt="" />
         ) : (
           <span className="cinema-avatar cinema-avatar-blank">
-            <Tv size={22} />
+            <Tv size={24} />
           </span>
         )}
         <div>

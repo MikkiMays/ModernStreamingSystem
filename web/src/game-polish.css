@@ -18,13 +18,13 @@
 }
 .durak button,
 .games-group button {
-  min-height: 44px;
+  min-height: var(--touch-target);
 }
 /* Кнопки полосы стола — под палец только там, где нажимают пальцем: на мыши полоса в 44 пикселя
    отнимала высоту у стола, который на широком экране упирается именно в неё. */
 @media (pointer: coarse) {
   .poker button {
-    min-height: 44px;
+    min-height: var(--touch-target);
   }
 }
 /* Акцент «чей ход» у стола: золото покера, синий набора у дурака и остальных столов. */
@@ -35,7 +35,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 44px;
   padding: 8px 16px;
   flex-shrink: 0;
@@ -47,7 +47,7 @@
 .game-turn[data-active] {
   color: var(--text);
   background: color-mix(in srgb, var(--game-accent, var(--accent)) 15%, var(--surface));
-  border-inline-start: 4px solid var(--game-accent, var(--accent));
+  border-inline-start: var(--hairline-strong) solid var(--game-accent, var(--accent));
 }
 .game-turn[data-urgent] {
   border-color: var(--danger);
@@ -69,7 +69,7 @@
   display: grid;
   grid-template-rows: minmax(260px, 1fr) auto;
   min-height: 400px;
-  gap: 26px;
+  gap: var(--space-6);
 }
 .durak-table > .durak-felt {
   overflow: visible;
@@ -137,7 +137,7 @@
 .durak-reaction-picker {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
-  gap: 8px;
+  gap: var(--space-2);
   max-height: 55vh;
   overflow-y: auto;
   padding: 4px;
@@ -145,7 +145,7 @@
 .durak-reaction-picker button {
   min-height: 64px;
   padding: 3px;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-2);
   background: var(--surface);
   cursor: pointer;
@@ -181,7 +181,7 @@
   width: 34px;
   height: 48px;
   padding: 3px;
-  border: 1px solid var(--card-edge);
+  border: var(--hairline) solid var(--card-edge);
   border-radius: var(--radius-1);
   color: var(--card-black);
   background: var(--card-face);
@@ -196,7 +196,7 @@
 }
 .game-card-flight[data-back] {
   background: var(--card-back-pattern);
-  border: 2px solid var(--card-face);
+  border: var(--hairline-strong) solid var(--card-face);
 }
 @keyframes game-card-flight {
   from {
@@ -230,7 +230,7 @@
     margin-inline: -9px;
   }
   .durak-bar {
-    gap: 6px;
+    gap: var(--space-1);
     padding: 6px;
   }
   .durak-mode small {
@@ -370,7 +370,7 @@
 }
 .games-group .games-item[data-open] {
   border-color: var(--game-accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--game-accent) 20%, transparent);
+  box-shadow: 0 0 0 var(--hairline) color-mix(in srgb, var(--game-accent) 20%, transparent);
 }
 .games-group .games-icon,
 .games-group .games-chevron {
@@ -388,7 +388,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-xl);

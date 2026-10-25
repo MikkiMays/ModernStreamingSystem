@@ -324,7 +324,7 @@ export function MeetingView({
             may('participant.approve') &&
             snapshot.participants.some((p) => p.status === 'WAITING') && (
               <button className="admission-banner" onClick={() => setPanel('people')}>
-                <Users size={18} />{' '}
+                <Users size={16} />{' '}
                 {t(($) => $.meeting.view.requests, {
                   n: snapshot.participants.filter((p) => p.status === 'WAITING').length,
                 })}
@@ -349,7 +349,7 @@ export function MeetingView({
           {ended ? (
             <div className="ended-stage media-stage">
               <span className="ended-icon">
-                <PhoneOff size={28} />
+                <PhoneOff size={32} />
               </span>
               <h2>{ended}</h2>
               <p>
@@ -416,7 +416,7 @@ export function MeetingView({
                 label={t(($) => $.meeting.view.dismissError)}
                 onClick={() => meeting.media.clearError()}
               >
-                <X size={18} />
+                <X size={20} />
               </IconButton>
             </div>
           )}
@@ -439,7 +439,7 @@ export function MeetingView({
                 collapseToggle.current?.focus({ preventScroll: true });
               }}
             >
-              {controlsVisible ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+              {controlsVisible ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
               {!controlsVisible && <span>{t(($) => $.meeting.view.controls)}</span>}
             </button>
           )}

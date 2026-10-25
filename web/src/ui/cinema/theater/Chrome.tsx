@@ -140,7 +140,7 @@ export function Chrome({
     <div className="watch-chrome" data-shown={shown ? 'true' : undefined}>
       <div className="watch-head">
         <span className="watch-title">
-          {live ? <Radio size={15} /> : <Tv size={15} />}
+          {live ? <Radio size={16} /> : <Tv size={16} />}
           <b>{title}</b>
           <small>
             {source?.notice ||
@@ -165,7 +165,7 @@ export function Chrome({
         )}
         {canControl && (
           <IconButton label={t(($) => $.cinema.theater.closeForAll)} onClick={() => send('watch.close')}>
-            <X size={19} />
+            <X size={20} />
           </IconButton>
         )}
       </div>
@@ -182,7 +182,7 @@ export function Chrome({
               disabled={!canControl || !duration}
               onClick={() => skip(-SKIP_MS)}
             >
-              <RotateCcw size={22} />
+              <RotateCcw size={24} />
               <span>15</span>
             </IconButton>
             <IconButton
@@ -191,7 +191,7 @@ export function Chrome({
               disabled={!canControl}
               onClick={() => command(toggle.command)}
             >
-              {toggle.icon === 'play' ? <Play size={30} /> : <Pause size={30} />}
+              {toggle.icon === 'play' ? <Play size={32} /> : <Pause size={32} />}
             </IconButton>
             <IconButton
               label={t(($) => $.cinema.theater.forward15)}
@@ -199,7 +199,7 @@ export function Chrome({
               disabled={!canControl || !duration}
               onClick={() => skip(SKIP_MS)}
             >
-              <RotateCw size={22} />
+              <RotateCw size={24} />
               <span>15</span>
             </IconButton>
           </>
@@ -257,14 +257,14 @@ export function Chrome({
                 disabled={!canControl}
                 onClick={() => command(toggle.command)}
               >
-                {toggle.icon === 'play' ? <Play size={21} /> : <Pause size={21} />}
+                {toggle.icon === 'play' ? <Play size={20} /> : <Pause size={20} />}
               </IconButton>
               <IconButton
                 label={t(($) => $.cinema.theater.toStart)}
                 disabled={!canControl}
                 onClick={() => command('watch.seek', 0)}
               >
-                <SkipBack size={18} />
+                <SkipBack size={20} />
               </IconButton>
             </>
           )}
@@ -334,7 +334,7 @@ export function Chrome({
             }
             onClick={onFullscreen}
           >
-            {fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
+            {fullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
           </IconButton>
         </div>
       </div>
@@ -367,7 +367,7 @@ function Volume({
         label={muted ? t(($) => $.cinema.theater.unmute) : t(($) => $.cinema.theater.mute)}
         onClick={() => setVolume(muted ? memory.current : 0)}
       >
-        {muted ? <VolumeX size={18} /> : volume < 50 ? <Volume1 size={18} /> : <Volume2 size={18} />}
+        {muted ? <VolumeX size={20} /> : volume < 50 ? <Volume1 size={20} /> : <Volume2 size={20} />}
       </IconButton>
       <Slider
         min={0}

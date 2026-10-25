@@ -312,7 +312,7 @@ export function WatchTheater({
         )}
         {status === 'ready' && waiting && playing && (
           <div className="watch-buffering" role="status" aria-label={t(($) => $.cinema.theater.buffering)}>
-            <LoaderCircle size={34} />
+            <LoaderCircle size={32} />
           </div>
         )}
         {next && due && (
@@ -337,7 +337,7 @@ export function WatchTheater({
           <div className="watch-overlay" role="status">
             {status === 'loading' && (
               <span className="watch-loading">
-                <LoaderCircle size={30} />
+                <LoaderCircle size={32} />
                 {t(($) => $.cinema.theater.opening)}
               </span>
             )}
@@ -350,7 +350,7 @@ export function WatchTheater({
                   setStatus('ready');
                 }}
               >
-                <Play size={18} /> {t(($) => $.cinema.theater.start)}
+                <Play size={20} /> {t(($) => $.cinema.theater.start)}
               </button>
             )}
             {status === 'failed' && <span className="watch-error">{error}</span>}

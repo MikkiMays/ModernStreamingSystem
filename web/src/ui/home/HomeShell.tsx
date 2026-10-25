@@ -54,7 +54,7 @@ export function HomeShell({
           <BaseDialog.Close
             render={
               <IconButton label={t(($) => $.home.shell.closeMenu)}>
-                <X size={18} />
+                <X size={20} />
               </IconButton>
             }
           />
@@ -73,7 +73,7 @@ export function HomeShell({
             onSettings();
           }}
         >
-          <Settings2 size={18} aria-hidden="true" />
+          <Settings2 size={20} aria-hidden="true" />
           {t(($) => $.home.shell.settings)}
         </button>
         {/* «Помощь» — рядом с настройками, как «?» в шапке Discord (T36); выдвижную панель, как и
@@ -133,7 +133,7 @@ export function HomeShell({
           </main>
           <footer className="home-stage__foot">
             <span className="home-privacy">
-              <ShieldCheck size={14} aria-hidden="true" /> {t(($) => $.home.shell.privacy)}
+              <ShieldCheck size={12} aria-hidden="true" /> {t(($) => $.home.shell.privacy)}
             </span>
             {/* PING — тихим текстом в подвале, а не плашкой поверх марки (R20). */}
             <Ping />

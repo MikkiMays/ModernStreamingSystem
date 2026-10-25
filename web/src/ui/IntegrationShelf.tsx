@@ -54,7 +54,7 @@ export function IntegrationShelf({
         onClick={() => onOpen(item.id)}
       >
         <span className="service-group__icon" aria-hidden="true">
-          <item.icon size={22} />
+          <item.icon size={20} />
         </span>
         <span className="service-group__text">
           <b>{shelfName(t, item.id)}</b>
@@ -65,7 +65,7 @@ export function IntegrationShelf({
           </small>
           {now && <span className="service-group__live">{now}</span>}
         </span>
-        <ChevronRight size={18} className="service-group__chevron" aria-hidden="true" />
+        <ChevronRight size={16} className="service-group__chevron" aria-hidden="true" />
       </button>
     );
   };

@@ -90,7 +90,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
       <main className="shell-main">
         <section className="shell-card connect-card" aria-labelledby="connect-title">
           <span className="connect-card__badge" aria-hidden="true">
-            <Server size={22} />
+            <Server size={24} />
           </span>
           <div className="connect-card__heading">
             <h1 id="connect-title">{waiting ? t(($) => $.connect.searching) : name}</h1>
@@ -131,7 +131,7 @@ export function Connect({ onConnected }: { onConnected: () => void }) {
               full
               loading={busy}
               disabled={waiting}
-              icon={busy ? undefined : <ArrowRight size={18} />}
+              icon={busy ? undefined : <ArrowRight size={24} />}
             >
               {busy ? t(($) => $.connect.connecting) : t(($) => $.connect.connect)}
             </Button>
@@ -157,13 +157,13 @@ export function ConnectionStatus({ attempt }: { attempt: Attempt | null }) {
   if (attempt.ok)
     return (
       <span className="connection-status connected" role="status">
-        <Check size={14} /> {t(($) => $.connect.connected)}
+        <Check size={12} /> {t(($) => $.connect.connected)}
       </span>
     );
   return (
     <details className="connection-status failed">
       <summary role="status">
-        <TriangleAlert size={14} /> {t(($) => $.connect.notConnected)}
+        <TriangleAlert size={12} /> {t(($) => $.connect.notConnected)}
       </summary>
       <small>{attempt.detail}</small>
     </details>

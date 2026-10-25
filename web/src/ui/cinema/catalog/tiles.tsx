@@ -58,7 +58,7 @@ export function Tile({
   return (
     <article className="cinema-tile">
       <span className="cinema-poster">
-        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Tv size={26} />}
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Tv size={24} />}
         {item.live ? (
           <span className="cinema-live">{t(($) => $.cinema.meta.live)}</span>
         ) : (
@@ -93,12 +93,12 @@ export function Tile({
         )}
         {watching && (
           <span>
-            <Users size={11} /> {watching}
+            <Users size={12} /> {watching}
           </span>
         )}
         {!item.viewers && views && (
           <span>
-            <Eye size={11} /> {views}
+            <Eye size={12} /> {views}
           </span>
         )}
         {/* Подпись площадки («3 серия») — только там, где она её дала: у YouTube и Twitch её нет,
@@ -119,7 +119,7 @@ export function PosterTile({ item, onEnter }: { item: CinemaItem; onEnter: (item
   return (
     <article className="cinema-tile cinema-tile-tall">
       <span className="cinema-cover">
-        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Clapperboard size={26} />}
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Clapperboard size={24} />}
       </span>
       <button
         className="cinema-open"
@@ -145,9 +145,9 @@ export function PlaylistTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
   return (
     <article className="cinema-tile cinema-tile-list">
       <span className="cinema-poster">
-        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <ListVideo size={26} />}
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <ListVideo size={24} />}
         <span className="cinema-stack">
-          <ListVideo size={13} />
+          <ListVideo size={12} />
           {item.count ? `${item.count}` : t(($) => $.cinema.tiles.playlist)}
         </span>
       </span>
@@ -171,7 +171,7 @@ export function CategoryTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
   return (
     <article className="cinema-tile cinema-tile-box">
       <span className="cinema-box">
-        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Gamepad2 size={26} />}
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Gamepad2 size={24} />}
       </span>
       <button
         className="cinema-open"
@@ -182,7 +182,7 @@ export function CategoryTile({ item, onEnter }: { item: CinemaItem; onEnter: (it
       <span className="cinema-tile-meta">
         {watching && (
           <span>
-            <Users size={11} /> {watching}
+            <Users size={12} /> {watching}
           </span>
         )}
       </span>
@@ -197,7 +197,7 @@ export function ChannelTile({ item, onEnter }: { item: CinemaItem; onEnter: (ite
   return (
     <article className="cinema-tile cinema-tile-face">
       <span className="cinema-face">
-        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Tv size={22} />}
+        {item.poster ? <img src={item.poster} alt="" loading="lazy" /> : <Tv size={24} />}
       </span>
       <button
         className="cinema-open"

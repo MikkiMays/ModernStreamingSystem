@@ -14,7 +14,7 @@ export function SyncButton({ behind, onSync }: { behind: boolean; onSync: () => 
       className={behind ? 'watch-behind' : ''}
       onClick={onSync}
     >
-      <RefreshCw size={17} />
+      <RefreshCw size={20} />
     </IconButton>
   );
 }

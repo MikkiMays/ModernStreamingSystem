@@ -33,15 +33,15 @@
   & .durak-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     flex-shrink: 0;
     min-height: 62px;
     padding: 8px 16px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: var(--hairline) solid var(--line);
   }
   & .durak-mode {
     display: grid;
-    gap: 3px;
+    gap: var(--space-0-5);
     min-width: 0;
   }
   & .durak-mode b {
@@ -58,13 +58,14 @@
   & .durak-bar-spacer {
     flex: 1;
   }
+  /* Кнопки полосы стола — шкалой набора (R28): 40, на узком 36 и 32 (было 42, 38 и 34). */
   & .durak-bar .icon-button {
-    width: 42px;
-    min-width: 42px;
-    min-height: 42px;
-    height: 42px;
+    width: var(--control-lg);
+    min-width: var(--control-lg);
+    min-height: var(--control-lg);
+    height: var(--control-lg);
     flex-shrink: 0;
-    border-radius: var(--radius-3);
+    border-radius: var(--control-radius);
     color: var(--muted);
   }
   & .durak-bar .icon-button:hover {
@@ -79,7 +80,7 @@
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
-    gap: 16px;
+    gap: var(--space-4);
     min-height: 46px;
     padding: 10px 18px;
     color: var(--muted);
@@ -91,7 +92,7 @@
   & .durak-turn > span {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     flex-shrink: 0;
     font-size: var(--text-base);
     font-variant-numeric: tabular-nums;
@@ -112,7 +113,7 @@
     grid-template-rows: minmax(250px, 1fr) auto;
     min-width: 0;
     min-height: min-content;
-    gap: 20px;
+    gap: var(--space-5);
     padding: 8px 28px 0;
     background: none;
     border: 0;
@@ -157,7 +158,7 @@
       var(--felt-teal-deep) 100%
     );
     box-shadow:
-      inset 0 0 0 1px var(--stage-glint-2),
+      inset 0 0 0 var(--hairline) var(--stage-glint-2),
       inset 0 0 45px var(--stage-veil-1),
       var(--shadow-card);
   }
@@ -165,7 +166,7 @@
     content: '';
     position: absolute;
     inset: 20px;
-    border: 1px solid var(--stage-glint-1);
+    border: var(--hairline) solid var(--stage-glint-1);
     border-radius: inherit;
     pointer-events: none;
   }
@@ -210,7 +211,7 @@
       '. place .';
     align-items: center;
     justify-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     z-index: 5;
     pointer-events: none;
   }
@@ -227,7 +228,7 @@
     flex-wrap: wrap;
     justify-content: center;
     align-content: center;
-    gap: 12px 8px;
+    gap: var(--space-3) var(--space-2);
     padding: 0;
   }
   & .durak-bout[data-end] {
@@ -269,7 +270,7 @@
   }
   & .durak-pair[data-target] .durak-attack .durak-card {
     box-shadow:
-      0 0 0 3px var(--accent),
+      0 0 0 var(--hairline-strong) var(--accent),
       var(--shadow-lift);
   }
   & .durak-target-label {
@@ -280,7 +281,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: var(--space-0-5);
     padding: 3px 6px;
     white-space: nowrap;
     background: var(--accent-fill);
@@ -295,11 +296,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
     min-height: 44px;
     padding: 10px 18px;
     border-radius: var(--radius-3);
-    border: 1px solid var(--accent);
+    border: var(--hairline) solid var(--accent);
     background: var(--accent-fill);
     color: var(--on-accent);
     font-weight: 650;
@@ -320,7 +321,7 @@
     background: var(--card-face);
     color: var(--card-black);
     box-shadow:
-      inset 0 0 0 1px var(--card-edge),
+      inset 0 0 0 var(--hairline) var(--card-edge),
       var(--shadow-card);
     overflow: hidden;
     font-family: inherit;
@@ -365,7 +366,7 @@
     background: var(--card-back-pattern);
     border: 3px solid var(--card-face);
     box-shadow:
-      inset 0 0 0 1px var(--card-back-deep),
+      inset 0 0 0 var(--hairline) var(--card-back-deep),
       var(--shadow-card);
   }
   /* Марка Cord на рубашке — колода своего заведения. */
@@ -386,7 +387,7 @@
     display: grid;
     justify-items: center;
     flex-shrink: 0;
-    gap: 6px;
+    gap: var(--space-1);
     pointer-events: none;
   }
   & .durak-stock {
@@ -415,7 +416,7 @@
     content: '';
     position: absolute;
     inset: 0 calc(var(--card-w) * 0.25);
-    border: 1px dashed var(--stage-glint-3);
+    border: var(--hairline) dashed var(--stage-glint-3);
     border-radius: var(--card-r);
   }
   & .durak-trump {
@@ -468,7 +469,7 @@
     max-width: 24%;
     display: grid;
     justify-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     z-index: 3;
   }
   /* Лицо, число карт и кнопка увеличения: лицо круглое и обрезает всё, что в него положить. */
@@ -495,7 +496,7 @@
     color: var(--text);
     background: var(--surface-2);
     box-shadow:
-      0 0 0 3px var(--surface-1),
+      0 0 0 var(--hairline-strong) var(--surface-1),
       var(--shadow-card);
     font-size: var(--text-lg);
   }
@@ -528,7 +529,7 @@
   */
   & .durak-seat[data-speaking] .durak-seat-face {
     box-shadow:
-      0 0 0 3px var(--speaking),
+      0 0 0 var(--seat-voice-ring, var(--voice-ring-3)) var(--speaking),
       0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
       var(--shadow-card);
   }
@@ -540,11 +541,11 @@
     z-index: 6;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: var(--space-0-5);
     min-width: 28px;
     height: 20px;
     padding: 0 6px 0 5px;
-    border: 1px solid var(--stage-glint-2);
+    border: var(--hairline) solid var(--stage-glint-2);
     border-radius: var(--radius-2);
     background: var(--surface-1);
     color: var(--text);
@@ -556,13 +557,13 @@
   & .durak-seat-count i {
     width: 8px;
     height: 11px;
-    border: 1px solid var(--card-face);
+    border: var(--hairline) solid var(--card-face);
     border-radius: 2px;
     background: var(--card-back);
   }
   & .durak-seat[data-fool] .durak-seat-face {
     box-shadow:
-      0 0 0 3px var(--danger),
+      0 0 0 var(--hairline-strong) var(--danger),
       var(--shadow-card);
   }
   & .durak-seat[data-fool] .durak-seat-role {
@@ -586,7 +587,7 @@
     z-index: 25;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--space-1);
     max-width: 40%;
     padding: 5px 10px;
     border-radius: var(--radius-full);
@@ -637,7 +638,7 @@
   }
   & .durak-center {
     display: grid;
-    gap: 7px;
+    gap: var(--space-2);
     justify-items: center;
     text-align: center;
     color: var(--text);
@@ -666,7 +667,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
     padding: 24px;
     border-radius: inherit;
     background: var(--stage-veil-3);
@@ -689,13 +690,13 @@
   & .durak-hand-band {
     position: relative;
     min-width: 0;
-    border-top: 1px solid var(--line);
+    border-top: var(--hairline) solid var(--line);
   }
   & .durak-hand-caption {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--space-3);
     min-height: 46px;
     padding-top: 7px;
     color: var(--muted);
@@ -704,10 +705,10 @@
   & .durak-hand-caption button {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--space-1);
     border: 0;
-    padding: 0 6px;
-    min-height: 28px;
+    padding: 0 var(--space-1);
+    min-height: var(--control-xs);
     color: var(--accent);
     background: none;
     font-size: var(--text-xs);
@@ -774,7 +775,7 @@
   }
   & .durak-hand-card .durak-card {
     box-shadow:
-      inset 0 0 0 1px var(--card-edge),
+      inset 0 0 0 var(--hairline) var(--card-edge),
       var(--shadow-card);
   }
   & .durak-hand-card:hover:not(:disabled),
@@ -783,7 +784,7 @@
   }
   & .durak-hand-card:hover:not(:disabled) .durak-card {
     box-shadow:
-      inset 0 0 0 2px var(--accent),
+      inset 0 0 0 var(--hairline-strong) var(--accent),
       var(--shadow-card);
   }
   & .durak-hand-card[data-picked] {
@@ -792,7 +793,7 @@
   }
   & .durak-hand-card[data-picked] .durak-card {
     box-shadow:
-      0 0 0 3px var(--accent),
+      0 0 0 var(--hairline-strong) var(--accent),
       var(--shadow-lift);
   }
   & .durak-hand-card[data-held] {
@@ -819,7 +820,7 @@
     place-items: center;
     width: 38px;
     height: 44px;
-    border: 1px solid var(--line-strong);
+    border: var(--hairline) solid var(--line-strong);
     border-radius: var(--radius-3);
     color: var(--text);
     background: var(--surface-2);
@@ -837,11 +838,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--space-3);
     flex-shrink: 0;
     min-height: 62px;
     padding: 8px 20px 12px;
-    border-top: 1px solid var(--line);
+    border-top: var(--hairline) solid var(--line);
   }
   & .durak-controls-hint {
     color: var(--muted);
@@ -850,17 +851,17 @@
   }
   & .durak-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     flex-shrink: 0;
   }
   & .durak-act {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
     min-width: 102px;
-    min-height: 44px;
-    border: 1px solid var(--line-strong);
+    min-height: var(--touch-target);
+    border: var(--hairline) solid var(--line-strong);
     border-radius: var(--radius-3);
     padding: 10px 20px;
     background: var(--surface-2);
@@ -928,9 +929,9 @@
     display: flex;
     flex-direction: column;
     padding: 14px;
-    gap: 14px;
+    gap: var(--space-3);
     border-radius: var(--radius-4);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
     background: var(--surface-1);
     color: var(--text);
     box-shadow: var(--shadow-3);
@@ -941,9 +942,9 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: var(--hairline) solid var(--line);
   }
   & .durak-sheet-head h2 {
     margin: 0 0 5px;
@@ -957,18 +958,18 @@
     color: var(--muted);
   }
   & .durak-sheet-head .icon-button {
-    width: 40px;
-    min-height: 40px;
-    height: 40px;
+    width: var(--control-lg);
+    min-height: var(--control-lg);
+    height: var(--control-lg);
     color: var(--muted);
     background: var(--surface-2);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
   }
   & .durak-sheet-body {
     display: grid;
     grid-auto-rows: max-content;
     align-content: start;
-    gap: 10px;
+    gap: var(--space-2);
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -976,7 +977,7 @@
   }
   & .durak-settings-group {
     display: grid;
-    gap: 6px;
+    gap: var(--space-1);
   }
   & .durak-settings-group h3 {
     margin: 4px 0 2px;
@@ -986,11 +987,11 @@
   }
   & .durak-settings-choice {
     display: grid;
-    gap: 9px;
+    gap: var(--space-2);
     padding: 11px;
     border-radius: var(--radius-3);
     background: var(--surface-2);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
   }
   & .durak-settings-choice b,
   & .durak-toggle b,
@@ -1010,14 +1011,14 @@
   & .durak-choice {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: var(--space-1);
   }
   & .durak-choice button {
     flex: 1;
-    min-height: 38px;
+    min-height: var(--control-md);
     min-width: 54px;
     padding: 7px 9px;
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-2);
     background: var(--surface-1);
     color: var(--muted);
@@ -1042,10 +1043,10 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     width: 100%;
     padding: 12px 11px;
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-3);
     background: var(--surface-2);
     color: var(--text);
@@ -1066,31 +1067,34 @@
   & .durak-settings-action.is-danger {
     color: var(--danger);
   }
+  /* Вид и размеры `kit/Switch` (R28, X4), как у покера: 40×24, белый бегунок 18. */
   & .durak-toggle i {
     position: relative;
-    width: 40px;
-    height: 24px;
-    background: var(--stage-bg);
+    display: block;
+    flex: none;
+    width: var(--switch-w);
+    height: var(--switch-h);
     border-radius: var(--radius-full);
-    border: 1px solid var(--line);
+    background: var(--line-strong);
+    transition: background-color var(--motion-base) var(--ease-standard);
   }
   & .durak-toggle i::after {
     content: '';
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
+    top: calc((var(--switch-h) - var(--switch-thumb)) / 2);
+    left: calc((var(--switch-h) - var(--switch-thumb)) / 2);
+    width: var(--switch-thumb);
+    height: var(--switch-thumb);
     border-radius: 50%;
-    background: var(--muted);
+    background: var(--on-accent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    transition: transform var(--motion-base) var(--ease-emphasized);
   }
   & .durak-toggle[aria-checked='true'] i {
-    background: var(--accent-soft);
-    border-color: var(--accent);
+    background: var(--accent-fill);
   }
   & .durak-toggle[aria-checked='true'] i::after {
-    left: 19px;
-    background: var(--accent);
+    transform: translateX(calc(var(--switch-w) - var(--switch-h)));
   }
   & .durak-settings-note {
     color: var(--muted);
@@ -1120,7 +1124,7 @@
   }
   & .durak-score-table td {
     padding: 12px 5px;
-    border-top: 1px solid var(--line);
+    border-top: var(--hairline) solid var(--line);
     font-variant-numeric: tabular-nums;
   }
   & .durak-score-table :is(th, td) {
@@ -1133,7 +1137,7 @@
   }
   & .durak-over {
     display: grid;
-    gap: 14px;
+    gap: var(--space-3);
     padding: 12px 0;
     text-align: center;
   }
@@ -1158,13 +1162,13 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 6px;
+    gap: var(--space-1);
   }
   & .durak-places li {
     display: grid;
     grid-template-columns: 24px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     padding: 12px;
     border-radius: var(--radius-3);
     background: var(--surface-2);
@@ -1256,7 +1260,7 @@
     --card-w: 52px;
     & .durak-bar {
       padding: 8px 10px;
-      gap: 3px;
+      gap: var(--space-0-5);
       flex-wrap: wrap;
     }
     & .durak-mode {
@@ -1269,21 +1273,21 @@
       font-size: var(--text-xs);
     }
     & .durak-bar .icon-button {
-      width: 38px;
-      min-width: 38px;
-      min-height: 40px;
-      height: 40px;
+      width: var(--control-md);
+      min-width: var(--control-md);
+      min-height: var(--control-md);
+      height: var(--control-md);
     }
     & .durak-turn {
       padding: 9px 12px;
-      gap: 10px;
+      gap: var(--space-2);
       font-size: var(--text-xs);
     }
     & .durak-table {
       min-height: min-content;
       grid-template-rows: minmax(305px, 1fr) auto;
       padding: 8px 18px 0;
-      gap: 20px;
+      gap: var(--space-5);
     }
     /* Узкое сукно: с третьей пары бой идёт в два ряда, и каждому ряду достаётся половина
        полосы между местами. С пятой — поле шире, чтобы в ряд вставали три пары. */
@@ -1295,7 +1299,7 @@
         'deck discard'
         'bout bout'
         'place place';
-      gap: 8px;
+      gap: var(--space-2);
     }
     /* На телефоне колода и отбой — строкой над боем: по бокам ему не хватило бы ширины. */
     & .durak-stock,
@@ -1303,7 +1307,7 @@
       --card-w: 22px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--space-2);
     }
     & .durak-stock-count {
       min-width: 0;
@@ -1314,7 +1318,7 @@
         30px,
         min(var(--bout-w), calc((100cqh - 2 * var(--seat-room) - var(--deck-row, 0px) - 8px) / 3.6))
       );
-      gap: 8px 4px;
+      gap: var(--space-2) var(--space-1);
     }
     & .durak-mat:has(> .durak-bout:is([data-pairs='5'], [data-pairs='6'])) {
       width: 90%;
@@ -1334,7 +1338,7 @@
       top: 48%;
     }
     & .durak-bout {
-      gap: 7px 0;
+      gap: var(--space-2) 0;
     }
     & .durak-seat {
       width: 86px;
@@ -1380,7 +1384,7 @@
     }
     & .durak-controls {
       padding: 8px 12px 12px;
-      gap: 8px;
+      gap: var(--space-2);
     }
     & .durak-controls-hint {
       font-size: var(--text-xs);
@@ -1412,8 +1416,8 @@
       display: none;
     }
     & .durak-bar .icon-button {
-      width: 34px;
-      min-width: 34px;
+      width: var(--control-sm);
+      min-width: var(--control-sm);
     }
     & .durak-table {
       padding-inline: 14px;
@@ -1434,7 +1438,7 @@
 }
 .games-score {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   margin: 0 0 10px;
   padding: 10px 12px;
   list-style: none;
@@ -1445,7 +1449,7 @@
 .games-score li {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-2);
 }
 .games-score span {
   color: var(--muted);
@@ -1458,14 +1462,14 @@
 }
 .games-highlights {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
 .games-highlights li {
   display: grid;
-  gap: 1px;
+  gap: var(--space-0-5);
   font-size: var(--text-sm);
 }
 .games-highlights b {

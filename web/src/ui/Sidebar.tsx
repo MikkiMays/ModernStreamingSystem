@@ -297,7 +297,7 @@ export function Sidebar({
                             label={t(($) => $.sidebar.approve, { name: p.name })}
                             onClick={() => void run('participant.approve', p.id)}
                           >
-                            <Check size={18} />
+                            <Check size={16} />
                           </IconButton>
                         )}
                       <IconButton
@@ -305,7 +305,7 @@ export function Sidebar({
                         label={t(($) => $.sidebar.remove, { name: p.name })}
                         onClick={() => void run('participant.remove', p.id)}
                       >
-                        <UserX size={17} />
+                        <UserX size={16} />
                       </IconButton>
                     </>
                   ) : (
@@ -358,7 +358,7 @@ export function Sidebar({
             {!timeline.length && (
               <div className="chat-empty">
                 <span className="chat-empty-icon">
-                  <Paperclip size={22} />
+                  <Paperclip size={24} />
                 </span>
                 <strong>{t(($) => $.sidebar.emptyTitle)}</strong>
                 <p>{t(($) => $.sidebar.emptyText)}</p>
@@ -384,7 +384,7 @@ export function Sidebar({
                       className="message-copy"
                       onClick={() => void copyMessage(entry.message.text)}
                     >
-                      <Copy size={15} />
+                      <Copy size={16} />
                     </IconButton>
                   </div>
                 </div>
@@ -417,7 +417,7 @@ export function Sidebar({
                         void meeting.api.download(entry.file).catch((e) => setError((e as Error).message))
                       }
                     >
-                      <Download size={18} />
+                      <Download size={20} />
                     </IconButton>
                   </div>
                 </div>
@@ -443,7 +443,7 @@ export function Sidebar({
                         .catch((e) => setError((e as Error).message))
                     }
                   >
-                    <X size={18} />
+                    <X size={20} />
                   </IconButton>
                 </div>
               ))}
@@ -469,7 +469,7 @@ export function Sidebar({
                     label={t(($) => $.sidebar.pause)}
                     onClick={() => void meeting.uploader.pause()}
                   >
-                    <Pause size={17} />
+                    <Pause size={16} />
                   </IconButton>
                 ) : (
                   ['paused', 'error'].includes(uploading.status) && (
@@ -479,7 +479,7 @@ export function Sidebar({
                       disabled={!writable}
                       onClick={() => meeting.uploader.resume()}
                     >
-                      <Play size={17} />
+                      <Play size={16} />
                     </IconButton>
                   )
                 )}
@@ -488,7 +488,7 @@ export function Sidebar({
                   label={uploading.status === 'done' ? t(($) => $.sidebar.hide) : t(($) => $.sidebar.cancel)}
                   onClick={() => void meeting.uploader.cancel()}
                 >
-                  <X size={17} />
+                  <X size={16} />
                 </IconButton>
               </div>
               {uploading.error && <p className="form-error">{uploading.error}</p>}
@@ -516,7 +516,7 @@ export function Sidebar({
               disabled={!writable}
               onClick={() => fileInput.current?.click()}
             >
-              <Paperclip size={19} />
+              <Paperclip size={20} />
             </IconButton>
             <textarea
               ref={input}
@@ -551,7 +551,7 @@ export function Sidebar({
               className="composer__send"
               disabled={(!draft.trim() && !pending.length) || sending || !writable}
             >
-              <Send size={18} />
+              <Send size={20} />
             </IconButton>
           </form>
           {feedback && (

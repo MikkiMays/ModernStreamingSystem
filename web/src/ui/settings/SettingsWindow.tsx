@@ -414,7 +414,7 @@ export function SettingsWindow({
                                 aria-current={active ? 'page' : undefined}
                                 onClick={() => go({ section: spec.id })}
                               >
-                                <Icon size={18} aria-hidden="true" />
+                                <Icon size={20} aria-hidden="true" />
                                 <span>{sectionTitle(t, spec.id)}</span>
                                 <ChevronRight
                                   size={16}

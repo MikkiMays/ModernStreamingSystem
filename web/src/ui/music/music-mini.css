@@ -44,7 +44,7 @@
 .music-mini__text {
   display: grid;
   flex: 1;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 .music-mini__text strong,
@@ -85,7 +85,7 @@
 .music-offer {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 .stage-chip.music-offer__chip {
   background: var(--stage-glass);

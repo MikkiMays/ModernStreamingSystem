@@ -57,7 +57,7 @@ export function QualityMenu({
       <Menu.Trigger
         render={
           <button className="watch-quality" aria-label={t(($) => $.cinema.theater.quality.menuLabel)}>
-            <Settings2 size={17} />
+            <Settings2 size={16} />
             <span>{chosen || auto}</span>
           </button>
         }
@@ -100,7 +100,7 @@ export function QualityMenu({
             )}
             {page !== 'root' && (
               <button type="button" className="watch-menu-back" onClick={() => onPage('root')}>
-                <ArrowLeft size={15} />
+                <ArrowLeft size={16} />
                 {page === 'voice'
                   ? t(($) => $.cinema.theater.quality.voice)
                   : t(($) => $.cinema.theater.quality.title)}

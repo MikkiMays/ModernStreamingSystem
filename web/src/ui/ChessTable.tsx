@@ -336,14 +336,14 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               setSelected(null);
             }}
           >
-            <ArrowLeftRight size={18} />
+            <ArrowLeftRight size={20} />
           </IconButton>
           <IconButton
             label={t(($) => $.chess.downloadPgn)}
             disabled={table.moves.length === 0}
             onClick={downloadPgn}
           >
-            <Download size={18} />
+            <Download size={20} />
           </IconButton>
           {host && (
             <IconButton
@@ -351,7 +351,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               disabled={pending}
               onClick={() => setConfirmation('close')}
             >
-              <X size={18} />
+              <X size={20} />
             </IconButton>
           )}
         </div>
@@ -609,21 +609,21 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
               disabled={shownPly <= minimumPly}
               onClick={() => review(minimumPly)}
             >
-              <ChevronsLeft size={18} />
+              <ChevronsLeft size={16} />
             </IconButton>
             <IconButton
               label={t(($) => $.chess.notation.previous)}
               disabled={shownPly <= minimumPly}
               onClick={() => review(shownPly - 1)}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </IconButton>
             <IconButton
               label={t(($) => $.chess.notation.next)}
               disabled={live || shownPly >= table.ply}
               onClick={() => review(shownPly + 1)}
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </IconButton>
             <button
               className="chess-return-live"
@@ -665,7 +665,7 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
                   disabled={pending || table.drawOffer === color}
                   onClick={() => void send('chess.act', undefined, { option: 'draw-offer' })}
                 >
-                  <Handshake size={17} />
+                  <Handshake size={16} />
                   {table.drawOffer === color ? t(($) => $.chess.draw.pending) : t(($) => $.chess.draw.offer)}
                 </button>
               )}

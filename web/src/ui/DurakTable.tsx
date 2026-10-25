@@ -373,7 +373,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
         <span className="durak-bar-spacer" />
         {table.score.length > 0 && (
           <IconButton label={t(($) => $.durak.score.title)} onClick={() => setSheet('score')}>
-            <ListOrdered size={18} />
+            <ListOrdered size={20} />
           </IconButton>
         )}
         {host && table.phase !== 'bout' && (
@@ -391,7 +391,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             disabled={!connected || pending}
             onClick={() => send('durak.settings', { option: paused ? 'resume' : 'pause' })}
           >
-            {paused ? <Play size={18} /> : <Pause size={18} />}
+            {paused ? <Play size={20} /> : <Pause size={20} />}
           </IconButton>
         )}
         <IconButton
@@ -401,10 +401,10 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
             setSheet('settings');
           }}
         >
-          <Settings2 size={18} />
+          <Settings2 size={20} />
         </IconButton>
         <IconButton label={full ? t(($) => $.durak.exitFull) : t(($) => $.durak.full)} onClick={toggleFull}>
-          {full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          {full ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </IconButton>
       </header>
       <TurnStatus
@@ -522,7 +522,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
                   } as CSSProperties
                 }
               >
-                <ArrowRightLeft size={14} /> {transfer.name}
+                <ArrowRightLeft size={12} /> {transfer.name}
               </span>
             )}
             {spots.map((spot) => {
@@ -569,7 +569,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           <div className="durak-hand-caption">
             {picked ? (
               <button aria-label={t(($) => $.durak.hand.cancelSelection)} onClick={clearSelection}>
-                <X size={14} /> {t(($) => $.durak.hand.cancel)}
+                <X size={12} /> {t(($) => $.durak.hand.cancel)}
               </button>
             ) : (
               <span>
@@ -688,7 +688,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               disabled={!canPlay}
               onClick={() => send('durak.act', { option: 'take' })}
             >
-              <Hand size={17} /> {t(($) => $.durak.actions.take)}
+              <Hand size={20} /> {t(($) => $.durak.actions.take)}
             </button>
           )}
           {you?.actions.includes('pass') && (
@@ -698,7 +698,7 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               disabled={!canPlay}
               onClick={() => send('durak.act', { option: 'pass' })}
             >
-              <Check size={17} /> {t(($) => $.durak.actions.pass)}
+              <Check size={20} /> {t(($) => $.durak.actions.pass)}
             </button>
           )}
         </div>
@@ -746,11 +746,11 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
               <Dialog.Close
                 render={
                   <IconButton label={t(($) => $.common.close)}>
-                    <X size={18} />
+                    <X size={20} />
                   </IconButton>
                 }
               >
-                <X size={18} />
+                <X size={20} />
               </Dialog.Close>
             </header>
             <div className="durak-sheet-body">
@@ -894,7 +894,7 @@ function TurnStatus({
               : t(($) => $.durak.turn.left, { seconds, count: seconds })
           }
         >
-          {table.paused && <Pause size={14} />}
+          {table.paused && <Pause size={16} />}
           {t(($) => $.durak.seconds, { seconds })}
         </span>
       )}
@@ -1138,7 +1138,7 @@ function Settings({
           disabled={disabled}
           onClick={() => set(table.paused ? 'resume' : 'pause')}
         >
-          {table.paused ? <Play size={18} /> : <Pause size={18} />}
+          {table.paused ? <Play size={20} /> : <Pause size={20} />}
           <span>
             <b>{table.paused ? t(($) => $.durak.pause.resume) : t(($) => $.durak.pause.pause)}</b>
             <small>{t(($) => $.durak.settings.pauseHint)}</small>
@@ -1226,7 +1226,7 @@ function Settings({
           disabled={disabled || (live && table.paused)}
           onClick={() => onSend('durak.stand')}
         >
-          <LogOut size={18} />
+          <LogOut size={20} />
           <span>
             <b>{t(($) => $.durak.settings.stand.label)}</b>
             <small>
@@ -1241,7 +1241,7 @@ function Settings({
           disabled={disabled}
           onClick={() => onSend('durak.close')}
         >
-          <X size={18} />
+          <X size={20} />
           <span>
             <b>{t(($) => $.durak.settings.close.label)}</b>
             <small>{t(($) => $.durak.settings.close.hint)}</small>

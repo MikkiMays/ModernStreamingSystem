@@ -416,7 +416,7 @@ export default function GarticCanvas({
               >
                 {!eraser && color === value && (
                   <Check
-                    size={15}
+                    size={16}
                     style={{
                       color: ['#ffffff', '#facc15', '#38bdf8'].includes(value) ? '#222631' : '#ffffff',
                     }}
@@ -433,7 +433,7 @@ export default function GarticCanvas({
               aria-pressed={!eraser}
               onClick={() => setEraser(false)}
             >
-              <Pencil size={18} />
+              <Pencil size={20} />
             </button>
             <button
               type="button"
@@ -442,7 +442,7 @@ export default function GarticCanvas({
               aria-pressed={eraser}
               onClick={() => setEraser(true)}
             >
-              <Eraser size={18} />
+              <Eraser size={20} />
             </button>
             <label className="gartic-brush">
               {t(($) => $.gartic.canvas.width)}{' '}
@@ -468,7 +468,7 @@ export default function GarticCanvas({
               disabled={busy || locked || !connected || !ink.length}
               onClick={() => void edit('undo')}
             >
-              <Undo2 size={18} />
+              <Undo2 size={20} />
             </button>
             <button
               type="button"
@@ -477,7 +477,7 @@ export default function GarticCanvas({
               disabled={busy || locked || !connected || !ink.length}
               onClick={() => void edit('clear')}
             >
-              <Trash2 size={18} />
+              <Trash2 size={20} />
             </button>
           </div>
         </div>
@@ -504,7 +504,7 @@ export default function GarticCanvas({
         </svg>
         {!ink.length && !active && (
           <div className="gartic-paper-empty" aria-hidden="true">
-            <Pencil size={30} strokeWidth={1.25} data-own-stroke />
+            <Pencil size={32} strokeWidth={1.25} data-own-stroke />
             <span>
               {editable ? t(($) => $.gartic.canvas.firstStroke) : t(($) => $.gartic.canvas.emptyView)}
             </span>
@@ -513,7 +513,7 @@ export default function GarticCanvas({
       </div>
       {editable && !connected && (
         <div className="gartic-canvas-status" role="status">
-          <WifiOff size={14} /> {t(($) => $.gartic.canvas.offline)}
+          <WifiOff size={12} /> {t(($) => $.gartic.canvas.offline)}
         </div>
       )}
       {error && (
@@ -528,7 +528,7 @@ export default function GarticCanvas({
                 queue.current?.retry();
               }}
             >
-              <RotateCw size={15} /> {t(($) => $.gartic.canvas.retry)}
+              <RotateCw size={16} /> {t(($) => $.gartic.canvas.retry)}
             </button>
           )}
         </div>

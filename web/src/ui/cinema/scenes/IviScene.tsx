@@ -133,7 +133,7 @@ export default function IviScene({ provider, at, meeting, onClose }: SceneProps)
       onBack={stack.length > 1 ? back : undefined}
       tabs={
         <span className="cinema-platform" style={accent}>
-          <spec.icon size={15} />
+          <spec.icon size={16} />
           {providerName(t, provider)}
         </span>
       }

@@ -95,11 +95,11 @@ export function Shell({
       <header className="cinema-bar">
         {onBack ? (
           <IconButton label={t(($) => $.cinema.shell.back)} onClick={onBack}>
-            <ArrowLeft size={19} />
+            <ArrowLeft size={20} />
           </IconButton>
         ) : (
           <span className="cinema-mark" aria-hidden="true">
-            <Clapperboard size={19} />
+            <Clapperboard size={20} />
           </span>
         )}
         {tabs}
@@ -157,7 +157,7 @@ export function Shell({
               aria-label={t(($) => $.cinema.shell.clear)}
               onClick={() => onClear()}
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           )}
         </label>
@@ -165,7 +165,7 @@ export function Shell({
           label={watching ? t(($) => $.cinema.shell.backToWatch) : t(($) => $.cinema.shell.close)}
           onClick={onClose}
         >
-          <X size={19} />
+          <X size={20} />
         </IconButton>
       </header>
 

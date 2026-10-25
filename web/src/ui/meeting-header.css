@@ -226,7 +226,7 @@
     flex: 1 1 auto;
     flex-direction: column;
     align-items: stretch;
-    gap: 2px;
+    gap: var(--space-0-5);
   }
   .meeting-header__name {
     margin-right: 0;

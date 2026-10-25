@@ -78,6 +78,7 @@ export const PAGES = {
           'tour-help',
           'tour-menu',
           'help-center',
+          'help-report',
           'support-page',
         ],
       },
@@ -128,10 +129,10 @@ export const PAGES = {
   Интеграции: {
     slug: 'integrations',
     about:
-      'Что можно делать вместе: выбор площадки (T59), музыка, кинозал и игры. Всё живёт в панели «Интеграции» и на сцене.',
+      'Что можно делать вместе: музыка (плеер с площадками вкладками, R44), кинозал (выбор площадки, T59) и игры. Всё живёт в панели «Интеграции» и на сцене.',
     sections: [
-      { name: 'Панель и выбор площадки', states: ['meeting-integrations', 'music-picker', 'cinema-picker'] },
-      { name: 'Музыка', states: ['music-youtube', 'music-files', 'music-yandex'] },
+      { name: 'Панель и выбор площадки', states: ['meeting-integrations', 'cinema-picker'] },
+      { name: 'Музыка', states: ['music-intro', 'music-youtube', 'music-files', 'music-yandex'] },
       { name: 'Кинозал', states: ['cinema-catalog', 'cinema-detail', 'cinema-player'] },
       {
         name: 'Игры',
@@ -197,20 +198,14 @@ export const PAGES = {
     sections: [
       {
         name: 'Окна оболочки',
-        states: [
-          'electron-loading',
-          'electron-offline',
-          'electron-picker-screen',
-          'electron-picker-window',
-          'electron-servers',
-          'electron-overlay',
-        ],
+        states: ['electron-loading', 'electron-offline', 'electron-servers', 'electron-overlay'],
       },
       {
         name: 'Веб внутри клиента',
         states: [
           'electron-home',
           'settings-desktop',
+          'settings-overlay',
           'capture-picker',
           'desktop-home',
           'desktop-favorite-settings',
@@ -708,17 +703,6 @@ export const STATES = {
     src: 'ui/Services.tsx, ui/ServiceRoster.tsx',
     how: '«Интеграции».',
   },
-  'music-picker': {
-    title: 'Музыка — выбор площадки',
-    what: 'При каждом входе в музыку — плитки площадок: YouTube, SoundCloud, Яндекс Музыка, Свои файлы.',
-    who: '«Интеграции» → «Музыка».',
-    rules:
-      'Только включённые на сервере (по умолчанию все); прошлый выбор отмечен «Последний выбор» и получает фокус (T59-2).',
-    tasks: 'T18, T59',
-    kit: 'Card, Badge',
-    src: 'ui/PlatformPicker.tsx, ui/Services.tsx',
-    how: '«Интеграции» → «Музыка».',
-  },
   'cinema-picker': {
     title: 'Кинозал — выбор площадки',
     what: 'Тот же экран выбора для кинозала; плитка открывает каталог на сцене.',
@@ -729,15 +713,27 @@ export const STATES = {
     src: 'ui/PlatformPicker.tsx, ui/cinema/CinemaGroup.tsx',
     how: '«Интеграции» → «Кинозал».',
   },
+  'music-intro': {
+    title: 'Музыка — ещё не во встрече',
+    what: 'Одно действие: «Добавить во встречу» — какие площадки есть, что очередь одна на всю встречу и что музыка займёт одно место.',
+    who: '«Интеграции» → «Музыка» или виджет над звонком (R31), пока музыки во встрече нет.',
+    rules:
+      'Экрана выбора площадки нет (R44): после «Добавить» сразу плеер на последней площадке; очередь, собранная раньше, сохраняется и показана числом.',
+    tasks: 'T18, R44, R31',
+    kit: 'Button',
+    src: 'ui/music/MusicWidget.tsx, ui/music/useMusic.ts',
+    how: '«Интеграции» → «Музыка» во встрече без музыки.',
+  },
   'music-youtube': {
-    title: 'Музыка — YouTube',
-    what: 'Вкладки площадок, плеер, поле этой площадки, очередь, «Убрать музыку из встречи».',
-    who: 'Выбрал YouTube.',
-    rules: 'Поиск и ссылка — только своей площадки; смена вкладки не трогает плеер и очередь.',
-    tasks: 'T18, T59, T14',
+    title: 'Музыка — плеер (YouTube)',
+    what: 'Плеер целиком: площадки вкладками, поле этой площадки, «Сейчас играет», «Далее в очереди», «Убрать музыку из встречи».',
+    who: '«Интеграции» → «Музыка» или виджет над звонком, когда музыка во встрече; вкладка YouTube.',
+    rules:
+      'Поиск и ссылка — только своей площадки; вкладка помнит выбор, а её смена не трогает плеер, очередь и бота.',
+    tasks: 'T18, T59, T14, R44',
     kit: 'Tabs, Input, Button',
-    src: 'ui/Services.tsx (music), ui/integrations.css',
-    how: 'Выбор площадки → YouTube.',
+    src: 'ui/music/MusicWidget.tsx, ui/PlatformPicker.tsx (PlatformTabs), ui/MusicPlayer.tsx, ui/integrations.css',
+    how: '«Музыка» → «Добавить во встречу» → вкладка YouTube.',
   },
   'music-files': {
     title: 'Музыка — свои файлы',
@@ -1093,26 +1089,6 @@ export const STATES = {
     src: 'desktop/src/shell/offline.html, offline.js',
     how: 'Запустить без сети.',
   },
-  'electron-picker-screen': {
-    title: 'Что показать — экраны',
-    what: 'Своё окно выбора источника показа: экраны с миниатюрами, «Со звуком системы».',
-    who: '«Показать экран» в клиенте.',
-    rules: 'Выбор действует 10 с и один раз; звук приложения отдельно — позже.',
-    tasks: 'T10',
-    kit: '—',
-    src: 'desktop/src/shell/picker.html, picker.js, main/capture.ts',
-    how: '«Показать экран» в клиенте.',
-  },
-  'electron-picker-window': {
-    title: 'Что показать — окна',
-    what: 'Вкладка «Окно»: открытые окна со значками приложений.',
-    who: 'Вкладка «Окно».',
-    rules: 'Двойной щелчок — сразу показать.',
-    tasks: 'T10',
-    kit: '—',
-    src: 'desktop/src/shell/picker.js',
-    how: 'Вкладка «Окно».',
-  },
   'electron-servers': {
     title: 'Серверы',
     what: 'Флаг страны в круге, имя, пинг; выбранный — полоской слева.',
@@ -1358,14 +1334,25 @@ export const STATES = {
     how: 'Знакомство на телефоне → «Далее» ×2.',
   },
   'help-center': {
-    title: 'Помощь — частые вопросы',
-    what: 'Окно помощи: частые вопросы по темам, «Диагностика» и «Написать нам».',
-    who: 'Кнопка «Помощь» (?) в панели главной, в шапке встречи и в меню.',
-    rules: 'Ответы — языком продукта, без ссылок наружу (T54).',
-    tasks: 'T36, T54',
-    kit: 'Dialog, Button',
-    src: 'ui/support/HelpButton.tsx, ui/support/HelpCenter.tsx',
-    how: 'Главная → «Помощь».',
+    title: 'Поддержка — вкладки',
+    what: 'Одно окно «Поддержка» (R37) с вкладками «Частые вопросы · Проверить · Написать»: ответы по темам, проверка камеры и микрофона, обращение.',
+    who: 'Гарнитура «Поддержка» в панели главной, в шапке встречи и в меню; раздел «Поддержка» в настройках.',
+    rules: 'Ответы — языком продукта, без ссылок наружу (T54); разговор окно не прерывает.',
+    tasks: 'T36, T54, R37',
+    kit: 'Dialog, Tabs, Button',
+    src: 'ui/support/HelpHost.tsx (одно окно на корне, S5), ui/support/HelpButton.tsx, ui/support/HelpCenter.tsx',
+    how: 'Главная → «Поддержка».',
+  },
+  'help-report': {
+    title: '«Сообщить о проблеме»',
+    what: 'Во вкладке «Написать» — второй вид обращения: что не так — чипами («Звук обрывается», «Показ лагает», «Не слышно музыку», «Не подключается», «Другое»), подробности по желанию и отчёт о звонке.',
+    who: '«Поддержка» → «Написать» → «Сообщить о проблеме»; из «Диагностики» во встрече — сразу этот вид.',
+    rules:
+      'Во встрече к обращению прикладывается итог звонка (путь, потери, задержка — только числа), переключатель включён и под ним видно, что уйдёт; вне встречи — только окружение.',
+    tasks: 'R79',
+    kit: 'Segmented, Switch, Field, Button',
+    src: 'ui/support/ReportForm.tsx, ui/support/Chips.tsx, core/support.ts',
+    how: 'Встреча → «Диагностика» → «Сообщить о проблеме».',
   },
   'support-page': {
     title: '/support — написать нам',
@@ -1418,9 +1405,20 @@ export const STATES = {
     src: 'ui/settings/DesktopSection.tsx, ui/settings/sections.ts, core/desktop.ts',
     how: 'Клиент → «Настройки» → «Windows».',
   },
+  'settings-overlay': {
+    title: 'Настройки — «Оверлей» (клиент)',
+    what: 'Раздел только в приложении (R62, R63, R104): «Оверлей в играх» — переключатель, клавиши показа и разблокировки; «Игры» — запущенная сейчас и запомненные, у каждой свой переключатель и «Забыть»; «Говорящие» — живой образец виджета, положение, размер, имена, прозрачность.',
+    who: 'Клиент Windows: «Настройки» → «Оверлей».',
+    rules:
+      'Каждая строка — только при своём флаге оболочки; игры Cord запоминает сам, когда их запускают во время встречи.',
+    tasks: 'R62, R63, R104',
+    kit: 'Switch, Segmented, Slider, Menu, Button',
+    src: 'ui/settings/OverlaySection.tsx, core/desktop-games.ts, core/desktop-settings.ts',
+    how: 'Клиент → «Настройки» → «Оверлей».',
+  },
   'capture-picker': {
     title: 'Показ экрана — окно показа (клиент)',
-    what: 'В клиенте на Electron — единственное окно показа (окно оболочки удалено, R60): вкладки «Приложения · Весь экран · Устройства», плитки с миниатюрами; внизу «Звук компьютера» и сводка, «Чёткость / Плавность», шестерёнка (качество 720 / 1080 / 1440 и 30 / 60, превью зрителям, режим звука) и одна кнопка «Показать»; выбор уходит оболочке, и только потом getDisplayMedia.',
+    what: 'В клиенте Windows — единственное окно показа, веб (своё окно выбора источника оболочка не рисует с 1.0.6, R60): вкладки «Приложения · Весь экран · Устройства», плитки с миниатюрами; внизу «Звук компьютера» и сводка, «Чёткость / Плавность», шестерёнка (качество 720 / 1080 / 1440 и 30 / 60, превью зрителям, режим звука) и одна кнопка «Показать»; выбор уходит оболочке, и только потом getDisplayMedia.',
     who: '«Показать экран» в пульте внутри клиента (E01-B2, флаг capture).',
     rules:
       'Только известные id источников и картинки data:image; «Устройства» — камеры, кроме своей (карта захвата — со своим звуком); выбор помнится (preferences.screen); без выбора — отмена без ошибки.',
@@ -1435,7 +1433,6 @@ export const STATES = {
 export function framesOf(id) {
   if (id.startsWith('electron-splash')) return [[300, 'dark']];
   if (id === 'electron-loading' || id === 'electron-offline') return [[1180, 'dark']];
-  if (id.startsWith('electron-picker')) return [[760, 'dark']];
   if (id === 'electron-servers') return [[440, 'dark']];
   if (id === 'electron-overlay') return [[320, 'dark']];
   return null;

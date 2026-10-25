@@ -44,7 +44,7 @@ export function CameraFlip({ meeting, disabled }: { meeting: Meeting; disabled?:
       disabled={disabled}
       onClick={() => void meeting.media.flipCamera()}
     >
-      <SwitchCamera size={22} />
+      <SwitchCamera size={24} />
     </IconButton>
   );
 }

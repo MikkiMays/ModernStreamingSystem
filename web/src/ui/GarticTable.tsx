@@ -109,7 +109,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
     <section className="gartic" aria-label="Gartic" data-phase={table.phase}>
       <header className="gartic-header">
         <div className="gartic-heading">
-          <Palette size={23} />
+          <Palette size={24} />
           <div>
             <h2>Gartic</h2>
             <span>{phone ? t(($) => $.gartic.modes.telephone) : t(($) => $.gartic.modes.classic)}</span>
@@ -145,7 +145,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
               disabled={!connected || pending}
               onClick={() => void act('gartic.close')}
             >
-              <X size={18} />
+              <X size={20} />
             </IconButton>
           )}
         </div>
@@ -171,7 +171,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
         <div className="gartic-lobby">
           <div className="gartic-lobby-intro">
             <div className="gartic-sketch" aria-hidden="true">
-              <Pencil size={42} strokeWidth={1.3} data-own-stroke />
+              <Pencil size={40} strokeWidth={1.3} data-own-stroke />
               <span>
                 {t(($) => $.gartic.lobby.sketchDraw)}
                 <br />
@@ -252,7 +252,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
             )}
             {phone && <p className="gartic-small">{t(($) => $.gartic.lobby.telephoneTiming)}</p>}
             <div className="gartic-lobby-players">
-              <Users size={17} />
+              <Users size={16} />
               <b>{t(($) => $.gartic.lobby.players, { count: players.length })}</b>
               <span>
                 {players.map((player) => player.name).join(', ') || t(($) => $.gartic.lobby.joinFirst)}
@@ -266,11 +266,11 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   disabled={pending || !connected}
                   onClick={() => void act('gartic.join')}
                 >
-                  <Users size={17} /> {t(($) => $.gartic.lobby.join)}
+                  <Users size={20} /> {t(($) => $.gartic.lobby.join)}
                 </button>
               ) : (
                 <span className="gartic-ready">
-                  <Check size={17} /> {t(($) => $.gartic.lobby.inGame)}
+                  <Check size={20} /> {t(($) => $.gartic.lobby.inGame)}
                 </span>
               )}
               {host && (
@@ -280,7 +280,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
                   disabled={pending || !connected || players.length < minimum}
                   onClick={() => void act('gartic.start')}
                 >
-                  <Play size={17} /> {t(($) => $.gartic.lobby.start)}
+                  <Play size={20} /> {t(($) => $.gartic.lobby.start)}
                 </button>
               )}
             </div>
@@ -351,7 +351,7 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
               disabled={!connected || pending}
               onClick={() => void act('gartic.leave')}
             >
-              <LogOut size={15} />{' '}
+              <LogOut size={16} />{' '}
               {lobby || ended ? t(($) => $.gartic.footer.leave) : t(($) => $.gartic.footer.spectate)}
             </button>
           )}
@@ -405,7 +405,7 @@ function ClassicTask({ table, send, connected }: { table: Table; send: SendComma
       </div>
       {choosing && choices.length > 0 ? (
         <div className="gartic-choose">
-          <Pencil size={34} strokeWidth={1.5} data-own-stroke />
+          <Pencil size={32} strokeWidth={1.5} data-own-stroke />
           <h3>{t(($) => $.gartic.word.chooseTitle)}</h3>
           <p>{t(($) => $.gartic.word.chooseHint)}</p>
           <div>
@@ -480,7 +480,7 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
             <span>
               {entry.correct ? (
                 <>
-                  <Check size={14} /> {t(($) => $.gartic.guesses.correct)}
+                  <Check size={12} /> {t(($) => $.gartic.guesses.correct)}
                 </>
               ) : (
                 entry.text
@@ -510,12 +510,12 @@ function GuessPanel({ table, send, connected }: { table: Table; send: SendComman
             aria-label={t(($) => $.gartic.guesses.send)}
             disabled={!connected || pending || !guess.trim()}
           >
-            <Send size={18} />
+            <Send size={20} />
           </button>
         </form>
       ) : guessed ? (
         <p className="gartic-guessed">
-          <CheckCheck size={18} /> {t(($) => $.gartic.guesses.youGuessed)}
+          <CheckCheck size={16} /> {t(($) => $.gartic.guesses.youGuessed)}
         </p>
       ) : (
         <p className="gartic-small">
@@ -551,7 +551,7 @@ function PhoneTask({
   if (!you?.playing)
     return (
       <div className="gartic-phone-wait">
-        <Eye size={34} strokeWidth={1.3} data-own-stroke />
+        <Eye size={32} strokeWidth={1.3} data-own-stroke />
         <h3>{t(($) => $.gartic.phone.secretTitle)}</h3>
         <p>{t(($) => $.gartic.phone.secretText)}</p>
       </div>
@@ -575,7 +575,7 @@ function PhoneTask({
     <form className="gartic-phone-task" onSubmit={(event) => void submit(event)}>
       {table.phase === 'prompt' ? (
         <div className="gartic-prompt-intro">
-          <BookOpen size={34} strokeWidth={1.3} data-own-stroke />
+          <BookOpen size={32} strokeWidth={1.3} data-own-stroke />
           <h3>{t(($) => $.gartic.phone.promptTitle)}</h3>
           <p>{t(($) => $.gartic.phone.promptText)}</p>
         </div>
@@ -590,7 +590,7 @@ function PhoneTask({
         <GarticPicture strokes={you.previous.strokes} label={t(($) => $.gartic.phone.describeDrawing)} />
       ) : (
         <div className="gartic-phone-wait">
-          <Pencil size={28} />
+          <Pencil size={32} />
           <p>{t(($) => $.gartic.phone.missingDrawing)}</p>
         </div>
       )}
@@ -640,7 +640,7 @@ function PhoneTask({
               className="button primary"
               disabled={!connected || pending || !you.canSubmit || (!drawing && !text.trim())}
             >
-              <Check size={18} />{' '}
+              <Check size={20} />{' '}
               {pending
                 ? t(($) => $.gartic.phone.sending)
                 : drawing
@@ -730,7 +730,7 @@ function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
             />
             {phone ? (
               <span className="gartic-player-progress" aria-hidden="true">
-                {player.submitted ? <Check size={18} /> : <span className="gartic-waiting-dot" />}
+                {player.submitted ? <Check size={16} /> : <span className="gartic-waiting-dot" />}
               </span>
             ) : (
               <strong
@@ -738,7 +738,7 @@ function Scoreboard({ table, meeting }: { table: Table; meeting: Meeting }) {
                 aria-label={t(($) => $.gartic.points, { count: player.score })}
               >
                 {player.score}
-                {player.guessed && <Check size={14} />}
+                {player.guessed && <Check size={16} />}
               </strong>
             )}
           </li>

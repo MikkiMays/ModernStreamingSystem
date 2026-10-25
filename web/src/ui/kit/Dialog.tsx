@@ -55,7 +55,7 @@ export function Dialog({
               <BaseDialog.Close
                 render={
                   <IconButton label={closeLabel ?? t(($) => $.common.close)} size="sm">
-                    <X size={18} />
+                    <X size={20} />
                   </IconButton>
                 }
               />

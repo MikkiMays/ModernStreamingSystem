@@ -30,7 +30,7 @@ export function MusicCover({
           onError={() => setBroken(cover)}
         />
       ) : (
-        <Music2 size={size === 'lg' ? 28 : 16} />
+        <Music2 size={size === 'lg' ? 32 : 16} />
       )}
     </span>
   );
