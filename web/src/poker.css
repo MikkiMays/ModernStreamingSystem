@@ -1797,8 +1797,9 @@
   grid-column: 2;
 }
 /* Ползунок. Дорожка и шайба — два элемента одного `i`, чтобы не заводить лишней вёрстки. Вид и размеры —
-   `kit/Switch` (R28, X4): 40×24, белый бегунок 18, включённый — акцентом набора; раньше был 40×23 с
-   бегунком 17 и рамкой, у дурака — 40×24 с бегунком 16, в настройках — третий вид. */
+   `kit/Switch` (R28, X4): 40×24, белый бегунок 18; раньше был 40×23 с бегунком 17 и рамкой, у дурака —
+   40×24 с бегунком 16, в настройках — третий вид. Включённый — золотом стола, а не акцентом набора:
+   R28 выравнивает размеры, цвет — часть сукна покера. */
 .poker-toggle i {
   position: relative;
   display: block;
@@ -1822,7 +1823,7 @@
   transition: transform var(--motion-base) var(--ease-emphasized);
 }
 .poker-toggle[aria-checked='true'] i {
-  background: var(--accent-fill);
+  background: var(--gold);
 }
 .poker-toggle[aria-checked='true'] i::after {
   transform: translateX(calc(var(--switch-w) - var(--switch-h)));
