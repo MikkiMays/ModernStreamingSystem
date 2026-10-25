@@ -343,6 +343,16 @@ async function home(page) {
   await page.waitForTimeout(600);
 }
 
+/** Окно «Поддержка» с главной (R37): на телефоне кнопка — в выдвижной панели. */
+async function openSupport(page) {
+  await home(page);
+  const burger = page.getByRole('button', { name: 'Открыть меню' });
+  if (await burger.isVisible()) await burger.click();
+  await page.getByRole('button', { name: 'Поддержка' }).first().click();
+  await page.locator('.help-center').first().waitFor({ timeout: 10000 });
+  await page.waitForTimeout(600);
+}
+
 async function connected(page) {
   await page
     .locator('[data-media-status="connected"]')
@@ -1441,28 +1451,6 @@ Object.assign(SINGLE, {
       await page.waitForTimeout(300);
     },
   },
-  'electron-picker': {
-    multi: true,
-    group: 'Клиент Windows',
-    title: 'Выбор источника показа (Electron, T10)',
-    src: 'desktop/src/shell/picker.html, picker.js, main/capture.ts',
-    sizes: [[760, 560]],
-    themes: ['dark'],
-    context: { desktop: true },
-    async open(page, { context }) {
-      await context.addInitScript(shellStub, {});
-      await context.addInitScript(thumbnails);
-      await page.goto(`file://${SHELL}/picker.html`);
-      await page.locator('.source').first().waitFor();
-      await page.locator('.source').first().click();
-      await page.waitForTimeout(300);
-      await shoot(page, 'electron-picker-screen', 760, 'dark', { fullPage: false });
-      await page.getByRole('tab', { name: 'Окно' }).click();
-      await page.locator('.source').nth(1).click();
-      await page.waitForTimeout(300);
-      await shoot(page, 'electron-picker-window', 760, 'dark', { fullPage: false });
-    },
-  },
   'electron-servers': {
     group: 'Клиент Windows',
     title: 'Серверы (Electron, T05): флаг, имя, пинг',
@@ -1582,16 +1570,24 @@ Object.assign(SINGLE, {
   },
   'help-center': {
     group: 'Главная',
-    title: 'Помощь «?» — частые вопросы и связь (E13, T36)',
-    src: 'ui/support/HelpButton.tsx, ui/support/HelpCenter.tsx',
+    title: 'Поддержка — вкладки «Частые вопросы · Проверить · Написать» (R37, T36)',
+    src: 'ui/support/HelpHost.tsx, ui/support/HelpButton.tsx, ui/support/HelpCenter.tsx',
     widths: [360, 1440],
     context: { storage: SEEN },
     async open(page) {
-      await home(page);
-      const burger = page.getByRole('button', { name: 'Открыть меню' });
-      if (await burger.isVisible()) await burger.click();
-      await page.getByRole('button', { name: 'Помощь' }).first().click();
-      await page.locator('.help-center').first().waitFor({ timeout: 10000 });
+      await openSupport(page);
+    },
+  },
+  'help-report': {
+    group: 'Главная',
+    title: '«Сообщить о проблеме» во вкладке «Написать» (R79)',
+    src: 'ui/support/ReportForm.tsx, ui/support/Chips.tsx',
+    widths: [360, 1440],
+    context: { storage: SEEN },
+    async open(page) {
+      await openSupport(page);
+      await page.getByRole('tab', { name: 'Написать' }).click();
+      await page.getByRole('radio', { name: 'Сообщить о проблеме' }).click();
       await page.waitForTimeout(600);
     },
   },
@@ -1632,6 +1628,23 @@ Object.assign(SINGLE, {
       await page.goto(base);
       await page.locator('.home-entry, main').first().waitFor({ timeout: 60000 });
       await page.waitForTimeout(1500);
+    },
+  },
+  'settings-overlay': {
+    group: 'Клиент Windows',
+    title: 'Настройки — раздел «Оверлей» в клиенте (R62, R63, R104)',
+    src: 'ui/settings/OverlaySection.tsx, core/desktop-games.ts, core/desktop-settings.ts',
+    widths: [1024, 1440],
+    context: { storage: SEEN },
+    async open(page, { context }) {
+      await context.addInitScript(electronBridge);
+      await home(page);
+      await page
+        .getByRole('button', { name: /^Настройки$/ })
+        .first()
+        .click();
+      await page.locator('.settings-nav__item').filter({ hasText: 'Оверлей' }).first().click();
+      await page.waitForTimeout(800);
     },
   },
   'settings-desktop': {
@@ -1720,7 +1733,7 @@ Object.assign(SINGLE, {
   'capture-picker': {
     multi: true,
     group: 'Клиент Windows',
-    title: 'Окно выбора источника показа в вебе клиента (E01-B2)',
+    title: 'Окно показа в клиенте Windows — веб, единственное с 1.0.6 (R60)',
     src: 'ui/CapturePicker.tsx, core/desktop-capture.ts, ui/CallDock.tsx',
     widths: [1440],
     context: { storage: SEEN },
@@ -1740,16 +1753,18 @@ Object.assign(SINGLE, {
       await share.click();
       await page.locator('.capture-picker__grid').first().waitFor({ timeout: 10000 });
       await page
+        .getByRole('tab', { name: 'Весь экран' })
+        .click()
+        .catch(() => {});
+      await page
         .locator('.capture-picker__grid button')
         .first()
         .click()
         .catch(() => {});
       await page.waitForTimeout(600);
-      await shootAs('capture-picker-screen', 'Выбор источника — экраны (E01-B2)');
+      await shootAs('capture-picker-screen', 'Окно показа — весь экран (R60)');
       await page
-        .getByRole('tab')
-        .filter({ hasText: /Окн/ })
-        .first()
+        .getByRole('tab', { name: 'Приложения' })
         .click()
         .catch(() => {});
       await page.waitForTimeout(500);
@@ -1759,7 +1774,7 @@ Object.assign(SINGLE, {
         .click()
         .catch(() => {});
       await page.waitForTimeout(400);
-      await shootAs('capture-picker-window', 'Выбор источника — окна (E01-B2)');
+      await shootAs('capture-picker-window', 'Окно показа — приложения (R60)');
     },
   },
 });
@@ -2136,25 +2151,30 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       .filter({ has: page.getByText(name, { exact: true }) })
       .first();
 
-  // --- Выбор площадки и музыка (T59, E06-B) ---
-  await run(
-    'music-picker',
-    'Музыка — «Выберите площадку» (T59)',
-    'ui/PlatformPicker.tsx, ui/Services.tsx',
-    () =>
-      both(async (p) => {
-        await openPanel(p, 'Интеграции');
-        await group(p, 'Музыка').click();
-        await p.locator('.platform-picker').first().waitFor({ timeout: 15000 });
-        await p.waitForTimeout(500);
-      }),
-  );
-  await run('music-youtube', 'Музыка — YouTube', 'ui/Services.tsx (music), ui/integrations.css', () =>
+  // --- Музыка (R44, E06-B) и выбор площадки кинозала (T59) ---
+  // Экрана выбора площадки у музыки нет (R44): «Музыка» открывает плеер. Пока музыки во встрече нет —
+  // одно действие «Добавить во встречу»; вкладки, поиск и очередь — после него. В конце музыку убирают:
+  // бот держит комнату на стенде открытой.
+  await run('music-intro', 'Музыка — ещё не во встрече (R44)', 'ui/music/MusicWidget.tsx', () =>
     both(async (p) => {
-      await p.locator('.platform-picker .service-tile').filter({ hasText: 'YouTube' }).first().click();
-      await p.locator('.platform-tab').first().waitFor({ timeout: 15000 });
-      await p.waitForTimeout(600);
+      await openPanel(p, 'Интеграции');
+      await group(p, 'Музыка').click();
+      await p.locator('.music-intro').first().waitFor({ timeout: 15000 });
+      await p.waitForTimeout(500);
     }),
+  );
+  await run(
+    'music-youtube',
+    'Музыка — плеер, YouTube (R44)',
+    'ui/music/MusicWidget.tsx, ui/integrations.css',
+    async () => {
+      await D.locator('.music-intro').getByRole('button', { name: 'Добавить во встречу' }).click();
+      await both(async (p) => {
+        await p.locator('.platform-tab').first().waitFor({ timeout: 30000 });
+        await p.locator('.platform-tab').filter({ hasText: 'YouTube' }).first().click();
+        await p.waitForTimeout(600);
+      });
+    },
   );
   await run(
     'music-search',
@@ -2185,6 +2205,10 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       await p.waitForTimeout(700);
     }),
   );
+  await D.locator('.music-panel__remove')
+    .first()
+    .click()
+    .catch(() => {});
   await run(
     'cinema-picker',
     'Кинозал — «Выберите площадку» (T59)',

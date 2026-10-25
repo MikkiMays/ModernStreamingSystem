@@ -1,0 +1,199 @@
+{
+  "Обложка": {
+    "key": "tC9u0tOLZ28FwcB8PT5v6U",
+    "page": "0:1",
+    "sections": {},
+    "rows": {},
+    "rowCount": 0,
+    "frames": 0
+  },
+  "Дизайн-система": {
+    "key": "tC9u0tOLZ28FwcB8PT5v6U",
+    "page": "5:2",
+    "sections": {},
+    "rows": {},
+    "rowCount": 0,
+    "frames": 0
+  },
+  "Главная": {
+    "key": "tC9u0tOLZ28FwcB8PT5v6U",
+    "page": "5:3",
+    "sections": {
+      "1. Загрузка и подключение": "17:56287",
+      "2. Главная и избранное": "17:56392",
+      "3. Знакомство и помощь": "19:265",
+      "4. Языки": "19:322",
+      "5. Активность сервера (владелец)": "19:341",
+      "6. Витрина набора": "17:56490"
+    },
+    "rows": {
+      "loader": "17:56288",
+      "loader-start": "17:56301",
+      "loader-slow": "17:56314",
+      "connect-searching": "17:56327",
+      "connect-manual": "17:56340",
+      "connect-password": "17:56353",
+      "connect-wrong-password": "17:56366",
+      "connect-failed": "17:56379",
+      "home": "17:56393",
+      "home-favorites": "17:56406",
+      "home-drawer": "17:56415",
+      "home-room-menu": "17:56420",
+      "home-remove-confirm": "17:56429",
+      "home-active-elsewhere": "17:56442",
+      "home-favorites-error": "17:56455",
+      "room-not-found": "17:56464",
+      "dialog-409": "17:56477",
+      "tour-create": "19:266",
+      "tour-join": "19:275",
+      "tour-favorites": "19:284",
+      "tour-settings": "19:289",
+      "tour-help": "19:294",
+      "tour-menu": "19:299",
+      "help-center": "19:304",
+      "support-page": "19:313",
+      "home-en": "19:323",
+      "home-zh": "19:332",
+      "activity-login": "19:342",
+      "kit": "17:56491"
+    },
+    "rowCount": 29,
+    "frames": 130
+  },
+  "Встреча": {
+    "key": "0twoxdjTpxbDluBJfVxK6G",
+    "page": "0:1",
+    "sections": {
+      "1. Прихожая": "6:93",
+      "2. Сцена": "6:159",
+      "3. Панели и меню": "6:225",
+      "4. Предупреждения, обрывы, конец": "6:313"
+    },
+    "rows": {
+      "prejoin-create": "6:94",
+      "prejoin-join": "6:107",
+      "prejoin-settings": "6:120",
+      "prejoin-denied": "6:133",
+      "meeting-waiting": "6:146",
+      "meeting-solo": "6:160",
+      "meeting-grid": "6:173",
+      "meeting-speaker": "6:186",
+      "meeting-screen-tile": "6:199",
+      "meeting-screen": "6:212",
+      "meeting-chat": "6:226",
+      "meeting-people": "6:239",
+      "meeting-participant-menu": "6:252",
+      "meeting-more": "6:265",
+      "meeting-invite": "6:278",
+      "meeting-diagnostics": "6:291",
+      "meeting-room-settings": "6:304",
+      "meeting-ceiling": "6:314",
+      "chat-executable": "6:315",
+      "chat-link-dialog": "6:328",
+      "dialog-favorites-full": "6:341",
+      "dialog-favorites-refused": "6:354",
+      "meeting-control-lost": "6:367",
+      "meeting-recovering": "6:380",
+      "meeting-ended": "6:393"
+    },
+    "rowCount": 25,
+    "frames": 142
+  },
+  "Интеграции": {
+    "key": "0twoxdjTpxbDluBJfVxK6G",
+    "page": "1:2",
+    "sections": {
+      "1. Панель и выбор площадки": "8:155",
+      "2. Музыка": "8:195",
+      "3. Кинозал": "8:235",
+      "4. Игры": "8:275"
+    },
+    "rows": {
+      "meeting-integrations": "8:156",
+      "music-picker": "8:169",
+      "cinema-picker": "8:182",
+      "music-youtube": "8:196",
+      "music-files": "8:209",
+      "music-yandex": "8:222",
+      "cinema-catalog": "8:236",
+      "cinema-detail": "8:249",
+      "cinema-player": "8:262",
+      "games-panel": "8:276",
+      "loader-cards": "8:289",
+      "game-poker": "8:302",
+      "game-durak": "8:315",
+      "game-chess": "8:328",
+      "game-gartic": "8:341",
+      "games-history": "8:354"
+    },
+    "rowCount": 16,
+    "frames": 94
+  },
+  "Настройки": {
+    "key": "0twoxdjTpxbDluBJfVxK6G",
+    "page": "1:3",
+    "sections": {
+      "1. Разделы": "3:142",
+      "2. Поверх встречи и окна": "3:288"
+    },
+    "rows": {
+      "settings-list": "3:143",
+      "settings-01": "3:148",
+      "settings-02": "3:161",
+      "settings-language": "3:174",
+      "settings-03": "3:175",
+      "settings-04": "3:188",
+      "settings-04b": "3:201",
+      "settings-05": "3:214",
+      "settings-05b": "3:227",
+      "settings-06": "3:236",
+      "settings-07": "3:249",
+      "settings-08": "3:262",
+      "settings-search": "3:275",
+      "meeting-settings": "3:289",
+      "avatar-cropper": "3:302"
+    },
+    "rowCount": 15,
+    "frames": 82
+  },
+  "Скачать и установка": {
+    "key": "Lrzdrqv6gQsDafGfiQnDqU",
+    "page": "0:1",
+    "sections": {},
+    "rows": {},
+    "rowCount": 6,
+    "frames": 16
+  },
+  "Клиент Windows": {
+    "key": "Lrzdrqv6gQsDafGfiQnDqU",
+    "page": "1:2",
+    "sections": {},
+    "rows": {},
+    "rowCount": 11,
+    "frames": 22
+  },
+  "Telegram": {
+    "key": "Lrzdrqv6gQsDafGfiQnDqU",
+    "page": "1:3",
+    "sections": {},
+    "rows": {},
+    "rowCount": 7,
+    "frames": 18
+  },
+  "Телефон": {
+    "key": "iCNC53lDOA6gJDSjsl7sh4",
+    "page": "0:1",
+    "sections": {},
+    "rows": {},
+    "rowCount": 6,
+    "frames": 12
+  },
+  "Аудит чёткости": {
+    "key": "iCNC53lDOA6gJDSjsl7sh4",
+    "page": "1:2",
+    "sections": {},
+    "rows": {},
+    "rowCount": 0,
+    "frames": 0
+  }
+}

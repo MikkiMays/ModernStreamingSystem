@@ -4,6 +4,12 @@
 // читаются REST API с personal-токеном из .local/figma.env (В-4); токен не печатается.
 //
 //   node scripts/screens-doc.mjs [--out ../docs/screens.md]
+//   node scripts/screens-doc.mjs --nodes scripts/screens-nodes.json --offline   — без Figma: узлы из снимка
+//
+// `scripts/screens-nodes.json` — снимок узлов карты (страницы, разделы, ряды, счёт рядов и кадров), с
+// которым собран текущий docs/screens.md. С `--offline` скрипт в Figma не ходит и токен не читает: так
+// документ пересобирается после правки каталога, не трогая файлы Figma (ряды удалённых состояний в
+// Figma остаются, пока их не уберут там).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { PAGES, STATES, FILES, COVER } from './screens-catalog.mjs';
@@ -15,8 +21,12 @@ const KEYS = {
   map4: 'iCNC53lDOA6gJDSjsl7sh4',
   asis: 'X7lD00UAOuZfH4hL0S4bxA',
 };
+const offline = process.argv.includes('--offline');
 const env = Object.fromEntries(
-  readFileSync(process.env.FIGMA_ENV ?? '/opt/ModernStreamingSystem/.local/figma.env', 'utf8')
+  (offline
+    ? ''
+    : readFileSync(process.env.FIGMA_ENV ?? '/opt/ModernStreamingSystem/.local/figma.env', 'utf8')
+  )
     .split('\n')
     .filter((l) => l.includes('=') && !l.startsWith('#'))
     .map((l) => [
@@ -48,7 +58,7 @@ const counts = {};
 for (const [name, n] of Object.entries(nodes))
   counts[name] = { rows: n.rowCount ?? Object.keys(n.rows).length, frames: n.frames };
 for (const f of FILES.filter((x) => x.key !== 'asis')) {
-  if (f.pages.every((p) => nodes[p] && Object.keys(nodes[p].rows).length)) continue;
+  if (offline || f.pages.every((p) => nodes[p] && Object.keys(nodes[p].rows).length)) continue;
   const key = KEYS[f.key];
   try {
     const doc = await get(`/files/${key}?depth=4`);
@@ -131,13 +141,15 @@ for (const [page, p] of Object.entries(PAGES)) {
 md += `
 ## Чего здесь нет и почему
 
-- **Музыка — найденное и «Сейчас играет»**: поле поиска и плеер появляются, когда музыку добавили во встречу; бот
-  музыки держит комнату на стенде открытой, поэтому снята только встреча без бота (выбор площадки, вкладки, «Свои
-  файлы», «Яндекс Музыка»).
+- **Музыка — плеер, найденное и «Сейчас играет»**: вкладки площадок, поиск и плеер появляются, когда музыку добавили
+  во встречу (R44: экрана выбора площадки больше нет). Кадры музыки в Figma сняты ещё до R44 и без бота — он держит
+  комнату на стенде открытой; рецепт \`figma-screens.mjs\` теперь добавляет музыку и в конце убирает её.
+- **Новые состояния без кадров**: «Музыка — ещё не во встрече», «Сообщить о проблеме», «Оверлей» в настройках клиента —
+  в каталоге и с рецептом, ряды в Figma появятся при следующей съёмке.
 - **«Встреча завершится в …»** (E11-B): \`endsAt\` ядро присылает только за 15 минут до 24-часового потолка; подставить
   его в снимок встречи не удалось — ряд с описанием без кадров.
-- **Окно выбора источника показа в вебе клиента** (E01-B2): ему нужна встреча с медиа, а E01-B2 на стенде ещё не
-  выкачен; через dev-сервер медиа не поднимается — ряд с описанием, вид окна — «Что показать» оболочки.
+- **Окно показа в клиенте Windows** (\`capture-picker\`, R60): ему нужна встреча в клиенте — ряд с описанием; своего
+  окна «Что показать» у оболочки нет с 1.0.6, его ряды в Figma (\`electron-picker-*\`) устарели и убираются там.
 - **Игровые листы и окна** (настройки стола, счёт, итог партии, превращение пешки, реакции), установщик Windows и
   уведомление Android-приложения — не сняты (нет повторяемого рецепта / не веб).
 `;
