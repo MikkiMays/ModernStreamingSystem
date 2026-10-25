@@ -39,6 +39,24 @@ async function home(page: Page) {
   await expect(page.getByRole('button', { name: /Новая встреча/ })).toBeVisible({ timeout: 30000 });
 }
 
+/**
+ * Окно появляется 200 мс — прозрачность и масштаб (`settings.css`), а видимым Playwright считает его
+ * с первого кадра. axe, запущенный посреди появления, смешивает полупрозрачный приглушённый текст с
+ * подложкой и находит контраст ниже 4,5 (CI 40135293438: подписи, заголовки групп, подсказки). Ждём,
+ * пока снят стиль начала и закончились все конечные переходы окна, — дальше оно такое, как у человека.
+ */
+async function settled(dialog: Locator) {
+  await expect(dialog).not.toHaveAttribute('data-starting-style');
+  await dialog.evaluate((element) =>
+    Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
 async function openSettings(page: Page) {
   await page
     .getByRole('button', { name: 'Настройки', exact: true })
@@ -47,6 +65,7 @@ async function openSettings(page: Page) {
     .click();
   const dialog = page.getByRole('dialog', { name: 'Настройки' });
   await expect(dialog).toBeVisible();
+  await settled(dialog);
   return dialog;
 }
 

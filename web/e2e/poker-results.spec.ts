@@ -103,39 +103,54 @@ test('итоги игры приезжают обоим, остаются в и�
     await host.locator('.poker-sheet').getByRole('button', { name: 'Закрыть' }).click();
     await expect(host.locator('.poker-sheet')).toBeHidden();
 
-    await host.locator('.games-group').getByRole('button', { name: 'Раздать', exact: true }).click();
-    await expect(host.locator('.poker-mine-cards .playing-card')).toHaveCount(2);
-
-    // Ва-банк с двух сторон: игра кончится этой же раздачей.
-    for (let step = 0; step < 40; step++) {
-      if (await host.locator('.poker[data-phase="showdown"]').count()) break;
-      const acting: Page = (await host.locator('.poker-controls[data-turn]').count()) ? host : guest;
-      const allin = acting.locator('.poker-action.is-allin');
-      const raise = acting.locator('.poker-action.is-raise');
-      const call = acting.locator('.poker-action.is-call, .poker-action.is-check').first();
-      if (await allin.count()) await allin.click();
-      else if (await raise.count()) {
-        await raise.click();
-        // Готовая ставка «Ва-банк» — последний шаг в списке; ползунок по умолчанию стоит на
-        // минимальном повышении, и без этого нажатия раздача идёт по два фишки за круг.
-        await acting.locator('.poker-step', { hasText: 'Ва-банк' }).click();
-        await acting.locator('.poker-sizer-row .button.primary').click();
-      } else if (await call.count()) await call.click();
-      else await acting.waitForTimeout(250);
-    }
-    // Вскрытие стоит на столе, пока его не уберут: темп держит ведущий, а не часы.
-    await expect(host.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 30000 });
     /*
-      Светится только победная пятёрка.
-
-      Проверяется главное: ни одна карта проигравшего не горит, а чему гореть — есть. Считать
-      ровно пять нельзя: разделённый банк освещает две комбинации сразу, и это правильно.
+      Ва-банк с двух сторон: обычно игра кончается этой же раздачей. Но ничья делит банк, и оба
+      остаются при своих трёхстах (CI 40117448113: две пары на борде, «Майс забирает 300», «Алекс
+      забирает 300»), — тогда стол возвращается к «Раздать», и ведущий раздаёт снова.
     */
-    await expect(host.locator('.poker-felt .playing-card[data-highlight]')).not.toHaveCount(0);
-    await expect(host.locator('.poker-seat:not([data-winner]) .playing-card[data-highlight]')).toHaveCount(0);
-    await expect(host.locator('.poker-felt .playing-card[data-dead]').first()).toBeVisible();
-    await host.screenshot({ path: '../.local/poker-showdown-lit.png' });
-    await host.locator('.poker-bar').getByRole('button', { name: 'Продолжить' }).click();
+    for (let hand = 1; ; hand++) {
+      await host.locator('.games-group').getByRole('button', { name: 'Раздать', exact: true }).click();
+      await expect(host.locator('.poker-mine-cards .playing-card')).toHaveCount(2);
+      for (let step = 0; step < 40; step++) {
+        if (await host.locator('.poker[data-phase="showdown"]').count()) break;
+        const acting: Page = (await host.locator('.poker-controls[data-turn]').count()) ? host : guest;
+        const allin = acting.locator('.poker-action.is-allin');
+        const raise = acting.locator('.poker-action.is-raise');
+        const call = acting.locator('.poker-action.is-call, .poker-action.is-check').first();
+        if (await allin.count()) await allin.click();
+        else if (await raise.count()) {
+          await raise.click();
+          // Готовая ставка «Ва-банк» — последний шаг в списке; ползунок по умолчанию стоит на
+          // минимальном повышении, и без этого нажатия раздача идёт по два фишки за круг.
+          await acting.locator('.poker-step', { hasText: 'Ва-банк' }).click();
+          await acting.locator('.poker-sizer-row .button.primary').click();
+        } else if (await call.count()) await call.click();
+        else await acting.waitForTimeout(250);
+      }
+      // Вскрытие стоит на столе, пока его не уберут: темп держит ведущий, а не часы.
+      await expect(host.locator('.poker[data-phase="showdown"]')).toBeVisible({ timeout: 30000 });
+      /*
+        Светится только победная пятёрка.
+
+        Проверяется главное: ни одна карта проигравшего не горит, а чему гореть — есть. Считать
+        ровно пять нельзя: разделённый банк освещает две комбинации сразу, и это правильно.
+        Погашенную ищем среди видимых: своя рука на сукне не рисуется (она крупно внизу), и
+        первой погашенной по порядку бывает своя скрытая карта (CI 40131588464).
+      */
+      const lit = host.locator('.poker-felt .playing-card[data-highlight]');
+      const loserLit = host.locator('.poker-seat:not([data-winner]) .playing-card[data-highlight]');
+      const dead = host.locator('.poker-felt .playing-card[data-dead]').filter({ visible: true });
+      await expect(lit).not.toHaveCount(0);
+      await expect(loserLit).toHaveCount(0);
+      await expect(dead.first()).toBeVisible();
+      await host.screenshot({ path: '../.local/poker-showdown-lit.png' });
+      await host.locator('.poker-bar').getByRole('button', { name: 'Продолжить' }).click();
+      // Сервер решает за один ход: кто-то выбыл — «over», ничья — снова «lobby».
+      const over = host.locator('.poker[data-phase="over"]');
+      await expect(over.or(host.locator('.poker[data-phase="lobby"]'))).toBeVisible({ timeout: 30000 });
+      if (await over.count()) break;
+      expect(hand, 'ничьих подряд').toBeLessThan(5);
+    }
 
     // Итоги игры открываются сами, как только игра кончилась.
     await expect(host.locator('.poker-sheet[data-wide]')).toBeVisible({ timeout: 30000 });
