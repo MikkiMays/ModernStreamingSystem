@@ -50,6 +50,40 @@
     padding-right: calc(360px + 2 * 12px - 16px);
   }
 }
+/*
+  Телефон: открыт лист панели, а комната смотрит фильм (R120) — плеер полосой над листом, лист под ним.
+
+  Лист встаёт над сценой с 90 px (`meeting-panel.css`): разговору над ним хватает полосы лиц, а плеер
+  тянулся на всю сцену. Под листом оставались сам кадр, пауза посередине, лента времени и полный
+  экран; сверху — чёрная полоса с названием, и то пока пульт не уснул. Уснувший пульт будит касание
+  кадра, а кадра видно не было: фильм, начатый другим, становился недоступен целиком. Закрывать чат
+  ради чужого фильма нельзя (`useYieldToCinema.ts`), поэтому место делится: плеер — полоса 16:9 во всю
+  ширину, лист опускается ровно под неё, лица (они и так были под листом) уходят — люди есть в листе.
+
+  Полоса — не ниже пульта плеера на телефоне (`theater.css`: шапка 69 px, середина 60, низ 86 — 215)
+  и не выше 45 % экрана, чтобы чату под ней осталось место. Строка чипов над сценой (музыка играет и в
+  кино — `stage-overlay.css`) стоит в потоке над плеером, и лист опускается и на неё.
+*/
+@media (max-width: 767px) {
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open:has(.watch-together-stage[data-film]) {
+    --film-band: max(216px, min(calc((100vw - 2 * var(--space-2)) * 9 / 16), 45dvh));
+    --film-chips: 0px;
+    --sheet-top: calc(var(--space-2) + var(--film-chips) + var(--film-band) + var(--space-2));
+  }
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open:has(.watch-together-stage[data-film]):has(.stage-overlay:not([data-empty])) {
+    --film-chips: calc(var(--control-sm) + var(--space-2));
+  }
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .watch-together-stage[data-film] {
+    grid-template-rows: var(--film-band);
+  }
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open
+    .watch-together-stage[data-film]
+    > .people-strip {
+    display: none;
+  }
+}
 /* Плеер и каталог делят одно место на сцене: каталог лежит поверх, кино продолжает идти. */
 .watch-main {
   position: relative;

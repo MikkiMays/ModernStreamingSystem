@@ -568,7 +568,9 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   */
   if (watch || Scene) {
     return (
-      <div className="stage watch-together-stage media-stage">
+      // `data-film` — комната смотрит фильм: на телефоне с открытым листом панели плеер встаёт
+      // полосой над листом, а лист опускается под неё (R120, `cinema/cinema.css`).
+      <div className="stage watch-together-stage media-stage" data-film={watch ? 'true' : undefined}>
         <div className="watch-main">
           {watch && (
             <Suspense fallback={<div className="watch-screen" />}>

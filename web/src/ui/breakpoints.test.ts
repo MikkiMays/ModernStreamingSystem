@@ -29,6 +29,9 @@ function media(css: string, query: string): string {
   return bodies.join('\n');
 }
 
+/** Строка как есть — внутри регулярного выражения. */
+const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** Объявления правила с этим селектором внутри текста: `селектор { … }`. */
 function rule(css: string, selector: string): string {
   const head = `${selector} {`;
@@ -95,6 +98,39 @@ describe('границы раскладки: CSS и код считают по �
     expect(rule(stage, '.stage-wrap')).toContain('padding: var(--space-3) var(--space-3) var(--dock-space);');
     expect(rule(stage, '.meeting-page')).toContain(
       '--dock-space: calc(var(--dock-height) + 2 * var(--dock-bottom));',
+    );
+  });
+
+  /*
+    R120: на телефоне с открытым чатом фильм, включённый другим, лист не закрывает — и плеер оставался
+    под листом целиком, вместе с кадром, который будит уснувший пульт. Теперь лист открытой панели
+    опускается под плеер: его верх — та же полоса `--film-band`, которой стоит строка плеера, и поля
+    сцены над ней и под ней. Поменяли высоту плеера и забыли лист — тест падает.
+  */
+  it('телефон: пока комната смотрит фильм, лист панели начинается под плеером, а не поверх него', () => {
+    expect(rule(media(panel, SHEET), '.side-panel')).toContain('top: var(--sheet-top, 90px);');
+    const film = media(cinema, SHEET).replace(/\s+/g, ' ');
+    const open = '.meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open';
+    const band = new RegExp(
+      `${literal(open)}:has\\(\\.watch-together-stage\\[data-film\\]\\) \\{([^}]*)\\}`,
+    ).exec(film)?.[1];
+    expect(band).toMatch(
+      /--film-band: max\(\d+px, min\(calc\(\(100vw - 2 \* var\(--space-2\)\) \* 9 \/ 16\), \d+dvh\)\);/,
+    );
+    expect(band).toContain(
+      '--sheet-top: calc(var(--space-2) + var(--film-chips) + var(--film-band) + var(--space-2));',
+    );
+    // Строка чипов над сценой стоит в потоке над плеером — лист опускается и на неё.
+    expect(film).toContain(
+      `${open}:has(.watch-together-stage[data-film]):has(.stage-overlay:not([data-empty])) { --film-chips: calc(var(--control-sm) + var(--space-2)); }`,
+    );
+    expect(film).toContain(
+      `${open} .watch-together-stage[data-film] { grid-template-rows: var(--film-band); }`,
+    );
+    expect(film).toContain(`${open} .watch-together-stage[data-film] > .people-strip { display: none; }`);
+    // Полоса лиц над листом в разговоре — те же 90 px: 8 сверху, 74 полосы и 8 до листа.
+    expect(rule(media(stage, SHEET), '.meeting-body.panel-open .stage .people-grid')).toContain(
+      'height: 74px;',
     );
   });
 
