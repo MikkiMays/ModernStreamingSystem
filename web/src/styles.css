@@ -143,27 +143,14 @@ button {
   толщина на экране зависит от размера: 13 px — 1,1, 19 px — 1,6, 22 px — 1,8, а при масштабе Windows
   125–150 % такие дробные линии ещё и округляются по-разному. Здесь линия задана токеном и не
   растягивается вместе со значком (`non-scaling-stroke`): у значков интерфейса она одна и та же на любом
-  размере. Крупные иллюстрации (26 px и больше) рисуются своим масштабом, а значки со своей толщиной —
-  `data-own-stroke` (Gartic) — правило пропускает.
+  размере. Иллюстрации (`--icon-xl` 32 и `--icon-2xl` 40 — других крупных размеров после R28 нет, это
+  сверяет `styles/sizes.test.ts`) рисуются своим масштабом, а значки со своей толщиной — `data-own-stroke`
+  (Gartic) — правило пропускает.
 */
 svg.lucide:not([data-own-stroke]) {
   stroke-width: var(--icon-stroke);
 }
-svg.lucide:not(
-    [data-own-stroke],
-    [width='26'],
-    [width='28'],
-    [width='30'],
-    [width='32'],
-    [width='34'],
-    [width='36'],
-    [width='40'],
-    [width='42'],
-    [width='48'],
-    [width='56'],
-    [width='64'],
-    [width='72']
-  )
+svg.lucide:not([data-own-stroke], [width='32'], [width='40'])
   :is(path, circle, ellipse, line, polyline, polygon, rect) {
   vector-effect: non-scaling-stroke;
 }
