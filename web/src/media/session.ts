@@ -180,6 +180,8 @@ interface ScreenAudioLink {
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
 /** Сколько ждать новой дорожки показа после снятия старой, прежде чем счесть показ оконченным. */
 export const SCREEN_GONE_GRACE_MS = 400;
+/** Музыку переподписывать по раздутому буферу — не чаще раза в минуту (R118): каждая — провал звука. */
+export const MEDIA_RESET_GAP_MS = 60000;
 
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
@@ -626,7 +628,7 @@ export class MediaSession {
           if (!found) continue;
           if (report.kind === 'conversation')
             void this.resyncSpeechInPause(found.identity, found.publication, report.measuredMs ?? 0);
-          else void this.resetLivePair(found.identity, found.publication.source, true);
+          else void this.resetLivePair(found.identity, found.publication.source, true, MEDIA_RESET_GAP_MS);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       this.rxQuality.observe(this.playout.samples, Date.now());
@@ -858,13 +860,18 @@ export class MediaSession {
       this.pausing.delete(publication.trackSid);
     }
   }
-  private async resetLivePair(identity: string, source: Track.Source, automatic: boolean) {
+  /**
+   * @param gapMs не чаще какого срока переподписывать автоматически: `automatic` сброс по умолчанию —
+   *   раз в 30 с, музыка (R118) — раз в минуту: каждая переподписка — слышимый провал, и чаще раза
+   *   в минуту это уже не починка.
+   */
+  private async resetLivePair(identity: string, source: Track.Source, automatic: boolean, gapMs = 30000) {
     // Пара экрана — и картинка, и её звук: сброс по любой из них не должен трогать камеру и микрофон.
     // Камера сбрасывается одна (R107): раньше вместе с ней переподписывался и микрофон, и зависшая
     // на плохом канале картинка оборачивалась провалом голоса — тем самым «звук обрезается».
     const screen = source === Track.Source.ScreenShare || source === Track.Source.ScreenShareAudio;
     const key = `${identity}:${screen ? 'screen' : source}`;
-    if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < 30000))
+    if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < gapMs))
       return;
     const participant = this.room.remoteParticipants.get(identity);
     if (!participant) return;
@@ -930,6 +937,11 @@ export class MediaSession {
         autoSubscribe: false,
         peerConnectionTimeout: 10000,
         websocketTimeout: 5000,
+        // R119. SFU 1.13.6 берёт это поле из запроса на вход **поверх** своего
+        // `rtc.congestion_control.allow_pause`, а SDK до 2.22.4 поля не знал и слал нулевое —
+        // значит, «нет»: пауза видео на слабом канале (R117) не наступала никогда, SFU давил в
+        // узкий канал нижние слои картинки, и вместе с ними не проходили сигнал и речь.
+        subscriberAllowPause: true,
       });
       if (this.disposed || generation !== this.generation) await this.room.disconnect();
     } catch (error) {

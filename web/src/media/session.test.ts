@@ -265,6 +265,19 @@ describe('нажми и говори: setMicrophone', () => {
 });
 
 describe('media lifecycle', () => {
+  it('вход в комнату разрешает SFU ставить чужое видео на паузу (R119): иначе SFU 1.13.6 читает «нет» поверх своего allow_pause', async () => {
+    const { media, room } = fixture();
+    try {
+      await media.start();
+      expect((room as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalledWith(
+        'ws://localhost',
+        'test',
+        expect.objectContaining({ subscriberAllowPause: true, autoSubscribe: false }),
+      );
+    } finally {
+      media.dispose();
+    }
+  });
   it('enforces the original deadline even when the SDK asks for a retry before emitting Reconnecting', async () => {
     vi.useFakeTimers();
     const { media, room, ended, api } = fixture();
