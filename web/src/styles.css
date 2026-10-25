@@ -180,11 +180,15 @@ svg.lucide:not(
 :where(textarea) {
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-3);
-  padding: 12px 14px;
+  border: var(--hairline) solid var(--line);
+  /* Метрики поля набора (`.ui-input`, R28): 40 и радиус 8, а не прежние 48 и 12. */
+  border-radius: var(--field-radius);
+  padding: 0 var(--space-3);
   width: 100%;
-  min-height: 48px;
+  min-height: var(--control-lg);
+}
+:where(textarea) {
+  padding-block: var(--space-2);
 }
 /* Поле в фокусе — состояние поля, а не кольцо навигации (S1): рамка акцента видна и после щелчка,
    в каком бы режиме ввода человек ни был. Раньше её заменяло кольцо, которое теперь только у
@@ -197,8 +201,8 @@ input:not([type='checkbox'], [type='radio'], [type='range'], [disabled]):focus,
 input[type='checkbox'],
 input[type='radio'] {
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   margin: 0;
   accent-color: var(--blue);
   cursor: pointer;
@@ -213,10 +217,10 @@ input[type='radio'] {
 */
 select {
   appearance: none;
-  padding-right: 40px;
+  padding-right: var(--space-8);
   background-image: var(--select-arrow);
   background-repeat: no-repeat;
-  background-position: right 14px center;
+  background-position: right var(--space-3) center;
   background-size: 12px 8px;
 }
 /* Ползунок — один на всё приложение, вид в `ui/kit/kit.css` (`.ui-slider` и прежний `.slider`, R14). */
@@ -253,16 +257,22 @@ h2 {
 .hidden {
   visibility: hidden;
 }
+/*
+  Прежние кнопки (`.button`, `.icon-button`) — с метриками набора (R28): высота 36, радиус 8, зазор 8,
+  вес 500, как `Button md` и `IconButton md`. Раньше они были 48 с радиусом 12 и рядом с кнопками
+  набора выглядели крупнее и круглее. Цвета `.primary/.secondary/.ghost` остаются своими — их
+  перекрашивают столы (золото покера). Под пальцем — не ниже `--touch-target`, как у набора.
+*/
 .button {
-  min-height: 48px;
-  border-radius: var(--radius-3);
-  padding: 12px 20px;
+  min-height: var(--control-md);
+  border-radius: var(--control-radius);
+  padding: var(--space-2) var(--space-4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-2);
   font-size: var(--text-base);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .primary {
   color: var(--on-accent);
@@ -287,19 +297,28 @@ h2 {
   color: var(--text);
 }
 .icon-button {
-  width: 48px;
-  min-width: 48px;
-  height: 48px;
+  width: var(--control-md);
+  min-width: var(--control-md);
+  height: var(--control-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-3);
+  border-radius: var(--control-radius);
   color: inherit;
   background: transparent;
   position: relative;
 }
 .icon-button:hover:not(:disabled) {
   background: var(--surface-2);
+}
+@media (pointer: coarse) {
+  .button {
+    min-height: var(--touch-target);
+  }
+  .icon-button {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
 }
 /* Марка — рисунок (`ui/brand/Logo.tsx`): знак и слово одной высоты `--brand-h`, зазор между ними —
    13/30 этой высоты, как у прежнего текстового логотипа. Размер меняют только через переменную. */
@@ -322,148 +341,22 @@ h2 {
   width: auto;
   aspect-ratio: 66 / 30;
 }
-.create-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-.action-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-4);
-  background: color-mix(in srgb, var(--on-accent) 13%, transparent);
-}
-.create-title {
-  display: block;
-  font-size: var(--text-2xl);
-  font-weight: 580;
-  letter-spacing: -1px;
-  margin-top: 43px;
-}
-.create-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: auto;
-  padding-top: 27px;
-  font-size: var(--text-base);
-  font-weight: 550;
-}
-.join-card {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 28px;
-  box-shadow: var(--shadow-2);
-}
-.join-card .action-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-3);
-  margin-bottom: 17px;
-  background: var(--surface-2);
-  color: var(--text);
-}
-.join-card h2 {
-  margin-bottom: 9px;
-  font-size: var(--text-xl);
-}
-.join-card p {
-  font-size: var(--text-base);
-}
-.join-card label {
-  margin: 22px 0 9px;
-}
-.join-card .button {
-  margin-top: 12px;
-}
-.input-icon {
-  position: relative;
-}
-.input-icon > svg {
-  position: absolute;
-  top: 16px;
-  left: 14px;
-  color: var(--muted);
-}
-.input-icon input {
-  padding-left: 41px;
-  font-size: var(--text-sm);
-}
-/*
-  Блок про свой сервер. Не карточка с кнопкой: кнопки на главной заняты входом, и спорить с
-  ними нечему. Это тихая плашка в ширину страницы — её читают после того, как вошли.
-*/
-.own-server {
-  margin-top: 46px;
-  padding: 26px 28px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--blue-soft), var(--surface) 65%);
-}
-.own-server-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 1.3px;
-  color: var(--muted);
-}
-.own-server h2 {
-  margin-top: 10px;
-  font-size: var(--text-xl);
-  letter-spacing: -0.7px;
-}
-.own-server p {
-  margin-top: 10px;
-  max-width: 62ch;
-  font-size: var(--text-sm);
-  line-height: 1.75;
-  color: var(--muted);
-}
-.own-server code {
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
-  font-size: var(--text-xs);
-  padding: 2px 7px;
-  border-radius: var(--radius-2);
-  background: var(--surface-2);
-  color: var(--text);
-  white-space: nowrap;
-}
-.own-server-note {
-  font-style: italic;
-  color: var(--text);
-  opacity: 0.75;
-}
-@media (max-width: 620px) {
-  .own-server {
-    padding: 20px 18px;
-  }
-  .own-server h2 {
-    font-size: var(--text-lg);
-  }
-}
 /*
   Подсказка про экран «Домой». Внизу, над безопасной зоной, поверх содержимого: это
   предложение, а не шаг, который надо пройти, — и закрывается оно навсегда.
 */
 .install-hint {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   /* Слой пульта, как выдвижная панель главной: та открывается позже по DOM и ложится поверх. */
   z-index: var(--z-dock);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-4);
   background: var(--surface);
   box-shadow: var(--shadow-2);
@@ -490,27 +383,13 @@ h2 {
 .install-hint .button {
   flex: none;
   font-size: var(--text-xs);
-  padding: 9px 12px;
-}
-
-.service-note {
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  text-align: center;
+  padding: var(--space-2) var(--space-3);
 }
 .form-error {
   color: var(--danger);
   font-size: var(--text-sm);
   line-height: 1.55;
   padding: 10px 0;
-}
-/* Отказ камеры или микрофона и «Помощь» к нему — одной строкой, на узком экране помощь под текстом. */
-.form-error--help {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
 }
 .form-footnote {
   text-align: center;
@@ -567,8 +446,8 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
-  margin: 20px 0;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
 }
 .invite-code > strong {
   font-size: var(--text-2xl);
@@ -579,13 +458,6 @@ h2 {
 .invite-code > span {
   color: var(--muted);
   font-size: var(--text-xs);
-}
-.join-code-hint {
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: 1.6;
-  margin-bottom: 10px;
-  display: block;
 }
 progress {
   width: 100%;
@@ -615,11 +487,11 @@ progress {
     оставалось −24, и шапка становилась на десять пикселей шире содержимого — отсюда
     горизонтальная полоса прокрутки во всех разделах настроек на телефоне.
   */
-  --modal-pad: 24px;
+  --modal-pad: var(--space-6);
   padding: var(--modal-pad);
-  border-radius: var(--radius-5);
-  border: 1px solid var(--line);
-  background: var(--surface);
+  /* Как `Dialog` набора (R28): радиус 16, без рамки — глубина тенью, а не обводкой. */
+  border-radius: var(--dialog-radius);
+  background: var(--dialog-bg);
   color: var(--text);
   box-shadow: var(--shadow-3);
   /* The track is reserved even when nothing scrolls, so opening a taller section does not
@@ -630,8 +502,7 @@ progress {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
 }
 .modal-heading h2 {
   font-size: var(--text-lg);
@@ -641,10 +512,10 @@ progress {
   font-size: var(--text-sm);
 }
 .modal > .button {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 .modal > .form-footnote {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 .invite-qr {
   display: flex;
@@ -655,7 +526,7 @@ progress {
   height: 252px;
   align-items: center;
   border-radius: var(--radius-4);
-  border: 1px solid var(--paper-line);
+  border: var(--hairline) solid var(--paper-line);
 }
 .invite-qr img {
   border-radius: var(--radius-2);
@@ -664,8 +535,8 @@ progress {
   display: flex;
   align-items: center;
   background: var(--surface-2);
-  padding-left: 14px;
-  border-radius: var(--radius-3);
+  padding-left: var(--space-3);
+  border-radius: var(--field-radius);
   color: var(--muted);
 }
 .invite-link input {
@@ -676,16 +547,16 @@ progress {
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-top: 25px;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
 }
 .settings-form h3 {
   font-size: var(--text-base);
   font-weight: 600;
 }
 .settings-form h3:not(:first-child) {
-  border-top: 1px solid var(--line);
-  padding-top: 20px;
+  border-top: var(--hairline) solid var(--line);
+  padding-top: var(--space-5);
 }
 
 .settings-form select {
@@ -716,9 +587,9 @@ progress {
   min-width: 240px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--line);
-  padding: 6px;
-  border-radius: var(--radius-3);
+  border: var(--hairline) solid var(--line);
+  padding: var(--space-1);
+  border-radius: var(--menu-radius);
   box-shadow: var(--shadow-2);
   /* Меню встречи — одиннадцать пунктов, и на телефоне они длиннее экрана. Лучше прокрутка
      внутри меню, чем «Завершить для всех» за нижним краем. */
@@ -726,22 +597,30 @@ progress {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* Пункт — как `.ui-menu__item` набора (R28): 36, под пальцем 44, значок 16 через 12. */
 .action-menu [role='menuitem'] {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
+  gap: var(--space-3);
+  min-height: var(--control-md);
   border-radius: var(--radius-2);
-  padding: 10px 12px;
+  padding: 0 var(--space-2);
   font-size: var(--text-sm);
   cursor: pointer;
+}
+.action-menu [role='menuitem'] > svg.lucide {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+@media (pointer: coarse) {
+  .action-menu [role='menuitem'] {
+    min-height: var(--touch-target);
+  }
 }
 .action-menu [data-highlighted] {
   background: var(--surface-2);
   outline: none;
-}
-.danger-text {
-  color: var(--danger);
 }
 .global-error {
   position: fixed;
@@ -749,24 +628,25 @@ progress {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--danger);
+  border: var(--hairline) solid var(--danger);
   box-shadow: var(--shadow-2);
   border-radius: var(--radius-3);
   width: max-content;
   max-width: 90vw;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   font-size: var(--text-sm);
 }
 .global-error button {
   background: transparent;
   color: var(--text);
-  width: 40px;
-  height: 40px;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--control-radius);
   font-size: var(--text-xl);
 }
 .spin {
@@ -783,39 +663,13 @@ progress {
   .brand {
     --brand-h: 28px;
   }
-  .create-title {
-    margin-top: 25px;
-    font-size: var(--text-xl);
-  }
-  .create-top .action-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-3);
-  }
-  .create-bottom {
-    padding-top: 24px;
-  }
-  .join-card {
-    padding: 24px;
-  }
-  .join-card .action-icon {
-    display: none;
-  }
-  .join-card p br {
-    display: none;
-  }
   .modal {
-    --modal-pad: 19px;
+    --modal-pad: var(--space-4);
     max-height: calc(100dvh - 24px);
     width: calc(100vw - 24px);
-    border-radius: var(--radius-5);
   }
   .modal-heading h2 {
     font-size: var(--text-lg);
-  }
-  .modal-heading > .icon-button {
-    width: 40px;
-    min-width: 40px;
   }
   .settings-form label {
     font-size: var(--text-xs);
@@ -893,7 +747,7 @@ progress {
   border-radius: 50%;
   box-shadow:
     0 0 0 9999px var(--stage-veil-2),
-    inset 0 0 0 2px var(--stage-glint-3);
+    inset 0 0 0 var(--hairline-strong) var(--stage-glint-3);
 }
 .avatar-crop-zoom {
   max-width: min(256px, calc(100vw - 96px));
@@ -925,19 +779,19 @@ progress {
 .settings-form input[type='url'],
 .settings-form input:not([type]) {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-2);
-  padding: 12px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--field-radius);
+  padding: 0 var(--space-3);
   background: var(--surface);
   color: var(--text);
 }
 .gain-setting,
 .participant-volume {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .participant-volume {
-  margin-top: 10px;
+  margin-top: var(--space-2);
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -981,7 +835,7 @@ progress {
 }
 .check-actions .button {
   font-size: var(--text-xs);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .device-check-video {
   width: 100%;
@@ -992,11 +846,11 @@ progress {
 }
 .mic-test {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .mic-test label {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .mic-test meter {
   width: 100%;
@@ -1011,9 +865,9 @@ progress {
   top: calc(var(--modal-pad) * -1);
   z-index: 5;
   background: var(--surface);
-  margin: calc(var(--modal-pad) * -1) calc(var(--modal-pad) * -1) 12px;
-  padding: 20px var(--modal-pad) 12px;
-  border-bottom: 1px solid var(--line);
+  margin: calc(var(--modal-pad) * -1) calc(var(--modal-pad) * -1) var(--space-3);
+  padding: var(--space-5) var(--modal-pad) var(--space-3);
+  border-bottom: var(--hairline) solid var(--line);
 }
 .service-body {
   overflow-y: auto;

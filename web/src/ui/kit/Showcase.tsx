@@ -219,10 +219,10 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
             <Mic size={20} />
           </IconButton>
           <IconButton label="Ещё" size="sm">
-            <MoreHorizontal size={18} />
+            <MoreHorizontal size={16} />
           </IconButton>
           <IconButton label="Поделиться" size="lg">
-            <Share2 size={22} />
+            <Share2 size={24} />
           </IconButton>
           <IconButton label="Недоступно" disabled>
             <Camera size={20} />
@@ -230,18 +230,18 @@ function Sections({ theme }: { theme: 'light' | 'dark' }) {
         </div>
         <div className="kit__stage media-stage">
           <IconButton label="Микрофон включён" tone="stage" pressed size="lg">
-            <Mic size={20} />
+            <Mic size={24} />
           </IconButton>
           <IconButton label="Камера выключена" tone="stage" pressed={false} size="lg">
-            <Camera size={20} />
+            <Camera size={24} />
           </IconButton>
           <IconButton label="Показать экран" tone="stage" size="lg">
-            <Monitor size={20} />
+            <Monitor size={24} />
           </IconButton>
           <span className="kit__tile">
             <Badge variant="live">В эфире</Badge>
             <span className="kit__caption">
-              <MicOff size={14} /> Виталий
+              <MicOff size={16} /> Виталий
             </span>
           </span>
         </div>
