@@ -20,7 +20,7 @@ import re
 import time
 import uuid
 from dataclasses import asdict
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Awaitable, Callable, Iterable, Literal
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -62,6 +62,8 @@ LINKS_PER_MINUTE = 20
 # Сколько переадресаций подряд прокси проходит сам — у площадок, которым это нужно
 # (`Provider.follows_redirects`). Каждый шаг — снова по политике хостов площадки.
 REDIRECTS = 5
+# Повторы запроса за сегментом или плейлистом после сбоя сети или 5xx площадки (`_open`).
+RETRY_DELAYS = (0.2, 0.4, 0.8)
 # Больше этого плейлист не читается в память. У площадки с любыми хостами («По ссылке») адрес
 # плейлиста может вести на сервер того, кто вставил ссылку, а подписанный адрес живёт часы и
 # открывается без входа: без предела один такой адрес держал бы в памяти службы сколько угодно. У
@@ -256,6 +258,8 @@ class Cinema:
         # Достаёт ли сервер до каждой площадки (R112): проба и счёт запросов идут тем же клиентом
         # площадки — через её прокси, — что и каталог, и yt-dlp (`reach.py`).
         self.reach = Reach(self.net.client_for)
+        # Сколько раз прокси переспрашивал площадку о сегменте после сбоя (`_open`, R04).
+        self.retries = 0
         # yt-dlp площадки с любыми хостами («По ссылке») ходит наружу только через охраняемый выход:
         # её защита — та же, что у её клиента httpx, её прокси — тот же (`egress.py`). Поднимается
         # выход лениво, на первом разборе.
@@ -333,24 +337,35 @@ class Cinema:
         return Ctx(room=_room(room), net=self.net.client_for(source.id))
 
     async def _ask(
-        self, source: Provider, work: Callable[[], Awaitable[Any]], deadline: float | None = None
+        self,
+        source: Provider,
+        work: Callable[[], Awaitable[Any]],
+        deadline: float | None = None,
+        room: str = "",
     ) -> Any:
         """
-        Вопрос к площадке — через её автомат и под общим сроком (`reach.Reach.call`).
+        Вопрос к площадке — через её автомат, по полосе комнаты и под общим сроком (`reach.Reach.call`).
 
         Площадка признана недоступной — отказ сразу, не трогая ни yt-dlp, ни пул; не уложилась в срок —
-        отказ словами. «По ссылке» — мимо: её сайты чужие, и срок у её разбора свой.
+        отказ словами; полосы заняты — `429 PLATFORM_BUSY`. «По ссылке» — мимо: её сайты чужие, и срок у
+        её разбора свой.
         """
         if not self.reach.tracked(source):
             return await work()
-        return await self.reach.call(source, work, CATALOG_DEADLINE if deadline is None else deadline)
+        return await self.reach.call(
+            source, work, CATALOG_DEADLINE if deadline is None else deadline, room=room or None
+        )
 
-    async def watch(self) -> None:
-        """Фоновая проба площадок на всё время службы (`app.py`, `lifespan`)."""
-        await self.reach.watch(lambda: list(self.registry))
+    async def watch(self, more: Callable[[], Iterable[Provider]] | None = None) -> None:
+        """
+        Фоновая проба площадок на всё время службы (`app.py`, `lifespan`).
+
+        `more` — площадки музыки без двойника в кинозале (`Sources.gates`): автомат у них тот же.
+        """
+        await self.reach.watch(lambda: list(self.registry) + (list(more()) if more else []))
 
     def metric_lines(self) -> list[str]:
-        """Строки `/metrics` кинозала: доступность площадок и занятые ими потоки yt-dlp."""
+        """Строки `/metrics` кинозала: доступность площадок, занятые ими потоки yt-dlp, полосы, повторы."""
         sources = list(self.registry)
         lines = self.reach.metric_lines(sources)
         name = "cord_cinema_ytdlp_threads"
@@ -362,6 +377,13 @@ class Cinema:
             f'{name}{{provider="{source.id}"}} {self.ytdlp.busy.get(source.id, 0)}'
             for source in sources
             if self.reach.tracked(source)
+        ]
+        lines += self.reach.lane_lines()
+        name = "cord_cinema_upstream_retries_total"
+        lines += [
+            f"# HELP {name} Повторы запроса к площадке за сегментом или плейлистом после сбоя (`_open`).",
+            f"# TYPE {name} counter",
+            f"{name} {self.retries}",
         ]
         return lines
 
@@ -451,7 +473,7 @@ class Cinema:
         source = self._able(provider, "search")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.search(ctx, query.strip(), offset))
+        return await self._ask(source, lambda: source.search(ctx, query.strip(), offset), room=ctx.room)
 
     async def channel(
         self, provider: str, channel_id: str, tab: Tab = "videos", cursor: str = "", *, room: str = ""
@@ -471,7 +493,7 @@ class Cinema:
         # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
         return await self.catalog.scope(source.id).get(
             f"channel:{channel_id}:{tab}:{offset}",
-            lambda: self._ask(source, lambda: source.channel(ctx, channel_id, tab, offset)),
+            lambda: self._ask(source, lambda: source.channel(ctx, channel_id, tab, offset), room=ctx.room),
             # Память короткая нарочно: сверху у канала лежит самое свежее, и «самое свежее»
             # не должно означать «самое свежее полчаса назад».
             60,
@@ -488,7 +510,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"playlist:{playlist_id}:{offset}",
-            lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset)),
+            lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset), room=ctx.room),
             60,
         )
 
@@ -503,7 +525,7 @@ class Cinema:
             return {"items": [], "next": None}
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset))
+        return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset), room=ctx.room)
 
     async def category(
         self, provider: str, category_id: str, cursor: str = "", *, room: str = ""
@@ -514,7 +536,7 @@ class Cinema:
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.category(ctx, category_id, offset))
+        return await self._ask(source, lambda: source.category(ctx, category_id, offset), room=ctx.room)
 
     async def series(
         self, provider: str, series_id: str, season: str = "", cursor: str = "", *, room: str = ""
@@ -534,7 +556,9 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"series:{series_id}:{season}:{offset}",
-            lambda: self._ask(source, lambda: source.series(ctx, series_id, season or None, offset)),
+            lambda: self._ask(
+                source, lambda: source.series(ctx, series_id, season or None, offset), room=ctx.room
+            ),
             300,
         )
 
@@ -546,7 +570,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"details:{kind}:{content_id}",
-            lambda: self._ask(source, lambda: source.details(ctx, kind, content_id)),
+            lambda: self._ask(source, lambda: source.details(ctx, kind, content_id), room=ctx.room),
             600,
         )
 
@@ -700,7 +724,7 @@ class Cinema:
                         plan, ctx.net, source.id, request.contentId, request.adaptive
                     )
 
-                return await self._ask(source, resolved, RESOLVE_DEADLINE)
+                return await self._ask(source, resolved, RESOLVE_DEADLINE, room=ctx.room)
             try:
                 async with asyncio.timeout(LINK_RESOLVE_SECONDS):
                     plan = await source.source(ctx, request.kind, request.contentId, {})
@@ -941,17 +965,32 @@ class Cinema:
         которым это нужно (`Provider.follows_redirects`), каждым шагом по их политике хостов. Поток плеера
         страниц, которому сайт отказал (`REFUSING`), — 410: его профиль устарел, и плеер комнаты попросит
         поток заново.
+
+        Сбой сети или 5xx площадки — не сразу отказ зрителю: ещё три попытки через 200/400/800 мс
+        (`RETRY_DELAYS`, R04 «деградация без обрыва»). Сегмент HLS живёт секунды, и мигнувшая сеть до
+        CDN раньше оборачивалась у всей комнаты ошибкой плеера и чёрным кадром; теперь зритель ждёт
+        полторы секунды, не замечая. Отказ площадки словами (4xx) не повторяется: ответ не изменится.
         """
-        try:
-            upstream = await self._send(client, url, headers, provider, profile)
-        except httpx.HTTPError:
-            raise HTTPException(502, "Площадка не отдала данные") from None
-        if upstream.status_code >= 300:
+        for attempt, delay in enumerate((*RETRY_DELAYS, None)):
+            try:
+                upstream = await self._send(client, url, headers, provider, profile)
+            except httpx.HTTPError:
+                if delay is None:
+                    raise HTTPException(502, "Площадка не отдала данные") from None
+                self.retries += 1
+                await asyncio.sleep(delay)
+                continue
+            if upstream.status_code < 300:
+                return upstream
             await upstream.aclose()
             if profile is not None and upstream.status_code in REFUSING:
                 raise HTTPException(410, STALE)
+            if upstream.status_code >= 500 and delay is not None:
+                self.retries += 1
+                await asyncio.sleep(delay)
+                continue
             raise HTTPException(502, "Площадка не отдала данные")
-        return upstream
+        raise HTTPException(502, "Площадка не отдала данные")  # недостижимо: последняя попытка выше
 
     async def _send(
         self,

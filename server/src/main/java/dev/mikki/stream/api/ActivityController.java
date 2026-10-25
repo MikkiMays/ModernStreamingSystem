@@ -9,6 +9,7 @@ import dev.mikki.stream.activity.Audit;
 import dev.mikki.stream.activity.Metrics;
 import dev.mikki.stream.config.StreamProperties;
 import dev.mikki.stream.config.Term;
+import dev.mikki.stream.room.Maintenance;
 import dev.mikki.stream.room.RoomService;
 import dev.mikki.stream.shared.Problem;
 import jakarta.servlet.http.HttpServletRequest;
@@ -78,6 +79,7 @@ public class ActivityController {
   private final Secrets secrets;
   private final StreamProperties config;
   private final Metrics metrics;
+  private final Maintenance maintenance;
 
   public ActivityController(
       AdminAccess admin,
@@ -89,7 +91,9 @@ public class ActivityController {
       ClientAddress address,
       Secrets secrets,
       StreamProperties config,
-      Metrics metrics) {
+      Metrics metrics,
+      Maintenance maintenance) {
+    this.maintenance = maintenance;
     this.admin = admin;
     this.report = report;
     this.audit = audit;
@@ -199,6 +203,37 @@ public class ActivityController {
       @RequestHeader(value = AdminAccess.HEADER, required = false) String token) {
     admin.require(token);
     return blocks.list();
+  }
+
+  /** Обслуживание: включено ли и с какого момента (мс; {@code 0} — выключено). */
+  public record MaintenanceState(boolean on, long since) {}
+
+  public record MaintenanceRequest(boolean on) {}
+
+  @GetMapping("/maintenance")
+  public MaintenanceState maintenance(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token) {
+    admin.require(token);
+    return new MaintenanceState(maintenance.on(), maintenance.since());
+  }
+
+  /**
+   * Дренаж перед выкаткой ({@link Maintenance}, {@code deploy.sh --drain}): включено — новые
+   * встречи получают {@code 503 MAINTENANCE}, идущие доигрывают. Каждое переключение — в журнал.
+   */
+  @PostMapping("/maintenance")
+  public MaintenanceState maintenance(
+      @RequestHeader(value = AdminAccess.HEADER, required = false) String token,
+      @Valid @RequestBody MaintenanceRequest request,
+      HttpServletRequest http) {
+    admin.require(token);
+    if (maintenance.set(request.on()))
+      audit.record(
+          Audit.Entry.of("admin.maintenance")
+              .actor("admin", null, null)
+              .from(fingerprint(http), null)
+              .detail("on", request.on()));
+    return new MaintenanceState(maintenance.on(), maintenance.since());
   }
 
   @PostMapping("/blocks")

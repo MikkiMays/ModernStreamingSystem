@@ -2366,6 +2366,26 @@
         },
         "type": "object"
       },
+      "MaintenanceRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "MaintenanceState": {
+        "properties": {
+          "on": {
+            "type": "boolean"
+          },
+          "since": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "MediaToken": {
         "properties": {
           "expiresAt": {
@@ -3205,6 +3225,70 @@
         },
         "required": [
           "can"
+        ],
+        "type": "object"
+      },
+      "RxSummary": {
+        "properties": {
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/RxTrack"
+            },
+            "maxItems": 8,
+            "minItems": 0,
+            "type": "array"
+          }
+        },
+        "required": [
+          "tracks"
+        ],
+        "type": "object"
+      },
+      "RxTrack": {
+        "properties": {
+          "concealed": {
+            "format": "int64",
+            "maximum": 100000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "delayMs": {
+            "format": "int32",
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "events": {
+            "format": "int32",
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "pattern": "conversation|media|video",
+            "type": "string"
+          },
+          "lost": {
+            "format": "int32",
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targetMs": {
+            "format": "int32",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "maximum": 100000000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind"
         ],
         "type": "object"
       },
@@ -4233,6 +4317,74 @@
         ],
         "responses": {
           "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/maintenance": {
+      "get": {
+        "operationId": "maintenance",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceState"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "activity-controller"
+        ]
+      },
+      "post": {
+        "operationId": "maintenance_1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Cord-Admin",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceState"
+                }
+              }
+            },
             "description": "OK"
           }
         },
@@ -5644,6 +5796,48 @@
         },
         "tags": [
           "api-controller"
+        ]
+      }
+    },
+    "/api/v1/rooms/{id}/quality": {
+      "post": {
+        "operationId": "report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RxSummary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "quality-controller"
         ]
       }
     },

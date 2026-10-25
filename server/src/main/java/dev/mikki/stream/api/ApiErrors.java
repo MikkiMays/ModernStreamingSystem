@@ -28,7 +28,12 @@ public class ApiErrors {
             HttpStatusCode.valueOf(error.status()), error.getMessage());
     body.setProperty("code", error.code());
     error.properties().forEach(body::setProperty);
-    return ResponseEntity.status(error.status()).cacheControl(CacheControl.noStore()).body(body);
+    var response = ResponseEntity.status(error.status()).cacheControl(CacheControl.noStore());
+    // Отказ «повторите позже» несёт срок и заголовком: его читают скрипты и прокси, а не только
+    // браузер по полю {@code retryAfter} рядом с кодом ({@code MAINTENANCE}).
+    if (error.properties().get("retryAfter") instanceof Number seconds)
+      response.header(HttpHeaders.RETRY_AFTER, Long.toString(seconds.longValue()));
+    return response.body(body);
   }
 
   @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})

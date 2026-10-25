@@ -287,8 +287,10 @@ class WithoutCinemaYoutubeTests(Fixture):
 
 
 class AppTests(Fixture):
-    async def test_music_asks_youtube_through_the_cinema_breaker_and_soundcloud_without_one(self):
+    async def test_music_asks_youtube_through_the_cinema_breaker_and_soundcloud_through_its_own(self):
         sources = self.app.state.sources
         self.assertIs(sources.reach, self.app.state.cinema.reach)
         self.assertIs(sources.gate("youtube"), self.app.state.cinema.registry.get("youtube"))
-        self.assertIsNone(sources.gate("soundcloud"))
+        # У SoundCloud двойника в кинозале нет — у него своя площадка в том же автомате (W1b,
+        # `sources.GATES`; подробно — `test_reliability.py`).
+        self.assertEqual(sources.gate("soundcloud").id, "soundcloud")

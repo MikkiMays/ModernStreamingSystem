@@ -29,6 +29,7 @@ public class RoomService {
   private final ApplicationEventPublisher events;
   private final RateLimits limits;
   private final List<RoomObserver> observers;
+  private final Maintenance maintenance;
   private final SecureRandom codeRandom = new SecureRandom();
 
   /**
@@ -54,7 +55,8 @@ public class RoomService {
       GameClock games,
       ApplicationEventPublisher events,
       RateLimits limits,
-      List<RoomObserver> observers) {
+      List<RoomObserver> observers,
+      Maintenance maintenance) {
     this.rooms = rooms;
     this.config = config;
     this.secrets = secrets;
@@ -63,6 +65,7 @@ public class RoomService {
     this.events = events;
     this.limits = limits;
     this.observers = List.copyOf(observers);
+    this.maintenance = maintenance;
   }
 
   public long now() {
@@ -108,6 +111,8 @@ public class RoomService {
         () -> {
           if (!config.admissionOpen())
             throw new Problem(503, "DRAINING", "Сервер временно не принимает новые комнаты");
+          // Дренаж перед выкаткой (W1b): новых встреч нет, идущие доигрывают, вход в них открыт.
+          if (maintenance.on()) throw maintenance.refusal();
           var room = new RoomState();
           room.id = UUID.randomUUID().toString();
           // Здесь — до подсчёта слотов, а не после, как в остальных дверях: человек, который один

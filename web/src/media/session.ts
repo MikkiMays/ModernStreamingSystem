@@ -62,6 +62,7 @@ import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
 import { CallQuality, type CallReport } from './call-quality';
+import { RxQuality, type RxSummary } from './rx-quality';
 import { waitForPublishPermissions } from './publish-permissions';
 import { PreviewImages, ScreenPreviewSource, encodePreview, decodePreview } from './screen-preview';
 import { currentPlatform, type Platform } from './platform';
@@ -392,6 +393,10 @@ export class MediaSession {
   private playout = new PlayoutController();
   /** Итог звонка для владельца сервера (`client-report`): копится из того же опроса, что и буфер. */
   private callQuality = new CallQuality();
+  /** Сводка приёма раз в 10 с для метров ядра (`rooms/{id}/quality`) — из того же опроса. */
+  private rxQuality = new RxQuality();
+  /** Кому отдать готовую сводку приёма; задаёт `core/meeting.ts`. */
+  onRxQuality?: (summary: RxSummary) => void;
   private previewSource = new ScreenPreviewSource();
   private previewImages = new PreviewImages();
   private playoutTimer?: ReturnType<typeof setInterval>;
@@ -608,6 +613,9 @@ export class MediaSession {
           else void this.resetLivePair(found.identity, found.publication.source, true);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
+      this.rxQuality.observe(this.playout.samples, Date.now());
+      const summary = this.rxQuality.flush(Date.now());
+      if (summary) this.onRxQuality?.(summary);
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
       // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
       if (linkChanged(this.link.get(), this.playout.link)) this.link.set(this.playout.link);
@@ -1083,6 +1091,8 @@ export class MediaSession {
   private lost = () => {
     if (this.disposed) return;
     this.liveHealth.clear();
+    // Счётчики приёма новой сессии начнутся с нуля: разности со старыми — не сводка.
+    this.rxQuality.reset();
     const fresh = this.deadlineTimer === undefined;
     const epoch = this.recovery.begin();
     this.patch({ status: 'recovering', remaining: Math.ceil(this.recovery.remaining() / 1000) });

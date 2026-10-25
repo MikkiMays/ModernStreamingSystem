@@ -99,6 +99,8 @@ export class Meeting {
     this.media = new MediaSession(this.api, (reason) => {
       void this.resolveEnd(reason, true);
     });
+    // Сводка приёма раз в 10 с — в метры ядра; отказ ядра (предел, обновление) ничего не меняет.
+    this.media.onRxQuality = (summary) => void this.api.quality(summary).catch(() => {});
     this.control = new ControlChannel(this.api, this.accept, this.event, this.resolveRevocation);
     this.control.onPreview = (participantId, image) => this.media.acceptPreview(participantId, image);
     this.uploader = new Uploader(this.api, () => this.fileRevision.update((n) => n + 1));

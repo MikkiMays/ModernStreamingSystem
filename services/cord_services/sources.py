@@ -46,6 +46,7 @@ from .cinema.limits import Window
 from .cinema.memo import Memo
 from .cinema.providers.youtube import LINK_HOSTS, PLAYERS, SHORT_HOSTS, VIDEO_LINK
 from .cinema.reach import RECHECK, Reach, Words
+from .cinema.registry import HostPolicy
 from .cinema.resolve import BOT_CHECK, YtDlp
 from .media import LONGEST, MAX_FILE, probe
 from .store import now
@@ -175,6 +176,34 @@ MUSIC = Words(unreachable, late)
 
 
 @dataclass(frozen=True)
+class Gate:
+    """
+    Площадка музыки без двойника в кинозале — SoundCloud, Яндекс Музыка: свой автомат в том же
+    `Reach` (W1b шаг 6, не второй автомат). Поля — те, что автомат спрашивает у площадки кинозала:
+    имя, хосты (не «любые»), адрес пробы. Проба идёт клиентом `Net.client_for(id)` — тем же выходом
+    (`CINEMA_PROXY_<ID>` или общий), каким yt-dlp качает SoundCloud; у Яндекса пробы нет: его клиент
+    ходит своим httpx, и проба мимо него врала бы, — автомат там считает только настоящие запросы.
+    """
+
+    id: str
+    name: str
+    hosts: HostPolicy
+    probe: str | None = None
+
+
+GATES = {
+    "soundcloud": Gate(
+        "soundcloud",
+        "SoundCloud",
+        HostPolicy(tuple(sorted(SOUNDCLOUD_HOSTS))),
+        "https://soundcloud.com/robots.txt",
+    ),
+    "yandex": Gate("yandex", "Яндекс Музыка", HostPolicy(("api.music.yandex.net",))),
+}
+YANDEX_GATE = GATES["yandex"]
+
+
+@dataclass(frozen=True)
 class Platform:
     id: str
     name: str
@@ -301,12 +330,34 @@ class Sources:
 
     # ---------- доступность площадки ----------
 
-    def gate(self, source: str) -> Provider | None:
-        """Площадка кинозала с автоматом под тем же именем — или `None`: тогда у музыки только срок."""
-        if self.reach is None or self.provider is None:
+    def gate(self, source: str) -> Provider | Gate | None:
+        """
+        Автомат площадки: площадка кинозала под тем же именем (YouTube), иначе своя (`GATES`:
+        SoundCloud) — или `None` без автомата вовсе, тогда у музыки только срок.
+        """
+        if self.reach is None:
             return None
-        found = self.provider(source)
-        return found if found is not None and self.reach.tracked(found) else None
+        found = self.provider(source) if self.provider is not None else None
+        if found is not None and self.reach.tracked(found):
+            return found
+        return GATES.get(source)
+
+    def gates(self) -> list[Gate]:
+        """Свои площадки включённых источников — для фоновой пробы и `/metrics` (`app.py`)."""
+        if self.reach is None:
+            return []
+        # Яндекс — не источник `PLATFORMS` (у него свой вход), но автомат и метрики у него здесь же.
+        return [
+            gate
+            for source, gate in GATES.items()
+            if (source in self.enabled or source not in PLATFORMS) and self.gate(source) is gate
+        ]
+
+    def metric_lines(self) -> list[str]:
+        """Строки `/metrics` своих площадок — `cord_music_*`, тем же автоматом."""
+        if self.reach is None:
+            return []
+        return self.reach.metric_lines(self.gates(), prefix="cord_music")
 
     def refuse_if_down(self, platform: Platform) -> None:
         """Отказ сразу, если площадка признана недоступной, — до предела комнаты и места в очереди."""
@@ -315,12 +366,19 @@ class Sources:
             self.reach.refuse_if_down(gate, MUSIC)
 
     async def _ask(
-        self, platform: Platform, work: Callable[[], Awaitable[T]], deadline: float | None
+        self,
+        platform: Platform,
+        work: Callable[[], Awaitable[T]],
+        deadline: float | None,
+        room: str | None = None,
     ) -> T:
-        """Вопрос к площадке: через её автомат, если он есть, и под сроком (`None` — срок у работы свой)."""
+        """
+        Вопрос к площадке: через её автомат, если он есть, по полосе комнаты (`Lanes`) и под сроком
+        (`None` — срок у работы свой).
+        """
         gate = self.gate(platform.id)
         if gate is not None:
-            return await self.reach.call(gate, work, deadline, MUSIC)
+            return await self.reach.call(gate, work, deadline, MUSIC, room=room)
         scope = asyncio.timeout(deadline)
         try:
             async with scope:
@@ -372,6 +430,7 @@ class Sources:
                 platform,
                 lambda: self.ytdlp.offload_for(platform.id, self._search, platform, query),
                 SEARCH_DEADLINE,
+                room_id,
             ),
             SEARCH_TTL,
         )
@@ -462,7 +521,9 @@ class Sources:
                 try:
                     # Скачивание — через автомат площадки: не дошло до неё — сбой в общий счёт с
                     # кинозалом, дошло — счёт сначала. Срок у него свой (`DOWNLOAD_SECONDS`).
-                    found = await self._ask(platform, lambda: asyncio.shield(work), None)
+                    found = await self._ask(
+                        platform, lambda: asyncio.shield(work), None, room_id
+                    )
                 except TooBig:
                     raise HTTPException(413, TOO_BIG) from None
                 except TooSlow:
