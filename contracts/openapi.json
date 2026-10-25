@@ -282,6 +282,9 @@
             },
             "type": "array"
           },
+          "maintenance": {
+            "type": "boolean"
+          },
           "maxParticipants": {
             "format": "int32",
             "type": "integer"

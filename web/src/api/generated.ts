@@ -823,6 +823,7 @@ export interface components {
             /** Format: int64 */
             fileMaxBytes: number;
             frameRates: number[];
+            maintenance?: boolean;
             /** Format: int32 */
             maxParticipants: number;
             /** Format: int32 */

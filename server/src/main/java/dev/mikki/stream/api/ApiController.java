@@ -44,7 +44,10 @@ public class ApiController {
       QualityRules quality,
       // Сколько встреч профиль устройства хранит в избранном (T06, П3): интерфейс пишет «N из
       // этого числа», не зашивая его. Сколько людей во встрече — `maxParticipants` выше, без ботов.
-      int favoritesMax) {}
+      int favoritesMax,
+      // Сервер обновляется (дренаж перед выкаткой, W1b): `admissionOpen` при этом тоже false, а
+      // главная говорит почему — «попробуйте через 2 минуты», не «недоступно на этом сервере».
+      boolean maintenance) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -139,7 +142,8 @@ public class ApiController {
             quality.ceiling(),
             quality.settle().toMillis(),
             quality.cameraYieldsToScreen()),
-        config.favorites().maxSaved());
+        config.favorites().maxSaved(),
+        maintenance.on());
   }
 
   /*

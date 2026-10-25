@@ -172,8 +172,11 @@ type source struct {
 // Запас декодера сбрасывается вместе с ним, поэтому пауза, перемотка и переключение
 // слышны сразу и не спорят с тем, что успело накопиться.
 type player struct {
-	track   sink
+	track sink
+	// `mu` — состояние кадров (`next`), `control` — смена декодера: `play`, `restart`, `halt` идут
+	// из двух горутин (команды службы и `pace`), и два `start` разом оставили бы один ffmpeg сиротой.
 	mu      sync.Mutex
+	control sync.Mutex
 	current *source
 	written int
 	started time.Time
@@ -182,6 +185,12 @@ type player struct {
 }
 
 func (p *player) halt() {
+	p.control.Lock()
+	defer p.control.Unlock()
+	p.haltLocked()
+}
+
+func (p *player) haltLocked() {
 	p.mu.Lock()
 	current := p.current
 	p.current = nil
@@ -205,18 +214,31 @@ func (p *player) play(path string, position float64, epoch int64) {
 // сбрасывается: первый настоящий кадр нового декодера уйдёт с `recovered`, как и после обычного
 // отставания, — служба увидит одну паузу, а не две.
 func (p *player) restart() {
+	p.control.Lock()
+	defer p.control.Unlock()
 	p.mu.Lock()
 	current := p.current
+	var at float64
+	var restarts int
+	if current != nil {
+		at = current.origin + float64(current.sent)*frame.Seconds()
+		restarts = current.restarts + 1
+	}
 	p.mu.Unlock()
 	if current == nil {
 		return
 	}
-	at := current.origin + float64(current.sent)*frame.Seconds()
-	p.start(current.path, at, current.epoch, current.restarts+1)
+	p.startLocked(current.path, at, current.epoch, restarts)
 }
 
 func (p *player) start(path string, position float64, epoch int64, restarts int) {
-	p.halt()
+	p.control.Lock()
+	defer p.control.Unlock()
+	p.startLocked(path, position, epoch, restarts)
+}
+
+func (p *player) startLocked(path string, position float64, epoch int64, restarts int) {
+	p.haltLocked()
 	process := decode(path, position)
 	pipe, err := process.StdoutPipe()
 	if err != nil {

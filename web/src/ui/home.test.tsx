@@ -266,6 +266,20 @@ it('explains why creation is unavailable without preventing invitation entry', a
   expect(view.getByRole('button', { name: 'Присоединиться' })).toBeEnabled();
 });
 
+// W1b: дренаж перед выкаткой — причина названа: сервер обновляется, через две минуты можно снова.
+it('names the update as the reason while the server is being drained', async () => {
+  vi.mocked(publicApi.capabilities).mockResolvedValue({
+    ...capabilities,
+    admissionOpen: false,
+    maintenance: true,
+  });
+  const view = show(true);
+  const create = view.getByRole('button', { name: 'Новая встреча' });
+  await waitFor(() => expect(create).toBeDisabled());
+  expect(create).toHaveAccessibleDescription(/обновляется/i);
+  expect(view.getByRole('button', { name: 'Присоединиться' })).toBeEnabled();
+});
+
 // T58: номер версии — только в «О программе». Внизу главной вместо него ссылка туда же.
 it('leads to «О программе» from the footer without showing the version number', () => {
   const view = show();

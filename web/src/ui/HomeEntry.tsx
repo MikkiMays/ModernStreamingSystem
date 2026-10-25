@@ -33,6 +33,8 @@ export function HomeEntry({
   // `serverInfo`, а не голый запрос: заодно запоминаются правила качества с сервера.
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: serverInfo, retry: 1 });
   const creationClosed = capabilities.data?.admissionOpen === false;
+  // Дренаж перед выкаткой (W1b): причина — обновление, и через две минуты можно будет снова.
+  const maintenance = creationClosed && capabilities.data?.maintenance === true;
   return (
     <div className={`home-entry ${className}`}>
       <div className="home-entry__hero">
@@ -51,7 +53,7 @@ export function HomeEntry({
           </span>
           {creationClosed ? (
             <span id={`${id}-unavailable`} className="home-entry__closed">
-              {t(($) => $.home.entry.creationClosed)}
+              {maintenance ? t(($) => $.errors.MAINTENANCE) : t(($) => $.home.entry.creationClosed)}
             </span>
           ) : (
             <span className="home-entry__go" aria-hidden="true">
