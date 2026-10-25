@@ -4,6 +4,14 @@
 #
 #   backlog/bin/deploy.sh gateway core          # нужные службы
 #   CORD_DEPLOY_FORCE=1 backlog/bin/deploy.sh services   # выкатить, даже если идут встречи
+#   backlog/bin/deploy.sh --drain core services livekit  # дренаж: закрыть новые встречи, дождаться
+#                                                        # конца идущих (до 15 мин), потом собрать
+#
+# Дренаж (W1b, docs/resilience.md): рычагом владельца (`POST /api/v1/admin/maintenance`, пароль
+# `ADMIN_PASSWORD` из .env) ядро перестаёт создавать встречи — `503 MAINTENANCE`, главная говорит
+# «сервер обновляется»; идущие встречи доигрывают, вход в них открыт. Как только `active-meetings.sh`
+# пуст — сборка и подъём, как обычно. Флаг снимается на выходе всегда (`trap`), а перезапуск ядра
+# сбрасывает его сам. Без `ADMIN_PASSWORD` в .env дренажа нет — скрипт откажет сразу.
 #
 # Никогда не делает `down` и `-v`: тома с базой и файлами не трогаются. Веб собирается внутрь
 # `gateway`, правила и проверки — `core`, кинозал/музыка/Telegram — `services`.
@@ -14,11 +22,60 @@ REPO=$(cd "$BIN/../.." && pwd)
 LOCK=$REPO/backlog/.deploy.lock
 cd "$REPO"
 
+DRAIN=0
+if [[ ${1:-} == --drain ]]; then DRAIN=1; shift; fi
 (($#)) || { echo "Какие службы? Например: $0 gateway core" >&2; exit 2; }
 
-if ! "$BIN/active-meetings.sh"; then
+# Сколько ждать, пока встречи кончатся сами (секунды), и как часто смотреть.
+DRAIN_WAIT=${CORD_DRAIN_WAIT:-900}
+DRAIN_POLL=30
+CORE=http://127.0.0.1:${CORE_PORT:-8080}
+
+# Рычаг владельца: `maintenance on|off`. Пароль — из .env, в командную строку curl он не попадает
+# (тело запроса читается из stdin).
+admin_token() {
+  local password
+  password=$(sed -n 's/^ADMIN_PASSWORD=//p' .env | head -1)
+  [[ -n $password ]] || { echo "В .env нет ADMIN_PASSWORD — дренажу нечем включить обслуживание." >&2; return 1; }
+  ADMIN_PASSWORD=$password python3 - "$CORE" <<'PY'
+import json, os, sys, urllib.request
+body = json.dumps({"password": os.environ["ADMIN_PASSWORD"]}).encode()
+request = urllib.request.Request(sys.argv[1] + "/api/v1/admin/session", body, {"Content-Type": "application/json"})
+with urllib.request.urlopen(request, timeout=20) as response:
+    print(json.load(response)["token"])
+PY
+}
+
+maintenance() {
+  local state=$1 token
+  token=$(admin_token) || return 1
+  curl -fsS -o /dev/null -X POST "$CORE/api/v1/admin/maintenance" \
+    -H "X-Cord-Admin: $token" -H 'Content-Type: application/json' \
+    -d "{\"on\":$([[ $state == on ]] && echo true || echo false)}"
+}
+
+if ((DRAIN)); then
+  echo "== дренаж: обслуживание включено $(date -Is) — новые встречи не создаются"
+  maintenance on || exit 1
+  # Снять флаг при любом исходе: после перезапуска ядра его уже нет, и это не ошибка.
+  trap 'maintenance off >/dev/null 2>&1 && echo "== обслуживание выключено $(date -Is)" || echo "== обслуживание снято перезапуском ядра"' EXIT
+  waited=0
+  while ! "$BIN/active-meetings.sh"; do
+    if ((waited >= DRAIN_WAIT)); then
+      if [[ ${CORD_DEPLOY_FORCE:-0} != 1 ]]; then
+        echo "Встречи не кончились за $((DRAIN_WAIT / 60)) мин — выкатка отложена (CORD_DEPLOY_FORCE=1, чтобы всё равно)." >&2
+        exit 1
+      fi
+      echo "Встречи не кончились за $((DRAIN_WAIT / 60)) мин, но CORD_DEPLOY_FORCE=1 — выкатываю." >&2
+      break
+    fi
+    sleep "$DRAIN_POLL"
+    waited=$((waited + DRAIN_POLL))
+  done
+  echo "== дренаж: встреч нет, ждали $((waited / 60)) мин $((waited % 60)) с"
+elif ! "$BIN/active-meetings.sh"; then
   if [[ ${CORD_DEPLOY_FORCE:-0} != 1 ]]; then
-    echo "Идут встречи — выкатка отложена (CORD_DEPLOY_FORCE=1, чтобы всё равно)." >&2
+    echo "Идут встречи — выкатка отложена (CORD_DEPLOY_FORCE=1, чтобы всё равно; --drain, чтобы дождаться)." >&2
     exit 1
   fi
   echo "Идут встречи, но CORD_DEPLOY_FORCE=1 — выкатываю." >&2

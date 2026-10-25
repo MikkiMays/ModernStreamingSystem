@@ -15,7 +15,9 @@ BIN=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$BIN/../.." && pwd)
 cd "$REPO"
 
-IMAGE=modern-streaming-core:latest
+# Свой образ (`CORD_GEN_IMAGE=cord-core-w1b CORD_GEN_NO_BUILD=1`) — когда ядро собрано из ветки под
+# своим тегом и образ стенда `modern-streaming-core` трогать нельзя.
+IMAGE=${CORD_GEN_IMAGE:-modern-streaming-core:latest}
 PG_PORT=15432 REDIS_PORT=16379 CORE_PORT=18089
 NAME=cord-contracts-$$
 SECRET=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')

@@ -602,6 +602,18 @@ journalctl -u cord-tidy.service     # или /var/log/cord-tidy.log
 котором не обрывается никто: вход закрывается заранее, и
 обновление ждёт, пока комнаты опустеют сами.
 
+**Дренаж одной командой** (W1b, `docs/resilience.md`): `backlog/bin/deploy.sh --drain core services livekit`.
+Скрипт рычагом владельца (`POST /api/v1/admin/maintenance {on:true}`, пароль `ADMIN_PASSWORD` из `.env`)
+включает обслуживание — ядро отвечает новым встречам `503 MAINTENANCE` с `Retry-After: 120`, главная
+говорит «Сервер обновляется, попробуйте через 2 минуты», а идущие встречи доигрывают и вход в них открыт;
+ждёт, пока `active-meetings.sh` станет пуст (до 15 мин, `CORD_DRAIN_WAIT` секунд), затем собирает и
+поднимает службы по очереди. Флаг снимается на выходе всегда (`trap`); перезапуск ядра сбрасывает его
+сам, а забытый дольше получаса — алерт `MaintenanceOn`. Без `ADMIN_PASSWORD` дренажа нет — скрипт откажет
+сразу; тогда — ручной порядок ниже. Состояние флага: `GET /api/v1/admin/maintenance` (заголовок
+`X-Cord-Admin`), метр `cord_maintenance`.
+
+Ручной порядок — когда нужно закрыть и вход в идущие встречи (`DRAINING`), не только создание:
+
 1. Установить `ADMISSION_OPEN=false` в `.env` и применить только core: `docker compose up -d --no-deps core`. Существующее медиа остаётся в SFU, служебный WS восстановится после перезапуска ядра.
 2. Проверить прекращение новых входов через capabilities. Дождаться завершения комнат. Число незакрытых комнат можно посмотреть без чтения содержимого:
 
@@ -625,6 +637,27 @@ docker compose exec -T postgres psql -U streaming -d streaming \
 Не выполнять `docker compose down -v` при обычном обновлении: эта команда удаляет тома. Не менять SFU API/session secrets посреди встречи. LiveKit имеет stop grace period 2 минуты, но это не замена остановке новых входов и ожиданию пользователей.
 
 Один VPS — точка отказа. Перезапуск самого SFU завершает его WebRTC-соединения; бесшовное переживание аварии медиасервера этой версией не обещается. Windows loopback-стенд не проверяет firewall, L4/TURN TLS, Linux container permissions или производительность VPS.
+
+### Хост
+
+Замирание хоста (soft lockup, steal) — тишина у всех на его длину, и кодом это не чинится (R10,
+`backlog/review-1.0.3/MEDIA-DIAGNOSIS.md` §6). Что сделано в `compose.yaml`, чтобы медиа получало
+процессор первым и не самоповреждалось: `livekit` и `services` — `cpu_shares: 4096`, `core` — `2048`,
+остальное — 1024 по умолчанию; `livekit` — `mem_limit: 1g`, `memswap_limit: 1g` (без swap),
+`oom_score_adj: -500`; `services` — `memswap_limit: 1g` (без swap). Применяется пересозданием контейнеров
+(`./update.sh` видит изменённый хеш конфигурации; SFU — только без встреч или через `deploy.sh --drain`).
+
+Что только владелец на хосте (контейнеры туда не допущены; список — `backlog/OWNER-ACTIONS.md`):
+
+- `/etc/sysctl.d/90-cord.conf` с `vm.swappiness = 10` и `sysctl --system`: чтобы ядро Linux не уводило
+  страницы SFU и издателя в swap при свободной памяти; и не держать на машине `vite dev`, `tsserver`, LSP.
+- Счёт замираний в метрику: `install -m 0755 infra/host/soft-lockups.sh /usr/local/sbin/cord-soft-lockups`
+  и cron раз в 5 минут (`/etc/cron.d/cord-soft-lockups`) — файл для textfile-коллектора `node-exporter`
+  в `/var/lib/node_exporter/textfile`; метры `cord_host_soft_lockups_total` и `…_day`, алерт `HostSoftLockups`.
+  Сравнивать до/после смены тарифа — по нему и по steal на дашборде «Cord — сервер».
+- Сами замирания убирает только тариф с выделенными ядрами (dedicated vCPU) — решение владельца.
+- Сборки образов — не на этой машине в часы встреч: `deploy.sh` ждёт пустых встреч (с `--drain` —
+  не пускает новые), а образы можно собирать в GitHub Actions и `docker compose pull`.
 
 ## Адрес сервера — параметр установки, не код
 
