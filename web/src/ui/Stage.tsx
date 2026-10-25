@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { MicOff, MonitorUp, MonitorX, PinOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { MicOff, MonitorUp, MonitorX, PinOff, WifiLow, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
 import type { MediaTile } from '../media/session';
@@ -15,6 +15,7 @@ import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
 import { applyVolumeNow } from '../media/volume';
 import { SCENES } from './cinema/scenes';
+import './video-paused.css';
 
 const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
 const PokerTable = lazy(() => import('./PokerTable'));
@@ -107,6 +108,23 @@ function VideoTrack({
     />
   );
 }
+/**
+ * «Видео приостановлено: слабая связь» (R117) — SFU перестал слать нам эту картинку, чтобы сберечь
+ * речь и музыку. Тон спокойный, не тревога: делать человеку нечего, видео вернётся само. Задержку
+ * против мигания уже выдержала сессия (`media/video-pause.ts`), здесь только слова.
+ */
+function VideoPausedNote({ announce = false }: { announce?: boolean }) {
+  const { t } = useTranslation();
+  const text = t(($) => $.stage.videoPaused);
+  return (
+    // Объявляет только показ: плиток на паузе бывает несколько разом, и читать надпись каждой —
+    // шум. На плитке её видно, а полностью — подсказкой, когда подпись обрезана.
+    <span className="video-paused" role={announce ? 'status' : undefined} title={text}>
+      <WifiLow size={16} aria-hidden="true" />
+      <span>{text}</span>
+    </span>
+  );
+}
 function AudioTrack({ tile, onBlocked, volume }: { tile: MediaTile; onBlocked: () => void; volume: number }) {
   const ref = useRef<HTMLAudioElement>(null);
   // Громкость на момент подключения читается из ref, а не из зависимостей: менять её не значит
@@ -182,6 +200,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   // SFU, а не свой замер: крупный план «Говорящего» должен залипать, а не прыгать на каждом слоге.
   const speaking = useStore(meeting.media.speaking);
   const previews = useStore(meeting.media.screenPreviews);
+  const pausedVideo = useStore(meeting.media.videoPaused);
   const cinema = useStore(meeting.cinema);
   const cinemaAt = useStore(meeting.cinemaAt);
   const layout = useStore(meeting.media.preferences).layout;
@@ -251,8 +270,12 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     const screen = tracks.find(
       (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
     );
+    // Пауза показа (R117) — только поверх кадра, который уже есть («Подключаемся к стриму…» старше),
+    // и не у переподключающегося показывающего: тогда кадр стоит из-за него, а не из-за нашего канала.
+    const sharer = participants.find((p) => p.id === viewing.participantId);
+    const paused = !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
     return (
-      <div className="stage watch-stage media-stage">
+      <div className="stage watch-stage media-stage" data-paused={paused ? 'true' : undefined}>
         <div
           className="screen-viewport"
           style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
@@ -294,6 +317,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
               {t(($) => $.stage.streamConnecting)}
             </div>
           )}
+          {paused && <VideoPausedNote announce />}
         </div>
         <div className="screen-tools">
           <IconButton
@@ -346,6 +370,19 @@ export function Stage({ meeting }: { meeting: Meeting }) {
     const sharing = !!(person.screen && person.screenId && person.screenStarted);
     // Слот взят, а кадра целевого качества ещё нет: показ открывается зрителям после него (T48).
     const preparing = !!(person.screen && person.screenId && !person.screenStarted);
+    /*
+      Пауза камеры от SFU (R117) — надпись сверху плитки, на месте «Восстанавливаем связь…», и одна
+      из двух по старшинству:
+      1. камера выключена или ещё не пришла — паузы нет: приглушать нечего, на плитке аватар;
+      2. участник переподключается — «Восстанавливаем связь…»: кадр стоит из-за него, а не из-за
+         нашего канала, и «слабая связь» на его плитке указала бы не туда;
+      3. иначе — «Видео приостановлено: слабая связь».
+      «Готовится показ…» и «Смотреть стрим» — про экран и живут в середине плитки: с паузой камеры
+      они не спорят. Своё переподключение и зависание кадра решает сессия: надписи гаснут, пока нет
+      связи, а сторож зависаний не трогает дорожку на паузе.
+    */
+    const recovering = person.status === 'RECOVERING';
+    const paused = !!camera && !recovering && !!pausedVideo[camera.id];
     return (
       <ParticipantMenu
         meeting={meeting}
@@ -353,6 +390,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
         key={person.id}
         className="person-tile"
         data-sharing={sharing ? 'true' : undefined}
+        data-paused={paused ? 'true' : undefined}
         data-pinned={pinned === person.id ? 'true' : undefined}
         // Крупно над лентой — закреплённый или говорящий. Смена говорящего переносит две плитки
         // между крупным местом и лентой; выбор залипает (`ui/focus.ts`), так что это редкость.
@@ -438,9 +476,8 @@ export function Stage({ meeting }: { meeting: Meeting }) {
               <span className="live-badge">LIVE</span>
             </button>
           ))}
-        {person.status === 'RECOVERING' && (
-          <div className="tile-recovery">{t(($) => $.stage.recovering)}</div>
-        )}
+        {recovering && <div className="tile-recovery">{t(($) => $.stage.recovering)}</div>}
+        {paused && <VideoPausedNote />}
       </ParticipantMenu>
     );
   };

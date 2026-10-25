@@ -2160,6 +2160,7 @@
     "sharing": "You're sharing your screen",
     "watch": "Watch stream",
     "recovering": "Reconnecting…",
+    "videoPaused": "Video paused: weak connection",
     "gameLoading": "Opening the game…",
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
@@ -2790,6 +2791,8 @@
       "none": "No subscribed tracks"
     },
     "ordered": "Media goes through a relay over TCP/TLS. This path doesn't drop packets — it re-requests them, and everything that arrives after waits for the late one. To the ear it sounds like “went quiet, then talked faster”. The buffer has been raised automatically. If this keeps happening, check that your network lets UDP through to the media server: the direct path is noticeably smoother.",
+    "videoPaused_one": "Video was paused for you {{count}} time: your connection couldn't keep up with the picture, so the server kept speech and music going. The picture comes back on its own when the connection improves.",
+    "videoPaused_other": "Video was paused for you {{count}} times: your connection couldn't keep up with the picture, so the server kept speech and music going. The picture comes back on its own when the connection improves.",
     "checking": "Checking…",
     "check": "Check network",
     "result": {

@@ -2187,6 +2187,7 @@
     "sharing": "Stai condividendo lo schermo",
     "watch": "Guarda lo stream",
     "recovering": "Ripristino della connessione…",
+    "videoPaused": "Video in pausa: connessione debole",
     "gameLoading": "Apriamo il gioco…",
     "unpin": "Sblocca",
     "unpinOf": "Sblocca: {{name}}",
@@ -2821,6 +2822,9 @@
       "none": "Nessuna traccia sottoscritta"
     },
     "ordered": "I contenuti passano da un relay su TCP/TLS. Questo percorso non perde pacchetti ma li richiede di nuovo, e tutto ciò che arriva dopo aspetta quello in ritardo: all'orecchio suona come «si è zittito, poi ha parlato più in fretta». Il buffer è stato aumentato automaticamente. Se succede spesso, verifica che la rete lasci passare UDP fino al server multimediale: il percorso diretto è molto più regolare.",
+    "videoPaused_one": "Il video è stato messo in pausa {{count}} volta: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
+    "videoPaused_many": "Il video è stato messo in pausa {{count}} volte: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
+    "videoPaused_other": "Il video è stato messo in pausa {{count}} volte: la tua connessione non reggeva l'immagine, quindi il server ha dato la precedenza a voce e musica. L'immagine torna da sola quando la connessione migliora.",
     "checking": "Controllo…",
     "check": "Controlla la rete",
     "result": {

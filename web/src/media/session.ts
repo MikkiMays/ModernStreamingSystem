@@ -58,6 +58,7 @@ import {
 } from './capture';
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
+import { VideoPauses } from './video-pause';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
@@ -238,6 +239,15 @@ export class MediaSession {
     clearTimeout(this.screenGoneTimers.get(participant.identity));
     this.screenGoneTimers.delete(participant.identity);
   };
+  private pauses = new VideoPauses();
+  /**
+   * Чьё видео SFU сейчас приостановил нам из-за слабого канала (R117, `video-pause.ts`): trackSid →
+   * true, уже после задержки против мигания и без надписей, пока сами переподключаемся. Читают
+   * плитки и показ; камера и экран — одинаково.
+   */
+  readonly videoPaused = this.pauses.shown;
+  /** Сколько пауз видео за встречу дошло до надписи — для «Диагностики». */
+  readonly videoPauseCount = this.pauses.total;
   /** Каким путём идёт медиа и насколько ровно. Для показа и для выбора запаса буфера. */
   readonly link = new Store<LinkState>(unknownLink);
   /** На какой платформе идёт встреча — для правил фона (E12, `media/background.ts`). */
@@ -507,7 +517,13 @@ export class MediaSession {
         }
         this.refreshTracks();
       })
-      .on(RoomEvent.TrackUnmuted, this.refreshTracks);
+      .on(RoomEvent.TrackUnmuted, this.refreshTracks)
+      .on(RoomEvent.TrackStreamStateChanged, (publication, state) => {
+        if (this.disposed || publication.kind !== Track.Kind.Video) return;
+        if (state === Track.StreamState.Paused)
+          this.pauses.pause(publication.trackSid, this.playout.targetFor(publication.trackSid));
+        else this.pauses.resume(publication.trackSid);
+      });
     window.addEventListener('online', this.network);
     // Экран погас, браузер свёрнут или заморожен — и вернулся: см. «звонок в кармане» ниже.
     this.lifecycle = new PageLifecycle({ hidden: this.wentAway, returned: this.cameBack });
@@ -667,6 +683,19 @@ export class MediaSession {
             (async () => {
               const report = await publication.track!.getRTCStatsReport();
               if (this.disposed || cycle !== this.connectionCycle) return;
+              // Видео приостановил SFU (R117): кадров нет по его решению, а не от зависания. Переподписка
+              // ничего не починит — пауза снимется сама, — поэтому сторож зависаний молчит, а после паузы
+              // начинает с чистого листа. Счётчик принятых кадров — запасной знак, что картинка пошла.
+              if (this.pauses.holds(publication.trackSid)) {
+                this.liveHealth.delete(publication.trackSid);
+                let received = 0;
+                report?.forEach((stat) => {
+                  if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
+                    received += Number(stat.framesReceived ?? 0);
+                });
+                this.pauses.frames(publication.trackSid, received);
+                return;
+              }
               const health = this.liveHealth.get(publication.trackSid) ?? new LiveHealth();
               this.liveHealth.set(publication.trackSid, health);
               let reset = false;
@@ -1091,6 +1120,8 @@ export class MediaSession {
   private lost = () => {
     if (this.disposed) return;
     this.liveHealth.clear();
+    // Застывшее у всех объясняет плашка восстановления, а не «слабая связь» на каждой плитке.
+    this.pauses.suspend();
     // Счётчики приёма новой сессии начнутся с нуля: разности со старыми — не сводка.
     this.rxQuality.reset();
     const fresh = this.deadlineTimer === undefined;
@@ -1134,9 +1165,26 @@ export class MediaSession {
     // Звук собеседников: свой контекст переживает переподключение, но мог уснуть, пока его не было.
     if (typeof document === 'undefined' || !document.hidden) void this.audio.wake();
     this.patch({ status: 'connected', remaining: this.recovery.durationMs / 1000, error: null });
+    this.restorePauses();
     this.startUpstreamMonitor();
     this.refreshTracks();
   };
+  /**
+   * Паузы видео после возврата связи — по тому, что знает SDK: после resume дорожки те же, и пауза,
+   * которую SFU не снимал, остаётся; после полного переподключения дорожки новые, и о паузе SFU
+   * скажет заново. События, пришедшие во время переподключения, SDK отдаёт уже после `Reconnected`.
+   */
+  private restorePauses() {
+    const paused = new Set<string>();
+    for (const participant of this.room.remoteParticipants.values())
+      for (const publication of participant.trackPublications.values())
+        if (
+          publication.kind === Track.Kind.Video &&
+          publication.track?.streamState === Track.StreamState.Paused
+        )
+          paused.add(publication.trackSid);
+    this.pauses.restore(paused);
+  }
   private refreshTracks = () => {
     if (this.disposed || this.refreshQueued) return;
     this.refreshQueued = true;
@@ -1183,6 +1231,12 @@ export class MediaSession {
       if (track.mediaStreamTrack.readyState === 'ended') this.deviceTracks.delete(source);
     this.room.remoteParticipants.forEach(collect);
     this.tracks.set(tiles);
+    // Отписка, снятие дорожки, уход участника — конец паузы этой дорожки: надпись не переживает видео.
+    this.pauses.retain(
+      new Set(
+        tiles.filter((tile) => !tile.local && tile.track.kind === Track.Kind.Video).map((tile) => tile.id),
+      ),
+    );
     const local = this.room.localParticipant;
     const mic = local.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack ?? null;
     this.watchMic(mic);
@@ -2006,6 +2060,7 @@ export class MediaSession {
     for (const timer of this.screenGoneTimers.values()) clearTimeout(timer);
     this.screenGoneTimers.clear();
     this.screenPreviews.set({});
+    this.pauses.clear();
     this.speaking.set([]);
     this.levels.dispose();
     this.closeScreenAudio();

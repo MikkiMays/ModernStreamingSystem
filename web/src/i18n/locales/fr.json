@@ -2187,6 +2187,7 @@
     "sharing": "Vous partagez votre écran",
     "watch": "Regarder le stream",
     "recovering": "Rétablissement de la connexion…",
+    "videoPaused": "Vidéo en pause : connexion faible",
     "gameLoading": "Ouverture du jeu…",
     "unpin": "Désépingler",
     "unpinOf": "Désépingler : {{name}}",
@@ -2821,6 +2822,9 @@
       "none": "Aucune piste suivie"
     },
     "ordered": "Les médias passent par un relais en TCP/TLS. Ce chemin ne perd pas de paquets, il les redemande, et tout ce qui arrive ensuite attend le retardataire — à l'oreille, cela donne « silence, puis débit accéléré ». Le tampon a été augmenté automatiquement. Si cela se répète, vérifiez que votre réseau laisse passer l'UDP jusqu'au serveur média : le chemin direct est nettement plus régulier.",
+    "videoPaused_one": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
+    "videoPaused_many": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
+    "videoPaused_other": "La vidéo a été mise en pause {{count}} fois pour vous : votre connexion ne suivait pas l'image, alors le serveur a donné la priorité à la voix et à la musique. L'image revient d'elle-même dès que la connexion s'améliore.",
     "checking": "Vérification…",
     "check": "Tester le réseau",
     "result": {

@@ -83,6 +83,10 @@ export default function Diagnostics({
   const media = useStore(meeting.media.state);
   const link = useStore(meeting.media.link);
   const control = useStore(meeting.control.state);
+  // Паузы видео от SFU (R117): их причина — всегда наш собственный канал приёма, поэтому и сказать
+  // о них место здесь, в «Сети», а не у собеседника.
+  const pausedNow = useStore(meeting.media.videoPaused);
+  const pauses = useStore(meeting.media.videoPauseCount);
   useEffect(() => {
     let disposed = false;
     let busy = false;
@@ -132,6 +136,7 @@ export default function Diagnostics({
       diagnosticsText(),
       callReportText(meeting.media.callReport()),
       ...targets.map((target) => `playout: ${target.kind} ${target.targetMs} ms`),
+      ...(pauses ? [`video paused by sfu: ${pauses}`] : []),
       ...samples.map(sampleLine),
     ].join('\n');
     try {
@@ -209,6 +214,15 @@ export default function Diagnostics({
           {link.ordered && (
             <p className="diagnostics-card__note" data-tone="warning" role="status">
               {t(($) => $.diagnostics.ordered)}
+            </p>
+          )}
+          {pauses > 0 && (
+            <p
+              className="diagnostics-card__note"
+              data-tone={Object.keys(pausedNow).length ? 'warning' : undefined}
+              role="status"
+            >
+              {t(($) => $.diagnostics.videoPaused, { count: pauses })}
             </p>
           )}
           <div className="diagnostics-card__actions">
