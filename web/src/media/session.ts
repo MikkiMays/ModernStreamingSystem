@@ -59,6 +59,7 @@ import {
 import { EncoderHealth } from './encoder-health';
 import { LiveHealth } from './live-health';
 import { VideoPauses } from './video-pause';
+import { VideoSilence } from './video-silence';
 import { linkChanged, unknownLink, type LinkState } from './link-quality';
 import type { PlayoutClass } from './playout';
 import { PlayoutController, type PlayoutTrack } from './playout-control';
@@ -180,6 +181,20 @@ interface ScreenAudioLink {
 /** This is the only owner of the Room and capture tracks. React only subscribes. */
 /** Сколько ждать новой дорожки показа после снятия старой, прежде чем счесть показ оконченным. */
 export const SCREEN_GONE_GRACE_MS = 400;
+
+/** Сколько байт медиа пришло всего по отчётам опроса — растёт между опросами, значит, путь жив. */
+export function inboundBytes(reports: readonly RTCStatsReport[], kind?: 'audio' | 'video') {
+  let total = 0;
+  for (const report of reports)
+    report.forEach((stat) => {
+      if (stat.type !== 'inbound-rtp' || typeof stat.bytesReceived !== 'number') return;
+      if (kind && (stat.kind ?? stat.mediaType) !== kind) return;
+      total += stat.bytesReceived;
+    });
+  return total;
+}
+/** Музыку переподписывать по раздутому буферу — не чаще раза в минуту (R118): каждая — провал звука. */
+export const MEDIA_RESET_GAP_MS = 60000;
 
 export class MediaSession {
   readonly preferences = new Store(readPreferences());
@@ -395,7 +410,14 @@ export class MediaSession {
   private liveTimer?: ReturnType<typeof setInterval>;
   private liveSampling = false;
   private liveHealth = new Map<string, LiveHealth>();
+  /** Камеры, у которых кадры из сети могли остановиться без слова SFU (R119, `video-silence.ts`). */
+  private videoSilence = new Map<string, VideoSilence>();
+  /** Приходили ли байты звука за последний опрос буфера — свидетель того, что путь жив. */
+  private audioFlowing = false;
   private lastLiveReset = new Map<string, number>();
+  /** Сумма принятых байт по всем дорожкам на прошлом опросе: растёт — медиа идёт. */
+  private lastInboundBytes = 0;
+  private lastAudioBytes = 0;
   /** Голоса, чья переподписка ждёт паузы говорящего. */
   private pausing = new Set<string>();
   private resetting = new Set<string>();
@@ -626,7 +648,7 @@ export class MediaSession {
           if (!found) continue;
           if (report.kind === 'conversation')
             void this.resyncSpeechInPause(found.identity, found.publication, report.measuredMs ?? 0);
-          else void this.resetLivePair(found.identity, found.publication.source, true);
+          else void this.resetLivePair(found.identity, found.publication.source, true, MEDIA_RESET_GAP_MS);
         }
       this.callQuality.observe(this.playout.link, this.playout.reports, Date.now());
       this.rxQuality.observe(this.playout.samples, Date.now());
@@ -635,8 +657,15 @@ export class MediaSession {
       // Каждый опрос возвращает новый объект, поэтому сравнивать надо по значению: иначе
       // открытые настройки и диагностика перерисовывались бы каждые две секунды впустую.
       if (linkChanged(this.link.get(), this.playout.link)) this.link.set(this.playout.link);
-      // ICE в `disconnected` — путь умер (чаще всего сменился адрес), а SDK ждёт `failed`.
-      if (this.playout.link.ice === 'disconnected') this.nudge('ice-disconnected');
+      // ICE в `disconnected` — путь умер (чаще всего сменился адрес), а SDK ждёт `failed`. Но пока
+      // пакеты приходят, это не смерть пути, а очередь узкого канала (R119, `reconnect-plan.ts`).
+      const inbound = inboundBytes(this.playout.reports);
+      const flowing = inbound > this.lastInboundBytes;
+      this.lastInboundBytes = inbound;
+      const audio = inboundBytes(this.playout.reports, 'audio');
+      this.audioFlowing = audio > this.lastAudioBytes;
+      this.lastAudioBytes = audio;
+      if (this.playout.link.ice === 'disconnected') this.nudge('ice-disconnected', flowing);
     } catch {
       // Статистика — не право на воспроизведение: её отсутствие ничего не должно остановить.
     } finally {
@@ -686,15 +715,26 @@ export class MediaSession {
               // Видео приостановил SFU (R117): кадров нет по его решению, а не от зависания. Переподписка
               // ничего не починит — пауза снимется сама, — поэтому сторож зависаний молчит, а после паузы
               // начинает с чистого листа. Счётчик принятых кадров — запасной знак, что картинка пошла.
+              let received = 0;
+              report?.forEach((stat) => {
+                if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
+                  received += Number(stat.framesReceived ?? 0);
+              });
               if (this.pauses.holds(publication.trackSid)) {
                 this.liveHealth.delete(publication.trackSid);
-                let received = 0;
-                report?.forEach((stat) => {
-                  if (stat.type === 'inbound-rtp' && (stat.kind ?? stat.mediaType) === 'video')
-                    received += Number(stat.framesReceived ?? 0);
-                });
+                this.videoSilence.delete(publication.trackSid);
                 this.pauses.frames(publication.trackSid, received);
                 return;
+              }
+              // SFU перестал слать камеру, не сказав «пауза» (R119): кадров нет, а звук идёт.
+              if (publication.source === Track.Source.Camera) {
+                const silence = this.videoSilence.get(publication.trackSid) ?? new VideoSilence();
+                this.videoSilence.set(publication.trackSid, silence);
+                if (silence.observe(received, this.audioFlowing, Date.now())) {
+                  this.pauses.pause(publication.trackSid, this.playout.targetFor(publication.trackSid));
+                  this.liveHealth.delete(publication.trackSid);
+                  return;
+                }
               }
               const health = this.liveHealth.get(publication.trackSid) ?? new LiveHealth();
               this.liveHealth.set(publication.trackSid, health);
@@ -710,6 +750,7 @@ export class MediaSession {
         }
       await Promise.all(jobs);
       for (const key of this.liveHealth.keys()) if (!active.has(key)) this.liveHealth.delete(key);
+      for (const key of this.videoSilence.keys()) if (!active.has(key)) this.videoSilence.delete(key);
       for (const key of this.lastLiveReset.keys())
         if (!this.room.remoteParticipants.has(key.split(':')[0]!)) this.lastLiveReset.delete(key);
     } finally {
@@ -858,13 +899,18 @@ export class MediaSession {
       this.pausing.delete(publication.trackSid);
     }
   }
-  private async resetLivePair(identity: string, source: Track.Source, automatic: boolean) {
+  /**
+   * @param gapMs не чаще какого срока переподписывать автоматически: `automatic` сброс по умолчанию —
+   *   раз в 30 с, музыка (R118) — раз в минуту: каждая переподписка — слышимый провал, и чаще раза
+   *   в минуту это уже не починка.
+   */
+  private async resetLivePair(identity: string, source: Track.Source, automatic: boolean, gapMs = 30000) {
     // Пара экрана — и картинка, и её звук: сброс по любой из них не должен трогать камеру и микрофон.
     // Камера сбрасывается одна (R107): раньше вместе с ней переподписывался и микрофон, и зависшая
     // на плохом канале картинка оборачивалась провалом голоса — тем самым «звук обрезается».
     const screen = source === Track.Source.ScreenShare || source === Track.Source.ScreenShareAudio;
     const key = `${identity}:${screen ? 'screen' : source}`;
-    if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < 30000))
+    if (this.resetting.has(key) || (automatic && Date.now() - (this.lastLiveReset.get(key) ?? 0) < gapMs))
       return;
     const participant = this.room.remoteParticipants.get(identity);
     if (!participant) return;
@@ -930,6 +976,11 @@ export class MediaSession {
         autoSubscribe: false,
         peerConnectionTimeout: 10000,
         websocketTimeout: 5000,
+        // R119. SFU 1.13.6 берёт это поле из запроса на вход **поверх** своего
+        // `rtc.congestion_control.allow_pause`, а SDK до 2.22.4 поля не знал и слал нулевое —
+        // значит, «нет»: пауза видео на слабом канале (R117) не наступала никогда, SFU давил в
+        // узкий канал нижние слои картинки, и вместе с ними не проходили сигнал и речь.
+        subscriberAllowPause: true,
       });
       if (this.disposed || generation !== this.generation) await this.room.disconnect();
     } catch (error) {
@@ -972,7 +1023,7 @@ export class MediaSession {
    * resume: она закрывает сигнальный сокет и пускает ту же цепочку, что срабатывает по таймауту
    * пинга, только сразу. Помечена «для тестов», но путь под ней — боевой.
    */
-  private nudge(trigger: ReconnectTrigger) {
+  private nudge(trigger: ReconnectTrigger, mediaFlowing?: boolean) {
     if (this.disposed) return;
     const action = reconnectAction({
       trigger,
@@ -980,6 +1031,7 @@ export class MediaSession {
       recovering: this.recovery.active,
       connecting: this.connecting,
       sinceNudgeMs: performance.now() - this.lastNudge,
+      mediaFlowing,
     });
     if (action === 'connect') {
       clearTimeout(this.reconnectTimer);
@@ -1120,6 +1172,7 @@ export class MediaSession {
   private lost = () => {
     if (this.disposed) return;
     this.liveHealth.clear();
+    this.videoSilence.clear();
     // Застывшее у всех объясняет плашка восстановления, а не «слабая связь» на каждой плитке.
     this.pauses.suspend();
     // Счётчики приёма новой сессии начнутся с нуля: разности со старыми — не сводка.
@@ -2040,6 +2093,7 @@ export class MediaSession {
     this.screenGeneration++;
     this.recovery.stop();
     this.liveHealth.clear();
+    this.videoSilence.clear();
     this.lastLiveReset.clear();
     clearInterval(this.liveTimer);
     clearInterval(this.playoutTimer);

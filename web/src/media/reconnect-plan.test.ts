@@ -16,6 +16,13 @@ describe('что делать по знаку сети', () => {
     expect(reconnectAction(signals({ trigger: 'ice-disconnected' }))).toBe('resume');
   });
 
+  it('ICE «disconnected», а пакеты идут — это очередь узкого канала, не смена адреса: толчка нет (R119)', () => {
+    expect(reconnectAction(signals({ trigger: 'ice-disconnected', mediaFlowing: true }))).toBe('none');
+    expect(reconnectAction(signals({ trigger: 'ice-disconnected', mediaFlowing: false }))).toBe('resume');
+    // Другие знаки на поток не смотрят: после смены адреса `online` приходит раньше, чем замолкнет медиа.
+    expect(reconnectAction(signals({ trigger: 'online', mediaFlowing: true }))).toBe('resume');
+  });
+
   it('два толчка подряд — один: второй раньше интервала не идёт', () => {
     expect(reconnectAction(signals({ sinceNudgeMs: NUDGE_INTERVAL_MS - 1 }))).toBe('none');
     expect(reconnectAction(signals({ sinceNudgeMs: NUDGE_INTERVAL_MS }))).toBe('resume');

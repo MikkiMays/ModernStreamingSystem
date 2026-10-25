@@ -265,6 +265,19 @@ describe('нажми и говори: setMicrophone', () => {
 });
 
 describe('media lifecycle', () => {
+  it('вход в комнату разрешает SFU ставить чужое видео на паузу (R119): иначе SFU 1.13.6 читает «нет» поверх своего allow_pause', async () => {
+    const { media, room } = fixture();
+    try {
+      await media.start();
+      expect((room as unknown as { connect: ReturnType<typeof vi.fn> }).connect).toHaveBeenCalledWith(
+        'ws://localhost',
+        'test',
+        expect.objectContaining({ subscriberAllowPause: true, autoSubscribe: false }),
+      );
+    } finally {
+      media.dispose();
+    }
+  });
   it('enforces the original deadline even when the SDK asks for a retry before emitting Reconnecting', async () => {
     vi.useFakeTimers();
     const { media, room, ended, api } = fixture();
@@ -964,6 +977,42 @@ describe('пауза видео от SFU', () => {
       // Картинка идёт — сторож снова смотрит за ней.
       await f.checkLive();
       expect(f.health().has('TR_cam')).toBe(true);
+    } finally {
+      f.media.dispose();
+    }
+  });
+
+  it('SFU замолчал без слова «пауза»: кадров нет 4 с при живом звуке — та же надпись, новые кадры гасят (R119)', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    const flowing = (on: boolean) => ((f.media as unknown as { audioFlowing: boolean }).audioFlowing = on);
+    // Опрос буфера здесь не идёт (в комнате нет звука): свидетель звука задаётся руками.
+    (f.media as unknown as { tunePlayout(): Promise<void> }).tunePlayout = async () => {};
+    try {
+      flowing(true);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(2000);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(2000);
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({});
+      await vi.advanceTimersByTimeAsync(700);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPauseCount.get()).toBe(1);
+      // Сторож зависаний на выведенной паузе молчит, как и на паузе от SFU.
+      await f.checkLive();
+      expect(f.health().has('TR_cam')).toBe(false);
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+      f.grow();
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({});
+      // Без звука тишина камеры — не пауза: молчит весь путь.
+      flowing(false);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(6000);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(700);
+      expect(f.media.videoPaused.get()).toEqual({});
     } finally {
       f.media.dispose();
     }

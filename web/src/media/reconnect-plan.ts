@@ -23,6 +23,13 @@
  * - `none` — SDK уже переподключается (там свой `online`-обработчик с немедленной попыткой) или
  *   ещё только подключается; возвращение к экрану само по себе не повод перезапускать ICE: пока
  *   страница была скрыта, JS работал, и обрыв SDK заметил бы сам. Повод — только заморозка.
+ *
+ * ICE в `disconnected` — повод, только пока **медиа не идёт** (R119). В узком канале (150 кбит/с, очередь
+ * на секунды) Chrome роняет ICE в `disconnected` на 2–3 с от одних задержек проверок связности и сам
+ * возвращает `connected`, а пакеты всё это время приходят. Толчок здесь — хуже бездействия: SDK
+ * закрывает живой сигнал, а новый WSS по забитому каналу не поднимается за наши 5 с — три попытки, и
+ * окно восстановления кончается (живой замер 25.10: связь умирала через 27 с при живом ICE). Когда
+ * сменился адрес, пакеты не приходят вовсе — тогда толчок, как и раньше.
  */
 export type ReconnectTrigger = 'online' | 'ice-disconnected' | 'visible' | 'woke';
 export type ReconnectAction = 'resume' | 'connect' | 'none';
@@ -37,6 +44,8 @@ export interface ReconnectSignals {
   connecting: boolean;
   /** Сколько прошло с прошлого толчка `resume`. */
   sinceNudgeMs: number;
+  /** Приходили ли пакеты медиа за последний опрос статистики (для `ice-disconnected`). */
+  mediaFlowing?: boolean;
 }
 
 /** Чаще толкать незачем: resume на живом соединении занимает секунду-две. */
@@ -45,5 +54,6 @@ export const NUDGE_INTERVAL_MS = 3000;
 export function reconnectAction(signals: ReconnectSignals): ReconnectAction {
   if (signals.sdk === 'disconnected') return signals.recovering && !signals.connecting ? 'connect' : 'none';
   if (signals.sdk !== 'connected' || signals.trigger === 'visible') return 'none';
+  if (signals.trigger === 'ice-disconnected' && signals.mediaFlowing) return 'none';
   return signals.sinceNudgeMs >= NUDGE_INTERVAL_MS ? 'resume' : 'none';
 }

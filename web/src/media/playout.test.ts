@@ -187,10 +187,144 @@ describe('решение по дорожке', () => {
     expect(burst.measuredMs).toBeCloseTo(1600, 0);
     expect(burst.targetMs).toBe(profile.startMs);
     expect(burst.resync).toBe(false);
-    const flooded = buffer.observe(audio(4, { jitterBufferDelay: 1.6 * 2 * RATE + 3 * 2 * RATE }), 4000);
-    expect(flooded.measuredMs).toBeCloseTo(3000, 0);
-    expect(flooded.resync).toBe(true);
-    expect(flooded.targetMs).toBe(profile.startMs);
+    let delay = 1.6 * 2 * RATE;
+    const flooded = (seconds: number) => {
+      delay += 3 * 2 * RATE;
+      return buffer.observe(audio(seconds, { jitterBufferDelay: delay }), seconds * 1000);
+    };
+    expect(flooded(4).measuredMs).toBeCloseTo(3000, 0);
+    expect(flooded(6).resync).toBe(false);
+    const stuck = flooded(8);
+    expect(stuck.resync).toBe(true);
+    expect(stuck.targetMs).toBe(profile.startMs);
+  });
+
+  /**
+   * R118. Живой замер 25.10: при 3 % потерь правило «раздуто — переподписать» дважды за минуту
+   * роняло музыку, а раздувал буфер не канал — хост слушателя замирал, и вывод звука отдавал
+   * 10–35 тысяч отсчётов в секунду вместо 48. Новая подписка раздувалась так же. Поэтому музыка
+   * просит переподписку только за стойкое раздутие (`MEDIA_RESYNC_POLLS`), и никогда — пока
+   * вывод звука не успевает за часами (`STARVED_OUTPUT_RATIO`).
+   */
+  it('музыка: пачку, которую NetEq разобрал за два опроса, не переподписывает', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    // Замирание на 2,5 с: буфер 3 с, в следующую секунду NetEq быстро ускоряется, дальше ≈ 100 мс/с.
+    let delay = 0;
+    const seen = (seconds: number, bufferedMs: number, accelerated = 0) => {
+      delay += (bufferedMs / 1000) * 2 * RATE;
+      return buffer.observe(
+        audio(seconds, { jitterBufferDelay: delay, removedSamplesForAcceleration: accelerated }),
+        seconds * 1000,
+      );
+    };
+    expect(seen(2, 3000).resync).toBe(false);
+    expect(seen(4, 2300, 0.5 * RATE).resync).toBe(false);
+    expect(seen(6, 1900, 0.7 * RATE).resync).toBe(false);
+    expect(seen(8, 1700, 0.9 * RATE).resync).toBe(false);
+    expect(seen(10, 1500, 1.1 * RATE).resync).toBe(false);
+  });
+
+  it('музыка: буфер раздут три опроса подряд и не тает — переподписка, и снова, пока раздут', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    let delay = 0;
+    const tick = (seconds: number) => {
+      delay += 2.5 * 2 * RATE;
+      return buffer.observe(audio(seconds, { jitterBufferDelay: delay }), seconds * 1000);
+    };
+    expect(tick(2).resync).toBe(false);
+    expect(tick(4).resync).toBe(false);
+    expect(tick(6).resync).toBe(true);
+    expect(tick(8).resync).toBe(true);
+    // Рассосалось — счёт начинается заново.
+    delay += 0.6 * 2 * RATE;
+    expect(buffer.observe(audio(10, { jitterBufferDelay: delay }), 10000).resync).toBe(false);
+    delay += 2.5 * 2 * RATE;
+    expect(buffer.observe(audio(12, { jitterBufferDelay: delay }), 12000).resync).toBe(false);
+  });
+
+  it('музыка: пока NetEq ускоряется, раздутый буфер — его работа, а не повод; перестал — счёт пошёл', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    let delay = 0;
+    let removed = 0;
+    const tick = (seconds: number, accelerationPerSecond: number) => {
+      delay += 2.5 * 2 * RATE;
+      removed += accelerationPerSecond * 2;
+      return buffer.observe(
+        audio(seconds, { jitterBufferDelay: delay, removedSamplesForAcceleration: removed }),
+        seconds * 1000,
+      );
+    };
+    // Обычный темп NetEq ≈ 5 000 отсчётов в секунду (10 %), пачка — до 25 000.
+    for (const seconds of [2, 4, 6, 8, 10]) expect(tick(seconds, 5000).resync).toBe(false);
+    expect(tick(12, 25000).resync).toBe(false);
+    // Ускорение прекратилось, буфер всё ещё раздут: три опроса — и переподписка.
+    expect(tick(14, 0).resync).toBe(false);
+    expect(tick(16, 500).resync).toBe(false);
+    expect(tick(18, 0).resync).toBe(true);
+  });
+
+  it('вывод звука не успевает за часами — буфер раздут не сетью, переподписки нет ни музыке, ни разговору', () => {
+    for (const kind of ['media', 'conversation'] as const) {
+      const profile = profileFor(kind);
+      const buffer = new PlayoutBuffer(kind, profile, 0);
+      buffer.observe(audio(0), 0);
+      // Динамик получает половину секунды звука за секунду (замер 25.10: 8–35 тысяч из 48).
+      let emitted = 0;
+      let delay = 0;
+      const starvedPoll = (seconds: number) => {
+        emitted += 0.5 * 2 * RATE;
+        delay += 2.5 * 0.5 * 2 * RATE;
+        return buffer.observe(
+          audio(seconds, {
+            totalSamplesReceived: emitted,
+            jitterBufferEmittedCount: emitted,
+            jitterBufferDelay: delay,
+          }),
+          seconds * 1000,
+        );
+      };
+      for (const seconds of [2, 4, 6, 8, 10]) {
+        const decision = starvedPoll(seconds);
+        expect(decision.measuredMs, kind).toBeCloseTo(2500, 0);
+        expect(decision.starved, kind).toBe(true);
+        expect(decision.resync, kind).toBe(false);
+      }
+    }
+  });
+
+  it('замедление NetEq ради набора запаса (≈ 13 %) за голод вывода не считается', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    buffer.observe(audio(0), 0);
+    const slowed = buffer.observe(
+      audio(2, {
+        totalSamplesReceived: Math.round(0.87 * 2 * RATE),
+        jitterBufferEmittedCount: Math.round(0.87 * 2 * RATE),
+        insertedSamplesForDeceleration: Math.round(0.13 * 2 * RATE),
+      }),
+      2000,
+    );
+    expect(slowed.starved).toBe(false);
+  });
+
+  it('без счётчика вывода (не Chrome) голод не выдумывается, а правило раздутия работает как прежде', () => {
+    const profile = profileFor('media');
+    const buffer = new PlayoutBuffer('media', profile, 0);
+    const poll = (seconds: number, delay: number) =>
+      buffer.observe(
+        { ...audio(seconds, { jitterBufferDelay: delay }), totalSamplesReceived: undefined },
+        seconds * 1000,
+      );
+    poll(0, 0);
+    expect(poll(2, 2.5 * 2 * RATE).starved).toBe(false);
+    expect(poll(4, 2.5 * 4 * RATE).resync).toBe(false);
+    expect(poll(6, 2.5 * 6 * RATE).resync).toBe(true);
   });
 
   /**
