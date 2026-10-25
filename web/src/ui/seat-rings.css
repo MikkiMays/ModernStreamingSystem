@@ -5,17 +5,26 @@
   голоса (`--speaking`, те же `--voice-1..4`, что у плиток сцены). Ход — жёлтое снаружи, с зазором
   `--turn-ring-gap`: говорящий, чей сейчас ход, светится и тем и другим, и одно не закрывает другое.
 */
+/* Толщина кольца голоса — той же шкалой, что у плитки и в панели (`--voice-ring-1..4`, R28): раньше у
+   покера было 2 на любой громкости, у дурака — 3. */
+:is(.poker-seat, .durak-seat) {
+  --seat-voice-ring: var(--voice-ring-3);
+}
 :is(.poker-seat, .durak-seat)[data-voice='1'] {
   --speaking: var(--voice-1);
+  --seat-voice-ring: var(--voice-ring-1);
 }
 :is(.poker-seat, .durak-seat)[data-voice='2'] {
   --speaking: var(--voice-2);
+  --seat-voice-ring: var(--voice-ring-2);
 }
 :is(.poker-seat, .durak-seat)[data-voice='3'] {
   --speaking: var(--voice-3);
+  --seat-voice-ring: var(--voice-ring-3);
 }
 :is(.poker-seat, .durak-seat)[data-voice='4'] {
   --speaking: var(--voice-4);
+  --seat-voice-ring: var(--voice-ring-4);
 }
 /* Кольцо хода: круг, который «сматывается» ровно за отведённое время. */
 .turn-ring {

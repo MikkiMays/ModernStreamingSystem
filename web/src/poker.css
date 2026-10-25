@@ -22,7 +22,7 @@
   /* Полоса и стол. Своя рука — не третья строка, а часть стола: она стоит сразу под сукном
      (`.poker-under`), и оба центрируются одной группой. */
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--space-2);
   height: 100%;
   min-height: 0;
 }
@@ -32,12 +32,12 @@
 .poker-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
   padding: 7px 12px;
   border-radius: var(--radius-4);
   background: color-mix(in oklab, var(--surface) 82%, transparent);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
 }
 .poker-mode {
   display: flex;
@@ -56,31 +56,31 @@
 .poker-level {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   padding: 3px 9px;
   border-radius: var(--radius-full);
   background: var(--surface-2);
 }
 .poker-host-actions {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-left: auto;
 }
 .poker .button.small {
-  padding: 6px 11px;
+  padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
-  min-height: 34px;
-  border-radius: var(--radius-3);
+  min-height: var(--control-sm);
+  border-radius: var(--control-radius);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .poker .button.secondary,
 .poker .button.ghost {
   background: var(--surface-2);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
 }
 .poker .button.ghost {
   background: transparent;
@@ -134,7 +134,7 @@
   /* Не уже строки хода: лоток в две строки отнимал у стола высоту, которой ему и так мало. */
   width: min(100%, max(880px, min(100cqw, calc(var(--poker-play) * 1.58))));
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   justify-items: stretch;
 }
 .poker-under:empty {
@@ -149,12 +149,12 @@
   flex: 0 1 auto;
   margin-inline: auto;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: 34px;
   padding: 4px 14px;
   border-radius: var(--radius-full);
-  border: 1px solid transparent;
-  border-inline-start-width: 1px;
+  border: var(--hairline) solid transparent;
+  border-inline-start-width: var(--hairline);
   font-size: var(--text-sm);
   background: transparent;
 }
@@ -188,7 +188,7 @@
   position: absolute;
   inset: 2.6cqw;
   border-radius: var(--oval);
-  border: 1px dashed color-mix(in oklab, var(--gold) 24%, transparent);
+  border: var(--hairline) dashed color-mix(in oklab, var(--gold) 24%, transparent);
 }
 /* Сукно: зелень, ворс, свет сверху и тёмный ободок у самой кромки. */
 .poker-cloth {
@@ -199,7 +199,7 @@
     radial-gradient(90% 120% at 50% 8%, var(--stage-glint-1), transparent 46%),
     radial-gradient(120% 130% at 50% 40%, var(--felt), var(--felt-deep) 72%), var(--felt-deep);
   box-shadow:
-    inset 0 0 0 2px var(--stage-veil-1),
+    inset 0 0 0 var(--hairline-strong) var(--stage-veil-1),
     inset 0 0 60px var(--stage-veil-2),
     inset 0 2px 1px var(--stage-glint-1);
   overflow: hidden;
@@ -259,7 +259,7 @@
   position: absolute;
   inset: 9.5cqw;
   border-radius: var(--oval);
-  border: 1px solid var(--stage-glint-1);
+  border: var(--hairline) solid var(--stage-glint-1);
   box-shadow: inset 0 0 40px var(--stage-veil-1);
   pointer-events: none;
   z-index: 1;
@@ -275,7 +275,7 @@
   border-radius: var(--radius-1);
   background: var(--card-back-pattern);
   box-shadow:
-    inset 0 0 0 1px var(--stage-glint-2),
+    inset 0 0 0 var(--hairline) var(--stage-glint-2),
     inset 0 0 0 3px var(--card-back-deep),
     3px -3px 0 -1px var(--card-back),
     3px -3px 0 0 var(--stage-glint-2),
@@ -298,7 +298,7 @@
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   text-align: center;
   z-index: 6;
   pointer-events: none;
@@ -314,21 +314,21 @@
 .poker-pot-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
 }
 .poker-pot {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-2);
   padding: 4px 15px 4px 11px;
   border-radius: var(--radius-full);
   font-weight: 700;
   font-size: clamp(12px, 1.7cqw, 16px);
   color: var(--gold-soft);
   background: var(--stage-veil-3);
-  border: 1px solid color-mix(in oklab, var(--gold) 55%, transparent);
+  border: var(--hairline) solid color-mix(in oklab, var(--gold) 55%, transparent);
   box-shadow:
     var(--shadow-lift),
     inset 0 1px 0 var(--stage-glint-1);
@@ -357,7 +357,7 @@
 }
 .poker-sidepots {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--text);
 }
@@ -375,13 +375,13 @@
 .poker-waiting {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
   padding: 8px 14px;
   border-radius: var(--radius-3);
   background: var(--stage-veil-3);
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   font-size: var(--text-sm);
 }
 .poker-waiting small {
@@ -473,7 +473,7 @@
   transform: translate(-50%, -50%);
   display: grid;
   justify-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
   width: max-content;
   z-index: 3;
   transition:
@@ -495,7 +495,7 @@
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
 }
 .poker-face {
   position: relative;
@@ -504,7 +504,7 @@
   border-radius: 50%;
   background: var(--surface-1);
   box-shadow:
-    0 0 0 2px var(--stage-glint-2),
+    0 0 0 var(--hairline-strong) var(--stage-glint-2),
     var(--shadow-lift);
   display: grid;
   place-items: center;
@@ -536,7 +536,7 @@
 }
 .poker-seat[data-active] .poker-face {
   box-shadow:
-    0 0 0 2px var(--gold),
+    0 0 0 var(--hairline-strong) var(--gold),
     0 0 26px color-mix(in oklab, var(--gold) 55%, transparent),
     var(--shadow-lift);
 }
@@ -547,7 +547,7 @@
 */
 .poker-seat[data-speaking] .poker-face {
   box-shadow:
-    0 0 0 2px var(--speaking),
+    0 0 0 var(--seat-voice-ring, var(--voice-ring-3)) var(--speaking),
     0 0 18px color-mix(in oklab, var(--speaking) 60%, transparent),
     var(--shadow-lift);
 }
@@ -558,7 +558,7 @@
   0%,
   100% {
     box-shadow:
-      0 0 0 2px var(--gold),
+      0 0 0 var(--hairline-strong) var(--gold),
       0 0 10px color-mix(in oklab, var(--gold) 33%, transparent);
   }
   50% {
@@ -592,7 +592,7 @@
   padding: 2px 9px;
   border-radius: var(--radius-full);
   background: var(--stage-veil-3);
-  border: 1px solid var(--stage-glint-1);
+  border: var(--hairline) solid var(--stage-glint-1);
   line-height: 1.25;
   max-width: calc(var(--seat-face) * 1.7);
 }
@@ -613,7 +613,7 @@
 .poker-name > b {
   display: flex;
   align-items: flex-end;
-  gap: 5px;
+  gap: var(--space-1);
   font-size: clamp(10px, 1.5cqw, 13px);
   line-height: 1.1;
   color: var(--gold-soft);
@@ -650,19 +650,19 @@
   bottom: -2px;
   color: var(--card-black);
   background: linear-gradient(180deg, var(--card-face), var(--card-face-shade));
-  border: 1px solid var(--card-face);
+  border: var(--hairline) solid var(--card-face);
 }
 .poker-puck.is-blind {
   left: -8px;
   bottom: -2px;
   color: var(--text);
   background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   font-size: var(--text-xs);
 }
 .poker-hand {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 /*
   У нижних мест карты лежат НАД лицом, а не под ним.
@@ -679,11 +679,11 @@
   position: absolute;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   padding: 2px 9px 2px 5px;
   border-radius: var(--radius-full);
   background: var(--stage-veil-3);
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   font-size: clamp(9px, 1.3cqw, 12px);
   font-weight: 700;
   white-space: nowrap;
@@ -722,7 +722,7 @@
   font-weight: 600;
   white-space: nowrap;
   background: linear-gradient(180deg, var(--surface-3), var(--surface-1));
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   animation: poker-pop 0.22s ease-out;
 }
 .poker-bubble.is-quiet {
@@ -746,7 +746,7 @@
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   background: var(--stage-veil-3);
-  border: 1px solid color-mix(in oklab, var(--gold) 45%, transparent);
+  border: var(--hairline) solid color-mix(in oklab, var(--gold) 45%, transparent);
   color: var(--gold-soft);
   white-space: nowrap;
   animation: poker-combo-in 0.4s ease-out both;
@@ -790,7 +790,7 @@
   font-weight: var(--weight-semibold);
   color: var(--danger);
   background: var(--danger-soft);
-  border: 1px solid color-mix(in oklab, var(--danger) 40%, transparent);
+  border: var(--hairline) solid color-mix(in oklab, var(--danger) 40%, transparent);
   animation: poker-combo-in 0.5s ease-out both;
 }
 .poker-seat.is-empty .poker-sit {
@@ -799,11 +799,11 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  gap: 1px;
+  gap: var(--space-0-5);
   font-size: clamp(9px, 1.3cqw, 12px);
   color: var(--text);
   background: var(--stage-veil-1);
-  border: 2px dashed var(--stage-glint-3);
+  border: var(--hairline-strong) dashed var(--stage-glint-3);
   cursor: pointer;
   transition:
     background 0.18s,
@@ -831,7 +831,7 @@
   color: var(--card-black);
   box-shadow:
     var(--shadow-card),
-    inset 0 0 0 1px var(--card-face);
+    inset 0 0 0 var(--hairline) var(--card-face);
   display: grid;
   place-items: center;
   font-weight: 800;
@@ -886,7 +886,7 @@
   background: var(--card-back-pattern);
   box-shadow:
     var(--shadow-card),
-    inset 0 0 0 1px var(--stage-glint-2),
+    inset 0 0 0 var(--hairline) var(--stage-glint-2),
     inset 0 0 0 4px var(--card-back-deep);
 }
 /*
@@ -917,7 +917,7 @@
   inset: -2px;
   border-radius: inherit;
   box-shadow:
-    0 0 0 2px var(--gold),
+    0 0 0 var(--hairline-strong) var(--gold),
     0 0 22px color-mix(in oklab, var(--gold) 45%, transparent);
   animation: poker-glow 0.6s ease-out both;
   pointer-events: none;
@@ -1011,7 +1011,7 @@
   position: absolute;
   inset: 2px 3px;
   border-radius: 50%;
-  border: 1px dashed var(--stage-glint-4);
+  border: var(--hairline) dashed var(--stage-glint-4);
 }
 @keyframes poker-fly {
   from {
@@ -1219,25 +1219,25 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px 18px;
+  gap: var(--space-2) var(--space-4);
   padding: 8px 14px;
   border-radius: var(--radius-4);
   background: color-mix(in oklab, var(--surface) 88%, transparent);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
 }
 .poker-controls[data-turn] {
   border-color: color-mix(in oklab, var(--gold) 55%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--gold) 28%, transparent);
+  box-shadow: 0 0 0 var(--hairline) color-mix(in oklab, var(--gold) 28%, transparent);
 }
 .poker-mine {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   --board-w: clamp(34px, 6vh, 54px);
 }
 .poker-mine-cards {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .poker-mine-hint {
   font-size: var(--text-xs);
@@ -1249,7 +1249,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  column-gap: 9px;
+  column-gap: var(--space-2);
   line-height: 1.2;
 }
 .poker-mine-stack .chip-columns {
@@ -1270,18 +1270,18 @@
 }
 .poker-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: center;
   flex-wrap: wrap;
 }
 .poker-action {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 46px;
   padding: 0 18px;
   border-radius: var(--radius-3);
-  border: 1px solid var(--stage-glint-2);
+  border: var(--hairline) solid var(--stage-glint-2);
   font-size: var(--text-base);
   font-weight: 700;
   color: var(--text);
@@ -1311,7 +1311,7 @@
   font: inherit;
   font-size: var(--text-xs);
   opacity: 0.55;
-  border: 1px solid currentColor;
+  border: var(--hairline) solid currentColor;
   border-radius: var(--radius-1);
   padding: 0 4px;
 }
@@ -1336,11 +1336,11 @@
 }
 .poker-sizer {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .poker-steps {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -1348,7 +1348,7 @@
   display: grid;
   padding: 5px 12px;
   border-radius: var(--radius-3);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
@@ -1363,12 +1363,12 @@
 }
 .poker-step[data-active] {
   border-color: var(--gold);
-  box-shadow: 0 0 0 1px var(--gold);
+  box-shadow: 0 0 0 var(--hairline) var(--gold);
 }
 .poker-sizer-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 .poker-sizer-row .slider {
   flex: 1;
@@ -1377,13 +1377,13 @@
 .poker .button.primary {
   background: linear-gradient(180deg, var(--gold), var(--gold-deep));
   color: var(--on-gold);
-  border: 1px solid var(--gold);
+  border: var(--hairline) solid var(--gold);
   font-weight: 700;
 }
 .poker-idle {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -1414,11 +1414,11 @@
   width: min(220px, 30%);
   max-height: 44%;
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 9px 10px;
   border-radius: var(--radius-3);
   background: var(--stage-veil-3);
-  border: 1px solid var(--stage-glint-1);
+  border: var(--hairline) solid var(--stage-glint-1);
   backdrop-filter: blur(6px);
   pointer-events: none;
   z-index: 10;
@@ -1430,7 +1430,7 @@
 }
 .poker-log ol {
   display: grid;
-  gap: 3px;
+  gap: var(--space-0-5);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1440,7 +1440,7 @@
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   line-height: 1.35;
   color: var(--text-secondary);
@@ -1510,13 +1510,13 @@
   width: min(340px, 92%);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 12px 12px;
   border-radius: var(--radius-4);
   color: var(--text);
   background: var(--stage-veil-3);
   backdrop-filter: blur(10px) saturate(1.15);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   box-shadow: var(--shadow-3);
   animation: poker-sheet-in 0.26s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
@@ -1533,14 +1533,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
 }
 .poker-sheet-title {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 .poker-sheet-title b {
@@ -1556,7 +1556,7 @@
   width: 30px;
   height: 30px;
   border-radius: var(--radius-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
@@ -1567,7 +1567,7 @@
 .poker-sheet-body {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -1594,7 +1594,7 @@
 }
 .poker-rebuy {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
@@ -1603,7 +1603,7 @@
 .poker-rebuy-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 .poker-rebuy-head b {
@@ -1616,7 +1616,7 @@
 }
 .poker-rebuy-amount {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -1641,7 +1641,7 @@
   height: 52px;
   border-radius: var(--radius-3);
   background: var(--danger-soft);
-  border: 1px solid color-mix(in oklab, var(--danger) 50%, transparent);
+  border: var(--hairline) solid color-mix(in oklab, var(--danger) 50%, transparent);
   overflow: hidden;
   touch-action: none;
   user-select: none;
@@ -1694,11 +1694,11 @@
 */
 .poker-settings {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
 }
 .poker-settings[data-host='true'] {
   padding-top: 10px;
-  border-top: 1px solid var(--line);
+  border-top: var(--hairline) solid var(--line);
 }
 .poker-settings-head {
   margin: 0;
@@ -1715,14 +1715,14 @@
   padding: 9px 11px;
   border-radius: var(--radius-3);
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
 }
 .poker-toggle,
 .poker-settings-link {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px 12px;
+  gap: var(--space-0-5) var(--space-3);
   width: 100%;
   color: var(--text);
   text-align: left;
@@ -1752,11 +1752,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px 12px;
+  gap: var(--space-0-5) var(--space-3);
   padding: 9px 11px;
   border-radius: var(--radius-3);
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
 }
 .poker-settings-choice b {
   font-size: var(--text-sm);
@@ -1770,13 +1770,13 @@
 }
 .poker-settings-steps {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .poker-settings-steps button {
   min-width: 30px;
   padding: 4px 7px;
   border-radius: var(--radius-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--muted);
   font-size: var(--text-xs);
@@ -1796,39 +1796,36 @@
 .poker-settings-link small {
   grid-column: 2;
 }
-/* Ползунок. Дорожка и шайба — два элемента одного `i`, чтобы не заводить лишней вёрстки. */
+/* Ползунок. Дорожка и шайба — два элемента одного `i`, чтобы не заводить лишней вёрстки. Вид и размеры —
+   `kit/Switch` (R28, X4): 40×24, белый бегунок 18, включённый — акцентом набора; раньше был 40×23 с
+   бегунком 17 и рамкой, у дурака — 40×24 с бегунком 16, в настройках — третий вид. */
 .poker-toggle i {
   position: relative;
   display: block;
-  width: 40px;
-  height: 23px;
+  flex: none;
+  width: var(--switch-w);
+  height: var(--switch-h);
   border-radius: var(--radius-full);
-  background: var(--stage-bg);
-  border: 1px solid var(--line);
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease;
+  background: var(--line-strong);
+  transition: background-color var(--motion-base) var(--ease-standard);
 }
 .poker-toggle i::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 17px;
-  height: 17px;
+  top: calc((var(--switch-h) - var(--switch-thumb)) / 2);
+  left: calc((var(--switch-h) - var(--switch-thumb)) / 2);
+  width: var(--switch-thumb);
+  height: var(--switch-thumb);
   border-radius: 50%;
-  background: var(--muted);
-  transition:
-    transform 0.18s cubic-bezier(0.3, 1.3, 0.5, 1),
-    background 0.18s ease;
+  background: var(--on-accent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  transition: transform var(--motion-base) var(--ease-emphasized);
 }
 .poker-toggle[aria-checked='true'] i {
-  background: color-mix(in oklab, var(--gold) 32%, var(--stage-bg));
-  border-color: var(--gold);
+  background: var(--accent-fill);
 }
 .poker-toggle[aria-checked='true'] i::after {
-  transform: translateX(17px);
-  background: var(--gold);
+  transform: translateX(calc(var(--switch-w) - var(--switch-h)));
 }
 
 /* --- Итоги игры -------------------------------------------------------------------------- */
@@ -1843,12 +1840,12 @@
 */
 .poker-result {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
 }
 .poker-result-crown {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   color: var(--warning);
 }
@@ -1869,14 +1866,14 @@
 .poker-result-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-3);
   font-size: var(--text-xs);
   color: var(--muted);
 }
 .poker-result-facts li {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 .poker-result-ending {
   margin: 0;
@@ -1886,11 +1883,11 @@
 .poker-result-highlights {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-  gap: 6px;
+  gap: var(--space-1);
 }
 .poker-result-highlights li {
   display: grid;
-  gap: 1px;
+  gap: var(--space-0-5);
 }
 .poker-result-highlights b {
   font-size: var(--text-xs);
@@ -1917,13 +1914,13 @@
 }
 .poker-result-players {
   display: grid;
-  gap: 5px;
+  gap: var(--space-1);
 }
 .poker-result-players li {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px 8px;
+  gap: var(--space-0-5) var(--space-2);
   border-color: transparent;
 }
 .poker-result-players li[data-top] {
@@ -1944,7 +1941,7 @@
 .poker-result-players b {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1953,7 +1950,7 @@
 .poker-result-stack {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--text-sm);
   font-weight: 700;
   white-space: nowrap;
@@ -2055,7 +2052,7 @@
 }
 @media (max-width: 860px) {
   .poker-bar {
-    gap: 6px 8px;
+    gap: var(--space-1) var(--space-2);
     padding: 6px 9px;
   }
   .poker-host-actions {
@@ -2100,7 +2097,7 @@
 */
 @media (max-width: 560px) {
   .poker {
-    gap: 6px;
+    gap: var(--space-1);
   }
   /* Число мест и уровень на телефоне уходят: строка одна, и занимать её должно то, что
      нажимают каждую раздачу. Паузу и «убрать стол» туда же не рисует сам стол. */
@@ -2138,10 +2135,10 @@
   }
   .poker-controls {
     padding: 7px 8px;
-    gap: 7px;
+    gap: var(--space-2);
   }
   .poker-mine {
-    gap: 8px;
+    gap: var(--space-2);
   }
   .poker-mine-cards .playing-card {
     width: 34px;
@@ -2159,13 +2156,13 @@
     font-size: var(--text-base);
   }
   .poker-steps {
-    gap: 5px;
+    gap: var(--space-1);
   }
   .poker-step {
     padding: 4px 8px;
   }
   .poker-idle {
-    gap: 6px;
+    gap: var(--space-1);
   }
   /* Лист поверх сукна на телефоне — снизу вверх на всю ширину: справа для него нет места. */
   .poker-sheet {
@@ -2206,7 +2203,7 @@
 .poker-stage {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: var(--space-2);
   height: 100%;
   min-height: 0;
 }
@@ -2231,17 +2228,17 @@
 */
 .games-list {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .games-item {
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface);
   overflow: hidden;
 }
 .games-item[data-open] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-soft);
+  box-shadow: 0 0 0 var(--hairline) var(--accent-soft);
 }
 .games-item[data-live] {
   border-color: color-mix(in oklab, var(--speaking) 60%, transparent);
@@ -2250,7 +2247,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
   width: 100%;
   padding: 10px 12px;
   background: none;
@@ -2262,7 +2259,7 @@
 .games-head b {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .games-head small {
   grid-column: 2;
@@ -2293,11 +2290,12 @@
   cursor: default;
   opacity: 0.6;
 }
+/* Плашка значка игры — 40, как на витрине интеграций (DESIGN → «Плашка значка»). */
 .games-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: var(--control-lg);
+  height: var(--control-lg);
   border-radius: var(--radius-3);
   color: var(--on-accent);
   flex: 0 0 auto;
@@ -2326,7 +2324,7 @@
 }
 .games-body {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
   padding: 0 12px 12px;
   animation: games-open 0.2s ease-out;
 }
@@ -2338,22 +2336,22 @@
 }
 .games-modes {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
 }
 .games-mode {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0-5);
   text-align: left;
   padding: 8px 11px;
   border-radius: var(--radius-3);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
 }
 .games-mode[data-active] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 var(--hairline) var(--accent);
 }
 .games-mode b {
   font-size: var(--text-sm);
@@ -2365,14 +2363,14 @@
 }
 .games-stack {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   padding: 9px 11px;
   border-radius: var(--radius-3);
   background: var(--surface-2);
 }
 .games-stack-head {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--text-sm);
 }
 /* Подпись и поле — одной строкой во всю ширину, блайнды под ними: в панели триста
@@ -2381,7 +2379,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 /*
   Сумму стека можно вписать руками.
@@ -2396,7 +2394,7 @@ input.games-stack-input {
   min-height: 0;
   padding: 2px 8px;
   border-radius: var(--radius-2);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-base);
@@ -2421,13 +2419,13 @@ input.games-stack-input:focus-visible {
 */
 .games-history {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 4px;
 }
 .games-history h4 {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--text-sm);
   color: var(--muted);
@@ -2435,13 +2433,13 @@ input.games-stack-input:focus-visible {
 .games-quick {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .games-quick button {
   font-size: var(--text-xs);
   padding: 3px 9px;
   border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
@@ -2452,7 +2450,7 @@ input.games-stack-input:focus-visible {
 }
 .games-facts {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2462,13 +2460,13 @@ input.games-stack-input:focus-visible {
 .games-facts li {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
 }
 /* --- Шпаргалка по комбинациям ------------------------------------------------------------ */
 
 .hand-ranks {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2477,7 +2475,7 @@ input.games-stack-input:focus-visible {
 .hand-ranks li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 10px;
+  gap: var(--space-0-5) var(--space-2);
   align-items: center;
   padding: 7px 10px;
   border-radius: var(--radius-3);
@@ -2486,7 +2484,7 @@ input.games-stack-input:focus-visible {
 .hand-ranks b {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--text-sm);
 }
 .hand-ranks b i {
@@ -2508,7 +2506,7 @@ input.games-stack-input:focus-visible {
 .hand-ranks-cards {
   grid-row: span 2;
   display: flex;
-  gap: 3px;
+  gap: var(--space-0-5);
 }
 .hand-ranks-cards em {
   font-style: normal;

@@ -167,13 +167,13 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
               >
                 <span className="games-icon" style={{ background: game.accent }}>
                   {game.id === 'chess' || game.id === 'gartic' ? (
-                    <game.icon size={26} aria-hidden="true" />
+                    <game.icon size={24} aria-hidden="true" />
                   ) : (
                     <img
                       src={`/games/${game.id === 'poker' ? 'poker-hand' : 'card-joker'}.svg`}
                       alt=""
-                      width="28"
-                      height="28"
+                      width="24"
+                      height="24"
                       draggable={false}
                     />
                   )}
@@ -191,7 +191,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   строки: подпись под названием сдвигала её вверх, и выглядело это как съехавшая
                   вёрстка. Поворот — классом, чтобы он был с переходом, а не прыжком.
                 */}
-                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                <ChevronDown className="games-chevron" size={16} data-open={expanded || undefined} />
               </button>
               {expanded && (game.id === 'chess' || game.id === 'gartic') && (
                 <div className="games-body">
@@ -265,7 +265,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                             })
                           }
                         >
-                          <game.icon size={17} />{' '}
+                          <game.icon size={20} />{' '}
                           {game.id === 'chess' ? t(($) => $.games.openChess) : t(($) => $.games.openGartic)}
                         </button>
                       ) : (
@@ -293,23 +293,23 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                   <div className="games-body">
                     <ul className="games-facts">
                       <li>
-                        <Users size={14} />{' '}
+                        <Users size={16} />{' '}
                         {t(($) => $.games.table.seatedOf, {
                           count: table.seats.filter((seat) => seat.memberId).length,
                           total: 10,
                         })}
                       </li>
                       <li>
-                        <Coins size={14} />{' '}
+                        <Coins size={16} />{' '}
                         {t(($) => $.games.table.startingStack, { chips: chips(t, table.startingStack) })}
                       </li>
                       <li>
-                        <Timer size={14} />{' '}
+                        <Timer size={16} />{' '}
                         {t(($) => $.games.table.turnSeconds, { count: table.turnSeconds })}
                       </li>
                       {table.levelUpAt > 0 && (
                         <li>
-                          <TrendingUp size={14} /> {t(($) => $.games.table.level, { level: table.level })}
+                          <TrendingUp size={16} /> {t(($) => $.games.table.level, { level: table.level })}
                         </li>
                       )}
                     </ul>
@@ -317,11 +317,11 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                       <>
                         {table.phase === 'lobby' && (
                           <button className="button primary full" onClick={() => send('poker.deal')}>
-                            <Play size={17} /> {t(($) => $.games.table.deal)}
+                            <Play size={20} /> {t(($) => $.games.table.deal)}
                           </button>
                         )}
                         <button className="button ghost full" onClick={() => send('poker.close')}>
-                          <X size={17} /> {t(($) => $.games.table.remove)}
+                          <X size={20} /> {t(($) => $.games.table.remove)}
                         </button>
                       </>
                     ) : (
@@ -347,7 +347,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                     <RebuyChoice limit={limit} stack={stack} onChange={setRebuys} />
                     {may('poker.open') ? (
                       <button className="button primary full" onClick={() => void bring()}>
-                        <Spade size={17} /> {t(($) => $.games.table.open)}
+                        <Spade size={20} /> {t(($) => $.games.table.open)}
                       </button>
                     ) : (
                       <p className="form-footnote">{t(($) => $.games.restricted)}</p>
@@ -359,7 +359,7 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
         })}
       </div>
       <button className="button game-history-button" onClick={() => setHistory(true)}>
-        <History size={17} /> {t(($) => $.games.history.open)}
+        <History size={20} /> {t(($) => $.games.history.open)}
       </button>
       <Modal open={history} onOpenChange={setHistory} title={t(($) => $.games.history.title)} wide>
         {history && (
@@ -414,27 +414,27 @@ function DurakBody({
       <div className="games-body">
         <ul className="games-facts">
           <li>
-            <Users size={14} /> {t(($) => $.games.table.seatedOf, { count: seated, total: 6 })}
+            <Users size={16} /> {t(($) => $.games.table.seatedOf, { count: seated, total: 6 })}
           </li>
           <li>
-            <Layers size={14} /> {t(($) => $.games.table.deck, { count: table.deckSize })}
+            <Layers size={16} /> {t(($) => $.games.table.deck, { count: table.deckSize })}
           </li>
           <li>
-            <Shuffle size={14} /> {table.modeName}
+            <Shuffle size={16} /> {table.modeName}
           </li>
           <li>
-            <Timer size={14} /> {t(($) => $.games.table.turnSeconds, { count: table.turnSeconds })}
+            <Timer size={16} /> {t(($) => $.games.table.turnSeconds, { count: table.turnSeconds })}
           </li>
         </ul>
         {host ? (
           <>
             {table.phase !== 'bout' && (
               <button className="button primary full" onClick={() => onSend('durak.deal')}>
-                <Play size={17} /> {t(($) => $.games.table.deal)}
+                <Play size={20} /> {t(($) => $.games.table.deal)}
               </button>
             )}
             <button className="button ghost full" onClick={() => onSend('durak.close')}>
-              <X size={17} /> {t(($) => $.games.table.remove)}
+              <X size={20} /> {t(($) => $.games.table.remove)}
             </button>
           </>
         ) : (
@@ -481,7 +481,7 @@ function DurakBody({
           className="button primary full"
           onClick={() => onSend('durak.open', { option: transfer ? 'perevodnoy' : 'podkidnoy', chips: deck })}
         >
-          <Club size={17} /> {t(($) => $.games.table.open)}
+          <Club size={20} /> {t(($) => $.games.table.open)}
         </button>
       ) : (
         <p className="form-footnote">{t(($) => $.games.restricted)}</p>
@@ -656,7 +656,7 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
   return (
     <section className="games-history">
       <h4>
-        <Club size={15} /> {t(($) => $.games.durakHistory.title)} ·{' '}
+        <Club size={16} /> {t(($) => $.games.durakHistory.title)} ·{' '}
         {t(($) => $.games.durakHistory.games, { count: list.length })}
       </h4>
       {score.length > 1 && (
@@ -680,10 +680,10 @@ function DurakHistory({ meeting }: { meeting: Meeting }) {
                 onClick={() => setOpen(expanded ? null : game.id)}
               >
                 <span className="games-icon" style={{ background: '#2b3442' }}>
-                  <Club size={18} />
+                  <Club size={24} />
                 </span>
                 <b>{t(($) => $.games.durakHistory.game, { number: game.number })}</b>
-                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                <ChevronDown className="games-chevron" size={16} data-open={expanded || undefined} />
                 {/* Ничьей нет (R111); без дурака — только запись прежнего ядра, и о нём просто молчим. */}
                 <small>
                   {game.foolName ? `${t(($) => $.games.durakHistory.fool, { name: game.foolName })} · ` : ''}
@@ -780,7 +780,7 @@ function GameHistory({ meeting }: { meeting: Meeting }) {
   return (
     <section className="games-history">
       <h4>
-        <History size={15} /> {t(($) => $.games.pokerHistory.title)}
+        <History size={16} /> {t(($) => $.games.pokerHistory.title)}
       </h4>
       <div className="games-list">
         {list.map((game) => {
@@ -794,10 +794,10 @@ function GameHistory({ meeting }: { meeting: Meeting }) {
                 onClick={() => setOpen(expanded ? null : game.id)}
               >
                 <span className="games-icon" style={{ background: '#2b3442' }}>
-                  <Spade size={18} />
+                  <Spade size={24} />
                 </span>
                 <b>{gameTitle(t, game)}</b>
-                <ChevronDown className="games-chevron" size={18} data-open={expanded || undefined} />
+                <ChevronDown className="games-chevron" size={16} data-open={expanded || undefined} />
                 <small>
                   {game.modeName} · {t(($) => $.games.pokerHistory.hands, { count: game.hands })}
                   {winner ? ` · ${t(($) => $.games.pokerHistory.leader, { name: winner.name })}` : ''}

@@ -41,20 +41,20 @@ export function GameResult({ game }: { game: PokerGame }) {
     <div className="poker-result">
       <ul className="poker-result-facts">
         <li>
-          <Layers size={13} /> {t(($) => $.poker.result.hands, { count: game.hands })}
+          <Layers size={12} /> {t(($) => $.poker.result.hands, { count: game.hands })}
         </li>
         <li>
-          <Coins size={13} /> {t(($) => $.poker.result.biggestPot, { amount: chips(t, game.biggestPot) })}
+          <Coins size={12} /> {t(($) => $.poker.result.biggestPot, { amount: chips(t, game.biggestPot) })}
         </li>
         <li>
-          <TrendingUp size={13} />{' '}
+          <TrendingUp size={12} />{' '}
           {t(($) => $.poker.result.blinds, {
             small: chips(t, game.smallBlind),
             big: chips(t, game.bigBlind),
           })}
         </li>
         <li>
-          <Timer size={13} /> {span(t, game.startedAt, game.finishedAt)}
+          <Timer size={12} /> {span(t, game.startedAt, game.finishedAt)}
         </li>
       </ul>
       <p className="poker-result-ending">
@@ -80,7 +80,7 @@ export function GameResult({ game }: { game: PokerGame }) {
             </i>
             <b>
               {player.name}
-              {player.place === 1 && <Crown size={13} />}
+              {player.place === 1 && <Crown size={16} />}
             </b>
             <span className="poker-result-stack">
               {chips(t, player.stack)}
@@ -123,7 +123,7 @@ export function GameCrown({ game }: { game: PokerGame }) {
   const winner = winnerOf(game);
   return (
     <span className="poker-result-crown">
-      <Trophy size={18} />
+      <Trophy size={20} />
       <b>{winner ? winner.name : t(($) => $.poker.gameOver)}</b>
       <small>{winner ? t(($) => $.poker.result.finalStack, { amount: chips(t, winner.stack) }) : ''}</small>
     </span>

@@ -312,7 +312,7 @@ export default function PokerTable({ meeting, table }: { meeting: Meeting; table
             {/* Пауза посреди раздачи: часы стоят, ходить нельзя — и это должно быть видно. */}
             {table.paused && playing(table) && (
               <div className="poker-waiting is-paused" role="status">
-                <Pause size={18} /> <b>{t(($) => $.poker.paused)}</b>
+                <Pause size={16} /> <b>{t(($) => $.poker.paused)}</b>
                 <small>{t(($) => $.poker.pause.clocks)}</small>
               </div>
             )}
@@ -514,7 +514,7 @@ function TableBar({
       </span>
       {table.levelUpAt > 0 && table.phase !== 'over' && (
         <span className="poker-level" title={t(($) => $.poker.bar.levelTitle)}>
-          <TrendingUp size={14} /> {t(($) => $.poker.bar.level, { level: table.level })}{' '}
+          <TrendingUp size={12} /> {t(($) => $.poker.bar.level, { level: table.level })}{' '}
           <Countdown meeting={meeting} until={table.levelUpAt} />
         </span>
       )}
@@ -538,11 +538,11 @@ function TableBar({
       >
         {/* На телефоне от кнопки остаётся один значок: подпись в два слова забирала там
             половину строки, а имя для клавиатуры и озвучки остаётся в `aria-label`. */}
-        <Settings2 size={15} /> <span className="poker-view-label">{t(($) => $.poker.settings.title)}</span>
+        <Settings2 size={16} /> <span className="poker-view-label">{t(($) => $.poker.settings.title)}</span>
       </button>
       {table.summary && (
         <button className="button secondary small" onClick={() => onSheet('results')}>
-          <Trophy size={15} /> {t(($) => $.poker.bar.results)}
+          <Trophy size={16} /> {t(($) => $.poker.bar.results)}
         </button>
       )}
       {children}
@@ -555,7 +555,7 @@ function TableBar({
           */}
           {table.awaiting && (
             <button className="button primary small" onClick={() => onSend('poker.next')}>
-              <Check size={15} /> {t(($) => $.poker.bar.next)}
+              <Check size={16} /> {t(($) => $.poker.bar.next)}
             </button>
           )}
           {(table.phase === 'lobby' || showdown) && (
@@ -567,7 +567,7 @@ function TableBar({
               aria-describedby={ready < 2 && table.phase === 'lobby' ? STATUS_ID : undefined}
               onClick={() => onSend('poker.deal')}
             >
-              <Play size={15} /> {t(($) => $.poker.bar.deal)}
+              <Play size={16} /> {t(($) => $.poker.bar.deal)}
             </button>
           )}
           {/*
@@ -580,7 +580,7 @@ function TableBar({
               className="button secondary small"
               onClick={() => onSend('poker.settings', { option: table.paused ? 'resume' : 'pause' })}
             >
-              {table.paused ? <Play size={15} /> : <Pause size={15} />}
+              {table.paused ? <Play size={16} /> : <Pause size={16} />}
               {table.paused ? t(($) => $.poker.bar.resume) : t(($) => $.poker.bar.pause)}
             </button>
           )}
@@ -812,10 +812,10 @@ function GameOver({
   const winner = table.seats.find((seat) => seat.place === 1);
   return (
     <div className="poker-waiting is-over" role="status">
-      <Crown size={22} />
+      <Crown size={24} />
       <b>{winner ? t(($) => $.poker.waiting.winner, { name: winner.name }) : t(($) => $.poker.gameOver)}</b>
       <button className="button secondary small" onClick={onResults}>
-        <Trophy size={15} /> {t(($) => $.poker.results.title)}
+        <Trophy size={16} /> {t(($) => $.poker.results.title)}
       </button>
       {dealer && (
         <button
@@ -1287,7 +1287,7 @@ function Controls({
                 onClick={() => setRaising(false)}
                 aria-label={t(($) => $.poker.controls.cancelRaise)}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
           </div>
@@ -1343,11 +1343,11 @@ function Controls({
               */}
               {table.phase === 'showdown' && seat.cards.length > 0 && !seat.revealed && (
                 <button className="button secondary small" onClick={() => onSend('poker.reveal')}>
-                  <Eye size={15} /> {t(($) => $.poker.controls.reveal)}
+                  <Eye size={16} /> {t(($) => $.poker.controls.reveal)}
                 </button>
               )}
               <button className="button ghost small" onClick={() => onSend('poker.stand')}>
-                <LogOut size={15} /> {t(($) => $.poker.controls.stand)}
+                <LogOut size={16} /> {t(($) => $.poker.controls.stand)}
               </button>
             </>
           )}
@@ -1424,7 +1424,7 @@ function Rebuy({
         onConfirm={() => onSend('poker.rebuy', { chips: amount })}
       />
       <button className="text-button poker-rebuy-out" onClick={() => onSend('poker.stand')}>
-        <LogOut size={14} /> {t(($) => $.poker.controls.stand)}
+        <LogOut size={16} /> {t(($) => $.poker.controls.stand)}
       </button>
       {error && (
         <p className="form-error" role="alert">
@@ -1496,7 +1496,7 @@ export function Slide({ label, onConfirm }: { label: string; onConfirm: () => vo
           if (event.key === 'Enter' || event.key === ' ') finish();
         }}
       >
-        <ChevronRight size={18} />
+        <ChevronRight size={20} />
       </button>
     </div>
   );

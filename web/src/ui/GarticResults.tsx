@@ -71,7 +71,7 @@ function ResultRow({
           aria-controls={detailsId}
           onClick={() => setExpanded(!expanded)}
         >
-          <ChevronDown size={18} />
+          <ChevronDown size={20} />
         </button>
       </div>
       <div id={detailsId} className="gartic-result-detail" hidden={!expanded}>
@@ -112,7 +112,7 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
     <section className="gartic-finish" aria-label={t(($) => $.gartic.results.section)}>
       <header className="gartic-finish-heading">
         <span className="gartic-finish-emblem" aria-hidden="true">
-          <Trophy size={28} strokeWidth={1.6} data-own-stroke />
+          <Trophy size={32} strokeWidth={1.6} data-own-stroke />
         </span>
         <div>
           <h3>
@@ -144,7 +144,7 @@ export function ClassicResults({ table, meeting }: { table: Table; meeting: Meet
           {podium.map(({ player, rank }) => (
             <div key={player.memberId} className="gartic-podium-place" data-first={rank === 1 || undefined}>
               <span className="gartic-podium-rank">
-                {rank === 1 && <Trophy size={15} />}
+                {rank === 1 && <Trophy size={16} />}
                 {t(($) => $.gartic.results.place, { rank })}
               </span>
               <Avatar
@@ -270,7 +270,7 @@ export function AlbumReveal({
     <section className="gartic-reveal" aria-label={t(($) => $.gartic.reveal.section)}>
       <aside className="gartic-albums" aria-label={t(($) => $.gartic.reveal.albums)}>
         <div className="gartic-albums-heading">
-          <BookOpen size={21} />
+          <BookOpen size={20} />
           <h3>{t(($) => $.gartic.reveal.title)}</h3>
           <span>{table.albums.length}</span>
         </div>
@@ -440,7 +440,7 @@ export function AlbumReveal({
               disabled={previousDisabled}
               onClick={previous}
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={20} />
               <span>{t(($) => $.gartic.reveal.back)}</span>
             </button>
             <button
@@ -451,7 +451,7 @@ export function AlbumReveal({
               onClick={next}
             >
               <span>{nextLabel}</span>
-              {lastStep && !nextAlbum ? <RotateCcw size={18} /> : <ArrowRight size={18} />}
+              {lastStep && !nextAlbum ? <RotateCcw size={20} /> : <ArrowRight size={20} />}
             </button>
           </nav>
         )}
