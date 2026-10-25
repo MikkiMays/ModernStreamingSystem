@@ -113,3 +113,16 @@ it('незнакомая площадка в каталоге — это не с
   act(() => quiet.cinema.set(null));
   expect(again.container.querySelector('.conversation-stage')).not.toBeNull();
 });
+
+/*
+  R120: фильм на сцене помечен — по этой метке на телефоне лист открытой панели опускается под плеер
+  (`cinema/cinema.css`). Один каталог без фильма — не фильм: его человек открывает сам, и панель тогда
+  уступает сцену целиком (`useYieldToCinema`).
+*/
+it('сцена кинозала помечает фильм `data-film`, а каталог без фильма — нет', () => {
+  const film = stage(meeting(watching('youtube')));
+  expect(film.container.querySelector('.watch-together-stage')).toHaveAttribute('data-film', 'true');
+  cleanup();
+  const browsing = stage(meeting(null, 'youtube'));
+  expect(browsing.container.querySelector('.watch-together-stage')).not.toHaveAttribute('data-film');
+});

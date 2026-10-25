@@ -16,7 +16,8 @@ import {
   Когда человек сам открыл каталог или сам включил фильм, панель уступает сцену — любая, и чат
   тоже: под листом кино не найти («Совместный просмотр недоступен», 19.09). Недописанное
   сообщение при этом не пропадает — его хранит встреча, а не панель. А от того, что сделал
-  кто-то другой, не закрывается ничего. Правило по частям проверяет
+  кто-то другой, не закрывается ничего — но и под листом чужой фильм не остаётся: лист опускается
+  под плеер (R120, `ui/cinema/cinema.css`). Правило по частям проверяет
   `ui/cinema/useYieldToCinema.test.ts`; здесь — что это правда в собранной встрече.
 */
 
@@ -47,6 +48,19 @@ async function watch(browse: Locator, query: string, title: string) {
 async function integrations(page: Page) {
   await page.getByRole('button', { name: 'Интеграции', exact: true }).click();
   await expect(page.locator('.services-panel')).toBeVisible();
+}
+
+/** Высота элемента и сколько его площади под панелью встречи (0 — ничего, и когда панели нет). */
+function uncovered(page: Page, selector: string) {
+  return page.evaluate((selector) => {
+    const a = document.querySelector(selector)!.getBoundingClientRect();
+    const b = document.querySelector('.side-panel')?.getBoundingClientRect();
+    const shared = b
+      ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+        Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+      : 0;
+    return { height: a.height, shared };
+  }, selector);
 }
 
 /** Чат — кнопкой на пульте, а на телефоне, где её нет, — из меню «Настройки и действия». */
@@ -87,11 +101,20 @@ for (const width of [390, 760, 900]) {
       await expect(draft).toBeVisible();
       await expect(draft).toHaveValue(DRAFT);
 
-      // «Каталог» на пульте плеера — при открытом чате. На телефоне пульт виден над листом, и его
-      // нажимают пальцем; на 760 и 900 px он под листом и полосой — туда доходят с клавиатуры.
+      // «Каталог» на пульте плеера — при открытом чате. Под листом (до 767 px) плеер целиком над ним
+      // (R120), и пульт нажимают пальцем; на 900 px он под полосой — туда доходят с клавиатуры.
       const browse = host.getByRole('button', { name: 'Каталог', exact: true });
-      if (width < 700) await browse.click();
-      else {
+      if (width < 768) {
+        // Чужой фильм лист не закрыл, но и не накрыл: ни одна точка плеера не под листом.
+        const player = await uncovered(host, '.watch-theater');
+        expect(player.shared).toBe(0);
+        expect(player.height).toBeGreaterThan(200);
+        // Пульт засыпает через 2,5 с после появления плеера, а на стенде поток грузится дольше —
+        // пульт уходит с кадра в тот же миг, как фильм готов. Будят его касанием кадра — здесь
+        // движением мыши над ним; до R120 кадр был под листом, и разбудить пульт было нечем.
+        await host.locator('.watch-theater').hover();
+        await browse.click();
+      } else {
         await browse.focus();
         await host.keyboard.press('Enter');
       }
@@ -100,15 +123,7 @@ for (const width of [390, 760, 900]) {
       const catalog = host.locator('.cinema-browser');
       await expect(catalog.locator('.cinema-empty')).toBeVisible();
       await expect(host.locator('.side-panel')).toHaveCount(0);
-      const geometry = await host.evaluate(() => {
-        const a = document.querySelector('.cinema-browser')!.getBoundingClientRect();
-        const b = document.querySelector('.side-panel')?.getBoundingClientRect();
-        const shared = b
-          ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
-            Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
-          : 0;
-        return { height: a.height, shared };
-      });
+      const geometry = await uncovered(host, '.cinema-browser');
       expect(geometry.shared).toBe(0);
       expect(geometry.height).toBeGreaterThan(200);
 
