@@ -30,7 +30,7 @@ export function PlaylistPage({
       {playlist && (
         <header className="cinema-detail cinema-detail-list">
           <div className="cinema-detail-art">
-            {playlist.poster ? <img src={playlist.poster} alt="" /> : <ListVideo size={34} />}
+            {playlist.poster ? <img src={playlist.poster} alt="" /> : <ListVideo size={32} />}
           </div>
           <div className="cinema-detail-body">
             <h3>{playlist.title}</h3>

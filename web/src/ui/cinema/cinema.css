@@ -22,7 +22,7 @@
 .watch-together-stage {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: var(--space-2);
   height: 100%;
   min-height: 0;
 }
@@ -65,15 +65,16 @@
   justify-self: start;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .cinema-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-3);
+  gap: var(--space-2);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border: var(--hairline) solid var(--line);
+  /* Поле как у набора (R28): высота 40 вместе с рамкой, радиус 8. */
+  border-radius: var(--field-radius);
   background: var(--surface);
   color: var(--muted);
 }
@@ -81,10 +82,16 @@
 .cinema-search input {
   flex: 1;
   min-width: 0;
+  min-height: calc(var(--control-lg) - 2 * var(--hairline));
   border: 0;
   background: transparent;
-  padding: 11px 0;
+  padding: 0;
   color: var(--text);
+}
+.cinema-search .icon-button {
+  width: var(--control-sm);
+  min-width: var(--control-sm);
+  height: var(--control-sm);
 }
 .cinema-search input:focus {
   outline: none;
@@ -151,7 +158,7 @@
   z-index: 3;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   overflow: hidden;
   background: var(--bg);
@@ -160,34 +167,35 @@
 .cinema-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hairline) solid var(--line);
   background: var(--surface);
 }
 .cinema-mark {
   display: grid;
   place-items: center;
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
+  width: var(--control-lg);
+  min-width: var(--control-lg);
+  height: var(--control-lg);
   border-radius: var(--radius-3);
   color: var(--blue);
   background: var(--blue-soft);
 }
+/* Полоса каталога — одной высоты 40 (R28): знак, площадки (32 в подложке 4), поле поиска, «Закрыть». */
 .cinema-services {
   display: flex;
-  gap: 4px;
-  padding: 3px;
+  gap: var(--space-1);
+  padding: var(--space-1);
   border-radius: var(--radius-full);
   background: var(--surface-2);
 }
 .cinema-service {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 13px;
+  gap: var(--space-2);
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   background: transparent;
   color: var(--muted);
@@ -231,7 +239,7 @@
 .cinema-body {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -258,7 +266,7 @@
   }
   .cinema-body {
     padding: 10px;
-    gap: 10px;
+    gap: var(--space-2);
   }
 }
 .cinema-notice {
@@ -272,7 +280,7 @@
 .cinema-waiting {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--text-sm);
   color: var(--muted);
@@ -287,12 +295,12 @@
 .cinema-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px 12px;
+  gap: var(--space-3) var(--space-3);
 }
 .cinema-tile {
   position: relative;
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   align-content: start;
   padding: 6px;
   margin: -6px;
@@ -332,13 +340,13 @@
 */
 .cinema-start {
   position: absolute;
-  top: 7px;
-  right: 7px;
+  top: var(--space-2);
+  right: var(--space-2);
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: var(--control-md);
+  height: var(--control-md);
   border-radius: 50%;
   color: var(--on-accent);
   background: var(--accent-fill);
@@ -378,14 +386,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 9px;
+  gap: var(--space-1) var(--space-2);
   font-size: var(--text-xs);
   color: var(--muted);
 }
 .cinema-tile-meta span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
 }
 .cinema-author {
   z-index: 2;
@@ -406,14 +414,14 @@
 .cinema-chip {
   padding: 2px 7px;
   border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   font-size: var(--text-xs);
 }
 /* Пустой поиск — это вопрос, и на него нужна подсказка, а не надпись «наберите название». */
 .cinema-empty {
   display: grid;
   justify-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   padding: 36px 16px;
   text-align: center;
   color: var(--muted);
@@ -439,7 +447,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-3);
 }
 .cinema-failure .form-error {
   margin: 0;
@@ -448,14 +456,14 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 8px;
 }
 .cinema-chip-button {
-  height: 34px;
-  padding: 0 14px;
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-xs);
@@ -474,17 +482,17 @@
 .cinema-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding-bottom: 2px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-1);
+  padding-bottom: var(--space-0-5);
+  border-bottom: var(--hairline) solid var(--line);
 }
 .cinema-shelf-tab,
 .cinema-tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 14px;
+  gap: var(--space-2);
+  height: var(--control-md);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-2) var(--radius-2) 0 0;
   background: transparent;
   color: var(--muted);
@@ -514,11 +522,11 @@
   justify-self: center;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 20px;
+  gap: var(--space-2);
+  height: var(--control-lg);
+  padding: 0 var(--space-5);
   border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   background: var(--surface);
   color: var(--text);
   font-size: var(--text-sm);
@@ -591,7 +599,7 @@
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 3px;
+  gap: var(--space-0-5);
   width: 42%;
   padding: 0 6px;
   font-size: var(--text-xs);
@@ -602,7 +610,7 @@
 .cinema-category-head {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
 }
 .cinema-box-art {
   width: 86px;
@@ -622,7 +630,7 @@
 }
 .cinema-story {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
   max-width: 900px;
 }
 /* На вкладке «О канале» описание и есть содержимое страницы — резать его здесь незачем. */
@@ -641,7 +649,7 @@
 }
 .cinema-channel-head {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .cinema-banner {
   display: block;
@@ -652,7 +660,7 @@
 .cinema-channel-face {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: var(--space-3);
 }
 .cinema-avatar {
   width: 68px;
@@ -692,7 +700,7 @@
 .cinema-detail {
   display: grid;
   grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
-  gap: 18px;
+  gap: var(--space-4);
   align-items: start;
 }
 .cinema-detail-art {
@@ -712,7 +720,7 @@
 }
 .cinema-detail-body {
   display: grid;
-  gap: 11px;
+  gap: var(--space-3);
   min-width: 0;
 }
 .cinema-detail-body h3 {
@@ -724,7 +732,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px 12px;
+  gap: var(--space-1) var(--space-3);
   margin: 0;
   font-size: var(--text-xs);
   color: var(--muted);
@@ -732,12 +740,12 @@
 .cinema-detail-meta span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .cinema-detail-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
+  gap: var(--space-2);
 }
 @media (max-width: 860px) {
   .cinema-detail {
@@ -752,7 +760,7 @@
 @media (max-width: 700px) {
   .cinema-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px 10px;
+    gap: var(--space-3) var(--space-2);
   }
   .cinema-tile-title {
     font-size: var(--text-xs);
@@ -773,9 +781,9 @@
 .cinema-platform {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 40px;
-  padding: 0 14px;
+  gap: var(--space-2);
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   color: var(--on-accent);
   background: color-mix(in srgb, var(--accent, var(--accent-fill)) 80%, var(--stage-bg));
@@ -803,7 +811,7 @@
 }
 .cinema-chips {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 3px;
   margin: -3px;
   overflow-x: auto;
@@ -820,14 +828,14 @@
 /* Полка: заголовок слева, дверь на полку целиком справа, на одной строке. */
 .cinema-shelf-block {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .cinema-shelf-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .cinema-shelf-head .text-button {
   padding: 2px 0;
@@ -844,7 +852,7 @@
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 240px;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 6px;
   margin: -6px;
   overflow-x: auto;
@@ -940,25 +948,25 @@
 }
 .cinema-link-recent {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .cinema-link-recent .cinema-heading {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 /* Заголовок и «Очистить всё» — одной строкой: удалить можно и всё сразу (T17). */
 .cinema-link-recent-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .cinema-link-recent ul {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -967,12 +975,12 @@
 .cinema-link-recent li {
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .cinema-link-open,
 .cinema-link-forget {
-  border: 1px solid var(--line);
+  border: var(--hairline) solid var(--line);
   border-radius: var(--radius-3);
   background: var(--surface);
   color: var(--text);
@@ -985,7 +993,7 @@
   display: flex;
   flex: 1 1 auto;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   padding: 9px 12px;
   font-size: var(--text-sm);
@@ -1010,7 +1018,7 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 40px;
+  width: var(--control-lg);
   padding: 0;
   color: var(--muted);
 }
@@ -1023,7 +1031,7 @@
 /* Что известно о найденном: сайт, качество, звук, субтитры — строками «что — какое». */
 .cinema-link-facts {
   display: grid;
-  gap: 7px;
+  gap: var(--space-2);
   max-width: 900px;
   margin: 0;
   font-size: var(--text-sm);
@@ -1031,12 +1039,12 @@
 .cinema-link-facts div {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--space-2);
 }
 .cinema-link-facts dt {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   color: var(--muted);
 }
 .cinema-link-facts dd {
@@ -1047,5 +1055,5 @@
 .cinema-link-qualities {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--space-1);
 }

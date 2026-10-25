@@ -63,7 +63,7 @@ export function ItemPage({
   return (
     <div className="cinema-detail">
       <div className="cinema-detail-art">
-        {shown.poster ? <img src={shown.poster} alt="" /> : <Tv size={34} />}
+        {shown.poster ? <img src={shown.poster} alt="" /> : <Tv size={32} />}
         {shown.live && <span className="cinema-live">{t(($) => $.cinema.meta.live)}</span>}
       </div>
       <div className="cinema-detail-body">
@@ -87,16 +87,16 @@ export function ItemPage({
         </p>
         <div className="cinema-detail-actions">
           <button className="button primary" disabled={!canUse || !!busy} onClick={() => void onWatch(item)}>
-            <Play size={18} /> {t(($) => $.cinema.item.watch)}
+            <Play size={20} /> {t(($) => $.cinema.item.watch)}
           </button>
           {shown.channelId && (
             <button className="button secondary" onClick={() => onChannel(String(shown.channelId))}>
-              <Tv size={17} /> {t(($) => $.cinema.item.openChannel)}
+              <Tv size={20} /> {t(($) => $.cinema.item.openChannel)}
             </button>
           )}
           {shown.series && onSeries ? (
             <button className="button secondary" onClick={() => onSeries(String(shown.series))}>
-              <ListVideo size={17} /> {t(($) => $.cinema.item.allEpisodes)}
+              <ListVideo size={20} /> {t(($) => $.cinema.item.allEpisodes)}
             </button>
           ) : null}
         </div>

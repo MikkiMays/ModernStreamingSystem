@@ -98,7 +98,7 @@ export function Loading() {
   const { t } = useTranslation();
   return (
     <p className="cinema-waiting" role="status">
-      <LoaderCircle size={22} /> {t(($) => $.cinema.notes.asking)}
+      <LoaderCircle size={20} /> {t(($) => $.cinema.notes.asking)}
     </p>
   );
 }
@@ -138,7 +138,7 @@ export function Following({
   if (!checking) return null;
   return (
     <p className="cinema-waiting" role="status">
-      <LoaderCircle size={22} /> {t(($) => $.cinema.notes.opening)}
+      <LoaderCircle size={20} /> {t(($) => $.cinema.notes.opening)}
     </p>
   );
 }

@@ -223,7 +223,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
       onBack={stack.length > 1 ? back : undefined}
       tabs={
         <span className="cinema-platform" style={accent}>
-          <spec.icon size={15} />
+          <spec.icon size={16} />
           {providerName(t, provider)}
         </span>
       }
@@ -267,7 +267,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             <b>{t(($) => $.cinema.linkScene.title)}</b>
             <small>{t(($) => $.cinema.linkScene.intro, { providers: listed(t) })}</small>
             <button className="button secondary" onClick={() => void paste()}>
-              <ClipboardPaste size={17} /> {t(($) => $.cinema.linkScene.paste)}
+              <ClipboardPaste size={20} /> {t(($) => $.cinema.linkScene.paste)}
             </button>
             {clipboard ? <small role="alert">{clipboard}</small> : null}
           </div>
@@ -275,7 +275,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
             <section className="cinema-link-recent" aria-label={t(($) => $.cinema.linkScene.recent)}>
               <header className="cinema-link-recent-head">
                 <h4 className="cinema-heading">
-                  <History size={13} /> {t(($) => $.cinema.linkScene.recent)}
+                  <History size={12} /> {t(($) => $.cinema.linkScene.recent)}
                 </h4>
                 <button
                   className="text-button"
@@ -291,7 +291,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
                   return (
                     <li key={url}>
                       <button className="cinema-link-open" title={url} onClick={() => choose(url)}>
-                        <Link2 size={15} />
+                        <Link2 size={16} />
                         <b>{host}</b>
                         <span>{rest}</span>
                       </button>
@@ -301,7 +301,7 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
                         title={t(($) => $.cinema.linkScene.forget, { address: host })}
                         onClick={() => forget(url)}
                       >
-                        <X size={15} />
+                        <X size={16} />
                       </button>
                     </li>
                   );
@@ -317,14 +317,14 @@ export default function LinkScene({ provider, at, meeting, onClose }: SceneProps
           <b>{t(($) => $.cinema.linkScene.confirmTitle)}</b>
           <small>{t(($) => $.cinema.linkScene.confirmText)}</small>
           <button className="button primary" onClick={() => ask(query)}>
-            <Link2 size={17} /> {t(($) => $.cinema.linkScene.open)}
+            <Link2 size={20} /> {t(($) => $.cinema.linkScene.open)}
           </button>
         </div>
       ) : !linkOf(typed, true) ? (
         <Empty text={t(($) => $.cinema.linkScene.notLink)} />
       ) : !current ? null : link.checking === current ? (
         <p className="cinema-waiting" role="status">
-          <LoaderCircle size={22} /> {t(($) => $.cinema.linkScene.searching)}
+          <LoaderCircle size={20} /> {t(($) => $.cinema.linkScene.searching)}
         </p>
       ) : link.problem ? (
         <Failure problem={link.problem} onRetry={() => ask(current)} />
@@ -413,7 +413,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {item.site ? (
         <div>
           <dt>
-            <Globe size={14} /> {t(($) => $.cinema.linkScene.site)}
+            <Globe size={16} /> {t(($) => $.cinema.linkScene.site)}
           </dt>
           <dd>{item.site}</dd>
         </div>
@@ -421,7 +421,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {qualities.length ? (
         <div>
           <dt>
-            <MonitorPlay size={14} /> {t(($) => $.cinema.linkScene.quality)}
+            <MonitorPlay size={16} /> {t(($) => $.cinema.linkScene.quality)}
           </dt>
           <dd className="cinema-link-qualities">
             {qualities.map((quality) => (
@@ -435,7 +435,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {audio.length ? (
         <div>
           <dt>
-            <AudioLines size={14} /> {t(($) => $.cinema.linkScene.audio)}
+            <AudioLines size={16} /> {t(($) => $.cinema.linkScene.audio)}
           </dt>
           <dd>{audio.map((track) => trackName(t, track)).join(', ')}</dd>
         </div>
@@ -443,7 +443,7 @@ function Facts({ item }: { item: CinemaLinkItem }) {
       {captions.length ? (
         <div>
           <dt>
-            <Captions size={14} /> {t(($) => $.cinema.linkScene.captions)}
+            <Captions size={16} /> {t(($) => $.cinema.linkScene.captions)}
           </dt>
           <dd>
             {captions

@@ -49,7 +49,7 @@ export function SeriesPage({
     <>
       <header className="cinema-detail cinema-detail-tall">
         <div className="cinema-detail-art">
-          {picture ? <img src={picture} alt="" /> : <Clapperboard size={34} />}
+          {picture ? <img src={picture} alt="" /> : <Clapperboard size={32} />}
         </div>
         <div className="cinema-detail-body">
           <h3>{series?.title || title || t(($) => $.cinema.series.untitled)}</h3>

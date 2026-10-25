@@ -35,7 +35,7 @@ export function CategoryPage({
           <img className="cinema-box-art" src={category.poster} alt="" />
         ) : (
           <span className="cinema-box-art cinema-avatar-blank">
-            <Gamepad2 size={22} />
+            <Gamepad2 size={24} />
           </span>
         )}
         <div>

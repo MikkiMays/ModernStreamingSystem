@@ -29,7 +29,7 @@ export function More({ shown, busy, onMore }: { shown: boolean; busy: boolean; o
   if (!shown) return null;
   return (
     <button ref={setNode} className="cinema-more" disabled={busy} onClick={onMore}>
-      {busy ? <LoaderCircle size={17} /> : null}
+      {busy ? <LoaderCircle size={20} /> : null}
       {busy ? t(($) => $.cinema.more.loading) : t(($) => $.cinema.more.show)}
     </button>
   );

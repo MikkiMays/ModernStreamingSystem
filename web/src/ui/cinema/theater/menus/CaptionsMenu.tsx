@@ -41,7 +41,7 @@ export function CaptionsMenu({
             }
             className={caption ? 'watch-on' : ''}
           >
-            <Captions size={19} />
+            <Captions size={20} />
           </IconButton>
         }
       />
