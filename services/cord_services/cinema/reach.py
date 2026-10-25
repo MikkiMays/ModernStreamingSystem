@@ -92,11 +92,12 @@ RECHECK = (30.0, 60.0, 120.0, 240.0)
 RETRY_PROBE_GAP = 30.0
 # Как часто фоновая проверка смотрит, кого пора спросить.
 WATCH_TICK = 5.0
-# Backpressure (W1b шаг 6, docs/research §2.7 «Semaphore»): сколько вопросов к площадкам идёт разом
-# от одной комнаты и от сервера целиком. Больше — отказ сразу (`429 PLATFORM_BUSY`, `Retry-After`),
+# Backpressure (W1b шаг 6, docs/research §2.7 «Semaphore»): сколько тяжёлых вопросов к площадкам идёт
+# разом от одной комнаты и от сервера целиком. Больше — отказ сразу (`429 PLATFORM_BUSY`, `Retry-After`),
 # а не очередь без конца: пока yt-dlp и прокси площадок заняты, новый вопрос только удлинит ожидание
-# всем. Два на комнату — поиск и разбор ролика одновременно; восемь на сервер — потоки yt-dlp (6) с
-# запасом на быстрые вопросы каталога.
+# всем. Тяжёлые — те, у кого `call(..., room=…)`: разбор ролика (yt-dlp), поиск и скачивание музыки,
+# Яндекс; быстрые вопросы каталога (поиск, разделы, карточки — страница шлёт их по пять разом) идут
+# без полос. Два на комнату — поиск и разбор одновременно; восемь на сервер — потоки yt-dlp (6) с запасом.
 ROOM_LANES = 2
 SERVER_LANES = 8
 BUSY_RETRY_AFTER = 2
@@ -348,10 +349,11 @@ class Reach:
         при этом не останавливается (потоки не прерываются), но её место в пуле ограничено
         (`YtDlp.offload_for`). `deadline=None` — срок у работы свой (скачивание трека музыки сам
         обрывает себя по времени): автомат тогда только считает исход. `room` — чья полоса занята
-        (`Lanes`): без комнаты считается только общая.
+        (`Lanes`): вопрос с комнатой — тяжёлый, он идёт по полосам; без комнаты полосы не считаются.
         """
         state = await self.admit(source, words)
-        self.lanes.take(room)
+        if room is not None:
+            self.lanes.take(room)
         try:
             scope = asyncio.timeout(deadline)
             try:
@@ -371,7 +373,8 @@ class Reach:
                 self.record(state, FAIL if network(error) else NEUTRAL)
                 raise
         finally:
-            self.lanes.release(room)
+            if room is not None:
+                self.lanes.release(room)
         self.record(state, OK)
         return result
 

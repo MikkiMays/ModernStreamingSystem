@@ -344,11 +344,12 @@ class Cinema:
         room: str = "",
     ) -> Any:
         """
-        Вопрос к площадке — через её автомат, по полосе комнаты и под общим сроком (`reach.Reach.call`).
+        Вопрос к площадке — через её автомат и под общим сроком (`reach.Reach.call`).
 
         Площадка признана недоступной — отказ сразу, не трогая ни yt-dlp, ни пул; не уложилась в срок —
-        отказ словами; полосы заняты — `429 PLATFORM_BUSY`. «По ссылке» — мимо: её сайты чужие, и срок у
-        её разбора свой.
+        отказ словами. `room` — только у тяжёлого вопроса (разбор ролика через yt-dlp): он идёт по полосам
+        комнаты и сервера, заняты — `429 PLATFORM_BUSY`; вопросы каталога страница шлёт по пять разом, и
+        полос им не нужно. «По ссылке» — мимо: её сайты чужие, и срок у её разбора свой.
         """
         if not self.reach.tracked(source):
             return await work()
@@ -473,7 +474,7 @@ class Cinema:
         source = self._able(provider, "search")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.search(ctx, query.strip(), offset), room=ctx.room)
+        return await self._ask(source, lambda: source.search(ctx, query.strip(), offset))
 
     async def channel(
         self, provider: str, channel_id: str, tab: Tab = "videos", cursor: str = "", *, room: str = ""
@@ -493,7 +494,7 @@ class Cinema:
         # Регистр в ключе — как у площадки: `UCabc` и `UCABC` у YouTube два разных канала.
         return await self.catalog.scope(source.id).get(
             f"channel:{channel_id}:{tab}:{offset}",
-            lambda: self._ask(source, lambda: source.channel(ctx, channel_id, tab, offset), room=ctx.room),
+            lambda: self._ask(source, lambda: source.channel(ctx, channel_id, tab, offset)),
             # Память короткая нарочно: сверху у канала лежит самое свежее, и «самое свежее»
             # не должно означать «самое свежее полчаса назад».
             60,
@@ -510,7 +511,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"playlist:{playlist_id}:{offset}",
-            lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset), room=ctx.room),
+            lambda: self._ask(source, lambda: source.playlist(ctx, playlist_id, offset)),
             60,
         )
 
@@ -525,7 +526,7 @@ class Cinema:
             return {"items": [], "next": None}
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset), room=ctx.room)
+        return await self._ask(source, lambda: source.categories(ctx, query.strip(), offset))
 
     async def category(
         self, provider: str, category_id: str, cursor: str = "", *, room: str = ""
@@ -536,7 +537,7 @@ class Cinema:
             raise HTTPException(400, "Непонятный раздел")
         offset = offset_of(cursor)
         ctx = self._ctx(room, source)
-        return await self._ask(source, lambda: source.category(ctx, category_id, offset), room=ctx.room)
+        return await self._ask(source, lambda: source.category(ctx, category_id, offset))
 
     async def series(
         self, provider: str, series_id: str, season: str = "", cursor: str = "", *, room: str = ""
@@ -556,9 +557,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"series:{series_id}:{season}:{offset}",
-            lambda: self._ask(
-                source, lambda: source.series(ctx, series_id, season or None, offset), room=ctx.room
-            ),
+            lambda: self._ask(source, lambda: source.series(ctx, series_id, season or None, offset)),
             300,
         )
 
@@ -570,7 +569,7 @@ class Cinema:
         ctx = self._ctx(room, source)
         return await self.catalog.scope(source.id).get(
             f"details:{kind}:{content_id}",
-            lambda: self._ask(source, lambda: source.details(ctx, kind, content_id), room=ctx.room),
+            lambda: self._ask(source, lambda: source.details(ctx, kind, content_id)),
             600,
         )
 

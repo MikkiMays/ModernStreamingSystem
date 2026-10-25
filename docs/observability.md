@@ -203,7 +203,7 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | `cord_music_underrun_total`, `cord_music_starved_seconds_total` | counter | — | сторож издателя (служба, по событиям издателя): декодер голодал ≥ 10 кадров; секунды тишины вместо музыки |
 | `cord_music_decoder_restarts_total`, `cord_music_reconnects_total`, `cord_music_tracks_skipped_total` | counter | — | перезапуск ffmpeg после 5 с тишины; издатель поднят заново после обрыва SFU; трек пропущен — источник не отдал |
 | `cord_music_reachable{provider}`, `cord_music_reach_changes_total`, `cord_music_unreachable_refusals_total`, `cord_music_deadline_total` | как `cord_cinema_*` | `provider=soundcloud\|yandex` | площадки музыки без двойника в кинозале — тот же автомат (`sources.GATES`) |
-| `cord_platform_lanes_busy`, `cord_platform_busy_refusals_total` | gauge, counter | — | полосы к площадкам (2 на комнату, 8 на сервер): занято сейчас, отказов `429 PLATFORM_BUSY` |
+| `cord_platform_lanes_busy`, `cord_platform_busy_refusals_total` | gauge, counter | — | полосы тяжёлых вопросов к площадкам — разбор ролика, поиск и скачивание музыки, Яндекс (2 на комнату, 8 на сервер): занято сейчас, отказов `429 PLATFORM_BUSY` |
 | `cord_cinema_upstream_retries_total` | counter | — | повторы запроса за сегментом/плейлистом после сбоя сети или 5xx (3× через 200/400/800 мс) |
 | `cord_host_soft_lockups_total`, `cord_host_soft_lockups_day` | counter, gauge | — | textfile node_exporter из `infra/host/soft-lockups.sh` (cron владельца, R10) |
 

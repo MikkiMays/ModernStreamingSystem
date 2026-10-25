@@ -66,12 +66,12 @@ class LanesTests(unittest.IsolatedAsyncioTestCase):
         held += [self.hold(f"room-{i}", gate) for i in range(reach.SERVER_LANES - reach.ROOM_LANES)]
         await asyncio.sleep(0)
         self.assertEqual(self.reach.lanes.busy, reach.SERVER_LANES)
-        # Восемь на сервер заняты — отказ и свежей комнате, и вопросу без комнаты.
+        # Восемь на сервер заняты — отказ и свежей комнате; быстрый вопрос без комнаты (каталог) идёт мимо полос.
         await self.busy("room-fresh")
-        await self.busy(None)
+        self.assertEqual(await self.reach.call(self.source, AsyncMock(return_value="ok"), 5.0), "ok")
         lines = self.reach.lane_lines()
         self.assertIn(f"cord_platform_lanes_busy {reach.SERVER_LANES}", lines)
-        self.assertIn("cord_platform_busy_refusals_total 3", lines)
+        self.assertIn("cord_platform_busy_refusals_total 2", lines)
         # Отказ не трогает автомат площадки: он по-прежнему закрыт, то есть площадка доступна.
         self.assertEqual(self.reach.gauge(self.source).state, reach.CLOSED)
         gate.set()
