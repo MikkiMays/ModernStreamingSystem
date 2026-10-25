@@ -15,7 +15,7 @@ import httpx
 from fastapi import HTTPException
 
 from test_cinema_reach import Clock, spot
-from test_services import BOT, ROOM, Fixture, track
+from test_services import BOT, HOST, ROOM, Fixture, track
 
 from cord_services import sources as music_sources
 from cord_services.cinema import Cinema, facade, reach
@@ -231,6 +231,122 @@ class MusicWatchdogTests(Fixture):
         ):
             self.assertIn(line + "\n", text)
         self.assertNotIn(ROOM, text)
+
+
+class MusicStartRetryTests(Fixture):
+    """Первый старт издателя с повторами (R04): одна неудача входа в SFU не гасит музыку."""
+
+    async def test_a_failed_first_start_is_retried(self):
+        self.bot_present = True
+        one = track(self.store, "One")
+        await self.music.enqueue(ROOM, one)
+        state = self.store.get(ROOM)
+        state.update(
+            enabled=True,
+            paused=False,
+            position=0.0,
+            status="playing",
+            admission={"roomId": ROOM, "participantId": BOT, "credential": "bot.secret"},
+        )
+        self.store.save(state)
+        starts = []
+        commands = []
+
+        class FakePublisher:
+            connected = True
+
+            @classmethod
+            async def start(cls, url, token, name="Музыка"):
+                starts.append(token)
+                if len(starts) == 1:
+                    raise ConnectionError("Издатель музыки не запустился")
+                return cls()
+
+            async def play(self, path, position, epoch):
+                commands.append(("play", Path(path).name, epoch))
+
+            async def pause(self):
+                commands.append(("pause",))
+
+            async def event(self, timeout):
+                await asyncio.sleep(timeout)
+                return None
+
+            async def close(self):
+                commands.append(("close",))
+
+        async def core_request(method, path, data=None, credential=None, headers=None):
+            if path.endswith("/media/token"):
+                return {"token": "test"}
+            raise AssertionError(path)
+
+        self.core.request = AsyncMock(side_effect=core_request)
+        self.core.command = AsyncMock(return_value={})
+        player = Music(self.store, self.core, "http://rtc.test")
+        with (
+            patch("cord_services.music.Publisher", FakePublisher),
+            patch("cord_services.music.START_PAUSE", 0.0),
+            self.assertLogs("cord_services.music", "WARNING") as journal,
+        ):
+            task = asyncio.create_task(player.run(ROOM))
+            try:
+                for _ in range(300):
+                    if any(c[0] == "play" for c in commands):
+                        break
+                    await asyncio.sleep(0.01)
+                else:
+                    self.fail("после неудачного старта издатель не поднялся второй попыткой")
+                # Две попытки, музыка играет — не «потеряла соединение».
+                self.assertEqual(len(starts), 2)
+                self.assertEqual(self.store.get(ROOM)["status"], "playing")
+                self.assertIsNone(self.store.get(ROOM)["error"])
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        self.assertIn("попытка 1 из 3", journal.output[0])
+
+    async def test_three_failed_starts_are_an_error(self):
+        self.bot_present = True
+        one = track(self.store, "One")
+        await self.music.enqueue(ROOM, one)
+        state = self.store.get(ROOM)
+        state.update(
+            enabled=True,
+            admission={"roomId": ROOM, "participantId": BOT, "credential": "bot.secret"},
+        )
+        self.store.save(state)
+        starts = []
+
+        class FakePublisher:
+            @classmethod
+            async def start(cls, url, token, name="Музыка"):
+                starts.append(token)
+                raise ConnectionError("Издатель музыки не запустился")
+
+        async def core_request(method, path, data=None, credential=None, headers=None):
+            if path.endswith("/media/token"):
+                return {"token": "test"}
+            # Встреча жива, люди на месте: конец не ожидаемый — это поломка, о ней говорится вслух.
+            return {
+                "closedAt": None,
+                "participants": [
+                    {"id": HOST, "status": "CONNECTED", "service": None},
+                    {"id": BOT, "status": "CONNECTED", "service": "music"},
+                ],
+            }
+
+        self.core.request = AsyncMock(side_effect=core_request)
+        self.core.command = AsyncMock(return_value={})
+        player = Music(self.store, self.core, "http://rtc.test")
+        with (
+            patch("cord_services.music.Publisher", FakePublisher),
+            patch("cord_services.music.START_PAUSE", 0.0),
+            self.assertLogs("cord_services.music", "WARNING"),
+        ):
+            await player.run(ROOM)
+        self.assertEqual(len(starts), 3)
+        self.assertEqual(self.store.get(ROOM)["status"], "error")
+        self.assertIn("потерял соединение", self.store.get(ROOM)["error"])
 
 
 class MusicGatesTests(Fixture):
