@@ -62,7 +62,7 @@ export function Download() {
                 href={release.installer!.url}
                 download=""
               >
-                <DownloadIcon size={18} aria-hidden="true" /> {t(($) => $.download.installer)}
+                <DownloadIcon size={24} aria-hidden="true" /> {t(($) => $.download.installer)}
               </a>
               <p className="download-card__note">{t(($) => $.download.installNote)}</p>
               {release.portable && (
@@ -76,7 +76,7 @@ export function Download() {
         </section>
         <section className="shell-card download-section">
           <h2>
-            <ShieldAlert size={18} aria-hidden="true" /> {t(($) => $.download.warning.title)}
+            <ShieldAlert size={20} aria-hidden="true" /> {t(($) => $.download.warning.title)}
           </h2>
           <p>{t(($) => $.download.warning.text)}</p>
           <ol>

@@ -88,7 +88,7 @@ export function HomeEntry({
               {t(($) => $.home.entry.label)}
             </label>
             <div className="home-entry__field">
-              <Link2 size={18} aria-hidden="true" />
+              <Link2 size={20} aria-hidden="true" />
               <input
                 id={`${id}-invite`}
                 className="home-entry__input"

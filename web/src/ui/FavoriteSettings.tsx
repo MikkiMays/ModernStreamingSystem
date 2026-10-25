@@ -30,7 +30,7 @@ export function FavoriteSettings({
           label={t(($) => $.favorites.settings.open, { title: room.title })}
           onClick={() => setOpen(true)}
         >
-          <MoreHorizontal size={19} />
+          <MoreHorizontal size={20} />
         </IconButton>
       )}
       <Modal
@@ -69,7 +69,7 @@ export function FavoriteSettings({
             }
           }}
         >
-          <Trash2 size={17} />
+          <Trash2 size={20} />
           {t(($) => $.favorites.settings.remove)}
         </button>
         {error && (

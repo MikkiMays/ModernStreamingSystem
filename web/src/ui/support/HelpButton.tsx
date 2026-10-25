@@ -56,7 +56,7 @@ export function HelpButton({
       onClick={show}
       data-tour={tour}
     >
-      <Headset size={look === 'nav' ? 18 : 16} aria-hidden="true" />
+      <Headset size={look === 'nav' ? 20 : 16} aria-hidden="true" />
       {text ?? label}
     </button>
   );

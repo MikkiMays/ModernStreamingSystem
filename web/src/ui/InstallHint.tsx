@@ -69,8 +69,8 @@ export function InstallHint() {
             <Trans
               i18nKey={($) => $.download.install.ios}
               components={{
-                share: <Share size={13} aria-label={t(($) => $.download.install.share)} />,
-                plus: <SquarePlus size={13} aria-hidden="true" />,
+                share: <Share size={12} aria-label={t(($) => $.download.install.share)} />,
+                plus: <SquarePlus size={12} aria-hidden="true" />,
               }}
             />
           </small>
@@ -89,7 +89,7 @@ export function InstallHint() {
         </button>
       )}
       <button className="icon-button" aria-label={t(($) => $.download.install.hide)} onClick={close}>
-        <X size={17} />
+        <X size={20} />
       </button>
     </aside>
   );

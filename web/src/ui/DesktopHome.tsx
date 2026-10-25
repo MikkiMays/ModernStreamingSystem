@@ -23,7 +23,7 @@ export function DesktopHome({
         data-tour="settings"
         onClick={onSettings}
       >
-        <Settings2 size={18} />
+        <Settings2 size={20} />
       </IconButton>
       <HomeEntry className="desktop-connect" onCreate={onCreate} onJoin={onJoin} />
       {/* PING — строкой под входом, а не плашкой поверх (R20). */}

@@ -246,7 +246,7 @@ export function FavoritesNav({
             if (!groupsFull) setDrafting({});
           }}
         >
-          <Plus size={14} aria-hidden="true" />
+          <Plus size={12} aria-hidden="true" />
           <span>{t(($) => $.favorites.nav.newGroup)}</span>
         </button>
       </div>
@@ -254,7 +254,7 @@ export function FavoritesNav({
       {drafting && (
         <div className="home-group-draft">
           <span className="home-group__chevron" aria-hidden="true">
-            <ChevronRight size={14} />
+            <ChevronRight size={16} />
           </span>
           <InlineName
             initial=""
@@ -330,7 +330,7 @@ export function FavoritesNav({
       )}
       {!total && !shelf.favorites.isPending && !shelf.favorites.isError && (
         <div className="home-nav__empty">
-          <Star size={18} aria-hidden="true" />
+          <Star size={20} aria-hidden="true" />
           <strong>{t(($) => $.favorites.nav.emptyTitle)}</strong>
           <p>{t(($) => $.favorites.nav.emptyText)}</p>
         </div>
@@ -432,7 +432,7 @@ function GroupSection({
           {renaming ? (
             <>
               <span className="home-group__chevron" aria-hidden="true">
-                <ChevronRight size={14} />
+                <ChevronRight size={16} />
               </span>
               <InlineName
                 initial={group.title}
@@ -457,7 +457,7 @@ function GroupSection({
                 onClick={onToggle}
               >
                 <span className="home-group__chevron" aria-hidden="true">
-                  <ChevronRight size={14} />
+                  <ChevronRight size={16} />
                 </span>
                 <span className="home-group__title">{group.title}</span>
                 {/* Закреплённые из группы стоят выше, но группа считает и их (R86). */}
