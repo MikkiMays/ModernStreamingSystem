@@ -982,6 +982,42 @@ describe('пауза видео от SFU', () => {
     }
   });
 
+  it('SFU замолчал без слова «пауза»: кадров нет 4 с при живом звуке — та же надпись, новые кадры гасят (R119)', async () => {
+    vi.useFakeTimers();
+    const f = peerWithCamera();
+    const flowing = (on: boolean) => ((f.media as unknown as { audioFlowing: boolean }).audioFlowing = on);
+    // Опрос буфера здесь не идёт (в комнате нет звука): свидетель звука задаётся руками.
+    (f.media as unknown as { tunePlayout(): Promise<void> }).tunePlayout = async () => {};
+    try {
+      flowing(true);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(2000);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(2000);
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({});
+      await vi.advanceTimersByTimeAsync(700);
+      expect(f.media.videoPaused.get()).toEqual({ TR_cam: true });
+      expect(f.media.videoPauseCount.get()).toBe(1);
+      // Сторож зависаний на выведенной паузе молчит, как и на паузе от SFU.
+      await f.checkLive();
+      expect(f.health().has('TR_cam')).toBe(false);
+      expect(f.camera.setSubscribed).not.toHaveBeenCalled();
+      f.grow();
+      await f.checkLive();
+      expect(f.media.videoPaused.get()).toEqual({});
+      // Без звука тишина камеры — не пауза: молчит весь путь.
+      flowing(false);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(6000);
+      await f.checkLive();
+      await vi.advanceTimersByTimeAsync(700);
+      expect(f.media.videoPaused.get()).toEqual({});
+    } finally {
+      f.media.dispose();
+    }
+  });
+
   it('отписка от дорожки снимает её паузу', async () => {
     vi.useFakeTimers();
     const f = peerWithCamera();
