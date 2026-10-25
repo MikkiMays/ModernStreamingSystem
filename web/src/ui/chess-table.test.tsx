@@ -67,8 +67,13 @@ function room(table = state(), participantId = 'white-player') {
   } as unknown as Meeting;
   return { meeting, snapshot, connection, command };
 }
+/**
+ * Клетка по тому, что слышит читалка: «e2, белая пешка». Не `getByRole(…, { name })`: тот после каждой
+ * перерисовки заново считает имена всех 64 клеток через `getComputedStyle` jsdom — 250–450 мс на вызов
+ * против 5–15 у `aria-label`, и под нагрузкой тест упирался в свои 5 с. Роль держит `selector`.
+ */
 function square(id: string) {
-  return screen.getByRole('gridcell', { name: new RegExp(`^${id},`) });
+  return screen.getByLabelText(new RegExp(`^${id},`), { selector: '[role="gridcell"]' });
 }
 function update(session: ReturnType<typeof room>, chess: ChessState) {
   act(() => session.snapshot.set({ ...session.snapshot.get(), chess }));

@@ -219,6 +219,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -226,6 +227,16 @@ afterEach(() => {
 function paste(field: HTMLElement, text: string) {
   fireEvent.paste(field);
   fireEvent.change(field, { target: { value: text } });
+}
+
+/**
+ * Набрать запрос. Поиск уходит после паузы набора (420 мс таймером сцены), а `waitFor` ждёт ответа
+ * секунду: настоящая пауза съедала половину, и под нагрузкой тест падал по времени. Паузу проматывает
+ * поддельное время (тест включает его до `mount`); остальное оно ведёт само, как настоящее.
+ */
+function type(field: HTMLElement, text: string) {
+  fireEvent.change(field, { target: { value: text } });
+  act(() => vi.advanceTimersByTime(420));
 }
 
 /** Сцена, как её держит сцена встречи: страница — из `Meeting.cinemaAt`, чужая площадка — не здесь. */
@@ -303,8 +314,9 @@ it('идущий эфир включают прямо с плитки — ком
 });
 
 it('поиск — сообщества полкой над роликами; сообщество — «Видео» и «Плейлисты», плейлист — своей страницей', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   const { client } = mount();
-  fireEvent.change(screen.getByPlaceholderText('Видео и сообщества'), { target: { value: 'маша' } });
+  type(screen.getByPlaceholderText('Видео и сообщества'), 'маша');
   await waitFor(() => expect(asked).toContain('search маша'));
   const shelf = await screen.findByRole('region', { name: 'Сообщества' });
   expect(within(shelf).getByText('817.3 тыс. подписчиков')).toBeInTheDocument();

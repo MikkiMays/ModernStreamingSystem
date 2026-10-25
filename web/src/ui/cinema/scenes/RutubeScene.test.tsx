@@ -181,6 +181,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -188,6 +189,16 @@ afterEach(() => {
 function paste(field: HTMLElement, text: string) {
   fireEvent.paste(field);
   fireEvent.change(field, { target: { value: text } });
+}
+
+/**
+ * Набрать запрос. Поиск уходит после паузы набора (420 мс таймером сцены), а `waitFor` ждёт ответа
+ * секунду: настоящая пауза съедала половину, и под нагрузкой тест падал по времени. Паузу проматывает
+ * поддельное время (тест включает его до `mount`); остальное оно ведёт само, как настоящее.
+ */
+function type(field: HTMLElement, text: string) {
+  fireEvent.change(field, { target: { value: text } });
+  act(() => vi.advanceTimersByTime(420));
 }
 
 function mount() {
@@ -271,8 +282,9 @@ it('«Смотреть вместе» у эфира ТВ открывает ко
 });
 
 it('поиск — каналы и сериалы полками над роликами; канал автора открывается своей страницей', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   const { client } = mount();
-  fireEvent.change(screen.getByPlaceholderText('Видео, каналы и ТВ'), { target: { value: 'универ' } });
+  type(screen.getByPlaceholderText('Видео, каналы и ТВ'), 'универ');
   await waitFor(() => expect(asked).toContain('search универ'));
   expect(await screen.findByRole('button', { name: 'Открыть канал: Телеканал ТНТ' })).toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Сериалы и шоу' })).toBeInTheDocument();
@@ -307,8 +319,9 @@ it('ряд разделов — одна остановка Tab; стрелки 
 });
 
 it('карточка, приехавшая во второй порции снова, стоит в ленте один раз', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   const { client } = mount();
-  fireEvent.change(screen.getByPlaceholderText('Видео, каналы и ТВ'), { target: { value: 'сдвиг' } });
+  type(screen.getByPlaceholderText('Видео, каналы и ТВ'), 'сдвиг');
   await screen.findByText('Фильм раздела');
   fireEvent.click(screen.getByRole('button', { name: 'Показать ещё' }));
   await screen.findByText('Свежее видео');
