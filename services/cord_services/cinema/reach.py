@@ -92,6 +92,15 @@ RECHECK = (30.0, 60.0, 120.0, 240.0)
 RETRY_PROBE_GAP = 30.0
 # Как часто фоновая проверка смотрит, кого пора спросить.
 WATCH_TICK = 5.0
+# Backpressure (W1b шаг 6, docs/research §2.7 «Semaphore»): сколько тяжёлых вопросов к площадкам идёт
+# разом от одной комнаты и от сервера целиком. Больше — отказ сразу (`429 PLATFORM_BUSY`, `Retry-After`),
+# а не очередь без конца: пока yt-dlp и прокси площадок заняты, новый вопрос только удлинит ожидание
+# всем. Тяжёлые — те, у кого `call(..., room=…)`: разбор ролика (yt-dlp), поиск и скачивание музыки,
+# Яндекс; быстрые вопросы каталога (поиск, разделы, карточки — страница шлёт их по пять разом) идут
+# без полос. Два на комнату — поиск и разбор одновременно; восемь на сервер — потоки yt-dlp (6) с запасом.
+ROOM_LANES = 2
+SERVER_LANES = 8
+BUSY_RETRY_AFTER = 2
 
 # Ошибки сокета, которые значат «сети до площадки нет», а не «площадка ответила отказом».
 NET_ERRNOS = frozenset(
@@ -127,6 +136,48 @@ def late(provider: str, name: str) -> Refusal:
         name + " не ответил вовремя — попробуйте ещё раз",
         extra={"provider": provider},
     )
+
+
+def busy() -> Refusal:
+    """Отказ сразу: все полосы к площадкам заняты другими вопросами (`Lanes`)."""
+    return Refusal(
+        429,
+        "PLATFORM_BUSY",
+        "Площадки заняты другими запросами — повторите через пару секунд",
+        headers={"Retry-After": str(BUSY_RETRY_AFTER)},
+    )
+
+
+class Lanes:
+    """
+    Полосы к площадкам: не больше `ROOM_LANES` вопросов разом от комнаты и `SERVER_LANES` от сервера.
+
+    Это не очередь: кому полосы не хватило, отвечают сразу, и клиент повторит сам через `Retry-After`.
+    Комната — ключ счёта, а не метка метрики: в `/metrics` уходит только число отказов.
+    """
+
+    def __init__(self, per_room: int = ROOM_LANES, per_server: int = SERVER_LANES):
+        self.per_room, self.per_server = per_room, per_server
+        self.rooms: dict[str, int] = {}
+        self.busy = 0
+        self.refused = 0
+
+    def take(self, room: str | None) -> None:
+        if self.busy >= self.per_server or (room and self.rooms.get(room, 0) >= self.per_room):
+            self.refused += 1
+            raise busy()
+        self.busy += 1
+        if room:
+            self.rooms[room] = self.rooms.get(room, 0) + 1
+
+    def release(self, room: str | None) -> None:
+        self.busy -= 1
+        if room:
+            left = self.rooms.get(room, 0) - 1
+            if left > 0:
+                self.rooms[room] = left
+            else:
+                self.rooms.pop(room, None)
 
 
 @dataclass(frozen=True)
@@ -230,6 +281,7 @@ class Reach:
         self.clock = clock
         self._gauges: dict[str, Gauge] = {}
         self._probes: dict[str, asyncio.Future[bool | None]] = {}
+        self.lanes = Lanes()
 
     @staticmethod
     def tracked(source: Provider) -> bool:
@@ -288,33 +340,41 @@ class Reach:
         work: Callable[[], Awaitable[T]],
         deadline: float | None,
         words: Words = CINEMA,
+        room: str | None = None,
     ) -> T:
         """
-        Настоящий запрос к площадке: через автомат и под жёстким сроком.
+        Настоящий запрос к площадке: через автомат, по свободной полосе и под жёстким сроком.
 
         Вышел срок — отказ `late` словами (504), а не 500 и не вечное ожидание; работа в потоке yt-dlp
         при этом не останавливается (потоки не прерываются), но её место в пуле ограничено
         (`YtDlp.offload_for`). `deadline=None` — срок у работы свой (скачивание трека музыки сам
-        обрывает себя по времени): автомат тогда только считает исход.
+        обрывает себя по времени): автомат тогда только считает исход. `room` — чья полоса занята
+        (`Lanes`): вопрос с комнатой — тяжёлый, он идёт по полосам; без комнаты полосы не считаются.
         """
         state = await self.admit(source, words)
-        scope = asyncio.timeout(deadline)
+        if room is not None:
+            self.lanes.take(room)
         try:
-            async with scope:
-                result = await work()
-        except TimeoutError as error:
-            if not scope.expired():
+            scope = asyncio.timeout(deadline)
+            try:
+                async with scope:
+                    result = await work()
+            except TimeoutError as error:
+                if not scope.expired():
+                    self.record(state, FAIL if network(error) else NEUTRAL)
+                    raise
+                state.deadlines += 1
+                self.record(state, FAIL)
+                raise words.late(source.id, source.name) from None
+            except asyncio.CancelledError:
+                self.record(state, NEUTRAL)
+                raise
+            except Exception as error:
                 self.record(state, FAIL if network(error) else NEUTRAL)
                 raise
-            state.deadlines += 1
-            self.record(state, FAIL)
-            raise words.late(source.id, source.name) from None
-        except asyncio.CancelledError:
-            self.record(state, NEUTRAL)
-            raise
-        except Exception as error:
-            self.record(state, FAIL if network(error) else NEUTRAL)
-            raise
+        finally:
+            if room is not None:
+                self.lanes.release(room)
         self.record(state, OK)
         return result
 
@@ -502,24 +562,38 @@ class Reach:
 
     # --- метрики ---------------------------------------------------------------------------------
 
-    def metric_lines(self, sources: Iterable[Provider]) -> list[str]:
-        """Строки `/metrics`: в метках только площадка и состояние — ни встреч, ни людей, ни запросов."""
+    def metric_lines(self, sources: Iterable[Provider], prefix: str = "cord_cinema") -> list[str]:
+        """
+        Строки `/metrics`: в метках только площадка и состояние — ни встреч, ни людей, ни запросов.
+
+        `prefix` — чьи это площадки: `cord_cinema_*` у кинозала, `cord_music_*` у площадок музыки без
+        двойника в кинозале (`sources.py`); автомат у всех один.
+        """
         gauges = [self.gauge(source) for source in sources if self.tracked(source)]
-        name = "cord_cinema_reachable"
+        name = f"{prefix}_reachable"
         lines = _metric(name, "gauge", "Площадка отвечает с этого сервера (1) или нет (0).")
         lines += [f'{name}{{provider="{g.id}"}} {int(g.state == CLOSED)}' for g in gauges]
-        name = "cord_cinema_reach_changes_total"
+        name = f"{prefix}_reach_changes_total"
         lines += _metric(name, "counter", "Сколько раз площадка пропадала и снова отвечала.")
         for g in gauges:
             for state in (OPEN, CLOSED):
                 lines.append(f'{name}{{provider="{g.id}",state="{state}"}} {g.changes[state]}')
-        name = "cord_cinema_unreachable_refusals_total"
+        name = f"{prefix}_unreachable_refusals_total"
         lines += _metric(name, "counter", "Запросы, которым сразу ответили «площадка недоступна».")
         lines += [f'{name}{{provider="{g.id}"}} {g.refused}' for g in gauges]
-        name = "cord_cinema_deadline_total"
+        name = f"{prefix}_deadline_total"
         lines += _metric(name, "counter", "Запросы к площадке, не уложившиеся в срок.")
         lines += [f'{name}{{provider="{g.id}"}} {g.deadlines}' for g in gauges]
         return lines
+
+    def lane_lines(self) -> list[str]:
+        """Полосы к площадкам: сколько занято сейчас и скольким отказали «заняты»."""
+        return [
+            *_metric("cord_platform_lanes_busy", "gauge", "Вопросов к площадкам идёт сейчас (все комнаты)."),
+            f"cord_platform_lanes_busy {self.lanes.busy}",
+            *_metric("cord_platform_busy_refusals_total", "counter", "Отказы «площадки заняты» (429)."),
+            f"cord_platform_busy_refusals_total {self.lanes.refused}",
+        ]
 
 
 def _metric(name: str, kind: str, text: str) -> list[str]:

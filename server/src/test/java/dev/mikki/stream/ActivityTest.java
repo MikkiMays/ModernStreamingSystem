@@ -79,6 +79,7 @@ class ActivityTest {
   @Autowired MeterRegistry registry;
   @Autowired RateLimits limits;
   @Autowired ClientAddress address;
+  @Autowired dev.mikki.stream.room.Maintenance maintenance;
   @MockitoBean MediaGateway gateway;
   @MockitoBean TusGateway tus;
   @MockitoBean Clock clock;
@@ -332,7 +333,8 @@ class ActivityTest {
         address,
         secrets,
         config,
-        metrics);
+        metrics,
+        maintenance);
   }
 
   /**

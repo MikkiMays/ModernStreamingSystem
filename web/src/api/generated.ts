@@ -47,6 +47,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["maintenance"];
+        put?: never;
+        post: operations["maintenance_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/meetings": {
         parameters: {
             query?: never;
@@ -591,6 +607,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/{id}/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{id}/rejoin": {
         parameters: {
             query?: never;
@@ -791,6 +823,7 @@ export interface components {
             /** Format: int64 */
             fileMaxBytes: number;
             frameRates: number[];
+            maintenance?: boolean;
             /** Format: int32 */
             maxParticipants: number;
             /** Format: int32 */
@@ -1352,6 +1385,14 @@ export interface components {
         Login: {
             password?: string;
         };
+        MaintenanceRequest: {
+            on?: boolean;
+        };
+        MaintenanceState: {
+            on?: boolean;
+            /** Format: int64 */
+            since?: number;
+        };
         MediaToken: {
             /** Format: int64 */
             expiresAt: number;
@@ -1624,6 +1665,24 @@ export interface components {
             can: string[];
             /** Format: int64 */
             presenceBy?: null | number;
+        };
+        RxSummary: {
+            tracks: components["schemas"]["RxTrack"][];
+        };
+        RxTrack: {
+            /** Format: int64 */
+            concealed?: number;
+            /** Format: int32 */
+            delayMs?: number;
+            /** Format: int32 */
+            events?: number;
+            kind: string;
+            /** Format: int32 */
+            lost?: number;
+            /** Format: int32 */
+            targetMs?: number;
+            /** Format: int64 */
+            total?: number;
         };
         Save: {
             roomCredential: string;
@@ -1974,6 +2033,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    maintenance: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceState"];
+                };
+            };
+        };
+    };
+    maintenance_1: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cord-Admin"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MaintenanceState"];
+                };
             };
         };
     };
@@ -2870,6 +2977,32 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["MediaToken"];
                 };
+            };
+        };
+    };
+    report: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RxSummary"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

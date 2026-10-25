@@ -9,6 +9,35 @@
 
 from types import SimpleNamespace
 
+# Сторож издателя музыки (W1b шаг 3): имя метрики → поле `music.Counters`, тип, описание.
+MUSIC_COUNTERS = (
+    (
+        "cord_music_underrun_total",
+        "underruns",
+        "Сколько раз декодер музыки голодал: 10 кадров тишины подряд при живом треке.",
+    ),
+    (
+        "cord_music_starved_seconds_total",
+        "starved_seconds",
+        "Секунды тишины вместо музыки, которая должна была играть.",
+    ),
+    (
+        "cord_music_reconnects_total",
+        "reconnects",
+        "Сколько раз издатель музыки поднимался заново после обрыва связи с SFU.",
+    ),
+    (
+        "cord_music_decoder_restarts_total",
+        "decoder_restarts",
+        "Сколько раз декодер музыки перезапущен после 5 с тишины (сторож издателя).",
+    ),
+    (
+        "cord_music_tracks_skipped_total",
+        "skipped",
+        "Треки, которые источник не отдал: пропущены, комната играет следующий.",
+    ),
+)
+
 
 def render(state: SimpleNamespace) -> str:
     music = getattr(state, "music", None)
@@ -27,8 +56,16 @@ def render(state: SimpleNamespace) -> str:
         "# TYPE cord_telegram_connected gauge",
         f"cord_telegram_connected {telegram}",
     ]
+    counters = getattr(music, "counters", None)
+    for name, field, text in MUSIC_COUNTERS:
+        value = getattr(counters, field, 0) if counters is not None else 0
+        lines += [f"# HELP {name} {text}", f"# TYPE {name} counter", f"{name} {value}"]
     # Доступность площадок кинозала с этого сервера и занятые ими потоки yt-dlp (R112).
     cinema = getattr(state, "cinema", None)
     if cinema is not None:
         lines += cinema.metric_lines()
+    # Площадки музыки без двойника в кинозале (SoundCloud, Яндекс) — тем же автоматом, своим именем.
+    sources = getattr(state, "sources", None)
+    if sources is not None:
+        lines += sources.metric_lines()
     return "\n".join(lines) + "\n"

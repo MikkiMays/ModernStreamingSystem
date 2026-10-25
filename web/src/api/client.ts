@@ -14,6 +14,7 @@ import { noteError, type SupportReceipt, type SupportTicket } from '../core/supp
 import type { Challenge } from '../core/proof-solve';
 import { errorText, locale, t } from '../i18n';
 import type { CallReport } from '../media/call-quality';
+import type { RxSummary } from '../media/rx-quality';
 
 export class ApiError extends Error {
   constructor(
@@ -238,6 +239,8 @@ export class RoomApi {
    */
   clientReport = (report: CallReport) =>
     request<void>(`${this.base}/client-report`, { ...post(report), keepalive: true }, this.credential);
+  /** Сводка приёма раз в десять секунд (docs/observability.md §4) — только в метры ядра. */
+  quality = (summary: RxSummary) => request<void>(`${this.base}/quality`, post(summary), this.credential);
   /** Название и режим входа встречи, которая уже идёт. Только у ведущего. */
   settings = (settings: { title: string; approvalRequired: boolean }) =>
     request<Snapshot>(

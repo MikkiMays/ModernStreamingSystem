@@ -186,3 +186,57 @@ func TestStarvedDecoderIsAnnouncedOnce(t *testing.T) {
 		t.Fatalf("счётчик голодания должен сброситься: %d", music.starved)
 	}
 }
+
+// ЗАЧЕМ. Декодер, который встал (ffmpeg завис на источнике, машина отдала файл с ошибкой), раньше
+// оставлял трек «играть» тишиной до конца. Сторож издателя: пять секунд тишины подряд при живом
+// треке — `restart` с текущей позицией, трижды подряд без единого кадра — `failed`, и служба берёт
+// следующий трек. Первый кадр после перезапуска уходит с `recovered` и длительностью тишины.
+func TestStarvedDecoderIsRestartedThenGivenUp(t *testing.T) {
+	current := &source{frames: make(chan []byte, depth), ended: make(chan struct{}), ready: true, epoch: 5, path: "a.opus", origin: 10, sent: 50}
+	music := &player{current: current}
+	var announcements []event
+	for i := 0; i < restartAfter; i++ {
+		if _, announcement := music.next(); announcement != nil {
+			announcements = append(announcements, *announcement)
+		}
+	}
+	if len(announcements) != 2 || announcements[0].Event != "starved" || announcements[1].Event != "restart" {
+		t.Fatalf("за пять секунд тишины ожидались starved и restart: %v", announcements)
+	}
+	restart := announcements[1]
+	if restart.Epoch != 5 || restart.Value == nil || *restart.Value != 11 {
+		t.Fatalf("перезапуск должен нести эпоху и позицию 10 + 50 × 0,02 = 11 с: %+v", restart)
+	}
+	// Второй и третий перезапуск — ещё по пять секунд тишины; третий сдаётся.
+	current.restarts = 1
+	for i := 0; i < restartAfter-1; i++ {
+		music.next()
+	}
+	_, again := music.next()
+	if again == nil || again.Event != "restart" {
+		t.Fatalf("второй перезапуск: %v", again)
+	}
+	current.restarts = 2
+	for i := 0; i < restartAfter-1; i++ {
+		music.next()
+	}
+	_, failed := music.next()
+	if failed == nil || failed.Event != "failed" || failed.Epoch != 5 {
+		t.Fatalf("после трёх перезапусков трек признаётся сломанным: %v", failed)
+	}
+	if music.current != nil || music.starved != 0 {
+		t.Fatal("сломанный трек отпущен, счёт голодания сброшен")
+	}
+
+	// Кадр после долгой тишины — `recovered` с её длительностью в секундах.
+	fresh := &source{frames: make(chan []byte, depth), ended: make(chan struct{}), ready: true, epoch: 6, restarts: 1}
+	music = &player{current: fresh, starved: 100}
+	fresh.frames <- []byte{1}
+	_, recovered := music.next()
+	if recovered == nil || recovered.Event != "recovered" || recovered.Value == nil || *recovered.Value != 2 {
+		t.Fatalf("recovered должен нести 100 × 0,02 = 2 с: %v", recovered)
+	}
+	if fresh.restarts != 0 {
+		t.Fatal("настоящий кадр обнуляет счёт перезапусков")
+	}
+}

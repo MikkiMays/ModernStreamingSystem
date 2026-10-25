@@ -111,7 +111,6 @@ def create_app(
     # Адрес этой установки пишет `scripts/configure.mjs` в `.env`, compose передаёт его сюда; своего
     # адреса по умолчанию у службы нет — без PUBLIC_URL запросы с чужим Origin не пропускаются вовсе.
     public_url = os.environ.get("PUBLIC_URL", "").rstrip("/")
-    yandex = Yandex(store, music, core.secret)
     # Какие площадки кинозала включены на этой установке: имена через запятую, пусто — все.
     # Выход наружу — CINEMA_PROXY, CINEMA_PROXY_<ID>, CINEMA_COOKIES_<ID> и
     # CINEMA_PRIVATE_HOSTS — читается здесь же и один раз (`cinema/net.py`).
@@ -130,6 +129,8 @@ def create_app(
         # Сайты, ссылки с которых владелец закрыл после жалобы (A9): через запятую.
         deny_hosts=os.environ.get("CINEMA_LINK_HOSTS_DENY"),
     )
+    # Яндекс Музыка — тем же автоматом площадок, что кинозал и музыка (`cinema/reach.py`).
+    yandex = Yandex(store, music, core.secret, reach=cinema.reach)
     sources_on = music_sources(os.environ.get("MUSIC_SOURCES"))
     sources = Sources(
         cinema.ytdlp,
@@ -190,7 +191,7 @@ def create_app(
         background.append(asyncio.create_task(clean(), name="cleanup"))
         # Достаёт ли сервер до площадок кинозала (R112): первая проба — сразу, дальше фоном
         # (`cinema/reach.py`). Только у запущенной службы: тесты без `lifespan` в сеть не ходят.
-        background.append(asyncio.create_task(cinema.watch(), name="cinema-reach"))
+        background.append(asyncio.create_task(cinema.watch(sources.gates), name="cinema-reach"))
         yield
         for task in background:
             task.cancel()

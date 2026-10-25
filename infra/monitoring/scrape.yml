@@ -35,7 +35,12 @@ scrape_configs:
   - job_name: services
     static_configs: [{ targets: ['127.0.0.1:18100'] }]
 
-  # Машина: ЦП (и steal — главный признак замирания хоста), память, диск, сеть.
+  # Куратор: синтетический звонок через SFU раз в минуту (`cord-publisher --probe`, W1b).
+  - job_name: probe
+    static_configs: [{ targets: ['127.0.0.1:9402'] }]
+
+  # Машина: ЦП (и steal — главный признак замирания хоста), память, диск, сеть; textfile-метрики хоста
+  # (`cord_host_soft_lockups_total` из `infra/host/soft-lockups.sh`).
   - job_name: node
     static_configs: [{ targets: ['127.0.0.1:9100'] }]
 

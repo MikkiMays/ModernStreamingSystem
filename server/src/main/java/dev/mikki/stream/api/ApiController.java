@@ -44,7 +44,10 @@ public class ApiController {
       QualityRules quality,
       // Сколько встреч профиль устройства хранит в избранном (T06, П3): интерфейс пишет «N из
       // этого числа», не зашивая его. Сколько людей во встрече — `maxParticipants` выше, без ботов.
-      int favoritesMax) {}
+      int favoritesMax,
+      // Сервер обновляется (дренаж перед выкаткой, W1b): `admissionOpen` при этом тоже false, а
+      // главная говорит почему — «попробуйте через 2 минуты», не «недоступно на этом сервере».
+      boolean maintenance) {}
 
   public record QualityRules(
       @com.fasterxml.jackson.annotation.JsonProperty("default") Level initial,
@@ -72,6 +75,7 @@ public class ApiController {
   private final dev.mikki.stream.activity.Audit audit;
   private final dev.mikki.stream.access.UploadQuota uploads;
   private final dev.mikki.stream.activity.ClientQuality quality;
+  private final dev.mikki.stream.room.Maintenance maintenance;
 
   /** Итог звонка — один на вход во встречу: второй с того же входа — отказ «слишком часто». */
   private static final dev.mikki.stream.config.Rate ONE_REPORT =
@@ -92,7 +96,9 @@ public class ApiController {
       Entries entries,
       dev.mikki.stream.activity.Audit audit,
       dev.mikki.stream.access.UploadQuota uploads,
-      dev.mikki.stream.activity.ClientQuality quality) {
+      dev.mikki.stream.activity.ClientQuality quality,
+      dev.mikki.stream.room.Maintenance maintenance) {
+    this.maintenance = maintenance;
     this.rooms = rooms;
     this.media = media;
     this.commands = commands;
@@ -126,7 +132,8 @@ public class ApiController {
         config.roomMaxBytes(),
         Level.RESOLUTIONS.stream().filter(r -> r <= quality.ceiling().resolution()).toList(),
         Level.FRAME_RATES.stream().filter(f -> f <= quality.ceiling().fps()).toList(),
-        config.admissionOpen(),
+        // На время обслуживания (дренаж перед выкаткой) главная не предлагает создать встречу.
+        config.admissionOpen() && !maintenance.on(),
         "Europe",
         access.name(),
         access.required(),
@@ -135,7 +142,8 @@ public class ApiController {
             quality.ceiling(),
             quality.settle().toMillis(),
             quality.cameraYieldsToScreen()),
-        config.favorites().maxSaved());
+        config.favorites().maxSaved(),
+        maintenance.on());
   }
 
   /*

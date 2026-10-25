@@ -102,6 +102,9 @@ public class OpenApiConfig {
           .removeAll(List.of("chess", "gartic", "you", "startedAt", "endsAt", "cinemaTraffic"));
       // «Вы ещё здесь?» спрашивают не всегда (A2, E10-B).
       schemas.get("RoomYou").getRequired().remove("presenceBy");
+      // Обслуживание (W1b) — поле новое: веб новее ядра (пока выкатка идёт) не должен его
+      // требовать.
+      schemas.get("Capabilities").getRequired().remove("maintenance");
       schemas.get("TableView").getRequired().remove("visualEvents");
       schemas
           .get("DurakView")

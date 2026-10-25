@@ -64,6 +64,7 @@ export class PlayoutController {
   private monitor = new LinkMonitor();
   private linkState: LinkState = unknownLink;
   private lastReports: RTCStatsReport[] = [];
+  private lastSamples: { id: string; kind: PlayoutClass; sample: PlayoutSample; targetMs: number }[] = [];
 
   get link() {
     return this.linkState;
@@ -72,6 +73,11 @@ export class PlayoutController {
   /** Отчёты getStats последнего опроса — их же читает итог звонка (`call-quality.ts`). */
   get reports(): readonly RTCStatsReport[] {
     return this.lastReports;
+  }
+
+  /** Отчёты inbound-rtp последнего опроса по дорожкам с их запасом — для сводки приёма (`rx-quality.ts`). */
+  get samples(): readonly { id: string; kind: PlayoutClass; sample: PlayoutSample; targetMs: number }[] {
+    return this.lastSamples;
   }
 
   /** Соединение пересобрано: прежние счётчики и прежний путь больше ни о чём не говорят. */
@@ -118,6 +124,7 @@ export class PlayoutController {
     if (this.linkState.ordered !== previousOrdered) this.retune();
 
     const result: PlayoutReport[] = [];
+    this.lastSamples = [];
     // Звук считается первым: видео берёт запас у своего звука, а не наоборот. Наоборот было
     // бы хуже всего — голос ждал бы картинку, и разговор стал бы рацией из-за одного фриза.
     const ordered = [...collected].sort(
@@ -161,6 +168,7 @@ export class PlayoutController {
         if (applied) entry.appliedMs = targetMs;
       }
       result.push({ ...decision, targetMs, id: track.id, kind: track.kind, applied });
+      this.lastSamples.push({ id: track.id, kind: track.kind, sample, targetMs });
     }
     return result;
   }

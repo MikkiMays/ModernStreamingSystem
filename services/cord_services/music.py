@@ -6,6 +6,7 @@ import logging
 import random
 import uuid
 from collections import defaultdict
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 
@@ -73,6 +74,22 @@ def present(participants: list[dict], own_id: str, joining: dict[str, int], at: 
     return found
 
 
+@dataclass
+class Counters:
+    """
+    Сторож издателя в числах (`/metrics`, W1b шаг 3): сколько раз декодер голодал, сколько секунд
+    комната слышала тишину вместо музыки, сколько раз издатель переподключался к SFU и сколько раз
+    декодер перезапускался. Без меток: ни встречи, ни трека (П8). «Трек лагает» становится графиком.
+    """
+
+    underruns: int = 0
+    starved_seconds: float = 0.0
+    reconnects: int = 0
+    decoder_restarts: int = 0
+    # Треки, которые источник не отдал: пропущены, комната играет следующий.
+    skipped: int = 0
+
+
 class Music:
     def __init__(self, store: Store, core: Core, rtc_url: str):
         self.store = store
@@ -83,6 +100,7 @@ class Music:
         self.stopping = False
         # С какого момента бот видит каждого вошедшего без медиа (`present`), по комнатам.
         self.joining: dict[str, dict[str, int]] = defaultdict(dict)
+        self.counters = Counters()
 
     def start(self, room_id: str):
         if room_id not in self.tasks or self.tasks[room_id].done():
@@ -351,6 +369,9 @@ class Music:
             playing: tuple[str, int] | None = None
             reconnects = 0
             connected_at = now()
+            # С какого момента издатель молчит при живом треке (`starved`) — для счёта секунд, если
+            # сам издатель длительность не назвал.
+            starved_at: int | None = None
             while True:
                 state = self.store.get(room_id)
                 if not state["enabled"]:
@@ -432,6 +453,7 @@ class Music:
                         break
                     link.publisher = publisher
                     connected_at = now()
+                    self.counters.reconnects += 1
                     # Статус — по тому, что хотят сейчас: пауза остаётся паузой, а не
                     # «переподключаемся» навсегда.
                     state = self.store.get(room_id)
@@ -443,7 +465,26 @@ class Music:
                     self.store.save(state)
                     playing = None
                     continue
+                if kind == "restart":
+                    # Сторож издателя: декодер молчал пять секунд и перезапущен с той же позиции.
+                    # Причина — в журнале (stderr ffmpeg уходит туда же), число — в метрике.
+                    self.counters.decoder_restarts += 1
+                    logger.warning(
+                        "Music decoder restarted in room %s: %s", room_id, event.get("message")
+                    )
+                    continue
                 if kind in ("reconnecting", "starved", "recovered", "reconnected"):
+                    if kind == "starved":
+                        self.counters.underruns += 1
+                        starved_at = now()
+                    elif kind == "recovered":
+                        value = event.get("value")
+                        if isinstance(value, (int, float)):
+                            seconds = float(value)
+                        else:
+                            seconds = (now() - starved_at) / 1000 if starved_at else 0.0
+                        self.counters.starved_seconds += max(0.0, seconds)
+                        starved_at = None
                     # Состояние источника видно комнате: «играет» и тишина неотличимы на слух.
                     state = self.store.get(room_id)
                     if state["status"] in ("playing", "starved", "reconnecting"):
@@ -643,9 +684,15 @@ class Music:
                 # HTTP recovery must not interrupt an otherwise working audio stream.
 
     async def failed_track(self, room_id: str, track_id: str, message: str):
+        """
+        Источник трека не отдал звук: трек выпадает из очереди, комната играет следующий, причина —
+        в `error` состояния плеера (его показывает панель музыки). Сообщения в чат от бота нет: роль
+        службы в ядре команд не имеет (`Permissions.role` → `BOT`).
+        """
         async with self.locks[room_id]:
             state = self.store.get(room_id)
             if state["queue"] and state["queue"][0]["id"] == track_id:
+                self.counters.skipped += 1
                 failed = state["queue"].pop(0)
                 state.update(position=0.0, epoch=state["epoch"] + 1, error=message)
                 self.store.save(state)

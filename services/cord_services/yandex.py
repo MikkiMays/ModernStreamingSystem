@@ -32,6 +32,9 @@ from yandex_music.exceptions import DeviceAuthError, UnauthorizedError, YandexMu
 from . import covers
 from .accounts import Vault
 from .cinema.limits import Window
+from .cinema.reach import Reach
+from .sources import MUSIC as MUSIC_WORDS
+from .sources import YANDEX_GATE
 from .media import LONGEST, MAX_FILE, probe
 from .store import now
 from .webapp import Refusal
@@ -65,8 +68,11 @@ def sign_in_page(url: str) -> None:
 
 
 class Yandex:
-    def __init__(self, store, music, secret: str):
+    def __init__(self, store, music, secret: str, reach: Reach | None = None):
         self.store, self.music = store, music
+        # Автомат площадки (`cinema/reach.py`, общий с кинозалом и музыкой): три сбоя сети подряд —
+        # и Яндекс на время признан недоступным, вопросы к нему получают отказ сразу, а не через 15 с.
+        self.reach = reach
         # Сейф общий для всех сохранённых входов (`cord_services.accounts.Vault`); Яндекс —
         # первый его жилец, под своим именем провайдера в общей таблице `integrations`.
         self.vault = Vault(store.db, secret)
@@ -99,7 +105,15 @@ class Yandex:
             self.store.delete_claim(pending)
         return self.status(scope)
 
-    async def request(self, awaitable):
+    async def request(self, awaitable, room: str | None = None):
+        if self.reach is not None:
+            # `wait_for` внутри: срок у вопроса свой, автомат только считает исход и держит полосы.
+            return await self.reach.call(
+                YANDEX_GATE, lambda: self._request(awaitable), None, MUSIC_WORDS, room=room
+            )
+        return await self._request(awaitable)
+
+    async def _request(self, awaitable):
         try:
             return await asyncio.wait_for(awaitable, 15)
         except UnauthorizedError:

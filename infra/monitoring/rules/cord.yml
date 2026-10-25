@@ -111,6 +111,45 @@ groups:
         labels: { severity: warn }
         annotations: { summary: 'Redis не отвечает пределам частоты пять минут: счёт в памяти ядра, вход открыт' }
 
+      # Куратор (W1b, R10): синтетический звонок через SFU на самой машине раз в минуту. Сети между его
+      # участниками нет — потери и оборот здесь делает хост или SFU, и у людей будет не лучше. Три
+      # пробы подряд (окно 3 мин при пробе раз в минуту), чтобы одно замирание не кричало.
+      - alert: ProbeLoss
+        expr: |
+          min_over_time(cord_probe_loss_ratio{leg="down"}[3m]) > 0.02
+          or min_over_time(cord_probe_rtt_ms[3m]) > 150
+        labels: { severity: warn }
+        annotations: { summary: 'Куратор: потери или оборот через SFU выше порога три пробы подряд — хост или SFU не справляются' }
+
+      - alert: ProbeFailing
+        expr: |
+          increase(cord_probe_runs_total{result="ok"}[10m]) == 0
+          and increase(cord_probe_runs_total{result="error"}[10m]) > 0
+        labels: { severity: warn }
+        annotations: { summary: 'Куратор десять минут не может войти в SFU или не слышит себя' }
+
+      # Сторож издателя музыки: тишина вместо музыки при живом треке (декодер не успевает — хост,
+      # источник), в секундах. Полминуты за десять минут — это уже слышно всем в комнате.
+      - alert: MusicStarving
+        expr: sum(increase(cord_music_starved_seconds_total[10m])) > 30
+        labels: { severity: warn }
+        annotations: { summary: 'Музыка молчала больше 30 с за десять минут при живых треках' }
+
+      # Дренаж перед выкаткой (`deploy.sh --drain`) включает обслуживание; забытый флаг держит сервер
+      # без новых встреч. Перезапуск ядра его сбрасывает, так что полчаса — это уже не выкатка.
+      - alert: MaintenanceOn
+        expr: max(cord_maintenance) == 1
+        for: 30m
+        labels: { severity: info }
+        annotations: { summary: 'Обслуживание включено дольше 30 минут: новые встречи не создаются' }
+
+      # Замирания хоста по журналу ядра Linux (`infra/host/soft-lockups.sh`, R10) — чтобы сравнивать
+      # до/после смены тарифа; само замирание ловит HostStalled по steal.
+      - alert: HostSoftLockups
+        expr: increase(cord_host_soft_lockups_total[1h]) > 0
+        labels: { severity: info }
+        annotations: { summary: 'Хост замирал (soft lockup) за последний час: {{ $value }} раз' }
+
       - alert: AutoBlock
         expr: increase(cord_blocks_created_total{by="auto"}[15m]) > 0
         labels: { severity: info }

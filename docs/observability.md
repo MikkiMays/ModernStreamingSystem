@@ -124,7 +124,8 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 ## 3. Метрики LiveKit
 
 Генератор `livekit.json` (`scripts/configure.mjs`) добавляет блок ниже. Секрет делается так же, как
-`REDIS_PASSWORD`, и лежит в `.env` (`LIVEKIT_METRICS_PASSWORD`).
+`REDIS_PASSWORD`, и лежит в `.env` (`LIVEKIT_METRICS_PASSWORD`). Метрики LiveKit считают и служебную
+комнату куратора `cord-probe` (две подключения на минуту; людей там нет — людей говорит ядро).
 
 ```json
 "prometheus": { "port": 6789, "username": "metrics", "password": "<LIVEKIT_METRICS_PASSWORD>" }
@@ -186,6 +187,36 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 (вопросы за сроком 25/30 с) и `cord_cinema_ytdlp_threads{provider}` (занятые площадкой потоки yt-dlp, не больше 6).
 Поиск и треки YouTube у музыки идут тем же автоматом: их отказы и сроки считаются в те же `…{provider="youtube"}`.
 
+**Надёжность (W1b, 25.10.2026)** — что добавилось, чтобы «звук глючит» и «трек лагает» стали графиками
+(`docs/resilience.md` → «Надёжность уровня Discord»). Дашборд «Cord — медиа» (`cord-media`).
+
+| Метр | Тип | Метки | Откуда |
+| --- | --- | --- | --- |
+| `cord_probe_loss_ratio` | gauge | `leg=up\|down` | куратор `cord-publisher --probe` (:9402): доля потерь издатель → SFU (из RTCP SFU) и SFU → слушатель (по номерам пакетов) за пробу |
+| `cord_probe_jitter_ms`, `cord_probe_rtt_ms` | gauge | `leg` / — | джиттер RFC 3550 и оборот по RTCP (LSR/DLSR) |
+| `cord_probe_runs_total` | counter | `result=ok\|error` | пробы; `cord_probe_last_success_timestamp_seconds`, `cord_probe_run_seconds`, `cord_probe_packets{leg=sent\|received}` |
+| `cord_rx_conceal_ratio` | histogram 0,1…30 % | `kind=conversation\|media\|video` | сводки приёма от браузеров раз в 10 с (`POST /rooms/{id}/quality`, `RxQuality`): доля отсчётов заглушки NetEq без тишины DTX |
+| `cord_rx_target_ms`, `cord_rx_delay_ms` | histogram 60…2500 мс | `kind` | запас буфера, который просит клиент, и его фактическая задержка |
+| `cord_rx_concealment_events_total` | counter | `kind` | **слышимые провалы**: начала заглушки; на дашборде — в минуту |
+| `cord_rx_packets_lost_total`, `cord_rx_samples_total`, `cord_rx_concealed_samples_total`, `cord_rx_reports_total` | counter | `kind` / — | потери, отсчёты, сводки |
+| `cord_maintenance` | gauge 0/1 | — | обслуживание (дренаж перед выкаткой, `POST /api/v1/admin/maintenance`) |
+| `cord_music_underrun_total`, `cord_music_starved_seconds_total` | counter | — | сторож издателя (служба, по событиям издателя): декодер голодал ≥ 10 кадров; секунды тишины вместо музыки |
+| `cord_music_decoder_restarts_total`, `cord_music_reconnects_total`, `cord_music_tracks_skipped_total` | counter | — | перезапуск ffmpeg после 5 с тишины; издатель поднят заново после обрыва SFU; трек пропущен — источник не отдал |
+| `cord_music_reachable{provider}`, `cord_music_reach_changes_total`, `cord_music_unreachable_refusals_total`, `cord_music_deadline_total` | как `cord_cinema_*` | `provider=soundcloud\|yandex` | площадки музыки без двойника в кинозале — тот же автомат (`sources.GATES`) |
+| `cord_platform_lanes_busy`, `cord_platform_busy_refusals_total` | gauge, counter | — | полосы тяжёлых вопросов к площадкам — разбор ролика, поиск и скачивание музыки, Яндекс (2 на комнату, 8 на сервер): занято сейчас, отказов `429 PLATFORM_BUSY` |
+| `cord_cinema_upstream_retries_total` | counter | — | повторы запроса за сегментом/плейлистом после сбоя сети или 5xx (3× через 200/400/800 мс) |
+| `cord_host_soft_lockups_total`, `cord_host_soft_lockups_day` | counter, gauge | — | textfile node_exporter из `infra/host/soft-lockups.sh` (cron владельца, R10) |
+
+**Оценка MOS** на дашборде — упрощённая E-модель (ITU-T G.107) из куратора, не наука, а «стало хуже»
+графиком: задержка `d = оборот/2 + джиттер + 60 мс`, `Id = 0,024·d + 0,11·(d − 177,3)⁺`,
+`Ie-eff = 95·Ppl/(Ppl + 10)` (Opus с RED), `R = 93,2 − Id − Ie-eff`,
+`MOS = 1 + 0,035·R + 7·10⁻⁶·R·(R − 60)·(100 − R)` в границах 1…4,5. Хорошая связь ≈ 4,3; ниже 3,6 —
+люди жалуются. Формула — в `infra/monitoring/grafana/dashboards.mjs`.
+
+**Алерты W1b** (`rules/cord.yml`): `ProbeLoss` (потери > 2 % или оборот > 150 мс три пробы подряд),
+`ProbeFailing` (десять минут без удачной пробы), `MusicStarving` (> 30 с тишины за 10 мин),
+`MaintenanceOn` (обслуживание дольше 30 мин), `HostSoftLockups` (замирание за час, info).
+
 ## 5. Цели сбора и экспортеры
 
 Все контейнеры работают в `network_mode: host`, как остальной Cord, и слушают только 127.0.0.1.
@@ -197,7 +228,8 @@ OTLP из Spring Boot 4; VictoriaMetrics принимает OTLP-метрики.
 | Шлюз Caddy | 127.0.0.1:2019/metrics | опция `metrics` + сайт `http://127.0.0.1:2019 { metrics /metrics }` | 0 |
 | tusd | 127.0.0.1:1080/metrics | уже есть | 0 |
 | Службы | 127.0.0.1:18100/metrics | `prometheus_client` | единицы МиБ |
-| node_exporter 1.12.1 | 127.0.0.1:9100 | `pid: host`, корень только на чтение, textfile-счётчик soft lockup (§8) | **9–11 МиБ, замер** |
+| Куратор | 127.0.0.1:9402/metrics | служба `probe` профиля `monitoring` (`cord-publisher --probe`, тот же образ, что `services`) | ~30 МиБ (Go + ffmpeg на 10 с в минуту) |
+| node_exporter 1.12.1 | 127.0.0.1:9100 | `pid: host`, корень только на чтение, textfile-каталог `/var/lib/node_exporter/textfile` (`infra/host/soft-lockups.sh`, cron владельца) | **9–11 МиБ, замер** |
 | postgres_exporter 0.20.1 | 127.0.0.1:9187 | роль с `pg_monitor` | не замерялся (Go, ожидаемо 10–20) |
 | redis_exporter 1.94.0 | 127.0.0.1:9121 | `REDIS_PASSWORD` | не замерялся (Go, ожидаемо ~10) |
 | cAdvisor 0.60.6, по желанию | 127.0.0.1:8081 | `--housekeeping_interval=30s --docker_only`, урезанный `--disable_metrics` | **15–16 МиБ**, замер без нагрузки сбора |

@@ -83,6 +83,18 @@ function dashboard(uid, title, description, panels) {
   };
 }
 
+// Оценка MOS по упрощённой E-модели (ITU-T G.107) из куратора — не наука, а чтобы «стало хуже» было
+// графиком (docs/observability.md §4). Задержка «рот → ухо» d = оборот/2 + джиттер + 60 мс (кодек и
+// буфер); Id = 0,024·d + 0,11·(d − 177,3)⁺; потери Ppl в процентах, Ie-eff = 95·Ppl/(Ppl + 10) (Opus
+// с RED: Bpl ≈ 10); R = 93,2 − Id − Ie-eff; MOS = 1 + 0,035·R + 7·10⁻⁶·R·(R − 60)·(100 − R), в границах
+// 1…4,5. Хорошая связь даёт ≈ 4,3; выше 4 — не слышно, ниже 3,6 — люди жалуются.
+const d = '(max(cord_probe_rtt_ms) / 2 + max(cord_probe_jitter_ms{leg="down"}) + 60)';
+const id = `(0.024 * ${d} + 0.11 * clamp_min(${d} - 177.3, 0))`;
+const ppl = '(max(cord_probe_loss_ratio{leg="down"}) * 100)';
+const ie = `(95 * ${ppl} / (${ppl} + 10))`;
+const r = `(93.2 - ${id} - ${ie})`;
+const mos = `clamp(1 + 0.035 * ${r} + 0.000007 * ${r} * (${r} - 60) * (100 - ${r}), 1, 4.5)`;
+
 const dashboards = [
   dashboard('cord-meetings', 'Cord — встречи', 'Встречи, люди, входы и отказы — из ядра. Боты не люди.', [
     stat('Идут встречи', 'sum(cord_rooms_active{state="live"})'),
@@ -130,6 +142,44 @@ const dashboards = [
       ['sum(rate(livekit_pli_total[5m]))', 'PLI'],
     ]),
     series('Переподключения клиентов (ядро)', [['sum(increase(cord_joins_total{door="rejoin"}[1h]))', 'возвраты за час']]),
+  ]),
+  dashboard('cord-media', 'Cord — медиа', 'Куратор через SFU, что слышат люди (сводки приёма), сторож музыки, площадки. W1b, docs/observability.md §4–5.', [
+    stat('Куратор: потери вниз', 'max(cord_probe_loss_ratio{leg="down"})', 'percentunit'),
+    stat('Куратор: оборот', 'max(cord_probe_rtt_ms)', 'ms'),
+    stat('Куратор: джиттер', 'max(cord_probe_jitter_ms{leg="down"})', 'ms'),
+    stat('Оценка MOS (куратор)', mos, 'short'),
+    stat('Обслуживание', 'max(cord_maintenance)'),
+    stat('Музыка играет', 'sum(cord_music_sessions_active)'),
+    series('Куратор: потери через SFU', [
+      ['max(cord_probe_loss_ratio{leg="down"})', 'SFU → слушатель'],
+      ['max(cord_probe_loss_ratio{leg="up"})', 'издатель → SFU'],
+    ], 'percentunit'),
+    series('Куратор: оборот и джиттер', [
+      ['max(cord_probe_rtt_ms)', 'оборот'],
+      ['max(cord_probe_jitter_ms{leg="down"})', 'джиттер вниз'],
+      ['max(cord_probe_jitter_ms{leg="up"})', 'джиттер вверх'],
+    ], 'ms'),
+    series('Оценка MOS по упрощённой E-модели (куратор)', [[mos, 'MOS']], 'short'),
+    series('Слышимые провалы в минуту (сводки приёма)', [['sum by (kind) (rate(cord_rx_concealment_events_total[5m])) * 60', '{{kind}}']]),
+    series('Доля заглушки за 10 с, p90 по классу', [['histogram_quantile(0.9, sum by (kind, le) (rate(cord_rx_conceal_ratio_bucket[10m])))', '{{kind}}']], 'percentunit'),
+    series('Запас буфера приёма, медиана по классу', [['histogram_quantile(0.5, sum by (kind, le) (rate(cord_rx_target_ms_bucket[10m])))', '{{kind}}']], 'ms'),
+    series('Музыка: голодание, перезапуски, переподключения за час', [
+      ['sum(increase(cord_music_underrun_total[1h]))', 'голодание'],
+      ['sum(increase(cord_music_decoder_restarts_total[1h]))', 'перезапуски декодера'],
+      ['sum(increase(cord_music_reconnects_total[1h]))', 'переподключения к SFU'],
+      ['sum(increase(cord_music_tracks_skipped_total[1h]))', 'пропущено треков'],
+    ]),
+    series('Музыка: секунды тишины вместо музыки за час', [['sum(increase(cord_music_starved_seconds_total[1h]))', 'тишина']], 's'),
+    series('Площадки отвечают с этого сервера', [
+      ['min by (provider) (cord_cinema_reachable)', 'кино: {{provider}}'],
+      ['min by (provider) (cord_music_reachable)', 'музыка: {{provider}}'],
+    ]),
+    series('Площадки: отказы «заняты» и повторы за сегментом за час', [
+      ['sum(increase(cord_platform_busy_refusals_total[1h]))', 'отказы «заняты»'],
+      ['sum(increase(cord_cinema_upstream_retries_total[1h]))', 'повторы за сегментом'],
+      ['max(cord_platform_lanes_busy)', 'полос занято сейчас'],
+    ]),
+    series('Хост: замирания (soft lockup) за сутки', [['max(cord_host_soft_lockups_day)', 'за сутки']]),
   ]),
   dashboard('cord-server', 'Cord — сервер', 'Машина, база, Redis, шлюз и сам мониторинг. Steal — время, которое отнял гипервизор.', [
     stat('ЦП занят', '1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))', 'percentunit'),

@@ -22,6 +22,17 @@ public class InternalController {
   private final RateLimits limits;
   private final ClientAddress address;
 
+  /** Имя комнаты SFU, которое может быть комнатой ядра: UUID, как пишет {@code RoomService}. */
+  public static boolean isRoomId(String name) {
+    if (name == null || name.length() != 36) return false;
+    try {
+      UUID.fromString(name);
+      return true;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
   public InternalController(
       MediaService media,
       AttachmentService files,
@@ -108,7 +119,11 @@ public class InternalController {
       @RequestBody String body, @RequestHeader("Authorization") String authorization) {
     try {
       var event = receiver.receive(body, authorization);
-      if (event.hasParticipant() && event.hasRoom())
+      // Служебная комната куратора (`cord-publisher --probe`, комната `cord-probe`) ядру
+      // неизвестна:
+      // её вебхуки — не отказ (иначе 403 на каждую пробу считался бы в метрах и автоблоке адреса
+      // 127.0.0.1), а пропуск. Комнаты ядра — только UUID.
+      if (event.hasParticipant() && event.hasRoom() && isRoomId(event.getRoom().getName()))
         media.webhook(
             event.getRoom().getName(),
             event.getParticipant().getIdentity(),
