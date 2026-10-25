@@ -710,6 +710,7 @@
     "sendFailed": "Couldn't send the move. Try again.",
     "status": {
       "lobby": "Invite an opponent to the board",
+      "lobbyReady": "Both players are at the board — all that is left is to start the game",
       "yourTurn": "Your move",
       "turn": {
         "white": "White to move",

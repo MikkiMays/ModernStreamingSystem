@@ -24,6 +24,11 @@ WATCH_SECONDS = 5
 # встреча жива (R04). Раньше любой обрыв значил «музыка вышла из встречи с ошибкой»: после
 # замирания хоста на полминуты организатору приходилось добавлять сервис заново.
 RECONNECT_DELAYS = (1.0, 2.0, 4.0, 8.0, 8.0)
+# Первый старт издателя: сколько попыток и пауза между ними. Вход в SFU на замирающем хосте не
+# всегда укладывается в срок готовности издателя (20 с), а одна неудача гасила музыку до нового
+# нажатия организатора (финальный прогон 25.10).
+START_ATTEMPTS = 3
+START_PAUSE = 2.0
 # Издатель, проживший столько после подключения, считается восстановившимся: счёт попыток с него
 # начинается заново (иначе редкие обрывы за вечер сложились бы в «пятую неудачу»).
 RECONNECT_WINDOW_MS = 120000
@@ -358,9 +363,7 @@ class Music:
                     f"/api/v1/rooms/{room_id}/media/token",
                     credential=admission["credential"],
                 )
-            publisher = await asyncio.wait_for(
-                Publisher.start(self.rtc_url, token["token"]), 30
-            )
+            publisher = await self.start_publisher(token["token"])
             link = Link(publisher)
             state = self.store.get(room_id)
             state.update(status="idle", error=None)
@@ -551,6 +554,28 @@ class Music:
             if state["status"] != "error":
                 state["status"] = "disabled"
             self.store.save(state)
+
+    async def start_publisher(self, token: str) -> Publisher:
+        """Первый издатель — с повторами (R04).
+
+        На замирающем хосте вход в SFU иногда не укладывается в срок готовности издателя (стенд
+        25.10: steal 30 %, Redis у ядра отвечал дольше 500 мс), и одна неудача выключала музыку до
+        нового нажатия организатора. Повторы — только на старте: дальше обрывы ловит цикл `run`.
+        """
+        for attempt in range(1, START_ATTEMPTS + 1):
+            try:
+                return await asyncio.wait_for(Publisher.start(self.rtc_url, token), 30)
+            except (ConnectionError, TimeoutError) as error:
+                if attempt == START_ATTEMPTS:
+                    raise
+                logger.warning(
+                    "Издатель музыки не запустился (попытка %d из %d): %s",
+                    attempt,
+                    START_ATTEMPTS,
+                    error,
+                )
+                await asyncio.sleep(START_PAUSE)
+        raise ConnectionError("Издатель музыки не запустился")
 
     async def connect(self, room_id: str, admission: dict) -> Publisher:
         """Новый издатель на то же место: свежий токен, тот же участник."""

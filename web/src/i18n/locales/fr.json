@@ -711,6 +711,7 @@
     "sendFailed": "Impossible d'envoyer le coup. Réessayez.",
     "status": {
       "lobby": "Invitez un adversaire à l'échiquier",
+      "lobbyReady": "Les deux joueurs sont à l'échiquier — il ne reste qu'à commencer la partie",
       "yourTurn": "À vous de jouer",
       "turn": {
         "white": "Aux Blancs de jouer",

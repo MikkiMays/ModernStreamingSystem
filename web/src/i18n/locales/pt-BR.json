@@ -711,6 +711,7 @@
     "sendFailed": "Não foi possível enviar o lance. Tente de novo.",
     "status": {
       "lobby": "Convide um adversário para o tabuleiro",
+      "lobbyReady": "Os dois jogadores estão no tabuleiro — só falta começar a partida",
       "yourTurn": "Sua vez",
       "turn": {
         "white": "Vez das brancas",

@@ -14,6 +14,7 @@ interface Row {
   target: number | null;
   jbDelay?: number;
   jbEmitted?: number;
+  packets?: number;
   total?: number;
   decel?: number;
   discarded?: number;
@@ -130,16 +131,13 @@ test('музыка: запас в одной секунде у всех, зам�
       await expect(page.locator('[data-media-status="connected"]')).toBeVisible({ timeout: 90000 });
     }
     await host!.getByRole('button', { name: 'Интеграции', exact: true }).click();
-    await host!.getByRole('button', { name: /Музыка/ }).click({ timeout: 15000 });
-    await host!.getByRole('button', { name: /Свои файлы/ }).click({ timeout: 30000 });
-    const add = host!.getByRole('button', { name: 'Добавить во встречу' });
-    if (await add.isVisible({ timeout: 5000 }).catch(() => false)) await add.click({ timeout: 15000 });
+    await host!.getByRole('button', { name: /^Музыка/ }).click({ timeout: 15000 });
+    // Вход в музыку — сразу плеер, площадки вкладками (R44): «Свои файлы» — вкладка, не кнопка.
+    await host!.getByRole('tab', { name: 'Свои файлы' }).click({ timeout: 30000 });
     await expect(host!.locator('input[type="file"]')).toBeAttached({ timeout: 60000 });
     await host!.locator('input[type="file"]').setInputFiles(TRACK);
-    // Признак «играет» — карточка музыки в слое интеграций, а не строка раскрытой панели плеера.
-    await expect(host!.getByRole('button', { name: 'Открыть плеер музыки' })).toContainText('Сейчас играет', {
-      timeout: 90000,
-    });
+    // Признак «играет» — мини-плеер в слое над сценой (R31) с `data-playing`, а не строка панели.
+    await expect(host!.locator('.music-mini[data-playing]')).toBeVisible({ timeout: 90000 });
     console.log('music playing at', new Date().toISOString());
     mark('playing');
 
@@ -187,7 +185,10 @@ test('музыка: запас в одной секунде у всех, зам�
     ]);
     await late.close();
     // Пороги §7: цель буфера музыки у всех ∈ [500, 1000]; разброс фактического буфера ≤ 500 мс;
-    // растяжение < 0,5 %; выброшенных пакетов нет (после заморозки — в том числе).
+    // растяжение < 0,5 %. «Выброшенных пакетов нет» после RED (R05) читается иначе: каждая копия RED
+    // у слушателя считается `packetsDiscarded` (живьём 25.10 — 1,2–1,7 на принятый пакет), поэтому
+    // проверяется не ноль, а что выброшено не больше двух копий на пакет — больше значило бы пачки
+    // после заморозки, а не избыточность.
     const rows = readFileSync(OUT, 'utf8')
       .split('\n')
       .filter(Boolean)
@@ -213,7 +214,8 @@ test('музыка: запас в одной секунде у всех, зам�
     const last = after[after.length - 1]!;
     const total = (last.total ?? 0) - (first.total ?? 0);
     expect(((last.decel ?? 0) - (first.decel ?? 0)) / Math.max(1, total)).toBeLessThan(0.005);
-    expect((last.discarded ?? 0) - (first.discarded ?? 0)).toBe(0);
+    const packets = (last.packets ?? 0) - (first.packets ?? 0);
+    expect((last.discarded ?? 0) - (first.discarded ?? 0)).toBeLessThanOrEqual(2 * Math.max(1, packets));
   } finally {
     await contextA.close().catch(() => {});
     await other.close().catch(() => {});

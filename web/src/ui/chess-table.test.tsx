@@ -85,6 +85,17 @@ afterEach(() => {
   now = 10_000;
 });
 
+it('в лобби статус различает «ждём соперника» и «оба за доской»', () => {
+  const alone = room(state({ phase: 'lobby', black: null, startedAt: 0 }));
+  const { unmount } = render(<ChessTable meeting={alone.meeting} />);
+  expect(screen.getByText('Пригласите соперника за доску')).toBeInTheDocument();
+  unmount();
+  const both = room(state({ phase: 'lobby', startedAt: 0 }));
+  render(<ChessTable meeting={both.meeting} />);
+  expect(screen.getByText('Оба игрока за доской — осталось начать партию')).toBeInTheDocument();
+  expect(screen.queryByText('Пригласите соперника за доску')).toBeNull();
+});
+
 it('submits only a server-provided click move with game and ply guards', async () => {
   const session = room();
   render(<ChessTable meeting={session.meeting} />);

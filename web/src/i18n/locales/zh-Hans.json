@@ -709,6 +709,7 @@
     "sendFailed": "无法发送走法。请重试。",
     "status": {
       "lobby": "邀请对手来下棋",
+      "lobbyReady": "双方已就座，只差开始对局",
       "yourTurn": "轮到你走",
       "turn": {
         "white": "白方走棋",

@@ -1,0 +1,114 @@
+[
+  {
+    "name": "chess",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-chess-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "chess",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-chess-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "chess",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-chess-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "chess",
+    "width": 390,
+    "theme": "light",
+    "file": "final-chess-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-durak-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-durak-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-durak-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "durak",
+    "width": 390,
+    "theme": "light",
+    "file": "final-durak-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-player",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-music-player-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-player",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-music-player-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
+    "width": 1440,
+    "theme": "dark",
+    "file": "final-music-mini-1440-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
+    "width": 1440,
+    "theme": "light",
+    "file": "final-music-mini-1440-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-music-mini-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-mini",
+    "width": 390,
+    "theme": "light",
+    "file": "final-music-mini-390-light.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-player",
+    "width": 390,
+    "theme": "dark",
+    "file": "final-music-player-390-dark.png",
+    "overflowX": 0
+  },
+  {
+    "name": "music-player",
+    "width": 390,
+    "theme": "light",
+    "file": "final-music-player-390-light.png",
+    "overflowX": 0
+  }
+]
