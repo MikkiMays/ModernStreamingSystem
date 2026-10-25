@@ -48,7 +48,7 @@ export function MeetingElsewhere({
         <>
           <Button
             variant="secondary"
-            icon={<ArrowRight size={18} />}
+            icon={<ArrowRight size={20} />}
             loading={busy === 'go'}
             disabled={!!busy}
             onClick={onGo}
@@ -57,7 +57,7 @@ export function MeetingElsewhere({
           </Button>
           <Button
             variant="primary"
-            icon={<LogOut size={18} />}
+            icon={<LogOut size={20} />}
             loading={busy === 'move'}
             disabled={!!busy}
             onClick={onMove}

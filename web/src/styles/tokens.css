@@ -244,7 +244,7 @@
   --stage-scrim: linear-gradient(to top, rgb(10 12 17 / 0.72), rgb(10 12 17 / 0));
   --tile-radius: var(--radius-4);
   --tile-ring: var(--voice);
-  --tile-ring-width: 3px;
+  --tile-ring-width: var(--voice-ring-4);
   --dock-bg: var(--palette-ink-800);
   --dock-text: var(--stage-text);
   --voice: var(--palette-green-400);

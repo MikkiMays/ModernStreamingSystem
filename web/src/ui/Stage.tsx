@@ -305,7 +305,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
               setPan({ x: 0, y: 0 });
             }}
           >
-            <ZoomOut size={17} />
+            <ZoomOut size={20} />
           </IconButton>
           <span>{Math.round(zoom * 100)}%</span>
           <IconButton
@@ -314,7 +314,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             disabled={zoom >= 4}
             onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
           >
-            <ZoomIn size={17} />
+            <ZoomIn size={20} />
           </IconButton>
           <IconButton
             tone="stage"
@@ -324,7 +324,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
               setPan({ x: 0, y: 0 });
             }}
           >
-            <RotateCcw size={17} />
+            <RotateCcw size={20} />
           </IconButton>
         </div>
       </div>
@@ -384,7 +384,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             рядом остаётся отдельным знаком — на цвет полагаться нельзя. */}
         <VoiceRing meeting={meeting} id={person.id} />
         <div className="person-caption">
-          {!mic && <MicOff size={14} aria-label={t(($) => $.stage.micOff)} />}
+          {!mic && <MicOff size={16} aria-label={t(($) => $.stage.micOff)} />}
           <span>
             {person.name}
             {self ? t(($) => $.stage.you) : ''}

@@ -170,7 +170,7 @@ export function Prejoin({
   if (autoJoining)
     return (
       <main className="loading-room">
-        <LoaderCircle className="spin" size={30} />
+        <LoaderCircle className="spin" size={32} />
         <p role="status">{t(($) => $.prejoin.autoJoining)}</p>
         <button className="button secondary" onClick={onBack}>
           {t(($) => $.prejoin.cancel)}
@@ -273,7 +273,7 @@ export function Prejoin({
         <Logo />
         <div className="app-header__end">
           <HelpButton faq="camera" />
-          <Button variant="quiet" icon={<ArrowLeft size={18} />} onClick={onBack}>
+          <Button variant="quiet" icon={<ArrowLeft size={20} />} onClick={onBack}>
             {t(($) => $.prejoin.home)}
           </Button>
         </div>
@@ -439,7 +439,7 @@ export function Prejoin({
               full
               loading={busy}
               disabled={!name.trim()}
-              icon={<ArrowRight size={19} />}
+              icon={<ArrowRight size={24} />}
             >
               {busy
                 ? t(($) => $.prejoin.connecting)

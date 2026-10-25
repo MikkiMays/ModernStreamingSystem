@@ -81,7 +81,7 @@ input.people-search {
   border: 0;
   border-radius: var(--field-radius);
   background: var(--field-bg);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: inset 0 0 0 var(--hairline) var(--field-line);
   color: var(--text);
   font-size: var(--text-base);
 }
@@ -91,8 +91,8 @@ input.people-search::placeholder {
 input.people-search:focus-visible {
   outline: none;
   box-shadow:
-    inset 0 0 0 1px var(--accent),
-    0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+    inset 0 0 0 var(--hairline) var(--accent),
+    var(--field-halo);
 }
 .panel-section-label {
   margin-top: var(--space-2);
@@ -103,7 +103,7 @@ input.people-search:focus-visible {
 .participant-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   margin-inline: calc(var(--space-2) * -1);
 }
 .participant-row {
@@ -121,7 +121,7 @@ input.people-search:focus-visible {
 }
 .participant-row:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: -2px;
+  outline-offset: var(--focus-offset-inset);
 }
 .participant-info {
   flex: 1;
@@ -165,23 +165,26 @@ input.people-search:focus-visible {
 .voice-avatar[data-voice] {
   transition: none;
   box-shadow:
-    0 0 0 2px var(--surface-1),
-    0 0 0 calc(2px + var(--voice-ring)) color-mix(in srgb, var(--success) var(--voice-mix), transparent);
+    0 0 0 var(--hairline-strong) var(--surface-1),
+    0 0 0 calc(var(--hairline-strong) + var(--voice-ring))
+      color-mix(in srgb, var(--success) var(--voice-mix), transparent);
 }
+/* Толщина — шкалой плитки `--voice-ring-1..4` (R28): раньше здесь было 1,5 / 2 / 2,5 / 3, а на плитке
+   2 / 2 / 3 / 3 — одна и та же громкость рисовалась разной линией. */
 .voice-avatar[data-voice='1'] {
-  --voice-ring: 1.5px;
+  --voice-ring: var(--voice-ring-1);
   --voice-mix: 55%;
 }
 .voice-avatar[data-voice='2'] {
-  --voice-ring: 2px;
+  --voice-ring: var(--voice-ring-2);
   --voice-mix: 75%;
 }
 .voice-avatar[data-voice='3'] {
-  --voice-ring: 2.5px;
+  --voice-ring: var(--voice-ring-3);
   --voice-mix: 90%;
 }
 .voice-avatar[data-voice='4'] {
-  --voice-ring: 3px;
+  --voice-ring: var(--voice-ring-4);
   --voice-mix: 100%;
 }
 
@@ -399,18 +402,18 @@ input.people-search:focus-visible {
   flex: none;
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--space-0-5);
   margin: 0 var(--panel-pad) var(--space-3);
   padding: var(--space-1);
   border-radius: var(--radius-4);
   background: var(--field-bg);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: inset 0 0 0 var(--hairline) var(--field-line);
   transition: box-shadow var(--motion-fast) var(--ease-standard);
 }
 .composer:focus-within {
   box-shadow:
-    inset 0 0 0 1px var(--accent),
-    0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+    inset 0 0 0 var(--hairline) var(--accent),
+    var(--field-halo);
 }
 textarea.composer__input {
   flex: 1;

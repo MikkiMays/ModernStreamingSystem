@@ -60,7 +60,7 @@ export function Invite({
             {qr && <img src={qr} width={232} height={232} alt={t(($) => $.invite.dialog.qr)} />}
           </div>
           <div className="invite-link">
-            <Link size={18} />
+            <Link size={16} />
             <input
               aria-label={t(($) => $.invite.dialog.link)}
               value={link}
@@ -79,7 +79,7 @@ export function Invite({
               }
             }}
           >
-            {copied ? <Check size={19} /> : <Copy size={19} />}{' '}
+            {copied ? <Check size={20} /> : <Copy size={20} />}{' '}
             {copied ? t(($) => $.invite.dialog.copied) : t(($) => $.invite.dialog.copy)}
           </button>
         </>
@@ -101,7 +101,7 @@ export function Invite({
             }
           }}
         >
-          <RefreshCw size={16} />
+          <RefreshCw size={20} />
           {invitation ? t(($) => $.invite.dialog.renew) : t(($) => $.invite.dialog.createButton)}
         </button>
       )}

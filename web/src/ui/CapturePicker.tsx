@@ -194,9 +194,9 @@ export function CapturePicker({
               {source.thumbnail ? (
                 <img src={source.thumbnail} alt="" draggable={false} />
               ) : which === 'screen' ? (
-                <Monitor size={28} aria-hidden="true" />
+                <Monitor size={32} aria-hidden="true" />
               ) : (
-                <AppWindow size={28} aria-hidden="true" />
+                <AppWindow size={32} aria-hidden="true" />
               )}
             </span>
             <span className="capture-tile__label">
@@ -235,7 +235,7 @@ export function CapturePicker({
               onDoubleClick={() => choose(id)}
             >
               <span className="capture-tile__thumb">
-                <Video size={28} aria-hidden="true" />
+                <Video size={32} aria-hidden="true" />
               </span>
               <span className="capture-tile__label">
                 <span>{item.name || t(($) => $.capture.device, { n: index + 1 })}</span>

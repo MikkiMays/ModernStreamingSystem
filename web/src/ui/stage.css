@@ -119,12 +119,12 @@
   overflow: hidden;
   border-radius: var(--tile-radius);
   background: radial-gradient(120% 90% at 50% 0%, var(--stage-tile-2), var(--stage-tile));
-  box-shadow: inset 0 0 0 1px var(--stage-line);
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-line);
   outline: none;
 }
 .person-tile:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: calc(var(--focus-offset) * -1);
+  outline-offset: var(--focus-offset-inset);
 }
 .people-grid:not([data-count='1']) .person-tile {
   width: 100%;
@@ -137,7 +137,7 @@
   aspect-ratio: auto;
 }
 .person-tile[data-pinned='true'] {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: inset 0 0 0 var(--hairline-strong) var(--accent);
 }
 .person-placeholder {
   display: grid;
@@ -172,18 +172,19 @@
 .person-voice[data-voice] {
   transition: none;
 }
+/* Толщина — шкалой `--voice-ring-1..4` (2 / 2,5 / 3 / 3), той же, что у кольца в панели и за столами (R28). */
 .person-voice[data-voice='1'] {
-  box-shadow: inset 0 0 0 calc(var(--tile-ring-width) - 1px) var(--voice-1);
+  box-shadow: inset 0 0 0 var(--voice-ring-1) var(--voice-1);
 }
 .person-voice[data-voice='2'] {
-  box-shadow: inset 0 0 0 calc(var(--tile-ring-width) - 1px) var(--voice-2);
+  box-shadow: inset 0 0 0 var(--voice-ring-2) var(--voice-2);
 }
 .person-voice[data-voice='3'] {
-  box-shadow: inset 0 0 0 var(--tile-ring-width) var(--voice-3);
+  box-shadow: inset 0 0 0 var(--voice-ring-3) var(--voice-3);
 }
 .person-voice[data-voice='4'] {
   box-shadow:
-    inset 0 0 0 var(--tile-ring-width) var(--voice-4),
+    inset 0 0 0 var(--voice-ring-4) var(--voice-4),
     inset 0 0 var(--space-6) color-mix(in srgb, var(--voice-4) 32%, transparent);
 }
 
@@ -195,7 +196,7 @@
   bottom: var(--space-2);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   max-width: calc(100% - var(--space-4));
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-2);
@@ -262,7 +263,7 @@
   right: var(--space-2);
   bottom: var(--space-2);
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: 2px;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--stage-bg) 62%, transparent);
@@ -285,12 +286,12 @@
 }
 .lens-switch__lens:focus-visible {
   outline: var(--focus-outline);
-  outline-offset: 1px;
+  outline-offset: var(--focus-offset);
 }
 @media (pointer: coarse) {
   .lens-switch__lens {
-    min-width: 44px;
-    height: 44px;
+    min-width: var(--touch-target);
+    height: var(--touch-target);
   }
 }
 /* Зум «0.5× · 1× · 2×» на своей плитке (R36) — сегмент набора в той же тёмной пилюле, что линзы:
@@ -323,8 +324,8 @@
 }
 @media (pointer: coarse) {
   .lens-switch--zoom .ui-segmented__item {
-    min-width: 44px;
-    height: 44px;
+    min-width: var(--touch-target);
+    height: var(--touch-target);
   }
 }
 
@@ -335,7 +336,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   min-height: var(--control-md);
-  padding: 0 2px 0 var(--space-2);
+  padding: 0 var(--space-0-5) 0 var(--space-2);
 }
 .camera-zoom__label {
   display: inline-flex;
@@ -352,7 +353,7 @@
 }
 .camera-zoom__steps {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: 2px;
   border-radius: var(--tab-radius);
   background: var(--surface-2);
@@ -360,8 +361,8 @@
 .camera-zoom__step {
   display: inline-grid;
   place-items: center;
-  min-width: 40px;
-  height: 28px;
+  min-width: var(--control-lg);
+  height: var(--control-xs);
   padding: 0 var(--space-2);
   border-radius: var(--radius-0);
   color: var(--text-secondary);
@@ -717,7 +718,7 @@ button.watch-stream.is-stop:hover {
   bottom: calc(var(--dock-space) + var(--space-2));
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: var(--space-1);
   border-radius: var(--radius-3);
   background: var(--dock-bg);
@@ -761,7 +762,7 @@ button.watch-stream.is-stop:hover {
   left: var(--space-2);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   max-width: calc(100% - var(--control-sm) - var(--space-6));
   height: var(--control-sm);
   padding: 0 var(--space-3) 0 var(--space-2);

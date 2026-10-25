@@ -61,7 +61,7 @@ export function BackgroundNote({ meeting }: { meeting: Meeting }) {
     const time = new Intl.DateTimeFormat(locale(t), { hour: '2-digit', minute: '2-digit' });
     return (
       <div className="background-note media-stage" role="status">
-        <MicOff size={18} aria-hidden="true" />
+        <MicOff size={16} aria-hidden="true" />
         <span>
           {gap.to === null
             ? t(($) => $.meeting.background.gapOpen, { from: time.format(gap.from) })
@@ -75,7 +75,7 @@ export function BackgroundNote({ meeting }: { meeting: Meeting }) {
           label={t(($) => $.meeting.background.hide)}
           onClick={() => meeting.media.micGap.set(null)}
         >
-          <X size={18} />
+          <X size={20} />
         </IconButton>
       </div>
     );

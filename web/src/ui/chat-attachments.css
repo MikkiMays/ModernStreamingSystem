@@ -48,7 +48,7 @@
 .chat-attachment__text {
   display: grid;
   min-width: 0;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 .chat-attachment__name {
   overflow: hidden;
