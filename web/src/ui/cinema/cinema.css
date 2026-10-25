@@ -172,6 +172,12 @@
   border-bottom: var(--hairline) solid var(--line);
   background: var(--surface);
 }
+/* «Назад» и «Закрыть» — той же высоты 40, что знак, площадки и поиск полосы (R28). */
+.cinema-bar > .icon-button {
+  width: var(--control-lg);
+  min-width: var(--control-lg);
+  height: var(--control-lg);
+}
 .cinema-mark {
   display: grid;
   place-items: center;
