@@ -18,6 +18,29 @@
 * {
   box-sizing: border-box;
 }
+/*
+  Выделение текста (R126) — как в Discord: хром интерфейса (кнопки, вкладки, карточки, меню, заголовки
+  окон, подписи) не выделяется ни протяжкой, ни двойным щелчком, ни Ctrl+A — на главной синим
+  выделялись «Новая встреча» и «Войти по коду». Выделяется то, что человек копирует: сообщения чата,
+  код встречи, тексты «Диагностики» и «О программе», отчёт для поддержки. Поля ввода и всё
+  редактируемое правило не трогает: у них своё выделение (`user-select: auto` → `contain`).
+*/
+:root {
+  -webkit-user-select: none;
+  user-select: none;
+}
+:where(
+  .message-body,
+  .invite-code > strong,
+  .diagnostics,
+  .settings-content__body[data-section='about'],
+  pre,
+  code,
+  [data-selectable]
+) {
+  -webkit-user-select: text;
+  user-select: text;
+}
 body {
   margin: 0;
   min-width: 320px;
