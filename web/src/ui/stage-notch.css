@@ -195,3 +195,23 @@
     --sheet-top: calc(2 * var(--touch-target) + 2 * var(--space-2) + 74px + var(--space-2));
   }
 }
+/*
+  Телефон боком (667×375): с открытым листом чату под чёлкой и полосой лиц оставалась одна строка вкладок.
+  Лица уходят — люди есть во вкладке «Люди» того же листа, как под полосой фильма (R120), — и лист встаёт
+  сразу под чёлкой. Только в разговоре: чужой экран остаётся как был. Вертикальный телефон держит и чёлку,
+  и лица, и чат.
+*/
+@media (max-width: 767px) and (max-height: 500px) {
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open:has(.stage-notch):has(.conversation-stage) {
+    --sheet-top: calc(var(--touch-target) + var(--space-2));
+  }
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open:has(.stage-notch):has(.conversation-stage):has(
+      .stage-overlay:not([data-empty])
+    ) {
+    --sheet-top: calc(2 * var(--touch-target) + 2 * var(--space-2));
+  }
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open:has(.stage-notch) .conversation-stage {
+    display: none;
+  }
+}
