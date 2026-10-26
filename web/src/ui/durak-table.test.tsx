@@ -373,3 +373,105 @@ it('picking a fresh card clears a refusal from an earlier move', async () => {
   expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.getByRole('button', { name: 'Перевести' })).toBeEnabled();
 });
+
+/*
+  R129: лоток под столом — одно место для действия хода у всех режимов. Главная кнопка стоит по центру
+  под рукой и не исчезает между ходами: недоступная — приглушена на своём месте.
+*/
+const dock = (container: HTMLElement) => container.querySelector<HTMLElement>('.durak-dock')!;
+const actions = (container: HTMLElement) => within(container.querySelector<HTMLElement>('.durak-actions')!);
+
+it('keeps the defender’s «Беру» in the dock and dims it instead of removing it (R129)', () => {
+  const { container, rerender } = render(<DurakTable meeting={meeting()} table={table} />);
+  expect(actions(container).getByRole('button', { name: 'Беру' })).toBeEnabled();
+  expect(actions(container).queryByRole('button', { name: 'Бито' })).toBeNull();
+  // Защитник уже сказал «беру»: кнопка остаётся на месте, но нажать её нельзя.
+  rerender(
+    <DurakTable
+      meeting={meeting()}
+      table={{ ...table, taking: true, you: { ...table.you!, turn: false, actions: [] } }}
+    />,
+  );
+  expect(actions(container).getByRole('button', { name: 'Беру' })).toBeDisabled();
+});
+
+it('gives everyone else «Бито» on the same spot, dimmed while the table is not waiting for them (R129)', async () => {
+  const room = meeting('m3');
+  const attacker = {
+    ...table,
+    acting: [0],
+    you: { seat: 3, cards: ['Qd', 'Jd'], turn: false, actions: [], plays: [] },
+  } as unknown as Table;
+  const { container, rerender } = render(<DurakTable meeting={room} table={attacker} />);
+  expect(actions(container).getByRole('button', { name: 'Бито' })).toBeDisabled();
+  expect(actions(container).queryByRole('button', { name: 'Беру' })).toBeNull();
+  rerender(
+    <DurakTable
+      meeting={room}
+      table={{ ...attacker, acting: [3], you: { ...attacker.you!, turn: true, actions: ['pass'] } }}
+    />,
+  );
+  await act(async () => fireEvent.click(actions(container).getByRole('button', { name: 'Бито' })));
+  expect(room.command).toHaveBeenCalledWith('durak.act', undefined, undefined, { option: 'pass' });
+});
+
+it('seats a spectator and deals between games from the same dock, not from the header (R129)', async () => {
+  const lobby = {
+    ...table,
+    phase: 'lobby',
+    acting: [],
+    table: [],
+    deadline: 0,
+    you: null,
+  } as unknown as Table;
+  const room = meeting('m0');
+  const { container, rerender } = render(<DurakTable meeting={room} table={lobby} />);
+  // Зритель-ведущий: главное — сесть, «Раздать» — тише рядом; в шапке стола раздачи нет.
+  expect(actions(container).getByRole('button', { name: 'Сесть за стол' })).toBeEnabled();
+  expect(
+    within(container.querySelector<HTMLElement>('.durak-dock-aside')!).getByRole('button', {
+      name: 'Раздать',
+    }),
+  ).toBeEnabled();
+  expect(
+    within(container.querySelector<HTMLElement>('.durak-bar')!).queryByRole('button', { name: 'Раздать' }),
+  ).toBeNull();
+  // Зритель без руки — полоса руки схлопнута, сукну достаётся её высота.
+  expect(container.querySelector('.durak-hand-band')).toHaveAttribute('data-empty', 'true');
+  // Сел — на том же месте «Раздать», и строка лотка не исчезает.
+  rerender(
+    <DurakTable
+      meeting={room}
+      table={
+        { ...lobby, you: { seat: 0, cards: [], turn: false, actions: [], plays: [] } } as unknown as Table
+      }
+    />,
+  );
+  expect(actions(container).queryByRole('button', { name: 'Сесть за стол' })).toBeNull();
+  await act(async () => fireEvent.click(actions(container).getByRole('button', { name: 'Раздать' })));
+  expect(room.command).toHaveBeenCalledWith('durak.deal', undefined, undefined, undefined);
+  expect(dock(container)).toBeInTheDocument();
+});
+
+it('says next to a closed table why the seat is dimmed, and when a latecomer plays (R129)', () => {
+  const watching = { ...table, you: null, seatingOpen: false } as unknown as Table;
+  const { container, rerender } = render(<DurakTable meeting={meeting('m9')} table={watching} />);
+  expect(actions(container).getByRole('button', { name: 'Сесть за стол' })).toBeDisabled();
+  expect(dock(container)).toHaveTextContent('Играют только те, кто уже сел');
+  rerender(<DurakTable meeting={meeting('m9')} table={{ ...watching, seatingOpen: true }} />);
+  expect(dock(container)).toHaveTextContent('Сыграете со следующей раздачи');
+});
+
+it('cancels the chosen card from the dock and reports a refused move there, not in the turn status (R129)', async () => {
+  const room = meeting();
+  vi.mocked(room.command).mockRejectedValueOnce(new Error('Этот ход уже недоступен'));
+  const { container } = render(<DurakTable meeting={room} table={table} />);
+  pick('7, черви');
+  expect(dock(container)).toHaveTextContent('Отбейте выделенную карту или переведите ход');
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить выбор' }));
+  expect(screen.getByRole('button', { name: '7, черви' })).toHaveAttribute('aria-pressed', 'false');
+  pick('8, трефы');
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Отбить 7, трефы' })));
+  expect(within(dock(container)).getByRole('alert')).toHaveTextContent('Этот ход уже недоступен');
+  expect(container.querySelector('.durak-turn')).not.toHaveTextContent('Этот ход уже недоступен');
+});
