@@ -9,11 +9,15 @@ import { usePlate } from './usePlate';
  */
 export interface TabsProps extends Omit<ComponentProps<typeof BaseTabs.Root>, 'className'> {
   variant?: 'segmented' | 'line';
+  /** Высота дорожки `segmented`: 36 или 32 px (`--tab-h` / `--tab-h-sm`), как у `Segmented`. */
+  size?: 'sm' | 'md';
   className?: string;
 }
 
-export function Tabs({ variant = 'segmented', className, ...props }: TabsProps) {
-  const classes = ['ui-tabs', `ui-tabs--${variant}`, className].filter(Boolean).join(' ');
+export function Tabs({ variant = 'segmented', size = 'md', className, ...props }: TabsProps) {
+  const classes = ['ui-tabs', `ui-tabs--${variant}`, size === 'sm' && 'ui-tabs--sm', className]
+    .filter(Boolean)
+    .join(' ');
   return <BaseTabs.Root className={classes} {...props} />;
 }
 

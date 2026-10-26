@@ -1,6 +1,6 @@
 import { Popover as BasePopover } from '@base-ui/react/popover';
 import { X } from 'lucide-react';
-import type { CSSProperties, ReactElement, ReactNode } from 'react';
+import type { CSSProperties, ReactElement, ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Drawer, type DrawerProps } from './Drawer';
 import { IconButton } from './IconButton';
@@ -28,6 +28,11 @@ export interface PopoverProps {
   sideOffset?: number;
   /** Ширина карточки: число пикселей, `trigger` — по кнопке, по умолчанию — по содержимому. */
   width?: number | 'trigger';
+  /**
+   * К чему прикладывать карточку, если не к самой кнопке: мини-плеер открывается нажатием на трек,
+   * а карточка встаёт под всей полосой, а не под её левой частью.
+   */
+  anchor?: RefObject<Element | null>;
   modal?: boolean;
   mobile?: 'drawer' | 'popover';
   /** Высота листа на телефоне: виджету музыки — 85 % экрана (DESIGN → «Плеер»). */
@@ -47,6 +52,7 @@ export function Popover({
   align = 'end',
   sideOffset = 8,
   width,
+  anchor,
   modal = false,
   mobile = 'drawer',
   drawerHeight,
@@ -83,6 +89,7 @@ export function Popover({
       <BasePopover.Portal>
         <BasePopover.Positioner
           className="ui-popover__positioner"
+          anchor={anchor}
           side={side}
           align={align}
           sideOffset={sideOffset}
