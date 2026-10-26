@@ -149,9 +149,11 @@
   color: var(--gold);
   font-weight: var(--weight-semibold);
 }
+/* Пауза — сплошными полосками: контур в 12 px читался как «00». */
 .stage-notch__paused {
   width: var(--icon-xs);
   height: var(--icon-xs);
+  fill: currentColor;
 }
 /* Эфир — красная точка, как у «LIVE» на пульте плеера. */
 .stage-notch__live {
