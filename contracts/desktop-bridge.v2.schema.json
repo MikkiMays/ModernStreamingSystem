@@ -86,7 +86,13 @@
         },
         "showPing": { "type": "boolean" },
         "notificationSounds": { "type": "boolean" },
-        "autoConnect": { "type": "boolean" }
+        "autoConnect": { "type": "boolean" },
+        "titlebarHeight": {
+          "description": "Высота кнопок окна «— ⧉ ×» поверх страницы в DIP (titleBarOverlay.height) — с 1.0.10, 56 по шапке встречи; нет — веб считает 36 (web/src/core/titlebar.ts).",
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 96
+        }
       }
     },
     "pageMessage": {

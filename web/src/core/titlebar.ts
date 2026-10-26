@@ -26,7 +26,8 @@ export interface WindowControlsOverlayLike {
 /**
  * Кнопки «— ⧉ ×» Electron в DIP: три по 45 и зазор 1 между ними (`WinCaptionButton`,
  * `WindowFrameUtil::kWindowsCaptionButtonWidth`), высота — `titleBarOverlay.height` оболочки
- * (`desktop/src/main/windows/main.ts`).
+ * (`desktop/src/main/windows/main.ts`). 36 — у оболочек до 1.0.10; с 1.0.10 оболочка называет свою
+ * высоту сама (`bootstrap.titlebarHeight`, 56 — по шапке встречи).
  */
 export const CAPTION_BUTTONS = { width: 137, height: 36 } as const;
 
@@ -36,6 +37,8 @@ export interface TitlebarEnvironment {
   viewport(): number;
   /** Кнопки окна нарисованы поверх страницы, пока она не во весь экран (клиент Windows на Electron). */
   readonly captionButtons: boolean;
+  /** Высота кнопок окна в DIP, если оболочка её назвала; иначе — `CAPTION_BUTTONS.height`. */
+  readonly captionHeight?: number;
   /** Страница во весь экран — кнопок окна нет. */
   fullscreen(): boolean;
   /** Масштаб страницы: сколько DIP в одном CSS-пикселе (Ctrl + плюс/минус в клиенте). */
@@ -72,7 +75,7 @@ export function titlebarArea(
   if (!env.captionButtons) return reported;
   const zoom = env.zoom() > 0 ? env.zoom() : 1;
   return {
-    height: Math.max(reported?.height ?? 0, Math.ceil(CAPTION_BUTTONS.height / zoom)),
+    height: Math.max(reported?.height ?? 0, Math.ceil((env.captionHeight ?? CAPTION_BUTTONS.height) / zoom)),
     end: Math.max(reported?.end ?? 0, Math.ceil(CAPTION_BUTTONS.width / zoom)),
   };
 }
@@ -88,11 +91,22 @@ function electronOnWindows(): boolean {
   return bridge?.protocol?.major === 2 && /Windows/i.test(navigator.userAgent);
 }
 
+/** Высота кнопок окна из моста оболочки (`bootstrap.titlebarHeight`, с 1.0.10) — только разумное число. */
+export function captionHeight(
+  bridge: { bootstrap?: { titlebarHeight?: unknown } } | undefined,
+): number | undefined {
+  const value = bridge?.bootstrap?.titlebarHeight;
+  return typeof value === 'number' && value >= 24 && value <= 96 ? value : undefined;
+}
+
 /** Окно браузера, в котором открыта страница. */
 export function browserEnvironment(): TitlebarEnvironment {
   return {
     viewport: () => window.innerWidth,
     captionButtons: electronOnWindows(),
+    captionHeight: captionHeight(
+      (window as Window & { cordDesktop?: { bootstrap?: { titlebarHeight?: unknown } } }).cordDesktop,
+    ),
     fullscreen: () =>
       !!document.fullscreenElement ||
       (typeof matchMedia === 'function' && matchMedia('(display-mode: fullscreen)').matches),
@@ -127,8 +141,7 @@ export function watchTitlebar(
     }
     root.style.setProperty('--titlebar-h', `${area.height}px`);
     root.style.setProperty('--titlebar-end', `${area.end}px`);
-    // Кнопки окна поверх страницы: шапки встречи и предвхода становятся заголовком окна — одной
-    // полосой с «— ⧉ ×» (`meeting-header.css`, `prejoin.css`).
+    // Кнопки окна поверх страницы: шапка предвхода — той же высоты, что шапка встречи (`prejoin.css`).
     root.setAttribute('data-titlebar', '');
   };
   apply();

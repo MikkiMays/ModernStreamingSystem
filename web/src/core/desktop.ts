@@ -30,6 +30,8 @@ interface CordDesktop {
     showPing: boolean;
     notificationSounds: boolean;
     autoConnect: boolean;
+    /** Высота кнопок окна «— ⧉ ×» в DIP (`titleBarOverlay.height`, с 1.0.10); нет — 36 (`core/titlebar.ts`). */
+    titlebarHeight?: number;
   };
   send(type: string, payload?: object): void;
   invoke(method: string, payload?: object): Promise<unknown>;

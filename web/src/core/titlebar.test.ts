@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   CAPTION_BUTTONS,
+  captionHeight,
   pageZoom,
   titlebarArea,
   watchTitlebar,
@@ -29,14 +30,30 @@ function overlay(visible: boolean, rect = { x: 0, y: 0, width: 1142, height: 36 
 
 /** Окно страницы: ширина, полный экран, масштаб и события «окно поменялось» — руками теста. */
 function environment(
-  options: Partial<{ width: number; captionButtons: boolean; fullscreen: boolean; zoom: number }> = {},
+  options: Partial<{
+    width: number;
+    captionButtons: boolean;
+    captionHeight: number;
+    fullscreen: boolean;
+    zoom: number;
+  }> = {},
 ) {
-  const state = { width: 1280, captionButtons: false, fullscreen: false, zoom: 1, ...options };
+  const state = {
+    width: 1280,
+    captionButtons: false,
+    captionHeight: undefined as number | undefined,
+    fullscreen: false,
+    zoom: 1,
+    ...options,
+  };
   const listeners = new Set<() => void>();
   const env: TitlebarEnvironment & { set(next: Partial<typeof state>): void; listeners: Set<() => void> } = {
     viewport: () => state.width,
     get captionButtons() {
       return state.captionButtons;
+    },
+    get captionHeight() {
+      return state.captionHeight;
     },
     fullscreen: () => state.fullscreen,
     zoom: () => state.zoom,
@@ -170,5 +187,43 @@ describe('кнопки окна клиента Windows не перекрываю
     expect(pageZoom(1536, 1920)).toBeCloseTo(0.8, 2);
     expect(pageZoom(1600, 1280)).toBeCloseTo(1.25, 2);
     expect(pageZoom(0, 1280)).toBe(1);
+  });
+});
+
+describe('высоту кнопок окна называет оболочка (1.0.10: 56 — по шапке встречи)', () => {
+  it('зона пустая, оболочка сказала 56 — полоса 56, а не 36', () => {
+    const wco = overlay(false, { x: 0, y: 0, width: 0, height: 0 });
+    const stop = watchTitlebar(wco, environment({ captionButtons: true, captionHeight: 56 }), root);
+    expect(vars()).toEqual(['56px', `${CAPTION_BUTTONS.width}px`]);
+    stop();
+  });
+
+  it('оболочка до 1.0.10 высоту не называет — прежние 36', () => {
+    const wco = overlay(false, { x: 0, y: 0, width: 0, height: 0 });
+    const stop = watchTitlebar(wco, environment({ captionButtons: true }), root);
+    expect(vars()).toEqual(['36px', `${CAPTION_BUTTONS.width}px`]);
+    stop();
+  });
+
+  it('масштаб страницы 125 % — 56 DIP это 45 CSS-пикселей', () => {
+    const wco = overlay(false, { x: 0, y: 0, width: 0, height: 0 });
+    const stop = watchTitlebar(
+      wco,
+      environment({ captionButtons: true, captionHeight: 56, zoom: 1.25 }),
+      root,
+    );
+    expect(vars()[0]).toBe('45px');
+    stop();
+  });
+});
+
+describe('captionHeight из моста', () => {
+  it('берёт только разумное число', () => {
+    expect(captionHeight({ bootstrap: { titlebarHeight: 56 } })).toBe(56);
+    expect(captionHeight({ bootstrap: {} })).toBeUndefined();
+    expect(captionHeight({ bootstrap: { titlebarHeight: 0 } })).toBeUndefined();
+    expect(captionHeight({ bootstrap: { titlebarHeight: 500 } })).toBeUndefined();
+    expect(captionHeight({ bootstrap: { titlebarHeight: '56' } })).toBeUndefined();
+    expect(captionHeight(undefined)).toBeUndefined();
   });
 });

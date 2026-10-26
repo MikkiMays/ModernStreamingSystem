@@ -32,23 +32,11 @@
   app-region: no-drag;
 }
 /*
-  Пока «— ⧉ ×» нарисованы поверх страницы (`data-titlebar` ставит `core/titlebar.ts`), шапка встречи —
-  сам заголовок окна, как у Discord и VS Code (R122): полоса ровно в высоту кнопок окна
-  (`--titlebar-h`), и звезда, ссылка и «Поддержка» стоят на одной линии с ними, а не на 10 px ниже —
-  по центру шапки 56. Кнопки шапки — 32 с значками 20, марка — 22, название и строка о встрече —
-  одной строкой и в узком окне. Сцене достаётся на 20 px больше.
+  Шапка встречи в клиенте Windows — прежние 56 px, а не полоса в высоту кнопок окна (R122 сжимал её до
+  36; владелец: «верни, был отличный размер»). Ровную линию с «— ⧉ ×» даёт сама оболочка: с 1.0.10 её
+  кнопки окна — 56 в высоту (`titleBarOverlay.height`), и звезда, ссылка и «Поддержка» стоят с ними по
+  одной середине. Правое поле под кнопками окна (`--titlebar-end`) остаётся — они не ложатся на шапку.
 */
-:root[data-titlebar] .meeting-header {
-  --header-pad: var(--space-4);
-  min-height: var(--titlebar-h);
-}
-:root[data-titlebar] .meeting-header__brand {
-  --brand-h: 22px;
-}
-:root[data-titlebar] .meeting-header__actions .ui-icon-button {
-  width: var(--control-sm);
-  height: var(--control-sm);
-}
 .meeting-header__identity {
   display: flex;
   flex: 1 1 auto;
@@ -112,8 +100,7 @@
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--motion-fast) var(--ease-standard);
+  transition: color var(--motion-fast) var(--ease-standard);
 }
 /* Нажимается вся строка с названием, а не только карандаш. */
 .meeting-header__rename::after {
@@ -122,14 +109,11 @@
   inset: 0;
   border-radius: inherit;
 }
+/* Карандаш виден всегда, а не по наведению: спрятанный, он оставлял между названием и кодом пустое
+   место в свою ширину — строка слева читалась неровной (владелец). */
 .meeting-header__name:hover .meeting-header__rename,
 .meeting-header__rename:focus-visible {
-  opacity: 1;
-}
-@media (hover: none) {
-  .meeting-header__rename {
-    opacity: 1;
-  }
+  color: var(--text-secondary);
 }
 .meeting-header__meta {
   display: flex;
@@ -275,12 +259,5 @@
 @media (max-height: 600px) and (min-width: 768px) {
   .meeting-header {
     min-height: max(52px, var(--titlebar-h, 0px));
-  }
-}
-@media (max-width: 767px) {
-  :root[data-titlebar] .meeting-header__text {
-    flex-direction: row;
-    align-items: baseline;
-    gap: var(--space-3);
   }
 }

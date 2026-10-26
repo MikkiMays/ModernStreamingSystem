@@ -49,19 +49,10 @@
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
-/* Кнопки окна поверх страницы — шапка предвхода и есть заголовок окна (R122, как у встречи): одной
-   полосой с «— ⧉ ×», «Поддержка» и «На главную» на их линии. */
+/* Кнопки окна поверх страницы — шапка предвхода той же высоты, что шапка встречи (56): по одной
+   середине с «— ⧉ ×» оболочки 1.0.10, без сжатия до полосы кнопок окна (R122 отменён владельцем). */
 :root[data-titlebar] .prejoin-page {
-  --prejoin-header-h: var(--titlebar-h);
-}
-:root[data-titlebar] .prejoin-page > .app-header .brand {
-  --brand-h: 22px;
-}
-:root[data-titlebar] .prejoin-page > .app-header :is(.ui-button, .ui-icon-button) {
-  height: var(--control-sm);
-}
-:root[data-titlebar] .prejoin-page > .app-header .ui-icon-button {
-  width: var(--control-sm);
+  --prejoin-header-h: max(56px, var(--titlebar-h));
 }
 /* «?» рядом с «На главную» (E13, T36). */
 .app-header__end {
