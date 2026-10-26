@@ -2180,6 +2180,15 @@
       "announcePeople": "All participants",
       "announceIntegration": "On stage: {{name}}"
     },
+    "notch": {
+      "seated": "{{n}} at the table",
+      "turn": "Your turn",
+      "drawing": "{{name}} is drawing",
+      "youDraw": "You're drawing",
+      "paused": "paused",
+      "back": "Back to {{integration}} — {{state}}",
+      "title": "Go back ({{key}})"
+    },
     "menu": {
       "volume": "Your volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",

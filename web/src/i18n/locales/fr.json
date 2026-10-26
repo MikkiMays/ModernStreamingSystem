@@ -2207,6 +2207,15 @@
       "announcePeople": "Tous les participants",
       "announceIntegration": "En scène : {{name}}"
     },
+    "notch": {
+      "seated": "{{n}} à la table",
+      "turn": "À vous de jouer",
+      "drawing": "{{name}} dessine",
+      "youDraw": "Vous dessinez",
+      "paused": "en pause",
+      "back": "Revenir à {{integration}} — {{state}}",
+      "title": "Revenir ({{key}})"
+    },
     "menu": {
       "volume": "Votre volume · {{value}} %",
       "volumeOf": "Volume : {{name}}",

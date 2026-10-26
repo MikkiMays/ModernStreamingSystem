@@ -2153,6 +2153,15 @@
       "announcePeople": "所有参与者",
       "announceIntegration": "舞台上：{{name}}"
     },
+    "notch": {
+      "seated": "桌上 {{n}} 人",
+      "turn": "轮到你了",
+      "drawing": "{{name}} 正在画",
+      "youDraw": "你正在画",
+      "paused": "已暂停",
+      "back": "返回{{integration}}——{{state}}",
+      "title": "返回（{{key}}）"
+    },
     "menu": {
       "volume": "你听到的音量 · {{value}}%",
       "volumeOf": "音量：{{name}}",

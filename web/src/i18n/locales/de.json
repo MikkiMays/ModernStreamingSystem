@@ -2180,6 +2180,15 @@
       "announcePeople": "Alle Teilnehmer",
       "announceIntegration": "Auf der Bühne: {{name}}"
     },
+    "notch": {
+      "seated": "{{n}} am Tisch",
+      "turn": "Du bist dran",
+      "drawing": "{{name}} zeichnet",
+      "youDraw": "Du zeichnest",
+      "paused": "pausiert",
+      "back": "Zurück zu {{integration}} — {{state}}",
+      "title": "Zurück ({{key}})"
+    },
     "menu": {
       "volume": "Deine Lautstärke · {{value}} %",
       "volumeOf": "Lautstärke: {{name}}",

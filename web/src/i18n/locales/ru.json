@@ -2234,6 +2234,15 @@
       "announcePeople": "Все участники",
       "announceIntegration": "На сцене: {{name}}"
     },
+    "notch": {
+      "seated": "{{n}} за столом",
+      "turn": "Ваш ход",
+      "drawing": "Рисует {{name}}",
+      "youDraw": "Вы рисуете",
+      "paused": "на паузе",
+      "back": "Вернуться: {{integration}} — {{state}}",
+      "title": "Вернуться ({{key}})"
+    },
     "menu": {
       "volume": "Громкость у вас · {{value}}%",
       "volumeOf": "Громкость: {{name}}",

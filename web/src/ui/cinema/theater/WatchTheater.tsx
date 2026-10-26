@@ -20,6 +20,7 @@ import { useEcho, useRoomSync } from './useRoomSync';
 import { useWatchKeys } from './useWatchKeys';
 import { controlsShown, framePress, playToggle } from './watch-controls';
 import { KEY_TEXT, muteToggle, volumeAfter, type WatchAction } from './watch-keys';
+import { theaterVideo } from './live-frame';
 
 /** Сколько пульт висит без движения мыши, прежде чем уйти с кадра вместе с курсором (T19). */
 const IDLE_MS = 2500;
@@ -108,6 +109,14 @@ export function WatchTheater({
   // плеер на всё окно сама — см. {@link useFullscreen}.
   const { full: fullscreen, targetFull, toggle: toggleFullscreen } = useFullscreen(screen);
   const video = useRef<HTMLVideoElement>(null);
+  // Кадр и время для чёлки у ушедшего к участникам (R121).
+  useEffect(() => {
+    const element = video.current;
+    theaterVideo.set(element);
+    return () => {
+      if (theaterVideo.get() === element) theaterVideo.set(null);
+    };
+  }, []);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const echo = useEcho();
   const player = usePlayback({ meeting, api, watch, video, echo, preferences });

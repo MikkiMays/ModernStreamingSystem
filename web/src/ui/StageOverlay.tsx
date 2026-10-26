@@ -48,7 +48,8 @@ export interface MusicPresence {
   failed?: boolean;
 }
 
-const ICONS: Record<ChipKind, LucideIcon> = {
+/** Знаки интеграций — общие у чипов и чёлки (R121). */
+export const ICONS: Record<ChipKind, LucideIcon> = {
   poker: Spade,
   durak: Club,
   chess: Crown,

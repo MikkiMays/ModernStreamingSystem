@@ -1,0 +1,195 @@
+/*
+  Чёлка (R121, `StageNotch.tsx`, DESIGN → «Встреча» → «Выход из интеграции и чёлка»). Только токены.
+
+  Интеграция, от которой зритель ушёл к участникам, свисает от верхнего края сцены, как вырез: стекло
+  сцены, скругление только снизу, тень вниз. Она стоит в потоке над видом людей — плитки не накрывает,
+  а сдвигает на свою высоту. Одна строка: знак интеграции (у фильма — живой кадр), имя и состояние.
+  Бренд — только плашкой знака 24, как у чипов R30 и знака источника R128. «Ваш ход» — золотом кольца
+  хода, без мигания. Появление — выезд из-под шапки 200 мс; под `reduce` длительность токенов — 0.
+*/
+.stage-notch {
+  --notch-h: var(--control-lg);
+  --notch-pad: var(--space-1);
+  position: relative;
+  z-index: calc(var(--z-stage) + 4);
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: min(480px, 100%);
+  height: var(--notch-h);
+  /* Вплотную к верхнему краю сцены: поле сцены сверху гасится, снизу — зазор до плиток. */
+  margin: calc(var(--space-3) * -1) auto var(--space-2);
+  padding: 0 var(--space-4) 0 var(--notch-pad);
+  border: 0;
+  border-radius: 0 0 var(--radius-4) var(--radius-4);
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  box-shadow:
+    var(--shadow-2),
+    inset 0 calc(var(--hairline) * -1) 0 var(--stage-glint-1);
+  color: var(--stage-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  text-align: start;
+  cursor: pointer;
+  animation: stage-notch-in var(--motion-base) var(--ease-emphasized) backwards;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.stage-notch:hover {
+  background: var(--stage-glass-strong);
+}
+.stage-notch:active {
+  transform: scale(0.98);
+}
+/* Кольцо фокуса — внутрь: снаружи сверху его срезал бы край сцены. */
+.stage-notch:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset-inset);
+}
+@keyframes stage-notch-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+/* Знак интеграции: плашка 24 цвета игры по центру места 32 — вокруг него встаёт кольцо хода. */
+.stage-notch__mark {
+  --notch-brand: var(--surface-3);
+  --notch-ink: var(--stage-text);
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--notch-h) - 2 * var(--notch-pad));
+  height: calc(var(--notch-h) - 2 * var(--notch-pad));
+}
+.stage-notch__mark::before {
+  content: '';
+  grid-area: 1 / 1;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  border-radius: var(--radius-0);
+  background: var(--notch-brand);
+}
+.stage-notch__mark > svg.lucide {
+  grid-area: 1 / 1;
+  position: relative;
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  color: var(--notch-ink);
+}
+.stage-notch__mark > .turn-ring {
+  --turn-ring-gap: 0px;
+}
+.stage-notch[data-kind='poker'] .stage-notch__mark {
+  --notch-brand: var(--brand-poker);
+  --notch-ink: var(--brand-poker-ink);
+}
+.stage-notch[data-kind='durak'] .stage-notch__mark {
+  --notch-brand: var(--brand-durak);
+  --notch-ink: var(--brand-durak-ink);
+}
+.stage-notch[data-kind='chess'] .stage-notch__mark {
+  --notch-brand: var(--brand-chess);
+  --notch-ink: var(--brand-chess-ink);
+}
+.stage-notch[data-kind='gartic'] .stage-notch__mark {
+  --notch-brand: var(--brand-gartic);
+  --notch-ink: var(--brand-gartic-ink);
+}
+.stage-notch[data-kind='cinema'] .stage-notch__mark {
+  --notch-brand: var(--brand-cinema);
+  --notch-ink: var(--brand-cinema-ink);
+}
+
+/* Живой кадр фильма: 16:9 во всю высоту чёлки за вычетом поля, скругление — радиус чёлки минус поле. */
+.stage-notch__frame {
+  flex: none;
+  width: calc((var(--notch-h) - 2 * var(--notch-pad)) * 16 / 9);
+  height: calc(var(--notch-h) - 2 * var(--notch-pad));
+  border-radius: var(--radius-2);
+  background: var(--stage-tile);
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-1);
+}
+
+.stage-notch__text {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  white-space: nowrap;
+}
+.stage-notch__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+.stage-notch__status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--stage-muted);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+.stage-notch__status::before {
+  content: '·';
+  margin-inline: var(--space-1);
+  color: var(--stage-muted);
+}
+.stage-notch[data-turn] .stage-notch__status {
+  color: var(--gold);
+  font-weight: var(--weight-semibold);
+}
+.stage-notch__paused {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+/* Эфир — красная точка, как у «LIVE» на пульте плеера. */
+.stage-notch__live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+/* Слой интеграций справа сверху опускается под строку чёлки: два стекла в одной строке спорили бы. */
+.stage-wrap:has(> .stage-notch) > .stage-overlay {
+  top: calc(var(--control-lg) + var(--space-2) + var(--space-2));
+}
+/* Поля сцены нет — чужой экран открыт во всю сцену, или встреча во весь экран: чёлке гасить нечего. */
+.stage-wrap:has(.watch-stage) > .stage-notch,
+.meeting-fullscreen .stage-notch {
+  margin-top: 0;
+}
+@media (max-height: 600px) and (min-width: 768px) {
+  .stage-notch {
+    margin-top: calc(var(--space-2) * -1);
+  }
+}
+
+/* Телефон: чёлка под палец, во всю ширину, если нужно; лист панели опускается на её строку. */
+@media (max-width: 767px) {
+  .stage-notch {
+    --notch-h: var(--touch-target);
+    --notch-pad: 6px;
+    max-width: 100%;
+    margin-top: calc(var(--space-2) * -1);
+  }
+  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open:has(.stage-notch) {
+    /* Чёлка, зазор, полоса лиц 74 (`stage.css`) и зазор до листа. */
+    --sheet-top: calc(var(--touch-target) + var(--space-2) + 74px + var(--space-2));
+  }
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open:has(.stage-notch):has(.stage-overlay:not([data-empty])) {
+    --sheet-top: calc(2 * var(--touch-target) + 2 * var(--space-2) + 74px + var(--space-2));
+  }
+}
