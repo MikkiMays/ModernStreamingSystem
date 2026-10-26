@@ -18,6 +18,29 @@
 * {
   box-sizing: border-box;
 }
+/*
+  Выделение текста (R126) — как в Discord: хром интерфейса (кнопки, вкладки, карточки, меню, заголовки
+  окон, подписи) не выделяется ни протяжкой, ни двойным щелчком, ни Ctrl+A — на главной синим
+  выделялись «Новая встреча» и «Войти по коду». Выделяется то, что человек копирует: сообщения чата,
+  код встречи, тексты «Диагностики» и «О программе», отчёт для поддержки. Поля ввода и всё
+  редактируемое правило не трогает: у них своё выделение (`user-select: auto` → `contain`).
+*/
+:root {
+  -webkit-user-select: none;
+  user-select: none;
+}
+:where(
+  .message-body,
+  .invite-code > strong,
+  .diagnostics,
+  .settings-content__body[data-section='about'],
+  pre,
+  code,
+  [data-selectable]
+) {
+  -webkit-user-select: text;
+  user-select: text;
+}
 body {
   margin: 0;
   min-width: 320px;
@@ -788,63 +811,6 @@ progress {
   accent-color: var(--blue);
   cursor: pointer;
   min-height: 24px;
-}
-/*
-  Проверка своих устройств — карточкой, как разделы «Диагностики» (R29): поле и зазоры токенами,
-  заголовок раздела 16/600, пояснение 13 приглушённо, кнопки набора. В «Помощи» карточка снимается
-  (`support.css`): там заголовок у раздела.
-*/
-.device-check {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-3);
-  background: var(--surface-2);
-}
-.device-check p {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--leading-base);
-}
-.device-check__title {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  line-height: var(--leading-tight);
-}
-.device-check .device-check__note {
-  color: var(--muted);
-}
-.check-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.check-actions .button {
-  font-size: var(--text-xs);
-  padding: var(--space-2) var(--space-3);
-}
-.device-check-video {
-  width: 100%;
-  max-height: 280px;
-  object-fit: contain;
-  border-radius: var(--radius-2);
-  background: var(--stage-bg);
-}
-.mic-test {
-  display: grid;
-  gap: var(--space-3);
-}
-.mic-test label {
-  display: grid;
-  gap: var(--space-2);
-}
-.mic-test meter {
-  width: 100%;
-  height: 18px;
-}
-.device-check audio {
-  width: 100%;
 }
 
 .modal-heading {

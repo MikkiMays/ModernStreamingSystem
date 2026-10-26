@@ -424,16 +424,53 @@ input.settings-search__input {
   color: var(--muted);
   font-size: var(--text-sm);
 }
+/*
+  Строка — сетка: подпись в первой линии, пояснение — сразу под ней, действие справа — по центру линии
+  подписи, «ниже» — во всю ширину (R127, как у Discord). Прежде действие стояло по центру всего блока
+  «подпись + пояснение»: у строки с пояснением «Shift ` · Изменить» висело между подписью и пояснением,
+  а со стороны — между строками. Блок текста раскрывается в ячейки сетки (`display: contents`). У
+  строки с пояснением действие занимает обе линии, прижато к верху и сдвинуто на полвысоты к центру
+  линии подписи (`translate` от своей высоты) — пояснение не отъезжает от подписи, будь действие
+  переключателем 24 или кнопкой 36.
+*/
 .setting-row {
+  --setting-line: 20px;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  align-content: center;
   column-gap: var(--space-6);
-  row-gap: var(--space-2);
+  row-gap: var(--space-0-5);
   min-height: var(--settings-row-h, 56px);
   padding: var(--space-2) 0;
   box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line);
+}
+.setting-row > .setting-row__text {
+  display: contents;
+}
+.setting-row > .setting-row__text > .setting-row__label {
+  grid-column: 1;
+  grid-row: 1;
+}
+.setting-row > .setting-row__text > .setting-row__hint {
+  grid-column: 1;
+  grid-row: 2;
+}
+.setting-row:not([data-wide], .setting-row--wide) > .setting-row__control {
+  grid-column: 2;
+  grid-row: 1;
+}
+.setting-row:has(> .setting-row__text > .setting-row__hint):not([data-wide], .setting-row--wide)
+  > .setting-row__control {
+  grid-row: 1 / span 2;
+  align-self: start;
+  translate: 0 calc(var(--setting-line) / 2 - 50%);
+}
+/* Действие выступает над линией подписи на полразницы высот: строке с пояснением поле сверху не
+   меньше 8 px и в низком окне — кнопка не ложится на волосок строки выше. */
+.setting-row:has(> .setting-row__text > .setting-row__hint) {
+  padding-top: var(--space-2);
 }
 .setting-row:last-child {
   box-shadow: none;
@@ -495,6 +532,7 @@ input.settings-search__input {
   color: var(--text);
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
+  line-height: var(--setting-line);
 }
 .setting-row__hint {
   color: var(--muted);
@@ -517,6 +555,7 @@ input.settings-search__input {
   gap: var(--space-2);
   grid-column: 1 / -1;
   min-width: 0;
+  margin-top: calc(var(--space-2) - var(--space-0-5));
 }
 .setting-row__below:empty {
   display: none;
@@ -934,6 +973,14 @@ input.theme-option__input {
   .setting-row[data-stack] .setting-row__control {
     justify-content: stretch;
   }
+  /* Действие — своей линией под подписью и пояснением. */
+  .setting-row[data-stack]:not([data-wide]) > .setting-row__control {
+    grid-column: 1;
+    grid-row: auto;
+    align-self: auto;
+    translate: none;
+    margin-top: calc(var(--space-2) - var(--space-0-5));
+  }
   .setting-row[data-stack] .setting-select,
   .setting-row[data-stack] .setting-text,
   .setting-row[data-stack] .setting-slider {
@@ -1091,6 +1138,33 @@ input.theme-option__input {
 .overlay-game:last-child {
   box-shadow: none;
 }
+/* В списке игр — та же сетка, что у строк настроек (R127): переключатель и «…» на линии имени игры,
+   «Последний запуск …» — сразу под именем. */
+.overlay-games > .overlay-game {
+  --setting-line: 24px;
+  align-content: center;
+  row-gap: var(--space-0-5);
+  padding-block: var(--space-2);
+}
+.overlay-games > .overlay-game > .overlay-game__text {
+  display: contents;
+}
+.overlay-games > .overlay-game > .overlay-game__text > .overlay-game__name {
+  grid-column: 1;
+  grid-row: 1;
+}
+.overlay-games > .overlay-game > .overlay-game__text > .overlay-game__status {
+  grid-column: 1;
+  grid-row: 2;
+}
+.overlay-games > .overlay-game > .overlay-game__text > .overlay-game__name {
+  line-height: var(--setting-line);
+}
+.overlay-games > .overlay-game > :not(.overlay-game__text) {
+  grid-row: 1 / span 2;
+  align-self: start;
+  translate: 0 calc(var(--setting-line) / 2 - 50%);
+}
 .overlay-game--now {
   grid-template-columns: auto minmax(0, 1fr) auto;
   padding: var(--space-3);
@@ -1134,6 +1208,8 @@ input.theme-option__input {
   margin: var(--space-2) 0 var(--space-3);
   overflow: hidden;
   border-radius: var(--radius-3);
+  /* Край «экрана игры» и в тёмной теме: градиент сцены почти совпадает с фоном окна настроек. */
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-line);
   background:
     radial-gradient(
       80% 70% at 25% 110%,
@@ -1182,11 +1258,25 @@ input.theme-option__input {
 .overlay-preview__widget[data-corner$='r'] .overlay-preview__person {
   flex-direction: row-reverse;
 }
+/*
+  Образец — тот же рисунок, что у виджета в игре (`overlay.css` оболочки), только мельче (R127): буква
+  в лице растёт с размером (12 / 13 / 16) и полужирная, с тенью от «игры» под ним; имена — на одной
+  тёмной плашке у всех, говорящего выделяет только кольцо. Прежде буква была 12 px на любом размере
+  (на светлом лице — почти не видна), а плашка говорящего — зелёной среди тёмных.
+*/
 .overlay-preview__person .avatar {
   width: var(--preview-avatar);
   min-width: var(--preview-avatar);
   height: var(--preview-avatar);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-1);
+}
+.overlay-preview__widget[data-size='s'] .avatar {
   font-size: var(--text-xs);
+}
+.overlay-preview__widget[data-size='l'] .avatar {
+  font-size: var(--text-md);
 }
 .overlay-preview__person[data-tier='3'] .avatar {
   box-shadow: 0 0 0 var(--voice-ring-3) var(--voice-3);
@@ -1194,13 +1284,10 @@ input.theme-option__input {
 .overlay-preview__name {
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
-  background: var(--stage-veil-2);
+  background: var(--stage-veil-3);
   color: var(--stage-text);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-}
-.overlay-preview__person[data-tier='3'] .overlay-preview__name {
-  background: color-mix(in srgb, var(--voice-3) 24%, transparent);
 }
 .overlay-preview__widget[data-names='never'] .overlay-preview__name,
 .overlay-preview__widget[data-names='speaking']

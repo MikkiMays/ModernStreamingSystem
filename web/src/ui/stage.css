@@ -264,7 +264,8 @@
   bottom: var(--space-2);
   display: flex;
   gap: var(--space-0-5);
-  padding: 2px;
+  /* Зазор до горящей линзы — целым числом физических пикселей, как у дорожки набора (R123). */
+  padding: var(--tab-gap);
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--stage-bg) 62%, transparent);
 }

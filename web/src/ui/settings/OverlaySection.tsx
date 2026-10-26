@@ -228,8 +228,7 @@ function GamesGroup() {
         </ul>
       )}
       <div className="overlay-games__add">
-        <Button variant="secondary" size="sm" onClick={() => void pickDesktopGame()}>
-          <Plus size={16} />
+        <Button variant="secondary" size="sm" icon={<Plus />} onClick={() => void pickDesktopGame()}>
           {t(($) => $.settings.overlay.add)}
         </Button>
       </div>

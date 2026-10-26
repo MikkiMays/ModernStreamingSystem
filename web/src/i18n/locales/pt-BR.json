@@ -2153,7 +2153,16 @@
       "recorded": "Sua gravação de teste",
       "cameraPreview": "Teste da câmera, só para você",
       "startingCamera": "Ligando a câmera…",
-      "startingMic": "Ligando o microfone…"
+      "startingMic": "Ligando o microfone…",
+      "microphone": "Microfone",
+      "camera": "Câmera",
+      "speaker": "Alto-falantes",
+      "start": "Testar",
+      "stop": "Parar",
+      "micHint": "Mostra o nível e grava um teste",
+      "micSpeak": "Diga alguma coisa",
+      "cameraHint": "Mostra a imagem da câmera",
+      "speakerHint": "Toca um sinal curto"
     }
   },
   "desktop": {

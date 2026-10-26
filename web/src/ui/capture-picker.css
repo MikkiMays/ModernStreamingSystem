@@ -150,8 +150,10 @@
     background var(--motion-fast),
     box-shadow var(--motion-fast);
 }
+/* Наведение — светлее самой плитки, а не полупрозрачный слой вместо её фона (в тёмной теме плитка
+   под курсором темнела). */
 .capture-tile:hover {
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--surface-2), var(--text) 6%);
 }
 .capture-tile:focus-visible {
   outline: var(--focus-outline);
@@ -165,12 +167,14 @@
   color: var(--text);
   font-weight: var(--weight-medium);
 }
+/* Миниатюра вложена в плитку с полем 8: её радиус — радиус плитки минус поле (12 − 8 = 4), углы
+   концентричны, как у плашки в дорожке (R125). */
 .capture-tile__thumb {
   display: grid;
   place-items: center;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-2);
+  border-radius: calc(var(--radius-3) - var(--space-2));
   background: var(--surface-3);
   color: var(--muted);
 }

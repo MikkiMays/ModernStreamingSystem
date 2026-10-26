@@ -2103,7 +2103,16 @@
       "recorded": "你的测试录音",
       "cameraPreview": "摄像头测试，仅你可见",
       "startingCamera": "正在开启摄像头…",
-      "startingMic": "正在开启麦克风…"
+      "startingMic": "正在开启麦克风…",
+      "microphone": "麦克风",
+      "camera": "摄像头",
+      "speaker": "扬声器",
+      "start": "测试",
+      "stop": "停止",
+      "micHint": "显示音量并录制试音",
+      "micSpeak": "说点什么",
+      "cameraHint": "显示摄像头画面",
+      "speakerHint": "播放一段短提示音"
     }
   },
   "desktop": {
