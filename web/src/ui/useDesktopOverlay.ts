@@ -17,8 +17,10 @@ import type { Panel } from './Sidebar';
  * - `overlay.levels` — ступень и уровень голоса каждого при каждом изменении (до 30 раз в секунду, без
  *   прежнего дросселя 100 мс). Это сообщение preload кладёт прямо в порты окон оболочки, мимо main;
  *   измеритель в клиенте — `AudioWorklet` (`media/levels.ts`): он работает, и когда Cord спрятан;
- * - `mini.state` — название встречи, микрофон, камера, показ, непрочитанные и сколько людей; сразу,
- *   как что-то поменялось.
+ * - `mini.state` — название встречи, микрофон, камера, показ, непрочитанные, сколько людей и связь со
+ *   звуком (`status`: идёт или восстанавливается, `remaining` — сколько секунд ещё ждать); сразу, как
+ *   что-то поменялось. Пока связь восстанавливается, нажатия микрофона, камеры и показа встреча не
+ *   исполняет (как пульт) — мини-окно по `status` гасит эти кнопки, а не принимает их впустую.
  * Оболочка до R63 (без флага `overlay.widget`) получает прежнее `overlay.state` — имена и ступени
  * без аватаров, не чаще 10 раз в секунду.
  *
@@ -115,6 +117,8 @@ export function useDesktopOverlay(meeting: Meeting, ended: boolean, actions: Des
         screen: media.screen,
         unread: meeting.unread.get(),
         count: presentHumans(meeting.snapshot.get().participants).length,
+        status: media.status === 'connected' || media.status === 'recovering' ? media.status : 'connecting',
+        remaining: media.status === 'recovering' ? Math.max(0, Math.ceil(media.remaining)) : 0,
       };
       const next = JSON.stringify(state);
       if (next === sent) return;
