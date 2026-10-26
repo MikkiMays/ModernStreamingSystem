@@ -37,7 +37,7 @@ function Probe({ meeting }: { meeting: Meeting }) {
   );
 }
 
-const press = (target: EventTarget, extra: Partial<KeyboardEventInit> = {}) =>
+const press = (target: Element | Document | Window, extra: Partial<KeyboardEventInit> = {}) =>
   act(() => {
     fireEvent.keyDown(target, { key: 'g', code: 'KeyG', ...extra });
   });

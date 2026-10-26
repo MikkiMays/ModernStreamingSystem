@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Users } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Store } from '../core/store';
 import { useStore } from './primitives';
@@ -66,7 +66,7 @@ export function StageExitButton({ variant }: { variant: 'bar' | 'theater' | 'cat
         data-stage-exit=""
         onClick={leave}
       >
-        <Users size={20} aria-hidden="true" />
+        <LayoutGrid size={20} aria-hidden="true" />
       </button>
     );
   return (
@@ -79,7 +79,7 @@ export function StageExitButton({ variant }: { variant: 'bar' | 'theater' | 'cat
       data-stage-exit=""
       onClick={leave}
     >
-      <Users size={16} aria-hidden="true" />
+      <LayoutGrid size={16} aria-hidden="true" />
       <span className="stage-exit__label">{label}</span>
     </button>
   );

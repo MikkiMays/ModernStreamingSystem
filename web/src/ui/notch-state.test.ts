@@ -33,7 +33,7 @@ describe('столы', () => {
     // Стол на паузе — часы стоят, торопить нечем.
     const paused = notchState(t, room({ poker: { ...poker, paused: true, you: { turn: true } } }), 'me', 0);
     expect(paused).toMatchObject({ status: '3 за столом', turn: false });
-    expect(paused.ring).toBeUndefined();
+    expect(paused?.ring).toBeUndefined();
   });
 
   it('дурак: ход у меня в бою — «Ваш ход»; между боями — сколько за столом', () => {
@@ -67,7 +67,7 @@ describe('столы', () => {
     };
     const mine = notchState(t, room({ chess }), 'me', 0);
     expect(mine).toMatchObject({ kind: 'chess', name: 'Шахматы', status: 'Ваш ход', turn: true });
-    expect(mine.ring).toBeUndefined();
+    expect(mine?.ring).toBeUndefined();
     expect(notchState(t, room({ chess: { ...chess, turn: 'white' } }), 'me', 0)).toMatchObject({
       status: '2 за столом',
       turn: false,
@@ -134,7 +134,7 @@ describe('кинозал', () => {
       status: 'LIVE',
       live: true,
     });
-    expect(notchState(t, room({ watch: { ...watch, title: null } }), 'me', 0).name).toBe('Кинозал');
+    expect(notchState(t, room({ watch: { ...watch, title: null } }), 'me', 0)?.name).toBe('Кинозал');
   });
 
   it('только свой каталог — «Кинозал · Каталог», без кадра', () => {
