@@ -1,10 +1,11 @@
 import { Tabs as BaseTabs } from '@base-ui/react/tabs';
-import type { ComponentProps, ReactNode } from 'react';
+import { Children, useRef, type ComponentProps, type ReactNode } from 'react';
+import { usePlate } from './usePlate';
 
 /**
- * Вкладки. `segmented` — плотный переключатель в панели (Люди / Чат / Боты): активная вкладка
- * — светлая плашка, которая едет под палец (`Tabs.Indicator`). `line` — вкладки страницы с
- * подчёркиванием. Стрелки влево-вправо переключают, фокус-кольцо только с клавиатуры.
+ * Вкладки. `segmented` — плотный переключатель в панели (Люди / Чат / Интеграции): дорожка и светлая
+ * плашка выбранной вкладки, которая едет к ней (R123, общий рисунок с `Segmented`). `line` — вкладки
+ * страницы с подчёркиванием. Стрелки влево-вправо переключают, фокус-кольцо только с клавиатуры.
  */
 export interface TabsProps extends Omit<ComponentProps<typeof BaseTabs.Root>, 'className'> {
   variant?: 'segmented' | 'line';
@@ -16,11 +17,22 @@ export function Tabs({ variant = 'segmented', className, ...props }: TabsProps) 
   return <BaseTabs.Root className={classes} {...props} />;
 }
 
+/**
+ * Плашка — своя, а не `Tabs.Indicator` Base UI: тот считает смещение от `clientLeft` (целые
+ * CSS-пиксели) и ставит его `translate` — на 125 % плашка стояла на полпикселя мимо вкладки с
+ * размытым краем (`usePlate`).
+ */
 export function TabList({ className, children, ...props }: ComponentProps<typeof BaseTabs.List>) {
+  const list = useRef<HTMLDivElement>(null);
+  usePlate(list, '.ui-tabs__tab', ".ui-tabs__tab[aria-selected='true']", Children.count(children));
   return (
-    <BaseTabs.List className={className ? `ui-tabs__list ${className}` : 'ui-tabs__list'} {...props}>
+    <BaseTabs.List
+      ref={list}
+      className={className ? `ui-tabs__list ${className}` : 'ui-tabs__list'}
+      {...props}
+    >
       {children}
-      <BaseTabs.Indicator className="ui-tabs__indicator" />
+      <span className="ui-tabs__indicator" aria-hidden="true" />
     </BaseTabs.List>
   );
 }
@@ -38,7 +50,7 @@ export function Tab({
           {icon}
         </span>
       )}
-      {children}
+      <span className="ui-tabs__label">{children}</span>
     </BaseTabs.Tab>
   );
 }

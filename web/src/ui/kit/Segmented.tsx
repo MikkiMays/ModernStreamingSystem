@@ -1,6 +1,7 @@
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { usePlate } from './usePlate';
 
 /**
  * Сегмент — выбор одного значения из нескольких рядом (S4, R78): «SD / HD» Discord. Радиогруппа
@@ -8,10 +9,9 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
  * пункт пропускается. Не путать с `Tabs variant="segmented"`: вкладки меняют содержимое под собой,
  * сегмент — значение настройки.
  *
- * Выбранный пункт подсвечивает одна плашка, которая едет к нему (`--seg-x` / `--seg-w` по
- * `offsetLeft` / `offsetWidth`, `transform` и `width` за `--motion-base`). Недоступный пункт (выше
- * потолка сервера) объясняет причину в `title`, а не строкой под сегментом. Кольцо фокуса — вокруг
- * группы и только с клавиатуры (S1).
+ * Выбранный пункт подсвечивает одна плашка, которая едет к нему (`usePlate`, общий рисунок с вкладками,
+ * R123). Недоступный пункт (выше потолка сервера) объясняет причину в `title`, а не строкой под
+ * сегментом. Кольцо фокуса — вокруг группы и только с клавиатуры (S1).
  */
 export interface SegmentedOption<T extends string | number> {
   value: T;
@@ -55,28 +55,11 @@ export function Segmented<T extends string | number>({
   className,
 }: SegmentedProps<T>) {
   const root = useRef<HTMLDivElement>(null);
-  const items = useRef<(HTMLElement | null)[]>([]);
-  // Своё значение — только чтобы знать, к какому пункту везти плашку, когда сегментом не управляют.
+  // Своё значение — только чтобы знать, есть ли выбранный пункт, когда сегментом не управляют.
   const [own, setOwn] = useState(defaultValue);
   const selected = value !== undefined ? value : own;
   const index = options.findIndex((option) => option.value === selected);
-
-  useLayoutEffect(() => {
-    const element = root.current;
-    if (!element) return;
-    const place = () => {
-      const item = items.current[index];
-      element.style.setProperty('--seg-x', `${item ? item.offsetLeft : 0}px`);
-      element.style.setProperty('--seg-w', `${item ? item.offsetWidth : 0}px`);
-    };
-    place();
-    // Шрифт догрузился, окно сузилось, сменился язык — пункты стали другой ширины.
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(place);
-    observer.observe(element);
-    for (const item of items.current) if (item) observer.observe(item);
-    return () => observer.disconnect();
-  }, [index, options]);
+  usePlate(root, '.ui-segmented__item', '.ui-segmented__item[data-checked]', options.length);
 
   const classes = [
     'ui-segmented',
@@ -103,12 +86,9 @@ export function Segmented<T extends string | number>({
       data-empty={index < 0 || undefined}
     >
       <span className="ui-segmented__indicator" aria-hidden="true" />
-      {options.map((option, position) => (
+      {options.map((option) => (
         <Radio.Root
           key={String(option.value)}
-          ref={(element: HTMLElement | null) => {
-            items.current[position] = element;
-          }}
           value={option.value}
           disabled={option.disabled}
           title={option.title}

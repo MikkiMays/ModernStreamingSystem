@@ -485,26 +485,64 @@
 .ui-tabs__list {
   position: relative;
   display: flex;
-  gap: var(--space-0-5);
+  gap: var(--tab-gap);
   isolation: isolate;
 }
-.ui-tabs--segmented .ui-tabs__list {
-  padding: var(--space-0-5);
+/*
+  Переключатель — вкладки `segmented` и сегмент (R123): один рисунок «дорожка и плашка» на все места
+  (панель встречи, поддержка, окно показа, настройки, предвход, зум камеры).
+
+  - Дорожка `--surface-2` высотой `--tab-h` (`sm` — `--tab-h-sm`), радиус `--tab-radius`. Выбранная
+    плашка `--surface-3` с `--shadow-1` — светлее дорожки в обеих темах (в тёмной `--surface-1`
+    была темнее дорожки и плашка казалась вдавленной).
+  - Зазор плашки до края дорожки `--tab-gap` — поле дорожки в целое число физических пикселей
+    (`ui/device-pixel.ts`): 2 px на 125 % — это 2,5 физических, Chromium прижимает к пикселю каждый
+    край отдельно, и зазор делился сверху и снизу как 2 и 3 — плашка «съезжала». С целым зазором края
+    дорожки и плашки округляются одинаково: сверху = снизу = слева = справа. (Рамкой нельзя: толщину
+    рамки Chromium округляет вниз до целых CSS-пикселей, 2,4 → 2.)
+  - Плашка во всю высоту поля, радиус — радиус дорожки минус зазор; её ставят `left`/`width` по замеру
+    пункта (`usePlate`), а не `transform` от округлённого `offsetLeft`: так она ложится ровно на пункт,
+    и край не размывается сдвигом на полпикселя.
+*/
+.ui-tabs--segmented .ui-tabs__list,
+.ui-segmented {
+  height: var(--tab-h);
+  padding: var(--tab-gap);
   border-radius: var(--tab-radius);
   background: var(--surface-2);
+}
+.ui-tabs__indicator,
+.ui-segmented__indicator {
+  position: absolute;
+  z-index: 0;
+  top: var(--tab-gap);
+  bottom: var(--tab-gap);
+  left: calc(var(--tab-gap) + var(--plate-x, 0px));
+  width: var(--plate-w, 0px);
+  border-radius: calc(var(--tab-radius) - var(--tab-gap));
+  background: var(--surface-3);
+  box-shadow: var(--shadow-1);
+  opacity: 0;
+  pointer-events: none;
+}
+[data-plate] > :is(.ui-tabs__indicator, .ui-segmented__indicator) {
+  opacity: 1;
+}
+[data-plate='ready'] > :is(.ui-tabs__indicator, .ui-segmented__indicator) {
+  transition:
+    left var(--motion-base) var(--ease-emphasized),
+    width var(--motion-base) var(--ease-emphasized);
 }
 .ui-tabs__tab {
   position: relative;
   z-index: 1;
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: calc(var(--tab-h) - 2 * var(--space-0-5));
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--radius-0);
+  border-radius: calc(var(--tab-radius) - var(--tab-gap));
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -514,34 +552,35 @@
   cursor: pointer;
   transition: color var(--motion-fast) var(--ease-standard);
 }
+/* В дорожке пункты делят ширину по подписи и сжимаются с многоточием, а не вылезают за край панели. */
+.ui-tabs--segmented .ui-tabs__tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 var(--space-2);
+}
+.ui-tabs__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ui-tabs__tab:hover {
   color: var(--text);
 }
-.ui-tabs__tab[data-selected] {
+.ui-tabs__tab[aria-selected='true'] {
   color: var(--text);
 }
 .ui-tabs__tab[data-disabled] {
   opacity: 0.5;
   cursor: default;
 }
+.ui-tabs__icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+}
 .ui-tabs__icon > svg {
   width: var(--icon-sm);
   height: var(--icon-sm);
-}
-.ui-tabs__indicator {
-  position: absolute;
-  z-index: 0;
-  top: 2px;
-  left: 0;
-  width: var(--active-tab-width);
-  height: var(--active-tab-height);
-  translate: var(--active-tab-left) 0;
-  border-radius: var(--radius-0);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-1);
-  transition:
-    translate var(--motion-base) var(--ease-emphasized),
-    width var(--motion-base) var(--ease-emphasized);
 }
 .ui-tabs--line .ui-tabs__list {
   box-shadow: inset 0 calc(var(--hairline) * -1) 0 var(--line);
@@ -554,6 +593,7 @@
 .ui-tabs--line .ui-tabs__indicator {
   top: auto;
   bottom: 0;
+  left: var(--plate-x, 0px);
   height: var(--hairline-strong);
   border-radius: var(--hairline);
   background: var(--accent);
@@ -565,18 +605,14 @@
 }
 
 /* ---------- сегмент (S4) ----------
-   Выбор значения «как SD/HD в Discord»: контейнер `--surface-2`, выбранный пункт — плашка
-   `--surface-3` (в светлой теме белая, в тёмной — светлее подложки), которая едет к нему. */
+   Выбор значения «как SD/HD в Discord» — радиогруппа; рисунок дорожки и плашки — выше, общий с
+   вкладками. */
 .ui-segmented {
   position: relative;
   isolation: isolate;
   display: inline-flex;
   align-items: stretch;
-  gap: var(--space-0-5);
-  height: var(--tab-h);
-  padding: var(--space-0-5);
-  border-radius: var(--tab-radius);
-  background: var(--surface-2);
+  gap: var(--tab-gap);
   vertical-align: middle;
 }
 .ui-segmented--sm {
@@ -596,33 +632,19 @@
 .ui-segmented[data-disabled] {
   opacity: 0.5;
 }
-.ui-segmented__indicator {
-  position: absolute;
-  z-index: -1;
-  top: 2px;
-  bottom: 2px;
-  left: 0;
-  width: var(--seg-w, 0px);
-  transform: translateX(var(--seg-x, 0px));
-  border-radius: var(--radius-0);
-  background: var(--surface-3);
-  box-shadow: var(--shadow-1);
-  pointer-events: none;
-  transition:
-    transform var(--motion-base) var(--ease-emphasized),
-    width var(--motion-base) var(--ease-emphasized);
-}
 .ui-segmented[data-empty] .ui-segmented__indicator {
   opacity: 0;
 }
 .ui-segmented__item {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-width: var(--touch-target);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-0);
+  border-radius: calc(var(--tab-radius) - var(--tab-gap));
   color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -1417,9 +1439,7 @@
   .ui-menu__item {
     min-height: var(--touch-target);
   }
-  .ui-tabs__tab {
-    height: var(--tab-h);
-  }
+  .ui-tabs--segmented .ui-tabs__list,
   .ui-segmented {
     height: var(--touch-target);
   }

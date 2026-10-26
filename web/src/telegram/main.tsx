@@ -5,6 +5,7 @@ import '../app-styles';
 import './telegram.css';
 import { readPreferences } from '../core/preferences';
 import { unlockNotificationAudio } from '../core/sounds';
+import { installDevicePixel } from '../ui/device-pixel';
 import { installInputModality } from '../ui/input-modality';
 import { installScrollActivity } from '../ui/scroll-activity';
 import { startTelegram } from './sdk';
@@ -20,6 +21,7 @@ const shell = startTelegram();
 document.documentElement.dataset.telegram = shell ? shell.platform : 'outside';
 unlockNotificationAudio();
 installInputModality();
+installDevicePixel();
 installScrollActivity();
 
 void applyLanguage(readPreferences().language).then(() =>
