@@ -296,6 +296,24 @@ it('lets the sidebar be resized and remembers the width (T46)', () => {
   expect(localStorage.getItem('cord:panel:home-sidebar')).toBe('296');
 });
 
+it('боковая панель сворачивается значком в шапке, как в ChatGPT и Claude, и помнит это (R130)', () => {
+  const view = show();
+  const shell = view.container.querySelector('.home-shell')!;
+  fireEvent.click(view.getByRole('button', { name: 'Свернуть боковую панель' }));
+  expect(shell).toHaveAttribute('data-nav', 'collapsed');
+  expect(localStorage.getItem('cord:panel:home-sidebar:collapsed')).toBe('1');
+  // Свёрнутая — полоса значков: тянуть нечего, а пункты по-прежнему названы для диктора.
+  expect(view.queryByRole('separator', { name: 'Ширина боковой панели' })).toBeNull();
+  expect(view.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
+  expect(view.getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
+  const expand = view.getByRole('button', { name: 'Развернуть боковую панель' });
+  expect(expand).toHaveAttribute('aria-expanded', 'false');
+  // «Избранное» в полосе разворачивает панель обратно — к комнатам.
+  fireEvent.click(view.getByRole('button', { name: 'Избранное' }));
+  expect(shell).not.toHaveAttribute('data-nav');
+  expect(localStorage.getItem('cord:panel:home-sidebar:collapsed')).toBeNull();
+});
+
 it('«Поддержка» в выдвижной панели телефона закрывает панель — не ложится поверх неё (S5, R49)', async () => {
   // Узкий экран: панель — под бургером, окном.
   vi.stubGlobal(

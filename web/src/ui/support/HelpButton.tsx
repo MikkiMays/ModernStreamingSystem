@@ -57,7 +57,8 @@ export function HelpButton({
       data-tour={tour}
     >
       <Headset size={look === 'nav' ? 20 : 16} aria-hidden="true" />
-      {text ?? label}
+      {/* В левой панели подпись — своим узлом: в свёрнутой панели (R130) она скрыта глазу, но не диктору. */}
+      {look === 'nav' ? <span className="home-nav__text">{text ?? label}</span> : (text ?? label)}
     </button>
   );
 }

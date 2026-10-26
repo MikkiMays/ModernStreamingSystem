@@ -435,10 +435,20 @@ describe('«О программе»', () => {
     const body = document.querySelector('.settings-content')!;
     expect(body).not.toHaveTextContent(/Автор|nikgers|развивает/);
     expect(within(body as HTMLElement).queryByRole('link', { name: /Telegram/ })).toBeNull();
-    for (const label of ['Версия', 'Обновления'])
+    for (const label of ['Версия', 'Приложение для Windows'])
       expect(within(body as HTMLElement).getByText(label)).toBeInTheDocument();
     expect(within(body as HTMLElement).queryByText('Помощь и поддержка')).toBeNull();
     expect(within(nav()).getByRole('button', { name: 'Поддержка' })).toBeInTheDocument();
+  });
+
+  it('в браузере обновлять нечего: ни «Обновлений», ни «Проверить» — версия всегда последняя, приложение для Windows предлагается скачать (R132)', () => {
+    render(<Settings open section="about" onOpenChange={vi.fn()} />);
+    const body = document.querySelector('.settings-content') as HTMLElement;
+    expect(within(body).queryByText('Обновления')).toBeNull();
+    expect(within(body).queryByRole('button', { name: 'Проверить обновления' })).toBeNull();
+    expect(body).toHaveTextContent('В браузере Cord всегда последней версии');
+    expect(within(body).getByRole('link', { name: /Скачать/ })).toBeInTheDocument();
+    expect(within(body).getByRole('button', { name: 'Пройти обучение' })).toBeInTheDocument();
   });
 });
 

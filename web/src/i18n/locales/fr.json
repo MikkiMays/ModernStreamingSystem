@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "À propos",
-        "keywords": "version cord mises à jour découverte"
+        "keywords": "version cord mises à jour tutoriel télécharger"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "vérifier mettre à jour télécharger windows"
       },
+      "about-app": {
+        "label": "Application pour Windows",
+        "hint": "",
+        "keywords": "télécharger windows installer application client mises à jour"
+      },
       "appearance-language": {
         "label": "Langue de l'interface",
         "hint": "",
         "keywords": "language langue traduction interface"
       },
       "about-tour": {
-        "label": "Découverte de Cord",
+        "label": "Tutoriel",
         "hint": "De courts conseils à côté des boutons principaux",
-        "keywords": "découverte conseils visite guide"
+        "keywords": "tutoriel conseils découverte visite guide"
       },
       "desktop-tray": {
         "label": "Icône dans la zone de notification",
@@ -347,14 +352,13 @@
       "webUpdates": "Dans le navigateur, Cord est toujours à jour",
       "latest": "Dernière version Windows : {{version}}",
       "desktop": "Application Windows",
-      "web": "Version web de ce serveur",
       "desktopUpdate": "Une mise à jour de l'application est disponible.",
-      "windowsUpdate": "Cord {{version}} pour Windows est disponible.",
       "checkLabel": "Rechercher des mises à jour",
       "check": "Vérifier",
       "update": "Mettre à jour",
       "download": "Télécharger {{version}}",
-      "tour": "Refaire la découverte"
+      "get": "Télécharger",
+      "tour": "Suivre le tutoriel"
     },
     "accounts": {
       "save": "Enregistrer",
@@ -2489,6 +2493,8 @@
     "shell": {
       "sidebar": "Barre latérale",
       "width": "Largeur de la barre latérale",
+      "collapse": "Réduire la barre latérale",
+      "expand": "Développer la barre latérale",
       "openMenu": "Ouvrir le menu",
       "closeMenu": "Fermer le menu",
       "menu": "Menu",
@@ -3339,7 +3345,7 @@
       },
       "settings": {
         "title": "Paramètres",
-        "text": "Caméra, micro, son, thème et langue. Dans « À propos », vous pouvez refaire cette découverte."
+        "text": "Caméra, micro, son, thème et langue. Dans « À propos », vous pouvez refaire ce tutoriel."
       },
       "help": {
         "title": "Assistance",

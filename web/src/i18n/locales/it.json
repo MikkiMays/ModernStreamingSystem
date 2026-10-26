@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "Informazioni",
-        "keywords": "versione cord aggiornamenti tour"
+        "keywords": "versione cord aggiornamenti tutorial scarica"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "controlla aggiorna scarica windows"
       },
+      "about-app": {
+        "label": "App per Windows",
+        "hint": "",
+        "keywords": "scarica windows installa app client aggiornamenti"
+      },
       "appearance-language": {
         "label": "Lingua dell'interfaccia",
         "hint": "",
         "keywords": "language lingua traduzione interfaccia"
       },
       "about-tour": {
-        "label": "Tour di Cord",
+        "label": "Tutorial",
         "hint": "Brevi suggerimenti accanto ai pulsanti principali",
-        "keywords": "tour suggerimenti guida introduzione"
+        "keywords": "tutorial suggerimenti guida introduzione tour"
       },
       "desktop-tray": {
         "label": "Icona nell’area di notifica",
@@ -347,14 +352,13 @@
       "webUpdates": "Nel browser Cord è sempre all'ultima versione",
       "latest": "Ultima versione per Windows: {{version}}",
       "desktop": "App per Windows",
-      "web": "Versione web di questo server",
       "desktopUpdate": "È disponibile un aggiornamento dell'app.",
-      "windowsUpdate": "È uscito Cord {{version}} per Windows.",
       "checkLabel": "Controlla aggiornamenti",
       "check": "Controlla",
       "update": "Aggiorna",
       "download": "Scarica {{version}}",
-      "tour": "Rifai il tour"
+      "get": "Scarica",
+      "tour": "Segui il tutorial"
     },
     "accounts": {
       "save": "Salva",
@@ -2489,6 +2493,8 @@
     "shell": {
       "sidebar": "Barra laterale",
       "width": "Larghezza della barra laterale",
+      "collapse": "Comprimi la barra laterale",
+      "expand": "Espandi la barra laterale",
       "openMenu": "Apri il menu",
       "closeMenu": "Chiudi il menu",
       "menu": "Menu",
@@ -3339,7 +3345,7 @@
       },
       "settings": {
         "title": "Impostazioni",
-        "text": "Videocamera, microfono, audio, tema e lingua. In «Informazioni» puoi rifare questo tour."
+        "text": "Videocamera, microfono, audio, tema e lingua. In «Informazioni» puoi rifare questo tutorial."
       },
       "help": {
         "title": "Assistenza",

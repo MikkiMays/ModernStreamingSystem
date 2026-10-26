@@ -45,7 +45,7 @@
       },
       "about": {
         "title": "关于",
-        "keywords": "版本 cord 更新 导览"
+        "keywords": "版本 cord 更新 教程 下载"
       },
       "desktop": {
         "title": "Windows",
@@ -226,15 +226,20 @@
         "hint": "",
         "keywords": "检查 更新 下载 windows"
       },
+      "about-app": {
+        "label": "Windows 应用",
+        "hint": "",
+        "keywords": "下载 windows 安装 应用 客户端 更新"
+      },
       "appearance-language": {
         "label": "界面语言",
         "hint": "",
         "keywords": "language 语言 翻译 界面"
       },
       "about-tour": {
-        "label": "Cord 入门导览",
+        "label": "新手教程",
         "hint": "主要按钮旁的简短提示",
-        "keywords": "导览 提示 入门 指南"
+        "keywords": "教程 提示 入门 指南 导览"
       },
       "desktop-tray": {
         "label": "托盘图标",
@@ -347,14 +352,13 @@
       "webUpdates": "在浏览器中，Cord 始终是最新版本",
       "latest": "Windows 最新版本：{{version}}",
       "desktop": "Windows 应用",
-      "web": "此服务器的网页版",
       "desktopUpdate": "应用有可用更新。",
-      "windowsUpdate": "Windows 版 Cord {{version}} 已发布。",
       "checkLabel": "检查更新",
       "check": "检查",
       "update": "更新",
       "download": "下载 {{version}}",
-      "tour": "开始导览"
+      "get": "下载",
+      "tour": "开始教程"
     },
     "accounts": {
       "save": "保存",
@@ -2431,6 +2435,8 @@
     "shell": {
       "sidebar": "侧边栏",
       "width": "侧边栏宽度",
+      "collapse": "收起侧边栏",
+      "expand": "展开侧边栏",
       "openMenu": "打开菜单",
       "closeMenu": "关闭菜单",
       "menu": "菜单",
@@ -3261,7 +3267,7 @@
       },
       "settings": {
         "title": "设置",
-        "text": "摄像头、麦克风、声音、主题和语言。在“关于”中可以重新开始导览。"
+        "text": "摄像头、麦克风、声音、主题和语言。在“关于”中可以重新开始教程。"
       },
       "help": {
         "title": "支持",

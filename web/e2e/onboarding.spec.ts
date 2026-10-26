@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 /**
  * Знакомство с Cord (E13, T34): свежий профиль проходит его до конца, повторный запуск его не
- * показывает, «Пройти знакомство» в «О программе» показывает снова. Подсказки стоят у настоящих
+ * показывает, «Пройти обучение» в «О программе» показывает снова. Подсказки стоят у настоящих
  * кнопок и не запирают страницу.
  *
  * Остальные сценарии начинают с уже знакомого профиля (`global-setup.ts`); здесь — свежий.
@@ -12,7 +12,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 const tip = (page: Page, title: string) => page.getByRole('dialog', { name: title });
 
-test('a fresh profile walks the tour once, and «Пройти знакомство» brings it back', async ({ page }) => {
+test('a fresh profile walks the tour once, and «Пройти обучение» brings it back', async ({ page }) => {
   test.setTimeout(90000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
@@ -46,9 +46,9 @@ test('a fresh profile walks the tour once, and «Пройти знакомств
   await page.waitForTimeout(1500);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  // «Пройти знакомство» — снова с первого шага, окно настроек закрывается само.
+  // «Пройти обучение» — снова с первого шага, окно настроек закрывается само.
   await page.getByRole('button', { name: 'О программе' }).click();
-  await page.getByRole('button', { name: 'Пройти знакомство' }).click();
+  await page.getByRole('button', { name: 'Пройти обучение' }).click();
   await expect(tip(page, 'Новая встреча')).toContainText('1 из 5');
   await page.getByRole('button', { name: 'Пропустить' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
