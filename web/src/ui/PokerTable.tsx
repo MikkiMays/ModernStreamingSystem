@@ -66,6 +66,7 @@ import { GameResult, GameCrown } from './PokerResult';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed } from '../core/permissions';
 import { readPreferences, savePreferences } from '../core/preferences';
+import { IntegrationBarSlot } from './IntegrationBar';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 import { CordMark, CordWordmark } from './brand/Logo';
 import { FaceZoomButton, useFaceZoom } from './FaceZoom';
@@ -546,6 +547,8 @@ function TableBar({
         </button>
       )}
       {children}
+      {/* Музыка во встрече — мини-плеером в этой полосе, справа перед кнопками ведущего (R128). */}
+      <IntegrationBarSlot />
       {dealer && (
         <div className="poker-host-actions">
           {/*

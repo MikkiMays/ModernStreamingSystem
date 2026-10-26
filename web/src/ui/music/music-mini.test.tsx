@@ -6,6 +6,7 @@ import type { Meeting } from '../../core/meeting';
 import { readPreferences, type Preferences } from '../../core/preferences';
 import type { MusicState } from '../../core/services';
 import { Store } from '../../core/store';
+import { IntegrationBarSlot } from '../IntegrationBar';
 import { StageOverlay } from '../StageOverlay';
 
 /*
@@ -168,22 +169,47 @@ describe('мини-плеер', () => {
     expect(bar).toHaveTextContent('Put On');
     expect(bar).toHaveTextContent('Young Jeezy');
     expect(bar.querySelector('.music-eq')).not.toBeNull();
-    // Цвет — площадки, откуда трек: Яндекс Музыка.
-    expect(bar.getAttribute('style')).toContain('--brand-yandex');
+    // Монохром (R128): цвета площадки у полосы нет, шеврона «раскрыть» — тоже.
+    expect(bar.getAttribute('style') ?? '').not.toContain('--brand');
+    expect(screen.queryByRole('button', { name: 'Открыть плеер' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Пауза музыки' }));
     expect(screen.getByRole('button', { name: 'Продолжить музыку' })).toBeInTheDocument();
     await waitFor(() => expect(writes.at(-1)?.body).toMatchObject({ action: 'pause' }));
     fireEvent.click(screen.getByRole('button', { name: 'Предыдущий трек' }));
     await waitFor(() => expect(writes.at(-1)?.body).toMatchObject({ action: 'previous' }));
+    // Быстрые кнопки виджет не открывают — открывает сам трек.
+    expect(screen.queryByRole('dialog', { name: 'Музыка' })).toBeNull();
   });
 
-  it('нажатие открывает виджет плеера: площадки, поиск и очередь — без переключения панели', async () => {
+  it('нажатие на трек открывает виджет плеера: площадки, поиск и очередь — без переключения панели', async () => {
     serve();
     const onOpenServices = show(withMusic());
-    fireEvent.click(await screen.findByRole('button', { name: 'Открыть плеер' }));
+    // Обложка, название и исполнитель — одна кнопка (R128): имя говорит, что откроется.
+    const track = await screen.findByRole('button', { name: 'Put On — Young Jeezy — открыть плеер' });
+    expect(track).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(track).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(track);
     const widget = await screen.findByRole('dialog', { name: 'Музыка' });
     expect(widget.querySelector('[role="tablist"]')).not.toBeNull();
     expect(await screen.findByText('Nights')).toBeInTheDocument();
     expect(onOpenServices).not.toHaveBeenCalled();
+  });
+
+  it('за столом игры — в шапке стола, а не плашкой поверх сцены (R128)', async () => {
+    serve();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <StageOverlay meeting={withMusic()} onOpenServices={vi.fn()} />
+        <header data-testid="table-bar">
+          <IntegrationBarSlot />
+        </header>
+      </QueryClientProvider>,
+    );
+    const bar = await screen.findByRole('group', { name: 'Мини-плеер' });
+    expect(screen.getByTestId('table-bar')).toContainElement(bar);
+    expect(bar).toHaveAttribute('data-placement', 'bar');
+    // Слой над сценой пуст — и диктору его не слышно.
+    expect(document.querySelector('.stage-overlay')).toHaveAttribute('aria-hidden', 'true');
   });
 });
