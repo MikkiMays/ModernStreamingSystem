@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from 'react';
 import { ArrowLeft, Clapperboard, Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { linkOf } from '../../../core/cinema/link';
+import { StageExitButton } from '../../IntegrationBar';
 import { IconButton } from '../../primitives';
 
 /**
@@ -161,6 +162,8 @@ export function Shell({
             </button>
           )}
         </label>
+        {/* Выход к участникам (R121): каталог и фильм под ним остаются как были. */}
+        <StageExitButton variant="catalog" />
         <IconButton
           label={watching ? t(($) => $.cinema.shell.backToWatch) : t(($) => $.cinema.shell.close)}
           onClick={onClose}

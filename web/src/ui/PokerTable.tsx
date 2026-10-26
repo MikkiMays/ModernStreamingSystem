@@ -66,7 +66,7 @@ import { GameResult, GameCrown } from './PokerResult';
 import { useFullscreen } from '../core/fullscreen';
 import { allowed } from '../core/permissions';
 import { readPreferences, savePreferences } from '../core/preferences';
-import { IntegrationBarSlot } from './IntegrationBar';
+import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { useStageExit } from './stage-context';
 import { Avatar, IconButton, useMediaQuery, useStore } from './primitives';
 import { CordMark, CordWordmark } from './brand/Logo';
@@ -590,6 +590,8 @@ function TableBar({
           )}
         </div>
       )}
+      {/* Выход к участникам (R121) — рядом с полным экраном: обе кнопки про вид, а не про игру. */}
+      <StageExitButton variant="bar" />
       {/* Условия вокруг кнопки нет намеренно: замену полному экрану там, где его не бывает,
           держит сам `useFullscreen` — снаружи разницы никакой. */}
       <IconButton

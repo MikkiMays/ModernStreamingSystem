@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import type { Participant, Watch } from '../../../api/types';
 import { clock, type CinemaSource } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
+import { StageExitButton } from '../../IntegrationBar';
 import { IconButton, Slider } from '../../primitives';
 import type { AdBreak } from './ad-breaks';
 import { CaptionsMenu } from './menus/CaptionsMenu';
@@ -155,6 +156,8 @@ export function Chrome({
                     : t(($) => $.cinema.theater.together))}
           </small>
         </span>
+        {/* Выход к участникам (R121): фильм идёт и звучит дальше, вернуться — чёлкой сверху. */}
+        <StageExitButton variant="theater" />
         {/* На телефоне подпись прячется, а имя кнопки остаётся: без него это была бы
             кнопка без названия — и для голосового доступа, и для проверок. */}
         {onBrowse && (

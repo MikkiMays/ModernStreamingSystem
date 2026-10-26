@@ -37,7 +37,7 @@ import {
 import { allowed } from '../core/permissions';
 import { GamePeople } from './GamePeople';
 import { useChessSounds } from './useGameSounds';
-import { IntegrationBarSlot } from './IntegrationBar';
+import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { IconButton, Modal, useMediaQuery, useStore } from './primitives';
 
 interface Drag {
@@ -336,6 +336,8 @@ function ChessGame({ meeting, table }: { meeting: Meeting; table: ChessState }) 
         <div className="chess-header-actions">
           {/* Музыка во встрече — мини-плеером в шапке доски (R128). */}
           <IntegrationBarSlot className="chess-bar-slot" />
+          {/* Людей у доски не видно вовсе — выход к ним (R121). */}
+          <StageExitButton variant="bar" />
           <IconButton
             label={t(($) => $.chess.flip)}
             onClick={() => {

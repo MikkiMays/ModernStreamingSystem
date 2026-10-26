@@ -4,6 +4,7 @@ import type { ChessTable as ChessState, Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import { Store } from '../core/store';
 import ChessTable from './ChessTable';
+import { StageExitContext } from './stage-context';
 
 vi.mock('./GamePeople', () => ({
   GamePeople: ({ memberIds }: { memberIds: string[] }) => <div>{memberIds.join(', ')}</div>,
@@ -253,4 +254,27 @@ it('keeps a rejected server move visible as a recoverable error', async () => {
   await act(async () => fireEvent.click(square('e4')));
   expect(screen.getByRole('alert')).toHaveTextContent('Позиция изменилась');
   expect(square('e2')).toHaveAccessibleName('e2, белая пешка');
+});
+
+/*
+  R121: у шахмат людей не видно вовсе — в шапке доски «Участники» уводит к обычной встрече. Вне сцены
+  встречи (здесь, в витрине) выхода нет: уходить некуда.
+*/
+it('в шапке доски «Участники» уводит к участникам; вне сцены встречи кнопки нет', () => {
+  const session = room();
+  const leave = vi.fn();
+  const view = render(<ChessTable meeting={session.meeting} />);
+  expect(screen.queryByRole('button', { name: 'Участники' })).toBeNull();
+  view.unmount();
+  render(
+    <StageExitContext.Provider value={{ away: false, leave }}>
+      <ChessTable meeting={session.meeting} />
+    </StageExitContext.Provider>,
+  );
+  const exit = screen.getByRole('button', { name: 'Участники' });
+  expect(exit.closest('.chess-header')).not.toBeNull();
+  expect(exit).toHaveAttribute('aria-keyshortcuts', 'G');
+  expect(exit).toHaveAttribute('title', 'Все участники (G)');
+  fireEvent.click(exit);
+  expect(leave).toHaveBeenCalledTimes(1);
 });

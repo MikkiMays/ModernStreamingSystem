@@ -21,7 +21,7 @@ import { GameTurn } from './GamePresentation';
 import { useGarticSounds } from './useGameSounds';
 import { AlbumReveal, ClassicResults } from './GarticResults';
 import { allowed } from '../core/permissions';
-import { IntegrationBarSlot } from './IntegrationBar';
+import { IntegrationBarSlot, StageExitButton } from './IntegrationBar';
 import { IconButton, useStore } from './primitives';
 import GarticCanvas, { GarticPicture, type GarticCanvasHandle } from './GarticCanvas';
 import '../gartic.css';
@@ -129,6 +129,8 @@ function GarticGame({ meeting, table, host }: { meeting: Meeting; table: Table; 
         <div className="gartic-header-actions">
           {/* Музыка во встрече — мини-плеером в шапке рисования (R128). */}
           <IntegrationBarSlot />
+          {/* Людей у холста не видно вовсе — выход к ним (R121). */}
+          <StageExitButton variant="bar" />
           <details className="gartic-rules">
             <summary>
               <BookOpen size={16} /> {t(($) => $.gartic.rules.title)}
