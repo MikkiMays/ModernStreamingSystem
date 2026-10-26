@@ -27,6 +27,7 @@
 - [`cord-music-platform-sources`](memory/cord-music-platform-sources.md) — Что YouTube и SoundCloud отдают музыке Cord через yt-dlp без ключей и как узнать 30-секундный фрагмент SoundCloud Go+
 - [`cord-music-silence-and-encode`](memory/cord-music-silence-and-encode.md) — Почему пауза в музыке Cord звучала как поломка и чем меряется, кодек это или сеть
 - [`cord-openapi-regeneration`](memory/cord-openapi-regeneration.md) — Как перегенерировать contracts/openapi.json в Cord, когда прод-ядро отдаёт 404 на /api/openapi
+- [`cord-pixel-exact-ui`](memory/cord-pixel-exact-ui.md) — Как проверять вёрстку Cord «до пикселя» на 125–150 % масштаба Windows: эмуляция Playwright врёт, рамка округляется до CSS-пикселя, зазоры — в целых физических пикселях
 - [`cord-playout-buffer`](memory/cord-playout-buffer.md) — Почему в Cord звук «то ускорялся, то ломался», и почему нулевой буфер приёма больше не просят
 - [`cord-poker-table`](memory/cord-poker-table.md) — Покер в Cord: где он живёт, три решения, на которых он держится, и ловушка отката
 - [`cord-quality-ladder-and-reception`](memory/cord-quality-ladder-and-reception.md) — Почему показ в Cord стартовал в 15 fps и как сделан режим приёма «всегда максимум»
@@ -43,6 +44,7 @@
 - [`cord-video-quality-levers`](memory/cord-video-quality-levers.md) — Где в Cord ломается качество видео: кодек камеры, потолок «Авто», adaptiveStream и один предел LiveKit, который снаружи не убирается
 - [`cord-watch-together`](memory/cord-watch-together.md) — Кинозал Cord: видео тянет сервер и проксирует HLS, а не браузер — почему так и где грабли
 - [`cord-web-on-phone`](memory/cord-web-on-phone.md) — Что ломалось у Cord в вебе с телефона и чем это проверять, не имея телефона
+- [`cord-window-controls-overlay`](memory/cord-window-controls-overlay.md) — Почему в клиенте Windows 1.0.8 кнопки окна ложились на шапку развёрнутого окна и почему веб больше не верит одной зоне Window Controls Overlay
 - [`cord-windows-update-helper`](memory/cord-windows-update-helper.md) — Почему «Обновить» в Cord для Windows перезапускал старую версию и что в помощнике обновления теперь иначе (0.7.5)
 - [`cord-worktree-kit-shots`](memory/cord-worktree-kit-shots.md) — Почему в worktree Cord dev-сервер рисует запасной шрифт и почему колонка другой темы на /kit врёт про поля
 - [`cord-youtube-audio-and-captions`](memory/cord-youtube-audio-and-captions.md) — Почему ролик YouTube в Cord говорил по-французски, и откуда там берутся субтитры
