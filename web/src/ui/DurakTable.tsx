@@ -409,7 +409,6 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
       data-phase={table.phase}
       data-paused={paused || undefined}
       data-full={targetFull || undefined}
-      data-seated={mySeat !== null || undefined}
     >
       <header className="durak-bar">
         <div className="durak-mode">
