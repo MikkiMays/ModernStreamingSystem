@@ -343,7 +343,15 @@ fi
 ORIGIN="$(sed -n 's/^PUBLIC_URL=//p' .env | head -1)"
 if [[ -n "$ORIGIN" ]]; then
   # --insecure: в режиме без домена сертификат самоподписанный, и это не ошибка.
-  code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 20 --insecure "$ORIGIN" 2>/dev/null || echo 000)"
+  # gateway пересоздан за мгновение до этого и ещё не слушает порт: один запрос получал 000
+  # и откатывал исправную версию. Ждём ответа до 30 секунд. Без -f: curl сам пишет 000 при
+  # обрыве, а с -f и `|| echo` код склеивался в «000000».
+  deadline=$((SECONDS + 30))
+  while :; do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 --insecure "$ORIGIN" 2>/dev/null || true)"
+    if [[ "$code" == 200 ]] || (( SECONDS >= deadline )); then break; fi
+    sleep 2
+  done
   if [[ "$code" == 200 ]]; then
     note "$ORIGIN отвечает 200"
   else
