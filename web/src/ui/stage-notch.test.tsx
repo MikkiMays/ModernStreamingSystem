@@ -86,4 +86,11 @@ describe('чёлка', () => {
     ).toBeVisible();
     expect(container.querySelector('canvas.stage-notch__frame')).not.toBeNull();
   });
+
+  it('за столом никого — только имя, без пустого состояния', () => {
+    render(
+      <StageNotch meeting={fakeMeeting({ chess: { phase: 'lobby', white: null, black: null } }, 'chess')} />,
+    );
+    expect(screen.getByRole('button', { name: 'Вернуться: Шахматы' })).toBeVisible();
+  });
 });

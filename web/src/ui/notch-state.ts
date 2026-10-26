@@ -47,7 +47,8 @@ export function notchState(
   const occupant = stageOccupant(room, catalog);
   if (!occupant) return null;
   const base = { kind: occupant.kind, turn: false, film: false, paused: false, live: false };
-  const seated = (count: number) => t(($) => $.stage.notch.seated, { n: count });
+  // Пустой стол — без «0 за столом»: только имя.
+  const seated = (count: number) => (count > 0 ? t(($) => $.stage.notch.seated, { n: count }) : '');
   const yours = t(($) => $.stage.notch.turn);
   if (occupant.kind === 'poker' && room.poker) {
     const table = room.poker;

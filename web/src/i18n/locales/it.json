@@ -2215,7 +2215,8 @@
       "youDraw": "Stai disegnando",
       "paused": "in pausa",
       "back": "Torna a {{integration}} — {{state}}",
-      "title": "Torna indietro ({{key}})"
+      "title": "Torna indietro ({{key}})",
+      "backPlain": "Torna a {{integration}}"
     },
     "menu": {
       "volume": "Il tuo volume · {{value}}%",

@@ -2242,7 +2242,8 @@
       "youDraw": "Вы рисуете",
       "paused": "на паузе",
       "back": "Вернуться: {{integration}} — {{state}}",
-      "title": "Вернуться ({{key}})"
+      "title": "Вернуться ({{key}})",
+      "backPlain": "Вернуться: {{integration}}"
     },
     "menu": {
       "volume": "Громкость у вас · {{value}}%",

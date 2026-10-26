@@ -103,6 +103,14 @@ describe('столы', () => {
   });
 });
 
+describe('пустой стол', () => {
+  it('за столом никого — без «0 за столом»: только имя', () => {
+    const chess = { phase: 'lobby', turn: 'white', white: null, black: null };
+    expect(notchState(t, room({ chess }), 'me', 0)).toMatchObject({ name: 'Шахматы', status: '' });
+    expect(notchState(t, room({ poker: { seats: seats(null, null), you: null } }), 'me', 0)?.status).toBe('');
+  });
+});
+
 describe('кинозал', () => {
   const watch = { title: 'Дюна', paused: false, kind: 'video' };
 

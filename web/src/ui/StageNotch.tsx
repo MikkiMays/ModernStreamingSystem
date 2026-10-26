@@ -76,7 +76,11 @@ export function StageNotch({ meeting }: { meeting: Meeting }) {
       data-stage-notch=""
       data-kind={state.kind}
       data-turn={state.turn ? 'true' : undefined}
-      aria-label={t(($) => $.stage.notch.back, { integration, state: spoken })}
+      aria-label={
+        spoken
+          ? t(($) => $.stage.notch.back, { integration, state: spoken })
+          : t(($) => $.stage.notch.backPlain, { integration })
+      }
       aria-keyshortcuts={STAGE_KEY_LABEL}
       title={t(($) => $.stage.notch.title, { key: STAGE_KEY_LABEL })}
       onClick={() => backToStage(meeting)}
@@ -93,11 +97,13 @@ export function StageNotch({ meeting }: { meeting: Meeting }) {
       )}
       <span className="stage-notch__text" aria-hidden="true">
         <b className="stage-notch__name">{state.name}</b>
-        <span className="stage-notch__status">
-          {state.paused && <Pause className="stage-notch__paused" />}
-          {state.live && <i className="stage-notch__live" />}
-          {state.status}
-        </span>
+        {state.status && (
+          <span className="stage-notch__status">
+            {state.paused && <Pause className="stage-notch__paused" />}
+            {state.live && <i className="stage-notch__live" />}
+            {state.status}
+          </span>
+        )}
       </span>
     </button>
   );

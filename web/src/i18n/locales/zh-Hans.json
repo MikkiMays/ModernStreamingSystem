@@ -2161,7 +2161,8 @@
       "youDraw": "你正在画",
       "paused": "已暂停",
       "back": "返回{{integration}}——{{state}}",
-      "title": "返回（{{key}}）"
+      "title": "返回（{{key}}）",
+      "backPlain": "返回{{integration}}"
     },
     "menu": {
       "volume": "你听到的音量 · {{value}}%",

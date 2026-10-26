@@ -2215,7 +2215,8 @@
       "youDraw": "Você está desenhando",
       "paused": "pausado",
       "back": "Voltar para {{integration}} — {{state}}",
-      "title": "Voltar ({{key}})"
+      "title": "Voltar ({{key}})",
+      "backPlain": "Voltar para {{integration}}"
     },
     "menu": {
       "volume": "Seu volume · {{value}}%",

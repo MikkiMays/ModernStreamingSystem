@@ -2188,7 +2188,8 @@
       "youDraw": "Du zeichnest",
       "paused": "pausiert",
       "back": "Zurück zu {{integration}} — {{state}}",
-      "title": "Zurück ({{key}})"
+      "title": "Zurück ({{key}})",
+      "backPlain": "Zurück zu {{integration}}"
     },
     "menu": {
       "volume": "Deine Lautstärke · {{value}} %",
