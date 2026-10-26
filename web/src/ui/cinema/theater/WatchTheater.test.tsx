@@ -5,6 +5,7 @@ import type { CinemaSource } from '../../../core/cinema';
 import type { Meeting } from '../../../core/meeting';
 import { Store } from '../../../core/store';
 import theaterCss from '../theater.css?raw';
+import { StageExitContext } from '../../stage-context';
 import WatchTheater from './WatchTheater';
 
 /*
@@ -167,9 +168,13 @@ it('досмотрели: нажатие мышью по кадру включа
 });
 
 /** Открыть файл и дождаться, пока плеер готов: метаданные пришли, длительность известна. */
-async function ready(watch: Watch, room = meeting()) {
+async function ready(watch: Watch, room = meeting(), away = false) {
   answers = [file('/cinema/fetch?sig=old')];
-  const view = render(<WatchTheater meeting={room} watch={watch} />);
+  const view = render(
+    <StageExitContext.Provider value={{ away, leave: null }}>
+      <WatchTheater meeting={room} watch={watch} />
+    </StageExitContext.Provider>,
+  );
   const video = view.container.querySelector('video')!;
   await waitFor(() => expect(video.getAttribute('src')).toBe('/cinema/fetch?sig=old'));
   Object.defineProperty(video, 'duration', { configurable: true, value: 635 });
@@ -220,6 +225,19 @@ it('пробел включает для всех, стрелка вправо �
   expect(document.querySelector('.watch-hint')).toHaveTextContent('+10 с');
   fireEvent.keyDown(document.body, { key: 'ArrowUp', code: 'ArrowUp' });
   expect(room.media.saveSettings).toHaveBeenCalledWith({ watchVolume: 75 });
+});
+
+/*
+  R121: ушедший к участникам смотрит сетку, а плеер идёт спрятанным. Пробел, нажатый там, — не пауза
+  фильма для всей комнаты, и громкость стрелкой тоже не его: клавиши плеера молчат, пока он спрятан.
+*/
+it('ушёл к участникам — клавиши плеера молчат: пробел не ставит паузу комнате, стрелка не трогает громкость', async () => {
+  const { room } = await ready(WATCH, meeting(), true);
+  fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+  fireEvent.keyDown(document.body, { key: 'ArrowUp', code: 'ArrowUp' });
+  expect(room.command).not.toHaveBeenCalled();
+  expect(room.media.saveSettings).not.toHaveBeenCalled();
+  expect(document.querySelector('.watch-hint')).toBeNull();
 });
 
 it('без права на пульт клавиша паузы не шлёт ничего и говорит почему; в поле ввода клавиши не плеера', async () => {

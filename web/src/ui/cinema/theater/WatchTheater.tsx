@@ -8,6 +8,7 @@ import { useFullscreen } from '../../../core/fullscreen';
 import { t as translate } from '../../../i18n';
 import { targetPosition, VISIBLE_DRIFT } from '../../../core/watch';
 import { useStore } from '../../primitives';
+import { useStageExit } from '../../stage-context';
 import { adAt, skipRank, SKIP_STEP_MS } from './ad-breaks';
 import { Chrome } from './Chrome';
 import type { QualityPage } from './menus/QualityMenu';
@@ -63,6 +64,8 @@ export function WatchTheater({
   const { t } = useTranslation();
   const snapshot = useStore(meeting.snapshot);
   const preferences = useStore(meeting.media.preferences);
+  /** Зритель ушёл к участникам (R121): плеер спрятан, но идёт — и звучит. */
+  const { away } = useStageExit();
   const api = useMemo(() => new CinemaApi(meeting.admission), [meeting]);
   const self = snapshot.participants.find((p) => p.id === meeting.admission.participantId);
   const owner = snapshot.participants.find((p) => p.id === watch.openedBy);
@@ -184,6 +187,7 @@ export function WatchTheater({
     onAction: act,
     onHint: say,
     wake,
+    disabled: away,
   });
 
   /*
