@@ -2201,6 +2201,12 @@
     "gameLoading": "Apriamo il gioco…",
     "unpin": "Sblocca",
     "unpinOf": "Sblocca: {{name}}",
+    "exit": {
+      "label": "Partecipanti",
+      "title": "Tutti i partecipanti ({{key}})",
+      "announcePeople": "Tutti i partecipanti",
+      "announceIntegration": "In scena: {{name}}"
+    },
     "menu": {
       "volume": "Il tuo volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",

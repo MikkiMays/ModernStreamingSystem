@@ -105,14 +105,16 @@ describe('границы раскладки: CSS и код считают по �
     R120: на телефоне с открытым чатом фильм, включённый другим, лист не закрывает — и плеер оставался
     под листом целиком, вместе с кадром, который будит уснувший пульт. Теперь лист открытой панели
     опускается под плеер: его верх — та же полоса `--film-band`, которой стоит строка плеера, и поля
-    сцены над ней и под ней. Поменяли высоту плеера и забыли лист — тест падает.
+    сцены над ней и под ней. Поменяли высоту плеера и забыли лист — тест падает. Ушедший к участникам
+    (R121, `data-away`) фильма на сцене не видит — у него лист как в разговоре.
   */
   it('телефон: пока комната смотрит фильм, лист панели начинается под плеером, а не поверх него', () => {
     expect(rule(media(panel, SHEET), '.side-panel')).toContain('top: var(--sheet-top, 90px);');
-    const film = media(cinema, SHEET).replace(/\s+/g, ' ');
+    // Длинный селектор `prettier` переносит внутри скобок `:has(…)` — пробелы у скобок не в счёт.
+    const film = media(cinema, SHEET).replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
     const open = '.meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open';
     const band = new RegExp(
-      `${literal(open)}:has\\(\\.watch-together-stage\\[data-film\\]\\) \\{([^}]*)\\}`,
+      `${literal(open)}:has\\(\\.watch-together-stage\\[data-film\\]:not\\(\\[data-away\\]\\)\\) \\{([^}]*)\\}`,
     ).exec(film)?.[1];
     expect(band).toMatch(
       /--film-band: max\(\d+px, min\(calc\(\(100vw - 2 \* var\(--space-2\)\) \* 9 \/ 16\), \d+dvh\)\);/,
@@ -122,7 +124,7 @@ describe('границы раскладки: CSS и код считают по �
     );
     // Строка чипов над сценой стоит в потоке над плеером — лист опускается и на неё.
     expect(film).toContain(
-      `${open}:has(.watch-together-stage[data-film]):has(.stage-overlay:not([data-empty])) { --film-chips: calc(var(--control-sm) + var(--space-2)); }`,
+      `${open}:has(.watch-together-stage[data-film]:not([data-away])):has(.stage-overlay:not([data-empty])) { --film-chips: calc(var(--control-sm) + var(--space-2)); }`,
     );
     expect(film).toContain(
       `${open} .watch-together-stage[data-film] { grid-template-rows: var(--film-band); }`,

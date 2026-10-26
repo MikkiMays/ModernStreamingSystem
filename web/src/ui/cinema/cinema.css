@@ -65,13 +65,16 @@
   кино — `stage-overlay.css`) стоит в потоке над плеером, и лист опускается и на неё.
 */
 @media (max-width: 767px) {
-  .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open:has(.watch-together-stage[data-film]) {
+  .meeting-page:not(.meeting-fullscreen)
+    .meeting-body.panel-open:has(.watch-together-stage[data-film]:not([data-away])) {
     --film-band: max(216px, min(calc((100vw - 2 * var(--space-2)) * 9 / 16), 45dvh));
     --film-chips: 0px;
     --sheet-top: calc(var(--space-2) + var(--film-chips) + var(--film-band) + var(--space-2));
   }
   .meeting-page:not(.meeting-fullscreen)
-    .meeting-body.panel-open:has(.watch-together-stage[data-film]):has(.stage-overlay:not([data-empty])) {
+    .meeting-body.panel-open:has(.watch-together-stage[data-film]:not([data-away])):has(
+      .stage-overlay:not([data-empty])
+    ) {
     --film-chips: calc(var(--control-sm) + var(--space-2));
   }
   .meeting-page:not(.meeting-fullscreen) .meeting-body.panel-open .watch-together-stage[data-film] {

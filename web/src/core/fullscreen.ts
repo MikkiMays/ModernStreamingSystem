@@ -101,3 +101,17 @@ export function useFullscreen(target: RefObject<HTMLElement | null>): {
   }, [target]);
   return { ...current, toggle };
 }
+
+/**
+ * Свернуть полный экран, если развёрнуто что-то внутри `root` (R121): стол и плеер разворачиваются сами, и
+ * уйти из такой интеграции к участникам значило бы оставить во весь экран спрятанный слой.
+ */
+export function exitFullscreenWithin(root: Element | null) {
+  if (!root || typeof document === 'undefined') return;
+  if (fallbackTarget && root.contains(fallbackTarget)) {
+    fallbackTarget = null;
+    publish();
+  }
+  const native = document.fullscreenElement;
+  if (native && root.contains(native)) void document.exitFullscreen().catch(() => {});
+}

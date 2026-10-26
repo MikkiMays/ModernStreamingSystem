@@ -36,6 +36,7 @@ function fakeMeeting(layout: 'grid' | 'speaker' = 'grid', pinned: string | null 
       durak: null,
     } as unknown as Snapshot),
     viewing: new Store(null),
+    stageAway: new Store(null),
     pinnedCamera,
     cinema: new Store(null),
     cinemaAt: new Store(null),

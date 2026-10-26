@@ -2147,6 +2147,12 @@
     "gameLoading": "正在打开游戏…",
     "unpin": "取消固定",
     "unpinOf": "取消固定：{{name}}",
+    "exit": {
+      "label": "参与者",
+      "title": "所有参与者（{{key}}）",
+      "announcePeople": "所有参与者",
+      "announceIntegration": "舞台上：{{name}}"
+    },
     "menu": {
       "volume": "你听到的音量 · {{value}}%",
       "volumeOf": "音量：{{name}}",

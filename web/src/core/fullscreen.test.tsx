@@ -1,7 +1,7 @@
 import { act, render, renderHook } from '@testing-library/react';
 import { useEffect, useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useFullscreen } from './fullscreen';
+import { exitFullscreenWithin, useFullscreen } from './fullscreen';
 
 const setFullscreenElement = (value: Element | null) =>
   Object.defineProperty(document, 'fullscreenElement', { configurable: true, value });
@@ -124,5 +124,40 @@ describe('useFullscreen', () => {
     const ref = { current: null };
     const { result } = renderHook(() => useFullscreen(ref));
     expect(result.current).toMatchObject({ full: false, targetFull: false });
+  });
+});
+
+describe('exitFullscreenWithin (R121)', () => {
+  it('сворачивает полный экран и его замену, только если развёрнуто что-то внутри слоя', async () => {
+    let controls: ReturnType<typeof useFullscreen> | undefined;
+    function Probe() {
+      const ref = useRef<HTMLDivElement>(null);
+      const fullscreen = useFullscreen(ref);
+      useEffect(() => {
+        controls = fullscreen;
+      }, [fullscreen]);
+      return (
+        <section data-testid="layer">
+          <div ref={ref} />
+        </section>
+      );
+    }
+    setFullscreenElement(null);
+    setFullscreenEnabled(false);
+    const view = render(<Probe />);
+    await act(async () => controls?.toggle());
+    expect(controls?.targetFull).toBe(true);
+    // Чужой слой не трогается.
+    act(() => exitFullscreenWithin(document.createElement('div')));
+    expect(controls?.targetFull).toBe(true);
+    act(() => exitFullscreenWithin(view.getByTestId('layer')));
+    expect(controls?.targetFull).toBe(false);
+
+    const exit = vi.fn(() => Promise.resolve());
+    Object.defineProperty(document, 'exitFullscreen', { configurable: true, value: exit });
+    setFullscreenElement(view.getByTestId('layer').firstElementChild);
+    exitFullscreenWithin(view.getByTestId('layer'));
+    expect(exit).toHaveBeenCalledTimes(1);
+    setFullscreenElement(null);
   });
 });

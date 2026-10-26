@@ -2201,6 +2201,12 @@
     "gameLoading": "Ouverture du jeu…",
     "unpin": "Désépingler",
     "unpinOf": "Désépingler : {{name}}",
+    "exit": {
+      "label": "Participants",
+      "title": "Tous les participants ({{key}})",
+      "announcePeople": "Tous les participants",
+      "announceIntegration": "En scène : {{name}}"
+    },
     "menu": {
       "volume": "Votre volume · {{value}} %",
       "volumeOf": "Volume : {{name}}",

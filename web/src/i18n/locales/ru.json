@@ -2228,6 +2228,12 @@
     "gameLoading": "Открываем игру…",
     "unpin": "Открепить",
     "unpinOf": "Открепить: {{name}}",
+    "exit": {
+      "label": "Участники",
+      "title": "Все участники ({{key}})",
+      "announcePeople": "Все участники",
+      "announceIntegration": "На сцене: {{name}}"
+    },
     "menu": {
       "volume": "Громкость у вас · {{value}}%",
       "volumeOf": "Громкость: {{name}}",

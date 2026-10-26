@@ -2174,6 +2174,12 @@
     "gameLoading": "Opening the game…",
     "unpin": "Unpin",
     "unpinOf": "Unpin: {{name}}",
+    "exit": {
+      "label": "Participants",
+      "title": "All participants ({{key}})",
+      "announcePeople": "All participants",
+      "announceIntegration": "On stage: {{name}}"
+    },
     "menu": {
       "volume": "Your volume · {{value}}%",
       "volumeOf": "Volume: {{name}}",

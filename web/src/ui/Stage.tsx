@@ -1,4 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { MicOff, MonitorUp, MonitorX, PinOff, WifiLow, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Track, TrackEvent, RemoteAudioTrack } from 'livekit-client';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +15,8 @@ import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
+import { exitFullscreenWithin } from '../core/fullscreen';
+import { stageOccupant, stageView } from '../core/stage-view';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, useMediaQuery, useStore } from './primitives';
 import { IconButton } from './kit';
@@ -15,6 +26,8 @@ import { focusedParticipant } from './focus';
 import { gridPlan } from './grid';
 import { applyVolumeNow } from '../media/volume';
 import { SCENES } from './cinema/scenes';
+import { integrationName } from './notch-state';
+import { focusAfterSwitch, StageExitContext } from './stage-context';
 import './video-paused.css';
 
 const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
@@ -204,6 +217,8 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   const cinema = useStore(meeting.cinema);
   const cinemaAt = useStore(meeting.cinemaAt);
   const layout = useStore(meeting.media.preferences).layout;
+  /** От какой интеграции этот зритель ушёл к участникам (R121) — у себя, комната об этом не знает. */
+  const away = useStore(meeting.stageAway);
   /** Касание: показ в пульте не кнопкой, а пунктом «ещё» — останавливают его со своей плитки. */
   const coarse = useMediaQuery('(pointer: coarse)');
   /** Кто показан крупно сейчас: нужен, чтобы выбор залипал, а не прыгал на каждом слоге. */
@@ -266,94 +281,6 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   */
   const pinnedHere = pinned && people.some((p) => p.id === pinned) ? pinned : null;
   const spotlight = people.length > 1 ? (pinnedHere ?? (layout === 'speaker' ? focused : null)) : null;
-  if (viewing) {
-    const screen = tracks.find(
-      (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
-    );
-    // Пауза показа (R117) — только поверх кадра, который уже есть («Подключаемся к стриму…» старше),
-    // и не у переподключающегося показывающего: тогда кадр стоит из-за него, а не из-за нашего канала.
-    const sharer = participants.find((p) => p.id === viewing.participantId);
-    const paused = !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
-    return (
-      <div className="stage watch-stage media-stage" data-paused={paused ? 'true' : undefined}>
-        <div
-          className="screen-viewport"
-          style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
-          onPointerDown={(e) => {
-            if (zoom <= 1) return;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
-          }}
-          onPointerMove={(e) => {
-            if (!drag.current) return;
-            const b = e.currentTarget.getBoundingClientRect();
-            setPan({
-              x: Math.max(
-                (-b.width * (zoom - 1)) / 2,
-                Math.min((b.width * (zoom - 1)) / 2, drag.current.px + e.clientX - drag.current.x),
-              ),
-              y: Math.max(
-                (-b.height * (zoom - 1)) / 2,
-                Math.min((b.height * (zoom - 1)) / 2, drag.current.py + e.clientY - drag.current.y),
-              ),
-            });
-          }}
-          onPointerUp={() => {
-            drag.current = null;
-          }}
-          onPointerCancel={() => {
-            drag.current = null;
-          }}
-        >
-          {screen ? (
-            <div
-              className="screen-transform"
-              style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
-            >
-              <VideoTrack tile={screen} screen onPlaying={() => meeting.screenPlaying(viewing.screenId)} />
-            </div>
-          ) : (
-            <div className="stream-loading" role="status">
-              {t(($) => $.stage.streamConnecting)}
-            </div>
-          )}
-          {paused && <VideoPausedNote announce />}
-        </div>
-        <div className="screen-tools">
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.zoomOut)}
-            disabled={zoom <= 1}
-            onClick={() => {
-              setZoom((z) => Math.max(1, z - 0.5));
-              setPan({ x: 0, y: 0 });
-            }}
-          >
-            <ZoomOut size={20} />
-          </IconButton>
-          <span>{Math.round(zoom * 100)}%</span>
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.zoomIn)}
-            disabled={zoom >= 4}
-            onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
-          >
-            <ZoomIn size={20} />
-          </IconButton>
-          <IconButton
-            tone="stage"
-            label={t(($) => $.stage.fit)}
-            onClick={() => {
-              setZoom(1);
-              setPan({ x: 0, y: 0 });
-            }}
-          >
-            <RotateCcw size={20} />
-          </IconButton>
-        </div>
-      </div>
-    );
-  }
   /**
    * Одна и та же плитка и в сетке, и в ленте под общим плеером: в кинозале у неё отбирают
    * только место в сетке. Разводить это на два похожих куска разметки значило бы чинить
@@ -481,68 +408,95 @@ export function Stage({ meeting }: { meeting: Meeting }) {
       </ParticipantMenu>
     );
   };
-  /*
-    Карточный стол. В отличие от кинозала, лента под ним — не все, а **только зрители**: лица
-    играющих уже на столе, в кружках их мест, и показывать их вторым рядом значило бы отобрать
-    у стола половину сцены ради повторения.
-
-    Столы и кинозал — медиасцена (E16): `.media-stage` на обёртке делает смысловые токены внутри
-    сценными в обеих темах, как у разговорной сцены. Шахматы и рисование раньше нарочно жили в
-    теме человека (E04-3); визуальная волна перевела их CSS на токены, и сцена у всех одна.
-  */
-  if (snapshot.chess || snapshot.gartic) {
+  /** Чужой экран во всю сцену — с лупой и перетаскиванием увеличенного кадра. */
+  const screenView = (viewing: { screenId: string; participantId: string }) => {
+    const screen = tracks.find(
+      (t) => t.participantId === viewing.participantId && t.source === Track.Source.ScreenShare && !t.muted,
+    );
+    // Пауза показа (R117) — только поверх кадра, который уже есть («Подключаемся к стриму…» старше),
+    // и не у переподключающегося показывающего: тогда кадр стоит из-за него, а не из-за нашего канала.
+    const sharer = participants.find((p) => p.id === viewing.participantId);
+    const paused = !!screen && sharer?.status !== 'RECOVERING' && !!pausedVideo[screen.id];
     return (
-      <div className="stage room-game-stage media-stage">
-        <Suspense
-          fallback={
-            <div role="status" className="poker-loading">
-              {t(($) => $.stage.gameLoading)}
-            </div>
-          }
+      <div className="stage watch-stage media-stage" data-paused={paused ? 'true' : undefined}>
+        <div
+          className="screen-viewport"
+          style={{ touchAction: zoom > 1 ? 'none' : 'auto' }}
+          onPointerDown={(e) => {
+            if (zoom <= 1) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+          }}
+          onPointerMove={(e) => {
+            if (!drag.current) return;
+            const b = e.currentTarget.getBoundingClientRect();
+            setPan({
+              x: Math.max(
+                (-b.width * (zoom - 1)) / 2,
+                Math.min((b.width * (zoom - 1)) / 2, drag.current.px + e.clientX - drag.current.x),
+              ),
+              y: Math.max(
+                (-b.height * (zoom - 1)) / 2,
+                Math.min((b.height * (zoom - 1)) / 2, drag.current.py + e.clientY - drag.current.y),
+              ),
+            });
+          }}
+          onPointerUp={() => {
+            drag.current = null;
+          }}
+          onPointerCancel={() => {
+            drag.current = null;
+          }}
         >
-          {snapshot.chess ? <ChessTable meeting={meeting} /> : <GarticTable meeting={meeting} />}
-        </Suspense>
-      </div>
-    );
-  }
-  if (snapshot.poker) {
-    const table = snapshot.poker;
-    const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
-    return (
-      <div className="stage poker-stage media-stage">
-        <div className="poker-main">
-          <Suspense fallback={<div className="poker-loading" />}>
-            <PokerTable meeting={meeting} table={table} />
-          </Suspense>
+          {screen ? (
+            <div
+              className="screen-transform"
+              style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+            >
+              <VideoTrack tile={screen} screen onPlaying={() => meeting.screenPlaying(viewing.screenId)} />
+            </div>
+          ) : (
+            <div className="stream-loading" role="status">
+              {t(($) => $.stage.streamConnecting)}
+            </div>
+          )}
+          {paused && <VideoPausedNote announce />}
         </div>
-        {watchers.length > 0 && (
-          <div className="people-strip media-stage" data-count={watchers.length}>
-            {watchers.map((person, index) => tile(person, index, false))}
-          </div>
-        )}
-      </div>
-    );
-  }
-  // Стол дурака живёт на сцене по тем же правилам, что покерный: лица играющих — в кружках их
-  // мест, а лента под столом остаётся зрителям.
-  if (snapshot.durak) {
-    const table = snapshot.durak;
-    const watchers = people.filter((person) => !table.seats.some((seat) => seat.memberId === person.id));
-    return (
-      <div className="stage poker-stage media-stage">
-        <div className="poker-main">
-          <Suspense fallback={<div className="durak-loading" />}>
-            <DurakTable meeting={meeting} table={table} />
-          </Suspense>
+        <div className="screen-tools">
+          <IconButton
+            tone="stage"
+            label={t(($) => $.stage.zoomOut)}
+            disabled={zoom <= 1}
+            onClick={() => {
+              setZoom((z) => Math.max(1, z - 0.5));
+              setPan({ x: 0, y: 0 });
+            }}
+          >
+            <ZoomOut size={20} />
+          </IconButton>
+          <span>{Math.round(zoom * 100)}%</span>
+          <IconButton
+            tone="stage"
+            label={t(($) => $.stage.zoomIn)}
+            disabled={zoom >= 4}
+            onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
+          >
+            <ZoomIn size={20} />
+          </IconButton>
+          <IconButton
+            tone="stage"
+            label={t(($) => $.stage.fit)}
+            onClick={() => {
+              setZoom(1);
+              setPan({ x: 0, y: 0 });
+            }}
+          >
+            <RotateCcw size={20} />
+          </IconButton>
         </div>
-        {watchers.length > 0 && (
-          <div className="people-strip media-stage" data-count={watchers.length}>
-            {watchers.map((person, index) => tile(person, index, false))}
-          </div>
-        )}
       </div>
     );
-  }
+  };
   /*
     Каталог — сцена площадки из реестра. Ключ — сама сцена, а не площадка: вкладки внутри
     одной сцены (YouTube ↔ Twitch) переключаются без пересоздания, а другая сцена — это
@@ -558,19 +512,138 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   const Scene = scene ? SCENES[scene] : null;
   const watch = snapshot.watch;
   /*
-    Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
-    занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но
-    главное на экране теперь не они.
-
-    Каталог живёт здесь же и **поверх** плеера, а не вместо него: пока один выбирает, чем
-    продолжить, комната продолжает смотреть — и разбирать плеер ради чужого выбора значило бы
-    остановить фильм всем.
+    Что занимает сцену и что из этого видит этот зритель (R121, `core/stage-view.ts`): интеграцию, людей
+    (ушёл от неё или смотрит чужой экран) или обычную встречу, когда сцена свободна.
   */
-  if (watch || Scene) {
-    return (
-      // `data-film` — комната смотрит фильм: на телефоне с открытым листом панели плеер встаёт
-      // полосой над листом, а лист опускается под неё (R120, `cinema/cinema.css`).
-      <div className="stage watch-together-stage media-stage" data-film={watch ? 'true' : undefined}>
+  const occupant = stageOccupant(snapshot, !!Scene);
+  const view = stageView(occupant, away, !!viewing);
+  const hidden = view === 'people';
+  const layerRef = useRef<HTMLDivElement>(null);
+  const exit = useMemo(
+    () => ({
+      away: hidden,
+      leave: () => {
+        // Стол и плеер разворачиваются сами: спрятанный слой во весь экран оставлять нельзя.
+        exitFullscreenWithin(layerRef.current);
+        meeting.leaveStage();
+        focusAfterSwitch(() => document.querySelector<HTMLElement>('[data-stage-notch]'));
+      },
+    }),
+    [hidden, meeting],
+  );
+  /*
+    Слой интеграции (R121). Ушедшему к участникам он не размонтируется, а прячется в том же узле
+    (`data-away`, `inert`, `stage.css`): кинозал — это `<video>` с буфером и синхронностью, и рождённый
+    заново он грузился бы с нуля; столы держат звук хода, открытый лист, выбранную карту и ползунок
+    ставки. Ключ — вид интеграции: на её месте в дереве другой слой не встанет. Лента лиц под столом и
+    плеером у ушедшего пуста — люди и так во всю сцену, — но её место остаётся, чтобы плеер не менял
+    размер (hls.js выбирает качество по размеру кадра).
+  */
+  const layer = (
+    kind: string,
+    className: string,
+    children: ReactNode,
+    attributes: Record<string, string> = {},
+  ) => (
+    <div
+      key={kind}
+      ref={layerRef}
+      className={`stage ${className} media-stage`}
+      data-stage-layer={kind}
+      data-away={hidden ? 'true' : undefined}
+      aria-hidden={hidden || undefined}
+      inert={hidden}
+      {...attributes}
+    >
+      <StageExitContext.Provider value={exit}>{children}</StageExitContext.Provider>
+    </div>
+  );
+  /** Лента лиц под столом и плеером; у ушедшего — пустое место той же высоты. */
+  const strip = (list: typeof people) =>
+    hidden ? (
+      <div className="people-strip media-stage" aria-hidden="true" data-count={0} />
+    ) : (
+      <div className="people-strip media-stage" data-count={list.length}>
+        {list.map((person, index) => tile(person, index, false))}
+      </div>
+    );
+  /** Кто смотрит стол, а не сидит за ним, — их лица лентой под столом. */
+  const watchersOf = (seats: readonly { memberId?: string | null }[]) =>
+    people.filter((person) => !seats.some((seat) => seat.memberId === person.id));
+
+  let integration: ReactNode = null;
+  /*
+    Карточный стол. В отличие от кинозала, лента под ним — не все, а **только зрители**: лица
+    играющих уже на столе, в кружках их мест, и показывать их вторым рядом значило бы отобрать
+    у стола половину сцены ради повторения.
+
+    Столы и кинозал — медиасцена (E16): `.media-stage` на обёртке делает смысловые токены внутри
+    сценными в обеих темах, как у разговорной сцены. Шахматы и рисование раньше нарочно жили в
+    теме человека (E04-3); визуальная волна перевела их CSS на токены, и сцена у всех одна.
+  */
+  if (occupant?.kind === 'chess' || occupant?.kind === 'gartic') {
+    integration = layer(
+      occupant.kind,
+      'room-game-stage',
+      <Suspense
+        fallback={
+          <div role="status" className="poker-loading">
+            {t(($) => $.stage.gameLoading)}
+          </div>
+        }
+      >
+        {occupant.kind === 'chess' ? <ChessTable meeting={meeting} /> : <GarticTable meeting={meeting} />}
+      </Suspense>,
+    );
+  } else if (occupant?.kind === 'poker' && snapshot.poker) {
+    const table = snapshot.poker;
+    const watchers = watchersOf(table.seats);
+    integration = layer(
+      'poker',
+      'poker-stage',
+      <>
+        <div className="poker-main">
+          <Suspense fallback={<div className="poker-loading" />}>
+            <PokerTable meeting={meeting} table={table} />
+          </Suspense>
+        </div>
+        {watchers.length > 0 && strip(watchers)}
+      </>,
+    );
+  } else if (occupant?.kind === 'durak' && snapshot.durak) {
+    // Стол дурака живёт на сцене по тем же правилам, что покерный: лица играющих — в кружках их
+    // мест, а лента под столом остаётся зрителям.
+    const table = snapshot.durak;
+    const watchers = watchersOf(table.seats);
+    integration = layer(
+      'durak',
+      'poker-stage',
+      <>
+        <div className="poker-main">
+          <Suspense fallback={<div className="durak-loading" />}>
+            <DurakTable meeting={meeting} table={table} />
+          </Suspense>
+        </div>
+        {watchers.length > 0 && strip(watchers)}
+      </>,
+    );
+  } else if (occupant?.kind === 'cinema') {
+    /*
+      Кинозал. Комната смотрит одно на всех, поэтому сцена перестраивается у каждого: плеер
+      занимает середину, а люди сжимаются в ленту под ним — их по-прежнему видно и слышно, но
+      главное на экране теперь не они.
+
+      Каталог живёт здесь же и **поверх** плеера, а не вместо него: пока один выбирает, чем
+      продолжить, комната продолжает смотреть — и разбирать плеер ради чужого выбора значило бы
+      остановить фильм всем.
+
+      `data-film` — комната смотрит фильм: на телефоне с открытым листом панели плеер встаёт
+      полосой над листом, а лист опускается под неё (R120, `cinema/cinema.css`).
+    */
+    integration = layer(
+      'cinema',
+      'watch-together-stage',
+      <>
         <div className="watch-main">
           {watch && (
             <Suspense fallback={<div className="watch-screen" />}>
@@ -596,54 +669,76 @@ export function Stage({ meeting }: { meeting: Meeting }) {
             </Suspense>
           )}
         </div>
-        <div className="people-strip media-stage" data-count={people.length}>
-          {people.map((person, index) => tile(person, index, false))}
-        </div>
-      </div>
+        {strip(people)}
+      </>,
+      watch ? { 'data-film': 'true' } : {},
     );
   }
-  if (spotlight) {
-    const big = people.find((person) => person.id === spotlight)!;
-    // В ленте своя плитка первой — её ищут глазами чаще прочих (Discord, Телемост).
-    const self = meeting.admission.participantId;
-    const strip = people
-      .filter((person) => person.id !== spotlight)
-      .sort((a, b) => Number(b.id === self) - Number(a.id === self));
-    return (
-      <div
-        className="stage conversation-stage camera-stage media-stage"
-        data-layout={layout}
-        data-spotlight="true"
-      >
-        <div className="spotlight-main">{tile(big, 0, false)}</div>
-        <div className="people-strip spotlight-strip media-stage" data-count={strip.length}>
-          {strip.map((person, index) => tile(person, index, false))}
+
+  let peopleView: ReactNode = null;
+  if (view !== 'integration') {
+    if (viewing) peopleView = screenView(viewing);
+    else if (spotlight) {
+      const big = people.find((person) => person.id === spotlight)!;
+      // В ленте своя плитка первой — её ищут глазами чаще прочих (Discord, Телемост).
+      const self = meeting.admission.participantId;
+      const rest = people
+        .filter((person) => person.id !== spotlight)
+        .sort((a, b) => Number(b.id === self) - Number(a.id === self));
+      peopleView = (
+        <div
+          className="stage conversation-stage camera-stage media-stage"
+          data-layout={layout}
+          data-spotlight="true"
+        >
+          <div className="spotlight-main">{tile(big, 0, false)}</div>
+          <div className="people-strip spotlight-strip media-stage" data-count={rest.length}>
+            {rest.map((person, index) => tile(person, index, false))}
+          </div>
         </div>
-      </div>
-    );
+      );
+    } else
+      peopleView = (
+        <div className="stage conversation-stage camera-stage media-stage" data-layout={layout}>
+          <div
+            className="people-grid"
+            data-count={people.length}
+            ref={setStage}
+            /*
+              Колонок объявляется вдвое больше, чем плиток в ряду, и каждая плитка занимает две
+              доли. Это единственный способ поставить неполный ряд ровно посередине: «половины
+              колонки» в grid нет, и трое под четырьмя всегда прижимались бы к левому краю.
+            */
+            style={
+              layout === 'grid'
+                ? {
+                    gridTemplateColumns: `repeat(${plan.columns * 2}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${plan.rows}, minmax(0, 1fr))`,
+                  }
+                : undefined
+            }
+          >
+            {people.map((person, index) => tile(person, index, layout === 'grid'))}
+          </div>
+        </div>
+      );
   }
+  /*
+    Слой интеграции — всегда первым, вид людей — вторым: так смена вида не двигает интеграцию по дереву,
+    и React её не пересоздаёт. Строка для диктора говорит, куда человек попал (R121).
+  */
   return (
-    <div className="stage conversation-stage camera-stage media-stage" data-layout={layout}>
-      <div
-        className="people-grid"
-        data-count={people.length}
-        ref={setStage}
-        /*
-          Колонок объявляется вдвое больше, чем плиток в ряду, и каждая плитка занимает две
-          доли. Это единственный способ поставить неполный ряд ровно посередине: «половины
-          колонки» в grid нет, и трое под четырьмя всегда прижимались бы к левому краю.
-        */
-        style={
-          layout === 'grid'
-            ? {
-                gridTemplateColumns: `repeat(${plan.columns * 2}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${plan.rows}, minmax(0, 1fr))`,
-              }
-            : undefined
-        }
-      >
-        {people.map((person, index) => tile(person, index, layout === 'grid'))}
-      </div>
-    </div>
+    <>
+      {integration}
+      {peopleView}
+      {/* Пока сцена свободна, говорить не о чем: строка появляется вместе с интеграцией. */}
+      {occupant && (
+        <span className="stage-announce" role="status">
+          {hidden
+            ? t(($) => $.stage.exit.announcePeople)
+            : t(($) => $.stage.exit.announceIntegration, { name: integrationName(t, occupant.kind) })}
+        </span>
+      )}
+    </>
   );
 }
