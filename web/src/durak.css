@@ -1385,7 +1385,7 @@
       min-width: 64px;
     }
     & .durak-bar-tools {
-      gap: 2px;
+      gap: var(--space-0-5);
     }
     & .durak-bar .icon-button {
       width: var(--control-md);

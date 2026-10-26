@@ -931,7 +931,7 @@ function TurnStatus({
               : t(($) => $.durak.turn.left, { seconds, count: seconds })
           }
         >
-          {table.paused && <Pause size={14} />}
+          {table.paused && <Pause size={16} />}
           {t(($) => $.durak.seconds, { seconds })}
         </span>
       )}
