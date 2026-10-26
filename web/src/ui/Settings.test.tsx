@@ -625,6 +625,16 @@ describe('«Нажми и говори» и кнопки мыши (E01-B3, фл�
     expect(screen.queryByRole('switch', { name: 'Нажми и говори' })).toBeNull();
   });
 
+  it('«О программе» в приложении не спрашивает зеркало само — только по «Проверить»', () => {
+    const api = fakeV2(['hotkeys', 'app.settings', 'update']);
+    render(<Settings open section="about" onOpenChange={vi.fn()} />);
+    const sent = () => api.send.mock.calls.map(([type]) => type);
+    expect(api.invoke, 'состояние — то, что оболочка уже знает').toHaveBeenCalledWith('update.status');
+    expect(sent()).not.toContain('update.check');
+    fireEvent.click(screen.getByRole('button', { name: 'Проверить обновления' }));
+    expect(sent()).toContain('update.check');
+  });
+
   it('с флагом ptt запись берёт боковую кнопку мыши; без флага — нет', async () => {
     fakeV2(['hotkeys', 'app.settings', 'ptt']);
     render(<Settings open section="hotkeys" onOpenChange={vi.fn()} />);

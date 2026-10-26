@@ -18,6 +18,10 @@ import { SettingGroup, SettingRow } from './Row';
  * секунду, — поэтому проверка отвечает про клиент для Windows. В самом приложении обновлять
  * есть что, и проверку выполняет оболочка: страница о её файлах ничего не знает. Плашка
  * появляется, только когда есть что сказать: «всё актуально» видно по её отсутствию.
+ *
+ * В приложении раздел зеркало сам не спрашивает — только по «Проверить»: оболочка уже спросила его
+ * при запуске (и спрашивает раз в шесть часов), а её ответ раздел берёт из `update.version`. В
+ * браузере при открытии читается, какой клиент для Windows последний на этом сервере.
  */
 export function AboutSection({ onTour }: { onTour?: () => void }) {
   const { t } = useTranslation();
@@ -42,7 +46,9 @@ export function AboutSection({ onTour }: { onTour?: () => void }) {
       .then(setRelease)
       .finally(() => setChecking(false));
   };
-  useEffect(check, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!desktop) check();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const latest = release === undefined ? undefined : (release?.version ?? null);
   const installed = desktop ? desktopVersion(shell) : appVersion;
   const fresh = !!latest && !!installed && isNewer(latest, installed);
