@@ -863,24 +863,24 @@ button.watch-stream.is-stop:hover {
   display: none;
 }
 /*
-  Зрители у стола дурака (R129). Стол считается по высоте — шапка, сукно, рука и кнопка хода, — и полоса
-  лиц под ним съедала руку: на 1280×720 до «Бито» приходилось листать. На широком окне сцена шире, чем
-  нужно овалу, поэтому зрители уходят колонкой вправо и отдают столу всю высоту; на узком (телефон стоя)
-  остаются снизу, но тоньше.
+  Зрители у карточных столов (R129). Столы считаются по высоте — шапка, сукно, рука и кнопки хода, — и
+  полоса лиц под столом съедала руку: на 1280×720 до «Бито» приходилось листать, а у покера на телефоне
+  боком пропадало сукно. На широком окне сцена шире, чем нужно овалу, поэтому зрители уходят колонкой
+  вправо и отдают столу всю высоту; на узком (телефон стоя) остаются снизу, но тоньше.
 */
-.stage[data-stage-layer='durak'] > .people-strip {
+.stage:is([data-stage-layer='durak'], [data-stage-layer='poker']) > .people-strip {
   height: clamp(56px, 8vh, 92px);
 }
 /* Зрителей нет — нет и строки под ними: пустая строка сетки с зазором отнимала у стола 8 px. */
-.stage[data-stage-layer='durak']:not(:has(> .people-strip)) {
+.stage:is([data-stage-layer='durak'], [data-stage-layer='poker']):not(:has(> .people-strip)) {
   grid-template-rows: minmax(0, 1fr);
 }
 @media (min-width: 640px) and (min-aspect-ratio: 5 / 4) {
-  .stage[data-stage-layer='durak']:has(> .people-strip) {
+  .stage:is([data-stage-layer='durak'], [data-stage-layer='poker']):has(> .people-strip) {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: minmax(0, 1fr);
   }
-  .stage[data-stage-layer='durak'] > .people-strip {
+  .stage:is([data-stage-layer='durak'], [data-stage-layer='poker']) > .people-strip {
     flex-direction: column;
     justify-content: safe center;
     width: clamp(104px, 11vw, 184px);
@@ -889,7 +889,7 @@ button.watch-stream.is-stop:hover {
     overflow-x: hidden;
     overflow-y: auto;
   }
-  .stage[data-stage-layer='durak'] > .people-strip .person-tile {
+  .stage:is([data-stage-layer='durak'], [data-stage-layer='poker']) > .people-strip .person-tile {
     width: 100%;
     height: auto;
     max-width: none;
