@@ -2151,7 +2151,8 @@
       "label": "参与者",
       "title": "所有参与者（{{key}}）",
       "announcePeople": "所有参与者",
-      "announceIntegration": "舞台上：{{name}}"
+      "announceIntegration": "舞台上：{{name}}",
+      "toStage": "在舞台上打开"
     },
     "notch": {
       "seated": "桌上 {{n}} 人",

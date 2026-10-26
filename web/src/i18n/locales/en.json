@@ -2178,7 +2178,8 @@
       "label": "Participants",
       "title": "All participants ({{key}})",
       "announcePeople": "All participants",
-      "announceIntegration": "On stage: {{name}}"
+      "announceIntegration": "On stage: {{name}}",
+      "toStage": "Show on stage"
     },
     "notch": {
       "seated": "{{n}} at the table",

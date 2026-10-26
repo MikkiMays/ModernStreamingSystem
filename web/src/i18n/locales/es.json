@@ -2205,7 +2205,8 @@
       "label": "Participantes",
       "title": "Todos los participantes ({{key}})",
       "announcePeople": "Todos los participantes",
-      "announceIntegration": "En escena: {{name}}"
+      "announceIntegration": "En escena: {{name}}",
+      "toStage": "Abrir en escena"
     },
     "notch": {
       "seated": "{{n}} en la mesa",

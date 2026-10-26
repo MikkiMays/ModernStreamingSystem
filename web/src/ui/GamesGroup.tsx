@@ -9,6 +9,7 @@ import {
   Coins,
   History,
   Layers,
+  MonitorPlay,
   Play,
   Pencil,
   Shuffle,
@@ -25,6 +26,8 @@ import { blindsFor, chips, gameTitle, MAX_STACK, MIN_STACK, POKER_MODES, winnerO
 import { allowed, type RoomAction } from '../core/permissions';
 import { GameResult } from './PokerResult';
 import { Modal, useStore } from './primitives';
+import { backToStage } from './stage-context';
+import { useStageView } from './useStageView';
 
 /**
  * Игры в панели интеграций.
@@ -66,6 +69,9 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
   const table = snapshot.poker;
   const durak = snapshot.durak;
   const dealer = may('poker.manage');
+  /** От какой идущей игры этот человек ушёл к участникам (R121) — у неё «Открыть на сцене». */
+  const { occupant, view } = useStageView(meeting);
+  const awayFrom = view === 'people' && occupant?.kind !== 'cinema' ? occupant?.kind : undefined;
   // Стол уже стоит — значит, открыта его строка; иначе открывается та, на которую нажали.
   const [open, setOpen] = useState<GameId | null>(
     table ? 'poker' : durak ? 'durak' : snapshot.chess ? 'chess' : snapshot.gartic ? 'gartic' : null,
@@ -193,6 +199,14 @@ export function GamesGroup({ meeting, onBack }: { meeting: Meeting; onBack: () =
                 */}
                 <ChevronDown className="games-chevron" size={16} data-open={expanded || undefined} />
               </button>
+              {/* Ушёл к участникам (R121) — открыть идущую игру отсюда значит вернуться к ней. */}
+              {live && awayFrom === game.id && (
+                <div className="games-to-stage">
+                  <button className="button primary full" onClick={() => backToStage(meeting)}>
+                    <MonitorPlay size={20} /> {t(($) => $.stage.exit.toStage)}
+                  </button>
+                </div>
+              )}
               {expanded && (game.id === 'chess' || game.id === 'gartic') && (
                 <div className="games-body">
                   <p className="form-footnote">{t(($) => $.games.list[game.id].hint)}</p>

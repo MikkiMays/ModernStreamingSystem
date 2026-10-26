@@ -59,3 +59,9 @@
     transform: none;
   }
 }
+
+/* Панель «Интеграции»: ушедшему к участникам у идущей игры — «Открыть на сцене» под её строкой. */
+.games-to-stage {
+  display: grid;
+  padding: 0 var(--space-3) var(--space-3);
+}
