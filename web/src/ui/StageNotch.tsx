@@ -7,7 +7,7 @@ import { targetPosition } from '../core/watch';
 import { theaterVideo } from './cinema/theater/live-frame';
 import { useMediaQuery, useStore } from './primitives';
 import { integrationName, notchState } from './notch-state';
-import { focusAfterSwitch, STAGE_KEY_LABEL } from './stage-context';
+import { backToStage, STAGE_KEY_LABEL } from './stage-context';
 import { ICONS } from './StageOverlay';
 import { TurnRing } from './TurnRing';
 import { useStageView } from './useStageView';
@@ -79,16 +79,7 @@ export function StageNotch({ meeting }: { meeting: Meeting }) {
       aria-label={t(($) => $.stage.notch.back, { integration, state: spoken })}
       aria-keyshortcuts={STAGE_KEY_LABEL}
       title={t(($) => $.stage.notch.title, { key: STAGE_KEY_LABEL })}
-      onClick={() => {
-        meeting.returnToStage();
-        // Назад — туда же, откуда ушли: «Участники» в шапке интеграции (у открытого каталога — его).
-        focusAfterSwitch(() => {
-          const exits = document.querySelectorAll<HTMLElement>(
-            '[data-stage-layer]:not([data-away]) [data-stage-exit]',
-          );
-          return exits[exits.length - 1];
-        });
-      }}
+      onClick={() => backToStage(meeting)}
     >
       {state.film && video ? (
         <NotchFrame video={video} />

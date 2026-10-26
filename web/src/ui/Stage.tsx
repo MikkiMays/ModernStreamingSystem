@@ -15,7 +15,6 @@ import type { MediaTile } from '../media/session';
 import type { Meeting } from '../core/meeting';
 import { PROVIDERS } from '../core/cinema';
 import { knownProvider } from '../core/cinema/link';
-import { exitFullscreenWithin } from '../core/fullscreen';
 import { stageOccupant, stageView } from '../core/stage-view';
 import { ParticipantMenu } from './ParticipantMenu';
 import { Avatar, useMediaQuery, useStore } from './primitives';
@@ -27,7 +26,7 @@ import { gridPlan } from './grid';
 import { applyVolumeNow } from '../media/volume';
 import { SCENES } from './cinema/scenes';
 import { integrationName } from './notch-state';
-import { focusAfterSwitch, StageExitContext } from './stage-context';
+import { leaveToPeople, StageExitContext } from './stage-context';
 import './video-paused.css';
 
 const WatchTheater = lazy(() => import('./cinema/theater/WatchTheater'));
@@ -518,19 +517,7 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   const occupant = stageOccupant(snapshot, !!Scene);
   const view = stageView(occupant, away, !!viewing);
   const hidden = view === 'people';
-  const layerRef = useRef<HTMLDivElement>(null);
-  const exit = useMemo(
-    () => ({
-      away: hidden,
-      leave: () => {
-        // Стол и плеер разворачиваются сами: спрятанный слой во весь экран оставлять нельзя.
-        exitFullscreenWithin(layerRef.current);
-        meeting.leaveStage();
-        focusAfterSwitch(() => document.querySelector<HTMLElement>('[data-stage-notch]'));
-      },
-    }),
-    [hidden, meeting],
-  );
+  const exit = useMemo(() => ({ away: hidden, leave: () => leaveToPeople(meeting) }), [hidden, meeting]);
   /*
     Слой интеграции (R121). Ушедшему к участникам он не размонтируется, а прячется в том же узле
     (`data-away`, `inert`, `stage.css`): кинозал — это `<video>` с буфером и синхронностью, и рождённый
@@ -547,7 +534,6 @@ export function Stage({ meeting }: { meeting: Meeting }) {
   ) => (
     <div
       key={kind}
-      ref={layerRef}
       className={`stage ${className} media-stage`}
       data-stage-layer={kind}
       data-away={hidden ? 'true' : undefined}

@@ -1,4 +1,4 @@
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Snapshot, Watch } from '../api/types';
@@ -6,6 +6,7 @@ import type { Meeting } from '../core/meeting';
 import type { StageKind } from '../core/stage-view';
 import { Store } from '../core/store';
 import { Stage } from './Stage';
+import { StageNotch } from './StageNotch';
 
 /*
   Выход из интеграции к участникам (R121). Интеграция идёт для всех, а зритель уходит смотреть людей и
@@ -35,14 +36,23 @@ vi.mock('./PokerTable', () => ({
     return <div className="poker" />;
   },
 }));
-vi.mock('./ChessTable', () => ({
-  default: function FakeChess() {
-    useEffect(() => {
-      mounts.chess++;
-    }, []);
-    return <section className="chess" />;
-  },
-}));
+vi.mock('./ChessTable', async () => {
+  const { StageExitButton } = await import('./IntegrationBar');
+  return {
+    default: function FakeChess() {
+      useEffect(() => {
+        mounts.chess++;
+      }, []);
+      return (
+        <section className="chess">
+          <header className="chess-header">
+            <StageExitButton variant="bar" />
+          </header>
+        </section>
+      );
+    },
+  };
+});
 
 const person = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -199,5 +209,31 @@ describe('слой интеграции не рождается заново', (
     render(<Stage meeting={fakeMeeting({})} />);
     expect(layer()).toBeNull();
     expect(document.querySelectorAll('.people-grid .person-tile')).toHaveLength(3);
+  });
+});
+
+describe('выход и возврат одним нажатием', () => {
+  it('«Участники» → фокус на чёлке и «Все участники» диктору; чёлка → назад, фокус на «Участники»', async () => {
+    const room = fakeMeeting({
+      chess: { phase: 'playing', turn: 'white', white: null, black: null } as unknown as Snapshot['chess'],
+    });
+    render(
+      <>
+        <StageNotch meeting={room} />
+        <Stage meeting={room} />
+      </>,
+    );
+    const exit = await screen.findByRole('button', { name: 'Участники' });
+    expect(screen.getByRole('status')).toHaveTextContent('На сцене: Шахматы');
+    fireEvent.click(exit);
+    expect(room.leaveStage).toHaveBeenCalledTimes(1);
+    const notch = await screen.findByRole('button', { name: /^Вернуться: Шахматы/ });
+    await vi.waitFor(() => expect(notch).toHaveFocus());
+    expect(screen.getByRole('status')).toHaveTextContent('Все участники');
+    fireEvent.click(notch);
+    expect(room.returnToStage).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /^Вернуться/ })).toBeNull();
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Участники' })).toHaveFocus());
+    expect(mounts.chess).toBe(1);
   });
 });

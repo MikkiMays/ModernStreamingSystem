@@ -1,4 +1,6 @@
 import { createContext, useContext } from 'react';
+import { exitFullscreenWithin } from '../core/fullscreen';
+import type { Meeting } from '../core/meeting';
 
 /**
  * Что слой интеграции на сцене знает о выходе к участникам (R121).
@@ -32,4 +34,28 @@ export const STAGE_KEY_LABEL = 'G';
  */
 export function focusAfterSwitch(find: () => HTMLElement | null | undefined) {
   requestAnimationFrame(() => find()?.focus({ preventScroll: true }));
+}
+
+/**
+ * Уйти к участникам (R121): кнопка «Участники», клавиша G. Полный экран внутри интеграции сворачивается —
+ * спрятанный слой во весь экран оставлять нельзя; фокус — на чёлку, она и вернёт.
+ */
+export function leaveToPeople(meeting: Pick<Meeting, 'leaveStage'>) {
+  exitFullscreenWithin(document.querySelector('[data-stage-layer]'));
+  meeting.leaveStage();
+  focusAfterSwitch(() => document.querySelector<HTMLElement>('[data-stage-notch]'));
+}
+
+/**
+ * Вернуться в интеграцию (R121): чёлка, клавиша G. Фокус — на «Участники» в её шапке, чтобы тем же путём
+ * можно было снова выйти; у открытого поверх плеера каталога — на его кнопку (она последняя в слое).
+ */
+export function backToStage(meeting: Pick<Meeting, 'returnToStage'>) {
+  meeting.returnToStage();
+  focusAfterSwitch(() => {
+    const exits = document.querySelectorAll<HTMLElement>(
+      '[data-stage-layer]:not([data-away]) [data-stage-exit]',
+    );
+    return exits[exits.length - 1];
+  });
 }

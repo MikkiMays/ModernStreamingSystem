@@ -5,6 +5,8 @@ import type { Meeting } from '../core/meeting';
 import { useMediaQuery, useStore } from './primitives';
 import { Stage, AudioLayer } from './Stage';
 import { StageOverlay } from './StageOverlay';
+import { StageNotch } from './StageNotch';
+import { useStageHotkey } from './useStageHotkey';
 import { CallDock } from './CallDock';
 import { Sidebar, type Panel } from './Sidebar';
 import { Invite } from './Invite';
@@ -131,6 +133,8 @@ export function MeetingView({
     никогда, а чужой фильм и смена ширины панель не трогают — подробности в самом правиле.
   */
   useYieldToCinema(meeting, setPanel);
+  // G — из интеграции к участникам и обратно (R121).
+  useStageHotkey(meeting);
   useTrayChat(setPanel);
   useEffect(() => {
     onBackTarget?.(panel ? () => setPanel(null) : null);
@@ -378,6 +382,8 @@ export function MeetingView({
             </div>
           ) : (
             <>
+              {/* Интеграция, от которой зритель ушёл к участникам, — чёлкой сверху по центру (R121). */}
+              <StageNotch meeting={meeting} />
               {/* Активные интеграции — чипами поверх сцены справа сверху (R30). Со сцены панель
                   открывают, а не переключают: нажатие при открытой панели закрывало бы её. */}
               <StageOverlay meeting={meeting} onOpenServices={() => setPanel('services')} />
