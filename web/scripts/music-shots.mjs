@@ -268,7 +268,8 @@ async function meeting() {
       await shoot(page, 'r31-game');
     });
     await step('widget', async () => {
-      const open = page.getByRole('button', { name: 'Открыть плеер' });
+      // Виджет открывает сам трек мини-плеера (R128), шеврона больше нет.
+      const open = page.locator('.music-mini__track');
       if (!(await open.count())) return;
       await open.click();
       await page.getByRole('dialog', { name: 'Музыка' }).waitFor();
@@ -282,7 +283,7 @@ async function meeting() {
         await page.setViewportSize({ width: phone, height: height(phone) });
         await page.waitForTimeout(1200);
         await shoot(page, 'r31-game');
-        const open = page.getByRole('group', { name: 'Мини-плеер' }).locator('.music-mini__track');
+        const open = page.locator('.music-mini__track');
         if (await open.count()) {
           await open.click();
           await page.getByRole('dialog', { name: 'Музыка' }).waitFor();
@@ -311,7 +312,8 @@ async function meeting() {
         .locator('.service-group')
         .filter({ has: page.locator('b', { hasText: /^Музыка$/ }) })
         .click();
-      await page.getByRole('button', { name: 'Убрать музыку из встречи' }).click();
+      await page.getByRole('button', { name: 'Ещё действия с музыкой' }).click();
+      await page.getByRole('menuitem', { name: 'Убрать музыку из встречи' }).click();
       await page.waitForTimeout(3000);
       await shelf(page);
       await closePanel(page);
