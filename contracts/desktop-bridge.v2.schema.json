@@ -320,7 +320,7 @@
       }
     },
     "miniState": {
-      "description": "Страница → оболочка (mini.state, R93): что показывает мини-окно звонка — название встречи, свой id в составе, микрофон, камера, показ, непрочитанные в чате (R87), сколько людей. Шлётся сразу при изменении. Пока страница его не прислала, мини-окна нет (прежний веб).",
+      "description": "Страница → оболочка (mini.state, R93): что показывает мини-окно звонка — название встречи, свой id в составе, микрофон, камера, показ, непрочитанные в чате (R87), сколько людей, связь со звуком (status; remaining — секунд до конца ожидания, пока recovering). Шлётся сразу при изменении. Пока страница его не прислала, мини-окна нет (прежний веб). Без status (веб до него) оболочка считает связь идущей.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -330,7 +330,9 @@
         "camera": { "type": "boolean" },
         "screen": { "type": "boolean" },
         "unread": { "type": "integer", "minimum": 0 },
-        "count": { "type": "integer", "minimum": 0 }
+        "count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["connecting", "connected", "recovering"] },
+        "remaining": { "type": "integer", "minimum": 0 }
       }
     },
     "miniAction": {

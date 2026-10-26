@@ -115,11 +115,16 @@ describe('окна оболочки поверх других программ (
     const api = fakeDesktop(['overlay', 'overlay.widget', 'mini']);
     const { meeting } = fakeMeeting();
     meeting.snapshot.set({
-      participants: meeting.snapshot.get().participants.map((p) => (p.id === 'p-1' ? { ...p, avatar: null } : p)),
+      participants: meeting.snapshot
+        .get()
+        .participants.map((p) => (p.id === 'p-1' ? { ...p, avatar: null } : p)),
     } as never);
     renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
     expect(sent(api, 'overlay.roster').at(-1)).toMatchObject({
-      participants: [{ id: 'p-1', avatar: '' }, { id: 'p-2', avatar: 'data:image/png;base64,AAAA' }],
+      participants: [
+        { id: 'p-1', avatar: '' },
+        { id: 'p-2', avatar: 'data:image/png;base64,AAAA' },
+      ],
     });
   });
 
@@ -128,12 +133,40 @@ describe('окна оболочки поверх других программ (
     const { meeting } = fakeMeeting();
     renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
     expect(sent(api, 'mini.state')).toEqual([
-      { room: 'Пятница', self: 'p-1', mic: true, camera: false, screen: false, unread: 2, count: 2 },
+      {
+        room: 'Пятница',
+        self: 'p-1',
+        mic: true,
+        camera: false,
+        screen: false,
+        unread: 2,
+        count: 2,
+        status: 'connected',
+        remaining: 0,
+      },
     ]);
     act(() => meeting.unread.set(3));
     act(() => meeting.unread.set(3));
     expect(sent(api, 'mini.state')).toHaveLength(2);
     expect(sent(api, 'mini.state').at(-1)).toMatchObject({ unread: 3 });
+  });
+
+  it('мини-окно знает о восстановлении связи: состояние и секунды; нажатия до связи не исполняются', () => {
+    const api = fakeDesktop(['overlay', 'mini']);
+    const { meeting } = fakeMeeting();
+    renderHook(() => useDesktopOverlay(meeting as unknown as Meeting, false, actions()));
+    const connected = meeting.media.state.get();
+    act(() =>
+      meeting.media.state.set({ ...connected, status: 'recovering', remaining: 17.2 } as typeof connected),
+    );
+    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ status: 'recovering', remaining: 18 });
+    api.emit('mini.action', { id: 'mic' });
+    api.emit('mini.action', { id: 'camera' });
+    expect(meeting.media.toggle).not.toHaveBeenCalled();
+    act(() => meeting.media.state.set(connected));
+    expect(sent(api, 'mini.state').at(-1)).toMatchObject({ status: 'connected', remaining: 0 });
+    api.emit('mini.action', { id: 'mic' });
+    expect(meeting.media.toggle).toHaveBeenCalledWith('microphone');
   });
 
   it('нажатия мини-окна: микрофон и камера — встреча, участники и чат — панель, показ — окно выбора пульта', () => {

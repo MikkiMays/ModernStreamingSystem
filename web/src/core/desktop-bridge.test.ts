@@ -303,6 +303,11 @@ describe('оверлей в игре, игры и мини-окно (R62, R63, R
         def('miniState'),
       ),
     ).toEqual([]);
+    expect(errors({ status: 'recovering', remaining: 12 }, def('miniState'))).toEqual([]);
+    expect(
+      errors({ status: 'ended' }, def('miniState')),
+      'конец встречи — не состояние мини-окна',
+    ).not.toEqual([]);
     expect(errors({ unread: -1 }, def('miniState'))).not.toEqual([]);
     expect(errors({ id: 'mic' }, def('miniAction'))).toEqual([]);
     expect(errors({ id: 'record' }, def('miniAction')), 'записи в Cord нет').not.toEqual([]);
