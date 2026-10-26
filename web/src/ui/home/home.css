@@ -14,9 +14,20 @@
   color: var(--text);
 }
 @media (min-width: 960px) {
+  /* Колонка ручки — ноль: ручка 12 px стоит на стыке полями −6 px. Число колонок одно и то же в
+     развёрнутой и свёрнутой панели (R130), поэтому ширина панели едет, а не прыгает. */
   .home-shell {
+    --home-rail: 64px;
     height: 100dvh;
-    grid-template-columns: var(--home-nav-width, 280px) auto minmax(0, 1fr);
+    grid-template-columns: var(--home-nav-width, 280px) 0 minmax(0, 1fr);
+    transition: grid-template-columns var(--motion-base) var(--ease-emphasized);
+  }
+  .home-shell[data-nav='collapsed'] {
+    grid-template-columns: var(--home-rail) 0 minmax(0, 1fr);
+  }
+  /* Без ручки (свёрнутая панель) вход всё равно в последней колонке. */
+  .home-shell > .home-stage {
+    grid-column: -2 / -1;
   }
   /* Набор прячет ручку уже 1200 px — там панель встречи ложится поверх сцены. Панель главной своя
      колонка до 960 px, и тянуть её можно на всей этой ширине. */
@@ -48,6 +59,66 @@
 }
 .home-nav__head .brand {
   --brand-h: 26px;
+}
+/* Свернуть панель (R130) — значок у правого края шапки, как в ChatGPT и Claude. */
+.home-nav__toggle {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+.home-nav__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- свёрнутая панель (R130) ----------
+   Узкая полоса значков: сверху та же кнопка, ниже «Избранное» (разворачивает панель), внизу
+   настройки, поддержка и «Скачать». Подписи скрыты глазу, но не диктору; подсказку даёт `title`. */
+.home-shell[data-nav='collapsed'] .home-nav {
+  overflow: hidden;
+}
+.home-shell[data-nav='collapsed'] .home-nav__head {
+  justify-content: center;
+  padding: 0;
+}
+.home-shell[data-nav='collapsed'] .home-nav__toggle {
+  margin: 0;
+}
+.home-shell[data-nav='collapsed'] .home-nav__scroll {
+  display: grid;
+  align-content: start;
+  padding-inline: var(--space-3);
+}
+.home-shell[data-nav='collapsed'] .home-nav__link {
+  justify-content: center;
+  padding: 0;
+}
+.home-shell[data-nav='collapsed'] .home-nav__link > span:not(.app-icon) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Клиент Windows (R130): окно тащат за шапку панели и за верхнюю полосу главной, как за шапку
+   встречи; кнопки «— ⧉ ×» Windows рисует поверх правого края полосы (`--titlebar-*`). */
+:root[data-desktop='true'] .home-nav__head,
+.home-stage__drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+:root[data-desktop='true'] :is(.home-nav__head, .home-stage) :is(button, a, input, [role='button']) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+.home-stage__drag {
+  position: absolute;
+  z-index: 0;
+  inset: 0 var(--titlebar-end, 0px) auto 0;
+  height: var(--titlebar-h, 0px);
 }
 .home-nav__scroll {
   flex: 1;
@@ -518,6 +589,7 @@ input.home-inline-name:focus-visible {
 
 /* ---------- правая часть: вход ---------- */
 .home-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;

@@ -131,6 +131,8 @@
 .home-entry__join {
   display: flex;
   flex-direction: column;
+  /* Карточка ростом с плиту «Новая встреча» — заголовок, поле и кнопка по центру, а не у верха (R131). */
+  justify-content: center;
   gap: var(--space-4);
   min-width: 0;
   padding: var(--space-7);

@@ -37,6 +37,6 @@ export { Badge, Soon, type BadgeProps } from './Badge';
 export { Card, type CardProps } from './Card';
 export { Separator } from './Separator';
 export { ResizeHandle, type ResizeHandleProps } from './ResizeHandle';
-export { usePanelWidth, forgetPanelWidths, type PanelWidthOptions } from './usePanelWidth';
+export { usePanelWidth, usePanelCollapsed, forgetPanelWidths, type PanelWidthOptions } from './usePanelWidth';
 export { Logo, CordMark, CordWordmark, AppIcon } from '../brand/Logo';
 export { Coachmark, type CoachmarkProps } from './Coachmark';

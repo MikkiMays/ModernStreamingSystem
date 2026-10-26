@@ -88,3 +88,19 @@ export function forgetPanelWidths() {
     // нет хранилища — нечего забывать
   }
 }
+
+/**
+ * Свёрнута ли панель (R130, «как в ChatGPT и Claude»). Помнится на устройстве рядом с шириной —
+ * `cord:panel:<ключ>:collapsed`, — и тоже подхватывается всеми вкладками.
+ */
+export function usePanelCollapsed(key: string) {
+  const name = `${key}:collapsed`;
+  const stored = useSyncExternalStore(
+    useCallback((listener: () => void) => subscribe(name, listener), [name]),
+    () => read(name),
+    () => null,
+  );
+  const collapsed = stored === 1;
+  const setCollapsed = useCallback((next: boolean) => write(name, next ? 1 : null), [name]);
+  return { collapsed, setCollapsed, toggle: () => setCollapsed(!collapsed) } as const;
+}
