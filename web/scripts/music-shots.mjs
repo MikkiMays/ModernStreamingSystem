@@ -312,8 +312,7 @@ async function meeting() {
         .locator('.service-group')
         .filter({ has: page.locator('b', { hasText: /^Музыка$/ }) })
         .click();
-      await page.getByRole('button', { name: 'Ещё действия с музыкой' }).click();
-      await page.getByRole('menuitem', { name: 'Убрать музыку из встречи' }).click();
+      await page.getByRole('button', { name: 'Убрать музыку из встречи' }).click();
       await page.waitForTimeout(3000);
       await shelf(page);
       await closePanel(page);

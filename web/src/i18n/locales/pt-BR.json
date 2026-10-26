@@ -2618,8 +2618,7 @@
       "next": "Próxima faixa",
       "repeat": "Repetir a fila",
       "volume": "Seu volume da música",
-      "previous": "Faixa anterior",
-      "more": "Mais ações da música"
+      "previous": "Faixa anterior"
     },
     "queue": {
       "label": "Fila de música",

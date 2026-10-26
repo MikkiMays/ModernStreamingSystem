@@ -2618,8 +2618,7 @@
       "next": "Brano successivo",
       "repeat": "Ripeti la coda",
       "volume": "Il tuo volume della musica",
-      "previous": "Brano precedente",
-      "more": "Altre azioni della musica"
+      "previous": "Brano precedente"
     },
     "queue": {
       "label": "Coda musicale",

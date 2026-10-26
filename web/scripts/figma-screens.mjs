@@ -2205,11 +2205,10 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
       await p.waitForTimeout(700);
     }),
   );
-  // «Убрать музыку» — пункт меню «⋯» у трека (R128).
-  await D.getByRole('button', { name: 'Ещё действия с музыкой' })
+  // «Убрать музыку» — кнопкой под очередью.
+  await D.getByRole('button', { name: /Убрать музыку/ })
     .first()
     .click()
-    .then(() => D.getByRole('menuitem', { name: /Убрать музыку/ }).click())
     .catch(() => {});
   await run(
     'cinema-picker',

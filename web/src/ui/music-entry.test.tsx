@@ -198,14 +198,13 @@ describe('вход в музыку', () => {
     expect(screen.queryByRole('group', { name: 'Площадки музыки' })).toBeNull();
   });
 
-  it('«Убрать музыку из встречи» — в меню «⋯» у трека, без подтверждения (R128)', async () => {
+  it('«Убрать музыку из встречи» — кнопкой под очередью, без меню «⋯» и без подтверждения', async () => {
     const writes = serve();
     mount(meetingWith());
     openMusic();
     expect(await screen.findByText('Играющий трек')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Убрать музыку из встречи' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с музыкой' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Убрать музыку из встречи' }));
+    expect(screen.queryByRole('button', { name: 'Ещё действия с музыкой' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать музыку из встречи' }));
     await waitFor(() => expect(writes).toContain('DELETE /api/v1/services/rooms/room/music'));
   });
 

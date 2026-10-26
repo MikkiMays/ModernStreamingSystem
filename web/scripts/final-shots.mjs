@@ -278,12 +278,9 @@ try {
     });
     // Убрать музыку из встречи — из виджета мини-плеера: бот из опустевшей комнаты сам не уходит.
     await host.locator('.music-mini__track').click();
-    // «Убрать музыку» — пункт меню «⋯» у трека (R128).
-    const more = host.getByRole('button', { name: 'Ещё действия с музыкой' }).first();
-    if (await more.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await more.click();
-      await host.getByRole('menuitem', { name: /Убрать музыку/ }).click();
-    }
+    // «Убрать музыку» — кнопкой под очередью.
+    const remove = host.getByRole('button', { name: /Убрать музыку/ }).first();
+    if (await remove.isVisible({ timeout: 5000 }).catch(() => false)) await remove.click();
     await host.keyboard.press('Escape');
   });
 

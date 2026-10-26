@@ -286,6 +286,11 @@
   margin-inline-start: calc(var(--space-3) * -1);
   --button-text: var(--text-secondary);
 }
+/* «Убрать музыку из встречи» — под очередью, тихой красной строкой (как до R128). */
+.ui-button.music-panel__remove {
+  --button-text: var(--danger);
+  justify-self: center;
+}
 .music-panel__note {
   margin: 0;
   color: var(--muted);
@@ -452,12 +457,6 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-}
-/* «⋯» стоит на строке названия, а не над ней: верх кнопки — по верху букв. */
-.ui-icon-button.music-now__more {
-  margin-block: calc(var(--space-2) * -1);
-  margin-inline-end: calc(var(--space-2) * -1);
-  color: var(--muted);
 }
 .music-now__artist {
   overflow: hidden;

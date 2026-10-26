@@ -28,8 +28,9 @@ export function useYandexAccount(api: YandexApi, roomId: string, enabled: boolea
 
 /**
  * Строка «Яндекс Музыка» в панели музыки (R128 — компактной строкой): знак, имя и кто подключён;
- * справа «Подключить» или «⋯» со «Сменить аккаунт» и «Отключить». Вход — по коду (QR) или токеном
- * (тихая раскрывашка под строкой).
+ * справа «Подключить» или «⋯» со «Сменить аккаунт» и «Отключить». «Подключить» открывает вход: QR, а
+ * под ним — «У меня уже есть токен доступа» (тихая раскрывашка). Токен — способ того же подключения,
+ * поэтому отдельной кнопкой рядом с «Подключить» его нет (владелец, после R128).
  */
 export function YandexIntegration({
   api,
@@ -148,52 +149,51 @@ export function YandexIntegration({
               setNotice(translate(($) => $.music.yandex.connected));
             }}
           />
+          <details className="music-account__token">
+            <summary>
+              <ChevronRight className="music-account__chevron" aria-hidden="true" />
+              {t(($) => $.music.yandex.haveToken)}
+            </summary>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const value = token.trim();
+                if (!value) return;
+                setBusy(true);
+                setError('');
+                try {
+                  save(await api.connectToken(value));
+                  setQr(false);
+                  setToken('');
+                  onStoredTokenChange(value);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <label className="music-account__label" htmlFor={`${id}-token`}>
+                {t(($) => $.music.yandex.tokenLabel)}
+              </label>
+              <input
+                id={`${id}-token`}
+                className="ui-input"
+                type="password"
+                autoComplete="off"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                maxLength={1000}
+              />
+              <Button size="sm" disabled={busy || token.trim().length < 20} type="submit">
+                {t(($) => $.music.yandex.connectToken)}
+              </Button>
+            </form>
+          </details>
           <Button size="sm" variant="quiet" onClick={() => setQr(false)}>
             {t(($) => $.music.yandex.cancel)}
           </Button>
         </div>
-      )}
-      {!connected && !qr && !account.isLoading && (
-        <details className="music-account__token">
-          <summary>
-            <ChevronRight className="music-account__chevron" aria-hidden="true" />
-            {t(($) => $.music.yandex.haveToken)}
-          </summary>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const value = token.trim();
-              if (!value) return;
-              setBusy(true);
-              setError('');
-              try {
-                save(await api.connectToken(value));
-                setToken('');
-                onStoredTokenChange(value);
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <label className="music-account__label" htmlFor={`${id}-token`}>
-              {t(($) => $.music.yandex.tokenLabel)}
-            </label>
-            <input
-              id={`${id}-token`}
-              className="ui-input"
-              type="password"
-              autoComplete="off"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              maxLength={1000}
-            />
-            <Button size="sm" disabled={busy || token.trim().length < 20} type="submit">
-              {t(($) => $.music.yandex.connectToken)}
-            </Button>
-          </form>
-        </details>
       )}
       {notice && (
         <p className="music-account__notice" role="status">

@@ -2560,8 +2560,7 @@
       "next": "下一首",
       "repeat": "循环队列",
       "volume": "你听到的音乐音量",
-      "previous": "上一首",
-      "more": "更多音乐操作"
+      "previous": "上一首"
     },
     "queue": {
       "label": "音乐队列",

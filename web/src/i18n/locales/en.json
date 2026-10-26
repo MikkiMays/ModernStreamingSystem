@@ -2589,8 +2589,7 @@
       "next": "Next track",
       "repeat": "Repeat queue",
       "volume": "Your music volume",
-      "previous": "Previous track",
-      "more": "More music actions"
+      "previous": "Previous track"
     },
     "queue": {
       "label": "Music queue",

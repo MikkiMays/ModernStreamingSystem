@@ -1,8 +1,8 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ArrowLeft, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Unplug } from 'lucide-react';
 import type { MusicState, MusicTrack, PlatformTrack, YandexApi, YandexTrack } from '../core/services';
-import { Button, IconButton } from './kit';
+import { Button } from './kit';
 import { IntegrationShelf } from './IntegrationShelf';
 import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
@@ -157,11 +157,6 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
               onVolume={() => {}}
               onCommand={(_, __, patch) => patch && now(patch)}
               onSeek={(position) => now({ position })}
-              actions={
-                <IconButton size="sm" className="music-now__more" label={t(($) => $.music.player.more)}>
-                  <MoreHorizontal />
-                </IconButton>
-              }
             />
             <div className="music-add">
               <PlatformTabs
@@ -215,6 +210,9 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
               onRemove={(_, patch) => now(patch)}
               onMove={(trackItem, index) => now(afterMove(state, trackItem.id, index))}
             />
+            <Button variant="quiet" className="music-panel__remove" icon={<Unplug />}>
+              {t(($) => $.services.music.remove)}
+            </Button>
           </div>
         </div>
       </Frame>

@@ -2618,8 +2618,7 @@
       "next": "Titre suivant",
       "repeat": "Répéter la file",
       "volume": "Votre volume de musique",
-      "previous": "Titre précédent",
-      "more": "Autres actions musicales"
+      "previous": "Titre précédent"
     },
     "queue": {
       "label": "File d'attente musicale",

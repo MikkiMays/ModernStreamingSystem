@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import {
   Pause,
   Play,
@@ -80,8 +80,7 @@ export function usePlayback(state: MusicState, behind?: () => number) {
  * (`data-backdrop`), едва заметная: текст на ней остаётся AA в обеих темах.
  *
  * ⏮ — как у любого плеера: дольше трёх секунд трека — с начала, иначе предыдущий трек (служба помнит
- * сыгранные, `previous`). Перетаскивание иглы не шлёт `seek`, пока её не отпустили. `actions` — меню
- * «⋯» рядом с названием («Убрать музыку из встречи»).
+ * сыгранные, `previous`). Перетаскивание иглы не шлёт `seek`, пока её не отпустили.
  */
 export function MusicPlayer({
   state,
@@ -91,7 +90,6 @@ export function MusicPlayer({
   onCommand,
   onSeek,
   behind,
-  actions,
 }: {
   state: MusicState;
   canUse: boolean;
@@ -101,8 +99,6 @@ export function MusicPlayer({
   onSeek: (position: number) => void;
   /** На сколько миллисекунд мы слышим музыку позже издателя. */
   behind?: () => number;
-  /** Рядом с названием: меню «⋯». */
-  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -138,7 +134,6 @@ export function MusicPlayer({
             <strong className="music-now__title">
               {current?.title ?? t(($) => $.music.player.firstTrack)}
             </strong>
-            {actions}
           </div>
           <span className="music-now__artist">
             {current

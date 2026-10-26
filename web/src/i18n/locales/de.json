@@ -2589,8 +2589,7 @@
       "next": "Nächster Titel",
       "repeat": "Warteschlange wiederholen",
       "volume": "Deine Musiklautstärke",
-      "previous": "Vorheriger Titel",
-      "more": "Weitere Musikaktionen"
+      "previous": "Vorheriger Titel"
     },
     "queue": {
       "label": "Musik-Warteschlange",

@@ -2618,8 +2618,7 @@
       "next": "Siguiente canción",
       "repeat": "Repetir la cola",
       "volume": "Tu volumen de la música",
-      "previous": "Canción anterior",
-      "more": "Más acciones de música"
+      "previous": "Canción anterior"
     },
     "queue": {
       "label": "Cola de música",
