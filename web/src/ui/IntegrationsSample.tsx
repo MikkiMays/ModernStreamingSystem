@@ -1,8 +1,8 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ArrowLeft, Unplug } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal } from 'lucide-react';
 import type { MusicState, MusicTrack, PlatformTrack, YandexApi, YandexTrack } from '../core/services';
-import { Button } from './kit';
+import { Button, IconButton } from './kit';
 import { IntegrationShelf } from './IntegrationShelf';
 import { MusicPlayer } from './MusicPlayer';
 import { MusicQueue } from './MusicQueue';
@@ -150,48 +150,6 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
             Интеграции
           </Button>
           <div className="music-widget">
-            <PlatformTabs
-              label={t(($) => $.music.platforms.label)}
-              tiles={tiles}
-              current={platform}
-              onPick={setPlatform}
-            />
-            {platform === 'upload' ? (
-              <MusicUpload
-                canUse
-                maxFileBytes={50 * 1024 * 1024}
-                upload={added}
-                onAdded={() => {}}
-                onError={() => {}}
-              />
-            ) : (
-              <>
-                {platform === 'yandex' && (
-                  <YandexIntegration
-                    api={yandexApi}
-                    roomId={`kit-${theme}`}
-                    storedToken=""
-                    onStoredTokenChange={() => {}}
-                  />
-                )}
-                <MusicSearch
-                  key={platform}
-                  abilities={{
-                    platform,
-                    offered: PLATFORMS,
-                    canSearch: true,
-                    searchPlatform: async (source) => FOUND[source],
-                    addLink: added,
-                    yandex:
-                      platform === 'yandex'
-                        ? { connected: true, search: async () => YANDEX, add: added }
-                        : null,
-                  }}
-                  onSwitch={(next) => setPlatform(next)}
-                  onAdded={() => {}}
-                />
-              </>
-            )}
             <MusicPlayer
               state={state}
               canUse
@@ -199,7 +157,56 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
               onVolume={() => {}}
               onCommand={(_, __, patch) => patch && now(patch)}
               onSeek={(position) => now({ position })}
+              actions={
+                <IconButton size="sm" className="music-now__more" label={t(($) => $.music.player.more)}>
+                  <MoreHorizontal />
+                </IconButton>
+              }
             />
+            <div className="music-add">
+              <PlatformTabs
+                label={t(($) => $.music.platforms.label)}
+                tiles={tiles}
+                current={platform}
+                onPick={setPlatform}
+              />
+              {platform === 'upload' ? (
+                <MusicUpload
+                  canUse
+                  maxFileBytes={50 * 1024 * 1024}
+                  upload={added}
+                  onAdded={() => {}}
+                  onError={() => {}}
+                />
+              ) : (
+                <>
+                  {platform === 'yandex' && (
+                    <YandexIntegration
+                      api={yandexApi}
+                      roomId={`kit-${theme}`}
+                      storedToken=""
+                      onStoredTokenChange={() => {}}
+                    />
+                  )}
+                  <MusicSearch
+                    key={platform}
+                    abilities={{
+                      platform,
+                      offered: PLATFORMS,
+                      canSearch: true,
+                      searchPlatform: async (source) => FOUND[source],
+                      addLink: added,
+                      yandex:
+                        platform === 'yandex'
+                          ? { connected: true, search: async () => YANDEX, add: added }
+                          : null,
+                    }}
+                    onSwitch={(next) => setPlatform(next)}
+                    onAdded={() => {}}
+                  />
+                </>
+              )}
+            </div>
             <MusicQueue
               state={state}
               canUse
@@ -208,9 +215,6 @@ function Sample({ theme }: { theme: 'light' | 'dark' }) {
               onRemove={(_, patch) => now(patch)}
               onMove={(trackItem, index) => now(afterMove(state, trackItem.id, index))}
             />
-            <Button variant="quiet" className="music-panel__remove" icon={<Unplug />}>
-              Убрать музыку из встречи
-            </Button>
           </div>
         </div>
       </Frame>

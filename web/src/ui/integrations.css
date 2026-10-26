@@ -241,91 +241,35 @@
 }
 
 /*
-  Площадки внутри плеера (R44, DESIGN → «Плеер»): сегментом на всю ширину. Выбранная — плашкой
-  поверхности, текст и значок — цветом площадки (`--platform-text`, AA на поверхности обеих тем),
-  снизу полоса её цвета (`--platform`, R33). Цвет площадки не заливает вкладку: интеграция видна, а
-  интерфейс остаётся спокойным. Четыре имени в узкую панель (и лист телефона) в ряд не входят — там
-  сегмент встаёт ровной сеткой два на два, а не обрезает последнюю вкладку прокруткой.
+  Площадки внутри плеера (R44, R128): общий переключатель набора — `Tabs segmented sm` (дорожка и
+  плашка R123), монохромно. Цвета площадки на вкладке нет: он остаётся только у знака источника в
+  «Сейчас играет». Подписи — короткие имена; где и они не входят, значков нет, а в самой узкой
+  панели — одни значки (полное имя — у вкладки для диктора и подсказкой).
 */
-.platform-tabs {
-  display: flex;
-  gap: var(--space-1);
-  padding: 2px;
-  overflow-x: auto;
-  border-radius: var(--radius-3);
-  background: var(--surface-2);
-  scrollbar-width: none;
+.platform-tabs .platform-tab[data-reach='down'] {
+  color: var(--text-disabled);
 }
-.platform-tab {
-  position: relative;
-  display: inline-flex;
-  flex: 1 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  height: var(--tab-h);
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-2);
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-}
-.platform-tab > svg {
-  flex: none;
-  color: var(--platform-text, currentColor);
-}
-.platform-tab:hover {
-  color: var(--text);
-}
-.platform-tab[aria-selected='true'] {
-  background: var(--surface-1);
-  box-shadow: var(--shadow-1);
-  color: var(--platform-text, var(--text));
-}
-.platform-tab[aria-selected='true']::after {
-  content: '';
-  position: absolute;
-  inset-inline: var(--space-3);
-  bottom: 3px;
-  height: var(--hairline-strong);
-  border-radius: var(--radius-full);
-  background: var(--platform, var(--accent-fill));
-}
-/* Площадка недоступна с этого сервера (R112): вкладка остаётся, рядом с именем — знак «нет связи». */
-.platform-tab[data-reach='down'] {
-  color: var(--muted);
-}
-.platform-tab__reach {
-  color: var(--warning);
-}
-.platform-tab:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset-inset);
-}
-@container music-panel (width < 480px) {
-  .platform-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .platform-tab {
-    min-width: 0;
+@container music-panel (width < 380px) {
+  .platform-tab .ui-tabs__icon {
+    display: none;
   }
 }
-@media (pointer: coarse) {
-  .platform-tab {
-    height: var(--control-touch);
+@container music-panel (width < 300px) {
+  .platform-tab .ui-tabs__icon {
+    display: inline-grid;
+  }
+  .platform-tab .ui-tabs__label {
+    display: none;
   }
 }
 
 /* ---------- музыка ---------- */
+/*
+  Плеер (R128, DESIGN → «Плеер»): монохром на поверхностях. Глубина — светом и волосками, цвет
+  площадки — только у знака источника 16 px. Круг ⏯, игла и громкость — цветом текста: в тёмной теме
+  светлые, в светлой тёмные. Токены плеера объявлены на самих блоках, а не на `:root`: внутри сцены
+  (`.media-stage`) `--text` другой, и значение должно браться там, где его рисуют.
+*/
 .music-panel {
   container: music-panel / inline-size;
 }
@@ -334,12 +278,13 @@
   container: music-panel / inline-size;
   display: grid;
   align-content: start;
-  gap: var(--space-4);
+  gap: var(--space-5);
   min-width: 0;
 }
 .ui-button.music-panel__back {
   justify-self: start;
   margin-inline-start: calc(var(--space-3) * -1);
+  --button-text: var(--text-secondary);
 }
 .music-panel__note {
   margin: 0;
@@ -347,46 +292,63 @@
   font-size: var(--text-sm);
   line-height: var(--leading-base);
 }
+/* Служба не отвечает: спокойная карточка с «Повторить», а не красная строка. */
 .music-panel__problem {
   display: grid;
   justify-items: start;
-  gap: var(--space-2);
-  color: var(--danger);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+  color: var(--text);
   font-size: var(--text-sm);
+  line-height: var(--leading-base);
 }
 .music-panel__problem p {
   margin: 0;
 }
-.ui-button.music-panel__remove {
-  --button-text: var(--danger);
-  justify-self: center;
-}
 
-/* обложка */
+/* обложка: картинка службы или знак музыки на нейтральной подложке */
 .music-cover {
   position: relative;
   display: grid;
   flex: none;
   place-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-soft), var(--surface-2));
-  color: var(--accent);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+/* Волосок внутри: светлая обложка на светлой поверхности не растекается. */
+.music-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in srgb, var(--text) 10%, transparent);
+  pointer-events: none;
 }
 .music-cover--sm {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-2);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-0);
 }
 .music-cover--lg {
   width: 96px;
   height: 96px;
   border-radius: var(--radius-3);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-2);
 }
-@container music-panel (width < 340px) {
+/* Шире — обложка крупнее: в панели 420 и на листе телефона она главная в карточке. */
+@container music-panel (width >= 380px) {
   .music-cover--lg {
-    width: 72px;
-    height: 72px;
+    width: 112px;
+    height: 112px;
+  }
+}
+@container music-panel (width < 300px) {
+  .music-cover--lg {
+    width: 80px;
+    height: 80px;
   }
 }
 .music-cover img {
@@ -396,40 +358,62 @@
   object-fit: cover;
 }
 
+/* Знак источника — 16 px, единственный цвет площадки в плеере. */
+.music-source-mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border-radius: var(--radius-1);
+  background: var(--platform);
+  box-shadow: var(--brand-plate-edge);
+  color: var(--platform-ink);
+}
+.music-source-mark > svg {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  stroke-width: 2.25;
+}
+
 /*
-  «Сейчас играет» (R44, по r103-32): карточка поверхности; цвет — площадки, откуда трек (`paint()`
-  ставит `--platform`): полоса иглы, круг ⏯ и эквалайзер. Кнопки приложения — цветом Cord.
+  «Сейчас играет»: карточка `--surface-2`, подсвеченная размытой обложкой (`--music-cover`) так слабо,
+  что текст остаётся AA. Обложка 96 с тенью и волоском, название 16/600, исполнитель 14, ниже одна
+  тихая строка «знак · площадка · состояние». Игла, время под ней по краям, кнопки, громкость.
 */
 .music-now {
+  --player-ink: var(--text);
+  --player-on-ink: var(--surface-1);
+  --player-rail: color-mix(in srgb, var(--text) 16%, transparent);
+  position: relative;
+  isolation: isolate;
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   min-width: 0;
   padding: var(--space-4);
+  overflow: hidden;
   border-radius: var(--radius-3);
   background: var(--surface-2);
 }
-.music-now .ui-slider {
-  --slider-track: var(--line-strong);
-  --slider-fill: var(--platform, var(--accent-fill));
+.music-now[data-backdrop]::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -30%;
+  background: var(--music-cover) center / cover no-repeat;
+  filter: blur(48px) saturate(1.4);
+  opacity: var(--player-glow);
+  pointer-events: none;
 }
-.music-now__label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-tight);
-}
-.music-now__source::before {
-  content: '· ';
-}
-.music-now__source {
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
-  letter-spacing: normal;
+/* Заголовок — для диктора и навигации по заголовкам: карточка и так читается как «сейчас играет». */
+.music-now__label,
+.music-now__said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .music-now__head {
   display: grid;
@@ -437,39 +421,20 @@
   align-items: center;
   gap: var(--space-4);
 }
-.music-now__art {
-  position: relative;
-  display: grid;
-}
-/* Свет обложки — под ней и чуть ниже, как тень, только в её цветах. */
-.music-now[data-backdrop] .music-now__art::before {
-  content: '';
-  position: absolute;
-  inset: 8px -2px -10px;
-  border-radius: var(--radius-4);
-  background: var(--music-cover) center / cover no-repeat;
-  filter: blur(14px) saturate(1.4);
-  opacity: 0.7;
-}
 .music-now__meta {
   display: grid;
-  gap: var(--space-0-5);
+  gap: var(--space-1);
   min-width: 0;
 }
-.music-now__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-}
-.music-now__status[data-sounding] {
-  color: var(--platform-text, var(--success));
+.music-now__line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
 }
 .music-now__title {
   display: -webkit-box;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
@@ -480,68 +445,184 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
+/* «⋯» стоит на строке названия, а не над ней: верх кнопки — по верху букв. */
+.ui-icon-button.music-now__more {
+  margin-block: calc(var(--space-2) * -1);
+  margin-inline-end: calc(var(--space-2) * -1);
+  color: var(--muted);
+}
 .music-now__artist {
   overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  line-height: var(--leading-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Игла: время по краям в одну строку, цифры одной ширины — строка не дрожит. */
-.music-now__progress {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
+/* Пусто: обложка-знак поменьше, подсказка — целиком, в две строки, а не с многоточием. */
+.music-now[data-empty] .music-cover--lg {
+  width: 64px;
+  height: 64px;
+  box-shadow: none;
 }
-.music-now__time {
-  min-width: 4ch;
+.music-now[data-empty] .music-now__artist {
+  white-space: normal;
+}
+.music-now__source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-top: var(--space-1);
   color: var(--muted);
   font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+}
+.music-now__from {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-now__status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+.music-now__status::before {
+  content: '·';
+}
+
+/* Игла: дорожка во всю ширину, время под ней по краям; цифры одной ширины — строка не дрожит. */
+.music-now__progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: calc(var(--space-1) * -1);
+}
+.music-now__progress .ui-slider {
+  grid-column: 1 / -1;
+}
+.music-now__time {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
 }
 .music-now__time:last-child {
-  text-align: right;
+  text-align: end;
 }
+
+/*
+  Ползунок плеера: дорожка 4 нейтральная, заливка цветом текста; бегунок 12 появляется по наведению,
+  фокусу и в руке. Зона нажатия — 24 (на касании — 44, бегунок виден всегда).
+*/
+.music-scrub.ui-slider {
+  --slider-track: var(--player-rail);
+  --slider-fill: var(--player-ink);
+  --slider-thumb: var(--player-ink);
+  --slider-thumb-size: 12px;
+  height: 24px;
+}
+.music-scrub.ui-slider::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  box-shadow: var(--shadow-1);
+  transform: scale(0);
+}
+.music-scrub.ui-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  box-shadow: var(--shadow-1);
+  transform: scale(0);
+}
+.music-scrub.ui-slider:is(:hover, :focus-visible, :active):not(:disabled)::-webkit-slider-thumb {
+  box-shadow: var(--shadow-1);
+  transform: scale(1);
+}
+.music-scrub.ui-slider:is(:hover, :focus-visible, :active):not(:disabled)::-moz-range-thumb {
+  transform: scale(1);
+}
+@media (pointer: coarse) {
+  .music-scrub.ui-slider {
+    height: var(--touch-target);
+  }
+  .music-scrub.ui-slider::-webkit-slider-thumb {
+    transform: scale(1);
+  }
+  .music-scrub.ui-slider::-moz-range-thumb {
+    transform: scale(1);
+  }
+}
+
+/* Кнопки: shuffle 36 · ⏮ 40 · ⏯ 48 · ⏭ 40 · repeat 36, ровно по ширине иглы до 272. */
 .music-now__controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 320px;
-  width: 100%;
   justify-self: center;
+  width: 100%;
+  max-width: 272px;
+}
+.ui-icon-button.music-now__toggle {
+  position: relative;
+  color: var(--text-secondary);
+}
+/* Включено — цвет текста и точка 4 под значком: видно, не перекрашивая кнопку. */
+.ui-icon-button.music-now__toggle[data-on] {
+  color: var(--text);
+}
+.ui-icon-button.music-now__toggle[data-on]::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  inset-inline-start: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: currentColor;
 }
 .ui-icon-button.music-now__step {
-  width: var(--control-md);
-  height: var(--control-md);
+  width: var(--control-lg);
+  height: var(--control-lg);
+  color: var(--text);
 }
-.ui-icon-button.music-now__play {
+/* ⏯ — сплошной нейтральный круг; значок «играть» сдвинут вправо на пиксель: так он по центру на глаз. */
+.ui-icon-button.music-play {
   width: var(--control-touch);
   height: var(--control-touch);
   border-radius: var(--radius-full);
-  background: var(--platform, var(--accent-fill));
-  color: var(--platform-ink, var(--on-accent));
-  box-shadow: var(--brand-plate-edge), var(--shadow-1);
+  background: var(--player-ink);
+  box-shadow: var(--shadow-1);
+  color: var(--player-on-ink);
 }
-.ui-icon-button.music-now__play:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--platform, var(--accent-fill)) 88%, var(--text));
-  color: var(--platform-ink, var(--on-accent));
+.ui-icon-button.music-play:hover:not(:disabled) {
+  background: var(--player-ink);
+  color: var(--player-on-ink);
+  filter: brightness(1.1);
 }
-.ui-icon-button.music-now__toggle[data-on] {
-  background: var(--accent-soft);
-  color: var(--accent);
+.ui-icon-button.music-play:disabled {
+  opacity: 0.35;
+}
+.ui-icon-button.music-play[data-icon='play'] > svg {
+  transform: translateX(1px);
+}
+.ui-icon-button.music-now__step:disabled,
+.ui-icon-button.music-now__toggle:disabled {
+  opacity: 0.35;
 }
 .music-now__volume {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 4ch;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   color: var(--muted);
 }
-.music-now__percent {
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+.music-now__volume .music-scrub.ui-slider {
+  --slider-fill: var(--text-secondary);
+}
+.music-now__volume > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 /* Телефон: громкость — системная, кнопками телефона; своего ползунка там нет (DESIGN → «Плеер»). */
 @media (max-width: 767px) {
@@ -549,20 +630,20 @@
     display: none;
   }
 }
-/* Эквалайзер — три полоски цвета площадки; под «меньше движения» стоит на месте. */
+/* Эквалайзер — три полоски цветом строки рядом; под «меньше движения» стоит на месте. */
 .music-eq {
   display: inline-flex;
   align-items: flex-end;
   gap: var(--space-0-5);
   flex: none;
-  width: 13px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 .music-eq > i {
-  width: 3px;
+  width: 2px;
   height: 100%;
   border-radius: 1px;
-  background: var(--platform, var(--brand-music));
+  background: currentColor;
   transform-origin: bottom;
   animation: music-eq 600ms var(--ease-standard) infinite alternate;
 }
@@ -587,32 +668,32 @@
   }
 }
 
-/* до добавления */
+/* до добавления: одно действие — добавить музыку */
 .music-intro {
   display: grid;
   justify-items: center;
   gap: var(--space-2);
   padding: var(--space-6) var(--space-4) var(--space-4);
-  border-radius: var(--radius-5);
+  border-radius: var(--radius-3);
   background: var(--surface-2);
   text-align: center;
 }
 .music-intro__icon {
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: var(--space-1);
+  width: var(--control-touch);
+  height: var(--control-touch);
+  margin-bottom: var(--space-2);
   border-radius: var(--radius-full);
-  background: var(--brand-music);
-  color: var(--brand-music-ink);
+  background: var(--surface-3);
   box-shadow: var(--shadow-1);
+  color: var(--text-secondary);
 }
 .music-intro h3 {
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-display);
+  letter-spacing: var(--tracking-tight);
 }
 .music-intro p {
   max-width: 34ch;
@@ -626,7 +707,46 @@
   font-size: var(--text-xs);
 }
 .music-intro .ui-button {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Чем добавить: вкладки площадок и под ними поле, вход Яндекса или зона файлов — одной группой. */
+.music-add {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+/* Площадка недоступна с этого сервера — тихой карточкой с «Повторить» (`Unreachable`). */
+.music-add .cinema-unreachable {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+  color: var(--muted);
+  text-align: center;
+}
+.music-add .cinema-unreachable > svg {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  color: var(--muted);
+}
+.music-add .cinema-unreachable b {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.music-add .cinema-unreachable .ui-button,
+.music-panel__problem .ui-button {
+  --button-bg: var(--surface-3);
+  --button-hover: color-mix(in srgb, var(--surface-3), var(--text) 6%);
+  margin-top: var(--space-1);
+  box-shadow: var(--shadow-1);
+}
+.music-add .cinema-unreachable small {
+  font-size: var(--text-xs);
+  line-height: var(--leading-base);
 }
 
 /*
@@ -639,7 +759,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 160px;
+  min-height: 144px;
   padding: var(--space-4);
   border: var(--hairline) dashed var(--line-strong);
   border-radius: var(--radius-3);
@@ -701,12 +821,16 @@
 }
 .music-search__form {
   display: grid;
-  gap: var(--space-2);
 }
+/* Подпись поля — для диктора: площадку называет вкладка над ним, а поле — подсказка внутри. */
 .music-search__label {
-  color: var(--text-secondary);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
 }
 .music-search__field {
   position: relative;
@@ -719,22 +843,27 @@
   color: var(--muted);
   pointer-events: none;
 }
+/* Поле — заливкой поверхности, без рамки: в плеере это тихий вход, а не форма. */
 input.music-search__input {
   width: 100%;
   min-width: 0;
   min-height: var(--control-lg);
   padding: 0 var(--space-10);
   border: 0;
-  border-radius: var(--field-radius);
-  background: var(--field-bg);
-  box-shadow: inset 0 0 0 var(--hairline) var(--field-line);
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 var(--hairline) transparent;
   color: var(--text);
   font: inherit;
   font-size: var(--text-base);
   appearance: none;
+  transition: box-shadow var(--motion-fast) var(--ease-standard);
+}
+input.music-search__input:hover {
+  box-shadow: inset 0 0 0 var(--hairline) var(--line-strong);
 }
 input.music-search__input::placeholder {
-  color: var(--text-disabled);
+  color: var(--muted);
 }
 input.music-search__input::-webkit-search-cancel-button {
   appearance: none;
@@ -752,7 +881,7 @@ input.music-search__input:focus-visible {
 }
 .music-search__busy {
   inset-inline-end: var(--space-3);
-  color: var(--accent);
+  color: var(--muted);
 }
 .music-search__notice,
 .music-search__error {
@@ -761,7 +890,7 @@ input.music-search__input:focus-visible {
   line-height: var(--leading-base);
 }
 .music-search__notice {
-  color: var(--success);
+  color: var(--text-secondary);
 }
 .music-search__error {
   color: var(--danger);
@@ -777,7 +906,7 @@ input.music-search__input:focus-visible {
   margin: var(--space-1) 0 0;
   color: var(--muted);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 .music-results__list,
 .music-queue__list {
@@ -786,14 +915,16 @@ input.music-search__input:focus-visible {
   padding: 0;
   list-style: none;
 }
+/* Строки найденного и очереди — без рамок и подложек: наведение подсвечивает, действия — там же. */
 .music-results__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-height: 48px;
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-3);
+  border-radius: var(--radius-2);
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
 .music-results__row:hover {
   background: var(--surface-hover);
@@ -809,6 +940,7 @@ input.music-search__input:focus-visible {
   overflow: hidden;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -817,6 +949,7 @@ input.music-search__input:focus-visible {
   overflow: hidden;
   color: var(--muted);
   font-size: var(--text-xs);
+  line-height: var(--leading-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -834,6 +967,26 @@ input.music-search__input:focus-visible {
   font-size: var(--text-sm);
   line-height: var(--leading-base);
 }
+/*
+  Действия строки — по наведению и фокусу (на касании — всегда): список читается названиями, а не
+  рядом одинаковых кнопок. Место под ними держится — строка не прыгает.
+*/
+.music-results__add,
+.ui-icon-button.music-queue__more {
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+:is(.music-results__row, .music-queue__row):is(:hover, :focus-within)
+  :is(.music-results__add, .music-queue__more),
+.ui-icon-button.music-queue__more[aria-expanded='true'] {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .music-results__add,
+  .ui-icon-button.music-queue__more {
+    opacity: 1;
+  }
+}
 
 /* очередь */
 .music-queue {
@@ -847,6 +1000,7 @@ input.music-search__input:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  min-height: var(--control-sm);
 }
 .music-queue__head h4 {
   margin: 0;
@@ -854,32 +1008,29 @@ input.music-search__input:focus-visible {
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-tight);
 }
-/* «Далее в очереди · 3 трека»: число — тихим текстом рядом с заголовком, а не плашкой. */
+/* «Далее в очереди 3 трека»: число — тихим текстом рядом с заголовком, а не плашкой. */
 .music-queue__count {
   color: var(--muted);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
-.music-queue__count::before {
-  content: '· ';
-}
 .ui-button.music-queue__clear {
-  margin-inline-start: auto;
+  margin-inline: auto calc(var(--space-2) * -1);
+  --button-text: var(--text-secondary);
 }
 .music-queue__row {
   position: relative;
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 56px;
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
-  border-radius: var(--radius-3);
-  background: var(--surface-1);
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2);
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 .music-queue__row:hover {
-  background: color-mix(in srgb, var(--surface-1), var(--text) 4%);
+  background: var(--surface-hover);
 }
 .music-queue__row[data-lifted] {
   z-index: 1;
@@ -901,25 +1052,54 @@ input.music-search__input:focus-visible {
 .music-queue__row[data-insert='after']::before {
   bottom: -1px;
 }
+/*
+  Ручка (R128). Мышью она лежит прямо на обложке и видна по наведению и фокусу — тёмная вуаль со
+  знаком «тянуть»: колонки под ручку нет, обложки стоят по линии плеера. Пальцем наведения нет —
+  там ручка своей узкой колонкой слева, как раньше, и только она не листает список.
+*/
 .music-queue__handle {
+  position: absolute;
+  z-index: 1;
+  top: calc(50% - 18px);
+  inset-inline-start: var(--space-2);
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-2);
-  background: transparent;
-  color: var(--muted);
+  border-radius: var(--radius-0);
+  background: var(--stage-veil-2);
+  color: var(--stage-text);
   cursor: grab;
+  opacity: 0;
   touch-action: none;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+.music-queue__handle > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.music-queue__row:is(:hover, :focus-within, [data-lifted]) .music-queue__handle:not(:disabled) {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .music-queue__row {
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    padding-inline-start: 0;
+  }
+  .music-queue__handle {
+    position: static;
+    width: 28px;
+    height: var(--touch-target);
+    margin-inline-end: calc(var(--space-2) * -1);
+    background: transparent;
+    color: var(--muted);
+    opacity: 1;
+  }
 }
 .music-queue[data-dragging] .music-queue__handle {
   cursor: grabbing;
-}
-.music-queue__handle:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text);
 }
 .music-queue__handle:focus {
   outline: none;
@@ -930,11 +1110,11 @@ input.music-search__input:focus-visible {
 }
 .music-queue__handle:disabled {
   cursor: default;
-  opacity: 0.4;
+  visibility: hidden;
 }
 .music-queue__text small {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 .music-queue__text small > span:first-child {
   overflow: hidden;
@@ -942,7 +1122,9 @@ input.music-search__input:focus-visible {
 }
 .music-queue__source {
   flex: none;
-  color: var(--platform-text, inherit);
+}
+.music-queue__source::before {
+  content: '· ';
 }
 @container music-panel (width < 400px) {
   .music-queue__source {
@@ -961,63 +1143,62 @@ input.music-search__input:focus-visible {
   white-space: nowrap;
 }
 
-/* аккаунт Яндекс Музыки */
+/*
+  Аккаунт Яндекс Музыки — компактной строкой, как поле на других площадках: знак, имя и состояние,
+  справа «Подключить» (`secondary`) или «⋯» с «Сменить аккаунт» и «Отключить». «У меня уже есть
+  токен» — тихая раскрывашка под строкой.
+*/
 .music-account {
   display: grid;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  box-shadow: inset 0 1px 0 var(--line);
+  gap: var(--space-2);
 }
 .music-account__row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-}
-.music-account__icon {
-  display: grid;
-  place-items: center;
-  /* Плашка сервиса — 40, как в «Аккаунтах» настроек и на витрине (R28, DESIGN → «Плашка значка»). */
-  width: var(--control-lg);
-  height: var(--control-lg);
-  border-radius: var(--radius-3);
-  background: var(--brand-yandex);
-  box-shadow: var(--brand-plate-edge);
-  color: var(--brand-yandex-ink);
+  min-height: var(--control-touch);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
 }
 .music-account__text {
-  display: grid;
-  gap: var(--space-0-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
   min-width: 0;
 }
 .music-account__title {
-  font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
-.music-account__hint,
-.music-account__note {
-  margin: 0;
+.music-account__hint {
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-base);
-  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.music-account__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  /* Подписи кнопок — по одной линии с названием: значок 36 + зазор 12 − поле кнопки 12. */
-  padding-inline-start: 36px;
+.music-account__hint[data-on] {
+  color: var(--text-secondary);
 }
-.ui-button.music-account__off {
-  --button-text: var(--danger);
+.music-account__row > .ui-button {
+  --button-bg: var(--surface-3);
+  --button-hover: color-mix(in srgb, var(--surface-3), var(--text) 6%);
+  box-shadow: var(--shadow-1);
+}
+.ui-icon-button.music-account__more {
+  color: var(--muted);
 }
 .music-account__auth {
   display: grid;
   justify-items: start;
   gap: var(--space-2);
   padding: var(--space-4);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-3);
   background: var(--surface-2);
 }
 
@@ -1111,10 +1292,37 @@ input.music-search__input:focus-visible {
     justify-items: start;
   }
 }
+/* «У меня уже есть токен» — тихая раскрывашка: шеврон и вторичный текст, а не синяя ссылка. */
 .music-account__token summary {
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  color: var(--text-secondary);
   font-size: var(--text-sm);
+  list-style: none;
   cursor: pointer;
+}
+.music-account__token summary::-webkit-details-marker {
+  display: none;
+}
+.music-account__chevron {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-inline-start: calc(var(--space-1) * -1);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.music-account__token[open] .music-account__chevron {
+  transform: rotate(90deg);
+}
+.music-account__token summary:hover {
+  color: var(--text);
+}
+.music-account__token summary:focus-visible {
+  border-radius: var(--radius-1);
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 .music-account__token form {
   display: grid;
@@ -1136,7 +1344,7 @@ input.music-search__input:focus-visible {
   font-size: var(--text-sm);
 }
 .music-account__notice {
-  color: var(--success);
+  color: var(--text-secondary);
 }
 .music-account__error {
   color: var(--danger);

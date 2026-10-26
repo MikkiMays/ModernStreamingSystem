@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Music } from 'lucide-react';
+import { ChevronRight, LogOut, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { YandexApi, YandexAccount } from '../core/services';
 import { t as translate } from '../i18n';
-import { Badge, Button } from './kit';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
+import { SourceMark } from './MusicPlayer';
 import { YandexDeviceLogin, type DeviceFlow } from './music/YandexDeviceLogin';
 
 /**
@@ -25,7 +26,11 @@ export function useYandexAccount(api: YandexApi, roomId: string, enabled: boolea
   });
 }
 
-/** Строка «Яндекс Музыка» в панели музыки: кто подключён, вход по коду или токеном. */
+/**
+ * Строка «Яндекс Музыка» в панели музыки (R128 — компактной строкой): знак, имя и кто подключён;
+ * справа «Подключить» или «⋯» со «Сменить аккаунт» и «Отключить». Вход — по коду (QR) или токеном
+ * (тихая раскрывашка под строкой).
+ */
 export function YandexIntegration({
   api,
   roomId,
@@ -90,48 +95,47 @@ export function YandexIntegration({
   return (
     <section className="music-account" aria-labelledby={`${id}-title`}>
       <div className="music-account__row">
-        <span className="music-account__icon" aria-hidden="true">
-          <Music size={20} />
-        </span>
+        <SourceMark source="yandex" />
         <div className="music-account__text">
           <span className="music-account__title" id={`${id}-title`}>
             {t(($) => $.music.sources.yandex)}
           </span>
-          <span className="music-account__hint">
+          <span className="music-account__hint" data-on={connected || undefined}>
             {account.isLoading
               ? t(($) => $.music.yandex.checking)
               : connected
-                ? account.data?.name
+                ? (account.data?.name ?? t(($) => $.music.yandex.badge))
                 : t(($) => $.settings.accounts.disconnected)}
           </span>
         </div>
         {connected ? (
-          <Badge variant="success">{t(($) => $.music.yandex.badge)}</Badge>
+          <Menu>
+            <MenuTrigger
+              disabled={busy}
+              render={
+                <IconButton size="sm" className="music-account__more" label={t(($) => $.music.yandex.more)}>
+                  <MoreHorizontal />
+                </IconButton>
+              }
+            />
+            <MenuContent align="end">
+              <MenuItem icon={<RefreshCw />} onClick={() => void connect()}>
+                {t(($) => $.music.yandex.switch)}
+              </MenuItem>
+              <MenuItem icon={<LogOut />} destructive onClick={() => void disconnect()}>
+                {t(($) => $.music.yandex.disconnect)}
+              </MenuItem>
+            </MenuContent>
+          </Menu>
         ) : (
           !qr &&
           !account.isLoading && (
-            <Button size="sm" variant="primary" loading={busy} onClick={() => void connect()}>
+            <Button size="sm" loading={busy} onClick={() => void connect()}>
               {t(($) => $.music.yandex.connect)}
             </Button>
           )
         )}
       </div>
-      {connected && (
-        <div className="music-account__actions">
-          <Button size="sm" variant="quiet" disabled={busy} onClick={() => void connect()}>
-            {t(($) => $.music.yandex.switch)}
-          </Button>
-          <Button
-            size="sm"
-            variant="quiet"
-            className="music-account__off"
-            disabled={busy}
-            onClick={() => void disconnect()}
-          >
-            {t(($) => $.music.yandex.disconnect)}
-          </Button>
-        </div>
-      )}
       {qr && (
         <div className="music-account__auth">
           <YandexDeviceLogin
@@ -151,7 +155,10 @@ export function YandexIntegration({
       )}
       {!connected && !qr && !account.isLoading && (
         <details className="music-account__token">
-          <summary>{t(($) => $.music.yandex.haveToken)}</summary>
+          <summary>
+            <ChevronRight className="music-account__chevron" aria-hidden="true" />
+            {t(($) => $.music.yandex.haveToken)}
+          </summary>
           <form
             onSubmit={async (e) => {
               e.preventDefault();

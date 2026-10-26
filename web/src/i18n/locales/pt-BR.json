@@ -2565,12 +2565,14 @@
       "yandex": {
         "hint": "Catálogo pela conta da sala",
         "find": "Buscar no Yandex Music ou colar um link",
-        "link": "Link de uma faixa do Yandex Music"
+        "link": "Link de uma faixa do Yandex Music",
+        "short": "Yandex"
       },
       "upload": {
         "name": "Seus arquivos",
         "hint": "Arquivos de áudio deste dispositivo",
-        "drop": "Arraste arquivos de áudio para cá"
+        "drop": "Arraste arquivos de áudio para cá",
+        "short": "Arquivos"
       }
     },
     "player": {
@@ -2593,7 +2595,8 @@
       "next": "Próxima faixa",
       "repeat": "Repetir a fila",
       "volume": "Seu volume da música",
-      "previous": "Faixa anterior"
+      "previous": "Faixa anterior",
+      "more": "Mais ações da música"
     },
     "queue": {
       "label": "Fila de música",
@@ -2671,13 +2674,15 @@
         "starting": "Pedindo um código ao Yandex…",
         "confirm": "Confirme o login — a conexão aparece aqui sozinha",
         "refresh": "Gerar novo código"
-      }
+      },
+      "more": "Ações da conta"
     },
     "mini": {
       "label": "Miniplayer",
       "open": "Abrir player",
       "offer": "Ligar música",
-      "dismiss": "Não sugerir mais nesta reunião"
+      "dismiss": "Não sugerir mais nesta reunião",
+      "openTrack": "{{track}} — abrir player"
     }
   },
   "integrations": {

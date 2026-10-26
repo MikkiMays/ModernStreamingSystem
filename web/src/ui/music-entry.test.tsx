@@ -119,7 +119,7 @@ const openMusic = () => fireEvent.click(screen.getByRole('button', { name: /^М�
 const tabs = () =>
   within(screen.getByRole('tablist', { name: 'Площадка' }))
     .getAllByRole('tab')
-    .map((tab) => tab.textContent);
+    .map((tab) => tab.getAttribute('aria-label'));
 const tab = (name: string) =>
   within(screen.getByRole('tablist', { name: 'Площадка' })).getByRole('tab', { name });
 
@@ -196,6 +196,17 @@ describe('вход в музыку', () => {
     openMusic();
     expect(await screen.findByRole('tab', { name: 'SoundCloud' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('group', { name: 'Площадки музыки' })).toBeNull();
+  });
+
+  it('«Убрать музыку из встречи» — в меню «⋯» у трека, без подтверждения (R128)', async () => {
+    const writes = serve();
+    mount(meetingWith());
+    openMusic();
+    expect(await screen.findByText('Играющий трек')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Убрать музыку из встречи' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ещё действия с музыкой' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Убрать музыку из встречи' }));
+    await waitFor(() => expect(writes).toContain('DELETE /api/v1/services/rooms/room/music'));
   });
 
   it('⏮ шлёт службе «назад»; дольше трёх секунд трека — сразу видно начало', async () => {

@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { t } from '../i18n';
 import { platformTiles } from './music-platforms';
 import { PlatformPicker, PlatformTabs } from './PlatformPicker';
@@ -76,35 +77,54 @@ describe('экран выбора площадки', () => {
 });
 
 describe('вкладки площадок', () => {
-  it('выбранная отмечена; стрелки, Home и End переключают и несут фокус', () => {
+  it('выбранная отмечена; стрелки, Home и End переключают и несут фокус', async () => {
+    // Вкладки — переключатель набора (`Tabs segmented sm`, R128): подпись короткая, имя — полное.
     const onPick = vi.fn();
-    const { rerender } = render(
-      <PlatformTabs label="Площадка" tiles={tiles} current="youtube" onPick={onPick} />,
-    );
+    // Площадку держит владелец вкладок, как плеер (`useMusic`): выбор возвращается в `current`.
+    function Owner() {
+      const [current, setCurrent] = useState<(typeof tiles)[number]['id']>('youtube');
+      return (
+        <PlatformTabs
+          label="Площадка"
+          tiles={tiles}
+          current={current}
+          onPick={(id) => {
+            setCurrent(id);
+            onPick(id);
+          }}
+        />
+      );
+    }
+    render(<Owner />);
     const list = screen.getByRole('tablist', { name: 'Площадка' });
     const tabs = within(list).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
+    // Полное имя — у вкладки для диктора, на ней самой — короткое, если задано (R128).
+    expect(tabs.map((tab) => tab.getAttribute('aria-label'))).toEqual([
       'YouTube',
       'SoundCloud',
       'Яндекс Музыка',
       'Свои файлы',
     ]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['YouTube', 'SoundCloud', 'Яндекс', 'Файлы']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(tabs.filter((tab) => tab.tabIndex === 0)).toEqual([tabs[0]]);
 
-    fireEvent.keyDown(tabs[0]!, { key: 'ArrowRight' });
-    expect(onPick).toHaveBeenLastCalledWith('soundcloud');
-    expect(tabs[1]).toHaveFocus();
-    fireEvent.keyDown(tabs[0]!, { key: 'ArrowLeft' });
-    expect(onPick).toHaveBeenLastCalledWith('upload');
-    fireEvent.keyDown(tabs[0]!, { key: 'End' });
-    expect(onPick).toHaveBeenLastCalledWith('upload');
-    fireEvent.keyDown(tabs[3]!, { key: 'Home' });
-    expect(onPick).toHaveBeenLastCalledWith('youtube');
+    // Стрелки ходят от вкладки в фокусе и сразу выбирают её (`activateOnFocus`), по кругу. Фокус
+    // Base UI переводит следующей микрозадачей — выбор идёт за ним.
+    const press = async (key: string, tab: number, id: string) => {
+      fireEvent.keyDown(document.activeElement!, { key });
+      await waitFor(() => expect(tabs[tab]).toHaveFocus());
+      expect(onPick).toHaveBeenLastCalledWith(id);
+    };
+    act(() => tabs[0]!.focus());
+    await press('ArrowRight', 1, 'soundcloud');
+    await press('ArrowLeft', 0, 'youtube');
+    await press('ArrowLeft', 3, 'upload');
+    await press('Home', 0, 'youtube');
+    await press('End', 3, 'upload');
 
     fireEvent.click(tabs[2]!);
     expect(onPick).toHaveBeenLastCalledWith('yandex');
-    rerender(<PlatformTabs label="Площадка" tiles={tiles} current="yandex" onPick={onPick} />);
     expect(within(list).getByRole('tab', { name: 'Яндекс Музыка' })).toHaveAttribute('aria-selected', 'true');
   });
 });

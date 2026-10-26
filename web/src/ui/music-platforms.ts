@@ -1,4 +1,4 @@
-import { Cloud, Disc3, FileAudio, SquarePlay } from 'lucide-react';
+import { Cloud, Disc3, FileAudio, Music2, Send, SquarePlay, type LucideIcon } from 'lucide-react';
 import { musicSourceName, type MusicSource } from '../core/services';
 import type { Translate } from '../i18n';
 import type { MusicQuery } from './music-playback';
@@ -41,11 +41,20 @@ const LOOK: Record<MusicPlatform, Pick<PlatformTile<MusicPlatform>, 'icon' | 'br
   upload: { icon: FileAudio, brand: 'music' },
 };
 
-/** Бренд источника трека: полоса, кнопка и метка плеера красятся площадкой, откуда трек (R33). */
+/**
+ * Бренд источника трека — для знака источника в плеере (R128): это единственное место, где плеер
+ * показывает цвет площадки. Игла, громкость, ⏯ и эквалайзер — монохромные.
+ */
 export function sourceBrand(source: MusicSource): BrandId {
   return source === 'youtube' || source === 'soundcloud' || source === 'yandex' || source === 'telegram'
     ? source
     : 'music';
+}
+
+/** Знак источника трека: тот же, что у вкладки площадки; Telegram — бумажный самолётик. */
+export function sourceIcon(source: MusicSource): LucideIcon {
+  if (isMusicPlatform(source)) return LOOK[source].icon;
+  return source === 'telegram' ? Send : Music2;
 }
 
 export function isMusicPlatform(value: unknown): value is MusicPlatform {
@@ -70,6 +79,16 @@ export function platformName(t: Translate, id: MusicPlatform): string {
   return id === 'upload' ? t(($) => $.music.platforms.upload.name) : musicSourceName(t, id);
 }
 
+/**
+ * Короткое имя для вкладки плеера (R128): «Яндекс» и «Файлы» — полные имена вчетвером в панель 360
+ * не входят. Имена латиницей (YouTube, SoundCloud) короче не бывают.
+ */
+export function platformShort(t: Translate, id: MusicPlatform): string {
+  if (id === 'yandex') return t(($) => $.music.platforms.yandex.short);
+  if (id === 'upload') return t(($) => $.music.platforms.upload.short);
+  return musicSourceName(t, id);
+}
+
 /** Плитки и вкладки площадок: имя, строка «что там», знак и цвет. */
 export function platformTiles(
   t: Translate,
@@ -78,6 +97,7 @@ export function platformTiles(
   return offered.map((id) => ({
     id,
     name: platformName(t, id),
+    short: platformShort(t, id),
     note: t(($) => $.music.platforms[id].hint),
     ...LOOK[id],
   }));

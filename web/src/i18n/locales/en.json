@@ -2536,12 +2536,14 @@
       "yandex": {
         "hint": "Catalog through the room's account",
         "find": "Search Yandex Music or paste a link",
-        "link": "Yandex Music track link"
+        "link": "Yandex Music track link",
+        "short": "Yandex"
       },
       "upload": {
         "name": "Your files",
         "hint": "Audio files from this device",
-        "drop": "Drag audio files here"
+        "drop": "Drag audio files here",
+        "short": "Files"
       }
     },
     "player": {
@@ -2564,7 +2566,8 @@
       "next": "Next track",
       "repeat": "Repeat queue",
       "volume": "Your music volume",
-      "previous": "Previous track"
+      "previous": "Previous track",
+      "more": "More music actions"
     },
     "queue": {
       "label": "Music queue",
@@ -2641,13 +2644,15 @@
         "starting": "Getting a code from Yandex…",
         "confirm": "Confirm the sign-in — the connection will appear here by itself",
         "refresh": "Get a new code"
-      }
+      },
+      "more": "Account actions"
     },
     "mini": {
       "label": "Mini player",
       "open": "Open player",
       "offer": "Turn on music",
-      "dismiss": "Don't suggest during this meeting"
+      "dismiss": "Don't suggest during this meeting",
+      "openTrack": "{{track}} — open player"
     }
   },
   "integrations": {
