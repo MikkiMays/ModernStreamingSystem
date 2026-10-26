@@ -1694,7 +1694,6 @@
     "hand": {
       "cancelSelection": "Annuler la sélection",
       "cancel": "Annuler",
-      "yours": "Votre main",
       "watching": "Vous regardez la partie",
       "waiting": "En attente de la donne",
       "left": "Cartes plus à gauche",
@@ -1704,12 +1703,14 @@
     },
     "hint": {
       "saving": "Enregistrement du coup…",
-      "target": "Choisissez la cible en surbrillance sur la table",
       "turn": "Choisissez une carte ou glissez-la sur la table"
     },
     "actions": {
       "take": "Ramasser",
       "pass": "Fini"
+    },
+    "dock": {
+      "nextDeal": "Vous jouerez dès la prochaine donne"
     },
     "turn": {
       "left_one": "Encore {{seconds}} seconde",

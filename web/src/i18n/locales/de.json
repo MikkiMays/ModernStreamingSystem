@@ -1674,7 +1674,6 @@
     "hand": {
       "cancelSelection": "Auswahl aufheben",
       "cancel": "Abbrechen",
-      "yours": "Deine Hand",
       "watching": "Du schaust dem Spiel zu",
       "waiting": "Warten aufs Austeilen",
       "left": "Karten weiter links",
@@ -1684,12 +1683,14 @@
     },
     "hint": {
       "saving": "Zug wird gespeichert…",
-      "target": "Wähle das markierte Ziel auf dem Tisch",
       "turn": "Wähle eine Karte oder zieh sie auf den Tisch"
     },
     "actions": {
       "take": "Aufnehmen",
       "pass": "Fertig"
+    },
+    "dock": {
+      "nextDeal": "Du spielst ab dem nächsten Austeilen mit"
     },
     "turn": {
       "left_one": "Noch {{seconds}} Sekunde",

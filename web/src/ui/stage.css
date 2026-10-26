@@ -862,6 +862,39 @@ button.watch-stream.is-stop:hover {
 .people-strip .lens-switch {
   display: none;
 }
+/*
+  Зрители у стола дурака (R129). Стол считается по высоте — шапка, сукно, рука и кнопка хода, — и полоса
+  лиц под ним съедала руку: на 1280×720 до «Бито» приходилось листать. На широком окне сцена шире, чем
+  нужно овалу, поэтому зрители уходят колонкой вправо и отдают столу всю высоту; на узком (телефон стоя)
+  остаются снизу, но тоньше.
+*/
+.stage[data-stage-layer='durak'] > .people-strip {
+  height: clamp(56px, 8vh, 92px);
+}
+/* Зрителей нет — нет и строки под ними: пустая строка сетки с зазором отнимала у стола 8 px. */
+.stage[data-stage-layer='durak']:not(:has(> .people-strip)) {
+  grid-template-rows: minmax(0, 1fr);
+}
+@media (min-width: 640px) and (min-aspect-ratio: 5 / 4) {
+  .stage[data-stage-layer='durak']:has(> .people-strip) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .stage[data-stage-layer='durak'] > .people-strip {
+    flex-direction: column;
+    justify-content: safe center;
+    width: clamp(104px, 11vw, 184px);
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .stage[data-stage-layer='durak'] > .people-strip .person-tile {
+    width: 100%;
+    height: auto;
+    max-width: none;
+  }
+}
 
 /* ---------- полный экран ---------- */
 /*

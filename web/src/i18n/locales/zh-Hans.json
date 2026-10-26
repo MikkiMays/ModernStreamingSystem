@@ -1654,7 +1654,6 @@
     "hand": {
       "cancelSelection": "取消选择",
       "cancel": "取消",
-      "yours": "你的手牌",
       "watching": "你正在观战",
       "waiting": "等待发牌",
       "left": "向左查看手牌",
@@ -1664,12 +1663,14 @@
     },
     "hint": {
       "saving": "正在保存出牌…",
-      "target": "选择桌上高亮的目标",
       "turn": "选择一张牌或拖到桌上"
     },
     "actions": {
       "take": "收牌",
       "pass": "完成"
+    },
+    "dock": {
+      "nextDeal": "下一局发牌时加入"
     },
     "turn": {
       "left_other": "剩余 {{seconds}} 秒",

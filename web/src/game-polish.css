@@ -1,9 +1,4 @@
-/* The felt is the focal point; controls and hands occupy their own readable bands. */
-.durak.durak {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-}
+/* Раскладка стола дурака — по высоте, без прокрутки (R129) — живёт в `durak.css`. */
 /* Стол — предмет, а не текст: сукно, знак заведения, карты и масти не выделяются мышью. */
 .poker,
 .durak {
@@ -64,17 +59,6 @@
 .durak-says {
   display: none;
 }
-.durak-table {
-  flex: 1;
-  display: grid;
-  grid-template-rows: minmax(260px, 1fr) auto;
-  min-height: 400px;
-  gap: var(--space-6);
-}
-.durak-table > .durak-felt {
-  overflow: visible;
-  min-height: 260px;
-}
 .durak-seat-name {
   max-width: 140px;
   font-size: clamp(var(--text-xs), 1.7cqw, var(--text-base));
@@ -95,7 +79,6 @@
   overflow-y: hidden;
   max-width: 100%;
   padding: 30px 20px 12px;
-  min-height: 130px;
 }
 .durak-hand-card {
   flex-shrink: 0;
@@ -216,11 +199,6 @@
   }
 }
 @media (max-width: 560px) {
-  .durak-table {
-    min-height: 540px;
-    padding: 20px 14px 8px;
-    grid-template-rows: minmax(340px, 1fr) auto;
-  }
   .durak-seat-name {
     max-width: 95px;
     font-size: var(--text-xs);
@@ -249,17 +227,6 @@
   }
 }
 
-.durak-arena {
-  position: relative;
-  min-height: 260px;
-}
-.durak-arena > .durak-felt {
-  height: 100%;
-  overflow: visible;
-}
-.durak.durak .durak-table {
-  padding: 24px 22px 8px;
-}
 .durak.durak .durak-hand {
   position: relative;
   left: auto;
@@ -279,9 +246,6 @@
   animation: none;
 }
 @media (max-width: 560px) {
-  .durak-arena {
-    min-height: 340px;
-  }
   .durak.durak .durak-seat-name,
   .durak.durak .durak-seat-role {
     font-size: var(--text-xs);
