@@ -1349,15 +1349,8 @@
     opacity var(--motion-base) var(--ease-standard),
     transform var(--motion-slow) var(--ease-emphasized);
 }
-/* Тонкая полоска акцента сверху — знак «это подсказка Cord», а не меню и не ошибка. */
-.ui-coachmark::before {
-  content: '';
-  position: absolute;
-  inset: 0 var(--space-4) auto;
-  height: var(--hairline-strong);
-  border-radius: 0 0 var(--radius-full) var(--radius-full);
-  background: var(--accent-fill);
-}
+/* Полоски акцента сверху больше нет (R133): она читалась как линия поверх окна и резалась выемкой.
+   Подсказку Cord и так отличают счётчик «1 из 5», кольцо у кнопки и кнопка «Далее». */
 .ui-coachmark[data-starting-style],
 .ui-coachmark[data-ending-style] {
   opacity: 0;
