@@ -2128,7 +2128,16 @@
       "recorded": "Your test recording",
       "cameraPreview": "Camera test, only for you",
       "startingCamera": "Turning on the camera…",
-      "startingMic": "Turning on the microphone…"
+      "startingMic": "Turning on the microphone…",
+      "microphone": "Microphone",
+      "camera": "Camera",
+      "speaker": "Speakers",
+      "start": "Test",
+      "stop": "Stop",
+      "micHint": "Shows the level and records a sample",
+      "micSpeak": "Say something",
+      "cameraHint": "Shows your camera picture",
+      "speakerHint": "Plays a short tone"
     }
   },
   "desktop": {

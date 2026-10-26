@@ -1,0 +1,158 @@
+/*
+  Проверка своих устройств (R124): три одинаковые карточки — микрофон, камера, динамики. У каждой
+  значок и имя, окно проверки одной высоты (16:9), подсказка в строку и одна кнопка во всю ширину
+  карточки. Окно до нажатия не пустое: приглушённая шкала уровня, «камера выключена», динамик; во
+  время проверки — живое (уровень, превью, волна сигнала), а карточка подсвечена кольцом акцента.
+  Только токены. В «Помощи» внешняя карточка снимается (`support/support.css`).
+*/
+.device-check {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--surface-2);
+}
+.device-check p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+}
+.device-check__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.device-check .device-check__note {
+  color: var(--muted);
+}
+.device-check__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: var(--space-3);
+}
+.device-check__card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-3);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--motion-fast) var(--ease-standard);
+}
+.device-check__card[data-live] {
+  box-shadow:
+    var(--shadow-1),
+    0 0 0 var(--hairline-strong) var(--accent);
+}
+.device-check__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.device-check__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-xs);
+  height: var(--control-xs);
+  border-radius: var(--radius-2);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.device-check__icon > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.device-check__name {
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.device-check__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  /* Карточки столбиком на телефоне — окно не во весь экран высотой: три проверки видны почти сразу. */
+  max-height: 128px;
+  overflow: hidden;
+  border-radius: var(--radius-2);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.device-check__card[data-live] .device-check__stage {
+  color: var(--text);
+}
+.device-check__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--stage-bg);
+}
+.device-check__video[hidden] {
+  display: none;
+}
+.device-check__idle {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+/* Волна сигнала динамиков: пять столбиков; во время сигнала они дышат, в покое — ровные точки. */
+.device-check__wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: var(--icon-lg);
+}
+.device-check__wave > span {
+  width: 5px;
+  height: var(--icon-lg);
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+  transform: scaleY(0.25);
+}
+.device-check__wave[data-on] > span {
+  background: var(--voice);
+  animation: device-check-wave 600ms var(--ease-standard) infinite alternate;
+}
+.device-check__wave[data-on] > span:nth-child(2),
+.device-check__wave[data-on] > span:nth-child(4) {
+  animation-delay: 150ms;
+}
+.device-check__wave[data-on] > span:nth-child(3) {
+  animation-delay: 300ms;
+}
+@keyframes device-check-wave {
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .device-check__wave[data-on] > span {
+    transform: scaleY(0.6);
+    animation: none;
+  }
+}
+.device-check .device-check__hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.device-check__card > .ui-button {
+  width: 100%;
+}
+.device-check__record {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+.device-check audio {
+  width: 100%;
+}
