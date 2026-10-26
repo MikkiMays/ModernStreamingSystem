@@ -624,8 +624,9 @@
   Окно клиента Windows (R34). Кнопки «— ⧉ ×» рисует сама Windows поверх страницы (`titleBarOverlay`,
   Window Controls Overlay): полоса высотой `--titlebar-h` сверху и шириной `--titlebar-end` справа.
   Шапки встречи и предвхода кончаются на `--titlebar-end`, окна (настройки, диалоги) опускаются на
-  `--titlebar-h`. В браузере и во весь экран — нули. Если `env()` пуст, те же переменные пишет на
-  `<html>` `core/titlebar.ts` по `navigator.windowControlsOverlay`.
+  `--titlebar-h`. В браузере и во весь экран — нули. Здесь — первая отрисовка по `env()`; дальше те же
+  переменные пишет на `<html>` `core/titlebar.ts`: в клиенте Windows они не меньше самих кнопок окна,
+  даже если Chromium отдал пустую зону (развёрнутое окно 1.0.8, R122).
 */
 :root {
   --titlebar-h: 0px;

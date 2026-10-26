@@ -31,6 +31,24 @@
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
+/*
+  Пока «— ⧉ ×» нарисованы поверх страницы (`data-titlebar` ставит `core/titlebar.ts`), шапка встречи —
+  сам заголовок окна, как у Discord и VS Code (R122): полоса ровно в высоту кнопок окна
+  (`--titlebar-h`), и звезда, ссылка и «Поддержка» стоят на одной линии с ними, а не на 10 px ниже —
+  по центру шапки 56. Кнопки шапки — 32 с значками 20, марка — 22, название и строка о встрече —
+  одной строкой и в узком окне. Сцене достаётся на 20 px больше.
+*/
+:root[data-titlebar] .meeting-header {
+  --header-pad: var(--space-4);
+  min-height: var(--titlebar-h);
+}
+:root[data-titlebar] .meeting-header__brand {
+  --brand-h: 22px;
+}
+:root[data-titlebar] .meeting-header__actions .ui-icon-button {
+  width: var(--control-sm);
+  height: var(--control-sm);
+}
 .meeting-header__identity {
   display: flex;
   flex: 1 1 auto;
@@ -257,5 +275,12 @@
 @media (max-height: 600px) and (min-width: 768px) {
   .meeting-header {
     min-height: max(52px, var(--titlebar-h, 0px));
+  }
+}
+@media (max-width: 767px) {
+  :root[data-titlebar] .meeting-header__text {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-3);
   }
 }
