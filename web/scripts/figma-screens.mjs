@@ -2194,20 +2194,22 @@ SCENARIOS['meeting-b'] = async ({ titles }) => {
   );
   await run('music-files', 'Музыка — «Свои файлы»', 'ui/MusicUpload.tsx', () =>
     both(async (p) => {
-      await p.locator('.platform-tab').filter({ hasText: 'Свои файлы' }).first().click();
+      await p.getByRole('tab', { name: 'Свои файлы' }).first().click();
       await p.waitForTimeout(700);
     }),
   );
   await run('music-yandex', 'Музыка — Яндекс Музыка', 'ui/YandexIntegration.tsx', () =>
     both(async (p) => {
-      const tab = p.locator('.platform-tab').filter({ hasText: 'Яндекс' }).first();
+      const tab = p.getByRole('tab', { name: 'Яндекс Музыка' }).first();
       if (await tab.isVisible().catch(() => false)) await tab.click();
       await p.waitForTimeout(700);
     }),
   );
-  await D.locator('.music-panel__remove')
+  // «Убрать музыку» — пункт меню «⋯» у трека (R128).
+  await D.getByRole('button', { name: 'Ещё действия с музыкой' })
     .first()
     .click()
+    .then(() => D.getByRole('menuitem', { name: /Убрать музыку/ }).click())
     .catch(() => {});
   await run(
     'cinema-picker',

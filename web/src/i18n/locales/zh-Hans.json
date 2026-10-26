@@ -2507,12 +2507,14 @@
       "yandex": {
         "hint": "通过房间账号访问曲库",
         "find": "在 Yandex Music 搜索或粘贴链接",
-        "link": "Yandex Music 曲目链接"
+        "link": "Yandex Music 曲目链接",
+        "short": "Yandex"
       },
       "upload": {
         "name": "自己的文件",
         "hint": "此设备上的音频文件",
-        "drop": "把音频文件拖到这里"
+        "drop": "把音频文件拖到这里",
+        "short": "文件"
       }
     },
     "player": {
@@ -2535,7 +2537,8 @@
       "next": "下一首",
       "repeat": "循环队列",
       "volume": "你听到的音乐音量",
-      "previous": "上一首"
+      "previous": "上一首",
+      "more": "更多音乐操作"
     },
     "queue": {
       "label": "音乐队列",
@@ -2611,13 +2614,15 @@
         "starting": "正在向 Yandex 获取验证码…",
         "confirm": "确认登录后，这里会自动连接",
         "refresh": "获取新验证码"
-      }
+      },
+      "more": "账号操作"
     },
     "mini": {
       "label": "迷你播放器",
       "open": "打开播放器",
       "offer": "开启音乐",
-      "dismiss": "本次会议不再提示"
+      "dismiss": "本次会议不再提示",
+      "openTrack": "{{track}} — 打开播放器"
     }
   },
   "integrations": {

@@ -53,6 +53,7 @@ import { useDurakMotion } from './DurakMotion';
 import { DurakReactions } from './DurakReactions';
 import { TurnRing } from './TurnRing';
 import { useVoiceTier } from './useVoice';
+import { IntegrationBarSlot } from './IntegrationBar';
 import { Avatar, IconButton, useStore } from './primitives';
 
 type SheetKind = 'settings' | 'result' | 'score' | null;
@@ -371,6 +372,8 @@ export default function DurakTable({ meeting, table }: { meeting: Meeting; table
           </small>
         </div>
         <span className="durak-bar-spacer" />
+        {/* Музыка во встрече — мини-плеером в шапке стола, перед кнопками стола (R128). */}
+        <IntegrationBarSlot />
         {table.score.length > 0 && (
           <IconButton label={t(($) => $.durak.score.title)} onClick={() => setSheet('score')}>
             <ListOrdered size={20} />

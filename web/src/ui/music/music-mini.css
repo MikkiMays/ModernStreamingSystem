@@ -1,45 +1,71 @@
 /*
-  Музыка поверх звонка (R31, DESIGN → «Мини-плеер и виджет»). Только токены. Стекло сцены, как у
-  чипов интеграций (`stage-overlay.css`); цвет — площадки, откуда трек (`--platform`): полоса хода
-  внизу и эквалайзер. На телефоне полоса — только обложка и ⏯: остальное — в листе по нажатию.
+  Музыка поверх звонка и в шапке стола (R31, R128, DESIGN → «Мини-плеер и виджет»). Только токены.
+
+  Полоса — «стекло сцены» 320×52, радиус 12: обложка 40, название 13/600 и исполнитель 12 приглушённо
+  (многоточие) — одна кнопка, она открывает виджет; справа ⏮ ⏯ ⏭ по 32, ⏯ — сплошной светлый круг,
+  как в плеере. Ход трека — волосок 2 px по низу цветом текста сцены. Цвета площадки здесь нет.
+  Блок — `.media-stage`: внутри него `--text` и `--surface-*` всегда сценные.
+
+  В шапке стола (`data-placement='bar'`) — та же полоса, но без стекла и тени: тихая плашка 40 на
+  подложке шапки. На телефоне — только обложка и ⏯; остальное — в листе по нажатию на обложку.
 */
 .music-mini {
+  --player-ink: var(--text);
+  --player-on-ink: var(--surface-1);
+  --mini-pad: 6px;
   position: relative;
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--space-1);
   width: 320px;
   max-width: 100%;
-  height: 56px;
-  padding: 0 var(--space-2);
+  height: 52px;
+  padding: var(--mini-pad) var(--space-2) var(--mini-pad) var(--mini-pad);
   overflow: hidden;
   border-radius: var(--radius-3);
   background: var(--stage-glass);
   backdrop-filter: blur(var(--stage-glass-blur));
-  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-1);
-  color: var(--stage-text);
+  box-shadow:
+    inset 0 0 0 var(--hairline) var(--stage-glint-1),
+    var(--shadow-2);
+  color: var(--text);
 }
+
+/* Трек — одна большая кнопка: наведение чуть светлее, нажатие — лёгкое сжатие. Радиус — концентрично полосе. */
 .music-mini__track {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
   height: 100%;
-  padding: 0;
+  padding: 0 var(--space-2) 0 0;
   border: 0;
+  border-radius: calc(var(--radius-3) - var(--mini-pad));
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: start;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+.music-mini__track:hover {
+  background: var(--surface-hover);
+}
+.music-mini__track:active {
+  transform: scale(0.98);
 }
 .music-mini__track:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset-inset);
 }
-.music-mini__track .music-cover {
-  border-radius: var(--radius-0);
+.music-mini .music-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: calc(var(--radius-3) - var(--mini-pad));
 }
 .music-mini__text {
   display: grid;
@@ -56,63 +82,294 @@
 .music-mini__text strong {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
 }
 .music-mini__text small {
-  color: var(--stage-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--muted);
   font-size: var(--text-xs);
+  line-height: var(--leading-tight);
 }
-.music-mini .music-eq {
-  margin-inline-end: var(--space-1);
+.music-mini__text small > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* Ход трека — полоса 2 px по низу, цветом площадки. */
+.music-mini__step.ui-icon-button {
+  color: var(--text-secondary);
+}
+.music-mini__step.ui-icon-button:hover {
+  color: var(--text);
+}
+.music-mini__step.ui-icon-button > svg.lucide {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+/* ⏯ — тот же нейтральный круг, что в плеере, поменьше. */
+.ui-icon-button.music-mini__play {
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border-radius: var(--radius-full);
+  background: var(--player-ink);
+  color: var(--player-on-ink);
+}
+.ui-icon-button.music-mini__play:hover:not(:disabled) {
+  background: var(--player-ink);
+  color: var(--player-on-ink);
+  filter: brightness(1.1);
+}
+.ui-icon-button.music-mini__play > svg.lucide {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.ui-icon-button.music-mini__play[data-icon='play'] > svg {
+  transform: translateX(1px);
+}
+.ui-icon-button.music-mini__play:disabled,
+.music-mini__step.ui-icon-button:disabled {
+  opacity: 0.4;
+}
+
+/* Ход трека — волосок 2 px по низу полосы, между скруглениями углов. */
 .music-mini__progress {
   position: absolute;
-  inset-inline-start: 0;
+  inset-inline: var(--radius-3);
   bottom: 0;
-  width: calc(var(--music-progress, 0) * 100%);
   height: var(--hairline-strong);
-  background: var(--platform, var(--brand-music));
-  transition: width 250ms linear;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.music-mini__progress > i {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--text) 64%, transparent);
+  transform: scaleX(var(--music-progress, 0));
+  transform-origin: left;
+  transition: transform 250ms linear;
 }
 @media (prefers-reduced-motion: reduce) {
-  .music-mini__progress {
+  .music-mini__progress > i {
     transition: none;
   }
+}
+
+/* Музыка есть, трека нет: тем же стеклом — знак и состояние словами; нажатие открывает виджет. */
+.music-mini__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 260px;
+  height: var(--control-sm);
+  padding: 0 var(--space-3) 0 6px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
+  box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-1);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.music-mini__chip:hover {
+  background: var(--stage-glass-strong);
+}
+.music-mini__chip:active {
+  transform: scale(0.98);
+}
+.music-mini__chip:focus-visible,
+.music-offer__chip:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+.music-mini__glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  border-radius: var(--radius-0);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+.music-mini__glyph > svg {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+.music-mini__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Предложение включить музыку — чип-призрак и крестик «не предлагать до конца встречи». */
 .music-offer {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-0-5);
+  gap: var(--space-1);
+  background: transparent;
 }
-.stage-chip.music-offer__chip {
+.music-offer__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-3);
   background: var(--stage-glass);
+  backdrop-filter: blur(var(--stage-glass-blur));
   box-shadow: inset 0 0 0 var(--hairline) var(--stage-glint-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+.music-offer__chip:hover {
+  background: var(--stage-glass-strong);
+}
+.music-offer__chip:active {
+  transform: scale(0.98);
+}
+.music-offer__chip > svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-secondary);
 }
 .music-offer__dismiss.ui-icon-button {
   width: var(--control-xs);
   height: var(--control-xs);
   border-radius: var(--radius-full);
   background: var(--stage-glass);
+  color: var(--text-secondary);
+}
+
+/*
+  В шапке стола: та же полоса, но частью шапки — без стекла и тени, плашка `--surface-hover` высотой
+  40 с радиусом 8; обложка 32 концентрично плашке.
+*/
+.music-mini[data-placement='bar'] {
+  --mini-pad: 4px;
+  width: 296px;
+  height: var(--control-lg);
+  border-radius: var(--radius-2);
+  background: var(--surface-hover);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.music-mini[data-placement='bar'] .music-mini__track {
+  gap: var(--space-2);
+  border-radius: calc(var(--radius-2) - var(--mini-pad));
+}
+.music-mini[data-placement='bar'] .music-cover {
+  width: 32px;
+  height: 32px;
+  border-radius: calc(var(--radius-2) - var(--mini-pad));
+}
+.music-mini[data-placement='bar'] .ui-icon-button {
+  width: var(--control-xs);
+  min-width: var(--control-xs);
+  height: var(--control-xs);
+}
+.music-mini[data-placement='bar'] .music-mini__progress {
+  inset-inline: var(--radius-2);
+}
+.music-mini__chip[data-placement='bar'],
+.music-offer[data-placement='bar'] .music-offer__chip,
+.music-offer[data-placement='bar'] .music-offer__dismiss.ui-icon-button {
+  backdrop-filter: none;
+  background: var(--surface-hover);
+  box-shadow: none;
+}
+.music-mini__chip[data-placement='bar'],
+.music-offer[data-placement='bar'] .music-offer__chip {
+  border-radius: var(--radius-2);
+}
+
+/*
+  Столы задают своим кнопкам высоту под палец (`.durak button` — 44): внутри полосы музыки размер
+  кнопок — свой, иначе ⏮ ⏯ ⏭ вытягиваются в овалы.
+*/
+.music-mini .music-mini__track,
+.music-mini .ui-icon-button,
+.music-offer .music-offer__chip,
+.music-offer .ui-icon-button,
+.integration-bar-slot .music-mini__chip {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Место в шапке стола (`IntegrationBarSlot`): пустое — не занимает места и зазора. */
+.integration-bar-slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-width: 0;
+}
+.integration-bar-slot:empty {
+  display: none;
 }
 
 @media (max-width: 767px) {
+  /* Телефон: обложка и ⏯ — 44 над сценой, 40 в шапке стола; под пальцем ⏯ не меньше 32. */
   .music-mini {
-    flex: none;
+    --mini-pad: 4px;
     width: auto;
+    height: var(--touch-target);
+    padding-inline-end: var(--mini-pad);
+    gap: var(--space-1);
+  }
+  .music-mini .music-cover {
+    width: 36px;
+    height: 36px;
+  }
+  .music-mini .ui-icon-button.music-mini__play {
+    width: var(--control-md);
+    min-width: var(--control-md);
+    height: var(--control-md);
+    min-height: var(--control-md);
+  }
+  .music-mini[data-placement='bar'] {
+    width: auto;
+    height: var(--control-lg);
+  }
+  .music-mini[data-placement='bar'] .music-cover {
+    width: 32px;
+    height: 32px;
+  }
+  .music-mini[data-placement='bar'] .ui-icon-button.music-mini__play {
+    width: var(--control-sm);
+    min-width: var(--control-sm);
     height: var(--control-sm);
-    padding: 0 2px 0 4px;
+    min-height: var(--control-sm);
   }
-  .music-mini__track .music-cover {
-    width: 28px;
-    height: 28px;
+  .music-mini .music-mini__track {
+    flex: none;
+    padding: 0;
   }
-  .music-mini__text,
-  .music-mini .music-eq,
-  .music-mini__step,
-  .music-mini__open {
+  .music-mini .music-mini__text,
+  .music-mini .music-mini__step {
     display: none;
+  }
+  .music-offer[data-placement='bar'] .music-offer__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .music-offer[data-placement='bar'] .music-offer__chip {
+    padding: 0 var(--space-2);
   }
 }

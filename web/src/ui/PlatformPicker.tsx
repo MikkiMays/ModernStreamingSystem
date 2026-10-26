@@ -1,10 +1,10 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { ArrowLeft, CloudOff, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { ArrowLeft, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../core/meeting';
 import type { PlatformArea } from '../core/preferences';
 import { paint, type BrandId } from './brands';
-import { Badge, Button } from './kit';
+import { Badge, Button, Tab, TabList, Tabs } from './kit';
 import { useStore } from './primitives';
 
 /**
@@ -26,7 +26,9 @@ export interface PlatformTile<Id extends string> {
   /** Строка под именем: что на площадке — или почему она сейчас недоступна. */
   note: string;
   icon: LucideIcon;
-  /** Бренд площадки (`ui/brands.ts`): заливка плашки знака, сам знак и цвет выбранной вкладки. */
+  /** Подпись вкладки, если полное имя в плеер не входит: «Яндекс», «Файлы». */
+  short?: string;
+  /** Бренд площадки (`ui/brands.ts`): плашка знака на плитке выбора и знак источника в плеере. */
   brand: BrandId;
   disabled?: boolean;
 }
@@ -134,10 +136,17 @@ export function PlatformPicker<Id extends string>({
 }
 
 /**
- * Площадки вкладками внутри плеера (R44): сменить площадку, где искать, не уходя из музыки. Те же имя,
- * знак и цвет, что у плиток; выбранная — текстом и полосой цвета площадки. Стрелки, Home и End ходят
- * по вкладкам и сразу переключают: смена площадки ничего не грузит. Площадку, до которой сервер не
- * достаёт (`down`, R112), видно на самой вкладке — знаком «нет связи» и подсказкой.
+ * Площадки вкладками внутри плеера (R44, R128): сменить площадку, где искать, не уходя из музыки.
+ * Рисунок — общий переключатель набора (`Tabs segmented sm`, R123: дорожка и плашка в целых
+ * физических пикселях), а не свой: прежние вкладки красили выбранную цветом площадки и рисовали
+ * плашку темнее дорожки. Здесь всё монохромно — цвет площадки остаётся только у знака источника
+ * в «Сейчас играет».
+ *
+ * Подпись — короткое имя («Яндекс», «Файлы»): четыре полных имени со значками в панель 360 не
+ * входят. Полное имя — у вкладки для диктора и подсказкой; в узкой панели (`integrations.css`)
+ * значков нет, в самой узкой остаются одни значки. Стрелки, Home и End ходят по вкладкам и сразу
+ * переключают: смена площадки ничего не грузит. Площадка, до которой сервер не достаёт (`down`,
+ * R112), — приглушённая, с причиной в подсказке; выбрать её можно: там «Повторить».
  */
 export function PlatformTabs<Id extends string>({
   label,
@@ -153,52 +162,26 @@ export function PlatformTabs<Id extends string>({
   /** Почему площадка недоступна с этого сервера — или `null`, если доступна. */
   down?: (id: Id) => string | null;
 }) {
-  const buttons = useRef(new Map<Id, HTMLButtonElement>());
-  const step = (event: KeyboardEvent, index: number) => {
-    const next =
-      event.key === 'ArrowRight'
-        ? index + 1
-        : event.key === 'ArrowLeft'
-          ? index - 1
-          : event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? tiles.length - 1
-              : null;
-    if (next === null || !tiles.length) return;
-    event.preventDefault();
-    const tile = tiles[(next + tiles.length) % tiles.length]!;
-    onPick(tile.id);
-    buttons.current.get(tile.id)?.focus();
-  };
   return (
-    <div className="platform-tabs" role="tablist" aria-label={label}>
-      {tiles.map((tile, index) => {
-        const reason = down?.(tile.id) ?? null;
-        return (
-          <button
-            key={tile.id}
-            ref={(node) => {
-              if (node) buttons.current.set(tile.id, node);
-              else buttons.current.delete(tile.id);
-            }}
-            type="button"
-            role="tab"
-            className="platform-tab"
-            style={paint(tile.brand)}
-            aria-selected={tile.id === current}
-            tabIndex={tile.id === current ? 0 : -1}
-            data-reach={reason ? 'down' : undefined}
-            title={reason ?? undefined}
-            onClick={() => onPick(tile.id)}
-            onKeyDown={(event) => step(event, index)}
-          >
-            <tile.icon size={16} aria-hidden="true" />
-            {tile.name}
-            {reason && <CloudOff className="platform-tab__reach" size={12} aria-hidden="true" />}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs value={current} onValueChange={(value) => onPick(value as Id)} size="sm" className="platform-tabs">
+      <TabList activateOnFocus aria-label={label}>
+        {tiles.map((tile) => {
+          const reason = down?.(tile.id) ?? null;
+          return (
+            <Tab
+              key={tile.id}
+              value={tile.id}
+              className="platform-tab"
+              icon={<tile.icon />}
+              aria-label={tile.name}
+              title={reason ?? tile.name}
+              data-reach={reason ? 'down' : undefined}
+            >
+              {tile.short ?? tile.name}
+            </Tab>
+          );
+        })}
+      </TabList>
+    </Tabs>
   );
 }

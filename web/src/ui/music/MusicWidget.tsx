@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Music2, Unplug } from 'lucide-react';
+import { MoreHorizontal, Music2, Unplug } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Meeting } from '../../core/meeting';
 import { musicSourceName, type MusicTrack } from '../../core/services';
 import { Unreachable } from '../cinema/catalog/notes';
 import { musicHint } from '../integration-shelf';
-import { Button } from '../kit';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from '../kit';
 import { MusicPlayer } from '../MusicPlayer';
 import { MusicQueue } from '../MusicQueue';
 import { MusicSearch } from '../MusicSearch';
@@ -17,9 +17,10 @@ import { YandexIntegration, useYandexAccount } from '../YandexIntegration';
 import type { MusicControl } from './useMusic';
 
 /**
- * Плеер музыки целиком (R44, DESIGN → «Плеер»): площадки вкладками и поиск — внутри плеера, ниже
- * «Сейчас играет», «Далее в очереди» и «Убрать музыку». Один и тот же в панели интеграций и в виджете
- * над звонком (R31): управлять музыкой можно, не переключаясь между интеграциями.
+ * Плеер музыки целиком (R44, R128, DESIGN → «Плеер»): «Сейчас играет» сверху, ниже площадки вкладками
+ * и поле (или зона своих файлов), ещё ниже «Далее в очереди»; «Убрать музыку» — в меню «⋯» у трека.
+ * Один и тот же в панели интеграций и в виджете над звонком (R31): управлять музыкой можно, не
+ * переключаясь между интеграциями.
  *
  * ПОРЯДОК — ЭТО ПОВЕДЕНИЕ, А НЕ ОФОРМЛЕНИЕ. Пока музыки во встрече нет, плеер предлагает ровно одно
  * действие — добавить её: треки в очередь без бота складывались бы, но играть их было бы некому. Вход
@@ -153,26 +154,34 @@ function MusicBody({ meeting, music }: { meeting: Meeting; music: MusicControl }
     </>
   );
 
+  /*
+    «Убрать музыку из встречи» — пункт меню «⋯» у названия, а не красная строка под очередью (R128):
+    действие редкое, и подтверждение ему не нужно — очередь живёт на службе ещё десять минут.
+  */
+  const menu = can('music.remove') ? (
+    <Menu>
+      <MenuTrigger
+        disabled={music.busy}
+        render={
+          <IconButton size="sm" className="music-now__more" label={t(($) => $.music.player.more)}>
+            <MoreHorizontal />
+          </IconButton>
+        }
+      />
+      <MenuContent align="end">
+        <MenuItem icon={<Unplug />} destructive onClick={music.disable}>
+          {t(($) => $.services.music.remove)}
+        </MenuItem>
+      </MenuContent>
+    </Menu>
+  ) : null;
+
+  /*
+    Сверху — то, что звучит (R128): открыли музыку — видно трек и ⏯, как в любом плеере. Ниже — чем
+    добавить (площадки и поле), ещё ниже — очередь.
+  */
   return (
     <>
-      {platform ? (
-        <PlatformTabs
-          label={t(($) => $.music.platforms.label)}
-          tiles={tiles}
-          current={platform}
-          onPick={(id) => choose(id)}
-          down={(id) =>
-            id !== 'upload' && music.unreachable(id)
-              ? t(($) => $.cinema.reach.unreachable, { name: musicSourceName(t, id) })
-              : null
-          }
-        />
-      ) : (
-        <p className="music-panel__note">{t(($) => $.music.platforms.none)}</p>
-      )}
-      {!can('integrations.use') && <p className="music-panel__note">{t(($) => $.services.music.locked)}</p>}
-      {/* Добавлять — тем, кому разрешены интеграции; остальным поле только обещало бы отказ. */}
-      {can('integrations.use') && adder}
       <MusicPlayer
         state={state}
         canUse={canUse}
@@ -181,12 +190,33 @@ function MusicBody({ meeting, music }: { meeting: Meeting; music: MusicControl }
         onCommand={music.command}
         onSeek={(position) => music.command('seek', { position }, { position })}
         behind={() => meeting.media.musicPlayoutMs()}
+        actions={menu}
       />
       {state.error && (
         <p className="services-error" role="alert">
           {state.error}
         </p>
       )}
+      <div className="music-add">
+        {platform ? (
+          <PlatformTabs
+            label={t(($) => $.music.platforms.label)}
+            tiles={tiles}
+            current={platform}
+            onPick={(id) => choose(id)}
+            down={(id) =>
+              id !== 'upload' && music.unreachable(id)
+                ? t(($) => $.cinema.reach.unreachable, { name: musicSourceName(t, id) })
+                : null
+            }
+          />
+        ) : (
+          <p className="music-panel__note">{t(($) => $.music.platforms.none)}</p>
+        )}
+        {!can('integrations.use') && <p className="music-panel__note">{t(($) => $.services.music.locked)}</p>}
+        {/* Добавлять — тем, кому разрешены интеграции; остальным поле только обещало бы отказ. */}
+        {can('integrations.use') && adder}
+      </div>
       <MusicQueue
         state={state}
         canUse={canUse}
@@ -197,17 +227,6 @@ function MusicBody({ meeting, music }: { meeting: Meeting; music: MusicControl }
           music.command('move', { trackId: track.id, index }, patch)
         }
       />
-      {can('music.remove') && (
-        <Button
-          variant="quiet"
-          className="music-panel__remove"
-          icon={<Unplug />}
-          loading={music.busy}
-          onClick={music.disable}
-        >
-          {t(($) => $.services.music.remove)}
-        </Button>
-      )}
     </>
   );
 }

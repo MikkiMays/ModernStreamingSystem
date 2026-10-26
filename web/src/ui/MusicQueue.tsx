@@ -3,9 +3,7 @@ import { GripVertical, ListStart, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { musicSourceName, type MusicState, type MusicTrack } from '../core/services';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from './kit';
-import { paint } from './brands';
 import { MusicCover } from './MusicCover';
-import { sourceBrand } from './music-platforms';
 import { afterMove, afterPromote, afterRemove, dropIndex, formatDuration } from './music-playback';
 
 interface Drag {
@@ -165,17 +163,16 @@ export function MusicQueue({
                 }}
                 onKeyDown={(event) => step(track, index, event)}
               >
-                <GripVertical size={16} aria-hidden="true" />
+                <GripVertical aria-hidden="true" />
               </button>
+              {/* Мышью ручка лежит на обложке и видна по наведению; пальцем — своей колонкой слева. */}
               <MusicCover track={track} />
               <div className="music-queue__text">
                 <strong>{track.title}</strong>
                 <small>
                   <span>{track.artist || track.addedBy}</span>
-                  {/* Источник — когда панель шире: на узкой он отнял бы место у названия. */}
-                  <span className="music-queue__source" style={paint(sourceBrand(track.source))}>
-                    {musicSourceName(t, track.source)}
-                  </span>
+                  {/* Источник — тихим текстом, когда панель шире: на узкой он отнял бы место у названия. */}
+                  <span className="music-queue__source">{musicSourceName(t, track.source)}</span>
                 </small>
               </div>
               <span className="music-queue__time">{formatDuration(track.duration)}</span>

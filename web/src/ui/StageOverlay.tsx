@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Clapperboard, Club, Crown, Music2, Pencil, Spade, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Snapshot } from '../api/types';
 import type { Meeting } from '../core/meeting';
 import type { MusicState } from '../core/services';
 import type { Translate } from '../i18n';
+import { useIntegrationBarSlot } from './IntegrationBar';
 import { MusicMini, useMusicMini } from './music/MusicMini';
 import { useStore } from './primitives';
 import './stage-overlay.css';
@@ -19,7 +21,8 @@ import './stage-overlay.css';
  * музыка; нажатие открывает панель интеграций. Пустой слой не видно и диктору не слышно.
  *
  * Музыка здесь — мини-плеер (R31, `music/MusicMini`): играет трек — полоса с ⏮ ⏯ ⏭ и виджетом плеера по
- * нажатию; идёт игра, а музыки нет, — предложение её включить. `children` — ещё что-то в тот же ряд.
+ * нажатию на трек; идёт игра, а музыки нет, — предложение её включить. За столом игры мини-плеер и
+ * предложение уходят в шапку стола (`IntegrationBarSlot`, R128). `children` — ещё что-то в тот же ряд.
  */
 export type ChipKind = 'poker' | 'durak' | 'chess' | 'gartic' | 'cinema' | 'music';
 
@@ -172,8 +175,14 @@ export function StageOverlay({
   // Музыка — мини-плеером или предложением её включить (R31), а не чипом, который открывал панель:
   // виджет управляет музыкой, не переключая интеграции. Чипы — игра и кино.
   const mini = useMusicMini(meeting);
+  /*
+    Сцену занимает стол игры — у его шапки есть место для музыки (R128): мини-плеер встаёт туда
+    порталом, частью шапки, а не плашкой поверх стола. Состояние и открытый виджет — те же.
+  */
+  const slot = useIntegrationBarSlot();
   const chips = stageChips(t, snapshot, { present: false }, stageShows(snapshot, !!viewing));
-  const empty = chips.length === 0 && mini.view.kind === 'none' && !children;
+  const empty = chips.length === 0 && (mini.view.kind === 'none' || !!slot) && !children;
+  const music = <MusicMini meeting={meeting} mini={mini} placement={slot ? 'bar' : 'stage'} />;
   return (
     <div
       className="stage-overlay"
@@ -207,7 +216,7 @@ export function StageOverlay({
           </button>
         );
       })}
-      <MusicMini meeting={meeting} mini={mini} />
+      {slot ? createPortal(music, slot) : music}
       {children}
     </div>
   );

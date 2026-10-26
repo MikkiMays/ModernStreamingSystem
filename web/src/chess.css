@@ -694,3 +694,8 @@
     animation: none;
   }
 }
+
+/* Музыка во встрече (R128): мини-плеер — в шапке доски, перед её кнопками. */
+.chess-bar-slot {
+  margin-inline-end: var(--space-2);
+}

@@ -2523,3 +2523,11 @@ input.games-stack-input:focus-visible {
 .hand-ranks-cards em[data-red] {
   color: var(--card-red);
 }
+
+/* Музыка во встрече (R128): мини-плеер — частью полосы стола, справа перед кнопками ведущего. */
+.poker-bar > .integration-bar-slot {
+  margin-inline-start: auto;
+}
+.poker-bar > .integration-bar-slot:not(:empty) + .poker-host-actions {
+  margin-left: 0;
+}

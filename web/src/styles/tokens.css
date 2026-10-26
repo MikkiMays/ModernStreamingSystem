@@ -404,6 +404,8 @@
     0 0 0 1px rgb(16 22 36 / 0.06);
   --scrim: rgb(16 22 36 / 0.45);
   --loader-bg: var(--palette-mist-50);
+  /* Цвет обложки под «Сейчас играет» (R128, смешение `color` — светлота карточки не меняется). */
+  --player-glow: 0.7;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%235f6878' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   --brand-youtube-text: var(--palette-brand-youtube-on-light);
   --brand-soundcloud-text: var(--palette-brand-soundcloud-on-light);
@@ -461,6 +463,7 @@
     inset 0 1px 0 rgb(255 255 255 / 0.06);
   --scrim: rgb(0 0 0 / 0.6);
   --loader-bg: var(--palette-ink-900);
+  --player-glow: 0.8;
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
   --brand-youtube-text: var(--palette-brand-youtube-on-dark);
   --brand-soundcloud-text: var(--palette-brand-soundcloud-on-dark);
@@ -517,6 +520,7 @@
       inset 0 1px 0 rgb(255 255 255 / 0.06);
     --scrim: rgb(0 0 0 / 0.6);
     --loader-bg: var(--palette-ink-900);
+    --player-glow: 0.8;
     --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%238d97a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
     --brand-youtube-text: var(--palette-brand-youtube-on-dark);
     --brand-soundcloud-text: var(--palette-brand-soundcloud-on-dark);

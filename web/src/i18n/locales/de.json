@@ -2536,12 +2536,14 @@
       "yandex": {
         "hint": "Katalog über das Konto des Raums",
         "find": "In Yandex Music suchen oder Link einfügen",
-        "link": "Link zu einem Yandex-Music-Titel"
+        "link": "Link zu einem Yandex-Music-Titel",
+        "short": "Yandex"
       },
       "upload": {
         "name": "Eigene Dateien",
         "hint": "Audiodateien von diesem Gerät",
-        "drop": "Zieh Audiodateien hierher"
+        "drop": "Zieh Audiodateien hierher",
+        "short": "Dateien"
       }
     },
     "player": {
@@ -2564,7 +2566,8 @@
       "next": "Nächster Titel",
       "repeat": "Warteschlange wiederholen",
       "volume": "Deine Musiklautstärke",
-      "previous": "Vorheriger Titel"
+      "previous": "Vorheriger Titel",
+      "more": "Weitere Musikaktionen"
     },
     "queue": {
       "label": "Musik-Warteschlange",
@@ -2641,13 +2644,15 @@
         "starting": "Code wird bei Yandex angefordert…",
         "confirm": "Bestätige die Anmeldung – die Verbindung erscheint hier von selbst",
         "refresh": "Neuen Code holen"
-      }
+      },
+      "more": "Kontoaktionen"
     },
     "mini": {
       "label": "Mini-Player",
       "open": "Player öffnen",
       "offer": "Musik einschalten",
-      "dismiss": "In diesem Meeting nicht mehr vorschlagen"
+      "dismiss": "In diesem Meeting nicht mehr vorschlagen",
+      "openTrack": "{{track}} — Player öffnen"
     }
   },
   "integrations": {

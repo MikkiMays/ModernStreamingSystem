@@ -511,6 +511,9 @@
   border-radius: var(--tab-radius);
   background: var(--surface-2);
 }
+.ui-tabs--segmented.ui-tabs--sm .ui-tabs__list {
+  height: var(--tab-h-sm);
+}
 .ui-tabs__indicator,
 .ui-segmented__indicator {
   position: absolute;
@@ -1440,6 +1443,7 @@
     min-height: var(--touch-target);
   }
   .ui-tabs--segmented .ui-tabs__list,
+  .ui-tabs--segmented.ui-tabs--sm .ui-tabs__list,
   .ui-segmented {
     height: var(--touch-target);
   }

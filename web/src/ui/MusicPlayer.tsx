@@ -1,13 +1,23 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Pause, Play, Repeat2, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  Pause,
+  Play,
+  Repeat2,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  Volume1,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { coverUrl, musicSourceName, type MusicState } from '../core/services';
+import { coverUrl, musicSourceName, type MusicSource, type MusicState } from '../core/services';
 import type { Translate } from '../i18n';
 import { paint } from './brands';
 import { IconButton, Slider } from './kit';
 import { MusicCover } from './MusicCover';
 import { afterPrevious, afterSkip, formatDuration, playbackPosition } from './music-playback';
-import { sourceBrand } from './music-platforms';
+import { sourceBrand, sourceIcon } from './music-platforms';
 
 export type PlayerAction = 'play' | 'pause' | 'skip' | 'previous' | 'shuffle' | 'repeat';
 
@@ -60,13 +70,18 @@ export function usePlayback(state: MusicState, behind?: () => number) {
 }
 
 /**
- * «Сейчас играет» (R44, по r103-32): «Сейчас играет · площадка», обложка, название, исполнитель и
- * состояние звука; игла с временем по краям; shuffle · ⏮ · ⏯ · ⏭ · repeat; громкость у себя. Цвет —
- * площадки, откуда трек (`brands.ts`, R33): полоса иглы, круг ⏯ и эквалайзер — красный YouTube,
- * жёлтый Яндекс, зелёный своих файлов; кнопки приложения остаются цветом Cord.
+ * «Сейчас играет» (R44, R128): обложка крупно, название, исполнитель и одна тихая строка — знак
+ * источника, площадка и что со звуком (эквалайзер или «На паузе»); игла с временем под ней;
+ * shuffle · ⏮ · ⏯ · ⏭ · repeat; громкость у себя.
+ *
+ * Монохром (R128, владелец: «внутри плеера стало ужасно пестро»): игла, громкость и круг ⏯ —
+ * цветом текста, а не площадки; цвет площадки — только у крошечного знака источника. Круг ⏯ —
+ * сплошной: в тёмной теме светлый, в светлой — тёмный. Подсветка карточки — размытая обложка
+ * (`data-backdrop`), едва заметная: текст на ней остаётся AA в обеих темах.
  *
  * ⏮ — как у любого плеера: дольше трёх секунд трека — с начала, иначе предыдущий трек (служба помнит
- * сыгранные, `previous`). Перетаскивание иглы не шлёт `seek`, пока её не отпустили.
+ * сыгранные, `previous`). Перетаскивание иглы не шлёт `seek`, пока её не отпустили. `actions` — меню
+ * «⋯» рядом с названием («Убрать музыку из встречи»).
  */
 export function MusicPlayer({
   state,
@@ -76,6 +91,7 @@ export function MusicPlayer({
   onCommand,
   onSeek,
   behind,
+  actions,
 }: {
   state: MusicState;
   canUse: boolean;
@@ -85,8 +101,11 @@ export function MusicPlayer({
   onSeek: (position: number) => void;
   /** На сколько миллисекунд мы слышим музыку позже издателя. */
   behind?: () => number;
+  /** Рядом с названием: меню «⋯». */
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
+  const id = useId();
   const current = state.queue[0];
   const playing = soundsNow(state);
   const [dragging, setDragging] = useState<number | null>(null);
@@ -96,45 +115,58 @@ export function MusicPlayer({
     onSeek(value);
   };
   const percent = Math.round(volume * 100);
-  const backdrop = current?.cover ? { '--music-cover': `url("${coverUrl(current.cover)}")` } : {};
-  const style = { ...paint(sourceBrand(current?.source ?? 'upload')), ...backdrop } as CSSProperties;
+  const backdrop = current?.cover
+    ? ({ '--music-cover': `url("${coverUrl(current.cover)}")` } as CSSProperties)
+    : undefined;
+  const paused = state.paused || !current;
   return (
     <section
       className="music-now"
-      aria-label={t(($) => $.music.player.label)}
+      aria-labelledby={`${id}-label`}
       data-playing={playing || undefined}
+      data-empty={!current || undefined}
       data-backdrop={current?.cover ? 'true' : undefined}
-      style={style}
+      style={backdrop}
     >
-      <h4 className="music-now__label">
+      <h4 className="music-now__label" id={`${id}-label`}>
         {t(($) => $.music.player.label)}
-        {current && <span className="music-now__source">{musicSourceName(t, current.source)}</span>}
       </h4>
       <div className="music-now__head">
-        <span className="music-now__art">
-          <MusicCover track={current} size="lg" />
-        </span>
+        <MusicCover track={current} size="lg" />
         <div className="music-now__meta">
-          <strong className="music-now__title">
-            {current?.title ?? t(($) => $.music.player.firstTrack)}
-          </strong>
+          <div className="music-now__line">
+            <strong className="music-now__title">
+              {current?.title ?? t(($) => $.music.player.firstTrack)}
+            </strong>
+            {actions}
+          </div>
           <span className="music-now__artist">
             {current
               ? current.artist || t(($) => $.music.player.addedBy, { name: current.addedBy })
               : t(($) => $.music.player.emptyHint)}
           </span>
           {current && (
-            <span className="music-now__status" data-sounding={playing || undefined}>
-              {playing && <Equalizer />}
-              {playerStatus(t, state)}
+            <span className="music-now__source">
+              <SourceMark source={current.source} />
+              <span className="music-now__from">{musicSourceName(t, current.source)}</span>
+              <span className="music-now__status" data-sounding={playing || undefined}>
+                {playing ? (
+                  <>
+                    <Equalizer />
+                    <span className="music-now__said">{playerStatus(t, state)}</span>
+                  </>
+                ) : (
+                  playerStatus(t, state)
+                )}
+              </span>
             </span>
           )}
         </div>
       </div>
       {current && (
         <div className="music-now__progress">
-          <span className="music-now__time">{formatDuration(dragging ?? position)}</span>
           <Slider
+            className="music-scrub"
             min={0}
             max={Math.max(1, current.duration)}
             step={1}
@@ -144,72 +176,73 @@ export function MusicPlayer({
             onChange={(e) => setDragging(Number(e.target.value))}
             onValueCommitted={commit}
           />
+          <span className="music-now__time">{formatDuration(dragging ?? position)}</span>
           <span className="music-now__time">{formatDuration(current.duration)}</span>
         </div>
       )}
-      <div className="music-now__controls">
-        <IconButton
-          label={t(($) => $.music.player.shuffle)}
-          className="music-now__toggle"
-          disabled={!canUse || state.queue.length < 3}
-          onClick={() => onCommand('shuffle')}
-        >
-          <Shuffle size={20} />
-        </IconButton>
-        <IconButton
-          label={t(($) => $.music.player.previous)}
-          className="music-now__step"
-          disabled={!canUse || !current}
-          onClick={() => onCommand('previous', undefined, afterPrevious(position))}
-        >
-          <SkipBack size={20} />
-        </IconButton>
-        <IconButton
-          label={state.paused ? t(($) => $.music.player.resume) : t(($) => $.music.player.pause)}
-          size="lg"
-          className="music-now__play"
-          disabled={!canUse || !current}
-          onClick={() =>
-            onCommand(state.paused ? 'play' : 'pause', undefined, {
-              paused: !state.paused,
-              status: state.paused ? 'playing' : 'paused',
-            })
-          }
-        >
-          {state.paused || !current ? <Play size={24} /> : <Pause size={24} />}
-        </IconButton>
-        <IconButton
-          label={t(($) => $.music.player.next)}
-          className="music-now__step"
-          disabled={!canUse || !current}
-          onClick={() => onCommand('skip', undefined, afterSkip(state))}
-        >
-          <SkipForward size={20} />
-        </IconButton>
-        <IconButton
-          label={t(($) => $.music.player.repeat)}
-          className="music-now__toggle"
-          aria-pressed={state.repeat}
-          data-on={state.repeat || undefined}
-          disabled={!canUse}
-          onClick={() => onCommand('repeat', { enabled: !state.repeat }, { repeat: !state.repeat })}
-        >
-          <Repeat2 size={20} />
-        </IconButton>
-      </div>
-      {state.participantId && (
-        <div className="music-now__volume" title={t(($) => $.music.player.volume)}>
-          {percent === 0 ? (
-            <VolumeX size={16} aria-hidden="true" />
-          ) : (
-            <Volume2 size={16} aria-hidden="true" />
-          )}
+      {/* Пусто — карточка зовёт добавить трек, а не показывает пульт, которым нечего играть. */}
+      {current && (
+        <div className="music-now__controls">
+          <IconButton
+            label={t(($) => $.music.player.shuffle)}
+            className="music-now__toggle"
+            disabled={!canUse || state.queue.length < 3}
+            onClick={() => onCommand('shuffle')}
+          >
+            <Shuffle />
+          </IconButton>
+          <IconButton
+            label={t(($) => $.music.player.previous)}
+            className="music-now__step"
+            disabled={!canUse || !current}
+            onClick={() => onCommand('previous', undefined, afterPrevious(position))}
+          >
+            <SkipBack fill="currentColor" />
+          </IconButton>
+          <IconButton
+            label={state.paused ? t(($) => $.music.player.resume) : t(($) => $.music.player.pause)}
+            className="music-play"
+            data-icon={paused ? 'play' : 'pause'}
+            disabled={!canUse || !current}
+            onClick={() =>
+              onCommand(state.paused ? 'play' : 'pause', undefined, {
+                paused: !state.paused,
+                status: state.paused ? 'playing' : 'paused',
+              })
+            }
+          >
+            {paused ? <Play fill="currentColor" /> : <Pause fill="currentColor" />}
+          </IconButton>
+          <IconButton
+            label={t(($) => $.music.player.next)}
+            className="music-now__step"
+            disabled={!canUse || !current}
+            onClick={() => onCommand('skip', undefined, afterSkip(state))}
+          >
+            <SkipForward fill="currentColor" />
+          </IconButton>
+          <IconButton
+            label={t(($) => $.music.player.repeat)}
+            className="music-now__toggle"
+            aria-pressed={state.repeat}
+            data-on={state.repeat || undefined}
+            disabled={!canUse}
+            onClick={() => onCommand('repeat', { enabled: !state.repeat }, { repeat: !state.repeat })}
+          >
+            <Repeat2 />
+          </IconButton>
+        </div>
+      )}
+      {current && state.participantId && (
+        <div className="music-now__volume" title={`${t(($) => $.music.player.volume)}: ${percent}%`}>
+          {percent === 0 ? <VolumeX aria-hidden="true" /> : <Volume1 aria-hidden="true" />}
           {/*
             Музыке усиление не положено. Тихий собеседник — это случайность его микрофона, и
             её честно исправлять усилением; трек же приходит сведённым и на своём уровне, и
             всё сверх 100 % — это не «громче», а клиппинг. Потолок в 200 % остаётся у людей.
           */}
           <Slider
+            className="music-scrub"
             min={0}
             max={100}
             step={1}
@@ -217,16 +250,27 @@ export function MusicPlayer({
             label={t(($) => $.music.player.volume)}
             onChange={(e) => onVolume(Number(e.target.value) / 100)}
           />
-          <output className="music-now__percent" aria-hidden="true">
-            {percent}%
-          </output>
+          <Volume2 aria-hidden="true" />
         </div>
       )}
     </section>
   );
 }
 
-/** Три полоски цвета площадки: единственное, что движется само, — потому что это звук. */
+/**
+ * Знак источника — единственное место цвета площадки в плеере (R128): квадратик 16 с её знаком,
+ * рядом с её именем. Кнопки, вкладки, игла и круг ⏯ площадку не повторяют.
+ */
+export function SourceMark({ source }: { source: MusicSource }) {
+  const Icon = sourceIcon(source);
+  return (
+    <span className="music-source-mark" style={paint(sourceBrand(source))} aria-hidden="true">
+      <Icon />
+    </span>
+  );
+}
+
+/** Три полоски цветом текста рядом: единственное, что движется само, — потому что это звук. */
 export function Equalizer() {
   return (
     <span className="music-eq" aria-hidden="true">
