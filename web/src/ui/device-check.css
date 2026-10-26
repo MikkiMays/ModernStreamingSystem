@@ -109,7 +109,7 @@
 .device-check__wave {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   height: var(--icon-lg);
 }
 .device-check__wave > span {
