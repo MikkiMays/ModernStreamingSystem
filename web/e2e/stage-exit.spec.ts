@@ -28,7 +28,9 @@ const player = (page: Page) =>
       : null;
   });
 
-test('кинозал: «Все участники» — сетка и чёлка, фильм тот же и идёт в такт; G — назад', async ({ browser }) => {
+test('кинозал: «Все участники» — сетка и чёлка, фильм тот же и идёт в такт; G — назад', async ({
+  browser,
+}) => {
   test.slow();
   const first = await context(browser);
   const second = await context(browser);
